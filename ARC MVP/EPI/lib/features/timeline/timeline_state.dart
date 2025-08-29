@@ -1,0 +1,68 @@
+import 'package:equatable/equatable.dart';
+import 'package:my_app/features/timeline/timeline_entry_model.dart';
+
+enum TimelineFilter { all, textOnly, withArcform }
+
+class TimelineMonthGroup extends Equatable {
+  final String month;
+  final List<TimelineEntry> entries;
+
+  const TimelineMonthGroup({
+    required this.month,
+    required this.entries,
+  });
+
+  @override
+  List<Object?> get props => [month, entries];
+}
+
+abstract class TimelineState extends Equatable {
+  const TimelineState();
+
+  @override
+  List<Object?> get props => [];
+}
+
+class TimelineInitial extends TimelineState {
+  const TimelineInitial();
+}
+
+class TimelineLoading extends TimelineState {
+  const TimelineLoading();
+}
+
+class TimelineLoaded extends TimelineState {
+  final List<TimelineMonthGroup> groupedEntries;
+  final TimelineFilter filter;
+  final bool hasMore;
+
+  const TimelineLoaded({
+    required this.groupedEntries,
+    required this.filter,
+    required this.hasMore,
+  });
+
+  TimelineLoaded copyWith({
+    List<TimelineMonthGroup>? groupedEntries,
+    TimelineFilter? filter,
+    bool? hasMore,
+  }) {
+    return TimelineLoaded(
+      groupedEntries: groupedEntries ?? this.groupedEntries,
+      filter: filter ?? this.filter,
+      hasMore: hasMore ?? this.hasMore,
+    );
+  }
+
+  @override
+  List<Object?> get props => [groupedEntries, filter, hasMore];
+}
+
+class TimelineError extends TimelineState {
+  final String message;
+
+  const TimelineError({required this.message});
+
+  @override
+  List<Object?> get props => [message];
+}
