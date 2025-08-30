@@ -1,3 +1,4 @@
+import 'dart:math';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:my_app/features/arcforms/arcform_renderer_state.dart';
 import 'package:hive/hive.dart';
@@ -221,8 +222,8 @@ class ArcformRendererCubit extends Cubit<ArcformRendererState> {
   }
 
   /// Simple math functions
-  double _cos(double angle) => (angle * 180 / 3.14159).cos;
-  double _sin(double angle) => (angle * 180 / 3.14159).sin;
+  double _cos(double angle) => cos(angle);
+  double _sin(double angle) => sin(angle);
 
   void updateNodePosition(String nodeId, double x, double y) {
     if (state is ArcformRendererLoaded) {
