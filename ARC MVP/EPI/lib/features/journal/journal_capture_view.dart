@@ -30,6 +30,7 @@ class _JournalCaptureViewState extends State<JournalCaptureView> {
   bool _showVoiceRecorder = false;
   bool _showKeywordExtraction = false;
   bool _isSaving = false;
+  List<String> _selectedKeywords = [];
 
   @override
   void initState() {
@@ -76,13 +77,6 @@ class _JournalCaptureViewState extends State<JournalCaptureView> {
       return;
     }
 
-    // Get selected keywords from KeywordExtractionCubit
-    List<String> selectedKeywords = [];
-    final keywordState = context.read<KeywordExtractionCubit>().state;
-    if (keywordState is KeywordExtractionLoaded) {
-      selectedKeywords = keywordState.selectedKeywords;
-    }
-
     setState(() {
       _isSaving = true;
     });
@@ -90,7 +84,7 @@ class _JournalCaptureViewState extends State<JournalCaptureView> {
     context.read<JournalCaptureCubit>().saveEntry(
           content: content,
           mood: _selectedMood,
-          selectedKeywords: selectedKeywords.isNotEmpty ? selectedKeywords : null,
+          selectedKeywords: _selectedKeywords.isNotEmpty ? _selectedKeywords : null,
         );
   }
 
@@ -112,36 +106,50 @@ class _JournalCaptureViewState extends State<JournalCaptureView> {
           create: (context) => KeywordExtractionCubit()..initialize(),
         ),
       ],
-      child: BlocListener<JournalCaptureCubit, JournalCaptureState>(
-        listener: (context, state) {
-          if (state is JournalCaptureSaved) {
-            _textController.clear();
-            setState(() {
-              _selectedMood = '';
-              _showVoiceRecorder = false;
-              _isSaving = false;
-            });
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Entry saved successfully'),
-                backgroundColor: kcSuccessColor,
-              ),
-            );
-            Navigator.pop(context);
-          } else if (state is JournalCaptureError) {
-            setState(() {
-              _isSaving = false;
-            });
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('Failed to save entry: ${state.message}'),
-                backgroundColor: kcDangerColor,
-              ),
-            );
-          } else if (state is JournalCaptureTranscribed) {
-            _textController.text = state.transcription;
-          }
-        },
+      child: MultiBlocListener(
+        listeners: [
+          BlocListener<JournalCaptureCubit, JournalCaptureState>(
+            listener: (context, state) {
+              if (state is JournalCaptureSaved) {
+                _textController.clear();
+                setState(() {
+                  _selectedMood = '';
+                  _showVoiceRecorder = false;
+                  _isSaving = false;
+                  _selectedKeywords = []; // Clear selected keywords
+                });
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Entry saved successfully'),
+                    backgroundColor: kcSuccessColor,
+                  ),
+                );
+                Navigator.pop(context);
+              } else if (state is JournalCaptureError) {
+                setState(() {
+                  _isSaving = false;
+                });
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Failed to save entry: ${state.message}'),
+                    backgroundColor: kcDangerColor,
+                  ),
+                );
+              } else if (state is JournalCaptureTranscribed) {
+                _textController.text = state.transcription;
+              }
+            },
+          ),
+          BlocListener<KeywordExtractionCubit, KeywordExtractionState>(
+            listener: (context, state) {
+              if (state is KeywordExtractionLoaded) {
+                setState(() {
+                  _selectedKeywords = state.selectedKeywords;
+                });
+              }
+            },
+          ),
+        ],
         child: Scaffold(
           backgroundColor: kcBackgroundColor,
           appBar: AppBar(
