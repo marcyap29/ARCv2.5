@@ -44,10 +44,16 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
     }
   }
 
-  void saveEntry({required String content, required String mood}) async {
+  void saveEntry({
+    required String content, 
+    required String mood, 
+    List<String>? selectedKeywords,
+  }) async {
     try {
-      // Extract keywords using ARC MVP keyword extractor
-      final keywords = SimpleKeywordExtractor.extractKeywords(content);
+      // Use selected keywords if provided, otherwise extract from content
+      final keywords = selectedKeywords?.isNotEmpty == true 
+          ? selectedKeywords! 
+          : SimpleKeywordExtractor.extractKeywords(content);
       
       final now = DateTime.now();
       final entry = JournalEntry(
@@ -65,13 +71,14 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
       // Save the entry first
       await _journalRepository.createJournalEntry(entry);
 
-      // Process SAGE annotation in background
+      // Emit saved state immediately - don't wait for background processing
+      emit(JournalCaptureSaved());
+
+      // Process SAGE annotation in background (don't await)
       _processSAGEAnnotation(entry);
 
-      // Create Arcform using ARC MVP service
+      // Create Arcform using ARC MVP service (don't await)
       _createArcformSnapshot(entry);
-
-      emit(JournalCaptureSaved());
     } catch (e) {
       emit(JournalCaptureError('Failed to save entry: ${e.toString()}'));
     }
