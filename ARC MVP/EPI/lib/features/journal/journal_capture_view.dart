@@ -29,6 +29,7 @@ class _JournalCaptureViewState extends State<JournalCaptureView> {
   String _selectedMood = '';
   bool _showVoiceRecorder = false;
   bool _showKeywordExtraction = false;
+  bool _isSaving = false;
 
   @override
   void initState() {
@@ -53,8 +54,34 @@ class _JournalCaptureViewState extends State<JournalCaptureView> {
   }
 
   void _onSavePressed() {
+    final content = _textController.text.trim();
+    
+    if (content.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please write something before saving'),
+          backgroundColor: kcDangerColor,
+        ),
+      );
+      return;
+    }
+
+    if (_selectedMood.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please select a mood before saving'),
+          backgroundColor: kcDangerColor,
+        ),
+      );
+      return;
+    }
+
+    setState(() {
+      _isSaving = true;
+    });
+
     context.read<JournalCaptureCubit>().saveEntry(
-          content: _textController.text,
+          content: content,
           mood: _selectedMood,
         );
   }
@@ -84,6 +111,7 @@ class _JournalCaptureViewState extends State<JournalCaptureView> {
             setState(() {
               _selectedMood = '';
               _showVoiceRecorder = false;
+              _isSaving = false;
             });
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
@@ -92,6 +120,16 @@ class _JournalCaptureViewState extends State<JournalCaptureView> {
               ),
             );
             Navigator.pop(context);
+          } else if (state is JournalCaptureError) {
+            setState(() {
+              _isSaving = false;
+            });
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Failed to save entry: ${state.message}'),
+                backgroundColor: kcDangerColor,
+              ),
+            );
           } else if (state is JournalCaptureTranscribed) {
             _textController.text = state.transcription;
           }
@@ -105,14 +143,23 @@ class _JournalCaptureViewState extends State<JournalCaptureView> {
               Padding(
                 padding: const EdgeInsets.only(right: 16.0),
                 child: ElevatedButton(
-                  onPressed: _onSavePressed,
+                  onPressed: _isSaving ? null : _onSavePressed,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: kcPrimaryColor,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(8.0),
                     ),
                   ),
-                  child: Text('Save', style: buttonStyle(context)),
+                  child: _isSaving 
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                        ),
+                      )
+                    : Text('Save', style: buttonStyle(context)),
                 ),
               ),
             ],
