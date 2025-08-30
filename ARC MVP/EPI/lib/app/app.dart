@@ -7,6 +7,8 @@ import 'package:my_app/features/startup/startup_view.dart';
 // Global repo + cubit
 import 'package:my_app/repositories/journal_repository.dart';
 import 'package:my_app/features/timeline/timeline_cubit.dart';
+import 'package:my_app/features/journal/journal_capture_cubit.dart';
+import 'package:my_app/features/journal/keyword_extraction_cubit.dart';
 
 class App extends StatelessWidget {
   const App({super.key});
@@ -25,6 +27,14 @@ class App extends StatelessWidget {
             create: (context) =>
                 TimelineCubit(journalRepository: context.read<JournalRepository>())
                   ..loadEntries(),
+          ),
+          // Journal capture cubit for creating new entries
+          BlocProvider(
+            create: (context) => JournalCaptureCubit(context.read<JournalRepository>()),
+          ),
+          // Keyword extraction cubit for analyzing text
+          BlocProvider(
+            create: (context) => KeywordExtractionCubit(),
           ),
         ],
         child: MaterialApp(

@@ -46,11 +46,12 @@ class _HomeViewState extends State<HomeView> {
       value: _homeCubit,
       child: BlocBuilder<HomeCubit, HomeState>(
         builder: (context, state) {
+          final currentIndex = state is HomeLoaded ? state.selectedIndex : 0;
           return Scaffold(
-            body: _pages[_homeCubit.currentIndex],
+            body: _pages[currentIndex],
             bottomNavigationBar: CustomTabBar(
               tabs: _tabs,
-              selectedIndex: _homeCubit.currentIndex,
+              selectedIndex: currentIndex,
               onTabSelected: _homeCubit.changeTab,
               height: 80,
             ),
