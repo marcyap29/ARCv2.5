@@ -46,12 +46,11 @@ class _HomeViewState extends State<HomeView> {
       value: _homeCubit,
       child: BlocBuilder<HomeCubit, HomeState>(
         builder: (context, state) {
-          final currentIndex = state is HomeLoaded ? state.selectedIndex : 0;
           return Scaffold(
-            body: _pages[currentIndex],
+            body: _pages[_homeCubit.currentIndex],
             bottomNavigationBar: CustomTabBar(
               tabs: _tabs,
-              selectedIndex: currentIndex,
+              selectedIndex: _homeCubit.currentIndex,
               onTabSelected: _homeCubit.changeTab,
               height: 80,
             ),
@@ -68,14 +67,14 @@ class _InsightsPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      decoration: BoxDecoration(
+      decoration: const BoxDecoration(
         gradient: kcPrimaryGradient,
       ),
       child: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
+            const Icon(
               Icons.insights,
               size: 64,
               color: kcPrimaryTextColor,
