@@ -96,17 +96,7 @@ class _JournalCaptureViewState extends State<JournalCaptureView> {
 
   @override
   Widget build(BuildContext context) {
-    return MultiBlocProvider(
-      providers: [
-        BlocProvider(
-          create: (context) =>
-              JournalCaptureCubit(context.read<JournalRepository>()),
-        ),
-        BlocProvider(
-          create: (context) => KeywordExtractionCubit()..initialize(),
-        ),
-      ],
-      child: MultiBlocListener(
+    return MultiBlocListener(
         listeners: [
           BlocListener<JournalCaptureCubit, JournalCaptureState>(
             listener: (context, state) {
@@ -279,103 +269,105 @@ class _JournalCaptureViewState extends State<JournalCaptureView> {
                 ),
                 const SizedBox(height: 24),
 
-                // Keyword extraction section
-                Card(
-                  color: kcSurfaceAltColor,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              'Keywords',
-                              style:
-                                  heading1Style(context).copyWith(fontSize: 18),
-                            ),
-                            IconButton(
-                              icon: Icon(
-                                _showKeywordExtraction
-                                    ? Icons.keyboard_arrow_up
-                                    : Icons.keyboard_arrow_down,
-                                color: kcPrimaryColor,
+                // Keyword extraction section - only show when there's meaningful text
+                if (_textController.text.trim().split(' ').length >= 10)
+                  Card(
+                    color: kcSurfaceAltColor,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                'Keywords',
+                                style:
+                                    heading1Style(context).copyWith(fontSize: 18),
                               ),
-                              onPressed: () {
-                                setState(() {
-                                  _showKeywordExtraction =
-                                      !_showKeywordExtraction;
-                                });
-                                if (_showKeywordExtraction) {
-                                  context
-                                      .read<KeywordExtractionCubit>()
-                                      .extractKeywords(_textController.text);
+                              IconButton(
+                                icon: Icon(
+                                  _showKeywordExtraction
+                                      ? Icons.keyboard_arrow_up
+                                      : Icons.keyboard_arrow_down,
+                                  color: kcPrimaryColor,
+                                ),
+                                onPressed: () {
+                                  setState(() {
+                                    _showKeywordExtraction =
+                                        !_showKeywordExtraction;
+                                  });
+                                  if (_showKeywordExtraction) {
+                                    context
+                                        .read<KeywordExtractionCubit>()
+                                        .extractKeywords(_textController.text);
+                                  }
+                                },
+                              ),
+                            ],
+                          ),
+                          if (_showKeywordExtraction) ...[
+                            const SizedBox(height: 16),
+                            BlocBuilder<KeywordExtractionCubit,
+                                KeywordExtractionState>(
+                              builder: (context, state) {
+                                if (state is KeywordExtractionLoading) {
+                                  return const Center(
+                                    child: CircularProgressIndicator(),
+                                  );
                                 }
+
+                                if (state is KeywordExtractionLoaded) {
+                                  return Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'Choose the words that matter most',
+                                        style: heading2Style(context),
+                                      ),
+                                      const SizedBox(height: 16),
+                                      Text(
+                                        'Select 5-10 keywords that best represent your entry',
+                                        style: captionStyle(context),
+                                      ),
+                                      const SizedBox(height: 16),
+                                      Wrap(
+                                        spacing: 8,
+                                        runSpacing: 8,
+                                        children: state.suggestedKeywords
+                                            .map((keyword) => _buildKeywordChip(
+                                                keyword, state.selectedKeywords))
+                                            .toList(),
+                                      ),
+                                      const SizedBox(height: 16),
+                                      if (state.selectedKeywords.length < 5)
+                                        Text(
+                                          'Please select at least 5 keywords',
+                                          style: errorStyle(context),
+                                        )
+                                      else if (state.selectedKeywords.length > 10)
+                                        Text(
+                                          'Please select no more than 10 keywords',
+                                          style: errorStyle(context),
+                                        ),
+                                    ],
+                                  );
+                                }
+
+                                return const SizedBox.shrink();
                               },
                             ),
                           ],
-                        ),
-                        if (_showKeywordExtraction) ...[
-                          const SizedBox(height: 16),
-                          BlocBuilder<KeywordExtractionCubit,
-                              KeywordExtractionState>(
-                            builder: (context, state) {
-                              if (state is KeywordExtractionLoading) {
-                                return const Center(
-                                  child: CircularProgressIndicator(),
-                                );
-                              }
-
-                              if (state is KeywordExtractionLoaded) {
-                                return Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      'Choose the words that matter most',
-                                      style: heading2Style(context),
-                                    ),
-                                    const SizedBox(height: 16),
-                                    Text(
-                                      'Select 5-10 keywords that best represent your entry',
-                                      style: captionStyle(context),
-                                    ),
-                                    const SizedBox(height: 16),
-                                    Wrap(
-                                      spacing: 8,
-                                      runSpacing: 8,
-                                      children: state.suggestedKeywords
-                                          .map((keyword) => _buildKeywordChip(
-                                              keyword, state.selectedKeywords))
-                                          .toList(),
-                                    ),
-                                    const SizedBox(height: 16),
-                                    if (state.selectedKeywords.length < 5)
-                                      Text(
-                                        'Please select at least 5 keywords',
-                                        style: errorStyle(context),
-                                      )
-                                    else if (state.selectedKeywords.length > 10)
-                                      Text(
-                                        'Please select no more than 10 keywords',
-                                        style: errorStyle(context),
-                                      ),
-                                  ],
-                                );
-                              }
-
-                              return const SizedBox.shrink();
-                            },
-                          ),
                         ],
-                      ],
+                      ),
                     ),
                   ),
-                ),
-                const SizedBox(height: 24),
+                if (_textController.text.trim().split(' ').length >= 10)
+                  const SizedBox(height: 24),
 
                 // Text editor
                 Expanded(
@@ -403,7 +395,6 @@ class _JournalCaptureViewState extends State<JournalCaptureView> {
             ),
           ),
         ),
-      ),
     );
   }
 
