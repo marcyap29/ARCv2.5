@@ -76,6 +76,13 @@ class _JournalCaptureViewState extends State<JournalCaptureView> {
       return;
     }
 
+    // Get selected keywords from KeywordExtractionCubit
+    List<String> selectedKeywords = [];
+    final keywordState = context.read<KeywordExtractionCubit>().state;
+    if (keywordState is KeywordExtractionLoaded) {
+      selectedKeywords = keywordState.selectedKeywords;
+    }
+
     setState(() {
       _isSaving = true;
     });
@@ -83,6 +90,7 @@ class _JournalCaptureViewState extends State<JournalCaptureView> {
     context.read<JournalCaptureCubit>().saveEntry(
           content: content,
           mood: _selectedMood,
+          selectedKeywords: selectedKeywords.isNotEmpty ? selectedKeywords : null,
         );
   }
 
