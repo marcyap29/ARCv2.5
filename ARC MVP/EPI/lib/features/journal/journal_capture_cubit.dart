@@ -56,7 +56,7 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
         content: content,
         createdAt: now,
         updatedAt: now,
-        tags: [], // Tags could be extracted from content in a more advanced implementation
+        tags: const [], // Tags could be extracted from content in a more advanced implementation
         mood: mood,
         audioUri: _audioPath,
         keywords: keywords, // Now populated with extracted keywords
@@ -84,7 +84,7 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
       await Future.delayed(const Duration(seconds: 2));
 
       // Generate simulated SAGE annotation
-      final annotation = SAGEAnnotation(
+      const annotation = SAGEAnnotation(
         situation:
             "User described a situation involving work challenges and personal reflection",
         action:
@@ -160,7 +160,7 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
     if (status.isGranted) {
       emit(JournalCapturePermissionGranted());
     } else {
-      emit(JournalCapturePermissionDenied(
+      emit(const JournalCapturePermissionDenied(
           'Microphone permission is required to record audio.'));
     }
   }
@@ -170,7 +170,7 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
       if (!_isRecording) {
         final status = await Permission.microphone.status;
         if (!status.isGranted) {
-          emit(JournalCapturePermissionDenied(
+          emit(const JournalCapturePermissionDenied(
               'Microphone permission is required to record audio.'));
           return;
         }
@@ -255,7 +255,7 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
   Future<void> transcribeAudio() async {
     try {
       if (_audioPath == null) {
-        emit(JournalCaptureError('No audio recording found'));
+        emit(const JournalCaptureError('No audio recording found'));
         return;
       }
 

@@ -215,7 +215,7 @@ Future<void> bootstrap({
         options.profilesSampleRate = 1.0;
 
         // Add additional context to Sentry reports
-        options.beforeSend = (SentryEvent event, {dynamic hint}) {
+        options.beforeSend = (SentryEvent event, Hint hint) {
           event.contexts['environment'] = flavor.toString();
           event.extra?['isWeb'] = kIsWeb;
           return event;

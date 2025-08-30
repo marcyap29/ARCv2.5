@@ -119,12 +119,8 @@ class OnboardingCubit extends Cubit<OnboardingState> {
   }
 
   void _navigateToHome() {
-    // Use the root navigator to ensure we navigate to the home screen properly
-    Navigator.of(pageController.context, rootNavigator: true)
-        .pushAndRemoveUntil(
-      MaterialPageRoute(builder: (context) => const HomeView()),
-      (route) => false,
-    );
+    // Navigation will be handled by the widget after onboarding completion
+    // This method is now just a placeholder - actual navigation happens in OnboardingView
   }
 
   @override

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:my_app/features/onboarding/onboarding_cubit.dart';
 import 'package:my_app/features/onboarding/onboarding_state.dart';
+import 'package:my_app/features/home/home_view.dart';
 import 'package:my_app/shared/app_colors.dart';
 import 'package:my_app/shared/text_style.dart';
 
@@ -22,9 +23,18 @@ class OnboardingViewContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return BlocBuilder<OnboardingCubit, OnboardingState>(
-      builder: (context, state) {
-        return Scaffold(
+    return BlocListener<OnboardingCubit, OnboardingState>(
+      listener: (context, state) {
+        if (state.isCompleted) {
+          Navigator.of(context).pushAndRemoveUntil(
+            MaterialPageRoute(builder: (context) => const HomeView()),
+            (route) => false,
+          );
+        }
+      },
+      child: BlocBuilder<OnboardingCubit, OnboardingState>(
+        builder: (context, state) {
+          return Scaffold(
           body: Container(
             decoration: const BoxDecoration(
               gradient: kcPrimaryGradient,
@@ -93,7 +103,8 @@ class OnboardingViewContent extends StatelessWidget {
             ),
           ),
         );
-      },
+        },
+      ),
     );
   }
 }
