@@ -12,8 +12,10 @@ class HomeInitial extends HomeState {
 }
 
 class HomeLoaded extends HomeState {
-  const HomeLoaded();
+  final int selectedIndex;
+  
+  const HomeLoaded({this.selectedIndex = 0});
 
   @override
-  List<Object> get props => [];
+  List<Object> get props => [selectedIndex];
 }
