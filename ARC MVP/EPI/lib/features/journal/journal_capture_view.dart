@@ -4,9 +4,13 @@ import 'package:my_app/features/journal/journal_capture_cubit.dart';
 import 'package:my_app/features/journal/journal_capture_state.dart';
 import 'package:my_app/features/journal/keyword_extraction_cubit.dart';
 import 'package:my_app/features/journal/keyword_extraction_state.dart';
+import 'package:my_app/features/home/home_cubit.dart';
+import 'package:my_app/features/arcforms/arcform_mvp_implementation.dart';
 import 'package:my_app/repositories/journal_repository.dart';
 import 'package:my_app/shared/app_colors.dart';
 import 'package:my_app/shared/text_style.dart';
+import 'package:my_app/shared/in_app_notification.dart';
+import 'package:my_app/shared/arcform_intro_animation.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 class JournalCaptureView extends StatefulWidget {
@@ -58,21 +62,21 @@ class _JournalCaptureViewState extends State<JournalCaptureView> {
     final content = _textController.text.trim();
     
     if (content.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please write something before saving'),
-          backgroundColor: kcDangerColor,
-        ),
+      InAppNotification.show(
+        context: context,
+        message: 'Please write something before saving',
+        type: NotificationType.info,
+        duration: const Duration(seconds: 2),
       );
       return;
     }
 
     if (_selectedMood.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please select a mood before saving'),
-          backgroundColor: kcDangerColor,
-        ),
+      InAppNotification.show(
+        context: context,
+        message: 'Please select a mood before saving',
+        type: NotificationType.info,
+        duration: const Duration(seconds: 3),
       );
       return;
     }
@@ -101,6 +105,7 @@ class _JournalCaptureViewState extends State<JournalCaptureView> {
           BlocListener<JournalCaptureCubit, JournalCaptureState>(
             listener: (context, state) {
               if (state is JournalCaptureSaved) {
+                final entryContent = _textController.text;
                 _textController.clear();
                 setState(() {
                   _selectedMood = '';
@@ -108,22 +113,53 @@ class _JournalCaptureViewState extends State<JournalCaptureView> {
                   _isSaving = false;
                   _selectedKeywords = []; // Clear selected keywords
                 });
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Entry saved successfully'),
-                    backgroundColor: kcSuccessColor,
-                  ),
+
+                // Show elegant in-app notification
+                InAppNotification.show(
+                  context: context,
+                  message: 'Entry saved successfully',
+                  type: NotificationType.success,
+                  duration: const Duration(seconds: 2),
                 );
-                Navigator.pop(context);
+
+                // Navigate to Timeline tab
+                final homeCubit = context.read<HomeCubit>();
+                homeCubit.changeTab(2); // Timeline is tab index 2
+
+                // Show Arcform introduction animation after a brief delay
+                Future.delayed(const Duration(milliseconds: 1000), () {
+                  final arcforms = SimpleArcformStorage.getAllArcforms();
+                  if (arcforms.isNotEmpty) {
+                    final latestArcform = arcforms.last;
+                    
+                    ArcformIntroAnimation.show(
+                      context: context,
+                      arcform: latestArcform,
+                      entryTitle: _generateTitle(entryContent),
+                      onComplete: () {
+                        // Show follow-up notification with action
+                        InAppNotification.showArcformGenerated(
+                          context: context,
+                          entryTitle: _generateTitle(entryContent),
+                          arcformType: _getGeometryDisplayName(latestArcform.geometry),
+                          onViewPressed: () {
+                            // Switch to Arcforms tab to view the generated form
+                            homeCubit.changeTab(1); // Arcforms tab is index 1
+                          },
+                        );
+                      },
+                    );
+                  }
+                });
               } else if (state is JournalCaptureError) {
                 setState(() {
                   _isSaving = false;
                 });
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('Failed to save entry: ${state.message}'),
-                    backgroundColor: kcDangerColor,
-                  ),
+                InAppNotification.show(
+                  context: context,
+                  message: 'Failed to save entry: ${state.message}',
+                  type: NotificationType.error,
+                  duration: const Duration(seconds: 4),
                 );
               } else if (state is JournalCaptureTranscribed) {
                 _textController.text = state.transcription;
@@ -268,106 +304,6 @@ class _JournalCaptureViewState extends State<JournalCaptureView> {
                   ),
                 ),
                 const SizedBox(height: 24),
-
-                // Keyword extraction section - only show when there's meaningful text
-                if (_textController.text.trim().split(' ').length >= 10)
-                  Card(
-                    color: kcSurfaceAltColor,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Padding(
-                      padding: const EdgeInsets.all(16.0),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(
-                                'Keywords',
-                                style:
-                                    heading1Style(context).copyWith(fontSize: 18),
-                              ),
-                              IconButton(
-                                icon: Icon(
-                                  _showKeywordExtraction
-                                      ? Icons.keyboard_arrow_up
-                                      : Icons.keyboard_arrow_down,
-                                  color: kcPrimaryColor,
-                                ),
-                                onPressed: () {
-                                  setState(() {
-                                    _showKeywordExtraction =
-                                        !_showKeywordExtraction;
-                                  });
-                                  if (_showKeywordExtraction) {
-                                    context
-                                        .read<KeywordExtractionCubit>()
-                                        .extractKeywords(_textController.text);
-                                  }
-                                },
-                              ),
-                            ],
-                          ),
-                          if (_showKeywordExtraction) ...[
-                            const SizedBox(height: 16),
-                            BlocBuilder<KeywordExtractionCubit,
-                                KeywordExtractionState>(
-                              builder: (context, state) {
-                                if (state is KeywordExtractionLoading) {
-                                  return const Center(
-                                    child: CircularProgressIndicator(),
-                                  );
-                                }
-
-                                if (state is KeywordExtractionLoaded) {
-                                  return Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        'Choose the words that matter most',
-                                        style: heading2Style(context),
-                                      ),
-                                      const SizedBox(height: 16),
-                                      Text(
-                                        'Select 5-10 keywords that best represent your entry',
-                                        style: captionStyle(context),
-                                      ),
-                                      const SizedBox(height: 16),
-                                      Wrap(
-                                        spacing: 8,
-                                        runSpacing: 8,
-                                        children: state.suggestedKeywords
-                                            .map((keyword) => _buildKeywordChip(
-                                                keyword, state.selectedKeywords))
-                                            .toList(),
-                                      ),
-                                      const SizedBox(height: 16),
-                                      if (state.selectedKeywords.length < 5)
-                                        Text(
-                                          'Please select at least 5 keywords',
-                                          style: errorStyle(context),
-                                        )
-                                      else if (state.selectedKeywords.length > 10)
-                                        Text(
-                                          'Please select no more than 10 keywords',
-                                          style: errorStyle(context),
-                                        ),
-                                    ],
-                                  );
-                                }
-
-                                return const SizedBox.shrink();
-                              },
-                            ),
-                          ],
-                        ],
-                      ),
-                    ),
-                  ),
-                if (_textController.text.trim().split(' ').length >= 10)
-                  const SizedBox(height: 24),
 
                 // Text editor
                 Expanded(
@@ -652,5 +588,31 @@ class _JournalCaptureViewState extends State<JournalCaptureView> {
     final minutes = twoDigits(duration.inMinutes.remainder(60));
     final seconds = twoDigits(duration.inSeconds.remainder(60));
     return "$minutes:$seconds";
+  }
+
+  String _generateTitle(String content) {
+    // Simple title generation from first few words
+    final words = content.split(' ');
+    if (words.isEmpty) return 'Untitled';
+
+    final titleWords = words.take(3);
+    return '${titleWords.join(' ')}${words.length > 3 ? '...' : ''}';
+  }
+
+  String _getGeometryDisplayName(ArcformGeometry geometry) {
+    switch (geometry) {
+      case ArcformGeometry.spiral:
+        return 'Spiral';
+      case ArcformGeometry.flower:
+        return 'Flower';
+      case ArcformGeometry.branch:
+        return 'Branch';
+      case ArcformGeometry.weave:
+        return 'Weave';
+      case ArcformGeometry.glowCore:
+        return 'Glow Core';
+      case ArcformGeometry.fractal:
+        return 'Fractal';
+    }
   }
 }

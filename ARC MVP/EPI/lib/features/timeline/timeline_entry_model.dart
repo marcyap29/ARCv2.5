@@ -6,6 +6,7 @@ class TimelineEntry extends Equatable {
   final String monthYear;
   final String preview;
   final bool hasArcform;
+  final List<String> keywords;
 
   const TimelineEntry({
     required this.id,
@@ -13,8 +14,9 @@ class TimelineEntry extends Equatable {
     required this.monthYear,
     required this.preview,
     required this.hasArcform,
+    this.keywords = const [],
   });
 
   @override
-  List<Object?> get props => [id, date, monthYear, preview, hasArcform];
+  List<Object?> get props => [id, date, monthYear, preview, hasArcform, keywords];
 }
