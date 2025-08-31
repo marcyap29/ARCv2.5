@@ -112,6 +112,7 @@ class TimelineCubit extends Cubit<TimelineState> {
             ? entry.content
             : 'Entry with Arcform snapshot', // Fallback if no content
         hasArcform: entry.sageAnnotation != null,
+        keywords: entry.keywords,
       );
     }).toList();
   }
