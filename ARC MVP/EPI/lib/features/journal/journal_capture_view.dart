@@ -128,7 +128,10 @@ class _JournalCaptureViewState extends State<JournalCaptureView> {
 
                 // Show Arcform introduction animation after a brief delay
                 Future.delayed(const Duration(milliseconds: 1000), () {
-                  final arcforms = SimpleArcformStorage.getAllArcforms();
+                  // Check if widget is still mounted before accessing context
+                  if (!mounted) return;
+                  
+                  final arcforms = SimpleArcformStorage.loadAllArcforms();
                   if (arcforms.isNotEmpty) {
                     final latestArcform = arcforms.last;
                     
@@ -137,14 +140,20 @@ class _JournalCaptureViewState extends State<JournalCaptureView> {
                       arcform: latestArcform,
                       entryTitle: _generateTitle(entryContent),
                       onComplete: () {
+                        // Check if widget is still mounted before showing follow-up notification
+                        if (!mounted) return;
+                        
                         // Show follow-up notification with action
                         InAppNotification.showArcformGenerated(
                           context: context,
                           entryTitle: _generateTitle(entryContent),
                           arcformType: _getGeometryDisplayName(latestArcform.geometry),
                           onViewPressed: () {
-                            // Switch to Arcforms tab to view the generated form
-                            homeCubit.changeTab(1); // Arcforms tab is index 1
+                            // Check if still mounted before navigation
+                            if (mounted) {
+                              // Switch to Arcforms tab to view the generated form
+                              homeCubit.changeTab(1); // Arcforms tab is index 1
+                            }
                           },
                         );
                       },
