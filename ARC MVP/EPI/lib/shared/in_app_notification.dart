@@ -24,7 +24,12 @@ class InAppNotification {
     // Remove any existing notification
     dismiss();
 
+    // Check if context is still mounted before accessing Overlay
+    if (!context.mounted) return;
+
     final overlay = Overlay.of(context);
+    if (overlay == null) return;
+
     _currentOverlay = OverlayEntry(
       builder: (context) => _NotificationWidget(
         message: message,
@@ -46,6 +51,9 @@ class InAppNotification {
     required String arcformType,
     VoidCallback? onViewPressed,
   }) {
+    // Check if context is still mounted before showing notification
+    if (!context.mounted) return;
+    
     show(
       context: context,
       message: 'Your entry "$entryTitle" became a $arcformType Arcform',
@@ -131,7 +139,9 @@ class _NotificationWidgetState extends State<_NotificationWidget>
   }
 
   void _dismiss() async {
-    await _animationController.reverse();
+    if (mounted) {
+      await _animationController.reverse();
+    }
     widget.onDismiss();
   }
 

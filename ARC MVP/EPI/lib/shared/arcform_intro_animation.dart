@@ -15,7 +15,12 @@ class ArcformIntroAnimation {
     // Remove any existing animation
     dismiss();
 
+    // Check if context is still mounted before accessing Overlay
+    if (!context.mounted) return;
+
     final overlay = Overlay.of(context);
+    if (overlay == null) return;
+
     _currentOverlay = OverlayEntry(
       builder: (context) => _ArcformIntroWidget(
         arcform: arcform,
@@ -140,11 +145,13 @@ class _ArcformIntroWidgetState extends State<_ArcformIntroWidget>
 
   void _dismiss() async {
     _rotationController.stop();
-    await Future.wait([
-      _backdropController.reverse(),
-      _scaleController.reverse(),
-      _particleController.reverse(),
-    ]);
+    if (mounted) {
+      await Future.wait([
+        _backdropController.reverse(),
+        _scaleController.reverse(),
+        _particleController.reverse(),
+      ]);
+    }
     
     widget.onComplete?.call();
     widget.onDismiss();
