@@ -162,7 +162,7 @@ class ArcformRendererCubit extends Cubit<ArcformRendererState> {
     
     for (final keyword in keywords) {
       final color = _getEmotionalColor(keyword);
-      colorMap[keyword] = '#${color.value.toRadixString(16).padLeft(8, '0').substring(2)}';
+      colorMap[keyword] = color.toString();
     }
     
     return colorMap;
