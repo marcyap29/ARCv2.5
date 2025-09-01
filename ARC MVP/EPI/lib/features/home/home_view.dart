@@ -47,7 +47,9 @@ class _HomeViewState extends State<HomeView> {
       child: BlocBuilder<HomeCubit, HomeState>(
         builder: (context, state) {
           return Scaffold(
-            body: _pages[_homeCubit.currentIndex],
+            body: SafeArea(
+              child: _pages[_homeCubit.currentIndex],
+            ),
             bottomNavigationBar: CustomTabBar(
               tabs: _tabs,
               selectedIndex: _homeCubit.currentIndex,

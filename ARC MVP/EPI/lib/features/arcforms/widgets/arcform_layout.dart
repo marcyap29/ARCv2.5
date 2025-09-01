@@ -322,9 +322,9 @@ class _ArcformLayoutState extends State<ArcformLayout>
     final geometryNodes = _calculateGeometryNodes();
     final size = MediaQuery.of(context).size;
 
-    return Scaffold(
-      backgroundColor: kcBackgroundColor,
-      body: Stack(
+    return Container(
+      color: kcBackgroundColor,
+      child: Stack(
         children: [
           // Edges
           CustomPaint(
@@ -343,11 +343,11 @@ class _ArcformLayoutState extends State<ArcformLayout>
               onMoved: widget.onNodeMoved,
             );
           }),
-          // Geometry selector
+          // Geometry selector - positioned more safely
           Positioned(
-            top: 20,
-            left: 20,
-            right: 20,
+            top: 10,
+            left: 16,
+            right: 16,
             child: Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
