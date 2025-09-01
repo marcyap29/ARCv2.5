@@ -6,6 +6,7 @@ import 'package:my_app/repositories/journal_repository.dart';
 import 'package:my_app/features/journal/sage_annotation_model.dart';
 import 'package:my_app/models/arcform_snapshot_model.dart';
 import 'package:my_app/features/arcforms/arcform_mvp_implementation.dart';
+import 'package:my_app/features/arcforms/phase_recommender.dart';
 import 'package:uuid/uuid.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:path_provider/path_provider.dart';
@@ -130,6 +131,45 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
     }
   }
 
+  void saveEntryWithKeywords({
+    required String content,
+    required String mood,
+    required List<String> selectedKeywords,
+    String? emotion,
+    String? emotionReason,
+  }) async {
+    try {
+      final now = DateTime.now();
+      final entry = JournalEntry(
+        id: const Uuid().v4(),
+        title: _generateTitle(content),
+        content: content,
+        createdAt: now,
+        updatedAt: now,
+        tags: const [],
+        mood: mood,
+        audioUri: _audioPath,
+        keywords: selectedKeywords,
+        emotion: emotion,
+        emotionReason: emotionReason,
+      );
+
+      // Save the entry first
+      await _journalRepository.createJournalEntry(entry);
+
+      // Emit saved state immediately - don't wait for background processing
+      emit(JournalCaptureSaved());
+
+      // Process SAGE annotation in background (don't await)
+      _processSAGEAnnotation(entry);
+
+      // Create Arcform using the enhanced starter experience (will get phase via recommender)
+      _createArcformWithPhaseRecommendation(entry, emotion, emotionReason);
+    } catch (e) {
+      emit(JournalCaptureError('Failed to save entry: ${e.toString()}'));
+    }
+  }
+
   void _processSAGEAnnotation(JournalEntry entry) async {
     try {
       // In a real implementation, this would call an AI service
@@ -239,6 +279,60 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
       print('Phase-aware Arcform created: $phase (${arcform.geometry.name}) with ${arcform.keywords.length} keywords');
     } catch (e) {
       print('Phase-aware Arcform snapshot creation failed: $e');
+    }
+  }
+
+  void _createArcformWithPhaseRecommendation(JournalEntry entry, String? emotion, String? emotionReason) async {
+    try {
+      // Use phase recommender to get the appropriate phase
+      final recommendedPhase = PhaseRecommender.recommend(
+        emotion: emotion ?? '',
+        reason: emotionReason ?? '',
+        text: entry.content,
+      );
+      
+      final rationale = PhaseRecommender.rationale(recommendedPhase);
+
+      // Create Arcform using the ARC MVP service with recommended phase
+      final arcformService = ArcformMVPService();
+      final arcform = arcformService.createArcformFromEntryWithPhase(
+        entryId: entry.id,
+        title: entry.title,
+        content: entry.content,
+        mood: entry.mood,
+        keywords: entry.keywords,
+        phase: recommendedPhase,
+        userConsentedPhase: false, // User hasn't been asked yet
+      );
+
+      // Save to SimpleArcformStorage (in-memory for now)
+      SimpleArcformStorage.saveArcform(arcform);
+
+      // Also save as ArcformSnapshot with phase information
+      final snapshot = ArcformSnapshot(
+        id: const Uuid().v4(),
+        arcformId: entry.id,
+        data: {
+          'keywords': arcform.keywords,
+          'geometry': arcform.geometry.name,
+          'colorMap': arcform.colorMap,
+          'edges': arcform.edges,
+          'phaseHint': arcform.phaseHint,
+          'phase': recommendedPhase,
+          'userConsentedPhase': false,
+          'recommendationRationale': rationale,
+        },
+        timestamp: arcform.createdAt,
+        notes: 'Generated from journal entry with recommended phase: $recommendedPhase',
+      );
+
+      // Save the snapshot to Hive
+      final snapshotBox = await Hive.openBox<ArcformSnapshot>('arcform_snapshots');
+      await snapshotBox.put(snapshot.id, snapshot);
+      
+      print('Arcform created: $recommendedPhase with ${arcform.keywords.length} keywords');
+    } catch (e) {
+      print('Phase-recommendation Arcform creation failed: $e');
     }
   }
 

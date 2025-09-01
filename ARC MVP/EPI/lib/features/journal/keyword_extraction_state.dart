@@ -33,3 +33,12 @@ class KeywordExtractionLoaded extends KeywordExtractionState {
     );
   }
 }
+
+class KeywordExtractionError extends KeywordExtractionState {
+  final String message;
+
+  const KeywordExtractionError(this.message);
+
+  @override
+  List<Object> get props => [message];
+}

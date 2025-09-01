@@ -3,7 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:my_app/features/journal/journal_capture_cubit.dart';
 import 'package:my_app/features/journal/journal_capture_state.dart';
 import 'package:my_app/features/journal/keyword_extraction_cubit.dart';
-import 'package:my_app/features/journal/keyword_extraction_state.dart';
+import 'package:my_app/features/journal/widgets/keyword_analysis_view.dart';
 import 'package:my_app/shared/app_colors.dart';
 import 'package:my_app/shared/text_style.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -34,7 +34,6 @@ class _JournalCaptureViewState extends State<JournalCaptureView> {
   ];
   String _selectedMood = '';
   bool _showVoiceRecorder = false;
-  bool _showKeywordExtraction = false;
 
   @override
   void initState() {
@@ -63,11 +62,45 @@ class _JournalCaptureViewState extends State<JournalCaptureView> {
     context.read<JournalCaptureCubit>().updateDraft(_textController.text);
   }
 
-  void _onSavePressed() {
-    context.read<JournalCaptureCubit>().saveEntry(
-          content: _textController.text,
-          mood: _selectedMood,
-        );
+  void _onAnalyzePressed() async {
+    // Validate that we have content to analyze
+    if (_textController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please write something before analyzing'),
+          backgroundColor: kcDangerColor,
+        ),
+      );
+      return;
+    }
+
+    // Navigate to keyword analysis screen
+    final result = await Navigator.of(context).push<Map<String, dynamic>>(
+      MaterialPageRoute(
+        builder: (context) => BlocProvider.value(
+          value: context.read<KeywordExtractionCubit>(),
+          child: KeywordAnalysisView(
+            content: _textController.text,
+            mood: _selectedMood,
+            initialEmotion: widget.initialEmotion,
+            initialReason: widget.initialReason,
+          ),
+        ),
+      ),
+    );
+
+    // Handle save result
+    if (result != null && result['save'] == true) {
+      final selectedKeywords = result['selectedKeywords'] as List<String>? ?? [];
+      
+      context.read<JournalCaptureCubit>().saveEntryWithKeywords(
+        content: _textController.text,
+        mood: _selectedMood,
+        selectedKeywords: selectedKeywords,
+        emotion: widget.initialEmotion,
+        emotionReason: widget.initialReason,
+      );
+    }
   }
 
   void _onMoodSelected(String mood) {
@@ -106,14 +139,14 @@ class _JournalCaptureViewState extends State<JournalCaptureView> {
               Padding(
                 padding: const EdgeInsets.only(right: 16.0),
                 child: ElevatedButton(
-                  onPressed: _onSavePressed,
+                  onPressed: _onAnalyzePressed,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: kcPrimaryColor,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(8.0),
                     ),
                   ),
-                  child: Text('Save', style: buttonStyle(context)),
+                  child: Text('Analyze', style: buttonStyle(context)),
                 ),
               ),
             ],
@@ -283,104 +316,6 @@ class _JournalCaptureViewState extends State<JournalCaptureView> {
                 ),
                 const SizedBox(height: 24),
 
-                // Keyword extraction section
-                Card(
-                  color: kcSurfaceAltColor,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              'Keywords',
-                              style:
-                                  heading1Style(context).copyWith(fontSize: 18),
-                            ),
-                            IconButton(
-                              icon: Icon(
-                                _showKeywordExtraction
-                                    ? Icons.keyboard_arrow_up
-                                    : Icons.keyboard_arrow_down,
-                                color: kcPrimaryColor,
-                              ),
-                              onPressed: () {
-                                setState(() {
-                                  _showKeywordExtraction =
-                                      !_showKeywordExtraction;
-                                });
-                                if (_showKeywordExtraction) {
-                                  context
-                                      .read<KeywordExtractionCubit>()
-                                      .extractKeywords(_textController.text);
-                                }
-                              },
-                            ),
-                          ],
-                        ),
-                        if (_showKeywordExtraction) ...[
-                          const SizedBox(height: 16),
-                          BlocBuilder<KeywordExtractionCubit,
-                              KeywordExtractionState>(
-                            builder: (context, state) {
-                              if (state is KeywordExtractionLoading) {
-                                return const Center(
-                                  child: CircularProgressIndicator(),
-                                );
-                              }
-
-                              if (state is KeywordExtractionLoaded) {
-                                return Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      'Choose the words that matter most',
-                                      style: heading2Style(context),
-                                    ),
-                                    const SizedBox(height: 16),
-                                    Text(
-                                      'Select 5-10 keywords that best represent your entry',
-                                      style: captionStyle(context),
-                                    ),
-                                    const SizedBox(height: 16),
-                                    Wrap(
-                                      spacing: 8,
-                                      runSpacing: 8,
-                                      children: state.suggestedKeywords
-                                          .map((keyword) => _buildKeywordChip(
-                                              keyword, state.selectedKeywords))
-                                          .toList(),
-                                    ),
-                                    const SizedBox(height: 16),
-                                    if (state.selectedKeywords.length < 5)
-                                      Text(
-                                        'Please select at least 5 keywords',
-                                        style: errorStyle(context),
-                                      )
-                                    else if (state.selectedKeywords.length > 10)
-                                      Text(
-                                        'Please select no more than 10 keywords',
-                                        style: errorStyle(context),
-                                      ),
-                                  ],
-                                );
-                              }
-
-                              return const SizedBox.shrink();
-                            },
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 24),
-
                 // Text editor
                 Expanded(
                   child: TextField(
@@ -412,31 +347,6 @@ class _JournalCaptureViewState extends State<JournalCaptureView> {
       );
   }
 
-  Widget _buildKeywordChip(String keyword, List<String> selectedKeywords) {
-    final isSelected = selectedKeywords.contains(keyword);
-    return GestureDetector(
-      onTap: () {
-        context.read<KeywordExtractionCubit>().toggleKeyword(keyword);
-      },
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-        decoration: BoxDecoration(
-          color: isSelected ? kcPrimaryColor : kcSurfaceColor,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: isSelected ? kcPrimaryColor : kcSecondaryColor,
-          ),
-        ),
-        child: Text(
-          keyword,
-          style: bodyStyle(context).copyWith(
-            color: isSelected ? Colors.white : kcSecondaryColor,
-            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-          ),
-        ),
-      ),
-    );
-  }
 
   Widget _buildPermissionSection(JournalCaptureState state) {
     return Column(
