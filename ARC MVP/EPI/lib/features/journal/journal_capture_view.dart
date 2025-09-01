@@ -4,22 +4,15 @@ import 'package:my_app/features/journal/journal_capture_cubit.dart';
 import 'package:my_app/features/journal/journal_capture_state.dart';
 import 'package:my_app/features/journal/keyword_extraction_cubit.dart';
 import 'package:my_app/features/journal/keyword_extraction_state.dart';
-import 'package:my_app/features/home/home_cubit.dart';
-import 'package:my_app/features/arcforms/arcform_mvp_implementation.dart';
 import 'package:my_app/repositories/journal_repository.dart';
 import 'package:my_app/shared/app_colors.dart';
 import 'package:my_app/shared/text_style.dart';
-import 'package:my_app/shared/in_app_notification.dart';
-import 'package:my_app/shared/arcform_intro_animation.dart';
-import 'package:my_app/features/arcforms/phase_recommender.dart';
-import 'package:my_app/features/arcforms/widgets/phase_choice_sheet.dart';
-import 'package:my_app/core/i18n/copy.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 class JournalCaptureView extends StatefulWidget {
   final String? initialEmotion;
   final String? initialReason;
-
+  
   const JournalCaptureView({
     super.key,
     this.initialEmotion,
@@ -43,8 +36,6 @@ class _JournalCaptureViewState extends State<JournalCaptureView> {
   String _selectedMood = '';
   bool _showVoiceRecorder = false;
   bool _showKeywordExtraction = false;
-  bool _isSaving = false;
-  List<String> _selectedKeywords = [];
 
   @override
   void initState() {
@@ -54,6 +45,11 @@ class _JournalCaptureViewState extends State<JournalCaptureView> {
 
     // Add listener for auto-save
     _textController.addListener(_onTextChanged);
+    
+    // Set initial mood if provided
+    if (widget.initialEmotion != null) {
+      _selectedMood = widget.initialEmotion!;
+    }
   }
 
   @override
@@ -69,180 +65,10 @@ class _JournalCaptureViewState extends State<JournalCaptureView> {
   }
 
   void _onSavePressed() {
-    final content = _textController.text.trim();
-    
-    if (content.isEmpty) {
-      InAppNotification.show(
-        context: context,
-        message: 'Please write something before saving',
-        type: NotificationType.info,
-        duration: const Duration(seconds: 2),
-      );
-      return;
-    }
-
-    if (_selectedMood.isEmpty) {
-      InAppNotification.show(
-        context: context,
-        message: 'Please select a mood before saving',
-        type: NotificationType.info,
-        duration: const Duration(seconds: 3),
-      );
-      return;
-    }
-
-    // Get phase recommendation
-    final emotion = widget.initialEmotion ?? _selectedMood;
-    final reason = widget.initialReason ?? '';
-    
-    final recommendedPhase = PhaseRecommender.recommend(
-      emotion: emotion,
-      reason: reason,
-      text: content,
-    );
-    
-    final rationale = PhaseRecommender.rationale(recommendedPhase);
-    
-    // Show recommendation modal
-    _showPhaseRecommendationModal(
-      phase: recommendedPhase,
-      rationale: rationale,
-      content: content,
-    );
-  }
-
-  void _showPhaseRecommendationModal({
-    required String phase,
-    required String rationale,
-    required String content,
-  }) {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        backgroundColor: kcSurfaceColor,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-        ),
-        title: Text(
-          Copy.recModalTitle,
-          style: heading2Style(context).copyWith(
-            color: Colors.white,
-          ),
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              Copy.recModalBody(phase),
-              style: bodyStyle(context).copyWith(
-                color: Colors.white.withOpacity(0.8),
-                fontSize: 16,
-              ),
-            ),
-            const SizedBox(height: 16),
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: kcPrimaryColor.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: kcPrimaryColor.withOpacity(0.3),
-                  width: 1,
-                ),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    phase,
-                    style: heading3Style(context).copyWith(
-                      color: kcPrimaryColor,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    rationale,
-                    style: captionStyle(context).copyWith(
-                      color: Colors.white.withOpacity(0.7),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.of(context).pop();
-              _showPhaseChoiceSheet(content);
-            },
-            child: Text(
-              Copy.seeOtherPhases,
-              style: buttonStyle(context).copyWith(
-                color: kcSecondaryColor,
-              ),
-            ),
-          ),
-          Container(
-            decoration: BoxDecoration(
-              gradient: kcPrimaryGradient,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-                _saveWithPhase(content, phase, true); // userConsented = true
-              },
-              child: Text(
-                Copy.keepPhase(phase),
-                style: buttonStyle(context).copyWith(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showPhaseChoiceSheet(String content) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      isScrollControlled: true,
-      builder: (context) => PhaseChoiceSheet(
-        currentPhase: PhaseRecommender.recommend(
-          emotion: widget.initialEmotion ?? _selectedMood,
-          reason: widget.initialReason ?? '',
-          text: content,
-        ),
-        onPhaseSelected: (selectedPhase) {
-          _saveWithPhase(content, selectedPhase, true); // userConsented = true
-        },
-      ),
-    );
-  }
-
-  void _saveWithPhase(String content, String phase, bool userConsented) {
-    setState(() {
-      _isSaving = true;
-    });
-
-    context.read<JournalCaptureCubit>().saveEntryWithPhase(
-      content: content,
-      mood: _selectedMood,
-      emotion: widget.initialEmotion,
-      emotionReason: widget.initialReason,
-      phase: phase,
-      userConsentedPhase: userConsented,
-      selectedKeywords: _selectedKeywords.isNotEmpty ? _selectedKeywords : null,
-    );
+    context.read<JournalCaptureCubit>().saveEntry(
+          content: _textController.text,
+          mood: _selectedMood,
+        );
   }
 
   void _onMoodSelected(String mood) {
@@ -253,91 +79,35 @@ class _JournalCaptureViewState extends State<JournalCaptureView> {
 
   @override
   Widget build(BuildContext context) {
-    return MultiBlocListener(
-        listeners: [
-          BlocListener<JournalCaptureCubit, JournalCaptureState>(
-            listener: (context, state) {
-              if (state is JournalCaptureSaved) {
-                final entryContent = _textController.text;
-                _textController.clear();
-                setState(() {
-                  _selectedMood = '';
-                  _showVoiceRecorder = false;
-                  _isSaving = false;
-                  _selectedKeywords = []; // Clear selected keywords
-                });
-
-                // Show elegant in-app notification
-                InAppNotification.show(
-                  context: context,
-                  message: 'Entry saved successfully',
-                  type: NotificationType.success,
-                  duration: const Duration(seconds: 2),
-                );
-
-                // Navigate to Timeline tab
-                final homeCubit = context.read<HomeCubit>();
-                homeCubit.changeTab(2); // Timeline is tab index 2
-
-                // Show Arcform introduction animation after a brief delay
-                Future.delayed(const Duration(milliseconds: 1000), () {
-                  // Check if widget is still mounted before accessing context
-                  if (!mounted) return;
-                  
-                  final arcforms = SimpleArcformStorage.loadAllArcforms();
-                  if (arcforms.isNotEmpty) {
-                    final latestArcform = arcforms.last;
-                    
-                    ArcformIntroAnimation.show(
-                      context: context,
-                      arcform: latestArcform,
-                      entryTitle: _generateTitle(entryContent),
-                      onComplete: () {
-                        // Check if widget is still mounted before showing follow-up notification
-                        if (!mounted) return;
-                        
-                        // Show follow-up notification with action
-                        InAppNotification.showArcformGenerated(
-                          context: context,
-                          entryTitle: _generateTitle(entryContent),
-                          arcformType: _getGeometryDisplayName(latestArcform.geometry),
-                          onViewPressed: () {
-                            // Check if still mounted before navigation
-                            if (mounted) {
-                              // Switch to Arcforms tab to view the generated form
-                              homeCubit.changeTab(1); // Arcforms tab is index 1
-                            }
-                          },
-                        );
-                      },
-                    );
-                  }
-                });
-              } else if (state is JournalCaptureError) {
-                setState(() {
-                  _isSaving = false;
-                });
-                InAppNotification.show(
-                  context: context,
-                  message: 'Failed to save entry: ${state.message}',
-                  type: NotificationType.error,
-                  duration: const Duration(seconds: 4),
-                );
-              } else if (state is JournalCaptureTranscribed) {
-                _textController.text = state.transcription;
-              }
-            },
-          ),
-          BlocListener<KeywordExtractionCubit, KeywordExtractionState>(
-            listener: (context, state) {
-              if (state is KeywordExtractionLoaded) {
-                setState(() {
-                  _selectedKeywords = state.selectedKeywords;
-                });
-              }
-            },
-          ),
-        ],
+    return MultiBlocProvider(
+      providers: [
+        BlocProvider(
+          create: (context) =>
+              JournalCaptureCubit(context.read<JournalRepository>()),
+        ),
+        BlocProvider(
+          create: (context) => KeywordExtractionCubit()..initialize(),
+        ),
+      ],
+      child: BlocListener<JournalCaptureCubit, JournalCaptureState>(
+        listener: (context, state) {
+          if (state is JournalCaptureSaved) {
+            _textController.clear();
+            setState(() {
+              _selectedMood = '';
+              _showVoiceRecorder = false;
+            });
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Entry saved successfully'),
+                backgroundColor: kcSuccessColor,
+              ),
+            );
+            Navigator.pop(context);
+          } else if (state is JournalCaptureTranscribed) {
+            _textController.text = state.transcription;
+          }
+        },
         child: Scaffold(
           backgroundColor: kcBackgroundColor,
           appBar: AppBar(
@@ -347,23 +117,14 @@ class _JournalCaptureViewState extends State<JournalCaptureView> {
               Padding(
                 padding: const EdgeInsets.only(right: 16.0),
                 child: ElevatedButton(
-                  onPressed: _isSaving ? null : _onSavePressed,
+                  onPressed: _onSavePressed,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: kcPrimaryColor,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(8.0),
                     ),
                   ),
-                  child: _isSaving 
-                    ? const SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                        ),
-                      )
-                    : Text('Save', style: buttonStyle(context)),
+                  child: Text('Save', style: buttonStyle(context)),
                 ),
               ),
             ],
@@ -373,6 +134,72 @@ class _JournalCaptureViewState extends State<JournalCaptureView> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // Context from start entry flow
+                if (widget.initialEmotion != null || widget.initialReason != null) ...[
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(16.0),
+                    decoration: BoxDecoration(
+                      gradient: kcPrimaryGradient,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Your reflection context:',
+                          style: captionStyle(context).copyWith(
+                            color: Colors.white.withOpacity(0.8),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Row(
+                          children: [
+                            if (widget.initialEmotion != null) ...[
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 6,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withOpacity(0.2),
+                                  borderRadius: BorderRadius.circular(16),
+                                ),
+                                child: Text(
+                                  widget.initialEmotion!,
+                                  style: captionStyle(context).copyWith(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                            ],
+                            if (widget.initialReason != null)
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 6,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withOpacity(0.2),
+                                  borderRadius: BorderRadius.circular(16),
+                                ),
+                                child: Text(
+                                  widget.initialReason!,
+                                  style: captionStyle(context).copyWith(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                ],
                 // Mood chips
                 SizedBox(
                   height: 40,
@@ -467,6 +294,104 @@ class _JournalCaptureViewState extends State<JournalCaptureView> {
                 ),
                 const SizedBox(height: 24),
 
+                // Keyword extraction section
+                Card(
+                  color: kcSurfaceAltColor,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              'Keywords',
+                              style:
+                                  heading1Style(context).copyWith(fontSize: 18),
+                            ),
+                            IconButton(
+                              icon: Icon(
+                                _showKeywordExtraction
+                                    ? Icons.keyboard_arrow_up
+                                    : Icons.keyboard_arrow_down,
+                                color: kcPrimaryColor,
+                              ),
+                              onPressed: () {
+                                setState(() {
+                                  _showKeywordExtraction =
+                                      !_showKeywordExtraction;
+                                });
+                                if (_showKeywordExtraction) {
+                                  context
+                                      .read<KeywordExtractionCubit>()
+                                      .extractKeywords(_textController.text);
+                                }
+                              },
+                            ),
+                          ],
+                        ),
+                        if (_showKeywordExtraction) ...[
+                          const SizedBox(height: 16),
+                          BlocBuilder<KeywordExtractionCubit,
+                              KeywordExtractionState>(
+                            builder: (context, state) {
+                              if (state is KeywordExtractionLoading) {
+                                return const Center(
+                                  child: CircularProgressIndicator(),
+                                );
+                              }
+
+                              if (state is KeywordExtractionLoaded) {
+                                return Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Choose the words that matter most',
+                                      style: heading2Style(context),
+                                    ),
+                                    const SizedBox(height: 16),
+                                    Text(
+                                      'Select 5-10 keywords that best represent your entry',
+                                      style: captionStyle(context),
+                                    ),
+                                    const SizedBox(height: 16),
+                                    Wrap(
+                                      spacing: 8,
+                                      runSpacing: 8,
+                                      children: state.suggestedKeywords
+                                          .map((keyword) => _buildKeywordChip(
+                                              keyword, state.selectedKeywords))
+                                          .toList(),
+                                    ),
+                                    const SizedBox(height: 16),
+                                    if (state.selectedKeywords.length < 5)
+                                      Text(
+                                        'Please select at least 5 keywords',
+                                        style: errorStyle(context),
+                                      )
+                                    else if (state.selectedKeywords.length > 10)
+                                      Text(
+                                        'Please select no more than 10 keywords',
+                                        style: errorStyle(context),
+                                      ),
+                                  ],
+                                );
+                              }
+
+                              return const SizedBox.shrink();
+                            },
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 24),
+
                 // Text editor
                 Expanded(
                   child: TextField(
@@ -474,7 +399,9 @@ class _JournalCaptureViewState extends State<JournalCaptureView> {
                     focusNode: _focusNode,
                     style: bodyStyle(context),
                     decoration: InputDecoration(
-                      hintText: 'Write what is true right now.',
+                      hintText: widget.initialEmotion != null 
+                          ? 'Write what is true about feeling ${widget.initialEmotion!.toLowerCase()}...'
+                          : 'Write what is true right now.',
                       hintStyle: bodyStyle(context).copyWith(
                         color: kcSecondaryTextColor,
                       ),
@@ -493,6 +420,7 @@ class _JournalCaptureViewState extends State<JournalCaptureView> {
             ),
           ),
         ),
+      ),
     );
   }
 
@@ -592,7 +520,7 @@ class _JournalCaptureViewState extends State<JournalCaptureView> {
           child: Center(
             child: isRecording
                 ? _buildVisualizer()
-                : Icon(
+                : const Icon(
                     Icons.mic,
                     size: 40,
                     color: Colors.white,
@@ -703,11 +631,11 @@ class _JournalCaptureViewState extends State<JournalCaptureView> {
               ),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),
-                borderSide: BorderSide(color: kcSecondaryColor),
+                borderSide: const BorderSide(color: kcSecondaryColor),
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),
-                borderSide: BorderSide(color: kcPrimaryColor),
+                borderSide: const BorderSide(color: kcPrimaryColor),
               ),
             ),
             controller: TextEditingController(text: state.transcription),
@@ -750,31 +678,5 @@ class _JournalCaptureViewState extends State<JournalCaptureView> {
     final minutes = twoDigits(duration.inMinutes.remainder(60));
     final seconds = twoDigits(duration.inSeconds.remainder(60));
     return "$minutes:$seconds";
-  }
-
-  String _generateTitle(String content) {
-    // Simple title generation from first few words
-    final words = content.split(' ');
-    if (words.isEmpty) return 'Untitled';
-
-    final titleWords = words.take(3);
-    return '${titleWords.join(' ')}${words.length > 3 ? '...' : ''}';
-  }
-
-  String _getGeometryDisplayName(ArcformGeometry geometry) {
-    switch (geometry) {
-      case ArcformGeometry.spiral:
-        return 'Spiral';
-      case ArcformGeometry.flower:
-        return 'Flower';
-      case ArcformGeometry.branch:
-        return 'Branch';
-      case ArcformGeometry.weave:
-        return 'Weave';
-      case ArcformGeometry.glowCore:
-        return 'Glow Core';
-      case ArcformGeometry.fractal:
-        return 'Fractal';
-    }
   }
 }
