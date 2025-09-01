@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:my_app/features/journal/widgets/emotion_picker.dart';
 import 'package:my_app/features/journal/widgets/reason_picker.dart';
 import 'package:my_app/features/journal/journal_capture_view.dart';
+import 'package:my_app/features/journal/journal_capture_cubit.dart';
+import 'package:my_app/features/journal/keyword_extraction_cubit.dart';
+import 'package:my_app/repositories/journal_repository.dart';
 import 'package:my_app/shared/app_colors.dart';
 import 'package:my_app/shared/text_style.dart';
 import 'package:my_app/core/i18n/copy.dart';
@@ -164,11 +168,21 @@ class _StartEntryFlowState extends State<StartEntryFlow> {
                 Expanded(
                   child: GestureDetector(
                     onTap: () {
-                      Navigator.of(context).pushReplacement(
+                      Navigator.of(context).push(
                         MaterialPageRoute(
-                          builder: (context) => JournalCaptureView(
-                            initialEmotion: _selectedEmotion,
-                            initialReason: _selectedReason,
+                          builder: (context) => MultiBlocProvider(
+                            providers: [
+                              BlocProvider(
+                                create: (context) => JournalCaptureCubit(context.read<JournalRepository>()),
+                              ),
+                              BlocProvider(
+                                create: (context) => KeywordExtractionCubit()..initialize(),
+                              ),
+                            ],
+                            child: JournalCaptureView(
+                              initialEmotion: _selectedEmotion,
+                              initialReason: _selectedReason,
+                            ),
                           ),
                         ),
                       );
