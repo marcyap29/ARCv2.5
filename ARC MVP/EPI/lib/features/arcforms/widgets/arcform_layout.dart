@@ -13,6 +13,7 @@ class ArcformLayout extends StatefulWidget {
   final List<Node> nodes;
   final List<Edge> edges;
   final Function(String, double, double)? onNodeMoved;
+  final Function(String)? onNodeTapped;
   final GeometryPattern selectedGeometry;
   final String currentPhase;
   final Function(GeometryPattern) onGeometryChanged;
@@ -22,6 +23,7 @@ class ArcformLayout extends StatefulWidget {
     required this.nodes,
     required this.edges,
     this.onNodeMoved,
+    this.onNodeTapped,
     required this.selectedGeometry,
     required this.currentPhase,
     required this.onGeometryChanged,
@@ -119,8 +121,6 @@ class _ArcformLayoutState extends State<ArcformLayout>
         return _calculateGlowCoreNodes(centerX, centerY, radius);
       case GeometryPattern.fractal:
         return _calculateFractalNodes(centerX, centerY, radius);
-      default:
-        return _calculateSpiralNodes(centerX, centerY, radius);
     }
   }
 
@@ -341,6 +341,7 @@ class _ArcformLayoutState extends State<ArcformLayout>
               key: ValueKey(node.id),
               node: node,
               onMoved: widget.onNodeMoved,
+              onTapped: widget.onNodeTapped,
             );
           }),
           // Geometry selector
