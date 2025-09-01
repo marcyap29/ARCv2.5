@@ -90,34 +90,34 @@ extension GeometryPatternExtension on GeometryPattern {
   String get displayName {
     switch (this) {
       case GeometryPattern.spiral:
-        return 'Spiral';
+        return 'Discovery';
       case GeometryPattern.flower:
-        return 'Flower';
+        return 'Expansion';
       case GeometryPattern.branch:
-        return 'Branch';
+        return 'Transition';
       case GeometryPattern.weave:
-        return 'Weave';
+        return 'Consolidation';
       case GeometryPattern.glowCore:
-        return 'Glow Core';
+        return 'Recovery';
       case GeometryPattern.fractal:
-        return 'Fractal';
+        return 'Breakthrough';
     }
   }
 
   String get description {
     switch (this) {
       case GeometryPattern.spiral:
-        return 'Nodes arranged in a spiral pattern';
+        return 'Exploring new insights and beginnings';
       case GeometryPattern.flower:
-        return 'Nodes arranged like petals of a flower';
+        return 'Expanding awareness and growth';
       case GeometryPattern.branch:
-        return 'Nodes arranged in branching patterns';
+        return 'Navigating transitions and choices';
       case GeometryPattern.weave:
-        return 'Nodes arranged in interconnected weave';
+        return 'Integrating experiences and wisdom';
       case GeometryPattern.glowCore:
-        return 'Nodes arranged around a central core';
+        return 'Healing and restoring balance';
       case GeometryPattern.fractal:
-        return 'Nodes arranged in fractal patterns';
+        return 'Breaking through to new levels';
     }
   }
 }

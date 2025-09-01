@@ -33,6 +33,12 @@ class UserProfile extends Equatable {
   @HiveField(8)
   final bool onboardingCompleted;
 
+  @HiveField(9)
+  final String? onboardingCurrentSeason;
+
+  @HiveField(10)
+  final String? onboardingCentralWord;
+
   const UserProfile({
     required this.id,
     required this.name,
@@ -43,6 +49,8 @@ class UserProfile extends Equatable {
     this.onboardingFeeling,
     this.onboardingRhythm,
     this.onboardingCompleted = false,
+    this.onboardingCurrentSeason,
+    this.onboardingCentralWord,
   });
 
   UserProfile copyWith({
@@ -55,6 +63,8 @@ class UserProfile extends Equatable {
     String? onboardingFeeling,
     String? onboardingRhythm,
     bool? onboardingCompleted,
+    String? onboardingCurrentSeason,
+    String? onboardingCentralWord,
   }) {
     return UserProfile(
       id: id ?? this.id,
@@ -66,6 +76,8 @@ class UserProfile extends Equatable {
       onboardingFeeling: onboardingFeeling ?? this.onboardingFeeling,
       onboardingRhythm: onboardingRhythm ?? this.onboardingRhythm,
       onboardingCompleted: onboardingCompleted ?? this.onboardingCompleted,
+      onboardingCurrentSeason: onboardingCurrentSeason ?? this.onboardingCurrentSeason,
+      onboardingCentralWord: onboardingCentralWord ?? this.onboardingCentralWord,
     );
   }
 
@@ -80,6 +92,8 @@ class UserProfile extends Equatable {
         onboardingFeeling,
         onboardingRhythm,
         onboardingCompleted,
+        onboardingCurrentSeason,
+        onboardingCentralWord,
       ];
 
   Map<String, dynamic> toJson() {
@@ -93,6 +107,8 @@ class UserProfile extends Equatable {
       'onboardingFeeling': onboardingFeeling,
       'onboardingRhythm': onboardingRhythm,
       'onboardingCompleted': onboardingCompleted,
+      'onboardingCurrentSeason': onboardingCurrentSeason,
+      'onboardingCentralWord': onboardingCentralWord,
     };
   }
 
@@ -107,6 +123,8 @@ class UserProfile extends Equatable {
       onboardingFeeling: json['onboardingFeeling'] as String?,
       onboardingRhythm: json['onboardingRhythm'] as String?,
       onboardingCompleted: json['onboardingCompleted'] as bool? ?? false,
+      onboardingCurrentSeason: json['onboardingCurrentSeason'] as String?,
+      onboardingCentralWord: json['onboardingCentralWord'] as String?,
     );
   }
 }

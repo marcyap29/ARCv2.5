@@ -11,10 +11,20 @@ import 'package:my_app/shared/app_colors.dart';
 import 'package:my_app/shared/text_style.dart';
 import 'package:my_app/shared/in_app_notification.dart';
 import 'package:my_app/shared/arcform_intro_animation.dart';
+import 'package:my_app/features/arcforms/phase_recommender.dart';
+import 'package:my_app/features/arcforms/widgets/phase_choice_sheet.dart';
+import 'package:my_app/core/i18n/copy.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 class JournalCaptureView extends StatefulWidget {
-  const JournalCaptureView({super.key});
+  final String? initialEmotion;
+  final String? initialReason;
+
+  const JournalCaptureView({
+    super.key,
+    this.initialEmotion,
+    this.initialReason,
+  });
 
   @override
   State<JournalCaptureView> createState() => _JournalCaptureViewState();
@@ -81,15 +91,158 @@ class _JournalCaptureViewState extends State<JournalCaptureView> {
       return;
     }
 
+    // Get phase recommendation
+    final emotion = widget.initialEmotion ?? _selectedMood;
+    final reason = widget.initialReason ?? '';
+    
+    final recommendedPhase = PhaseRecommender.recommend(
+      emotion: emotion,
+      reason: reason,
+      text: content,
+    );
+    
+    final rationale = PhaseRecommender.rationale(recommendedPhase);
+    
+    // Show recommendation modal
+    _showPhaseRecommendationModal(
+      phase: recommendedPhase,
+      rationale: rationale,
+      content: content,
+    );
+  }
+
+  void _showPhaseRecommendationModal({
+    required String phase,
+    required String rationale,
+    required String content,
+  }) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        backgroundColor: kcSurfaceColor,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+        ),
+        title: Text(
+          Copy.recModalTitle,
+          style: heading2Style(context).copyWith(
+            color: Colors.white,
+          ),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              Copy.recModalBody(phase),
+              style: bodyStyle(context).copyWith(
+                color: Colors.white.withOpacity(0.8),
+                fontSize: 16,
+              ),
+            ),
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: kcPrimaryColor.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: kcPrimaryColor.withOpacity(0.3),
+                  width: 1,
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    phase,
+                    style: heading3Style(context).copyWith(
+                      color: kcPrimaryColor,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    rationale,
+                    style: captionStyle(context).copyWith(
+                      color: Colors.white.withOpacity(0.7),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              _showPhaseChoiceSheet(content);
+            },
+            child: Text(
+              Copy.seeOtherPhases,
+              style: buttonStyle(context).copyWith(
+                color: kcSecondaryColor,
+              ),
+            ),
+          ),
+          Container(
+            decoration: BoxDecoration(
+              gradient: kcPrimaryGradient,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                _saveWithPhase(content, phase, true); // userConsented = true
+              },
+              child: Text(
+                Copy.keepPhase(phase),
+                style: buttonStyle(context).copyWith(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showPhaseChoiceSheet(String content) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (context) => PhaseChoiceSheet(
+        currentPhase: PhaseRecommender.recommend(
+          emotion: widget.initialEmotion ?? _selectedMood,
+          reason: widget.initialReason ?? '',
+          text: content,
+        ),
+        onPhaseSelected: (selectedPhase) {
+          _saveWithPhase(content, selectedPhase, true); // userConsented = true
+        },
+      ),
+    );
+  }
+
+  void _saveWithPhase(String content, String phase, bool userConsented) {
     setState(() {
       _isSaving = true;
     });
 
-    context.read<JournalCaptureCubit>().saveEntry(
-          content: content,
-          mood: _selectedMood,
-          selectedKeywords: _selectedKeywords.isNotEmpty ? _selectedKeywords : null,
-        );
+    context.read<JournalCaptureCubit>().saveEntryWithPhase(
+      content: content,
+      mood: _selectedMood,
+      emotion: widget.initialEmotion,
+      emotionReason: widget.initialReason,
+      phase: phase,
+      userConsentedPhase: userConsented,
+      selectedKeywords: _selectedKeywords.isNotEmpty ? _selectedKeywords : null,
+    );
   }
 
   void _onMoodSelected(String mood) {

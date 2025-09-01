@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:my_app/features/home/home_view.dart';
 import 'package:my_app/features/onboarding/onboarding_view.dart';
+import 'package:my_app/features/startup/welcome_view.dart';
 import 'package:hive/hive.dart';
 import 'package:my_app/models/user_profile_model.dart';
 import 'package:my_app/shared/app_colors.dart';
@@ -30,11 +31,11 @@ class _StartupViewState extends State<StartupView> {
       if (userProfile != null && userProfile.onboardingCompleted) {
         _navigateToHome();
       } else {
-        _navigateToOnboarding();
+        _navigateToWelcome();
       }
     } catch (e) {
-      // If there's an error accessing the profile, go to onboarding
-      _navigateToOnboarding();
+      // If there's an error accessing the profile, go to welcome
+      _navigateToWelcome();
     }
   }
 
@@ -47,11 +48,11 @@ class _StartupViewState extends State<StartupView> {
     }
   }
 
-  void _navigateToOnboarding() {
+  void _navigateToWelcome() {
     if (mounted) {
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (context) => const OnboardingView()),
+        MaterialPageRoute(builder: (context) => const WelcomeView()),
       );
     }
   }

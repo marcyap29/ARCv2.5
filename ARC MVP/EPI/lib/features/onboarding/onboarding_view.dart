@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:my_app/features/onboarding/onboarding_cubit.dart';
 import 'package:my_app/features/onboarding/onboarding_state.dart';
+import 'package:my_app/features/onboarding/widgets/central_word_input.dart';
+import 'package:my_app/features/onboarding/widgets/atlas_phase_grid.dart';
 import 'package:my_app/features/home/home_view.dart';
 import 'package:my_app/shared/app_colors.dart';
 import 'package:my_app/shared/text_style.dart';
@@ -66,7 +68,7 @@ class OnboardingViewContent extends StatelessWidget {
                     padding: const EdgeInsets.symmetric(vertical: 8.0),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
-                      children: List.generate(3, (index) {
+                      children: List.generate(5, (index) {
                         return Container(
                           margin: const EdgeInsets.symmetric(horizontal: 4.0),
                           width: 8.0,
@@ -92,9 +94,11 @@ class OnboardingViewContent extends StatelessWidget {
                       },
                       physics: const NeverScrollableScrollPhysics(),
                       children: const [
-                        _OnboardingPage1(),
-                        _OnboardingPage2(),
-                        _OnboardingPage3(),
+                        _OnboardingPage1(), // Purpose
+                        _OnboardingPage2(), // Mood/Feeling
+                        _OnboardingPage3(), // Phase Seed (NEW)
+                        _OnboardingPage4(), // Core Word (NEW)
+                        _OnboardingPage5(), // Rhythm
                       ],
                     ),
                   ),
@@ -162,7 +166,7 @@ class _OnboardingPage2 extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Text(
-            'How do you want to feel while journaling?',
+            'How are you feeling right now?',
             style: heading1Style(context).copyWith(
               color: Colors.white,
             ),
@@ -170,19 +174,20 @@ class _OnboardingPage2 extends StatelessWidget {
           ),
           const SizedBox(height: 16),
           Text(
-            'Choose the emotional quality you\'d like to cultivate in this space.',
+            'Choose the emotional quality that resonates with your current state.',
             style: bodyStyle(context).copyWith(
               color: Colors.white.withOpacity(0.8),
             ),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 40),
-          const _OptionGrid(
+          const _MoodChipsGrid(
             options: [
               'Calm',
-              'Energized',
-              'Reflective',
-              'Focused',
+              'Hopeful',
+              'Stressed',
+              'Tired',
+              'Grateful',
             ],
             type: OnboardingOptionType.feeling,
           ),
@@ -194,6 +199,72 @@ class _OnboardingPage2 extends StatelessWidget {
 
 class _OnboardingPage3 extends StatelessWidget {
   const _OnboardingPage3();
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.all(24.0),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text(
+            'Which season best describes where you are in life right now?',
+            style: heading1Style(context).copyWith(
+              color: Colors.white,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'Every journey has a season. Choose the one that feels closest to your life right now.',
+            style: bodyStyle(context).copyWith(
+              color: Colors.white.withOpacity(0.8),
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 40),
+          const ATLASPhaseGrid(),
+        ],
+      ),
+    );
+  }
+}
+
+class _OnboardingPage4 extends StatelessWidget {
+  const _OnboardingPage4();
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.all(24.0),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text(
+            'What word feels most central to your story right now?',
+            style: heading1Style(context).copyWith(
+              color: Colors.white,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'If your story could be held in a single word, what would it be? Write the word that matters most.',
+            style: bodyStyle(context).copyWith(
+              color: Colors.white.withOpacity(0.8),
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 40),
+          const CentralWordInput(),
+        ],
+      ),
+    );
+  }
+}
+
+class _OnboardingPage5 extends StatelessWidget {
+  const _OnboardingPage5();
 
   @override
   Widget build(BuildContext context) {
@@ -232,7 +303,102 @@ class _OnboardingPage3 extends StatelessWidget {
   }
 }
 
-enum OnboardingOptionType { purpose, feeling, rhythm }
+enum OnboardingOptionType { purpose, feeling, rhythm, currentSeason }
+
+class _MoodChipsGrid extends StatelessWidget {
+  final List<String> options;
+  final OnboardingOptionType type;
+
+  const _MoodChipsGrid({
+    required this.options,
+    required this.type,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return BlocBuilder<OnboardingCubit, OnboardingState>(
+      builder: (context, state) {
+        String? selectedOption;
+        switch (type) {
+          case OnboardingOptionType.purpose:
+            selectedOption = state.purpose;
+            break;
+          case OnboardingOptionType.feeling:
+            selectedOption = state.feeling;
+            break;
+          case OnboardingOptionType.rhythm:
+            selectedOption = state.rhythm;
+            break;
+          case OnboardingOptionType.currentSeason:
+            selectedOption = state.currentSeason;
+            break;
+        }
+
+        return Wrap(
+          spacing: 16,
+          runSpacing: 16,
+          alignment: WrapAlignment.center,
+          children: options.map((option) {
+            final isSelected = selectedOption == option;
+            return GestureDetector(
+              onTap: () {
+                switch (type) {
+                  case OnboardingOptionType.purpose:
+                    context.read<OnboardingCubit>().selectPurpose(option);
+                    break;
+                  case OnboardingOptionType.feeling:
+                    context.read<OnboardingCubit>().selectFeeling(option);
+                    break;
+                  case OnboardingOptionType.rhythm:
+                    context.read<OnboardingCubit>().selectRhythm(option);
+                    break;
+                  case OnboardingOptionType.currentSeason:
+                    context.read<OnboardingCubit>().selectCurrentSeason(option);
+                    break;
+                }
+              },
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 12,
+                ),
+                decoration: BoxDecoration(
+                  color: isSelected 
+                      ? Colors.white 
+                      : Colors.white.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(24),
+                  border: Border.all(
+                    color: isSelected 
+                        ? Colors.transparent 
+                        : Colors.white.withOpacity(0.3),
+                    width: 1.5,
+                  ),
+                  boxShadow: isSelected ? [
+                    BoxShadow(
+                      color: kcPrimaryColor.withOpacity(0.4),
+                      blurRadius: 12,
+                      spreadRadius: 2,
+                    ),
+                  ] : null,
+                ),
+                child: Text(
+                  option,
+                  style: buttonStyle(context).copyWith(
+                    color: isSelected
+                        ? kcPrimaryGradient.colors.first
+                        : Colors.white,
+                    fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+                  ),
+                ),
+              ),
+            );
+          }).toList(),
+        );
+      },
+    );
+  }
+}
 
 class _OptionGrid extends StatelessWidget {
   final List<String> options;
@@ -258,6 +424,9 @@ class _OptionGrid extends StatelessWidget {
           case OnboardingOptionType.rhythm:
             selectedOption = state.rhythm;
             break;
+          case OnboardingOptionType.currentSeason:
+            selectedOption = state.currentSeason;
+            break;
         }
 
         return Column(
@@ -276,6 +445,9 @@ class _OptionGrid extends StatelessWidget {
                       break;
                     case OnboardingOptionType.rhythm:
                       context.read<OnboardingCubit>().selectRhythm(option);
+                      break;
+                    case OnboardingOptionType.currentSeason:
+                      context.read<OnboardingCubit>().selectCurrentSeason(option);
                       break;
                   }
                 },

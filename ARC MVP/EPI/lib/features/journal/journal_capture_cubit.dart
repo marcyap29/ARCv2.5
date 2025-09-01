@@ -84,6 +84,52 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
     }
   }
 
+  void saveEntryWithPhase({
+    required String content,
+    required String mood,
+    required String phase,
+    required bool userConsentedPhase,
+    String? emotion,
+    String? emotionReason,
+    List<String>? selectedKeywords,
+  }) async {
+    try {
+      // Use selected keywords if provided, otherwise extract from content
+      final keywords = selectedKeywords?.isNotEmpty == true 
+          ? selectedKeywords! 
+          : SimpleKeywordExtractor.extractKeywords(content);
+      
+      final now = DateTime.now();
+      final entry = JournalEntry(
+        id: const Uuid().v4(),
+        title: _generateTitle(content),
+        content: content,
+        createdAt: now,
+        updatedAt: now,
+        tags: const [],
+        mood: mood,
+        audioUri: _audioPath,
+        keywords: keywords,
+        emotion: emotion,
+        emotionReason: emotionReason,
+      );
+
+      // Save the entry first
+      await _journalRepository.createJournalEntry(entry);
+
+      // Emit saved state immediately - don't wait for background processing
+      emit(JournalCaptureSaved());
+
+      // Process SAGE annotation in background (don't await)
+      _processSAGEAnnotation(entry);
+
+      // Create Arcform using ARC MVP service with phase (don't await)
+      _createArcformSnapshotWithPhase(entry, phase, userConsentedPhase);
+    } catch (e) {
+      emit(JournalCaptureError('Failed to save entry: ${e.toString()}'));
+    }
+  }
+
   void _processSAGEAnnotation(JournalEntry entry) async {
     try {
       // In a real implementation, this would call an AI service
@@ -149,6 +195,50 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
       print('Arcform created: ${arcform.geometry.name} with ${arcform.keywords.length} keywords');
     } catch (e) {
       print('Arcform snapshot creation failed: $e');
+    }
+  }
+
+  void _createArcformSnapshotWithPhase(JournalEntry entry, String phase, bool userConsentedPhase) async {
+    try {
+      // Create Arcform using the ARC MVP service with explicit phase
+      final arcformService = ArcformMVPService();
+      final arcform = arcformService.createArcformFromEntryWithPhase(
+        entryId: entry.id,
+        title: entry.title,
+        content: entry.content,
+        mood: entry.mood,
+        keywords: entry.keywords,
+        phase: phase,
+        userConsentedPhase: userConsentedPhase,
+      );
+
+      // Save to SimpleArcformStorage (in-memory for now)
+      SimpleArcformStorage.saveArcform(arcform);
+
+      // Also save as ArcformSnapshot with phase information
+      final snapshot = ArcformSnapshot(
+        id: const Uuid().v4(),
+        arcformId: entry.id,
+        data: {
+          'keywords': arcform.keywords,
+          'geometry': arcform.geometry.name,
+          'colorMap': arcform.colorMap,
+          'edges': arcform.edges,
+          'phaseHint': arcform.phaseHint,
+          'phase': phase,
+          'userConsentedPhase': userConsentedPhase,
+        },
+        timestamp: arcform.createdAt,
+        notes: 'Generated from journal entry with phase: $phase',
+      );
+
+      // Save the snapshot to Hive
+      final snapshotBox = await Hive.openBox<ArcformSnapshot>('arcform_snapshots');
+      await snapshotBox.put(snapshot.id, snapshot);
+      
+      print('Phase-aware Arcform created: $phase (${arcform.geometry.name}) with ${arcform.keywords.length} keywords');
+    } catch (e) {
+      print('Phase-aware Arcform snapshot creation failed: $e');
     }
   }
 

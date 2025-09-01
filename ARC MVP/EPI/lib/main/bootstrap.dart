@@ -3,7 +3,7 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:logger/logger.dart';
-import 'package:sentry_flutter/sentry_flutter.dart';
+// import 'package:sentry_flutter/sentry_flutter.dart';
 
 import 'package:hive_flutter/hive_flutter.dart';
 
@@ -77,7 +77,7 @@ class _BootstrapErrorWidgetState extends State<BootstrapErrorWidget> {
               mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Icon(Icons.error_outline, color: kcDangerColor, size: 48),
+                const Icon(Icons.error_outline, color: kcDangerColor, size: 48),
                 const SizedBox(height: 20),
                 Text('Startup Error', style: heading1Style(context)),
                 const SizedBox(height: 10),
@@ -198,8 +198,8 @@ Future<void> bootstrap({
       // 2. Remove these comment lines once Firebase is connected and the line below is uncommented
       // try {
       //   await Firebase.initializeApp(
-      //     options: DefaultFirebaseOptions.currentPlatform,
-      //   );
+      //         options: DefaultFirebaseOptions.currentPlatform,
+      //       );
       //   logger.d('Firebase initialized');
       // } catch (e, st) {
       //   logger.e('Failed to initialize Firebase', e, st);
@@ -208,26 +208,30 @@ Future<void> bootstrap({
       // =========================================================
       // CRITICAL: SENTRY CONFIGURATION - DO NOT MODIFY OR REMOVE
       // =========================================================
-      await SentryFlutter.init((options) {
-        options.dsn =
-            'https://263a9fd70a60392696abac85b69c660f@o4508813240434688.ingest.us.sentry.io/4509894481346560';
-        options.tracesSampleRate = 1.0;
-        options.profilesSampleRate = 1.0;
+      // await SentryFlutter.init((options) {
+      //   options.dsn =
+      //       'https://263a9fd70a60392696abac85b69c660f@o4508813240434688.ingest.us.sentry.io/4509894481346560';
+      //   options.tracesSampleRate = 1.0;
+      //   options.profilesSampleRate = 1.0;
 
-        // Add additional context to Sentry reports
-        options.beforeSend = (SentryEvent event, Hint hint) {
-          event.contexts['environment'] = flavor.toString();
-          event.extra?['isWeb'] = kIsWeb;
-          return event;
-        };
-      }, appRunner: () async {
-        logger.i('Sentry initialized successfully');
-        runApp(await builder());
-      });
+      //   // Add additional context to Sentry reports
+      //   options.beforeSend = (SentryEvent event, {dynamic hint}) {
+      //     event.contexts['environment'] = flavor.toString();
+      //     event.extra?['isWeb'] = kIsWeb;
+      //     return event;
+      //   };
+      // }, appRunner: () async {
+      //   logger.i('Sentry initialized successfully');
+      //   runApp(await builder());
+      // });
+      
+      // Temporary: run app directly without Sentry
+      logger.i('Running app without Sentry (temporarily disabled)');
+      runApp(await builder());
     },
     (exception, stackTrace) async {
       logger.e('Uncaught exception in app', exception, stackTrace);
-      await Sentry.captureException(exception, stackTrace: stackTrace);
+      // await Sentry.captureException(exception, stackTrace: stackTrace);
 
       if (flavor == Flavor.development) {
         runApp(
