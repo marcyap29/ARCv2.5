@@ -5,6 +5,8 @@ class OnboardingState extends Equatable {
   final String? purpose;
   final String? feeling;
   final String? rhythm;
+  final String? currentSeason;
+  final String? centralWord;
   final bool isCompleted;
 
   const OnboardingState({
@@ -12,6 +14,8 @@ class OnboardingState extends Equatable {
     this.purpose,
     this.feeling,
     this.rhythm,
+    this.currentSeason,
+    this.centralWord,
     this.isCompleted = false,
   });
 
@@ -20,6 +24,8 @@ class OnboardingState extends Equatable {
     String? purpose,
     String? feeling,
     String? rhythm,
+    String? currentSeason,
+    String? centralWord,
     bool? isCompleted,
   }) {
     return OnboardingState(
@@ -27,6 +33,8 @@ class OnboardingState extends Equatable {
       purpose: purpose ?? this.purpose,
       feeling: feeling ?? this.feeling,
       rhythm: rhythm ?? this.rhythm,
+      currentSeason: currentSeason ?? this.currentSeason,
+      centralWord: centralWord ?? this.centralWord,
       isCompleted: isCompleted ?? this.isCompleted,
     );
   }
@@ -37,6 +45,8 @@ class OnboardingState extends Equatable {
         purpose,
         feeling,
         rhythm,
+        currentSeason,
+        centralWord,
         isCompleted,
       ];
 }

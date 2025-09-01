@@ -36,6 +36,12 @@ class JournalEntry extends Equatable {
   @HiveField(9)
   final List<String> keywords;
 
+  @HiveField(10)
+  final String? emotion;
+
+  @HiveField(11)
+  final String? emotionReason;
+
   const JournalEntry({
     required this.id,
     required this.title,
@@ -47,6 +53,8 @@ class JournalEntry extends Equatable {
     this.audioUri,
     this.sageAnnotation,
     this.keywords = const [],
+    this.emotion,
+    this.emotionReason,
   });
 
   JournalEntry copyWith({
@@ -60,6 +68,8 @@ class JournalEntry extends Equatable {
     String? audioUri,
     SAGEAnnotation? sageAnnotation,
     List<String>? keywords,
+    String? emotion,
+    String? emotionReason,
   }) {
     return JournalEntry(
       id: id ?? this.id,
@@ -72,6 +82,8 @@ class JournalEntry extends Equatable {
       audioUri: audioUri ?? this.audioUri,
       sageAnnotation: sageAnnotation ?? this.sageAnnotation,
       keywords: keywords ?? this.keywords,
+      emotion: emotion ?? this.emotion,
+      emotionReason: emotionReason ?? this.emotionReason,
     );
   }
 
@@ -87,6 +99,8 @@ class JournalEntry extends Equatable {
         audioUri,
         sageAnnotation,
         keywords,
+        emotion,
+        emotionReason,
       ];
 
   Map<String, dynamic> toJson() {
@@ -101,6 +115,8 @@ class JournalEntry extends Equatable {
       'audioUri': audioUri,
       'sageAnnotation': sageAnnotation?.toJson(),
       'keywords': keywords,
+      'emotion': emotion,
+      'emotionReason': emotionReason,
     };
   }
 
@@ -119,6 +135,8 @@ class JournalEntry extends Equatable {
               json['sageAnnotation'] as Map<String, dynamic>)
           : null,
       keywords: List<String>.from(json['keywords'] as List? ?? []),
+      emotion: json['emotion'] as String?,
+      emotionReason: json['emotionReason'] as String?,
     );
   }
 }

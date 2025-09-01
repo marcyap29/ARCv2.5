@@ -1,62 +1,55 @@
 PODS:
+  - audio_session (0.0.1):
+    - Flutter
   - audioplayers_darwin (0.0.1):
     - Flutter
     - FlutterMacOS
   - Flutter (1.0.0)
-  - package_info_plus (0.4.5):
+  - just_audio (0.0.1):
     - Flutter
+    - FlutterMacOS
   - path_provider_foundation (0.0.1):
     - Flutter
     - FlutterMacOS
   - permission_handler_apple (9.3.0):
     - Flutter
-  - Sentry/HybridSDK (8.52.1)
-  - sentry_flutter (9.6.0):
-    - Flutter
-    - FlutterMacOS
-    - Sentry/HybridSDK (= 8.52.1)
   - url_launcher_ios (0.0.1):
     - Flutter
 
 DEPENDENCIES:
+  - audio_session (from `.symlinks/plugins/audio_session/ios`)
   - audioplayers_darwin (from `.symlinks/plugins/audioplayers_darwin/darwin`)
   - Flutter (from `Flutter`)
-  - package_info_plus (from `.symlinks/plugins/package_info_plus/ios`)
+  - just_audio (from `.symlinks/plugins/just_audio/darwin`)
   - path_provider_foundation (from `.symlinks/plugins/path_provider_foundation/darwin`)
   - permission_handler_apple (from `.symlinks/plugins/permission_handler_apple/ios`)
-  - sentry_flutter (from `.symlinks/plugins/sentry_flutter/ios`)
   - url_launcher_ios (from `.symlinks/plugins/url_launcher_ios/ios`)
 
-SPEC REPOS:
-  trunk:
-    - Sentry
-
 EXTERNAL SOURCES:
+  audio_session:
+    :path: ".symlinks/plugins/audio_session/ios"
   audioplayers_darwin:
     :path: ".symlinks/plugins/audioplayers_darwin/darwin"
   Flutter:
     :path: Flutter
-  package_info_plus:
-    :path: ".symlinks/plugins/package_info_plus/ios"
+  just_audio:
+    :path: ".symlinks/plugins/just_audio/darwin"
   path_provider_foundation:
     :path: ".symlinks/plugins/path_provider_foundation/darwin"
   permission_handler_apple:
     :path: ".symlinks/plugins/permission_handler_apple/ios"
-  sentry_flutter:
-    :path: ".symlinks/plugins/sentry_flutter/ios"
   url_launcher_ios:
     :path: ".symlinks/plugins/url_launcher_ios/ios"
 
 SPEC CHECKSUMS:
+  audio_session: 9bb7f6c970f21241b19f5a3658097ae459681ba0
   audioplayers_darwin: 4f9ca89d92d3d21cec7ec580e78ca888e5fb68bd
   Flutter: cabc95a1d2626b1b06e7179b784ebcf0c0cde467
-  package_info_plus: af8e2ca6888548050f16fa2f1938db7b5a5df499
+  just_audio: 4e391f57b79cad2b0674030a00453ca5ce817eed
   path_provider_foundation: 080d55be775b7414fd5a5ef3ac137b97b097e564
   permission_handler_apple: 4ed2196e43d0651e8ff7ca3483a069d469701f2d
-  Sentry: 2cbbe3592f30050c60e916c63c7f5a2fa584005e
-  sentry_flutter: 9b1e3e6934cb7040ffb71383c95a35f73523180c
   url_launcher_ios: 694010445543906933d732453a59da0a173ae33d
 
-PODFILE CHECKSUM: fd96a1a4dc98ce26beef9b353bcafc23f7ea007a
+PODFILE CHECKSUM: 648197b8d1e6e10670fcd2471630a9f1b24e3b03
 
 COCOAPODS: 1.16.2

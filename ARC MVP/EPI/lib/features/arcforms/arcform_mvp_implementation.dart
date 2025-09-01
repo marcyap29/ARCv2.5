@@ -2,6 +2,7 @@
 /// Simple ARC MVP Implementation
 /// This file provides the core functionality for creating and managing Arcforms
 /// without complex dependencies that might cause import issues.
+library;
 
 /// Geometry patterns for Arcform visualization
 enum ArcformGeometry {
@@ -18,34 +19,34 @@ extension ArcformGeometryExtension on ArcformGeometry {
   String get name {
     switch (this) {
       case ArcformGeometry.spiral:
-        return 'Spiral';
+        return 'Discovery';
       case ArcformGeometry.flower:
-        return 'Flower';
+        return 'Expansion';
       case ArcformGeometry.branch:
-        return 'Branch';
+        return 'Transition';
       case ArcformGeometry.weave:
-        return 'Weave';
+        return 'Consolidation';
       case ArcformGeometry.glowCore:
-        return 'Glow Core';
+        return 'Recovery';
       case ArcformGeometry.fractal:
-        return 'Fractal';
+        return 'Breakthrough';
     }
   }
   
   String get description {
     switch (this) {
       case ArcformGeometry.spiral:
-        return 'Nodes arranged in a spiral pattern';
+        return 'Exploring new insights and beginnings';
       case ArcformGeometry.flower:
-        return 'Nodes arranged like petals of a flower';
+        return 'Expanding awareness and growth';
       case ArcformGeometry.branch:
-        return 'Nodes arranged in branching patterns';
+        return 'Navigating transitions and choices';
       case ArcformGeometry.weave:
-        return 'Nodes arranged in interconnected weave';
+        return 'Integrating experiences and wisdom';
       case ArcformGeometry.glowCore:
-        return 'Nodes arranged around a central core';
+        return 'Healing and restoring balance';
       case ArcformGeometry.fractal:
-        return 'Nodes arranged in fractal patterns';
+        return 'Breaking through to new levels';
     }
   }
 }
@@ -209,6 +210,37 @@ class ArcformMVPService {
     );
   }
 
+  /// Create an Arcform from journal entry data with explicit phase
+  SimpleArcform createArcformFromEntryWithPhase({
+    required String entryId,
+    required String title,
+    required String content,
+    required String mood,
+    required List<String> keywords,
+    required String phase,
+    required bool userConsentedPhase,
+  }) {
+    // Map phase to geometry
+    final geometry = _phaseToGeometry(phase);
+    final colorMap = _generateColorMap(keywords);
+    final edges = _generateEdges(keywords);
+    final phaseHint = phase; // Use the actual phase name as hint
+
+    return SimpleArcform(
+      id: entryId,
+      title: title,
+      content: content,
+      mood: mood,
+      keywords: keywords,
+      geometry: geometry,
+      colorMap: colorMap,
+      edges: edges,
+      phaseHint: phaseHint,
+      createdAt: DateTime.now(),
+      isGeometryAuto: !userConsentedPhase, // Auto if not user-consented
+    );
+  }
+
   /// Generate demo Arcform data
   SimpleArcform createDemoArcform() {
     return SimpleArcform.fromJournalEntry(
@@ -222,6 +254,26 @@ class ArcformMVPService {
 }
 
 /// Utility functions for Arcform creation
+
+/// Map ATLAS phase to geometry
+ArcformGeometry _phaseToGeometry(String phase) {
+  switch (phase) {
+    case 'Discovery':
+      return ArcformGeometry.spiral;
+    case 'Expansion':
+      return ArcformGeometry.flower;
+    case 'Transition':
+      return ArcformGeometry.branch;
+    case 'Consolidation':
+      return ArcformGeometry.weave;
+    case 'Recovery':
+      return ArcformGeometry.glowCore;
+    case 'Breakthrough':
+      return ArcformGeometry.fractal;
+    default:
+      return ArcformGeometry.spiral; // Default to Discovery
+  }
+}
 
 /// Determine geometry pattern based on content and keywords
 ArcformGeometry _determineGeometry(String content, List<String> keywords) {
@@ -239,133 +291,25 @@ ArcformGeometry _determineGeometry(String content, List<String> keywords) {
   }
 }
 
-/// Generate color map for keywords based on emotional valence
+/// Generate color map for keywords
 Map<String, String> _generateColorMap(List<String> keywords) {
+  final colors = [
+    '#4F46E5', // Primary blue
+    '#7C3AED', // Purple
+    '#D1B3FF', // Light purple
+    '#6BE3A0', // Green
+    '#F7D774', // Yellow
+    '#FF6B6B', // Red
+    '#FF8E53', // Orange
+    '#4ECDC4', // Teal
+  ];
+  
   final colorMap = <String, String>{};
-  
-  // Import would be: import '../services/emotional_valence_service.dart';
-  // For now, we'll implement inline emotional color mapping
-  
-  for (final keyword in keywords) {
-    final color = _getEmotionalColor(keyword);
-    colorMap[keyword] = color.toString();
+  for (int i = 0; i < keywords.length; i++) {
+    colorMap[keywords[i]] = colors[i % colors.length];
   }
   
   return colorMap;
-}
-
-/// Get emotional color for a word based on valence
-int _getEmotionalColor(String word) {
-  final valence = _getEmotionalValence(word);
-  
-  if (valence > 0.7) {
-    // Very positive: Golden/warm yellow
-    return 0xFFFFD700;
-  } else if (valence > 0.4) {
-    // Positive: Warm orange
-    return 0xFFFF8C42;
-  } else if (valence > 0.1) {
-    // Slightly positive: Soft coral
-    return 0xFFFF6B6B;
-  } else if (valence > -0.1) {
-    // Neutral: Soft purple (app's primary color)
-    return 0xFFD1B3FF;
-  } else if (valence > -0.4) {
-    // Slightly negative: Cool blue
-    return 0xFF4A90E2;
-  } else if (valence > -0.7) {
-    // Negative: Deeper blue
-    return 0xFF2E86AB;
-  } else {
-    // Very negative: Cool teal
-    return 0xFF4ECDC4;
-  }
-}
-
-/// Determine emotional valence of a word (-1.0 to 1.0)
-double _getEmotionalValence(String word) {
-  final lowerWord = word.toLowerCase().trim();
-  
-  // Positive words (warm colors)
-  const positiveWords = {
-    'love', 'joy', 'happiness', 'peace', 'calm', 'serenity', 'bliss',
-    'gratitude', 'thankful', 'blessed', 'appreciation', 'grateful',
-    'breakthrough', 'discovery', 'success', 'achievement', 'growth', 'progress',
-    'improvement', 'learning', 'wisdom', 'insight', 'clarity', 'understanding',
-    'realization', 'enlightenment', 'awakening', 'transformation', 'evolution',
-    'connection', 'bond', 'friendship', 'community', 'belonging', 'warmth',
-    'comfort', 'support', 'encouragement', 'kindness', 'compassion', 'empathy',
-    'acceptance', 'forgiveness', 'healing', 'energy', 'vitality', 'strength',
-    'power', 'confidence', 'courage', 'determination', 'resilience', 'hope',
-    'optimism', 'excitement', 'enthusiasm', 'passion', 'inspiration', 'motivation',
-    'purpose', 'beauty', 'wonder', 'awe', 'marvel', 'magnificent', 'brilliant',
-    'radiant', 'glowing', 'shining', 'light', 'bright', 'golden', 'freedom',
-    'liberation', 'release', 'expansion', 'openness', 'flow', 'adventure',
-    'exploration', 'journey', 'creation', 'innovation',
-  };
-  
-  // Negative words (cool colors)
-  const negativeWords = {
-    'sadness', 'grief', 'sorrow', 'melancholy', 'depression', 'despair',
-    'loneliness', 'isolation', 'abandonment', 'emptiness', 'void',
-    'fear', 'anxiety', 'worry', 'stress', 'tension', 'panic', 'dread',
-    'terror', 'horror', 'nightmare', 'phobia', 'paranoia', 'concern',
-    'anger', 'rage', 'fury', 'frustration', 'irritation', 'annoyance',
-    'resentment', 'bitterness', 'hatred', 'hostility', 'aggression',
-    'struggle', 'difficulty', 'challenge', 'obstacle', 'barrier', 'problem',
-    'crisis', 'conflict', 'pain', 'suffering', 'hurt', 'wound', 'trauma',
-    'loss', 'failure', 'defeat', 'rejection', 'disappointment',
-    'confusion', 'uncertainty', 'doubt', 'questioning', 'lost', 'stuck',
-    'overwhelmed', 'chaos', 'disorder', 'instability', 'turbulence',
-    'tired', 'exhausted', 'drained', 'depleted', 'weak', 'sick', 'illness',
-    'fatigue', 'burnout', 'breakdown', 'collapse', 'darkness', 'shadow',
-    'cold', 'frozen', 'numb', 'distant', 'remote',
-  };
-  
-  if (positiveWords.contains(lowerWord)) {
-    // High intensity positive words
-    const highIntensity = {
-      'love', 'bliss', 'breakthrough', 'enlightenment', 'transformation',
-      'magnificent', 'radiant', 'brilliant', 'liberation', 'ecstasy'
-    };
-    // Medium intensity positive words
-    const mediumIntensity = {
-      'joy', 'happiness', 'gratitude', 'success', 'growth', 'wisdom',
-      'connection', 'strength', 'beauty', 'freedom'
-    };
-    
-    if (highIntensity.contains(lowerWord)) return 1.0;
-    if (mediumIntensity.contains(lowerWord)) return 0.7;
-    return 0.4; // Default positive
-  } else if (negativeWords.contains(lowerWord)) {
-    // High intensity negative words
-    const highIntensity = {
-      'despair', 'terror', 'rage', 'hatred', 'trauma', 'agony',
-      'devastation', 'horror', 'collapse', 'nightmare'
-    };
-    // Medium intensity negative words
-    const mediumIntensity = {
-      'sadness', 'fear', 'anger', 'pain', 'loss', 'stress',
-      'anxiety', 'depression', 'struggle', 'difficulty'
-    };
-    
-    if (highIntensity.contains(lowerWord)) return -1.0;
-    if (mediumIntensity.contains(lowerWord)) return -0.7;
-    return -0.4; // Default negative
-  }
-  
-  // Basic sentiment analysis for unknown words
-  if (lowerWord.endsWith('ness') && !lowerWord.contains('sad') && !lowerWord.contains('dark')) {
-    return 0.2;
-  }
-  if (lowerWord.endsWith('ful') && !lowerWord.contains('pain') && !lowerWord.contains('harm')) {
-    return 0.3;
-  }
-  if (lowerWord.startsWith('un') || lowerWord.startsWith('dis') || lowerWord.startsWith('mis')) {
-    return -0.2;
-  }
-  
-  return 0.0; // Default neutral
 }
 
 /// Generate edges between keywords

@@ -15,13 +15,14 @@ dependencies:
   flutter_bloc: ^9.1.1
   logger: ^1.4.0
   url_launcher: ^6.3.0
-  sentry: ^9.6.0    
-  sentry_flutter: ^9.6.0
+  # sentry: ^9.6.0    
+  # sentry_flutter: ^9.6.0
   hive: ^2.2.3
   hive_flutter: ^1.1.0 
   permission_handler: ^11.3.1
   path_provider: ^2.1.4
   audioplayers: ^6.1.0
+  just_audio: ^0.9.36
   uuid: ^4.5.1
   
   # Firebase Dependencies
@@ -39,7 +40,7 @@ dependencies:
 dev_dependencies:
   build_runner: ^2.4.5
   flutter_lints: ^3.0.1
-  sentry_dart_plugin: ^3.1.1  
+  # sentry_dart_plugin: ^3.1.1  
   flutter_test:
     sdk: flutter
   flutter_launcher_icons: ^0.13.1
@@ -49,6 +50,9 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  
+  assets:
+    - assets/audio/
 
 
 flutter_launcher_icons:
@@ -64,14 +68,14 @@ flutter_launcher_icons:
   windows:
     generate: true
     image_path: "assets/images/steve.png"
-    icon_size: 48 # min:48, max:256, default: 48
+    icon_size: 48 # min:48, max:256, default 48
   macos:
     generate: true
     image_path: "assets/images/steve.png"
 
-sentry:
-  project: epi-core-a9f488
-  org: steve-jm
-  auth_token: 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
-  upload_source_maps: true
-  ignore_missing: true
+# sentry:
+#   project: epi-core-a9f488
+#   org: steve-jm
+#   auth_token: sntrys_eyJpYXQiOjE3NDI4MDUxNzIuMzc4ODg1LCJ1cmwiOiJodHRwczovL3NlbnRyeS5pbyIsInJlZ2lvbl91cmwiOiJodHRwczovL3VzLnNlbnRyeS5pbyIsIm9yZyI6InN0ZXZlLWptIn0=_r1Ru3oYiUqebkmQS3QTJdTQ3wbgfn1mPKhhInVPlgA
+#   upload_source_maps: true
+#   ignore_missing: true

@@ -7,24 +7,31 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:hive_flutter/hive_flutter.dart';
+import 'package:my_app/models/user_profile_model.dart';
+import 'package:my_app/models/journal_entry_model.dart';
+import 'package:my_app/models/arcform_snapshot_model.dart';
+import 'package:my_app/features/journal/sage_annotation_model.dart';
 
-import 'package:my_app/main.dart';
+import 'package:my_app/app/app.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
+  testWidgets('App smoke test', (WidgetTester tester) async {
+    // Initialize Hive for testing
+    await Hive.initFlutter();
+    Hive
+      ..registerAdapter(UserProfileAdapter())
+      ..registerAdapter(JournalEntryAdapter())
+      ..registerAdapter(ArcformSnapshotAdapter())
+      ..registerAdapter(SAGEAnnotationAdapter());
+
     // Build our app and trigger a frame.
-    await tester.pumpWidget(const MyApp());
+    await tester.pumpWidget(const App());
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
+    // Wait for the startup timer to complete
+    await tester.pump(const Duration(seconds: 2));
 
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
-
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+    // Verify that the app loads without crashing
+    expect(find.byType(MaterialApp), findsOneWidget);
   });
 }

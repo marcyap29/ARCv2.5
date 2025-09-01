@@ -5,6 +5,7 @@ import 'package:my_app/features/onboarding/onboarding_state.dart';
 import 'package:hive/hive.dart';
 import 'package:my_app/models/user_profile_model.dart';
 import 'package:logger/logger.dart';
+import 'package:my_app/services/starter_arcform_service.dart';
 
 class OnboardingCubit extends Cubit<OnboardingState> {
   OnboardingCubit() : super(const OnboardingState());
@@ -29,6 +30,18 @@ class OnboardingCubit extends Cubit<OnboardingState> {
     _nextPage();
   }
 
+  void selectCurrentSeason(String season) {
+    _logger.d('Selecting current season: $season');
+    emit(state.copyWith(currentSeason: season));
+    _nextPage();
+  }
+
+  void setCentralWord(String word) {
+    _logger.d('Setting central word: $word');
+    emit(state.copyWith(centralWord: word));
+    _nextPage();
+  }
+
   void selectRhythm(String rhythm) {
     _logger.d('Selecting rhythm: $rhythm');
     emit(state.copyWith(rhythm: rhythm));
@@ -36,7 +49,7 @@ class OnboardingCubit extends Cubit<OnboardingState> {
   }
 
   void _nextPage() {
-    if (state.currentPage < 2) {
+    if (state.currentPage < 4) {
       pageController.animateToPage(
         state.currentPage + 1,
         duration: const Duration(milliseconds: 300),
@@ -51,30 +64,50 @@ class OnboardingCubit extends Cubit<OnboardingState> {
       final userBox = await Hive.openBox<UserProfile>('user_profile');
       UserProfile? userProfile = userBox.get('profile');
 
-      if (userProfile == null) {
-        userProfile = UserProfile(
+      userProfile ??= UserProfile(
           id: 'default',
           name: 'User',
           email: '',
           createdAt: DateTime.now(),
-          preferences: {},
+          preferences: const {},
         );
-      }
 
       final updatedProfile = userProfile.copyWith(
         onboardingPurpose: state.purpose,
         onboardingFeeling: state.feeling,
         onboardingRhythm: state.rhythm,
+        onboardingCurrentSeason: state.currentSeason,
+        onboardingCentralWord: state.centralWord,
         onboardingCompleted: true,
       );
 
       await userBox.put('profile', updatedProfile);
       emit(state.copyWith(isCompleted: true));
 
-      // Navigate to HomeView after a short delay to ensure state is updated
-      await Future.delayed(const Duration(milliseconds: 100));
-      _navigateToHome();
+      // Generate starter Arcform from onboarding data (non-blocking)
+      try {
+        final starterArcform = StarterArcformService.createFromOnboarding(updatedProfile);
+        // Persist starter arcform as a journal-like entry for continuity
+        final journalBox = await Hive.openBox('journal_entries');
+        final journalEntry = {
+          'id': starterArcform.id,
+          'title': starterArcform.title,
+          'content': starterArcform.content,
+          'createdAt': starterArcform.createdAt.toIso8601String(),
+          'updatedAt': starterArcform.createdAt.toIso8601String(),
+          'tags': starterArcform.keywords,
+          'mood': updatedProfile.onboardingFeeling ?? 'Hopeful',
+          'audioUri': null,
+          'sageAnnotation': null,
+          'keywords': starterArcform.keywords,
+        };
+        await journalBox.put(journalEntry['id'], journalEntry);
+        _logger.i('Saved starter Arcform as journal entry: ${journalEntry['id']}');
+      } catch (e, stackTrace) {
+        _logger.e('Error creating starter Arcform: $e', stackTrace);
+      }
 
+      // Navigation will be handled by BlocListener in the UI
       _logger.i('Onboarding completed successfully');
     } catch (e, stackTrace) {
       _logger.e('Error completing onboarding: $e', stackTrace);
@@ -89,15 +122,13 @@ class OnboardingCubit extends Cubit<OnboardingState> {
       final userBox = await Hive.openBox<UserProfile>('user_profile');
       UserProfile? userProfile = userBox.get('profile');
 
-      if (userProfile == null) {
-        userProfile = UserProfile(
+      userProfile ??= UserProfile(
           id: 'default',
           name: 'User',
           email: '',
           createdAt: DateTime.now(),
-          preferences: {},
+          preferences: const {},
         );
-      }
 
       final updatedProfile = userProfile.copyWith(
         onboardingCompleted: true,
@@ -106,10 +137,7 @@ class OnboardingCubit extends Cubit<OnboardingState> {
       await userBox.put('profile', updatedProfile);
       emit(state.copyWith(isCompleted: true));
 
-      // Navigate to HomeView after a short delay to ensure state is updated
-      await Future.delayed(const Duration(milliseconds: 100));
-      _navigateToHome();
-
+      // Navigation will be handled by BlocListener in the UI
       _logger.i('Onboarding skipped');
     } catch (e, stackTrace) {
       _logger.e('Error skipping onboarding: $e', stackTrace);
@@ -119,8 +147,8 @@ class OnboardingCubit extends Cubit<OnboardingState> {
   }
 
   void _navigateToHome() {
-    // Navigation will be handled by the widget after onboarding completion
-    // This method is now just a placeholder - actual navigation happens in OnboardingView
+    // Navigation is handled by BlocListener in the UI
+    // This method is kept for potential future use but not called
   }
 
   @override

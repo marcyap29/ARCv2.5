@@ -5,6 +5,9 @@ import 'package:my_app/features/arcforms/widgets/node_widget.dart';
 import 'package:my_app/shared/app_colors.dart';
 import 'package:my_app/shared/text_style.dart';
 
+// Golden angle constant for optimal spiral distribution
+const double _goldenAngle = 2.39996322972865332; // radians (137.5 degrees)
+
 class ArcformLayout extends StatefulWidget {
   final List<Node> nodes;
   final List<Edge> edges;
@@ -50,6 +53,41 @@ class _ArcformLayoutState extends State<ArcformLayout>
     super.dispose();
   }
 
+  /// Test harness for spiral layout with 5-10 nodes
+  static List<Node> generateTestSpiralNodes(int nodeCount) {
+    if (nodeCount < 3 || nodeCount > 10) {
+      throw ArgumentError('Node count must be between 3 and 10');
+    }
+    
+    final testKeywords = [
+      'growth', 'awareness', 'journey', 'transformation', 'insight',
+      'wisdom', 'balance', 'harmony', 'flow', 'presence'
+    ];
+    
+    final nodes = <Node>[];
+    final centerX = 200.0;
+    final centerY = 200.0;
+    final radius = 150.0;
+    
+    for (int i = 0; i < nodeCount; i++) {
+      final angle = i * _goldenAngle;
+      final distance = radius * (0.1 + 0.9 * (i / max(1, nodeCount - 1)));
+      
+      final x = centerX + distance * cos(angle);
+      final y = centerY + distance * sin(angle);
+      
+      nodes.add(Node(
+        id: 'test_$i',
+        label: testKeywords[i % testKeywords.length],
+        x: x,
+        y: y,
+        size: 20.0 + (i * 2.0), // Varying sizes for visual interest
+      ));
+    }
+    
+    return nodes;
+  }
+
   @override
   void didUpdateWidget(covariant ArcformLayout oldWidget) {
     super.didUpdateWidget(oldWidget);
@@ -89,9 +127,10 @@ class _ArcformLayoutState extends State<ArcformLayout>
     final count = widget.nodes.length;
 
     for (int i = 0; i < count; i++) {
-      final progress = i / (count - 1);
-      final angle = progress * 4 * pi;
-      final distance = progress * radius;
+      // Use golden angle for optimal distribution
+      final angle = i * _goldenAngle;
+      // Scale distance based on node index for outward spiral
+      final distance = radius * (0.1 + 0.9 * (i / max(1, count - 1)));
 
       final x = centerX + distance * cos(angle);
       final y = centerY + distance * sin(angle);
@@ -300,7 +339,7 @@ class _ArcformLayoutState extends State<ArcformLayout>
               node: node,
               onMoved: widget.onNodeMoved,
             );
-          }).toList(),
+          }),
           // Geometry selector
           Positioned(
             top: 20,

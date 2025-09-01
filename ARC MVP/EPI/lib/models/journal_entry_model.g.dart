@@ -27,13 +27,15 @@ class JournalEntryAdapter extends TypeAdapter<JournalEntry> {
       audioUri: fields[7] as String?,
       sageAnnotation: fields[8] as SAGEAnnotation?,
       keywords: (fields[9] as List).cast<String>(),
+      emotion: fields[10] as String?,
+      emotionReason: fields[11] as String?,
     );
   }
 
   @override
   void write(BinaryWriter writer, JournalEntry obj) {
     writer
-      ..writeByte(10)
+      ..writeByte(12)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -53,7 +55,11 @@ class JournalEntryAdapter extends TypeAdapter<JournalEntry> {
       ..writeByte(8)
       ..write(obj.sageAnnotation)
       ..writeByte(9)
-      ..write(obj.keywords);
+      ..write(obj.keywords)
+      ..writeByte(10)
+      ..write(obj.emotion)
+      ..writeByte(11)
+      ..write(obj.emotionReason);
   }
 
   @override
