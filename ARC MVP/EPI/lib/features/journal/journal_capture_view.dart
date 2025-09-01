@@ -4,7 +4,6 @@ import 'package:my_app/features/journal/journal_capture_cubit.dart';
 import 'package:my_app/features/journal/journal_capture_state.dart';
 import 'package:my_app/features/journal/keyword_extraction_cubit.dart';
 import 'package:my_app/features/journal/keyword_extraction_state.dart';
-import 'package:my_app/repositories/journal_repository.dart';
 import 'package:my_app/shared/app_colors.dart';
 import 'package:my_app/shared/text_style.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -79,17 +78,7 @@ class _JournalCaptureViewState extends State<JournalCaptureView> {
 
   @override
   Widget build(BuildContext context) {
-    return MultiBlocProvider(
-      providers: [
-        BlocProvider(
-          create: (context) =>
-              JournalCaptureCubit(context.read<JournalRepository>()),
-        ),
-        BlocProvider(
-          create: (context) => KeywordExtractionCubit()..initialize(),
-        ),
-      ],
-      child: BlocListener<JournalCaptureCubit, JournalCaptureState>(
+    return BlocListener<JournalCaptureCubit, JournalCaptureState>(
         listener: (context, state) {
           if (state is JournalCaptureSaved) {
             _textController.clear();
@@ -420,8 +409,7 @@ class _JournalCaptureViewState extends State<JournalCaptureView> {
             ),
           ),
         ),
-      ),
-    );
+      );
   }
 
   Widget _buildKeywordChip(String keyword, List<String> selectedKeywords) {
