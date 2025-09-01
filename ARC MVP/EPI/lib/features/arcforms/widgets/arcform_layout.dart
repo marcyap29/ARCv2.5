@@ -2,6 +2,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:my_app/features/arcforms/arcform_renderer_state.dart';
 import 'package:my_app/features/arcforms/widgets/node_widget.dart';
+import 'package:my_app/services/user_phase_service.dart';
 import 'package:my_app/shared/app_colors.dart';
 import 'package:my_app/shared/text_style.dart';
 
@@ -13,6 +14,7 @@ class ArcformLayout extends StatefulWidget {
   final List<Edge> edges;
   final Function(String, double, double)? onNodeMoved;
   final GeometryPattern selectedGeometry;
+  final String currentPhase;
   final Function(GeometryPattern) onGeometryChanged;
 
   const ArcformLayout({
@@ -21,6 +23,7 @@ class ArcformLayout extends StatefulWidget {
     required this.edges,
     this.onNodeMoved,
     required this.selectedGeometry,
+    required this.currentPhase,
     required this.onGeometryChanged,
   });
 
@@ -354,10 +357,40 @@ class _ArcformLayoutState extends State<ArcformLayout>
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // Current Phase Display
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        decoration: BoxDecoration(
+                          gradient: kcPrimaryGradient,
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Text(
+                          '${widget.currentPhase} Phase',
+                          style: bodyStyle(context).copyWith(
+                            color: kcPrimaryTextColor,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          UserPhaseService.getPhaseDescription(widget.currentPhase),
+                          style: bodyStyle(context).copyWith(
+                            fontSize: 13,
+                            color: kcPrimaryTextColor.withOpacity(0.8),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
                   Text(
-                    'Geometry Patterns',
+                    'Sacred Geometry',
                     style: heading2Style(context).copyWith(
-                      fontSize: 20,
+                      fontSize: 18,
                     ),
                   ),
                   const SizedBox(height: 10),

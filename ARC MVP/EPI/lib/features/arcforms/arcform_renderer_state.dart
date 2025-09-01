@@ -19,25 +19,29 @@ class ArcformRendererLoaded extends ArcformRendererState {
   final List<Node> nodes;
   final List<Edge> edges;
   final GeometryPattern selectedGeometry;
+  final String currentPhase;
 
   const ArcformRendererLoaded({
     required this.nodes,
     required this.edges,
     required this.selectedGeometry,
+    required this.currentPhase,
   });
 
   @override
-  List<Object> get props => [nodes, edges, selectedGeometry];
+  List<Object> get props => [nodes, edges, selectedGeometry, currentPhase];
 
   ArcformRendererLoaded copyWith({
     List<Node>? nodes,
     List<Edge>? edges,
     GeometryPattern? selectedGeometry,
+    String? currentPhase,
   }) {
     return ArcformRendererLoaded(
       nodes: nodes ?? this.nodes,
       edges: edges ?? this.edges,
       selectedGeometry: selectedGeometry ?? this.selectedGeometry,
+      currentPhase: currentPhase ?? this.currentPhase,
     );
   }
 }

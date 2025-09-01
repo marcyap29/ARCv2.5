@@ -72,6 +72,7 @@ class ArcformRendererViewContent extends StatelessWidget {
                   .updateNodePosition(nodeId, x, y);
             },
             selectedGeometry: state.selectedGeometry,
+            currentPhase: state.currentPhase,
             onGeometryChanged: (geometry) {
               context.read<ArcformRendererCubit>().changeGeometry(geometry);
             },

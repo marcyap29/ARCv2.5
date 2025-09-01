@@ -1,6 +1,10 @@
 import 'dart:math';
+import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:my_app/features/arcforms/arcform_renderer_state.dart';
+import 'package:my_app/features/arcforms/arcform_mvp_implementation.dart';
+import 'package:my_app/features/arcforms/geometry/geometry_layouts.dart';
+import 'package:my_app/services/user_phase_service.dart';
 import 'package:hive/hive.dart';
 
 class ArcformRendererCubit extends Cubit<ArcformRendererState> {
@@ -8,42 +12,78 @@ class ArcformRendererCubit extends Cubit<ArcformRendererState> {
   
   ArcformRendererCubit() : super(const ArcformRendererInitial());
 
-  void initialize() {
+  void initialize() async {
     emit(const ArcformRendererLoading());
 
-    // Simulate loading data
-    Future.delayed(const Duration(milliseconds: 500), () {
-      // Create sample nodes with force-directed layout simulation
-      final nodes = <Node>[
-        Node(id: '1', label: 'Journal', x: 100, y: 100),
-        Node(id: '2', label: 'Reflection', x: 200, y: 150),
-        Node(id: '3', label: 'Growth', x: 300, y: 100),
-        Node(id: '4', label: 'Insight', x: 150, y: 250),
-        Node(id: '5', label: 'Pattern', x: 250, y: 250),
-        Node(id: '6', label: 'Awareness', x: 350, y: 200),
-        Node(id: '7', label: 'Clarity', x: 200, y: 300),
-        Node(id: '8', label: 'Wisdom', x: 300, y: 350),
-      ];
-
-      // Create sample edges
-      final edges = <Edge>[
-        Edge(source: '1', target: '2'),
-        Edge(source: '2', target: '3'),
-        Edge(source: '1', target: '4'),
-        Edge(source: '4', target: '5'),
-        Edge(source: '3', target: '5'),
-        Edge(source: '5', target: '6'),
-        Edge(source: '4', target: '7'),
-        Edge(source: '7', target: '8'),
-        Edge(source: '6', target: '8'),
-      ];
-
+    try {
+      // Get the user's current phase and most recent snapshot
+      final currentPhase = await UserPhaseService.getCurrentPhase();
+      final snapshot = await UserPhaseService.getMostRecentSnapshot();
+      
+      List<Node> nodes;
+      List<Edge> edges;
+      
+      if (snapshot != null) {
+        // Use real data from the user's most recent Arcform
+        final geometry = UserPhaseService.getGeometryForPhase(snapshot.phase);
+        final positions = GeometryLayouts.getPositions(
+          geometry: geometry,
+          nodeCount: snapshot.keywords.length,
+          canvasSize: const Size(400, 400),
+        );
+        
+        // Create nodes from keywords with proper positioning
+        nodes = [];
+        for (int i = 0; i < snapshot.keywords.length; i++) {
+          final keyword = snapshot.keywords[i];
+          final position = positions[i];
+          
+          nodes.add(Node(
+            id: (i + 1).toString(),
+            label: keyword,
+            x: position.dx,
+            y: position.dy,
+            size: 20.0 + (keyword.length * 1.5),
+          ));
+        }
+        
+        // Create edges from snapshot data
+        edges = snapshot.edges.map((edgeData) {
+          final sourceIndex = edgeData[0] as int;
+          final targetIndex = edgeData[1] as int;
+          return Edge(
+            source: (sourceIndex + 1).toString(),
+            target: (targetIndex + 1).toString(),
+          );
+        }).toList();
+        
+      } else {
+        // First-time user with no snapshots - show gentle welcome state
+        nodes = [
+          Node(id: '1', label: 'Welcome', x: 200, y: 180),
+          Node(id: '2', label: 'Explore', x: 150, y: 220),
+          Node(id: '3', label: 'Discover', x: 250, y: 220),
+        ];
+        
+        edges = [
+          Edge(source: '1', target: '2'),
+          Edge(source: '1', target: '3'),
+        ];
+      }
+      
+      // Get the geometry pattern for the current phase
+      final geometry = _phaseToGeometryPattern(currentPhase);
+      
       emit(ArcformRendererLoaded(
         nodes: nodes,
         edges: edges,
-        selectedGeometry: GeometryPattern.spiral,
+        selectedGeometry: geometry,
+        currentPhase: currentPhase,
       ));
-    });
+      
+    } catch (e) {
+      emit(ArcformRendererError('Failed to load Arcform: $e'));
+    }
   }
 
   /// ARC MVP: Create an Arcform from journal entry data
@@ -136,6 +176,7 @@ class ArcformRendererCubit extends Cubit<ArcformRendererState> {
         nodes: nodes,
         edges: edges,
         selectedGeometry: geometry,
+        currentPhase: currentState.currentPhase,
       ));
     }
   }
@@ -331,6 +372,26 @@ class ArcformRendererCubit extends Cubit<ArcformRendererState> {
   /// Simple math functions
   double _cos(double angle) => cos(angle);
   double _sin(double angle) => sin(angle);
+  
+  /// Convert phase string to GeometryPattern
+  GeometryPattern _phaseToGeometryPattern(String phase) {
+    switch (phase.toLowerCase()) {
+      case 'discovery':
+        return GeometryPattern.spiral;
+      case 'expansion':
+        return GeometryPattern.flower;
+      case 'transition':
+        return GeometryPattern.branch;
+      case 'consolidation':
+        return GeometryPattern.weave;
+      case 'recovery':
+        return GeometryPattern.glowCore;
+      case 'breakthrough':
+        return GeometryPattern.fractal;
+      default:
+        return GeometryPattern.spiral;
+    }
+  }
 
   void updateNodePosition(String nodeId, double x, double y) {
     if (state is ArcformRendererLoaded) {

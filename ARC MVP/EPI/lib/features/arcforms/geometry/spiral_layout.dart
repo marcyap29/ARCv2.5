@@ -5,7 +5,7 @@ class SpiralLayout {
   /// Creates true spiral positions using golden angle for optimal distribution
   /// Returns offsets around (0,0); caller should add canvas-center offset
   static List<Offset> positions(int n, {double step = 22, double jitter = 0}) {
-    const golden = pi * (3 - sqrt(5)); // ~2.399963... (golden angle in radians)
+    final golden = pi * (3 - sqrt(5)); // ~2.399963... (golden angle in radians)
     final rand = Random();
     final pts = <Offset>[];
     
@@ -34,7 +34,7 @@ class SpiralLayout {
   
   /// Alternative spiral with tighter initial coils
   static List<Offset> tightSpiral(int n, {double initialRadius = 8, double growth = 1.5}) {
-    const golden = pi * (3 - sqrt(5));
+    final golden = pi * (3 - sqrt(5));
     final pts = <Offset>[];
     
     for (var i = 0; i < n; i++) {
