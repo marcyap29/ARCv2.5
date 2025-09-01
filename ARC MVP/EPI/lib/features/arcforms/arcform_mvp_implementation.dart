@@ -1,4 +1,3 @@
-import 'package:flutter/material.dart';
 
 /// Simple ARC MVP Implementation
 /// This file provides the core functionality for creating and managing Arcforms
@@ -63,6 +62,7 @@ class SimpleArcform {
   final List<List<dynamic>> edges;
   final String phaseHint;
   final DateTime createdAt;
+  final bool isGeometryAuto; // New field for Prompt 23
 
   SimpleArcform({
     required this.id,
@@ -75,9 +75,10 @@ class SimpleArcform {
     required this.edges,
     required this.phaseHint,
     required this.createdAt,
+    this.isGeometryAuto = true, // Default to auto-detected
   });
 
-  /// Create from journal entry data
+  /// Create from journal entry data with auto-detected geometry
   factory SimpleArcform.fromJournalEntry({
     required String entryId,
     required String title,
@@ -101,6 +102,35 @@ class SimpleArcform {
       edges: edges,
       phaseHint: phaseHint,
       createdAt: DateTime.now(),
+      isGeometryAuto: true, // Auto-detected
+    );
+  }
+
+  /// Create from journal entry data with manual geometry override
+  factory SimpleArcform.fromJournalEntryWithManualGeometry({
+    required String entryId,
+    required String title,
+    required String content,
+    required String mood,
+    required List<String> keywords,
+    required ArcformGeometry manualGeometry,
+  }) {
+    final colorMap = _generateColorMap(keywords);
+    final edges = _generateEdges(keywords);
+    final phaseHint = _determinePhaseHint(content, keywords);
+
+    return SimpleArcform(
+      id: entryId,
+      title: title,
+      content: content,
+      mood: mood,
+      keywords: keywords,
+      geometry: manualGeometry,
+      colorMap: colorMap,
+      edges: edges,
+      phaseHint: phaseHint,
+      createdAt: DateTime.now(),
+      isGeometryAuto: false, // Manually selected
     );
   }
 
@@ -117,6 +147,7 @@ class SimpleArcform {
       'edges': edges,
       'phaseHint': phaseHint,
       'createdAt': createdAt.toIso8601String(),
+      'isGeometryAuto': isGeometryAuto,
     };
   }
 
@@ -133,6 +164,24 @@ class SimpleArcform {
       edges: List<List<dynamic>>.from(json['edges'] as List),
       phaseHint: json['phaseHint'] as String,
       createdAt: DateTime.parse(json['createdAt'] as String),
+      isGeometryAuto: json['isGeometryAuto'] as bool? ?? true,
+    );
+  }
+
+  /// Copy with new geometry (for manual override)
+  SimpleArcform copyWithGeometry(ArcformGeometry newGeometry) {
+    return SimpleArcform(
+      id: id,
+      title: title,
+      content: content,
+      mood: mood,
+      keywords: keywords,
+      geometry: newGeometry,
+      colorMap: colorMap,
+      edges: edges,
+      phaseHint: phaseHint,
+      createdAt: createdAt,
+      isGeometryAuto: false, // Mark as manually overridden
     );
   }
 }
@@ -190,25 +239,133 @@ ArcformGeometry _determineGeometry(String content, List<String> keywords) {
   }
 }
 
-/// Generate color map for keywords
+/// Generate color map for keywords based on emotional valence
 Map<String, String> _generateColorMap(List<String> keywords) {
-  final colors = [
-    '#4F46E5', // Primary blue
-    '#7C3AED', // Purple
-    '#D1B3FF', // Light purple
-    '#6BE3A0', // Green
-    '#F7D774', // Yellow
-    '#FF6B6B', // Red
-    '#FF8E53', // Orange
-    '#4ECDC4', // Teal
-  ];
-  
   final colorMap = <String, String>{};
-  for (int i = 0; i < keywords.length; i++) {
-    colorMap[keywords[i]] = colors[i % colors.length];
+  
+  // Import would be: import '../services/emotional_valence_service.dart';
+  // For now, we'll implement inline emotional color mapping
+  
+  for (final keyword in keywords) {
+    final color = _getEmotionalColor(keyword);
+    colorMap[keyword] = '#${color.value.toRadixString(16).padLeft(8, '0').substring(2)}';
   }
   
   return colorMap;
+}
+
+/// Get emotional color for a word based on valence
+int _getEmotionalColor(String word) {
+  final valence = _getEmotionalValence(word);
+  
+  if (valence > 0.7) {
+    // Very positive: Golden/warm yellow
+    return 0xFFFFD700;
+  } else if (valence > 0.4) {
+    // Positive: Warm orange
+    return 0xFFFF8C42;
+  } else if (valence > 0.1) {
+    // Slightly positive: Soft coral
+    return 0xFFFF6B6B;
+  } else if (valence > -0.1) {
+    // Neutral: Soft purple (app's primary color)
+    return 0xFFD1B3FF;
+  } else if (valence > -0.4) {
+    // Slightly negative: Cool blue
+    return 0xFF4A90E2;
+  } else if (valence > -0.7) {
+    // Negative: Deeper blue
+    return 0xFF2E86AB;
+  } else {
+    // Very negative: Cool teal
+    return 0xFF4ECDC4;
+  }
+}
+
+/// Determine emotional valence of a word (-1.0 to 1.0)
+double _getEmotionalValence(String word) {
+  final lowerWord = word.toLowerCase().trim();
+  
+  // Positive words (warm colors)
+  const positiveWords = {
+    'love', 'joy', 'happiness', 'peace', 'calm', 'serenity', 'bliss',
+    'gratitude', 'thankful', 'blessed', 'appreciation', 'grateful',
+    'breakthrough', 'discovery', 'success', 'achievement', 'growth', 'progress',
+    'improvement', 'learning', 'wisdom', 'insight', 'clarity', 'understanding',
+    'realization', 'enlightenment', 'awakening', 'transformation', 'evolution',
+    'connection', 'bond', 'friendship', 'community', 'belonging', 'warmth',
+    'comfort', 'support', 'encouragement', 'kindness', 'compassion', 'empathy',
+    'acceptance', 'forgiveness', 'healing', 'energy', 'vitality', 'strength',
+    'power', 'confidence', 'courage', 'determination', 'resilience', 'hope',
+    'optimism', 'excitement', 'enthusiasm', 'passion', 'inspiration', 'motivation',
+    'purpose', 'beauty', 'wonder', 'awe', 'marvel', 'magnificent', 'brilliant',
+    'radiant', 'glowing', 'shining', 'light', 'bright', 'golden', 'freedom',
+    'liberation', 'release', 'expansion', 'openness', 'flow', 'adventure',
+    'exploration', 'journey', 'creation', 'innovation',
+  };
+  
+  // Negative words (cool colors)
+  const negativeWords = {
+    'sadness', 'grief', 'sorrow', 'melancholy', 'depression', 'despair',
+    'loneliness', 'isolation', 'abandonment', 'emptiness', 'void',
+    'fear', 'anxiety', 'worry', 'stress', 'tension', 'panic', 'dread',
+    'terror', 'horror', 'nightmare', 'phobia', 'paranoia', 'concern',
+    'anger', 'rage', 'fury', 'frustration', 'irritation', 'annoyance',
+    'resentment', 'bitterness', 'hatred', 'hostility', 'aggression',
+    'struggle', 'difficulty', 'challenge', 'obstacle', 'barrier', 'problem',
+    'crisis', 'conflict', 'pain', 'suffering', 'hurt', 'wound', 'trauma',
+    'loss', 'failure', 'defeat', 'rejection', 'disappointment',
+    'confusion', 'uncertainty', 'doubt', 'questioning', 'lost', 'stuck',
+    'overwhelmed', 'chaos', 'disorder', 'instability', 'turbulence',
+    'tired', 'exhausted', 'drained', 'depleted', 'weak', 'sick', 'illness',
+    'fatigue', 'burnout', 'breakdown', 'collapse', 'darkness', 'shadow',
+    'cold', 'frozen', 'numb', 'distant', 'remote',
+  };
+  
+  if (positiveWords.contains(lowerWord)) {
+    // High intensity positive words
+    const highIntensity = {
+      'love', 'bliss', 'breakthrough', 'enlightenment', 'transformation',
+      'magnificent', 'radiant', 'brilliant', 'liberation', 'ecstasy'
+    };
+    // Medium intensity positive words
+    const mediumIntensity = {
+      'joy', 'happiness', 'gratitude', 'success', 'growth', 'wisdom',
+      'connection', 'strength', 'beauty', 'freedom'
+    };
+    
+    if (highIntensity.contains(lowerWord)) return 1.0;
+    if (mediumIntensity.contains(lowerWord)) return 0.7;
+    return 0.4; // Default positive
+  } else if (negativeWords.contains(lowerWord)) {
+    // High intensity negative words
+    const highIntensity = {
+      'despair', 'terror', 'rage', 'hatred', 'trauma', 'agony',
+      'devastation', 'horror', 'collapse', 'nightmare'
+    };
+    // Medium intensity negative words
+    const mediumIntensity = {
+      'sadness', 'fear', 'anger', 'pain', 'loss', 'stress',
+      'anxiety', 'depression', 'struggle', 'difficulty'
+    };
+    
+    if (highIntensity.contains(lowerWord)) return -1.0;
+    if (mediumIntensity.contains(lowerWord)) return -0.7;
+    return -0.4; // Default negative
+  }
+  
+  // Basic sentiment analysis for unknown words
+  if (lowerWord.endsWith('ness') && !lowerWord.contains('sad') && !lowerWord.contains('dark')) {
+    return 0.2;
+  }
+  if (lowerWord.endsWith('ful') && !lowerWord.contains('pain') && !lowerWord.contains('harm')) {
+    return 0.3;
+  }
+  if (lowerWord.startsWith('un') || lowerWord.startsWith('dis') || lowerWord.startsWith('mis')) {
+    return -0.2;
+  }
+  
+  return 0.0; // Default neutral
 }
 
 /// Generate edges between keywords
