@@ -50,8 +50,12 @@ class _KeywordAnalysisViewState extends State<KeywordAnalysisView>
       curve: Curves.easeInOut,
     ));
 
-    // Start keyword extraction and animation
-    context.read<KeywordExtractionCubit>().extractKeywords(widget.content);
+    // Start keyword extraction with context and animation
+    context.read<KeywordExtractionCubit>().extractKeywords(
+      widget.content,
+      emotion: widget.initialEmotion,
+      reason: widget.initialReason,
+    );
     _progressController.forward();
   }
 
@@ -330,12 +334,27 @@ class _KeywordAnalysisViewState extends State<KeywordAnalysisView>
             const SizedBox(height: 24),
           ],
           
-          // Selection count
-          Text(
-            'Selected: ${state.selectedKeywords.length}/10',
-            style: heading2Style(context).copyWith(
-              color: state.selectedKeywords.isNotEmpty ? kcPrimaryColor : kcSecondaryTextColor,
-            ),
+          // Selection count and enhanced metadata
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Selected: ${state.selectedKeywords.length}/20',
+                style: heading2Style(context).copyWith(
+                  color: state.selectedKeywords.isNotEmpty ? kcPrimaryColor : kcSecondaryTextColor,
+                ),
+              ),
+              if (state.enhancedResponse != null) ...[ 
+                const SizedBox(height: 4),
+                Text(
+                  'Phase: ${state.enhancedResponse!.meta['current_phase']} • Enhanced with RIVET',
+                  style: captionStyle(context).copyWith(
+                    color: kcSecondaryTextColor,
+                    fontSize: 11,
+                  ),
+                ),
+              ],
+            ],
           ),
           const SizedBox(height: 16),
           
@@ -346,7 +365,7 @@ class _KeywordAnalysisViewState extends State<KeywordAnalysisView>
                 spacing: 8,
                 runSpacing: 8,
                 children: state.suggestedKeywords
-                    .map((keyword) => _buildKeywordChip(keyword, state.selectedKeywords))
+                    .map((keyword) => _buildEnhancedKeywordChip(keyword, state))
                     .toList(),
               ),
             ),
@@ -372,9 +391,9 @@ class _KeywordAnalysisViewState extends State<KeywordAnalysisView>
                       color: kcSecondaryTextColor,
                     ),
                   )
-                else if (state.selectedKeywords.length > 10)
+                else if (state.selectedKeywords.length > 20)
                   Text(
-                    'Please select no more than 10 keywords',
+                    'Please select no more than 20 keywords',
                     style: bodyStyle(context).copyWith(
                       color: kcDangerColor,
                     ),
@@ -412,9 +431,92 @@ class _KeywordAnalysisViewState extends State<KeywordAnalysisView>
     );
   }
 
+  Widget _buildEnhancedKeywordChip(String keyword, KeywordExtractionLoaded state) {
+    final isSelected = state.selectedKeywords.contains(keyword);
+    final canSelect = state.selectedKeywords.length < 20 || isSelected;
+    
+    // Get enhanced metadata if available
+    KeywordCandidate? candidate;
+    if (state.enhancedResponse != null) {
+      try {
+        candidate = state.enhancedResponse!.candidates
+            .firstWhere((c) => c.keyword == keyword);
+      } catch (e) {
+        // Keyword not found in candidates, use default styling
+      }
+    }
+    
+    // Determine chip styling based on candidate metadata
+    Color chipColor = isSelected ? kcPrimaryColor : kcSurfaceColor;
+    Color borderColor = isSelected 
+        ? kcPrimaryColor 
+        : canSelect 
+            ? kcSecondaryColor.withOpacity(0.3)
+            : kcSecondaryTextColor.withOpacity(0.2);
+    
+    // Enhanced styling for high-quality candidates
+    if (candidate != null && !isSelected) {
+      if (candidate.score > 0.7) {
+        chipColor = kcPrimaryColor.withOpacity(0.1);
+        borderColor = kcPrimaryColor.withOpacity(0.5);
+      } else if (candidate.emotion.amplitude > 0.6) {
+        chipColor = kcAccentColor.withOpacity(0.1);
+        borderColor = kcAccentColor.withOpacity(0.4);
+      }
+    }
+    
+    return GestureDetector(
+      onTap: canSelect ? () {
+        context.read<KeywordExtractionCubit>().toggleKeyword(keyword);
+      } : null,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          color: chipColor,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: borderColor),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              keyword,
+              style: captionStyle(context).copyWith(
+                color: isSelected 
+                    ? Colors.white 
+                    : canSelect 
+                        ? kcSecondaryColor 
+                        : kcSecondaryTextColor.withOpacity(0.5),
+                fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                fontSize: 12,
+              ),
+            ),
+            // Add quality indicator for enhanced candidates
+            if (candidate != null && candidate.score > 0.6 && !isSelected) ...[
+              const SizedBox(width: 4),
+              Container(
+                width: 6,
+                height: 6,
+                decoration: BoxDecoration(
+                  color: candidate.score > 0.8 
+                      ? kcPrimaryColor 
+                      : candidate.emotion.amplitude > 0.5 
+                          ? kcAccentColor 
+                          : kcSecondaryColor,
+                  shape: BoxShape.circle,
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildKeywordChip(String keyword, List<String> selectedKeywords) {
     final isSelected = selectedKeywords.contains(keyword);
-    final canSelect = selectedKeywords.length < 10 || isSelected;
+    final canSelect = selectedKeywords.length < 20 || isSelected;
     
     return GestureDetector(
       onTap: canSelect ? () {
