@@ -109,9 +109,9 @@ class _ArcformLayoutState extends State<ArcformLayout>
     ];
     
     final nodes = <Node>[];
-    final centerX = 200.0;
-    final centerY = 200.0;
-    final radius = 150.0;
+    const centerX = 200.0;
+    const centerY = 200.0;
+    const radius = 150.0;
     
     for (int i = 0; i < nodeCount; i++) {
       final angle = i * _goldenAngle;
@@ -144,9 +144,9 @@ class _ArcformLayoutState extends State<ArcformLayout>
   List<Node> _calculateGeometryNodes() {
     final size = MediaQuery.of(context).size;
     final centerX = size.width / 2;
-    // Account for SafeArea and phase indicator at top (~100px total)
-    final availableHeight = size.height - 100;
-    final centerY = (size.height - availableHeight) + (availableHeight / 2);
+    // Position arcform higher up, accounting for top header
+    final availableHeight = size.height - 100; // Account for SafeArea and phase indicator
+    final centerY = size.height * 0.35; // Position higher up (35% from top instead of 50%)
     final radius = min(size.width, availableHeight) * 0.3;
 
     switch (widget.selectedGeometry) {
