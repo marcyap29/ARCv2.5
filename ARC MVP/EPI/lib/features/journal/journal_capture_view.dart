@@ -3,7 +3,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:my_app/features/journal/journal_capture_cubit.dart';
 import 'package:my_app/features/journal/journal_capture_state.dart';
 import 'package:my_app/features/journal/keyword_extraction_cubit.dart';
-import 'package:my_app/features/journal/widgets/keyword_analysis_view.dart';
+import 'package:my_app/features/journal/widgets/emotion_selection_view.dart';
+import 'package:my_app/repositories/journal_repository.dart';
 import 'package:my_app/shared/app_colors.dart';
 import 'package:my_app/shared/text_style.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -25,14 +26,6 @@ class JournalCaptureView extends StatefulWidget {
 class _JournalCaptureViewState extends State<JournalCaptureView> {
   late final TextEditingController _textController;
   late final FocusNode _focusNode;
-  final List<String> _moods = [
-    'calm',
-    'hopeful',
-    'stressed',
-    'tired',
-    'grateful'
-  ];
-  String _selectedMood = '';
   bool _showVoiceRecorder = false;
 
   @override
@@ -43,11 +36,6 @@ class _JournalCaptureViewState extends State<JournalCaptureView> {
 
     // Add listener for auto-save
     _textController.addListener(_onTextChanged);
-    
-    // Set initial mood if provided
-    if (widget.initialEmotion != null) {
-      _selectedMood = widget.initialEmotion!;
-    }
   }
 
   @override
@@ -62,51 +50,38 @@ class _JournalCaptureViewState extends State<JournalCaptureView> {
     context.read<JournalCaptureCubit>().updateDraft(_textController.text);
   }
 
-  void _onAnalyzePressed() async {
-    // Validate that we have content to analyze
+  void _onNextPressed() async {
+    // Validate that we have content to proceed
     if (_textController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Please write something before analyzing'),
+          content: Text('Please write something before proceeding'),
           backgroundColor: kcDangerColor,
         ),
       );
       return;
     }
 
-    // Navigate to keyword analysis screen
-    final result = await Navigator.of(context).push<Map<String, dynamic>>(
+    // Navigate to emotion selection screen
+    Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (context) => BlocProvider.value(
-          value: context.read<KeywordExtractionCubit>(),
-          child: KeywordAnalysisView(
+        builder: (context) => MultiBlocProvider(
+          providers: [
+            BlocProvider(
+              create: (context) => JournalCaptureCubit(context.read<JournalRepository>()),
+            ),
+            BlocProvider(
+              create: (context) => KeywordExtractionCubit()..initialize(),
+            ),
+          ],
+          child: EmotionSelectionView(
             content: _textController.text,
-            mood: _selectedMood,
             initialEmotion: widget.initialEmotion,
             initialReason: widget.initialReason,
           ),
         ),
       ),
     );
-
-    // Handle save result
-    if (result != null && result['save'] == true) {
-      final selectedKeywords = result['selectedKeywords'] as List<String>? ?? [];
-      
-      context.read<JournalCaptureCubit>().saveEntryWithKeywords(
-        content: _textController.text,
-        mood: _selectedMood,
-        selectedKeywords: selectedKeywords,
-        emotion: widget.initialEmotion,
-        emotionReason: widget.initialReason,
-      );
-    }
-  }
-
-  void _onMoodSelected(String mood) {
-    setState(() {
-      _selectedMood = mood == _selectedMood ? '' : mood;
-    });
   }
 
   @override
@@ -116,7 +91,6 @@ class _JournalCaptureViewState extends State<JournalCaptureView> {
           if (state is JournalCaptureSaved) {
             _textController.clear();
             setState(() {
-              _selectedMood = '';
               _showVoiceRecorder = false;
             });
             ScaffoldMessenger.of(context).showSnackBar(
@@ -139,14 +113,14 @@ class _JournalCaptureViewState extends State<JournalCaptureView> {
               Padding(
                 padding: const EdgeInsets.only(right: 16.0),
                 child: ElevatedButton(
-                  onPressed: _onAnalyzePressed,
+                  onPressed: _onNextPressed,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: kcPrimaryColor,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(8.0),
                     ),
                   ),
-                  child: Text('Analyze', style: buttonStyle(context)),
+                  child: Text('Next', style: buttonStyle(context)),
                 ),
               ),
             ],
@@ -223,36 +197,6 @@ class _JournalCaptureViewState extends State<JournalCaptureView> {
                   ),
                   const SizedBox(height: 16),
                 ],
-                // Mood chips
-                SizedBox(
-                  height: 40,
-                  child: ListView(
-                    scrollDirection: Axis.horizontal,
-                    children: _moods.map((mood) {
-                      final isSelected = mood == _selectedMood;
-                      return Padding(
-                        padding: const EdgeInsets.only(right: 8.0),
-                        child: ChoiceChip(
-                          label: Text(
-                            mood,
-                            style: TextStyle(
-                              color:
-                                  isSelected ? Colors.white : kcSecondaryColor,
-                              fontWeight: isSelected
-                                  ? FontWeight.bold
-                                  : FontWeight.normal,
-                            ),
-                          ),
-                          selected: isSelected,
-                          selectedColor: kcSecondaryColor,
-                          backgroundColor: kcSurfaceColor,
-                          onSelected: (_) => _onMoodSelected(mood),
-                        ),
-                      );
-                    }).toList(),
-                  ),
-                ),
-                const SizedBox(height: 24),
 
                 // Voice recording section
                 Card(
