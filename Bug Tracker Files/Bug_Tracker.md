@@ -820,5 +820,183 @@ Verified node widgets display keyword warmth colors and respond properly to tap 
 
 ---
 
+---
+
+## Bug ID: BUG-2025-01-02-001
+**Title**: Arcform Node-Link Diagram Positioned Too Low on Screen
+
+**Severity**: Medium  
+**Priority**: P3 (Medium)  
+**Status**: ✅ Fixed  
+**Reporter**: User Feedback  
+**Assignee**: Claude Code  
+**Found Date**: 2025-01-02  
+**Fixed Date**: 2025-01-02  
+
+#### Description
+The arcform (node-link diagram) was positioned too low on the screen, appearing in the bottom half and creating poor visual balance with excessive empty space above and crowding near the bottom navigation bar.
+
+#### Steps to Reproduce
+1. Navigate to Arcforms tab
+2. Observe arcform constellation position
+3. Notice it appears in lower half of screen with large empty space above
+
+#### Expected Behavior
+Arcform should be centered or positioned higher on screen for better visual balance
+
+#### Actual Behavior
+Arcform appeared in bottom half of screen with poor visual distribution
+
+#### Root Cause
+CenterY calculation used `(size.height - availableHeight) + (availableHeight / 2)` which pushed the arcform down toward the bottom
+
+#### Solution
+Updated centerY calculation to position arcform higher:
+- Changed from `size.height / 2` (50% from top) to `size.height * 0.35` (35% from top)
+- Improved visual balance with better space distribution
+- Reduced crowding near bottom navigation
+
+#### Files Modified
+- `lib/features/arcforms/widgets/arcform_layout.dart`
+
+#### Testing Notes
+Verified arcform now appears higher on screen with improved visual balance
+
+---
+
+## Bug ID: BUG-2025-01-02-002
+**Title**: Flutter Cube Mesh Constructor Parameter Mismatch
+
+**Severity**: High  
+**Priority**: P2 (High)  
+**Status**: ✅ Fixed  
+**Reporter**: Build System  
+**Assignee**: Claude Code  
+**Found Date**: 2025-01-02  
+**Fixed Date**: 2025-01-02  
+
+#### Description
+Build error in spherical_node_widget.dart due to incorrect flutter_cube Mesh constructor parameters. The code was passing `normals` and `indices` parameters that don't match the actual constructor signature.
+
+#### Steps to Reproduce
+1. Run `flutter run -d "iPhone 16 Pro"`
+2. Observe build failure with parameter mismatch errors
+3. See compilation errors in spherical_node_widget.dart
+
+#### Expected Behavior
+App should compile and run without parameter mismatch errors
+
+#### Actual Behavior
+Build failed with "No named parameter with the name 'normals'" and "Too few positional arguments" errors
+
+#### Root Cause
+- flutter_cube Mesh constructor doesn't accept `normals` parameter
+- Polygon constructor expects individual vertex indices as separate parameters, not a list
+
+#### Solution
+Fixed Mesh constructor parameters:
+- Removed `normals` parameter from Mesh constructor
+- Changed `indices` from `List<int>` to `List<Polygon>`
+- Updated Polygon constructor calls to use individual parameters instead of list
+
+#### Files Modified
+- `lib/features/arcforms/widgets/spherical_node_widget.dart`
+
+#### Testing Notes
+Verified app compiles and runs successfully after parameter fixes
+
+---
+
+## Bug ID: BUG-2025-01-02-003
+**Title**: 3D Arcform Missing Key Features - Labels, Warmth, Connections
+
+**Severity**: High  
+**Priority**: P2 (High)  
+**Status**: ✅ Fixed  
+**Reporter**: User Testing  
+**Assignee**: Claude Code  
+**Found Date**: 2025-01-02  
+**Fixed Date**: 2025-01-02  
+
+#### Description
+3D arcform was missing essential features compared to 2D version: no labels on spheres, no emotional warmth color coding, no connecting lines between nodes, and nodes floating outside view bounds.
+
+#### Steps to Reproduce
+1. Navigate to Arcforms tab
+2. Toggle to 3D mode
+3. Observe missing labels, uniform colors, no connections, poor positioning
+
+#### Expected Behavior
+3D arcform should have same features as 2D: labels, emotional colors, connecting lines, proper positioning
+
+#### Actual Behavior
+3D spheres appeared without labels, uniform colors, no connecting lines, and positioned outside view
+
+#### Root Cause
+- 3D node rendering didn't include label text overlay
+- No integration with EmotionalValenceService for warmth colors
+- Missing 3D edge rendering system
+- Incorrect 3D projection and positioning calculations
+
+#### Solution
+Comprehensive 3D arcform enhancement:
+- Added label rendering with proper text sizing and shadows
+- Integrated EmotionalValenceService for emotional warmth color coding
+- Implemented Edge3DPainter for connecting lines between nodes
+- Fixed 3D projection with proper focal length and depth scaling
+- Corrected node positioning to stay within view bounds
+- Fixed edge-to-node matching using node.id instead of node.label
+
+#### Files Modified
+- `lib/features/arcforms/widgets/simple_3d_arcform.dart`
+- `lib/features/arcforms/geometry/geometry_3d_layouts.dart`
+
+#### Testing Notes
+Verified 3D arcform now has complete feature parity with 2D version including labels, colors, connections, and proper positioning
+
+---
+
+## Bug ID: BUG-2025-01-02-004
+**Title**: 3D Edge Rendering - No Connecting Lines Between Nodes
+
+**Severity**: Medium  
+**Priority**: P3 (Medium)  
+**Status**: ✅ Fixed  
+**Reporter**: User Testing  
+**Assignee**: Claude Code  
+**Found Date**: 2025-01-02  
+**Fixed Date**: 2025-01-02  
+
+#### Description
+3D arcform nodes appeared to be floating in space without any connecting lines, making it difficult to understand relationships between keywords.
+
+#### Steps to Reproduce
+1. Navigate to Arcforms tab in 3D mode
+2. Observe nodes floating without connecting lines
+3. Notice lack of visual relationships between nodes
+
+#### Expected Behavior
+3D nodes should have connecting lines showing relationships between keywords
+
+#### Actual Behavior
+Nodes appeared isolated without any connecting lines
+
+#### Root Cause
+Edge matching logic was using `node.label` instead of `node.id` for connecting edges to nodes, causing edge rendering to fail silently
+
+#### Solution
+Fixed edge-to-node matching:
+- Changed edge matching from `node.label` to `node.id` in Edge3DPainter
+- Enhanced edge visibility with increased opacity (0.6) and stroke width (2.0)
+- Improved edge opacity calculation based on distance between nodes
+
+#### Files Modified
+- `lib/features/arcforms/widgets/simple_3d_arcform.dart`
+
+#### Testing Notes
+Verified connecting lines now appear between 3D nodes showing proper relationships
+
+---
+
 **Status**: 🎉 **All Critical & High Priority Bugs Resolved**  
 **Deployment Readiness**: ✅ **Production Ready for User Testing**
