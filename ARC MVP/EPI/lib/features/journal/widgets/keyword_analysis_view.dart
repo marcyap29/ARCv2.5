@@ -6,6 +6,7 @@ import 'package:my_app/features/journal/journal_capture_cubit.dart';
 import 'package:my_app/features/journal/widgets/phase_recommendation_dialog.dart';
 import 'package:my_app/features/arcforms/phase_recommender.dart';
 import 'package:my_app/features/arcforms/arcform_mvp_implementation.dart';
+import 'package:my_app/features/keyword_extraction/enhanced_keyword_extractor.dart';
 import 'package:my_app/shared/app_colors.dart';
 import 'package:my_app/shared/text_style.dart';
 
@@ -514,43 +515,6 @@ class _KeywordAnalysisViewState extends State<KeywordAnalysisView>
     );
   }
 
-  Widget _buildKeywordChip(String keyword, List<String> selectedKeywords) {
-    final isSelected = selectedKeywords.contains(keyword);
-    final canSelect = selectedKeywords.length < 20 || isSelected;
-    
-    return GestureDetector(
-      onTap: canSelect ? () {
-        context.read<KeywordExtractionCubit>().toggleKeyword(keyword);
-      } : null,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-        decoration: BoxDecoration(
-          color: isSelected ? kcPrimaryColor : kcSurfaceColor,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: isSelected 
-                ? kcPrimaryColor 
-                : canSelect 
-                    ? kcSecondaryColor.withOpacity(0.3)
-                    : kcSecondaryTextColor.withOpacity(0.2),
-          ),
-        ),
-        child: Text(
-          keyword,
-          style: captionStyle(context).copyWith(
-            color: isSelected 
-                ? Colors.white 
-                : canSelect 
-                    ? kcSecondaryColor 
-                    : kcSecondaryTextColor.withOpacity(0.5),
-            fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-            fontSize: 12,
-          ),
-        ),
-      ),
-    );
-  }
 
   Widget _buildErrorState(String message) {
     return Padding(
