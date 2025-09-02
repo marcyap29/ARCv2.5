@@ -1,8 +1,8 @@
 # EPI ARC MVP - Bug Tracker
 
-> **Last Updated**: December 19, 2024 4:45 PM (America/Los_Angeles)  
-> **Total Bugs Tracked**: 12  
-> **Critical Issues Fixed**: 12  
+> **Last Updated**: September 2, 2025 12:30 PM (America/Los_Angeles)  
+> **Total Bugs Tracked**: 16  
+> **Critical Issues Fixed**: 16  
 > **Status**: All blocking issues resolved - Production ready ✅
 
 ---
@@ -586,22 +586,24 @@ Verified save completes successfully and returns to home screen without loops
 ## Updated Bug Summary Statistics
 
 ### By Severity
-- **Critical**: 4 bugs (33.3%)
-- **High**: 4 bugs (33.3%) 
-- **Medium**: 4 bugs (33.3%)
+- **Critical**: 4 bugs (25%)
+- **High**: 6 bugs (37.5%) 
+- **Medium**: 6 bugs (37.5%)
 - **Low**: 0 bugs (0%)
 
 ### By Component
-- **Journal Capture**: 7 bugs (58.3%)
-- **Arcforms**: 1 bug (8.3%)
-- **Welcome/Onboarding**: 1 bug (8.3%)
-- **Widget Lifecycle**: 1 bug (8.3%)
-- **Navigation Flow**: 2 bugs (16.7%)
+- **Journal Capture**: 7 bugs (43.8%)
+- **Arcforms**: 1 bug (6.3%)
+- **Welcome/Onboarding**: 1 bug (6.3%)
+- **Widget Lifecycle**: 1 bug (6.3%)
+- **Navigation Flow**: 2 bugs (12.5%)
+- **Branch Merge Conflicts**: 4 bugs (25%)
 
 ### Resolution Time
 - **Average**: Same-day resolution
 - **Critical Issues**: All resolved within hours
-- **Total Development Impact**: ~8 hours
+- **Merge Conflicts**: All resolved during merge process
+- **Total Development Impact**: ~10 hours
 
 ### Quality Impact
 All bugs discovered and fixed during development phase before user release, demonstrating effective testing and quality assurance processes.
@@ -620,6 +622,10 @@ All bugs discovered and fixed during development phase before user release, demo
 8. **Save Functionality**: Ensure save operations actually persist data, not just navigate
 9. **Visual Hierarchy**: Remove UI elements that don't serve the current step's purpose
 10. **Natural Progression**: Design flows that match user mental models (write first, then reflect)
+11. **Branch Management**: Coordinate changelog updates between branches to prevent conflicts
+12. **Merge Strategy**: Understand which branch features to preserve during merge conflicts
+13. **Component Architecture**: Maintain consistent container/scaffold patterns across branches
+14. **Feature Integration**: Plan how independent features will merge before development
 
 ---
 
@@ -633,6 +639,184 @@ All bugs discovered and fixed during development phase before user release, demo
 6. **End-to-End Flow Testing**: Test complete user journeys from start to finish
 7. **Save Operation Validation**: Verify all save operations actually persist data
 8. **UI Cleanup Reviews**: Regular review of UI elements for relevance and clarity
+9. **Branch Merge Planning**: Coordinate changelog updates and component architecture before parallel development
+10. **Merge Conflict Documentation**: Document all merge conflicts as learning experiences
+11. **Architecture Consistency Reviews**: Ensure consistent container/layout patterns across all branches
+12. **Pre-merge Testing**: Test merge scenarios in feature branches before main branch integration
+
+---
+
+## Bug ID: BUG-2025-09-02-001
+**Title**: CHANGELOG.md Merge Conflict - Duplicate Update Sections
+
+**Severity**: Medium  
+**Priority**: P3 (Medium)  
+**Status**: ✅ Fixed  
+**Reporter**: Branch Merge Process  
+**Assignee**: Claude Code  
+**Found Date**: 2025-09-02  
+**Fixed Date**: 2025-09-02  
+
+#### Description
+During KEYWORD-WARMTH branch merge, CHANGELOG.md had conflicting "Latest Update" sections with different dates and content, creating merge conflicts that prevented automatic resolution.
+
+#### Steps to Reproduce
+1. Attempt to merge KEYWORD-WARMTH branch into main
+2. Observe git merge conflict in CHANGELOG.md
+3. See duplicate update sections with conflicting content
+
+#### Expected Behavior
+Changelog should merge cleanly with chronological organization
+
+#### Actual Behavior
+Merge conflict with duplicate "Latest Update" sections
+
+#### Root Cause
+Both branches had added "Latest Update" sections without coordination, creating conflicting headers and content
+
+#### Solution
+Manually resolved merge conflict:
+- Combined both update sections into single chronological entry
+- Updated date to 2025-09-02 to reflect merge completion
+- Preserved all feature documentation from both branches
+- Renamed previous section to "Previous Update - 2025-09-01"
+
+#### Files Modified
+- `CHANGELOG.md`
+
+#### Testing Notes
+Verified merged changelog maintains chronological order and complete feature documentation
+
+---
+
+## Bug ID: BUG-2025-09-02-002
+**Title**: Arcform Layout Container Structure Conflict
+
+**Severity**: High  
+**Priority**: P2 (High)  
+**Status**: ✅ Fixed  
+**Reporter**: Branch Merge Process  
+**Assignee**: Claude Code  
+**Found Date**: 2025-09-02  
+**Fixed Date**: 2025-09-02  
+
+#### Description
+Merge conflict in arcform_layout.dart between Scaffold wrapper (main branch) and Container wrapper (KEYWORD-WARMTH branch), affecting 3D rotation functionality.
+
+#### Steps to Reproduce
+1. Attempt to merge KEYWORD-WARMTH branch into main
+2. Observe merge conflict in lib/features/arcforms/widgets/arcform_layout.dart
+3. See conflicting container structures
+
+#### Expected Behavior
+Arcform layout should preserve 3D rotation capabilities while integrating new features
+
+#### Actual Behavior
+Merge conflict between different container wrapper approaches
+
+#### Root Cause
+Main branch used Scaffold for proper Flutter structure with 3D gestures, while KEYWORD-WARMTH used Container for simpler layout
+
+#### Solution
+Chose main branch version (Scaffold) to preserve 3D functionality:
+- Kept Scaffold wrapper for proper Flutter navigation structure
+- Preserved GestureDetector with 3D rotation capabilities
+- Maintained Transform widget for 3D matrix operations
+- Used `git checkout --ours` to select main branch implementation
+
+#### Files Modified
+- `lib/features/arcforms/widgets/arcform_layout.dart`
+
+#### Testing Notes
+Verified 3D rotation gestures work correctly after merge resolution
+
+---
+
+## Bug ID: BUG-2025-09-02-003
+**Title**: Home View SafeArea and Tab Navigation Integration Issue
+
+**Severity**: High  
+**Priority**: P2 (High)  
+**Status**: ✅ Fixed  
+**Reporter**: Branch Merge Process  
+**Assignee**: Claude Code  
+**Found Date**: 2025-09-02  
+**Fixed Date**: 2025-09-02  
+
+#### Description
+Merge conflict in home_view.dart combining SafeArea wrapper (KEYWORD-WARMTH) with selectedIndex tab navigation fix (main branch), requiring manual integration.
+
+#### Steps to Reproduce
+1. Attempt to merge KEYWORD-WARMTH branch into main
+2. Observe merge conflict in lib/features/home/home_view.dart
+3. See conflicting approaches to SafeArea and tab navigation
+
+#### Expected Behavior
+Home view should have both SafeArea notch protection and proper tab navigation
+
+#### Actual Behavior
+Merge conflict between SafeArea wrapper and selectedIndex navigation fixes
+
+#### Root Cause
+Both branches fixed different issues independently:
+- Main branch: Fixed tab navigation with proper selectedIndex usage
+- KEYWORD-WARMTH branch: Added SafeArea wrapper for notch compatibility
+
+#### Solution
+Combined both fixes manually:
+- Chose main branch version for selectedIndex navigation fix
+- Added SafeArea wrapper around _pages[selectedIndex]
+- Preserved both tab navigation functionality and notch protection
+- Maintained proper state management with HomeCubit
+
+#### Files Modified
+- `lib/features/home/home_view.dart`
+
+#### Testing Notes
+Verified both tab navigation works correctly and content avoids notch area
+
+---
+
+## Bug ID: BUG-2025-09-02-004
+**Title**: Node Widget Enhanced Functionality Integration Required
+
+**Severity**: Medium  
+**Priority**: P3 (Medium)  
+**Status**: ✅ Fixed  
+**Reporter**: Branch Merge Process  
+**Assignee**: Claude Code  
+**Found Date**: 2025-09-02  
+**Fixed Date**: 2025-09-02  
+
+#### Description
+KEYWORD-WARMTH branch included enhanced node widget with keyword warmth visualization that needed to be preserved during merge to maintain user experience improvements.
+
+#### Steps to Reproduce
+1. Review KEYWORD-WARMTH branch node widget enhancements
+2. Compare with main branch node widget implementation
+3. Ensure enhanced functionality is preserved in merge
+
+#### Expected Behavior
+Node widgets should retain keyword warmth visualization and enhanced interaction
+
+#### Actual Behavior
+Need to ensure enhanced node widget functionality carries through merge
+
+#### Root Cause
+KEYWORD-WARMTH branch included valuable node widget enhancements (warmth visualization, improved tap handling) that needed preservation
+
+#### Solution
+Preserved enhanced node widget functionality:
+- Maintained keyword warmth color coding system
+- Kept enhanced tap interaction feedback
+- Preserved emotional valence integration
+- Ensured node widget enhancements from KEYWORD-WARMTH were included in final merge
+
+#### Files Modified
+- `lib/features/arcforms/widgets/node_widget.dart` (automatically merged)
+
+#### Testing Notes
+Verified node widgets display keyword warmth colors and respond properly to tap interactions
 
 ---
 
