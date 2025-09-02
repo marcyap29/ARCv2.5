@@ -1,10 +1,6 @@
 import 'dart:math';
-import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:my_app/features/arcforms/arcform_renderer_state.dart';
-import 'package:my_app/features/arcforms/arcform_mvp_implementation.dart';
-import 'package:my_app/features/arcforms/geometry/geometry_layouts.dart';
-import 'package:my_app/services/user_phase_service.dart';
 import 'package:hive/hive.dart';
 
 class ArcformRendererCubit extends Cubit<ArcformRendererState> {
@@ -12,78 +8,43 @@ class ArcformRendererCubit extends Cubit<ArcformRendererState> {
   
   ArcformRendererCubit() : super(const ArcformRendererInitial());
 
-  void initialize() async {
+  void initialize() {
     emit(const ArcformRendererLoading());
 
-    try {
-      // Get the user's current phase and most recent snapshot
-      final currentPhase = await UserPhaseService.getCurrentPhase();
-      final snapshot = await UserPhaseService.getMostRecentSnapshot();
-      
-      List<Node> nodes;
-      List<Edge> edges;
-      
-      if (snapshot != null) {
-        // Use real data from the user's most recent Arcform
-        final geometry = UserPhaseService.getGeometryForPhase(snapshot.phase);
-        final positions = GeometryLayouts.getPositions(
-          geometry: geometry,
-          nodeCount: snapshot.keywords.length,
-          canvasSize: const Size(400, 400),
-        );
-        
-        // Create nodes from keywords with proper positioning
-        nodes = [];
-        for (int i = 0; i < snapshot.keywords.length; i++) {
-          final keyword = snapshot.keywords[i];
-          final position = positions[i];
-          
-          nodes.add(Node(
-            id: (i + 1).toString(),
-            label: keyword,
-            x: position.dx,
-            y: position.dy,
-            size: 20.0 + (keyword.length * 1.5),
-          ));
-        }
-        
-        // Create edges from snapshot data
-        edges = snapshot.edges.map((edgeData) {
-          final sourceIndex = edgeData[0] as int;
-          final targetIndex = edgeData[1] as int;
-          return Edge(
-            source: (sourceIndex + 1).toString(),
-            target: (targetIndex + 1).toString(),
-          );
-        }).toList();
-        
-      } else {
-        // First-time user with no snapshots - show gentle welcome state
-        nodes = [
-          Node(id: '1', label: 'Welcome', x: 200, y: 180),
-          Node(id: '2', label: 'Explore', x: 150, y: 220),
-          Node(id: '3', label: 'Discover', x: 250, y: 220),
-        ];
-        
-        edges = [
-          Edge(source: '1', target: '2'),
-          Edge(source: '1', target: '3'),
-        ];
-      }
-      
-      // Get the geometry pattern for the current phase
-      final geometry = _phaseToGeometryPattern(currentPhase);
-      
+    // Simulate loading data
+    Future.delayed(const Duration(milliseconds: 500), () {
+      // Create sample nodes with force-directed layout simulation
+      final nodes = <Node>[
+        Node(id: '1', label: 'Journal', x: 100, y: 100),
+        Node(id: '2', label: 'Reflection', x: 200, y: 150),
+        Node(id: '3', label: 'Growth', x: 300, y: 100),
+        Node(id: '4', label: 'Insight', x: 150, y: 250),
+        Node(id: '5', label: 'Pattern', x: 250, y: 250),
+        Node(id: '6', label: 'Awareness', x: 350, y: 200),
+        Node(id: '7', label: 'Clarity', x: 200, y: 300),
+        Node(id: '8', label: 'Wisdom', x: 300, y: 350),
+      ];
+
+      // Create sample edges
+      final edges = <Edge>[
+        Edge(source: '1', target: '2'),
+        Edge(source: '2', target: '3'),
+        Edge(source: '1', target: '4'),
+        Edge(source: '4', target: '5'),
+        Edge(source: '3', target: '5'),
+        Edge(source: '5', target: '6'),
+        Edge(source: '4', target: '7'),
+        Edge(source: '7', target: '8'),
+        Edge(source: '6', target: '8'),
+      ];
+
       emit(ArcformRendererLoaded(
         nodes: nodes,
         edges: edges,
-        selectedGeometry: geometry,
-        currentPhase: currentPhase,
+        selectedGeometry: GeometryPattern.spiral,
+        currentPhase: 'Discovery',
       ));
-      
-    } catch (e) {
-      emit(ArcformRendererError('Failed to load Arcform: $e'));
-    }
+    });
   }
 
   /// ARC MVP: Create an Arcform from journal entry data
@@ -137,9 +98,9 @@ class ArcformRendererCubit extends Cubit<ArcformRendererState> {
       
       // Create nodes from keywords
       final nodes = <Node>[];
-      final centerX = 200.0;
-      final centerY = 200.0;
-      final radius = 150.0;
+      const centerX = 200.0;
+      const centerY = 200.0;
+      const radius = 150.0;
       
       for (int i = 0; i < keywords.length; i++) {
         final angle = (2 * 3.14159 * i) / keywords.length;
@@ -176,7 +137,7 @@ class ArcformRendererCubit extends Cubit<ArcformRendererState> {
         nodes: nodes,
         edges: edges,
         selectedGeometry: geometry,
-        currentPhase: currentState.currentPhase,
+        currentPhase: _determinePhaseHint('', keywords),
       ));
     }
   }
@@ -197,130 +158,23 @@ class ArcformRendererCubit extends Cubit<ArcformRendererState> {
     }
   }
 
-  /// Generate color map for keywords based on emotional valence
+  /// Generate color map for keywords
   Map<String, String> _generateColorMap(List<String> keywords) {
-    final colorMap = <String, String>{};
+    final colors = [
+      '#4F46E5', // Primary blue
+      '#7C3AED', // Purple
+      '#D1B3FF', // Light purple
+      '#6BE3A0', // Green
+      '#F7D774', // Yellow
+      '#FF6B6B', // Red
+    ];
     
-    for (final keyword in keywords) {
-      final color = _getEmotionalColor(keyword);
-      colorMap[keyword] = color.toString();
+    final colorMap = <String, String>{};
+    for (int i = 0; i < keywords.length; i++) {
+      colorMap[keywords[i]] = colors[i % colors.length];
     }
     
     return colorMap;
-  }
-
-  /// Get emotional color for a word based on valence
-  int _getEmotionalColor(String word) {
-    final valence = _getEmotionalValence(word);
-    
-    if (valence > 0.7) {
-      // Very positive: Golden/warm yellow
-      return 0xFFFFD700;
-    } else if (valence > 0.4) {
-      // Positive: Warm orange
-      return 0xFFFF8C42;
-    } else if (valence > 0.1) {
-      // Slightly positive: Soft coral
-      return 0xFFFF6B6B;
-    } else if (valence > -0.1) {
-      // Neutral: Soft purple (app's primary color)
-      return 0xFFD1B3FF;
-    } else if (valence > -0.4) {
-      // Slightly negative: Cool blue
-      return 0xFF4A90E2;
-    } else if (valence > -0.7) {
-      // Negative: Deeper blue
-      return 0xFF2E86AB;
-    } else {
-      // Very negative: Cool teal
-      return 0xFF4ECDC4;
-    }
-  }
-
-  /// Determine emotional valence of a word (-1.0 to 1.0)
-  double _getEmotionalValence(String word) {
-    final lowerWord = word.toLowerCase().trim();
-    
-    // Positive words (warm colors)
-    const positiveWords = {
-      'love', 'joy', 'happiness', 'peace', 'calm', 'serenity', 'bliss',
-      'gratitude', 'thankful', 'blessed', 'appreciation', 'grateful',
-      'breakthrough', 'discovery', 'success', 'achievement', 'growth', 'progress',
-      'improvement', 'learning', 'wisdom', 'insight', 'clarity', 'understanding',
-      'realization', 'enlightenment', 'awakening', 'transformation', 'evolution',
-      'connection', 'bond', 'friendship', 'community', 'belonging', 'warmth',
-      'comfort', 'support', 'encouragement', 'kindness', 'compassion', 'empathy',
-      'acceptance', 'forgiveness', 'healing', 'energy', 'vitality', 'strength',
-      'power', 'confidence', 'courage', 'determination', 'resilience', 'hope',
-      'optimism', 'excitement', 'enthusiasm', 'passion', 'inspiration', 'motivation',
-      'purpose', 'beauty', 'wonder', 'awe', 'marvel', 'magnificent', 'brilliant',
-      'radiant', 'glowing', 'shining', 'light', 'bright', 'golden', 'freedom',
-      'liberation', 'release', 'expansion', 'openness', 'flow', 'adventure',
-      'exploration', 'journey', 'creation', 'innovation',
-    };
-    
-    // Negative words (cool colors)
-    const negativeWords = {
-      'sadness', 'grief', 'sorrow', 'melancholy', 'depression', 'despair',
-      'loneliness', 'isolation', 'abandonment', 'emptiness', 'void',
-      'fear', 'anxiety', 'worry', 'stress', 'tension', 'panic', 'dread',
-      'terror', 'horror', 'nightmare', 'phobia', 'paranoia', 'concern',
-      'anger', 'rage', 'fury', 'frustration', 'irritation', 'annoyance',
-      'resentment', 'bitterness', 'hatred', 'hostility', 'aggression',
-      'struggle', 'difficulty', 'challenge', 'obstacle', 'barrier', 'problem',
-      'crisis', 'conflict', 'pain', 'suffering', 'hurt', 'wound', 'trauma',
-      'loss', 'failure', 'defeat', 'rejection', 'disappointment',
-      'confusion', 'uncertainty', 'doubt', 'questioning', 'lost', 'stuck',
-      'overwhelmed', 'chaos', 'disorder', 'instability', 'turbulence',
-      'tired', 'exhausted', 'drained', 'depleted', 'weak', 'sick', 'illness',
-      'fatigue', 'burnout', 'breakdown', 'collapse', 'darkness', 'shadow',
-      'cold', 'frozen', 'numb', 'distant', 'remote',
-    };
-    
-    if (positiveWords.contains(lowerWord)) {
-      // High intensity positive words
-      const highIntensity = {
-        'love', 'bliss', 'breakthrough', 'enlightenment', 'transformation',
-        'magnificent', 'radiant', 'brilliant', 'liberation', 'ecstasy'
-      };
-      // Medium intensity positive words
-      const mediumIntensity = {
-        'joy', 'happiness', 'gratitude', 'success', 'growth', 'wisdom',
-        'connection', 'strength', 'beauty', 'freedom'
-      };
-      
-      if (highIntensity.contains(lowerWord)) return 1.0;
-      if (mediumIntensity.contains(lowerWord)) return 0.7;
-      return 0.4; // Default positive
-    } else if (negativeWords.contains(lowerWord)) {
-      // High intensity negative words
-      const highIntensity = {
-        'despair', 'terror', 'rage', 'hatred', 'trauma', 'agony',
-        'devastation', 'horror', 'collapse', 'nightmare'
-      };
-      // Medium intensity negative words
-      const mediumIntensity = {
-        'sadness', 'fear', 'anger', 'pain', 'loss', 'stress',
-        'anxiety', 'depression', 'struggle', 'difficulty'
-      };
-      
-      if (highIntensity.contains(lowerWord)) return -1.0;
-      if (mediumIntensity.contains(lowerWord)) return -0.7;
-      return -0.4; // Default negative
-    }
-    
-    // Basic sentiment analysis for unknown words
-    if (lowerWord.endsWith('ness') && !lowerWord.contains('sad') && !lowerWord.contains('dark')) {
-      return 0.2;
-    }
-    if (lowerWord.endsWith('ful') && !lowerWord.contains('pain') && !lowerWord.contains('harm')) {
-      return 0.3;
-    }
-    if (lowerWord.startsWith('un') || lowerWord.startsWith('dis') || lowerWord.startsWith('mis')) {
-      return -0.2;
-    }
-    
-    return 0.0; // Default neutral
   }
 
   /// Generate edges between keywords
@@ -372,26 +226,6 @@ class ArcformRendererCubit extends Cubit<ArcformRendererState> {
   /// Simple math functions
   double _cos(double angle) => cos(angle);
   double _sin(double angle) => sin(angle);
-  
-  /// Convert phase string to GeometryPattern
-  GeometryPattern _phaseToGeometryPattern(String phase) {
-    switch (phase.toLowerCase()) {
-      case 'discovery':
-        return GeometryPattern.spiral;
-      case 'expansion':
-        return GeometryPattern.flower;
-      case 'transition':
-        return GeometryPattern.branch;
-      case 'consolidation':
-        return GeometryPattern.weave;
-      case 'recovery':
-        return GeometryPattern.glowCore;
-      case 'breakthrough':
-        return GeometryPattern.fractal;
-      default:
-        return GeometryPattern.spiral;
-    }
-  }
 
   void updateNodePosition(String nodeId, double x, double y) {
     if (state is ArcformRendererLoaded) {

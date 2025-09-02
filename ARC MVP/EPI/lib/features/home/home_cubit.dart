@@ -8,11 +8,11 @@ class HomeCubit extends Cubit<HomeState> {
   int get currentIndex => _currentIndex;
 
   void initialize() {
-    emit(HomeLoaded(selectedIndex: _currentIndex));
+    emit(const HomeLoaded());
   }
 
   void changeTab(int index) {
     _currentIndex = index;
-    emit(HomeLoaded(selectedIndex: _currentIndex));
+    emit(HomeLoaded(selectedIndex: index));
   }
 }
