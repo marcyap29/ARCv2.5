@@ -387,20 +387,32 @@ class ArcformTimelinePainter extends CustomPainter {
           ? kcPrimaryColor
           : kcSecondaryTextColor.withOpacity(0.4);
 
-    // Draw a simple spiral pattern as placeholder for actual Arcform
-    _drawSpiral(canvas, center, radius, paint);
-    
-    // Add some nodes
-    _drawNodes(canvas, center, radius, paint);
+    // Draw pattern based on keyword count
+    if (entry.keywords.isEmpty) {
+      // Simple circle for entries with no keywords
+      _drawSimpleCircle(canvas, center, radius, paint);
+    } else {
+      // Spiral pattern for entries with keywords
+      _drawSpiral(canvas, center, radius, paint);
+      _drawNodes(canvas, center, radius, paint);
+    }
+  }
+
+  void _drawSimpleCircle(Canvas canvas, Offset center, double radius, Paint paint) {
+    canvas.drawCircle(center, radius * 0.6, paint);
   }
 
   void _drawSpiral(Canvas canvas, Offset center, double radius, Paint paint) {
     final path = Path();
     final double goldenAngle = 2.4; // Golden angle approximation
+    final keywordCount = entry.keywords.length;
     
-    for (int i = 0; i < 20; i++) {
+    // Adjust spiral complexity based on keyword count
+    final spiralPoints = math.max(15, keywordCount * 3);
+    
+    for (int i = 0; i < spiralPoints; i++) {
       final angle = i * goldenAngle;
-      final r = radius * (i / 20.0);
+      final r = radius * (i / spiralPoints.toDouble());
       final x = center.dx + r * math.cos(angle);
       final y = center.dy + r * math.sin(angle);
       
@@ -422,10 +434,14 @@ class ArcformTimelinePainter extends CustomPainter {
           ? kcPrimaryColor
           : kcSecondaryTextColor.withOpacity(0.4);
 
-    // Draw 3-5 nodes along the spiral
-    for (int i = 0; i < 4; i++) {
-      final angle = i * 2.4;
-      final r = radius * (0.3 + (i * 0.2));
+    // Use actual number of keywords from the entry
+    final keywordCount = entry.keywords.length;
+    final maxNodes = math.min(keywordCount, 8); // Cap at 8 for visual clarity
+    
+    // Draw nodes based on actual keywords
+    for (int i = 0; i < maxNodes; i++) {
+      final angle = i * (2 * math.pi / maxNodes); // Evenly distribute around circle
+      final r = radius * (0.4 + (i * 0.1)); // Vary radius slightly for visual interest
       final x = center.dx + r * math.cos(angle);
       final y = center.dy + r * math.sin(angle);
       
