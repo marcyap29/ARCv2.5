@@ -152,9 +152,10 @@ class _ArcformMVPViewState extends State<ArcformMVPView> {
           ),
         ],
       ),
-      body: Column(
-        children: [
-          // Demo creation section
+      body: SafeArea(
+        child: Column(
+          children: [
+            // Demo creation section
           Container(
             margin: const EdgeInsets.all(16),
             padding: const EdgeInsets.all(16),
@@ -180,7 +181,7 @@ class _ArcformMVPViewState extends State<ArcformMVPView> {
                   children: [
                     Expanded(
                       child: DropdownButtonFormField<String>(
-                        value: _selectedGeometry,
+                        initialValue: _selectedGeometry,
                         decoration: InputDecoration(
                           labelText: 'Geometry Pattern',
                           border: OutlineInputBorder(
@@ -224,6 +225,7 @@ class _ArcformMVPViewState extends State<ArcformMVPView> {
                     : _buildSnapshotsList(),
           ),
         ],
+        ),
       ),
     );
   }
@@ -234,7 +236,7 @@ class _ArcformMVPViewState extends State<ArcformMVPView> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
+          const Icon(
             Icons.auto_awesome_outlined,
             size: 64,
             color: kcSecondaryColor,

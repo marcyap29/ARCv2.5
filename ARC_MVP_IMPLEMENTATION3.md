@@ -163,6 +163,87 @@
 * Status indicator updates correctly.
 
 ---
+### Prompt — Enhanced Onboarding Questions & Copy
+
+**Goal** : Gather emotional + thematic input to seed the first Arcform and connect users immediately to their ATLAS phase.
+
+**Files:**
+
+* 'lib/features/onboarding/onboarding_view.dart'
+
+* 'lib/features/onboarding/onboarding_cubit.dart'
+
+* 'lib/features/arcforms/arcform_mvp_service.dart'
+
+1. New Onboarding Flow (4 screens total)
+
+Screen 1 — Purpose (existing)
+Question: “What brings you here?”
+Options: self-discovery, coaching, journaling, growth, recovery.
+
+Screen 2 — Mood (existing)
+Question: “How are you feeling right now?”
+Options: calm, hopeful, stressed, tired, grateful, uncertain.
+
+Screen 3 — Phase Seed (NEW)
+Question: “Which season best describes where you are in life right now?”
+Options mapped to ATLAS phases:
+
+🌱 Discovery (I’m exploring something new)
+
+🌸 Expansion (I’m growing and reaching outward)
+
+🌿 Transition (I’m in between, shifting paths)
+
+🧵 Consolidation (I’m weaving things together, grounding)
+
+✨ Recovery (I’m healing or resting)
+
+💥 Breakthrough (I’m seeing sudden change or insight)
+
+Screen 4 — Core Word (NEW)
+Question: “What word feels most central to your story right now?”
+Input: Free text (at least 1 word).
+
+Screen 5 — Rhythm (existing)
+Question: “What rhythm fits you best?”
+Options: daily, weekly, free-flow.
+
+2. Arcform Seeding Logic
+
+Collect phase choice → sets initial Arcform geometry.
+
+Collect core word + mood → used as 2–3 primary nodes.
+
+Add 2–3 supplemental keywords (from purpose & rhythm answers).
+
+Generate first Arcform with 4–6 nodes + connections, so it never looks sparse.
+
+3. Copy Tone Examples
+
+Phase seed intro:
+“Every journey has a season. Choose the one that feels closest to your life right now.”
+
+Core word intro:
+“If your story could be held in a single word, what would it be? Write the word that matters most.”
+
+Arcform reveal text (after onboarding):
+“This is your first Arcform. Each word is a thread of your story. As you write, reflect, and grow, new forms will emerge and evolve.”
+
+4. Acceptance Criteria
+
+At least 4 onboarding screens (purpose, mood, phase, word, rhythm).
+
+User’s first Arcform is generated from responses, not journal entry.
+
+Arcform named by phase (Discovery, Expansion, etc.), not geometry.
+
+Spiral layout corrected (phase = Discovery → geometry = Spiral).
+
+Arcform reveal screen shows 4–6 glowing nodes seeded with answers.
+----
+
+
 
 # ✅ Usage
 

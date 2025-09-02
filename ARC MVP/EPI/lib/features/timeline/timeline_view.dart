@@ -51,13 +51,15 @@ class _TimelineViewContentState extends State<TimelineViewContent> {
   Widget build(BuildContext context) {
     return BlocBuilder<TimelineCubit, TimelineState>(
       builder: (context, state) {
-        return Column(
-          children: [
-            _buildFilterButtons(state),
-            Expanded(
-              child: _buildTimelineContent(state),
-            ),
-          ],
+        return SafeArea(
+          child: Column(
+            children: [
+              _buildFilterButtons(state),
+              Expanded(
+                child: _buildTimelineContent(state),
+              ),
+            ],
+          ),
         );
       },
     );
@@ -184,7 +186,7 @@ class _TimelineViewContentState extends State<TimelineViewContent> {
         const SizedBox(height: 8),
         ...monthGroup.entries
             .map((entry) => _buildTimelineCard(entry))
-            .toList(),
+            ,
         const SizedBox(height: 16),
       ],
     );
@@ -238,96 +240,25 @@ class _TimelineViewContentState extends State<TimelineViewContent> {
               ),
               if (entry.hasArcform) ...[
                 const SizedBox(height: 12),
-                Row(
-                  children: [
-                    // Arcform button/indicator
-                    Container(
-                      width: 80,
-                      height: 80,
-                      decoration: BoxDecoration(
-                        color: kcSurfaceColor,
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(
-                          color: kcSecondaryColor.withOpacity(0.3),
-                        ),
-                      ),
-                      child: InkWell(
-                        onTap: () {
-                          // TODO: Open Arcform view
-                        },
-                        child: const Center(
-                          child: Icon(
-                            Icons.auto_awesome_outlined,
-                            color: kcSecondaryTextColor,
-                          ),
-                        ),
-                      ),
+                Container(
+                  height: 80,
+                  decoration: BoxDecoration(
+                    color: kcSurfaceColor,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: kcSecondaryColor.withOpacity(0.3),
                     ),
-                    const SizedBox(width: 12),
-                    // Keywords section
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          if (entry.keywords.isNotEmpty) ...[
-                            Text(
-                              'Keywords',
-                              style: captionStyle(context).copyWith(
-                                fontWeight: FontWeight.w600,
-                                color: kcSecondaryTextColor,
-                              ),
-                            ),
-                            const SizedBox(height: 6),
-                            Wrap(
-                              spacing: 6,
-                              runSpacing: 4,
-                              children: entry.keywords
-                                  .take(6) // Limit to first 6 keywords for space
-                                  .map((keyword) => _buildKeywordChip(keyword))
-                                  .toList(),
-                            ),
-                            if (entry.keywords.length > 6)
-                              Padding(
-                                padding: const EdgeInsets.only(top: 4),
-                                child: Text(
-                                  '+${entry.keywords.length - 6} more',
-                                  style: captionStyle(context).copyWith(
-                                    fontSize: 10,
-                                    color: kcSecondaryTextColor.withOpacity(0.7),
-                                  ),
-                                ),
-                              ),
-                          ],
-                        ],
-                      ),
+                  ),
+                  child: const Center(
+                    child: Icon(
+                      Icons.auto_awesome_outlined,
+                      color: kcSecondaryTextColor,
                     ),
-                  ],
+                  ),
                 ),
               ],
             ],
           ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildKeywordChip(String keyword) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: kcPrimaryColor.withOpacity(0.2),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: kcPrimaryColor.withOpacity(0.3),
-          width: 1,
-        ),
-      ),
-      child: Text(
-        keyword,
-        style: const TextStyle(
-          fontSize: 11,
-          fontWeight: FontWeight.w500,
-          color: kcPrimaryTextColor,
         ),
       ),
     );
