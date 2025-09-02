@@ -122,13 +122,39 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
   }
 
   Widget _buildInteractiveTimeline() {
-    return PageView.builder(
-      controller: _pageController,
-      onPageChanged: _onPageChanged,
-      itemCount: _entries.length,
-      itemBuilder: (context, index) {
-        return _buildTimelineEntry(index);
-      },
+    return Stack(
+      children: [
+        // Horizontal timeline line
+        _buildTimelineLine(),
+        
+        // PageView with entries
+        PageView.builder(
+          controller: _pageController,
+          onPageChanged: _onPageChanged,
+          itemCount: _entries.length,
+          itemBuilder: (context, index) {
+            return _buildTimelineEntry(index);
+          },
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTimelineLine() {
+    return Positioned(
+      top: MediaQuery.of(context).size.height * 0.4, // Center vertically
+      left: 0,
+      right: 0,
+      child: Container(
+        height: 2,
+        child: CustomPaint(
+          painter: TimelineLinePainter(
+            currentIndex: _currentIndex,
+            totalEntries: _entries.length,
+          ),
+          size: Size.infinite,
+        ),
+      ),
     );
   }
 
@@ -150,23 +176,37 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
           scale: isCurrentEntry ? 1.0 : 0.8,
           child: Opacity(
             opacity: opacity * _fadeAnimation.value,
-            child: Container(
-              margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 40),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  // Arcform visualization
-                  _buildArcformVisualization(entry, isCurrentEntry),
-                  
-                  const SizedBox(height: 24),
-                  
-                  // Entry details
-                  _buildEntryDetails(entry, isCurrentEntry),
-                ],
+            child: GestureDetector(
+              onTap: () => _onEntryTapped(entry, index),
+              child: Container(
+                margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 40),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    // Arcform visualization
+                    _buildArcformVisualization(entry, isCurrentEntry),
+                    
+                    const SizedBox(height: 24),
+                    
+                    // Entry details
+                    _buildEntryDetails(entry, isCurrentEntry),
+                  ],
+                ),
               ),
             ),
           ),
         );
+      },
+    );
+  }
+
+  void _onEntryTapped(TimelineEntry entry, int index) {
+    // Navigate to entry editing view
+    Navigator.of(context).pushNamed(
+      '/journal-edit',
+      arguments: {
+        'entry': entry,
+        'entryIndex': index,
       },
     );
   }
@@ -398,5 +438,59 @@ class ArcformTimelinePainter extends CustomPainter {
     return oldDelegate is ArcformTimelinePainter &&
         (oldDelegate.isCurrentEntry != isCurrentEntry ||
          oldDelegate.entry != entry);
+  }
+}
+
+class TimelineLinePainter extends CustomPainter {
+  final int currentIndex;
+  final int totalEntries;
+
+  TimelineLinePainter({
+    required this.currentIndex,
+    required this.totalEntries,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (totalEntries <= 1) return;
+
+    final paint = Paint()
+      ..strokeWidth = 2.0
+      ..style = PaintingStyle.stroke;
+
+    // Calculate the width of each segment
+    final segmentWidth = size.width / totalEntries;
+    
+    // Draw the main timeline line
+    for (int i = 0; i < totalEntries - 1; i++) {
+      final startX = (i + 0.5) * segmentWidth;
+      final endX = (i + 1.5) * segmentWidth;
+      final centerY = size.height / 2;
+      
+      // Determine line color based on position relative to current entry
+      if (i < currentIndex) {
+        // Past entries - lighter color
+        paint.color = kcSecondaryTextColor.withOpacity(0.3);
+      } else if (i == currentIndex) {
+        // Current entry - primary color
+        paint.color = kcPrimaryColor;
+      } else {
+        // Future entries - lighter color
+        paint.color = kcSecondaryTextColor.withOpacity(0.3);
+      }
+      
+      canvas.drawLine(
+        Offset(startX, centerY),
+        Offset(endX, centerY),
+        paint,
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) {
+    return oldDelegate is TimelineLinePainter &&
+        (oldDelegate.currentIndex != currentIndex ||
+         oldDelegate.totalEntries != totalEntries);
   }
 }
