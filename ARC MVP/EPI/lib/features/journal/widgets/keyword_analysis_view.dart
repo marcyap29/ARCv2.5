@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:my_app/features/journal/keyword_extraction_cubit.dart';
 import 'package:my_app/features/journal/keyword_extraction_state.dart';
+import 'package:my_app/features/journal/journal_capture_cubit.dart';
 import 'package:my_app/shared/app_colors.dart';
 import 'package:my_app/shared/text_style.dart';
 
@@ -58,12 +59,30 @@ class _KeywordAnalysisViewState extends State<KeywordAnalysisView>
   }
 
   void _onSaveEntry() {
-    Navigator.of(context).pop({
-      'save': true,
-      'selectedKeywords': context.read<KeywordExtractionCubit>().state is KeywordExtractionLoaded 
-          ? (context.read<KeywordExtractionCubit>().state as KeywordExtractionLoaded).selectedKeywords
-          : <String>[],
-    });
+    final keywordState = context.read<KeywordExtractionCubit>().state;
+    if (keywordState is KeywordExtractionLoaded) {
+      // Save the entry with keywords
+      context.read<JournalCaptureCubit>().saveEntryWithKeywords(
+        content: widget.content,
+        mood: widget.mood,
+        selectedKeywords: keywordState.selectedKeywords,
+        emotion: widget.initialEmotion,
+        emotionReason: widget.initialReason,
+      );
+      
+      // Show success message and return result
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Entry saved successfully'),
+          backgroundColor: kcSuccessColor,
+        ),
+      );
+      
+      Navigator.of(context).pop({
+        'save': true,
+        'selectedKeywords': keywordState.selectedKeywords,
+      });
+    }
   }
 
   @override
