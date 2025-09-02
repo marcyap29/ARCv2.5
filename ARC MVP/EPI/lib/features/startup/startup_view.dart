@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:my_app/features/home/home_view.dart';
-import 'package:my_app/features/onboarding/onboarding_view.dart';
 import 'package:my_app/features/startup/welcome_view.dart';
 import 'package:hive/hive.dart';
 import 'package:my_app/models/user_profile_model.dart';

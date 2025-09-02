@@ -42,7 +42,7 @@ class SAGEEchoPanel extends StatelessWidget {
                 ),
                 child: Text(
                   '${(annotation.confidence * 100).round()}% confident',
-                  style: TextStyle(
+                  style: const TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.bold,
                     color: kcPrimaryColor,
@@ -85,7 +85,7 @@ class SAGEEchoPanel extends StatelessWidget {
               ),
               TextButton(
                 onPressed: onEditPressed,
-                child: Text(
+                child: const Text(
                   'Edit',
                   style: TextStyle(
                     color: kcSecondaryColor,
@@ -107,7 +107,7 @@ class SAGEEchoPanel extends StatelessWidget {
       children: [
         Text(
           title,
-          style: TextStyle(
+          style: const TextStyle(
             fontSize: 14,
             fontWeight: FontWeight.bold,
             color: kcSecondaryColor,

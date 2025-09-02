@@ -1,11 +1,5 @@
 #!/usr/bin/env dart
 
-/// Test script to validate the Journal -> Arcform pipeline
-/// This tests the core ARC MVP functionality without Flutter UI dependencies
-/// 
-/// To run: dart test_journal_arcform_pipeline.dart
-
-import 'dart:io';
 
 void main() {
   print('🚀 Testing Journal → Arcform Pipeline\n');
@@ -26,7 +20,7 @@ void main() {
 void testKeywordExtraction() {
   print('🔍 Test 1: Keyword Extraction');
   
-  final testContent = """
+  const testContent = """
   Today I had a meaningful conversation with my team about our project goals. 
   I felt anxious at first but found my confidence growing as we discussed creative solutions. 
   The collaboration felt really productive and I learned a lot about leadership.
