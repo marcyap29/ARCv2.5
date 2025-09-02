@@ -50,7 +50,7 @@ class KeywordExtractionCubit extends Cubit<KeywordExtractionState> {
 
       emit(KeywordExtractionLoaded(
         suggestedKeywords: suggestedKeywords,
-        selectedKeywords: [],
+        selectedKeywords: const [],
       ));
     });
   }

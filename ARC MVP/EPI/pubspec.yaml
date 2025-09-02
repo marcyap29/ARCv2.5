@@ -24,6 +24,7 @@ dependencies:
   audioplayers: ^6.1.0
   just_audio: ^0.9.36
   uuid: ^4.5.1
+  flutter_cube: ^0.1.1
   
   # Firebase Dependencies
   # Uncomment these lines when you need Firebase functionality

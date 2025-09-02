@@ -3,6 +3,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:my_app/features/arcforms/arcform_renderer_cubit.dart';
 import 'package:my_app/features/arcforms/arcform_renderer_state.dart';
 import 'package:my_app/features/arcforms/widgets/arcform_layout.dart';
+import 'package:my_app/features/arcforms/widgets/simple_3d_arcform.dart';
+import 'package:my_app/features/arcforms/arcform_mvp_implementation.dart';
 import 'package:my_app/features/arcforms/services/emotional_valence_service.dart';
 import 'package:my_app/services/user_phase_service.dart';
 import 'package:my_app/shared/app_colors.dart';
@@ -20,8 +22,49 @@ class ArcformRendererView extends StatelessWidget {
   }
 }
 
-class ArcformRendererViewContent extends StatelessWidget {
+class ArcformRendererViewContent extends StatefulWidget {
   const ArcformRendererViewContent({super.key});
+
+  @override
+  State<ArcformRendererViewContent> createState() => _ArcformRendererViewContentState();
+}
+
+class _ArcformRendererViewContentState extends State<ArcformRendererViewContent> {
+  bool _is3DMode = true; // Default to 3D mode to show off the new feature
+
+  ArcformGeometry _convertToArcformGeometry(GeometryPattern geometry) {
+    switch (geometry) {
+      case GeometryPattern.spiral:
+        return ArcformGeometry.spiral;
+      case GeometryPattern.flower:
+        return ArcformGeometry.flower;
+      case GeometryPattern.branch:
+        return ArcformGeometry.branch;
+      case GeometryPattern.weave:
+        return ArcformGeometry.weave;
+      case GeometryPattern.glowCore:
+        return ArcformGeometry.glowCore;
+      case GeometryPattern.fractal:
+        return ArcformGeometry.fractal;
+    }
+  }
+
+  GeometryPattern _convertFromArcformGeometry(ArcformGeometry geometry) {
+    switch (geometry) {
+      case ArcformGeometry.spiral:
+        return GeometryPattern.spiral;
+      case ArcformGeometry.flower:
+        return GeometryPattern.flower;
+      case ArcformGeometry.branch:
+        return GeometryPattern.branch;
+      case ArcformGeometry.weave:
+        return GeometryPattern.weave;
+      case ArcformGeometry.glowCore:
+        return GeometryPattern.glowCore;
+      case ArcformGeometry.fractal:
+        return GeometryPattern.fractal;
+    }
+  }
 
   Widget _buildPhaseIndicator(BuildContext context, String currentPhase, GeometryPattern geometry) {
     final description = UserPhaseService.getPhaseDescription(currentPhase);
@@ -243,30 +286,71 @@ class ArcformRendererViewContent extends StatelessWidget {
 
         if (state is ArcformRendererLoaded) {
           return SafeArea(
-            child: Column(
+            child: Stack(
               children: [
-                // Phase indicator header
-                _buildPhaseIndicator(context, state.currentPhase, state.selectedGeometry),
-                // Main Arcform layout
-                Expanded(
-                  child: ArcformLayout(
-                  nodes: state.nodes,
-                  edges: state.edges,
-                  onNodeMoved: (nodeId, x, y) {
-                    context
-                        .read<ArcformRendererCubit>()
-                        .updateNodePosition(nodeId, x, y);
-                  },
-                  onNodeTapped: (keyword) {
-                    _showKeywordDialog(context, keyword);
-                  },
-                  selectedGeometry: state.selectedGeometry,
-                  currentPhase: state.currentPhase,
-                  onGeometryChanged: (geometry) {
-                    context.read<ArcformRendererCubit>().changeGeometry(geometry);
-                  },
+                Column(
+                  children: [
+                    // Phase indicator header
+                    _buildPhaseIndicator(context, state.currentPhase, state.selectedGeometry),
+                    // Main Arcform layout - switch between 2D and 3D
+                    Expanded(
+                      child: _is3DMode
+                          ? Simple3DArcform(
+                              nodes: state.nodes,
+                              edges: state.edges,
+                              onNodeMoved: (nodeId, x, y) {
+                                context
+                                    .read<ArcformRendererCubit>()
+                                    .updateNodePosition(nodeId, x, y);
+                              },
+                              onNodeTapped: (keyword) {
+                                _showKeywordDialog(context, keyword);
+                              },
+                              selectedGeometry: _convertToArcformGeometry(state.selectedGeometry),
+                              onGeometryChanged: (geometry) {
+                                context.read<ArcformRendererCubit>().changeGeometry(
+                                  _convertFromArcformGeometry(geometry)
+                                );
+                              },
+                            )
+                          : ArcformLayout(
+                              nodes: state.nodes,
+                              edges: state.edges,
+                              onNodeMoved: (nodeId, x, y) {
+                                context
+                                    .read<ArcformRendererCubit>()
+                                    .updateNodePosition(nodeId, x, y);
+                              },
+                              onNodeTapped: (keyword) {
+                                _showKeywordDialog(context, keyword);
+                              },
+                              selectedGeometry: state.selectedGeometry,
+                              currentPhase: state.currentPhase,
+                              onGeometryChanged: (geometry) {
+                                context.read<ArcformRendererCubit>().changeGeometry(geometry);
+                              },
+                            ),
+                    ),
+                  ],
                 ),
-              ),
+                // 3D Toggle button
+                Positioned(
+                  bottom: 30,
+                  left: 16,
+                  child: FloatingActionButton(
+                    mini: true,
+                    onPressed: () {
+                      setState(() {
+                        _is3DMode = !_is3DMode;
+                      });
+                    },
+                    backgroundColor: _is3DMode ? kcPrimaryColor : kcSurfaceAltColor,
+                    child: Icon(
+                      _is3DMode ? Icons.view_in_ar : Icons.view_in_ar_outlined,
+                      color: _is3DMode ? Colors.white : kcSecondaryColor,
+                    ),
+                  ),
+                ),
               ],
             ),
           );

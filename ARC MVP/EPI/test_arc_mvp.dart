@@ -8,7 +8,7 @@ void main() {
   
   // Test 1: Keyword Extraction
   print('1. Testing Keyword Extraction:');
-  final sampleText = '''
+  const sampleText = '''
     Today I reflected on my personal growth journey. I realized that 
     through consistent practice and mindful awareness, I've developed 
     deeper insights into my patterns. The challenges I faced helped me 
@@ -76,7 +76,7 @@ void main() {
   
   // Test 6: Geometry Patterns
   print('6. Testing Geometry Patterns:');
-  final geometries = ArcformGeometry.values;
+  const geometries = ArcformGeometry.values;
   for (final geometry in geometries) {
     print('   - ${geometry.name}: ${geometry.description}');
   }

@@ -19,7 +19,6 @@ class ArcformIntroAnimation {
     if (!context.mounted) return;
 
     final overlay = Overlay.of(context);
-    if (overlay == null) return;
 
     _currentOverlay = OverlayEntry(
       builder: (context) => _ArcformIntroWidget(

@@ -230,7 +230,7 @@ class _GeometrySelectorState extends State<GeometrySelector>
               ),
               child: Row(
                 children: [
-                  Icon(
+                  const Icon(
                     Icons.psychology,
                     color: kcPrimaryColor,
                     size: 20,
@@ -254,7 +254,7 @@ class _GeometrySelectorState extends State<GeometrySelector>
   }
 
   Widget _buildGeometryGrid() {
-    final geometries = ArcformGeometry.values;
+    const geometries = ArcformGeometry.values;
     
     return GridView.builder(
       shrinkWrap: true,
