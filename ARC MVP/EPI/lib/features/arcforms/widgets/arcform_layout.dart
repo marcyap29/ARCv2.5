@@ -144,8 +144,10 @@ class _ArcformLayoutState extends State<ArcformLayout>
   List<Node> _calculateGeometryNodes() {
     final size = MediaQuery.of(context).size;
     final centerX = size.width / 2;
-    final centerY = size.height / 2;
-    final radius = min(size.width, size.height) * 0.3;
+    // Account for SafeArea and phase indicator at top (~100px total)
+    final availableHeight = size.height - 100;
+    final centerY = (size.height - availableHeight) + (availableHeight / 2);
+    final radius = min(size.width, availableHeight) * 0.3;
 
     switch (widget.selectedGeometry) {
       case GeometryPattern.spiral:
