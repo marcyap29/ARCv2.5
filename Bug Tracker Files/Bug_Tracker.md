@@ -1,9 +1,55 @@
 # EPI ARC MVP - Bug Tracker
 
-> **Last Updated**: September 2, 2025 12:30 PM (America/Los_Angeles)  
-> **Total Bugs Tracked**: 16  
-> **Critical Issues Fixed**: 16  
-> **Status**: All blocking issues resolved - Production ready ✅
+> **Last Updated**: January 2, 2025 7:30 PM (America/Los_Angeles)  
+> **Total Items Tracked**: 20 (19 bugs + 1 enhancement)  
+> **Critical Issues Fixed**: 19  
+> **Status**: All blocking issues resolved - Production ready with keyword-driven phase detection ✅
+
+---
+
+## Enhancement ID: ENH-2025-01-02-001
+**Title**: Keyword-Driven Phase Detection Implementation
+
+**Type**: Enhancement  
+**Priority**: P1 (Critical)  
+**Status**: ✅ Complete  
+**Reporter**: Product Development  
+**Implementer**: Claude Code  
+**Implementation Date**: 2025-01-02  
+
+#### Description
+Implemented intelligent keyword-driven phase detection system that prioritizes user-selected keywords over automated text analysis for more accurate phase recommendations.
+
+#### Key Features Implemented
+- **Semantic Keyword Mapping**: Comprehensive keyword sets for all 6 ATLAS phases
+- **Sophisticated Scoring Algorithm**: Considers direct matches, coverage, and relevance factors
+- **Smart Prioritization**: Keywords take precedence when available, maintaining backward compatibility
+- **Enhanced User Agency**: Users drive their own phase detection through keyword selection
+- **Graceful Fallback**: Emotion-based detection when no keyword matches found
+
+#### Technical Implementation
+- Enhanced `PhaseRecommender.recommend()` with `selectedKeywords` parameter
+- Added `_getPhaseFromKeywords()` method with semantic mapping and scoring
+- Updated keyword analysis view to pass selected keywords to phase recommendation
+- Maintained backward compatibility with existing emotion/text-based detection
+- Added rationale messaging to indicate when recommendations are keyword-based
+
+#### Files Modified
+- `lib/features/arcforms/phase_recommender.dart` - Enhanced with keyword-driven logic
+- `lib/features/journal/widgets/keyword_analysis_view.dart` - Integrated keyword passing
+
+#### Testing Results
+✅ All 6 phases correctly detected from their respective keyword sets  
+✅ Proper fallback to emotion-based detection when no keyword matches  
+✅ Accurate rationale messaging based on detection method  
+✅ No breaking changes to existing functionality  
+✅ Complete keyword → phase → Arcform pipeline verified  
+
+#### Impact
+- **Improved Accuracy**: Phase recommendations now reflect user intent rather than just automated analysis
+- **Enhanced User Control**: Keywords serve dual purpose for AI analysis and phase detection
+- **Better User Experience**: More responsive and accurate phase recommendations
+- **Maintained Intelligence**: System preserves automated capabilities while empowering user choice
 
 ---
 
@@ -998,5 +1044,51 @@ Verified connecting lines now appear between 3D nodes showing proper relationshi
 
 ---
 
+---
+
+## Bug ID: BUG-2025-01-02-005
+**Title**: 3D Arcform Feature Successfully Merged to Main Branch
+
+**Severity**: Low  
+**Priority**: P4 (Low)  
+**Status**: ✅ Completed  
+**Reporter**: Development Process  
+**Assignee**: Claude Code  
+**Found Date**: 2025-01-02  
+**Fixed Date**: 2025-01-02  
+
+#### Description
+Successfully merged the 3-D-izing-the-arcform branch into the main branch, bringing complete 3D arcform functionality to production.
+
+#### Steps to Reproduce
+1. Review 3-D-izing-the-arcform branch features
+2. Merge branch into main
+3. Verify all 3D arcform features work correctly
+
+#### Expected Behavior
+3D arcform feature should be available in main branch with full functionality
+
+#### Actual Behavior
+Successfully merged with all features working correctly
+
+#### Root Cause
+Feature development completed and ready for production integration
+
+#### Solution
+Completed merge process:
+- Fast-forward merge of 3-D-izing-the-arcform branch
+- All 3D arcform features now available in main branch
+- Complete feature parity between 2D and 3D modes
+- Enhanced visual positioning and user experience
+
+#### Files Modified
+- All 3D arcform implementation files now in main branch
+- Documentation updated to reflect merge completion
+
+#### Testing Notes
+Verified 3D arcform works correctly in main branch with all features functional
+
+---
+
 **Status**: 🎉 **All Critical & High Priority Bugs Resolved**  
-**Deployment Readiness**: ✅ **Production Ready for User Testing**
+**Deployment Readiness**: ✅ **Production Ready with Complete 3D Arcform Feature**

@@ -10,12 +10,73 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ### In Development
 - Additional geometric visualizations for Arcforms
-- Enhanced keyword extraction algorithms
 - Advanced animation sequences for sacred journaling
 
 ---
 
-## [Latest Update - 2025-01-02] - 3D Arcform Enhancement & Visual Positioning
+## [Latest Update - 2025-01-02] - Keyword-Driven Phase Detection Enhancement
+
+### 🧠 Enhanced - Intelligent Phase Recommendations
+- **Keyword-Based Phase Detection** - Phase recommendations now prioritize user-selected keywords over automated text analysis
+  - Implemented semantic keyword-to-phase mapping with sophisticated scoring algorithm
+  - Added comprehensive keyword sets for all 6 ATLAS phases (Recovery, Discovery, Expansion, Transition, Consolidation, Breakthrough)
+  - Keywords take precedence when available, providing more accurate user-driven recommendations
+  - Smart scoring considers direct matches, coverage, and relevance factors
+
+### 🎯 Improved - User Agency & Accuracy  
+- **Enhanced PhaseRecommender Service** - Added selectedKeywords parameter to recommend() method
+  - Maintains backward compatibility with existing emotion/text-based detection
+  - Provides clearer rationale messaging when recommendations are keyword-based
+  - Falls back gracefully to emotion analysis when no keyword matches found
+  - Preserves user narrative autonomy while maintaining system intelligence
+
+### 🔄 Updated - Journal Capture Flow
+- **Keyword Analysis Integration** - Selected keywords now flow seamlessly through the entire pipeline
+  - Keywords influence phase detection → geometry selection → Arcform creation
+  - Enhanced keyword selection now serves dual purpose: richer AI analysis + better phase accuracy
+  - Expanded keyword limit from 5 to 10 with curated semantic categories
+  - Improved user experience with more responsive and accurate phase recommendations
+
+### ✅ Testing & Validation
+- **Comprehensive Testing** - All 6 phases correctly detected from their respective keyword sets
+- **Fallback Verification** - Confirmed proper emotion-based detection when no keyword matches
+- **Integration Testing** - No breaking changes to existing functionality
+- **User Flow Testing** - Complete keyword → phase → Arcform pipeline verified
+
+**Status:** Production-ready with enhanced keyword-driven phase detection integrated
+
+---
+
+## [Previous Update - 2025-01-02] - 3D Arcform Feature Merged to Main Branch
+
+### 🎉 Completed - 3D Arcform Feature Integration
+- **Main Branch Integration** - Successfully merged 3-D-izing-the-arcform branch to main
+  - Complete 3D arcform functionality now available in production
+  - Fast-forward merge with 49 files changed (1,963 insertions, 87 deletions)
+  - All 3D arcform features working correctly in main branch
+  - Enhanced user experience with complete 2D/3D feature parity
+
+### 📋 Updated - Documentation & Tracking
+- **Bug Tracker Updated** - Added merge completion tracking (BUG-2025-01-02-005)
+  - Total bugs tracked: 19 (up from 16)
+  - All critical and high priority bugs resolved
+  - Production ready status with complete 3D arcform feature
+- **Changelog Integration** - Comprehensive documentation of merge process
+  - Complete audit trail of 3D arcform development
+  - All enhancement details preserved in main branch documentation
+
+### 🔗 Git Integration
+- **Branch Management** - Clean merge process completed
+  - Local feature branch deleted after successful merge
+  - All changes preserved in git history
+  - Main branch updated and pushed to GitHub
+  - Ready for production deployment
+
+**Status:** Production-ready with complete 3D arcform feature integrated into main branch
+
+---
+
+## [Previous Update - 2025-01-02] - 3D Arcform Enhancement & Visual Positioning
 
 ### ✨ Enhanced - 3D Arcform Complete Feature Implementation
 - **Emotional Warmth Integration** - 3D spheres now use EmotionalValenceService for color coding
