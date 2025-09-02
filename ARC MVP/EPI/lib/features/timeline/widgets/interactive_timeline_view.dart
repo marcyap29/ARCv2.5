@@ -3,6 +3,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:my_app/features/timeline/timeline_cubit.dart';
 import 'package:my_app/features/timeline/timeline_state.dart';
 import 'package:my_app/features/timeline/timeline_entry_model.dart';
+import 'package:my_app/features/arcforms/services/emotional_valence_service.dart';
+import 'package:my_app/features/arcforms/arcform_renderer_state.dart';
 import 'package:my_app/shared/app_colors.dart';
 import 'package:my_app/shared/text_style.dart';
 import 'dart:math' as math;
@@ -212,54 +214,125 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
   }
 
   Widget _buildArcformVisualization(TimelineEntry entry, bool isCurrentEntry) {
+    final phaseColor = _getPhaseColor(entry.phase);
+    final phaseGeometry = _getPhaseGeometry(entry.phase);
+    
     return Container(
       width: 120,
       height: 120,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
         color: isCurrentEntry 
-            ? kcPrimaryColor.withOpacity(0.1)
-            : kcSurfaceAltColor.withOpacity(0.5),
+            ? phaseColor.withOpacity(0.1)
+            : phaseColor.withOpacity(0.05),
         border: Border.all(
-          color: isCurrentEntry 
-              ? kcPrimaryColor
-              : kcSecondaryTextColor.withOpacity(0.3),
-          width: isCurrentEntry ? 2 : 1,
+          color: phaseColor.withOpacity(isCurrentEntry ? 0.8 : 0.4),
+          width: isCurrentEntry ? 3 : 2,
         ),
         boxShadow: isCurrentEntry ? [
           BoxShadow(
-            color: kcPrimaryColor.withOpacity(0.3),
+            color: phaseColor.withOpacity(0.3),
             blurRadius: 20,
             spreadRadius: 2,
           ),
         ] : null,
       ),
-      child: entry.hasArcform
-          ? _buildArcformIcon(entry, isCurrentEntry)
-          : _buildDefaultIcon(isCurrentEntry),
+      child: Stack(
+        children: [
+          // Main content - Arcform or default icon
+          Center(
+            child: entry.hasArcform
+                ? _buildArcformIcon(entry, isCurrentEntry, phaseColor, phaseGeometry)
+                : _buildDefaultIcon(isCurrentEntry, phaseColor),
+          ),
+          // Phase indicator in bottom-right corner
+          if (entry.phase != null)
+            Positioned(
+              bottom: 4,
+              right: 4,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: phaseColor,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  entry.phase!.substring(0, 3).toUpperCase(),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
     );
   }
 
-  Widget _buildArcformIcon(TimelineEntry entry, bool isCurrentEntry) {
-    // This would ideally show the actual Arcform geometry
-    // For now, we'll show a beautiful geometric pattern
+  Widget _buildArcformIcon(TimelineEntry entry, bool isCurrentEntry, Color phaseColor, GeometryPattern? phaseGeometry) {
     return CustomPaint(
       painter: ArcformTimelinePainter(
         isCurrentEntry: isCurrentEntry,
         entry: entry,
+        phaseColor: phaseColor,
+        phaseGeometry: phaseGeometry ?? GeometryPattern.spiral,
       ),
       size: const Size(120, 120),
     );
   }
 
-  Widget _buildDefaultIcon(bool isCurrentEntry) {
+  Widget _buildDefaultIcon(bool isCurrentEntry, Color phaseColor) {
     return Icon(
       Icons.edit_note_outlined,
       size: 40,
       color: isCurrentEntry 
-          ? kcPrimaryColor
-          : kcSecondaryTextColor.withOpacity(0.5),
+          ? phaseColor
+          : phaseColor.withOpacity(0.5),
     );
+  }
+
+  Color _getPhaseColor(String? phase) {
+    if (phase == null) return kcSecondaryTextColor;
+    
+    switch (phase.toLowerCase()) {
+      case 'discovery':
+        return const Color(0xFF4F46E5); // Blue
+      case 'expansion':
+        return const Color(0xFF7C3AED); // Purple  
+      case 'transition':
+        return const Color(0xFF059669); // Green
+      case 'consolidation':
+        return const Color(0xFFD97706); // Orange
+      case 'recovery':
+        return const Color(0xFFDC2626); // Red
+      case 'breakthrough':
+        return const Color(0xFF7C2D12); // Brown
+      default:
+        return kcSecondaryTextColor;
+    }
+  }
+
+  GeometryPattern? _getPhaseGeometry(String? phase) {
+    if (phase == null) return null;
+    
+    switch (phase.toLowerCase()) {
+      case 'discovery':
+        return GeometryPattern.spiral;
+      case 'expansion':
+        return GeometryPattern.flower;
+      case 'transition':
+        return GeometryPattern.branch;
+      case 'consolidation':
+        return GeometryPattern.weave;
+      case 'recovery':
+        return GeometryPattern.glowCore;
+      case 'breakthrough':
+        return GeometryPattern.fractal;
+      default:
+        return GeometryPattern.spiral;
+    }
   }
 
   Widget _buildEntryDetails(TimelineEntry entry, bool isCurrentEntry) {
@@ -369,10 +442,14 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
 class ArcformTimelinePainter extends CustomPainter {
   final bool isCurrentEntry;
   final TimelineEntry entry;
+  final Color phaseColor;
+  final GeometryPattern phaseGeometry;
 
   ArcformTimelinePainter({
     required this.isCurrentEntry,
     required this.entry,
+    required this.phaseColor,
+    required this.phaseGeometry,
   });
 
   @override
@@ -382,19 +459,16 @@ class ArcformTimelinePainter extends CustomPainter {
     
     final paint = Paint()
       ..style = PaintingStyle.stroke
-      ..strokeWidth = isCurrentEntry ? 2.0 : 1.0
+      ..strokeWidth = isCurrentEntry ? 2.5 : 1.5
       ..color = isCurrentEntry 
-          ? kcPrimaryColor
-          : kcSecondaryTextColor.withOpacity(0.4);
+          ? phaseColor
+          : phaseColor.withOpacity(0.6);
 
-    // Draw pattern based on keyword count
+    // Draw phase-specific geometry pattern
     if (entry.keywords.isEmpty) {
-      // Simple circle for entries with no keywords
       _drawSimpleCircle(canvas, center, radius, paint);
     } else {
-      // Spiral pattern for entries with keywords
-      _drawSpiral(canvas, center, radius, paint);
-      _drawNodes(canvas, center, radius, paint);
+      _drawPhaseGeometry(canvas, center, radius, paint);
     }
   }
 
@@ -402,17 +476,39 @@ class ArcformTimelinePainter extends CustomPainter {
     canvas.drawCircle(center, radius * 0.6, paint);
   }
 
-  void _drawSpiral(Canvas canvas, Offset center, double radius, Paint paint) {
-    final path = Path();
-    final double goldenAngle = 2.4; // Golden angle approximation
+  void _drawPhaseGeometry(Canvas canvas, Offset center, double radius, Paint paint) {
     final keywordCount = entry.keywords.length;
     
-    // Adjust spiral complexity based on keyword count
-    final spiralPoints = math.max(15, keywordCount * 3);
+    switch (phaseGeometry) {
+      case GeometryPattern.spiral:
+        _drawSpiral(canvas, center, radius, paint, keywordCount);
+        break;
+      case GeometryPattern.flower:
+        _drawFlower(canvas, center, radius, paint, keywordCount);
+        break;
+      case GeometryPattern.branch:
+        _drawBranch(canvas, center, radius, paint, keywordCount);
+        break;
+      case GeometryPattern.weave:
+        _drawWeave(canvas, center, radius, paint, keywordCount);
+        break;
+      case GeometryPattern.glowCore:
+        _drawGlowCore(canvas, center, radius, paint, keywordCount);
+        break;
+      case GeometryPattern.fractal:
+        _drawFractal(canvas, center, radius, paint, keywordCount);
+        break;
+    }
+  }
+
+  void _drawSpiral(Canvas canvas, Offset center, double radius, Paint paint, int keywordCount) {
+    final path = Path();
+    final double goldenAngle = 2.39996; // Golden angle
+    final spiralPoints = math.max(12, keywordCount * 2);
     
     for (int i = 0; i < spiralPoints; i++) {
       final angle = i * goldenAngle;
-      final r = radius * (i / spiralPoints.toDouble());
+      final r = radius * math.sqrt(i / spiralPoints.toDouble()) * 0.8;
       final x = center.dx + r * math.cos(angle);
       final y = center.dy + r * math.sin(angle);
       
@@ -422,30 +518,144 @@ class ArcformTimelinePainter extends CustomPainter {
         path.lineTo(x, y);
       }
     }
-    
     canvas.drawPath(path, paint);
+  }
+
+  void _drawFlower(Canvas canvas, Offset center, double radius, Paint paint, int keywordCount) {
+    final petalCount = math.max(5, keywordCount);
+    final angleStep = (2 * math.pi) / petalCount;
+    
+    for (int i = 0; i < petalCount; i++) {
+      final angle = i * angleStep;
+      final petalRadius = radius * 0.7;
+      final x = center.dx + petalRadius * math.cos(angle);
+      final y = center.dy + petalRadius * math.sin(angle);
+      
+      canvas.drawLine(center, Offset(x, y), paint);
+    }
+    canvas.drawCircle(center, radius * 0.15, paint);
+  }
+
+  void _drawBranch(Canvas canvas, Offset center, double radius, Paint paint, int keywordCount) {
+    // Main trunk
+    canvas.drawLine(
+      Offset(center.dx, center.dy + radius * 0.4),
+      Offset(center.dx, center.dy - radius * 0.6),
+      paint,
+    );
+    
+    // Branches
+    final branchCount = math.min(keywordCount, 4);
+    for (int i = 0; i < branchCount; i++) {
+      final angle = -math.pi + (i * math.pi / (branchCount + 1));
+      final branchLength = radius * 0.5;
+      final x = center.dx + branchLength * math.cos(angle);
+      final y = center.dy + branchLength * math.sin(angle);
+      
+      canvas.drawLine(center, Offset(x, y), paint);
+    }
+  }
+
+  void _drawWeave(Canvas canvas, Offset center, double radius, Paint paint, int keywordCount) {
+    final gridSize = math.max(2, math.sqrt(keywordCount).ceil());
+    final spacing = radius * 0.4 / gridSize;
+    
+    for (int i = 0; i < gridSize; i++) {
+      for (int j = 0; j < gridSize; j++) {
+        final x = center.dx + (i - gridSize / 2) * spacing;
+        final y = center.dy + (j - gridSize / 2) * spacing;
+        
+        if (j < gridSize - 1) {
+          canvas.drawLine(Offset(x, y), Offset(x, y + spacing), paint);
+        }
+        if (i < gridSize - 1) {
+          canvas.drawLine(Offset(x, y), Offset(x + spacing, y), paint);
+        }
+      }
+    }
+  }
+
+  void _drawGlowCore(Canvas canvas, Offset center, double radius, Paint paint, int keywordCount) {
+    canvas.drawCircle(center, radius * 0.2, paint);
+    
+    final rayCount = math.min(keywordCount, 8);
+    for (int i = 0; i < rayCount; i++) {
+      final angle = (2 * math.pi * i) / rayCount;
+      final x = center.dx + radius * 0.7 * math.cos(angle);
+      final y = center.dy + radius * 0.7 * math.sin(angle);
+      canvas.drawLine(center, Offset(x, y), paint);
+    }
+  }
+
+  void _drawFractal(Canvas canvas, Offset center, double radius, Paint paint, int keywordCount) {
+    _drawFractalBranch(canvas, center, -math.pi / 2, radius * 0.6, 0, paint);
+  }
+
+  void _drawFractalBranch(Canvas canvas, Offset start, double angle, double length, int depth, Paint paint) {
+    if (depth > 2 || length < 10) return;
+    
+    final endX = start.dx + length * math.cos(angle);
+    final endY = start.dy + length * math.sin(angle);
+    final end = Offset(endX, endY);
+    
+    canvas.drawLine(start, end, paint);
+    
+    final newLength = length * 0.7;
+    _drawFractalBranch(canvas, end, angle - math.pi / 4, newLength, depth + 1, paint);
+    _drawFractalBranch(canvas, end, angle + math.pi / 4, newLength, depth + 1, paint);
   }
 
   void _drawNodes(Canvas canvas, Offset center, double radius, Paint nodePaint) {
     final nodeRadius = 3.0;
-    final nodePaint = Paint()
-      ..style = PaintingStyle.fill
-      ..color = isCurrentEntry 
-          ? kcPrimaryColor
-          : kcSecondaryTextColor.withOpacity(0.4);
+    final emotionalService = EmotionalValenceService();
 
     // Use actual number of keywords from the entry
     final keywordCount = entry.keywords.length;
     final maxNodes = math.min(keywordCount, 8); // Cap at 8 for visual clarity
     
-    // Draw nodes based on actual keywords
+    // Draw nodes based on actual keywords with emotional coloring
     for (int i = 0; i < maxNodes; i++) {
+      final keyword = entry.keywords[i];
       final angle = i * (2 * math.pi / maxNodes); // Evenly distribute around circle
       final r = radius * (0.4 + (i * 0.1)); // Vary radius slightly for visual interest
       final x = center.dx + r * math.cos(angle);
       final y = center.dy + r * math.sin(angle);
       
+      // Get emotional color for this specific keyword
+      final emotionalColor = emotionalService.getEmotionalColor(keyword);
+      final nodePaint = Paint()
+        ..style = PaintingStyle.fill
+        ..color = isCurrentEntry 
+            ? emotionalColor
+            : emotionalColor.withOpacity(0.6);
+      
       canvas.drawCircle(Offset(x, y), nodeRadius, nodePaint);
+    }
+  }
+
+  /// Convert valence score to color (same logic as EmotionalValenceService)
+  Color _valenceToColor(double valence) {
+    if (valence > 0.7) {
+      // Very positive: Golden/warm yellow
+      return const Color(0xFFFFD700);
+    } else if (valence > 0.4) {
+      // Positive: Warm orange
+      return const Color(0xFFFF8C42);
+    } else if (valence > 0.1) {
+      // Slightly positive: Soft coral
+      return const Color(0xFFFF6B6B);
+    } else if (valence > -0.1) {
+      // Neutral: Soft purple (app's primary color)
+      return const Color(0xFFD1B3FF);
+    } else if (valence > -0.4) {
+      // Slightly negative: Cool blue
+      return const Color(0xFF4A90E2);
+    } else if (valence > -0.7) {
+      // Negative: Deeper blue
+      return const Color(0xFF2E86AB);
+    } else {
+      // Very negative: Cool teal
+      return const Color(0xFF4ECDC4);
     }
   }
 

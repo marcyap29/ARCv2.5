@@ -4,6 +4,7 @@ import 'package:my_app/features/arcforms/arcform_renderer_cubit.dart';
 import 'package:my_app/features/arcforms/arcform_renderer_state.dart';
 import 'package:my_app/features/arcforms/widgets/arcform_layout.dart';
 import 'package:my_app/features/arcforms/services/emotional_valence_service.dart';
+import 'package:my_app/services/user_phase_service.dart';
 import 'package:my_app/shared/app_colors.dart';
 import 'package:my_app/shared/text_style.dart';
 
@@ -21,6 +22,113 @@ class ArcformRendererView extends StatelessWidget {
 
 class ArcformRendererViewContent extends StatelessWidget {
   const ArcformRendererViewContent({super.key});
+
+  Widget _buildPhaseIndicator(BuildContext context, String currentPhase, GeometryPattern geometry) {
+    final description = UserPhaseService.getPhaseDescription(currentPhase);
+    final phaseColor = _getPhaseColor(geometry);
+    
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            phaseColor.withOpacity(0.1),
+            phaseColor.withOpacity(0.05),
+          ],
+          begin: Alignment.centerLeft,
+          end: Alignment.centerRight,
+        ),
+        border: Border.all(
+          color: phaseColor.withOpacity(0.3),
+          width: 2,
+        ),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: phaseColor,
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  'CURRENT PHASE',
+                  style: captionStyle(context).copyWith(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 12,
+                  ),
+                ),
+              ),
+              const Spacer(),
+              Icon(
+                _getPhaseIcon(geometry),
+                color: phaseColor,
+                size: 24,
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text(
+            currentPhase.toUpperCase(),
+            style: heading1Style(context).copyWith(
+              color: phaseColor,
+              fontSize: 28,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            description,
+            style: bodyStyle(context).copyWith(
+              color: phaseColor.withOpacity(0.8),
+              fontSize: 16,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Color _getPhaseColor(GeometryPattern geometry) {
+    switch (geometry) {
+      case GeometryPattern.spiral:
+        return const Color(0xFF4F46E5); // Discovery - Blue
+      case GeometryPattern.flower:
+        return const Color(0xFF7C3AED); // Expansion - Purple  
+      case GeometryPattern.branch:
+        return const Color(0xFF059669); // Transition - Green
+      case GeometryPattern.weave:
+        return const Color(0xFFD97706); // Consolidation - Orange
+      case GeometryPattern.glowCore:
+        return const Color(0xFFDC2626); // Recovery - Red
+      case GeometryPattern.fractal:
+        return const Color(0xFF7C2D12); // Breakthrough - Brown
+    }
+  }
+
+  IconData _getPhaseIcon(GeometryPattern geometry) {
+    switch (geometry) {
+      case GeometryPattern.spiral:
+        return Icons.explore; // Discovery
+      case GeometryPattern.flower:
+        return Icons.local_florist; // Expansion
+      case GeometryPattern.branch:
+        return Icons.account_tree; // Transition
+      case GeometryPattern.weave:
+        return Icons.grid_view; // Consolidation
+      case GeometryPattern.glowCore:
+        return Icons.healing; // Recovery
+      case GeometryPattern.fractal:
+        return Icons.auto_fix_high; // Breakthrough
+    }
+  }
 
   void _showKeywordDialog(BuildContext context, String keyword) {
     final emotionalService = EmotionalValenceService();
@@ -134,22 +242,31 @@ class ArcformRendererViewContent extends StatelessWidget {
         }
 
         if (state is ArcformRendererLoaded) {
-          return ArcformLayout(
-            nodes: state.nodes,
-            edges: state.edges,
-            onNodeMoved: (nodeId, x, y) {
-              context
-                  .read<ArcformRendererCubit>()
-                  .updateNodePosition(nodeId, x, y);
-            },
-            onNodeTapped: (keyword) {
-              _showKeywordDialog(context, keyword);
-            },
-            selectedGeometry: state.selectedGeometry,
-            currentPhase: state.currentPhase,
-            onGeometryChanged: (geometry) {
-              context.read<ArcformRendererCubit>().changeGeometry(geometry);
-            },
+          return Column(
+            children: [
+              // Phase indicator header
+              _buildPhaseIndicator(context, state.currentPhase, state.selectedGeometry),
+              // Main Arcform layout
+              Expanded(
+                child: ArcformLayout(
+                  nodes: state.nodes,
+                  edges: state.edges,
+                  onNodeMoved: (nodeId, x, y) {
+                    context
+                        .read<ArcformRendererCubit>()
+                        .updateNodePosition(nodeId, x, y);
+                  },
+                  onNodeTapped: (keyword) {
+                    _showKeywordDialog(context, keyword);
+                  },
+                  selectedGeometry: state.selectedGeometry,
+                  currentPhase: state.currentPhase,
+                  onGeometryChanged: (geometry) {
+                    context.read<ArcformRendererCubit>().changeGeometry(geometry);
+                  },
+                ),
+              ),
+            ],
           );
         }
 

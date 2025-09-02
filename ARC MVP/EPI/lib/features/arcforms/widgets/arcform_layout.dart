@@ -37,6 +37,12 @@ class _ArcformLayoutState extends State<ArcformLayout>
     with SingleTickerProviderStateMixin {
   late AnimationController _animationController;
   late Animation<double> _animation;
+  
+  // Rotation state
+  double _rotationX = 0.0;
+  double _rotationY = 0.0;
+  double _rotationZ = 0.0;
+  double _scale = 1.0;
 
   @override
   void initState() {
@@ -56,6 +62,31 @@ class _ArcformLayoutState extends State<ArcformLayout>
   void dispose() {
     _animationController.dispose();
     super.dispose();
+  }
+
+  void _handlePanUpdate(DragUpdateDetails details) {
+    setState(() {
+      // Convert pan gestures to rotation
+      _rotationY += details.delta.dx * 0.01; // Horizontal drag rotates around Y-axis
+      _rotationX -= details.delta.dy * 0.01; // Vertical drag rotates around X-axis
+      
+      // Clamp rotations to prevent extreme angles
+      _rotationX = _rotationX.clamp(-1.5, 1.5);
+      _rotationY = _rotationY.clamp(-3.14, 3.14);
+    });
+  }
+
+  void _handleScaleUpdate(ScaleUpdateDetails details) {
+    setState(() {
+      // Handle scaling
+      _scale = (_scale * details.scale).clamp(0.5, 3.0);
+      
+      // Handle rotation based on focal point changes
+      if (details.pointerCount == 2) {
+        // Two-finger rotation
+        _rotationZ += details.rotation * 0.5;
+      }
+    });
   }
 
   /// Test harness for spiral layout with 5-10 nodes
@@ -326,24 +357,42 @@ class _ArcformLayoutState extends State<ArcformLayout>
       backgroundColor: kcBackgroundColor,
       body: Stack(
         children: [
-          // Edges
-          CustomPaint(
-            size: size,
-            painter: EdgePainter(
-              edges: widget.edges,
-              nodes: geometryNodes,
-              animation: _animation,
+          // Rotatable Arcform container
+          GestureDetector(
+            onPanUpdate: _handlePanUpdate,
+            onScaleUpdate: _handleScaleUpdate,
+            child: Transform(
+              alignment: Alignment.center,
+              transform: Matrix4.identity()
+                ..setEntry(3, 2, 0.001) // Add perspective
+                ..rotateX(_rotationX)
+                ..rotateY(_rotationY)
+                ..rotateZ(_rotationZ)
+                ..scale(_scale),
+              child: Stack(
+                children: [
+                  // Edges
+                  CustomPaint(
+                    size: size,
+                    painter: EdgePainter(
+                      edges: widget.edges,
+                      nodes: geometryNodes,
+                      animation: _animation,
+                    ),
+                  ),
+                  // Nodes
+                  ...geometryNodes.map((node) {
+                    return NodeWidget(
+                      key: ValueKey(node.id),
+                      node: node,
+                      onMoved: widget.onNodeMoved,
+                      onTapped: widget.onNodeTapped,
+                    );
+                  }),
+                ],
+              ),
             ),
           ),
-          // Nodes
-          ...geometryNodes.map((node) {
-            return NodeWidget(
-              key: ValueKey(node.id),
-              node: node,
-              onMoved: widget.onNodeMoved,
-              onTapped: widget.onNodeTapped,
-            );
-          }),
           // Geometry selector
           Positioned(
             top: 60,
