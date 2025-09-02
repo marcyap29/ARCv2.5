@@ -1,5 +1,7 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:my_app/features/journal/keyword_extraction_state.dart';
+import 'package:my_app/features/keyword_extraction/enhanced_keyword_extractor.dart';
+import 'package:my_app/features/arcforms/phase_recommender.dart';
 
 class KeywordExtractionCubit extends Cubit<KeywordExtractionState> {
   KeywordExtractionCubit() : super(KeywordExtractionInitial());
@@ -8,50 +10,37 @@ class KeywordExtractionCubit extends Cubit<KeywordExtractionState> {
     emit(KeywordExtractionInitial());
   }
 
-  void extractKeywords(String text) {
+  void extractKeywords(String text, {String? emotion, String? reason}) {
     emit(KeywordExtractionLoading());
 
-    // Simulate API call delay
-    Future.delayed(const Duration(seconds: 1), () {
-      // Extract keywords from text (simplified implementation)
-      final words = text
-          .split(RegExp(r'\s+'))
-          .where((word) {
-            // Filter out common words and keep only words with 3+ characters
-            final commonWords = {
-              'the',
-              'and',
-              'or',
-              'but',
-              'in',
-              'on',
-              'at',
-              'to',
-              'for',
-              'of',
-              'with',
-              'by',
-              'a',
-              'an',
-              'is',
-              'are',
-              'was',
-              'were'
-            };
-            return word.length >= 3 &&
-                !commonWords.contains(word.toLowerCase());
-          })
-          .map((word) => word.toLowerCase().replaceAll(RegExp(r'[^\w]'), ''))
-          .toSet()
-          .toList();
+    // Simulate realistic processing delay for better UX
+    Future.delayed(const Duration(seconds: 2), () {
+      try {
+        // Determine current phase for context
+        final currentPhase = PhaseRecommender.recommend(
+          emotion: emotion ?? '',
+          reason: reason ?? '',
+          text: text,
+        );
 
-      // Take first 15 unique words as suggested keywords
-      final suggestedKeywords = words.take(15).toList();
+        // Use enhanced keyword extractor with RIVET gating
+        final response = EnhancedKeywordExtractor.extractKeywords(
+          entryText: text,
+          currentPhase: currentPhase,
+        );
 
-      emit(KeywordExtractionLoaded(
-        suggestedKeywords: suggestedKeywords,
-        selectedKeywords: const [],
-      ));
+        // Extract keywords from candidates
+        final allKeywords = response.candidates.map((c) => c.keyword).toList();
+        final preselectedKeywords = response.chips;
+
+        emit(KeywordExtractionLoaded(
+          suggestedKeywords: allKeywords,
+          selectedKeywords: preselectedKeywords,
+          enhancedResponse: response, // Store full response for metadata
+        ));
+      } catch (e) {
+        emit(KeywordExtractionError('Failed to extract keywords: $e'));
+      }
     });
   }
 
