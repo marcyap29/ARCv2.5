@@ -48,7 +48,9 @@ class _HomeViewState extends State<HomeView> {
         builder: (context, state) {
           final selectedIndex = state is HomeLoaded ? state.selectedIndex : 0;
           return Scaffold(
-            body: _pages[selectedIndex],
+            body: SafeArea(
+              child: _pages[selectedIndex],
+            ),
             bottomNavigationBar: CustomTabBar(
               tabs: _tabs,
               selectedIndex: selectedIndex,
