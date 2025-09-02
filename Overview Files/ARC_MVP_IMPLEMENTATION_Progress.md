@@ -1,21 +1,22 @@
 # ARC_MVP_IMPLEMENTATION.md
 
-> **Status:** Production-ready with advanced emotional intelligence ✅  
-> **Scope:** ARC MVP (journaling → emotional analysis → interactive Arcforms → timeline) with sacred UX and cinematic animations.  
-> **Last updated:** 2025‑09‑01 (America/Los_Angeles)
+> **Status:** Production-ready with complete 3D arcform feature ✅  
+> **Scope:** ARC MVP (journaling → emotional analysis → interactive 2D/3D Arcforms → timeline) with sacred UX and cinematic animations.  
+> **Last updated:** 2025‑01‑02 (America/Los_Angeles)
 
 ---
 
 ## 1) Executive Summary
 
 - Core ARC pipeline is **implemented and stable**:
-  - Journal → Emotional Analysis → Interactive Arcforms → Timeline integration.
+  - Journal → Emotional Analysis → Interactive 2D/3D Arcforms → Timeline integration.
   - Sacred UX realized (dark gradients, contemplative copy, respectful interactions).
+  - **Complete 3D Arcform Feature**: Full 3D visualization with labels, emotional warmth, connecting lines, and interactive controls.
   - **Advanced Emotional Intelligence**: Color temperature mapping, interactive clickable letters, sentiment analysis.
   - **Cinematic Animations**: Full-screen Arcform reveals with staggered particle effects.
 - Critical stability + UX issues addressed (navigation, save, loading, lifecycle safety).
 - **Prompts 21–23** added: Welcome flow, Audio framework, Arcform sovereignty (auto vs manual).  
-- **Recent enhancements**: EmotionalValenceService, advanced notifications, progressive disclosure UI.
+- **Recent enhancements**: Keyword-driven phase detection, EmotionalValenceService, advanced notifications, progressive disclosure UI.
 - Remaining prompts broken into **actionable tickets** with file paths and acceptance criteria.
 
 ---
@@ -23,7 +24,7 @@
 ## 2) Architecture Snapshot
 
 - **Data flow:**  
-  `Journal Entry → Emotional Analysis → Keyword Extraction/Selection → Arcform Creation → Storage → Interactive Visualization (Arcforms / Timeline) → Insights (later)`
+  `Journal Entry → Emotional Analysis → Keyword Extraction/Selection → Keyword-Driven Phase Detection → Arcform Creation → Storage → Interactive Visualization (Arcforms / Timeline) → Insights (later)`
 - **Storage:** Hive (encrypted, offline‑first).  
 - **State:** Bloc/Cubit (global providers).  
 - **Rendering:** Flutter (60 fps targets; reduced motion compatible).  
@@ -43,11 +44,11 @@
 | P4    | Journal (text)                         | ✅ Complete  | Save flow optimized; reordered flow (New Entry → Emotion → Reason); recursive save loop fixed |
 | P5    | Journal (voice)                        | ⏳ Planned   | Permission + transcription TBD |
 | P6    | SAGE Echo                              | ✅ Complete  | Async post‑processing |
-| P7    | Keyword extraction & review            | ✅ Complete  | Multi‑select; UI honors choices |
-| P8    | Arcform renderer                       | ✅ Complete  | 6 geometries; emotional color mapping; interactive letters; keyword tap dialog; notch-safe positioning |
+| P7    | Keyword extraction & review            | ✅ Complete  | Multi‑select; UI honors choices; keyword-driven phase detection |
+| P8    | Arcform renderer                       | ✅ Complete  | 6 geometries; 2D/3D modes; emotional color mapping; interactive letters; keyword tap dialog; notch-safe positioning; complete 3D feature parity |
 | P9    | Timeline                               | ✅ Complete  | Thumbnails + keywords; SafeArea compliance; notch-safe layout |
 | P10   | Insights: Polymeta v1                  | ⏳ Planned   | Graph view scaffold later |
-| P11   | Phase detection placeholder (ATLAS)    | ⏳ Planned   | Coarse hint after ≥5 entries/10 days |
+| P11   | Phase detection placeholder (ATLAS)    | ✅ Complete  | Keyword-driven phase recommendations with semantic mapping |
 | P12   | Rhythm & restoration (AURORA/VEIL)     | ⏳ Planned   | Placeholders/cards |
 | P13   | Settings & privacy                     | ⏳ Planned   | Export/erase/biometric |
 | P14   | Cloud sync stubs                       | ⏳ Planned   | Offline‑first queue |
@@ -67,6 +68,8 @@
 
 ## 4) Completed Work Highlights
 
+- **Complete 3D Arcform Feature:** Full 3D visualization with labels, emotional warmth, connecting lines, interactive controls.
+- **Keyword-Driven Phase Detection:** Semantic keyword-to-phase mapping prioritizes user intent over automated analysis.
 - **Emotional Intelligence System:** EmotionalValenceService with 100+ categorized words, color temperature mapping.
 - **Interactive Clickable Letters:** Progressive disclosure - long words condense to first letter, tap to expand.
 - **Advanced Color Psychology:** Warm colors for positive emotions, cool colors for negative, dynamic glow effects.
@@ -97,6 +100,29 @@
 - Interactive clickable letters with progressive disclosure animations
 - Color temperature mapping: warm/cool/neutral emotional visualization
 - Dynamic glow effects based on emotional intensity
+
+### 2025‑01‑02 — Keyword-Driven Phase Detection Enhancement  
+- **Intelligent Phase Recommendations** - Keywords now prioritize over automated text analysis
+  - Semantic keyword-to-phase mapping with sophisticated scoring algorithm
+  - Comprehensive keyword sets for all 6 ATLAS phases (Recovery, Discovery, Expansion, Transition, Consolidation, Breakthrough)
+  - Smart scoring considers direct matches, coverage, and relevance factors
+- **Enhanced User Agency & Accuracy** - Preserves user narrative autonomy while maintaining system intelligence
+  - Maintains backward compatibility with existing emotion/text-based detection
+  - Provides clearer rationale messaging when recommendations are keyword-based
+  - Falls back gracefully to emotion analysis when no keyword matches found
+- **Complete Pipeline Integration** - Keywords influence phase detection → geometry selection → Arcform creation
+  - Enhanced keyword selection serves dual purpose: richer AI analysis + better phase accuracy
+  - Expanded keyword limit from 5 to 10 with curated semantic categories
+  - Comprehensive testing verified all phases correctly detected with proper fallback behavior
+
+### 2025‑01‑02 — Complete 3D Arcform Feature Integration
+- **3D Arcform Feature Merged to Main** - Successfully integrated complete 3D visualization system
+  - Full 3D arcform functionality with labels, emotional warmth, connecting lines
+  - Interactive 3D controls (rotation, scaling, auto-rotation)
+  - Complete feature parity between 2D and 3D modes
+  - Enhanced visual positioning and user experience
+- **Production Deployment Ready** - All 3D arcform features now available in main branch
+- **Documentation Updated** - Comprehensive tracking of 3D feature development and integration
 
 ### 2025‑09‑01 — Production Stability & Flutter API Updates
 - Fixed Flutter Color API compatibility issues for latest versions
@@ -234,6 +260,9 @@ dart test_arc_mvp.dart  # Run tests
 ## 9) Quick File Nav
 
 - Arcform core: `lib/features/arcforms/arcform_mvp_implementation.dart`  
+- 3D Arcform: `lib/features/arcforms/widgets/simple_3d_arcform.dart`
+- 3D Geometry: `lib/features/arcforms/geometry/geometry_3d_layouts.dart`
+- 3D Spheres: `lib/features/arcforms/widgets/spherical_node_widget.dart`
 - Emotional Intelligence: `lib/features/arcforms/services/emotional_valence_service.dart`
 - Interactive UI: `lib/features/arcforms/widgets/node_widget.dart`
 - Tests: `test_arc_mvp.dart`  
