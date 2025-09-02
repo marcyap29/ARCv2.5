@@ -17,6 +17,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## [Latest Update - 2024-12-19] - Journal Flow Optimization & Bug Fixes
 
+### 📱 Fixed - Screen Space & Notch Issues
+- **Notch Blocking Resolution** - Fixed content being cut off by iPhone notch
+  - Added `SafeArea` wrapper to Arcforms tab content
+  - Added `SafeArea` wrapper to Timeline tab content  
+  - Adjusted geometry selector positioning from `top: 10` to `top: 60`
+  - Phase selector buttons (Discovery, Expansion, Transition) now fully visible
+  - All tab content properly respects iPhone safe area boundaries
+
 ### 🔄 Enhanced - Journal Entry Flow Reordering
 - **Natural Writing Flow** - Reordered journal entry process for better user experience
   - **New Flow**: New Entry → Emotion Selection → Reason Selection → Analysis
