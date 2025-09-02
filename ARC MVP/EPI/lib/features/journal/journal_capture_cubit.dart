@@ -7,6 +7,8 @@ import 'package:my_app/features/journal/sage_annotation_model.dart';
 import 'package:my_app/models/arcform_snapshot_model.dart';
 import 'package:my_app/features/arcforms/arcform_mvp_implementation.dart';
 import 'package:my_app/features/arcforms/phase_recommender.dart';
+import 'package:my_app/services/analytics_service.dart';
+import 'package:my_app/services/user_phase_service.dart';
 import 'package:uuid/uuid.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:path_provider/path_provider.dart';
@@ -165,6 +167,47 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
 
       // Create Arcform using the enhanced starter experience (will get phase via recommender)
       _createArcformWithPhaseRecommendation(entry, emotion, emotionReason);
+    } catch (e) {
+      emit(JournalCaptureError('Failed to save entry: ${e.toString()}'));
+    }
+  }
+
+  void saveEntryWithPhaseAndGeometry({
+    required String content,
+    required String mood,
+    required List<String> selectedKeywords,
+    required String phase,
+    required ArcformGeometry overrideGeometry,
+    String? emotion,
+    String? emotionReason,
+  }) async {
+    try {
+      final now = DateTime.now();
+      final entry = JournalEntry(
+        id: const Uuid().v4(),
+        title: _generateTitle(content),
+        content: content,
+        createdAt: now,
+        updatedAt: now,
+        tags: const [],
+        mood: mood,
+        audioUri: _audioPath,
+        keywords: selectedKeywords,
+        emotion: emotion,
+        emotionReason: emotionReason,
+      );
+
+      // Save the entry first
+      await _journalRepository.createJournalEntry(entry);
+
+      // Emit saved state immediately - don't wait for background processing
+      emit(JournalCaptureSaved());
+
+      // Process SAGE annotation in background (don't await)
+      _processSAGEAnnotation(entry);
+
+      // Create Arcform with manual geometry override
+      _createArcformWithManualGeometry(entry, emotion, emotionReason, phase, overrideGeometry);
     } catch (e) {
       emit(JournalCaptureError('Failed to save entry: ${e.toString()}'));
     }
@@ -330,9 +373,81 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
       final snapshotBox = await Hive.openBox<ArcformSnapshot>('arcform_snapshots');
       await snapshotBox.put(snapshot.id, snapshot);
       
+      // Track analytics for auto-accepted geometry
+      AnalyticsService.trackGeometryAccepted(
+        phase: recommendedPhase,
+        geometry: arcform.geometry.name,
+        keywords: arcform.keywords,
+      );
+      
       print('Arcform created: $recommendedPhase with ${arcform.keywords.length} keywords');
     } catch (e) {
       print('Phase-recommendation Arcform creation failed: $e');
+    }
+  }
+
+  void _createArcformWithManualGeometry(
+    JournalEntry entry, 
+    String? emotion, 
+    String? emotionReason, 
+    String phase, 
+    ArcformGeometry overrideGeometry
+  ) async {
+    try {
+      final rationale = PhaseRecommender.rationale(phase);
+
+      // Create Arcform using the ARC MVP service with manual geometry
+      final arcformService = ArcformMVPService();
+      final arcform = arcformService.createArcformFromEntryWithPhaseAndGeometry(
+        entryId: entry.id,
+        title: entry.title,
+        content: entry.content,
+        mood: entry.mood,
+        keywords: entry.keywords,
+        phase: phase,
+        overrideGeometry: overrideGeometry,
+        userConsentedPhase: true, // User explicitly chose/confirmed this
+      );
+
+      // Save to SimpleArcformStorage (in-memory for now)
+      SimpleArcformStorage.saveArcform(arcform);
+
+      // Also save as ArcformSnapshot with manual geometry override
+      final snapshot = ArcformSnapshot(
+        id: const Uuid().v4(),
+        arcformId: entry.id,
+        data: {
+          'keywords': arcform.keywords,
+          'geometry': overrideGeometry.name, // Use the manually selected geometry
+          'colorMap': arcform.colorMap,
+          'edges': arcform.edges,
+          'phaseHint': arcform.phaseHint,
+          'phase': phase,
+          'userConsentedPhase': true, // User confirmed this phase
+          'recommendationRationale': rationale,
+          'isGeometryAuto': false, // Mark as manually overridden
+          'overrideGeometry': overrideGeometry.name,
+        },
+        timestamp: arcform.createdAt,
+        notes: 'Generated from journal entry with manual geometry override: ${overrideGeometry.name}',
+      );
+
+      // Save the snapshot to Hive
+      final snapshotBox = await Hive.openBox<ArcformSnapshot>('arcform_snapshots');
+      await snapshotBox.put(snapshot.id, snapshot);
+      
+      // Track analytics for manual geometry override
+      final originalGeometry = UserPhaseService.getGeometryForPhase(phase);
+      AnalyticsService.trackGeometryOverride(
+        originalPhase: phase,
+        originalGeometry: originalGeometry.name,
+        selectedGeometry: overrideGeometry.name,
+        keywords: arcform.keywords,
+      );
+      
+      print('Arcform created with manual geometry: $phase (${overrideGeometry.name}) with ${arcform.keywords.length} keywords');
+    } catch (e) {
+      print('Manual-geometry Arcform creation failed: $e');
     }
   }
 

@@ -241,6 +241,36 @@ class ArcformMVPService {
     );
   }
 
+  /// Create an Arcform from journal entry data with explicit phase and manual geometry override
+  SimpleArcform createArcformFromEntryWithPhaseAndGeometry({
+    required String entryId,
+    required String title,
+    required String content,
+    required String mood,
+    required List<String> keywords,
+    required String phase,
+    required ArcformGeometry overrideGeometry,
+    required bool userConsentedPhase,
+  }) {
+    final colorMap = _generateColorMap(keywords);
+    final edges = _generateEdges(keywords);
+    final phaseHint = phase; // Use the actual phase name as hint
+
+    return SimpleArcform(
+      id: entryId,
+      title: title,
+      content: content,
+      mood: mood,
+      keywords: keywords,
+      geometry: overrideGeometry, // Use the manually selected geometry
+      colorMap: colorMap,
+      edges: edges,
+      phaseHint: phaseHint,
+      createdAt: DateTime.now(),
+      isGeometryAuto: false, // Mark as manually overridden
+    );
+  }
+
   /// Generate demo Arcform data
   SimpleArcform createDemoArcform() {
     return SimpleArcform.fromJournalEntry(

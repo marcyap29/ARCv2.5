@@ -58,7 +58,19 @@ class PhaseRecommender {
       return 'Discovery';
     }
     
-    // Default to Discovery for gentle beginning
+    // More balanced default logic based on overall content tone
+    if (t.length < 20) {
+      // Short entries tend to be quick thoughts or feelings
+      return 'Expansion';
+    } else if (t.length > 100) {
+      // Longer entries suggest deeper processing
+      return 'Consolidation';
+    } else if (t.split(' ').length < 10) {
+      // Brief but not too short - could be transitional
+      return 'Transition';
+    }
+    
+    // Fallback to Discovery only if nothing else matches
     return 'Discovery';
   }
 
