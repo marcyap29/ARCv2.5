@@ -29,8 +29,8 @@ class ArcformRendererViewContent extends StatelessWidget {
     
     return Container(
       width: double.infinity,
-      margin: const EdgeInsets.all(16),
-      padding: const EdgeInsets.all(20),
+      margin: const EdgeInsets.fromLTRB(16, 4, 16, 4),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
@@ -52,17 +52,17 @@ class ArcformRendererViewContent extends StatelessWidget {
           Row(
             children: [
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
                   color: phaseColor,
-                  borderRadius: BorderRadius.circular(20),
+                  borderRadius: BorderRadius.circular(16),
                 ),
                 child: Text(
                   'CURRENT PHASE',
                   style: captionStyle(context).copyWith(
                     color: Colors.white,
                     fontWeight: FontWeight.bold,
-                    fontSize: 12,
+                    fontSize: 10,
                   ),
                 ),
               ),
@@ -70,25 +70,25 @@ class ArcformRendererViewContent extends StatelessWidget {
               Icon(
                 _getPhaseIcon(geometry),
                 color: phaseColor,
-                size: 24,
+                size: 20,
               ),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 6),
           Text(
             currentPhase.toUpperCase(),
             style: heading1Style(context).copyWith(
               color: phaseColor,
-              fontSize: 28,
+              fontSize: 18,
               fontWeight: FontWeight.bold,
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 2),
           Text(
             description,
             style: bodyStyle(context).copyWith(
               color: phaseColor.withOpacity(0.8),
-              fontSize: 16,
+              fontSize: 14,
             ),
           ),
         ],
@@ -242,13 +242,14 @@ class ArcformRendererViewContent extends StatelessWidget {
         }
 
         if (state is ArcformRendererLoaded) {
-          return Column(
-            children: [
-              // Phase indicator header
-              _buildPhaseIndicator(context, state.currentPhase, state.selectedGeometry),
-              // Main Arcform layout
-              Expanded(
-                child: ArcformLayout(
+          return SafeArea(
+            child: Column(
+              children: [
+                // Phase indicator header
+                _buildPhaseIndicator(context, state.currentPhase, state.selectedGeometry),
+                // Main Arcform layout
+                Expanded(
+                  child: ArcformLayout(
                   nodes: state.nodes,
                   edges: state.edges,
                   onNodeMoved: (nodeId, x, y) {
@@ -266,7 +267,8 @@ class ArcformRendererViewContent extends StatelessWidget {
                   },
                 ),
               ),
-            ],
+              ],
+            ),
           );
         }
 

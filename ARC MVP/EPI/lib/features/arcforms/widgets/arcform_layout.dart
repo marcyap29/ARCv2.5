@@ -64,28 +64,36 @@ class _ArcformLayoutState extends State<ArcformLayout>
     super.dispose();
   }
 
-  void _handlePanUpdate(DragUpdateDetails details) {
-    setState(() {
-      // Convert pan gestures to rotation
-      _rotationY += details.delta.dx * 0.01; // Horizontal drag rotates around Y-axis
-      _rotationX -= details.delta.dy * 0.01; // Vertical drag rotates around X-axis
-      
-      // Clamp rotations to prevent extreme angles
-      _rotationX = _rotationX.clamp(-1.5, 1.5);
-      _rotationY = _rotationY.clamp(-3.14, 3.14);
-    });
+  Offset? _lastFocalPoint;
+
+  void _handleScaleStart(ScaleStartDetails details) {
+    _lastFocalPoint = details.focalPoint;
   }
 
   void _handleScaleUpdate(ScaleUpdateDetails details) {
     setState(() {
-      // Handle scaling
-      _scale = (_scale * details.scale).clamp(0.5, 3.0);
+      // Handle scaling with pinch gestures
+      if (details.scale != 1.0) {
+        _scale = (_scale * details.scale).clamp(0.5, 3.0);
+      }
       
-      // Handle rotation based on focal point changes
-      if (details.pointerCount == 2) {
-        // Two-finger rotation
+      // Handle rotation with single finger drag (when scale is close to 1.0)
+      if (_lastFocalPoint != null && details.pointerCount == 1) {
+        final delta = details.focalPoint - _lastFocalPoint!;
+        _rotationY += delta.dx * 0.01; // Horizontal drag rotates around Y-axis
+        _rotationX -= delta.dy * 0.01; // Vertical drag rotates around X-axis
+        
+        // Clamp rotations to prevent extreme angles
+        _rotationX = _rotationX.clamp(-1.5, 1.5);
+        _rotationY = _rotationY.clamp(-3.14, 3.14);
+      }
+      
+      // Handle Z-axis rotation with two-finger twist
+      if (details.pointerCount == 2 && details.rotation != 0) {
         _rotationZ += details.rotation * 0.5;
       }
+      
+      _lastFocalPoint = details.focalPoint;
     });
   }
 
@@ -359,7 +367,7 @@ class _ArcformLayoutState extends State<ArcformLayout>
         children: [
           // Rotatable Arcform container
           GestureDetector(
-            onPanUpdate: _handlePanUpdate,
+            onScaleStart: _handleScaleStart,
             onScaleUpdate: _handleScaleUpdate,
             child: Transform(
               alignment: Alignment.center,
@@ -395,11 +403,11 @@ class _ArcformLayoutState extends State<ArcformLayout>
           ),
           // Geometry selector
           Positioned(
-            top: 60,
+            top: 16,
             left: 16,
             right: 16,
             child: Container(
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
                 color: kcSurfaceColor.withOpacity(0.8),
                 borderRadius: BorderRadius.circular(12),
@@ -407,45 +415,15 @@ class _ArcformLayoutState extends State<ArcformLayout>
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Current Phase Display
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                        decoration: BoxDecoration(
-                          gradient: kcPrimaryGradient,
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Text(
-                          '${widget.currentPhase} Phase',
-                          style: bodyStyle(context).copyWith(
-                            color: kcPrimaryTextColor,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          UserPhaseService.getPhaseDescription(widget.currentPhase),
-                          style: bodyStyle(context).copyWith(
-                            fontSize: 13,
-                            color: kcPrimaryTextColor.withOpacity(0.8),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
                   Text(
                     'Sacred Geometry',
                     style: heading2Style(context).copyWith(
-                      fontSize: 18,
+                      fontSize: 16,
                     ),
                   ),
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 8),
                   SizedBox(
-                    height: 50,
+                    height: 40,
                     child: ListView(
                       scrollDirection: Axis.horizontal,
                       children: GeometryPattern.values.map((pattern) {
