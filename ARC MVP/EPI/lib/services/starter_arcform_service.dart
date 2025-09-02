@@ -34,7 +34,7 @@ class StarterArcformService {
     
     final content = contentParts.isEmpty 
         ? 'Beginning my journey of self-discovery and growth' 
-        : contentParts.join('. ') + '.';
+        : '${contentParts.join('. ')}.';
     
     // Extract keywords from onboarding data
     final keywords = <String>[];

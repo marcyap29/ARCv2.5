@@ -98,7 +98,7 @@ List<Offset> _branchLayout(int nodeCount) {
     
     for (int i = 0; i < branchCount; i++) {
       final angle = i * angleStep - math.pi / 2; // Start from top
-      final radius = 80;
+      const radius = 80;
       final x = radius * math.cos(angle);
       final y = radius * math.sin(angle);
       positions.add(Offset(x, y));
@@ -124,7 +124,7 @@ List<Offset> _branchLayout(int nodeCount) {
 List<Offset> _weaveLayout(int nodeCount) {
   final positions = <Offset>[];
   final gridSize = math.sqrt(nodeCount).ceil();
-  final spacing = 60.0;
+  const spacing = 60.0;
   
   for (int i = 0; i < nodeCount; i++) {
     final row = i ~/ gridSize;
@@ -151,7 +151,7 @@ List<Offset> _glowCoreLayout(int nodeCount) {
   if (nodeCount > 1) {
     // Inner ring
     final innerCount = math.min(nodeCount - 1, 6);
-    final innerRadius = 40.0;
+    const innerRadius = 40.0;
     final innerStep = (2 * math.pi) / innerCount;
     
     for (int i = 0; i < innerCount; i++) {
@@ -163,7 +163,7 @@ List<Offset> _glowCoreLayout(int nodeCount) {
     
     // Outer ring for remaining nodes
     final remaining = nodeCount - 1 - innerCount;
-    final outerRadius = 80.0;
+    const outerRadius = 80.0;
     final outerStep = (2 * math.pi) / math.max(remaining, 1);
     
     for (int i = 0; i < remaining; i++) {

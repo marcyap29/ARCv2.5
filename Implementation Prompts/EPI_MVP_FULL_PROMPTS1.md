@@ -429,5 +429,154 @@ extended_prompts = """
 
 ---
 
+You're right to ask — **Prompt 23** is listed in your progress file as:
+
+> **P23 — Arcform sovereignty (auto/manual)** → ✅ Complete
+> **Manual “Reshape?” override**
+
+But the full **prompt definition** is missing.
+
+Here is a complete version of **Prompt P23** you can add directly to your `ARC_MVP_IMPLEMENTATION.md` under prompt traceability and optionally as an open ticket (if there’s refinement ahead):
+
+---
+
+### 🟩 **P23 — Arcform Sovereignty (Auto/Manual Override)**
+
+> **Purpose:** Allow users to either accept the system-detected Arcform (based on emotion + keywords + phase) or manually override the geometry to fit their inner experience, preserving narrative dignity.
+
+---
+
+#### 🔧 Prompt Summary
+
+* Users can choose to **accept** the system-generated Arcform shape after journaling *or* tap **“Reshape?”** to select one manually.
+* All 6 ATLAS phase shapes are available in a selector (Spiral, Flower, Branch, Weave, GlowCore, Fractal).
+* Manual overrides are saved per journal entry (`entry.arcform_shape_override`).
+* Overriding does **not** change the underlying detected phase — only the Arcform geometry visual.
+
+---
+
+#### ✅ Checklist
+
+* [x] `geometry_selector.dart` modal with 6 sacred shape icons
+* [x] “Reshape?” button shown after phase detection
+* [x] Save override flag to entry metadata
+* [x] Maintain phase name for display even if visual is manually selected
+* [x] Analytics stub for “override frequency” (P15 tie-in)
+* [x] Optional: Tooltip explaining the purpose of Arcform sovereignty
+
+---
+
+#### 📁 Files Modified
+
+
+P26 — “Keyword Selection — RIVET-Gated (20 candidates; top 15 preselected)”.
+
+```
+lib/features/arcforms/widgets/geometry_selector.dart
+lib/features/journal/journal_capture_view.dart
+lib/features/arcforms/arcform_renderer_cubit.dart
+lib/features/arcforms/arcform_mvp_implementation.dart
+```
+
+[EPI • MVP • Keyword Selection — RIVET-gated]
+
+ROLE
+You are the EPI MVP keyword selector running inside ECHO. Your job is to propose high-signal keywords from an ARC entry, gate out weak candidates with RIVET evidence rules, and return a JSON payload for the UI. Keep the existing scoring equation S(·) EXACTLY as previously defined (do not change terms or weights).
+
+INPUTS
+You will receive a JSON input with:
+- entry_text: string (the ARC entry or transcript)
+- current_phase: string (ATLAS phase label)
+- phase_lexicon: {term -> phase_match_strength ∈ [0,1]}
+- user_lexicon_topk: [strings] (frequent/personalized terms from Polymeta)
+- emotion_spans: [{start,int, end,int, label,str, amplitude ∈ [0,1]}]
+- centrality_map: {term -> centrality ∈ [0,1]} (from Polymeta / corpus stats)
+- recency_map: {term -> recency_boost ∈ [0,1]}
+- n_docs: int (doc count used by the equation’s stats)
+- config:
+    max_candidates = 20
+    preselect_top = 15
+    rivet_thresholds = {
+      min_score: τ_score_add,          // keep from your existing equation
+      min_evidence_types: 2,           // at least two distinct supports
+      min_phase_match: 0.20,           // drop if below
+      min_emotion_amp: 0.15            // drop if below, unless neutral/contextual
+    }
+
+CANDIDATE GENERATION
+1) Extract raw candidates (ngrams, keyphrases, entities) using your normal pipeline.
+2) Compute S(candidate) with the EXISTING scoring equation (unchanged).
+3) Attach features per candidate:
+   - score: S ∈ [0,1] (normalized if your equation isn’t)
+   - emotion: {label, amplitude ∈ [0,1]} (from emotion_spans around mentions)
+   - phase_match: {phase: current_phase, strength ∈ [0,1]} (from phase_lexicon)
+   - evidence: {
+       support_types: set ⊆ {tfidf, freq, centrality, recency, emotion, phase, span_count},
+       span_indices: [[start,end], ...]  // where the term appears in entry_text
+     }
+
+RIVET GATING (gate out weak ones)
+Drop any candidate that fails evidence sufficiency:
+- score < τ_score_add  OR
+- |support_types| < min_evidence_types OR
+- phase_match.strength < min_phase_match (unless term is clearly descriptive, e.g., names/dates) OR
+- emotion.amplitude < min_emotion_amp for emotion-anchored terms
+Also drop near-duplicates and merge morphological variants/synonyms, keeping the canonical lemma with the highest score (carry over unioned evidence).
+
+RANKING & TRUNCATION
+- Sort remaining candidates by score DESC, then by phase_match.strength DESC, then by emotion.amplitude DESC, then by centrality DESC.
+- Keep the top max_candidates (≤ 20).
+
+PRESELECTION & CHIPS
+- Mark the top preselect_top (≤ 15) as selected=true by default.
+- Return a “chips” array (strings) listing those preselected keywords in order; these will render as selectable chips in the UI.
+
+OUTPUT (JSON only — no prose)
+Return exactly this shape:
+
+{
+  "meta": {
+    "current_phase": "<string>",
+    "limits": { "max_candidates": 20, "preselect_top": 15 },
+    "equation": "AS_IS",                // literal marker to confirm we did not change it
+    "notes": "RIVET applied before truncation; deterministic ordering; no randomness."
+  },
+  "candidates": [
+    {
+      "keyword": "<string>",
+      "score": <float 0..1>,
+      "emotion": { "label": "<string|none>", "amplitude": <float 0..1> },
+      "phase_match": { "phase": "<string>", "strength": <float 0..1> },
+      "evidence": {
+        "support_types": ["tfidf","centrality","emotion", "..."],
+        "span_indices": [[start,end], ...]
+      },
+      "selected": true|false,
+      "rivet": { "gated_out": false, "reasons": [] }
+    }
+    // ... up to 20 total
+  ],
+  "chips": ["<kw1>", "<kw2>", "..."]   // the 15 preselected keywords (or fewer if <15 remain)
+}
+
+CONSTRAINTS & BEHAVIOR
+- Deterministic: no randomness, seeds, or temperature; same input ⇒ same output.
+- If fewer than 20 viable remain post-RIVET, return however many you have; still preselect top min(15, count).
+- Never invent terms not present (exact or lemmatized) in entry_text or user_lexicon_topk.
+- Keep keywords concise (1–3 words), semantically atomic, and user-meaningful.
+- Safety: don’t expose sensitive PII in keywords unless the user explicitly wrote it (still allowed if present).
+- Do not change the scoring equation or thresholds beyond provided config.
+
+
+
+---
+
+#### 🧠 UX Purpose
+
+This feature reinforces ARC’s principle of **narrative autonomy** — the user is always the final author of meaning. It prevents frustration when internal emotional states don’t match algorithmic output, and builds long-term trust.
+
+---
+
+
 ### Final Note
-Build iteratively. After Prompts 0–3 you can already capture entries. After Prompt 8 you have the first Arcform reveal. The rest deepens functionality and prepares for ATLAS, AURORA, VEIL, and Polymeta integration.
+Build Iteratively
