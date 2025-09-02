@@ -1,6 +1,9 @@
 import 'dart:math';
+import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:my_app/features/arcforms/arcform_renderer_state.dart';
+import 'package:my_app/features/arcforms/geometry/geometry_layouts.dart';
+import 'package:my_app/features/arcforms/arcform_mvp_implementation.dart';
 import 'package:hive/hive.dart';
 
 class ArcformRendererCubit extends Cubit<ArcformRendererState> {
@@ -13,37 +16,20 @@ class ArcformRendererCubit extends Cubit<ArcformRendererState> {
 
     // Simulate loading data
     Future.delayed(const Duration(milliseconds: 500), () {
-      // Create sample nodes with force-directed layout simulation
-      final nodes = <Node>[
-        Node(id: '1', label: 'Journal', x: 100, y: 100),
-        Node(id: '2', label: 'Reflection', x: 200, y: 150),
-        Node(id: '3', label: 'Growth', x: 300, y: 100),
-        Node(id: '4', label: 'Insight', x: 150, y: 250),
-        Node(id: '5', label: 'Pattern', x: 250, y: 250),
-        Node(id: '6', label: 'Awareness', x: 350, y: 200),
-        Node(id: '7', label: 'Clarity', x: 200, y: 300),
-        Node(id: '8', label: 'Wisdom', x: 300, y: 350),
-      ];
+      // Create sample keywords for demonstration
+      final sampleKeywords = ['Journal', 'Reflection', 'Growth', 'Insight', 'Pattern', 'Awareness', 'Clarity', 'Wisdom'];
+      final defaultGeometry = GeometryPattern.spiral;
 
-      // Create sample edges
-      final edges = <Edge>[
-        Edge(source: '1', target: '2'),
-        Edge(source: '2', target: '3'),
-        Edge(source: '1', target: '4'),
-        Edge(source: '4', target: '5'),
-        Edge(source: '3', target: '5'),
-        Edge(source: '5', target: '6'),
-        Edge(source: '4', target: '7'),
-        Edge(source: '7', target: '8'),
-        Edge(source: '6', target: '8'),
-      ];
-
-      emit(ArcformRendererLoaded(
-        nodes: nodes,
-        edges: edges,
+      // Create initial loaded state
+      emit(const ArcformRendererLoaded(
+        nodes: [],
+        edges: [],
         selectedGeometry: GeometryPattern.spiral,
         currentPhase: 'Discovery',
       ));
+
+      // Then use the proper geometry system for layout
+      _updateStateWithKeywords(sampleKeywords, defaultGeometry);
     });
   }
 
@@ -96,42 +82,14 @@ class ArcformRendererCubit extends Cubit<ArcformRendererState> {
     if (state is ArcformRendererLoaded) {
       final currentState = state as ArcformRendererLoaded;
       
-      // Create nodes from keywords
-      final nodes = <Node>[];
-      const centerX = 200.0;
-      const centerY = 200.0;
-      const radius = 150.0;
+      // Map GeometryPattern to ArcformGeometry for layout calculations
+      final arcformGeometry = _mapGeometryPattern(geometry);
       
-      for (int i = 0; i < keywords.length; i++) {
-        final angle = (2 * 3.14159 * i) / keywords.length;
-        final x = centerX + radius * _cos(angle);
-        final y = centerY + radius * _sin(angle);
-        
-        nodes.add(Node(
-          id: (i + 1).toString(),
-          label: keywords[i],
-          x: x,
-          y: y,
-          size: 20.0 + (keywords[i].length * 2.0),
-        ));
-      }
+      // Create nodes using proper geometry layouts
+      final nodes = _createNodesWithGeometry(keywords, arcformGeometry);
       
-      // Create edges between adjacent keywords
-      final edges = <Edge>[];
-      for (int i = 0; i < keywords.length - 1; i++) {
-        edges.add(Edge(
-          source: (i + 1).toString(),
-          target: (i + 2).toString(),
-        ));
-      }
-      
-      // Connect first and last for circular pattern
-      if (keywords.length > 2) {
-        edges.add(Edge(
-          source: '1',
-          target: keywords.length.toString(),
-        ));
-      }
+      // Create edges based on geometry pattern
+      final edges = _createEdgesForGeometry(keywords.length, geometry);
       
       emit(ArcformRendererLoaded(
         nodes: nodes,
@@ -140,6 +98,165 @@ class ArcformRendererCubit extends Cubit<ArcformRendererState> {
         currentPhase: _determinePhaseHint('', keywords),
       ));
     }
+  }
+
+  /// Map GeometryPattern to ArcformGeometry
+  ArcformGeometry _mapGeometryPattern(GeometryPattern pattern) {
+    switch (pattern) {
+      case GeometryPattern.spiral:
+        return ArcformGeometry.spiral;
+      case GeometryPattern.flower:
+        return ArcformGeometry.flower;
+      case GeometryPattern.branch:
+        return ArcformGeometry.branch;
+      case GeometryPattern.weave:
+        return ArcformGeometry.weave;
+      case GeometryPattern.glowCore:
+        return ArcformGeometry.glowCore;
+      case GeometryPattern.fractal:
+        return ArcformGeometry.fractal;
+    }
+  }
+
+  /// Create nodes using proper geometry layouts
+  List<Node> _createNodesWithGeometry(List<String> keywords, ArcformGeometry geometry) {
+    final nodes = <Node>[];
+    
+    // Define canvas size for layout calculations
+    const canvasSize = Size(400.0, 400.0);
+    
+    // Get positions from geometry layout system
+    final positions = GeometryLayouts.getPositions(
+      geometry: geometry,
+      nodeCount: keywords.length,
+      canvasSize: canvasSize,
+    );
+    
+    // Create nodes at calculated positions
+    for (int i = 0; i < keywords.length; i++) {
+      final position = i < positions.length ? positions[i] : Offset(200.0, 200.0);
+      
+      nodes.add(Node(
+        id: (i + 1).toString(),
+        label: keywords[i],
+        x: position.dx,
+        y: position.dy,
+        size: 20.0 + (keywords[i].length * 1.5),
+      ));
+    }
+    
+    return nodes;
+  }
+
+  /// Create edges based on geometry pattern
+  List<Edge> _createEdgesForGeometry(int nodeCount, GeometryPattern geometry) {
+    final edges = <Edge>[];
+    
+    switch (geometry) {
+      case GeometryPattern.spiral: // Discovery - connected spiral path
+        for (int i = 0; i < nodeCount - 1; i++) {
+          edges.add(Edge(
+            source: (i + 1).toString(),
+            target: (i + 2).toString(),
+          ));
+        }
+        break;
+        
+      case GeometryPattern.flower: // Expansion - all petals connect to center
+        if (nodeCount > 1) {
+          for (int i = 1; i < nodeCount; i++) {
+            edges.add(Edge(
+              source: '1',
+              target: (i + 1).toString(),
+            ));
+          }
+        }
+        break;
+        
+      case GeometryPattern.branch: // Transition - tree structure
+        if (nodeCount > 1) {
+          // Connect to root (first node)
+          for (int i = 1; i < nodeCount; i++) {
+            final parentIndex = i <= 4 ? 1 : ((i - 2) % 4) + 2;
+            edges.add(Edge(
+              source: parentIndex.toString(),
+              target: (i + 1).toString(),
+            ));
+          }
+        }
+        break;
+        
+      case GeometryPattern.weave: // Consolidation - grid connections
+        final gridSize = sqrt(nodeCount).ceil();
+        for (int i = 0; i < nodeCount; i++) {
+          final row = i ~/ gridSize;
+          final col = i % gridSize;
+          
+          // Connect to right neighbor
+          if (col < gridSize - 1 && i + 1 < nodeCount) {
+            edges.add(Edge(
+              source: (i + 1).toString(),
+              target: (i + 2).toString(),
+            ));
+          }
+          
+          // Connect to bottom neighbor
+          if (row < gridSize - 1 && i + gridSize < nodeCount) {
+            edges.add(Edge(
+              source: (i + 1).toString(),
+              target: (i + gridSize + 1).toString(),
+            ));
+          }
+        }
+        break;
+        
+      case GeometryPattern.glowCore: // Recovery - radial from center
+        if (nodeCount > 1) {
+          for (int i = 1; i < nodeCount; i++) {
+            edges.add(Edge(
+              source: '1',
+              target: (i + 1).toString(),
+            ));
+          }
+          // Add some inter-ring connections
+          if (nodeCount > 6) {
+            for (int i = 1; i < min(7, nodeCount); i++) {
+              final nextIndex = i < 6 ? i + 1 : 2;
+              if (nextIndex < nodeCount) {
+                edges.add(Edge(
+                  source: (i + 1).toString(),
+                  target: (nextIndex + 1).toString(),
+                ));
+              }
+            }
+          }
+        }
+        break;
+        
+      case GeometryPattern.fractal: // Breakthrough - hierarchical branches
+        if (nodeCount > 1) {
+          for (int i = 1; i < nodeCount; i++) {
+            // Connect each node to its parent in the fractal structure
+            final parentIndex = _getFractalParent(i);
+            edges.add(Edge(
+              source: parentIndex.toString(),
+              target: (i + 1).toString(),
+            ));
+          }
+        }
+        break;
+    }
+    
+    return edges;
+  }
+
+  /// Get parent index for fractal structure
+  int _getFractalParent(int childIndex) {
+    if (childIndex == 1) return 1; // Root
+    if (childIndex <= 3) return 1; // First level branches connect to root
+    
+    // Higher levels - simplified parent calculation
+    return ((childIndex - 2) ~/ 2) + 1;
   }
 
   /// Determine geometry pattern based on content and keywords
