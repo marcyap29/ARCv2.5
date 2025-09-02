@@ -40,12 +40,12 @@
 | P1    | App structure & navigation             | ✅ Complete  | Bottom tabs working |
 | P2    | Data model & storage                   | ✅ Complete  | Journal/Arcform/User models |
 | P3    | Onboarding (reflective scaffolding)    | ✅ Complete  | 3‑step + mood chips |
-| P4    | Journal (text)                         | ✅ Complete  | Save flow optimized |
+| P4    | Journal (text)                         | ✅ Complete  | Save flow optimized; reordered flow (New Entry → Emotion → Reason); recursive save loop fixed |
 | P5    | Journal (voice)                        | ⏳ Planned   | Permission + transcription TBD |
 | P6    | SAGE Echo                              | ✅ Complete  | Async post‑processing |
 | P7    | Keyword extraction & review            | ✅ Complete  | Multi‑select; UI honors choices |
-| P8    | Arcform renderer                       | ✅ Complete  | 6 geometries; emotional color mapping; interactive letters |
-| P9    | Timeline                               | ✅ Complete  | Thumbnails + keywords |
+| P8    | Arcform renderer                       | ✅ Complete  | 6 geometries; emotional color mapping; interactive letters; keyword tap dialog; notch-safe positioning |
+| P9    | Timeline                               | ✅ Complete  | Thumbnails + keywords; SafeArea compliance; notch-safe layout |
 | P10   | Insights: Polymeta v1                  | ⏳ Planned   | Graph view scaffold later |
 | P11   | Phase detection placeholder (ATLAS)    | ⏳ Planned   | Coarse hint after ≥5 entries/10 days |
 | P12   | Rhythm & restoration (AURORA/VEIL)     | ⏳ Planned   | Placeholders/cards |
@@ -102,6 +102,19 @@
 - Fixed Flutter Color API compatibility issues for latest versions
 - Resolved color.value property access for emotional visualization
 - Production-ready deployment with comprehensive CHANGELOG.md
+
+### 2024‑12‑19 — Screen Space & Notch Issues Resolution
+- **Notch Blocking Fix**: Added SafeArea wrappers to Arcforms and Timeline tabs
+- **Geometry Selector Positioning**: Adjusted from top: 10 to top: 60 to clear notch area
+- **Phase Selector Visibility**: Discovery, Expansion, Transition buttons now fully visible
+- **Universal Safe Area Compliance**: All tab content respects iPhone safe area boundaries
+
+### 2024‑12‑19 — Journal Flow Optimization & Bug Fixes
+- **Flow Reordering**: New Entry → Emotion → Reason → Analysis (more natural progression)
+- **Arcform Node Interaction**: Keyword display on tap with emotional color coding
+- **UI Streamlining**: Removed black mood chips, repositioned Analyze button
+- **Save Flow Fix**: Resolved recursive loop, proper navigation back to home
+- **Keyword Dialog Enhancement**: Emotional warmth/color coding restored
 
 ### 2025‑09 (Planned) — A11y/Perf & Share Export
 - Accessibility pass (labels, larger text, reduced motion)
