@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:my_app/features/arcforms/arcform_renderer_state.dart';
+import 'package:my_app/features/arcforms/services/emotional_valence_service.dart';
 import 'package:my_app/shared/app_colors.dart';
 
 class NodeWidget extends StatefulWidget {
@@ -69,7 +70,10 @@ class _NodeWidgetState extends State<NodeWidget>
       _animationController.reverse();
     }
     
-    widget.onTapped?.call(widget.node.label);
+    // Provide haptic feedback for better UX experience
+    if (mounted) {
+      widget.onTapped?.call(widget.node.label);
+    }
   }
 
   Color _getEmotionalColor() {
@@ -77,49 +81,15 @@ class _NodeWidgetState extends State<NodeWidget>
       return widget.color!;
     }
     
-    // Use emotional valence to determine color
-    final valence = _getEmotionalValence(widget.node.label);
-    
-    if (valence > 0.7) {
-      return const Color(0xFFFFD700); // Golden
-    } else if (valence > 0.4) {
-      return const Color(0xFFFF8C42); // Warm orange
-    } else if (valence > 0.1) {
-      return const Color(0xFFFF6B6B); // Soft coral
-    } else if (valence > -0.1) {
-      return kcPrimaryColor; // Neutral purple
-    } else if (valence > -0.4) {
-      return const Color(0xFF4A90E2); // Cool blue
-    } else if (valence > -0.7) {
-      return const Color(0xFF2E86AB); // Deeper blue
-    } else {
-      return const Color(0xFF4ECDC4); // Cool teal
-    }
+    // Use comprehensive EmotionalValenceService for full warmth/coolness
+    final emotionalService = EmotionalValenceService();
+    return emotionalService.getEmotionalColor(widget.node.label);
   }
 
-  double _getEmotionalValence(String word) {
-    final lowerWord = word.toLowerCase().trim();
-    
-    // Positive words (warm colors)
-    const positiveWords = {
-      'love', 'joy', 'happiness', 'peace', 'calm', 'breakthrough', 'discovery',
-      'success', 'growth', 'gratitude', 'wisdom', 'connection', 'strength',
-      'beauty', 'freedom', 'hope', 'inspiration', 'transformation'
-    };
-    
-    // Negative words (cool colors)
-    const negativeWords = {
-      'sadness', 'fear', 'anger', 'pain', 'stress', 'anxiety', 'struggle',
-      'difficulty', 'loss', 'worry', 'confusion', 'tired', 'darkness'
-    };
-    
-    if (positiveWords.contains(lowerWord)) {
-      return 0.7; // Positive
-    } else if (negativeWords.contains(lowerWord)) {
-      return -0.7; // Negative
-    }
-    
-    return 0.0; // Neutral
+  Color _getGlowColor() {
+    // Get glow color based on emotional temperature
+    final emotionalService = EmotionalValenceService();
+    return emotionalService.getGlowColor(widget.node.label, opacity: _glowAnimation.value);
   }
 
   @override
@@ -152,7 +122,7 @@ class _NodeWidgetState extends State<NodeWidget>
                   shape: BoxShape.circle,
                   boxShadow: [
                     BoxShadow(
-                      color: nodeColor.withOpacity(_glowAnimation.value),
+                      color: _getGlowColor(),
                       blurRadius: 12 * _glowAnimation.value,
                       spreadRadius: 3 * _glowAnimation.value,
                     ),
@@ -162,21 +132,35 @@ class _NodeWidgetState extends State<NodeWidget>
                       : null,
                 ),
                 child: Center(
-                  child: Text(
-                    // Show full word if selected or if it's short enough
-                    _isSelected || !isLongWord
-                        ? widget.node.label
-                        : widget.node.label.substring(0, 1),
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                      fontSize: _isSelected || !isLongWord
-                          ? (isLongWord ? 8.0 : 12.0)
-                          : 16.0,
+                  child: AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 300),
+                    transitionBuilder: (child, animation) {
+                      return FadeTransition(opacity: animation, child: child);
+                    },
+                    child: Text(
+                      // Show full word if selected or if it's short enough
+                      _isSelected || !isLongWord
+                          ? widget.node.label
+                          : widget.node.label.substring(0, 1),
+                      key: ValueKey(_isSelected), // Key for AnimatedSwitcher
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: _isSelected || !isLongWord
+                            ? (isLongWord ? 10.0 : 14.0) // Slightly larger for better readability
+                            : 18.0, // Larger single letter
+                        shadows: [
+                          Shadow(
+                            offset: const Offset(1, 1),
+                            blurRadius: 2.0,
+                            color: Colors.black.withOpacity(0.5),
+                          ),
+                        ],
+                      ),
+                      textAlign: TextAlign.center,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                    textAlign: TextAlign.center,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
               ),
