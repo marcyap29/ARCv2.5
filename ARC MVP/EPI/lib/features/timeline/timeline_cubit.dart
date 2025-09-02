@@ -3,6 +3,7 @@ import 'package:my_app/features/timeline/timeline_state.dart';
 import 'package:my_app/features/timeline/timeline_entry_model.dart';
 import 'package:my_app/repositories/journal_repository.dart';
 import 'package:my_app/models/journal_entry_model.dart';
+import 'package:my_app/features/journal/sage_annotation_model.dart';
 
 class TimelineCubit extends Cubit<TimelineState> {
   final JournalRepository _journalRepository;
@@ -128,32 +129,30 @@ class TimelineCubit extends Cubit<TimelineState> {
     }).toList();
   }
 
-  String? _determinePhaseFromAnnotation(Map<String, dynamic> annotation) {
-    // Look for phase information in the sage annotation
-    if (annotation.containsKey('recommendedPhase')) {
-      return annotation['recommendedPhase'] as String?;
-    }
-    if (annotation.containsKey('phase')) {
-      return annotation['phase'] as String?;
-    }
-    return null;
+  String? _determinePhaseFromAnnotation(SAGEAnnotation annotation) {
+    // Analyze SAGE components to determine phase
+    final content = '${annotation.situation} ${annotation.action} ${annotation.growth} ${annotation.essence}';
+    return _determinePhaseFromText(content);
   }
 
   String _determinePhaseFromContent(JournalEntry entry) {
-    // Simple content analysis to determine phase
-    final content = entry.content.toLowerCase();
+    return _determinePhaseFromText(entry.content);
+  }
+
+  String _determinePhaseFromText(String content) {
+    final text = content.toLowerCase();
     
-    if (content.contains('discover') || content.contains('explore') || content.contains('new') || content.contains('beginning')) {
+    if (text.contains('discover') || text.contains('explore') || text.contains('new') || text.contains('beginning')) {
       return 'Discovery';
-    } else if (content.contains('grow') || content.contains('expand') || content.contains('possibility') || content.contains('energy')) {
+    } else if (text.contains('grow') || text.contains('expand') || text.contains('possibility') || text.contains('energy')) {
       return 'Expansion';
-    } else if (content.contains('change') || content.contains('transition') || content.contains('moving') || content.contains('shift')) {
+    } else if (text.contains('change') || text.contains('transition') || text.contains('moving') || text.contains('shift')) {
       return 'Transition';
-    } else if (content.contains('integrate') || content.contains('wisdom') || content.contains('balance') || content.contains('center')) {
+    } else if (text.contains('integrate') || text.contains('wisdom') || text.contains('balance') || text.contains('center')) {
       return 'Consolidation';
-    } else if (content.contains('heal') || content.contains('recover') || content.contains('restore') || content.contains('rest')) {
+    } else if (text.contains('heal') || text.contains('recover') || text.contains('restore') || text.contains('rest')) {
       return 'Recovery';
-    } else if (content.contains('breakthrough') || content.contains('transcend') || content.contains('quantum') || content.contains('beyond')) {
+    } else if (text.contains('breakthrough') || text.contains('transcend') || text.contains('quantum') || text.contains('beyond')) {
       return 'Breakthrough';
     }
     
@@ -165,16 +164,17 @@ class TimelineCubit extends Cubit<TimelineState> {
     // Extract keywords from sage annotation if available
     if (entry.sageAnnotation != null) {
       final annotation = entry.sageAnnotation!;
-      if (annotation.containsKey('keywords')) {
-        final keywords = annotation['keywords'];
-        if (keywords is List) {
-          return keywords.map((k) => k.toString()).toList();
-        }
-      }
+      // Extract key terms from SAGE components
+      final allText = '${annotation.situation} ${annotation.action} ${annotation.growth} ${annotation.essence}';
+      return _extractImportantWords(allText);
     }
     
     // Fallback: extract simple keywords from content
-    final words = entry.content.toLowerCase().split(RegExp(r'\W+'));
+    return _extractImportantWords(entry.content);
+  }
+
+  List<String> _extractImportantWords(String text) {
+    final words = text.toLowerCase().split(RegExp(r'\W+'));
     final importantWords = words.where((word) => 
       word.length > 4 && 
       !_stopWords.contains(word)
@@ -185,7 +185,7 @@ class TimelineCubit extends Cubit<TimelineState> {
 
   static const _stopWords = {
     'that', 'this', 'with', 'have', 'will', 'been', 'from', 'they', 
-    'know', 'want', 'been', 'good', 'much', 'some', 'time', 'very',
+    'know', 'want', 'good', 'much', 'some', 'time', 'very',
     'when', 'come', 'here', 'just', 'like', 'long', 'make', 'many',
     'over', 'such', 'take', 'than', 'them', 'well', 'were'
   };

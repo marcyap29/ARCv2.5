@@ -80,8 +80,6 @@ class ArcformRendererCubit extends Cubit<ArcformRendererState> {
   /// Update the current state with new keywords and geometry
   void _updateStateWithKeywords(List<String> keywords, GeometryPattern geometry) {
     if (state is ArcformRendererLoaded) {
-      final currentState = state as ArcformRendererLoaded;
-      
       // Map GeometryPattern to ArcformGeometry for layout calculations
       final arcformGeometry = _mapGeometryPattern(geometry);
       
@@ -340,9 +338,6 @@ class ArcformRendererCubit extends Cubit<ArcformRendererState> {
     return DateTime.now().millisecondsSinceEpoch.toString();
   }
 
-  /// Simple math functions
-  double _cos(double angle) => cos(angle);
-  double _sin(double angle) => sin(angle);
 
   void updateNodePosition(String nodeId, double x, double y) {
     if (state is ArcformRendererLoaded) {
