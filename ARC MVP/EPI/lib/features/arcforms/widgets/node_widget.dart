@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:my_app/features/arcforms/arcform_renderer_state.dart';
 import 'package:my_app/features/arcforms/services/emotional_valence_service.dart';
-import 'package:my_app/shared/app_colors.dart';
 
 class NodeWidget extends StatefulWidget {
   final Node node;

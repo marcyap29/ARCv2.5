@@ -56,7 +56,7 @@ class _TimelineViewContentState extends State<TimelineViewContent> {
           child: Column(
             children: [
               _buildFilterButtons(state),
-              Expanded(
+              const Expanded(
                 child: InteractiveTimelineView(),
               ),
             ],

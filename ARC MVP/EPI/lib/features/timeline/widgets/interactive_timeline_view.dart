@@ -147,7 +147,7 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
       top: MediaQuery.of(context).size.height * 0.4, // Center vertically
       left: 0,
       right: 0,
-      child: Container(
+      child: SizedBox(
         height: 2,
         child: CustomPaint(
           painter: TimelineLinePainter(
@@ -503,7 +503,7 @@ class ArcformTimelinePainter extends CustomPainter {
 
   void _drawSpiral(Canvas canvas, Offset center, double radius, Paint paint, int keywordCount) {
     final path = Path();
-    final double goldenAngle = 2.39996; // Golden angle
+    const double goldenAngle = 2.39996; // Golden angle
     final spiralPoints = math.max(12, keywordCount * 2);
     
     for (int i = 0; i < spiralPoints; i++) {
@@ -606,7 +606,7 @@ class ArcformTimelinePainter extends CustomPainter {
   }
 
   void _drawNodes(Canvas canvas, Offset center, double radius, Paint nodePaint) {
-    final nodeRadius = 3.0;
+    const nodeRadius = 3.0;
     final emotionalService = EmotionalValenceService();
 
     // Use actual number of keywords from the entry
