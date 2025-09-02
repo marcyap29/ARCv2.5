@@ -69,11 +69,12 @@ class _KeywordAnalysisViewState extends State<KeywordAnalysisView>
   }
 
   void _showPhaseRecommendationDialog(List<String> selectedKeywords) {
-    // Get phase recommendation
+    // Get phase recommendation with selected keywords for improved accuracy
     final recommendedPhase = PhaseRecommender.recommend(
       emotion: widget.initialEmotion ?? '',
       reason: widget.initialReason ?? '',
       text: widget.content,
+      selectedKeywords: selectedKeywords,
     );
     
     final rationale = PhaseRecommender.rationale(recommendedPhase);

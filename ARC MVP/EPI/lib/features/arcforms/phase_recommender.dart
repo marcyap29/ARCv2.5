@@ -1,12 +1,26 @@
 class PhaseRecommender {
+  static bool _lastRecommendationWasKeywordBased = false;
+  
   static String recommend({
     required String emotion,
     required String reason,
     required String text,
+    List<String>? selectedKeywords,
   }) {
     final e = emotion.toLowerCase();
     final r = reason.toLowerCase();
     final t = text.toLowerCase();
+    
+    // Keyword-based phase detection (prioritized when keywords are available)
+    if (selectedKeywords != null && selectedKeywords.isNotEmpty) {
+      final keywordPhase = _getPhaseFromKeywords(selectedKeywords);
+      if (keywordPhase != null) {
+        _lastRecommendationWasKeywordBased = true;
+        return keywordPhase;
+      }
+    }
+    
+    _lastRecommendationWasKeywordBased = false;
     
     // Strong emotion-based recommendations
     if (['depressed', 'tired', 'stressed', 'anxious', 'angry'].any(e.contains)) {
@@ -75,6 +89,10 @@ class PhaseRecommender {
   }
 
   static String rationale(String phase) {
+    if (_lastRecommendationWasKeywordBased) {
+      return 'Based on your selected keywords and emotional context.';
+    }
+    
     switch (phase) {
       case 'Recovery':
         return 'Your emotion suggests rest and repair.';
@@ -91,5 +109,74 @@ class PhaseRecommender {
       default:
         return 'A gentle starting place for this moment.';
     }
+  }
+  
+  /// Check if the last recommendation was based on keywords
+  static bool get wasLastRecommendationKeywordBased => _lastRecommendationWasKeywordBased;
+
+  /// Determine phase based on selected keywords using semantic mapping
+  static String? _getPhaseFromKeywords(List<String> keywords) {
+    final keywordSet = keywords.map((k) => k.toLowerCase()).toSet();
+    
+    // Define keyword mappings for each phase
+    final Map<String, Set<String>> phaseKeywords = {
+      'Recovery': {
+        'stressed', 'anxious', 'tired', 'overwhelmed', 'frustrated', 'worried',
+        'healing', 'calm', 'peaceful', 'relaxed', 'rest', 'breathe', 'gentle',
+        'restore', 'balance', 'meditation', 'mindfulness', 'health'
+      },
+      'Discovery': {
+        'curious', 'excited', 'hopeful', 'learning', 'goals', 'dreams', 
+        'growth', 'discovery', 'insight', 'exploration', 'new', 'beginning',
+        'wonder', 'question', 'explore', 'creativity', 'spirituality'
+      },
+      'Expansion': {
+        'grateful', 'joyful', 'confident', 'energized', 'happy', 'blessed',
+        'opportunity', 'progress', 'breakthrough', 'transformation', 'wisdom',
+        'reach', 'possibility', 'energy', 'outward', 'more', 'bigger'
+      },
+      'Transition': {
+        'uncertain', 'change', 'challenge', 'transition', 'work', 'family',
+        'relationship', 'career', 'move', 'leaving', 'switch', 'patterns',
+        'habits', 'setback', 'between'
+      },
+      'Consolidation': {
+        'reflection', 'awareness', 'patterns', 'habits', 'routine', 'stable',
+        'organize', 'weave', 'integrate', 'ground', 'settle', 'consistency',
+        'home', 'friendship', 'consolidate'
+      },
+      'Breakthrough': {
+        'clarity', 'insight', 'breakthrough', 'transformation', 'wisdom',
+        'epiphany', 'suddenly', 'realized', 'understand', 'aha', 'purpose'
+      },
+    };
+    
+    // Score each phase based on keyword matches
+    final Map<String, double> phaseScores = {};
+    
+    for (final phase in phaseKeywords.keys) {
+      final phaseSet = phaseKeywords[phase]!;
+      final matches = keywordSet.intersection(phaseSet).length;
+      final coverage = matches / phaseSet.length;
+      final relevance = matches / keywordSet.length;
+      
+      // Combined score: keyword matches + coverage + relevance
+      phaseScores[phase] = matches + (coverage * 0.5) + (relevance * 2.0);
+    }
+    
+    // Find the phase with the highest score
+    if (phaseScores.isNotEmpty) {
+      final sortedPhases = phaseScores.entries.toList()
+        ..sort((a, b) => b.value.compareTo(a.value));
+      
+      final topPhase = sortedPhases.first;
+      
+      // Only return a phase if it has a meaningful score (at least 1 keyword match)
+      if (topPhase.value >= 1.0) {
+        return topPhase.key;
+      }
+    }
+    
+    return null; // Fall back to emotion/text analysis
   }
 }
