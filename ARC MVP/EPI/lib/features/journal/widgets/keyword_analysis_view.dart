@@ -3,6 +3,9 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:my_app/features/journal/keyword_extraction_cubit.dart';
 import 'package:my_app/features/journal/keyword_extraction_state.dart';
 import 'package:my_app/features/journal/journal_capture_cubit.dart';
+import 'package:my_app/features/journal/widgets/phase_recommendation_dialog.dart';
+import 'package:my_app/features/arcforms/phase_recommender.dart';
+import 'package:my_app/features/arcforms/arcform_mvp_implementation.dart';
 import 'package:my_app/shared/app_colors.dart';
 import 'package:my_app/shared/text_style.dart';
 
@@ -61,28 +64,82 @@ class _KeywordAnalysisViewState extends State<KeywordAnalysisView>
   void _onSaveEntry() {
     final keywordState = context.read<KeywordExtractionCubit>().state;
     if (keywordState is KeywordExtractionLoaded) {
-      // Save the entry with keywords
+      _showPhaseRecommendationDialog(keywordState.selectedKeywords);
+    }
+  }
+
+  void _showPhaseRecommendationDialog(List<String> selectedKeywords) {
+    // Get phase recommendation
+    final recommendedPhase = PhaseRecommender.recommend(
+      emotion: widget.initialEmotion ?? '',
+      reason: widget.initialReason ?? '',
+      text: widget.content,
+    );
+    
+    final rationale = PhaseRecommender.rationale(recommendedPhase);
+    
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext dialogContext) {
+        return PhaseRecommendationDialog(
+          recommendedPhase: recommendedPhase,
+          rationale: rationale,
+          keywords: selectedKeywords,
+          onConfirm: (String phase, ArcformGeometry? overrideGeometry) {
+            Navigator.of(dialogContext).pop();
+            _saveEntryWithPhaseAndGeometry(selectedKeywords, phase, overrideGeometry);
+          },
+          onCancel: () {
+            Navigator.of(dialogContext).pop();
+          },
+        );
+      },
+    );
+  }
+
+  void _saveEntryWithPhaseAndGeometry(
+    List<String> selectedKeywords, 
+    String phase, 
+    ArcformGeometry? overrideGeometry
+  ) {
+    // Save the entry with phase and optional geometry override
+    if (overrideGeometry != null) {
+      // Use the new method that will handle geometry override
+      context.read<JournalCaptureCubit>().saveEntryWithPhaseAndGeometry(
+        content: widget.content,
+        mood: widget.mood,
+        selectedKeywords: selectedKeywords,
+        emotion: widget.initialEmotion,
+        emotionReason: widget.initialReason,
+        phase: phase,
+        overrideGeometry: overrideGeometry,
+      );
+    } else {
+      // Use existing method for auto-detected geometry
       context.read<JournalCaptureCubit>().saveEntryWithKeywords(
         content: widget.content,
         mood: widget.mood,
-        selectedKeywords: keywordState.selectedKeywords,
+        selectedKeywords: selectedKeywords,
         emotion: widget.initialEmotion,
         emotionReason: widget.initialReason,
       );
-      
-      // Show success message and return result
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Entry saved successfully'),
-          backgroundColor: kcSuccessColor,
-        ),
-      );
-      
-      Navigator.of(context).pop({
-        'save': true,
-        'selectedKeywords': keywordState.selectedKeywords,
-      });
     }
+    
+    // Show success message and return result
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Entry saved successfully'),
+        backgroundColor: kcSuccessColor,
+      ),
+    );
+    
+    Navigator.of(context).pop({
+      'save': true,
+      'selectedKeywords': selectedKeywords,
+      'phase': phase,
+      'overrideGeometry': overrideGeometry?.name,
+    });
   }
 
   @override

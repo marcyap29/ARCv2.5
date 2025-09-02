@@ -55,10 +55,10 @@ class _GeometrySelectorState extends State<GeometrySelector>
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
         color: kcSurfaceColor,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(12),
         border: Border.all(
           color: widget.isAutoDetected 
               ? kcPrimaryColor.withOpacity(0.3)
@@ -73,71 +73,31 @@ class _GeometrySelectorState extends State<GeometrySelector>
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                'Arcform Geometry',
-                style: heading3Style(context).copyWith(
-                  color: Colors.white,
+              Expanded(
+                child: Text(
+                  'Select Geometry',
+                  style: heading3Style(context).copyWith(
+                    color: Colors.white,
+                    fontSize: 14,
+                  ),
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
-              Row(
-                children: [
-                  // Auto/Manual indicator
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 6,
-                    ),
-                    decoration: BoxDecoration(
-                      color: widget.isAutoDetected
-                          ? kcPrimaryColor.withOpacity(0.2)
-                          : kcAccentColor.withOpacity(0.2),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: widget.isAutoDetected
-                            ? kcPrimaryColor
-                            : kcAccentColor,
-                        width: 1,
-                      ),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          widget.isAutoDetected ? Icons.auto_awesome : Icons.edit,
-                          size: 16,
-                          color: widget.isAutoDetected
-                              ? kcPrimaryColor
-                              : kcAccentColor,
-                        ),
-                        const SizedBox(width: 6),
-                        Text(
-                          widget.isAutoDetected ? 'Auto' : 'Manual',
-                          style: captionStyle(context).copyWith(
-                            color: widget.isAutoDetected
-                                ? kcPrimaryColor
-                                : kcAccentColor,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ],
-                    ),
+              // Compact toggle button only
+              if (widget.onToggleAuto != null)
+                TextButton(
+                  onPressed: widget.onToggleAuto,
+                  style: TextButton.styleFrom(
+                    foregroundColor: widget.isAutoDetected ? kcAccentColor : kcPrimaryColor,
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                    minimumSize: Size.zero,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   ),
-                  const SizedBox(width: 12),
-                  // Toggle button
-                  if (widget.onToggleAuto != null)
-                    IconButton(
-                      onPressed: widget.onToggleAuto,
-                      icon: Icon(
-                        widget.isAutoDetected ? Icons.edit : Icons.auto_awesome,
-                        color: Colors.white.withOpacity(0.7),
-                        size: 20,
-                      ),
-                      tooltip: widget.isAutoDetected 
-                          ? 'Switch to manual selection'
-                          : 'Switch to auto-detection',
-                    ),
-                ],
-              ),
+                  child: Text(
+                    widget.isAutoDetected ? 'Manual' : 'Auto',
+                    style: const TextStyle(fontSize: 11),
+                  ),
+                ),
             ],
           ),
 
@@ -150,7 +110,7 @@ class _GeometrySelectorState extends State<GeometrySelector>
               return Transform.scale(
                 scale: widget.isAutoDetected ? _pulseAnimation.value : 1.0,
                 child: Container(
-                  padding: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
                       colors: [
@@ -201,51 +161,31 @@ class _GeometrySelectorState extends State<GeometrySelector>
             },
           ),
 
-          const SizedBox(height: 16),
+          const SizedBox(height: 8),
 
           // Geometry selection grid (only shown when manual mode)
           if (!widget.isAutoDetected) ...[
             Text(
-              'Choose a different geometry:',
-              style: bodyStyle(context).copyWith(
+              'Choose geometry:',
+              style: captionStyle(context).copyWith(
                 color: Colors.white.withOpacity(0.8),
+                fontSize: 12,
               ),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 8),
             _buildGeometryGrid(),
           ],
 
           // Auto-detection explanation
           if (widget.isAutoDetected) ...[
-            const SizedBox(height: 16),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: kcPrimaryColor.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(
-                  color: kcPrimaryColor.withOpacity(0.2),
-                  width: 1,
-                ),
+            const SizedBox(height: 8),
+            Text(
+              'Auto-detected from your content',
+              style: captionStyle(context).copyWith(
+                color: Colors.white.withOpacity(0.6),
+                fontSize: 11,
               ),
-              child: Row(
-                children: [
-                  const Icon(
-                    Icons.psychology,
-                    color: kcPrimaryColor,
-                    size: 20,
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      'Geometry automatically detected based on your content and keywords. Tap the edit button to choose manually.',
-                      style: captionStyle(context).copyWith(
-                        color: Colors.white.withOpacity(0.8),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
+              textAlign: TextAlign.center,
             ),
           ],
         ],
@@ -260,10 +200,10 @@ class _GeometrySelectorState extends State<GeometrySelector>
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        crossAxisSpacing: 12,
-        mainAxisSpacing: 12,
-        childAspectRatio: 1.5,
+        crossAxisCount: 3,
+        crossAxisSpacing: 6,
+        mainAxisSpacing: 6,
+        childAspectRatio: 1.0,
       ),
       itemCount: geometries.length,
       itemBuilder: (context, index) {

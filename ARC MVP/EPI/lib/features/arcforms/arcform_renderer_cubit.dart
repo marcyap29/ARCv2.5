@@ -18,14 +18,14 @@ class ArcformRendererCubit extends Cubit<ArcformRendererState> {
     Future.delayed(const Duration(milliseconds: 500), () {
       // Create sample keywords for demonstration
       final sampleKeywords = ['Journal', 'Reflection', 'Growth', 'Insight', 'Pattern', 'Awareness', 'Clarity', 'Wisdom'];
-      final defaultGeometry = GeometryPattern.spiral;
+      const defaultGeometry = GeometryPattern.spiral;
 
       // Create initial loaded state
       emit(const ArcformRendererLoaded(
         nodes: [],
         edges: [],
         selectedGeometry: GeometryPattern.spiral,
-        currentPhase: 'Discovery',
+        currentPhase: 'Expansion', // More balanced starting phase
       ));
 
       // Then use the proper geometry system for layout
@@ -132,7 +132,7 @@ class ArcformRendererCubit extends Cubit<ArcformRendererState> {
     
     // Create nodes at calculated positions
     for (int i = 0; i < keywords.length; i++) {
-      final position = i < positions.length ? positions[i] : Offset(200.0, 200.0);
+      final position = i < positions.length ? positions[i] : const Offset(200.0, 200.0);
       
       nodes.add(Node(
         id: (i + 1).toString(),
@@ -319,11 +319,20 @@ class ArcformRendererCubit extends Cubit<ArcformRendererState> {
     if (lowerContent.contains('growth') || lowerContent.contains('learn') || lowerContent.contains('improve')) {
       return 'Discovery';
     } else if (lowerContent.contains('challenge') || lowerContent.contains('struggle') || lowerContent.contains('difficult')) {
-      return 'Integration';
+      return 'Recovery'; // Better mapping for difficulty
     } else if (lowerContent.contains('gratitude') || lowerContent.contains('appreciate') || lowerContent.contains('blessed')) {
-      return 'Transcendence';
+      return 'Expansion'; // Better mapping for positive emotions
+    } else if (lowerContent.contains('change') || lowerContent.contains('moving') || lowerContent.contains('transition')) {
+      return 'Transition';
+    } else if (lowerContent.contains('routine') || lowerContent.contains('organize') || lowerContent.contains('stable')) {
+      return 'Consolidation';
     } else {
-      return 'Discovery';
+      // More balanced default based on content length
+      if (content.length > 100) {
+        return 'Consolidation';
+      } else {
+        return 'Expansion';
+      }
     }
   }
 
