@@ -427,11 +427,28 @@ class SimpleArcformStorage {
   }
 }
 
-/// Simple keyword extraction utility
+/// Enhanced keyword extraction utility with curated options
 class SimpleKeywordExtractor {
-  /// Extract keywords from text
+  /// Curated keywords for better AI analysis and phase detection
+  static const List<String> curatedKeywords = [
+    // Emotions & States
+    'grateful', 'anxious', 'hopeful', 'stressed', 'excited', 'calm', 'frustrated', 'peaceful',
+    'overwhelmed', 'confident', 'uncertain', 'joyful', 'worried', 'relaxed', 'energized',
+    
+    // Life Areas & Contexts  
+    'work', 'family', 'relationship', 'health', 'creativity', 'spirituality', 'money', 'career',
+    'friendship', 'home', 'travel', 'learning', 'goals', 'dreams', 'purpose',
+    
+    // Growth & Change
+    'growth', 'healing', 'breakthrough', 'challenge', 'transition', 'discovery', 'insight',
+    'transformation', 'progress', 'setback', 'opportunity', 'balance', 'clarity', 'wisdom',
+    'reflection', 'meditation', 'mindfulness', 'awareness', 'patterns', 'habits'
+  ];
+
+  /// Extract keywords from text combining curated and auto-extracted
   static List<String> extractKeywords(String text) {
-    final words = text
+    final extractedWords = text
+        .toLowerCase()
         .split(RegExp(r'\s+'))
         .where((word) {
           // Filter out common words and keep only words with 3+ characters
@@ -443,16 +460,29 @@ class SimpleKeywordExtractor {
             'goes', 'went', 'gone', 'see', 'sees', 'saw', 'seen', 'know',
             'knows', 'knew', 'known', 'think', 'thinks', 'thought', 'feel',
             'feels', 'felt', 'want', 'wants', 'wanted', 'need', 'needs',
-            'needed', 'like', 'likes', 'liked', 'love', 'loves', 'loved'
+            'needed', 'like', 'likes', 'liked', 'love', 'loves', 'loved',
+            'today', 'yesterday', 'tomorrow', 'time', 'day', 'week', 'month'
           };
-          return word.length >= 3 && !commonWords.contains(word.toLowerCase());
+          return word.length >= 3 && !commonWords.contains(word);
         })
-        .map((word) => word.toLowerCase().replaceAll(RegExp(r'[^\w]'), ''))
-        .toSet()
+        .map((word) => word.replaceAll(RegExp(r'[^\w]'), ''))
+        .where((word) => word.isNotEmpty)
+        .toSet();
+
+    // Find curated keywords that appear in the text  
+    final matchingCurated = curatedKeywords
+        .where((keyword) => text.toLowerCase().contains(keyword))
         .toList();
 
-    // Take first 10 unique words as suggested keywords
-    return words.take(10).toList();
+    // Combine matching curated keywords + extracted words + remaining curated
+    final allKeywords = <String>{
+      ...matchingCurated, // Prioritize curated keywords found in text
+      ...extractedWords.take(10), // Add extracted words
+      ...curatedKeywords.take(20), // Add remaining curated for choice
+    }.toList();
+
+    // Return up to 25 keywords for selection
+    return allKeywords.take(25).toList();
   }
 }
 
