@@ -3,7 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:my_app/features/timeline/timeline_cubit.dart';
 import 'package:my_app/features/timeline/timeline_state.dart';
 import 'package:my_app/features/timeline/timeline_entry_model.dart';
-import 'package:my_app/features/arcforms/services/emotional_valence_service.dart';
+
 import 'package:my_app/features/arcforms/arcform_renderer_state.dart';
 import 'package:my_app/repositories/journal_repository.dart';
 import 'package:my_app/shared/app_colors.dart';
@@ -274,13 +274,8 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        // Arcform visualization
-                        _buildArcformVisualization(entry, isCurrentEntry && !_isSelectionMode, isSelected),
-                        
-                        const SizedBox(height: 24),
-                        
-                        // Entry details
-                        _buildEntryDetails(entry, isCurrentEntry && !_isSelectionMode),
+                        // Entry details with phase shape above
+                        _buildEntryDetailsWithPhaseShape(entry, isCurrentEntry && !_isSelectionMode, isSelected),
                       ],
                     ),
                   ),
@@ -339,85 +334,7 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
     }
   }
 
-  Widget _buildArcformVisualization(TimelineEntry entry, bool isCurrentEntry, [bool isSelected = false]) {
-    final phaseColor = _getPhaseColor(entry.phase);
-    final phaseGeometry = _getPhaseGeometry(entry.phase, entry.geometry);
-    
-    return Container(
-      width: 120,
-      height: 120,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        color: isCurrentEntry 
-            ? phaseColor.withOpacity(0.1)
-            : phaseColor.withOpacity(0.05),
-        border: Border.all(
-          color: phaseColor.withOpacity(isCurrentEntry ? 0.8 : 0.4),
-          width: isCurrentEntry ? 3 : 2,
-        ),
-        boxShadow: isCurrentEntry ? [
-          BoxShadow(
-            color: phaseColor.withOpacity(0.3),
-            blurRadius: 20,
-            spreadRadius: 2,
-          ),
-        ] : null,
-      ),
-      child: Stack(
-        children: [
-          // Main content - Arcform or default icon
-          Center(
-            child: entry.hasArcform
-                ? _buildArcformIcon(entry, isCurrentEntry, phaseColor, phaseGeometry)
-                : _buildDefaultIcon(isCurrentEntry, phaseColor),
-          ),
-          // Phase indicator in bottom-right corner
-          if (entry.phase != null)
-            Positioned(
-              bottom: 4,
-              right: 4,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(
-                  color: phaseColor,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  entry.phase!.substring(0, 3).toUpperCase(),
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 10,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
 
-  Widget _buildArcformIcon(TimelineEntry entry, bool isCurrentEntry, Color phaseColor, GeometryPattern? phaseGeometry) {
-    return CustomPaint(
-      painter: ArcformTimelinePainter(
-        isCurrentEntry: isCurrentEntry,
-        entry: entry,
-        phaseColor: phaseColor,
-        phaseGeometry: phaseGeometry ?? GeometryPattern.spiral,
-      ),
-      size: const Size(120, 120),
-    );
-  }
-
-  Widget _buildDefaultIcon(bool isCurrentEntry, Color phaseColor) {
-    return Icon(
-      Icons.edit_note_outlined,
-      size: 40,
-      color: isCurrentEntry 
-          ? phaseColor
-          : phaseColor.withOpacity(0.5),
-    );
-  }
 
   Color _getPhaseColor(String? phase) {
     if (phase == null) return kcSecondaryTextColor;
@@ -440,51 +357,19 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
     }
   }
 
-  GeometryPattern? _getPhaseGeometry(String? phase, String? entryGeometry) {
-    // Use actual geometry from entry if available
-    if (entryGeometry != null) {
-      switch (entryGeometry.toLowerCase()) {
-        case 'spiral':
-          return GeometryPattern.spiral;
-        case 'flower':
-          return GeometryPattern.flower;
-        case 'branch':
-          return GeometryPattern.branch;
-        case 'weave':
-          return GeometryPattern.weave;
-        case 'glowcore':
-          return GeometryPattern.glowCore;
-        case 'fractal':
-          return GeometryPattern.fractal;
-        default:
-          break;
-      }
-    }
-    
-    // Fall back to phase-based geometry if no entry geometry
-    if (phase == null) return null;
-    
-    switch (phase.toLowerCase()) {
-      case 'discovery':
-        return GeometryPattern.spiral;
-      case 'expansion':
-        return GeometryPattern.flower;
-      case 'transition':
-        return GeometryPattern.branch;
-      case 'consolidation':
-        return GeometryPattern.weave;
-      case 'recovery':
-        return GeometryPattern.glowCore;
-      case 'breakthrough':
-        return GeometryPattern.fractal;
-      default:
-        return GeometryPattern.spiral;
-    }
-  }
 
-  Widget _buildEntryDetails(TimelineEntry entry, bool isCurrentEntry) {
+
+  Widget _buildEntryDetailsWithPhaseShape(TimelineEntry entry, bool isCurrentEntry, bool isSelected) {
+    final phaseColor = _getPhaseColor(entry.phase);
+    
     return Column(
       children: [
+        // Phase name above the entry
+        if (entry.phase != null) ...[
+          _buildPhaseDisplay(entry.phase!, phaseColor, isCurrentEntry),
+          const SizedBox(height: 16),
+        ],
+        
         // Entry type label
         Text(
           'JOURNAL ENTRY',
@@ -539,6 +424,66 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
         ],
       ],
     );
+  }
+
+  Widget _buildPhaseDisplay(String phase, Color phaseColor, bool isCurrentEntry) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: phaseColor.withOpacity(isCurrentEntry ? 0.2 : 0.1),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: phaseColor.withOpacity(isCurrentEntry ? 0.8 : 0.5),
+          width: isCurrentEntry ? 2 : 1,
+        ),
+        boxShadow: isCurrentEntry ? [
+          BoxShadow(
+            color: phaseColor.withOpacity(0.3),
+            blurRadius: 8,
+            spreadRadius: 1,
+          ),
+        ] : null,
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            _getPhaseIcon(phase),
+            color: phaseColor.withOpacity(isCurrentEntry ? 1.0 : 0.7),
+            size: isCurrentEntry ? 16 : 14,
+          ),
+          const SizedBox(width: 6),
+          Text(
+            phase.toUpperCase(),
+            style: captionStyle(context).copyWith(
+              color: phaseColor.withOpacity(isCurrentEntry ? 1.0 : 0.8),
+              fontSize: isCurrentEntry ? 12 : 11,
+              fontWeight: FontWeight.w600,
+              letterSpacing: 0.5,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  IconData _getPhaseIcon(String phase) {
+    switch (phase.toLowerCase()) {
+      case 'discovery':
+        return Icons.explore;
+      case 'expansion':
+        return Icons.local_florist;
+      case 'transition':
+        return Icons.trending_up;
+      case 'consolidation':
+        return Icons.grid_view;
+      case 'recovery':
+        return Icons.healing;
+      case 'breakthrough':
+        return Icons.auto_fix_high;
+      default:
+        return Icons.circle;
+    }
   }
 
   Widget _buildTimelineFooter() {
@@ -933,59 +878,7 @@ class ArcformTimelinePainter extends CustomPainter {
     _drawFractalBranch(canvas, end, angle + math.pi / 4, newLength, depth + 1, paint);
   }
 
-  void _drawNodes(Canvas canvas, Offset center, double radius, Paint nodePaint) {
-    const nodeRadius = 3.0;
-    final emotionalService = EmotionalValenceService();
 
-    // Use actual number of keywords from the entry
-    final keywordCount = entry.keywords.length;
-    final maxNodes = math.min(keywordCount, 8); // Cap at 8 for visual clarity
-    
-    // Draw nodes based on actual keywords with emotional coloring
-    for (int i = 0; i < maxNodes; i++) {
-      final keyword = entry.keywords[i];
-      final angle = i * (2 * math.pi / maxNodes); // Evenly distribute around circle
-      final r = radius * (0.4 + (i * 0.1)); // Vary radius slightly for visual interest
-      final x = center.dx + r * math.cos(angle);
-      final y = center.dy + r * math.sin(angle);
-      
-      // Get emotional color for this specific keyword
-      final emotionalColor = emotionalService.getEmotionalColor(keyword);
-      final nodePaint = Paint()
-        ..style = PaintingStyle.fill
-        ..color = isCurrentEntry 
-            ? emotionalColor
-            : emotionalColor.withOpacity(0.6);
-      
-      canvas.drawCircle(Offset(x, y), nodeRadius, nodePaint);
-    }
-  }
-
-  /// Convert valence score to color (same logic as EmotionalValenceService)
-  Color _valenceToColor(double valence) {
-    if (valence > 0.7) {
-      // Very positive: Golden/warm yellow
-      return const Color(0xFFFFD700);
-    } else if (valence > 0.4) {
-      // Positive: Warm orange
-      return const Color(0xFFFF8C42);
-    } else if (valence > 0.1) {
-      // Slightly positive: Soft coral
-      return const Color(0xFFFF6B6B);
-    } else if (valence > -0.1) {
-      // Neutral: Soft purple (app's primary color)
-      return const Color(0xFFD1B3FF);
-    } else if (valence > -0.4) {
-      // Slightly negative: Cool blue
-      return const Color(0xFF4A90E2);
-    } else if (valence > -0.7) {
-      // Negative: Deeper blue
-      return const Color(0xFF2E86AB);
-    } else {
-      // Very negative: Cool teal
-      return const Color(0xFF4ECDC4);
-    }
-  }
 
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) {

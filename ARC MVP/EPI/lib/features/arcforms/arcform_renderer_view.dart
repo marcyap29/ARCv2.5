@@ -66,14 +66,16 @@ class _ArcformRendererViewContentState extends State<ArcformRendererViewContent>
     }
   }
 
-  Widget _buildPhaseIndicator(BuildContext context, String currentPhase, GeometryPattern geometry) {
+
+
+  Widget _buildPhaseIndicatorWithChangeButton(BuildContext context, String currentPhase, GeometryPattern geometry) {
     final description = UserPhaseService.getPhaseDescription(currentPhase);
     final phaseColor = _getPhaseColor(geometry);
     
     return Container(
       width: double.infinity,
-      margin: const EdgeInsets.fromLTRB(16, 4, 16, 4),
-      padding: const EdgeInsets.all(12),
+      margin: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
@@ -110,6 +112,41 @@ class _ArcformRendererViewContentState extends State<ArcformRendererViewContent>
                 ),
               ),
               const Spacer(),
+              // Phase change button
+              GestureDetector(
+                onTap: () => _showPhaseChangeDialog(context, currentPhase),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: kcSurfaceAltColor,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: phaseColor.withOpacity(0.3),
+                      width: 1,
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.edit,
+                        color: phaseColor,
+                        size: 14,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        'Change',
+                        style: captionStyle(context).copyWith(
+                          color: phaseColor,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
               Icon(
                 _getPhaseIcon(geometry),
                 color: phaseColor,
@@ -243,6 +280,186 @@ class _ArcformRendererViewContentState extends State<ArcformRendererViewContent>
     );
   }
 
+  void _showPhaseChangeDialog(BuildContext context, String currentPhase) {
+    final phases = ['Discovery', 'Expansion', 'Transition', 'Consolidation', 'Recovery', 'Breakthrough'];
+    
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          backgroundColor: kcSurfaceColor,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          title: Text(
+            'Change Phase',
+            style: heading1Style(context).copyWith(
+              color: Colors.white,
+              fontSize: 20,
+            ),
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'Current phase: $currentPhase',
+                style: bodyStyle(context).copyWith(
+                  color: kcSecondaryTextColor,
+                  fontSize: 14,
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Select a new phase:',
+                style: bodyStyle(context).copyWith(
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              const SizedBox(height: 12),
+              ...phases.map((phase) => ListTile(
+                title: Text(
+                  phase,
+                  style: bodyStyle(context).copyWith(
+                    color: phase == currentPhase ? kcPrimaryColor : Colors.white,
+                    fontWeight: phase == currentPhase ? FontWeight.bold : FontWeight.normal,
+                  ),
+                ),
+                leading: Icon(
+                  _getPhaseIcon(_phaseToGeometryPattern(phase)),
+                  color: phase == currentPhase ? kcPrimaryColor : kcSecondaryTextColor,
+                ),
+                onTap: () {
+                  Navigator.of(context).pop();
+                  _confirmPhaseChange(context, currentPhase, phase);
+                },
+              )).toList(),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: Text(
+                'Cancel',
+                style: buttonStyle(context).copyWith(
+                  color: kcSecondaryTextColor,
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _confirmPhaseChange(BuildContext context, String currentPhase, String newPhase) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          backgroundColor: kcSurfaceColor,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          title: Text(
+            'Confirm Phase Change',
+            style: heading1Style(context).copyWith(
+              color: Colors.white,
+              fontSize: 18,
+            ),
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'Are you sure you want to change your phase from $currentPhase to $newPhase?',
+                style: bodyStyle(context).copyWith(
+                  color: kcSecondaryTextColor,
+                  fontSize: 14,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'This will update your current phase and may affect your Arcform visualization.',
+                style: captionStyle(context).copyWith(
+                  color: kcSecondaryTextColor.withOpacity(0.8),
+                  fontSize: 12,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: Text(
+                'Cancel',
+                style: buttonStyle(context).copyWith(
+                  color: kcSecondaryTextColor,
+                ),
+              ),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                _changePhase(newPhase);
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: kcPrimaryColor,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              child: Text(
+                'Change Phase',
+                style: buttonStyle(context).copyWith(
+                  color: Colors.white,
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _changePhase(String newPhase) {
+    // Update the phase in the cubit
+    final cubit = context.read<ArcformRendererCubit>();
+    final newGeometry = _phaseToGeometryPattern(newPhase);
+    cubit.changeGeometry(newGeometry);
+    
+    // Show success message
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Phase changed to $newPhase'),
+        backgroundColor: kcPrimaryColor,
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
+
+  GeometryPattern _phaseToGeometryPattern(String phase) {
+    switch (phase) {
+      case 'Discovery':
+        return GeometryPattern.spiral;
+      case 'Expansion':
+        return GeometryPattern.flower;
+      case 'Transition':
+        return GeometryPattern.branch;
+      case 'Consolidation':
+        return GeometryPattern.weave;
+      case 'Recovery':
+        return GeometryPattern.glowCore;
+      case 'Breakthrough':
+        return GeometryPattern.fractal;
+      default:
+        return GeometryPattern.spiral;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return BlocBuilder<ArcformRendererCubit, ArcformRendererState>(
@@ -290,8 +507,8 @@ class _ArcformRendererViewContentState extends State<ArcformRendererViewContent>
               children: [
                 Column(
                   children: [
-                    // Phase indicator header
-                    _buildPhaseIndicator(context, state.currentPhase, state.selectedGeometry),
+                    // Phase indicator header with change button
+                    _buildPhaseIndicatorWithChangeButton(context, state.currentPhase, state.selectedGeometry),
                     // Main Arcform layout - switch between 2D and 3D
                     Expanded(
                       child: _is3DMode

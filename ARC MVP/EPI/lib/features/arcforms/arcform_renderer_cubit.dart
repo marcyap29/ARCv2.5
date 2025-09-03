@@ -74,7 +74,7 @@ class ArcformRendererCubit extends Cubit<ArcformRendererState> {
       ));
 
       // Then use the proper geometry system for layout
-      _updateStateWithKeywords(sampleKeywords, defaultGeometry);
+      _updateStateWithKeywords(sampleKeywords, defaultGeometry, 'Discovery');
     });
   }
 
@@ -217,10 +217,13 @@ class ArcformRendererCubit extends Cubit<ArcformRendererState> {
     // Use provided phase or determine from keywords
     final currentPhase = phase ?? _determinePhaseHint('', keywords);
     
+    // Ensure geometry matches the phase
+    final correctGeometry = _phaseToGeometryPattern(currentPhase);
+    
     emit(ArcformRendererLoaded(
       nodes: nodes,
       edges: edges,
-      selectedGeometry: geometry,
+      selectedGeometry: correctGeometry,
       currentPhase: currentPhase,
     ));
   }
@@ -498,7 +501,28 @@ class ArcformRendererCubit extends Cubit<ArcformRendererState> {
   void changeGeometry(GeometryPattern geometry) {
     if (state is ArcformRendererLoaded) {
       final currentState = state as ArcformRendererLoaded;
-      emit(currentState.copyWith(selectedGeometry: geometry));
+      final newPhase = _geometryToPhase(geometry);
+      emit(currentState.copyWith(
+        selectedGeometry: geometry,
+        currentPhase: newPhase,
+      ));
+    }
+  }
+
+  String _geometryToPhase(GeometryPattern geometry) {
+    switch (geometry) {
+      case GeometryPattern.spiral:
+        return 'Discovery';
+      case GeometryPattern.flower:
+        return 'Expansion';
+      case GeometryPattern.branch:
+        return 'Transition';
+      case GeometryPattern.weave:
+        return 'Consolidation';
+      case GeometryPattern.glowCore:
+        return 'Recovery';
+      case GeometryPattern.fractal:
+        return 'Breakthrough';
     }
   }
 }
