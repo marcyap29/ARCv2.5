@@ -14,7 +14,43 @@ class ArcformRendererCubit extends Cubit<ArcformRendererState> {
   void initialize() {
     emit(const ArcformRendererLoading());
 
-    // Simulate loading data
+    // Load actual arcform data if available, otherwise use sample data
+    _loadArcformData();
+  }
+
+  /// Load arcform data from storage or use sample data
+  Future<void> _loadArcformData() async {
+    try {
+      // Try to load the latest arcform snapshot
+      final latestPhase = await _getLatestArcformPhase();
+      
+      if (latestPhase != null) {
+        // Use actual data from storage
+        final sampleKeywords = ['Journal', 'Reflection', 'Growth', 'Insight', 'Pattern', 'Awareness', 'Clarity', 'Wisdom'];
+        const defaultGeometry = GeometryPattern.spiral;
+
+        // Create initial loaded state with actual phase
+        emit(const ArcformRendererLoaded(
+          nodes: [],
+          edges: [],
+          selectedGeometry: GeometryPattern.spiral,
+          currentPhase: 'Expansion', // Will be updated below
+        ));
+
+        // Update with actual phase
+        _updateStateWithKeywords(sampleKeywords, defaultGeometry, latestPhase);
+      } else {
+        // Fallback to sample data
+        _loadSampleData();
+      }
+    } catch (e) {
+      // Error loading, use sample data
+      _loadSampleData();
+    }
+  }
+
+  /// Load sample data (original behavior)
+  void _loadSampleData() {
     Future.delayed(const Duration(milliseconds: 500), () {
       // Create sample keywords for demonstration
       final sampleKeywords = ['Journal', 'Reflection', 'Growth', 'Insight', 'Pattern', 'Awareness', 'Clarity', 'Wisdom'];
@@ -31,6 +67,44 @@ class ArcformRendererCubit extends Cubit<ArcformRendererState> {
       // Then use the proper geometry system for layout
       _updateStateWithKeywords(sampleKeywords, defaultGeometry);
     });
+  }
+
+  /// Get the latest arcform phase from storage
+  Future<String?> _getLatestArcformPhase() async {
+    try {
+      final box = await Hive.openBox('arcform_snapshots');
+      
+      if (box.isEmpty) return null;
+
+      // Find the most recent snapshot
+      Map<String, dynamic>? latestSnapshot;
+      DateTime? latestDate;
+      
+      for (final key in box.keys) {
+        final snapshot = box.get(key);
+        if (snapshot is Map) {
+          final snapshotMap = Map<String, dynamic>.from(snapshot);
+          final timestamp = snapshotMap['timestamp'];
+          
+          if (timestamp != null) {
+            final date = timestamp is DateTime ? timestamp : DateTime.tryParse(timestamp.toString());
+            if (date != null && (latestDate == null || date.isAfter(latestDate))) {
+              latestDate = date;
+              latestSnapshot = snapshotMap;
+            }
+          }
+        }
+      }
+      
+      if (latestSnapshot != null) {
+        final data = latestSnapshot['data'] as Map<String, dynamic>?;
+        return data?['phase'] as String?;
+      }
+      
+      return null;
+    } catch (e) {
+      return null;
+    }
   }
 
   /// ARC MVP: Create an Arcform from journal entry data
@@ -78,24 +152,25 @@ class ArcformRendererCubit extends Cubit<ArcformRendererState> {
   }
 
   /// Update the current state with new keywords and geometry
-  void _updateStateWithKeywords(List<String> keywords, GeometryPattern geometry) {
-    if (state is ArcformRendererLoaded) {
-      // Map GeometryPattern to ArcformGeometry for layout calculations
-      final arcformGeometry = _mapGeometryPattern(geometry);
-      
-      // Create nodes using proper geometry layouts
-      final nodes = _createNodesWithGeometry(keywords, arcformGeometry);
-      
-      // Create edges based on geometry pattern
-      final edges = _createEdgesForGeometry(keywords.length, geometry);
-      
-      emit(ArcformRendererLoaded(
-        nodes: nodes,
-        edges: edges,
-        selectedGeometry: geometry,
-        currentPhase: _determinePhaseHint('', keywords),
-      ));
-    }
+  void _updateStateWithKeywords(List<String> keywords, GeometryPattern geometry, [String? phase]) {
+    // Map GeometryPattern to ArcformGeometry for layout calculations
+    final arcformGeometry = _mapGeometryPattern(geometry);
+    
+    // Create nodes using proper geometry layouts
+    final nodes = _createNodesWithGeometry(keywords, arcformGeometry);
+    
+    // Create edges based on geometry pattern
+    final edges = _createEdgesForGeometry(keywords.length, geometry);
+    
+    // Use provided phase or determine from keywords
+    final currentPhase = phase ?? _determinePhaseHint('', keywords);
+    
+    emit(ArcformRendererLoaded(
+      nodes: nodes,
+      edges: edges,
+      selectedGeometry: geometry,
+      currentPhase: currentPhase,
+    ));
   }
 
   /// Map GeometryPattern to ArcformGeometry
