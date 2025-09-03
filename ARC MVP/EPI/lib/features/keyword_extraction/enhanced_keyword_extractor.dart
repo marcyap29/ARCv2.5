@@ -311,9 +311,9 @@ class EnhancedKeywordExtractor {
         .where((word) => word.isNotEmpty)
         .toSet();
     
-    // Find matching curated keywords
+    // Find matching curated keywords (only exact word matches, not partial)
     final matchingCurated = curatedKeywords
-        .where((keyword) => textLower.contains(keyword))
+        .where((keyword) => _isExactWordMatch(textLower, keyword))
         .toSet();
     
     // Extract 2-word phrases for better context (lowered minimum length)
@@ -326,12 +326,11 @@ class EnhancedKeywordExtractor {
       }
     }
     
-    // Combine all candidates
+    // Combine all candidates (only include curated keywords that actually appear in text)
     return {
       ...matchingCurated,
       ...extractedWords,
       ...phrases,
-      ...curatedKeywords, // Include all curated for selection
     };
   }
 
@@ -352,10 +351,10 @@ class EnhancedKeywordExtractor {
       final tfidf = termFreq * inverseDocFreq;
       
       // Calculate centrality (based on curated keyword presence and text occurrence)
-      final isInText = textLower.contains(candidate.toLowerCase());
+      final isInText = _isExactWordMatch(textLower, candidate.toLowerCase());
       final centrality = curatedKeywords.contains(candidate) 
-          ? (isInText ? 0.9 : 0.7)  // Higher score if in text
-          : (isInText ? 0.6 : 0.2); // Still give some score if in text
+          ? (isInText ? 0.9 : 0.0)  // Only score curated keywords if they're actually in text
+          : (isInText ? 0.8 : 0.0); // Only score extracted words if they're in text
       
       // Calculate emotion amplitude
       final emotionAmp = _getEmotionAmplitude(candidate);
@@ -588,6 +587,12 @@ class EnhancedKeywordExtractor {
   
   static int _countOccurrences(String text, String term) {
     return term.allMatches(text).length;
+  }
+
+  /// Check if a keyword appears as an exact word in text (not as part of another word)
+  static bool _isExactWordMatch(String text, String keyword) {
+    final regex = RegExp(r'\b' + RegExp.escape(keyword) + r'\b');
+    return regex.hasMatch(text);
   }
   
   static double _getDocumentFrequency(String term) {
