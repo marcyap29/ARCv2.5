@@ -48,6 +48,96 @@ class TimelineCubit extends Cubit<TimelineState> {
     return false;
   }
 
+  /// Update an entry's phase and geometry
+  Future<void> updateEntryPhase(String entryId, String newPhase, String newGeometry) async {
+    try {
+      // Get the existing journal entry
+      final existingEntry = _journalRepository.getJournalEntryById(entryId);
+      if (existingEntry == null) {
+        print('DEBUG: Entry $entryId not found for update');
+        return;
+      }
+
+      // Update the journal entry with new metadata
+      final updatedEntry = existingEntry.copyWith(
+        updatedAt: DateTime.now(),
+      );
+      
+      await _journalRepository.updateJournalEntry(updatedEntry);
+
+      // Update the arcform snapshot with new phase/geometry
+      await _updateArcformSnapshot(entryId, newPhase, newGeometry);
+
+      // Refresh the timeline to show updated data
+      emit(const TimelineLoading());
+      refreshEntries();
+      
+      print('DEBUG: Successfully updated entry $entryId - Phase: $newPhase, Geometry: $newGeometry');
+    } catch (e) {
+      print('ERROR: Failed to update entry phase: $e');
+      emit(const TimelineError(message: 'Failed to update entry phase'));
+    }
+  }
+
+  /// Update or create arcform snapshot with new phase/geometry
+  Future<void> _updateArcformSnapshot(String entryId, String newPhase, String newGeometry) async {
+    try {
+      if (!Hive.isBoxOpen('arcform_snapshots')) {
+        await Hive.openBox<ArcformSnapshot>('arcform_snapshots');
+      }
+      
+      final box = Hive.box<ArcformSnapshot>('arcform_snapshots');
+      
+      // Look for existing snapshot for this entry
+      ArcformSnapshot? existingSnapshot;
+      String? existingKey;
+      
+      for (final key in box.keys) {
+        final snapshot = box.get(key);
+        if (snapshot != null && snapshot.arcformId == entryId) {
+          existingSnapshot = snapshot;
+          existingKey = key as String;
+          break;
+        }
+      }
+      
+      if (existingSnapshot != null && existingKey != null) {
+        // Update existing snapshot
+        final updatedData = Map<String, dynamic>.from(existingSnapshot.data);
+        updatedData['phase'] = newPhase;
+        updatedData['geometry'] = newGeometry;
+        
+        final updatedSnapshot = existingSnapshot.copyWith(
+          data: updatedData,
+          timestamp: DateTime.now(),
+        );
+        
+        await box.put(existingKey, updatedSnapshot);
+        print('DEBUG: Updated existing arcform snapshot for entry $entryId');
+      } else {
+        // Create new snapshot
+        final newSnapshot = ArcformSnapshot(
+          id: '${entryId}_updated_${DateTime.now().millisecondsSinceEpoch}',
+          arcformId: entryId,
+          data: {
+            'phase': newPhase,
+            'geometry': newGeometry,
+            'updated_by_user': true,
+            'updated_at': DateTime.now().toIso8601String(),
+          },
+          timestamp: DateTime.now(),
+          notes: 'Phase updated by user to $newPhase',
+        );
+        
+        await box.put(newSnapshot.id, newSnapshot);
+        print('DEBUG: Created new arcform snapshot for entry $entryId');
+      }
+    } catch (e) {
+      print('ERROR: Failed to update arcform snapshot: $e');
+      throw e;
+    }
+  }
+
   void setFilter(TimelineFilter filter) {
     if (state is TimelineLoaded) {
       final currentState = state as TimelineLoaded;
@@ -82,12 +172,20 @@ class TimelineCubit extends Cubit<TimelineState> {
       _hasMore = newEntries.length == _pageSize;
 
       // Group entries by month
-      final groupedEntries = _groupEntriesByMonth(
-        [
+      // If this is the first page (refresh), start fresh; otherwise append to existing
+      final List<TimelineEntry> allEntries;
+      if (_currentPage == 0) {
+        // Fresh load - use only new entries
+        allEntries = _mapToTimelineEntries(newEntries);
+      } else {
+        // Paginated load - append to existing entries
+        allEntries = [
           ...currentState.groupedEntries.expand((g) => g.entries),
           ..._mapToTimelineEntries(newEntries)
-        ],
-      );
+        ];
+      }
+      
+      final groupedEntries = _groupEntriesByMonth(allEntries);
 
       emit(TimelineLoaded(
         groupedEntries: groupedEntries,

@@ -6,7 +6,6 @@ import 'package:my_app/features/journal/journal_capture_cubit.dart';
 import 'package:my_app/features/journal/widgets/phase_recommendation_dialog.dart';
 import 'package:my_app/features/arcforms/phase_recommender.dart';
 import 'package:my_app/features/arcforms/arcform_mvp_implementation.dart';
-import 'package:my_app/features/keyword_extraction/enhanced_keyword_extractor.dart';
 import 'package:my_app/shared/app_colors.dart';
 import 'package:my_app/shared/text_style.dart';
 
@@ -51,12 +50,8 @@ class _KeywordAnalysisViewState extends State<KeywordAnalysisView>
       curve: Curves.easeInOut,
     ));
 
-    // Start keyword extraction with context and animation
-    context.read<KeywordExtractionCubit>().extractKeywords(
-      widget.content,
-      emotion: widget.initialEmotion,
-      reason: widget.initialReason,
-    );
+    // Start keyword extraction and animation
+    context.read<KeywordExtractionCubit>().extractKeywords(widget.content);
     _progressController.forward();
   }
 
@@ -69,83 +64,103 @@ class _KeywordAnalysisViewState extends State<KeywordAnalysisView>
   void _onSaveEntry() {
     final keywordState = context.read<KeywordExtractionCubit>().state;
     if (keywordState is KeywordExtractionLoaded) {
-      _showPhaseRecommendationDialog(keywordState.selectedKeywords);
+      // Get phase recommendation before saving
+      final recommendedPhase = PhaseRecommender.recommend(
+        emotion: widget.initialEmotion ?? '',
+        reason: widget.initialReason ?? '',
+        text: widget.content,
+        selectedKeywords: keywordState.selectedKeywords,
+      );
+      
+      final rationale = PhaseRecommender.rationale(recommendedPhase);
+      
+      // Show phase recommendation dialog
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => PhaseRecommendationDialog(
+          recommendedPhase: recommendedPhase,
+          rationale: rationale,
+          keywords: keywordState.selectedKeywords,
+          onConfirm: (confirmedPhase, overrideGeometry) {
+            // Save entry with confirmed phase
+            _saveWithConfirmedPhase(
+              keywordState.selectedKeywords, 
+              confirmedPhase, 
+              overrideGeometry,
+            );
+          },
+          onCancel: () {
+            // User canceled - just close dialog
+            Navigator.of(context).pop();
+          },
+        ),
+      );
     }
   }
 
-  void _showPhaseRecommendationDialog(List<String> selectedKeywords) {
-    // Get phase recommendation with selected keywords for improved accuracy
-    final recommendedPhase = PhaseRecommender.recommend(
-      emotion: widget.initialEmotion ?? '',
-      reason: widget.initialReason ?? '',
-      text: widget.content,
-      selectedKeywords: selectedKeywords,
-    );
-    
-    final rationale = PhaseRecommender.rationale(recommendedPhase);
-    
-    showDialog<void>(
-      context: context,
-      barrierDismissible: false,
-      builder: (BuildContext dialogContext) {
-        return PhaseRecommendationDialog(
-          recommendedPhase: recommendedPhase,
-          rationale: rationale,
-          keywords: selectedKeywords,
-          onConfirm: (String phase, ArcformGeometry? overrideGeometry) {
-            Navigator.of(dialogContext).pop();
-            _saveEntryWithPhaseAndGeometry(selectedKeywords, phase, overrideGeometry);
-          },
-          onCancel: () {
-            Navigator.of(dialogContext).pop();
-          },
-        );
-      },
-    );
-  }
-
-  void _saveEntryWithPhaseAndGeometry(
-    List<String> selectedKeywords, 
-    String phase, 
-    ArcformGeometry? overrideGeometry
-  ) {
-    // Save the entry with phase and optional geometry override
+  void _saveWithConfirmedPhase(List<String> selectedKeywords, String phase, ArcformGeometry? overrideGeometry) {
+    // Save the entry with confirmed phase and geometry
     if (overrideGeometry != null) {
-      // Use the new method that will handle geometry override
+      // User selected custom geometry
       context.read<JournalCaptureCubit>().saveEntryWithPhaseAndGeometry(
         content: widget.content,
         mood: widget.mood,
         selectedKeywords: selectedKeywords,
-        emotion: widget.initialEmotion,
-        emotionReason: widget.initialReason,
         phase: phase,
         overrideGeometry: overrideGeometry,
+        emotion: widget.initialEmotion,
+        emotionReason: widget.initialReason,
       );
     } else {
-      // Use existing method for auto-detected geometry
-      context.read<JournalCaptureCubit>().saveEntryWithKeywords(
+      // Use default geometry for phase
+      context.read<JournalCaptureCubit>().saveEntryWithPhaseAndGeometry(
         content: widget.content,
         mood: widget.mood,
         selectedKeywords: selectedKeywords,
+        phase: phase,
+        overrideGeometry: _getDefaultGeometryForPhase(phase),
         emotion: widget.initialEmotion,
         emotionReason: widget.initialReason,
       );
     }
     
-    // Show success message and return result
+    // Close the phase dialog first
+    Navigator.of(context).pop();
+    
+    // Show success message and return result to trigger proper navigation
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Entry saved successfully'),
+      SnackBar(
+        content: Text('Entry saved with $phase phase'),
         backgroundColor: kcSuccessColor,
       ),
     );
     
+    // Return result to emotion selection view so it can handle navigation properly
     Navigator.of(context).pop({
       'save': true,
       'selectedKeywords': selectedKeywords,
       'phase': phase,
-      'overrideGeometry': overrideGeometry?.name,
     });
+  }
+
+  ArcformGeometry _getDefaultGeometryForPhase(String phase) {
+    switch (phase.toLowerCase()) {
+      case 'discovery':
+        return ArcformGeometry.spiral;
+      case 'expansion':
+        return ArcformGeometry.flower;
+      case 'transition':
+        return ArcformGeometry.branch;
+      case 'consolidation':
+        return ArcformGeometry.weave;
+      case 'recovery':
+        return ArcformGeometry.glowCore;
+      case 'breakthrough':
+        return ArcformGeometry.fractal;
+      default:
+        return ArcformGeometry.spiral;
+    }
   }
 
   @override
@@ -335,27 +350,12 @@ class _KeywordAnalysisViewState extends State<KeywordAnalysisView>
             const SizedBox(height: 24),
           ],
           
-          // Selection count and enhanced metadata
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Selected: ${state.selectedKeywords.length}/20',
-                style: heading2Style(context).copyWith(
-                  color: state.selectedKeywords.isNotEmpty ? kcPrimaryColor : kcSecondaryTextColor,
-                ),
-              ),
-              if (state.enhancedResponse != null) ...[ 
-                const SizedBox(height: 4),
-                Text(
-                  'Phase: ${state.enhancedResponse!.meta['current_phase']} • Enhanced with RIVET',
-                  style: captionStyle(context).copyWith(
-                    color: kcSecondaryTextColor,
-                    fontSize: 11,
-                  ),
-                ),
-              ],
-            ],
+          // Selection count
+          Text(
+            'Selected: ${state.selectedKeywords.length}/5',
+            style: heading2Style(context).copyWith(
+              color: state.selectedKeywords.isNotEmpty ? kcPrimaryColor : kcSecondaryTextColor,
+            ),
           ),
           const SizedBox(height: 16),
           
@@ -363,10 +363,10 @@ class _KeywordAnalysisViewState extends State<KeywordAnalysisView>
           Expanded(
             child: SingleChildScrollView(
               child: Wrap(
-                spacing: 8,
-                runSpacing: 8,
+                spacing: 12,
+                runSpacing: 12,
                 children: state.suggestedKeywords
-                    .map((keyword) => _buildEnhancedKeywordChip(keyword, state))
+                    .map((keyword) => _buildKeywordChip(keyword, state.selectedKeywords))
                     .toList(),
               ),
             ),
@@ -392,9 +392,9 @@ class _KeywordAnalysisViewState extends State<KeywordAnalysisView>
                       color: kcSecondaryTextColor,
                     ),
                   )
-                else if (state.selectedKeywords.length > 20)
+                else if (state.selectedKeywords.length > 5)
                   Text(
-                    'Please select no more than 20 keywords',
+                    'Please select no more than 5 keywords',
                     style: bodyStyle(context).copyWith(
                       color: kcDangerColor,
                     ),
@@ -432,39 +432,9 @@ class _KeywordAnalysisViewState extends State<KeywordAnalysisView>
     );
   }
 
-  Widget _buildEnhancedKeywordChip(String keyword, KeywordExtractionLoaded state) {
-    final isSelected = state.selectedKeywords.contains(keyword);
-    final canSelect = state.selectedKeywords.length < 20 || isSelected;
-    
-    // Get enhanced metadata if available
-    KeywordCandidate? candidate;
-    if (state.enhancedResponse != null) {
-      try {
-        candidate = state.enhancedResponse!.candidates
-            .firstWhere((c) => c.keyword == keyword);
-      } catch (e) {
-        // Keyword not found in candidates, use default styling
-      }
-    }
-    
-    // Determine chip styling based on candidate metadata
-    Color chipColor = isSelected ? kcPrimaryColor : kcSurfaceColor;
-    Color borderColor = isSelected 
-        ? kcPrimaryColor 
-        : canSelect 
-            ? kcSecondaryColor.withOpacity(0.3)
-            : kcSecondaryTextColor.withOpacity(0.2);
-    
-    // Enhanced styling for high-quality candidates
-    if (candidate != null && !isSelected) {
-      if (candidate.score > 0.7) {
-        chipColor = kcPrimaryColor.withOpacity(0.1);
-        borderColor = kcPrimaryColor.withOpacity(0.5);
-      } else if (candidate.emotion.amplitude > 0.6) {
-        chipColor = kcAccentColor.withOpacity(0.1);
-        borderColor = kcAccentColor.withOpacity(0.4);
-      }
-    }
+  Widget _buildKeywordChip(String keyword, List<String> selectedKeywords) {
+    final isSelected = selectedKeywords.contains(keyword);
+    final canSelect = selectedKeywords.length < 5 || isSelected;
     
     return GestureDetector(
       onTap: canSelect ? () {
@@ -472,49 +442,32 @@ class _KeywordAnalysisViewState extends State<KeywordAnalysisView>
       } : null,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         decoration: BoxDecoration(
-          color: chipColor,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: borderColor),
+          color: isSelected ? kcPrimaryColor : kcSurfaceColor,
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(
+            color: isSelected 
+                ? kcPrimaryColor 
+                : canSelect 
+                    ? kcSecondaryColor.withOpacity(0.3)
+                    : kcSecondaryTextColor.withOpacity(0.2),
+          ),
         ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              keyword,
-              style: captionStyle(context).copyWith(
-                color: isSelected 
-                    ? Colors.white 
-                    : canSelect 
-                        ? kcSecondaryColor 
-                        : kcSecondaryTextColor.withOpacity(0.5),
-                fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-                fontSize: 12,
-              ),
-            ),
-            // Add quality indicator for enhanced candidates
-            if (candidate != null && candidate.score > 0.6 && !isSelected) ...[
-              const SizedBox(width: 4),
-              Container(
-                width: 6,
-                height: 6,
-                decoration: BoxDecoration(
-                  color: candidate.score > 0.8 
-                      ? kcPrimaryColor 
-                      : candidate.emotion.amplitude > 0.5 
-                          ? kcAccentColor 
-                          : kcSecondaryColor,
-                  shape: BoxShape.circle,
-                ),
-              ),
-            ],
-          ],
+        child: Text(
+          keyword,
+          style: bodyStyle(context).copyWith(
+            color: isSelected 
+                ? Colors.white 
+                : canSelect 
+                    ? kcSecondaryColor 
+                    : kcSecondaryTextColor.withOpacity(0.5),
+            fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+          ),
         ),
       ),
     );
   }
-
 
   Widget _buildErrorState(String message) {
     return Padding(
@@ -523,7 +476,7 @@ class _KeywordAnalysisViewState extends State<KeywordAnalysisView>
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
+            const Icon(
               Icons.error_outline,
               size: 64,
               color: kcDangerColor,
