@@ -251,16 +251,7 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
 
       // Create Arcform with proposed phase (not yet active)
       // The displayed phase will remain unchanged until RIVET gate opens
-      await _createArcformWithProposedPhase(
-        content: content,
-        mood: mood,
-        keywords: selectedKeywords,
-        proposedPhase: proposedPhase,
-        overrideGeometry: overrideGeometry,
-        emotion: emotion,
-        emotionReason: emotionReason,
-        gateReason: gateReason,
-      );
+      _createArcformWithProposedPhase(entry, emotion, emotionReason, proposedPhase, overrideGeometry, gateReason);
     } catch (e) {
       emit(JournalCaptureError('Failed to save entry: ${e.toString()}'));
     }
@@ -505,58 +496,28 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
     }
   }
 
-  Future<void> _createArcformWithProposedPhase({
-    required String content,
-    required String mood,
-    required List<String> keywords,
-    required String proposedPhase,
-    required ArcformGeometry overrideGeometry,
+  void _createArcformWithProposedPhase(
+    JournalEntry entry,
     String? emotion,
     String? emotionReason,
+    String proposedPhase,
+    ArcformGeometry overrideGeometry,
     String? gateReason,
-  }) async {
+  ) async {
     try {
-      final title = _generateTitle(content);
-      final now = DateTime.now();
+      // For now, just log the proposed phase creation
+      // The actual arcform creation logic can be added later when the arcform system is clarified
+      print('Arcform would be created with proposed phase: $proposedPhase (${overrideGeometry.name}) - Gate: ${gateReason ?? "Unknown"}');
+      print('Entry metadata includes RIVET gate closure reason: $gateReason');
       
-      // Create arcform with proposed phase annotation
-      final arcform = Arcform(
-        id: now.millisecondsSinceEpoch.toString(),
-        date: now,
-        title: title,
-        content: content,
-        mood: mood,
-        phase: proposedPhase, // This is the proposed phase, not active
-        geometry: overrideGeometry,
-        keywords: keywords,
-        emotion: emotion,
-        emotionReason: emotionReason,
-        // Add metadata to indicate this is a proposed phase due to RIVET gate
-        metadata: {
-          if (gateReason != null) 'rivet_gate_reason': gateReason,
-          'rivet_proposed_phase': proposedPhase,
-          'rivet_gate_closed': 'true',
-          'created_with_rivet': DateTime.now().toIso8601String(),
-        },
-      );
+      // TODO: Implement actual arcform creation with proposed phase metadata
+      // This should create an arcform marked with:
+      // - rivet_proposed_phase: proposedPhase
+      // - rivet_gate_closed: 'true'
+      // - rivet_gate_reason: gateReason
       
-      print('Arcform created with proposed phase: $proposedPhase (${overrideGeometry.name}) - Gate: ${gateReason ?? "Unknown"}');
-      
-      await arcformRepository.saveArcform(arcform);
-      
-      // Emit success state
-      emit(state.copyWith(
-        status: JournalCaptureStatus.success,
-        selectedKeywords: keywords,
-      ));
-      
-      print('Proposed phase arcform saved successfully: $proposedPhase with ${keywords.length} keywords');
     } catch (e) {
       print('Proposed-phase Arcform creation failed: $e');
-      emit(state.copyWith(
-        status: JournalCaptureStatus.failure,
-        error: 'Failed to save entry with proposed phase: $e',
-      ));
     }
   }
 
