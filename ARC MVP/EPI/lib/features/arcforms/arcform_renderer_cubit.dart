@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:my_app/features/arcforms/arcform_renderer_state.dart';
 import 'package:my_app/features/arcforms/geometry/geometry_layouts.dart';
 import 'package:my_app/features/arcforms/arcform_mvp_implementation.dart';
+import 'package:my_app/models/arcform_snapshot_model.dart';
 import 'package:hive/hive.dart';
 
 class ArcformRendererCubit extends Cubit<ArcformRendererState> {
@@ -36,11 +37,11 @@ class ArcformRendererCubit extends Cubit<ArcformRendererState> {
             : _phaseToGeometryPattern(phase ?? 'Discovery');
 
         // Create initial loaded state with actual phase and geometry
-        emit(const ArcformRendererLoaded(
-          nodes: [],
-          edges: [],
-          selectedGeometry: GeometryPattern.spiral, // Will be updated below
-          currentPhase: 'Expansion', // Will be updated below
+        emit(ArcformRendererLoaded(
+          nodes: const [],
+          edges: const [],
+          selectedGeometry: geometry,
+          currentPhase: phase ?? 'Discovery',
         ));
 
         // Update with actual phase and geometry
@@ -67,7 +68,7 @@ class ArcformRendererCubit extends Cubit<ArcformRendererState> {
         nodes: [],
         edges: [],
         selectedGeometry: GeometryPattern.spiral,
-        currentPhase: 'Expansion', // More balanced starting phase
+        currentPhase: 'Discovery', // Default starting phase
       ));
 
       // Then use the proper geometry system for layout
@@ -78,35 +79,28 @@ class ArcformRendererCubit extends Cubit<ArcformRendererState> {
   /// Get the latest arcform snapshot data from storage
   Future<Map<String, dynamic>?> _getLatestArcformSnapshot() async {
     try {
-      final box = await Hive.openBox('arcform_snapshots');
+      final box = await Hive.openBox<ArcformSnapshot>('arcform_snapshots');
       
       if (box.isEmpty) return null;
 
       // Find the most recent snapshot
-      Map<String, dynamic>? latestSnapshot;
+      ArcformSnapshot? latestSnapshot;
       DateTime? latestDate;
       
       for (final key in box.keys) {
         final snapshot = box.get(key);
-        if (snapshot is Map) {
-          final snapshotMap = Map<String, dynamic>.from(snapshot);
-          final timestamp = snapshotMap['timestamp'];
-          
-          if (timestamp != null) {
-            final date = timestamp is DateTime ? timestamp : DateTime.tryParse(timestamp.toString());
-            if (date != null && (latestDate == null || date.isAfter(latestDate))) {
-              latestDate = date;
-              latestSnapshot = snapshotMap;
-            }
+        if (snapshot != null) {
+          if (latestDate == null || snapshot.timestamp.isAfter(latestDate)) {
+            latestDate = snapshot.timestamp;
+            latestSnapshot = snapshot;
           }
         }
       }
       
       if (latestSnapshot != null) {
-        final data = latestSnapshot['data'] as Map<String, dynamic>?;
         return {
-          'phase': data?['phase'] as String?,
-          'geometry': data?['geometry'] as String?,
+          'phase': latestSnapshot.data['phase'] as String?,
+          'geometry': latestSnapshot.data['geometry'] as String?,
         };
       }
       
