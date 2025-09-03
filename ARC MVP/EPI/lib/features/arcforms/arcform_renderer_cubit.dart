@@ -22,23 +22,29 @@ class ArcformRendererCubit extends Cubit<ArcformRendererState> {
   Future<void> _loadArcformData() async {
     try {
       // Try to load the latest arcform snapshot
-      final latestPhase = await _getLatestArcformPhase();
+      final snapshotData = await _getLatestArcformSnapshot();
       
-      if (latestPhase != null) {
+      if (snapshotData != null) {
         // Use actual data from storage
         final sampleKeywords = ['Journal', 'Reflection', 'Growth', 'Insight', 'Pattern', 'Awareness', 'Clarity', 'Wisdom'];
-        const defaultGeometry = GeometryPattern.spiral;
+        final phase = snapshotData['phase'] as String?;
+        final geometryName = snapshotData['geometry'] as String?;
+        
+        // Map phase to geometry if geometry not found
+        final geometry = geometryName != null 
+            ? _stringToGeometryPattern(geometryName)
+            : _phaseToGeometryPattern(phase ?? 'Discovery');
 
-        // Create initial loaded state with actual phase
+        // Create initial loaded state with actual phase and geometry
         emit(const ArcformRendererLoaded(
           nodes: [],
           edges: [],
-          selectedGeometry: GeometryPattern.spiral,
+          selectedGeometry: GeometryPattern.spiral, // Will be updated below
           currentPhase: 'Expansion', // Will be updated below
         ));
 
-        // Update with actual phase
-        _updateStateWithKeywords(sampleKeywords, defaultGeometry, latestPhase);
+        // Update with actual phase and geometry
+        _updateStateWithKeywords(sampleKeywords, geometry, phase);
       } else {
         // Fallback to sample data
         _loadSampleData();
@@ -69,8 +75,8 @@ class ArcformRendererCubit extends Cubit<ArcformRendererState> {
     });
   }
 
-  /// Get the latest arcform phase from storage
-  Future<String?> _getLatestArcformPhase() async {
+  /// Get the latest arcform snapshot data from storage
+  Future<Map<String, dynamic>?> _getLatestArcformSnapshot() async {
     try {
       final box = await Hive.openBox('arcform_snapshots');
       
@@ -98,12 +104,55 @@ class ArcformRendererCubit extends Cubit<ArcformRendererState> {
       
       if (latestSnapshot != null) {
         final data = latestSnapshot['data'] as Map<String, dynamic>?;
-        return data?['phase'] as String?;
+        return {
+          'phase': data?['phase'] as String?,
+          'geometry': data?['geometry'] as String?,
+        };
       }
       
       return null;
     } catch (e) {
       return null;
+    }
+  }
+
+  /// Convert string to GeometryPattern
+  GeometryPattern _stringToGeometryPattern(String geometryName) {
+    switch (geometryName.toLowerCase()) {
+      case 'spiral':
+        return GeometryPattern.spiral;
+      case 'flower':
+        return GeometryPattern.flower;
+      case 'branch':
+        return GeometryPattern.branch;
+      case 'weave':
+        return GeometryPattern.weave;
+      case 'glowcore':
+        return GeometryPattern.glowCore;
+      case 'fractal':
+        return GeometryPattern.fractal;
+      default:
+        return GeometryPattern.spiral;
+    }
+  }
+
+  /// Map phase to GeometryPattern
+  GeometryPattern _phaseToGeometryPattern(String phase) {
+    switch (phase) {
+      case 'Discovery':
+        return GeometryPattern.spiral;
+      case 'Expansion':
+        return GeometryPattern.flower;
+      case 'Transition':
+        return GeometryPattern.branch;
+      case 'Consolidation':
+        return GeometryPattern.weave;
+      case 'Recovery':
+        return GeometryPattern.glowCore;
+      case 'Breakthrough':
+        return GeometryPattern.fractal;
+      default:
+        return GeometryPattern.spiral; // Default to Discovery
     }
   }
 
