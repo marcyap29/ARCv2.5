@@ -1,8 +1,8 @@
 # ARC_MVP_IMPLEMENTATION.md
 
-> **Status:** Production-ready with complete 3D arcform feature ✅  
-> **Scope:** ARC MVP (journaling → emotional analysis → interactive 2D/3D Arcforms → timeline) with sacred UX and cinematic animations.  
-> **Last updated:** 2025‑01‑02 (America/Los_Angeles)
+> **Status:** Production-ready with RIVET phase-stability gating ✅  
+> **Scope:** ARC MVP (journaling → emotional analysis → RIVET gating → interactive 2D/3D Arcforms → timeline) with sacred UX and cinematic animations.  
+> **Last updated:** 2025‑09‑03 (America/Los_Angeles)
 
 ---
 
@@ -16,7 +16,7 @@
   - **Cinematic Animations**: Full-screen Arcform reveals with staggered particle effects.
 - Critical stability + UX issues addressed (navigation, save, loading, lifecycle safety).
 - **Prompts 21–23** added: Welcome flow, Audio framework, Arcform sovereignty (auto vs manual).  
-- **Recent enhancements**: Keyword-driven phase detection, EmotionalValenceService, advanced notifications, progressive disclosure UI.
+- **Recent enhancements**: RIVET phase-stability gating, dual-dial insights visualization, keyword-driven phase detection, EmotionalValenceService, advanced notifications, progressive disclosure UI.
 - Remaining prompts broken into **actionable tickets** with file paths and acceptance criteria.
 
 ---
@@ -24,7 +24,7 @@
 ## 2) Architecture Snapshot
 
 - **Data flow:**  
-  `Journal Entry → Emotional Analysis → Keyword Extraction/Selection → Keyword-Driven Phase Detection → Arcform Creation → Storage → Interactive Visualization (Arcforms / Timeline) → Insights (later)`
+  `Journal Entry → Emotional Analysis → Keyword Extraction/Selection → Keyword-Driven Phase Detection → RIVET Phase-Stability Gating → Arcform Creation → Storage → Interactive Visualization (Arcforms / Timeline) → Insights with RIVET Status`
 - **Storage:** Hive (encrypted, offline‑first).  
 - **State:** Bloc/Cubit (global providers).  
 - **Rendering:** Flutter (60 fps targets; reduced motion compatible).  
@@ -68,6 +68,7 @@
 
 ## 4) Completed Work Highlights
 
+- **RIVET Phase-Stability Gating:** Dual-dial "two green" gate system with ALIGN (fidelity) and TRACE (evidence) metrics. Mathematical precision with transparent reasoning.
 - **Complete 3D Arcform Feature:** Full 3D visualization with labels, emotional warmth, connecting lines, interactive controls.
 - **Keyword-Driven Phase Detection:** Semantic keyword-to-phase mapping prioritizes user intent over automated analysis.
 - **Emotional Intelligence System:** EmotionalValenceService with 100+ categorized words, color temperature mapping.
@@ -100,6 +101,24 @@
 - Interactive clickable letters with progressive disclosure animations
 - Color temperature mapping: warm/cool/neutral emotional visualization
 - Dynamic glow effects based on emotional intensity
+
+### 2025‑09‑03 — RIVET Phase-Stability Gating System ⭐
+- **Dual-Dial Gate Implementation** - "Two dials, both green" phase-stability monitoring
+  - ALIGN metric: Exponential smoothing (β = 2/(N+1)) measuring phase fidelity
+  - TRACE metric: Saturating accumulator (1 - exp(-Σe_i/K)) measuring evidence sufficiency  
+  - Mathematical precision with A*=0.6, T*=0.6, W=2, K=20, N=10 defaults
+- **Intelligent Evidence Weighting** - Independence and novelty multipliers enhance evidence quality
+  - Independence boost (1.2x) for different sources/days to prevent gaming
+  - Novelty boost (1.0-1.5x) via Jaccard distance on keywords for variety
+  - Sustainment window requires W=2 consistent events with ≥1 independent
+- **User-Transparent Gating** - Clear reasoning when gate is closed
+  - Dual save paths: confirmed phases (gate open) vs. proposed phases (gate closed)  
+  - Real-time insights visualization with percentage displays and lock/unlock icons
+  - Graceful fallback handling preserves existing user experience when RIVET unavailable
+- **Production-Ready Implementation** - Comprehensive error handling and telemetry
+  - Singleton provider pattern with safe initialization and error recovery
+  - Hive persistence for user-specific RIVET state and event history
+  - Complete unit test coverage for mathematical properties and edge cases
 
 ### 2025‑01‑02 — Keyword-Driven Phase Detection Enhancement  
 - **Intelligent Phase Recommendations** - Keywords now prioritize over automated text analysis
@@ -137,6 +156,26 @@
   - Standardized phase icon mapping (Discovery, Expansion, Transition, Consolidation, Recovery, Breakthrough)
   - Added comprehensive debug logging for phase retrieval tracking
   - Improved phase detection accuracy and consistency across the app
+
+### 2025‑01‑02 — Phase Confirmation Dialog Restoration & Complete Navigation Flow Fixes
+- **Phase Confirmation Dialog Restored** - Brought back the missing phase recommendation step in journal entry creation
+  - Users now see AI-generated phase recommendations before saving new entries with transparent rationale
+  - Integrated user choice to accept AI recommendation or select different phase/geometry combination
+  - Connected to existing `PhaseRecommendationDialog` and `PhaseRecommender.recommend()` for keyword-driven analysis
+  - Preserved user agency in emotional processing phase selection with full transparency
+- **Complete Navigation Flow Fixed** - Resolved navigation loops that prevented return to main menu after saving
+  - Fixed result passing chain: KeywordAnalysisView → EmotionSelectionView → JournalCaptureView → Home
+  - Enhanced dialog closure and result handling throughout the entire navigation stack
+  - Implemented seamless transition from journal creation to home without getting stuck in editing loops
+- **Timeline Phase Editing Enhanced** - Real-time UI updates for timeline entry phase modifications
+  - Added local state management for instant UI feedback when changing entry phases
+  - Fixed UI overflow issues in phase selection dialogs with proper responsive design
+  - Enhanced timeline refresh logic to properly show updated data without cache conflicts
+  - Database integration ensures phase changes persist immediately in arcform snapshots
+- **End-to-End User Journey Completed** - Full restoration of intended user experience flow
+  - Complete journey: Write Entry → Select Emotion → Choose Reason → Analyze Keywords → **CONFIRM PHASE** → Save → Return Home
+  - Users maintain full agency over their emotional processing with transparent AI assistance
+  - Both new entry creation and existing entry editing flows now work seamlessly with proper navigation
 
 ### 2025‑09‑01 — Production Stability & Flutter API Updates
 - Fixed Flutter Color API compatibility issues for latest versions

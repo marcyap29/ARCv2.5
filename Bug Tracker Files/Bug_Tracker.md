@@ -1,9 +1,54 @@
 # EPI ARC MVP - Bug Tracker
 
-> **Last Updated**: January 2, 2025 7:30 PM (America/Los_Angeles)  
-> **Total Items Tracked**: 20 (19 bugs + 1 enhancement)  
+> **Last Updated**: September 3, 2025 12:00 PM (America/Los_Angeles)  
+> **Total Items Tracked**: 21 (19 bugs + 2 enhancements)  
 > **Critical Issues Fixed**: 19  
-> **Status**: All blocking issues resolved - Production ready with keyword-driven phase detection ✅
+> **Status**: All blocking issues resolved - Production ready with RIVET phase-stability gating ✅
+
+---
+
+## Enhancement ID: ENH-2025-09-03-001
+**Title**: RIVET Phase-Stability Gating System Implementation
+
+**Type**: Enhancement  
+**Priority**: P1 (Critical)  
+**Status**: ✅ Complete  
+**Reporter**: Product Development  
+**Implementer**: Claude Code  
+**Implementation Date**: 2025-09-03  
+
+#### Description
+Implemented comprehensive RIVET (phase-stability gating) system providing "two dials, both green" monitoring for phase change decisions with mathematical precision and user transparency.
+
+#### Key Features Implemented
+- **Dual-Dial Gate System**: ALIGN (fidelity) and TRACE (evidence sufficiency) metrics with 60% thresholds
+- **Mathematical Foundation**: Exponential smoothing for ALIGN, saturating accumulator for TRACE
+- **Sustainment Window**: W=2 events with independence requirements for gate opening
+- **Independence Tracking**: Boosts evidence weight for different sources/days (1.2x multiplier)
+- **Novelty Detection**: Jaccard distance on keywords for evidence variety (1.0-1.5x multiplier)
+- **Insights Visualization**: Real-time dual dials in Insights tab showing gate status
+- **Safe Fallback**: Graceful degradation when RIVET unavailable, preserves user experience
+
+#### Technical Implementation
+- **Core Module**: `rivet_service.dart` with ALIGN/TRACE calculations (A*=0.6, T*=0.6, W=2, K=20, N=10)
+- **Persistence**: Hive-based storage for user-specific RIVET state and event history
+- **Provider Pattern**: Singleton `rivet_provider.dart` with comprehensive error handling
+- **Integration**: Post-confirmation save flow with proposed phase handling when gate closed
+- **Telemetry**: Complete logging system for debugging and analytics
+- **Testing**: Unit tests covering mathematical properties and edge cases
+
+#### Formula Implementation
+```
+ALIGN_t = (1-β)ALIGN_{t-1} + β*s_t, where β = 2/(N+1)
+TRACE_t = 1 - exp(-Σe_i/K), with independence and novelty multipliers
+Gate Opens: (ALIGN≥0.6 ∧ TRACE≥0.6) sustained for 2+ events with ≥1 independent
+```
+
+#### User Experience Impact
+- **Transparent Gating**: Clear explanations when gate is closed ("Needs sustainment 1/2")
+- **Dual Save Paths**: Confirmed phases (gate open) vs. proposed phases (gate closed)
+- **No Breaking Changes**: Existing flows preserved with RIVET as enhancement layer
+- **Visual Feedback**: Lock/unlock icons and percentage displays in Insights
 
 ---
 
@@ -1294,5 +1339,219 @@ All bugs discovered and fixed during development phase before user release, demo
 
 ---
 
+## Bug ID: BUG-2025-01-02-009
+**Title**: Missing Phase Confirmation Dialog in Journal Entry Creation Flow
+
+**Severity**: High  
+**Priority**: P2 (High)  
+**Status**: ✅ Fixed  
+**Reporter**: User Testing  
+**Assignee**: Claude Code  
+**Found Date**: 2025-01-02  
+**Fixed Date**: 2025-01-02  
+
+#### Description
+The phase confirmation dialog was missing from the journal entry creation flow, preventing users from seeing AI-generated phase recommendations and making informed choices about their emotional processing phase.
+
+#### Steps to Reproduce
+1. Start new journal entry flow
+2. Complete: Write Entry → Select Emotion → Choose Reason → Analyze Keywords
+3. Observe missing phase confirmation step
+4. Notice inability to see AI recommendations or select phase
+
+#### Expected Behavior
+Users should see AI-generated phase recommendations with rationale before saving entries
+
+#### Actual Behavior
+Phase confirmation dialog was completely missing from the flow
+
+#### Root Cause
+The phase recommendation dialog integration was not properly connected in the journal entry creation flow
+
+#### Solution
+Restored complete phase confirmation dialog:
+- Integrated `PhaseRecommendationDialog` into journal entry flow
+- Connected to `PhaseRecommender.recommend()` for keyword-driven analysis
+- Added transparent rationale display explaining phase recommendations
+- Implemented user choice to accept recommendation or select different phase
+- Enhanced `_saveWithConfirmedPhase()` method for proper phase handling
+
+#### Files Modified
+- `lib/features/journal/widgets/keyword_analysis_view.dart`
+- `lib/features/journal/widgets/emotion_selection_view.dart`
+- `lib/features/journal/journal_capture_view.dart`
+
+#### Testing Notes
+Verified users now see AI phase recommendations with clear rationale before saving entries
+
+---
+
+## Bug ID: BUG-2025-01-02-010
+**Title**: Navigation Loop Preventing Return to Main Menu After Journal Save
+
+**Severity**: Critical  
+**Priority**: P1 (Blocker)  
+**Status**: ✅ Fixed  
+**Reporter**: User Testing  
+**Assignee**: Claude Code  
+**Found Date**: 2025-01-02  
+**Fixed Date**: 2025-01-02  
+
+#### Description
+After saving journal entries, users were getting stuck in navigation loops and unable to return to the main menu, creating a poor user experience and preventing completion of the journal entry process.
+
+#### Steps to Reproduce
+1. Complete journal entry flow: Write → Emotion → Reason → Keywords → Phase → Save
+2. Observe navigation behavior after save
+3. Notice getting stuck in editing flow instead of returning to main menu
+
+#### Expected Behavior
+After saving, should seamlessly return to main menu/home screen
+
+#### Actual Behavior
+Navigation resulted in loops preventing return to main menu
+
+#### Root Cause
+Improper result passing chain and dialog closure handling in the navigation stack
+
+#### Solution
+Fixed complete navigation flow:
+- Fixed result passing chain: KeywordAnalysisView → EmotionSelectionView → JournalCaptureView → Home
+- Added proper dialog closure and result handling throughout navigation stack
+- Enhanced `_saveWithConfirmedPhase()` method to handle both custom and default geometry selections
+- Implemented seamless return to main menu after successful journal entry save
+
+#### Files Modified
+- `lib/features/journal/widgets/keyword_analysis_view.dart`
+- `lib/features/journal/widgets/emotion_selection_view.dart`
+- `lib/features/journal/journal_capture_view.dart`
+
+#### Testing Notes
+Verified seamless navigation from journal creation back to main menu without loops
+
+---
+
+## Bug ID: BUG-2025-01-02-011
+**Title**: Timeline Phase Editing Not Reflecting Changes in Real-Time
+
+**Severity**: Medium  
+**Priority**: P3 (Medium)  
+**Status**: ✅ Fixed  
+**Reporter**: User Testing  
+**Assignee**: Claude Code  
+**Found Date**: 2025-01-02  
+**Fixed Date**: 2025-01-02  
+
+#### Description
+When editing phases from the timeline, changes were not immediately reflected in the UI, requiring users to refresh or navigate away and back to see updates.
+
+#### Steps to Reproduce
+1. Navigate to Timeline tab
+2. Edit a journal entry's phase
+3. Observe UI not updating immediately
+4. Notice need to refresh to see changes
+
+#### Expected Behavior
+Phase changes should be immediately visible in the timeline edit view
+
+#### Actual Behavior
+UI did not update in real-time when phases were changed
+
+#### Root Cause
+Missing local state management and improper timeline refresh logic
+
+#### Solution
+Enhanced timeline phase editing with real-time updates:
+- Added local state management (`_currentPhase`, `_currentGeometry`) for instant UI updates
+- Fixed UI overflow issues in phase selection dialog with proper `Expanded` widgets
+- Enhanced phase/geometry display to use current values instead of widget properties
+- Improved timeline refresh logic to show updated data without cache conflicts
+- Enhanced `updateEntryPhase()` method in TimelineCubit for persistent phase changes
+
+#### Files Modified
+- `lib/features/timeline/widgets/interactive_timeline_view.dart`
+- `lib/features/timeline/timeline_cubit.dart`
+
+#### Testing Notes
+Verified timeline phase changes now update immediately with proper persistence
+
+---
+
+## Updated Bug Summary Statistics
+
+### By Severity
+- **Critical**: 5 bugs (21.7%)
+- **High**: 9 bugs (39.1%) 
+- **Medium**: 8 bugs (34.8%)
+- **Low**: 1 bug (4.3%)
+
+### By Component
+- **Journal Capture**: 8 bugs (34.8%)
+- **Arcforms**: 4 bugs (17.4%)
+- **Timeline**: 4 bugs (17.4%)
+- **Welcome/Onboarding**: 1 bug (4.3%)
+- **Widget Lifecycle**: 1 bug (4.3%)
+- **Navigation Flow**: 3 bugs (13.0%)
+- **Branch Merge Conflicts**: 4 bugs (17.4%)
+
+### Resolution Time
+- **Average**: Same-day resolution
+- **Critical Issues**: All resolved within hours
+- **Merge Conflicts**: All resolved during merge process
+- **Total Development Impact**: ~15 hours
+
+### Quality Impact
+All bugs discovered and fixed during development phase before user release, demonstrating effective testing and quality assurance processes.
+
+---
+
+## Updated Lessons Learned
+
+1. **Widget Lifecycle Management**: Always validate `context.mounted` before overlay operations
+2. **State Management**: Avoid duplicate BlocProviders; use global instances consistently  
+3. **Navigation Patterns**: Understand Flutter navigation context (tabs vs pushed routes)
+4. **Progressive UX**: Implement conditional UI based on user progress/content
+5. **Responsive Design**: Use constraint-based sizing instead of fixed dimensions
+6. **API Consistency**: Verify method names match actual implementations
+7. **User Flow Design**: Test complete user journeys to identify flow issues
+8. **Save Functionality**: Ensure save operations actually persist data, not just navigate
+9. **Visual Hierarchy**: Remove UI elements that don't serve the current step's purpose
+10. **Natural Progression**: Design flows that match user mental models (write first, then reflect)
+11. **Branch Management**: Coordinate changelog updates between branches to prevent conflicts
+12. **Merge Strategy**: Understand which branch features to preserve during merge conflicts
+13. **Component Architecture**: Maintain consistent container/scaffold patterns across branches
+14. **Feature Integration**: Plan how independent features will merge before development
+15. **Phase-Geometry Synchronization**: Ensure UI state consistency between related components
+16. **Feature Restoration**: Maintain comprehensive feature tracking to prevent accidental removal
+17. **Debug Capabilities**: Implement comprehensive logging for complex state management issues
+18. **Navigation Flow Testing**: Test complete navigation chains to prevent loops and stuck states
+19. **Real-time UI Updates**: Implement local state management for immediate user feedback
+20. **Dialog Integration**: Ensure proper dialog closure and result handling in navigation stacks
+
+---
+
+## Updated Prevention Strategies
+
+1. **Widget Safety Checklist**: Standard patterns for overlay and animation lifecycle management
+2. **State Architecture Review**: Consistent global provider patterns documented
+3. **Navigation Testing**: Test all navigation paths in development
+4. **UX Flow Validation**: Review progressive disclosure patterns with users
+5. **API Integration Testing**: Automated checks for method name consistency
+6. **End-to-End Flow Testing**: Test complete user journeys from start to finish
+7. **Save Operation Validation**: Verify all save operations actually persist data
+8. **UI Cleanup Reviews**: Regular review of UI elements for relevance and clarity
+9. **Branch Merge Planning**: Coordinate changelog updates and component architecture before parallel development
+10. **Merge Conflict Documentation**: Document all merge conflicts as learning experiences
+11. **Architecture Consistency Reviews**: Ensure consistent container/layout patterns across all branches
+12. **Pre-merge Testing**: Test merge scenarios in feature branches before main branch integration
+13. **State Synchronization Testing**: Verify related UI components stay synchronized during state changes
+14. **Feature Completeness Audits**: Regular reviews to ensure no functionality is accidentally removed
+15. **Debug Infrastructure**: Implement comprehensive logging for complex state management scenarios
+16. **Navigation Chain Testing**: Test complete navigation flows to prevent loops and stuck states
+17. **Real-time Update Patterns**: Implement local state management for immediate UI feedback
+18. **Dialog Flow Validation**: Ensure proper dialog integration and result handling in user flows
+
+---
+
 **Status**: 🎉 **All Critical & High Priority Bugs Resolved**  
-**Deployment Readiness**: ✅ **Production Ready with Complete 3D Arcform Feature & Synchronized Phase/Geometry Display**
+**Deployment Readiness**: ✅ **Production Ready with Complete Phase Confirmation Dialog & Navigation Flow Fixes**
