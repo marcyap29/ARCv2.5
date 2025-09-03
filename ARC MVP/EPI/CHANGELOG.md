@@ -14,36 +14,46 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
-## [Latest Update - 2025-01-02] - Keyword-Driven Phase Detection Enhancement
+## [Latest Update - 2025-01-02] - Keyword Extraction Algorithm Fixes & Improvements
 
-### 🧠 Enhanced - Intelligent Phase Recommendations
-- **Keyword-Based Phase Detection** - Phase recommendations now prioritize user-selected keywords over automated text analysis
-  - Implemented semantic keyword-to-phase mapping with sophisticated scoring algorithm
-  - Added comprehensive keyword sets for all 6 ATLAS phases (Recovery, Discovery, Expansion, Transition, Consolidation, Breakthrough)
-  - Keywords take precedence when available, providing more accurate user-driven recommendations
-  - Smart scoring considers direct matches, coverage, and relevance factors
+### 🔧 Fixed - Keyword Extraction Algorithm Issues
+- **RIVET Gating System Optimization** - Made keyword extraction less restrictive and more accurate
+  - Lowered tauAdd threshold: 0.35 → 0.15 (minimum score threshold)
+  - Reduced minEvidenceTypes: 2 → 1 (minimum evidence types required)
+  - Decreased minPhaseMatch: 0.20 → 0.10 (minimum phase match strength)
+  - Lowered minEmotionAmp: 0.15 → 0.05 (minimum emotion amplitude)
+  - Algorithm now finds keywords from rich journal entries instead of returning empty results
 
-### 🎯 Improved - User Agency & Accuracy  
-- **Enhanced PhaseRecommender Service** - Added selectedKeywords parameter to recommend() method
-  - Maintains backward compatibility with existing emotion/text-based detection
-  - Provides clearer rationale messaging when recommendations are keyword-based
-  - Falls back gracefully to emotion analysis when no keyword matches found
-  - Preserves user narrative autonomy while maintaining system intelligence
+### 🎯 Enhanced - Curated Keywords Database
+- **Expanded Technical & Development Keywords** - Added domain-specific terms for better coverage
+  - Technical terms: MVP, prototype, system, integration, detection, recommendations
+  - ARC system terms: arcform, phase, questionnaire, atlas, aurora, veil, polymeta
+  - Growth terms: breakthrough, momentum, threshold, crossing, barrier, speed, path, steps
+  - Emotional terms: bright, steady, focused, alive, coherent
+  - Temporal terms: first, time, today, loop, close, input, output, end, intent
 
-### 🔄 Updated - Journal Capture Flow
-- **Keyword Analysis Integration** - Selected keywords now flow seamlessly through the entire pipeline
-  - Keywords influence phase detection → geometry selection → Arcform creation
-  - Enhanced keyword selection now serves dual purpose: richer AI analysis + better phase accuracy
-  - Expanded keyword limit from 5 to 10 with curated semantic categories
-  - Improved user experience with more responsive and accurate phase recommendations
+### 🚫 Fixed - "Made Up Words" Problem
+- **Exact Word Matching Implementation** - Algorithm now only suggests words actually present in text
+  - Added `_isExactWordMatch()` function using word boundary regex (`\b`)
+  - Prevents partial matches (e.g., "uncertain" won't match "certainly")
+  - Removed inclusion of ALL curated keywords as candidates
+  - Only includes curated keywords that actually appear in the journal entry
+  - Eliminates phantom words like "uncertain", "ashamed", "content" from suggestions
+
+### 🔄 Improved - Candidate Generation & Scoring
+- **Enhanced Word Extraction** - More inclusive candidate generation
+  - Lowered minimum word length from 3 to 2 characters for better coverage
+  - Increased phrase max length from 20 to 25 characters
+  - Enhanced centrality scoring for words that appear in the actual text
+  - Added fallback mechanism: if RIVET gating filters all candidates, use top candidates by score
 
 ### ✅ Testing & Validation
-- **Comprehensive Testing** - All 6 phases correctly detected from their respective keyword sets
-- **Fallback Verification** - Confirmed proper emotion-based detection when no keyword matches
-- **Integration Testing** - No breaking changes to existing functionality
-- **User Flow Testing** - Complete keyword → phase → Arcform pipeline verified
+- **Algorithm Accuracy** - Now correctly extracts keywords from rich journal entries
+- **No Phantom Words** - Eliminated suggestions of words not present in text
+- **Fallback Reliability** - Ensures keywords are always found even with strict gating
+- **User Experience** - Meaningful keywords like "breakthrough", "momentum", "threshold" now properly detected
 
-**Status:** Production-ready with enhanced keyword-driven phase detection integrated
+**Status:** Production-ready with accurate keyword extraction that only shows words actually in journal entries
 
 ---
 
