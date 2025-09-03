@@ -5,6 +5,7 @@ import 'package:my_app/features/timeline/timeline_state.dart';
 import 'package:my_app/features/timeline/timeline_entry_model.dart';
 import 'package:my_app/features/arcforms/services/emotional_valence_service.dart';
 import 'package:my_app/features/arcforms/arcform_renderer_state.dart';
+import 'package:my_app/repositories/journal_repository.dart';
 import 'package:my_app/shared/app_colors.dart';
 import 'package:my_app/shared/text_style.dart';
 import 'dart:math' as math;
@@ -24,6 +25,8 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
   
   int _currentIndex = 0;
   List<TimelineEntry> _entries = [];
+  bool _isSelectionMode = false;
+  Set<String> _selectedEntryIds = {};
 
   @override
   void initState() {
@@ -95,6 +98,10 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
           return const Center(child: CircularProgressIndicator());
         }
 
+        if (state is TimelineEmpty) {
+          return _buildEmptyState();
+        }
+
         if (state is TimelineError) {
           return Center(
             child: Text(
@@ -110,15 +117,79 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
   }
 
   Widget _buildTimelineHeader() {
+    if (_isSelectionMode) {
+      return Container(
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          children: [
+            IconButton(
+              onPressed: _exitSelectionMode,
+              icon: const Icon(Icons.close),
+              color: kcPrimaryTextColor,
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                '${_selectedEntryIds.length} selected',
+                style: heading1Style(context).copyWith(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+            // Select All button
+            TextButton(
+              onPressed: _selectedEntryIds.length == _entries.length
+                  ? _deselectAll
+                  : _selectAll,
+              child: Text(
+                _selectedEntryIds.length == _entries.length
+                    ? 'Deselect All'
+                    : 'Select All',
+                style: bodyStyle(context).copyWith(
+                  color: kcPrimaryColor,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            // Delete selected button
+            IconButton(
+              onPressed: _selectedEntryIds.isNotEmpty
+                  ? _deleteSelectedEntries
+                  : null,
+              icon: const Icon(Icons.delete),
+              color: _selectedEntryIds.isNotEmpty
+                  ? kcDangerColor
+                  : kcSecondaryTextColor.withOpacity(0.3),
+            ),
+          ],
+        ),
+      );
+    }
+
     return Container(
       padding: const EdgeInsets.all(16),
-      child: Text(
-        'Your Sacred Journey',
-        style: heading1Style(context).copyWith(
-          fontSize: 24,
-          fontWeight: FontWeight.w300,
-        ),
-        textAlign: TextAlign.center,
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              'Your Sacred Journey',
+              style: heading1Style(context).copyWith(
+                fontSize: 24,
+                fontWeight: FontWeight.w300,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ),
+          // Selection mode button
+          IconButton(
+            onPressed: _enterSelectionMode,
+            icon: const Icon(Icons.checklist),
+            color: kcPrimaryColor,
+            tooltip: 'Select multiple entries',
+          ),
+        ],
       ),
     );
   }
@@ -163,11 +234,12 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
   Widget _buildTimelineEntry(int index) {
     final entry = _entries[index];
     final isCurrentEntry = index == _currentIndex;
+    final isSelected = _selectedEntryIds.contains(entry.id);
     final distance = (index - _currentIndex).abs();
     
     // Calculate opacity based on distance from current entry
     double opacity = 1.0;
-    if (distance > 0) {
+    if (distance > 0 && !_isSelectionMode) {
       opacity = math.max(0.3, 1.0 - (distance * 0.3));
     }
 
@@ -175,25 +247,68 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
       animation: _fadeAnimation,
       builder: (context, child) {
         return Transform.scale(
-          scale: isCurrentEntry ? 1.0 : 0.8,
+          scale: (isCurrentEntry && !_isSelectionMode) ? 1.0 : 0.8,
           child: Opacity(
             opacity: opacity * _fadeAnimation.value,
             child: GestureDetector(
               onTap: () => _onEntryTapped(entry, index),
-              child: Container(
-                margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 40),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    // Arcform visualization
-                    _buildArcformVisualization(entry, isCurrentEntry),
-                    
-                    const SizedBox(height: 24),
-                    
-                    // Entry details
-                    _buildEntryDetails(entry, isCurrentEntry),
-                  ],
-                ),
+              onLongPress: _isSelectionMode ? null : () => _enterSelectionModeWithEntry(entry.id),
+              child: Stack(
+                children: [
+                  Container(
+                    margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 40),
+                    decoration: isSelected ? BoxDecoration(
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: kcPrimaryColor,
+                        width: 3,
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: kcPrimaryColor.withOpacity(0.3),
+                          blurRadius: 12,
+                          spreadRadius: 2,
+                        ),
+                      ],
+                    ) : null,
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        // Arcform visualization
+                        _buildArcformVisualization(entry, isCurrentEntry && !_isSelectionMode, isSelected),
+                        
+                        const SizedBox(height: 24),
+                        
+                        // Entry details
+                        _buildEntryDetails(entry, isCurrentEntry && !_isSelectionMode),
+                      ],
+                    ),
+                  ),
+                  // Selection checkbox
+                  if (_isSelectionMode)
+                    Positioned(
+                      top: 45,
+                      right: 25,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: isSelected ? kcPrimaryColor : Colors.white,
+                          border: Border.all(
+                            color: isSelected ? kcPrimaryColor : kcSecondaryTextColor,
+                            width: 2,
+                          ),
+                        ),
+                        child: Padding(
+                          padding: const EdgeInsets.all(4.0),
+                          child: Icon(
+                            Icons.check,
+                            size: 16,
+                            color: isSelected ? Colors.white : Colors.transparent,
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
               ),
             ),
           ),
@@ -203,19 +318,30 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
   }
 
   void _onEntryTapped(TimelineEntry entry, int index) {
-    // Navigate to entry editing view
-    Navigator.of(context).pushNamed(
-      '/journal-edit',
-      arguments: {
-        'entry': entry,
-        'entryIndex': index,
-      },
-    );
+    if (_isSelectionMode) {
+      // Toggle selection
+      setState(() {
+        if (_selectedEntryIds.contains(entry.id)) {
+          _selectedEntryIds.remove(entry.id);
+        } else {
+          _selectedEntryIds.add(entry.id);
+        }
+      });
+    } else {
+      // Navigate to entry editing view
+      Navigator.of(context).pushNamed(
+        '/journal-edit',
+        arguments: {
+          'entry': entry,
+          'entryIndex': index,
+        },
+      );
+    }
   }
 
-  Widget _buildArcformVisualization(TimelineEntry entry, bool isCurrentEntry) {
+  Widget _buildArcformVisualization(TimelineEntry entry, bool isCurrentEntry, [bool isSelected = false]) {
     final phaseColor = _getPhaseColor(entry.phase);
-    final phaseGeometry = _getPhaseGeometry(entry.phase);
+    final phaseGeometry = _getPhaseGeometry(entry.phase, entry.geometry);
     
     return Container(
       width: 120,
@@ -314,7 +440,28 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
     }
   }
 
-  GeometryPattern? _getPhaseGeometry(String? phase) {
+  GeometryPattern? _getPhaseGeometry(String? phase, String? entryGeometry) {
+    // Use actual geometry from entry if available
+    if (entryGeometry != null) {
+      switch (entryGeometry.toLowerCase()) {
+        case 'spiral':
+          return GeometryPattern.spiral;
+        case 'flower':
+          return GeometryPattern.flower;
+        case 'branch':
+          return GeometryPattern.branch;
+        case 'weave':
+          return GeometryPattern.weave;
+        case 'glowcore':
+          return GeometryPattern.glowCore;
+        case 'fractal':
+          return GeometryPattern.fractal;
+        default:
+          break;
+      }
+    }
+    
+    // Fall back to phase-based geometry if no entry geometry
     if (phase == null) return null;
     
     switch (phase.toLowerCase()) {
@@ -418,6 +565,187 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
         ],
       ),
     );
+  }
+
+  Widget _buildEmptyState() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.auto_stories_outlined,
+              size: 80,
+              color: kcSecondaryTextColor.withOpacity(0.6),
+            ),
+            const SizedBox(height: 24),
+            Text(
+              'No Journal Entries',
+              style: heading1Style(context).copyWith(
+                fontSize: 24,
+                color: kcPrimaryTextColor,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'All your journal entries have been deleted.\nTime to start fresh with a new phase!',
+              style: bodyStyle(context).copyWith(
+                color: kcSecondaryTextColor,
+                fontSize: 16,
+                height: 1.5,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 32),
+            ElevatedButton(
+              onPressed: _restartPhaseQuestionnaire,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: kcPrimaryColor,
+                padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.refresh, color: Colors.white),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Start Phase Questionnaire',
+                    style: buttonStyle(context).copyWith(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _restartPhaseQuestionnaire() {
+    // TODO: Navigate to phase questionnaire
+    // This would typically navigate to the initial phase selection screen
+    Navigator.of(context).pushReplacementNamed('/phase-questionnaire');
+  }
+
+  void _enterSelectionMode() {
+    setState(() {
+      _isSelectionMode = true;
+      _selectedEntryIds.clear();
+    });
+  }
+
+  void _enterSelectionModeWithEntry(String entryId) {
+    setState(() {
+      _isSelectionMode = true;
+      _selectedEntryIds.clear();
+      _selectedEntryIds.add(entryId);
+    });
+  }
+
+  void _exitSelectionMode() {
+    setState(() {
+      _isSelectionMode = false;
+      _selectedEntryIds.clear();
+    });
+  }
+
+  void _selectAll() {
+    setState(() {
+      _selectedEntryIds.clear();
+      _selectedEntryIds.addAll(_entries.map((e) => e.id));
+    });
+  }
+
+  void _deselectAll() {
+    setState(() {
+      _selectedEntryIds.clear();
+    });
+  }
+
+  Future<void> _deleteSelectedEntries() async {
+    if (_selectedEntryIds.isEmpty) return;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: kcSurfaceColor,
+        title: Text(
+          'Delete ${_selectedEntryIds.length} Entries',
+          style: heading1Style(context),
+        ),
+        content: Text(
+          'Are you sure you want to delete ${_selectedEntryIds.length} journal entries? This action cannot be undone.',
+          style: bodyStyle(context),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: Text(
+              'Cancel',
+              style: buttonStyle(context).copyWith(color: kcSecondaryTextColor),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: kcDangerColor,
+            ),
+            child: Text(
+              'Delete All',
+              style: buttonStyle(context),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && mounted) {
+      try {
+        final journalRepository = JournalRepository();
+        
+        // Delete all selected entries
+        for (final entryId in _selectedEntryIds) {
+          await journalRepository.deleteJournalEntry(entryId);
+        }
+
+        // Check if all entries have been deleted
+        final timelineCubit = context.read<TimelineCubit>();
+        final allEntriesDeleted = await timelineCubit.checkIfAllEntriesDeleted();
+        
+        if (mounted) {
+          if (!allEntriesDeleted) {
+            // Refresh the timeline if there are still entries
+            timelineCubit.refreshEntries();
+          }
+          
+          // Exit selection mode
+          _exitSelectionMode();
+          
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('${_selectedEntryIds.length} entries deleted successfully'),
+              backgroundColor: kcSuccessColor,
+            ),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Failed to delete entries: $e'),
+              backgroundColor: kcDangerColor,
+            ),
+          );
+        }
+      }
+    }
   }
 
   List<TimelineEntry> _getFilteredEntries(TimelineLoaded state) {

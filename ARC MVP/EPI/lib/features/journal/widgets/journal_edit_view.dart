@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:my_app/features/timeline/timeline_entry_model.dart';
+import 'package:my_app/features/timeline/timeline_cubit.dart';
+import 'package:my_app/features/timeline/widgets/historical_arcform_view.dart';
+import 'package:my_app/repositories/journal_repository.dart';
 import 'package:my_app/shared/app_colors.dart';
 import 'package:my_app/shared/text_style.dart';
 
@@ -19,15 +23,30 @@ class JournalEditView extends StatefulWidget {
 
 class _JournalEditViewState extends State<JournalEditView> {
   late TextEditingController _textController;
+  late TextEditingController _dateController;
   late FocusNode _focusNode;
   String? _selectedMood;
   List<String> _selectedKeywords = [];
+  late DateTime _selectedDate;
 
   @override
   void initState() {
     super.initState();
     _textController = TextEditingController(text: widget.entry.preview);
     _focusNode = FocusNode();
+    
+    // Parse date from entry format (M/d/yyyy)
+    try {
+      final dateParts = widget.entry.date.split('/');
+      _selectedDate = DateTime(
+        int.parse(dateParts[2]), // year
+        int.parse(dateParts[0]), // month
+        int.parse(dateParts[1]), // day
+      );
+    } catch (e) {
+      _selectedDate = DateTime.now();
+    }
+    _dateController = TextEditingController(text: _formatDate(_selectedDate));
     
     // Initialize with existing data
     _selectedMood = null; // TimelineEntry doesn't have mood, will be set by user
@@ -37,6 +56,7 @@ class _JournalEditViewState extends State<JournalEditView> {
   @override
   void dispose() {
     _textController.dispose();
+    _dateController.dispose();
     _focusNode.dispose();
     super.dispose();
   }
@@ -49,6 +69,23 @@ class _JournalEditViewState extends State<JournalEditView> {
         backgroundColor: kcBackgroundColor,
         title: Text('Edit Entry', style: heading1Style(context)),
         actions: [
+          // View historical arcform button
+          IconButton(
+            onPressed: _viewHistoricalArcform,
+            icon: const Icon(Icons.auto_graph),
+            color: kcPrimaryColor,
+            tooltip: 'View Arcform',
+          ),
+          const SizedBox(width: 8),
+          // Delete button
+          IconButton(
+            onPressed: _onDeletePressed,
+            icon: const Icon(Icons.delete_outline),
+            color: kcDangerColor,
+            tooltip: 'Delete Entry',
+          ),
+          const SizedBox(width: 8),
+          // Save button
           Padding(
             padding: const EdgeInsets.only(right: 16.0),
             child: ElevatedButton(
@@ -70,7 +107,7 @@ class _JournalEditViewState extends State<JournalEditView> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Entry date
+              // Entry date (editable)
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.all(16.0),
@@ -82,17 +119,38 @@ class _JournalEditViewState extends State<JournalEditView> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Editing entry from:',
+                      'Entry Date:',
                       style: captionStyle(context).copyWith(
                         color: Colors.white.withOpacity(0.8),
                       ),
                     ),
                     const SizedBox(height: 8),
-                    Text(
-                      widget.entry.date,
-                      style: heading1Style(context).copyWith(
-                        color: Colors.white,
-                        fontSize: 18,
+                    GestureDetector(
+                      onTap: _showDatePicker,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: Colors.white.withOpacity(0.3)),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.calendar_today,
+                              color: Colors.white,
+                              size: 16,
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              _formatDate(_selectedDate),
+                              style: heading1Style(context).copyWith(
+                                color: Colors.white,
+                                fontSize: 16,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   ],
@@ -282,7 +340,7 @@ class _JournalEditViewState extends State<JournalEditView> {
     }
 
     // TODO: Implement save functionality
-    // This would update the existing entry with new content, mood, and keywords
+    // This would update the existing entry with new content, mood, keywords, and date
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Text('Entry updated successfully'),
@@ -291,5 +349,122 @@ class _JournalEditViewState extends State<JournalEditView> {
     );
     
     Navigator.of(context).pop();
+  }
+
+  void _onDeletePressed() {
+    showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: kcSurfaceColor,
+        title: Text(
+          'Delete Entry',
+          style: heading1Style(context),
+        ),
+        content: Text(
+          'Are you sure you want to delete this journal entry? This action cannot be undone.',
+          style: bodyStyle(context),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: Text(
+              'Cancel',
+              style: buttonStyle(context).copyWith(color: kcSecondaryTextColor),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: kcDangerColor,
+            ),
+            child: Text(
+              'Delete',
+              style: buttonStyle(context),
+            ),
+          ),
+        ],
+      ),
+    ).then((shouldDelete) {
+      if (shouldDelete == true) {
+        _deleteEntry();
+      }
+    });
+  }
+
+  Future<void> _deleteEntry() async {
+    try {
+      final journalRepository = JournalRepository();
+      await journalRepository.deleteJournalEntry(widget.entry.id);
+      
+      // Check if this was the last entry
+      final timelineCubit = context.read<TimelineCubit>();
+      final allEntriesDeleted = await timelineCubit.checkIfAllEntriesDeleted();
+      
+      if (mounted) {
+        if (!allEntriesDeleted) {
+          // Refresh the timeline if there are still entries
+          timelineCubit.refreshEntries();
+        }
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Entry deleted successfully'),
+            backgroundColor: kcSuccessColor,
+          ),
+        );
+        
+        Navigator.of(context).pop();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to delete entry: $e'),
+            backgroundColor: kcDangerColor,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _showDatePicker() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _selectedDate,
+      firstDate: DateTime(2020),
+      lastDate: DateTime.now(),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: Theme.of(context).colorScheme.copyWith(
+              primary: kcPrimaryColor,
+              onPrimary: Colors.white,
+              surface: kcSurfaceColor,
+              onSurface: kcPrimaryTextColor,
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+
+    if (picked != null && picked != _selectedDate) {
+      setState(() {
+        _selectedDate = picked;
+        _dateController.text = _formatDate(_selectedDate);
+      });
+    }
+  }
+
+  String _formatDate(DateTime date) {
+    return '${date.month}/${date.day}/${date.year}';
+  }
+
+  void _viewHistoricalArcform() {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => HistoricalArcformView(entry: widget.entry),
+      ),
+    );
   }
 }
