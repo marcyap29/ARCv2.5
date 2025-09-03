@@ -696,6 +696,9 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
         final timelineCubit = context.read<TimelineCubit>();
         final allEntriesDeleted = await timelineCubit.checkIfAllEntriesDeleted();
         
+        // Store the count before clearing selection
+        final deletedCount = _selectedEntryIds.length;
+        
         if (mounted) {
           if (!allEntriesDeleted) {
             // Refresh the timeline if there are still entries
@@ -710,7 +713,7 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
           
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('${_selectedEntryIds.length} entries deleted successfully'),
+              content: Text('$deletedCount entries deleted successfully'),
               backgroundColor: kcSuccessColor,
             ),
           );
