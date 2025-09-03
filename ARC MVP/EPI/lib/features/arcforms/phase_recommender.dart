@@ -117,6 +117,7 @@ class PhaseRecommender {
   /// Determine phase based on selected keywords using semantic mapping
   static String? _getPhaseFromKeywords(List<String> keywords) {
     final keywordSet = keywords.map((k) => k.toLowerCase()).toSet();
+    print('DEBUG: PhaseRecommender analyzing keywords: $keywordSet');
     
     // Define keyword mappings for each phase
     final Map<String, Set<String>> phaseKeywords = {
@@ -171,11 +172,16 @@ class PhaseRecommender {
       final sortedPhases = phaseScores.entries.toList()
         ..sort((a, b) => b.value.compareTo(a.value));
       
+      print('DEBUG: Phase scores: $phaseScores');
       final topPhase = sortedPhases.first;
+      print('DEBUG: Top phase: ${topPhase.key} with score: ${topPhase.value}');
       
       // Only return a phase if it has a meaningful score (at least 1 keyword match)
       if (topPhase.value >= 1.0) {
+        print('DEBUG: Returning keyword-based phase: ${topPhase.key}');
         return topPhase.key;
+      } else {
+        print('DEBUG: Score too low (${topPhase.value}), falling back to text analysis');
       }
     }
     
