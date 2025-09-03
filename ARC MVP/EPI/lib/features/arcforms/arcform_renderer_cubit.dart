@@ -31,6 +31,8 @@ class ArcformRendererCubit extends Cubit<ArcformRendererState> {
         final phase = snapshotData['phase'] as String?;
         final geometryName = snapshotData['geometry'] as String?;
         
+        print('DEBUG: Loading arcform data - phase: $phase, geometry: $geometryName');
+        
         // Map phase to geometry if geometry not found
         final geometry = geometryName != null 
             ? _stringToGeometryPattern(geometryName)
@@ -81,7 +83,11 @@ class ArcformRendererCubit extends Cubit<ArcformRendererState> {
     try {
       final box = await Hive.openBox<ArcformSnapshot>('arcform_snapshots');
       
-      if (box.isEmpty) return null;
+      print('DEBUG: Hive box has ${box.length} snapshots');
+      if (box.isEmpty) {
+        print('DEBUG: No snapshots found in storage');
+        return null;
+      }
 
       // Find the most recent snapshot
       ArcformSnapshot? latestSnapshot;
@@ -98,9 +104,12 @@ class ArcformRendererCubit extends Cubit<ArcformRendererState> {
       }
       
       if (latestSnapshot != null) {
+        final phase = latestSnapshot.data['phase'] as String?;
+        final geometry = latestSnapshot.data['geometry'] as String?;
+        print('DEBUG: Retrieved snapshot - phase: $phase, geometry: $geometry');
         return {
-          'phase': latestSnapshot.data['phase'] as String?,
-          'geometry': latestSnapshot.data['geometry'] as String?,
+          'phase': phase,
+          'geometry': geometry,
         };
       }
       
