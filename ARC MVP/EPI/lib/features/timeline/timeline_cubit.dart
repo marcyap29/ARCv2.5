@@ -31,6 +31,7 @@ class TimelineCubit extends Cubit<TimelineState> {
   }
 
   void refreshEntries() {
+    print('DEBUG: TimelineCubit.refreshEntries() called');
     _currentPage = 0;
     _hasMore = true;
     _loadEntries();
@@ -151,6 +152,7 @@ class TimelineCubit extends Cubit<TimelineState> {
   }
 
   void _loadEntries({TimelineFilter? filter}) {
+    print('DEBUG: TimelineCubit._loadEntries() called with filter: $filter');
     try {
       final currentState = state is TimelineLoaded
           ? state as TimelineLoaded

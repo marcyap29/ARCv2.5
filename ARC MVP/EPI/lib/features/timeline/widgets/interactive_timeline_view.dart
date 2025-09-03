@@ -696,7 +696,10 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
         if (mounted) {
           if (!allEntriesDeleted) {
             // Refresh the timeline if there are still entries
+            print('DEBUG: Refreshing timeline entries after deletion');
             timelineCubit.refreshEntries();
+          } else {
+            print('DEBUG: All entries deleted, no refresh needed');
           }
           
           // Exit selection mode
