@@ -69,8 +69,11 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
   Widget build(BuildContext context) {
     return BlocBuilder<TimelineCubit, TimelineState>(
       builder: (context, state) {
+        print('DEBUG: BlocBuilder received state: ${state.runtimeType}');
         if (state is TimelineLoaded) {
+          print('DEBUG: TimelineLoaded with ${state.groupedEntries.length} groups');
           _entries = _getFilteredEntries(state);
+          print('DEBUG: Filtered entries count: ${_entries.length}');
           
           if (_entries.isEmpty) {
             return Center(

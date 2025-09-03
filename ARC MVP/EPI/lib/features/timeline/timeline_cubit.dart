@@ -189,6 +189,7 @@ class TimelineCubit extends Cubit<TimelineState> {
       
       final groupedEntries = _groupEntriesByMonth(allEntries);
 
+      print('DEBUG: TimelineCubit emitting TimelineLoaded with ${groupedEntries.length} groups');
       emit(TimelineLoaded(
         groupedEntries: groupedEntries,
         filter: effectiveFilter,
