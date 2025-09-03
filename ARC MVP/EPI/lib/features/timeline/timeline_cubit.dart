@@ -119,20 +119,26 @@ class TimelineCubit extends Cubit<TimelineState> {
 
   List<TimelineEntry> _mapToTimelineEntries(List<JournalEntry> journalEntries) {
     return journalEntries.map((entry) {
-      // Determine phase from entry data
-      String? phase;
-      String? geometry;
+      // Get phase from arcform snapshots first (most accurate)
+      String? phase = _getPhaseForEntry(entry);
+      String? geometry = _getGeometryForEntry(entry);
       
-      if (entry.sageAnnotation != null) {
-        // Extract phase from sageAnnotation if available
-        phase = _determinePhaseFromAnnotation(entry.sageAnnotation!);
-      } else {
-        // Determine phase from content and other factors
-        phase = _determinePhaseFromContent(entry);
+      print('DEBUG: Entry ${entry.id} - Initial phase: $phase, geometry: $geometry');
+      
+      // Fallback to text-based phase detection if no arcform snapshot found
+      if (phase == null) {
+        if (entry.sageAnnotation != null) {
+          // Extract phase from sageAnnotation if available
+          phase = _determinePhaseFromAnnotation(entry.sageAnnotation!);
+          print('DEBUG: Entry ${entry.id} - Phase from annotation: $phase');
+        } else {
+          // Determine phase from content and other factors
+          phase = _determinePhaseFromContent(entry);
+          print('DEBUG: Entry ${entry.id} - Phase from content: $phase');
+        }
       }
       
-      // Try to get geometry from associated arcform snapshots
-      geometry = _getGeometryForEntry(entry);
+      print('DEBUG: Entry ${entry.id} - Final phase: $phase');
       
       return TimelineEntry(
         id: entry.id,
@@ -181,7 +187,13 @@ class TimelineCubit extends Cubit<TimelineState> {
   }
 
   List<String> _extractKeywords(JournalEntry entry) {
-    // Extract keywords from sage annotation if available
+    // Use the actual keywords that were stored in the entry
+    // These should be the keywords that were auto-selected by the algorithm
+    if (entry.keywords.isNotEmpty) {
+      return entry.keywords;
+    }
+    
+    // Fallback: extract keywords from sage annotation if available
     if (entry.sageAnnotation != null) {
       final annotation = entry.sageAnnotation!;
       // Extract key terms from SAGE components
@@ -189,7 +201,7 @@ class TimelineCubit extends Cubit<TimelineState> {
       return _extractImportantWords(allText);
     }
     
-    // Fallback: extract simple keywords from content
+    // Final fallback: extract simple keywords from content
     return _extractImportantWords(entry.content);
   }
 
@@ -267,6 +279,100 @@ class TimelineCubit extends Cubit<TimelineState> {
       return null;
     } catch (e) {
       return null;
+    }
+  }
+
+  /// Get the phase that was determined for a specific entry from arcform snapshots
+  String? _getPhaseForEntry(JournalEntry entry) {
+    try {
+      if (!Hive.isBoxOpen('arcform_snapshots')) {
+        return null;
+      }
+      
+      final box = Hive.box<ArcformSnapshot>('arcform_snapshots');
+      
+      // First, try to find a snapshot with matching arcformId
+      for (final key in box.keys) {
+        final snapshot = box.get(key);
+        if (snapshot != null && snapshot.arcformId == entry.id) {
+          // Try to get phase from the snapshot data
+          final phase = snapshot.data['phase'] as String?;
+          if (phase != null) {
+            print('DEBUG: Found phase for entry ${entry.id}: $phase');
+            return phase;
+          }
+          
+          // Fallback: determine phase from geometry if no explicit phase stored
+          final geometry = snapshot.data['geometry'] as String?;
+          if (geometry != null) {
+            final derivedPhase = _geometryToPhase(geometry);
+            print('DEBUG: Derived phase from geometry for entry ${entry.id}: $derivedPhase');
+            return derivedPhase;
+          }
+        }
+      }
+      
+      // If no exact match, find the closest arcform snapshot to this entry's creation time
+      ArcformSnapshot? closestSnapshot;
+      Duration? smallestDifference;
+      
+      for (final key in box.keys) {
+        final snapshot = box.get(key);
+        if (snapshot != null) {
+          final difference = entry.createdAt.difference(snapshot.timestamp).abs();
+          
+          // Only consider snapshots from before or around the same time as the entry
+          if (snapshot.timestamp.isBefore(entry.createdAt.add(const Duration(hours: 1)))) {
+            if (smallestDifference == null || difference < smallestDifference) {
+              smallestDifference = difference;
+              closestSnapshot = snapshot;
+            }
+          }
+        }
+      }
+      
+      if (closestSnapshot != null) {
+        // Try to get phase from the snapshot data
+        final phase = closestSnapshot.data['phase'] as String?;
+        if (phase != null) {
+          print('DEBUG: Found phase from closest snapshot for entry ${entry.id}: $phase');
+          return phase;
+        }
+        
+        // Fallback: determine phase from geometry if no explicit phase stored
+        final geometry = closestSnapshot.data['geometry'] as String?;
+        if (geometry != null) {
+          final derivedPhase = _geometryToPhase(geometry);
+          print('DEBUG: Derived phase from closest snapshot geometry for entry ${entry.id}: $derivedPhase');
+          return derivedPhase;
+        }
+      }
+      
+      print('DEBUG: No phase found for entry ${entry.id}');
+      return null;
+    } catch (e) {
+      print('DEBUG: Error getting phase for entry ${entry.id}: $e');
+      return null;
+    }
+  }
+
+  /// Convert geometry name to phase name
+  String _geometryToPhase(String geometry) {
+    switch (geometry.toLowerCase()) {
+      case 'spiral':
+        return 'Discovery';
+      case 'flower':
+        return 'Expansion';
+      case 'branch':
+        return 'Transition';
+      case 'weave':
+        return 'Consolidation';
+      case 'glowcore':
+        return 'Recovery';
+      case 'fractal':
+        return 'Breakthrough';
+      default:
+        return 'Discovery';
     }
   }
 }
