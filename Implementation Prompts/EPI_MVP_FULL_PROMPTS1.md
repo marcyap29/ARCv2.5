@@ -402,7 +402,20 @@ extended_prompts = """
 - Body: calm, readable.  
 - Captions: smaller, warm tone.  
 
-### Motion & Animation
+changes that need to be made:\
+  \
+  1. when I'm in the Arcform tab, the correct phase is listed at the top, however, the 3D arcform Geometry defaults at 
+  discovery, creating confusion between the 3d form on display (discovery), and what is the user's official phase (Transition, 
+  etc.). \
+  2. When I'm in the "Arcform" tab, I want the ability to change my phase as well. make it a small button on the upper right, 
+  and ask for confirmation that you want the phase changed.\
+  \
+  3. in my timeline here's the image: [Image #1], I actually want the Phase shape or phase on display above the "Journal Entry"
+   text, not that circle with 5 points etc.\
+  4. Also when I go into the editing menu, the "keywords" in that section [Image #2], are different than the keywords from the 
+  historical arcform [Image #4]. These actually don't even match the keywords that are autoselected by the app when I first 
+  enter a journal entry. I want the keywords in these past timeline apps to actually be the keywords chosen by the algorithm.
+  ### Motion & Animation
 - **Transitions:** Monument Valley-style, panels sliding as if planes in space.  
 - **Arcform reveal:** animate like a flower unfolding or constellation forming.  
 - **Microinteractions:** glowing nodes, soft button pulses, ink-dissolving fades.  

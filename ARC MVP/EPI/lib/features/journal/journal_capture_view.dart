@@ -81,7 +81,13 @@ class _JournalCaptureViewState extends State<JournalCaptureView> {
           ),
         ),
       ),
-    );
+    ).then((result) {
+      // If entry was saved successfully, clear the text and navigate back
+      if (result != null && result['save'] == true) {
+        _textController.clear();
+        // The emotion selection view should have already handled navigation to home
+      }
+    });
   }
 
   @override
