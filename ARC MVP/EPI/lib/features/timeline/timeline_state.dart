@@ -58,6 +58,10 @@ class TimelineLoaded extends TimelineState {
   List<Object?> get props => [groupedEntries, filter, hasMore];
 }
 
+class TimelineEmpty extends TimelineState {
+  const TimelineEmpty();
+}
+
 class TimelineError extends TimelineState {
   final String message;
 

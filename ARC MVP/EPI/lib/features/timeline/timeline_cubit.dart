@@ -3,7 +3,9 @@ import 'package:my_app/features/timeline/timeline_state.dart';
 import 'package:my_app/features/timeline/timeline_entry_model.dart';
 import 'package:my_app/repositories/journal_repository.dart';
 import 'package:my_app/models/journal_entry_model.dart';
+import 'package:my_app/models/arcform_snapshot_model.dart';
 import 'package:my_app/features/journal/sage_annotation_model.dart';
+import 'package:hive/hive.dart';
 
 class TimelineCubit extends Cubit<TimelineState> {
   final JournalRepository _journalRepository;
@@ -32,6 +34,18 @@ class TimelineCubit extends Cubit<TimelineState> {
     _currentPage = 0;
     _hasMore = true;
     _loadEntries();
+  }
+
+  /// Check if all entries have been deleted and emit a special state
+  Future<bool> checkIfAllEntriesDeleted() async {
+    final journalRepository = JournalRepository();
+    final count = await journalRepository.getEntryCount();
+    
+    if (count == 0) {
+      emit(const TimelineEmpty());
+      return true;
+    }
+    return false;
   }
 
   void setFilter(TimelineFilter filter) {
@@ -107,6 +121,8 @@ class TimelineCubit extends Cubit<TimelineState> {
     return journalEntries.map((entry) {
       // Determine phase from entry data
       String? phase;
+      String? geometry;
+      
       if (entry.sageAnnotation != null) {
         // Extract phase from sageAnnotation if available
         phase = _determinePhaseFromAnnotation(entry.sageAnnotation!);
@@ -114,6 +130,9 @@ class TimelineCubit extends Cubit<TimelineState> {
         // Determine phase from content and other factors
         phase = _determinePhaseFromContent(entry);
       }
+      
+      // Try to get geometry from associated arcform snapshots
+      geometry = _getGeometryForEntry(entry);
       
       return TimelineEntry(
         id: entry.id,
@@ -125,6 +144,7 @@ class TimelineCubit extends Cubit<TimelineState> {
         hasArcform: entry.sageAnnotation != null,
         keywords: _extractKeywords(entry),
         phase: phase,
+        geometry: geometry,
       );
     }).toList();
   }
@@ -210,5 +230,43 @@ class TimelineCubit extends Cubit<TimelineState> {
       'December'
     ];
     return '${months[date.month - 1]} ${date.year}';
+  }
+
+  /// Get the geometry pattern that was active for a specific entry
+  String? _getGeometryForEntry(JournalEntry entry) {
+    try {
+      if (!Hive.isBoxOpen('arcform_snapshots')) {
+        return null;
+      }
+      
+      final box = Hive.box<ArcformSnapshot>('arcform_snapshots');
+      
+      // Find the closest arcform snapshot to this entry's creation time
+      ArcformSnapshot? closestSnapshot;
+      Duration? smallestDifference;
+      
+      for (final key in box.keys) {
+        final snapshot = box.get(key);
+        if (snapshot != null) {
+          final difference = entry.createdAt.difference(snapshot.timestamp).abs();
+          
+          // Only consider snapshots from before or around the same time as the entry
+          if (snapshot.timestamp.isBefore(entry.createdAt.add(const Duration(hours: 1)))) {
+            if (smallestDifference == null || difference < smallestDifference) {
+              smallestDifference = difference;
+              closestSnapshot = snapshot;
+            }
+          }
+        }
+      }
+      
+      if (closestSnapshot != null) {
+        return closestSnapshot.data['geometry'] as String?;
+      }
+      
+      return null;
+    } catch (e) {
+      return null;
+    }
   }
 }

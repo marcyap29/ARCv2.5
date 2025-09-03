@@ -8,6 +8,7 @@ class TimelineEntry extends Equatable {
   final bool hasArcform;
   final List<String> keywords;
   final String? phase; // ATLAS phase at time of entry
+  final String? geometry; // Geometry pattern at time of entry
 
   const TimelineEntry({
     required this.id,
@@ -17,8 +18,9 @@ class TimelineEntry extends Equatable {
     required this.hasArcform,
     this.keywords = const [],
     this.phase,
+    this.geometry,
   });
 
   @override
-  List<Object?> get props => [id, date, monthYear, preview, hasArcform, keywords, phase];
+  List<Object?> get props => [id, date, monthYear, preview, hasArcform, keywords, phase, geometry];
 }
