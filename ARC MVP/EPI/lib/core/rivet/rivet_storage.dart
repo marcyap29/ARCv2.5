@@ -10,10 +10,10 @@ class RivetBox {
   Future<RivetState> load(String userId) async {
     try {
       if (!Hive.isBoxOpen(boxName)) {
-        await Hive.openBox<Map>(boxName);
+        await Hive.openBox(boxName);
       }
       
-      final box = Hive.box<Map>(boxName);
+      final box = Hive.box(boxName);
       final stateData = box.get(userId);
       
       if (stateData == null) {
@@ -43,10 +43,10 @@ class RivetBox {
   Future<void> save(String userId, RivetState state) async {
     try {
       if (!Hive.isBoxOpen(boxName)) {
-        await Hive.openBox<Map>(boxName);
+        await Hive.openBox(boxName);
       }
       
-      final box = Hive.box<Map>(boxName);
+      final box = Hive.box(boxName);
       await box.put(userId, state.toJson());
       
       print('DEBUG: Saved RIVET state for user $userId: '
@@ -63,11 +63,11 @@ class RivetBox {
   Future<void> saveEvent(String userId, RivetEvent event) async {
     try {
       if (!Hive.isBoxOpen(eventsBoxName)) {
-        await Hive.openBox<Map>(eventsBoxName);
+        await Hive.openBox(eventsBoxName);
       }
       
-      final box = Hive.box<Map>(eventsBoxName);
-      final userEvents = box.get(userId, defaultValue: <Map>[]) as List;
+      final box = Hive.box(eventsBoxName);
+      final userEvents = (box.get(userId, defaultValue: <Map<String, dynamic>>[]) as List).cast<Map<String, dynamic>>();
       
       userEvents.add(event.toJson());
       
@@ -87,11 +87,11 @@ class RivetBox {
   Future<List<RivetEvent>> loadEvents(String userId, {int limit = 10}) async {
     try {
       if (!Hive.isBoxOpen(eventsBoxName)) {
-        await Hive.openBox<Map>(eventsBoxName);
+        await Hive.openBox(eventsBoxName);
       }
       
-      final box = Hive.box<Map>(eventsBoxName);
-      final userEvents = box.get(userId, defaultValue: <Map>[]) as List;
+      final box = Hive.box(eventsBoxName);
+      final userEvents = (box.get(userId, defaultValue: <Map<String, dynamic>>[]) as List).cast<Map<String, dynamic>>();
       
       final events = userEvents
           .cast<Map<String, dynamic>>()
