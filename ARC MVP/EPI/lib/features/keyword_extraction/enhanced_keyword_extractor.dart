@@ -22,12 +22,12 @@ class RivetConfig {
   const RivetConfig({
     this.maxCandidates = 20,
     this.preselectTop = 15,
-    this.tauAdd = 0.35,
+    this.tauAdd = 0.15, // Lowered from 0.35 to be less restrictive
     this.tauDropRatio = 0.6,
     this.minGapVsRandom = 0.15,
-    this.minEvidenceTypes = 2,
-    this.minPhaseMatch = 0.20,
-    this.minEmotionAmp = 0.15,
+    this.minEvidenceTypes = 1, // Lowered from 2 to be less restrictive
+    this.minPhaseMatch = 0.10, // Lowered from 0.20 to be less restrictive
+    this.minEmotionAmp = 0.05, // Lowered from 0.15 to be less restrictive
     this.maxNewPerDay = 2,
     this.minPhaseDwellDays = 3,
     this.minPhaseDelta = 0.12,
@@ -153,6 +153,7 @@ class EnhancedKeywordExtractor {
     'grateful', 'anxious', 'hopeful', 'stressed', 'excited', 'calm', 'frustrated', 'peaceful',
     'overwhelmed', 'confident', 'uncertain', 'joyful', 'worried', 'relaxed', 'energized',
     'proud', 'ashamed', 'angry', 'content', 'sad', 'happy', 'fearful', 'optimistic',
+    'bright', 'steady', 'focused', 'alive', 'coherent',
     
     // Life Domains
     'work', 'family', 'relationship', 'health', 'creativity', 'spirituality', 'money', 'career',
@@ -164,10 +165,17 @@ class EnhancedKeywordExtractor {
     'transformation', 'progress', 'setback', 'opportunity', 'balance', 'clarity', 'wisdom',
     'reflection', 'meditation', 'mindfulness', 'awareness', 'patterns', 'habits', 'change',
     'acceptance', 'forgiveness', 'compassion', 'resilience', 'courage', 'vulnerability',
+    'momentum', 'threshold', 'crossing', 'barrier', 'speed', 'path', 'steps',
+    
+    // Technical & Development
+    'mvp', 'prototype', 'system', 'integration', 'detection', 'recommendations', 'connect',
+    'language', 'version', 'design', 'choices', 'visuals', 'stabilize', 'ship', 'experience',
+    'arcform', 'phase', 'questionnaire', 'atlas', 'aurora', 'veil', 'polymeta',
     
     // Temporal & Process
     'beginning', 'ending', 'continuation', 'pause', 'acceleration', 'slowing', 'rhythm',
     'timing', 'season', 'cycle', 'milestone', 'anniversary', 'deadline', 'pressure',
+    'first', 'time', 'today', 'loop', 'close', 'input', 'output', 'end', 'intent',
     
     // Relational & Social
     'connection', 'isolation', 'communication', 'conflict', 'harmony', 'support', 'trust',
@@ -296,9 +304,9 @@ class EnhancedKeywordExtractor {
       'neither', 'none', 'no', 'not', 'yes'
     };
     
-    // Extract meaningful words
+    // Extract meaningful words (lowered minimum length to 2 for better coverage)
     final extractedWords = words
-        .where((word) => word.length >= 3 && !stopWords.contains(word))
+        .where((word) => word.length >= 2 && !stopWords.contains(word))
         .map((word) => word.replaceAll(RegExp(r'[^\w]'), ''))
         .where((word) => word.isNotEmpty)
         .toSet();
@@ -308,13 +316,13 @@ class EnhancedKeywordExtractor {
         .where((keyword) => textLower.contains(keyword))
         .toSet();
     
-    // Extract 2-word phrases for better context
+    // Extract 2-word phrases for better context (lowered minimum length)
     final phrases = <String>{};
     for (int i = 0; i < words.length - 1; i++) {
-      if (words[i].length >= 3 && words[i + 1].length >= 3 &&
+      if (words[i].length >= 2 && words[i + 1].length >= 2 &&
           !stopWords.contains(words[i]) && !stopWords.contains(words[i + 1])) {
         final phrase = '${words[i]} ${words[i + 1]}';
-        if (phrase.length <= 20) phrases.add(phrase);
+        if (phrase.length <= 25) phrases.add(phrase); // Increased max length
       }
     }
     
@@ -343,8 +351,11 @@ class EnhancedKeywordExtractor {
       final inverseDocFreq = log(100 / (1 + _getDocumentFrequency(candidate))); // Simulated
       final tfidf = termFreq * inverseDocFreq;
       
-      // Calculate centrality (based on curated keyword presence)
-      final centrality = curatedKeywords.contains(candidate) ? 0.8 : 0.3;
+      // Calculate centrality (based on curated keyword presence and text occurrence)
+      final isInText = textLower.contains(candidate.toLowerCase());
+      final centrality = curatedKeywords.contains(candidate) 
+          ? (isInText ? 0.9 : 0.7)  // Higher score if in text
+          : (isInText ? 0.6 : 0.2); // Still give some score if in text
       
       // Calculate emotion amplitude
       final emotionAmp = _getEmotionAmplitude(candidate);
@@ -418,6 +429,25 @@ class EnhancedKeywordExtractor {
       if (decision.accept) {
         gatedCandidates.add(candidate);
       }
+    }
+    
+    // Fallback: if RIVET gating is too strict and we have no candidates,
+    // take the top candidates by score regardless of RIVET decision
+    if (gatedCandidates.isEmpty && candidates.isNotEmpty) {
+      // Sort by score and take top candidates
+      candidates.sort((a, b) => (b['score'] as double).compareTo(a['score'] as double));
+      final fallbackCandidates = candidates.take(config.maxCandidates).toList();
+      
+      // Mark them as accepted with fallback reason
+      for (final candidate in fallbackCandidates) {
+        candidate['rivet_decision'] = RivetDecision(
+          accept: true,
+          reasonCodes: ['FALLBACK_ACCEPTED'],
+          trace: {'fallback': true, 'score': candidate['score']},
+        );
+      }
+      
+      return fallbackCandidates;
     }
     
     return gatedCandidates;
