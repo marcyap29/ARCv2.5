@@ -332,6 +332,7 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
         emotion: emotion ?? '',
         reason: emotionReason ?? '',
         text: entry.content,
+        selectedKeywords: entry.keywords,
       );
       
       final rationale = PhaseRecommender.rationale(recommendedPhase);
