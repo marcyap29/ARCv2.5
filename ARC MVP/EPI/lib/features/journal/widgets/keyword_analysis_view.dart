@@ -6,6 +6,8 @@ import 'package:my_app/features/journal/journal_capture_cubit.dart';
 import 'package:my_app/features/journal/widgets/phase_recommendation_dialog.dart';
 import 'package:my_app/features/arcforms/phase_recommender.dart';
 import 'package:my_app/features/arcforms/arcform_mvp_implementation.dart';
+import 'package:my_app/core/rivet/rivet_models.dart';
+import 'package:my_app/core/rivet/rivet_provider.dart';
 import 'package:my_app/shared/app_colors.dart';
 import 'package:my_app/shared/text_style.dart';
 
@@ -31,6 +33,7 @@ class _KeywordAnalysisViewState extends State<KeywordAnalysisView>
     with SingleTickerProviderStateMixin {
   late AnimationController _progressController;
   late Animation<double> _progressAnimation;
+  String? _recommendedPhase; // Store for RIVET event
 
   @override
   void initState() {
@@ -72,6 +75,9 @@ class _KeywordAnalysisViewState extends State<KeywordAnalysisView>
         selectedKeywords: keywordState.selectedKeywords,
       );
       
+      // Store for RIVET event creation
+      _recommendedPhase = recommendedPhase;
+      
       final rationale = PhaseRecommender.rationale(recommendedPhase);
       
       // Show phase recommendation dialog
@@ -99,49 +105,143 @@ class _KeywordAnalysisViewState extends State<KeywordAnalysisView>
     }
   }
 
-  void _saveWithConfirmedPhase(List<String> selectedKeywords, String phase, ArcformGeometry? overrideGeometry) {
-    // Save the entry with confirmed phase and geometry
-    if (overrideGeometry != null) {
-      // User selected custom geometry
-      context.read<JournalCaptureCubit>().saveEntryWithPhaseAndGeometry(
-        content: widget.content,
-        mood: widget.mood,
-        selectedKeywords: selectedKeywords,
-        phase: phase,
-        overrideGeometry: overrideGeometry,
-        emotion: widget.initialEmotion,
-        emotionReason: widget.initialReason,
-      );
-    } else {
-      // Use default geometry for phase
-      context.read<JournalCaptureCubit>().saveEntryWithPhaseAndGeometry(
-        content: widget.content,
-        mood: widget.mood,
-        selectedKeywords: selectedKeywords,
-        phase: phase,
-        overrideGeometry: _getDefaultGeometryForPhase(phase),
-        emotion: widget.initialEmotion,
-        emotionReason: widget.initialReason,
-      );
-    }
-    
+  void _saveWithConfirmedPhase(List<String> selectedKeywords, String phase, ArcformGeometry? overrideGeometry) async {
     // Close the phase dialog first
     Navigator.of(context).pop();
     
-    // Show success message and return result to trigger proper navigation
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Entry saved with $phase phase'),
-        backgroundColor: kcSuccessColor,
-      ),
-    );
-    
-    // Return result to emotion selection view so it can handle navigation properly
-    Navigator.of(context).pop({
-      'save': true,
-      'selectedKeywords': selectedKeywords,
-      'phase': phase,
-    });
+    try {
+      // RIVET Gate: Create event and check if phase change is allowed
+      final rivetProvider = RivetProvider();
+      final userId = 'default_user'; // TODO: Get actual user ID
+      
+      // Initialize provider if needed
+      if (!rivetProvider.isAvailable) {
+        await rivetProvider.initialize(userId);
+      }
+      
+      // Create RIVET event
+      final rivetEvent = RivetEvent(
+        date: DateTime.now(),
+        source: EvidenceSource.text, // TODO: Support voice later
+        keywords: selectedKeywords.toSet(),
+        predPhase: _recommendedPhase ?? phase, // Use stored recommendation
+        refPhase: phase, // User confirmed phase
+        tolerance: const {}, // Stub for categorical phases
+      );
+      
+      // Safely perform RIVET gating decision
+      final decision = await rivetProvider.safeIngest(rivetEvent, userId);
+      
+      // Determine geometry
+      final geometry = overrideGeometry ?? _getDefaultGeometryForPhase(phase);
+      
+      if (decision?.open == true) {
+        // Gate is open - save entry with confirmed phase
+        context.read<JournalCaptureCubit>().saveEntryWithPhaseAndGeometry(
+          content: widget.content,
+          mood: widget.mood,
+          selectedKeywords: selectedKeywords,
+          phase: phase,
+          overrideGeometry: geometry,
+          emotion: widget.initialEmotion,
+          emotionReason: widget.initialReason,
+        );
+        
+        // Show success message
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Entry saved with $phase phase'),
+              backgroundColor: kcSuccessColor,
+            ),
+          );
+        }
+      } else if (decision != null) {
+        // Gate is closed - save entry with proposed phase
+        context.read<JournalCaptureCubit>().saveEntryWithProposedPhase(
+          content: widget.content,
+          mood: widget.mood,
+          selectedKeywords: selectedKeywords,
+          proposedPhase: phase,
+          overrideGeometry: geometry,
+          emotion: widget.initialEmotion,
+          emotionReason: widget.initialReason,
+          gateReason: decision.whyNot ?? 'Phase stability gate closed',
+        );
+        
+        // Show gate decision message
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Entry saved - Phase change pending: ${decision.whyNot}'),
+              backgroundColor: kcPrimaryColor,
+              duration: const Duration(seconds: 4),
+            ),
+          );
+        }
+      } else {
+        // RIVET unavailable - fallback to direct save
+        context.read<JournalCaptureCubit>().saveEntryWithPhaseAndGeometry(
+          content: widget.content,
+          mood: widget.mood,
+          selectedKeywords: selectedKeywords,
+          phase: phase,
+          overrideGeometry: geometry,
+          emotion: widget.initialEmotion,
+          emotionReason: widget.initialReason,
+        );
+        
+        // Show fallback message
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Entry saved with $phase phase (RIVET unavailable)'),
+              backgroundColor: kcSuccessColor,
+            ),
+          );
+        }
+      }
+      
+      // Return result to emotion selection view for proper navigation
+      if (mounted) {
+        Navigator.of(context).pop({
+          'save': true,
+          'selectedKeywords': selectedKeywords,
+          'phase': phase,
+          'rivetGateOpen': decision?.open ?? false,
+        });
+      }
+    } catch (e) {
+      print('ERROR: RIVET gating failed: $e');
+      
+      // Fallback: Save without RIVET gating
+      final geometry = overrideGeometry ?? _getDefaultGeometryForPhase(phase);
+      context.read<JournalCaptureCubit>().saveEntryWithPhaseAndGeometry(
+        content: widget.content,
+        mood: widget.mood,
+        selectedKeywords: selectedKeywords,
+        phase: phase,
+        overrideGeometry: geometry,
+        emotion: widget.initialEmotion,
+        emotionReason: widget.initialReason,
+      );
+      
+      // Show fallback message
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Entry saved with $phase phase (RIVET unavailable)'),
+            backgroundColor: kcSuccessColor,
+          ),
+        );
+        
+        Navigator.of(context).pop({
+          'save': true,
+          'selectedKeywords': selectedKeywords,
+          'phase': phase,
+        });
+      }
+    }
   }
 
   ArcformGeometry _getDefaultGeometryForPhase(String phase) {
