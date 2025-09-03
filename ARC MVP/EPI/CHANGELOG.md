@@ -9,12 +9,54 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 ## [Unreleased]
 
 ### In Development
-- Additional geometric visualizations for Arcforms
+- Additional geometric visualizations for Arcforms  
 - Advanced animation sequences for sacred journaling
 
 ---
 
-## [Latest Update - 2025-01-02] - Phase Confirmation Dialog Restoration & Complete Navigation Flow Fixes
+## [Latest Update - 2025-09-03] - RIVET Phase-Stability Gating System Implementation ⭐
+
+### 🚀 NEW - RIVET Phase-Stability Gating System
+- **Dual-Dial "Two Green" Gate System** - Mathematical phase-stability monitoring with transparent user feedback
+  - **ALIGN Metric**: Exponential smoothing (β = 2/(N+1)) measuring phase prediction fidelity
+  - **TRACE Metric**: Saturating accumulator (1 - exp(-Σe_i/K)) measuring evidence sufficiency
+  - **Gate Logic**: Both dials must be ≥60% sustained for 2+ events with ≥1 independent source
+  - **Mathematical Precision**: A*=0.6, T*=0.6, W=2, K=20, N=10 proven defaults
+
+### 🧠 ADDED - Intelligent Evidence Weighting System  
+- **Independence Multiplier** - 1.2x boost for different sources/days to prevent gaming
+- **Novelty Multiplier** - 1.0-1.5x boost via Jaccard distance on keywords for evidence variety
+- **Sustainment Window** - Requires W=2 consistent threshold meetings with independence requirement
+- **Transparent Gating** - Clear explanations when gate closed ("Needs sustainment 1/2", "Need independent event")
+
+### 💎 ENHANCED - Insights Tab with Real-Time RIVET Visualization
+- **Dual-Dial Display** - Live ALIGN/TRACE percentages with color-coded status (green/orange)
+- **Gate Status** - Lock/unlock icons showing current gating state with detailed status messages  
+- **Loading States** - Proper initialization feedback and error handling for RIVET unavailability
+- **Telemetry Integration** - Debug logging with processing times and decision reasoning
+
+### 🔧 ADDED - Production-Ready Infrastructure
+- **Core RIVET Module** - `lib/core/rivet/` with models, service, storage, provider, telemetry
+- **Provider Pattern** - Singleton `RivetProvider` with comprehensive error handling and safe initialization
+- **Hive Persistence** - User-specific RIVET state and event history storage with 100-event limit
+- **Integration Points** - Post-confirmation save flow with dual paths (confirmed vs proposed phases)
+- **Unit Testing** - Complete test coverage for mathematical properties and edge cases (9 tests passing)
+
+### 🛡️ ENHANCED - Graceful Fallback & Error Handling  
+- **RIVET Unavailable** - Seamless fallback to direct phase saving when RIVET fails to initialize
+- **Safe Initialization** - Non-blocking bootstrap integration that doesn't crash app on RIVET failure
+- **User Experience Preservation** - All existing flows work identically when RIVET is disabled
+- **Metadata Tracking** - Proposed phases marked with RIVET metadata for future transparency
+
+### 📊 ADDED - RIVET Telemetry & Analytics System
+- **Decision Logging** - Every gate decision tracked with timing, reasoning, and state transitions
+- **Performance Metrics** - Processing times, success rates, and phase distribution analytics  
+- **Debug Output** - Detailed console logging for development and troubleshooting
+- **Bounded Memory** - Telemetry limited to 100 recent events to prevent memory leaks
+
+---
+
+## [2025-01-02] - Phase Confirmation Dialog Restoration & Complete Navigation Flow Fixes
 
 ### 🎯 RESTORED - Phase Confirmation Dialog for New Journal Entries
 - **Missing Phase Recommendation Dialog** - Fully restored the phase confirmation step that was missing from journal entry creation flow
