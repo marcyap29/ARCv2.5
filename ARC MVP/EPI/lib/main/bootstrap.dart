@@ -13,6 +13,7 @@ import 'package:my_app/models/user_profile_model.dart';
 import 'package:my_app/models/journal_entry_model.dart';
 import 'package:my_app/models/arcform_snapshot_model.dart';
 import 'package:my_app/features/journal/sage_annotation_model.dart';
+import 'package:my_app/core/rivet/rivet_storage.dart';
 
 import 'package:my_app/shared/app_colors.dart';
 import 'package:my_app/shared/text_style.dart';
@@ -187,6 +188,16 @@ Future<void> bootstrap({
           ),
         );
         return;
+      }
+
+      // === RIVET Storage Initialization ===
+      try {
+        await RivetBox.initialize();
+        logger.d('RIVET storage initialized successfully');
+      } catch (e, st) {
+        logger.e('Failed to initialize RIVET storage', e, st);
+        // RIVET failure is non-critical - continue app startup
+        logger.w('RIVET gating will be disabled due to storage initialization failure');
       }
 
       // ===========================================================

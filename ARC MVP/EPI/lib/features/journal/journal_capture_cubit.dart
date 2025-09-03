@@ -213,6 +213,59 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
     }
   }
 
+  /// Save entry with proposed phase when RIVET gate is closed
+  void saveEntryWithProposedPhase({
+    required String content,
+    required String mood,
+    required List<String> selectedKeywords,
+    required String proposedPhase,
+    required ArcformGeometry overrideGeometry,
+    String? emotion,
+    String? emotionReason,
+    String? gateReason,
+  }) async {
+    try {
+      final now = DateTime.now();
+      final entry = JournalEntry(
+        id: const Uuid().v4(),
+        title: _generateTitle(content),
+        content: content,
+        createdAt: now,
+        updatedAt: now,
+        tags: const [],
+        mood: mood,
+        audioUri: _audioPath,
+        keywords: selectedKeywords,
+        emotion: emotion,
+        emotionReason: emotionReason,
+      );
+
+      // Save the entry first
+      await _journalRepository.createJournalEntry(entry);
+
+      // Emit saved state immediately - don't wait for background processing
+      emit(JournalCaptureSaved());
+
+      // Process SAGE annotation in background (don't await)
+      _processSAGEAnnotation(entry);
+
+      // Create Arcform with proposed phase (not yet active)
+      // The displayed phase will remain unchanged until RIVET gate opens
+      await _createArcformWithProposedPhase(
+        content: content,
+        mood: mood,
+        keywords: selectedKeywords,
+        proposedPhase: proposedPhase,
+        overrideGeometry: overrideGeometry,
+        emotion: emotion,
+        emotionReason: emotionReason,
+        gateReason: gateReason,
+      );
+    } catch (e) {
+      emit(JournalCaptureError('Failed to save entry: ${e.toString()}'));
+    }
+  }
+
   void _processSAGEAnnotation(JournalEntry entry) async {
     try {
       // In a real implementation, this would call an AI service
@@ -449,6 +502,61 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
       print('Arcform created with manual geometry: $phase (${overrideGeometry.name}) with ${arcform.keywords.length} keywords');
     } catch (e) {
       print('Manual-geometry Arcform creation failed: $e');
+    }
+  }
+
+  Future<void> _createArcformWithProposedPhase({
+    required String content,
+    required String mood,
+    required List<String> keywords,
+    required String proposedPhase,
+    required ArcformGeometry overrideGeometry,
+    String? emotion,
+    String? emotionReason,
+    String? gateReason,
+  }) async {
+    try {
+      final title = _generateTitle(content);
+      final now = DateTime.now();
+      
+      // Create arcform with proposed phase annotation
+      final arcform = Arcform(
+        id: now.millisecondsSinceEpoch.toString(),
+        date: now,
+        title: title,
+        content: content,
+        mood: mood,
+        phase: proposedPhase, // This is the proposed phase, not active
+        geometry: overrideGeometry,
+        keywords: keywords,
+        emotion: emotion,
+        emotionReason: emotionReason,
+        // Add metadata to indicate this is a proposed phase due to RIVET gate
+        metadata: {
+          if (gateReason != null) 'rivet_gate_reason': gateReason,
+          'rivet_proposed_phase': proposedPhase,
+          'rivet_gate_closed': 'true',
+          'created_with_rivet': DateTime.now().toIso8601String(),
+        },
+      );
+      
+      print('Arcform created with proposed phase: $proposedPhase (${overrideGeometry.name}) - Gate: ${gateReason ?? "Unknown"}');
+      
+      await arcformRepository.saveArcform(arcform);
+      
+      // Emit success state
+      emit(state.copyWith(
+        status: JournalCaptureStatus.success,
+        selectedKeywords: keywords,
+      ));
+      
+      print('Proposed phase arcform saved successfully: $proposedPhase with ${keywords.length} keywords');
+    } catch (e) {
+      print('Proposed-phase Arcform creation failed: $e');
+      emit(state.copyWith(
+        status: JournalCaptureStatus.failure,
+        error: 'Failed to save entry with proposed phase: $e',
+      ));
     }
   }
 
