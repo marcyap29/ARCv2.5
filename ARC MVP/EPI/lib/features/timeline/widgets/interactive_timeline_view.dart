@@ -615,7 +615,14 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
   }
 
   Future<void> _deleteSelectedEntries() async {
-    if (_selectedEntryIds.isEmpty) return;
+    print('DEBUG: _deleteSelectedEntries called');
+    print('DEBUG: Selected entries count: ${_selectedEntryIds.length}');
+    print('DEBUG: Selected entry IDs: $_selectedEntryIds');
+    
+    if (_selectedEntryIds.isEmpty) {
+      print('DEBUG: No entries selected, returning');
+      return;
+    }
 
     final confirmed = await showDialog<bool>(
       context: context,
@@ -651,14 +658,36 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
       ),
     );
 
+    print('DEBUG: Dialog result: $confirmed');
+    
     if (confirmed == true && mounted) {
       try {
+        print('DEBUG: Starting deletion of ${_selectedEntryIds.length} entries');
+        print('DEBUG: Selected entry IDs: $_selectedEntryIds');
+        
         final journalRepository = JournalRepository();
+        
+        // Get count before deletion
+        final countBefore = await journalRepository.getEntryCount();
+        print('DEBUG: Total entries before deletion: $countBefore');
         
         // Delete all selected entries
         for (final entryId in _selectedEntryIds) {
+          print('DEBUG: Deleting entry: $entryId');
           await journalRepository.deleteJournalEntry(entryId);
+          
+          // Verify deletion
+          final deletedEntry = journalRepository.getJournalEntryById(entryId);
+          if (deletedEntry == null) {
+            print('DEBUG: ✅ Entry $entryId successfully deleted');
+          } else {
+            print('DEBUG: ❌ Entry $entryId still exists after deletion');
+          }
         }
+        
+        // Get count after deletion
+        final countAfter = await journalRepository.getEntryCount();
+        print('DEBUG: Total entries after deletion: $countAfter');
 
         // Check if all entries have been deleted
         final timelineCubit = context.read<TimelineCubit>();
