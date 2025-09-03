@@ -127,12 +127,12 @@ class PhaseRecommender {
       },
       'Discovery': {
         'curious', 'excited', 'hopeful', 'learning', 'goals', 'dreams', 
-        'growth', 'discovery', 'insight', 'exploration', 'new', 'beginning',
+        'growth', 'discovery', 'exploration', 'new', 'beginning',
         'wonder', 'question', 'explore', 'creativity', 'spirituality'
       },
       'Expansion': {
         'grateful', 'joyful', 'confident', 'energized', 'happy', 'blessed',
-        'opportunity', 'progress', 'breakthrough', 'transformation', 'wisdom',
+        'opportunity', 'progress', 'abundance', 'flourishing',
         'reach', 'possibility', 'energy', 'outward', 'more', 'bigger'
       },
       'Transition': {
@@ -147,7 +147,9 @@ class PhaseRecommender {
       },
       'Breakthrough': {
         'clarity', 'insight', 'breakthrough', 'transformation', 'wisdom',
-        'epiphany', 'suddenly', 'realized', 'understand', 'aha', 'purpose'
+        'epiphany', 'suddenly', 'realized', 'understand', 'aha', 'purpose',
+        'threshold', 'crossing', 'barrier', 'momentum', 'coherent', 'alive',
+        'unlock', 'path', 'crisp', 'landing'
       },
     };
     
