@@ -178,6 +178,9 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
 
       // Phase stability analysis - analyze entry for potential phase changes
       _performPhaseStabilityAnalysis(entry, emotion, emotionReason, context);
+      
+      // Also perform RIVET analysis for gate status
+      _performRivetAnalysis(entry, emotion, emotionReason);
     } catch (e) {
       emit(JournalCaptureError('Failed to save entry: ${e.toString()}'));
     }
@@ -398,8 +401,11 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
       final rivetProvider = RivetProvider();
       const userId = 'default_user'; // TODO: Use actual user ID
       
+      print('DEBUG: RIVET provider available: ${rivetProvider.isAvailable}');
       if (!rivetProvider.isAvailable) {
+        print('DEBUG: Initializing RIVET provider...');
         await rivetProvider.initialize(userId);
+        print('DEBUG: RIVET provider initialized: ${rivetProvider.isAvailable}');
       }
       
       // Create RIVET event

@@ -35,7 +35,7 @@ class PhaseDriftCard extends StatelessWidget {
               const SizedBox(width: 8),
               Text(
                 'Phase Trajectory',
-                style: AppTextStyle.heading4.copyWith(color: kcPrimaryColor),
+                style: heading3Style(context).copyWith(color: kcPrimaryColor),
               ),
             ],
           ),
@@ -68,7 +68,7 @@ class PhaseDriftCard extends StatelessWidget {
               const SizedBox(width: 8),
               Text(
                 'Phase Trajectory',
-                style: AppTextStyle.heading4.copyWith(color: kcPrimaryColor),
+                style: heading3Style(context).copyWith(color: kcPrimaryColor),
               ),
             ],
           ),
@@ -84,12 +84,12 @@ class PhaseDriftCard extends StatelessWidget {
                 const SizedBox(height: 8),
                 Text(
                   'No phase data yet',
-                  style: AppTextStyle.body.copyWith(color: kcSecondaryTextColor),
+                  style: bodyStyle(context).copyWith(color: kcSecondaryTextColor),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   'Phase patterns will emerge as you journal',
-                  style: AppTextStyle.caption.copyWith(color: kcSecondaryTextColor),
+                  style: captionStyle(context).copyWith(color: kcSecondaryTextColor),
                 ),
               ],
             ),
@@ -117,19 +117,19 @@ class PhaseDriftCard extends StatelessWidget {
               const SizedBox(width: 8),
               Text(
                 "Phase Drift",
-                style: AppTextStyle.heading1,
+                style: heading1Style(context),
               ),
             ],
           ),
           const SizedBox(height: 8),
           Text(
             "Total entries: ${trajectory.length}",
-            style: AppTextStyle.body,
+            style: bodyStyle(context),
           ),
           const SizedBox(height: 16),
           Text(
             "Phase drift visualization coming soon...",
-            style: AppTextStyle.caption,
+            style: captionStyle(context),
           ),
         ],
       ),
@@ -147,7 +147,7 @@ class PhaseDriftCard extends StatelessWidget {
         children: [
           Text(
             'Summary',
-            style: AppTextStyle.body.copyWith(
+            style: bodyStyle(context).copyWith(
               color: kcPrimaryColor,
               fontWeight: FontWeight.w500,
             ),
@@ -187,11 +187,11 @@ class PhaseDriftCard extends StatelessWidget {
             children: [
               Text(
                 label,
-                style: AppTextStyle.caption.copyWith(color: kcSecondaryTextColor),
+                style: captionStyle(context).copyWith(color: kcSecondaryTextColor),
               ),
               Text(
                 value,
-                style: AppTextStyle.body.copyWith(
+                style: bodyStyle(context).copyWith(
                   color: kcPrimaryColor,
                   fontWeight: FontWeight.w500,
                 ),
@@ -214,7 +214,7 @@ class PhaseDriftCard extends StatelessWidget {
       children: [
         Text(
           'Recent Activity',
-          style: AppTextStyle.body.copyWith(
+          style: bodyStyle(context).copyWith(
             color: kcPrimaryColor,
             fontWeight: FontWeight.w500,
           ),
@@ -249,7 +249,7 @@ class PhaseDriftCard extends StatelessWidget {
             width: 60,
             child: Text(
               dateStr,
-              style: AppTextStyle.caption.copyWith(color: kcSecondaryTextColor),
+              style: captionStyle(context).copyWith(color: kcSecondaryTextColor),
             ),
           ),
           const SizedBox(width: 12),
@@ -264,7 +264,7 @@ class PhaseDriftCard extends StatelessWidget {
           // Total count
           Text(
             totalCount.toString(),
-            style: AppTextStyle.caption.copyWith(
+            style: captionStyle(context).copyWith(
               color: kcPrimaryColor,
               fontWeight: FontWeight.w500,
             ),

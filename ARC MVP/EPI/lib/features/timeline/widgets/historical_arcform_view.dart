@@ -240,27 +240,12 @@ class _HistoricalArcformViewState extends State<HistoricalArcformView> {
           
           const SizedBox(height: 32),
 
-          // Phase and geometry info
-          Row(
-            children: [
-              Expanded(
-                child: _buildInfoCard(
-                  'Phase',
-                  phase ?? 'Unknown',
-                  Icons.psychology,
-                  _getPhaseColor(phase),
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: _buildInfoCard(
-                  'Geometry',
-                  _formatGeometryName(geometry),
-                  Icons.category,
-                  kcPrimaryColor,
-                ),
-              ),
-            ],
+          // Phase info
+          _buildInfoCard(
+            'Phase',
+            phase ?? 'Unknown',
+            Icons.psychology,
+            _getPhaseColor(phase),
           ),
 
           const SizedBox(height: 24),
@@ -397,26 +382,6 @@ class _HistoricalArcformViewState extends State<HistoricalArcformView> {
     );
   }
 
-  String _formatGeometryName(String? geometry) {
-    if (geometry == null) return 'Unknown';
-    
-    switch (geometry.toLowerCase()) {
-      case 'spiral':
-        return 'Spiral';
-      case 'flower':
-        return 'Flower';
-      case 'branch':
-        return 'Branch';
-      case 'weave':
-        return 'Weave';
-      case 'glowcore':
-        return 'Glow Core';
-      case 'fractal':
-        return 'Fractal';
-      default:
-        return geometry;
-    }
-  }
 
   Color _getPhaseColor(String? phase) {
     if (phase == null) return kcSecondaryTextColor;

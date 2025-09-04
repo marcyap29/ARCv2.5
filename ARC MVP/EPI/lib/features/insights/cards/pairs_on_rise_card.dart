@@ -35,7 +35,7 @@ class PairsOnRiseCard extends StatelessWidget {
               const SizedBox(width: 8),
               Text(
                 'Pairs on the Rise',
-                style: AppTextStyle.heading4.copyWith(color: kcSuccessColor),
+                style: heading3Style(context).copyWith(color: kcSuccessColor),
               ),
             ],
           ),
@@ -68,7 +68,7 @@ class PairsOnRiseCard extends StatelessWidget {
               const SizedBox(width: 8),
               Text(
                 'Pairs on the Rise',
-                style: AppTextStyle.heading4.copyWith(color: kcSuccessColor),
+                style: heading3Style(context).copyWith(color: kcSuccessColor),
               ),
             ],
           ),
@@ -84,12 +84,12 @@ class PairsOnRiseCard extends StatelessWidget {
                 const SizedBox(height: 8),
                 Text(
                   'No rising pairs yet',
-                  style: AppTextStyle.body.copyWith(color: kcSecondaryTextColor),
+                  style: bodyStyle(context).copyWith(color: kcSecondaryTextColor),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   'Keyword combinations will appear as you journal',
-                  style: AppTextStyle.caption.copyWith(color: kcSecondaryTextColor),
+                  style: captionStyle(context).copyWith(color: kcSecondaryTextColor),
                 ),
               ],
             ),
@@ -116,12 +116,12 @@ class PairsOnRiseCard extends StatelessWidget {
               const SizedBox(width: 8),
               Text(
                 'Pairs on the Rise',
-                style: AppTextStyle.heading4.copyWith(color: kcSuccessColor),
+                style: heading3Style(context).copyWith(color: kcSuccessColor),
               ),
               const Spacer(),
               Text(
                 '${pairs.length} pairs',
-                style: AppTextStyle.caption.copyWith(color: kcSecondaryTextColor),
+                style: captionStyle(context).copyWith(color: kcSecondaryTextColor),
               ),
             ],
           ),
@@ -131,7 +131,7 @@ class PairsOnRiseCard extends StatelessWidget {
             const SizedBox(height: 8),
             Text(
               '... and ${pairs.length - 5} more',
-              style: AppTextStyle.caption.copyWith(color: kcSecondaryTextColor),
+              style: captionStyle(context).copyWith(color: kcSecondaryTextColor),
             ),
           ],
         ],
@@ -189,7 +189,7 @@ class PairsOnRiseCard extends StatelessWidget {
                   children: [
                     Text(
                       displayK1,
-                      style: AppTextStyle.body.copyWith(
+                      style: bodyStyle(context).copyWith(
                         color: kcPrimaryColor,
                         fontWeight: FontWeight.w500,
                       ),
@@ -203,7 +203,7 @@ class PairsOnRiseCard extends StatelessWidget {
                     const SizedBox(width: 4),
                     Text(
                       displayK2,
-                      style: AppTextStyle.body.copyWith(
+                      style: bodyStyle(context).copyWith(
                         color: kcPrimaryColor,
                         fontWeight: FontWeight.w500,
                       ),
@@ -212,7 +212,7 @@ class PairsOnRiseCard extends StatelessWidget {
                 ),
                 Text(
                   '$count co-occurrences',
-                  style: AppTextStyle.caption.copyWith(color: kcSecondaryTextColor),
+                  style: captionStyle(context).copyWith(color: kcSecondaryTextColor),
                 ),
               ],
             ),
@@ -236,7 +236,7 @@ class PairsOnRiseCard extends StatelessWidget {
                 const SizedBox(width: 4),
                 Text(
                   '${lift.toStringAsFixed(1)}x',
-                  style: AppTextStyle.caption.copyWith(
+                  style: captionStyle(context).copyWith(
                     color: kcSuccessColor,
                     fontWeight: FontWeight.w500,
                   ),

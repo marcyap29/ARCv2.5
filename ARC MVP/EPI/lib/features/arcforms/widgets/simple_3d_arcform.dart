@@ -203,7 +203,7 @@ class _Simple3DArcformState extends State<Simple3DArcform>
     // Center the projection in the screen
     final screenSize = MediaQuery.of(context).size;
     final centerX = screenSize.width / 2;
-    final centerY = screenSize.height * 0.35; // Match the 2D positioning
+    final centerY = screenSize.height * 0.25; // Move arcform higher up
     
     final finalX = centerX + projectedX - nodeSize / 2;
     final finalY = centerY + projectedY - nodeSize / 2;
@@ -275,7 +275,7 @@ class _Simple3DArcformState extends State<Simple3DArcform>
         scale: _scale,
         screenCenter: Offset(
           MediaQuery.of(context).size.width / 2,
-          MediaQuery.of(context).size.height * 0.35,
+          MediaQuery.of(context).size.height * 0.25, // Move arcform higher up
         ),
       ),
     );
@@ -404,7 +404,7 @@ class _Simple3DArcformState extends State<Simple3DArcform>
           
           // Controls overlay
           Positioned(
-            bottom: 30,
+            bottom: 10,
             right: 16,
             child: Column(
               mainAxisSize: MainAxisSize.min,
