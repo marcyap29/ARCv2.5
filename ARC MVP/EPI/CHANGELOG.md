@@ -14,6 +14,27 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [Latest Update - 2025-01-20] - Phase Recommendation Dialog Removal & Flow Restoration
+
+### 🔄 COMPLETED - Journal Entry Flow Restoration
+- **Removed Phase Recommendation Dialog** - Eliminated popup that was interrupting journal save flow
+- **Restored Original Save Behavior** - Journal entries now save directly without phase confirmation popup
+- **Cleaned Up Unused Code** - Removed unused methods and imports related to phase dialog
+- **Re-enabled RIVET Analysis** - Background RIVET analysis restored after entry save
+- **Maintained User Experience** - Preserved original journal entry flow as intended
+
+### 🐛 FIXED - User Experience Issues
+- **No More Interrupting Popups** - Users can now save journal entries without being prompted for phase confirmation
+- **Streamlined Workflow** - Journal entry → Keyword Analysis → Save Entry → RIVET Analysis (background)
+- **Consistent Behavior** - Restored to previous working state before phase dialog was added
+
+### 📁 FILES CHANGED
+- `lib/features/journal/widgets/keyword_analysis_view.dart` - Removed phase dialog, restored original save flow
+- `lib/features/journal/journal_capture_cubit.dart` - Re-enabled RIVET analysis, cleaned up unused methods
+- `lib/features/journal/widgets/phase_recommendation_dialog.dart` - **DELETED** (no longer needed)
+
+---
+
 ## [Latest Update - 2025-01-20] - Branch Merge Completion & Repository Cleanup ⭐
 
 ### 🔄 COMPLETED - Branch Integration & Cleanup
