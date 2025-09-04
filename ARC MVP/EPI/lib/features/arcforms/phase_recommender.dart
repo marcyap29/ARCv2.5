@@ -1,3 +1,5 @@
+import 'package:my_app/features/atlas/phase_scoring.dart';
+
 class PhaseRecommender {
   static bool _lastRecommendationWasKeywordBased = false;
   
@@ -186,5 +188,33 @@ class PhaseRecommender {
     }
     
     return null; // Fall back to emotion/text analysis
+  }
+
+  /// Get probability scores for all phases based on entry data
+  /// This delegates to PhaseScoring for consistency with the phase stability system
+  static Map<String, double> score({
+    required String emotion,
+    required String reason,
+    required String text,
+    List<String>? selectedKeywords,
+  }) {
+    return PhaseScoring.score(
+      emotion: emotion,
+      reason: reason,
+      text: text,
+      selectedKeywords: selectedKeywords,
+    );
+  }
+
+  /// Get the highest scoring phase from a score map
+  /// This is a convenience method that delegates to PhaseScoring
+  static String getHighestScoringPhase(Map<String, double> scores) {
+    return PhaseScoring.getHighestScoringPhase(scores);
+  }
+
+  /// Get a summary of the scoring results for debugging
+  /// This is a convenience method that delegates to PhaseScoring
+  static String getScoringSummary(Map<String, double> scores) {
+    return PhaseScoring.getScoringSummary(scores);
   }
 }
