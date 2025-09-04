@@ -8,6 +8,7 @@ import 'package:my_app/features/arcforms/arcform_renderer_state.dart';
 import 'package:my_app/repositories/journal_repository.dart';
 import 'package:my_app/shared/app_colors.dart';
 import 'package:my_app/shared/text_style.dart';
+import 'package:my_app/features/startup/phase_quiz_prompt_view.dart';
 import 'dart:math' as math;
 
 class InteractiveTimelineView extends StatefulWidget {
@@ -67,9 +68,22 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
 
   @override
   Widget build(BuildContext context) {
-    return BlocBuilder<TimelineCubit, TimelineState>(
-      builder: (context, state) {
-        print('DEBUG: BlocBuilder received state: ${state.runtimeType}');
+    return BlocListener<TimelineCubit, TimelineState>(
+      listener: (context, state) {
+        if (state is TimelineEmpty) {
+          // Automatically navigate to phase quiz when all entries are deleted
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) {
+              Navigator.of(context).pushReplacement(
+                MaterialPageRoute(builder: (context) => const PhaseQuizPromptView()),
+              );
+            }
+          });
+        }
+      },
+      child: BlocBuilder<TimelineCubit, TimelineState>(
+        builder: (context, state) {
+          print('DEBUG: BlocBuilder received state: ${state.runtimeType}');
         if (state is TimelineLoaded) {
           print('DEBUG: TimelineLoaded with ${state.groupedEntries.length} groups');
           _entries = _getFilteredEntries(state);
@@ -115,7 +129,8 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
         }
 
         return Container();
-      },
+        },
+      ),
     );
   }
 
@@ -577,9 +592,10 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
   }
 
   void _restartPhaseQuestionnaire() {
-    // TODO: Navigate to phase questionnaire
-    // This would typically navigate to the initial phase selection screen
-    Navigator.of(context).pushReplacementNamed('/phase-questionnaire');
+    // Navigate to phase quiz prompt for elegant restart flow
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(builder: (context) => const PhaseQuizPromptView()),
+    );
   }
 
   void _enterSelectionMode() {

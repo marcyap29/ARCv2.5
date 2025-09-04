@@ -97,7 +97,7 @@ class _CentralWordInputState extends State<CentralWordInput> {
                 ),
               ),
               child: Text(
-                'Create My First Arcform',
+                'Continue',
                 style: buttonStyle(context).copyWith(
                   color: Colors.white,
                   fontSize: 16,

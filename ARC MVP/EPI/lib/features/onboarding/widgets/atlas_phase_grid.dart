@@ -46,9 +46,8 @@ class ATLASPhaseGrid extends StatelessWidget {
   Widget build(BuildContext context) {
     return BlocBuilder<OnboardingCubit, OnboardingState>(
       builder: (context, state) {
-        return SingleChildScrollView(
-          child: Column(
-            children: atlasPhases.entries.map((phase) {
+        return Column(
+          children: atlasPhases.entries.map((phase) {
               final phaseName = phase.key;
               final phaseData = phase.value;
               final isSelected = state.currentSeason == phaseName;
@@ -120,7 +119,6 @@ class ATLASPhaseGrid extends StatelessWidget {
                 ),
               );
             }).toList(),
-          ),
         );
       },
     );

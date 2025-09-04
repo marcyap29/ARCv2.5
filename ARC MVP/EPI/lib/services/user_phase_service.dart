@@ -1,18 +1,31 @@
 import 'package:hive/hive.dart';
 import 'package:my_app/core/models/arcform_snapshot.dart';
 import 'package:my_app/features/arcforms/arcform_mvp_implementation.dart';
+import 'package:my_app/models/user_profile_model.dart';
 
 /// Service to manage the user's current ATLAS phase
 class UserPhaseService {
   static const String _snapshotsBoxName = 'arcform_snapshots';
   
-  /// Get the user's current phase from the most recent Arcform snapshot
+  /// Get the user's current phase, first checking UserProfile, then Arcform snapshots
   static Future<String> getCurrentPhase() async {
     try {
+      // First, check the UserProfile for onboarding phase
+      final userBox = await Hive.openBox<UserProfile>('user_profile');
+      final userProfile = userBox.get('profile');
+      
+      if (userProfile?.onboardingCurrentSeason != null && 
+          userProfile!.onboardingCurrentSeason!.isNotEmpty) {
+        print('DEBUG: Using phase from UserProfile: ${userProfile.onboardingCurrentSeason}');
+        return userProfile.onboardingCurrentSeason!;
+      }
+      
+      // Fallback to arcform snapshots
       final box = await Hive.openBox<ArcformSnapshot>(_snapshotsBoxName);
       
       if (box.isEmpty) {
         // No snapshots yet, default to Discovery for first-time users
+        print('DEBUG: No snapshots found, defaulting to Discovery');
         return 'Discovery';
       }
       
@@ -21,9 +34,11 @@ class UserPhaseService {
       allSnapshots.sort((a, b) => b.createdAt.compareTo(a.createdAt));
       
       final mostRecent = allSnapshots.first;
+      print('DEBUG: Using phase from arcform snapshot: ${mostRecent.phase}');
       return mostRecent.phase;
       
     } catch (e) {
+      print('DEBUG: Error getting current phase: $e');
       // Fallback to Discovery if there's any error
       return 'Discovery';
     }
