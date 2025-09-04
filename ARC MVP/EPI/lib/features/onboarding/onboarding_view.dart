@@ -5,6 +5,8 @@ import 'package:my_app/features/onboarding/onboarding_state.dart';
 import 'package:my_app/features/onboarding/widgets/central_word_input.dart';
 import 'package:my_app/features/onboarding/widgets/atlas_phase_grid.dart';
 import 'package:my_app/features/home/home_view.dart';
+import 'package:my_app/features/onboarding/phase_celebration_view.dart';
+import 'package:my_app/services/user_phase_service.dart';
 import 'package:my_app/shared/app_colors.dart';
 import 'package:my_app/shared/text_style.dart';
 
@@ -26,10 +28,43 @@ class OnboardingViewContent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return BlocListener<OnboardingCubit, OnboardingState>(
-      listener: (context, state) {
+      listener: (context, state) async {
         if (state.isCompleted) {
+          final currentPhase = await UserPhaseService.getCurrentPhase();
+          final phaseDescription = UserPhaseService.getPhaseDescription(currentPhase);
+          
+          String phaseEmoji;
+          switch (currentPhase.toLowerCase()) {
+            case 'discovery':
+              phaseEmoji = '🔍';
+              break;
+            case 'expansion':
+              phaseEmoji = '🌸';
+              break;
+            case 'transition':
+              phaseEmoji = '🌊';
+              break;
+            case 'consolidation':
+              phaseEmoji = '🧘';
+              break;
+            case 'recovery':
+              phaseEmoji = '🌱';
+              break;
+            case 'breakthrough':
+              phaseEmoji = '⚡';
+              break;
+            default:
+              phaseEmoji = '🔍';
+          }
+          
           Navigator.of(context).pushAndRemoveUntil(
-            MaterialPageRoute(builder: (context) => const HomeView()),
+            MaterialPageRoute(
+              builder: (context) => PhaseCelebrationView(
+                discoveredPhase: currentPhase,
+                phaseDescription: phaseDescription,
+                phaseEmoji: phaseEmoji,
+              ),
+            ),
             (route) => false,
           );
         }
@@ -96,9 +131,9 @@ class OnboardingViewContent extends StatelessWidget {
                       children: const [
                         _OnboardingPage1(), // Purpose
                         _OnboardingPage2(), // Mood/Feeling
-                        _OnboardingPage3(), // Phase Seed (NEW)
-                        _OnboardingPage4(), // Core Word (NEW)
+                        _OnboardingPage4(), // Core Word (moved up)
                         _OnboardingPage5(), // Rhythm
+                        _OnboardingPage3(), // Phase Selection (moved to end)
                       ],
                     ),
                   ),
@@ -208,39 +243,6 @@ class _OnboardingPage3 extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Text(
-            'Which season best describes where you are in life right now?',
-            style: heading1Style(context).copyWith(
-              color: Colors.white,
-            ),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 16),
-          Text(
-            'Every journey has a season. Choose the one that feels closest to your life right now.',
-            style: bodyStyle(context).copyWith(
-              color: Colors.white.withOpacity(0.8),
-            ),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 40),
-          const ATLASPhaseGrid(),
-        ],
-      ),
-    );
-  }
-}
-
-class _OnboardingPage4 extends StatelessWidget {
-  const _OnboardingPage4();
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(24.0),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Text(
             'What word feels most central to your story right now?',
             style: heading1Style(context).copyWith(
               color: Colors.white,
@@ -263,8 +265,8 @@ class _OnboardingPage4 extends StatelessWidget {
   }
 }
 
-class _OnboardingPage5 extends StatelessWidget {
-  const _OnboardingPage5();
+class _OnboardingPage4 extends StatelessWidget {
+  const _OnboardingPage4();
 
   @override
   Widget build(BuildContext context) {
@@ -297,6 +299,40 @@ class _OnboardingPage5 extends StatelessWidget {
             ],
             type: OnboardingOptionType.rhythm,
           ),
+        ],
+      ),
+    );
+  }
+}
+
+class _OnboardingPage5 extends StatelessWidget {
+  const _OnboardingPage5();
+
+  @override
+  Widget build(BuildContext context) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(24.0),
+      child: Column(
+        children: [
+          const SizedBox(height: 20),
+          Text(
+            'Which season best describes where you are in life right now?',
+            style: heading1Style(context).copyWith(
+              color: Colors.white,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'Every journey has a season. Choose the one that feels closest to your life right now.',
+            style: bodyStyle(context).copyWith(
+              color: Colors.white.withOpacity(0.8),
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 40),
+          const ATLASPhaseGrid(),
+          const SizedBox(height: 40),
         ],
       ),
     );
