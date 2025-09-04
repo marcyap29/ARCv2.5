@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:my_app/features/journal/journal_capture_state.dart';
 import 'package:my_app/models/journal_entry_model.dart';
@@ -14,6 +15,7 @@ import 'package:my_app/core/rivet/rivet_models.dart';
 import 'package:my_app/models/user_profile_model.dart';
 import 'package:my_app/features/atlas/phase_tracker.dart';
 import 'package:my_app/features/atlas/phase_history_repository.dart';
+import 'package:my_app/features/atlas/phase_change_notifier.dart';
 import 'package:uuid/uuid.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:path_provider/path_provider.dart';
@@ -144,6 +146,7 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
     required List<String> selectedKeywords,
     String? emotion,
     String? emotionReason,
+    BuildContext? context,
   }) async {
     try {
       final now = DateTime.now();
@@ -174,7 +177,7 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
       _createArcformWithCurrentUserPhase(entry, emotion, emotionReason);
 
       // Phase stability analysis - analyze entry for potential phase changes
-      _performPhaseStabilityAnalysis(entry, emotion, emotionReason);
+      _performPhaseStabilityAnalysis(entry, emotion, emotionReason, context);
     } catch (e) {
       emit(JournalCaptureError('Failed to save entry: ${e.toString()}'));
     }
@@ -443,7 +446,7 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
   }
 
   /// Perform phase stability analysis using PhaseTracker
-  void _performPhaseStabilityAnalysis(JournalEntry entry, String? emotion, String? emotionReason) async {
+  void _performPhaseStabilityAnalysis(JournalEntry entry, String? emotion, String? emotionReason, BuildContext? context) async {
     try {
       // Initialize PhaseHistoryRepository
       await PhaseHistoryRepository.initialize();
@@ -487,14 +490,42 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
         // Phase change approved by PhaseTracker
         print('INFO: PhaseTracker approved phase change: ${result.previousPhase} → ${result.newPhase}');
         await _updateUserPhaseWithStability(result.newPhase!, result.reason);
+        
+        // Show phase change notification if context is available
+        if (context != null) {
+          PhaseChangeNotifier.showPhaseChangeNotification(
+            context,
+            fromPhase: result.previousPhase ?? 'Unknown',
+            toPhase: result.newPhase!,
+            reason: result.reason,
+          );
+        }
       } else {
         // No phase change - maintain current phase
         print('DEBUG: PhaseTracker - No phase change needed: ${result.reason}');
+        
+        // Show phase stability notification if context is available and it's a meaningful reason
+        if (context != null && _shouldShowStabilityNotification(result.reason)) {
+          PhaseChangeNotifier.showPhaseStabilityNotification(
+            context,
+            currentPhase: result.previousPhase ?? 'Unknown',
+            reason: result.reason,
+          );
+        }
       }
       
     } catch (e) {
       print('ERROR: Phase stability analysis failed: $e');
     }
+  }
+
+  /// Determine if we should show a phase stability notification
+  bool _shouldShowStabilityNotification(String reason) {
+    // Only show notifications for meaningful stability reasons
+    return reason.contains('cooldown') || 
+           reason.contains('hysteresis') || 
+           reason.contains('threshold') ||
+           reason.contains('optimal');
   }
 
   /// Update user phase with phase stability tracking

@@ -71,6 +71,7 @@ class _KeywordAnalysisViewState extends State<KeywordAnalysisView>
         selectedKeywords: keywordState.selectedKeywords,
         emotion: widget.initialEmotion,
         emotionReason: widget.initialReason,
+        context: context,
       );
       
       // Show simple success message
