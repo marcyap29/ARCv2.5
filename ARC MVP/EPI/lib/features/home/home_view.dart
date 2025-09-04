@@ -5,6 +5,7 @@ import 'package:my_app/features/home/home_state.dart';
 import 'package:my_app/features/journal/start_entry_flow.dart';
 import 'package:my_app/features/arcforms/arcform_renderer_view.dart';
 import 'package:my_app/features/timeline/timeline_view.dart';
+import 'package:my_app/features/timeline/timeline_cubit.dart';
 import 'package:my_app/shared/app_colors.dart';
 import 'package:my_app/shared/tab_bar.dart';
 import 'package:my_app/shared/text_style.dart';
@@ -52,21 +53,31 @@ class _HomeViewState extends State<HomeView> {
   Widget build(BuildContext context) {
     return BlocProvider.value(
       value: _homeCubit,
-      child: BlocBuilder<HomeCubit, HomeState>(
-        builder: (context, state) {
-          final selectedIndex = state is HomeLoaded ? state.selectedIndex : 0;
-          return Scaffold(
-            body: SafeArea(
-              child: _pages[selectedIndex],
-            ),
-            bottomNavigationBar: CustomTabBar(
-              tabs: _tabs,
-              selectedIndex: selectedIndex,
-              onTabSelected: _homeCubit.changeTab,
-              height: 80,
-            ),
-          );
+      child: BlocListener<HomeCubit, HomeState>(
+        listener: (context, state) {
+          if (state is HomeLoaded) {
+            // Refresh timeline when switching to Timeline tab (index 2)
+            if (state.selectedIndex == 2) {
+              context.read<TimelineCubit>().refreshEntries();
+            }
+          }
         },
+        child: BlocBuilder<HomeCubit, HomeState>(
+          builder: (context, state) {
+            final selectedIndex = state is HomeLoaded ? state.selectedIndex : 0;
+            return Scaffold(
+              body: SafeArea(
+                child: _pages[selectedIndex],
+              ),
+              bottomNavigationBar: CustomTabBar(
+                tabs: _tabs,
+                selectedIndex: selectedIndex,
+                onTabSelected: _homeCubit.changeTab,
+                height: 80,
+              ),
+            );
+          },
+        ),
       ),
     );
   }
