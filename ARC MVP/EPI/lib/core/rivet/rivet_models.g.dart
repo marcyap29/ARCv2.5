@@ -6,55 +6,6 @@ part of 'rivet_models.dart';
 // TypeAdapterGenerator
 // **************************************************************************
 
-class EvidenceSourceAdapter extends TypeAdapter<EvidenceSource> {
-  @override
-  final int typeId = 10;
-
-  @override
-  EvidenceSource read(BinaryReader reader) {
-    switch (reader.readByte()) {
-      case 0:
-        return EvidenceSource.text;
-      case 1:
-        return EvidenceSource.voice;
-      case 2:
-        return EvidenceSource.therapistTag;
-      case 3:
-        return EvidenceSource.other;
-      default:
-        return EvidenceSource.text;
-    }
-  }
-
-  @override
-  void write(BinaryWriter writer, EvidenceSource obj) {
-    switch (obj) {
-      case EvidenceSource.text:
-        writer.writeByte(0);
-        break;
-      case EvidenceSource.voice:
-        writer.writeByte(1);
-        break;
-      case EvidenceSource.therapistTag:
-        writer.writeByte(2);
-        break;
-      case EvidenceSource.other:
-        writer.writeByte(3);
-        break;
-    }
-  }
-
-  @override
-  int get hashCode => typeId.hashCode;
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is EvidenceSourceAdapter &&
-          runtimeType == other.runtimeType &&
-          typeId == other.typeId;
-}
-
 class RivetEventAdapter extends TypeAdapter<RivetEvent> {
   @override
   final int typeId = 11;
@@ -143,6 +94,55 @@ class RivetStateAdapter extends TypeAdapter<RivetState> {
   bool operator ==(Object other) =>
       identical(this, other) ||
       other is RivetStateAdapter &&
+          runtimeType == other.runtimeType &&
+          typeId == other.typeId;
+}
+
+class EvidenceSourceAdapter extends TypeAdapter<EvidenceSource> {
+  @override
+  final int typeId = 10;
+
+  @override
+  EvidenceSource read(BinaryReader reader) {
+    switch (reader.readByte()) {
+      case 0:
+        return EvidenceSource.text;
+      case 1:
+        return EvidenceSource.voice;
+      case 2:
+        return EvidenceSource.therapistTag;
+      case 3:
+        return EvidenceSource.other;
+      default:
+        return EvidenceSource.text;
+    }
+  }
+
+  @override
+  void write(BinaryWriter writer, EvidenceSource obj) {
+    switch (obj) {
+      case EvidenceSource.text:
+        writer.writeByte(0);
+        break;
+      case EvidenceSource.voice:
+        writer.writeByte(1);
+        break;
+      case EvidenceSource.therapistTag:
+        writer.writeByte(2);
+        break;
+      case EvidenceSource.other:
+        writer.writeByte(3);
+        break;
+    }
+  }
+
+  @override
+  int get hashCode => typeId.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is EvidenceSourceAdapter &&
           runtimeType == other.runtimeType &&
           typeId == other.typeId;
 }
