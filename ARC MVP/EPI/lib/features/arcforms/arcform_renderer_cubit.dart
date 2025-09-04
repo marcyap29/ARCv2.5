@@ -5,6 +5,7 @@ import 'package:my_app/features/arcforms/arcform_renderer_state.dart';
 import 'package:my_app/features/arcforms/geometry/geometry_layouts.dart';
 import 'package:my_app/features/arcforms/arcform_mvp_implementation.dart';
 import 'package:my_app/models/arcform_snapshot_model.dart';
+import 'package:my_app/services/user_phase_service.dart';
 import 'package:hive/hive.dart';
 
 class ArcformRendererCubit extends Cubit<ArcformRendererState> {
@@ -22,38 +23,39 @@ class ArcformRendererCubit extends Cubit<ArcformRendererState> {
   /// Load arcform data from storage or use sample data
   Future<void> _loadArcformData() async {
     try {
-      // Try to load the latest arcform snapshot
+      // Get current phase from UserPhaseService (checks UserProfile first, then snapshots)
+      final currentPhase = await UserPhaseService.getCurrentPhase();
+      print('DEBUG: Current phase from UserPhaseService: $currentPhase');
+      
+      // Try to load the latest arcform snapshot for keywords/geometry
       final snapshotData = await _getLatestArcformSnapshot();
       
-      if (snapshotData != null) {
-        // Use actual data from storage
-        final sampleKeywords = ['Journal', 'Reflection', 'Growth', 'Insight', 'Pattern', 'Awareness', 'Clarity', 'Wisdom'];
-        final phase = snapshotData['phase'] as String?;
-        final geometryName = snapshotData['geometry'] as String?;
-        
-        print('DEBUG: Loading arcform data - phase: $phase, geometry: $geometryName');
-        
-        // Map phase to geometry if geometry not found
-        final geometry = geometryName != null 
-            ? _stringToGeometryPattern(geometryName)
-            : _phaseToGeometryPattern(phase ?? 'Discovery');
+      final sampleKeywords = ['Journal', 'Reflection', 'Growth', 'Insight', 'Pattern', 'Awareness', 'Clarity', 'Wisdom'];
+      final geometryName = snapshotData?['geometry'] as String?;
+      
+      // Prioritize current phase from quiz over old snapshots
+      // Only use snapshot geometry if it matches the current phase
+      final snapshotGeometry = geometryName != null ? _stringToGeometryPattern(geometryName) : null;
+      final phaseGeometry = _phaseToGeometryPattern(currentPhase);
+      final geometry = (snapshotGeometry != null && snapshotGeometry == phaseGeometry)
+          ? snapshotGeometry
+          : phaseGeometry;
+      
+      print('DEBUG: Snapshot geometry: $snapshotGeometry, Phase geometry: $phaseGeometry, Final geometry: $geometry');
 
-        // Create initial loaded state with actual phase and geometry
-        emit(ArcformRendererLoaded(
-          nodes: const [],
-          edges: const [],
-          selectedGeometry: geometry,
-          currentPhase: phase ?? 'Discovery',
-        ));
+      // Create initial loaded state with current phase and geometry
+      emit(ArcformRendererLoaded(
+        nodes: const [],
+        edges: const [],
+        selectedGeometry: geometry,
+        currentPhase: currentPhase,
+      ));
 
-        // Update with actual phase and geometry
-        _updateStateWithKeywords(sampleKeywords, geometry, phase);
-      } else {
-        // Fallback to sample data
-        _loadSampleData();
-      }
+      // Update with actual phase and geometry
+      _updateStateWithKeywords(sampleKeywords, geometry, currentPhase);
+      
     } catch (e) {
-      // Error loading, use sample data
+      print('Error loading arcform data: $e');
       _loadSampleData();
     }
   }
@@ -217,8 +219,8 @@ class ArcformRendererCubit extends Cubit<ArcformRendererState> {
     // Use provided phase or determine from keywords
     final currentPhase = phase ?? _determinePhaseHint('', keywords);
     
-    // Ensure geometry matches the phase
-    final correctGeometry = _phaseToGeometryPattern(currentPhase);
+    // Use the provided geometry if phase was explicitly provided, otherwise match geometry to phase
+    final correctGeometry = phase != null ? geometry : _phaseToGeometryPattern(currentPhase);
     
     emit(ArcformRendererLoaded(
       nodes: nodes,

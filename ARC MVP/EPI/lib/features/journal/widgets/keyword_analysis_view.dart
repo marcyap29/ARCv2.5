@@ -418,7 +418,7 @@ class _KeywordAnalysisViewState extends State<KeywordAnalysisView>
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'Choose up to 5 keywords that best represent your reflection',
+                  'Choose keywords that best represent your reflection',
                   style: bodyStyle(context).copyWith(
                     color: Colors.white.withOpacity(0.9),
                   ),
@@ -452,7 +452,7 @@ class _KeywordAnalysisViewState extends State<KeywordAnalysisView>
           
           // Selection count
           Text(
-            'Selected: ${state.selectedKeywords.length}/5',
+            'Selected: ${state.selectedKeywords.length}',
             style: heading2Style(context).copyWith(
               color: state.selectedKeywords.isNotEmpty ? kcPrimaryColor : kcSecondaryTextColor,
             ),
@@ -492,13 +492,6 @@ class _KeywordAnalysisViewState extends State<KeywordAnalysisView>
                       color: kcSecondaryTextColor,
                     ),
                   )
-                else if (state.selectedKeywords.length > 5)
-                  Text(
-                    'Please select no more than 5 keywords',
-                    style: bodyStyle(context).copyWith(
-                      color: kcDangerColor,
-                    ),
-                  )
                 else
                   Text(
                     'Great selection! Tap "Save Entry" when ready.',
@@ -534,12 +527,11 @@ class _KeywordAnalysisViewState extends State<KeywordAnalysisView>
 
   Widget _buildKeywordChip(String keyword, List<String> selectedKeywords) {
     final isSelected = selectedKeywords.contains(keyword);
-    final canSelect = selectedKeywords.length < 5 || isSelected;
     
     return GestureDetector(
-      onTap: canSelect ? () {
+      onTap: () {
         context.read<KeywordExtractionCubit>().toggleKeyword(keyword);
-      } : null,
+      },
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -549,9 +541,7 @@ class _KeywordAnalysisViewState extends State<KeywordAnalysisView>
           border: Border.all(
             color: isSelected 
                 ? kcPrimaryColor 
-                : canSelect 
-                    ? kcSecondaryColor.withOpacity(0.3)
-                    : kcSecondaryTextColor.withOpacity(0.2),
+                : kcSecondaryColor.withOpacity(0.3),
           ),
         ),
         child: Text(
@@ -559,9 +549,7 @@ class _KeywordAnalysisViewState extends State<KeywordAnalysisView>
           style: bodyStyle(context).copyWith(
             color: isSelected 
                 ? Colors.white 
-                : canSelect 
-                    ? kcSecondaryColor 
-                    : kcSecondaryTextColor.withOpacity(0.5),
+                : kcSecondaryColor,
             fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
           ),
         ),
