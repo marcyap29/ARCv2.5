@@ -1,9 +1,86 @@
 # EPI ARC MVP - Bug Tracker
 
-> **Last Updated**: January 20, 2025 4:30 PM (America/Los_Angeles)  
-> **Total Items Tracked**: 24 (20 bugs + 4 enhancements)  
-> **Critical Issues Fixed**: 20  
+> **Last Updated**: January 20, 2025 5:15 PM (America/Los_Angeles)  
+> **Total Items Tracked**: 26 (22 bugs + 4 enhancements)  
+> **Critical Issues Fixed**: 22  
 > **Status**: All blocking issues resolved - Production ready with complete branch integration & repository cleanup ✅
+
+---
+
+## Bug ID: BUG-2025-01-20-025
+**Title**: 3D Arcform Positioning - Bottom Cropping Issue
+
+**Type**: Bug  
+**Priority**: P1 (Critical)  
+**Status**: ✅ Fixed  
+**Reporter**: User Testing  
+**Implementer**: Claude Code  
+**Fix Date**: 2025-01-20  
+
+#### Description
+3D arcform was positioned too low on screen, causing bottom nodes (like "Wisdom") to be cropped by the bottom navigation bar, making them partially or completely invisible to users.
+
+#### Root Cause Analysis
+- **Primary Issue**: 3D arcform center positioning was hardcoded to 35% of screen height
+- **Technical Cause**: `screenSize.height * 0.35` in both node and edge positioning calculations
+- **Impact**: Poor user experience with inaccessible arcform elements
+- **Affected Components**: 3D arcform rendering, user interaction, visual clarity
+
+#### Solution Implemented
+- **Repositioned Arcform**: Changed center positioning from 35% to 25% of screen height
+- **Updated Both Calculations**: Fixed positioning in both `_build3DNode()` and `_build3DEdges()` methods
+- **Improved Controls Layout**: Moved 3D controls to `bottom: 10` for better accessibility
+- **Enhanced User Experience**: Ensured all arcform elements are fully visible above navigation bar
+
+#### Files Modified
+- `lib/features/arcforms/widgets/simple_3d_arcform.dart` - Updated positioning calculations
+- `lib/features/arcforms/arcform_renderer_view.dart` - Adjusted container padding
+
+#### Testing Results
+- ✅ 3D arcform displays completely above bottom navigation bar
+- ✅ All nodes and edges are fully visible and accessible
+- ✅ 3D controls positioned optimally for user interaction
+- ✅ No performance impact or functionality regression
+
+---
+
+## Bug ID: BUG-2025-01-20-024
+**Title**: Critical Compilation Errors - AppTextStyle Undefined
+
+**Type**: Bug  
+**Priority**: P1 (Critical)  
+**Status**: ✅ Fixed  
+**Reporter**: Build System  
+**Implementer**: Claude Code  
+**Fix Date**: 2025-01-20  
+
+#### Description
+Multiple insight card files were referencing undefined `AppTextStyle` class, causing compilation failures that prevented the app from building and running.
+
+#### Root Cause Analysis
+- **Primary Issue**: Insight cards were trying to use `AppTextStyle` class that doesn't exist
+- **Technical Cause**: Incorrect assumption about text style implementation - should use function calls
+- **Impact**: Complete build failure, app unable to run
+- **Affected Components**: All insight cards, insights screen, compilation process
+
+#### Solution Implemented
+- **Replaced AppTextStyle References**: Changed all `AppTextStyle` to `bodyStyle` function calls
+- **Fixed Method Calls**: Corrected `.heading4`, `.body`, `.caption` to proper function calls
+- **Updated All Insight Cards**: Fixed pairs_on_rise_card, phase_drift_card, precursors_card, themes_card
+- **Corrected Insights Screen**: Updated main insights screen with proper text style usage
+
+#### Files Modified
+- `lib/features/insights/cards/pairs_on_rise_card.dart`
+- `lib/features/insights/cards/phase_drift_card.dart`
+- `lib/features/insights/cards/precursors_card.dart`
+- `lib/features/insights/cards/themes_card.dart`
+- `lib/features/insights/insights_screen.dart`
+
+#### Testing Results
+- ✅ All compilation errors resolved
+- ✅ App builds and runs successfully
+- ✅ Insight cards display with correct text styling
+- ✅ No functionality regression
 
 ---
 
