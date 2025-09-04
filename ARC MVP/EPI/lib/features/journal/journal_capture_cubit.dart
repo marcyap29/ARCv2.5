@@ -9,6 +9,9 @@ import 'package:my_app/features/arcforms/arcform_mvp_implementation.dart';
 import 'package:my_app/features/arcforms/phase_recommender.dart';
 import 'package:my_app/services/analytics_service.dart';
 import 'package:my_app/services/user_phase_service.dart';
+import 'package:my_app/core/rivet/rivet_provider.dart';
+import 'package:my_app/core/rivet/rivet_models.dart';
+import 'package:my_app/models/user_profile_model.dart';
 import 'package:uuid/uuid.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:path_provider/path_provider.dart';
@@ -165,8 +168,11 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
       // Process SAGE annotation in background (don't await)
       _processSAGEAnnotation(entry);
 
-      // Create Arcform using the enhanced starter experience (will get phase via recommender)
-      _createArcformWithPhaseRecommendation(entry, emotion, emotionReason);
+      // Create Arcform using current user phase (respecting quiz selection)
+      _createArcformWithCurrentUserPhase(entry, emotion, emotionReason);
+
+      // RIVET background analysis - analyze entry for potential phase changes
+      _performRivetAnalysis(entry, emotion, emotionReason);
     } catch (e) {
       emit(JournalCaptureError('Failed to save entry: ${e.toString()}'));
     }
@@ -256,6 +262,7 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
       emit(JournalCaptureError('Failed to save entry: ${e.toString()}'));
     }
   }
+
 
   void _processSAGEAnnotation(JournalEntry entry) async {
     try {
@@ -369,6 +376,145 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
     }
   }
 
+  void _performRivetAnalysis(JournalEntry entry, String? emotion, String? emotionReason) async {
+    try {
+      // Get current user phase and recommended phase for comparison
+      final currentPhase = await UserPhaseService.getCurrentPhase();
+      final recommendedPhase = PhaseRecommender.recommend(
+        emotion: emotion ?? '',
+        reason: emotionReason ?? '',
+        text: entry.content,
+        selectedKeywords: entry.keywords,
+      );
+      
+      print('DEBUG: RIVET Analysis - Current: $currentPhase, Recommended: $recommendedPhase');
+      
+      // Initialize RIVET provider
+      final rivetProvider = RivetProvider();
+      const userId = 'default_user'; // TODO: Use actual user ID
+      
+      if (!rivetProvider.isAvailable) {
+        await rivetProvider.initialize(userId);
+      }
+      
+      // Create RIVET event
+      final rivetEvent = RivetEvent(
+        date: DateTime.now(),
+        source: EvidenceSource.text,
+        keywords: entry.keywords.toSet(),
+        predPhase: recommendedPhase, // What PhaseRecommender thinks
+        refPhase: currentPhase, // What user currently has
+        tolerance: const {}, // Stub for categorical phases
+      );
+      
+      // Submit to RIVET for analysis
+      print('DEBUG: Submitting to RIVET - predPhase: $recommendedPhase, refPhase: $currentPhase');
+      final decision = await rivetProvider.safeIngest(rivetEvent, userId);
+      print('DEBUG: RIVET decision - open: ${decision?.open}, whyNot: ${decision?.whyNot}');
+      
+      if (decision != null) {
+        if (decision.open && recommendedPhase != currentPhase) {
+          // RIVET gate is open and recommends a phase change
+          print('INFO: RIVET gate OPEN - Approved phase change: $currentPhase → $recommendedPhase');
+          print('DEBUG: RIVET criteria met - ALIGN/TRACE sustained with independence');
+          
+          // Update user phase in storage
+          await _updateUserPhase(recommendedPhase, 'RIVET algorithm approved change');
+          
+          print('SUCCESS: Phase updated by RIVET: $currentPhase → $recommendedPhase');
+        } else if (!decision.open) {
+          // RIVET gate is closed - maintain current phase (this is the stability protection)
+          print('DEBUG: RIVET gate CLOSED - Phase change blocked: ${decision.whyNot}');
+          print('INFO: Maintaining current phase: $currentPhase (RIVET stability protection)');
+        } else {
+          // Gate is open but no change needed
+          print('DEBUG: RIVET gate OPEN but no phase change needed (already $currentPhase)');
+        }
+      } else {
+        // RIVET unavailable - maintain current phase
+        print('DEBUG: RIVET unavailable - Maintaining current phase: $currentPhase');
+      }
+      
+    } catch (e) {
+      print('ERROR: RIVET analysis failed: $e');
+    }
+  }
+
+
+  Future<void> _updateUserPhase(String newPhase, String reason) async {
+    try {
+      final userBox = await Hive.openBox<UserProfile>('user_profile');
+      final userProfile = userBox.get('profile');
+      
+      if (userProfile != null) {
+        final updatedProfile = userProfile.copyWith(
+          onboardingCurrentSeason: newPhase,
+        );
+        await userBox.put('profile', updatedProfile);
+        print('DEBUG: Updated user profile phase to: $newPhase (reason: $reason)');
+      }
+    } catch (e) {
+      print('ERROR: Failed to update user phase: $e');
+    }
+  }
+
+  void _createArcformWithCurrentUserPhase(JournalEntry entry, String? emotion, String? emotionReason) async {
+    try {
+      // Get the user's current phase from their profile/quiz selection
+      final currentPhase = await UserPhaseService.getCurrentPhase();
+      
+      print('DEBUG: Using current user phase: $currentPhase (respecting quiz selection)');
+
+      // Create Arcform using the ARC MVP service with user's current phase
+      final arcformService = ArcformMVPService();
+      final arcform = arcformService.createArcformFromEntryWithPhase(
+        entryId: entry.id,
+        title: entry.title,
+        content: entry.content,
+        mood: entry.mood,
+        keywords: entry.keywords,
+        phase: currentPhase,
+        userConsentedPhase: true, // User explicitly chose this via quiz
+      );
+
+      // Save to SimpleArcformStorage (in-memory for now)
+      SimpleArcformStorage.saveArcform(arcform);
+
+      // Also save as ArcformSnapshot with phase information
+      final snapshot = ArcformSnapshot(
+        id: const Uuid().v4(),
+        arcformId: entry.id,
+        data: {
+          'keywords': arcform.keywords,
+          'geometry': arcform.geometry.name,
+          'colorMap': arcform.colorMap,
+          'edges': arcform.edges,
+          'phaseHint': arcform.phaseHint,
+          'phase': currentPhase,
+          'userConsentedPhase': true,
+          'source': 'user_quiz_selection',
+        },
+        timestamp: arcform.createdAt,
+        notes: 'Generated from journal entry with user-selected phase: $currentPhase',
+      );
+
+      // Save the snapshot to Hive
+      final snapshotBox = await Hive.openBox<ArcformSnapshot>('arcform_snapshots');
+      await snapshotBox.put(snapshot.id, snapshot);
+      
+      // Track analytics for user-selected phase
+      AnalyticsService.trackGeometryAccepted(
+        phase: currentPhase,
+        geometry: arcform.geometry.name,
+        keywords: arcform.keywords,
+      );
+      
+      print('Arcform created with user phase: $currentPhase with ${arcform.keywords.length} keywords');
+    } catch (e) {
+      print('User-phase Arcform creation failed: $e');
+    }
+  }
+  
   void _createArcformWithPhaseRecommendation(JournalEntry entry, String? emotion, String? emotionReason) async {
     try {
       // Use phase recommender to get the appropriate phase
