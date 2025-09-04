@@ -1,16 +1,34 @@
 import 'package:hive/hive.dart';
+import 'package:uuid/uuid.dart'; // For generating unique IDs
+import 'package:collection/collection.dart'; // For firstWhereOrNull
+
+part 'phase_history_repository.g.dart'; // Hive generated file
 
 /// Data model for storing phase score history entries
-class PhaseHistoryEntry {
+@HiveType(typeId: 3) // Ensure this is a unique typeId
+class PhaseHistoryEntry extends HiveObject {
+  @HiveField(0)
   final String id;
+  
+  @HiveField(1)
   final DateTime timestamp;
+  
+  @HiveField(2)
   final Map<String, double> phaseScores; // phase -> score (0-1)
+  
+  @HiveField(3)
   final String journalEntryId; // Reference to the journal entry that generated these scores
+  
+  @HiveField(4)
   final String emotion;
+  
+  @HiveField(5)
   final String reason;
+  
+  @HiveField(6)
   final String text;
 
-  const PhaseHistoryEntry({
+  PhaseHistoryEntry({
     required this.id,
     required this.timestamp,
     required this.phaseScores,
