@@ -39,6 +39,13 @@ class UserProfile extends Equatable {
   @HiveField(10)
   final String? onboardingCentralWord;
 
+  // Phase tracking fields
+  @HiveField(11)
+  final String currentPhase;
+
+  @HiveField(12)
+  final DateTime? lastPhaseChangeAt;
+
   const UserProfile({
     required this.id,
     required this.name,
@@ -51,6 +58,8 @@ class UserProfile extends Equatable {
     this.onboardingCompleted = false,
     this.onboardingCurrentSeason,
     this.onboardingCentralWord,
+    this.currentPhase = 'Discovery',
+    this.lastPhaseChangeAt,
   });
 
   UserProfile copyWith({
@@ -65,6 +74,8 @@ class UserProfile extends Equatable {
     bool? onboardingCompleted,
     String? onboardingCurrentSeason,
     String? onboardingCentralWord,
+    String? currentPhase,
+    DateTime? lastPhaseChangeAt,
   }) {
     return UserProfile(
       id: id ?? this.id,
@@ -78,6 +89,8 @@ class UserProfile extends Equatable {
       onboardingCompleted: onboardingCompleted ?? this.onboardingCompleted,
       onboardingCurrentSeason: onboardingCurrentSeason ?? this.onboardingCurrentSeason,
       onboardingCentralWord: onboardingCentralWord ?? this.onboardingCentralWord,
+      currentPhase: currentPhase ?? this.currentPhase,
+      lastPhaseChangeAt: lastPhaseChangeAt ?? this.lastPhaseChangeAt,
     );
   }
 
@@ -94,6 +107,8 @@ class UserProfile extends Equatable {
         onboardingCompleted,
         onboardingCurrentSeason,
         onboardingCentralWord,
+        currentPhase,
+        lastPhaseChangeAt,
       ];
 
   Map<String, dynamic> toJson() {
@@ -109,6 +124,8 @@ class UserProfile extends Equatable {
       'onboardingCompleted': onboardingCompleted,
       'onboardingCurrentSeason': onboardingCurrentSeason,
       'onboardingCentralWord': onboardingCentralWord,
+      'currentPhase': currentPhase,
+      'lastPhaseChangeAt': lastPhaseChangeAt?.toIso8601String(),
     };
   }
 
@@ -125,6 +142,10 @@ class UserProfile extends Equatable {
       onboardingCompleted: json['onboardingCompleted'] as bool? ?? false,
       onboardingCurrentSeason: json['onboardingCurrentSeason'] as String?,
       onboardingCentralWord: json['onboardingCentralWord'] as String?,
+      currentPhase: json['currentPhase'] as String? ?? 'Discovery',
+      lastPhaseChangeAt: json['lastPhaseChangeAt'] != null 
+          ? DateTime.parse(json['lastPhaseChangeAt'] as String)
+          : null,
     );
   }
 }
