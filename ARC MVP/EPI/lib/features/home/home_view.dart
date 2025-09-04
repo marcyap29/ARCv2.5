@@ -13,7 +13,9 @@ import 'package:my_app/core/rivet/rivet_models.dart';
 import 'dart:math' as math;
 
 class HomeView extends StatefulWidget {
-  const HomeView({super.key});
+  final int initialTab;
+  
+  const HomeView({super.key, this.initialTab = 0});
 
   @override
   State<HomeView> createState() => _HomeViewState();
@@ -23,7 +25,7 @@ class _HomeViewState extends State<HomeView> {
   late HomeCubit _homeCubit;
   final List<TabItem> _tabs = const [
     TabItem(icon: Icons.edit_note, text: 'Journal'),
-    TabItem(icon: Icons.auto_graph, text: 'Arcforms'),
+    TabItem(icon: Icons.auto_graph, text: 'Phase'),
     TabItem(icon: Icons.timeline, text: 'Timeline'),
     TabItem(icon: Icons.insights, text: 'Insights'),
   ];
@@ -35,6 +37,9 @@ class _HomeViewState extends State<HomeView> {
     super.initState();
     _homeCubit = HomeCubit();
     _homeCubit.initialize();
+    if (widget.initialTab != 0) {
+      _homeCubit.changeTab(widget.initialTab);
+    }
     _pages = [
       const StartEntryFlow(),
       const ArcformRendererView(),
