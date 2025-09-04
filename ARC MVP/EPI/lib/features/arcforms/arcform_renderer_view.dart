@@ -69,6 +69,7 @@ class _ArcformRendererViewContentState extends State<ArcformRendererViewContent>
 
 
   Widget _buildPhaseIndicatorWithChangeButton(BuildContext context, String currentPhase, GeometryPattern geometry) {
+    print('DEBUG: _buildPhaseIndicatorWithChangeButton - currentPhase: $currentPhase, geometry: $geometry');
     final description = UserPhaseService.getPhaseDescription(currentPhase);
     final phaseColor = _getPhaseColor(geometry);
     
@@ -511,48 +512,51 @@ class _ArcformRendererViewContentState extends State<ArcformRendererViewContent>
                     _buildPhaseIndicatorWithChangeButton(context, state.currentPhase, state.selectedGeometry),
                     // Main Arcform layout - switch between 2D and 3D
                     Expanded(
-                      child: _is3DMode
-                          ? Simple3DArcform(
-                              nodes: state.nodes,
-                              edges: state.edges,
-                              onNodeMoved: (nodeId, x, y) {
-                                context
-                                    .read<ArcformRendererCubit>()
-                                    .updateNodePosition(nodeId, x, y);
-                              },
-                              onNodeTapped: (keyword) {
-                                _showKeywordDialog(context, keyword);
-                              },
-                              selectedGeometry: _convertToArcformGeometry(state.selectedGeometry),
-                              onGeometryChanged: (geometry) {
-                                context.read<ArcformRendererCubit>().changeGeometry(
-                                  _convertFromArcformGeometry(geometry)
-                                );
-                              },
-                            )
-                          : ArcformLayout(
-                              nodes: state.nodes,
-                              edges: state.edges,
-                              onNodeMoved: (nodeId, x, y) {
-                                context
-                                    .read<ArcformRendererCubit>()
-                                    .updateNodePosition(nodeId, x, y);
-                              },
-                              onNodeTapped: (keyword) {
-                                _showKeywordDialog(context, keyword);
-                              },
-                              selectedGeometry: state.selectedGeometry,
-                              currentPhase: state.currentPhase,
-                              onGeometryChanged: (geometry) {
-                                context.read<ArcformRendererCubit>().changeGeometry(geometry);
-                              },
-                            ),
+                      child: Container(
+                        padding: const EdgeInsets.only(top: 10, bottom: 70), // Increased top padding to push arcform higher and bottom padding for navigation bar
+                        child: _is3DMode
+                            ? Simple3DArcform(
+                                nodes: state.nodes,
+                                edges: state.edges,
+                                onNodeMoved: (nodeId, x, y) {
+                                  context
+                                      .read<ArcformRendererCubit>()
+                                      .updateNodePosition(nodeId, x, y);
+                                },
+                                onNodeTapped: (keyword) {
+                                  _showKeywordDialog(context, keyword);
+                                },
+                                selectedGeometry: _convertToArcformGeometry(state.selectedGeometry),
+                                onGeometryChanged: (geometry) {
+                                  context.read<ArcformRendererCubit>().changeGeometry(
+                                    _convertFromArcformGeometry(geometry)
+                                  );
+                                },
+                              )
+                            : ArcformLayout(
+                                nodes: state.nodes,
+                                edges: state.edges,
+                                onNodeMoved: (nodeId, x, y) {
+                                  context
+                                      .read<ArcformRendererCubit>()
+                                      .updateNodePosition(nodeId, x, y);
+                                },
+                                onNodeTapped: (keyword) {
+                                  _showKeywordDialog(context, keyword);
+                                },
+                                selectedGeometry: state.selectedGeometry,
+                                currentPhase: state.currentPhase,
+                                onGeometryChanged: (geometry) {
+                                  context.read<ArcformRendererCubit>().changeGeometry(geometry);
+                                },
+                              ),
+                      ),
                     ),
                   ],
                 ),
                 // 3D Toggle button
                 Positioned(
-                  bottom: 30,
+                  bottom: 130, // Moved up to account for bottom padding
                   left: 16,
                   child: FloatingActionButton(
                     mini: true,

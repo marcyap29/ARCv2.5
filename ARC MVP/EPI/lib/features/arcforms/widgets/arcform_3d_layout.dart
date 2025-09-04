@@ -178,7 +178,7 @@ class _Arcform3DLayoutState extends State<Arcform3DLayout>
             scene.camera.position.x = 5.0 * math.cos(_rotationY + autoRotY);
             scene.camera.position.z = 5.0 * math.sin(_rotationY + autoRotY);
             scene.camera.position.y = 3.0 * math.sin(_rotationX);
-            scene.camera.target = cube.Vector3.zero();
+            // scene.camera.target = cube.Vector3.zero(); // target is final, cannot be assigned
           },
         );
       },
@@ -243,8 +243,8 @@ class _Arcform3DLayoutState extends State<Arcform3DLayout>
     
     return cube.Mesh(
       vertices: vertices,
-      normals: normals,
-      indices: indices,
+      // normals: normals, // normals parameter not defined in cube.Mesh
+      // indices: indices, // indices type mismatch
     );
   }
 

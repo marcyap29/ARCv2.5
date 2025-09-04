@@ -81,7 +81,7 @@ class _EmotionPickerState extends State<EmotionPicker>
                     ),
                   ),
                   
-                  const SizedBox(height: 60),
+                  const SizedBox(height: 40),
                   
                   // Emotion chips
                   Expanded(
@@ -148,7 +148,7 @@ class _EmotionPickerState extends State<EmotionPicker>
                     ),
                   ),
                   
-                  const SizedBox(height: 40),
+                  const SizedBox(height: 20),
                 ],
               ),
             ),

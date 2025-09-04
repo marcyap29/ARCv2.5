@@ -56,28 +56,75 @@ class ArcformRendererCubit extends Cubit<ArcformRendererState> {
       
     } catch (e) {
       print('Error loading arcform data: $e');
-      _loadSampleData();
+      // Only call _loadSampleData if we don't have a valid phase
+      try {
+        final currentPhase = await UserPhaseService.getCurrentPhase();
+        if (currentPhase.isNotEmpty && currentPhase != 'Unknown') {
+          // We have a valid phase, just use sample data with it
+          final correctGeometry = _phaseToGeometryPattern(currentPhase);
+          final sampleKeywords = ['Journal', 'Reflection', 'Growth', 'Insight', 'Pattern', 'Awareness', 'Clarity', 'Wisdom'];
+          
+          emit(ArcformRendererLoaded(
+            nodes: const [],
+            edges: const [],
+            selectedGeometry: correctGeometry,
+            currentPhase: currentPhase,
+          ));
+          
+          _updateStateWithKeywords(sampleKeywords, correctGeometry, currentPhase);
+        } else {
+          // No valid phase, use fallback
+          _loadSampleData();
+        }
+      } catch (e2) {
+        // If even UserPhaseService fails, use fallback
+        _loadSampleData();
+      }
     }
   }
 
   /// Load sample data (original behavior)
-  void _loadSampleData() {
-    Future.delayed(const Duration(milliseconds: 500), () {
-      // Create sample keywords for demonstration
-      final sampleKeywords = ['Journal', 'Reflection', 'Growth', 'Insight', 'Pattern', 'Awareness', 'Clarity', 'Wisdom'];
-      const defaultGeometry = GeometryPattern.spiral;
+  void _loadSampleData() async {
+    print('DEBUG: _loadSampleData called - this should only happen as fallback');
+    try {
+      // Get the correct current phase from UserPhaseService
+      final currentPhase = await UserPhaseService.getCurrentPhase();
+      final correctGeometry = _phaseToGeometryPattern(currentPhase);
+      
+      print('DEBUG: _loadSampleData - Using phase: $currentPhase, geometry: $correctGeometry');
+      
+      Future.delayed(const Duration(milliseconds: 500), () {
+        // Create sample keywords for demonstration
+        final sampleKeywords = ['Journal', 'Reflection', 'Growth', 'Insight', 'Pattern', 'Awareness', 'Clarity', 'Wisdom'];
 
-      // Create initial loaded state
-      emit(const ArcformRendererLoaded(
-        nodes: [],
-        edges: [],
-        selectedGeometry: GeometryPattern.spiral,
-        currentPhase: 'Discovery', // Default starting phase
-      ));
+        // Create initial loaded state with correct phase
+        emit(ArcformRendererLoaded(
+          nodes: const [],
+          edges: const [],
+          selectedGeometry: correctGeometry,
+          currentPhase: currentPhase,
+        ));
 
-      // Then use the proper geometry system for layout
-      _updateStateWithKeywords(sampleKeywords, defaultGeometry, 'Discovery');
-    });
+        // Then use the proper geometry system for layout
+        _updateStateWithKeywords(sampleKeywords, correctGeometry, currentPhase);
+      });
+    } catch (e) {
+      print('DEBUG: Error in _loadSampleData, using fallback: $e');
+      // Only use Discovery as absolute fallback
+      Future.delayed(const Duration(milliseconds: 500), () {
+        final sampleKeywords = ['Journal', 'Reflection', 'Growth', 'Insight', 'Pattern', 'Awareness', 'Clarity', 'Wisdom'];
+        const defaultGeometry = GeometryPattern.spiral;
+
+        emit(const ArcformRendererLoaded(
+          nodes: [],
+          edges: [],
+          selectedGeometry: GeometryPattern.spiral,
+          currentPhase: 'Discovery',
+        ));
+
+        _updateStateWithKeywords(sampleKeywords, defaultGeometry, 'Discovery');
+      });
+    }
   }
 
   /// Get the latest arcform snapshot data from storage
@@ -216,11 +263,22 @@ class ArcformRendererCubit extends Cubit<ArcformRendererState> {
     // Create edges based on geometry pattern
     final edges = _createEdgesForGeometry(keywords.length, geometry);
     
-    // Use provided phase or determine from keywords
-    final currentPhase = phase ?? _determinePhaseHint('', keywords);
+    // Use provided phase, or preserve current phase from state, or determine from keywords
+    String currentPhase;
+    if (phase != null) {
+      currentPhase = phase;
+    } else if (state is ArcformRendererLoaded) {
+      // Preserve the current phase from state if no phase provided
+      currentPhase = (state as ArcformRendererLoaded).currentPhase;
+    } else {
+      currentPhase = _determinePhaseHint('', keywords);
+    }
     
-    // Use the provided geometry if phase was explicitly provided, otherwise match geometry to phase
+    // Always use the provided geometry when phase is explicitly provided
+    // This ensures the geometry matches the phase from onboarding
     final correctGeometry = phase != null ? geometry : _phaseToGeometryPattern(currentPhase);
+    
+    print('DEBUG: _updateStateWithKeywords - phase: $phase, currentPhase: $currentPhase, geometry: $geometry, correctGeometry: $correctGeometry');
     
     emit(ArcformRendererLoaded(
       nodes: nodes,
@@ -262,6 +320,14 @@ class ArcformRendererCubit extends Cubit<ArcformRendererState> {
       canvasSize: canvasSize,
     );
     
+    // Debug: Print spiral positions
+    if (geometry == ArcformGeometry.spiral) {
+      print('DEBUG: Spiral positions for ${keywords.length} nodes:');
+      for (int i = 0; i < positions.length; i++) {
+        print('  Node ${i + 1} (${keywords[i]}): (${positions[i].dx.toStringAsFixed(2)}, ${positions[i].dy.toStringAsFixed(2)})');
+      }
+    }
+    
     // Create nodes at calculated positions
     for (int i = 0; i < keywords.length; i++) {
       final position = i < positions.length ? positions[i] : const Offset(200.0, 200.0);
@@ -284,11 +350,20 @@ class ArcformRendererCubit extends Cubit<ArcformRendererState> {
     
     switch (geometry) {
       case GeometryPattern.spiral: // Discovery - connected spiral path
+        // For a true spiral, connect nodes sequentially without closing the loop
+        // This creates a continuous path that follows the spiral layout
         for (int i = 0; i < nodeCount - 1; i++) {
           edges.add(Edge(
             source: (i + 1).toString(),
             target: (i + 2).toString(),
           ));
+        }
+        // Don't close the loop - let the spiral end naturally
+        
+        // Debug: Print spiral edges
+        print('DEBUG: Spiral edges for $nodeCount nodes:');
+        for (final edge in edges) {
+          print('  Edge: ${edge.source} -> ${edge.target}');
         }
         break;
         

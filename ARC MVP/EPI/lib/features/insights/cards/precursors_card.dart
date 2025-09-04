@@ -35,7 +35,7 @@ class PrecursorsCard extends StatelessWidget {
               const SizedBox(width: 8),
               Text(
                 'Breakthrough Precursors',
-                style: AppTextStyle.heading4.copyWith(color: kcSuccessColor),
+                style: heading3Style(context).copyWith(color: kcSuccessColor),
               ),
             ],
           ),
@@ -68,7 +68,7 @@ class PrecursorsCard extends StatelessWidget {
               const SizedBox(width: 8),
               Text(
                 'Breakthrough Precursors',
-                style: AppTextStyle.heading4.copyWith(color: kcSuccessColor),
+                style: heading3Style(context).copyWith(color: kcSuccessColor),
               ),
             ],
           ),
@@ -84,12 +84,12 @@ class PrecursorsCard extends StatelessWidget {
                 const SizedBox(height: 8),
                 Text(
                   'No breakthrough patterns yet',
-                  style: AppTextStyle.body.copyWith(color: kcSecondaryTextColor),
+                  style: bodyStyle(context).copyWith(color: kcSecondaryTextColor),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   'Breakthrough precursors will appear as you experience more insights',
-                  style: AppTextStyle.caption.copyWith(color: kcSecondaryTextColor),
+                  style: captionStyle(context).copyWith(color: kcSecondaryTextColor),
                 ),
               ],
             ),
@@ -116,19 +116,19 @@ class PrecursorsCard extends StatelessWidget {
               const SizedBox(width: 8),
               Text(
                 'Breakthrough Precursors',
-                style: AppTextStyle.heading4.copyWith(color: kcSuccessColor),
+                style: heading3Style(context).copyWith(color: kcSuccessColor),
               ),
               const Spacer(),
               Text(
                 '${precursors.length} patterns',
-                style: AppTextStyle.caption.copyWith(color: kcSecondaryTextColor),
+                style: captionStyle(context).copyWith(color: kcSecondaryTextColor),
               ),
             ],
           ),
           const SizedBox(height: 8),
           Text(
             'Keywords that often appear before breakthrough moments',
-            style: AppTextStyle.caption.copyWith(color: kcSecondaryTextColor),
+            style: captionStyle(context).copyWith(color: kcSecondaryTextColor),
           ),
           const SizedBox(height: 16),
           ...precursors.take(5).map((precursor) => _buildPrecursorItem(precursor)).toList(),
@@ -136,7 +136,7 @@ class PrecursorsCard extends StatelessWidget {
             const SizedBox(height: 8),
             Text(
               '... and ${precursors.length - 5} more',
-              style: AppTextStyle.caption.copyWith(color: kcSecondaryTextColor),
+              style: captionStyle(context).copyWith(color: kcSecondaryTextColor),
             ),
           ],
         ],
@@ -193,14 +193,14 @@ class PrecursorsCard extends StatelessWidget {
               children: [
                 Text(
                   capitalizedKeyword,
-                  style: AppTextStyle.body.copyWith(
+                  style: bodyStyle(context).copyWith(
                     color: kcPrimaryColor,
                     fontWeight: FontWeight.w500,
                   ),
                 ),
                 Text(
                   'Seen rising before Breakthrough',
-                  style: AppTextStyle.caption.copyWith(color: kcSecondaryTextColor),
+                  style: captionStyle(context).copyWith(color: kcSecondaryTextColor),
                 ),
               ],
             ),
@@ -224,7 +224,7 @@ class PrecursorsCard extends StatelessWidget {
                 const SizedBox(width: 4),
                 Text(
                   score.toStringAsFixed(1),
-                  style: AppTextStyle.caption.copyWith(
+                  style: captionStyle(context).copyWith(
                     color: kcSuccessColor,
                     fontWeight: FontWeight.w500,
                   ),

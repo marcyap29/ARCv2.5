@@ -16,7 +16,7 @@ class GeometryLayouts {
     
     switch (geometry) {
       case ArcformGeometry.spiral: // Discovery
-        positions = SpiralLayout.positions(nodeCount, step: 25);
+        positions = SpiralLayout.positions(nodeCount, step: 50);
         break;
       case ArcformGeometry.flower: // Expansion
         positions = _flowerLayout(nodeCount);

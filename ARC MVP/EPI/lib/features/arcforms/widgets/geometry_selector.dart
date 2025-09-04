@@ -75,7 +75,7 @@ class _GeometrySelectorState extends State<GeometrySelector>
             children: [
               Expanded(
                 child: Text(
-                  'Select Geometry',
+                  'Select Phase',
                   style: heading3Style(context).copyWith(
                     color: Colors.white,
                     fontSize: 14,
@@ -139,7 +139,7 @@ class _GeometrySelectorState extends State<GeometrySelector>
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              widget.currentGeometry.name,
+                              _getPhaseName(widget.currentGeometry),
                               style: heading3Style(context).copyWith(
                                 color: Colors.white,
                                 fontWeight: FontWeight.w600,
@@ -163,10 +163,10 @@ class _GeometrySelectorState extends State<GeometrySelector>
 
           const SizedBox(height: 8),
 
-          // Geometry selection grid (only shown when manual mode)
+          // Phase selection grid (only shown when manual mode)
           if (!widget.isAutoDetected) ...[
             Text(
-              'Choose geometry:',
+              'Choose phase:',
               style: captionStyle(context).copyWith(
                 color: Colors.white.withOpacity(0.8),
                 fontSize: 12,
@@ -236,7 +236,7 @@ class _GeometrySelectorState extends State<GeometrySelector>
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  geometry.name,
+                  _getPhaseName(geometry),
                   style: captionStyle(context).copyWith(
                     color: isSelected ? kcPrimaryColor : Colors.white.withOpacity(0.9),
                     fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
@@ -265,6 +265,23 @@ class _GeometrySelectorState extends State<GeometrySelector>
         return Icons.radio_button_checked;
       case ArcformGeometry.fractal:
         return Icons.pattern;
+    }
+  }
+
+  String _getPhaseName(ArcformGeometry geometry) {
+    switch (geometry) {
+      case ArcformGeometry.spiral:
+        return 'Discovery';
+      case ArcformGeometry.flower:
+        return 'Expansion';
+      case ArcformGeometry.branch:
+        return 'Transition';
+      case ArcformGeometry.weave:
+        return 'Consolidation';
+      case ArcformGeometry.glowCore:
+        return 'Recovery';
+      case ArcformGeometry.fractal:
+        return 'Breakthrough';
     }
   }
 }

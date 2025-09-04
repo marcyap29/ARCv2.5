@@ -332,26 +332,6 @@ class _JournalEditViewState extends State<JournalEditView> {
               ),
               const SizedBox(height: 12),
               
-              // Geometry display
-              Row(
-                children: [
-                  Icon(
-                    Icons.category,
-                    color: kcPrimaryColor,
-                    size: 20,
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    'Geometry: $_currentGeometry',
-                    style: bodyStyle(context).copyWith(
-                      color: kcPrimaryColor,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              
               // Arcform visualization with edit capability
               GestureDetector(
                 onTap: () => _showArcformEditDialog(),

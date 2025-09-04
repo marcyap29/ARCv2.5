@@ -124,7 +124,7 @@ class _ReasonPickerState extends State<ReasonPicker>
                       ),
                     ),
                     
-                    const SizedBox(height: 50),
+                    const SizedBox(height: 30),
                     
                     // Reason chips
                     Expanded(
@@ -192,7 +192,7 @@ class _ReasonPickerState extends State<ReasonPicker>
                       ),
                     ),
                     
-                    const SizedBox(height: 40),
+                    const SizedBox(height: 20),
                   ],
                 ),
               ),

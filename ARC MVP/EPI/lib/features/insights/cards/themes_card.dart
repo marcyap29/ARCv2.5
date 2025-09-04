@@ -35,7 +35,7 @@ class ThemesCard extends StatelessWidget {
               const SizedBox(width: 8),
               Text(
                 'This Week\'s Themes',
-                style: AppTextStyle.heading4.copyWith(color: kcPrimaryColor),
+                style: heading3Style(context).copyWith(color: kcPrimaryColor),
               ),
             ],
           ),
@@ -68,7 +68,7 @@ class ThemesCard extends StatelessWidget {
               const SizedBox(width: 8),
               Text(
                 'This Week\'s Themes',
-                style: AppTextStyle.heading4.copyWith(color: kcPrimaryColor),
+                style: heading3Style(context).copyWith(color: kcPrimaryColor),
               ),
             ],
           ),
@@ -84,12 +84,12 @@ class ThemesCard extends StatelessWidget {
                 const SizedBox(height: 8),
                 Text(
                   'No themes yet',
-                  style: AppTextStyle.body.copyWith(color: kcSecondaryTextColor),
+                  style: bodyStyle(context).copyWith(color: kcSecondaryTextColor),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   'Start journaling to see your themes emerge',
-                  style: AppTextStyle.caption.copyWith(color: kcSecondaryTextColor),
+                  style: captionStyle(context).copyWith(color: kcSecondaryTextColor),
                 ),
               ],
             ),
@@ -116,12 +116,12 @@ class ThemesCard extends StatelessWidget {
               const SizedBox(width: 8),
               Text(
                 'This Week\'s Themes',
-                style: AppTextStyle.heading4.copyWith(color: kcPrimaryColor),
+                style: heading3Style(context).copyWith(color: kcPrimaryColor),
               ),
               const Spacer(),
               Text(
                 '${themes.length} themes',
-                style: AppTextStyle.caption.copyWith(color: kcSecondaryTextColor),
+                style: captionStyle(context).copyWith(color: kcSecondaryTextColor),
               ),
             ],
           ),
@@ -131,7 +131,7 @@ class ThemesCard extends StatelessWidget {
             const SizedBox(height: 8),
             Text(
               '... and ${themes.length - 5} more',
-              style: AppTextStyle.caption.copyWith(color: kcSecondaryTextColor),
+              style: captionStyle(context).copyWith(color: kcSecondaryTextColor),
             ),
           ],
         ],
@@ -188,14 +188,14 @@ class ThemesCard extends StatelessWidget {
               children: [
                 Text(
                   capitalizedKeyword,
-                  style: AppTextStyle.body.copyWith(
+                  style: bodyStyle(context).copyWith(
                     color: kcPrimaryColor,
                     fontWeight: FontWeight.w500,
                   ),
                 ),
                 Text(
                   '$count mentions',
-                  style: AppTextStyle.caption.copyWith(color: kcSecondaryTextColor),
+                  style: captionStyle(context).copyWith(color: kcSecondaryTextColor),
                 ),
               ],
             ),
@@ -210,7 +210,7 @@ class ThemesCard extends StatelessWidget {
             ),
             child: Text(
               score.toStringAsFixed(1),
-              style: AppTextStyle.caption.copyWith(
+              style: captionStyle(context).copyWith(
                 color: kcPrimaryColor,
                 fontWeight: FontWeight.w500,
               ),

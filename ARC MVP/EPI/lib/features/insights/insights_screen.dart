@@ -41,7 +41,7 @@ class _InsightsScreenState extends State<InsightsScreen> {
       appBar: AppBar(
         title: Text(
           'Insights',
-          style: AppTextStyle.heading2.copyWith(color: kcPrimaryColor),
+          style: heading2Style(context).copyWith(color: kcPrimaryColor),
         ),
         backgroundColor: kcSurfaceColor,
         elevation: 0,
@@ -113,7 +113,7 @@ class _InsightsScreenState extends State<InsightsScreen> {
       appBar: AppBar(
         title: Text(
           'Insights',
-          style: AppTextStyle.heading2.copyWith(color: kcPrimaryColor),
+          style: heading2Style(context).copyWith(color: kcPrimaryColor),
         ),
         backgroundColor: kcSurfaceColor,
         elevation: 0,
@@ -130,12 +130,12 @@ class _InsightsScreenState extends State<InsightsScreen> {
             const SizedBox(height: 16),
             Text(
               'Insights Coming Soon',
-              style: AppTextStyle.heading3.copyWith(color: kcSecondaryTextColor),
+              style: heading3Style(context).copyWith(color: kcSecondaryTextColor),
             ),
             const SizedBox(height: 8),
             Text(
               'MIRA semantic memory analysis is currently disabled.',
-              style: AppTextStyle.body.copyWith(color: kcSecondaryTextColor),
+              style: bodyStyle(context).copyWith(color: kcSecondaryTextColor),
               textAlign: TextAlign.center,
             ),
           ],
@@ -157,12 +157,12 @@ class _InsightsScreenState extends State<InsightsScreen> {
           const SizedBox(height: 16),
           Text(
             'Error Loading Insights',
-            style: AppTextStyle.heading3.copyWith(color: kcDangerColor),
+            style: heading3Style(context).copyWith(color: kcDangerColor),
           ),
           const SizedBox(height: 8),
           Text(
             message,
-            style: AppTextStyle.body.copyWith(color: kcSecondaryTextColor),
+            style: bodyStyle(context).copyWith(color: kcSecondaryTextColor),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 16),
@@ -228,17 +228,17 @@ class _InsightsScreenState extends State<InsightsScreen> {
         children: [
           Text(
             'Semantic Memory Analysis',
-            style: AppTextStyle.heading3.copyWith(color: kcPrimaryColor),
+            style: heading3Style(context).copyWith(color: kcPrimaryColor),
           ),
           const SizedBox(height: 8),
           Text(
             'Window: ${state.window.inDays} days • Granularity: ${state.granularity}',
-            style: AppTextStyle.caption.copyWith(color: kcSecondaryTextColor),
+            style: captionStyle(context).copyWith(color: kcSecondaryTextColor),
           ),
           const SizedBox(height: 8),
           Text(
             '${state.topKeywords.length} themes • ${state.pairsOnRise.length} rising pairs • ${state.phaseTrajectory.length} time points',
-            style: AppTextStyle.caption.copyWith(color: kcSecondaryTextColor),
+            style: captionStyle(context).copyWith(color: kcSecondaryTextColor),
           ),
         ],
       ),
@@ -260,25 +260,25 @@ class _InsightsScreenState extends State<InsightsScreen> {
         children: [
           Text(
             'Debug Information',
-            style: AppTextStyle.heading4.copyWith(color: kcSecondaryTextColor),
+            style: heading3Style(context).copyWith(color: kcSecondaryTextColor),
           ),
           const SizedBox(height: 8),
           Text(
             'Nodes: ${stats['totalNodes']} • Edges: ${stats['totalEdges']} • Processed Entries: ${stats['processedEntries']}',
-            style: AppTextStyle.caption.copyWith(color: kcSecondaryTextColor),
+            style: captionStyle(context).copyWith(color: kcSecondaryTextColor),
           ),
           if (stats['nodeCounts'] != null) ...[
             const SizedBox(height: 4),
             Text(
               'Node Types: ${stats['nodeCounts']}',
-              style: AppTextStyle.caption.copyWith(color: kcSecondaryTextColor),
+              style: captionStyle(context).copyWith(color: kcSecondaryTextColor),
             ),
           ],
           if (stats['edgeCounts'] != null) ...[
             const SizedBox(height: 4),
             Text(
               'Edge Types: ${stats['edgeCounts']}',
-              style: AppTextStyle.caption.copyWith(color: kcSecondaryTextColor),
+              style: captionStyle(context).copyWith(color: kcSecondaryTextColor),
             ),
           ],
         ],

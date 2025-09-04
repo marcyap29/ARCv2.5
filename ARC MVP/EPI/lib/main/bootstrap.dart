@@ -176,6 +176,9 @@ Future<void> bootstrap({
         await Hive.openBox<UserProfile>(Boxes.userProfile);
         await Hive.openBox<JournalEntry>(Boxes.journalEntries);
         await Hive.openBox<ArcformSnapshot>(Boxes.arcformSnapshots);
+        
+        // Migrate existing user profile data if needed
+        await _migrateUserProfileData();
 
         logger.d('Hive initialized, adapters registered, boxes opened');
       } catch (e, st) {
@@ -254,4 +257,43 @@ Future<void> bootstrap({
       }
     },
   );
+}
+
+/// Migrates existing user profile data to include new phase stability fields
+Future<void> _migrateUserProfileData() async {
+  try {
+    final userBox = Hive.box<UserProfile>(Boxes.userProfile);
+    final userProfile = userBox.get('profile');
+    
+    if (userProfile != null) {
+      // Check if migration is needed
+      if (userProfile.currentPhase == 'Unknown' || userProfile.lastPhaseChangeAt == null) {
+        logger.d('Migrating user profile data for phase stability system');
+        
+        // Create updated profile with proper defaults
+        final updatedProfile = UserProfile(
+          id: userProfile.id,
+          name: userProfile.name,
+          email: userProfile.email,
+          createdAt: userProfile.createdAt,
+          preferences: userProfile.preferences,
+          onboardingPurpose: userProfile.onboardingPurpose,
+          onboardingFeeling: userProfile.onboardingFeeling,
+          onboardingRhythm: userProfile.onboardingRhythm,
+          onboardingCompleted: userProfile.onboardingCompleted,
+          onboardingCurrentSeason: userProfile.onboardingCurrentSeason,
+          onboardingCentralWord: userProfile.onboardingCentralWord,
+          currentPhase: userProfile.currentPhase == 'Unknown' ? 'Discovery' : userProfile.currentPhase,
+          lastPhaseChangeAt: userProfile.lastPhaseChangeAt ?? userProfile.createdAt,
+        );
+        
+        // Save the updated profile
+        await userBox.put('profile', updatedProfile);
+        logger.d('User profile migration completed successfully');
+      }
+    }
+  } catch (e, st) {
+    logger.w('Failed to migrate user profile data', e, st);
+    // Don't throw - this is not critical for app startup
+  }
 }
