@@ -12,6 +12,8 @@ import 'package:my_app/services/user_phase_service.dart';
 import 'package:my_app/core/rivet/rivet_provider.dart';
 import 'package:my_app/core/rivet/rivet_models.dart';
 import 'package:my_app/models/user_profile_model.dart';
+import 'package:my_app/features/atlas/phase_tracker.dart';
+import 'package:my_app/features/atlas/phase_history_repository.dart';
 import 'package:uuid/uuid.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:path_provider/path_provider.dart';
@@ -171,8 +173,8 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
       // Create Arcform using current user phase (respecting quiz selection)
       _createArcformWithCurrentUserPhase(entry, emotion, emotionReason);
 
-      // RIVET background analysis - analyze entry for potential phase changes
-      _performRivetAnalysis(entry, emotion, emotionReason);
+      // Phase stability analysis - analyze entry for potential phase changes
+      _performPhaseStabilityAnalysis(entry, emotion, emotionReason);
     } catch (e) {
       emit(JournalCaptureError('Failed to save entry: ${e.toString()}'));
     }
@@ -440,6 +442,80 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
     }
   }
 
+  /// Perform phase stability analysis using PhaseTracker
+  void _performPhaseStabilityAnalysis(JournalEntry entry, String? emotion, String? emotionReason) async {
+    try {
+      // Initialize PhaseHistoryRepository
+      await PhaseHistoryRepository.initialize();
+      
+      // Get current user profile
+      final userBox = await Hive.openBox<UserProfile>('user_profile');
+      final userProfile = userBox.get('profile');
+      
+      if (userProfile == null) {
+        print('ERROR: No user profile found for phase stability analysis');
+        return;
+      }
+      
+      // Create PhaseTracker instance
+      final phaseTracker = PhaseTracker(userProfile: userProfile);
+      
+      // Get phase scores for this entry
+      final phaseScores = PhaseRecommender.score(
+        emotion: emotion ?? '',
+        reason: emotionReason ?? '',
+        text: entry.content,
+        selectedKeywords: entry.keywords,
+      );
+      
+      print('DEBUG: Phase Stability Analysis - Entry: ${entry.id}');
+      print('DEBUG: Phase scores: ${PhaseRecommender.getScoringSummary(phaseScores)}');
+      
+      // Update phase tracking with new scores
+      final result = await phaseTracker.updatePhaseScores(
+        phaseScores: phaseScores,
+        journalEntryId: entry.id,
+        emotion: emotion ?? '',
+        reason: emotionReason ?? '',
+        text: entry.content,
+      );
+      
+      print('DEBUG: Phase tracking result: ${result.reason}');
+      print('DEBUG: Phase changed: ${result.phaseChanged}');
+      
+      if (result.phaseChanged && result.newPhase != null) {
+        // Phase change approved by PhaseTracker
+        print('INFO: PhaseTracker approved phase change: ${result.previousPhase} → ${result.newPhase}');
+        await _updateUserPhaseWithStability(result.newPhase!, result.reason);
+      } else {
+        // No phase change - maintain current phase
+        print('DEBUG: PhaseTracker - No phase change needed: ${result.reason}');
+      }
+      
+    } catch (e) {
+      print('ERROR: Phase stability analysis failed: $e');
+    }
+  }
+
+  /// Update user phase with phase stability tracking
+  Future<void> _updateUserPhaseWithStability(String newPhase, String reason) async {
+    try {
+      final userBox = await Hive.openBox<UserProfile>('user_profile');
+      final userProfile = userBox.get('profile');
+      
+      if (userProfile != null) {
+        final updatedProfile = userProfile.copyWith(
+          onboardingCurrentSeason: newPhase,
+          currentPhase: newPhase,
+          lastPhaseChangeAt: DateTime.now(),
+        );
+        await userBox.put('profile', updatedProfile);
+        print('DEBUG: Updated user profile phase to: $newPhase (reason: $reason)');
+      }
+    } catch (e) {
+      print('ERROR: Failed to update user phase: $e');
+    }
+  }
 
   Future<void> _updateUserPhase(String newPhase, String reason) async {
     try {
