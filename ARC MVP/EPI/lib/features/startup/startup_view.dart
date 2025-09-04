@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:my_app/features/home/home_view.dart';
 import 'package:my_app/features/startup/welcome_view.dart';
+import 'package:my_app/features/startup/phase_quiz_prompt_view.dart';
 import 'package:hive/hive.dart';
 import 'package:my_app/models/user_profile_model.dart';
+import 'package:my_app/repositories/journal_repository.dart';
 import 'package:my_app/shared/app_colors.dart';
 
 class StartupView extends StatefulWidget {
@@ -28,13 +30,32 @@ class _StartupViewState extends State<StartupView> {
       final userProfile = userBox.get('profile');
 
       if (userProfile != null && userProfile.onboardingCompleted) {
-        _navigateToHome();
+        // User has completed onboarding, but check if they have journal entries
+        await _checkJournalEntriesAndNavigate();
       } else {
         _navigateToWelcome();
       }
     } catch (e) {
       // If there's an error accessing the profile, go to welcome
       _navigateToWelcome();
+    }
+  }
+
+  Future<void> _checkJournalEntriesAndNavigate() async {
+    try {
+      final journalRepository = JournalRepository();
+      final entryCount = await journalRepository.getEntryCount();
+      
+      if (entryCount == 0) {
+        // No journal entries exist, navigate to phase questionnaire
+        _navigateToPhaseQuiz();
+      } else {
+        // User has entries, navigate to normal home view
+        _navigateToHome();
+      }
+    } catch (e) {
+      // If there's an error checking entries, go to home as fallback
+      _navigateToHome();
     }
   }
 
@@ -52,6 +73,15 @@ class _StartupViewState extends State<StartupView> {
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (context) => const WelcomeView()),
+      );
+    }
+  }
+
+  void _navigateToPhaseQuiz() {
+    if (mounted) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const PhaseQuizPromptView()),
       );
     }
   }

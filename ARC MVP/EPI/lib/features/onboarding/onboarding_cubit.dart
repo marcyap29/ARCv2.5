@@ -32,7 +32,7 @@ class OnboardingCubit extends Cubit<OnboardingState> {
   void selectCurrentSeason(String season) {
     _logger.d('Selecting current season: $season');
     emit(state.copyWith(currentSeason: season));
-    _nextPage();
+    _completeOnboarding();
   }
 
   void setCentralWord(String word) {
@@ -44,7 +44,7 @@ class OnboardingCubit extends Cubit<OnboardingState> {
   void selectRhythm(String rhythm) {
     _logger.d('Selecting rhythm: $rhythm');
     emit(state.copyWith(rhythm: rhythm));
-    _completeOnboarding();
+    _nextPage();
   }
 
   void _nextPage() {
@@ -87,29 +87,34 @@ class OnboardingCubit extends Cubit<OnboardingState> {
       try {
         final starterArcform = StarterArcformService.createFromOnboarding(updatedProfile);
         // Persist starter arcform as a journal-like entry for continuity
-        final journalBox = await Hive.openBox('journal_entries');
-        final journalEntry = {
-          'id': starterArcform.id,
-          'title': starterArcform.title,
-          'content': starterArcform.content,
-          'createdAt': starterArcform.createdAt.toIso8601String(),
-          'updatedAt': starterArcform.createdAt.toIso8601String(),
-          'tags': starterArcform.keywords,
-          'mood': updatedProfile.onboardingFeeling ?? 'Hopeful',
-          'audioUri': null,
-          'sageAnnotation': null,
-          'keywords': starterArcform.keywords,
-        };
-        await journalBox.put(journalEntry['id'], journalEntry);
-        _logger.i('Saved starter Arcform as journal entry: ${journalEntry['id']}');
+        // Use the existing typed box instead of opening a generic one
+        if (Hive.isBoxOpen('journal_entries')) {
+          final journalBox = Hive.box('journal_entries');
+          final journalEntry = {
+            'id': starterArcform.id,
+            'title': starterArcform.title,
+            'content': starterArcform.content,
+            'createdAt': starterArcform.createdAt.toIso8601String(),
+            'updatedAt': starterArcform.createdAt.toIso8601String(),
+            'tags': starterArcform.keywords,
+            'mood': updatedProfile.onboardingFeeling ?? 'Hopeful',
+            'audioUri': null,
+            'sageAnnotation': null,
+            'keywords': starterArcform.keywords,
+          };
+          await journalBox.put(journalEntry['id'], journalEntry);
+          _logger.i('Saved starter Arcform as journal entry: ${journalEntry['id']}');
+        } else {
+          _logger.w('Journal entries box not open, skipping starter Arcform persistence');
+        }
       } catch (e, stackTrace) {
-        _logger.e('Error creating starter Arcform: $e', stackTrace);
+        _logger.e('Error creating starter Arcform: $e\nStackTrace: $stackTrace');
       }
 
       // Navigation will be handled by BlocListener in the UI
       _logger.i('Onboarding completed successfully');
     } catch (e, stackTrace) {
-      _logger.e('Error completing onboarding: $e', stackTrace);
+      _logger.e('Error completing onboarding: $e\nStackTrace: $stackTrace');
       // We'll let the error bubble up to Sentry for tracking
       rethrow;
     }
@@ -139,7 +144,7 @@ class OnboardingCubit extends Cubit<OnboardingState> {
       // Navigation will be handled by BlocListener in the UI
       _logger.i('Onboarding skipped');
     } catch (e, stackTrace) {
-      _logger.e('Error skipping onboarding: $e', stackTrace);
+      _logger.e('Error skipping onboarding: $e\nStackTrace: $stackTrace');
       // We'll let the error bubble up to Sentry for tracking
       rethrow;
     }
