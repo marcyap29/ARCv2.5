@@ -28,13 +28,15 @@ class UserProfileAdapter extends TypeAdapter<UserProfile> {
       onboardingCompleted: fields[8] as bool,
       onboardingCurrentSeason: fields[9] as String?,
       onboardingCentralWord: fields[10] as String?,
+      currentPhase: fields[11] as String,
+      lastPhaseChangeAt: fields[12] as DateTime?,
     );
   }
 
   @override
   void write(BinaryWriter writer, UserProfile obj) {
     writer
-      ..writeByte(11)
+      ..writeByte(13)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -56,7 +58,11 @@ class UserProfileAdapter extends TypeAdapter<UserProfile> {
       ..writeByte(9)
       ..write(obj.onboardingCurrentSeason)
       ..writeByte(10)
-      ..write(obj.onboardingCentralWord);
+      ..write(obj.onboardingCentralWord)
+      ..writeByte(11)
+      ..write(obj.currentPhase)
+      ..writeByte(12)
+      ..write(obj.lastPhaseChangeAt);
   }
 
   @override
