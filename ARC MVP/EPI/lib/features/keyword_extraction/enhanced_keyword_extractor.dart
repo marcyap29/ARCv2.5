@@ -170,7 +170,7 @@ class EnhancedKeywordExtractor {
     // Technical & Development
     'mvp', 'prototype', 'system', 'integration', 'detection', 'recommendations', 'connect',
     'language', 'version', 'design', 'choices', 'visuals', 'stabilize', 'ship', 'experience',
-    'arcform', 'phase', 'questionnaire', 'atlas', 'aurora', 'veil', 'polymeta',
+    'arcform', 'phase', 'questionnaire', 'atlas', 'aurora', 'veil', 'mira',
     
     // Temporal & Process
     'beginning', 'ending', 'continuation', 'pause', 'acceleration', 'slowing', 'rhythm',

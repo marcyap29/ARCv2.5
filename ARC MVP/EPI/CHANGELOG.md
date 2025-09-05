@@ -509,7 +509,7 @@ lib/features/timeline/timeline_cubit.dart - Enhanced phase detection with debug 
 ### 🎯 Enhanced - Curated Keywords Database
 - **Expanded Technical & Development Keywords** - Added domain-specific terms for better coverage
   - Technical terms: MVP, prototype, system, integration, detection, recommendations
-  - ARC system terms: arcform, phase, questionnaire, atlas, aurora, veil, polymeta
+  - ARC system terms: arcform, phase, questionnaire, atlas, aurora, veil, mira
   - Growth terms: breakthrough, momentum, threshold, crossing, barrier, speed, path, steps
   - Emotional terms: bright, steady, focused, alive, coherent
   - Temporal terms: first, time, today, loop, close, input, output, end, intent

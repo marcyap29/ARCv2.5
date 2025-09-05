@@ -95,13 +95,13 @@
 
 # 📌 Sprint B — Insights, Capture, Continuity
 
-### **Prompt P10 — Insights: Polymeta v1 Graph**
+### **Prompt P10 — Insights: MIRA v1 Graph**
 
 **Goal:** First semantic insights view.
 **Files:**
 
-* `lib/features/insights/polymeta_graph_view.dart`
-* `lib/features/insights/polymeta_graph_cubit.dart`
+* `lib/features/insights/mira_graph_view.dart`
+* `lib/features/insights/mira_graph_cubit.dart`
 
 **Tasks:**
 
