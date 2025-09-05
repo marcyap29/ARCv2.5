@@ -16,6 +16,8 @@ class Simple3DArcform extends StatefulWidget {
   final Function(String)? onNodeTapped;
   final ArcformGeometry selectedGeometry;
   final Function(ArcformGeometry) onGeometryChanged;
+  final VoidCallback? on3DToggle;
+  final VoidCallback? onExport;
 
   const Simple3DArcform({
     super.key,
@@ -25,6 +27,8 @@ class Simple3DArcform extends StatefulWidget {
     this.onNodeTapped,
     required this.selectedGeometry,
     required this.onGeometryChanged,
+    this.on3DToggle,
+    this.onExport,
   });
 
   @override
@@ -396,6 +400,73 @@ class _Simple3DArcformState extends State<Simple3DArcform>
                         );
                       }).toList(),
                     ),
+                  ),
+                  const SizedBox(height: 16),
+                  // Control buttons row
+                  Row(
+                    children: [
+                      // 3D Toggle button
+                      Container(
+                        decoration: BoxDecoration(
+                          color: kcSurfaceAltColor,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: kcSecondaryColor.withOpacity(0.3),
+                            width: 1,
+                          ),
+                        ),
+                        child: IconButton(
+                          onPressed: widget.on3DToggle,
+                          icon: const Icon(
+                            Icons.view_in_ar,
+                            color: kcSecondaryColor,
+                            size: 20,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      // Export/Share button
+                      Container(
+                        decoration: BoxDecoration(
+                          color: kcSurfaceAltColor,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: kcSecondaryColor.withOpacity(0.3),
+                            width: 1,
+                          ),
+                        ),
+                        child: IconButton(
+                          onPressed: widget.onExport,
+                          icon: const Icon(
+                            Icons.share,
+                            color: kcSecondaryColor,
+                            size: 20,
+                          ),
+                        ),
+                      ),
+                      const Spacer(),
+                      // Fullscreen button (placeholder for future)
+                      Container(
+                        decoration: BoxDecoration(
+                          color: kcSurfaceAltColor,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: kcSecondaryColor.withOpacity(0.3),
+                            width: 1,
+                          ),
+                        ),
+                        child: IconButton(
+                          onPressed: () {
+                            // TODO: Implement fullscreen functionality
+                          },
+                          icon: const Icon(
+                            Icons.fullscreen,
+                            color: kcSecondaryColor,
+                            size: 20,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
