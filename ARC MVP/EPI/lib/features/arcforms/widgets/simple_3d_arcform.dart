@@ -342,7 +342,7 @@ class _Simple3DArcformState extends State<Simple3DArcform>
           
           // Geometry selector overlay
           Positioned(
-            top: 80,
+            top: 50,
             left: 16,
             right: 16,
             child: Container(
