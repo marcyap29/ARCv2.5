@@ -346,10 +346,10 @@ class _Simple3DArcformState extends State<Simple3DArcform>
             left: 16,
             right: 16,
             child: Container(
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
                 color: kcSurfaceColor.withOpacity(0.9),
-                borderRadius: BorderRadius.circular(16),
+                borderRadius: BorderRadius.circular(12),
                 border: Border.all(
                   color: kcPrimaryColor.withOpacity(0.3),
                   width: 1,
@@ -363,33 +363,34 @@ class _Simple3DArcformState extends State<Simple3DArcform>
                       Icon(
                         Icons.view_in_ar,
                         color: kcPrimaryColor,
-                        size: 20,
+                        size: 18,
                       ),
-                      const SizedBox(width: 8),
+                      const SizedBox(width: 6),
                       Text(
                         '3D Arcform Geometry',
                         style: heading3Style(context).copyWith(
                           color: Colors.white,
-                          fontSize: 16,
+                          fontSize: 14,
                         ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 8),
                   SizedBox(
-                    height: 40,
+                    height: 36,
                     child: ListView(
                       scrollDirection: Axis.horizontal,
                       children: ArcformGeometry.values.map((geometry) {
                         final isSelected = geometry == widget.selectedGeometry;
                         return Padding(
-                          padding: const EdgeInsets.only(right: 8),
+                          padding: const EdgeInsets.only(right: 6),
                           child: ChoiceChip(
                             label: Text(
                               geometry.name,
                               style: captionStyle(context).copyWith(
                                 color: isSelected ? Colors.white : kcSecondaryColor,
                                 fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+                                fontSize: 12,
                               ),
                             ),
                             selected: isSelected,
@@ -405,7 +406,7 @@ class _Simple3DArcformState extends State<Simple3DArcform>
                       }).toList(),
                     ),
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 8),
                   // Control buttons row
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
@@ -429,7 +430,7 @@ class _Simple3DArcformState extends State<Simple3DArcform>
                           ),
                         ),
                       ),
-                      const SizedBox(width: 12),
+                      const SizedBox(width: 8),
                       // Export/Share button
                       Container(
                         decoration: BoxDecoration(
@@ -449,7 +450,7 @@ class _Simple3DArcformState extends State<Simple3DArcform>
                           ),
                         ),
                       ),
-                      const SizedBox(width: 12),
+                      const SizedBox(width: 8),
                       // Auto-rotate button
                       Container(
                         decoration: BoxDecoration(
@@ -479,7 +480,7 @@ class _Simple3DArcformState extends State<Simple3DArcform>
                           ),
                         ),
                       ),
-                      const SizedBox(width: 12),
+                      const SizedBox(width: 8),
                       // Reset view button
                       Container(
                         decoration: BoxDecoration(
