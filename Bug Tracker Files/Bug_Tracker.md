@@ -1844,5 +1844,73 @@ All bugs discovered and fixed during development phase before user release, demo
 
 ---
 
+---
+
+## Bug ID: BUG-2025-01-20-028
+**Title**: P19 Accessibility Implementation - Persistent Syntax Errors in BlocListener Structure
+
+**Type**: Bug  
+**Priority**: P2 (High)  
+**Status**: ✅ Fixed  
+**Reporter**: Development Process  
+**Implementer**: Claude Code  
+**Fix Date**: 2025-01-20  
+
+#### Description
+During P19 accessibility implementation, persistent syntax errors occurred when trying to add FPS performance overlay to the journal capture view, specifically with BlocListener and Stack widget nesting causing "Expected to find ')'" and "Too many positional arguments" errors.
+
+#### Steps to Reproduce
+1. Attempt to add FrameBudgetOverlay to journal_capture_view.dart
+2. Wrap BlocListener in Stack widget
+3. Observe persistent syntax errors preventing compilation
+4. Experience repeated failed attempts to fix parentheses issues
+
+#### Expected Behavior
+Code should compile cleanly with proper widget nesting
+
+#### Actual Behavior
+Persistent syntax errors with parentheses and widget nesting issues
+
+#### Root Cause
+Complex widget nesting with BlocListener and Stack created parentheses mismatches that were difficult to debug through traditional methods
+
+#### Solution
+Implemented "Comment Out and Work Backwards" debugging strategy:
+- **Step 1**: Commented out entire complex structure to get clean baseline
+- **Step 2**: Added simple return statement to verify basic compilation
+- **Step 3**: Gradually uncommented sections, testing after each step
+- **Step 4**: Fixed BlocListener structure first (missing closing parenthesis)
+- **Step 5**: Added accessibility features incrementally
+- **Result**: Successfully isolated and fixed syntax errors
+
+#### Debugging Strategy Documented
+**"Comment Out and Work Backwards" Method:**
+1. Comment out problematic section entirely
+2. Add simple working return statement
+3. Verify compilation works
+4. Uncomment sections incrementally
+5. Test after each uncomment step
+6. Identify exact location of syntax error
+7. Fix specific issue
+8. Continue with implementation
+
+#### Files Modified
+- `lib/features/journal/journal_capture_view.dart` - Fixed BlocListener structure and added accessibility features
+
+#### Testing Results
+- ✅ Syntax errors completely resolved
+- ✅ BlocListener structure working correctly
+- ✅ Accessibility features implemented successfully
+- ✅ App compiles without errors
+- ✅ Debugging strategy documented for future use
+
+#### Impact
+- **Development Efficiency**: Debugging strategy saved significant time on complex syntax issues
+- **Code Quality**: Clean, working implementation with proper widget nesting
+- **Knowledge Transfer**: Documented debugging approach for future complex widget issues
+- **Accessibility Progress**: Successfully implemented P19 accessibility features
+
+---
+
 **Status**: 🎉 **All Critical & High Priority Bugs Resolved**  
 **Deployment Readiness**: ✅ **Production Ready with Complete Phase Confirmation Dialog & Navigation Flow Fixes**
