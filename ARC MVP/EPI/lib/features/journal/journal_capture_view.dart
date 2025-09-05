@@ -94,7 +94,11 @@ class _JournalCaptureViewState extends State<JournalCaptureView> {
 
   @override
   Widget build(BuildContext context) {
-    return BlocListener<JournalCaptureCubit, JournalCaptureState>(
+    // COMMENTED OUT FOR DEBUGGING - Step 5.2
+    /*
+    return Stack(
+      children: [
+        BlocListener<JournalCaptureCubit, JournalCaptureState>(
         listener: (context, state) {
           if (state is JournalCaptureSaved) {
             _textController.clear();
@@ -304,7 +308,66 @@ class _JournalCaptureViewState extends State<JournalCaptureView> {
             ),
           ),
         ),
-      ),
+        // FPS Performance Overlay (debug only)
+        const FrameBudgetOverlay(targetFps: 45),
+      ],
+    );
+    */
+    
+    // SIMPLE RETURN WITH FPS OVERLAY - Step 5.2
+    return Stack(
+      children: [
+        BlocListener<JournalCaptureCubit, JournalCaptureState>(
+          listener: (context, state) {
+            if (state is JournalCaptureSaved) {
+              _textController.clear();
+              setState(() {
+                _showVoiceRecorder = false;
+              });
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Entry saved successfully'),
+                  backgroundColor: kcSuccessColor,
+                ),
+              );
+              Navigator.pop(context);
+            } else if (state is JournalCaptureTranscribed) {
+              _textController.text = state.transcription;
+            }
+          },
+          child: Scaffold(
+            appBar: AppBar(
+              backgroundColor: kcBackgroundColor,
+              title: Text('New Entry', style: heading1Style(context)),
+              actions: [
+                Padding(
+                  padding: const EdgeInsets.only(right: 16.0),
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
+                    child: Semantics(
+                      label: 'Continue to next step',
+                      button: true,
+                      child: ElevatedButton(
+                        onPressed: _onNextPressed,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: kcPrimaryColor,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8.0),
+                          ),
+                        ),
+                        child: Text('Next', style: buttonStyle(context)),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            body: const Center(child: Text('Debugging FPS overlay integration')),
+          ),
+        ),
+        // FPS Performance Overlay (debug only)
+        const FrameBudgetOverlay(targetFps: 45),
+      ],
     );
   }
 
@@ -408,17 +471,31 @@ class _JournalCaptureViewState extends State<JournalCaptureView> {
           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
           children: [
             if (isRecording) ...[
-              IconButton(
-                icon: const Icon(Icons.pause, color: kcSecondaryColor),
-                onPressed: () {
-                  context.read<JournalCaptureCubit>().pauseRecording();
-                },
+              ConstrainedBox(
+                constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
+                child: Semantics(
+                  label: 'Pause recording',
+                  button: true,
+                  child: IconButton(
+                    icon: const Icon(Icons.pause, color: kcSecondaryColor),
+                    onPressed: () {
+                      context.read<JournalCaptureCubit>().pauseRecording();
+                    },
+                  ),
+                ),
               ),
-              IconButton(
-                icon: const Icon(Icons.stop, color: kcDangerColor),
-                onPressed: () {
-                  context.read<JournalCaptureCubit>().stopRecording();
-                },
+              ConstrainedBox(
+                constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
+                child: Semantics(
+                  label: 'Stop recording',
+                  button: true,
+                  child: IconButton(
+                    icon: const Icon(Icons.stop, color: kcDangerColor),
+                    onPressed: () {
+                      context.read<JournalCaptureCubit>().stopRecording();
+                    },
+                  ),
+                ),
               ),
             ] else if (isPaused) ...[
               ConstrainedBox(
