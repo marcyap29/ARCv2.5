@@ -7,6 +7,7 @@ import 'package:my_app/features/arcforms/widgets/simple_3d_arcform.dart';
 import 'package:my_app/features/arcforms/arcform_mvp_implementation.dart';
 import 'package:my_app/features/arcforms/services/emotional_valence_service.dart';
 import 'package:my_app/services/user_phase_service.dart';
+import 'package:my_app/services/arcform_export_service.dart';
 import 'package:my_app/shared/app_colors.dart';
 import 'package:my_app/shared/text_style.dart';
 
@@ -31,6 +32,7 @@ class ArcformRendererViewContent extends StatefulWidget {
 
 class _ArcformRendererViewContentState extends State<ArcformRendererViewContent> {
   bool _is3DMode = true; // Default to 3D mode to show off the new feature
+  final GlobalKey _arcformRepaintBoundaryKey = GlobalKey();
 
   ArcformGeometry _convertToArcformGeometry(GeometryPattern geometry) {
     switch (geometry) {
@@ -514,42 +516,45 @@ class _ArcformRendererViewContentState extends State<ArcformRendererViewContent>
                     Expanded(
                       child: Container(
                         padding: const EdgeInsets.only(top: 10, bottom: 70), // Increased top padding to push arcform higher and bottom padding for navigation bar
-                        child: _is3DMode
-                            ? Simple3DArcform(
-                                nodes: state.nodes,
-                                edges: state.edges,
-                                onNodeMoved: (nodeId, x, y) {
-                                  context
-                                      .read<ArcformRendererCubit>()
-                                      .updateNodePosition(nodeId, x, y);
-                                },
-                                onNodeTapped: (keyword) {
-                                  _showKeywordDialog(context, keyword);
-                                },
-                                selectedGeometry: _convertToArcformGeometry(state.selectedGeometry),
-                                onGeometryChanged: (geometry) {
-                                  context.read<ArcformRendererCubit>().changeGeometry(
-                                    _convertFromArcformGeometry(geometry)
-                                  );
-                                },
-                              )
-                            : ArcformLayout(
-                                nodes: state.nodes,
-                                edges: state.edges,
-                                onNodeMoved: (nodeId, x, y) {
-                                  context
-                                      .read<ArcformRendererCubit>()
-                                      .updateNodePosition(nodeId, x, y);
-                                },
-                                onNodeTapped: (keyword) {
-                                  _showKeywordDialog(context, keyword);
-                                },
-                                selectedGeometry: state.selectedGeometry,
-                                currentPhase: state.currentPhase,
-                                onGeometryChanged: (geometry) {
-                                  context.read<ArcformRendererCubit>().changeGeometry(geometry);
-                                },
-                              ),
+                        child: RepaintBoundary(
+                          key: _arcformRepaintBoundaryKey,
+                          child: _is3DMode
+                              ? Simple3DArcform(
+                                  nodes: state.nodes,
+                                  edges: state.edges,
+                                  onNodeMoved: (nodeId, x, y) {
+                                    context
+                                        .read<ArcformRendererCubit>()
+                                        .updateNodePosition(nodeId, x, y);
+                                  },
+                                  onNodeTapped: (keyword) {
+                                    _showKeywordDialog(context, keyword);
+                                  },
+                                  selectedGeometry: _convertToArcformGeometry(state.selectedGeometry),
+                                  onGeometryChanged: (geometry) {
+                                    context.read<ArcformRendererCubit>().changeGeometry(
+                                      _convertFromArcformGeometry(geometry)
+                                    );
+                                  },
+                                )
+                              : ArcformLayout(
+                                  nodes: state.nodes,
+                                  edges: state.edges,
+                                  onNodeMoved: (nodeId, x, y) {
+                                    context
+                                        .read<ArcformRendererCubit>()
+                                        .updateNodePosition(nodeId, x, y);
+                                  },
+                                  onNodeTapped: (keyword) {
+                                    _showKeywordDialog(context, keyword);
+                                  },
+                                  selectedGeometry: state.selectedGeometry,
+                                  currentPhase: state.currentPhase,
+                                  onGeometryChanged: (geometry) {
+                                    context.read<ArcformRendererCubit>().changeGeometry(geometry);
+                                  },
+                                ),
+                        ),
                       ),
                     ),
                   ],
@@ -572,6 +577,20 @@ class _ArcformRendererViewContentState extends State<ArcformRendererViewContent>
                     ),
                   ),
                 ),
+                // Export/Share button
+                Positioned(
+                  bottom: 130,
+                  right: 16,
+                  child: FloatingActionButton(
+                    mini: true,
+                    onPressed: () => _exportArcform(context, state),
+                    backgroundColor: kcSurfaceAltColor,
+                    child: const Icon(
+                      Icons.share,
+                      color: kcSecondaryColor,
+                    ),
+                  ),
+                ),
               ],
             ),
           );
@@ -579,6 +598,16 @@ class _ArcformRendererViewContentState extends State<ArcformRendererViewContent>
 
         return const Center(child: Text('Unknown state'));
       },
+    );
+  }
+
+  /// Export arcform as PNG and share it
+  void _exportArcform(BuildContext context, ArcformRendererLoaded state) {
+    ArcformExportService.exportAndShareArcform(
+      repaintBoundaryKey: _arcformRepaintBoundaryKey,
+      phaseName: state.currentPhase,
+      geometryName: state.selectedGeometry.name,
+      context: context,
     );
   }
 }
