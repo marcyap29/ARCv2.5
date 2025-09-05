@@ -408,6 +408,7 @@ class _Simple3DArcformState extends State<Simple3DArcform>
                   const SizedBox(height: 16),
                   // Control buttons row
                   Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       // 3D Toggle button
                       Container(
