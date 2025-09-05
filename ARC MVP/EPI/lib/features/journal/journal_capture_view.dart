@@ -362,7 +362,31 @@ class _JournalCaptureViewState extends State<JournalCaptureView> {
                 ),
               ],
             ),
-            body: const Center(child: Text('Debugging FPS overlay integration')),
+            body: BlocBuilder<A11yCubit, A11yState>(
+              builder: (context, a11yState) {
+                return Theme(
+                  data: a11yState.highContrast 
+                    ? highContrastTheme(Theme.of(context))
+                    : Theme.of(context),
+                  child: withTextScale(
+                    context,
+                    Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Text('Debugging FPS overlay integration'),
+                          const SizedBox(height: 20),
+                          Text('Larger Text: ${a11yState.largerText}'),
+                          Text('High Contrast: ${a11yState.highContrast}'),
+                          Text('Reduced Motion: ${a11yState.reducedMotion}'),
+                        ],
+                      ),
+                    ),
+                    enabled: a11yState.largerText,
+                  ),
+                );
+              },
+            ),
           ),
         ),
         // FPS Performance Overlay (debug only)
