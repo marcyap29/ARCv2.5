@@ -1,6 +1,7 @@
 import 'package:equatable/equatable.dart';
 import 'package:hive/hive.dart';
 import 'package:my_app/features/journal/sage_annotation_model.dart';
+import 'package:my_app/data/models/media_item.dart';
 
 part 'journal_entry_model.g.dart';
 
@@ -28,7 +29,10 @@ class JournalEntry extends Equatable {
   final String mood;
 
   @HiveField(7)
-  final String? audioUri;
+  final String? audioUri; // Legacy field - kept for migration compatibility
+
+  @HiveField(12)
+  final List<MediaItem> media; // New multi-modal media list
 
   @HiveField(8)
   final SAGEAnnotation? sageAnnotation;
@@ -50,7 +54,8 @@ class JournalEntry extends Equatable {
     required this.updatedAt,
     required this.tags,
     required this.mood,
-    this.audioUri,
+    this.audioUri, // Legacy field
+    this.media = const [], // New multi-modal media list
     this.sageAnnotation,
     this.keywords = const [],
     this.emotion,
@@ -65,7 +70,8 @@ class JournalEntry extends Equatable {
     DateTime? updatedAt,
     List<String>? tags,
     String? mood,
-    String? audioUri,
+    String? audioUri, // Legacy field
+    List<MediaItem>? media, // New multi-modal media list
     SAGEAnnotation? sageAnnotation,
     List<String>? keywords,
     String? emotion,
@@ -79,7 +85,8 @@ class JournalEntry extends Equatable {
       updatedAt: updatedAt ?? this.updatedAt,
       tags: tags ?? this.tags,
       mood: mood ?? this.mood,
-      audioUri: audioUri ?? this.audioUri,
+      audioUri: audioUri ?? this.audioUri, // Legacy field
+      media: media ?? this.media, // New multi-modal media list
       sageAnnotation: sageAnnotation ?? this.sageAnnotation,
       keywords: keywords ?? this.keywords,
       emotion: emotion ?? this.emotion,
@@ -96,7 +103,8 @@ class JournalEntry extends Equatable {
         updatedAt,
         tags,
         mood,
-        audioUri,
+        audioUri, // Legacy field
+        media, // New multi-modal media list
         sageAnnotation,
         keywords,
         emotion,
@@ -112,7 +120,8 @@ class JournalEntry extends Equatable {
       'updatedAt': updatedAt.toIso8601String(),
       'tags': tags,
       'mood': mood,
-      'audioUri': audioUri,
+      'audioUri': audioUri, // Legacy field - kept for backward compatibility
+      'media': media.map((item) => item.toJson()).toList(), // New multi-modal media list
       'sageAnnotation': sageAnnotation?.toJson(),
       'keywords': keywords,
       'emotion': emotion,
@@ -129,7 +138,10 @@ class JournalEntry extends Equatable {
       updatedAt: DateTime.parse(json['updatedAt'] as String),
       tags: List<String>.from(json['tags'] as List),
       mood: json['mood'] as String,
-      audioUri: json['audioUri'] as String?,
+      audioUri: json['audioUri'] as String?, // Legacy field
+      media: (json['media'] as List?)
+          ?.map((item) => MediaItem.fromJson(item as Map<String, dynamic>))
+          .toList() ?? [], // New multi-modal media list
       sageAnnotation: json['sageAnnotation'] != null
           ? SAGEAnnotation.fromJson(
               json['sageAnnotation'] as Map<String, dynamic>)

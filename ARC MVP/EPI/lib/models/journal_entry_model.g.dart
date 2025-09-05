@@ -25,6 +25,7 @@ class JournalEntryAdapter extends TypeAdapter<JournalEntry> {
       tags: (fields[5] as List).cast<String>(),
       mood: fields[6] as String,
       audioUri: fields[7] as String?,
+      media: (fields[12] as List).cast<MediaItem>(),
       sageAnnotation: fields[8] as SAGEAnnotation?,
       keywords: (fields[9] as List).cast<String>(),
       emotion: fields[10] as String?,
@@ -35,7 +36,7 @@ class JournalEntryAdapter extends TypeAdapter<JournalEntry> {
   @override
   void write(BinaryWriter writer, JournalEntry obj) {
     writer
-      ..writeByte(12)
+      ..writeByte(13)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -52,6 +53,8 @@ class JournalEntryAdapter extends TypeAdapter<JournalEntry> {
       ..write(obj.mood)
       ..writeByte(7)
       ..write(obj.audioUri)
+      ..writeByte(12)
+      ..write(obj.media)
       ..writeByte(8)
       ..write(obj.sageAnnotation)
       ..writeByte(9)
