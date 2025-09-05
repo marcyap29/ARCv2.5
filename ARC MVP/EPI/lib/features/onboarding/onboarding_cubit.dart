@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:my_app/features/onboarding/onboarding_state.dart';
 import 'package:hive/hive.dart';
 import 'package:my_app/models/user_profile_model.dart';
+import 'package:my_app/models/journal_entry_model.dart';
 import 'package:logger/logger.dart';
 import 'package:my_app/services/starter_arcform_service.dart';
 
@@ -89,21 +90,21 @@ class OnboardingCubit extends Cubit<OnboardingState> {
         // Persist starter arcform as a journal-like entry for continuity
         // Use the existing typed box instead of opening a generic one
         if (Hive.isBoxOpen('journal_entries')) {
-          final journalBox = Hive.box('journal_entries');
-          final journalEntry = {
-            'id': starterArcform.id,
-            'title': starterArcform.title,
-            'content': starterArcform.content,
-            'createdAt': starterArcform.createdAt.toIso8601String(),
-            'updatedAt': starterArcform.createdAt.toIso8601String(),
-            'tags': starterArcform.keywords,
-            'mood': updatedProfile.onboardingFeeling ?? 'Hopeful',
-            'audioUri': null,
-            'sageAnnotation': null,
-            'keywords': starterArcform.keywords,
-          };
-          await journalBox.put(journalEntry['id'], journalEntry);
-          _logger.i('Saved starter Arcform as journal entry: ${journalEntry['id']}');
+          final journalBox = Hive.box<JournalEntry>('journal_entries');
+          final journalEntry = JournalEntry(
+            id: starterArcform.id,
+            title: starterArcform.title,
+            content: starterArcform.content,
+            createdAt: starterArcform.createdAt,
+            updatedAt: starterArcform.createdAt,
+            tags: starterArcform.keywords,
+            mood: updatedProfile.onboardingFeeling ?? 'Hopeful',
+            audioUri: null,
+            sageAnnotation: null,
+            keywords: starterArcform.keywords,
+          );
+          await journalBox.put(journalEntry.id, journalEntry);
+          _logger.i('Saved starter Arcform as journal entry: ${journalEntry.id}');
         } else {
           _logger.w('Journal entries box not open, skipping starter Arcform persistence');
         }
