@@ -515,7 +515,7 @@ class _ArcformRendererViewContentState extends State<ArcformRendererViewContent>
                     // Main Arcform layout - switch between 2D and 3D
                     Expanded(
                       child: Container(
-                        padding: const EdgeInsets.only(top: 10, bottom: 70), // Increased top padding to push arcform higher and bottom padding for navigation bar
+                        padding: const EdgeInsets.only(top: 4, bottom: 70), // Reduced top padding to move interface higher and bottom padding for navigation bar
                         child: RepaintBoundary(
                           key: _arcformRepaintBoundaryKey,
                           child: _is3DMode
