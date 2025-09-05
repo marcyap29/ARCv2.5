@@ -28,7 +28,7 @@ class UserProfileAdapter extends TypeAdapter<UserProfile> {
       onboardingCompleted: fields[8] as bool,
       onboardingCurrentSeason: fields[9] as String?,
       onboardingCentralWord: fields[10] as String?,
-      currentPhase: fields[11] as String? ?? 'Unknown',
+      currentPhase: fields[11] as String,
       lastPhaseChangeAt: fields[12] as DateTime?,
     );
   }
