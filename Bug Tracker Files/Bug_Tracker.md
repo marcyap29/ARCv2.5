@@ -1,9 +1,85 @@
 # EPI ARC MVP - Bug Tracker
 
-> **Last Updated**: January 20, 2025 5:15 PM (America/Los_Angeles)  
-> **Total Items Tracked**: 26 (22 bugs + 4 enhancements)  
-> **Critical Issues Fixed**: 22  
-> **Status**: All blocking issues resolved - Production ready with complete branch integration & repository cleanup ✅
+> **Last Updated**: January 20, 2025 6:30 PM (America/Los_Angeles)  
+> **Total Items Tracked**: 28 (24 bugs + 4 enhancements)  
+> **Critical Issues Fixed**: 24  
+> **Status**: All blocking issues resolved - Production ready with final UI optimization & Hive error resolution ✅
+
+---
+
+## Bug ID: BUG-2025-01-20-027
+**Title**: Final 3D Arcform Geometry Box Positioning Optimization
+
+**Type**: Bug  
+**Priority**: P2 (High)  
+**Status**: ✅ Fixed  
+**Reporter**: User Testing  
+**Implementer**: Claude Code  
+**Fix Date**: 2025-01-20  
+
+#### Description
+The "3D Arcform Geometry" box needed final positioning adjustment to bring it even closer to the "Current Phase" box for optimal visual hierarchy and maximum space for arcform visualization.
+
+#### Root Cause Analysis
+- **Primary Issue**: 3D Arcform Geometry box was positioned at `top: 20px` but needed to be closer to Current Phase box
+- **Technical Cause**: User requested final adjustment to achieve perfect visual hierarchy
+- **Impact**: Suboptimal use of screen space and visual spacing between related UI elements
+- **Affected Components**: 3D Arcform Geometry box positioning, visual hierarchy, arcform visualization space
+
+#### Solution Implemented
+- **Final Positioning**: Moved "3D Arcform Geometry" box to `top: 5px` for optimal positioning
+- **Perfect Visual Hierarchy**: Box now sits very close to the "Current Phase" box
+- **Maximum Arcform Space**: Creates maximum space for arcform visualization below the control interface
+- **Compact Layout**: Achieved desired compact, high-positioned layout with all four control buttons in centered horizontal row
+
+#### Files Modified
+- `lib/features/arcforms/widgets/simple_3d_arcform.dart` - Updated positioning from `top: 20` to `top: 5`
+
+#### Testing Results
+- ✅ 3D Arcform Geometry box positioned optimally close to Current Phase box
+- ✅ Maximum space created for arcform visualization below
+- ✅ Perfect visual hierarchy achieved
+- ✅ All four control buttons remain in centered horizontal row
+
+---
+
+## Bug ID: BUG-2025-01-20-026
+**Title**: Critical Hive Database Box Already Open Error
+
+**Type**: Bug  
+**Priority**: P1 (Critical)  
+**Status**: ✅ Fixed  
+**Reporter**: Terminal Output  
+**Implementer**: Claude Code  
+**Fix Date**: 2025-01-20  
+
+#### Description
+Critical `HiveError: The box "journal_entries" is already open and of type Box<JournalEntry>` was occurring during onboarding completion, preventing successful app initialization and causing database conflicts.
+
+#### Root Cause Analysis
+- **Primary Issue**: Multiple parts of codebase were trying to open same Hive boxes already opened during bootstrap
+- **Technical Cause**: `JournalRepository._ensureBox()` and `ArcformService` methods were calling `Hive.openBox()` without checking if box was already open
+- **Impact**: Onboarding completion failure, database conflicts, potential app crashes
+- **Affected Components**: Onboarding flow, Hive database initialization, journal entry creation
+
+#### Solution Implemented
+- **Smart Box Management**: Updated `JournalRepository._ensureBox()` to handle already open boxes gracefully
+- **ArcformService Enhancement**: Updated all ArcformService methods to check if boxes are open before attempting to open them
+- **Graceful Error Handling**: Added proper error handling for 'already open' Hive errors with fallback mechanisms
+- **Bootstrap Integration**: Ensured boxes are opened once during bootstrap and reused throughout app lifecycle
+
+#### Technical Implementation
+- **File Modified**: `lib/repositories/journal_repository.dart` - Enhanced `_ensureBox()` method with error handling
+- **File Modified**: `lib/services/arcform_service.dart` - Updated all methods to check `Hive.isBoxOpen()` before opening
+- **Error Handling**: Added try-catch blocks to handle 'already open' errors gracefully
+- **Fallback Logic**: Use existing box if already open, only open new box if not already open
+
+#### Testing Results
+- ✅ Onboarding completion now works without Hive database conflicts
+- ✅ App initializes successfully without database errors
+- ✅ Journal entry creation works seamlessly
+- ✅ No more "box already open" errors in terminal output
+- ✅ Graceful error handling prevents app crashes
 
 ---
 
