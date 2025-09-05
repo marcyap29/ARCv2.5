@@ -11,7 +11,8 @@ import 'package:my_app/shared/tab_bar.dart';
 import 'package:my_app/shared/text_style.dart';
 import 'package:my_app/core/rivet/rivet_provider.dart';
 import 'package:my_app/core/rivet/rivet_models.dart';
-import 'dart:math' as math;
+import 'package:my_app/features/insights/cards/aurora_card.dart';
+import 'package:my_app/features/insights/cards/veil_card.dart';
 
 class HomeView extends StatefulWidget {
   final int initialTab;
@@ -120,6 +121,10 @@ class _InsightsPage extends StatelessWidget {
                   children: [
                     const _RivetCard(),
                     const SizedBox(height: 20),
+                    const AuroraCard(),
+                    const SizedBox(height: 20),
+                    const VeilCard(),
+                    const SizedBox(height: 20),
                     // Future insight cards can be added here
                     Container(
                       padding: const EdgeInsets.all(20),
@@ -134,13 +139,13 @@ class _InsightsPage extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'Coming Soon',
+                            'More Insights Coming Soon',
                             style: heading2Style(context),
                           ),
                           const SizedBox(height: 8),
                           Text(
-                            'More insights about your patterns and growth will be available here.',
-                            style: bodyStyle(context)?.copyWith(
+                            'Additional insights about your patterns and growth will be available here.',
+                            style: bodyStyle(context).copyWith(
                               color: kcPrimaryTextColor.withOpacity(0.7),
                             ),
                           ),
@@ -264,7 +269,7 @@ class _RivetCardState extends State<_RivetCard> {
                   ),
                   Text(
                     'Phase-stability monitoring system',
-                    style: bodyStyle(context)?.copyWith(
+                    style: bodyStyle(context).copyWith(
                       color: kcPrimaryTextColor.withOpacity(0.7),
                       fontSize: 12,
                     ),
@@ -323,7 +328,7 @@ class _RivetCardState extends State<_RivetCard> {
                   Expanded(
                     child: Text(
                       _statusMessage,
-                      style: bodyStyle(context)?.copyWith(
+                      style: bodyStyle(context).copyWith(
                         fontFamily: 'monospace',
                         fontSize: 11,
                       ),
