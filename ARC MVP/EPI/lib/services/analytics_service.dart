@@ -120,6 +120,14 @@ class AnalyticsService {
     });
   }
 
+  /// Track arcform export/share
+  static void trackArcformExport(String phase, String geometry) {
+    trackEvent('arcform_export', properties: {
+      'phase': phase,
+      'geometry': geometry,
+    });
+  }
+
   /// Get override frequency percentage (P23 requirement)
   static double getOverrideFrequency() {
     final overrides = _eventCounts['geometry_override'] ?? 0;
