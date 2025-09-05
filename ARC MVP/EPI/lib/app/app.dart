@@ -10,6 +10,7 @@ import 'package:my_app/repositories/journal_repository.dart';
 import 'package:my_app/features/timeline/timeline_cubit.dart';
 import 'package:my_app/features/journal/journal_capture_cubit.dart';
 import 'package:my_app/features/journal/keyword_extraction_cubit.dart';
+import 'package:my_app/core/a11y/a11y_flags.dart';
 
 class App extends StatelessWidget {
   const App({super.key});
@@ -36,6 +37,10 @@ class App extends StatelessWidget {
           // Keyword extraction cubit for analyzing text
           BlocProvider(
             create: (context) => KeywordExtractionCubit(),
+          ),
+          // Accessibility cubit for accessibility features
+          BlocProvider(
+            create: (context) => A11yCubit(),
           ),
         ],
         child: MaterialApp(
