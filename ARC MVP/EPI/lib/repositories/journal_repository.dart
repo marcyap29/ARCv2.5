@@ -13,7 +13,16 @@ class JournalRepository {
     if (Hive.isBoxOpen(_boxName)) {
       _box = Hive.box<JournalEntry>(_boxName);
     } else {
-      _box = await Hive.openBox<JournalEntry>(_boxName);
+      try {
+        _box = await Hive.openBox<JournalEntry>(_boxName);
+      } catch (e) {
+        // If the box is already open with a different type, use the existing box
+        if (e.toString().contains('already open')) {
+          _box = Hive.box<JournalEntry>(_boxName);
+        } else {
+          rethrow;
+        }
+      }
     }
     return _box!;
   }
