@@ -31,6 +31,7 @@ dependencies:
   share_plus: ^7.2.1
   json_annotation: ^4.9.0
   image: ^4.1.7
+  image_picker: ^1.0.4
   
   # Firebase Dependencies
   # Uncomment these lines when you need Firebase functionality
