@@ -8,6 +8,8 @@ import 'package:my_app/repositories/journal_repository.dart';
 import 'package:my_app/shared/app_colors.dart';
 import 'package:my_app/shared/text_style.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:my_app/core/perf/frame_budget.dart';
+import 'package:my_app/core/a11y/a11y_flags.dart';
 
 class JournalCaptureView extends StatefulWidget {
   final String? initialEmotion;
@@ -118,15 +120,22 @@ class _JournalCaptureViewState extends State<JournalCaptureView> {
             actions: [
               Padding(
                 padding: const EdgeInsets.only(right: 16.0),
-                child: ElevatedButton(
-                  onPressed: _onNextPressed,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: kcPrimaryColor,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8.0),
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
+                  child: Semantics(
+                    label: 'Continue to next step',
+                    button: true,
+                    child: ElevatedButton(
+                      onPressed: _onNextPressed,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: kcPrimaryColor,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8.0),
+                        ),
+                      ),
+                      child: Text('Next', style: buttonStyle(context)),
                     ),
                   ),
-                  child: Text('Next', style: buttonStyle(context)),
                 ),
               ),
             ],
@@ -293,10 +302,10 @@ class _JournalCaptureViewState extends State<JournalCaptureView> {
                 ),
               ],
             ),
-            ),
           ),
         ),
-      );
+      ),
+    );
   }
 
 
@@ -308,16 +317,23 @@ class _JournalCaptureViewState extends State<JournalCaptureView> {
           style: bodyStyle(context),
         ),
         const SizedBox(height: 16),
-        ElevatedButton.icon(
-          onPressed: () {
-            context.read<JournalCaptureCubit>().requestMicrophonePermission();
-          },
-          icon: const Icon(Icons.mic, color: Colors.white),
-          label: Text('Enable Voice Journaling', style: buttonStyle(context)),
-          style: ElevatedButton.styleFrom(
-            backgroundColor: kcPrimaryColor,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(8.0),
+        ConstrainedBox(
+          constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
+          child: Semantics(
+            label: 'Enable voice journaling and request microphone permission',
+            button: true,
+            child: ElevatedButton.icon(
+              onPressed: () {
+                context.read<JournalCaptureCubit>().requestMicrophonePermission();
+              },
+              icon: const Icon(Icons.mic, color: Colors.white),
+              label: Text('Enable Voice Journaling', style: buttonStyle(context)),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: kcPrimaryColor,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8.0),
+                ),
+              ),
             ),
           ),
         ),
@@ -405,48 +421,90 @@ class _JournalCaptureViewState extends State<JournalCaptureView> {
                 },
               ),
             ] else if (isPaused) ...[
-              IconButton(
-                icon: const Icon(Icons.play_arrow, color: kcPrimaryColor),
-                onPressed: () {
-                  context.read<JournalCaptureCubit>().startRecording();
-                },
+              ConstrainedBox(
+                constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
+                child: Semantics(
+                  label: 'Resume recording',
+                  button: true,
+                  child: IconButton(
+                    icon: const Icon(Icons.play_arrow, color: kcPrimaryColor),
+                    onPressed: () {
+                      context.read<JournalCaptureCubit>().startRecording();
+                    },
+                  ),
+                ),
               ),
-              IconButton(
-                icon: const Icon(Icons.stop, color: kcDangerColor),
-                onPressed: () {
-                  context.read<JournalCaptureCubit>().stopRecording();
-                },
+              ConstrainedBox(
+                constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
+                child: Semantics(
+                  label: 'Stop recording',
+                  button: true,
+                  child: IconButton(
+                    icon: const Icon(Icons.stop, color: kcDangerColor),
+                    onPressed: () {
+                      context.read<JournalCaptureCubit>().stopRecording();
+                    },
+                  ),
+                ),
               ),
             ] else if (state is JournalCaptureRecordingStopped) ...[
-              IconButton(
-                icon: const Icon(Icons.play_arrow, color: kcPrimaryColor),
-                onPressed: () {
-                  context.read<JournalCaptureCubit>().playRecording();
-                },
+              ConstrainedBox(
+                constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
+                child: Semantics(
+                  label: 'Play recording',
+                  button: true,
+                  child: IconButton(
+                    icon: const Icon(Icons.play_arrow, color: kcPrimaryColor),
+                    onPressed: () {
+                      context.read<JournalCaptureCubit>().playRecording();
+                    },
+                  ),
+                ),
               ),
-              IconButton(
-                icon: const Icon(Icons.restart_alt, color: kcSecondaryColor),
-                onPressed: () {
-                  context.read<JournalCaptureCubit>().startRecording();
-                },
+              ConstrainedBox(
+                constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
+                child: Semantics(
+                  label: 'Start new recording',
+                  button: true,
+                  child: IconButton(
+                    icon: const Icon(Icons.restart_alt, color: kcSecondaryColor),
+                    onPressed: () {
+                      context.read<JournalCaptureCubit>().startRecording();
+                    },
+                  ),
+                ),
               ),
-              ElevatedButton.icon(
-                onPressed: () {
-                  context.read<JournalCaptureCubit>().transcribeAudio();
-                },
-                icon: const Icon(Icons.translate, color: Colors.white),
-                label: Text('Transcribe', style: buttonStyle(context)),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: kcPrimaryColor,
+              ConstrainedBox(
+                constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
+                child: Semantics(
+                  label: 'Transcribe audio to text',
+                  button: true,
+                  child: ElevatedButton.icon(
+                    onPressed: () {
+                      context.read<JournalCaptureCubit>().transcribeAudio();
+                    },
+                    icon: const Icon(Icons.translate, color: Colors.white),
+                    label: Text('Transcribe', style: buttonStyle(context)),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: kcPrimaryColor,
+                    ),
+                  ),
                 ),
               ),
             ] else ...[
-              IconButton(
-                icon: const Icon(Icons.fiber_manual_record,
-                    color: kcPrimaryColor),
-                onPressed: () {
-                  context.read<JournalCaptureCubit>().startRecording();
-                },
+              ConstrainedBox(
+                constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
+                child: Semantics(
+                  label: 'Start recording voice',
+                  button: true,
+                  child: IconButton(
+                    icon: const Icon(Icons.fiber_manual_record,
+                        color: kcPrimaryColor),
+                    onPressed: () {
+                      context.read<JournalCaptureCubit>().startRecording();
+                    },
+                  ),
+                ),
               ),
             ],
           ],
