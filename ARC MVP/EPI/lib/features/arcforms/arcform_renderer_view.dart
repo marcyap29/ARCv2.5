@@ -536,6 +536,12 @@ class _ArcformRendererViewContentState extends State<ArcformRendererViewContent>
                                       _convertFromArcformGeometry(geometry)
                                     );
                                   },
+                                  on3DToggle: () {
+                                    setState(() {
+                                      _is3DMode = !_is3DMode;
+                                    });
+                                  },
+                                  onExport: () => _exportArcform(context, state),
                                 )
                               : ArcformLayout(
                                   nodes: state.nodes,
@@ -558,38 +564,6 @@ class _ArcformRendererViewContentState extends State<ArcformRendererViewContent>
                       ),
                     ),
                   ],
-                ),
-                // 3D Toggle button
-                Positioned(
-                  bottom: 130, // Moved up to account for bottom padding
-                  left: 16,
-                  child: FloatingActionButton(
-                    mini: true,
-                    onPressed: () {
-                      setState(() {
-                        _is3DMode = !_is3DMode;
-                      });
-                    },
-                    backgroundColor: _is3DMode ? kcPrimaryColor : kcSurfaceAltColor,
-                    child: Icon(
-                      _is3DMode ? Icons.view_in_ar : Icons.view_in_ar_outlined,
-                      color: _is3DMode ? Colors.white : kcSecondaryColor,
-                    ),
-                  ),
-                ),
-                // Export/Share button
-                Positioned(
-                  bottom: 130,
-                  right: 16,
-                  child: FloatingActionButton(
-                    mini: true,
-                    onPressed: () => _exportArcform(context, state),
-                    backgroundColor: kcSurfaceAltColor,
-                    child: const Icon(
-                      Icons.share,
-                      color: kcSecondaryColor,
-                    ),
-                  ),
                 ),
               ],
             ),
