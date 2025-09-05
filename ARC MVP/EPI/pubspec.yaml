@@ -30,6 +30,7 @@ dependencies:
   package_info_plus: ^8.0.0
   share_plus: ^7.2.1
   json_annotation: ^4.9.0
+  image: ^4.1.7
   
   # Firebase Dependencies
   # Uncomment these lines when you need Firebase functionality
