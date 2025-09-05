@@ -20,6 +20,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - **All Core Features**: Journal capture, arcforms, timeline, insights, onboarding, export functionality
 - **P19 Complete**: Full Accessibility & Performance implementation with screen reader support
 - **P13 Complete**: Complete Settings & Privacy system with data management and personalization
+- **P15 Complete**: Analytics & QA system with consent-gated events and comprehensive debug screen
+- **P17 Complete**: Arcform export functionality with retina PNG and share integration
 - **Production Quality**: Clean codebase, comprehensive error handling, full accessibility compliance
 
 ### 🚀 Production Ready Features
