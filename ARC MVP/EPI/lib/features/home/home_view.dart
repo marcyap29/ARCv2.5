@@ -13,6 +13,9 @@ import 'package:my_app/core/rivet/rivet_provider.dart';
 import 'package:my_app/core/rivet/rivet_models.dart';
 import 'package:my_app/features/insights/cards/aurora_card.dart';
 import 'package:my_app/features/insights/cards/veil_card.dart';
+import 'package:my_app/features/qa/qa_screen.dart';
+import 'package:my_app/services/analytics_service.dart';
+import 'package:flutter/foundation.dart';
 
 class HomeView extends StatefulWidget {
   final int initialTab;
@@ -31,6 +34,8 @@ class _HomeViewState extends State<HomeView> {
     TabItem(icon: Icons.timeline, text: 'Timeline'),
     TabItem(icon: Icons.insights, text: 'Insights'),
   ];
+
+  final List<String> _tabNames = const ['Journal', 'Phase', 'Timeline', 'Insights'];
 
   late final List<Widget> _pages;
 
@@ -54,9 +59,12 @@ class _HomeViewState extends State<HomeView> {
   Widget build(BuildContext context) {
     return BlocProvider.value(
       value: _homeCubit,
-      child: BlocListener<HomeCubit, HomeState>(
+              child: BlocListener<HomeCubit, HomeState>(
         listener: (context, state) {
           if (state is HomeLoaded) {
+            // Track tab navigation
+            AnalyticsService.trackTabNavigation(_tabNames[state.selectedIndex]);
+            
             // Refresh timeline when switching to Timeline tab (index 2)
             if (state.selectedIndex == 2) {
               context.read<TimelineCubit>().refreshEntries();
@@ -110,6 +118,21 @@ class _InsightsPage extends StatelessWidget {
                     'Insights',
                     style: heading1Style(context),
                   ),
+                  const Spacer(),
+                  if (kDebugMode)
+                    IconButton(
+                      icon: const Icon(
+                        Icons.bug_report,
+                        color: kcPrimaryTextColor,
+                      ),
+                      onPressed: () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (context) => const QAScreen(),
+                          ),
+                        );
+                      },
+                    ),
                 ],
               ),
             ),

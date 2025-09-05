@@ -1,5 +1,8 @@
-/// Simple analytics service for tracking user interactions
-/// This is a stub implementation for P23 requirements
+import 'package:flutter/foundation.dart';
+import 'package:my_app/core/analytics/analytics_consent.dart';
+
+/// Analytics service for tracking user interactions with consent-gated events
+/// Implements P15 requirements for analytics & QA
 class AnalyticsService {
   static final AnalyticsService _instance = AnalyticsService._internal();
   factory AnalyticsService() => _instance;
@@ -8,6 +11,46 @@ class AnalyticsService {
   // In-memory analytics tracking (for MVP/demo purposes)
   static final Map<String, int> _eventCounts = {};
   static final List<Map<String, dynamic>> _events = [];
+  static bool _isInitialized = false;
+
+  /// Initialize analytics service
+  static Future<void> initialize() async {
+    if (_isInitialized) return;
+    
+    // Initialize consent manager
+    await AnalyticsConsent.initialize();
+    _isInitialized = true;
+    
+    if (kDebugMode) {
+      print('📊 Analytics: Service initialized with consent: ${AnalyticsConsent.hasConsent()}');
+    }
+  }
+
+  /// Check if analytics tracking is enabled (consent given)
+  static bool get isEnabled => AnalyticsConsent.hasConsent();
+
+  /// Track event only if consent is given
+  static void trackEvent(String eventName, {Map<String, dynamic>? properties}) {
+    if (!isEnabled) {
+      if (kDebugMode) {
+        print('📊 Analytics: Event "$eventName" skipped - no consent');
+      }
+      return;
+    }
+
+    final event = {
+      'event': eventName,
+      'timestamp': DateTime.now().toIso8601String(),
+      'properties': properties ?? {},
+    };
+
+    _events.add(event);
+    _incrementEventCount(eventName);
+    
+    if (kDebugMode) {
+      print('📊 Analytics: Event tracked - $eventName');
+    }
+  }
 
   /// Track when user manually overrides geometry (P23 requirement)
   static void trackGeometryOverride({
@@ -16,20 +59,13 @@ class AnalyticsService {
     required String selectedGeometry,
     required List<String> keywords,
   }) {
-    final event = {
-      'event': 'geometry_override',
-      'timestamp': DateTime.now().toIso8601String(),
+    trackEvent('geometry_override', properties: {
       'original_phase': originalPhase,
       'original_geometry': originalGeometry,
       'selected_geometry': selectedGeometry,
       'keyword_count': keywords.length,
       'keywords': keywords,
-    };
-
-    _events.add(event);
-    _incrementEventCount('geometry_override');
-    
-    print('📊 Analytics: Geometry override tracked - $originalGeometry → $selectedGeometry');
+    });
   }
 
   /// Track when user accepts auto-detected geometry
@@ -38,19 +74,50 @@ class AnalyticsService {
     required String geometry,
     required List<String> keywords,
   }) {
-    final event = {
-      'event': 'geometry_accepted',
-      'timestamp': DateTime.now().toIso8601String(),
+    trackEvent('geometry_accepted', properties: {
       'phase': phase,
       'geometry': geometry,
       'keyword_count': keywords.length,
       'keywords': keywords,
-    };
+    });
+  }
 
-    _events.add(event);
-    _incrementEventCount('geometry_accepted');
-    
-    print('📊 Analytics: Auto-geometry accepted - $geometry for $phase');
+  /// Track journal entry creation
+  static void trackJournalEntryCreated({
+    required int wordCount,
+    required String emotion,
+    required int keywordCount,
+  }) {
+    trackEvent('journal_entry_created', properties: {
+      'word_count': wordCount,
+      'emotion': emotion,
+      'keyword_count': keywordCount,
+    });
+  }
+
+  /// Track arcform creation
+  static void trackArcformCreated({
+    required String geometry,
+    required String phase,
+    required int keywordCount,
+  }) {
+    trackEvent('arcform_created', properties: {
+      'geometry': geometry,
+      'phase': phase,
+      'keyword_count': keywordCount,
+    });
+  }
+
+  /// Track app launch
+  static void trackAppLaunch() {
+    trackEvent('app_launch');
+  }
+
+  /// Track tab navigation
+  static void trackTabNavigation(String tabName) {
+    trackEvent('tab_navigation', properties: {
+      'tab': tabName,
+    });
   }
 
   /// Get override frequency percentage (P23 requirement)
