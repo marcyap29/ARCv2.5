@@ -41,7 +41,12 @@ class ArcformService {
       );
       
       // Save to Hive
-      final box = await Hive.openBox<ArcformSnapshot>(_snapshotBoxName);
+      Box<ArcformSnapshot> box;
+      if (Hive.isBoxOpen(_snapshotBoxName)) {
+        box = Hive.box<ArcformSnapshot>(_snapshotBoxName);
+      } else {
+        box = await Hive.openBox<ArcformSnapshot>(_snapshotBoxName);
+      }
       await box.put(snapshot.id, snapshot);
       
       return snapshot;
@@ -124,7 +129,12 @@ class ArcformService {
   /// Retrieves all Arcform snapshots for a user
   Future<List<ArcformSnapshot>> getAllSnapshots() async {
     try {
-      final box = await Hive.openBox<ArcformSnapshot>(_snapshotBoxName);
+      Box<ArcformSnapshot> box;
+      if (Hive.isBoxOpen(_snapshotBoxName)) {
+        box = Hive.box<ArcformSnapshot>(_snapshotBoxName);
+      } else {
+        box = await Hive.openBox<ArcformSnapshot>(_snapshotBoxName);
+      }
       return box.values.toList();
     } catch (e) {
       return [];
@@ -134,7 +144,12 @@ class ArcformService {
   /// Retrieves Arcform snapshots for a specific journal entry
   Future<List<ArcformSnapshot>> getSnapshotsForEntry(String entryId) async {
     try {
-      final box = await Hive.openBox<ArcformSnapshot>(_snapshotBoxName);
+      Box<ArcformSnapshot> box;
+      if (Hive.isBoxOpen(_snapshotBoxName)) {
+        box = Hive.box<ArcformSnapshot>(_snapshotBoxName);
+      } else {
+        box = await Hive.openBox<ArcformSnapshot>(_snapshotBoxName);
+      }
       return box.values.where((snapshot) => snapshot.arcformId == entryId).toList();
     } catch (e) {
       return [];
@@ -144,7 +159,12 @@ class ArcformService {
   /// Deletes an Arcform snapshot
   Future<void> deleteSnapshot(String snapshotId) async {
     try {
-      final box = await Hive.openBox<ArcformSnapshot>(_snapshotBoxName);
+      Box<ArcformSnapshot> box;
+      if (Hive.isBoxOpen(_snapshotBoxName)) {
+        box = Hive.box<ArcformSnapshot>(_snapshotBoxName);
+      } else {
+        box = await Hive.openBox<ArcformSnapshot>(_snapshotBoxName);
+      }
       await box.delete(snapshotId);
     } catch (e) {
       throw Exception('Failed to delete snapshot: $e');
