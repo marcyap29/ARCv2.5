@@ -55,7 +55,7 @@
 | P9    | Timeline                               | ✅ Complete  | Thumbnails + keywords; SafeArea compliance; notch-safe layout |
 | P10   | Insights: MIRA v1                      | ⏳ Planned   | Graph view scaffold later |
 | P11   | Phase detection placeholder (ATLAS)    | ✅ Complete  | Keyword-driven phase recommendations with semantic mapping |
-| P12   | Rhythm & restoration (AURORA/VEIL)     | ⏳ Planned   | Placeholders/cards |
+| P12   | Rhythm & restoration (AURORA/VEIL)     | ✅ Complete  | Placeholder cards implemented |
 | P13   | Settings & privacy                     | ✅ Complete  | All 5 phases: Privacy, Data, Personalization, About |
 | P14   | Cloud sync stubs                       | ⏳ Planned   | Offline‑first queue |
 | P15   | Analytics & QA checklist               | ✅ Complete  | Consent-gated analytics + QA screen |090212
@@ -115,6 +115,7 @@
 - **P13 Complete**: Complete Settings & Privacy system with data management and personalization
 - **P15 Complete**: Analytics & QA system with consent-gated events and debug screen
 - **P17 Complete**: Arcform export functionality with retina PNG and share integration
+- **P12 Complete**: AURORA/VEIL placeholder cards implemented and integrated
 - **Core Features**: Journal capture, arcforms, timeline, insights, onboarding, export functionality
 - **Production Quality**: Clean codebase, comprehensive error handling, full accessibility compliance
 - **Stable Release**: Tagged as v1.0.0-stable and ready for production deployment
@@ -295,12 +296,14 @@
 
 ---
 
-### 🟣 P12 — Rhythm & Restoration (AURORA/VEIL)
+### ✅ P12 — Rhythm & Restoration (AURORA/VEIL)
 **Files:**  
-- `lib/features/insights/aurora_card.dart`  
-- `lib/features/insights/veil_card.dart`  
+- `lib/features/insights/cards/aurora_card.dart`  
+- `lib/features/insights/cards/veil_card.dart`  
+- `lib/features/home/home_view.dart` (integration)
 
-**Acceptance Criteria:** Placeholders/cards marked “not yet active,” theme consistent.
+**Status:** ✅ Complete - Placeholder cards implemented and integrated
+**Acceptance Criteria:** ✅ Placeholders/cards marked "not yet active," theme consistent.
 
 ---
 
