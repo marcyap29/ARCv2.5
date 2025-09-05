@@ -542,6 +542,12 @@ class _ArcformRendererViewContentState extends State<ArcformRendererViewContent>
                                     });
                                   },
                                   onExport: () => _exportArcform(context, state),
+                                  onAutoRotate: () {
+                                    // This will be handled by the Simple3DArcform widget
+                                  },
+                                  onResetView: () {
+                                    // This will be handled by the Simple3DArcform widget
+                                  },
                                 )
                               : ArcformLayout(
                                   nodes: state.nodes,

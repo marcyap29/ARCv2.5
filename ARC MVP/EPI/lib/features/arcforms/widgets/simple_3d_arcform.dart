@@ -18,6 +18,8 @@ class Simple3DArcform extends StatefulWidget {
   final Function(ArcformGeometry) onGeometryChanged;
   final VoidCallback? on3DToggle;
   final VoidCallback? onExport;
+  final VoidCallback? onAutoRotate;
+  final VoidCallback? onResetView;
 
   const Simple3DArcform({
     super.key,
@@ -29,6 +31,8 @@ class Simple3DArcform extends StatefulWidget {
     required this.onGeometryChanged,
     this.on3DToggle,
     this.onExport,
+    this.onAutoRotate,
+    this.onResetView,
   });
 
   @override
@@ -444,8 +448,38 @@ class _Simple3DArcformState extends State<Simple3DArcform>
                           ),
                         ),
                       ),
-                      const Spacer(),
-                      // Fullscreen button (placeholder for future)
+                      const SizedBox(width: 12),
+                      // Auto-rotate button
+                      Container(
+                        decoration: BoxDecoration(
+                          color: _autoRotate ? kcPrimaryColor : kcSurfaceAltColor,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: _autoRotate ? kcPrimaryColor : kcSecondaryColor.withOpacity(0.3),
+                            width: 1,
+                          ),
+                        ),
+                        child: IconButton(
+                          onPressed: () {
+                            setState(() {
+                              _autoRotate = !_autoRotate;
+                            });
+                            if (_autoRotate) {
+                              _autoRotateController.repeat();
+                            } else {
+                              _autoRotateController.stop();
+                            }
+                            widget.onAutoRotate?.call();
+                          },
+                          icon: Icon(
+                            Icons.refresh,
+                            color: _autoRotate ? Colors.white : kcSecondaryColor,
+                            size: 20,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      // Reset view button
                       Container(
                         decoration: BoxDecoration(
                           color: kcSurfaceAltColor,
@@ -457,10 +491,16 @@ class _Simple3DArcformState extends State<Simple3DArcform>
                         ),
                         child: IconButton(
                           onPressed: () {
-                            // TODO: Implement fullscreen functionality
+                            setState(() {
+                              _rotationX = 0.2;
+                              _rotationY = 0.0;
+                              _rotationZ = 0.0;
+                              _scale = 1.0;
+                            });
+                            widget.onResetView?.call();
                           },
                           icon: const Icon(
-                            Icons.fullscreen,
+                            Icons.center_focus_strong,
                             color: kcSecondaryColor,
                             size: 20,
                           ),
@@ -470,52 +510,6 @@ class _Simple3DArcformState extends State<Simple3DArcform>
                   ),
                 ],
               ),
-            ),
-          ),
-          
-          // Controls overlay
-          Positioned(
-            bottom: 10,
-            right: 16,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // Auto-rotate toggle
-                FloatingActionButton.small(
-                  onPressed: () {
-                    setState(() {
-                      _autoRotate = !_autoRotate;
-                    });
-                    if (_autoRotate) {
-                      _autoRotateController.repeat();
-                    } else {
-                      _autoRotateController.stop();
-                    }
-                  },
-                  backgroundColor: _autoRotate ? kcPrimaryColor : kcSurfaceAltColor,
-                  child: Icon(
-                    Icons.rotate_right,
-                    color: _autoRotate ? Colors.white : kcSecondaryColor,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                // Reset view
-                FloatingActionButton.small(
-                  onPressed: () {
-                    setState(() {
-                      _rotationX = 0.2;
-                      _rotationY = 0.0;
-                      _rotationZ = 0.0;
-                      _scale = 1.0;
-                    });
-                  },
-                  backgroundColor: kcSurfaceAltColor,
-                  child: Icon(
-                    Icons.center_focus_strong,
-                    color: kcSecondaryColor,
-                  ),
-                ),
-              ],
             ),
           ),
         ],
