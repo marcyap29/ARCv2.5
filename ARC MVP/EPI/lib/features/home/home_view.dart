@@ -14,6 +14,7 @@ import 'package:my_app/core/rivet/rivet_models.dart';
 import 'package:my_app/features/insights/cards/aurora_card.dart';
 import 'package:my_app/features/insights/cards/veil_card.dart';
 import 'package:my_app/features/qa/qa_screen.dart';
+import 'package:my_app/features/settings/settings_view.dart';
 import 'package:my_app/services/analytics_service.dart';
 import 'package:flutter/foundation.dart';
 
@@ -33,9 +34,10 @@ class _HomeViewState extends State<HomeView> {
     TabItem(icon: Icons.auto_graph, text: 'Phase'),
     TabItem(icon: Icons.timeline, text: 'Timeline'),
     TabItem(icon: Icons.insights, text: 'Insights'),
+    TabItem(icon: Icons.settings, text: 'Settings'),
   ];
 
-  final List<String> _tabNames = const ['Journal', 'Phase', 'Timeline', 'Insights'];
+  final List<String> _tabNames = const ['Journal', 'Phase', 'Timeline', 'Insights', 'Settings'];
 
   late final List<Widget> _pages;
 
@@ -52,6 +54,7 @@ class _HomeViewState extends State<HomeView> {
       const ArcformRendererView(),
       const TimelineView(),
       const _InsightsPage(),
+      const SettingsView(),
     ];
   }
 
