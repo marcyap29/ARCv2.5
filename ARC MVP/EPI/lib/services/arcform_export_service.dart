@@ -90,13 +90,37 @@ class ArcformExportService {
     String phaseName, 
     String geometryName
   ) async {
-    final tempDir = await getTemporaryDirectory();
-    final timestamp = DateTime.now().millisecondsSinceEpoch;
-    final fileName = 'arcform_${phaseName.toLowerCase()}_${geometryName.toLowerCase()}_$timestamp.png';
-    final file = File('${tempDir.path}/$fileName');
-    
-    await file.writeAsBytes(pngBytes);
-    return file;
+    try {
+      final tempDir = await getTemporaryDirectory();
+      
+      // Ensure the directory exists
+      if (!await tempDir.exists()) {
+        await tempDir.create(recursive: true);
+      }
+      
+      final timestamp = DateTime.now().millisecondsSinceEpoch;
+      final fileName = 'arcform_${phaseName.toLowerCase()}_${geometryName.toLowerCase()}_$timestamp.png';
+      final file = File('${tempDir.path}/$fileName');
+      
+      await file.writeAsBytes(pngBytes);
+      return file;
+    } catch (e) {
+      // Fallback: try using application documents directory
+      print('Temporary directory failed, trying documents directory: $e');
+      final documentsDir = await getApplicationDocumentsDirectory();
+      
+      // Ensure the directory exists
+      if (!await documentsDir.exists()) {
+        await documentsDir.create(recursive: true);
+      }
+      
+      final timestamp = DateTime.now().millisecondsSinceEpoch;
+      final fileName = 'arcform_${phaseName.toLowerCase()}_${geometryName.toLowerCase()}_$timestamp.png';
+      final file = File('${documentsDir.path}/$fileName');
+      
+      await file.writeAsBytes(pngBytes);
+      return file;
+    }
   }
 
   /// Show error snackbar
