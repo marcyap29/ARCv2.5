@@ -10,6 +10,8 @@ import 'package:my_app/shared/text_style.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:my_app/core/perf/frame_budget.dart';
 import 'package:my_app/core/a11y/a11y_flags.dart';
+import 'package:my_app/core/a11y/screen_reader_testing.dart';
+import 'package:my_app/core/perf/performance_profiler.dart';
 
 class JournalCaptureView extends StatefulWidget {
   final String? initialEmotion;
@@ -370,15 +372,40 @@ class _JournalCaptureViewState extends State<JournalCaptureView> {
                     : Theme.of(context),
                   child: withTextScale(
                     context,
-                    Center(
+                    SingleChildScrollView(
+                      padding: const EdgeInsets.all(16),
                       child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text('Debugging FPS overlay integration'),
-                          const SizedBox(height: 20),
-                          Text('Larger Text: ${a11yState.largerText}'),
-                          Text('High Contrast: ${a11yState.highContrast}'),
-                          Text('Reduced Motion: ${a11yState.reducedMotion}'),
+                          // Accessibility State Display
+                          Card(
+                            child: Padding(
+                              padding: const EdgeInsets.all(16),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text(
+                                    'Accessibility State',
+                                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+                                  ),
+                                  const SizedBox(height: 12),
+                                  Text('Larger Text: ${a11yState.largerText}'),
+                                  Text('High Contrast: ${a11yState.highContrast}'),
+                                  Text('Reduced Motion: ${a11yState.reducedMotion}'),
+                                ],
+                              ),
+                            ),
+                          ),
+                          
+                          const SizedBox(height: 16),
+                          
+                          // Accessibility Testing Panel
+                          const AccessibilityTestingPanel(),
+                          
+                          const SizedBox(height: 16),
+                          
+                          // Performance Profiling Panel
+                          const PerformanceProfilingPanel(),
                         ],
                       ),
                     ),
