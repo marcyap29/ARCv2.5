@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:my_app/features/journal/journal_capture_cubit.dart';
@@ -9,9 +10,13 @@ import 'package:my_app/shared/app_colors.dart';
 import 'package:my_app/shared/text_style.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:my_app/core/perf/frame_budget.dart';
-import 'package:my_app/core/a11y/a11y_flags.dart';
-import 'package:my_app/core/a11y/screen_reader_testing.dart';
-import 'package:my_app/core/perf/performance_profiler.dart';
+import 'package:my_app/data/models/media_item.dart';
+import 'package:my_app/features/journal/media/media_capture_sheet.dart';
+import 'package:my_app/features/journal/media/media_strip.dart';
+import 'package:my_app/features/journal/media/media_preview_dialog.dart';
+import 'package:my_app/features/journal/media/ocr_text_insert_dialog.dart';
+import 'package:my_app/core/services/media_store.dart';
+import 'package:my_app/core/services/ocr_service.dart';
 
 class JournalCaptureView extends StatefulWidget {
   final String? initialEmotion;
@@ -31,6 +36,11 @@ class _JournalCaptureViewState extends State<JournalCaptureView> {
   late final TextEditingController _textController;
   late final FocusNode _focusNode;
   bool _showVoiceRecorder = false;
+  
+  // Media management
+  final List<MediaItem> _mediaItems = [];
+  final MediaStore _mediaStore = MediaStore();
+  final OCRService _ocrService = OCRService();
 
   @override
   void initState() {
@@ -52,6 +62,92 @@ class _JournalCaptureViewState extends State<JournalCaptureView> {
 
   void _onTextChanged() {
     context.read<JournalCaptureCubit>().updateDraft(_textController.text);
+  }
+
+  // Media handling methods
+  void _onMediaCaptured(MediaItem mediaItem) async {
+    setState(() {
+      _mediaItems.add(mediaItem);
+    });
+
+    // If it's an image, try OCR
+    if (mediaItem.type == MediaType.image && mediaItem.ocrText == null) {
+      try {
+        // Read the image file as bytes
+        final imageFile = File(mediaItem.uri);
+        if (await imageFile.exists()) {
+          final imageBytes = await imageFile.readAsBytes();
+          final ocrText = await _ocrService.extractText(imageBytes);
+          if (ocrText != null && ocrText.isNotEmpty) {
+            // Show OCR text insert dialog
+            if (mounted) {
+              final insertedText = await showDialog<String>(
+                context: context,
+                builder: (context) => OCRTextInsertDialog(
+                  extractedText: ocrText,
+                  onTextInserted: (text) => text,
+                ),
+              );
+              
+              if (insertedText != null && insertedText.isNotEmpty) {
+                // Insert OCR text into editor
+                final currentText = _textController.text;
+                final newText = currentText.isEmpty 
+                  ? '[from photo] $insertedText'
+                  : '$currentText\n\n[from photo] $insertedText';
+                _textController.text = newText;
+                _textController.selection = TextSelection.fromPosition(
+                  TextPosition(offset: newText.length),
+                );
+              }
+            }
+          }
+        }
+      } catch (e) {
+        // OCR failed, continue without it
+        print('OCR failed: $e');
+      }
+    }
+  }
+
+  void _onMediaDeleted(MediaItem mediaItem) async {
+    try {
+      await _mediaStore.deleteMedia(mediaItem.uri);
+      setState(() {
+        _mediaItems.remove(mediaItem);
+      });
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to delete media: $e'),
+          backgroundColor: kcDangerColor,
+        ),
+      );
+    }
+  }
+
+  void _onMediaPreview(MediaItem mediaItem) {
+    showDialog(
+      context: context,
+      builder: (context) => MediaPreviewDialog(
+        mediaItem: mediaItem,
+        onDelete: () {
+          _onMediaDeleted(mediaItem);
+          Navigator.of(context).pop();
+        },
+      ),
+    );
+  }
+
+  void _showMediaCaptureSheet() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => MediaCaptureSheet(
+        onMediaCaptured: _onMediaCaptured,
+      ),
+    );
   }
 
   void _onNextPressed() async {
@@ -96,227 +192,6 @@ class _JournalCaptureViewState extends State<JournalCaptureView> {
 
   @override
   Widget build(BuildContext context) {
-    // COMMENTED OUT FOR DEBUGGING - Step 5.2
-    /*
-    return Stack(
-      children: [
-        BlocListener<JournalCaptureCubit, JournalCaptureState>(
-        listener: (context, state) {
-          if (state is JournalCaptureSaved) {
-            _textController.clear();
-            setState(() {
-              _showVoiceRecorder = false;
-            });
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Entry saved successfully'),
-                backgroundColor: kcSuccessColor,
-              ),
-            );
-            Navigator.pop(context);
-          } else if (state is JournalCaptureTranscribed) {
-            _textController.text = state.transcription;
-          }
-        },
-        child: Scaffold(
-          backgroundColor: kcBackgroundColor,
-          appBar: AppBar(
-            backgroundColor: kcBackgroundColor,
-            title: Text('New Entry', style: heading1Style(context)),
-            actions: [
-              Padding(
-                padding: const EdgeInsets.only(right: 16.0),
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
-                  child: Semantics(
-                    label: 'Continue to next step',
-                    button: true,
-                    child: ElevatedButton(
-                      onPressed: _onNextPressed,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: kcPrimaryColor,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8.0),
-                        ),
-                      ),
-                      child: Text('Next', style: buttonStyle(context)),
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-          body: SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.all(16.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Context from start entry flow
-                if (widget.initialEmotion != null || widget.initialReason != null) ...[
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(16.0),
-                    decoration: BoxDecoration(
-                      gradient: kcPrimaryGradient,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Your reflection context:',
-                          style: captionStyle(context).copyWith(
-                            color: Colors.white.withOpacity(0.8),
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Row(
-                          children: [
-                            if (widget.initialEmotion != null) ...[
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 12,
-                                  vertical: 6,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: Colors.white.withOpacity(0.2),
-                                  borderRadius: BorderRadius.circular(16),
-                                ),
-                                child: Text(
-                                  widget.initialEmotion!,
-                                  style: captionStyle(context).copyWith(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                            ],
-                            if (widget.initialReason != null)
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 12,
-                                  vertical: 6,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: Colors.white.withOpacity(0.2),
-                                  borderRadius: BorderRadius.circular(16),
-                                ),
-                                child: Text(
-                                  widget.initialReason!,
-                                  style: captionStyle(context).copyWith(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                ],
-
-                // Voice recording section
-                Card(
-                  color: kcSurfaceAltColor,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              'Voice Journal',
-                              style:
-                                  heading1Style(context).copyWith(fontSize: 18),
-                            ),
-                            IconButton(
-                              icon: Icon(
-                                _showVoiceRecorder
-                                    ? Icons.keyboard_arrow_up
-                                    : Icons.keyboard_arrow_down,
-                                color: kcPrimaryColor,
-                              ),
-                              onPressed: () {
-                                setState(() {
-                                  _showVoiceRecorder = !_showVoiceRecorder;
-                                });
-                              },
-                            ),
-                          ],
-                        ),
-                        if (_showVoiceRecorder) ...[
-                          const SizedBox(height: 16),
-                          BlocBuilder<JournalCaptureCubit, JournalCaptureState>(
-                            builder: (context, state) {
-                              return Column(
-                                children: [
-                                  if (state is JournalCaptureInitial ||
-                                      state is JournalCapturePermissionDenied)
-                                    _buildPermissionSection(state),
-                                  if (state
-                                          is JournalCapturePermissionGranted ||
-                                      state is JournalCaptureRecording ||
-                                      state is JournalCaptureRecordingPaused ||
-                                      state is JournalCaptureRecordingStopped)
-                                    _buildRecordingSection(state),
-                                  if (state is JournalCaptureTranscribing ||
-                                      state is JournalCaptureTranscribed)
-                                    _buildTranscriptionSection(state),
-                                ],
-                              );
-                            },
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 24),
-
-                // Text editor
-                Expanded(
-                  child: TextField(
-                    controller: _textController,
-                    focusNode: _focusNode,
-                    style: bodyStyle(context),
-                    decoration: InputDecoration(
-                      hintText: widget.initialEmotion != null 
-                          ? 'Write what is true about feeling ${widget.initialEmotion!.toLowerCase()}...'
-                          : 'Write what is true right now.',
-                      hintStyle: bodyStyle(context).copyWith(
-                        color: kcSecondaryTextColor,
-                      ),
-                      border: InputBorder.none,
-                      focusedBorder: InputBorder.none,
-                    ),
-                    maxLines: null,
-                    expands: true,
-                    textInputAction: TextInputAction.newline,
-                    cursorColor: kcPrimaryColor,
-                    cursorWidth: 2,
-                    cursorRadius: const Radius.circular(2),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-        // FPS Performance Overlay (debug only)
-        const FrameBudgetOverlay(targetFps: 45),
-      ],
-    );
-    */
-    
-    // SIMPLE RETURN WITH FPS OVERLAY - Step 5.2
     return Stack(
       children: [
         BlocListener<JournalCaptureCubit, JournalCaptureState>(
@@ -325,6 +200,7 @@ class _JournalCaptureViewState extends State<JournalCaptureView> {
               _textController.clear();
               setState(() {
                 _showVoiceRecorder = false;
+                _mediaItems.clear();
               });
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(
@@ -338,6 +214,7 @@ class _JournalCaptureViewState extends State<JournalCaptureView> {
             }
           },
           child: Scaffold(
+            backgroundColor: kcBackgroundColor,
             appBar: AppBar(
               backgroundColor: kcBackgroundColor,
               title: Text('New Entry', style: heading1Style(context)),
@@ -364,55 +241,242 @@ class _JournalCaptureViewState extends State<JournalCaptureView> {
                 ),
               ],
             ),
-            body: BlocBuilder<A11yCubit, A11yState>(
-              builder: (context, a11yState) {
-                return Theme(
-                  data: a11yState.highContrast 
-                    ? highContrastTheme(Theme.of(context))
-                    : Theme.of(context),
-                  child: withTextScale(
-                    context,
-                    SingleChildScrollView(
-                      padding: const EdgeInsets.all(16),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // Accessibility State Display
-                          Card(
-                            child: Padding(
-                              padding: const EdgeInsets.all(16),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  const Text(
-                                    'Accessibility State',
-                                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
-                                  ),
-                                  const SizedBox(height: 12),
-                                  Text('Larger Text: ${a11yState.largerText}'),
-                                  Text('High Contrast: ${a11yState.highContrast}'),
-                                  Text('Reduced Motion: ${a11yState.reducedMotion}'),
-                                ],
+            body: SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Context from start entry flow
+                    if (widget.initialEmotion != null || widget.initialReason != null) ...[
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(16.0),
+                        decoration: BoxDecoration(
+                          gradient: kcPrimaryGradient,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Your reflection context:',
+                              style: captionStyle(context).copyWith(
+                                color: Colors.white.withValues(alpha: 0.8),
                               ),
                             ),
-                          ),
-                          
-                          const SizedBox(height: 16),
-                          
-                          // Accessibility Testing Panel
-                          const AccessibilityTestingPanel(),
-                          
-                          const SizedBox(height: 16),
-                          
-                          // Performance Profiling Panel
-                          const PerformanceProfilingPanel(),
-                        ],
+                            const SizedBox(height: 8),
+                            Row(
+                              children: [
+                                if (widget.initialEmotion != null) ...[
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 12,
+                                      vertical: 6,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: Colors.white.withValues(alpha: 0.2),
+                                      borderRadius: BorderRadius.circular(16),
+                                    ),
+                                    child: Text(
+                                      widget.initialEmotion!,
+                                      style: captionStyle(context).copyWith(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                ],
+                                if (widget.initialReason != null)
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 12,
+                                      vertical: 6,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: Colors.white.withValues(alpha: 0.2),
+                                      borderRadius: BorderRadius.circular(16),
+                                    ),
+                                    child: Text(
+                                      widget.initialReason!,
+                                      style: captionStyle(context).copyWith(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                    ],
+
+                    // Media Capture Toolbar
+                    Card(
+                      color: kcSurfaceAltColor,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Add Media',
+                              style: heading1Style(context).copyWith(fontSize: 18),
+                            ),
+                            const SizedBox(height: 16),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                              children: [
+                                // Microphone button
+                                ConstrainedBox(
+                                  constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
+                                  child: Semantics(
+                                    label: 'Record voice note',
+                                    button: true,
+                                    child: IconButton(
+                                      icon: const Icon(Icons.mic, color: kcPrimaryColor),
+                                      onPressed: () {
+                                        setState(() {
+                                          _showVoiceRecorder = !_showVoiceRecorder;
+                                        });
+                                      },
+                                    ),
+                                  ),
+                                ),
+                                // Camera button
+                                ConstrainedBox(
+                                  constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
+                                  child: Semantics(
+                                    label: 'Take photo',
+                                    button: true,
+                                    child: IconButton(
+                                      icon: const Icon(Icons.camera_alt, color: kcPrimaryColor),
+                                      onPressed: _showMediaCaptureSheet,
+                                    ),
+                                  ),
+                                ),
+                                // Gallery button
+                                ConstrainedBox(
+                                  constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
+                                  child: Semantics(
+                                    label: 'Import from gallery',
+                                    button: true,
+                                    child: IconButton(
+                                      icon: const Icon(Icons.photo_library, color: kcPrimaryColor),
+                                      onPressed: _showMediaCaptureSheet,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
                       ),
                     ),
-                    enabled: a11yState.largerText,
-                  ),
-                );
-              },
+                    const SizedBox(height: 16),
+
+                    // Voice recording section (if enabled)
+                    if (_showVoiceRecorder) ...[
+                      Card(
+                        color: kcSurfaceAltColor,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Padding(
+                          padding: const EdgeInsets.all(16.0),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text(
+                                    'Voice Journal',
+                                    style: heading1Style(context).copyWith(fontSize: 18),
+                                  ),
+                                  IconButton(
+                                    icon: Icon(
+                                      Icons.keyboard_arrow_up,
+                                      color: kcPrimaryColor,
+                                    ),
+                                    onPressed: () {
+                                      setState(() {
+                                        _showVoiceRecorder = false;
+                                      });
+                                    },
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 16),
+                              BlocBuilder<JournalCaptureCubit, JournalCaptureState>(
+                                builder: (context, state) {
+                                  return Column(
+                                    children: [
+                                      if (state is JournalCaptureInitial ||
+                                          state is JournalCapturePermissionDenied)
+                                        _buildPermissionSection(state),
+                                      if (state is JournalCapturePermissionGranted ||
+                                          state is JournalCaptureRecording ||
+                                          state is JournalCaptureRecordingPaused ||
+                                          state is JournalCaptureRecordingStopped)
+                                        _buildRecordingSection(state),
+                                      if (state is JournalCaptureTranscribing ||
+                                          state is JournalCaptureTranscribed)
+                                        _buildTranscriptionSection(state),
+                                    ],
+                                  );
+                                },
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                    ],
+
+                    // Media Strip
+                    if (_mediaItems.isNotEmpty) ...[
+                      MediaStrip(
+                        mediaItems: _mediaItems,
+                        onMediaTapped: _onMediaPreview,
+                        onMediaDeleted: _onMediaDeleted,
+                      ),
+                      const SizedBox(height: 16),
+                    ],
+
+                    // Text editor
+                    Expanded(
+                      child: TextField(
+                        controller: _textController,
+                        focusNode: _focusNode,
+                        style: bodyStyle(context),
+                        decoration: InputDecoration(
+                          hintText: widget.initialEmotion != null 
+                              ? 'Write what is true about feeling ${widget.initialEmotion!.toLowerCase()}...'
+                              : 'Write what is true right now.',
+                          hintStyle: bodyStyle(context).copyWith(
+                            color: kcSecondaryTextColor,
+                          ),
+                          border: InputBorder.none,
+                          focusedBorder: InputBorder.none,
+                        ),
+                        maxLines: null,
+                        expands: true,
+                        textInputAction: TextInputAction.newline,
+                        cursorColor: kcPrimaryColor,
+                        cursorWidth: 2,
+                        cursorRadius: const Radius.circular(2),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ),
           ),
         ),
