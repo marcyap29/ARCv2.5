@@ -42,6 +42,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - **Data Management**: Complete privacy controls and data export functionality
 - **User Experience**: Intuitive navigation, customizable interface, and professional polish
 
+### 📋 Remaining Planned Features (4 prompts)
+- **P5 - Voice Journaling**: UI and state management complete, needs real audio recording implementation
+- **P10 - MIRA v1 Graph**: Backend models and service complete, needs graph visualization UI  
+- **P14 - Cloud Sync Stubs**: Offline-first sync framework with toggle and status indicator
+- **P22 - Ethereal Music**: Audio player setup complete, needs actual audio file and playback
+
 ### 📱 User Experience
 - **Intuitive Design**: Clean, accessible interface with smooth navigation
 - **Customizable**: Personalization options for tone, rhythm, and accessibility preferences

@@ -107,8 +107,17 @@ This document contains the complete set of prompts to guide ARC MVP development 
 
 ---
 
-## Prompt 5 — Journal Capture (Voice)
+## Prompt 5 — Journal Capture (Voice) ⏳ PLANNED
 **Goal:** Add optional voice journaling with permission flow and transcription.
+
+**Status:** ⏳ **PLANNED** - UI and state management complete, needs real audio recording implementation
+
+**Current Implementation:**
+- ✅ Complete UI with microphone button and visualizer
+- ✅ Permission dialog and recording timer
+- ✅ Pause, stop, playback controls
+- ✅ Transcription states and editable text
+- ❌ **Missing**: Actual audio recording (currently simulated)
 
 **Generate:**
 - Microphone button with visualizer.
@@ -186,8 +195,17 @@ This document contains the complete set of prompts to guide ARC MVP development 
 
 ---
 
-## Prompt 10 — Insights: MIRA v1 Graph
+## Prompt 10 — Insights: MIRA v1 Graph ⏳ PLANNED
 **Goal:** Simple semantic memory graph to navigate related entries.
+
+**Status:** ⏳ **PLANNED** - Backend models and service complete, needs graph visualization UI
+
+**Current Implementation:**
+- ✅ Complete MIRA backend models and service
+- ✅ MIRA repository and data processing
+- ✅ MIRA cubit and state management
+- ✅ MIRA feature flags and configuration
+- ❌ **Missing**: Interactive graph visualization UI with pan/zoom
 
 **Generate:**
 - Graph view where nodes are keywords and edges represent co‑occurrence strength.
@@ -198,8 +216,8 @@ This document contains the complete set of prompts to guide ARC MVP development 
 - Basic pan and zoom with inertia.
 
 **Copy:**
-- Header: “Your patterns”
-- Helper: “Follow a word to its moments.”
+- Header: "Your patterns"
+- Helper: "Follow a word to its moments."
 
 ---
 
@@ -268,8 +286,16 @@ This document contains the complete set of prompts to guide ARC MVP development 
 
 ---
 
-## Prompt 14 — Cloud Sync Stubs
+## Prompt 14 — Cloud Sync Stubs ⏳ PLANNED
 **Goal:** Prepare for Firebase or Supabase without enabling write by default.
+
+**Status:** ⏳ **PLANNED** - Not implemented, needs offline-first sync framework
+
+**Current Implementation:**
+- ❌ **Missing**: Sync service with offline-first approach
+- ❌ **Missing**: Queued writes functionality
+- ❌ **Missing**: Settings toggle for sync
+- ❌ **Missing**: Connection status indicator
 
 **Generate:**
 - Sync service with offline‑first approach and queued writes.
@@ -370,7 +396,7 @@ This document contains the complete set of prompts to guide ARC MVP development 
 - BlocBuilder pattern for reactive accessibility state updates
 - Theme and text scaling applied conditionally based on accessibility flags
 - Debug display for testing all accessibility features in real-time
-- App builds successfully for iOS with no compilation errors
+...............l- App builds successfully for iOS with no compilation errors
 - Performance monitoring active in debug mode with real-time feedback
 - Comprehensive testing framework with automated accessibility compliance checking
 
@@ -422,8 +448,16 @@ extended_prompts = """
 
 ---
 
-## Prompt 22 — Ethereal Music / Intro Soundscape
+## Prompt 22 — Ethereal Music / Intro Soundscape ⏳ PLANNED
 **Goal:** Add optional ambient music to the Welcome + Intro flow.
+
+**Status:** ⏳ **PLANNED** - Audio player setup complete, needs actual audio file and playback
+
+**Current Implementation:**
+- ✅ Audio player setup with `just_audio` package
+- ✅ UI controls for mute and skip functionality
+- ✅ Audio fade out functionality
+- ❌ **Missing**: Actual audio file and playback (all code commented out)
 
 **Generate:**
 - Integrate lightweight audio package (e.g. `just_audio` or `audioplayers`).
