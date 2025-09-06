@@ -2740,3 +2740,66 @@ Implemented an enhanced welcome screen that appears for users who have completed
 - **Visual Appeal**: Dramatic pulsing glow draws attention and creates excitement
 
 ---
+
+## Enhancement ID: ENH-2025-01-20-006
+**Title**: Fixed Welcome Screen Logic for User Journey Flow
+
+**Type**: Enhancement  
+**Priority**: High  
+**Status**: ✅ Complete  
+**Reporter**: User Request  
+**Implementer**: Claude Code  
+**Completion Date**: 2025-01-20
+
+#### Description
+Fixed the welcome screen logic to properly handle different user journey states, ensuring users with entries see "Continue Your Journey" and new users see "Begin Your Journey" with appropriate navigation flows.
+
+#### Requirements
+- Users WITH entries → "Continue Your Journey" welcome screen → Home view (to see their entries)
+- New users (no onboarding) → "Begin Your Journey" welcome screen → Phase quiz
+- Post-onboarding users with no entries → Phase quiz popup directly
+- Proper navigation based on user state and button text
+
+#### Technical Implementation
+- **StartupView Logic Fixed:**
+  - Users with entries → Navigate to WelcomeView (shows "Continue Your Journey")
+  - Post-onboarding users with no entries → Navigate directly to PhaseQuizPromptView
+  - New users (no onboarding) → Navigate to WelcomeView (shows "Begin Your Journey")
+- **WelcomeView Navigation Updated:**
+  - "Continue Your Journey" button → Navigate to HomeView (where entries are accessible)
+  - "Begin Your Journey" button → Navigate to PhaseQuizPromptView
+- **Button Text Logic:**
+  - Determined by onboarding completion status
+  - "Continue Your Journey" for users who have completed onboarding
+  - "Begin Your Journey" for new users
+- **Debug Logging:**
+  - Added comprehensive logging to track journal entry count
+  - Added logging to track onboarding status and navigation decisions
+  - Added logging to track welcome screen button text determination
+
+#### Files Modified
+- `lib/features/startup/startup_view.dart` - Fixed startup logic for different user states
+- `lib/features/startup/welcome_view.dart` - Updated navigation and button text logic
+
+#### Testing Results
+- ✅ Users with entries see "Continue Your Journey" welcome screen
+- ✅ "Continue Your Journey" button navigates to home view where entries are accessible
+- ✅ New users see "Begin Your Journey" welcome screen
+- ✅ "Begin Your Journey" button navigates to phase quiz
+- ✅ Post-onboarding users with no entries go directly to phase quiz
+- ✅ Debug logging shows correct user state detection
+
+#### Impact
+- **Correct User Journey Flow**: Users now see the appropriate welcome screen based on their state
+- **Clear Navigation**: Button text and navigation match user expectations
+- **Entry Accessibility**: Users with entries can easily access them through the home view
+- **Improved UX**: Logical flow that guides users to the right place based on their journey stage
+
+#### Problem-Solving Approach
+- **User Requirements Analysis**: Carefully analyzed the three distinct user journey scenarios
+- **Logic Inversion**: Fixed the inverted logic that was sending users with entries to home instead of welcome screen
+- **Navigation Flow Mapping**: Mapped out the correct navigation paths for each user state
+- **Debug-Driven Development**: Used extensive logging to trace and verify the correct flow
+- **State-Based UI**: Implemented dynamic button text and navigation based on user state
+
+---
