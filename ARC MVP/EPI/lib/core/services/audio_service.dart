@@ -10,7 +10,7 @@ class AudioService {
   AudioService._internal();
 
   static const String _muteKey = 'intro_audio_muted';
-  static const String _assetPath = 'assets/audio/intro_loop.mp3';
+  static const String _assetPath = 'assets/audio/intro_loop.mp3'; // Note: File may not exist
   
   AudioPlayer? _audioPlayer;
   bool _isInitialized = false;
@@ -23,9 +23,17 @@ class AudioService {
 
     try {
       _audioPlayer = AudioPlayer();
-      await _audioPlayer!.setAsset(_assetPath);
-      await _audioPlayer!.setLoopMode(LoopMode.one);
-      await _audioPlayer!.setVolume(0.5); // Default volume
+      // Try to set the asset, but don't fail if it doesn't exist
+      try {
+        await _audioPlayer!.setAsset(_assetPath);
+        await _audioPlayer!.setLoopMode(LoopMode.one);
+        await _audioPlayer!.setVolume(0.5); // Default volume
+      } catch (e) {
+        print('WARNING: Audio asset not found: $_assetPath - Audio service will be disabled');
+        _audioPlayer = null;
+        _isInitialized = true;
+        return;
+      }
       
       // Load mute preference
       final prefs = await SharedPreferences.getInstance();

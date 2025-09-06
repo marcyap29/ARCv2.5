@@ -21,8 +21,10 @@ class _SyncSettingsContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    print('DEBUG: SyncSettingsContent building');
     return BlocBuilder<SyncToggleCubit, SyncToggleState>(
       builder: (context, state) {
+        print('DEBUG: SyncSettingsContent BlocBuilder - enabled: ${state.enabled}, status: ${state.status}, queuedCount: ${state.queuedCount}');
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
