@@ -47,7 +47,7 @@ class _WelcomeViewState extends State<WelcomeView>
 
   void _initializeAnimations() {
     _glowController = AnimationController(
-      duration: const Duration(seconds: 2),
+      duration: const Duration(milliseconds: 2500),
       vsync: this,
     )..repeat(reverse: true);
 
