@@ -15,10 +15,10 @@ class PhaseDriftCard extends StatelessWidget {
     }
 
     // For now, return a placeholder card
-    return _buildEmptyCard();
+    return _buildEmptyCard(context);
   }
 
-  Widget _buildLoadingCard() {
+  Widget _buildLoadingCard(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -51,7 +51,7 @@ class PhaseDriftCard extends StatelessWidget {
     );
   }
 
-  Widget _buildEmptyCard() {
+  Widget _buildEmptyCard(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -99,7 +99,7 @@ class PhaseDriftCard extends StatelessWidget {
     );
   }
 
-  Widget _buildPhaseDriftCard(List<dynamic> trajectory) {
+  Widget _buildPhaseDriftCard(BuildContext context, List<dynamic> trajectory) {
     // Simplified placeholder to avoid type issues
     return Container(
       padding: const EdgeInsets.all(16),
@@ -135,7 +135,7 @@ class PhaseDriftCard extends StatelessWidget {
       ),
     );
   }
-  Widget _buildSummary(int totalEntries, String dominantPhase, Map<String, int> phaseCounts) {
+  Widget _buildSummary(BuildContext context, int totalEntries, String dominantPhase, Map<String, int> phaseCounts) {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -157,6 +157,7 @@ class PhaseDriftCard extends StatelessWidget {
             children: [
               Expanded(
                 child: _buildSummaryItem(
+                  context,
                   'Total Entries',
                   totalEntries.toString(),
                   Icons.article,
@@ -164,6 +165,7 @@ class PhaseDriftCard extends StatelessWidget {
               ),
               Expanded(
                 child: _buildSummaryItem(
+                  context,
                   'Dominant Phase',
                   _capitalizePhase(dominantPhase),
                   Icons.flag,
@@ -176,7 +178,7 @@ class PhaseDriftCard extends StatelessWidget {
     );
   }
 
-  Widget _buildSummaryItem(String label, String value, IconData icon) {
+  Widget _buildSummaryItem(BuildContext context, String label, String value, IconData icon) {
     return Row(
       children: [
         Icon(icon, size: 16, color: kcSecondaryTextColor),
@@ -203,7 +205,7 @@ class PhaseDriftCard extends StatelessWidget {
     );
   }
 
-  Widget _buildTimeline(List<dynamic> trajectory) {
+  Widget _buildTimeline(BuildContext context, List<dynamic> trajectory) {
     // Take last 7 points for display
     final displayPoints = trajectory.length > 7 
         ? trajectory.sublist(trajectory.length - 7)
@@ -220,12 +222,12 @@ class PhaseDriftCard extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 8),
-        ...displayPoints.map((point) => _buildTimelinePoint(point)).toList(),
+        ...displayPoints.map((point) => _buildTimelinePoint(context, point)).toList(),
       ],
     );
   }
 
-  Widget _buildTimelinePoint(dynamic point) {
+  Widget _buildTimelinePoint(BuildContext context, dynamic point) {
     DateTime timestamp;
     Map<String, int> counts;
     

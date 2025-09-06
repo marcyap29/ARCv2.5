@@ -7,6 +7,8 @@ PODS:
   - device_info_plus (0.0.1):
     - Flutter
   - Flutter (1.0.0)
+  - image_picker_ios (0.0.1):
+    - Flutter
   - just_audio (0.0.1):
     - Flutter
     - FlutterMacOS
@@ -30,6 +32,7 @@ DEPENDENCIES:
   - audioplayers_darwin (from `.symlinks/plugins/audioplayers_darwin/darwin`)
   - device_info_plus (from `.symlinks/plugins/device_info_plus/ios`)
   - Flutter (from `Flutter`)
+  - image_picker_ios (from `.symlinks/plugins/image_picker_ios/ios`)
   - just_audio (from `.symlinks/plugins/just_audio/darwin`)
   - package_info_plus (from `.symlinks/plugins/package_info_plus/ios`)
   - path_provider_foundation (from `.symlinks/plugins/path_provider_foundation/darwin`)
@@ -47,6 +50,8 @@ EXTERNAL SOURCES:
     :path: ".symlinks/plugins/device_info_plus/ios"
   Flutter:
     :path: Flutter
+  image_picker_ios:
+    :path: ".symlinks/plugins/image_picker_ios/ios"
   just_audio:
     :path: ".symlinks/plugins/just_audio/darwin"
   package_info_plus:
@@ -67,6 +72,7 @@ SPEC CHECKSUMS:
   audioplayers_darwin: 4f9ca89d92d3d21cec7ec580e78ca888e5fb68bd
   device_info_plus: 71ffc6ab7634ade6267c7a93088ed7e4f74e5896
   Flutter: cabc95a1d2626b1b06e7179b784ebcf0c0cde467
+  image_picker_ios: 7fe1ff8e34c1790d6fff70a32484959f563a928a
   just_audio: 4e391f57b79cad2b0674030a00453ca5ce817eed
   package_info_plus: af8e2ca6888548050f16fa2f1938db7b5a5df499
   path_provider_foundation: 080d55be775b7414fd5a5ef3ac137b97b097e564

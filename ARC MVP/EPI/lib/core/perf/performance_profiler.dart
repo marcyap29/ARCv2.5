@@ -83,7 +83,7 @@ class PerformanceProfiler {
   static PerformanceReport getPerformanceReport() {
     final now = DateTime.now();
     final recentFrames = _frameTimings.where(
-      (frame) => now.difference(frame.timestamp).inSeconds < 10
+      (frame) => now.difference(DateTime.fromMillisecondsSinceEpoch(frame.frameNumber * 16)).inSeconds < 10
     ).toList();
     
     double averageFps = 0;

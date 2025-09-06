@@ -15,10 +15,10 @@ class PairsOnRiseCard extends StatelessWidget {
     }
 
     // For now, return a placeholder card
-    return _buildEmptyCard();
+    return _buildEmptyCard(context);
   }
 
-  Widget _buildLoadingCard() {
+  Widget _buildLoadingCard(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -51,7 +51,7 @@ class PairsOnRiseCard extends StatelessWidget {
     );
   }
 
-  Widget _buildEmptyCard() {
+  Widget _buildEmptyCard(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -99,7 +99,7 @@ class PairsOnRiseCard extends StatelessWidget {
     );
   }
 
-  Widget _buildPairsCard(List<dynamic> pairs) {
+  Widget _buildPairsCard(BuildContext context, List<dynamic> pairs) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -126,7 +126,7 @@ class PairsOnRiseCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 16),
-          ...pairs.take(5).map((pair) => _buildPairItem(pair)).toList(),
+          ...pairs.take(5).map((pair) => _buildPairItem(context, pair)).toList(),
           if (pairs.length > 5) ...[
             const SizedBox(height: 8),
             Text(
@@ -139,7 +139,7 @@ class PairsOnRiseCard extends StatelessWidget {
     );
   }
 
-  Widget _buildPairItem(dynamic pair) {
+  Widget _buildPairItem(BuildContext context, dynamic pair) {
     // Handle both MiraPairStat and Map types for flexibility
     String k1, k2;
     double lift;

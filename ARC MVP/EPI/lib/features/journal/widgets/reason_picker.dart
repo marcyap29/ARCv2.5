@@ -5,12 +5,14 @@ import 'package:my_app/core/i18n/copy.dart';
 
 class ReasonPicker extends StatefulWidget {
   final Function(String) onReasonSelected;
+  final VoidCallback? onBackPressed;
   final String? selectedReason;
   final String selectedEmotion;
 
   const ReasonPicker({
     super.key,
     required this.onReasonSelected,
+    this.onBackPressed,
     required this.selectedEmotion,
     this.selectedReason,
   });
@@ -73,7 +75,7 @@ class _ReasonPickerState extends State<ReasonPicker>
                   children: [
                     // Back button
                     IconButton(
-                      onPressed: () => Navigator.of(context).pop(),
+                      onPressed: widget.onBackPressed ?? () => Navigator.of(context).pop(),
                       icon: const Icon(
                         Icons.arrow_back_ios,
                         color: Colors.white,

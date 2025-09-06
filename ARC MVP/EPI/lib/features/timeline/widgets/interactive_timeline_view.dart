@@ -9,6 +9,12 @@ import 'package:my_app/repositories/journal_repository.dart';
 import 'package:my_app/shared/app_colors.dart';
 import 'package:my_app/shared/text_style.dart';
 import 'package:my_app/features/startup/phase_quiz_prompt_view.dart';
+import 'package:my_app/core/rivet/rivet_provider.dart';
+import 'package:my_app/core/rivet/rivet_models.dart';
+import 'package:my_app/core/rivet/rivet_service.dart';
+import 'package:hive/hive.dart';
+import 'package:my_app/services/user_phase_service.dart';
+import 'package:my_app/features/arcforms/phase_recommender.dart';
 import 'dart:math' as math;
 
 class InteractiveTimelineView extends StatefulWidget {
@@ -715,6 +721,9 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
         // Store the count before clearing selection
         final deletedCount = _selectedEntryIds.length;
         
+        // Recalculate RIVET state after deletion
+        await _recalculateRivetState();
+        
         if (mounted) {
           if (!allEntriesDeleted) {
             // Refresh the timeline if there are still entries
@@ -762,6 +771,126 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
         return allEntries.where((entry) => !entry.hasArcform).toList();
       case TimelineFilter.withArcform:
         return allEntries.where((entry) => entry.hasArcform).toList();
+    }
+  }
+
+  /// Recalculate RIVET state after entry deletion
+  Future<void> _recalculateRivetState() async {
+    try {
+      print('DEBUG: Recalculating RIVET state after deletion');
+      
+      // Get all remaining entries
+      final journalRepository = JournalRepository();
+      final remainingEntries = journalRepository.getAllJournalEntries();
+      
+      print('DEBUG: Remaining entries count: ${remainingEntries.length}');
+      
+      const userId = 'default_user';
+      
+      if (remainingEntries.isEmpty) {
+        // No entries = reset to initial RIVET state
+        print('DEBUG: No entries left - resetting RIVET to initial state');
+        
+        try {
+          if (Hive.isBoxOpen('rivet_state_v1')) {
+            final stateBox = Hive.box('rivet_state_v1');
+            await stateBox.put(userId, {
+              'align': 0.0,
+              'trace': 0.0,
+              'sustainCount': 0,
+              'sawIndependentInWindow': false,
+              'lastUpdated': DateTime.now().millisecondsSinceEpoch,
+            });
+            print('DEBUG: Reset RIVET state to 0% ALIGN, 0% TRACE');
+          }
+          
+          if (Hive.isBoxOpen('rivet_events_v1')) {
+            final eventsBox = Hive.box('rivet_events_v1');
+            await eventsBox.delete(userId);
+            print('DEBUG: Cleared RIVET events');
+          }
+        } catch (e) {
+          print('DEBUG: Error resetting RIVET state: $e');
+        }
+      } else {
+        // Rebuild RIVET state from remaining entries using proper RIVET logic
+        print('DEBUG: Rebuilding RIVET state from ${remainingEntries.length} remaining entries');
+        
+        // Clear existing RIVET data
+        try {
+          if (Hive.isBoxOpen('rivet_state_v1')) {
+            final stateBox = Hive.box('rivet_state_v1');
+            await stateBox.delete(userId);
+          }
+          
+          if (Hive.isBoxOpen('rivet_events_v1')) {
+            final eventsBox = Hive.box('rivet_events_v1');
+            await eventsBox.delete(userId);
+          }
+        } catch (e) {
+          print('DEBUG: Error clearing RIVET data: $e');
+        }
+        
+        // Create fresh RIVET service and process remaining entries
+        final rivetService = RivetService();
+        RivetEvent? lastEvent;
+        
+        // Sort entries chronologically
+        final sortedEntries = remainingEntries..sort((a, b) => a.createdAt.compareTo(b.createdAt));
+        
+        for (final entry in sortedEntries) {
+          // Get current user phase and recommended phase
+          final currentPhase = await UserPhaseService.getCurrentPhase();
+          final recommendedPhase = PhaseRecommender.recommend(
+            emotion: entry.emotion ?? '',
+            reason: entry.emotionReason ?? '',
+            text: entry.content,
+            selectedKeywords: entry.keywords,
+          );
+          
+          // Create RIVET event
+          final rivetEvent = RivetEvent(
+            date: entry.createdAt,
+            source: EvidenceSource.text,
+            keywords: entry.keywords.toSet(),
+            predPhase: recommendedPhase,
+            refPhase: currentPhase,
+            tolerance: const {},
+          );
+          
+          // Process through RIVET service
+          final decision = rivetService.ingest(rivetEvent, lastEvent: lastEvent);
+          lastEvent = rivetEvent;
+          
+          print('DEBUG: Processed entry ${entry.id} - ALIGN: ${(rivetService.state.align * 100).toInt()}%, TRACE: ${(rivetService.state.trace * 100).toInt()}%');
+        }
+        
+        // Save the final RIVET state
+        try {
+          if (Hive.isBoxOpen('rivet_state_v1')) {
+            final stateBox = Hive.box('rivet_state_v1');
+            await stateBox.put(userId, {
+              'align': rivetService.state.align,
+              'trace': rivetService.state.trace,
+              'sustainCount': rivetService.state.sustainCount,
+              'sawIndependentInWindow': rivetService.state.sawIndependentInWindow,
+              'lastUpdated': DateTime.now().millisecondsSinceEpoch,
+            });
+            print('DEBUG: Saved rebuilt RIVET state - ALIGN: ${(rivetService.state.align * 100).toInt()}%, TRACE: ${(rivetService.state.trace * 100).toInt()}%');
+          }
+        } catch (e) {
+          print('DEBUG: Error saving rebuilt RIVET state: $e');
+        }
+      }
+      
+      // Reset the RIVET provider
+      final rivetProvider = RivetProvider();
+      rivetProvider.reset();
+      await rivetProvider.initialize(userId);
+      
+      print('DEBUG: RIVET state recalculated from ${remainingEntries.length} remaining entries');
+    } catch (e) {
+      print('ERROR: Failed to recalculate RIVET state: $e');
     }
   }
 }

@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:my_app/core/services/audio_service.dart';
 import 'package:my_app/features/onboarding/onboarding_cubit.dart';
 import 'package:my_app/features/onboarding/onboarding_state.dart';
 import 'package:my_app/features/onboarding/widgets/central_word_input.dart';
 import 'package:my_app/features/onboarding/widgets/atlas_phase_grid.dart';
-import 'package:my_app/features/home/home_view.dart';
 import 'package:my_app/features/onboarding/phase_celebration_view.dart';
 import 'package:my_app/services/user_phase_service.dart';
 import 'package:my_app/shared/app_colors.dart';
@@ -22,14 +22,62 @@ class OnboardingView extends StatelessWidget {
   }
 }
 
-class OnboardingViewContent extends StatelessWidget {
+class OnboardingViewContent extends StatefulWidget {
   const OnboardingViewContent({super.key});
+
+  @override
+  State<OnboardingViewContent> createState() => _OnboardingViewContentState();
+}
+
+class _OnboardingViewContentState extends State<OnboardingViewContent>
+    with WidgetsBindingObserver {
+  final AudioService _audioService = AudioService();
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _ensureAudioContinues();
+  }
+
+  void _ensureAudioContinues() async {
+    // Ensure audio continues playing if it was playing from welcome screen
+    if (_audioService.isAvailable && !_audioService.isMuted) {
+      await _audioService.resume();
+    }
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    switch (state) {
+      case AppLifecycleState.paused:
+        _audioService.pause();
+        break;
+      case AppLifecycleState.resumed:
+        if (!_audioService.isMuted) {
+          _audioService.resume();
+        }
+        break;
+      default:
+        break;
+    }
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     return BlocListener<OnboardingCubit, OnboardingState>(
       listener: (context, state) async {
         if (state.isCompleted) {
+          // Fade out audio before transitioning to celebration
+          await _audioService.fadeOut(duration: const Duration(seconds: 2));
+          
           final currentPhase = await UserPhaseService.getCurrentPhase();
           final phaseDescription = UserPhaseService.getPhaseDescription(currentPhase);
           

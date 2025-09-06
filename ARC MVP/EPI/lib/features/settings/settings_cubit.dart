@@ -1,4 +1,5 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:my_app/core/services/audio_service.dart';
 import 'package:my_app/services/data_export_service.dart';
 import 'package:my_app/repositories/journal_repository.dart';
 
@@ -16,6 +17,7 @@ class SettingsState {
   final bool colorAccessibilityEnabled;
   final bool highContrastMode;
   final double textScaleFactor;
+  final bool introAudioMuted;
 
   const SettingsState({
     this.localOnlyMode = false,
@@ -30,6 +32,7 @@ class SettingsState {
     this.colorAccessibilityEnabled = false,
     this.highContrastMode = false,
     this.textScaleFactor = 1.0,
+    this.introAudioMuted = false,
   });
 
   SettingsState copyWith({
@@ -45,6 +48,7 @@ class SettingsState {
     bool? colorAccessibilityEnabled,
     bool? highContrastMode,
     double? textScaleFactor,
+    bool? introAudioMuted,
   }) {
     return SettingsState(
       localOnlyMode: localOnlyMode ?? this.localOnlyMode,
@@ -59,12 +63,22 @@ class SettingsState {
       colorAccessibilityEnabled: colorAccessibilityEnabled ?? this.colorAccessibilityEnabled,
       highContrastMode: highContrastMode ?? this.highContrastMode,
       textScaleFactor: textScaleFactor ?? this.textScaleFactor,
+      introAudioMuted: introAudioMuted ?? this.introAudioMuted,
     );
   }
 }
 
 class SettingsCubit extends Cubit<SettingsState> {
-  SettingsCubit() : super(const SettingsState());
+  final AudioService _audioService = AudioService();
+  
+  SettingsCubit() : super(const SettingsState()) {
+    _loadAudioSettings();
+  }
+
+  Future<void> _loadAudioSettings() async {
+    await _audioService.initialize();
+    emit(state.copyWith(introAudioMuted: _audioService.isMuted));
+  }
 
   void toggleLocalOnlyMode(bool value) {
     emit(state.copyWith(localOnlyMode: value));
@@ -147,5 +161,10 @@ class SettingsCubit extends Cubit<SettingsState> {
 
   void setTextScaleFactor(double scaleFactor) {
     emit(state.copyWith(textScaleFactor: scaleFactor));
+  }
+
+  Future<void> toggleIntroAudio() async {
+    await _audioService.toggleMute();
+    emit(state.copyWith(introAudioMuted: _audioService.isMuted));
   }
 }

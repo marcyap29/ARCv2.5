@@ -114,6 +114,7 @@ class _StartEntryFlowState extends State<StartEntryFlow> {
           // Step 1: Emotion Picker
           EmotionPicker(
             onEmotionSelected: _onEmotionSelected,
+            onBackPressed: () => Navigator.of(context).pop(),
             selectedEmotion: _selectedEmotion,
           ),
           
@@ -121,6 +122,10 @@ class _StartEntryFlowState extends State<StartEntryFlow> {
           if (_selectedEmotion != null)
             ReasonPicker(
               onReasonSelected: _onReasonSelected,
+              onBackPressed: () => _pageController.previousPage(
+                duration: const Duration(milliseconds: 400),
+                curve: Curves.easeInOutCubic,
+              ),
               selectedEmotion: _selectedEmotion!,
               selectedReason: _selectedReason,
             ),
@@ -148,10 +153,18 @@ class _StartEntryFlowState extends State<StartEntryFlow> {
               children: [
                 // Back button
                 IconButton(
-                  onPressed: () => _pageController.previousPage(
-                    duration: const Duration(milliseconds: 400),
-                    curve: Curves.easeInOutCubic,
-                  ),
+                  onPressed: () {
+                    // Check if we can go back in the PageView
+                    if (_pageController.page != null && _pageController.page! > 0) {
+                      _pageController.previousPage(
+                        duration: const Duration(milliseconds: 400),
+                        curve: Curves.easeInOutCubic,
+                      );
+                    } else {
+                      // If we're on the first page, navigate back to home
+                      Navigator.of(context).pop();
+                    }
+                  },
                   icon: const Icon(
                     Icons.arrow_back_ios,
                     color: Colors.white,
