@@ -111,12 +111,36 @@ class PersonalizationView extends StatelessWidget {
                 ),
               ),
 
+              // Intro Audio Toggle
+              PersonalizationOption(
+                title: 'Intro Music',
+                subtitle: 'Ethereal ambient music during welcome and onboarding',
+                icon: Icons.music_note,
+                child: SwitchListTile(
+                  title: const Text(
+                    'Enable Intro Music',
+                    style: TextStyle(color: Colors.white),
+                  ),
+                  subtitle: const Text(
+                    'Play ambient music during welcome and onboarding',
+                    style: TextStyle(color: Colors.white70),
+                  ),
+                  value: !state.introAudioMuted,
+                  onChanged: (value) {
+                    context.read<SettingsCubit>().toggleIntroAudio();
+                  },
+                  activeThumbColor: Colors.blue,
+                  contentPadding: EdgeInsets.zero,
+                ),
+              ),
+
               // Preview Section
               if (state.selectedTone != 'calm' || 
                   state.selectedRhythm != 'daily' || 
                   state.textScaleFactor != 1.0 ||
                   state.colorAccessibilityEnabled ||
-                  state.highContrastMode) ...[
+                  state.highContrastMode ||
+                  state.introAudioMuted) ...[
                 const SizedBox(height: 16),
                 Card(
                   color: Colors.grey[900],
@@ -152,6 +176,10 @@ class PersonalizationView extends StatelessWidget {
                         ),
                         Text(
                           'High Contrast: ${state.highContrastMode ? "On" : "Off"}',
+                          style: const TextStyle(color: Colors.white70),
+                        ),
+                        Text(
+                          'Intro Music: ${state.introAudioMuted ? "Off" : "On"}',
                           style: const TextStyle(color: Colors.white70),
                         ),
                       ],

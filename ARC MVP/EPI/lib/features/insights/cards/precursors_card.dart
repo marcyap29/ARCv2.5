@@ -15,10 +15,10 @@ class PrecursorsCard extends StatelessWidget {
     }
 
     // For now, return a placeholder card
-    return _buildEmptyCard();
+    return _buildEmptyCard(context);
   }
 
-  Widget _buildLoadingCard() {
+  Widget _buildLoadingCard(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -51,7 +51,7 @@ class PrecursorsCard extends StatelessWidget {
     );
   }
 
-  Widget _buildEmptyCard() {
+  Widget _buildEmptyCard(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -99,7 +99,7 @@ class PrecursorsCard extends StatelessWidget {
     );
   }
 
-  Widget _buildPrecursorsCard(List<dynamic> precursors) {
+  Widget _buildPrecursorsCard(BuildContext context, List<dynamic> precursors) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -131,7 +131,7 @@ class PrecursorsCard extends StatelessWidget {
             style: captionStyle(context).copyWith(color: kcSecondaryTextColor),
           ),
           const SizedBox(height: 16),
-          ...precursors.take(5).map((precursor) => _buildPrecursorItem(precursor)).toList(),
+          ...precursors.take(5).map((precursor) => _buildPrecursorItem(context, precursor)).toList(),
           if (precursors.length > 5) ...[
             const SizedBox(height: 8),
             Text(
@@ -144,7 +144,7 @@ class PrecursorsCard extends StatelessWidget {
     );
   }
 
-  Widget _buildPrecursorItem(dynamic precursor) {
+  Widget _buildPrecursorItem(BuildContext context, dynamic precursor) {
     // Handle both MiraKeywordStat and Map types for flexibility
     String keyword;
     double score;

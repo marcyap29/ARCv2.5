@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:just_audio/just_audio.dart';
+import 'package:my_app/core/services/audio_service.dart';
 import 'package:my_app/features/onboarding/onboarding_view.dart';
 import 'package:my_app/shared/app_colors.dart';
 import 'package:my_app/shared/text_style.dart';
@@ -12,30 +12,33 @@ class WelcomeView extends StatefulWidget {
 }
 
 class _WelcomeViewState extends State<WelcomeView>
-    with TickerProviderStateMixin {
-  late AudioPlayer _audioPlayer;
+    with TickerProviderStateMixin, WidgetsBindingObserver {
   late AnimationController _glowController;
   late AnimationController _fadeController;
+  final AudioService _audioService = AudioService();
   bool _isAudioPlaying = false;
   bool _isAudioMuted = false;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _initializeAudio();
     _initializeAnimations();
   }
 
   void _initializeAudio() async {
-    _audioPlayer = AudioPlayer();
     try {
-      // For now, we'll use a placeholder. In production, replace with actual ambient audio
-      // await _audioPlayer.setAsset('assets/audio/ambient_welcome.mp3');
-      // await _audioPlayer.setLoopMode(LoopMode.one);
-      // await _audioPlayer.play();
-      // setState(() => _isAudioPlaying = true);
+      await _audioService.initialize();
+      if (_audioService.isAvailable && !_audioService.isMuted) {
+        await _audioService.play();
+        setState(() {
+          _isAudioPlaying = _audioService.isPlaying;
+          _isAudioMuted = _audioService.isMuted;
+        });
+      }
     } catch (e) {
-      // Audio file not found, continue without audio
+      // Audio not available, continue without audio
       debugPrint('Audio not available: $e');
     }
   }
@@ -55,26 +58,22 @@ class _WelcomeViewState extends State<WelcomeView>
     _fadeController.forward();
   }
 
-  void _toggleAudio() {
-    if (_isAudioMuted) {
-      _audioPlayer.setVolume(0.5);
-      setState(() => _isAudioMuted = false);
-    } else {
-      _audioPlayer.setVolume(0.0);
-      setState(() => _isAudioMuted = true);
-    }
+  void _toggleAudio() async {
+    await _audioService.toggleMute();
+    setState(() {
+      _isAudioMuted = _audioService.isMuted;
+    });
   }
 
-  void _skipAudio() {
-    _audioPlayer.stop();
+  void _skipAudio() async {
+    await _audioService.stop();
     setState(() => _isAudioPlaying = false);
   }
 
   void _beginJourney() async {
     // Fade out audio
     if (_isAudioPlaying) {
-      await _audioPlayer.setVolume(0.0);
-      await _audioPlayer.stop();
+      await _audioService.fadeOut(duration: const Duration(seconds: 2));
     }
 
     // Fade out screen
@@ -95,8 +94,26 @@ class _WelcomeViewState extends State<WelcomeView>
   }
 
   @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    switch (state) {
+      case AppLifecycleState.paused:
+        _audioService.pause();
+        break;
+      case AppLifecycleState.resumed:
+        if (_isAudioPlaying && !_isAudioMuted) {
+          _audioService.resume();
+        }
+        break;
+      default:
+        break;
+    }
+  }
+
+  @override
   void dispose() {
-    _audioPlayer.dispose();
+    WidgetsBinding.instance.removeObserver(this);
+    _audioService.dispose();
     _glowController.dispose();
     _fadeController.dispose();
     super.dispose();

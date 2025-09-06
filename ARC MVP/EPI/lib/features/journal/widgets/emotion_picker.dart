@@ -5,11 +5,13 @@ import 'package:my_app/core/i18n/copy.dart';
 
 class EmotionPicker extends StatefulWidget {
   final Function(String) onEmotionSelected;
+  final VoidCallback? onBackPressed;
   final String? selectedEmotion;
 
   const EmotionPicker({
     super.key,
     required this.onEmotionSelected,
+    this.onBackPressed,
     this.selectedEmotion,
   });
 
@@ -59,7 +61,17 @@ class _EmotionPickerState extends State<EmotionPicker>
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const SizedBox(height: 40),
+                  // Back button
+                  IconButton(
+                    onPressed: widget.onBackPressed ?? () => Navigator.of(context).pop(),
+                    icon: const Icon(
+                      Icons.arrow_back_ios,
+                      color: Colors.white,
+                      size: 24,
+                    ),
+                  ),
+                  
+                  const SizedBox(height: 20),
                   
                   // Title
                   Text(

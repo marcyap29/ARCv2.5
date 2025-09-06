@@ -15,10 +15,10 @@ class ThemesCard extends StatelessWidget {
     }
 
     // For now, return a placeholder card
-    return _buildEmptyCard();
+    return _buildEmptyCard(context);
   }
 
-  Widget _buildLoadingCard() {
+  Widget _buildLoadingCard(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -51,7 +51,7 @@ class ThemesCard extends StatelessWidget {
     );
   }
 
-  Widget _buildEmptyCard() {
+  Widget _buildEmptyCard(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -99,7 +99,7 @@ class ThemesCard extends StatelessWidget {
     );
   }
 
-  Widget _buildThemesCard(List<dynamic> themes) {
+  Widget _buildThemesCard(BuildContext context, List<dynamic> themes) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -126,7 +126,7 @@ class ThemesCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 16),
-          ...themes.take(5).map((theme) => _buildThemeItem(theme)).toList(),
+          ...themes.take(5).map((theme) => _buildThemeItem(context, theme)).toList(),
           if (themes.length > 5) ...[
             const SizedBox(height: 8),
             Text(
@@ -139,7 +139,7 @@ class ThemesCard extends StatelessWidget {
     );
   }
 
-  Widget _buildThemeItem(dynamic theme) {
+  Widget _buildThemeItem(BuildContext context, dynamic theme) {
     // Handle both MiraKeywordStat and Map types for flexibility
     String keyword;
     double score;

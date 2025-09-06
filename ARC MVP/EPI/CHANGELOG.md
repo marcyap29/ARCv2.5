@@ -14,6 +14,42 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [1.0.1] - 2025-01-20 - P5-MM Multi-Modal Journaling Complete 🎉
+
+### 🎯 P5-MM Multi-Modal Journaling Implementation
+- **Complete Multi-Modal Support**: Audio recording, camera photos, gallery selection
+- **Media Management**: Preview, delete, and organize attached media items
+- **OCR Integration**: Automatic text extraction from images with user confirmation
+- **State Management**: Complete media item tracking and persistence
+- **UI Integration**: Seamless integration with existing journal capture workflow
+- **Accessibility Compliance**: All components include proper semantic labels and 44x44dp tap targets
+
+### 🚀 New Features
+- **Media Capture Toolbar**: Mic, camera, and gallery buttons with proper accessibility
+- **Media Strip**: Horizontal display of attached media items with preview and delete functionality
+- **OCR Text Extraction**: Automatic text extraction from images with user approval workflow
+- **Media Preview Dialog**: Full-screen media preview with metadata and delete options
+- **OCR Text Insert Dialog**: User confirmation for inserting extracted text into journal
+- **Media Store Service**: Complete file management for media items in app sandbox
+- **OCR Service**: Text extraction service with fallback handling
+
+### 🏆 Technical Achievements
+- **Data Models**: MediaItem with comprehensive metadata and Hive persistence
+- **Services**: MediaStore for file management, OCRService for text extraction
+- **UI Components**: MediaCaptureSheet, MediaStrip, MediaPreviewDialog, OCRTextInsertDialog
+- **State Management**: Integrated media items into journal capture state
+- **Error Handling**: Comprehensive error handling for media operations
+- **Accessibility**: All components meet WCAG accessibility standards
+
+### 📱 User Experience
+- **Rich Journaling**: Multi-modal journaling with text, audio, and images
+- **Seamless Integration**: Media capture integrated into existing journal workflow
+- **Intuitive Controls**: Easy-to-use media capture and management interface
+- **Accessibility**: Full accessibility support for all media components
+- **Error Recovery**: Graceful handling of media capture and processing errors
+
+---
+
 ## [1.0.0] - 2025-01-20 - EPI ARC MVP v1.0.0 - Production Ready Stable Release 🎉
 
 ### 🎯 Complete MVP Implementation
@@ -42,8 +78,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - **Data Management**: Complete privacy controls and data export functionality
 - **User Experience**: Intuitive navigation, customizable interface, and professional polish
 
-### 📋 Remaining Planned Features (4 prompts)
-- **P5 - Voice Journaling**: UI and state management complete, needs real audio recording implementation
+### 📋 Remaining Planned Features (3 prompts)
 - **P10 - MIRA v1 Graph**: Backend models and service complete, needs graph visualization UI  
 - **P14 - Cloud Sync Stubs**: Offline-first sync framework with toggle and status indicator
 - **P22 - Ethereal Music**: Audio player setup complete, needs actual audio file and playback
