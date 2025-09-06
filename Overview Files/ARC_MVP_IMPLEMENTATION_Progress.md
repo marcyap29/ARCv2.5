@@ -48,14 +48,16 @@
 | P0    | Project seed & design tokens           | ✅ Complete  | Dark theme, tokens in place |
 | P1    | App structure & navigation             | ✅ Complete  | Bottom tabs working |
 | P2    | Data model & storage                   | ✅ Complete  | Journal/Arcform/User models |
-| P3    | Onboarding (reflective scaffolding)    | ✅ Complete  | 3‑step + mood chips |
+| P3    | Onboarding (reflective scaffolding)    | ✅ Complete  | 3‑step + mood 090212
+chips |
 | P4    | Journal (text)                         | ✅ Complete  | Save flow optimized; reordered flow (New Entry → Emotion → Reason); recursive save loop fixed |
 | P5    | Journal (voice)                        | ✅ Complete  | P5-MM Multi-Modal Journaling: Audio, camera, gallery, OCR - Integrated into StartEntryFlow |
 | P6    | SAGE Echo                              | ✅ Complete  | Async post‑processing |
 | P7    | Keyword extraction & review            | ✅ Complete  | Multi‑select; UI honors choices; keyword-driven phase detection |
 | P8    | Arcform renderer                       | ✅ Complete  | 6 geometries; 2D/3D modes; emotional color mapping; interactive letters; keyword tap dialog; notch-safe positioning; complete 3D feature parity |
 | P9    | Timeline                               | ✅ Complete  | Thumbnails + keywords; SafeArea compliance; notch-safe layout |
-| P10   | Insights: MIRA v1                      | ⏳ Planned   | Graph view scaffold later |
+| P10   | Insights: MIRA v1                      | ✅ Complete  | Graph view with tap detection |
+| P10C  | Insights: Deterministic Insight Cards | ✅ Complete  | Rule-based insight generation |
 | P11   | Phase detection placeholder (ATLAS)    | ✅ Complete  | Keyword-driven phase recommendations with semantic mapping |
 | P12   | Rhythm & restoration (AURORA/VEIL)     | ✅ Complete  | Placeholder cards implemented |
 | P13   | Settings & privacy                     | ✅ Complete  | All 5 phases: Privacy, Data, Personalization, About |
@@ -292,12 +294,35 @@
 
 ---
 
-### 🟣 P10 — Insights: MIRA v1 Graph
+### ✅ P10 — Insights: MIRA v1 Graph
 **Files:**  
 - `lib/features/insights/mira_graph_view.dart`  
 - `lib/features/insights/mira_graph_cubit.dart`  
+- `lib/features/insights/constellation_projector.dart`
 
 **Acceptance Criteria:** Graph reflects stored data; pan/zoom; node/edge taps show linked entries.
+
+---
+
+### ✅ P10C — Insights: Deterministic Insight Cards
+**Files:**  
+- `lib/insights/insight_service.dart` - Deterministic rule engine
+- `lib/insights/templates.dart` - 12 insight template strings
+- `lib/insights/rules_loader.dart` - JSON rule loading system
+- `lib/insights/models/insight_card.dart` - Data model with Hive adapter
+- `lib/insights/insight_cubit.dart` - State management
+- `lib/insights/widgets/insight_card_widget.dart` - Card display widget
+- `lib/ui/insights/widgets/insight_card_shell.dart` - Proper constraint handling
+- `lib/features/home/home_view.dart` - Integration and cubit initialization
+- `lib/main/bootstrap.dart` - Hive adapter registration
+
+**Acceptance Criteria:** 
+- Generate 3-5 personalized insight cards from journal data
+- Use deterministic rule engine with 12 insight templates
+- Display patterns, emotions, SAGE coverage, and phase history
+- Proper styling with gradient backgrounds and blur effects
+- Full accessibility compliance with semantics isolation
+- No layout errors or infinite size constraints
 
 ---
 

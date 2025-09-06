@@ -107,30 +107,17 @@ This document contains the complete set of prompts to guide ARC MVP development 
 
 ---
 
-## Prompt 5 — Journal Capture (Voice) ✅ COMPLETE
+## Prompt 5 — Journal Capture (Voice) ⏳ PLANNED
 **Goal:** Add optional voice journaling with permission flow and transcription.
 
-**Status:** ✅ **COMPLETE** - Full P5-MM Multi-Modal Journaling implementation with voice, camera, and gallery support
+**Status:** ⏳ **PLANNED** - UI and state management complete, needs real audio recording implementation
 
 **Current Implementation:**
 - ✅ Complete UI with microphone button and visualizer
 - ✅ Permission dialog and recording timer
 - ✅ Pause, stop, playback controls
 - ✅ Transcription states and editable text
-- ✅ **NEW**: Multi-modal media support (audio, images, camera, gallery)
-- ✅ **NEW**: Media capture toolbar with mic, camera, and gallery buttons
-- ✅ **NEW**: Media strip for displaying attached media items
-- ✅ **NEW**: OCR text extraction and insertion workflow
-- ✅ **NEW**: Media preview and deletion functionality
-- ✅ **NEW**: Complete state management for media items
-
-**P5-MM Multi-Modal Journaling Features:**
-- **Media Capture**: Audio recording, camera photos, gallery selection
-- **Media Management**: Preview, delete, and organize attached media
-- **OCR Integration**: Automatic text extraction from images with user confirmation
-- **State Management**: Complete media item tracking and persistence
-- **UI Integration**: Seamless integration with existing journal capture flow
-- **Accessibility**: All media components include proper accessibility labels and 44x44dp tap targets
+- ❌ **Missing**: Actual audio recording (currently simulated)
 
 **Generate:**
 - Microphone button with visualizer.
@@ -600,7 +587,7 @@ Here is a complete version of **Prompt P23** you can add directly to your `ARC_M
 #### 📁 Files Modified
 
 
-### P26 — “Keyword Selection — RIVET-Gated (20 candidates; top 15 preselected)”.
+P26 — “Keyword Selection — RIVET-Gated (20 candidates; top 15 preselected)”.
 
 ```
 lib/features/arcforms/widgets/geometry_selector.dart
@@ -711,173 +698,85 @@ This feature reinforces ARC’s principle of **narrative autonomy** — the user
 
 ---
 
-## Prompt 24 — RIVET Phase-Stability Gate (ALIGN + TRACE)
-**Goal:** Prevent jittery phase flips. Only allow a displayed phase change when both fidelity (ALIGN) and evidence sufficiency (TRACE) are sustained.
+## P10C — Insights: Deterministic Insight Cards
 
-**Defaults:** A* = 0.60, T* = 0.60, W = 2 windows, K = 20 days, N = 10 entries minimum.
+### Goal
+Implement a deterministic insight generation system that creates 3-5 personalized insight cards from existing journal data using rule-based templates. Cards should display patterns, emotions, SAGE coverage, and phase history with proper styling and accessibility.
 
-**Generate:**
-- `RivetPhaseGateService` that ingests rolling metrics and returns `PhaseGateDecision { mayChange: bool, rationale: {...} }`.
+### Requirements
 
-**Metrics:**
-- **ALIGN**: similarity between candidate phase vector and trailing window features from keywords, SAGE, emotion trend.
-- **TRACE**: count and diversity of evidence events since last change (distinct entries, distinct support types).
-- Require 2 consecutive windows over thresholds and at least one independent event since last confirmation.
+#### Core Functionality
+- **InsightService**: Deterministic rule engine that generates insights from journal data
+- **Rule Templates**: 12 predefined insight templates covering different aspects of user data
+- **Data Integration**: Generate insights from journal entries, emotions, keywords, and phase data
+- **Card Display**: Beautiful gradient cards with blur effects and proper accessibility
+- **State Management**: InsightCubit with proper widget rebuild using setState()
 
-**UI:** preserve the Phase Confirmation Dialog; show "Two dials" indicator and a short rationale snippet when a change is allowed.
+#### Technical Implementation
+- **InsightCard Model**: Data model with Hive adapter for persistence
+- **InsightCardShell**: Proper constraint handling with clipping and semantics isolation
+- **Constraint Fixes**: Resolve infinite size constraints by replacing SizedBox.expand() with Container()
+- **Accessibility**: Full compliance with ExcludeSemantics for decorative layers
+- **Layout**: Fix ListView constraints with shrinkWrap and NeverScrollableScrollPhysics
 
-**State:** write a `phase_change_log` record with A, T, window spans, and evidence summary.
+#### Insight Templates (12 total)
+1. **Emotion Patterns**: "You've been feeling [emotion] in [context]"
+2. **Keyword Frequency**: "The word '[keyword]' appears in [count] entries"
+3. **Phase Transitions**: "You've moved from [phase1] to [phase2] [times] times"
+4. **SAGE Coverage**: "SAGE has analyzed [percentage]% of your entries"
+5. **Writing Consistency**: "You've written [count] entries in the last [days] days"
+6. **Emotional Range**: "Your emotional spectrum spans from [low] to [high]"
+7. **Keyword Evolution**: "Your focus has shifted from [old] to [new] keywords"
+8. **Phase Stability**: "You've been in [phase] for [days] days"
+9. **Entry Length**: "Your average entry length is [words] words"
+10. **Emotional Intensity**: "Your emotional intensity has [increased/decreased] recently"
+11. **Keyword Diversity**: "You've used [count] unique keywords this week"
+12. **Phase Distribution**: "You spend most time in [phase] phase"
 
-**Acceptance criteria:**
-- A single entry cannot flip the phase. A change requires sustained ALIGN and TRACE over W windows.
-- Phase changes are logged with rationale and timestamps.
-- Existing pipeline unaffected: Journal → Analysis → Keyword-driven recommendation → Confirmation → Timeline/Arcforms.
-- QA seed scenario shows the gate correctly blocking and allowing phase updates.
+#### Visual Design
+- **Card Shell**: Gradient backgrounds with blur effects
+- **Typography**: Clear hierarchy with titles, body text, and metadata
+- **Spacing**: Proper padding and margins for readability
+- **Accessibility**: 44x44dp tap targets and proper semantic labels
+- **Responsive**: Cards adapt to different screen sizes
 
-**Files to create:**
-- `lib/core/rivet/rivet_phase_gate_service.dart`
-- `lib/core/rivet/models/phase_gate_decision.dart`
-- `lib/features/phase/phase_gate_cubit.dart` and integration in the confirmation dialog.
+#### Data Sources
+- **Journal Entries**: Text content, timestamps, emotional data
+- **Keywords**: Extracted and user-selected keywords
+- **Phase Data**: Current phase, phase history, transitions
+- **SAGE Data**: Analysis coverage and results
+- **User Profile**: Writing patterns and preferences
 
-**Commit message:** `feat(rivet): add ALIGN+TRACE phase-stability gate (P24) with rationale + logs`
+### Acceptance Criteria
+- ✅ Generate 3-5 personalized insight cards from journal data
+- ✅ Use deterministic rule engine with 12 insight templates
+- ✅ Display patterns, emotions, SAGE coverage, and phase history
+- ✅ Proper styling with gradient backgrounds and blur effects
+- ✅ Full accessibility compliance with semantics isolation
+- ✅ No layout errors or infinite size constraints
+- ✅ Cards display in Insights tab with proper integration
+- ✅ State management working correctly with setState() rebuild
+- ✅ Hive adapter registration for persistence
 
----
+### Files Created
+- `lib/insights/insight_service.dart` - Deterministic rule engine
+- `lib/insights/templates.dart` - 12 insight template strings
+- `lib/insights/rules_loader.dart` - JSON rule loading system
+- `lib/insights/models/insight_card.dart` - Data model with Hive adapter
+- `lib/insights/insight_cubit.dart` - State management
+- `lib/insights/widgets/insight_card_widget.dart` - Card display widget
+- `lib/ui/insights/widgets/insight_card_shell.dart` - Proper constraint handling
 
-## Prompt 25 — Keyword Selection — RIVET-Gated (20 candidates; top 15 preselected)
-**Goal:** Propose up to 20 high-signal candidates, RIVET-gate weak ones, and preselect the top 15 as chips for user review.
+### Files Modified
+- `lib/features/home/home_view.dart` - Integration and cubit initialization
+- `lib/main/bootstrap.dart` - Hive adapter registration
 
-**Generate:**
-- Selector module that keeps your existing scoring equation unchanged and adds RIVET checks.
-- Inputs and outputs exactly as in the spec below.
-- Deterministic sort and selection. No randomness.
-
-**Spec (drop-in for your code assistant):**
-Keep equation as is. Attach features per candidate, gate with RIVET, keep top 20, preselect top 15, and return chips array.
-
-Copy the JSON I/O and gating rules from this block in your doc and move it under P25: lines covering RIVET GATING, RANKING & TRUNCATION, PRESELECTION & CHIPS, and the OUTPUT JSON shape.
-
-**Acceptance criteria:**
-- Returns ≤ 20 candidates with evidence, phase_match, emotion, and a selected flag.
-- Top 15 are preselected unless fewer remain after gating.
-- Chips match the algorithm's selected keywords and render in the edit view and historical Arcforms.
-
-**Files to create:**
-- `lib/core/keywords/keyword_selector_service.dart`
-- `lib/core/keywords/models/keyword_candidate.dart`
-- Wire into `journal_analysis_pipeline.dart` and the chips UI.
-
-**Commit message:** `feat(keywords): RIVET-gated selection (P25) 20 candidates, top 15 preselected`
-
----
-
-## Prompt 26 — Constellation Arcform Renderer (phase masks + deterministic seeding)
-**Goal:** Ship a production-grade constellation renderer with phase-specific masks, kNN/Delaunay-lite edges, twinkle micro-animation, and export parity.
-
-**Generate:**
-
-**Files to create:**
-- `lib/arcform/constellation/constellation_arcform_renderer.dart`
-- `lib/arcform/constellation/constellation_layout_service.dart`
-- `lib/arcform/constellation/constellation_painter.dart`
-- `lib/arcform/constellation/polar_masks.dart` // six ATLAS phase masks
-- `lib/arcform/constellation/graph_utils.dart` // kNN + Delaunay-lite edges
-
-**Determinism:** same inputs + seed = hash(entry.id) gives the same layout, across hot restarts and PNG export.
-
-**Layout:** place 5–10 keyword nodes with soft repulsion inside a phase mask:
-- Spiral = Discovery, Flower = Expansion, Branch = Transition, Weave = Consolidation, GlowCore = Recovery, Fractal = Breakthrough.
-
-**Edges:** kNN first, then optional Delaunay-lite to add a few long arcs. Cap edges to keep 60 fps.
-
-**Animation:** subtle node twinkle and edge pulse within reduced-motion rules from P19.
-
-**Export parity:** exported PNG matches on-screen layout 1:1.
-
-**Tap affordances:** tap node to open linked excerpt and SAGE snippet.
-
-**Acceptance criteria:**
-- 60 fps with 10 nodes and ≤ 20 edges on a recent device.
-- Masked layout matches current phase shape by default. Manual override from P23 still respected.
-- PNG export is crisp and deterministic.
-
-**Commit message:** `feat(arcform): add Constellation renderer (P26) with phase masks, kNN edges, twinkle + export parity`
-
----
-
-## Prompt 27 — Arcform & Timeline Consistency Fixes
-**Goal:** Resolve the four UX inconsistencies you listed: geometry default, phase change control, timeline badge, and keyword mismatches.
-
-**Generate:**
-
-**Arcform tab geometry default:**
-- Ensure 3D/2D geometry uses the current official phase, not Discovery as a fallback.
-
-**Phase change on Arcform tab:**
-- Add a small "Change phase" button in the upper right. Confirm before changing. Log the change with P24.
-
-**Timeline badge:**
-- Replace the 5-point circle with the phase shape or label above "Journal Entry."
-
-**Keyword consistency:**
-- Ensure edit view and historical Arcform use the exact algorithm-chosen keywords from P25 for that entry.
-
-**Acceptance criteria:**
-- Arcform tab shows geometry that matches the displayed phase.
-- Phase can be changed from Arcform tab with confirmation and P24 logs.
-- Timeline cards show phase shape or label as the primary badge.
-- Keywords are consistent across editor, timeline detail, and snapshots.
-
-**Files to touch:**
-- `lib/features/arcforms/arcform_tab.dart`
-- `lib/features/timeline/timeline_item.dart`
-- `lib/features/journal/journal_edit_view.dart`
-- `lib/core/keywords/keyword_selector_service.dart` (hook into P25)
-
-**Commit message:** `fix(arcform,timeline): geometry default, on-tab phase change, timeline badge, keyword parity (P27)`
-
----
-
-## Prompt 27 — RIVET "Simple Copy" UI + Details Modal ✅ COMPLETE
-**Goal:** Replace jargon (ALIGN/TRACE) with plain language and show a friendly status while keeping power details one tap away. **Do not change the gate math** — this is a copy + micro-UI pass only.
-
-**Status:** ✅ **COMPLETE** - Full P27 implementation with user-friendly RIVET interface
-
-**Current Implementation:**
-- ✅ **Simple Copy Labels**: ALIGN → Match, TRACE → Confidence with Good/Low status
-- ✅ **User-Friendly Headers**: "Phase change safety check" with clear subtitle
-- ✅ **Status Banners**: Contextual messages (Holding steady, Ready to switch, Almost there)
-- ✅ **Details Modal**: "Why held?" explanation with live values and actionable guidance
-- ✅ **Simple Checklist**: 4 concise lines with pass/warn icons for all checks
-- ✅ **Debug Support**: kShowRivetDebugLabels flag for engineering labels when needed
-- ✅ **Accessibility**: Proper semantic labels, 44x44dp tap targets, high-contrast support
-
-**P27 RIVET Simple Copy Features:**
-- **Match/Confidence Dials**: Clear percentage display with Good/Low status indicators
-- **Status Banner**: Color-coded messages with "Why held?" button when gate is closed
-- **Details Modal**: Comprehensive explanation with live values and user guidance
-- **Checklist UI**: Visual checklist showing Match, Confidence, Consistency, Independent check status
-- **Debug Mode**: Optional engineering labels (ALIGN/TRACE) for development
-- **Localization**: Complete string management through Copy class
-
-**Generate:**
-- Rename dials: ALIGN → Match, TRACE → Confidence
-- Add header + subtitle with info tooltip
-- Create status banner with contextual messages
-- Build simple checklist with pass/warn icons
-- Create details modal with "Why held?" explanation
-
-**Acceptance criteria:**
-- Old gate behavior unchanged (unit tests pass)
-- With align=0%, trace=71%, sustain=0/2, independent=false shows proper UI
-- Details modal opens and shows matching values and nudge
-- When all four checks pass, banner flips to "Ready to switch" and "Why held?" hides
-
-**Files created/modified:**
-- `lib/core/i18n/copy.dart` (RIVET strings)
-- `lib/features/insights/rivet_gate_details_modal.dart` (details modal)
-- `lib/features/home/home_view.dart` (RIVET card UI)
-
-**Commit message:** `feat(insights): simplify RIVET copy to Match/Confidence, add details modal and checklist (P27)`
+### Implementation Notes
+- **Constraint Handling**: Fixed infinite size constraints by replacing `SizedBox.expand()` with `Container()` in decorative layers
+- **Semantics Isolation**: Used `ExcludeSemantics` and `IgnorePointer` for decorative layers to prevent accessibility issues
+- **Cubit Initialization**: Added `setState()` to trigger widget rebuild after cubit creation
+- **ListView Constraints**: Added `shrinkWrap: true` and `NeverScrollableScrollPhysics()` to prevent unbounded height errors
+- **Rule Engine**: Deterministic system that generates insights based on predefined templates and user data
 
 ---
 
