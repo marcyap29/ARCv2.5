@@ -13,9 +13,11 @@ import 'package:my_app/core/rivet/rivet_provider.dart';
 import 'package:my_app/core/rivet/rivet_models.dart';
 import 'package:my_app/core/i18n/copy.dart';
 import 'package:my_app/features/insights/cards/aurora_card.dart';
-import 'package:my_app/features/insights/rivet_gate_details_modal.dart';
 import 'package:my_app/features/insights/cards/veil_card.dart';
 import 'package:my_app/features/insights/mira_graph_view.dart';
+import 'package:my_app/features/insights/info/insights_info_icon.dart';
+import 'package:my_app/features/insights/info/info_icon.dart';
+import 'package:my_app/features/insights/info/why_held_sheet.dart';
 import 'package:my_app/features/qa/qa_screen.dart';
 import 'package:my_app/features/settings/settings_view.dart';
 import 'package:my_app/services/analytics_service.dart';
@@ -101,8 +103,14 @@ class _HomeViewState extends State<HomeView> {
   }
 }
 
-class _InsightsPage extends StatelessWidget {
+class _InsightsPage extends StatefulWidget {
   const _InsightsPage();
+
+  @override
+  State<_InsightsPage> createState() => _InsightsPageState();
+}
+
+class _InsightsPageState extends State<_InsightsPage> {
 
   @override
   Widget build(BuildContext context) {
@@ -128,7 +136,9 @@ class _InsightsPage extends StatelessWidget {
                     style: heading1Style(context),
                   ),
                   const Spacer(),
-                  if (kDebugMode)
+                  const InsightsInfoIcon(),
+                  if (kDebugMode) ...[
+                    const SizedBox(width: 8),
                     IconButton(
                       icon: const Icon(
                         Icons.bug_report,
@@ -142,6 +152,7 @@ class _InsightsPage extends StatelessWidget {
                         );
                       },
                     ),
+                  ],
                 ],
               ),
             ),
@@ -221,6 +232,8 @@ class _InsightsPage extends StatelessWidget {
                 'Your Patterns',
                 style: heading2Style(context),
               ),
+              const SizedBox(width: 8),
+              InfoIcons.patterns(),
               const Spacer(),
               TextButton(
                 onPressed: () {
@@ -322,19 +335,6 @@ class _RivetCardState extends State<_RivetCard> {
     }
   }
   
-  void _showDetailsModal() {
-    if (_rivetState != null) {
-      showDialog(
-        context: context,
-        builder: (context) => RivetGateDetailsModal(
-          rivetState: _rivetState!,
-          alignThreshold: _alignThreshold,
-          traceThreshold: _traceThreshold,
-          sustainTarget: _sustainTarget,
-        ),
-      );
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -411,14 +411,7 @@ class _RivetCardState extends State<_RivetCard> {
                   ],
                 ),
               ),
-              Tooltip(
-                message: Copy.rivetTooltip,
-                child: Icon(
-                  Icons.info_outline,
-                  size: 18,
-                  color: kcSecondaryTextColor,
-                ),
-              ),
+              InfoIcons.safety(),
             ],
           ),
           const SizedBox(height: 24),
@@ -502,7 +495,14 @@ class _RivetCardState extends State<_RivetCard> {
                 ),
                 if (!ready)
                   TextButton(
-                    onPressed: _showDetailsModal,
+                    onPressed: () {
+                      showModalBottomSheet(
+                        context: context,
+                        isScrollControlled: true,
+                        backgroundColor: Colors.transparent,
+                        builder: (context) => const WhyHeldSheet(),
+                      );
+                    },
                     child: Text(
                       Copy.rivetBannerWhy,
                       style: bodyStyle(context).copyWith(
