@@ -31,7 +31,9 @@ class _WelcomeViewState extends State<WelcomeView>
     try {
       await _audioService.initialize();
       if (_audioService.isAvailable && !_audioService.isMuted) {
-        await _audioService.play();
+        // Start with ethereal track and fade in gently
+        await _audioService.switchToEtherealTrack();
+        await _audioService.fadeInEthereal(duration: const Duration(seconds: 3));
         setState(() {
           _isAudioPlaying = _audioService.isPlaying;
           _isAudioMuted = _audioService.isMuted;
@@ -71,6 +73,9 @@ class _WelcomeViewState extends State<WelcomeView>
   }
 
   void _beginJourney() async {
+    // Wait 1-2 seconds before starting transition
+    await Future.delayed(const Duration(seconds: 1));
+    
     // Fade out audio
     if (_isAudioPlaying) {
       await _audioService.fadeOut(duration: const Duration(seconds: 2));
@@ -260,7 +265,7 @@ class _WelcomeViewState extends State<WelcomeView>
                               ),
                             ),
                             child: Text(
-                              'Begin Your Journey',
+                              'Continue Your Journey',
                               style: buttonStyle(context).copyWith(
                                 color: Colors.white,
                                 fontSize: 18,
