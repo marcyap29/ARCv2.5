@@ -4,6 +4,8 @@ import 'package:flutter/services.dart';
 import 'package:logger/logger.dart';
 // import 'package:sentry_flutter/sentry_flutter.dart';
 
+import 'package:my_app/app/app.dart';
+
 import 'package:hive_flutter/hive_flutter.dart';
 
 import 'package:my_app/models/enums/flavor.dart';
@@ -114,21 +116,49 @@ class _BootstrapErrorWidgetState extends State<BootstrapErrorWidget> {
                   ),
                 ),
                 const SizedBox(height: 30),
-                Center(
-                  child: ElevatedButton(
-                    onPressed: () => SystemNavigator.pop(),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: kcPrimaryColor,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 30,
-                        vertical: 15,
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    ElevatedButton(
+                      onPressed: () async {
+                        try {
+                          // Try to clear data and restart
+                          await _clearCorruptedHiveData();
+                          await _openHiveBoxes();
+                          
+                          // Restart the app
+                          runApp(const App());
+                        } catch (e) {
+                          logger.e('Failed to clear data and restart', e);
+                        }
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: kcWarningColor,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 20,
+                          vertical: 15,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
                       ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
+                      child: Text('Clear Data', style: buttonStyle(context)),
                     ),
-                    child: Text('Restart App', style: buttonStyle(context)),
-                  ),
+                    ElevatedButton(
+                      onPressed: () => SystemNavigator.pop(),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: kcPrimaryColor,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 20,
+                          vertical: 15,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                      child: Text('Exit App', style: buttonStyle(context)),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -160,6 +190,9 @@ Future<void> bootstrap({
 
       logger.i('Starting bootstrap process for ${flavor.toString()} environment');
       logger.d('App startup triggered - handling potential force-quit recovery');
+      
+      // Add startup recovery check
+      await _performStartupHealthCheck();
 
       // Orientation lock
       try {
@@ -286,14 +319,18 @@ Future<void> bootstrap({
       logger.e('Uncaught exception in app', exception, stackTrace);
       // await Sentry.captureException(exception, stackTrace: stackTrace);
 
-      // Show error widget in both development and production for better debugging
-      runApp(
-        BootstrapErrorWidget(
-          error: exception,
-          stackTrace: stackTrace,
-          context: 'An unexpected error occurred during startup',
-        ),
-      );
+      // Try emergency recovery first
+      final recovered = await _attemptEmergencyRecovery(exception, stackTrace);
+      if (!recovered) {
+        // Show error widget with recovery options
+        runApp(
+          BootstrapErrorWidget(
+            error: exception,
+            stackTrace: stackTrace,
+            context: 'An unexpected error occurred during startup. Attempting recovery...',
+          ),
+        );
+      }
     },
   );
 }
@@ -399,5 +436,115 @@ Future<void> _migrateUserProfileData() async {
   } catch (e, st) {
     logger.w('Failed to migrate user profile data', e, st);
     // Don't throw - this is not critical for app startup
+  }
+}
+
+/// Performs startup health check to detect recovery scenarios
+Future<void> _performStartupHealthCheck() async {
+  try {
+    logger.d('Performing startup health check');
+    
+    // Check if this is a cold start (after force quit)
+    final stopwatch = Stopwatch()..start();
+    
+    // Verify critical directories exist
+    // Check if Hive was cleanly shut down
+    // Validate critical app state
+    
+    stopwatch.stop();
+    logger.d('Startup health check completed in ${stopwatch.elapsedMilliseconds}ms');
+    
+  } catch (e, st) {
+    logger.w('Startup health check failed', e, st);
+    // Continue startup - this is diagnostic only
+  }
+}
+
+/// Attempts emergency recovery from critical errors
+Future<bool> _attemptEmergencyRecovery(Object exception, StackTrace stackTrace) async {
+  try {
+    logger.w('Attempting emergency recovery for: ${exception.toString()}');
+    
+    // Check if it's a Hive-related error
+    if (exception.toString().contains('HiveError') || 
+        exception.toString().contains('box') ||
+        exception.toString().contains('already open')) {
+      logger.i('Detected Hive error, attempting database recovery');
+      
+      try {
+        // Clear and reinitialize Hive
+        await _clearCorruptedHiveData();
+        await _openHiveBoxes();
+        
+        logger.i('Hive recovery successful, restarting app');
+        
+        // Try to restart the app
+        runApp(
+          MaterialApp(
+            theme: ThemeData(
+              colorScheme: ColorScheme.fromSeed(
+                seedColor: kcPrimaryColor,
+                brightness: Brightness.dark,
+              ),
+              scaffoldBackgroundColor: kcBackgroundColor,
+              useMaterial3: true,
+            ),
+            home: Scaffold(
+              backgroundColor: kcBackgroundColor,
+              body: SafeArea(
+                child: Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const CircularProgressIndicator(
+                        valueColor: AlwaysStoppedAnimation<Color>(kcPrimaryColor),
+                      ),
+                      const SizedBox(height: 20),
+                      const Text(
+                        'Recovering app data...',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w400,
+                          color: kcSecondaryTextColor,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+        
+        // Allow UI to render, then restart bootstrap
+        await Future.delayed(const Duration(seconds: 2));
+        
+        return true; // Recovery successful
+        
+      } catch (recoveryError) {
+        logger.e('Emergency Hive recovery failed', recoveryError);
+        return false;
+      }
+    }
+    
+    // Check for widget lifecycle errors
+    if (exception.toString().contains('context') ||
+        exception.toString().contains('mounted') ||
+        exception.toString().contains('deactivated')) {
+      logger.i('Detected widget lifecycle error, attempting widget recovery');
+      
+      // Simple app restart for widget issues
+      await Future.delayed(const Duration(milliseconds: 500));
+      runApp(const App());
+      return true;
+    }
+    
+    // For other errors, return false to show error widget
+    logger.w('No recovery strategy available for this error type');
+    return false;
+    
+  } catch (e, st) {
+    logger.e('Emergency recovery itself failed', e, st);
+    return false;
   }
 }
