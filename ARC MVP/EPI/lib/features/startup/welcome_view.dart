@@ -34,7 +34,13 @@ class _WelcomeViewState extends State<WelcomeView>
 
   void _checkOnboardingStatus() async {
     try {
-      final userBox = await Hive.openBox<UserProfile>('user_profile');
+      // Use safe box access pattern
+      Box<UserProfile> userBox;
+      if (Hive.isBoxOpen('user_profile')) {
+        userBox = Hive.box<UserProfile>('user_profile');
+      } else {
+        userBox = await Hive.openBox<UserProfile>('user_profile');
+      }
       final userProfile = userBox.get('profile');
       
       print('DEBUG: WelcomeView - User profile: ${userProfile?.onboardingCompleted}');
