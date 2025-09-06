@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:my_app/core/services/audio_service.dart';
 import 'package:my_app/features/startup/phase_quiz_prompt_view.dart';
+import 'package:my_app/features/home/home_view.dart';
 import 'package:my_app/shared/app_colors.dart';
 import 'package:my_app/shared/text_style.dart';
 import 'package:hive/hive.dart';
@@ -20,7 +21,6 @@ class _WelcomeViewState extends State<WelcomeView>
   final AudioService _audioService = AudioService();
   bool _isAudioPlaying = false;
   bool _isAudioMuted = false;
-  bool _hasCompletedOnboarding = false;
   String _buttonText = 'Begin Your Journey';
 
   @override
@@ -39,16 +39,17 @@ class _WelcomeViewState extends State<WelcomeView>
       
       print('DEBUG: WelcomeView - User profile: ${userProfile?.onboardingCompleted}');
       
-      if (userProfile != null && userProfile.onboardingCompleted) {
+      // Check if user has completed onboarding
+      final hasCompletedOnboarding = userProfile != null && userProfile.onboardingCompleted;
+      
+      if (hasCompletedOnboarding) {
         print('DEBUG: WelcomeView - User has completed onboarding, showing Continue Your Journey');
         setState(() {
-          _hasCompletedOnboarding = true;
           _buttonText = 'Continue Your Journey';
         });
       } else {
         print('DEBUG: WelcomeView - New user, showing Begin Your Journey');
         setState(() {
-          _hasCompletedOnboarding = false;
           _buttonText = 'Begin Your Journey';
         });
       }
@@ -56,7 +57,6 @@ class _WelcomeViewState extends State<WelcomeView>
       print('DEBUG: WelcomeView - Error checking onboarding status: $e');
       // If there's an error, default to new user
       setState(() {
-        _hasCompletedOnboarding = false;
         _buttonText = 'Begin Your Journey';
       });
     }
@@ -120,13 +120,13 @@ class _WelcomeViewState extends State<WelcomeView>
     await _fadeController.reverse();
 
     if (mounted) {
-      // Navigate based on onboarding status
-      if (_hasCompletedOnboarding) {
-        // Post-onboarding user: go to phase quiz to continue their journey
+      // Navigate based on button text
+      if (_buttonText == 'Continue Your Journey') {
+        // User has entries: go to home view to see their entries
         Navigator.pushReplacement(
           context,
           PageRouteBuilder(
-            pageBuilder: (context, animation, secondaryAnimation) => const PhaseQuizPromptView(),
+            pageBuilder: (context, animation, secondaryAnimation) => const HomeView(),
             transitionsBuilder: (context, animation, secondaryAnimation, child) {
               return FadeTransition(opacity: animation, child: child);
             },
