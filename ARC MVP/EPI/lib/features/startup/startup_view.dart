@@ -47,8 +47,8 @@ class _StartupViewState extends State<StartupView> {
       final entryCount = await journalRepository.getEntryCount();
       
       if (entryCount == 0) {
-        // No journal entries exist, navigate to phase questionnaire
-        _navigateToPhaseQuiz();
+        // No journal entries exist, show enhanced welcome screen for post-onboarding
+        _navigateToWelcome();
       } else {
         // User has entries, navigate to normal home view
         _navigateToHome();
