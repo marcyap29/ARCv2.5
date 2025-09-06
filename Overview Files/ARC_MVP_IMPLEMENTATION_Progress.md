@@ -28,6 +28,8 @@
 - **Critical Startup Resilience (2025-01-31)**:
   - **App Restart Reliability**: Fixed critical issue where app failed to start after phone restart
   - **Database Corruption Recovery**: Added automatic detection and clearing of corrupted Hive data
+  - **Complete Hive Database Conflict Resolution**: Fixed all remaining Hive box conflicts across OnboardingCubit, WelcomeView, and bootstrap migration
+  - **Dependency Resolution**: Updated sentry_dart_plugin to resolve version conflicts
   - **Enhanced Error Handling**: Comprehensive error recovery throughout bootstrap process
   - **Emergency Recovery Tools**: Created recovery script for persistent startup issues
   - **Production Error Widgets**: User-friendly error screens with recovery options
@@ -539,5 +541,60 @@ dart test_arc_mvp.dart  # Run tests
 ### ✨ Recently Completed Features
 - **Fixed Welcome Screen Logic**: Corrected user journey flow - users with entries see "Continue Your Journey" → Home, new users see "Begin Your Journey" → Phase quiz
 - **Enhanced Post-Onboarding Welcome**: ARC title with pulsing glow, ethereal music, and smooth transitions
+
+---
+
+## 9.6) Complete Hive Database Conflict Resolution 🔧
+
+### Problem
+Despite previous Hive database fixes, critical Hive box conflicts were still occurring in:
+- **OnboardingCubit._completeOnboarding()** - Crashed during onboarding completion
+- **WelcomeView._checkOnboardingStatus()** - Failed during welcome screen initialization  
+- **Bootstrap _migrateUserProfileData()** - Crashed during user profile migration
+- **Dependency Conflicts** - sentry_dart_plugin version conflicts preventing builds
+
+### Solution
+Implemented comprehensive Hive database conflict resolution:
+
+#### Technical Implementation
+- **Safe Box Access Pattern**: Applied consistent `Hive.isBoxOpen()` checks across all components
+- **OnboardingCubit Fix**: Fixed `_completeOnboarding()` to use safe box access
+- **WelcomeView Fix**: Fixed `_checkOnboardingStatus()` to use safe box access
+- **Bootstrap Fix**: Fixed `_migrateUserProfileData()` to use safe box access
+- **Dependency Resolution**: Updated sentry_dart_plugin to resolve version conflicts
+
+#### Code Pattern Applied
+```dart
+// Before (causing errors):
+final userBox = await Hive.openBox<UserProfile>('user_profile');
+
+// After (safe access):
+Box<UserProfile> userBox;
+if (Hive.isBoxOpen('user_profile')) {
+  userBox = Hive.box<UserProfile>('user_profile');
+} else {
+  userBox = await Hive.openBox<UserProfile>('user_profile');
+}
+```
+
+### Testing Results
+- ✅ **Onboarding Completion**: Works without Hive errors
+- ✅ **Welcome Screen**: Initializes without conflicts
+- ✅ **Bootstrap Migration**: User profile migration works safely
+- ✅ **Dependency Resolution**: Builds without version conflicts
+- ✅ **App Restart**: Handles phone restart scenarios reliably
+- ✅ **Force-Quit Recovery**: Handles force-quit scenarios gracefully
+
+### Files Modified
+- `lib/features/onboarding/onboarding_cubit.dart` - Fixed `_completeOnboarding()` method
+- `lib/features/startup/welcome_view.dart` - Fixed `_checkOnboardingStatus()` method
+- `lib/main/bootstrap.dart` - Fixed `_migrateUserProfileData()` function
+- `pubspec.yaml` - Updated sentry_dart_plugin dependency
+
+### Impact
+- **Complete Hive Stability**: All Hive database conflicts resolved
+- **Reliable App Behavior**: App handles all startup scenarios gracefully
+- **User Experience**: Smooth onboarding and welcome screen experience
+- **Code Consistency**: Aligned all Hive box access with established patterns
 
 ---
