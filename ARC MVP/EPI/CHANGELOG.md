@@ -14,6 +14,46 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [1.0.9] - 2025-01-31 - Critical Startup Resilience & Error Recovery 🛡️
+
+### 🛡️ Critical Fixes - App Startup Reliability
+- **Startup Failure Resolution** - Fixed app startup failures after phone restart
+- **Hive Database Conflicts** - Resolved "box already open" errors during initialization
+- **Widget Lifecycle Safety** - Fixed deactivated widget context access issues
+- **Database Corruption Recovery** - Added automatic detection and clearing of corrupted data
+
+### 🔧 Enhanced Error Handling
+- **Bootstrap Resilience** - Comprehensive error handling in app initialization process
+- **Safe Box Access** - Updated all services to check Hive box status before opening
+- **Production Error Widgets** - User-friendly error screens with recovery options
+- **Emergency Recovery Script** - Created recovery tool for persistent startup issues
+
+### 📱 User Experience Improvements
+- **Reliable App Launch** - App now starts successfully after device restart
+- **Graceful Error Recovery** - Automatic recovery from database conflicts
+- **Clear Error Messages** - Helpful error information for users and developers
+- **Recovery Options** - Multiple fallback mechanisms for startup issues
+
+### 🔍 Technical Enhancements
+- **Comprehensive Logging** - Enhanced debugging information throughout startup
+- **Database Management** - Improved Hive box opening and error handling patterns
+- **Service Integration** - Fixed conflicts in JournalRepository and ArcformService
+- **Error Recovery** - Multiple layers of fallback for different failure scenarios
+
+### 📁 Files Modified
+- `lib/main/bootstrap.dart` - Enhanced error handling and recovery mechanisms
+- `lib/features/startup/startup_view.dart` - Safe box access patterns
+- `lib/services/user_phase_service.dart` - Fixed box opening conflicts
+- `recovery_script.dart` - Emergency recovery tool (new file)
+
+### 🎯 Impact
+- **Reliability**: App now consistently starts after device restart
+- **User Experience**: Seamless app launch without startup failures
+- **Maintainability**: Better error logging and recovery mechanisms
+- **Support**: Users have recovery options if issues persist
+
+---
+
 ## [1.0.8] - 2025-01-20 - Fixed Welcome Screen Logic for User Journey Flow 🔧
 
 ### 🔧 Fixed - Critical Logic Correction
