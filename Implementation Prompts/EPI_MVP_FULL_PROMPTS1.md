@@ -780,5 +780,44 @@ Implement a deterministic insight generation system that creates 3-5 personalize
 
 ---
 
+## Prompt 24 — Critical Startup Resilience & Error Recovery 🛡️
+**Goal:** Ensure app reliably starts after device restart and handles database conflicts gracefully.
+
+**Generate:**
+- Enhanced bootstrap process with comprehensive error handling
+- Automatic database corruption detection and recovery
+- Safe Hive box access patterns across all services
+- Production error widgets with user recovery options
+- Emergency recovery script for persistent startup issues
+
+**Technical Requirements:**
+- **Bootstrap Enhancement**: Robust error handling in app initialization
+- **Database Management**: Safe box opening with conflict resolution
+- **Corruption Recovery**: Automatic detection and clearing of corrupted data
+- **Error Widgets**: User-friendly error screens with recovery options
+- **Recovery Tools**: Emergency script for persistent startup issues
+- **Logging**: Enhanced debugging information throughout startup
+
+**Acceptance Criteria:**
+- App starts successfully after device restart
+- App starts successfully after force-quit (swipe up)
+- Handles Hive database conflicts gracefully
+- Automatic recovery from corrupted data
+- Clear error messages for users and developers
+- Emergency recovery script works as expected
+- Force-quit recovery test script validates scenarios
+- No "box already open" errors in logs
+
+**Files Modified:**
+- `lib/main/bootstrap.dart` - Enhanced error handling and recovery mechanisms
+- `lib/features/startup/startup_view.dart` - Safe box access patterns
+- `lib/services/user_phase_service.dart` - Fixed box opening conflicts
+- `recovery_script.dart` - Emergency recovery tool (new file)
+- `test_force_quit_recovery.dart` - Force-quit scenario testing (new file)
+
+**Status:** ✅ **COMPLETE** - Critical startup resilience implemented
+
+---
+
 ### Final Note
 Build Iteratively
