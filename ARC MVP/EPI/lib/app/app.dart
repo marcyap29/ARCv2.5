@@ -13,9 +13,29 @@ import 'package:my_app/features/journal/journal_capture_cubit.dart';
 import 'package:my_app/features/journal/keyword_extraction_cubit.dart';
 import 'package:my_app/core/a11y/a11y_flags.dart';
 import 'package:my_app/core/rivet/rivet_provider.dart';
+import 'package:my_app/core/services/app_lifecycle_manager.dart';
 
-class App extends StatelessWidget {
+class App extends StatefulWidget {
   const App({super.key});
+
+  @override
+  State<App> createState() => _AppState();
+}
+
+class _AppState extends State<App> {
+  final AppLifecycleManager _lifecycleManager = AppLifecycleManager();
+
+  @override
+  void initState() {
+    super.initState();
+    _lifecycleManager.initialize();
+  }
+
+  @override
+  void dispose() {
+    _lifecycleManager.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {

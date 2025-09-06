@@ -1,9 +1,100 @@
 # EPI ARC MVP - Bug Tracker
 
-> **Last Updated**: January 20, 2025 9:30 PM (America/Los_Angeles)  
-> **Total Items Tracked**: 33 (24 bugs + 9 enhancements)  
-> **Critical Issues Fixed**: 24  
-> **Status**: All blocking issues resolved - Production ready with P5-MM Multi-Modal Journaling complete, RIVET deletion fix, P10C Insight Cards, and P14 Cloud Sync Stubs ✅
+> **Last Updated**: January 31, 2025 2:45 PM (America/Los_Angeles)  
+> **Total Items Tracked**: 36 (27 bugs + 9 enhancements)  
+> **Critical Issues Fixed**: 27  
+> **Status**: All blocking issues resolved - Production ready with P5-MM Multi-Modal Journaling complete, RIVET deletion fix, P10C Insight Cards, P14 Cloud Sync Stubs, and iOS build fixes ✅
+
+---
+
+## Bug ID: BUG-2025-01-31-004
+**Title**: iOS Build Failures with share_plus Plugin
+
+**Type**: Bug  
+**Priority**: P1 (Critical)  
+**Status**: ✅ Fixed  
+**Reporter**: Build System  
+**Implementer**: Claude Code  
+**Fix Date**: 2025-01-31
+
+#### Description
+iOS build failures preventing app installation on physical device due to share_plus plugin compatibility issues.
+
+#### Root Cause
+- share_plus v7.2.1 had iOS build compatibility issues
+- 'Flutter/Flutter.h' file not found errors
+- Module build failures in share_plus framework
+- Deprecated iOS APIs causing build warnings
+
+#### Error Messages
+```
+/Users/mymac/.pub-cache/hosted/pub.dev/share_plus-7.2.2/ios/Classes/FPPSharePlusPlugin.h:5:9 'Flutter/Flutter.h' file not found
+/Users/mymac/Library/Developer/Xcode/DerivedData/Runner-dlkamjexeyosovfovmemcojljykg/Build/Intermediates.noindex/Pods.build/Debug-iphoneos/share_plus.build/VerifyModule/share_plus_objective-c_arm64-apple-ios12.0_gnu11/Test/Test.h:1:9 (fatal) could not build module 'share_plus'
+```
+
+#### Solution
+- Updated share_plus from v7.2.1 to v11.1.0
+- Cleaned build cache and Pods directory
+- Fresh dependency resolution
+- Build in release mode to avoid iOS 14+ debug restrictions
+
+#### Files Modified
+- `pubspec.yaml` - Updated share_plus dependency
+- `ios/Pods/` - Cleaned and regenerated
+- `ios/Podfile.lock` - Deleted and regenerated
+
+#### Testing
+- ✅ iOS build completes successfully
+- ✅ App installs on physical device
+- ✅ No more 'Flutter/Flutter.h' errors
+- ✅ share_plus module builds correctly
+- ✅ Release mode deployment works
+
+#### Impact
+- **Deployment**: App can now be installed on physical iOS devices
+- **Development**: iOS development workflow restored
+- **User Experience**: App accessible on physical devices for testing
+
+---
+
+## Bug ID: BUG-2025-01-31-005
+**Title**: iOS 14+ Debug Mode Restrictions
+
+**Type**: Bug  
+**Priority**: P2 (High)  
+**Status**: ✅ Workaround Implemented  
+**Reporter**: iOS System  
+**Implementer**: Claude Code  
+**Fix Date**: 2025-01-31
+
+#### Description
+iOS 14+ security restrictions prevent debug mode apps from running without proper tooling connection.
+
+#### Root Cause
+- iOS 14+ requires Flutter tooling or Xcode for debug mode
+- ptrace(PT_TRACE_ME) operation not permitted in debug mode
+- Security restrictions on debug app execution
+
+#### Error Messages
+```
+[ERROR:flutter/runtime/ptrace_check.cc(75)] Could not call ptrace(PT_TRACE_ME): Operation not permitted
+Cannot create a FlutterEngine instance in debug mode without Flutter tooling or Xcode.
+```
+
+#### Solution
+- Use release mode for physical device deployment
+- Debug mode still works with simulators
+- Xcode can be used for debug mode if needed
+
+#### Testing
+- ✅ Release mode works on physical device
+- ✅ Debug mode works on iOS simulator
+- ✅ App launches successfully in release mode
+
+#### Impact
+- **Development**: Use release mode for physical device testing
+- **Deployment**: App installs and runs on physical devices
+- **Workflow**: Slight change in development process
 
 ---
 
