@@ -11,12 +11,17 @@ import 'package:my_app/shared/tab_bar.dart';
 import 'package:my_app/shared/text_style.dart';
 import 'package:my_app/core/rivet/rivet_provider.dart';
 import 'package:my_app/core/rivet/rivet_models.dart';
+import 'package:my_app/core/i18n/copy.dart';
 import 'package:my_app/features/insights/cards/aurora_card.dart';
+import 'package:my_app/features/insights/rivet_gate_details_modal.dart';
 import 'package:my_app/features/insights/cards/veil_card.dart';
 import 'package:my_app/features/qa/qa_screen.dart';
 import 'package:my_app/features/settings/settings_view.dart';
 import 'package:my_app/services/analytics_service.dart';
 import 'package:flutter/foundation.dart';
+
+// Debug flag for showing RIVET engineering labels
+const bool kShowRivetDebugLabels = false;
 
 class HomeView extends StatefulWidget {
   final int initialTab;
@@ -199,7 +204,11 @@ class _RivetCard extends StatefulWidget {
 class _RivetCardState extends State<_RivetCard> {
   RivetState? _rivetState;
   bool _isLoading = true;
-  String _statusMessage = '';
+  
+  // RIVET thresholds (matching RivetService defaults)
+  static const double _alignThreshold = 0.6;
+  static const double _traceThreshold = 0.6;
+  static const int _sustainTarget = 2;
 
   @override
   void initState() {
@@ -221,13 +230,11 @@ class _RivetCardState extends State<_RivetCard> {
       final state = await rivetProvider.safeGetState(userId);
       
       if (state != null && rivetProvider.service != null) {
-        // Update service with current state and get status message
+        // Update service with current state
         rivetProvider.service!.updateState(state);
-        final statusMessage = rivetProvider.service!.getStatusSummary();
         
         setState(() {
           _rivetState = state;
-          _statusMessage = statusMessage;
           _isLoading = false;
         });
       } else {
@@ -238,7 +245,6 @@ class _RivetCardState extends State<_RivetCard> {
             sustainCount: 0,
             sawIndependentInWindow: false,
           );
-          _statusMessage = 'RIVET unavailable';
           _isLoading = false;
         });
       }
@@ -251,14 +257,54 @@ class _RivetCardState extends State<_RivetCard> {
           sustainCount: 0,
           sawIndependentInWindow: false,
         );
-        _statusMessage = 'Error loading RIVET state';
         _isLoading = false;
       });
+    }
+  }
+  
+  void _showDetailsModal() {
+    if (_rivetState != null) {
+      showDialog(
+        context: context,
+        builder: (context) => RivetGateDetailsModal(
+          rivetState: _rivetState!,
+          alignThreshold: _alignThreshold,
+          traceThreshold: _traceThreshold,
+          sustainTarget: _sustainTarget,
+        ),
+      );
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    if (_isLoading || _rivetState == null) {
+      return Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: Colors.white.withOpacity(0.2),
+          ),
+        ),
+        child: const Center(
+          child: CircularProgressIndicator(
+            valueColor: AlwaysStoppedAnimation<Color>(kcPrimaryTextColor),
+          ),
+        ),
+      );
+    }
+
+    // Calculate status booleans
+    final matchGood = _rivetState!.align >= _alignThreshold;
+    final confidenceGood = _rivetState!.trace >= _traceThreshold;
+    final consistencyGood = _rivetState!.sustainCount >= _sustainTarget;
+    final independentGood = _rivetState!.sawIndependentInWindow;
+    
+    final ready = matchGood && confidenceGood && consistencyGood && independentGood;
+    final almost = confidenceGood && !ready && (_sustainTarget - _rivetState!.sustainCount) <= 1;
+
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -271,6 +317,7 @@ class _RivetCardState extends State<_RivetCard> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Header with title, subtitle, and info tooltip
           Row(
             children: [
               Container(
@@ -286,101 +333,208 @@ class _RivetCardState extends State<_RivetCard> {
                 ),
               ),
               const SizedBox(width: 12),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'RIVET Gate Status',
-                    style: heading2Style(context),
-                  ),
-                  Text(
-                    'Phase-stability monitoring system',
-                    style: bodyStyle(context).copyWith(
-                      color: kcPrimaryTextColor.withOpacity(0.7),
-                      fontSize: 12,
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      Copy.rivetTitle,
+                      style: heading2Style(context),
                     ),
-                  ),
-                ],
+                    Text(
+                      Copy.rivetSubtitle,
+                      style: bodyStyle(context).copyWith(
+                        color: kcPrimaryTextColor.withOpacity(0.7),
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Tooltip(
+                message: Copy.rivetTooltip,
+                child: Icon(
+                  Icons.info_outline,
+                  size: 18,
+                  color: kcSecondaryTextColor,
+                ),
               ),
             ],
           ),
           const SizedBox(height: 24),
-          if (_isLoading)
-            const Center(
-              child: CircularProgressIndicator(
-                valueColor: AlwaysStoppedAnimation<Color>(kcPrimaryTextColor),
+          
+          // Dual dials with simple copy
+          Row(
+            children: [
+              Expanded(
+                child: _SimpleDial(
+                  title: Copy.rivetDialMatch,
+                  subtitle: matchGood ? Copy.rivetDialGood : Copy.rivetDialLow,
+                  value: _rivetState!.align,
+                  threshold: _alignThreshold,
+                  debugLabel: kShowRivetDebugLabels ? 'ALIGN' : null,
+                ),
               ),
-            )
-          else ...[
-            Row(
-              children: [
-                Expanded(
-                  child: _DualDial(
-                    title: 'ALIGN',
-                    subtitle: 'Fidelity',
-                    value: _rivetState!.align,
-                    threshold: 0.6,
-                  ),
+              const SizedBox(width: 20),
+              Expanded(
+                child: _SimpleDial(
+                  title: Copy.rivetDialConfidence,
+                  subtitle: confidenceGood ? Copy.rivetDialGood : Copy.rivetDialLow,
+                  value: _rivetState!.trace,
+                  threshold: _traceThreshold,
+                  debugLabel: kShowRivetDebugLabels ? 'TRACE' : null,
                 ),
-                const SizedBox(width: 20),
-                Expanded(
-                  child: _DualDial(
-                    title: 'TRACE',
-                    subtitle: 'Evidence',
-                    value: _rivetState!.trace,
-                    threshold: 0.6,
-                  ),
-                ),
-              ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+          
+          // Status banner
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: ready 
+                  ? Colors.green.withOpacity(0.1)
+                  : almost 
+                      ? Colors.orange.withOpacity(0.1)
+                      : Colors.red.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                color: ready 
+                    ? Colors.green.withOpacity(0.3)
+                    : almost 
+                        ? Colors.orange.withOpacity(0.3)
+                        : Colors.red.withOpacity(0.3),
+              ),
             ),
-            const SizedBox(height: 20),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.black.withOpacity(0.2),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Row(
-                children: [
-                  Icon(
-                    _rivetState!.align >= 0.6 && _rivetState!.trace >= 0.6
-                        ? Icons.lock_open
-                        : Icons.lock,
-                    color: _rivetState!.align >= 0.6 && _rivetState!.trace >= 0.6
-                        ? Colors.green
-                        : Colors.orange,
+            child: Row(
+              children: [
+                Icon(
+                  ready 
+                      ? Icons.lock_open
+                      : almost 
+                          ? Icons.schedule
+                          : Icons.lock,
+                  color: ready 
+                      ? Colors.green
+                      : almost 
+                          ? Colors.orange
+                          : Colors.red,
+                  size: 20,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    ready 
+                        ? Copy.rivetBannerReady
+                        : almost 
+                            ? Copy.rivetStateAlmost
+                            : Copy.rivetBannerHeld,
+                    style: bodyStyle(context).copyWith(
+                      color: ready 
+                          ? Colors.green
+                          : almost 
+                              ? Colors.orange
+                              : Colors.red,
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
-                  const SizedBox(width: 8),
-                  Expanded(
+                ),
+                if (!ready)
+                  TextButton(
+                    onPressed: _showDetailsModal,
                     child: Text(
-                      _statusMessage,
+                      Copy.rivetBannerWhy,
                       style: bodyStyle(context).copyWith(
-                        fontFamily: 'monospace',
-                        fontSize: 11,
+                        color: Colors.blue,
+                        fontWeight: FontWeight.w500,
                       ),
                     ),
                   ),
-                ],
-              ),
+              ],
             ),
-          ],
+          ),
+          const SizedBox(height: 16),
+          
+          // Simple checklist
+          _buildChecklist(context, matchGood, confidenceGood, consistencyGood, independentGood),
         ],
       ),
     );
   }
+  
+  Widget _buildChecklist(
+    BuildContext context,
+    bool matchGood,
+    bool confidenceGood,
+    bool consistencyGood,
+    bool independentGood,
+  ) {
+    return Column(
+      children: [
+        _buildCheckItem(
+          context,
+          Copy.rivetCheckMatch(matchGood ? Copy.rivetDialGood : Copy.rivetDialLow),
+          matchGood,
+        ),
+        const SizedBox(height: 8),
+        _buildCheckItem(
+          context,
+          Copy.rivetCheckConfidence(confidenceGood ? Copy.rivetDialGood : Copy.rivetDialLow),
+          confidenceGood,
+        ),
+        const SizedBox(height: 8),
+        _buildCheckItem(
+          context,
+          Copy.rivetCheckConsistency(_rivetState!.sustainCount, _sustainTarget),
+          consistencyGood,
+        ),
+        const SizedBox(height: 8),
+        _buildCheckItem(
+          context,
+          independentGood ? Copy.rivetCheckIndependentOk : Copy.rivetCheckIndependentMissing,
+          independentGood,
+        ),
+      ],
+    );
+  }
+  
+  Widget _buildCheckItem(BuildContext context, String text, bool isGood) {
+    return Row(
+      children: [
+        Icon(
+          isGood ? Icons.check_circle : Icons.radio_button_unchecked,
+          color: isGood ? Colors.green : Colors.orange,
+          size: 18,
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            text,
+            style: bodyStyle(context).copyWith(
+              color: kcPrimaryTextColor,
+              fontSize: 13,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
 }
 
-class _DualDial extends StatelessWidget {
+class _SimpleDial extends StatelessWidget {
   final String title;
   final String subtitle;
   final double value;
   final double threshold;
+  final String? debugLabel;
 
-  const _DualDial({
+  const _SimpleDial({
     required this.title,
     required this.subtitle,
     required this.value,
     required this.threshold,
+    this.debugLabel,
   });
 
   @override
@@ -436,10 +590,22 @@ class _DualDial extends StatelessWidget {
         Text(
           subtitle,
           style: TextStyle(
-            color: kcPrimaryTextColor.withOpacity(0.7),
+            color: isActive ? Colors.green : Colors.orange,
             fontSize: 12,
+            fontWeight: FontWeight.w500,
           ),
         ),
+        if (debugLabel != null) ...[
+          const SizedBox(height: 2),
+          Text(
+            debugLabel!,
+            style: TextStyle(
+              color: kcSecondaryTextColor,
+              fontSize: 10,
+              fontFamily: 'monospace',
+            ),
+          ),
+        ],
       ],
     );
   }
