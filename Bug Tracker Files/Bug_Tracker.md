@@ -1,9 +1,105 @@
 # EPI ARC MVP - Bug Tracker
 
-> **Last Updated**: January 31, 2025 2:45 PM (America/Los_Angeles)  
-> **Total Items Tracked**: 36 (27 bugs + 9 enhancements)  
-> **Critical Issues Fixed**: 27  
-> **Status**: All blocking issues resolved - Production ready with P5-MM Multi-Modal Journaling complete, RIVET deletion fix, P10C Insight Cards, P14 Cloud Sync Stubs, and iOS build fixes ✅
+> **Last Updated**: September 6, 2025 3:15 PM (America/Los_Angeles)  
+> **Total Items Tracked**: 37 (28 bugs + 9 enhancements)  
+> **Critical Issues Fixed**: 28  
+> **Status**: All blocking issues resolved - Production ready with comprehensive force-quit recovery system, global error handling, and app lifecycle management ✅
+
+---
+
+## Bug ID: BUG-2025-09-06-001
+**Title**: App Fails to Restart After Force-Quit
+
+**Type**: Bug  
+**Priority**: P1 (Critical)  
+**Status**: ✅ Fixed  
+**Reporter**: User Testing  
+**Implementer**: Claude Code  
+**Fix Date**: 2025-09-06
+
+#### Description
+App would not restart properly after being force-quit, leading to blank screens, silent failures, or crashes on subsequent launches. This was a critical user experience issue preventing reliable app usage.
+
+#### Root Cause Analysis
+- **Missing Global Error Handling**: No comprehensive error capture system for framework and platform errors
+- **Incomplete Lifecycle Management**: No app-level lifecycle monitoring for force-quit detection and recovery
+- **Service Recovery Gaps**: Critical services (Hive, RIVET, Analytics, Audio) had no recovery mechanisms after app state loss
+- **Widget Lifecycle Errors**: No handling of context/mount state issues after force-quit
+- **Silent Failure Mode**: Errors occurred without user visibility or recovery options
+
+#### Error Patterns Identified
+- Hive database conflicts and "box already open" errors
+- Widget lifecycle errors with deactivated contexts
+- Service initialization failures on app resume
+- Platform-specific startup errors without recovery paths
+- Silent widget build failures with no user feedback
+
+#### Solution Implemented
+
+##### 🛡️ Comprehensive Force-Quit Recovery System
+- **Global Error Handling** (main.dart):
+  - FlutterError.onError: Framework error capture with logging
+  - ErrorWidget.builder: User-friendly error widgets with retry functionality
+  - PlatformDispatcher.onError: Platform-specific error handling
+  - Production-ready error UI with proper theming
+
+- **Enhanced Bootstrap Recovery** (bootstrap.dart):
+  - Startup health checks for cold start detection
+  - Emergency recovery system for common error types:
+    - Hive database errors: Auto-clear corrupted data and reinitialize
+    - Widget lifecycle errors: Automatic app restart with progress feedback
+    - Service initialization failures: Graceful fallback and reinitialization
+  - Enhanced error widgets with "Clear Data" recovery option
+
+- **App-Level Lifecycle Management** (app_lifecycle_manager.dart):
+  - Singleton lifecycle service monitoring app state changes
+  - Force-quit detection (identifies pauses >30 seconds)
+  - Service health checks on app resume for all critical services
+  - Automatic service reinitialization for failed services
+  - Comprehensive logging for debugging lifecycle issues
+
+- **App Integration** (app.dart):
+  - Converted App to StatefulWidget for lifecycle management
+  - Integrated AppLifecycleManager with proper initialization/disposal
+  - Added global app-level lifecycle observation
+
+#### Technical Implementation
+- **740+ Lines of Code**: Comprehensive implementation across 7 files
+- **193 Lines**: New AppLifecycleManager service
+- **Emergency Recovery Strategies**: Multiple recovery paths for different error types
+- **Enhanced Debugging**: Comprehensive error logging and stack trace capture
+- **User Recovery Options**: Automatic, retry, and clear data recovery paths
+
+#### Files Modified
+- `lib/main.dart` - Global error handling setup and error widget implementation
+- `lib/main/bootstrap.dart` - Enhanced startup recovery and emergency recovery system
+- `lib/core/services/app_lifecycle_manager.dart` - **NEW** - App lifecycle monitoring service
+- `lib/app/app.dart` - Lifecycle integration and StatefulWidget conversion
+- `ios/Podfile.lock` - iOS dependency updates
+
+#### Testing Results
+- ✅ App reliably restarts after force-quit scenarios
+- ✅ Comprehensive error capture with detailed logging and stack traces
+- ✅ Automatic recovery for common startup failures (Hive, services, widgets)
+- ✅ User-friendly error widgets with clear recovery options
+- ✅ Emergency recovery system with visual progress feedback
+- ✅ Service health checks with automatic reinitialization
+- ✅ Production-ready error handling suitable for deployment
+- ✅ Enhanced debugging capabilities with comprehensive logging
+- ✅ Clean builds with all compilation errors resolved
+
+#### User Experience Impact
+- **Reliability**: App now consistently restarts after force-quit
+- **Transparency**: Users see recovery progress with clear messaging
+- **Recovery Control**: Multiple recovery paths available to users
+- **Error Visibility**: Clear error messages replace silent failures
+- **Graceful Degradation**: App continues with reduced functionality when needed
+
+#### Production Impact
+- **Deployment Ready**: Robust error handling suitable for production use
+- **Development Enhanced**: Better debugging with comprehensive error logging
+- **Maintenance Improved**: Clear visibility into app lifecycle and service health
+- **User Trust**: Reliable app startup builds user confidence
 
 ---
 

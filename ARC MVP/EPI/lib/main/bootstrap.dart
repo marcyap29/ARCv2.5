@@ -335,34 +335,109 @@ Future<void> bootstrap({
   );
 }
 
-/// Safely opens all required Hive boxes with error handling
+/// Safely opens all required Hive boxes with error handling and type safety
 Future<void> _openHiveBoxes() async {
-  final boxNames = [
-    Boxes.userProfile,
-    Boxes.journalEntries,
-    Boxes.arcformSnapshots,
-    Boxes.insights,
-  ];
+  // Define boxes with their specific types for type safety
+  final typedBoxes = <String, Type>{
+    Boxes.userProfile: UserProfile,
+    Boxes.journalEntries: JournalEntry,
+    Boxes.arcformSnapshots: ArcformSnapshot,
+    Boxes.insights: dynamic, // InsightSnapshot if it exists
+  };
 
-  for (final boxName in boxNames) {
+  for (final entry in typedBoxes.entries) {
+    final boxName = entry.key;
+    final boxType = entry.value;
+    
     try {
-      if (!Hive.isBoxOpen(boxName)) {
-        await Hive.openBox(boxName);
-        logger.d('Opened Hive box: $boxName');
+      // Check if box is already open with correct type
+      if (Hive.isBoxOpen(boxName)) {
+        final existingBox = Hive.box(boxName);
+        logger.d('Box $boxName already open with type: ${existingBox.runtimeType}');
+        
+        // Check for type mismatch issues
+        if (boxName == Boxes.userProfile && boxType == UserProfile) {
+          try {
+            // Try to access as typed box to verify compatibility
+            final typedBox = Hive.box<UserProfile>(boxName);
+            logger.d('Successfully accessed typed box: $boxName');
+          } catch (typeError) {
+            logger.w('Type mismatch detected for $boxName, closing and reopening: $typeError');
+            await existingBox.close();
+            await _openTypedBox(boxName, boxType);
+          }
+        }
       } else {
-        logger.d('Hive box already open: $boxName');
+        await _openTypedBox(boxName, boxType);
       }
     } catch (e, st) {
-      logger.e('Failed to open Hive box: $boxName', e, st);
-      // Try to delete and recreate the box
+      logger.e('Failed to handle Hive box: $boxName', e, st);
+      await _recoverBoxWithTypeHandling(boxName, boxType, e);
+    }
+  }
+}
+
+/// Opens a typed box with proper error handling
+Future<void> _openTypedBox(String boxName, Type boxType) async {
+  try {
+    if (boxType == UserProfile) {
+      await Hive.openBox<UserProfile>(boxName);
+    } else if (boxType == JournalEntry) {
+      await Hive.openBox<JournalEntry>(boxName);
+    } else if (boxType == ArcformSnapshot) {
+      await Hive.openBox<ArcformSnapshot>(boxName);
+    } else {
+      await Hive.openBox(boxName); // Generic box
+    }
+    logger.d('Successfully opened typed box: $boxName as $boxType');
+  } catch (e) {
+    logger.e('Failed to open typed box $boxName as $boxType: $e');
+    rethrow;
+  }
+}
+
+/// Recovers a box with specific type handling
+Future<void> _recoverBoxWithTypeHandling(String boxName, Type boxType, Object originalError) async {
+  try {
+    logger.w('Attempting recovery for $boxName (type: $boxType) due to: $originalError');
+    
+    // Close any existing box first
+    if (Hive.isBoxOpen(boxName)) {
+      try {
+        await Hive.box(boxName).close();
+        logger.d('Closed existing box: $boxName');
+      } catch (closeError) {
+        logger.w('Error closing box $boxName: $closeError');
+      }
+    }
+    
+    // For type mismatch errors, delete the box from disk
+    if (originalError.toString().contains('already open') || 
+        originalError.toString().contains('type') ||
+        originalError.toString().contains('dynamic')) {
+      logger.i('Deleting box from disk due to type conflict: $boxName');
       try {
         await Hive.deleteBoxFromDisk(boxName);
-        await Hive.openBox(boxName);
-        logger.w('Recovered Hive box by recreating: $boxName');
-      } catch (recoveryError) {
-        logger.e('Failed to recover Hive box: $boxName', recoveryError);
-        rethrow;
+        logger.d('Deleted box from disk: $boxName');
+      } catch (deleteError) {
+        logger.w('Error deleting box $boxName: $deleteError');
       }
+    }
+    
+    // Reopen with correct type
+    await _openTypedBox(boxName, boxType);
+    logger.i('Successfully recovered box: $boxName as $boxType');
+    
+  } catch (recoveryError, st) {
+    logger.e('Failed to recover Hive box: $boxName', recoveryError, st);
+    
+    // Last resort: try generic box opening
+    try {
+      await Hive.openBox(boxName);
+      logger.w('Opened box as generic type: $boxName');
+    } catch (finalError) {
+      logger.e('All recovery attempts failed for box: $boxName', finalError);
+      rethrow;
     }
   }
 }
@@ -468,7 +543,9 @@ Future<bool> _attemptEmergencyRecovery(Object exception, StackTrace stackTrace) 
     // Check if it's a Hive-related error
     if (exception.toString().contains('HiveError') || 
         exception.toString().contains('box') ||
-        exception.toString().contains('already open')) {
+        exception.toString().contains('already open') ||
+        exception.toString().contains('dynamic') ||
+        exception.toString().contains('type')) {
       logger.i('Detected Hive error, attempting database recovery');
       
       try {
