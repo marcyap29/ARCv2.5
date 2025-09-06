@@ -13,6 +13,12 @@ void main() async {
   print('');
   
   print('This script will help recover your app if it fails to start.');
+  print('It handles issues from:');
+  print('  • Phone restart');
+  print('  • App force-quit (swipe up)');
+  print('  • Database corruption');
+  print('  • Widget lifecycle errors');
+  print('');
   print('It will clear corrupted data and reset the app to a clean state.');
   print('');
   
