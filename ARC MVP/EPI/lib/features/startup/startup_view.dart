@@ -29,14 +29,20 @@ class _StartupViewState extends State<StartupView> {
       final userBox = await Hive.openBox<UserProfile>('user_profile');
       final userProfile = userBox.get('profile');
 
+      print('DEBUG: User profile: $userProfile');
+      print('DEBUG: Onboarding completed: ${userProfile?.onboardingCompleted}');
+
       if (userProfile != null && userProfile.onboardingCompleted) {
         // User has completed onboarding, but check if they have journal entries
+        print('DEBUG: User has completed onboarding, checking journal entries...');
         await _checkJournalEntriesAndNavigate();
       } else {
+        print('DEBUG: User has not completed onboarding, going to welcome');
         _navigateToWelcome();
       }
     } catch (e) {
       // If there's an error accessing the profile, go to welcome
+      print('DEBUG: Error accessing profile: $e, going to welcome');
       _navigateToWelcome();
     }
   }
