@@ -196,7 +196,7 @@ class _WelcomeViewState extends State<WelcomeView>
                               ],
                             ),
                             child: Text(
-                              'EPI',
+                              'Arc',
                               style: heading1Style(context).copyWith(
                                 fontSize: 72,
                                 fontWeight: FontWeight.w300,
@@ -208,19 +208,7 @@ class _WelcomeViewState extends State<WelcomeView>
                         },
                       ),
 
-                      const SizedBox(height: 24),
-
-                      // Tagline
-                      Text(
-                        'Evolving Personal Intelligence',
-                        style: heading2Style(context).copyWith(
-                          color: Colors.white.withOpacity(0.9),
-                          fontWeight: FontWeight.w300,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 40),
 
                       // Subtitle
                       Padding(

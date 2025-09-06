@@ -17,6 +17,7 @@ import 'package:my_app/core/rivet/rivet_storage.dart';
 import 'package:my_app/services/analytics_service.dart';
 import 'package:my_app/data/hive/insight_snapshot.dart';
 import 'package:my_app/core/sync/sync_item_adapter.dart';
+import 'package:my_app/core/services/audio_service.dart';
 
 import 'package:my_app/shared/app_colors.dart';
 import 'package:my_app/shared/text_style.dart';
@@ -221,6 +222,16 @@ Future<void> bootstrap({
         logger.e('Failed to initialize analytics service', e, st);
         // Analytics failure is non-critical - continue app startup
         logger.w('Analytics tracking will be disabled due to initialization failure');
+      }
+
+      // === Audio Service Initialization (P22 - Ethereal Music) ===
+      try {
+        await AudioService().initialize();
+        logger.d('Audio service initialized successfully');
+      } catch (e, st) {
+        logger.e('Failed to initialize audio service', e, st);
+        // Audio failure is non-critical - continue app startup
+        logger.w('Ethereal music will be disabled due to initialization failure');
       }
 
       // ===========================================================

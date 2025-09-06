@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../shared/app_colors.dart';
 import '../../shared/text_style.dart';
 import 'sync_settings_section.dart';
+import 'music_control_section.dart';
 
 class SettingsView extends StatelessWidget {
   const SettingsView({super.key});
@@ -30,6 +31,11 @@ class SettingsView extends StatelessWidget {
           children: [
             // Sync Settings Section
             const SyncSettingsSection(),
+            
+            const SizedBox(height: 32),
+            
+            // Music Control Section
+            const MusicControlSection(),
             
             const SizedBox(height: 32),
             
