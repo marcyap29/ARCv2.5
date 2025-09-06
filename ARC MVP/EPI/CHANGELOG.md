@@ -14,6 +14,51 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [1.0.6] - 2025-01-20 - P14 Cloud Sync Stubs Implementation Complete ☁️
+
+### ✨ Added - Offline-First Sync Infrastructure (P14)
+- **Cloud Sync Toggle** - Settings page with sync on/off switch and status indicator
+- **Sync Queue System** - Hive-based local queue for offline sync items
+- **Status Indicators** - Real-time status showing "Sync off", "Queued N", "Idle", or "Syncing..."
+- **Capture Points** - Automatic enqueueing of journal entries and arcform snapshots
+- **Queue Management** - Clear completed items and clear all queue functionality
+
+### 🔧 Technical Implementation
+- **SyncService** - Core sync queue management with persistent storage
+- **SyncToggleCubit** - State management for sync settings and status
+- **SyncItem Model** - Structured sync items with metadata and retry logic
+- **Hive Integration** - Persistent sync queue with proper adapter registration
+- **Error Handling** - Graceful fallback when sync service fails to initialize
+
+### 🐛 Fixed
+- **Build Issues** - Resolved missing audio asset causing build failures
+- **Hive Conflicts** - Fixed duplicate box opening for sync_queue
+- **Error Handling** - Added comprehensive error handling for sync initialization
+
+### 📁 Files Added
+- `lib/core/sync/sync_service.dart` - Core sync queue management
+- `lib/core/sync/sync_toggle_cubit.dart` - Sync settings state management
+- `lib/core/sync/sync_models.dart` - Sync data models and enums
+- `lib/core/sync/sync_item_adapter.dart` - Hive adapter for sync items
+- `lib/features/settings/sync_settings_section.dart` - Settings UI component
+
+### 📁 Files Modified
+- `lib/features/settings/settings_view.dart` - Added sync settings section
+- `lib/features/journal/journal_capture_cubit.dart` - Added sync enqueue calls
+- `lib/main/bootstrap.dart` - Registered sync adapters and boxes
+- `pubspec.yaml` - Removed missing audio asset reference
+
+### 🎯 Acceptance Criteria Met
+- ✅ Toggle on/off functionality with immediate state change
+- ✅ Status indicator showing current sync state
+- ✅ App remains fully functional offline
+- ✅ Queue persists across app launches
+- ✅ Items automatically enqueue on journal/arcform saves
+- ✅ Erase-all clears sync queue
+- ✅ Accessibility compliant with proper semantics
+
+---
+
 ## [1.0.5] - 2025-01-20 - P10C Insight Cards Implementation Complete 🧠
 
 ### ✨ Added - Deterministic Insight Generation System (P10C)
