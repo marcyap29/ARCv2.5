@@ -1,0 +1,125 @@
+{
+  "version": 1,
+  "rules": [
+    {
+      "id": "R1_TOP_THEMES",
+      "enabled": true,
+      "priority": 10,
+      "windowDays": 7,
+      "when": { "topWordsMin": 2 },
+      "templateKey": "TOP_THEMES",
+      "gate": "none",
+      "deeplinkAnchor": "top_words"
+    },
+    {
+      "id": "R2_PHASE_LEAN",
+      "enabled": true,
+      "priority": 20,
+      "windowDays": 14,
+      "when": { "phaseLeanMinPct": 0.35 },
+      "templateKey": "PHASE_LEAN",
+      "gate": "rivet",
+      "deeplinkAnchor": "phase_counts"
+    },
+    {
+      "id": "R3_EMOTION_TILT",
+      "enabled": true,
+      "priority": 30,
+      "windowDays": 7,
+      "when": { "emotionDominantDeltaMin": 0.12 },
+      "templateKey": "EMOTION_TILT",
+      "gate": "none",
+      "deeplinkAnchor": "emotions_sparkline"
+    },
+    {
+      "id": "R4_SAGE_NUDGE",
+      "enabled": true,
+      "priority": 40,
+      "windowDays": 7,
+      "when": { "sageMinPct": 0.15, "sageMaxPct": 0.35 },
+      "templateKey": "SAGE_NUDGE",
+      "gate": "none",
+      "deeplinkAnchor": "sage_coverage"
+    },
+    {
+      "id": "R5_MOMENTUM_UP",
+      "enabled": true,
+      "priority": 50,
+      "windowDays": 14,
+      "when": { "momentumWoWDeltaMin": 0.08 },
+      "templateKey": "MOMENTUM_UP",
+      "gate": "none",
+      "deeplinkAnchor": "phase_counts"
+    },
+    {
+      "id": "R6_MOMENTUM_DOWN",
+      "enabled": true,
+      "priority": 60,
+      "windowDays": 14,
+      "when": { "momentumWoWDeltaMax": -0.08 },
+      "templateKey": "MOMENTUM_DOWN",
+      "gate": "none",
+      "deeplinkAnchor": "phase_counts"
+    },
+    {
+      "id": "R7_VARIABILITY_STEADYING",
+      "enabled": true,
+      "priority": 70,
+      "windowDays": 7,
+      "when": { "emotionVarianceMin": 0.20, "phasesMixedMin": 2 },
+      "templateKey": "VARIABILITY_STEADYING",
+      "gate": "none",
+      "deeplinkAnchor": "emotions_sparkline"
+    },
+    {
+      "id": "R8_STUCK_NUDGE",
+      "enabled": true,
+      "priority": 80,
+      "windowDays": 7,
+      "when": { "hasAnyKeyword": ["stuck", "drift", "fog"] },
+      "templateKey": "STUCK_NUDGE",
+      "gate": "rivet",
+      "deeplinkAnchor": "top_words"
+    },
+    {
+      "id": "R9_CONSOLIDATION_AFTER_SURGE",
+      "enabled": true,
+      "priority": 90,
+      "windowDays": 14,
+      "when": { "priorWeekPhase": "Breakthrough", "thisWeekLeanIn": ["Expansion", "Consolidation"] },
+      "templateKey": "CONSOLIDATION_AFTER_SURGE",
+      "gate": "none",
+      "deeplinkAnchor": "phase_counts"
+    },
+    {
+      "id": "R10_RECOVERY_CARE",
+      "enabled": true,
+      "priority": 100,
+      "windowDays": 14,
+      "when": { "recoveryLeanMinPct": 0.35, "emotionVarianceMax": 0.10 },
+      "templateKey": "RECOVERY_CARE",
+      "gate": "none",
+      "deeplinkAnchor": "emotions_sparkline"
+    },
+    {
+      "id": "R11_THEME_STABILITY",
+      "enabled": true,
+      "priority": 110,
+      "windowDays": 7,
+      "when": { "keywordStabilityMinPct": 0.60 },
+      "templateKey": "THEME_STABILITY",
+      "gate": "none",
+      "deeplinkAnchor": "top_words"
+    },
+    {
+      "id": "R12_NEW_THEME",
+      "enabled": true,
+      "priority": 120,
+      "windowDays": 7,
+      "when": { "jaccardWeekOverlapMax": 0.25, "topNewWordMinScore": 0.6 },
+      "templateKey": "NEW_THEME",
+      "gate": "none",
+      "deeplinkAnchor": "top_words"
+    }
+  ]
+}

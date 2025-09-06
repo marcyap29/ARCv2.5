@@ -18,6 +18,8 @@ import 'package:my_app/features/insights/mira_graph_view.dart';
 import 'package:my_app/features/insights/info/insights_info_icon.dart';
 import 'package:my_app/features/insights/info/info_icon.dart';
 import 'package:my_app/features/insights/info/why_held_sheet.dart';
+import 'package:my_app/insights/insight_cubit.dart';
+import 'package:my_app/insights/widgets/insight_card_widget.dart';
 import 'package:my_app/features/qa/qa_screen.dart';
 import 'package:my_app/features/settings/settings_view.dart';
 import 'package:my_app/services/analytics_service.dart';
@@ -111,6 +113,27 @@ class _InsightsPage extends StatefulWidget {
 }
 
 class _InsightsPageState extends State<_InsightsPage> {
+  late InsightCubit _insightCubit;
+
+  @override
+  void initState() {
+    super.initState();
+    // TODO: Temporarily disabled P10C Insight Cards due to semantics errors
+    // Initialize insight cubit - in a real app, this would be provided via dependency injection
+    // _insightCubit = InsightCubitFactory.create(
+    //   journalRepository: context.read(),
+    //   rivetProvider: context.read<RivetProvider>(),
+    //   userId: 'default_user',
+    // );
+    // // Generate insights on page load
+    // _insightCubit.generateInsights();
+  }
+
+  @override
+  void dispose() {
+    // _insightCubit.close();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -170,33 +193,63 @@ class _InsightsPageState extends State<_InsightsPage> {
                     const SizedBox(height: 20),
                     const VeilCard(),
                     const SizedBox(height: 20),
-                    // Future insight cards can be added here
-                    Container(
-                      padding: const EdgeInsets.all(20),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(
-                          color: Colors.white.withOpacity(0.2),
-                        ),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'More Insights Coming Soon',
-                            style: heading2Style(context),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            'Additional insights about your patterns and growth will be available here.',
-                            style: bodyStyle(context).copyWith(
-                              color: kcPrimaryTextColor.withOpacity(0.7),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
+                    // Insight Cards - TODO: Temporarily disabled due to semantics errors
+                    // BlocBuilder<InsightCubit, InsightState>(
+                    //   bloc: _insightCubit,
+                    //   builder: (context, state) {
+                    //     if (state is InsightLoaded) {
+                    //       return InsightCardsList(
+                    //         cards: state.cards,
+                    //         onCardTap: (card) {
+                    //           // Handle card tap - could navigate to details or patterns
+                    //           print('Tapped insight card: ${card.title}');
+                    //         },
+                    //       );
+                    //     } else if (state is InsightError) {
+                    //       return Container(
+                    //         padding: const EdgeInsets.all(20),
+                    //         decoration: BoxDecoration(
+                    //           color: Colors.white.withOpacity(0.1),
+                    //           borderRadius: BorderRadius.circular(16),
+                    //           border: Border.all(
+                    //             color: Colors.white.withOpacity(0.2),
+                    //           ),
+                    //         ),
+                    //         child: Column(
+                    //           children: [
+                    //             Icon(
+                    //               Icons.error_outline,
+                    //               color: kcSecondaryTextColor.withOpacity(0.7),
+                    //               size: 32,
+                    //             ),
+                    //             const SizedBox(height: 8),
+                    //             Text(
+                    //               'Unable to load insights',
+                    //               style: heading3Style(context).copyWith(
+                    //                 color: kcSecondaryTextColor.withOpacity(0.7),
+                    //               ),
+                    //             ),
+                    //             const SizedBox(height: 4),
+                    //             Text(
+                    //               state.message,
+                    //               style: bodyStyle(context).copyWith(
+                    //                 color: kcSecondaryTextColor.withOpacity(0.5),
+                    //               ),
+                    //               textAlign: TextAlign.center,
+                    //             ),
+                    //           ],
+                    //         ),
+                    //       );
+                    //     } else {
+                    //       return const Center(
+                    //         child: Padding(
+                    //           padding: EdgeInsets.all(32),
+                    //           child: CircularProgressIndicator(),
+                    //         ),
+                    //       );
+                    //     }
+                    //   },
+                    // ),
                   ],
                 ),
               ),
@@ -231,9 +284,12 @@ class _InsightsPageState extends State<_InsightsPage> {
               Expanded(
                 child: Row(
                   children: [
-                    Text(
-                      'Your Patterns',
-                      style: heading2Style(context),
+                    Flexible(
+                      child: Text(
+                        'Your Patterns',
+                        style: heading2Style(context),
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
                     const SizedBox(width: 8),
                     InfoIcons.patterns(),

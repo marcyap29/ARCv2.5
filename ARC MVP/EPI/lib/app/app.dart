@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:provider/provider.dart';
 
 import 'package:my_app/shared/app_colors.dart';
 import 'package:my_app/features/startup/startup_view.dart';
@@ -11,6 +12,7 @@ import 'package:my_app/features/timeline/timeline_cubit.dart';
 import 'package:my_app/features/journal/journal_capture_cubit.dart';
 import 'package:my_app/features/journal/keyword_extraction_cubit.dart';
 import 'package:my_app/core/a11y/a11y_flags.dart';
+import 'package:my_app/core/rivet/rivet_provider.dart';
 
 class App extends StatelessWidget {
   const App({super.key});
@@ -41,6 +43,10 @@ class App extends StatelessWidget {
           // Accessibility cubit for accessibility features
           BlocProvider(
             create: (context) => A11yCubit(),
+          ),
+          // RIVET provider for phase stability gating
+          Provider(
+            create: (context) => RivetProvider(),
           ),
         ],
         child: MaterialApp(
