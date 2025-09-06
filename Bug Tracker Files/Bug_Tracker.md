@@ -1065,6 +1065,84 @@ Verified app compiles and runs successfully on iPhone 16 Pro simulator
 
 ---
 
+## Bug ID: BUG-2025-01-31-001
+**Title**: App Startup Failure After Phone Restart
+
+**Severity**: Critical  
+**Priority**: P1 (Blocker)  
+**Status**: ✅ Fixed  
+**Reporter**: User Testing  
+**Assignee**: Claude Code  
+**Found Date**: 2025-01-31  
+**Fixed Date**: 2025-01-31  
+
+#### Description
+App fails to load after phone restart, preventing users from accessing the application. This was caused by Hive database conflicts and widget lifecycle issues that occurred during app initialization.
+
+#### Steps to Reproduce
+1. Load ARC MVP app onto phone successfully
+2. Restart the phone
+3. Attempt to load the app again
+4. App fails to start or crashes during initialization
+
+#### Expected Behavior
+App should start successfully after phone restart without any issues
+
+#### Actual Behavior
+App fails to load after restart, showing startup errors or crashing during initialization
+
+#### Root Cause Analysis
+Multiple critical issues identified:
+- **Hive Database Conflicts**: Multiple parts of codebase trying to open same Hive boxes already opened during bootstrap
+- **Widget Lifecycle Errors**: Animation and notification systems accessing deactivated widget contexts
+- **Missing Error Recovery**: No fallback mechanisms when database initialization failed
+- **Insufficient Error Handling**: Limited error recovery options for users
+
+#### Solution Implemented
+Comprehensive startup resilience improvements:
+- **Enhanced Bootstrap Error Handling**: Added robust Hive box management with automatic error recovery
+- **Database Corruption Detection**: Implemented automatic detection and clearing of corrupted data
+- **Safe Box Access Patterns**: Updated all services to check box status before opening
+- **Production Error Widgets**: Added user-friendly error screens with recovery options
+- **Emergency Recovery Script**: Created recovery tool for users experiencing persistent issues
+- **Comprehensive Logging**: Enhanced debugging information throughout startup process
+
+#### Technical Implementation
+**Files Modified:**
+- `lib/main/bootstrap.dart` - Enhanced error handling and recovery mechanisms
+- `lib/features/startup/startup_view.dart` - Safe box access patterns
+- `lib/services/user_phase_service.dart` - Fixed box opening conflicts
+- `lib/repositories/journal_repository.dart` - Already had fixes from previous bug
+- `lib/services/arcform_service.dart` - Already had fixes from previous bug
+
+**New Features:**
+- Automatic database corruption detection and recovery
+- Production error widgets with data clearing options
+- Emergency recovery script (`recovery_script.dart`)
+- Enhanced error logging for better debugging
+
+#### Testing Results
+- ✅ App starts successfully after phone restart
+- ✅ App starts successfully after force-quit (swipe up)
+- ✅ Handles database conflicts gracefully
+- ✅ Shows helpful error messages when issues occur
+- ✅ Automatically recovers from corrupted data
+- ✅ Provides clear debugging information
+- ✅ Emergency recovery script works as expected
+- ✅ Force-quit recovery test script validates scenarios
+
+#### Files Created
+- `recovery_script.dart` - Emergency recovery tool for users
+- `test_force_quit_recovery.dart` - Test script for force-quit scenarios
+
+#### Impact
+- **User Experience**: App now reliably starts after restart
+- **Reliability**: Robust error handling prevents startup failures
+- **Maintainability**: Better logging and error recovery for debugging
+- **Support**: Users have recovery options if issues persist
+
+---
+
 ## Bug Summary Statistics
 
 ### By Severity
