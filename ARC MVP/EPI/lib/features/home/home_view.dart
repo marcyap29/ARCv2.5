@@ -113,26 +113,112 @@ class _InsightsPage extends StatefulWidget {
 }
 
 class _InsightsPageState extends State<_InsightsPage> {
-  late InsightCubit _insightCubit;
+  InsightCubit? _insightCubit;
 
   @override
   void initState() {
     super.initState();
-    // TODO: Temporarily disabled P10C Insight Cards due to semantics errors
-    // Initialize insight cubit - in a real app, this would be provided via dependency injection
-    // _insightCubit = InsightCubitFactory.create(
-    //   journalRepository: context.read(),
-    //   rivetProvider: context.read<RivetProvider>(),
-    //   userId: 'default_user',
-    // );
-    // // Generate insights on page load
-    // _insightCubit.generateInsights();
+    print('DEBUG: _InsightsPage initState called');
+    // Initialize insight cubit after the widget is built
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      print('DEBUG: Post-frame callback executing');
+      _initializeInsightCubit();
+    });
+  }
+
+  void _initializeInsightCubit() {
+    try {
+      print('DEBUG: Initializing InsightCubit...');
+      final cubit = InsightCubitFactory.create(
+        journalRepository: context.read(),
+        rivetProvider: context.read<RivetProvider>(),
+        userId: 'default_user',
+      );
+      cubit.generateInsights();
+      setState(() {
+        _insightCubit?.close();
+        _insightCubit = cubit;    // <- forces rebuild so BlocBuilder subscribes
+      });
+      print('DEBUG: InsightCubit created and setState called');
+    } catch (e) {
+      print('ERROR: Failed to initialize InsightCubit: $e');
+      // Continue without insight cards if initialization fails
+    }
   }
 
   @override
   void dispose() {
-    // _insightCubit.close();
+    _insightCubit?.close();
     super.dispose();
+  }
+
+  Widget _buildInsightsSection() {
+    if (_insightCubit == null) {
+      // Skeleton while cubit spins up
+      return Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.white.withOpacity(0.2)),
+        ),
+        child: const Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+
+    return BlocProvider<InsightCubit>.value(
+      value: _insightCubit!,               // <-- the single, owned instance
+      child: BlocBuilder<InsightCubit, InsightState>(
+        builder: (context, state) {
+          print('DEBUG: UI sees state: ${state.runtimeType}');
+          
+          if (state is InsightInitial || state is InsightLoading) {
+            return Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: Colors.white.withOpacity(0.2)),
+              ),
+              child: const Center(
+                child: CircularProgressIndicator(),
+              ),
+            );
+          }
+          if (state is InsightLoaded) {
+            print('DEBUG: UI rendering ${state.cards.length} insight cards');
+            return InsightCardsList(
+              cards: state.cards,
+              onCardTap: (card) {
+                print('Tapped insight card: ${card.title}');
+              },
+            );
+          }
+          if (state is InsightError) {
+            return Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: Colors.red.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: Colors.red.withOpacity(0.3)),
+              ),
+              child: Column(
+                children: [
+                  Icon(Icons.error_outline, color: Colors.red, size: 32),
+                  const SizedBox(height: 8),
+                  Text('Unable to load insights', style: TextStyle(color: Colors.red)),
+                  const SizedBox(height: 4),
+                  Text(state.message, style: TextStyle(color: Colors.red.withOpacity(0.7))),
+                ],
+              ),
+            );
+          }
+          return const SizedBox.shrink();
+        },
+      ),
+    );
   }
 
   @override
@@ -193,63 +279,8 @@ class _InsightsPageState extends State<_InsightsPage> {
                     const SizedBox(height: 20),
                     const VeilCard(),
                     const SizedBox(height: 20),
-                    // Insight Cards - TODO: Temporarily disabled due to semantics errors
-                    // BlocBuilder<InsightCubit, InsightState>(
-                    //   bloc: _insightCubit,
-                    //   builder: (context, state) {
-                    //     if (state is InsightLoaded) {
-                    //       return InsightCardsList(
-                    //         cards: state.cards,
-                    //         onCardTap: (card) {
-                    //           // Handle card tap - could navigate to details or patterns
-                    //           print('Tapped insight card: ${card.title}');
-                    //         },
-                    //       );
-                    //     } else if (state is InsightError) {
-                    //       return Container(
-                    //         padding: const EdgeInsets.all(20),
-                    //         decoration: BoxDecoration(
-                    //           color: Colors.white.withOpacity(0.1),
-                    //           borderRadius: BorderRadius.circular(16),
-                    //           border: Border.all(
-                    //             color: Colors.white.withOpacity(0.2),
-                    //           ),
-                    //         ),
-                    //         child: Column(
-                    //           children: [
-                    //             Icon(
-                    //               Icons.error_outline,
-                    //               color: kcSecondaryTextColor.withOpacity(0.7),
-                    //               size: 32,
-                    //             ),
-                    //             const SizedBox(height: 8),
-                    //             Text(
-                    //               'Unable to load insights',
-                    //               style: heading3Style(context).copyWith(
-                    //                 color: kcSecondaryTextColor.withOpacity(0.7),
-                    //               ),
-                    //             ),
-                    //             const SizedBox(height: 4),
-                    //             Text(
-                    //               state.message,
-                    //               style: bodyStyle(context).copyWith(
-                    //                 color: kcSecondaryTextColor.withOpacity(0.5),
-                    //               ),
-                    //               textAlign: TextAlign.center,
-                    //             ),
-                    //           ],
-                    //         ),
-                    //       );
-                    //     } else {
-                    //       return const Center(
-                    //         child: Padding(
-                    //           padding: EdgeInsets.all(32),
-                    //           child: CircularProgressIndicator(),
-                    //         ),
-                    //       );
-                    //     }
-                    //   },
-                    // ),
+                    // Insight Cards
+                    _buildInsightsSection(),
                   ],
                 ),
               ),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../shared/app_colors.dart';
 import '../../shared/text_style.dart';
 import '../models/insight_card.dart';
+import '../../ui/insights/widgets/insight_card_shell.dart';
 
 /// Widget to display an insight card
 class InsightCardWidget extends StatelessWidget {
@@ -16,12 +17,7 @@ class InsightCardWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-      elevation: 2,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-      ),
+    return InsightCardShell(
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(12),
@@ -183,8 +179,14 @@ class InsightCardsList extends StatelessWidget {
     }
 
     return ListView.builder(
-      padding: const EdgeInsets.symmetric(vertical: 8),
+      padding: const EdgeInsets.only(bottom: 24),
       itemCount: cards.length,
+      addRepaintBoundaries: true,
+      addAutomaticKeepAlives: false,
+      addSemanticIndexes: true,
+      semanticChildCount: cards.length,
+      shrinkWrap: true,  // ← Fix unbounded height
+      physics: const NeverScrollableScrollPhysics(),  // ← Let parent handle scrolling
       itemBuilder: (context, index) {
         final card = cards[index];
         return InsightCardWidget(

@@ -28,17 +28,26 @@ class InsightService {
     required DateTime periodEnd,
   }) async {
     try {
+      print('DEBUG: InsightService.generateInsights called for period $periodStart to $periodEnd');
+      
       // Load rules
       final rulePack = await loadInsightRules();
+      print('DEBUG: Loaded ${rulePack.rules.length} rules');
       
       // Get journal entries for the period
-      final entries = _journalRepository.getAllJournalEntries()
+      final allEntries = _journalRepository.getAllJournalEntries();
+      print('DEBUG: Found ${allEntries.length} total journal entries');
+      
+      final entries = allEntries
           .where((entry) => 
               entry.createdAt.isAfter(periodStart) && 
               entry.createdAt.isBefore(periodEnd))
           .toList();
 
+      print('DEBUG: Found ${entries.length} entries in period');
+
       if (entries.isEmpty) {
+        print('DEBUG: No entries in period, returning empty list');
         return [];
       }
 
@@ -63,6 +72,7 @@ class InsightService {
       // Store snapshot for future reference
       await _storeSnapshot(signals, periodStart, periodEnd);
 
+      print('DEBUG: Generated ${cards.length} insight cards');
       return cards;
     } catch (e) {
       print('ERROR: Failed to generate insights: $e');
