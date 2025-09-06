@@ -83,6 +83,9 @@ class _HomeViewState extends State<HomeView> {
       // Fade in gently after a short delay
       Future.delayed(const Duration(seconds: 2), () {
         audioService.fadeInEthereal(duration: const Duration(seconds: 4));
+        
+        // Play for 2 loops then fade out
+        _scheduleFadeOut(audioService);
       });
       
       if (kDebugMode) {
@@ -93,6 +96,16 @@ class _HomeViewState extends State<HomeView> {
         print('Failed to initialize ethereal music: $e');
       }
     }
+  }
+
+  void _scheduleFadeOut(AudioService audioService) async {
+    // Wait for approximately 2 loops of the ethereal track
+    // Assuming track is about 2-3 minutes, wait for 4-6 minutes total
+    await Future.delayed(const Duration(minutes: 5));
+    
+    // Fade out over 10 seconds
+    await audioService.fadeOut(duration: const Duration(seconds: 10));
+    print('DEBUG: HomeView - Ethereal music faded out after 2 loops');
   }
 
   @override

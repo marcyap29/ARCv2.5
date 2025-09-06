@@ -268,6 +268,9 @@ class AudioService {
   /// Get current playing state
   bool get isPlaying => _isPlaying;
 
+  /// Get initialization state
+  bool get isInitialized => _isInitialized;
+
   /// Get current volume
   double get volume => _audioPlayer?.volume ?? 0.0;
 
