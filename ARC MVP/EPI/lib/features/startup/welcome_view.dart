@@ -47,7 +47,7 @@ class _WelcomeViewState extends State<WelcomeView>
 
   void _initializeAnimations() {
     _glowController = AnimationController(
-      duration: const Duration(seconds: 3),
+      duration: const Duration(seconds: 2),
       vsync: this,
     )..repeat(reverse: true);
 
@@ -191,17 +191,34 @@ class _WelcomeViewState extends State<WelcomeView>
                             decoration: BoxDecoration(
                               borderRadius: BorderRadius.circular(24),
                               boxShadow: [
+                                // Outer pulsing glow
                                 BoxShadow(
                                   color: kcPrimaryColor.withOpacity(
-                                    0.3 + (0.2 * _glowController.value),
+                                    0.4 + (0.3 * _glowController.value),
                                   ),
-                                  blurRadius: 40 + (20 * _glowController.value),
-                                  spreadRadius: 10 + (5 * _glowController.value),
+                                  blurRadius: 60 + (30 * _glowController.value),
+                                  spreadRadius: 15 + (10 * _glowController.value),
+                                ),
+                                // Inner pulsing glow
+                                BoxShadow(
+                                  color: kcPrimaryColor.withOpacity(
+                                    0.6 + (0.4 * _glowController.value),
+                                  ),
+                                  blurRadius: 30 + (15 * _glowController.value),
+                                  spreadRadius: 5 + (3 * _glowController.value),
+                                ),
+                                // Core bright glow
+                                BoxShadow(
+                                  color: kcPrimaryColor.withOpacity(
+                                    0.8 + (0.2 * _glowController.value),
+                                  ),
+                                  blurRadius: 15 + (8 * _glowController.value),
+                                  spreadRadius: 2 + (1 * _glowController.value),
                                 ),
                               ],
                             ),
                             child: Text(
-                              'Arc',
+                              'ARC',
                               style: heading1Style(context).copyWith(
                                 fontSize: 72,
                                 fontWeight: FontWeight.w300,
