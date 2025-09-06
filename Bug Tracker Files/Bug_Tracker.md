@@ -1,9 +1,164 @@
 # EPI ARC MVP - Bug Tracker
 
-> **Last Updated**: January 20, 2025 7:15 PM (America/Los_Angeles)  
-> **Total Items Tracked**: 30 (24 bugs + 6 enhancements)  
+> **Last Updated**: January 20, 2025 7:30 PM (America/Los_Angeles)  
+> **Total Items Tracked**: 31 (24 bugs + 7 enhancements)  
 > **Critical Issues Fixed**: 24  
-> **Status**: All blocking issues resolved - Production ready with systematic verification complete ✅
+> **Status**: All blocking issues resolved - Production ready with P5-MM Multi-Modal Journaling complete and RIVET deletion fix ✅
+
+---
+
+## Enhancement ID: ENH-2025-01-20-001
+**Title**: RIVET Simple Copy UI Enhancement (P27)
+
+**Type**: Enhancement  
+**Priority**: P2 (High)  
+**Status**: ✅ Complete  
+**Reporter**: User Request  
+**Implementer**: Claude Code  
+**Completion Date**: 2025-01-20
+
+#### Description
+Replace RIVET technical jargon (ALIGN/TRACE) with user-friendly language (Match/Confidence) and add comprehensive details modal for better user understanding of phase change safety system.
+
+#### Requirements
+- Replace ALIGN → Match, TRACE → Confidence with Good/Low status
+- Add "Phase change safety check" header with clear subtitle
+- Create status banners with contextual messages (Holding steady, Ready to switch, Almost there)
+- Build "Why held?" details modal with live values and actionable guidance
+- Implement simple checklist with pass/warn icons for all four checks
+- Add debug flag for engineering labels when needed
+- Maintain all existing RIVET gate logic unchanged
+
+#### Implementation Details
+- **Files Modified**: `lib/core/i18n/copy.dart`, `lib/features/home/home_view.dart`
+- **Files Created**: `lib/features/insights/rivet_gate_details_modal.dart`
+- **New Features**: User-friendly labels, status banners, details modal, checklist UI
+- **Accessibility**: Proper semantic labels, 44x44dp tap targets, high-contrast support
+- **Localization**: Complete RIVET string management through Copy class
+
+#### Testing
+- ✅ All existing RIVET gate behavior preserved
+- ✅ UI shows proper status for align=0%, trace=71%, sustain=0/2, independent=false
+- ✅ Details modal opens with correct values and guidance
+- ✅ Status banner flips to "Ready to switch" when all checks pass
+- ✅ Debug flag shows engineering labels when enabled
+- ✅ Accessibility requirements met
+
+#### Impact
+- **User Experience**: Significantly improved understanding of RIVET safety system
+- **Cognitive Load**: Reduced by replacing technical jargon with plain language
+- **Transparency**: Users now understand why phase changes are held and how to unlock them
+- **Accessibility**: Better support for users with different needs
+
+---
+
+## Bug ID: BUG-2025-01-20-038
+**Title**: RIVET TRACE Calculation Not Decreasing After Entry Deletion
+
+**Type**: Bug  
+**Priority**: P1 (Critical)  
+**Status**: ✅ Fixed  
+**Reporter**: User Testing  
+**Implementer**: Claude Code  
+**Fix Date**: 2025-01-20
+
+#### Description
+RIVET TRACE metric was not decreasing when journal entries were deleted, causing inflated percentages that didn't reflect the actual number of remaining entries. Users reported seeing 75% TRACE with only 1 entry remaining.
+
+#### Steps to Reproduce
+1. Create multiple journal entries
+2. Observe RIVET TRACE percentage increase
+3. Delete some entries
+4. Notice TRACE percentage remains high despite fewer entries
+
+#### Expected Behavior
+RIVET TRACE should decrease proportionally when entries are deleted, accurately reflecting remaining entry count
+
+#### Actual Behavior
+RIVET TRACE remained inflated after entry deletion, showing incorrect percentages
+
+#### Root Cause
+RIVET system is designed as a cumulative accumulator that only increases over time. The deletion process wasn't recalculating the state from remaining entries.
+
+#### Solution
+Implemented proper RIVET recalculation:
+- Added `_recalculateRivetState()` method that processes remaining entries chronologically
+- Fixed Hive box clearing issues by using direct database manipulation
+- RIVET state now accurately reflects actual number of remaining entries
+- Added comprehensive debug logging for troubleshooting
+
+#### Files Modified
+- `lib/features/timeline/widgets/interactive_timeline_view.dart` - Added recalculation method
+- `lib/core/rivet/rivet_service.dart` - Enhanced state management
+
+#### Testing Results
+✅ RIVET TRACE now decreases appropriately when entries are deleted  
+✅ ALIGN and TRACE percentages accurately reflect remaining entry count  
+✅ No more inflated metrics after deletion  
+✅ Comprehensive debug logging for troubleshooting  
+✅ App builds successfully with no compilation errors
+
+#### Impact
+- **Data Accuracy**: RIVET metrics now accurately reflect actual journal entry state
+- **User Trust**: Users can rely on RIVET percentages to reflect their actual progress
+- **System Integrity**: RIVET phase-stability gating now works correctly with entry deletion
+- **Debug Capability**: Enhanced logging helps troubleshoot future RIVET issues
+
+---
+
+## Bug ID: BUG-2025-01-20-037
+**Title**: P5-MM Multi-Modal Journaling Phase 4 - Integration Complete
+
+**Type**: Enhancement  
+**Priority**: P1 (Critical)  
+**Status**: ✅ Complete  
+**Reporter**: Development Process  
+**Implementer**: Claude Code  
+**Fix Date**: 2025-01-20
+
+#### Description
+Successfully completed P5-MM Multi-Modal Journaling Phase 4: Integration & Testing, bringing full multi-modal journaling capabilities to production with comprehensive media capture, management, and OCR integration.
+
+#### Key Achievements
+- **Complete Integration**: All media components integrated into journal capture view
+- **Media Capture Toolbar**: Added mic, camera, and gallery buttons with proper accessibility
+- **Media Strip**: Horizontal display of attached media items with preview and delete functionality
+- **OCR Workflow**: Automatic text extraction from images with user confirmation dialog
+- **State Management**: Complete media item tracking and persistence throughout journal flow
+- **UI Integration**: Seamless integration with existing journal capture workflow
+- **Accessibility Compliance**: All components include proper semantic labels and 44x44dp tap targets
+
+#### Technical Implementation
+- **Media Components**: MediaCaptureSheet, MediaStrip, MediaPreviewDialog, OCRTextInsertDialog
+- **Services**: MediaStore for file management, OCRService for text extraction
+- **Data Models**: MediaItem with comprehensive metadata and Hive persistence
+- **State Management**: Integrated media items into journal capture state
+- **UI Integration**: Added media capture toolbar and media strip to journal view
+- **OCR Integration**: Automatic text extraction with user confirmation workflow
+
+#### Features Implemented
+- **Multi-Modal Capture**: Audio recording, camera photos, gallery selection
+- **Media Management**: Preview, delete, and organize attached media items
+- **OCR Text Extraction**: Automatic text extraction from images with user approval
+- **Media Persistence**: Complete media item storage and retrieval
+- **Accessibility Support**: All components meet accessibility standards
+- **Error Handling**: Comprehensive error handling for media operations
+
+#### Testing Results
+- ✅ All media capture functionality working correctly
+- ✅ Media preview and deletion working seamlessly
+- ✅ OCR text extraction and insertion workflow functional
+- ✅ State management properly tracks media items throughout flow
+- ✅ All components include proper accessibility labels
+- ✅ App builds successfully with no compilation errors
+- ✅ Complete integration with existing journal capture workflow
+
+#### Impact
+- **User Experience**: Rich multi-modal journaling with text, audio, and images
+- **Functionality**: Complete media capture and management capabilities
+- **Accessibility**: Full accessibility compliance for all media components
+- **Integration**: Seamless integration with existing journal workflow
+- **Production Ready**: All P5-MM features ready for deployment
 
 ---
 
