@@ -14,6 +14,42 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [1.0.10] - 2025-01-31 - Complete Hive Database Conflict Resolution 🔧
+
+### 🔧 Critical Fixes - Hive Database Conflicts
+- **OnboardingCubit Hive Conflicts** - Fixed Hive box conflicts during onboarding completion
+- **WelcomeView Hive Conflicts** - Fixed Hive box conflicts during welcome screen initialization
+- **Bootstrap Migration Conflicts** - Fixed Hive box conflicts in user profile data migration
+- **Dependency Resolution** - Updated sentry_dart_plugin to resolve version conflicts
+
+### 🛠️ Technical Improvements
+- **Safe Box Access Pattern** - Implemented consistent `Hive.isBoxOpen()` checks across all components
+- **Error Prevention** - Prevents "box already open" conflicts during app lifecycle
+- **Code Consistency** - Aligned all Hive box access with established patterns
+
+### 📱 User Experience
+- **Reliable Onboarding** - Onboarding completion now works without crashes
+- **Stable Welcome Screen** - Welcome screen initializes without Hive errors
+- **Consistent App Behavior** - App handles restart/force-quit scenarios reliably
+
+### 🧪 Testing & Validation
+- **Comprehensive Testing** - Tested all Hive box access scenarios
+- **Force-Quit Recovery** - Validated app recovery after force-quit
+- **Phone Restart Recovery** - Confirmed app startup after phone restart
+
+### 📋 Files Modified
+- `lib/features/onboarding/onboarding_cubit.dart` - Fixed `_completeOnboarding()` method
+- `lib/features/startup/welcome_view.dart` - Fixed `_checkOnboardingStatus()` method
+- `lib/main/bootstrap.dart` - Fixed `_migrateUserProfileData()` function
+- `pubspec.yaml` - Updated sentry_dart_plugin dependency
+
+### 🐛 Bug Fixes
+- **BUG-2025-01-31-002** - OnboardingCubit Hive Box Conflict During Completion
+- **BUG-2025-01-31-003** - WelcomeView Hive Box Conflict During Status Check
+- **Dependency Conflicts** - Resolved sentry_dart_plugin version conflicts
+
+---
+
 ## [1.0.9] - 2025-01-31 - Critical Startup Resilience & Error Recovery 🛡️
 
 ### 🛡️ Critical Fixes - App Startup Reliability
