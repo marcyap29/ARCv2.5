@@ -61,7 +61,7 @@ chips |
 | P11   | Phase detection placeholder (ATLAS)    | ✅ Complete  | Keyword-driven phase recommendations with semantic mapping |
 | P12   | Rhythm & restoration (AURORA/VEIL)     | ✅ Complete  | Placeholder cards implemented |
 | P13   | Settings & privacy                     | ✅ Complete  | All 5 phases: Privacy, Data, Personalization, About |
-| P14   | Cloud sync stubs                       | ⏳ Planned   | Offline‑first queue |
+| P14   | Cloud sync stubs                       | ✅ Complete  | Offline‑first queue with settings toggle |
 | P15   | Analytics & QA checklist               | ✅ Complete  | Consent-gated analytics + QA screen |090212
 
 | P16   | Demo data & screenshots mode           | ✅ Complete  | Seeder + screenshot mode |
@@ -357,12 +357,16 @@ chips |
 
 ---
 
-### 🟣 P14 — Cloud Sync Stubs
+### ✅ P14 — Cloud Sync Stubs
 **Files:**  
 - `lib/core/sync/sync_service.dart`  
 - `lib/core/sync/sync_toggle_cubit.dart`  
+- `lib/core/sync/sync_models.dart`
+- `lib/core/sync/sync_item_adapter.dart`
+- `lib/features/settings/sync_settings_section.dart`
 
-**Acceptance Criteria:** Toggle on/off; status indicator; app works offline.
+**Status:** ✅ Complete - Offline-first sync scaffold with settings toggle and status indicator
+**Acceptance Criteria:** ✅ Toggle on/off; status indicator; app works offline; queue persists across launches.
 
 ---
 
