@@ -17,24 +17,32 @@ class _StartupViewState extends State<StartupView> {
   @override
   void initState() {
     super.initState();
+    print('DEBUG: StartupView initState called');
     _checkOnboardingStatus();
   }
 
   void _checkOnboardingStatus() async {
+    print('DEBUG: _checkOnboardingStatus called');
     await Future.delayed(const Duration(seconds: 1));
     if (!mounted) return;
 
     try {
       final userBox = await Hive.openBox<UserProfile>('user_profile');
       final userProfile = userBox.get('profile');
+      
+      print('DEBUG: User profile found: ${userProfile != null}');
+      print('DEBUG: Onboarding completed: ${userProfile?.onboardingCompleted}');
 
       if (userProfile != null && userProfile.onboardingCompleted) {
+        print('DEBUG: User has completed onboarding, checking journal entries');
         // User has completed onboarding, but check if they have journal entries
         await _checkJournalEntriesAndNavigate();
       } else {
+        print('DEBUG: User has not completed onboarding, navigating to welcome');
         _navigateToWelcome();
       }
     } catch (e) {
+      print('DEBUG: Error in _checkOnboardingStatus: $e');
       // If there's an error accessing the profile, go to welcome
       _navigateToWelcome();
     }
@@ -45,15 +53,20 @@ class _StartupViewState extends State<StartupView> {
       final journalRepository = JournalRepository();
       final entryCount = await journalRepository.getEntryCount();
       
+      print('DEBUG: Journal entry count: $entryCount');
+      
       if (entryCount == 0) {
+        print('DEBUG: No entries found, navigating to welcome screen');
         // No journal entries exist, navigate to welcome screen
         // This will show "Continue Your Journey" for post-onboarding users
         _navigateToWelcome();
       } else {
+        print('DEBUG: $entryCount entries found, navigating to home');
         // User has entries, navigate to normal home view
         _navigateToHome();
       }
     } catch (e) {
+      print('DEBUG: Error checking journal entries: $e');
       // If there's an error checking entries, go to home as fallback
       _navigateToHome();
     }
