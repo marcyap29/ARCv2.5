@@ -1,9 +1,9 @@
 # EPI ARC MVP - Bug Tracker
 
-> **Last Updated**: January 20, 2025 7:30 PM (America/Los_Angeles)  
-> **Total Items Tracked**: 31 (24 bugs + 7 enhancements)  
+> **Last Updated**: January 20, 2025 8:00 PM (America/Los_Angeles)  
+> **Total Items Tracked**: 32 (24 bugs + 8 enhancements)  
 > **Critical Issues Fixed**: 24  
-> **Status**: All blocking issues resolved - Production ready with P5-MM Multi-Modal Journaling complete and RIVET deletion fix ✅
+> **Status**: All blocking issues resolved - Production ready with P5-MM Multi-Modal Journaling complete, RIVET deletion fix, and P10C Insight Cards ✅
 
 ---
 
@@ -49,6 +49,67 @@ Fixed critical issue where multimodal media capture features were implemented in
 - **Functionality**: Users can take photos and select from gallery during journaling
 - **Workflow**: Seamless integration with existing emotion → reason → text flow
 - **Accessibility**: Full compliance maintained throughout integration
+
+---
+
+## Enhancement ID: ENH-2025-01-20-003
+**Title**: P10C Insight Cards Implementation Complete
+
+**Type**: Enhancement  
+**Priority**: P2 (High)  
+**Status**: ✅ Complete  
+**Reporter**: User Request  
+**Implementer**: Claude Code  
+**Completion Date**: 2025-01-20
+
+#### Description
+Implemented deterministic insight generation system that creates 3-5 personalized insight cards from existing journal data using rule-based templates. Cards display patterns, emotions, SAGE coverage, and phase history with proper styling and accessibility.
+
+#### Requirements
+- Create InsightService with deterministic rule engine for 12 insight templates
+- Implement InsightCard model with Hive adapter for persistence
+- Build InsightCubit for state management with proper widget rebuild
+- Design InsightCardShell with proper clipping and semantics isolation
+- Fix infinite size constraints and layout overflow issues
+- Integrate insight cards into Insights tab with proper accessibility
+- Generate insights based on journal entries, emotions, and phase data
+
+#### Implementation Details
+- **Files Created**: 
+  - `lib/insights/insight_service.dart` - Deterministic rule engine
+  - `lib/insights/templates.dart` - 12 insight template strings
+  - `lib/insights/rules_loader.dart` - JSON rule loading system
+  - `lib/insights/models/insight_card.dart` - Data model with Hive adapter
+  - `lib/insights/insight_cubit.dart` - State management
+  - `lib/insights/widgets/insight_card_widget.dart` - Card display widget
+  - `lib/ui/insights/widgets/insight_card_shell.dart` - Proper constraint handling
+- **Files Modified**: 
+  - `lib/features/home/home_view.dart` - Integration and cubit initialization
+  - `lib/main/bootstrap.dart` - Hive adapter registration
+- **Key Features**: Rule-based generation, proper semantics, constraint handling
+
+#### Problem-Solving Approach
+- **Multi-Angle Debugging**: Attempted various approaches including coordinate system fixes, semantics isolation, and cubit initialization improvements
+- **ChatGPT Collaboration**: Worked with ChatGPT to identify root causes and implement surgical fixes for semantics assertion errors
+- **Systematic Isolation**: Used commenting out/working backwards strategy to isolate the infinite size constraint issue
+- **Constraint Resolution**: Identified that `SizedBox.expand()` in decorative layers was causing infinite size errors in ListView context
+- **Incremental Re-enabling**: Systematically commented out insight cards, fixed constraint handling, then re-enabled with proper fixes
+
+#### Testing
+- ✅ Insight cards display properly without infinite size errors
+- ✅ 3 insight cards generated based on journal entries
+- ✅ Proper styling with gradient backgrounds and blur effects
+- ✅ Accessibility compliance with ExcludeSemantics for decorative layers
+- ✅ No semantics assertion errors or layout overflow
+- ✅ Cubit state management working correctly with setState() rebuild
+- ✅ ListView constraints fixed with shrinkWrap and proper physics
+- ✅ **Debugging Methodology**: Commenting out/working backwards approach successfully isolated and resolved constraint issues
+
+#### Impact
+- **User Experience**: Personalized insights based on journal data
+- **Functionality**: Deterministic rule engine generates relevant cards
+- **Performance**: Proper constraint handling prevents layout errors
+- **Accessibility**: Full compliance with proper semantics isolation
 
 ---
 
