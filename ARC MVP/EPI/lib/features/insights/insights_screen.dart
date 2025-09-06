@@ -7,6 +7,7 @@ import 'cards/themes_card.dart';
 import 'cards/pairs_on_rise_card.dart';
 import 'cards/phase_drift_card.dart';
 import 'cards/precursors_card.dart';
+import 'mira_graph_view.dart';
 
 /// Insights screen showing MIRA semantic memory analysis
 class InsightsScreen extends StatefulWidget {
@@ -193,6 +194,10 @@ class _InsightsScreenState extends State<InsightsScreen> {
           _buildHeader(state),
           const SizedBox(height: 16),
 
+          // MIRA Graph Card
+          _buildMiraGraphCard(),
+          const SizedBox(height: 16),
+
           // Insights cards
           const ThemesCard(),
           const SizedBox(height: 16),
@@ -304,5 +309,54 @@ class _InsightsScreenState extends State<InsightsScreen> {
         _miraCubit.updateGranularity('week');
         break;
     }
+  }
+
+  Widget _buildMiraGraphCard() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: kcSurfaceAltColor,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: kcSecondaryTextColor.withOpacity(0.1)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.account_tree, color: kcPrimaryColor, size: 20),
+              const SizedBox(width: 8),
+              Text(
+                'Your Patterns',
+                style: heading3Style(context).copyWith(color: kcPrimaryColor),
+              ),
+              const Spacer(),
+              TextButton(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const MiraGraphView(),
+                    ),
+                  );
+                },
+                child: Text(
+                  'Explore',
+                  style: bodyStyle(context).copyWith(
+                    color: kcPrimaryColor,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'Follow a word to its moments.',
+            style: bodyStyle(context).copyWith(color: kcSecondaryTextColor),
+          ),
+        ],
+      ),
+    );
   }
 }
