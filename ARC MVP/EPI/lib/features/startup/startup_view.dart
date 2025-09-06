@@ -28,7 +28,16 @@ class _StartupViewState extends State<StartupView> {
     if (!mounted) return;
 
     try {
-      final userBox = await Hive.openBox<UserProfile>('user_profile');
+      // Check if box is already open (from bootstrap)
+      Box<UserProfile> userBox;
+      if (Hive.isBoxOpen('user_profile')) {
+        userBox = Hive.box<UserProfile>('user_profile');
+        print('DEBUG: Using existing user_profile box');
+      } else {
+        userBox = await Hive.openBox<UserProfile>('user_profile');
+        print('DEBUG: Opened new user_profile box');
+      }
+      
       final userProfile = userBox.get('profile');
       
       print('DEBUG: User profile found: ${userProfile != null}');

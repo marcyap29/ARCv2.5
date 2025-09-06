@@ -171,6 +171,8 @@ Future<void> bootstrap({
       // === Hive init (portable across mobile, desktop, web) ===
       try {
         await Hive.initFlutter(); // handles IndexedDB on web
+        logger.d('Hive.initFlutter() completed');
+        
         // Register adapters (must match @HiveType typeIds)
         Hive
           ..registerAdapter(UserProfileAdapter())
@@ -179,13 +181,10 @@ Future<void> bootstrap({
           ..registerAdapter(SAGEAnnotationAdapter())
           ..registerAdapter(InsightSnapshotAdapter())
           ..registerAdapter(SyncItemAdapter());
+        logger.d('Hive adapters registered');
 
-        // Open boxes with consistent snake_case names
-        await Hive.openBox<UserProfile>(Boxes.userProfile);
-        await Hive.openBox<JournalEntry>(Boxes.journalEntries);
-        await Hive.openBox<ArcformSnapshot>(Boxes.arcformSnapshots);
-        await Hive.openBox<InsightSnapshot>(Boxes.insights);
-        // Note: sync_queue box is opened by SyncService when needed
+        // Open boxes with consistent snake_case names - with error recovery
+        await _openHiveBoxes();
         
         // Migrate existing user profile data if needed
         await _migrateUserProfileData();
@@ -193,14 +192,23 @@ Future<void> bootstrap({
         logger.d('Hive initialized, adapters registered, boxes opened');
       } catch (e, st) {
         logger.e('Failed to initialize Hive', e, st);
-        runApp(
-          BootstrapErrorWidget(
-            error: e,
-            stackTrace: st,
-            context: 'Failed to initialize data storage system',
-          ),
-        );
-        return;
+        // Try to recover by clearing corrupted data
+        try {
+          logger.w('Attempting Hive recovery by clearing corrupted data');
+          await _clearCorruptedHiveData();
+          await _openHiveBoxes();
+          logger.i('Hive recovery successful, continuing app startup');
+        } catch (recoveryError, recoverySt) {
+          logger.e('Hive recovery failed', recoveryError, recoverySt);
+          runApp(
+            BootstrapErrorWidget(
+              error: e,
+              stackTrace: st,
+              context: 'Failed to initialize data storage system and recovery failed',
+            ),
+          );
+          return;
+        }
       }
 
       // === RIVET Storage Initialization ===
@@ -277,17 +285,75 @@ Future<void> bootstrap({
       logger.e('Uncaught exception in app', exception, stackTrace);
       // await Sentry.captureException(exception, stackTrace: stackTrace);
 
-      if (flavor == Flavor.development) {
-        runApp(
-          BootstrapErrorWidget(
-            error: exception,
-            stackTrace: stackTrace,
-            context: 'An unexpected error occurred during startup',
-          ),
-        );
-      }
+      // Show error widget in both development and production for better debugging
+      runApp(
+        BootstrapErrorWidget(
+          error: exception,
+          stackTrace: stackTrace,
+          context: 'An unexpected error occurred during startup',
+        ),
+      );
     },
   );
+}
+
+/// Safely opens all required Hive boxes with error handling
+Future<void> _openHiveBoxes() async {
+  final boxNames = [
+    Boxes.userProfile,
+    Boxes.journalEntries,
+    Boxes.arcformSnapshots,
+    Boxes.insights,
+  ];
+
+  for (final boxName in boxNames) {
+    try {
+      if (!Hive.isBoxOpen(boxName)) {
+        await Hive.openBox(boxName);
+        logger.d('Opened Hive box: $boxName');
+      } else {
+        logger.d('Hive box already open: $boxName');
+      }
+    } catch (e, st) {
+      logger.e('Failed to open Hive box: $boxName', e, st);
+      // Try to delete and recreate the box
+      try {
+        await Hive.deleteBoxFromDisk(boxName);
+        await Hive.openBox(boxName);
+        logger.w('Recovered Hive box by recreating: $boxName');
+      } catch (recoveryError) {
+        logger.e('Failed to recover Hive box: $boxName', recoveryError);
+        rethrow;
+      }
+    }
+  }
+}
+
+/// Clears corrupted Hive data to allow app recovery
+Future<void> _clearCorruptedHiveData() async {
+  try {
+    logger.w('Clearing potentially corrupted Hive data');
+    
+    // Close all open boxes first
+    await Hive.close();
+    
+    // Reinitialize Hive
+    await Hive.initFlutter();
+    
+    // Re-register adapters
+    Hive
+      ..registerAdapter(UserProfileAdapter())
+      ..registerAdapter(JournalEntryAdapter())
+      ..registerAdapter(ArcformSnapshotAdapter())
+      ..registerAdapter(SAGEAnnotationAdapter())
+      ..registerAdapter(InsightSnapshotAdapter())
+      ..registerAdapter(SyncItemAdapter());
+    
+    logger.i('Hive data cleared and reinitialized');
+  } catch (e, st) {
+    logger.e('Failed to clear corrupted Hive data', e, st);
+    rethrow;
+  }
 }
 
 /// Migrates existing user profile data to include new phase stability fields
