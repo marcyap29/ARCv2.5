@@ -497,6 +497,7 @@ dart test_arc_mvp.dart  # Run tests
 - **P14 - Cloud Sync Stubs**: Offline-first sync framework with toggle and status indicator
 
 ### ✨ Recently Completed Features
+- **Fixed Welcome Screen Logic**: Corrected user journey flow - users with entries see "Continue Your Journey" → Home, new users see "Begin Your Journey" → Phase quiz
 - **Enhanced Post-Onboarding Welcome**: ARC title with pulsing glow, ethereal music, and smooth transitions
 
 ---

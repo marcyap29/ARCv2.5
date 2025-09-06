@@ -14,6 +14,37 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [1.0.8] - 2025-01-20 - Fixed Welcome Screen Logic for User Journey Flow 🔧
+
+### 🔧 Fixed - Critical Logic Correction
+- **User Journey Flow** - Corrected welcome screen logic for different user states
+- **Entry Accessibility** - Users with entries now see "Continue Your Journey" → Home view
+- **New User Experience** - New users see "Begin Your Journey" → Phase quiz
+- **Post-Onboarding Flow** - Users with no entries go directly to Phase quiz
+
+### 🎯 Navigation Improvements
+- **StartupView Logic** - Fixed inverted logic that was sending users with entries to home instead of welcome screen
+- **WelcomeView Navigation** - Updated button navigation based on user state
+- **Button Text Logic** - Dynamic button text based on onboarding completion status
+- **State-Based UI** - Proper navigation paths for each user journey stage
+
+### 🔍 Debug & Monitoring
+- **Comprehensive Logging** - Added debug logging for user state tracking
+- **Navigation Flow Mapping** - Clear visibility into user journey decisions
+- **State Detection** - Proper identification of user onboarding and entry status
+
+### 📱 User Experience
+- **Correct Flow** - Users now see appropriate welcome screen based on their state
+- **Clear Navigation** - Button text and navigation match user expectations
+- **Entry Access** - Users with entries can easily access them through home view
+- **Logical Progression** - Smooth flow that guides users to the right place
+
+### 📁 Files Modified
+- `lib/features/startup/startup_view.dart` - Fixed startup logic for different user states
+- `lib/features/startup/welcome_view.dart` - Updated navigation and button text logic
+
+---
+
 ## [1.0.7] - 2025-01-20 - Enhanced Post-Onboarding Welcome Experience ✨
 
 ### ✨ Added - Immersive Welcome Screen (Post-Onboarding)
