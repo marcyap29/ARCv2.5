@@ -2680,3 +2680,63 @@ Successfully implemented P14 Cloud Sync Stubs - a complete offline-first sync in
 - **Production Readiness**: Complete sync infrastructure ready for deployment
 
 ---
+
+## Enhancement ID: ENH-2025-01-20-005
+**Title**: Enhanced Post-Onboarding Welcome Experience
+
+**Type**: Enhancement  
+**Priority**: P2 (High)  
+**Status**: ✅ Complete  
+**Reporter**: User Request  
+**Assignee**: Claude Code  
+**Found Date**: 2025-01-20  
+**Completed Date**: 2025-01-20  
+
+#### Description
+Implemented an enhanced welcome screen that appears for users who have completed onboarding but haven't started journaling yet. Features include ethereal music fade-in, pulsing ARC title, and smooth transitions.
+
+#### Requirements
+- Show enhanced welcome screen only for post-onboarding users
+- Display "ARC" title with dramatic pulsing glow effect
+- Fade in ethereal music over 3 seconds
+- Change button text to "Continue Your Journey"
+- Add 1-second delay before transition after button press
+- Smooth fade transition to phase quiz
+
+#### Technical Implementation
+- **Title Enhancement**: Changed from "Arc" to "ARC" with enhanced typography
+- **Pulsing Animation**: 3-layer glow effect (outer, inner, core) with 1.8s pulse rate
+- **Audio Integration**: Ethereal music fades in gently during screen display
+- **Navigation Flow**: Updated startup logic to show welcome screen for post-onboarding users
+- **Transition Timing**: Added 1-second delay for better user experience
+
+#### Files Modified
+- `lib/features/startup/welcome_view.dart` - Enhanced welcome screen with ARC title and pulsing glow
+- `lib/features/startup/startup_view.dart` - Updated navigation flow for post-onboarding users
+- `lib/core/services/audio_service.dart` - Enhanced ethereal music integration
+
+#### Visual Design
+- **ARC Title**: Large white text (72px) with 8px letter spacing
+- **Pulsing Glow**: Multi-layer box shadow with varying opacity and blur radius
+- **Animation**: Smooth 1.8-second pulse cycle with reverse animation
+- **Background**: Dark gradient with ethereal atmosphere
+- **Button**: "Continue Your Journey" with purple gradient and glow effect
+
+#### Testing Results
+- ✅ ARC title displays correctly with enhanced typography
+- ✅ Pulsing glow effect works smoothly with 1.8s timing
+- ✅ Ethereal music fades in over 3 seconds
+- ✅ Button text updated to "Continue Your Journey"
+- ✅ 1-second delay before transition works properly
+- ✅ Smooth fade transition to phase quiz
+- ✅ Only shows for post-onboarding users (not new users)
+- ✅ Audio and visual effects work together harmoniously
+
+#### Impact
+- **User Experience**: More engaging and atmospheric post-onboarding experience
+- **Brand Identity**: Strong "ARC" branding with memorable visual effects
+- **Audio Design**: Ethereal music creates immersive atmosphere
+- **Navigation Flow**: Clear progression from onboarding to journaling
+- **Visual Appeal**: Dramatic pulsing glow draws attention and creates excitement
+
+---

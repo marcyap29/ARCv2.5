@@ -492,9 +492,11 @@ dart test_arc_mvp.dart  # Run tests
 - **Accessibility**: Full WCAG compliance with screen reader support
 - **Export**: PNG and JSON data export with share functionality
 
-### 📋 Remaining Planned Features (3 prompts)
+### 📋 Remaining Planned Features (2 prompts)
 - **P10 - MIRA v1 Graph**: Backend models complete, needs graph visualization UI
 - **P14 - Cloud Sync Stubs**: Offline-first sync framework with toggle and status indicator
-- **P22 - Ethereal Music**: Audio player setup complete, needs actual audio file and playback
+
+### ✨ Recently Completed Features
+- **Enhanced Post-Onboarding Welcome**: ARC title with pulsing glow, ethereal music, and smooth transitions
 
 ---
