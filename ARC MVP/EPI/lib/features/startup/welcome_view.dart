@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:my_app/core/services/audio_service.dart';
-import 'package:my_app/features/onboarding/onboarding_view.dart';
+import 'package:my_app/features/startup/phase_quiz_prompt_view.dart';
 import 'package:my_app/shared/app_colors.dart';
 import 'package:my_app/shared/text_style.dart';
 
@@ -88,7 +88,7 @@ class _WelcomeViewState extends State<WelcomeView>
       Navigator.pushReplacement(
         context,
         PageRouteBuilder(
-          pageBuilder: (context, animation, secondaryAnimation) => const OnboardingView(),
+          pageBuilder: (context, animation, secondaryAnimation) => const PhaseQuizPromptView(),
           transitionsBuilder: (context, animation, secondaryAnimation, child) {
             return FadeTransition(opacity: animation, child: child);
           },
