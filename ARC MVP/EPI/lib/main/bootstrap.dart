@@ -360,7 +360,13 @@ Future<void> _clearCorruptedHiveData() async {
 /// Migrates existing user profile data to include new phase stability fields
 Future<void> _migrateUserProfileData() async {
   try {
-    final userBox = Hive.box<UserProfile>(Boxes.userProfile);
+    // Use safe box access pattern
+    Box<UserProfile> userBox;
+    if (Hive.isBoxOpen(Boxes.userProfile)) {
+      userBox = Hive.box<UserProfile>(Boxes.userProfile);
+    } else {
+      userBox = await Hive.openBox<UserProfile>(Boxes.userProfile);
+    }
     final userProfile = userBox.get('profile');
     
     if (userProfile != null) {
