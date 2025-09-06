@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../shared/app_colors.dart';
 import '../../../shared/text_style.dart';
+import '../info/info_icon.dart';
 
 /// AURORA card for rhythm and restoration insights
 /// Currently shows as placeholder "not yet active"
@@ -39,9 +40,15 @@ class AuroraCard extends StatelessWidget {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    'AURORA',
-                    style: heading2Style(context),
+                  Row(
+                    children: [
+                      Text(
+                        'AURORA',
+                        style: heading2Style(context),
+                      ),
+                      const SizedBox(width: 8),
+                      InfoIcons.aurora(),
+                    ],
                   ),
                   Text(
                     'Rhythm & Restoration',

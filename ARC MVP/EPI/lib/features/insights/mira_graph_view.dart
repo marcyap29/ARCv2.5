@@ -4,6 +4,7 @@ import '../../shared/app_colors.dart';
 import '../../shared/text_style.dart';
 import 'mira_graph_cubit.dart';
 import 'widgets/mira_node_sheet.dart';
+import 'info/info_icon.dart';
 
 /// Interactive MIRA graph visualization
 class MiraGraphView extends StatefulWidget {
@@ -47,6 +48,8 @@ class _MiraGraphViewState extends State<MiraGraphView> {
         backgroundColor: kcSurfaceColor,
         elevation: 0,
         actions: [
+          InfoIcons.patternsScreen(),
+          const SizedBox(width: 8),
           IconButton(
             icon: const Icon(Icons.refresh, color: kcPrimaryColor),
             onPressed: () {
