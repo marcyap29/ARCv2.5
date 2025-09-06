@@ -61,7 +61,13 @@ class OnboardingCubit extends Cubit<OnboardingState> {
   void _completeOnboarding() async {
     _logger.d('Completing onboarding process');
     try {
-      final userBox = await Hive.openBox<UserProfile>('user_profile');
+      // Use safe box access pattern
+      Box<UserProfile> userBox;
+      if (Hive.isBoxOpen('user_profile')) {
+        userBox = Hive.box<UserProfile>('user_profile');
+      } else {
+        userBox = await Hive.openBox<UserProfile>('user_profile');
+      }
       UserProfile? userProfile = userBox.get('profile');
 
       userProfile ??= UserProfile(
