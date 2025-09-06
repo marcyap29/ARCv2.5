@@ -11,7 +11,7 @@ void main() {
   }
   
   // Test with canvas center offset
-  final center = const Offset(200, 200);
+  const center = Offset(200, 200);
   final centeredPositions = positions.map((pos) => pos + center).toList();
   
   print('\nWith canvas center (200, 200):');

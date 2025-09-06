@@ -33,7 +33,7 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
   int _currentIndex = 0;
   List<TimelineEntry> _entries = [];
   bool _isSelectionMode = false;
-  Set<String> _selectedEntryIds = {};
+  final Set<String> _selectedEntryIds = {};
 
   @override
   void initState() {
