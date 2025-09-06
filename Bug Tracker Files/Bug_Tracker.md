@@ -1,9 +1,9 @@
 # EPI ARC MVP - Bug Tracker
 
-> **Last Updated**: January 20, 2025 8:00 PM (America/Los_Angeles)  
-> **Total Items Tracked**: 32 (24 bugs + 8 enhancements)  
+> **Last Updated**: January 20, 2025 9:30 PM (America/Los_Angeles)  
+> **Total Items Tracked**: 33 (24 bugs + 9 enhancements)  
 > **Critical Issues Fixed**: 24  
-> **Status**: All blocking issues resolved - Production ready with P5-MM Multi-Modal Journaling complete, RIVET deletion fix, and P10C Insight Cards ✅
+> **Status**: All blocking issues resolved - Production ready with P5-MM Multi-Modal Journaling complete, RIVET deletion fix, P10C Insight Cards, and P14 Cloud Sync Stubs ✅
 
 ---
 
@@ -2612,5 +2612,71 @@ Successfully merged the P19 Accessibility & Performance Pass branch into the mai
 - ✅ Repository structure clean and production-ready
 - ✅ Documentation fully synchronized across all files
 - ✅ No breaking changes or functionality regression
+
+---
+
+## Enhancement ID: ENH-2025-01-20-004
+**Title**: P14 Cloud Sync Stubs Implementation Complete
+
+**Type**: Enhancement  
+**Priority**: P1 (Critical)  
+**Status**: ✅ Complete  
+**Reporter**: User Request  
+**Implementer**: Claude Code  
+**Completion Date**: 2025-01-20
+
+#### Description
+Successfully implemented P14 Cloud Sync Stubs - a complete offline-first sync infrastructure with settings toggle, status indicators, and persistent local queue. The implementation provides a solid foundation for future cloud sync integration while maintaining full offline functionality.
+
+#### Requirements
+- Settings page with Cloud Sync toggle switch
+- Real-time status indicator showing sync state
+- Hive-based persistent sync queue for offline items
+- Automatic enqueueing of journal entries and arcform snapshots
+- Queue management (clear completed/all items)
+- Graceful error handling and fallback states
+- Full accessibility compliance
+- App remains fully functional offline
+
+#### Technical Implementation
+- **SyncService**: Core sync queue management with Hive persistence
+- **SyncToggleCubit**: State management for sync settings and status
+- **SyncItem Model**: Structured sync items with metadata and retry logic
+- **Hive Integration**: Proper adapter registration and box management
+- **Settings UI**: Integrated sync section with toggle and status pill
+- **Capture Points**: Automatic enqueueing in journal and arcform save flows
+- **Error Handling**: Comprehensive fallback when sync service fails
+
+#### Files Created
+- `lib/core/sync/sync_service.dart` - Core sync queue management
+- `lib/core/sync/sync_toggle_cubit.dart` - Sync settings state management
+- `lib/core/sync/sync_models.dart` - Sync data models and enums
+- `lib/core/sync/sync_item_adapter.dart` - Hive adapter for sync items
+- `lib/features/settings/sync_settings_section.dart` - Settings UI component
+
+#### Files Modified
+- `lib/features/settings/settings_view.dart` - Added sync settings section
+- `lib/features/journal/journal_capture_cubit.dart` - Added sync enqueue calls
+- `lib/main/bootstrap.dart` - Registered sync adapters and boxes
+- `pubspec.yaml` - Removed missing audio asset reference
+- `CHANGELOG.md` - Added P14 completion entry
+- `ARC_MVP_IMPLEMENTATION_Progress.md` - Updated P14 status
+
+#### Testing Results
+- ✅ Cloud Sync toggle functions correctly with immediate state change
+- ✅ Status indicator shows accurate sync state ("Sync off", "Queued N", "Idle", "Syncing...")
+- ✅ Sync queue persists across app launches
+- ✅ Journal entries and arcform snapshots automatically enqueue when sync enabled
+- ✅ Queue management functions work (clear completed/all)
+- ✅ App remains fully functional offline
+- ✅ Error handling prevents crashes when sync service fails
+- ✅ Accessibility compliant with proper semantics and tap targets
+- ✅ Build issues resolved (missing audio asset, Hive conflicts)
+
+#### Impact
+- **User Experience**: Clear sync status visibility and control
+- **Data Integrity**: Reliable offline-first sync queue
+- **Future Development**: Solid foundation for cloud sync integration
+- **Production Readiness**: Complete sync infrastructure ready for deployment
 
 ---
