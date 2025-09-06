@@ -14,6 +14,43 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [1.0.5] - 2025-01-20 - P10C Insight Cards Implementation Complete 🧠
+
+### ✨ Added - Deterministic Insight Generation System (P10C)
+- **Insight Cards** - Personalized insight cards generated from journal data using rule-based templates
+- **Rule Engine** - Deterministic system with 12 insight templates covering patterns, emotions, SAGE coverage, and phase history
+- **Data Integration** - Insights generated from existing journal entries, emotions, and phase data
+- **Visual Design** - Beautiful gradient cards with blur effects and proper accessibility compliance
+
+### 🎯 Technical Achievements
+- **InsightService** - Created deterministic rule engine for generating personalized insights
+- **InsightCard Model** - Implemented data model with Hive adapter for persistence
+- **InsightCubit** - Built state management with proper widget rebuild using setState()
+- **InsightCardShell** - Designed proper constraint handling with clipping and semantics isolation
+- **Constraint Fixes** - Resolved infinite size constraints by replacing SizedBox.expand() with Container()
+- **Accessibility** - Full compliance with ExcludeSemantics for decorative layers
+
+### 🐛 Fixed - Layout and Semantics Issues
+- **Infinite Size Constraints** - Fixed layout errors caused by unbounded height in ListView
+- **Semantics Assertion Errors** - Resolved '!semantics.parentDataDirty' errors with proper semantics isolation
+- **Layout Overflow** - Fixed "Your Patterns" card text overflow with Flexible widget
+- **Cubit Initialization** - Fixed widget rebuild issues with proper setState() implementation
+
+### 📁 Files Added
+- `lib/insights/insight_service.dart` - Deterministic rule engine
+- `lib/insights/templates.dart` - 12 insight template strings  
+- `lib/insights/rules_loader.dart` - JSON rule loading system
+- `lib/insights/models/insight_card.dart` - Data model with Hive adapter
+- `lib/insights/insight_cubit.dart` - State management
+- `lib/insights/widgets/insight_card_widget.dart` - Card display widget
+- `lib/ui/insights/widgets/insight_card_shell.dart` - Proper constraint handling
+
+### 📁 Files Modified
+- `lib/features/home/home_view.dart` - Integration and cubit initialization
+- `lib/main/bootstrap.dart` - Hive adapter registration
+
+---
+
 ## [1.0.4] - 2025-01-20 - Multimodal Journaling Integration Complete 🎉
 
 ### ✨ Fixed - Multimodal Media Capture Access (P5-MM)
