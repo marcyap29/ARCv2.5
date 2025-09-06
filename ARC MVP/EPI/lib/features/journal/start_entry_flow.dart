@@ -9,6 +9,11 @@ import 'package:my_app/repositories/journal_repository.dart';
 import 'package:my_app/shared/app_colors.dart';
 import 'package:my_app/shared/text_style.dart';
 import 'package:my_app/core/i18n/copy.dart';
+import 'package:my_app/data/models/media_item.dart';
+import 'package:my_app/features/journal/media/media_capture_sheet.dart';
+import 'package:my_app/features/journal/media/media_strip.dart';
+import 'package:my_app/features/journal/media/media_preview_dialog.dart';
+import 'package:my_app/core/services/media_store.dart';
 
 class StartEntryFlow extends StatefulWidget {
   const StartEntryFlow({super.key});
@@ -22,6 +27,8 @@ class _StartEntryFlowState extends State<StartEntryFlow> {
   String? _selectedEmotion;
   String? _selectedReason;
   String _textContent = '';
+  final List<MediaItem> _mediaItems = [];
+  final MediaStore _mediaStore = MediaStore();
 
   @override
   void dispose() {
@@ -101,6 +108,52 @@ class _StartEntryFlowState extends State<StartEntryFlow> {
         Navigator.of(context).popUntil((route) => route.isFirst);
       }
     });
+  }
+
+  void _onMediaCaptured(MediaItem mediaItem) {
+    setState(() {
+      _mediaItems.add(mediaItem);
+    });
+  }
+
+  void _onMediaDeleted(MediaItem mediaItem) async {
+    try {
+      await _mediaStore.deleteMedia(mediaItem.uri);
+      setState(() {
+        _mediaItems.remove(mediaItem);
+      });
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to delete media: $e'),
+          backgroundColor: kcDangerColor,
+        ),
+      );
+    }
+  }
+
+  void _onMediaPreview(MediaItem mediaItem) {
+    showDialog(
+      context: context,
+      builder: (context) => MediaPreviewDialog(
+        mediaItem: mediaItem,
+        onDelete: () {
+          _onMediaDeleted(mediaItem);
+          Navigator.of(context).pop();
+        },
+      ),
+    );
+  }
+
+  void _showMediaCaptureSheet() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => MediaCaptureSheet(
+        onMediaCaptured: _onMediaCaptured,
+      ),
+    );
   }
 
   @override
@@ -216,6 +269,87 @@ class _StartEntryFlowState extends State<StartEntryFlow> {
                 ),
                 
                 const SizedBox(height: 40),
+                
+                // Media Capture Toolbar
+                Card(
+                  color: kcSurfaceAltColor,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Add Media',
+                          style: heading1Style(context).copyWith(fontSize: 18),
+                        ),
+                        const SizedBox(height: 16),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                          children: [
+                            // Microphone button
+                            ConstrainedBox(
+                              constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
+                              child: Semantics(
+                                label: 'Record voice note',
+                                button: true,
+                                child: IconButton(
+                                  icon: const Icon(Icons.mic, color: kcPrimaryColor),
+                                  onPressed: () {
+                                    // TODO: Implement voice recording
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text('Voice recording coming soon!'),
+                                        backgroundColor: kcPrimaryColor,
+                                      ),
+                                    );
+                                  },
+                                ),
+                              ),
+                            ),
+                            // Camera button
+                            ConstrainedBox(
+                              constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
+                              child: Semantics(
+                                label: 'Take photo',
+                                button: true,
+                                child: IconButton(
+                                  icon: const Icon(Icons.camera_alt, color: kcPrimaryColor),
+                                  onPressed: _showMediaCaptureSheet,
+                                ),
+                              ),
+                            ),
+                            // Gallery button
+                            ConstrainedBox(
+                              constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
+                              child: Semantics(
+                                label: 'Import from gallery',
+                                button: true,
+                                child: IconButton(
+                                  icon: const Icon(Icons.photo_library, color: kcPrimaryColor),
+                                  onPressed: _showMediaCaptureSheet,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                
+                // Media Strip
+                if (_mediaItems.isNotEmpty) ...[
+                  MediaStrip(
+                    mediaItems: _mediaItems,
+                    onMediaTapped: _onMediaPreview,
+                    onMediaDeleted: _onMediaDeleted,
+                  ),
+                  const SizedBox(height: 16),
+                ],
                 
                 // Text editor
                 Expanded(
