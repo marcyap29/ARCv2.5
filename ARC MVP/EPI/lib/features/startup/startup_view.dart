@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:my_app/features/home/home_view.dart';
 import 'package:my_app/features/startup/welcome_view.dart';
+import 'package:my_app/features/startup/phase_quiz_prompt_view.dart';
 import 'package:hive/hive.dart';
 import 'package:my_app/models/user_profile_model.dart';
 import 'package:my_app/repositories/journal_repository.dart';
@@ -55,15 +56,14 @@ class _StartupViewState extends State<StartupView> {
       
       print('DEBUG: Journal entry count: $entryCount');
       
-      if (entryCount == 0) {
-        print('DEBUG: No entries found, navigating to welcome screen');
-        // No journal entries exist, navigate to welcome screen
-        // This will show "Continue Your Journey" for post-onboarding users
+      if (entryCount > 0) {
+        print('DEBUG: $entryCount entries found, navigating to welcome screen (Continue Your Journey)');
+        // User has entries, navigate to welcome screen with "Continue Your Journey"
         _navigateToWelcome();
       } else {
-        print('DEBUG: $entryCount entries found, navigating to home');
-        // User has entries, navigate to normal home view
-        _navigateToHome();
+        print('DEBUG: No entries found, navigating to phase quiz (post-onboarding user)');
+        // No journal entries exist, navigate to phase quiz for post-onboarding users
+        _navigateToPhaseQuiz();
       }
     } catch (e) {
       print('DEBUG: Error checking journal entries: $e');
@@ -86,6 +86,15 @@ class _StartupViewState extends State<StartupView> {
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (context) => const WelcomeView()),
+      );
+    }
+  }
+
+  void _navigateToPhaseQuiz() {
+    if (mounted) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const PhaseQuizPromptView()),
       );
     }
   }
