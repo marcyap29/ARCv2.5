@@ -30,6 +30,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ### 📱 User Experience Improvements
 - **Reliable App Launch** - App now starts successfully after device restart
+- **Force-Quit Recovery** - App handles force-quit (swipe up) scenarios gracefully
 - **Graceful Error Recovery** - Automatic recovery from database conflicts
 - **Clear Error Messages** - Helpful error information for users and developers
 - **Recovery Options** - Multiple fallback mechanisms for startup issues
@@ -45,6 +46,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - `lib/features/startup/startup_view.dart` - Safe box access patterns
 - `lib/services/user_phase_service.dart` - Fixed box opening conflicts
 - `recovery_script.dart` - Emergency recovery tool (new file)
+- `test_force_quit_recovery.dart` - Force-quit scenario testing (new file)
 
 ### 🎯 Impact
 - **Reliability**: App now consistently starts after device restart

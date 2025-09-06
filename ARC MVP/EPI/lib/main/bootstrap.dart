@@ -159,6 +159,7 @@ Future<void> bootstrap({
       WidgetsFlutterBinding.ensureInitialized();
 
       logger.i('Starting bootstrap process for ${flavor.toString()} environment');
+      logger.d('App startup triggered - handling potential force-quit recovery');
 
       // Orientation lock
       try {
