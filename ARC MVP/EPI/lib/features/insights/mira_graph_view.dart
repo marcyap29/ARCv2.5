@@ -178,9 +178,16 @@ class _MiraGraphViewState extends State<MiraGraphView> {
                     hoveredEdge: _hoveredEdge,
                   ),
                   child: GestureDetector(
-                    onTapDown: (details) => _handleTapDown(details, state),
+                    onTapDown: (details) {
+                      print('DEBUG: Tap detected at ${details.localPosition}');
+                      _handleTapDown(details, state);
+                    },
                     onPanStart: (details) => _handlePanStart(details, state),
-                    child: Container(),
+                    child: Container(
+                      width: double.infinity,
+                      height: double.infinity,
+                      color: Colors.transparent,
+                    ),
                   ),
                 ),
               ),
@@ -199,10 +206,16 @@ class _MiraGraphViewState extends State<MiraGraphView> {
       localPosition.dy - center.dy,
     );
 
+    print('DEBUG: Tap at local: $localPosition, relative: $relativePosition');
+    print('DEBUG: Number of nodes: ${state.nodes.length}');
+    print('DEBUG: Number of edges: ${state.edges.length}');
+
     // Find clicked node
     for (final node in state.nodes) {
       final distance = (relativePosition - node.position).distance;
+      print('DEBUG: Node ${node.label} at ${node.position}, distance: $distance, size: ${node.size}');
       if (distance <= node.size / 2) {
+        print('DEBUG: Tapped on node ${node.label}');
         _showNodeSheet(node, state);
         return;
       }
@@ -214,10 +227,13 @@ class _MiraGraphViewState extends State<MiraGraphView> {
       final toNode = state.nodes.firstWhere((n) => n.id == edge.toNodeId);
       
       if (_isPointNearLine(relativePosition, fromNode.position, toNode.position)) {
+        print('DEBUG: Tapped on edge ${edge.fromNodeId} -> ${edge.toNodeId}');
         _showEdgeSheet(edge, state);
         return;
       }
     }
+    
+    print('DEBUG: No node or edge found at tap position');
   }
 
   void _handlePanStart(DragStartDetails details, MiraGraphLoaded state) {
