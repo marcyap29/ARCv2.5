@@ -14,6 +14,46 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [1.0.7] - 2025-01-20 - Enhanced Post-Onboarding Welcome Experience ✨
+
+### ✨ Added - Immersive Welcome Screen (Post-Onboarding)
+- **ARC Title with Pulsing Glow** - Dramatic 3-layer pulsing effect with 1.8s animation cycle
+- **Ethereal Music Integration** - Gentle 3-second fade-in of atmospheric background music
+- **Enhanced Button Text** - "Continue Your Journey" for post-onboarding users
+- **Smooth Transitions** - 1-second delay before transition with elegant fade effects
+
+### 🎨 Visual Enhancements
+- **Multi-Layer Glow Effect** - Outer, inner, and core glow layers with varying opacity
+- **Typography Refinement** - "ARC" title with enhanced letter spacing and weight
+- **Atmospheric Design** - Dark gradient background with ethereal visual effects
+- **Responsive Animation** - Smooth pulsing that draws attention without being distracting
+
+### 🔧 Technical Improvements
+- **Smart Navigation Flow** - Welcome screen only appears for post-onboarding users
+- **Audio Service Integration** - Seamless ethereal music fade-in during screen display
+- **Animation Controller** - Optimized 1.8-second pulse rate for balanced visual rhythm
+- **State Management** - Proper handling of audio and visual state transitions
+
+### 📱 User Experience
+- **Immersive Onboarding** - Enhanced experience for users transitioning to journaling
+- **Brand Identity** - Strong "ARC" branding with memorable visual effects
+- **Audio Atmosphere** - Ethereal music creates sacred, contemplative environment
+- **Smooth Progression** - Clear path from onboarding completion to journaling phase
+
+### 🐛 Fixed
+- **Navigation Flow** - Corrected startup logic to show welcome screen for appropriate users
+- **Audio Integration** - Fixed ethereal music initialization and fade-in timing
+- **Visual Consistency** - Aligned button text and transitions with user journey
+
+### 📁 Files Modified
+- `lib/features/startup/welcome_view.dart` - Enhanced welcome screen with ARC title and pulsing glow
+- `lib/features/startup/startup_view.dart` - Updated navigation flow for post-onboarding users
+- `lib/core/services/audio_service.dart` - Enhanced ethereal music integration
+- `Bug_Tracker.md` - Added ENH-2025-01-20-005 for enhanced welcome experience
+- `ARC_MVP_IMPLEMENTATION_Progress.md` - Updated progress tracking
+
+---
+
 ## [1.0.6] - 2025-01-20 - P14 Cloud Sync Stubs Implementation Complete ☁️
 
 ### ✨ Added - Offline-First Sync Infrastructure (P14)
