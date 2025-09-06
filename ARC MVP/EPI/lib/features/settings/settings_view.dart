@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import '../../shared/app_colors.dart';
+import '../../shared/text_style.dart';
+import 'sync_settings_section.dart';
 
 class SettingsView extends StatelessWidget {
   const SettingsView({super.key});
@@ -6,19 +9,153 @@ class SettingsView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: kcBackgroundColor,
       appBar: AppBar(
-        backgroundColor: Colors.black,
-        title: const Text(
+        backgroundColor: kcBackgroundColor,
+        elevation: 0,
+        title: Text(
           'Settings',
-          style: TextStyle(color: Colors.white),
+          style: heading1Style(context).copyWith(
+            color: kcPrimaryTextColor,
+            fontWeight: FontWeight.bold,
+          ),
         ),
         centerTitle: true,
+        iconTheme: const IconThemeData(color: kcPrimaryTextColor),
       ),
-      body: const Center(
-        child: Text(
-          'Settings Screen - Coming Soon',
-          style: TextStyle(color: Colors.white),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Sync Settings Section
+            const SyncSettingsSection(),
+            
+            const SizedBox(height: 32),
+            
+            // Privacy Section
+            _buildSection(
+              context,
+              title: 'Privacy & Data',
+              children: [
+                _buildSettingsTile(
+                  context,
+                  title: 'Data Export',
+                  subtitle: 'Export your journal data',
+                  icon: Icons.download,
+                  onTap: () {
+                    // TODO: Implement data export
+                  },
+                ),
+                _buildSettingsTile(
+                  context,
+                  title: 'Erase All Data',
+                  subtitle: 'Permanently delete all data',
+                  icon: Icons.delete_forever,
+                  onTap: () {
+                    // TODO: Implement erase all
+                  },
+                ),
+              ],
+            ),
+            
+            const SizedBox(height: 32),
+            
+            // About Section
+            _buildSection(
+              context,
+              title: 'About',
+              children: [
+                _buildSettingsTile(
+                  context,
+                  title: 'Version',
+                  subtitle: '1.0.5',
+                  icon: Icons.info,
+                  onTap: null,
+                ),
+                _buildSettingsTile(
+                  context,
+                  title: 'Privacy Policy',
+                  subtitle: 'Read our privacy policy',
+                  icon: Icons.privacy_tip,
+                  onTap: () {
+                    // TODO: Implement privacy policy
+                  },
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSection(BuildContext context, {
+    required String title,
+    required List<Widget> children,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: heading2Style(context).copyWith(
+            color: kcPrimaryTextColor,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const SizedBox(height: 12),
+        ...children,
+      ],
+    );
+  }
+
+  Widget _buildSettingsTile(
+    BuildContext context, {
+    required String title,
+    required String subtitle,
+    required IconData icon,
+    VoidCallback? onTap,
+  }) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.05),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: Colors.white.withOpacity(0.1),
+        ),
+      ),
+      child: ListTile(
+        leading: Icon(
+          icon,
+          color: kcAccentColor,
+          size: 24,
+        ),
+        title: Text(
+          title,
+          style: heading3Style(context).copyWith(
+            color: kcPrimaryTextColor,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        subtitle: Text(
+          subtitle,
+          style: bodyStyle(context).copyWith(
+            color: kcSecondaryTextColor,
+          ),
+        ),
+        trailing: onTap != null
+            ? Icon(
+                Icons.arrow_forward_ios,
+                color: kcSecondaryTextColor,
+                size: 16,
+              )
+            : null,
+        onTap: onTap,
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 8,
         ),
       ),
     );
