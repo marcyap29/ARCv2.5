@@ -73,11 +73,24 @@ class _WelcomeViewState extends State<WelcomeView>
           _isAudioPlaying = _audioService.isPlaying;
           _isAudioMuted = _audioService.isMuted;
         });
+        
+        // Play for 2 loops then fade out
+        _scheduleFadeOut();
       }
     } catch (e) {
       // Audio not available, continue without audio
       debugPrint('Audio not available: $e');
     }
+  }
+
+  void _scheduleFadeOut() async {
+    // Wait for approximately 2 loops of the ethereal track
+    // Assuming track is about 2-3 minutes, wait for 4-6 minutes total
+    await Future.delayed(const Duration(minutes: 5));
+    
+    // Fade out over 10 seconds
+    await _audioService.fadeOut(duration: const Duration(seconds: 10));
+    print('DEBUG: WelcomeView - Ethereal music faded out after 2 loops');
   }
 
   void _initializeAnimations() {
