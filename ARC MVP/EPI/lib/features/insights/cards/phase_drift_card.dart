@@ -6,7 +6,7 @@ import '../../../shared/text_style.dart';
 
 /// Card showing phase trajectory over time
 class PhaseDriftCard extends StatelessWidget {
-  const PhaseDriftCard({Key? key}) : super(key: key);
+  const PhaseDriftCard({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -31,7 +31,7 @@ class PhaseDriftCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              Icon(Icons.timeline, color: kcPrimaryColor, size: 20),
+              const Icon(Icons.timeline, color: kcPrimaryColor, size: 20),
               const SizedBox(width: 8),
               Text(
                 'Phase Trajectory',
@@ -64,7 +64,7 @@ class PhaseDriftCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              Icon(Icons.timeline, color: kcPrimaryColor, size: 20),
+              const Icon(Icons.timeline, color: kcPrimaryColor, size: 20),
               const SizedBox(width: 8),
               Text(
                 'Phase Trajectory',
@@ -76,7 +76,7 @@ class PhaseDriftCard extends StatelessWidget {
           Center(
             child: Column(
               children: [
-                Icon(
+                const Icon(
                   Icons.timeline_outlined,
                   size: 32,
                   color: kcSecondaryTextColor,
@@ -113,7 +113,7 @@ class PhaseDriftCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              Icon(Icons.timeline, color: kcPrimaryColor, size: 20),
+              const Icon(Icons.timeline, color: kcPrimaryColor, size: 20),
               const SizedBox(width: 8),
               Text(
                 "Phase Drift",
@@ -222,7 +222,7 @@ class PhaseDriftCard extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 8),
-        ...displayPoints.map((point) => _buildTimelinePoint(context, point)).toList(),
+        ...displayPoints.map((point) => _buildTimelinePoint(context, point)),
       ],
     );
   }
