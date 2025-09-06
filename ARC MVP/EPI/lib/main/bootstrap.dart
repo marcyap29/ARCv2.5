@@ -15,11 +15,8 @@ import 'package:my_app/models/arcform_snapshot_model.dart';
 import 'package:my_app/features/journal/sage_annotation_model.dart';
 import 'package:my_app/core/rivet/rivet_storage.dart';
 import 'package:my_app/services/analytics_service.dart';
-<<<<<<< HEAD
 import 'package:my_app/data/hive/insight_snapshot.dart';
-=======
 import 'package:my_app/core/sync/sync_item_adapter.dart';
->>>>>>> p14-cloud-sync
 
 import 'package:my_app/shared/app_colors.dart';
 import 'package:my_app/shared/text_style.dart';
@@ -146,11 +143,8 @@ class Boxes {
   static const userProfile = 'user_profile';
   static const journalEntries = 'journal_entries';
   static const arcformSnapshots = 'arcform_snapshots';
-<<<<<<< HEAD
   static const insights = 'insights';
-=======
   static const syncQueue = 'sync_queue';
->>>>>>> p14-cloud-sync
 }
 
 /// Enhanced bootstrap function with comprehensive error handling
@@ -190,7 +184,7 @@ Future<void> bootstrap({
         await Hive.openBox<JournalEntry>(Boxes.journalEntries);
         await Hive.openBox<ArcformSnapshot>(Boxes.arcformSnapshots);
         await Hive.openBox<InsightSnapshot>(Boxes.insights);
-        await Hive.openBox('sync_queue'); // SyncItem box
+        // Note: sync_queue box is opened by SyncService when needed
         
         // Migrate existing user profile data if needed
         await _migrateUserProfileData();

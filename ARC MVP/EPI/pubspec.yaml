@@ -62,7 +62,6 @@ flutter:
   
   assets:
     - assets/audio/
-    - assets/audio/intro_loop.mp3
     - assets/insights/rules_v1.json
 
 

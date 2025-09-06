@@ -19,7 +19,12 @@ class SyncService {
   Stream<SyncState> get statusStream => _statusController.stream;
 
   Future<void> initialize() async {
-    _queueBox = await Hive.openBox<SyncItem>(_boxName);
+    try {
+      _queueBox = await Hive.openBox<SyncItem>(_boxName);
+    } catch (e) {
+      // Box might already be open, try to get it
+      _queueBox = Hive.box<SyncItem>(_boxName);
+    }
     _startWorker();
     _emitQueueUpdate();
   }
