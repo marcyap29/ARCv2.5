@@ -228,13 +228,18 @@ class _InsightsPageState extends State<_InsightsPage> {
                 size: 24,
               ),
               const SizedBox(width: 12),
-              Text(
-                'Your Patterns',
-                style: heading2Style(context),
+              Expanded(
+                child: Row(
+                  children: [
+                    Text(
+                      'Your Patterns',
+                      style: heading2Style(context),
+                    ),
+                    const SizedBox(width: 8),
+                    InfoIcons.patterns(),
+                  ],
+                ),
               ),
-              const SizedBox(width: 8),
-              InfoIcons.patterns(),
-              const Spacer(),
               TextButton(
                 onPressed: () {
                   Navigator.push(

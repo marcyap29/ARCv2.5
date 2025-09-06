@@ -119,8 +119,10 @@ class MiraGraphCubit extends Cubit<MiraGraphState> {
 
     try {
       final entries = _journalRepository.getAllJournalEntries();
+      print('DEBUG: MIRA Graph - Found ${entries.length} journal entries');
       
       if (entries.isEmpty) {
+        print('DEBUG: MIRA Graph - No entries found, showing empty state');
         emit(const MiraGraphLoaded(
           nodes: [],
           edges: [],
@@ -146,9 +148,13 @@ class MiraGraphCubit extends Cubit<MiraGraphState> {
       final sortedKeywords = keywordFrequencies.entries.toList()
         ..sort((a, b) => b.value.compareTo(a.value));
       
+      print('DEBUG: MIRA Graph - Found ${keywordFrequencies.length} unique keywords');
+      print('DEBUG: MIRA Graph - Top keywords: ${sortedKeywords.take(5).map((e) => '${e.key}:${e.value}').join(', ')}');
+      
       final topKeywords = sortedKeywords.take(_maxNodes).toList();
 
       if (topKeywords.isEmpty) {
+        print('DEBUG: MIRA Graph - No keywords found, showing empty state');
         emit(const MiraGraphLoaded(
           nodes: [],
           edges: [],
