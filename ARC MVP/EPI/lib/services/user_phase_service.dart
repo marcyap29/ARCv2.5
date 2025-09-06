@@ -11,7 +11,12 @@ class UserPhaseService {
   static Future<String> getCurrentPhase() async {
     try {
       // First, check the UserProfile for onboarding phase
-      final userBox = await Hive.openBox<UserProfile>('user_profile');
+      Box<UserProfile> userBox;
+      if (Hive.isBoxOpen('user_profile')) {
+        userBox = Hive.box<UserProfile>('user_profile');
+      } else {
+        userBox = await Hive.openBox<UserProfile>('user_profile');
+      }
       final userProfile = userBox.get('profile');
       
       if (userProfile?.onboardingCurrentSeason != null && 
@@ -21,7 +26,12 @@ class UserPhaseService {
       }
       
       // Fallback to arcform snapshots
-      final box = await Hive.openBox<ArcformSnapshot>(_snapshotsBoxName);
+      Box<ArcformSnapshot> box;
+      if (Hive.isBoxOpen(_snapshotsBoxName)) {
+        box = Hive.box<ArcformSnapshot>(_snapshotsBoxName);
+      } else {
+        box = await Hive.openBox<ArcformSnapshot>(_snapshotsBoxName);
+      }
       
       if (box.isEmpty) {
         // No snapshots yet, default to Discovery for first-time users
@@ -67,7 +77,12 @@ class UserPhaseService {
   /// Get the most recent Arcform snapshot for rendering
   static Future<ArcformSnapshot?> getMostRecentSnapshot() async {
     try {
-      final box = await Hive.openBox<ArcformSnapshot>(_snapshotsBoxName);
+      Box<ArcformSnapshot> box;
+      if (Hive.isBoxOpen(_snapshotsBoxName)) {
+        box = Hive.box<ArcformSnapshot>(_snapshotsBoxName);
+      } else {
+        box = await Hive.openBox<ArcformSnapshot>(_snapshotsBoxName);
+      }
       
       if (box.isEmpty) {
         return null;
