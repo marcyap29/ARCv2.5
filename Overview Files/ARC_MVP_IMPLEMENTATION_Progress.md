@@ -17,7 +17,7 @@
 - Critical stability + UX issues addressed (navigation, save, loading, lifecycle safety).
 - **Prompts 21–23** added: Welcome flow, Audio framework, Arcform sovereignty (auto vs manual).  
 - **Recent enhancements**: RIVET phase-stability gating, dual-dial insights visualization, keyword-driven phase detection, EmotionalValenceService, advanced notifications, progressive disclosure UI, complete journal entry deletion system, phase quiz synchronization.
-- **Latest completion**: P5-MM Multi-Modal Journaling Phase 4 - Complete integration of multi-modal media capture, management, and OCR functionality with full accessibility compliance.
+- **Latest completion**: P5-MM Multi-Modal Journaling Integration Complete - Fixed critical issue where multimodal features were implemented in JournalCaptureView but app uses StartEntryFlow. Successfully integrated camera, gallery, and media management into actual journal entry flow.
 - **RIVET Deletion Fix**: Fixed RIVET TRACE calculation to properly recalculate from remaining entries when entries are deleted, ensuring accurate phase-stability metrics.
 - **P27 RIVET Simple Copy UI**: Complete user-friendly RIVET interface with Match/Confidence labels, details modal, and comprehensive status communication.
 - **Recent UI/UX Fixes (2025-01-20)**:
@@ -50,7 +50,7 @@
 | P2    | Data model & storage                   | ✅ Complete  | Journal/Arcform/User models |
 | P3    | Onboarding (reflective scaffolding)    | ✅ Complete  | 3‑step + mood chips |
 | P4    | Journal (text)                         | ✅ Complete  | Save flow optimized; reordered flow (New Entry → Emotion → Reason); recursive save loop fixed |
-| P5    | Journal (voice)                        | ✅ Complete  | P5-MM Multi-Modal Journaling: Audio, camera, gallery, OCR |
+| P5    | Journal (voice)                        | ✅ Complete  | P5-MM Multi-Modal Journaling: Audio, camera, gallery, OCR - Integrated into StartEntryFlow |
 | P6    | SAGE Echo                              | ✅ Complete  | Async post‑processing |
 | P7    | Keyword extraction & review            | ✅ Complete  | Multi‑select; UI honors choices; keyword-driven phase detection |
 | P8    | Arcform renderer                       | ✅ Complete  | 6 geometries; 2D/3D modes; emotional color mapping; interactive letters; keyword tap dialog; notch-safe positioning; complete 3D feature parity |
