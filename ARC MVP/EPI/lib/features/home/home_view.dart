@@ -23,6 +23,7 @@ import 'package:my_app/insights/widgets/insight_card_widget.dart';
 import 'package:my_app/features/qa/qa_screen.dart';
 import 'package:my_app/features/settings/settings_view.dart';
 import 'package:my_app/services/analytics_service.dart';
+import 'package:my_app/core/services/audio_service.dart';
 import 'package:flutter/foundation.dart';
 
 // Debug flag for showing RIVET engineering labels
@@ -66,6 +67,32 @@ class _HomeViewState extends State<HomeView> {
       const _InsightsPage(),
       const SettingsView(),
     ];
+    
+    // Initialize ethereal music (P22)
+    _initializeEtherealMusic();
+  }
+
+  Future<void> _initializeEtherealMusic() async {
+    try {
+      final audioService = AudioService();
+      await audioService.initialize();
+      
+      // Start with ethereal track for sacred atmosphere
+      await audioService.switchToEtherealTrack();
+      
+      // Fade in gently after a short delay
+      Future.delayed(const Duration(seconds: 2), () {
+        audioService.fadeInEthereal(duration: const Duration(seconds: 4));
+      });
+      
+      if (kDebugMode) {
+        print('Ethereal music initialized and fading in');
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('Failed to initialize ethereal music: $e');
+      }
+    }
   }
 
   @override

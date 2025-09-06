@@ -10,12 +10,14 @@ class AudioService {
   AudioService._internal();
 
   static const String _muteKey = 'intro_audio_muted';
-  static const String _assetPath = 'assets/audio/intro_loop.mp3'; // Note: File may not exist
+  static const String _assetPath = 'assets/audio/intro_loop.mp3';
+  static const String _etherealTrack = 'assets/audio/ES_Smell of Morning Coffee - Franz Gordon.mp3';
   
   AudioPlayer? _audioPlayer;
   bool _isInitialized = false;
   bool _isMuted = false;
   bool _isPlaying = false;
+  String _currentTrack = _etherealTrack; // Default to ethereal track
 
   /// Initialize the audio service
   Future<void> initialize() async {
@@ -23,16 +25,25 @@ class AudioService {
 
     try {
       _audioPlayer = AudioPlayer();
-      // Try to set the asset, but don't fail if it doesn't exist
+      // Try to set the ethereal track first (P22 - Ethereal Music)
       try {
-        await _audioPlayer!.setAsset(_assetPath);
+        await _audioPlayer!.setAsset(_etherealTrack);
         await _audioPlayer!.setLoopMode(LoopMode.one);
         await _audioPlayer!.setVolume(0.5); // Default volume
+        _currentTrack = _etherealTrack;
       } catch (e) {
-        print('WARNING: Audio asset not found: $_assetPath - Audio service will be disabled');
-        _audioPlayer = null;
-        _isInitialized = true;
-        return;
+        // Fallback to intro loop if ethereal track not found
+        try {
+          await _audioPlayer!.setAsset(_assetPath);
+          await _audioPlayer!.setLoopMode(LoopMode.one);
+          await _audioPlayer!.setVolume(0.5); // Default volume
+          _currentTrack = _assetPath;
+        } catch (e2) {
+          print('WARNING: No audio assets found - Audio service will be disabled');
+          _audioPlayer = null;
+          _isInitialized = true;
+          return;
+        }
       }
       
       // Load mute preference
@@ -161,6 +172,58 @@ class AudioService {
     }
   }
 
+  /// Mute audio
+  Future<void> mute() async {
+    if (!_isInitialized) {
+      await initialize();
+    }
+    
+    if (_audioPlayer == null || _isMuted) return;
+
+    try {
+      _isMuted = true;
+      await _audioPlayer!.setVolume(0.0);
+      
+      // Save mute preference
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool(_muteKey, _isMuted);
+      
+      if (kDebugMode) {
+        print('Audio muted');
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('Failed to mute audio: $e');
+      }
+    }
+  }
+
+  /// Unmute audio
+  Future<void> unmute() async {
+    if (!_isInitialized) {
+      await initialize();
+    }
+    
+    if (_audioPlayer == null || !_isMuted) return;
+
+    try {
+      _isMuted = false;
+      await _audioPlayer!.setVolume(0.5); // Default volume
+      
+      // Save mute preference
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool(_muteKey, _isMuted);
+      
+      if (kDebugMode) {
+        print('Audio unmuted');
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('Failed to unmute audio: $e');
+      }
+    }
+  }
+
   /// Toggle mute state
   Future<void> toggleMute() async {
     if (!_isInitialized) {
@@ -210,6 +273,93 @@ class AudioService {
 
   /// Check if audio is available
   bool get isAvailable => _isInitialized && _audioPlayer != null;
+
+  /// Switch to ethereal track (P22 - Ethereal Music)
+  Future<void> switchToEtherealTrack() async {
+    if (!_isInitialized || _audioPlayer == null) return;
+    
+    try {
+      await _audioPlayer!.setAsset(_etherealTrack);
+      _currentTrack = _etherealTrack;
+      
+      if (kDebugMode) {
+        print('Switched to ethereal track: $_etherealTrack');
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error switching to ethereal track: $e');
+      }
+    }
+  }
+
+  /// Switch to intro loop track
+  Future<void> switchToIntroLoop() async {
+    if (!_isInitialized || _audioPlayer == null) return;
+    
+    try {
+      await _audioPlayer!.setAsset(_assetPath);
+      _currentTrack = _assetPath;
+      
+      if (kDebugMode) {
+        print('Switched to intro loop: $_assetPath');
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error switching to intro loop: $e');
+      }
+    }
+  }
+
+  /// Get current track name
+  String get currentTrackName {
+    if (_currentTrack == _etherealTrack) {
+      return 'Ethereal Morning Coffee';
+    } else if (_currentTrack == _assetPath) {
+      return 'Intro Loop';
+    }
+    return 'Unknown Track';
+  }
+
+  /// Check if ethereal track is currently playing
+  bool get isEtherealTrackPlaying => _currentTrack == _etherealTrack;
+
+  /// Set ethereal volume (lower for ambient background)
+  Future<void> setEtherealVolume(double volume) async {
+    if (!_isInitialized || _audioPlayer == null || _isMuted) return;
+    
+    // Clamp volume between 0.0 and 1.0
+    final clampedVolume = volume.clamp(0.0, 1.0);
+    await _audioPlayer!.setVolume(clampedVolume);
+    
+    if (kDebugMode) {
+      print('Ethereal volume set to: $clampedVolume');
+    }
+  }
+
+  /// Fade in ethereal music gradually
+  Future<void> fadeInEthereal({Duration duration = const Duration(seconds: 3)}) async {
+    if (!_isInitialized || _audioPlayer == null || _isMuted) return;
+    
+    await switchToEtherealTrack();
+    await play();
+    
+    // Start at 0 volume and fade in
+    await _audioPlayer!.setVolume(0.0);
+    
+    const steps = 30;
+    final stepDuration = Duration(milliseconds: duration.inMilliseconds ~/ steps);
+    final volumeStep = 0.3 / steps; // Fade to 30% volume
+    
+    for (int i = 0; i <= steps; i++) {
+      await Future.delayed(stepDuration);
+      final volume = (i * volumeStep).clamp(0.0, 0.3);
+      await _audioPlayer!.setVolume(volume);
+    }
+    
+    if (kDebugMode) {
+      print('Ethereal music faded in over ${duration.inSeconds} seconds');
+    }
+  }
 
   /// Dispose of the audio service
   Future<void> dispose() async {
