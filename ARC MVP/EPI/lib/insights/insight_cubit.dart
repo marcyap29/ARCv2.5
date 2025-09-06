@@ -50,11 +50,15 @@ class InsightCubit extends Cubit<InsightState> {
     required String userId,
   }) : _insightService = insightService,
        _userId = userId,
-       super(InsightInitial());
+       super(InsightInitial()) {
+    print('DEBUG: InsightCubit constructor called');
+  }
 
   /// Generate insights for the last 7 days
   Future<void> generateInsights() async {
+    print('DEBUG: InsightCubit.generateInsights called');
     emit(InsightLoading());
+    print('DEBUG: Emitted InsightLoading - current state: ${state.runtimeType}');
 
     try {
       final now = DateTime.now();
@@ -65,12 +69,16 @@ class InsightCubit extends Cubit<InsightState> {
         periodEnd: now,
       );
 
+      print('DEBUG: InsightCubit emitting InsightLoaded with ${cards.length} cards');
       emit(InsightLoaded(
         cards: cards,
         lastUpdated: now,
       ));
+      print('DEBUG: Emitted InsightLoaded - current state: ${state.runtimeType}');
     } catch (e) {
+      print('DEBUG: InsightCubit emitting InsightError: $e');
       emit(InsightError('Failed to generate insights: $e'));
+      print('DEBUG: Emitted InsightError - current state: ${state.runtimeType}');
     }
   }
 
