@@ -7,6 +7,51 @@
 
 ---
 
+## Enhancement ID: ENH-2025-01-20-002
+**Title**: Multimodal Journaling Integration Complete (P5-MM)
+
+**Type**: Enhancement  
+**Priority**: P1 (Critical)  
+**Status**: ✅ Complete  
+**Reporter**: User Request  
+**Implementer**: Claude Code  
+**Completion Date**: 2025-01-20
+
+#### Description
+Fixed critical issue where multimodal media capture features were implemented in JournalCaptureView but the app actually uses StartEntryFlow for journal entry creation. Successfully integrated camera, gallery, and media management functionality into the actual user-facing journal entry flow.
+
+#### Requirements
+- Integrate multimodal features into StartEntryFlow (the actual journal entry flow)
+- Add media capture toolbar with camera, gallery, and microphone buttons
+- Implement media strip for displaying attached media items
+- Add media preview and deletion functionality
+- Maintain full accessibility compliance
+- Preserve existing journal entry workflow
+
+#### Implementation Details
+- **Files Modified**: `lib/features/journal/start_entry_flow.dart`
+- **New Imports**: MediaItem, MediaCaptureSheet, MediaStrip, MediaPreviewDialog, MediaStore
+- **New Features**: Media capture toolbar, media strip, preview/delete functionality
+- **State Management**: Added _mediaItems list and _mediaStore instance
+- **Accessibility**: Maintained 44x44dp tap targets and proper semantic labels
+
+#### Testing
+- ✅ Camera button opens MediaCaptureSheet successfully
+- ✅ Gallery button opens MediaCaptureSheet successfully
+- ✅ Media items display in horizontal strip below toolbar
+- ✅ Media preview dialog opens with full-screen viewing
+- ✅ Media deletion works correctly with proper state updates
+- ✅ Voice recording shows "coming soon" placeholder message
+- ✅ All accessibility requirements maintained
+
+#### Impact
+- **User Experience**: Multimodal features now accessible in actual journal flow
+- **Functionality**: Users can take photos and select from gallery during journaling
+- **Workflow**: Seamless integration with existing emotion → reason → text flow
+- **Accessibility**: Full compliance maintained throughout integration
+
+---
+
 ## Enhancement ID: ENH-2025-01-20-001
 **Title**: RIVET Simple Copy UI Enhancement (P27)
 

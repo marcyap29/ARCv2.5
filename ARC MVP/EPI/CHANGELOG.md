@@ -14,6 +14,29 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [1.0.4] - 2025-01-20 - Multimodal Journaling Integration Complete 🎉
+
+### ✨ Fixed - Multimodal Media Capture Access (P5-MM)
+- **Integration Resolution** - Fixed issue where multimodal features were implemented in JournalCaptureView but app uses StartEntryFlow
+- **Media Capture Toolbar** - Added camera, gallery, and microphone buttons to the text editor step
+- **Media Management** - Full media strip with preview, delete, and organization functionality
+- **User Experience** - Multimodal features now accessible in the actual journal entry flow users see
+- **Voice Recording** - Added placeholder with "coming soon" message for future implementation
+
+### 🎯 Technical Achievements
+- **StartEntryFlow Enhancement** - Integrated MediaStore, MediaCaptureSheet, and MediaStrip components
+- **State Management** - Added media item tracking and persistence in journal entry flow
+- **Accessibility** - Maintained 44x44dp tap targets and proper semantic labels
+- **Error Handling** - Graceful media deletion and preview functionality
+
+### 📱 User Impact
+- **Camera Integration** - Users can now take photos directly in the journal entry flow
+- **Gallery Selection** - Access to existing photos from device gallery
+- **Media Preview** - Full-screen media viewing with metadata and delete options
+- **Seamless Workflow** - Multimodal features integrated into existing emotion → reason → text flow
+
+---
+
 ## [1.0.3] - 2025-01-20 - RIVET Simple Copy UI Enhancement 🎯
 
 ### ✨ Enhanced - RIVET User Interface (P27)
