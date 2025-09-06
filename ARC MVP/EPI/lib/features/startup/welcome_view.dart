@@ -3,6 +3,8 @@ import 'package:my_app/core/services/audio_service.dart';
 import 'package:my_app/features/startup/phase_quiz_prompt_view.dart';
 import 'package:my_app/shared/app_colors.dart';
 import 'package:my_app/shared/text_style.dart';
+import 'package:hive/hive.dart';
+import 'package:my_app/models/user_profile_model.dart';
 
 class WelcomeView extends StatefulWidget {
   const WelcomeView({super.key});
@@ -18,13 +20,41 @@ class _WelcomeViewState extends State<WelcomeView>
   final AudioService _audioService = AudioService();
   bool _isAudioPlaying = false;
   bool _isAudioMuted = false;
+  bool _hasCompletedOnboarding = false;
+  String _buttonText = 'Begin Your Journey';
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    _checkOnboardingStatus();
     _initializeAudio();
     _initializeAnimations();
+  }
+
+  void _checkOnboardingStatus() async {
+    try {
+      final userBox = await Hive.openBox<UserProfile>('user_profile');
+      final userProfile = userBox.get('profile');
+      
+      if (userProfile != null && userProfile.onboardingCompleted) {
+        setState(() {
+          _hasCompletedOnboarding = true;
+          _buttonText = 'Continue Your Journey';
+        });
+      } else {
+        setState(() {
+          _hasCompletedOnboarding = false;
+          _buttonText = 'Begin Your Journey';
+        });
+      }
+    } catch (e) {
+      // If there's an error, default to new user
+      setState(() {
+        _hasCompletedOnboarding = false;
+        _buttonText = 'Begin Your Journey';
+      });
+    }
   }
 
   void _initializeAudio() async {
@@ -85,16 +115,32 @@ class _WelcomeViewState extends State<WelcomeView>
     await _fadeController.reverse();
 
     if (mounted) {
-      Navigator.pushReplacement(
-        context,
-        PageRouteBuilder(
-          pageBuilder: (context, animation, secondaryAnimation) => const PhaseQuizPromptView(),
-          transitionsBuilder: (context, animation, secondaryAnimation, child) {
-            return FadeTransition(opacity: animation, child: child);
-          },
-          transitionDuration: const Duration(milliseconds: 800),
-        ),
-      );
+      // Navigate based on onboarding status
+      if (_hasCompletedOnboarding) {
+        // Post-onboarding user: go to phase quiz to continue their journey
+        Navigator.pushReplacement(
+          context,
+          PageRouteBuilder(
+            pageBuilder: (context, animation, secondaryAnimation) => const PhaseQuizPromptView(),
+            transitionsBuilder: (context, animation, secondaryAnimation, child) {
+              return FadeTransition(opacity: animation, child: child);
+            },
+            transitionDuration: const Duration(milliseconds: 800),
+          ),
+        );
+      } else {
+        // New user: go to phase quiz to begin their journey
+        Navigator.pushReplacement(
+          context,
+          PageRouteBuilder(
+            pageBuilder: (context, animation, secondaryAnimation) => const PhaseQuizPromptView(),
+            transitionsBuilder: (context, animation, secondaryAnimation, child) {
+              return FadeTransition(opacity: animation, child: child);
+            },
+            transitionDuration: const Duration(milliseconds: 800),
+          ),
+        );
+      }
     }
   }
 
@@ -282,7 +328,7 @@ class _WelcomeViewState extends State<WelcomeView>
                               ),
                             ),
                             child: Text(
-                              'Continue Your Journey',
+                              _buttonText,
                               style: buttonStyle(context).copyWith(
                                 color: Colors.white,
                                 fontSize: 18,
