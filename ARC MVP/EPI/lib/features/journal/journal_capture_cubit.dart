@@ -16,6 +16,8 @@ import 'package:my_app/models/user_profile_model.dart';
 import 'package:my_app/features/atlas/phase_tracker.dart';
 import 'package:my_app/features/atlas/phase_history_repository.dart';
 import 'package:my_app/features/atlas/phase_change_notifier.dart';
+import 'package:my_app/core/sync/sync_service.dart';
+import 'package:my_app/core/sync/sync_models.dart';
 import 'package:uuid/uuid.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:path_provider/path_provider.dart';
@@ -24,6 +26,7 @@ import 'package:hive/hive.dart';
 
 class JournalCaptureCubit extends Cubit<JournalCaptureState> {
   final JournalRepository _journalRepository;
+  final SyncService _syncService = SyncService();
   String _draftContent = '';
   static const _autoSaveDelay = Duration(seconds: 3);
   DateTime? _lastSaveTime;
@@ -80,6 +83,18 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
 
       // Save the entry first
       await _journalRepository.createJournalEntry(entry);
+
+      // Enqueue for sync
+      await _syncService.enqueue(
+        kind: SyncKind.journalEntry,
+        refId: entry.id,
+        payload: {
+          'title': entry.title,
+          'mood': entry.mood,
+          'keywords': entry.keywords,
+          'createdAt': entry.createdAt.toIso8601String(),
+        },
+      );
 
       // Emit saved state immediately - don't wait for background processing
       emit(JournalCaptureSaved());
@@ -333,6 +348,18 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
       // Save the snapshot to Hive
       final snapshotBox = await Hive.openBox<ArcformSnapshot>('arcform_snapshots');
       await snapshotBox.put(snapshot.id, snapshot);
+      
+      // Enqueue arcform for sync
+      await _syncService.enqueue(
+        kind: SyncKind.arcformSnapshot,
+        refId: snapshot.id,
+        payload: {
+          'arcformId': snapshot.arcformId,
+          'geometry': arcform.geometry.name,
+          'keywords': arcform.keywords,
+          'createdAt': snapshot.timestamp.toIso8601String(),
+        },
+      );
       
       print('Arcform created: ${arcform.geometry.name} with ${arcform.keywords.length} keywords');
     } catch (e) {
