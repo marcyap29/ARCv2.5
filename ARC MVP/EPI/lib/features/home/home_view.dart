@@ -15,6 +15,7 @@ import 'package:my_app/core/i18n/copy.dart';
 import 'package:my_app/features/insights/cards/aurora_card.dart';
 import 'package:my_app/features/insights/rivet_gate_details_modal.dart';
 import 'package:my_app/features/insights/cards/veil_card.dart';
+import 'package:my_app/features/insights/mira_graph_view.dart';
 import 'package:my_app/features/qa/qa_screen.dart';
 import 'package:my_app/features/settings/settings_view.dart';
 import 'package:my_app/services/analytics_service.dart';
@@ -152,6 +153,8 @@ class _InsightsPage extends StatelessWidget {
                   children: [
                     const _RivetCard(),
                     const SizedBox(height: 20),
+                    _buildMiraGraphCard(context),
+                    const SizedBox(height: 20),
                     const AuroraCard(),
                     const SizedBox(height: 20),
                     const VeilCard(),
@@ -189,6 +192,63 @@ class _InsightsPage extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildMiraGraphCard(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: Colors.white.withOpacity(0.2),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(
+                Icons.account_tree,
+                color: kcPrimaryTextColor,
+                size: 24,
+              ),
+              const SizedBox(width: 12),
+              Text(
+                'Your Patterns',
+                style: heading2Style(context),
+              ),
+              const Spacer(),
+              TextButton(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const MiraGraphView(),
+                    ),
+                  );
+                },
+                child: Text(
+                  'Explore',
+                  style: bodyStyle(context).copyWith(
+                    color: kcAccentColor,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'Follow a word to its moments.',
+            style: bodyStyle(context).copyWith(
+              color: kcPrimaryTextColor.withOpacity(0.7),
+            ),
+          ),
+        ],
       ),
     );
   }
