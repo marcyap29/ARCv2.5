@@ -416,3 +416,13 @@ FodyWeavers.xsd
 *.msix
 *.msm
 *.msp
+
+# Flutter/Dart build artifacts
+build/
+.dart_tool/
+*.dill
+*.snapshot
+*.app
+*.ipa
+*.apk
+*.aab
