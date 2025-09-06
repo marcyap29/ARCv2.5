@@ -14,6 +14,81 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [1.0.12] - 2025-09-06 - Comprehensive Force-Quit Recovery System 🛡️
+
+### 🛡️ Major Enhancement - Force-Quit Recovery
+- **Global Error Handling** - Comprehensive error capture and recovery system
+- **App Lifecycle Management** - Smart detection and recovery from force-quit scenarios
+- **Emergency Recovery** - Automatic recovery for common startup failures
+- **User Recovery Options** - Clear data recovery when auto-recovery fails
+
+### 🔧 Technical Implementation
+
+#### Global Error Handling (main.dart)
+- **FlutterError.onError** - Captures and logs Flutter framework errors with stack traces
+- **ErrorWidget.builder** - User-friendly error widgets with retry functionality
+- **PlatformDispatcher.onError** - Handles platform-specific errors gracefully
+- **Production Error UI** - Styled error screens with recovery actions
+
+#### Enhanced Bootstrap Recovery (bootstrap.dart)
+- **Startup Health Checks** - Detects cold starts and force-quit recovery scenarios
+- **Emergency Recovery System** - Automatic handling of common error types:
+  - Hive database errors: Auto-clear corrupted data and reinitialize
+  - Widget lifecycle errors: Automatic app restart with progress feedback
+  - Service initialization failures: Graceful fallback and reinitialization
+- **Recovery Progress UI** - Visual feedback during recovery operations
+- **Enhanced Error Widget** - "Clear Data" option for persistent issues
+
+#### App-Level Lifecycle Management (app_lifecycle_manager.dart)
+- **Singleton Lifecycle Service** - Monitors app state changes across entire application
+- **Force-Quit Detection** - Identifies potential force-quit scenarios (pauses >30 seconds)
+- **Service Health Checks** - Validates critical services (Hive, RIVET, Analytics, Audio) on app resume
+- **Automatic Service Recovery** - Reinitializes failed services automatically
+- **Comprehensive Logging** - Detailed logging for debugging lifecycle issues
+
+#### App Integration (app.dart)
+- **StatefulWidget Conversion** - App converted to StatefulWidget for lifecycle management
+- **Lifecycle Integration** - AppLifecycleManager properly initialized and disposed
+- **Global Observation** - App-level lifecycle observation for all state changes
+
+### 🚀 Features Added
+- **740+ Lines of Code** - Comprehensive implementation across 7 files
+- **193 Lines** - New AppLifecycleManager service
+- **Automatic Error Recovery** - Handles Hive conflicts, widget lifecycle errors, service failures
+- **Enhanced Debugging** - Comprehensive error logging and stack trace capture
+- **User-Controlled Recovery** - Clear recovery options when automatic recovery fails
+- **Production-Ready UI** - Styled error screens with proper theming
+
+### 📱 User Experience Improvements
+- **Reliable App Startup** - App now consistently restarts after force-quit
+- **Transparent Recovery** - Users see recovery progress with clear messaging
+- **Recovery Options** - Multiple recovery paths: automatic, retry, clear data
+- **Error Visibility** - Clear error messages instead of silent failures
+- **Graceful Degradation** - App continues with reduced functionality when needed
+
+### 🧪 Testing & Validation
+- **Force-Quit Recovery** - App reliably restarts after force-quit scenarios
+- **Error Handling** - All error types handled gracefully with recovery options
+- **Service Recovery** - Critical services reinitialize properly on app resume
+- **UI Recovery** - Error widgets display correctly with proper styling
+- **Build Validation** - All compilation errors resolved, clean builds achieved
+
+### 📊 Impact
+- **Reliability**: Fixes critical force-quit recovery issues preventing app restart
+- **User Experience**: Eliminates app restart failures and provides clear recovery paths
+- **Development**: Enhanced debugging capabilities with comprehensive error logging
+- **Production**: Robust error handling suitable for production deployment
+- **Maintenance**: Better visibility into app lifecycle and service health
+
+### 🔧 Files Modified
+- `lib/main.dart` - Global error handling setup and error widget implementation
+- `lib/main/bootstrap.dart` - Enhanced startup recovery and emergency recovery system
+- `lib/core/services/app_lifecycle_manager.dart` - **NEW** - App lifecycle monitoring service
+- `lib/app/app.dart` - Lifecycle integration and StatefulWidget conversion
+- `ios/Podfile.lock` - iOS dependency updates
+
+---
+
 ## [1.0.11] - 2025-01-31 - iOS Build Fixes & Device Deployment 🍎
 
 ### 🔧 Critical Fixes - iOS Build Issues
