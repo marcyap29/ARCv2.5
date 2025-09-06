@@ -5,6 +5,7 @@ import 'package:my_app/features/journal/widgets/reason_picker.dart';
 import 'package:my_app/features/journal/widgets/keyword_analysis_view.dart';
 import 'package:my_app/features/journal/journal_capture_cubit.dart';
 import 'package:my_app/features/journal/keyword_extraction_cubit.dart';
+import 'package:my_app/features/home/home_view.dart';
 import 'package:my_app/repositories/journal_repository.dart';
 import 'package:my_app/shared/app_colors.dart';
 import 'package:my_app/shared/text_style.dart';
@@ -86,8 +87,8 @@ class _EmotionSelectionViewState extends State<EmotionSelectionView> {
       ).then((result) {
         // Handle save result - if saved successfully, go back to home
         if (result != null && result['save'] == true) {
-          // Navigate back to the root (home screen)
-          Navigator.of(context).popUntil((route) => route.isFirst);
+          // Navigate back to the previous screen
+          Navigator.of(context).pop();
         }
       });
     });
