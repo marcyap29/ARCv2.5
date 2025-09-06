@@ -37,18 +37,23 @@ class _WelcomeViewState extends State<WelcomeView>
       final userBox = await Hive.openBox<UserProfile>('user_profile');
       final userProfile = userBox.get('profile');
       
+      print('DEBUG: WelcomeView - User profile: ${userProfile?.onboardingCompleted}');
+      
       if (userProfile != null && userProfile.onboardingCompleted) {
+        print('DEBUG: WelcomeView - User has completed onboarding, showing Continue Your Journey');
         setState(() {
           _hasCompletedOnboarding = true;
           _buttonText = 'Continue Your Journey';
         });
       } else {
+        print('DEBUG: WelcomeView - New user, showing Begin Your Journey');
         setState(() {
           _hasCompletedOnboarding = false;
           _buttonText = 'Begin Your Journey';
         });
       }
     } catch (e) {
+      print('DEBUG: WelcomeView - Error checking onboarding status: $e');
       // If there's an error, default to new user
       setState(() {
         _hasCompletedOnboarding = false;
