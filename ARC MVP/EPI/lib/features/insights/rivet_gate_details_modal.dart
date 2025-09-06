@@ -42,10 +42,11 @@ class RivetGateDetailsModal extends StatelessWidget {
             color: Colors.white.withOpacity(0.2),
           ),
         ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
             // Header
             Row(
               children: [
@@ -199,6 +200,7 @@ class RivetGateDetailsModal extends StatelessWidget {
               ),
             ],
           ],
+          ),
         ),
       ),
     );

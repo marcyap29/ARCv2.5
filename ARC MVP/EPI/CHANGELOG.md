@@ -14,6 +14,36 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [1.0.3] - 2025-01-20 - RIVET Simple Copy UI Enhancement 🎯
+
+### ✨ Enhanced - RIVET User Interface (P27)
+- **User-Friendly Labels** - Replaced ALIGN/TRACE jargon with Match/Confidence for better understanding
+- **Clear Status Communication** - Added contextual banners (Holding steady, Ready to switch, Almost there)
+- **Details Modal** - "Why held?" explanation with live values and actionable user guidance
+- **Simple Checklist** - Visual checklist with pass/warn icons for all four RIVET checks
+- **Debug Support** - Added kShowRivetDebugLabels flag for engineering labels during development
+- **Complete Localization** - All RIVET strings centralized in Copy class for consistency
+
+### 🎨 UI/UX Improvements
+- **Status Banners** - Color-coded messages with interactive "Why held?" button when gate is closed
+- **Match/Confidence Dials** - Clear percentage display with Good/Low status indicators
+- **Accessibility** - Proper semantic labels, 44x44dp tap targets, high-contrast support
+- **Tooltips** - Info tooltip explaining RIVET safety system purpose
+
+### 🔧 Technical Implementation
+- **RivetGateDetailsModal** - New modal component with comprehensive RIVET explanation
+- **Copy Class Enhancement** - Added complete RIVET string localization
+- **Debug Flag** - kShowRivetDebugLabels for optional engineering label display
+- **Maintained Logic** - All existing RIVET gate mathematics preserved unchanged
+
+### 📊 User Experience Impact
+- **Reduced Cognitive Load** - Plain language replaces technical jargon
+- **Better Understanding** - Clear explanation of why phase changes are held
+- **Actionable Guidance** - Specific recommendations for unlocking phase changes
+- **Transparent Process** - Users understand the safety system protecting their journey
+
+---
+
 ## [1.0.2] - 2025-01-20 - RIVET Deletion Fix & Data Accuracy Enhancement 🎯
 
 ### 🐛 Fixed - RIVET TRACE Calculation After Entry Deletion
