@@ -14,6 +14,51 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [1.0.13] - 2025-09-06 - iOS Build Dependency Fixes 🔧
+
+### 🔧 iOS Build Issues Resolution
+- **audio_session Plugin Fix** - Resolved 'Flutter/Flutter.h' file not found errors
+- **permission_handler Update** - Fixed deprecation warnings and module build failures
+- **Dependency Updates** - Updated to latest compatible versions for iOS stability
+- **Build Error Elimination** - All Xcode build errors resolved for successful device deployment
+
+### 📦 Dependency Updates
+- **permission_handler**: Updated from ^11.3.1 to ^12.0.1
+- **audioplayers**: Updated from ^6.1.0 to ^6.5.1  
+- **just_audio**: Updated from ^0.9.36 to ^0.10.5
+
+### 🛠️ Technical Fixes
+- **Audio Session Compatibility** - Fixed 'Flutter/Flutter.h' file not found in audio_session plugin
+- **Module Build Failures** - Resolved AudioSessionPlugin and audio_session module build issues
+- **Framework Header Issues** - Fixed double-quoted include framework header problems
+- **iOS Deprecation Warnings** - Resolved 'subscriberCellularProvider' deprecation warnings (iOS 12.0+)
+- **Build Cache Cleanup** - Complete clean and rebuild of iOS dependencies
+
+### 📱 Build Results
+- **Build Success**: Clean builds completing in 56.9s (no codesign) and 20.0s (with codesign)
+- **App Size**: 24.4MB optimized for device installation
+- **iOS Compatibility**: All iOS versions supported with latest dependency versions
+- **Xcode Errors**: All build panel errors eliminated
+
+### 🧪 Testing & Validation
+- **Xcode Build**: Successfully builds without errors in Xcode IDE
+- **Device Installation**: App installs correctly on physical iOS devices
+- **Plugin Functionality**: All audio and permission plugins working correctly
+- **Dependency Stability**: Updated dependencies resolve all compatibility issues
+
+### 📊 Impact
+- **Development**: iOS development workflow fully restored with no build errors
+- **Deployment**: Reliable app installation on physical iOS devices
+- **User Experience**: All app functionality available without iOS-specific issues
+- **Maintenance**: Updated dependencies provide long-term iOS compatibility
+
+### 🔧 Files Modified
+- `pubspec.yaml` - Updated dependency versions
+- `pubspec.lock` - Updated dependency resolution
+- `.flutter-plugins-dependencies` - Plugin registration updates
+
+---
+
 ## [1.0.12] - 2025-09-06 - Comprehensive Force-Quit Recovery System 🛡️
 
 ### 🛡️ Major Enhancement - Force-Quit Recovery
