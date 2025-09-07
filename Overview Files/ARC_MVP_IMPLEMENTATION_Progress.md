@@ -1,8 +1,8 @@
 # ARC_MVP_IMPLEMENTATION.md
 
-> **Status:** Production-ready with comprehensive force-quit recovery system & iOS build fixes ✅  
+> **Status:** Production-ready with comprehensive error handling & journal UX improvements ✅  
 > **Scope:** ARC MVP (journaling → emotional analysis → RIVET gating → interactive 2D/3D Arcforms → timeline) with sacred UX and cinematic animations.  
-> **Last updated:** 2025‑09‑06 7:00 PM (America/Los_Angeles)
+> **Last updated:** 2025‑09‑06 9:45 PM (America/Los_Angeles)
 
 ---
 
@@ -54,6 +54,13 @@
   - **Build System Fixes**: Complete clean, CocoaPods reset, cache cleanup, fresh dependency resolution
   - **Build Success**: Clean builds (56.9s no-codesign, 20.0s with codesign), 24.4MB app size
   - **iOS Compatibility**: All Xcode build errors eliminated, full device deployment capability
+- **Journal Keyboard Visibility Fixes (2025-09-06)**:
+  - **Keyboard Avoidance**: Fixed iOS keyboard blocking journal text input area with proper Scaffold configuration
+  - **Auto-Scroll System**: Automatic scrolling when keyboard appears to keep text input visible
+  - **Enhanced Text Management**: TextEditingController and FocusNode for better text state management
+  - **Cursor Visibility**: White cursor with proper sizing clearly visible against purple gradient background
+  - **User Experience**: Smooth 300ms animated scroll, accessible Continue button, improved text readability
+  - **iOS Project Updates**: Debug/release compatibility, plugin dependencies updates, Xcode configuration
 - Remaining prompts broken into **actionable tickets** with file paths and acceptance criteria.
 
 ---
