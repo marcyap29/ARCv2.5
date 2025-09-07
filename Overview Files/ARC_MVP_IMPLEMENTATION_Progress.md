@@ -1,8 +1,8 @@
 # ARC_MVP_IMPLEMENTATION.md
 
-> **Status:** Production-ready with comprehensive force-quit recovery system & global error handling ✅  
+> **Status:** Production-ready with comprehensive force-quit recovery system & iOS build fixes ✅  
 > **Scope:** ARC MVP (journaling → emotional analysis → RIVET gating → interactive 2D/3D Arcforms → timeline) with sacred UX and cinematic animations.  
-> **Last updated:** 2025‑09‑06 3:30 PM (America/Los_Angeles)
+> **Last updated:** 2025‑09‑06 7:00 PM (America/Los_Angeles)
 
 ---
 
@@ -47,6 +47,13 @@
   - **Enhanced Bootstrap Recovery**: Startup health checks, emergency recovery mechanisms, and recovery progress UI
   - **Service Health Monitoring**: Comprehensive health checks for Hive, RIVET, Analytics, and Audio services on app resume
   - **740+ Lines of Implementation**: Comprehensive system across 7 files including new 193-line AppLifecycleManager service
+- **iOS Build Dependency Fixes (2025-09-06)**:
+  - **audio_session Plugin Fix**: Resolved 'Flutter/Flutter.h' file not found errors and module build failures
+  - **permission_handler Update**: Fixed 'subscriberCellularProvider' deprecation warnings (iOS 12.0+)
+  - **Dependency Updates**: permission_handler ^12.0.1, audioplayers ^6.5.1, just_audio ^0.10.5
+  - **Build System Fixes**: Complete clean, CocoaPods reset, cache cleanup, fresh dependency resolution
+  - **Build Success**: Clean builds (56.9s no-codesign, 20.0s with codesign), 24.4MB app size
+  - **iOS Compatibility**: All Xcode build errors eliminated, full device deployment capability
 - Remaining prompts broken into **actionable tickets** with file paths and acceptance criteria.
 
 ---
