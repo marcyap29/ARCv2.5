@@ -25,6 +25,9 @@ class StartEntryFlow extends StatefulWidget {
 
 class _StartEntryFlowState extends State<StartEntryFlow> {
   final PageController _pageController = PageController();
+  final TextEditingController _textController = TextEditingController();
+  final ScrollController _scrollController = ScrollController();
+  final FocusNode _textFocusNode = FocusNode();
   String? _selectedEmotion;
   String? _selectedReason;
   String _textContent = '';
@@ -32,8 +35,30 @@ class _StartEntryFlowState extends State<StartEntryFlow> {
   final MediaStore _mediaStore = MediaStore();
 
   @override
+  void initState() {
+    super.initState();
+    _textFocusNode.addListener(() {
+      if (_textFocusNode.hasFocus) {
+        // Scroll to show the text field when keyboard appears
+        Future.delayed(const Duration(milliseconds: 500), () {
+          if (mounted) {
+            _scrollController.animateTo(
+              _scrollController.position.maxScrollExtent,
+              duration: const Duration(milliseconds: 300),
+              curve: Curves.easeInOut,
+            );
+          }
+        });
+      }
+    });
+  }
+
+  @override
   void dispose() {
     _pageController.dispose();
+    _textController.dispose();
+    _scrollController.dispose();
+    _textFocusNode.dispose();
     super.dispose();
   }
 
@@ -195,14 +220,21 @@ class _StartEntryFlowState extends State<StartEntryFlow> {
   Widget _buildTextEditor() {
     return Scaffold(
       backgroundColor: kcBackgroundColor,
+      resizeToAvoidBottomInset: true,
       body: Container(
         decoration: const BoxDecoration(
           gradient: kcPrimaryGradient,
         ),
         child: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.all(24.0),
-            child: Column(
+          child: SingleChildScrollView(
+            controller: _scrollController,
+            child: Container(
+              height: MediaQuery.of(context).size.height - 
+                     MediaQuery.of(context).padding.top - 
+                     MediaQuery.of(context).padding.bottom,
+              child: Padding(
+                padding: const EdgeInsets.all(24.0),
+                child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 // Back button
@@ -365,6 +397,8 @@ class _StartEntryFlowState extends State<StartEntryFlow> {
                       ),
                     ),
                     child: TextField(
+                      controller: _textController,
+                      focusNode: _textFocusNode,
                       onChanged: _onTextChanged,
                       maxLines: null,
                       expands: true,
@@ -374,6 +408,9 @@ class _StartEntryFlowState extends State<StartEntryFlow> {
                         fontSize: 16,
                         height: 1.5,
                       ),
+                      cursorColor: Colors.white,
+                      cursorWidth: 2.0,
+                      cursorHeight: 20.0,
                       decoration: InputDecoration(
                         hintText: Copy.editorPlaceholder,
                         hintStyle: bodyStyle(context).copyWith(
@@ -382,6 +419,8 @@ class _StartEntryFlowState extends State<StartEntryFlow> {
                         ),
                         border: InputBorder.none,
                         contentPadding: EdgeInsets.zero,
+                        focusedBorder: InputBorder.none,
+                        enabledBorder: InputBorder.none,
                       ),
                     ),
                   ),
@@ -422,6 +461,8 @@ class _StartEntryFlowState extends State<StartEntryFlow> {
                 const SizedBox(height: 20),
               ],
             ),
+          ),
+        ),
           ),
         ),
       ),
