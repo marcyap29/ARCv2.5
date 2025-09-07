@@ -14,6 +14,45 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [1.0.14] - 2025-09-06 - Journal Keyboard Visibility Fixes 📱
+
+### 🔧 Journal Text Input UX Improvements
+- **Keyboard Visibility Issue Resolved** - Fixed keyboard blocking journal text input area on iOS
+- **Enhanced Text Input Management** - Added TextEditingController and FocusNode for better text control
+- **Auto-Scroll Functionality** - Automatic scrolling when keyboard appears to keep text input visible
+- **Cursor Visibility** - White cursor with proper sizing clearly visible against purple gradient background
+
+### 📱 Technical Implementation
+- **Keyboard Avoidance** - Added `resizeToAvoidBottomInset: true` to Scaffold for proper keyboard handling
+- **ScrollController Integration** - SingleChildScrollView with controller for automatic scroll management
+- **Focus Management** - Auto-scroll to text field when focused with 300ms smooth animation
+- **Layout Responsiveness** - Content properly adjusts when keyboard appears/disappears
+
+### 🎨 User Experience Enhancements
+- **Improved Text Readability** - White text clearly visible against dark gradient background
+- **Smooth Interactions** - Animated scrolling ensures text input always visible during typing
+- **Clean Input Design** - Removed borders for cleaner appearance while maintaining functionality
+- **Accessible Save Button** - Continue button remains accessible after keyboard interactions
+
+### 🛠️ iOS Project Updates
+- **Debug/Release Compatibility** - Updated Runner.xcodeproj for proper debug and release mode builds
+- **Plugin Dependencies** - Updated Flutter plugins dependencies for iOS stability
+- **Xcode Configuration** - Updated schemes for reliable device deployment
+
+### 📊 Impact
+- **User Experience**: Eliminates frustration of hidden text while typing journal entries
+- **iOS Compatibility**: Ensures consistent behavior across debug and release builds
+- **Development Workflow**: Proper project configuration for continued iOS development
+- **Text Input Quality**: Enhanced typing experience with visible cursor and auto-scroll
+
+### 🔧 Files Modified
+- `lib/features/journal/start_entry_flow.dart` - Enhanced keyboard handling (+47 lines)
+- `.flutter-plugins-dependencies` - Updated plugin registrations
+- `ios/Runner.xcodeproj/project.pbxproj` - iOS build configuration updates
+- `ios/Runner.xcodeproj/xcshareddata/xcschemes/Runner.xcscheme` - Scheme updates
+
+---
+
 ## [1.0.13] - 2025-09-06 - iOS Build Dependency Fixes 🔧
 
 ### 🔧 iOS Build Issues Resolution

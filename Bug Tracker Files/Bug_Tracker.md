@@ -1,9 +1,96 @@
 # EPI ARC MVP - Bug Tracker
 
-> **Last Updated**: September 6, 2025 6:45 PM (America/Los_Angeles)  
-> **Total Items Tracked**: 38 (29 bugs + 9 enhancements)  
-> **Critical Issues Fixed**: 29  
-> **Status**: All blocking issues resolved - Production ready with comprehensive force-quit recovery system, iOS build fixes, and full device deployment capability ✅
+> **Last Updated**: September 6, 2025 9:30 PM (America/Los_Angeles)  
+> **Total Items Tracked**: 39 (30 bugs + 9 enhancements)  
+> **Critical Issues Fixed**: 30  
+> **Status**: All blocking issues resolved - Production ready with comprehensive force-quit recovery system, iOS build fixes, and journal keyboard visibility improvements ✅
+
+---
+
+## Bug ID: BUG-2025-09-06-003
+**Title**: Journal Text Input Hidden by iOS Keyboard
+
+**Type**: Bug  
+**Priority**: P1 (Critical - User Experience)  
+**Status**: ✅ Fixed  
+**Reporter**: User Testing  
+**Implementer**: Claude Code  
+**Fix Date**: 2025-09-06
+
+#### Description
+When typing journal entries on iOS, the keyboard covers the text input area making it impossible for users to see what they're typing. This creates a poor user experience where users cannot see their text as they write, making journal entry creation frustrating and error-prone.
+
+#### User Experience Impact
+- **Typing Blindness**: Users unable to see text being typed due to keyboard overlay
+- **Input Validation Issues**: Cannot see text length or content while typing
+- **Save Button Inaccessibility**: Continue button potentially hidden behind keyboard
+- **Navigation Problems**: Difficulty knowing when to finish typing or make corrections
+
+#### Root Cause Analysis
+- **Missing Keyboard Avoidance**: Scaffold not configured for keyboard resize behavior
+- **Static Layout**: No responsive layout adjustments when keyboard appears
+- **No Scroll Management**: Text input area not scrollable to stay visible
+- **Cursor Visibility**: Cursor not properly visible against purple gradient background
+- **Focus Management**: No automatic scrolling to keep focused input visible
+
+#### Solution Implemented
+
+##### 🔧 Keyboard Avoidance System
+- **Scaffold Configuration**: Added `resizeToAvoidBottomInset: true` for proper keyboard handling
+- **ScrollView Integration**: Wrapped content in `SingleChildScrollView` with controller
+- **Dynamic Height Management**: Proper height calculation to prevent keyboard overlap
+- **Responsive Layout**: Content adjusts automatically when keyboard state changes
+
+##### 📱 Enhanced Text Input Management
+- **TextEditingController**: Added controller for better text state management
+- **FocusNode Integration**: Added focus node with listener for keyboard events
+- **Cursor Visibility**: Set white cursor with proper sizing (cursorWidth: 2.0, cursorHeight: 20.0)
+- **Input Styling**: Enhanced text styling for better readability on gradient background
+
+##### 🎯 Auto-Scroll Functionality
+- **Focus-Based Scrolling**: Automatic scroll to text field when focused
+- **Smooth Animation**: 300ms animated scroll with easeInOut curve
+- **Position Management**: Scroll to maxScrollExtent to ensure text field visibility
+- **Timing Optimization**: 500ms delay to accommodate keyboard animation
+
+##### 🎨 User Experience Improvements
+- **Text Readability**: White text clearly visible against dark gradient
+- **Clean Input Design**: Removed all borders for cleaner appearance
+- **Button Accessibility**: Ensured Continue button remains accessible
+- **Smooth Interactions**: All animations properly coordinated
+
+#### Technical Implementation
+- **Enhanced ScrollController**: Added _scrollController for scroll position management
+- **Focus Listener**: _textFocusNode with listener for keyboard state detection
+- **State Management**: Proper disposal of controllers and focus nodes
+- **Layout Constraints**: Proper height constraints for scrollable content
+
+#### Files Modified
+- `lib/features/journal/start_entry_flow.dart` - Enhanced keyboard handling (+47 lines)
+- `.flutter-plugins-dependencies` - Plugin registration updates
+- `ios/Runner.xcodeproj/project.pbxproj` - iOS configuration updates
+- `ios/Runner.xcodeproj/xcshareddata/xcschemes/Runner.xcscheme` - Xcode scheme updates
+
+#### Testing Results
+- ✅ **Keyboard Visibility**: Text input always visible when keyboard appears
+- ✅ **Auto-Scroll**: Smooth automatic scrolling to keep text field in view
+- ✅ **Cursor Display**: White cursor clearly visible during typing
+- ✅ **Text Readability**: White text easily readable on gradient background
+- ✅ **Save Button Access**: Continue button accessible after keyboard interactions
+- ✅ **iOS Compatibility**: Works correctly on iOS devices with various screen sizes
+- ✅ **Performance**: Smooth animations with no lag during keyboard transitions
+
+#### User Experience Impact
+- **Typing Confidence**: Users can now see exactly what they're typing
+- **Better Text Composition**: Easy to review and edit text during composition
+- **Seamless Flow**: Smooth transition from typing to saving journal entries
+- **Professional Feel**: Polished interaction that feels natural and responsive
+
+#### Production Impact
+- **User Retention**: Eliminates major friction point in core user journey
+- **Journal Completion Rate**: Users more likely to complete entries when they can see text
+- **User Satisfaction**: Significantly improved user experience for primary app function
+- **iOS Quality**: Professional-grade iOS app behavior matching user expectations
 
 ---
 
