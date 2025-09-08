@@ -69,6 +69,14 @@ class InsightService {
         }
       }
 
+      // Ensure a minimum number of cards (fallbacks with relaxed checks)
+      await _ensureMinimumCards(
+        cards: cards,
+        signals: signals,
+        periodStart: periodStart,
+        periodEnd: periodEnd,
+      );
+
       // Store snapshot for future reference
       await _storeSnapshot(signals, periodStart, periodEnd);
 
@@ -78,6 +86,83 @@ class InsightService {
       print('ERROR: Failed to generate insights: $e');
       return [];
     }
+  }
+
+  /// Guarantee at least 3 insight cards by adding sensible fallbacks
+  Future<void> _ensureMinimumCards({
+    required List<InsightCard> cards,
+    required InsightSignals signals,
+    required DateTime periodStart,
+    required DateTime periodEnd,
+  }) async {
+    const int minCards = 3;
+    if (cards.length >= minCards) return;
+
+    final existingRuleIds = cards.map((c) => c.ruleId).toSet();
+
+    Future<void> addRuleIfMissing(RuleSpec spec) async {
+      if (existingRuleIds.contains(spec.id)) return;
+      final card = await _createCardFromRule(spec, signals, periodStart, periodEnd);
+      if (card != null) {
+        cards.add(card);
+        existingRuleIds.add(spec.id);
+      }
+    }
+
+    // Prioritized fallbacks
+    // 1) Emotion tilt (usually available)
+    await addRuleIfMissing(RuleSpec(
+      id: 'R3_EMOTION_TILT',
+      enabled: true,
+      priority: 30,
+      windowDays: 7,
+      when: const {},
+      templateKey: 'EMOTION_TILT',
+      gate: 'none',
+      deeplinkAnchor: 'emotions_sparkline',
+    ));
+
+    if (cards.length >= minCards) return;
+
+    // 2) Phase lean
+    await addRuleIfMissing(RuleSpec(
+      id: 'R2_PHASE_LEAN',
+      enabled: true,
+      priority: 20,
+      windowDays: 14,
+      when: const {},
+      templateKey: 'PHASE_LEAN',
+      gate: 'none',
+      deeplinkAnchor: 'phase_counts',
+    ));
+
+    if (cards.length >= minCards) return;
+
+    // 3) SAGE nudge if any SAGE coverage exists
+    await addRuleIfMissing(RuleSpec(
+      id: 'R4_SAGE_NUDGE',
+      enabled: true,
+      priority: 40,
+      windowDays: 7,
+      when: const {},
+      templateKey: 'SAGE_NUDGE',
+      gate: 'none',
+      deeplinkAnchor: 'sage_coverage',
+    ));
+
+    if (cards.length >= minCards) return;
+
+    // 4) Theme stability or new theme
+    await addRuleIfMissing(RuleSpec(
+      id: 'R11_THEME_STABILITY',
+      enabled: true,
+      priority: 110,
+      windowDays: 7,
+      when: const {},
+      templateKey: 'THEME_STABILITY',
+      gate: 'none',
+      deeplinkAnchor: 'top_words',
+    ));
   }
 
   /// Compute all signals needed for rule evaluation
@@ -237,8 +322,8 @@ class InsightService {
       // Check RIVET gating
       if (rule.gate == 'rivet' && rivetState != null) {
         // For now, use simple thresholds - you can make this more sophisticated
-        final alignThreshold = 0.6;
-        final traceThreshold = 0.6;
+        const alignThreshold = 0.6;
+        const traceThreshold = 0.6;
         if (rivetState.align < alignThreshold || rivetState.trace < traceThreshold) {
           return false;
         }
@@ -316,7 +401,7 @@ class InsightService {
         case 'R2_PHASE_LEAN':
           final dominantPhase = signals.phaseCounts.entries
               .fold<MapEntry<String, int>>(
-                MapEntry('', 0),
+                const MapEntry('', 0),
                 (a, b) => a.value > b.value ? a : b)
               .key;
           params = buildPhaseLeanParams(dominantPhase, rivetPass: rivetPass);

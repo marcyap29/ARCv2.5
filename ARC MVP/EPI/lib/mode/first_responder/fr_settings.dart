@@ -41,11 +41,29 @@ class FRSettings extends Equatable {
   });
 
   factory FRSettings.defaults() => const FRSettings(
+    rapidDebrief: false,
+    redactionEnabled: false,
+    shiftAwareCadence: false,
+    postHeavyEntryCheckIn: false,
+    softVisuals: false,
+    role: null,
+    department: null,
+    shiftPattern: null,
+    yearsOfService: null,
+    specialties: [],
+    autoRedactNames: true,
+    autoRedactLocations: true,
+    autoRedactUnits: false,
+    shareByDefaultRedacted: true,
+    requireConfirmationForShare: true,
+  );
+
+  factory FRSettings.enabled() => const FRSettings(
     rapidDebrief: true,
     redactionEnabled: true,
-    shiftAwareCadence: true,
-    postHeavyEntryCheckIn: true,
-    softVisuals: true,
+    shiftAwareCadence: false,
+    postHeavyEntryCheckIn: false,
+    softVisuals: false,
     role: null,
     department: null,
     shiftPattern: null,

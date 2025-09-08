@@ -4,6 +4,7 @@ import '../../shared/text_style.dart';
 import 'sync_settings_section.dart';
 import 'music_control_section.dart';
 import 'first_responder_settings_section.dart';
+import 'coach_mode_settings_section.dart';
 
 class SettingsView extends StatelessWidget {
   const SettingsView({super.key});
@@ -42,6 +43,11 @@ class SettingsView extends StatelessWidget {
             
             // First Responder Settings Section
             const FirstResponderSettingsSection(),
+            
+            const SizedBox(height: 32),
+            
+            // Coach Mode Settings Section
+            const CoachModeSettingsSection(),
             
             const SizedBox(height: 32),
             
@@ -132,10 +138,10 @@ class SettingsView extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.05),
+        color: Colors.white.withValues(alpha: 0.05),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: Colors.white.withOpacity(0.1),
+          color: Colors.white.withValues(alpha: 0.1),
         ),
       ),
       child: ListTile(
