@@ -164,13 +164,19 @@ This document contains the complete set of prompts to guide ARC MVP development 
 
 ---
 
-## Prompt 8 — Arcform Renderer (Constellation Style)
-**Goal:** Render an Arcform from a saved entry and chosen keywords.
+## Prompt 8 — Arcform Renderer (3D Molecular Style) 🔄 Updated 2025-01-09
+**Goal:** Render an Arcform from a saved entry and chosen keywords using 3D molecular visualization.
 
 **Generate:**
-- Force‑directed or radial layout of keyword nodes with glowing edges.
+- 3D spherical nodes with perspective projection and depth-based scaling.
+- Interactive rotation (drag), zoom (pinch), auto-rotation toggle, and view reset.
 - Geometry maps to ATLAS hint: Spiral (Discovery), Flower (Expansion), Branch (Transition), Weave (Consolidation), GlowCore (Recovery), Fractal (Breakthrough).
-- Emotional color rule: warm for growth, cool for recovery tones.
+- Emotional color rule: warm for growth, cool for recovery tones, with gradient sphere effects.
+
+**Implementation Note (2025-01-09):**
+- Legacy 2D arcform implementation has been removed for consistency
+- All visualizations now use Simple3DArcform with molecular styling
+- 2D/3D toggle functionality removed - pure 3D experience
 
 **Acceptance criteria:**
 - 60 fps on recent devices with 10 nodes and up to 20 edges.
