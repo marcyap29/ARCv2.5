@@ -199,7 +199,7 @@ class _ShareReviewSheetState extends State<ShareReviewSheet> {
           decoration: BoxDecoration(
             color: isRedacted
                 ? Theme.of(context).colorScheme.errorContainer.withOpacity(0.3)
-                : Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.3),
+                : Theme.of(context).colorScheme.surfaceContainerHighest.withOpacity(0.3),
             borderRadius: BorderRadius.circular(4),
           ),
           child: Row(
@@ -291,7 +291,7 @@ class _ShareReviewSheetState extends State<ShareReviewSheet> {
         Container(
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.3),
+            color: Theme.of(context).colorScheme.surfaceContainerHighest.withOpacity(0.3),
             borderRadius: BorderRadius.circular(8),
           ),
           child: Row(

@@ -22,7 +22,7 @@ class CoachModeDrawer extends StatelessWidget {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.error, color: Colors.red, size: 48),
+                const Icon(Icons.error, color: Colors.red, size: 48),
                 const SizedBox(height: 16),
                 Text(
                   'Error: ${state.message}',
@@ -120,31 +120,31 @@ class CoachModeDrawer extends StatelessWidget {
 
   Widget _buildQuickLogRow(BuildContext context, CoachModeEnabled state) {
     final quickLogItems = [
-      _QuickLogItem(
+      const _QuickLogItem(
         icon: Icons.restaurant,
         title: 'Diet',
         templateId: 'coach.diet_intake.v1',
         color: Colors.orange,
       ),
-      _QuickLogItem(
+      const _QuickLogItem(
         icon: Icons.check_circle,
         title: 'Habits',
         templateId: 'coach.habits_daily.v1',
         color: Colors.green,
       ),
-      _QuickLogItem(
+      const _QuickLogItem(
         icon: Icons.checklist,
         title: 'Checklist',
         templateId: 'coach.checklist_done.v1',
         color: Colors.blue,
       ),
-      _QuickLogItem(
+      const _QuickLogItem(
         icon: Icons.bedtime,
         title: 'Sleep',
         templateId: 'coach.sleep_recovery.v1',
         color: Colors.purple,
       ),
-      _QuickLogItem(
+      const _QuickLogItem(
         icon: Icons.directions_run,
         title: 'Exercise',
         templateId: 'coach.exercise_session.v1',
@@ -219,28 +219,28 @@ class CoachModeDrawer extends StatelessWidget {
 
   Widget _buildPrimaryTools(BuildContext context, CoachModeEnabled state) {
     final primaryTools = [
-      _ToolItem(
+      const _ToolItem(
         title: 'Pre-Session Check-in',
         subtitle: '2 min',
         icon: Icons.play_arrow,
         templateId: 'coach.pre_session.v1',
         color: Colors.blue,
       ),
-      _ToolItem(
+      const _ToolItem(
         title: 'Post-Session Debrief',
         subtitle: '3 min',
         icon: Icons.refresh,
         templateId: 'coach.post_session.v1',
         color: Colors.green,
       ),
-      _ToolItem(
+      const _ToolItem(
         title: 'Weekly Goals & Friction Map',
         subtitle: '3 min',
         icon: Icons.flag,
         templateId: 'coach.weekly_goals.v1',
         color: Colors.orange,
       ),
-      _ToolItem(
+      const _ToolItem(
         title: 'Stress Pulse (1-min)',
         subtitle: '1 min',
         icon: Icons.favorite,
@@ -446,7 +446,7 @@ class CoachModeDrawer extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.3),
+        color: Theme.of(context).colorScheme.surfaceContainerHighest.withOpacity(0.3),
         borderRadius: BorderRadius.circular(8),
       ),
       child: Row(

@@ -125,7 +125,7 @@ class CoachShareService {
       for (final response in selectedResponses) {
         final template = await _dropletService.getTemplate(response.templateId);
         if (template != null) {
-          summary.writeln('${template.title}');
+          summary.writeln(template.title);
           summary.writeln('Date: ${_formatDate(response.createdAt)}');
           summary.writeln('');
           
@@ -214,7 +214,7 @@ class CoachShareService {
   Future<List<CoachReplyBundle>> getCoachReplies() async {
     try {
       final replies = _shareBundlesBox.values
-          .where((value) => value is CoachReplyBundle)
+          .whereType<CoachReplyBundle>()
           .cast<CoachReplyBundle>()
           .toList();
       
