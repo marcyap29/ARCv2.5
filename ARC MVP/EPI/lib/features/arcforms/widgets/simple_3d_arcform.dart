@@ -16,7 +16,6 @@ class Simple3DArcform extends StatefulWidget {
   final Function(String)? onNodeTapped;
   final ArcformGeometry selectedGeometry;
   final Function(ArcformGeometry) onGeometryChanged;
-  final VoidCallback? on3DToggle;
   final VoidCallback? onExport;
   final VoidCallback? onAutoRotate;
   final VoidCallback? onResetView;
@@ -29,7 +28,6 @@ class Simple3DArcform extends StatefulWidget {
     this.onNodeTapped,
     required this.selectedGeometry,
     required this.onGeometryChanged,
-    this.on3DToggle,
     this.onExport,
     this.onAutoRotate,
     this.onResetView,
@@ -47,7 +45,6 @@ class _Simple3DArcformState extends State<Simple3DArcform>
   // 3D rotation and scaling state
   double _rotationX = 0.2; // Start with slight tilt for better 3D view
   double _rotationY = 0.0;
-  double _rotationZ = 0.0;
   double _scale = 1.0;
   bool _autoRotate = true;
   
@@ -120,9 +117,6 @@ class _Simple3DArcformState extends State<Simple3DArcform>
         _rotationY = _rotationY % (2 * math.pi);
       }
       
-      if (details.pointerCount == 2 && details.rotation != 0) {
-        _rotationZ += details.rotation * 0.5;
-      }
       
       _lastFocalPoint = details.focalPoint;
     });
@@ -170,22 +164,6 @@ class _Simple3DArcformState extends State<Simple3DArcform>
     return mappedNodes;
   }
 
-  Color _getGeometryColor() {
-    switch (widget.selectedGeometry) {
-      case ArcformGeometry.spiral:
-        return const Color(0xFF4F46E5); // Blue for Discovery
-      case ArcformGeometry.flower:
-        return const Color(0xFF7C3AED); // Purple for Expansion
-      case ArcformGeometry.branch:
-        return const Color(0xFF6BE3A0); // Green for Transition
-      case ArcformGeometry.weave:
-        return const Color(0xFFF7D774); // Yellow for Consolidation
-      case ArcformGeometry.glowCore:
-        return const Color(0xFFFF6B6B); // Red for Recovery
-      case ArcformGeometry.fractal:
-        return const Color(0xFF4ECDC4); // Teal for Breakthrough
-    }
-  }
 
   Widget _build3DNode(Node3D node3D, double autoRotY) {
     // Calculate the projected 2D position from 3D coordinates
@@ -411,26 +389,6 @@ class _Simple3DArcformState extends State<Simple3DArcform>
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      // 3D Toggle button
-                      Container(
-                        decoration: BoxDecoration(
-                          color: kcSurfaceAltColor,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: kcSecondaryColor.withOpacity(0.3),
-                            width: 1,
-                          ),
-                        ),
-                        child: IconButton(
-                          onPressed: widget.on3DToggle,
-                          icon: const Icon(
-                            Icons.view_in_ar,
-                            color: kcSecondaryColor,
-                            size: 20,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
                       // Export/Share button
                       Container(
                         decoration: BoxDecoration(
@@ -496,7 +454,6 @@ class _Simple3DArcformState extends State<Simple3DArcform>
                             setState(() {
                               _rotationX = 0.2;
                               _rotationY = 0.0;
-                              _rotationZ = 0.0;
                               _scale = 1.0;
                             });
                             widget.onResetView?.call();
