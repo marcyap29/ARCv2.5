@@ -176,6 +176,10 @@ class Boxes {
   static const arcformSnapshots = 'arcform_snapshots';
   static const insights = 'insights';
   static const syncQueue = 'sync_queue';
+  static const coachDropletTemplates = 'coach_droplet_templates';
+  static const coachDropletResponses = 'coach_droplet_responses';
+  static const coachShareBundles = 'coach_share_bundles';
+  static const settings = 'settings';
 }
 
 /// Enhanced bootstrap function with comprehensive error handling
@@ -343,6 +347,10 @@ Future<void> _openHiveBoxes() async {
     Boxes.journalEntries: JournalEntry,
     Boxes.arcformSnapshots: ArcformSnapshot,
     Boxes.insights: dynamic, // InsightSnapshot if it exists
+    Boxes.coachDropletTemplates: dynamic,
+    Boxes.coachDropletResponses: dynamic,
+    Boxes.coachShareBundles: dynamic,
+    Boxes.settings: dynamic,
   };
 
   for (final entry in typedBoxes.entries) {
@@ -359,7 +367,7 @@ Future<void> _openHiveBoxes() async {
         if (boxName == Boxes.userProfile && boxType == UserProfile) {
           try {
             // Try to access as typed box to verify compatibility
-            final typedBox = Hive.box<UserProfile>(boxName);
+            Hive.box<UserProfile>(boxName);
             logger.d('Successfully accessed typed box: $boxName');
           } catch (typeError) {
             logger.w('Type mismatch detected for $boxName, closing and reopening: $typeError');
@@ -566,18 +574,18 @@ Future<bool> _attemptEmergencyRecovery(Object exception, StackTrace stackTrace) 
               scaffoldBackgroundColor: kcBackgroundColor,
               useMaterial3: true,
             ),
-            home: Scaffold(
+            home: const Scaffold(
               backgroundColor: kcBackgroundColor,
               body: SafeArea(
                 child: Center(
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const CircularProgressIndicator(
+                      CircularProgressIndicator(
                         valueColor: AlwaysStoppedAnimation<Color>(kcPrimaryColor),
                       ),
-                      const SizedBox(height: 20),
-                      const Text(
+                      SizedBox(height: 20),
+                      Text(
                         'Recovering app data...',
                         style: TextStyle(
                           fontSize: 16,

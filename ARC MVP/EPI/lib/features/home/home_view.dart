@@ -24,6 +24,8 @@ import 'package:my_app/features/qa/qa_screen.dart';
 import 'package:my_app/features/settings/settings_view.dart';
 import 'package:my_app/services/analytics_service.dart';
 import 'package:my_app/core/services/audio_service.dart';
+import 'package:my_app/mode/first_responder/widgets/fr_status_indicator.dart';
+import 'package:my_app/mode/coach/widgets/coach_mode_status_indicator.dart';
 import 'package:flutter/foundation.dart';
 
 // Debug flag for showing RIVET engineering labels
@@ -129,7 +131,23 @@ class _HomeViewState extends State<HomeView> {
             final selectedIndex = state is HomeLoaded ? state.selectedIndex : 0;
             return Scaffold(
               body: SafeArea(
-                child: _pages[selectedIndex],
+                child: Stack(
+                  children: [
+                    _pages[selectedIndex],
+                    // Status indicators at top right
+                    Positioned(
+                      top: 0,
+                      right: 0,
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const FRStatusIndicator(),
+                          const CoachModeStatusIndicator(),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
               ),
               bottomNavigationBar: CustomTabBar(
                 tabs: _tabs,
@@ -246,9 +264,9 @@ class _InsightsPageState extends State<_InsightsPage> {
               ),
               child: Column(
                 children: [
-                  Icon(Icons.error_outline, color: Colors.red, size: 32),
+                  const Icon(Icons.error_outline, color: Colors.red, size: 32),
                   const SizedBox(height: 8),
-                  Text('Unable to load insights', style: TextStyle(color: Colors.red)),
+                  const Text('Unable to load insights', style: TextStyle(color: Colors.red)),
                   const SizedBox(height: 4),
                   Text(state.message, style: TextStyle(color: Colors.red.withOpacity(0.7))),
                 ],
@@ -791,7 +809,7 @@ class _SimpleDial extends StatelessWidget {
           const SizedBox(height: 2),
           Text(
             debugLabel!,
-            style: TextStyle(
+            style: const TextStyle(
               color: kcSecondaryTextColor,
               fontSize: 10,
               fontFamily: 'monospace',

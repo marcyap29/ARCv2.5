@@ -14,6 +14,11 @@ import 'package:my_app/features/journal/keyword_extraction_cubit.dart';
 import 'package:my_app/core/a11y/a11y_flags.dart';
 import 'package:my_app/core/rivet/rivet_provider.dart';
 import 'package:my_app/core/services/app_lifecycle_manager.dart';
+import 'package:my_app/mode/first_responder/fr_settings_cubit.dart';
+import 'package:my_app/mode/coach/coach_mode_cubit.dart';
+import 'package:my_app/mode/coach/coach_droplet_service.dart';
+import 'package:my_app/mode/coach/coach_share_service.dart';
+import 'package:hive/hive.dart';
 
 class App extends StatefulWidget {
   const App({super.key});
@@ -67,6 +72,27 @@ class _AppState extends State<App> {
           // RIVET provider for phase stability gating
           Provider(
             create: (context) => RivetProvider(),
+          ),
+          // First Responder settings cubit
+          BlocProvider(
+            create: (context) => FRSettingsCubit(),
+          ),
+          // Coach Mode cubit
+          BlocProvider(
+            create: (context) {
+              final dropletService = CoachDropletService(
+                dropletTemplatesBox: Hive.box('coach_droplet_templates'),
+                dropletResponsesBox: Hive.box('coach_droplet_responses'),
+              );
+              return CoachModeCubit(
+                dropletService: dropletService,
+                shareService: CoachShareService(
+                  dropletService: dropletService,
+                  shareBundlesBox: Hive.box('coach_share_bundles'),
+                ),
+                settingsBox: Hive.box('settings'),
+              );
+            },
           ),
         ],
         child: MaterialApp(
