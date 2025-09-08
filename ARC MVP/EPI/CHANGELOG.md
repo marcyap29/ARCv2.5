@@ -11,6 +11,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 ### In Development
 - Advanced animation sequences for sacred journaling
 
+### Fixed
+- Fixed 3.5px right overflow in timeline filter buttons
+- Fixed AnimationController dispose error in welcome view
+- Fixed app restart issues after force-quit
+- Fixed zone mismatch errors in bootstrap initialization
+- Improved error handling and recovery mechanisms
+
 ---
 
 ## [1.0.17] - 2025-01-09 - Coach Mode MVP Complete Implementation (P27, P27.1, P27.2, P27.3) 🏋️
