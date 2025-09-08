@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../mode/first_responder/fr_settings.dart';
 import '../../mode/first_responder/fr_settings_cubit.dart';
-import '../../mode/first_responder/widgets/what_changes_sheet.dart';
 import '../../mode/first_responder/widgets/fr_profile_setup.dart';
 import '../../shared/app_colors.dart';
 import '../../shared/text_style.dart';
@@ -38,7 +37,6 @@ class FirstResponderSettingsSection extends StatelessWidget {
               onChanged: (value) {
                 if (value) {
                   context.read<FRSettingsCubit>().toggleMasterSwitch(true);
-                  _showWhatChangesSheet(context);
                 } else {
                   context.read<FRSettingsCubit>().toggleMasterSwitch(false);
                 }
@@ -165,18 +163,6 @@ class FirstResponderSettingsSection extends StatelessWidget {
     );
   }
 
-  void _showWhatChangesSheet(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (sheetContext) => BlocProvider.value(
-        value: context.read<FRSettingsCubit>(),
-        child: const WhatChangesSheet(),
-      ),
-    );
-  }
-  
   Widget _buildProfileSection(BuildContext context, FRSettings settings) {
     return Container(
       padding: const EdgeInsets.all(16),

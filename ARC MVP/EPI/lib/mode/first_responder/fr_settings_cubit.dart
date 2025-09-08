@@ -21,11 +21,11 @@ class FRSettingsCubit extends Cubit<FRSettings> {
     final map = (box.get(hiveKey) as Map?)?.cast<String, dynamic>();
     if (map == null) return FRSettings.defaults();
     return FRSettings(
-      rapidDebrief: map['rapidDebrief'] ?? true,
-      redactionEnabled: map['redactionEnabled'] ?? true,
-      shiftAwareCadence: map['shiftAwareCadence'] ?? true,
-      postHeavyEntryCheckIn: map['postHeavyEntryCheckIn'] ?? true,
-      softVisuals: map['softVisuals'] ?? true,
+      rapidDebrief: map['rapidDebrief'] ?? false,
+      redactionEnabled: map['redactionEnabled'] ?? false,
+      shiftAwareCadence: map['shiftAwareCadence'] ?? false,
+      postHeavyEntryCheckIn: map['postHeavyEntryCheckIn'] ?? false,
+      softVisuals: map['softVisuals'] ?? false,
       role: map['role'],
       department: map['department'],
       shiftPattern: map['shiftPattern'],
@@ -68,8 +68,8 @@ class FRSettingsCubit extends Cubit<FRSettings> {
   /// Toggle master first responder mode on/off
   void toggleMasterSwitch(bool enabled) {
     if (enabled) {
-      // Enable with defaults
-      _update(FRSettings.defaults());
+      // Enable with default enabled features
+      _update(FRSettings.enabled());
     } else {
       // Disable all features but keep profile data
       _update(state.copyWith(

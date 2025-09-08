@@ -25,6 +25,7 @@ import 'package:my_app/features/settings/settings_view.dart';
 import 'package:my_app/services/analytics_service.dart';
 import 'package:my_app/core/services/audio_service.dart';
 import 'package:my_app/mode/first_responder/widgets/fr_status_indicator.dart';
+import 'package:my_app/mode/coach/widgets/coach_mode_status_indicator.dart';
 import 'package:flutter/foundation.dart';
 
 // Debug flag for showing RIVET engineering labels
@@ -113,49 +114,50 @@ class _HomeViewState extends State<HomeView> {
   Widget build(BuildContext context) {
     return BlocProvider.value(
       value: _homeCubit,
-      child: BlocListener<HomeCubit, HomeState>(
-          listener: (context, state) {
-            if (state is HomeLoaded) {
-              // Track tab navigation
-              AnalyticsService.trackTabNavigation(_tabNames[state.selectedIndex]);
-              
-              // Refresh timeline when switching to Timeline tab (index 2)
-              if (state.selectedIndex == 2) {
-                context.read<TimelineCubit>().refreshEntries();
-              }
+              child: BlocListener<HomeCubit, HomeState>(
+        listener: (context, state) {
+          if (state is HomeLoaded) {
+            // Track tab navigation
+            AnalyticsService.trackTabNavigation(_tabNames[state.selectedIndex]);
+            
+            // Refresh timeline when switching to Timeline tab (index 2)
+            if (state.selectedIndex == 2) {
+              context.read<TimelineCubit>().refreshEntries();
             }
-          },
-          child: BlocBuilder<HomeCubit, HomeState>(
-            builder: (context, state) {
-              final selectedIndex = state is HomeLoaded ? state.selectedIndex : 0;
-              return Scaffold(
-                body: SafeArea(
-                  child: Stack(
-                    children: [
-                      _pages[selectedIndex],
-                      // First Responder status indicator in top-right
-                      Positioned(
-                        top: 0,
-                        right: 0,
-                        child: Builder(
-                          builder: (context) {
-                            print('DEBUG: HomeView - Creating FRStatusIndicator');
-                            return const FRStatusIndicator();
-                          },
-                        ),
+          }
+        },
+        child: BlocBuilder<HomeCubit, HomeState>(
+          builder: (context, state) {
+            final selectedIndex = state is HomeLoaded ? state.selectedIndex : 0;
+            return Scaffold(
+              body: SafeArea(
+                child: Stack(
+                  children: [
+                    _pages[selectedIndex],
+                    // Status indicators at top right
+                    Positioned(
+                      top: 0,
+                      right: 0,
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const FRStatusIndicator(),
+                          const CoachModeStatusIndicator(),
+                        ],
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
-                bottomNavigationBar: CustomTabBar(
-                  tabs: _tabs,
-                  selectedIndex: selectedIndex,
-                  onTabSelected: _homeCubit.changeTab,
-                  height: 80,
-                ),
-              );
-            },
-          ),
+              ),
+              bottomNavigationBar: CustomTabBar(
+                tabs: _tabs,
+                selectedIndex: selectedIndex,
+                onTabSelected: _homeCubit.changeTab,
+                height: 80,
+              ),
+            );
+          },
+        ),
       ),
     );
   }

@@ -14,7 +14,7 @@ class FRStatusIndicator extends StatelessWidget {
         print('DEBUG: FRStatusIndicator - state: $state');
         if (state.isEnabled) {
           return Container(
-            margin: const EdgeInsets.only(top: 8, right: 16),
+            margin: const EdgeInsets.only(left: 4, top: 8, right: 8),
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             decoration: BoxDecoration(
               color: Colors.red.withOpacity(0.9),
@@ -31,15 +31,15 @@ class FRStatusIndicator extends StatelessWidget {
                 ),
               ],
             ),
-            child: Row(
+            child: const Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(
+                Icon(
                   Icons.local_fire_department,
                   color: Colors.white,
                   size: 16,
                 ),
-                const SizedBox(width: 6),
+                SizedBox(width: 6),
                 Text(
                   'FR MODE',
                   style: TextStyle(
