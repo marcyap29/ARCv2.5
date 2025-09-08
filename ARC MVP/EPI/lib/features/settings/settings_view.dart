@@ -3,6 +3,7 @@ import '../../shared/app_colors.dart';
 import '../../shared/text_style.dart';
 import 'sync_settings_section.dart';
 import 'music_control_section.dart';
+import 'first_responder_settings_section.dart';
 
 class SettingsView extends StatelessWidget {
   const SettingsView({super.key});
@@ -36,6 +37,11 @@ class SettingsView extends StatelessWidget {
             
             // Music Control Section
             const MusicControlSection(),
+            
+            const SizedBox(height: 32),
+            
+            // First Responder Settings Section
+            const FirstResponderSettingsSection(),
             
             const SizedBox(height: 32),
             
@@ -152,7 +158,7 @@ class SettingsView extends StatelessWidget {
           ),
         ),
         trailing: onTap != null
-            ? Icon(
+            ? const Icon(
                 Icons.arrow_forward_ios,
                 color: kcSecondaryTextColor,
                 size: 16,

@@ -14,6 +14,7 @@ import 'package:my_app/features/journal/keyword_extraction_cubit.dart';
 import 'package:my_app/core/a11y/a11y_flags.dart';
 import 'package:my_app/core/rivet/rivet_provider.dart';
 import 'package:my_app/core/services/app_lifecycle_manager.dart';
+import 'package:my_app/mode/first_responder/fr_settings_cubit.dart';
 
 class App extends StatefulWidget {
   const App({super.key});
@@ -67,6 +68,10 @@ class _AppState extends State<App> {
           // RIVET provider for phase stability gating
           Provider(
             create: (context) => RivetProvider(),
+          ),
+          // First Responder settings cubit
+          BlocProvider(
+            create: (context) => FRSettingsCubit(),
           ),
         ],
         child: MaterialApp(

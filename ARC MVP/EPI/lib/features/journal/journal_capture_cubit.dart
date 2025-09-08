@@ -23,6 +23,8 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:hive/hive.dart';
+import 'package:my_app/mode/first_responder/fr_mode_suggestion_service.dart';
+import 'package:my_app/mode/first_responder/fr_settings_cubit.dart';
 
 class JournalCaptureCubit extends Cubit<JournalCaptureState> {
   final JournalRepository _journalRepository;
@@ -38,12 +40,47 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
   Timer? _recordingTimer;
   Duration _recordingDuration = Duration.zero;
   String? _transcription;
+  final FRModeSuggestionService _frSuggestionService = FRModeSuggestionService();
+  bool _hasTriggeredFRSuggestion = false;
 
   JournalCaptureCubit(this._journalRepository) : super(JournalCaptureInitial());
 
   void updateDraft(String content) {
     _draftContent = content;
     _autoSaveDraft();
+    
+    // Check for first responder mode suggestion (but only once per session)
+    if (!_hasTriggeredFRSuggestion && content.length > 50) {
+      _checkForFRModeSuggestion(content);
+    }
+  }
+
+  /// Check if we should suggest first responder mode based on content
+  Future<void> _checkForFRModeSuggestion(String content) async {
+    _hasTriggeredFRSuggestion = true;
+    
+    try {
+      // Get current FR settings using static method
+      final box = await Hive.openBox(FRSettingsCubit.hiveBox);
+      final currentSettings = FRSettingsCubit.load(box);
+      final frCubit = FRSettingsCubit();
+      
+      // Check if we should suggest FR mode
+      final shouldSuggest = await _frSuggestionService.shouldSuggestFRMode(
+        content, 
+        currentSettings
+      );
+      
+      if (shouldSuggest) {
+        // Emit state to trigger UI suggestion
+        emit(JournalCaptureFRSuggestionTriggered(
+          draftContent: _draftContent,
+          frCubit: frCubit,
+        ));
+      }
+    } catch (e) {
+      // Silently fail to not disrupt journaling experience
+    }
   }
 
   void _autoSaveDraft() {
