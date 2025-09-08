@@ -1,4 +1,5 @@
 import 'package:equatable/equatable.dart';
+import 'package:my_app/mode/first_responder/fr_settings_cubit.dart';
 
 abstract class JournalCaptureState extends Equatable {
   const JournalCaptureState();
@@ -78,4 +79,17 @@ class JournalCaptureTranscribed extends JournalCaptureState {
 
   @override
   List<Object> get props => [transcription];
+}
+
+class JournalCaptureFRSuggestionTriggered extends JournalCaptureState {
+  final String draftContent;
+  final FRSettingsCubit frCubit;
+
+  const JournalCaptureFRSuggestionTriggered({
+    required this.draftContent,
+    required this.frCubit,
+  });
+
+  @override
+  List<Object> get props => [draftContent, frCubit];
 }
