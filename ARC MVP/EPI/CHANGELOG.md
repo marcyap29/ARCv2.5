@@ -9,8 +9,23 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 ## [Unreleased]
 
 ### In Development
-- Additional geometric visualizations for Arcforms  
 - Advanced animation sequences for sacred journaling
+
+---
+
+## [1.0.15] - 2025-01-09 - Legacy 2D Arcform Removal 🔄
+
+### 🔄 Arcform System Modernization
+- **Legacy 2D Removal** - Removed outdated 2D arcform layout (arcform_layout.dart) 
+- **3D Standardization** - Standardized on Simple3DArcform for all arcform visualizations
+- **UI Simplification** - Removed 2D/3D toggle functionality and related UI elements
+- **Code Cleanup** - Eliminated unused variables (_rotationZ, _getGeometryColor)
+
+### 🎯 Technical Improvements  
+- **Molecular Focus** - All arcforms now use 3D molecular style visualization exclusively
+- **Backward Compatibility** - Maintained GeometryPattern conversion functions for existing data
+- **Performance** - Reduced code complexity by removing dual rendering paths
+- **Maintainability** - Single arcform implementation path simplifies future development
 
 ---
 
