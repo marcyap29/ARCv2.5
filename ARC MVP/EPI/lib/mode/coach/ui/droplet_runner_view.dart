@@ -91,7 +91,7 @@ class _DropletRunnerViewState extends State<DropletRunnerView> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.error, color: Colors.red, size: 48),
+              const Icon(Icons.error, color: Colors.red, size: 48),
               const SizedBox(height: 16),
               Text('Error: $_error'),
               const SizedBox(height: 16),
@@ -212,7 +212,7 @@ class _DropletRunnerViewState extends State<DropletRunnerView> {
                 ),
               ),
               if (field.required)
-                Text(
+                const Text(
                   ' *',
                   style: TextStyle(color: Colors.red),
                 ),
@@ -322,7 +322,7 @@ class _DropletRunnerViewState extends State<DropletRunnerView> {
           _values[field.id] = value;
         });
       },
-      title: Text('Yes'),
+      title: const Text('Yes'),
       contentPadding: EdgeInsets.zero,
     );
   }
@@ -377,7 +377,7 @@ class _DropletRunnerViewState extends State<DropletRunnerView> {
         ),
         child: Row(
           children: [
-            Icon(Icons.calendar_today, size: 20),
+            const Icon(Icons.calendar_today, size: 20),
             const SizedBox(width: 8),
             Text(
               currentValue != null
@@ -414,7 +414,7 @@ class _DropletRunnerViewState extends State<DropletRunnerView> {
         ),
         child: Row(
           children: [
-            Icon(Icons.access_time, size: 20),
+            const Icon(Icons.access_time, size: 20),
             const SizedBox(width: 8),
             Text(
               currentValue != null
@@ -467,7 +467,7 @@ class _DropletRunnerViewState extends State<DropletRunnerView> {
         ),
         child: Row(
           children: [
-            Icon(Icons.schedule, size: 20),
+            const Icon(Icons.schedule, size: 20),
             const SizedBox(width: 8),
             Text(
               currentValue != null
@@ -521,7 +521,7 @@ class _DropletRunnerViewState extends State<DropletRunnerView> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.add_a_photo, size: 32),
+              const Icon(Icons.add_a_photo, size: 32),
               const SizedBox(height: 4),
               Text(
                 currentValue != null ? 'Image selected' : 'Tap to add image',
@@ -538,7 +538,7 @@ class _DropletRunnerViewState extends State<DropletRunnerView> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.3),
+        color: Theme.of(context).colorScheme.surfaceContainerHighest.withOpacity(0.3),
         borderRadius: BorderRadius.circular(8),
       ),
       child: Row(

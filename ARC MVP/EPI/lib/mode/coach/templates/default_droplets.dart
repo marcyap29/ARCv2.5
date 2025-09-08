@@ -1,7 +1,7 @@
 import '../models/coach_models.dart';
 
 // --- Pre-Session Check-in ---
-final preSessionV1 = CoachDropletTemplate(
+const preSessionV1 = CoachDropletTemplate(
   id: "coach.pre_session.v1",
   title: "Pre-Session Check-in",
   subtitle: "Surface what matters right now.",
@@ -48,7 +48,7 @@ final preSessionV1 = CoachDropletTemplate(
 );
 
 // --- Post-Session Debrief ---
-final postSessionV1 = CoachDropletTemplate(
+const postSessionV1 = CoachDropletTemplate(
   id: "coach.post_session.v1",
   title: "Post-Session Debrief",
   subtitle: "Capture insights while fresh.",
@@ -85,7 +85,7 @@ final postSessionV1 = CoachDropletTemplate(
 );
 
 // --- Weekly Goals & Friction Map ---
-final weeklyGoalsV1 = CoachDropletTemplate(
+const weeklyGoalsV1 = CoachDropletTemplate(
   id: "coach.weekly_goals.v1",
   title: "Weekly Goals & Friction Map",
   subtitle: "Pick 1–3 goals and name likely blockers.",
@@ -121,7 +121,7 @@ final weeklyGoalsV1 = CoachDropletTemplate(
 );
 
 // --- Stress Pulse (1-min PANAS-lite) ---
-final stressPulseV1 = CoachDropletTemplate(
+const stressPulseV1 = CoachDropletTemplate(
   id: "coach.stress_pulse.v1",
   title: "Stress Pulse (1-min)",
   subtitle: "Quick pulse to spot trends.",
@@ -148,7 +148,7 @@ final stressPulseV1 = CoachDropletTemplate(
 );
 
 // --- Diet Intake (single quick meal) ---
-final dietIntakeV1 = CoachDropletTemplate(
+const dietIntakeV1 = CoachDropletTemplate(
   id: "coach.diet_intake.v1",
   title: "Diet Intake (Quick Meal)",
   subtitle: "Log one meal or snack in under a minute.",
@@ -209,7 +209,7 @@ final dietIntakeV1 = CoachDropletTemplate(
 );
 
 // --- Daily Habits Check-in ---
-final habitsDailyV1 = CoachDropletTemplate(
+const habitsDailyV1 = CoachDropletTemplate(
   id: "coach.habits_daily.v1",
   title: "Daily Habits Check-in",
   subtitle: "Tap the habits you completed today.",
@@ -239,7 +239,7 @@ final habitsDailyV1 = CoachDropletTemplate(
 );
 
 // --- Checklist Done (freeform) ---
-final checklistDoneV1 = CoachDropletTemplate(
+const checklistDoneV1 = CoachDropletTemplate(
   id: "coach.checklist_done.v1",
   title: "Checklist Done",
   subtitle: "Log what you checked off.",
@@ -271,7 +271,7 @@ final checklistDoneV1 = CoachDropletTemplate(
 );
 
 // --- Sleep & Recovery ---
-final sleepRecoveryV1 = CoachDropletTemplate(
+const sleepRecoveryV1 = CoachDropletTemplate(
   id: "coach.sleep_recovery.v1",
   title: "Sleep & Recovery",
   subtitle: "Basic nightly data.",
@@ -326,7 +326,7 @@ final sleepRecoveryV1 = CoachDropletTemplate(
 );
 
 // --- Exercise Session ---
-final exerciseSessionV1 = CoachDropletTemplate(
+const exerciseSessionV1 = CoachDropletTemplate(
   id: "coach.exercise_session.v1",
   title: "Exercise Session",
   subtitle: "Log today's movement.",
@@ -370,7 +370,7 @@ final exerciseSessionV1 = CoachDropletTemplate(
 );
 
 // --- Strength Session (Simple) ---
-final strengthSimpleV1 = CoachDropletTemplate(
+const strengthSimpleV1 = CoachDropletTemplate(
   id: "coach.strength_simple.v1",
   title: "Strength Session (Simple)",
   subtitle: "Log your main lifts fast.",
@@ -427,7 +427,7 @@ final strengthSimpleV1 = CoachDropletTemplate(
 );
 
 // --- Cardio Session ---
-final cardioSessionV1 = CoachDropletTemplate(
+const cardioSessionV1 = CoachDropletTemplate(
   id: "coach.cardio_session.v1",
   title: "Cardio Session",
   subtitle: "Type, duration, effort, optional distance/HR.",
@@ -483,7 +483,7 @@ final cardioSessionV1 = CoachDropletTemplate(
 );
 
 // --- Hydration ---
-final hydrationV1 = CoachDropletTemplate(
+const hydrationV1 = CoachDropletTemplate(
   id: "coach.hydration.v1",
   title: "Hydration",
   subtitle: "Daily fluids quick log.",
