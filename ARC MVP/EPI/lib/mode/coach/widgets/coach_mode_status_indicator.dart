@@ -20,7 +20,7 @@ class CoachModeStatusIndicator extends StatelessWidget {
         }
 
         return Container(
-          margin: const EdgeInsets.only(left: 4, top: 8, right: 8),
+          margin: const EdgeInsets.only(left: 2, top: 8, right: 4),
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
           decoration: BoxDecoration(
             color: Colors.blue.withValues(alpha: 0.9),

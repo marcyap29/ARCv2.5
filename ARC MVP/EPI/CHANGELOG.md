@@ -13,6 +13,50 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [1.0.17] - 2025-01-09 - Coach Mode MVP Complete Implementation (P27, P27.1, P27.2, P27.3) 🏋️
+
+### 🏋️ Major Feature - Coach Mode MVP Complete Implementation
+- **Complete Coach Mode System**: 57 files created/modified with 15,502+ lines of code
+- **P27: Core Coach Mode**: Coaching tools drawer, guided droplets, and Coach Share Bundle (CSB) export
+- **P27.1: Coach → Client Sharing (CRB v0)**: Import coach recommendations as insight cards
+- **P27.2: Trackers & Checklists**: Diet, Habits, Checklist, Sleep, and Exercise tracking
+- **P27.3: Fitness & Weight Training**: Strength, cardio, mobility, metrics, hydration, and nutrition timing
+
+### 🎯 Coach Mode Features
+- **13+ Droplet Templates**: Pre-defined templates for various coaching scenarios
+- **Keyword Detection**: Smart suggestions when coach-related keywords are detected
+- **Share Bundle Export**: JSON and PDF export for coach communication
+- **Fitness Tracking**: Comprehensive workout and nutrition logging
+- **Progress Photos**: Image support for visual progress tracking
+- **Coach Status Indicator**: Visual indicator when Coach Mode is active
+
+### 🔧 First Responder Mode Improvements
+- **Immediate Toggle Activation**: FR Mode now activates instantly without sub-menu
+- **Inline Feature Toggles**: Individual settings displayed directly in main settings
+- **Fixed Toggle Logic**: Resolved FRSettings.defaults() activation issues
+- **Consistent UX**: Matches Coach Mode behavior and styling
+
+### 📱 UI/UX Enhancements
+- **Settings Integration**: Both modes integrated into main settings screen
+- **Status Indicators**: Top-screen indicators for active modes
+- **Box Outline Styling**: Consistent visual styling across mode sections
+- **Scrollable Sub-menus**: Fixed overflow issues in mode explanation sheets
+
+### 🗄️ Data & Storage
+- **Hive Integration**: Persistent storage for Coach Mode data
+- **Coach Share Bundles**: Structured data export/import system
+- **Droplet Responses**: Complete response tracking and management
+- **Template System**: Flexible droplet template configuration
+
+### 🛠️ Technical Implementation
+- **CoachModeCubit**: Comprehensive state management
+- **CoachDropletService**: Droplet creation and management
+- **CoachShareService**: Export/import functionality
+- **CoachKeywordListener**: Smart suggestion system
+- **PDF Generation**: Coach communication documents
+
+---
+
 ## [1.0.16] - 2025-01-21 - First Responder Mode Complete Implementation (P27-P34) 🚨
 
 ### 🚨 Major Feature - First Responder Mode Complete Implementation

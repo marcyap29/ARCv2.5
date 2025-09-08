@@ -2,10 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:my_app/features/timeline/timeline_cubit.dart';
 import 'package:my_app/features/timeline/timeline_state.dart';
-import 'package:my_app/features/timeline/timeline_entry_model.dart';
 import 'package:my_app/features/timeline/widgets/interactive_timeline_view.dart';
 import 'package:my_app/shared/app_colors.dart';
-import 'package:my_app/shared/text_style.dart';
 
 class TimelineView extends StatelessWidget {
   const TimelineView({super.key});
@@ -75,41 +73,44 @@ class _TimelineViewContentState extends State<TimelineViewContent> {
 
     return Container(
       padding: const EdgeInsets.all(16),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          FilterChip(
-            label: const Text('All'),
-            selected: currentFilter == TimelineFilter.all,
-            onSelected: (_) =>
-                context.read<TimelineCubit>().setFilter(TimelineFilter.all),
-            selectedColor: kcPrimaryColor.withOpacity(0.3),
-            backgroundColor: kcSurfaceAltColor,
-            labelStyle: const TextStyle(color: kcPrimaryTextColor),
-          ),
-          const SizedBox(width: 8),
-          FilterChip(
-            label: const Text('Text only'),
-            selected: currentFilter == TimelineFilter.textOnly,
-            onSelected: (_) => context
-                .read<TimelineCubit>()
-                .setFilter(TimelineFilter.textOnly),
-            selectedColor: kcPrimaryColor.withOpacity(0.3),
-            backgroundColor: kcSurfaceAltColor,
-            labelStyle: const TextStyle(color: kcPrimaryTextColor),
-          ),
-          const SizedBox(width: 8),
-          FilterChip(
-            label: const Text('With Arcform'),
-            selected: currentFilter == TimelineFilter.withArcform,
-            onSelected: (_) => context
-                .read<TimelineCubit>()
-                .setFilter(TimelineFilter.withArcform),
-            selectedColor: kcPrimaryColor.withOpacity(0.3),
-            backgroundColor: kcSurfaceAltColor,
-            labelStyle: const TextStyle(color: kcPrimaryTextColor),
-          ),
-        ],
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.start,
+          children: [
+            FilterChip(
+              label: const Text('All'),
+              selected: currentFilter == TimelineFilter.all,
+              onSelected: (_) =>
+                  context.read<TimelineCubit>().setFilter(TimelineFilter.all),
+              selectedColor: kcPrimaryColor.withOpacity(0.3),
+              backgroundColor: kcSurfaceAltColor,
+              labelStyle: const TextStyle(color: kcPrimaryTextColor),
+            ),
+            const SizedBox(width: 8),
+            FilterChip(
+              label: const Text('Text only'),
+              selected: currentFilter == TimelineFilter.textOnly,
+              onSelected: (_) => context
+                  .read<TimelineCubit>()
+                  .setFilter(TimelineFilter.textOnly),
+              selectedColor: kcPrimaryColor.withOpacity(0.3),
+              backgroundColor: kcSurfaceAltColor,
+              labelStyle: const TextStyle(color: kcPrimaryTextColor),
+            ),
+            const SizedBox(width: 8),
+            FilterChip(
+              label: const Text('With Arcform'),
+              selected: currentFilter == TimelineFilter.withArcform,
+              onSelected: (_) => context
+                  .read<TimelineCubit>()
+                  .setFilter(TimelineFilter.withArcform),
+              selectedColor: kcPrimaryColor.withOpacity(0.3),
+              backgroundColor: kcSurfaceAltColor,
+              labelStyle: const TextStyle(color: kcPrimaryTextColor),
+            ),
+          ],
+        ),
       ),
     );
   }

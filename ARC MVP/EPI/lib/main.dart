@@ -4,7 +4,6 @@ import 'package:my_app/main/bootstrap.dart';
 import 'package:my_app/models/enums/flavor.dart';
 import 'package:my_app/app/app.dart';
 import 'package:my_app/shared/app_colors.dart';
-import 'package:my_app/shared/text_style.dart';
 
 void main() {
   // Set up global error handling
@@ -112,8 +111,11 @@ Widget _buildErrorWidget(FlutterErrorDetails details) {
               ],
               ElevatedButton(
                 onPressed: () {
-                  // Try to rebuild the app
-                  runApp(const App());
+                  // Try to rebuild the app through bootstrap
+                  bootstrap(
+                    builder: () => const App(),
+                    flavor: kDebugMode ? Flavor.development : Flavor.production,
+                  );
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: kcPrimaryColor,
