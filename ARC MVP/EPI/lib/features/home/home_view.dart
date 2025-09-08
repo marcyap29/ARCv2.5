@@ -138,12 +138,18 @@ class _HomeViewState extends State<HomeView> {
                     Positioned(
                       top: 0,
                       right: 0,
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const FRStatusIndicator(),
-                          const CoachModeStatusIndicator(),
-                        ],
+                      child: ConstrainedBox(
+                        constraints: BoxConstraints(
+                          maxWidth: MediaQuery.of(context).size.width * 0.6,
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          children: [
+                            const FRStatusIndicator(),
+                            const CoachModeStatusIndicator(),
+                          ],
+                        ),
                       ),
                     ),
                   ],

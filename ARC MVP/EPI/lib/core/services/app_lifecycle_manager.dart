@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:hive/hive.dart';
 import 'package:my_app/main/bootstrap.dart';
 
 /// Manages app-level lifecycle events and recovery mechanisms
@@ -149,18 +150,106 @@ class AppLifecycleManager with WidgetsBindingObserver {
   Future<void> _reinitializeFailedServices() async {
     logger.d('Reinitializing failed services');
     
-    // This would contain logic to restart failed services
-    // For now, just log that we would do this
-    logger.d('Service reinitialization completed');
+    // Try to reinitialize critical services that may have failed
+    try {
+      // Check and reinitialize Hive if needed
+      await _reinitializeHiveIfNeeded();
+      
+      // Check and reinitialize other services if needed
+      await _reinitializeOtherServices();
+      
+      logger.d('Service reinitialization completed');
+    } catch (e, st) {
+      logger.e('Service reinitialization failed', e, st);
+      // Don't throw - let the app continue with degraded functionality
+    }
+  }
+  
+  Future<void> _reinitializeHiveIfNeeded() async {
+    try {
+      // Try health check first
+      await _checkHiveHealth();
+    } catch (e) {
+      logger.w('Hive health check failed, attempting graceful recovery: $e');
+      
+      // Instead of full reinitialization, try gentler recovery
+      final criticalBoxes = ['user_profile', 'journal_entries', 'arcform_snapshots', 'settings'];
+      
+      for (final boxName in criticalBoxes) {
+        if (!Hive.isBoxOpen(boxName)) {
+          try {
+            logger.d('Attempting to reopen closed box: $boxName');
+            await Hive.openBox(boxName);
+            logger.d('Successfully reopened box: $boxName');
+          } catch (boxError) {
+            logger.e('Failed to reopen box $boxName: $boxError');
+            
+            // Try to delete and recreate the box if it's corrupted
+            try {
+              logger.w('Attempting to delete and recreate corrupted box: $boxName');
+              await Hive.deleteBoxFromDisk(boxName);
+              await Hive.openBox(boxName);
+              logger.i('Successfully recreated box: $boxName');
+            } catch (recreateError) {
+              logger.e('Failed to recreate box $boxName: $recreateError');
+            }
+          }
+        }
+      }
+      
+      // Test if recovery was successful
+      try {
+        await _checkHiveHealth();
+        logger.i('Hive recovery completed successfully');
+      } catch (postRecoveryError) {
+        logger.e('Hive recovery was unsuccessful: $postRecoveryError');
+      }
+    }
+  }
+  
+  Future<void> _reinitializeOtherServices() async {
+    // Placeholder for reinitializing other services like Audio, RIVET, etc.
+    logger.d('Other services reinitialization placeholder');
   }
 
   Future<void> _checkHiveHealth() async {
     try {
       // Basic Hive health check - verify boxes are open and accessible
-      // Implementation would go here
+      final criticalBoxes = [
+        'user_profile',
+        'journal_entries', 
+        'arcform_snapshots',
+        'settings'
+      ];
+      
+      for (final boxName in criticalBoxes) {
+        if (!Hive.isBoxOpen(boxName)) {
+          logger.w('Critical box not open: $boxName, attempting to reopen');
+          try {
+            await Hive.openBox(boxName);
+            logger.d('Successfully reopened box: $boxName');
+          } catch (reopenError) {
+            logger.e('Failed to reopen box $boxName: $reopenError');
+            throw Exception('Critical Hive box $boxName is not accessible');
+          }
+        }
+      }
+      
+      // Test basic box operations
+      final settingsBox = Hive.box('settings');
+      final testKey = '_health_check_${DateTime.now().millisecondsSinceEpoch}';
+      await settingsBox.put(testKey, 'test');
+      final testValue = settingsBox.get(testKey);
+      await settingsBox.delete(testKey);
+      
+      if (testValue != 'test') {
+        throw Exception('Hive read/write test failed');
+      }
+      
       logger.d('Hive health check: OK');
     } catch (e) {
       logger.w('Hive health check failed: $e');
+      rethrow; // Re-throw so reinitialize can handle it
     }
   }
 

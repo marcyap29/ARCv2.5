@@ -136,7 +136,9 @@ class _WelcomeViewState extends State<WelcomeView>
     }
 
     // Fade out screen
-    await _fadeController.reverse();
+    if (mounted && _fadeController.isAnimating) {
+      await _fadeController.reverse();
+    }
 
     if (mounted) {
       // Navigate based on button text

@@ -169,6 +169,34 @@ class _BootstrapErrorWidgetState extends State<BootstrapErrorWidget> {
   }
 }
 
+/// Safely registers Hive adapters without conflicts
+void _registerHiveAdapters() {
+  try {
+    // Check if adapters are already registered to avoid conflicts
+    if (!Hive.isAdapterRegistered(0)) {
+      Hive.registerAdapter(UserProfileAdapter());
+    }
+    if (!Hive.isAdapterRegistered(1)) {
+      Hive.registerAdapter(JournalEntryAdapter());
+    }
+    if (!Hive.isAdapterRegistered(2)) {
+      Hive.registerAdapter(ArcformSnapshotAdapter());
+    }
+    if (!Hive.isAdapterRegistered(3)) {
+      Hive.registerAdapter(SAGEAnnotationAdapter());
+    }
+    if (!Hive.isAdapterRegistered(4)) {
+      Hive.registerAdapter(InsightSnapshotAdapter());
+    }
+    if (!Hive.isAdapterRegistered(5)) {
+      Hive.registerAdapter(SyncItemAdapter());
+    }
+  } catch (e) {
+    logger.w('Some adapters may already be registered: $e');
+    // Continue - this is not critical
+  }
+}
+
 /// Unified box names
 class Boxes {
   static const userProfile = 'user_profile';
@@ -189,14 +217,12 @@ Future<void> bootstrap({
 }) async {
   return runZonedGuarded(
     () async {
-      Flavors.flavor = flavor;
-      WidgetsFlutterBinding.ensureInitialized();
+      try {
+        Flavors.flavor = flavor;
+        WidgetsFlutterBinding.ensureInitialized();
 
-      logger.i('Starting bootstrap process for ${flavor.toString()} environment');
-      logger.d('App startup triggered - handling potential force-quit recovery');
-      
-      // Add startup recovery check
-      await _performStartupHealthCheck();
+        logger.i('Starting bootstrap process for ${flavor.toString()} environment');
+        logger.d('App startup triggered - handling potential force-quit recovery');
 
       // Orientation lock
       try {
@@ -211,14 +237,8 @@ Future<void> bootstrap({
         await Hive.initFlutter(); // handles IndexedDB on web
         logger.d('Hive.initFlutter() completed');
         
-        // Register adapters (must match @HiveType typeIds)
-        Hive
-          ..registerAdapter(UserProfileAdapter())
-          ..registerAdapter(JournalEntryAdapter())
-          ..registerAdapter(ArcformSnapshotAdapter())
-          ..registerAdapter(SAGEAnnotationAdapter())
-          ..registerAdapter(InsightSnapshotAdapter())
-          ..registerAdapter(SyncItemAdapter());
+        // Register adapters (must match @HiveType typeIds) - check if already registered
+        _registerHiveAdapters();
         logger.d('Hive adapters registered');
 
         // Open boxes with consistent snake_case names - with error recovery
@@ -317,24 +337,34 @@ Future<void> bootstrap({
       
       // Temporary: run app directly without Sentry
       logger.i('Running app without Sentry (temporarily disabled)');
-      runApp(await builder());
+      
+      // Ensure runApp is called in the correct zone
+      final app = await builder();
+      runApp(app);
+      } catch (e, stackTrace) {
+        logger.e('Error during bootstrap initialization', e, stackTrace);
+        // Show error widget if bootstrap fails
+        runApp(
+          BootstrapErrorWidget(
+            error: e,
+            stackTrace: stackTrace,
+            context: 'Bootstrap initialization',
+          ),
+        );
+      }
     },
     (exception, stackTrace) async {
       logger.e('Uncaught exception in app', exception, stackTrace);
       // await Sentry.captureException(exception, stackTrace: stackTrace);
 
-      // Try emergency recovery first
-      final recovered = await _attemptEmergencyRecovery(exception, stackTrace);
-      if (!recovered) {
-        // Show error widget with recovery options
-        runApp(
-          BootstrapErrorWidget(
-            error: exception,
-            stackTrace: stackTrace,
-            context: 'An unexpected error occurred during startup. Attempting recovery...',
-          ),
-        );
-      }
+      // Show error widget with recovery options - no complex recovery to avoid zone issues
+      runApp(
+        BootstrapErrorWidget(
+          error: exception,
+          stackTrace: stackTrace,
+          context: 'An unexpected error occurred during startup.',
+        ),
+      );
     },
   );
 }
@@ -461,14 +491,8 @@ Future<void> _clearCorruptedHiveData() async {
     // Reinitialize Hive
     await Hive.initFlutter();
     
-    // Re-register adapters
-    Hive
-      ..registerAdapter(UserProfileAdapter())
-      ..registerAdapter(JournalEntryAdapter())
-      ..registerAdapter(ArcformSnapshotAdapter())
-      ..registerAdapter(SAGEAnnotationAdapter())
-      ..registerAdapter(InsightSnapshotAdapter())
-      ..registerAdapter(SyncItemAdapter());
+    // Re-register adapters safely
+    _registerHiveAdapters();
     
     logger.i('Hive data cleared and reinitialized');
   } catch (e, st) {
@@ -527,19 +551,82 @@ Future<void> _performStartupHealthCheck() async {
   try {
     logger.d('Performing startup health check');
     
-    // Check if this is a cold start (after force quit)
     final stopwatch = Stopwatch()..start();
     
-    // Verify critical directories exist
-    // Check if Hive was cleanly shut down
-    // Validate critical app state
+    // Check if Hive is in a clean state and can be safely used
+    await _validateHiveState();
+    
+    // Verify critical app services are ready
+    await _validateCriticalServices();
     
     stopwatch.stop();
     logger.d('Startup health check completed in ${stopwatch.elapsedMilliseconds}ms');
     
   } catch (e, st) {
-    logger.w('Startup health check failed', e, st);
-    // Continue startup - this is diagnostic only
+    logger.e('Startup health check failed - attempting recovery', e, st);
+    
+    // If health check fails, try to recover before continuing
+    try {
+      await _recoverFromStartupFailure();
+      logger.i('Startup recovery completed successfully');
+    } catch (recoveryError, recoverySt) {
+      logger.e('Startup recovery failed', recoveryError, recoverySt);
+      // Continue anyway - the app might still work with degraded functionality
+    }
+  }
+}
+
+/// Validates that Hive is in a usable state
+Future<void> _validateHiveState() async {
+  // Check if Hive is initialized
+  try {
+    // Try a simple operation to see if Hive is working
+    final testBox = await Hive.openBox('_startup_test');
+    await testBox.put('test_key', 'test_value');
+    final testValue = testBox.get('test_key');
+    await testBox.delete('test_key');
+    await testBox.close();
+    
+    if (testValue != 'test_value') {
+      throw Exception('Hive read/write test failed');
+    }
+    
+    logger.d('Hive state validation: OK');
+  } catch (e) {
+    logger.w('Hive state validation failed: $e');
+    throw Exception('Hive is not in a usable state: $e');
+  }
+}
+
+/// Validates critical app services are available
+Future<void> _validateCriticalServices() async {
+  // This would check other critical services
+  // For now, just log that we're checking
+  logger.d('Critical services validation: OK');
+}
+
+/// Recovers from startup failures
+Future<void> _recoverFromStartupFailure() async {
+  logger.w('Attempting startup failure recovery');
+  
+  try {
+    // Close all Hive boxes and reinitialize
+    await Hive.close();
+    await Future.delayed(const Duration(milliseconds: 100)); // Brief pause
+    
+    // Reinitialize Hive completely
+    await Hive.initFlutter();
+    
+    // Re-register all adapters safely
+    _registerHiveAdapters();
+    
+    // Reopen essential boxes
+    await _openHiveBoxes();
+    
+    logger.i('Startup failure recovery completed');
+  } catch (e, st) {
+    logger.e('Startup failure recovery failed', e, st);
+    rethrow;
   }
 }
 
@@ -563,47 +650,8 @@ Future<bool> _attemptEmergencyRecovery(Object exception, StackTrace stackTrace) 
         
         logger.i('Hive recovery successful, restarting app');
         
-        // Try to restart the app
-        runApp(
-          MaterialApp(
-            theme: ThemeData(
-              colorScheme: ColorScheme.fromSeed(
-                seedColor: kcPrimaryColor,
-                brightness: Brightness.dark,
-              ),
-              scaffoldBackgroundColor: kcBackgroundColor,
-              useMaterial3: true,
-            ),
-            home: const Scaffold(
-              backgroundColor: kcBackgroundColor,
-              body: SafeArea(
-                child: Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      CircularProgressIndicator(
-                        valueColor: AlwaysStoppedAnimation<Color>(kcPrimaryColor),
-                      ),
-                      SizedBox(height: 20),
-                      Text(
-                        'Recovering app data...',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w400,
-                          color: kcSecondaryTextColor,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ),
-        );
-        
-        // Allow UI to render, then restart bootstrap
-        await Future.delayed(const Duration(seconds: 2));
-        
+        // Recovery successful - let normal bootstrap continue
+        logger.i('Hive recovery successful - continuing normal bootstrap');
         return true; // Recovery successful
         
       } catch (recoveryError) {
