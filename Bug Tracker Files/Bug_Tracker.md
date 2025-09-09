@@ -1,10 +1,219 @@
 # EPI ARC MVP - Bug Tracker
 
 > **Last Updated**: January 9, 2025 (America/Los_Angeles)  
-> **Total Items Tracked**: 40 (30 bugs + 10 enhancements)  
-> **Critical Issues Fixed**: 30  
-> **Enhancements Completed**: 10  
-> **Status**: Production ready - Latest modernization removes legacy 2D arcform code and standardizes on 3D molecular visualizations ✅
+> **Total Items Tracked**: 52 (40 bugs + 12 enhancements)  
+> **Critical Issues Fixed**: 40  
+> **Enhancements Completed**: 12  
+> **Status**: Production ready - UI overflow, app restart, onboarding, and media-handling issues resolved ✅
+
+---
+
+## Bug ID: BUG-2025-01-09-001
+**Title**: Timeline Filter Buttons Overflow Error
+
+**Type**: Bug  
+**Priority**: P1 (Critical)  
+**Status**: ✅ Fixed  
+**Reporter**: User Report  
+**Implementer**: Claude Code  
+**Fix Date**: 2025-01-09
+
+#### Description
+Timeline filter buttons (All, Text only, With Arcform) were causing a 3.5px right overflow error, displaying red overflow indicators on the right side of the screen.
+
+#### Root Cause
+The Row containing FilterChips was using `MainAxisAlignment.center` but the content was wider than the available space, causing overflow.
+
+#### Solution
+- Wrapped the Row in `SingleChildScrollView` with horizontal scrolling
+- Changed `MainAxisAlignment.center` to `MainAxisAlignment.start`
+- Reduced margins on status indicators to prevent overflow
+
+#### Files Modified
+- `lib/features/timeline/timeline_view.dart`
+- `lib/mode/first_responder/widgets/fr_status_indicator.dart`
+- `lib/mode/coach/widgets/coach_mode_status_indicator.dart`
+
+---
+
+## Bug ID: BUG-2025-01-09-002
+**Title**: AnimationController Dispose Error
+
+**Type**: Bug  
+**Priority**: P1 (Critical)  
+**Status**: ✅ Fixed  
+**Reporter**: Error Logs  
+**Implementer**: Claude Code  
+**Fix Date**: 2025-01-09
+
+#### Description
+AnimationController.reverse() was being called after the controller was disposed, causing crashes during app navigation.
+
+#### Root Cause
+The `_beginJourney` method in welcome_view.dart was calling `_fadeController.reverse()` asynchronously without checking if the controller was still valid.
+
+#### Solution
+Added safety check: `if (mounted && _fadeController.isAnimating)` before calling `reverse()`.
+
+#### Files Modified
+- `lib/features/startup/welcome_view.dart`
+
+---
+
+## Bug ID: BUG-2025-01-09-003
+**Title**: App Restart Failure After Force-Quit
+
+**Type**: Bug  
+**Priority**: P1 (Critical)  
+**Status**: ✅ Fixed  
+**Reporter**: User Report  
+**Implementer**: Claude Code  
+**Fix Date**: 2025-01-09
+
+#### Description
+App would not load properly when restarted after being force-quit, showing zone mismatch errors.
+
+#### Root Cause
+Zone mismatch error in bootstrap.dart where `runApp` was being called in different zone contexts.
+
+#### Solution
+- Separated `await builder()` from `runApp()` call
+- Added try-catch around bootstrap initialization
+- Fixed error widget retry to use bootstrap instead of direct `runApp`
+- Improved zone handling throughout the bootstrap process
+
+#### Files Modified
+- `lib/main/bootstrap.dart`
+- `lib/main.dart`
+
+---
+
+## Bug ID: BUG-2025-01-09-004
+**Title**: Onboarding Screen Button Cropping Issue
+
+**Type**: Bug  
+**Priority**: P2 (High)  
+**Status**: ✅ Fixed  
+**Reporter**: User Report  
+**Implementer**: Claude Code  
+**Fix Date**: 2025-01-09
+
+#### Description
+The "First Responder" button in the onboarding screen was being cropped at the bottom of the screen, making it inaccessible to users. Additionally, there were duplicate "Coaching" and "Coach" buttons causing confusion.
+
+#### Root Cause
+The onboarding page used a fixed Column layout without scrolling, causing buttons to be cut off on smaller screens or when there were many options.
+
+#### Solution
+- Wrapped onboarding page 1 content in `SingleChildScrollView`
+- Removed duplicate "Coaching" button, kept "Coach" button only
+- Added proper spacing for better visual balance
+- Ensured all 6 options are visible and accessible
+
+#### Files Modified
+- `lib/features/onboarding/onboarding_view.dart`
+
+---
+
+## Bug ID: BUG-2025-01-09-005
+**Title**: Missing Metadata Field in JournalEntry Model
+
+**Type**: Bug  
+**Priority**: P1 (Critical)  
+**Status**: ✅ Fixed  
+**Reporter**: Build Error  
+**Implementer**: Claude Code  
+**Fix Date**: 2025-01-09
+
+#### Description
+The JournalEntry model was missing a `metadata` field that was being accessed by the enhanced export service and other parts of the codebase, causing compilation errors.
+
+#### Root Cause
+The `metadata` field was referenced in code but not defined in the JournalEntry model, causing "undefined getter 'metadata'" errors.
+
+#### Solution
+- Added `@HiveField(13) final Map<String, dynamic>? metadata;` to JournalEntry model
+- Updated constructor, copyWith, props, toJson, and fromJson methods
+- Regenerated Hive models to include the new field
+
+#### Files Modified
+- `lib/models/journal_entry_model.dart`
+- `lib/models/journal_entry_model.g.dart`
+
+---
+
+## Bug ID: BUG-2025-01-09-006
+**Title**: Missing Uint8List Import in Import Bottom Sheet
+
+**Type**: Bug  
+**Priority**: P1 (Critical)  
+**Status**: ✅ Fixed  
+**Reporter**: Build Error  
+**Implementer**: Claude Code  
+**Fix Date**: 2025-01-09
+
+#### Description
+The import_bottom_sheet.dart file was using `Uint8List` type but missing the required import, causing compilation errors.
+
+#### Root Cause
+Missing `import 'dart:typed_data';` statement for Uint8List type usage.
+
+#### Solution
+- Added `import 'dart:typed_data';` to import_bottom_sheet.dart
+- Resolved type compilation errors
+
+#### Files Modified
+- `lib/ui/import/import_bottom_sheet.dart`
+
+---
+
+## Bug ID: BUG-2025-01-09-007
+**Title**: Bloc Test Dependency Version Conflict
+
+**Type**: Bug  
+**Priority**: P1 (Critical)  
+**Status**: ✅ Fixed  
+**Reporter**: Build Error  
+**Implementer**: Claude Code  
+**Fix Date**: 2025-01-09
+
+#### Description
+The bloc_test dependency version (9.1.7) was incompatible with flutter_bloc (9.1.1), causing dependency resolution failures.
+
+#### Root Cause
+Version constraint mismatch between bloc_test and flutter_bloc packages.
+
+#### Solution
+- Updated bloc_test dependency from ^9.1.7 to ^10.0.0
+- Resolved dependency conflicts and enabled test compilation
+
+#### Files Modified
+- `pubspec.yaml`
+
+---
+
+## Bug ID: BUG-2025-01-09-008
+**Title**: Rivet Models Keywords Type Mismatch
+
+**Type**: Bug  
+**Priority**: P1 (Critical)  
+**Status**: ✅ Fixed  
+**Reporter**: Build Error  
+**Implementer**: Claude Code  
+**Fix Date**: 2025-01-09
+
+#### Description
+The generated rivet_models.g.dart file had a type mismatch where keywords field was defined as Set<String> but being cast as List<String>, causing compilation errors.
+
+#### Root Cause
+Hive code generation created incorrect type casting for Set<String> fields.
+
+#### Solution
+- Fixed the generated code to cast as `(fields[2] as List).cast<String>().toSet()`
+- Ensured proper Set<String> type conversion for keywords field
+
+#### Files Modified
+- `lib/core/rivet/rivet_models.g.dart`
 
 ---
 
@@ -38,6 +247,73 @@ Removed legacy 2D arcform implementation and standardized on 3D molecular style 
 - `lib/features/arcforms/arcform_renderer_view.dart` (simplified)
 - `lib/features/arcforms/widgets/arcform_layout.dart` (removed)
 - `lib/features/arcforms/widgets/simple_3d_arcform.dart` (cleaned up)
+
+---
+
+## Enhancement ID: ENH-2025-01-09-002
+**Title**: Coach Mode MVP Implementation (P27, P27.1, P27.2, P27.3)
+
+**Type**: Enhancement  
+**Priority**: P1 (Major Feature)  
+**Status**: ✅ Completed  
+**Reporter**: Product Requirements  
+**Implementer**: Claude Code  
+**Completion Date**: 2025-01-09
+
+#### Description
+Implemented complete Coach Mode MVP system with droplet templates, keyword detection, share bundle export, and fitness tracking capabilities. This provides a comprehensive coaching platform for clients to track progress and share data with coaches.
+
+#### Features Implemented
+- **P27**: Core Coach Mode with coaching tools drawer, guided droplets, and Coach Share Bundle (CSB) export
+- **P27.1**: Coach → Client Sharing (CRB v0) for importing coach recommendations
+- **P27.2**: Trackers & Checklists for Diet, Habits, Checklist, Sleep, and Exercise
+- **P27.3**: Fitness & Weight Training droplets with progress photos and detailed tracking
+
+#### Technical Implementation
+- **Data Models**: 13+ predefined droplet templates with various field types (text, scale, chips, date, time, datetime, image)
+- **Services**: CoachDropletService, CoachShareService, CoachKeywordListener, CoachModeService
+- **UI Components**: Coach Mode drawer, droplet runner, share review sheet, status indicator
+- **State Management**: CoachModeCubit with comprehensive state handling
+- **Hive Integration**: Persistent storage for droplets, responses, and share bundles
+
+#### Files Created
+- `lib/mode/coach/` - Complete Coach Mode implementation
+- `lib/features/settings/coach_mode_settings_section.dart` - Settings integration
+- `lib/mode/coach/widgets/coach_mode_status_indicator.dart` - Status indicator
+- 15+ new files for complete Coach Mode functionality
+
+---
+
+## Enhancement ID: ENH-2025-01-09-003
+**Title**: First Responder Mode Toggle Improvements
+
+**Type**: Enhancement  
+**Priority**: P2 (User Experience)  
+**Status**: ✅ Completed  
+**Reporter**: User Feedback  
+**Implementer**: Claude Code  
+**Completion Date**: 2025-01-09
+
+#### Description
+Improved First Responder Mode toggle behavior to activate immediately without sub-menu, displaying individual feature toggles inline like Coach Mode. Fixed toggle activation issues and streamlined user experience.
+
+#### Changes Made
+- **Immediate Activation**: FR Mode now activates instantly when toggled
+- **Inline Toggles**: Individual feature toggles displayed directly in settings
+- **Removed Sub-menu**: Eliminated separate popup for feature explanations
+- **Fixed Toggle Logic**: Resolved FRSettings.defaults() issue preventing proper activation
+- **Added FRSettings.enabled()**: New factory method for proper mode activation
+
+#### Technical Impact
+- **User Experience**: Faster, more intuitive mode activation
+- **Code Quality**: Cleaner toggle logic and state management
+- **Consistency**: Matches Coach Mode behavior and styling
+- **Reliability**: Fixed toggle activation bugs
+
+#### Files Modified
+- `lib/mode/first_responder/fr_settings.dart` - Added enabled() factory method
+- `lib/mode/first_responder/fr_settings_cubit.dart` - Simplified toggle logic
+- `lib/features/settings/first_responder_settings_section.dart` - Removed sub-menu
 
 ---
 
@@ -3495,5 +3771,48 @@ Added visual status indicator in upper screen area to show when First Responder 
 - **User Awareness**: Clear indication of FR mode status
 - **Settings Visibility**: Users know when FR features are active
 - **Professional UX**: Clean, non-intrusive status indication
+
+---
+
+## Bug ID: BUG-2025-01-09-009
+**Title**: Force-Quit Recovery HiveError: Box Already Open
+
+**Type**: Bug  
+**Priority**: P1 (Critical)  
+**Status**: ✅ Fixed  
+**Reporter**: User Testing  
+**Implementer**: Claude Code  
+**Fix Date**: 2025-01-09
+
+#### Description
+App would fail to restart after force-quit with HiveError: "The box 'arcform_snapshots' is already open and of type Box<ArcformSnapshot>". This prevented reliable app recovery after force-quit scenarios.
+
+#### Root Cause
+Multiple files were calling `Hive.openBox<ArcformSnapshot>('arcform_snapshots')` directly without checking if the box was already open, causing conflicts when the bootstrap recovery system tried to reinitialize Hive boxes after force-quit.
+
+#### Solution
+- Added proper box existence checks before opening Hive boxes
+- Modified all direct `Hive.openBox` calls to check `Hive.isBoxOpen()` first
+- Updated files: historical_arcform_view.dart, arcform_renderer_cubit.dart, journal_capture_cubit.dart, arcform_mvp_view.dart
+- Ensured consistent box access pattern across the app
+
+#### Files Modified
+- `lib/features/timeline/widgets/historical_arcform_view.dart` - Added box existence check
+- `lib/features/arcforms/arcform_renderer_cubit.dart` - Added box existence check  
+- `lib/features/journal/journal_capture_cubit.dart` - Added box existence check (4 instances)
+- `lib/features/arcforms/arcform_mvp_view.dart` - Added box existence check (3 instances)
+
+#### Testing Results
+- ✅ App restarts successfully after force-quit
+- ✅ No more "box already open" HiveError exceptions
+- ✅ All Hive boxes open properly during recovery
+- ✅ Bootstrap recovery system works reliably
+- ✅ Force-quit recovery now functional
+
+#### Impact
+- **Reliability**: App now consistently restarts after force-quit
+- **User Experience**: No more app crashes or restart failures
+- **Data Integrity**: Hive database access is now safe and consistent
+- **Recovery**: Force-quit recovery system works as intended
 
 ---
