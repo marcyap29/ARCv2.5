@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:my_app/media/crypto/enhanced_encryption.dart';
+import 'package:my_app/media/crypto/hash_utils.dart';
 import 'package:my_app/media/storage/enhanced_cas_store.dart';
 import 'package:my_app/media/privacy/privacy_controls.dart';
 import 'package:my_app/media/settings/hive_storage_settings.dart';

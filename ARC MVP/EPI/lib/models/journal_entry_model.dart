@@ -46,6 +46,9 @@ class JournalEntry extends Equatable {
   @HiveField(11)
   final String? emotionReason;
 
+  @HiveField(13)
+  final Map<String, dynamic>? metadata;
+
   const JournalEntry({
     required this.id,
     required this.title,
@@ -60,6 +63,7 @@ class JournalEntry extends Equatable {
     this.keywords = const [],
     this.emotion,
     this.emotionReason,
+    this.metadata,
   });
 
   JournalEntry copyWith({
@@ -76,6 +80,7 @@ class JournalEntry extends Equatable {
     List<String>? keywords,
     String? emotion,
     String? emotionReason,
+    Map<String, dynamic>? metadata,
   }) {
     return JournalEntry(
       id: id ?? this.id,
@@ -91,6 +96,7 @@ class JournalEntry extends Equatable {
       keywords: keywords ?? this.keywords,
       emotion: emotion ?? this.emotion,
       emotionReason: emotionReason ?? this.emotionReason,
+      metadata: metadata ?? this.metadata,
     );
   }
 
@@ -109,6 +115,7 @@ class JournalEntry extends Equatable {
         keywords,
         emotion,
         emotionReason,
+        metadata,
       ];
 
   Map<String, dynamic> toJson() {
@@ -126,6 +133,7 @@ class JournalEntry extends Equatable {
       'keywords': keywords,
       'emotion': emotion,
       'emotionReason': emotionReason,
+      'metadata': metadata,
     };
   }
 
@@ -149,6 +157,7 @@ class JournalEntry extends Equatable {
       keywords: List<String>.from(json['keywords'] as List? ?? []),
       emotion: json['emotion'] as String?,
       emotionReason: json['emotionReason'] as String?,
+      metadata: json['metadata'] as Map<String, dynamic>?,
     );
   }
 }
