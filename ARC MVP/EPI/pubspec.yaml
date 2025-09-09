@@ -34,6 +34,13 @@ dependencies:
   image_picker: ^1.0.4
   pdf: ^3.10.7
   crypto: ^3.0.3
+  photo_manager: ^3.5.0
+  ffmpeg_kit_flutter_min_gpl: ^6.0.3
+  google_mlkit_text_recognition: ^0.13.0
+  google_mlkit_face_detection: ^0.11.1
+  mime: ^1.0.6
+  collection: ^1.18.0
+  flutter_secure_storage: ^9.2.2
   
   # Firebase Dependencies
   # Uncomment these lines when you need Firebase functionality
