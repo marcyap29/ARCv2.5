@@ -8,7 +8,7 @@ import Foundation
 import audio_session
 import audioplayers_darwin
 import device_info_plus
-import ffmpeg_kit_flutter_min_gpl
+import ffmpeg_kit_flutter_new_min_gpl
 import file_selector_macos
 import flutter_secure_storage_macos
 import just_audio
