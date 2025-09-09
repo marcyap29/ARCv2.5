@@ -130,7 +130,11 @@ class ArcformRendererCubit extends Cubit<ArcformRendererState> {
   /// Get the latest arcform snapshot data from storage
   Future<Map<String, dynamic>?> _getLatestArcformSnapshot() async {
     try {
-      final box = await Hive.openBox<ArcformSnapshot>('arcform_snapshots');
+      // Check if box is already open, if not open it
+      if (!Hive.isBoxOpen('arcform_snapshots')) {
+        await Hive.openBox<ArcformSnapshot>('arcform_snapshots');
+      }
+      final box = Hive.box<ArcformSnapshot>('arcform_snapshots');
       
       print('DEBUG: Hive box has ${box.length} snapshots');
       if (box.isEmpty) {

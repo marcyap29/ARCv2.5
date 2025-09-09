@@ -383,7 +383,10 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
       );
 
       // Save the snapshot to Hive
-      final snapshotBox = await Hive.openBox<ArcformSnapshot>('arcform_snapshots');
+      if (!Hive.isBoxOpen('arcform_snapshots')) {
+        await Hive.openBox<ArcformSnapshot>('arcform_snapshots');
+      }
+      final snapshotBox = Hive.box<ArcformSnapshot>('arcform_snapshots');
       await snapshotBox.put(snapshot.id, snapshot);
       
       // Enqueue arcform for sync
@@ -439,7 +442,10 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
       );
 
       // Save the snapshot to Hive
-      final snapshotBox = await Hive.openBox<ArcformSnapshot>('arcform_snapshots');
+      if (!Hive.isBoxOpen('arcform_snapshots')) {
+        await Hive.openBox<ArcformSnapshot>('arcform_snapshots');
+      }
+      final snapshotBox = Hive.box<ArcformSnapshot>('arcform_snapshots');
       await snapshotBox.put(snapshot.id, snapshot);
       
       print('Phase-aware Arcform created: $phase (${arcform.geometry.name}) with ${arcform.keywords.length} keywords');
@@ -676,7 +682,10 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
       );
 
       // Save the snapshot to Hive
-      final snapshotBox = await Hive.openBox<ArcformSnapshot>('arcform_snapshots');
+      if (!Hive.isBoxOpen('arcform_snapshots')) {
+        await Hive.openBox<ArcformSnapshot>('arcform_snapshots');
+      }
+      final snapshotBox = Hive.box<ArcformSnapshot>('arcform_snapshots');
       await snapshotBox.put(snapshot.id, snapshot);
       
       // Track analytics for user-selected phase
@@ -738,7 +747,10 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
       );
 
       // Save the snapshot to Hive
-      final snapshotBox = await Hive.openBox<ArcformSnapshot>('arcform_snapshots');
+      if (!Hive.isBoxOpen('arcform_snapshots')) {
+        await Hive.openBox<ArcformSnapshot>('arcform_snapshots');
+      }
+      final snapshotBox = Hive.box<ArcformSnapshot>('arcform_snapshots');
       await snapshotBox.put(snapshot.id, snapshot);
       
       // Track analytics for auto-accepted geometry
@@ -801,7 +813,10 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
       );
 
       // Save the snapshot to Hive
-      final snapshotBox = await Hive.openBox<ArcformSnapshot>('arcform_snapshots');
+      if (!Hive.isBoxOpen('arcform_snapshots')) {
+        await Hive.openBox<ArcformSnapshot>('arcform_snapshots');
+      }
+      final snapshotBox = Hive.box<ArcformSnapshot>('arcform_snapshots');
       await snapshotBox.put(snapshot.id, snapshot);
       
       // Track analytics for manual geometry override

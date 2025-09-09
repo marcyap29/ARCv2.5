@@ -1,9 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:my_app/features/timeline/timeline_entry_model.dart';
-import 'package:my_app/features/arcforms/arcform_renderer_cubit.dart';
-import 'package:my_app/features/arcforms/arcform_renderer_state.dart';
-import 'package:my_app/features/arcforms/geometry/geometry_layouts.dart';
 import 'package:my_app/models/arcform_snapshot_model.dart';
 import 'package:my_app/shared/app_colors.dart';
 import 'package:my_app/shared/text_style.dart';
@@ -65,7 +61,11 @@ class _HistoricalArcformViewState extends State<HistoricalArcformView> {
 
   Future<ArcformSnapshot?> _findClosestArcformSnapshot(DateTime targetDate) async {
     try {
-      final box = await Hive.openBox<ArcformSnapshot>('arcform_snapshots');
+      // Check if box is already open, if not open it
+      if (!Hive.isBoxOpen('arcform_snapshots')) {
+        await Hive.openBox<ArcformSnapshot>('arcform_snapshots');
+      }
+      final box = Hive.box<ArcformSnapshot>('arcform_snapshots');
       
       ArcformSnapshot? closestSnapshot;
       Duration? smallestDifference;
