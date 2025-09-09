@@ -201,11 +201,12 @@ class _OnboardingPage1 extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
+    return SingleChildScrollView(
       padding: const EdgeInsets.all(24.0),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
+          const SizedBox(height: 40),
           Text(
             'What brings you here?',
             style: heading1Style(context).copyWith(
@@ -225,7 +226,7 @@ class _OnboardingPage1 extends StatelessWidget {
           const _OptionGrid(
             options: [
               'Self-discovery',
-              'Coaching',
+              'Coach',
               'Journaling',
               'Growth',
               'Recovery',
@@ -233,6 +234,7 @@ class _OnboardingPage1 extends StatelessWidget {
             ],
             type: OnboardingOptionType.purpose,
           ),
+          const SizedBox(height: 40),
         ],
       ),
     );
