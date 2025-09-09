@@ -16,7 +16,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - Fixed AnimationController dispose error in welcome view
 - Fixed app restart issues after force-quit
 - Fixed zone mismatch errors in bootstrap initialization
+- Fixed onboarding screen button cropping issue
 - Improved error handling and recovery mechanisms
+
+### Changed
+- Updated onboarding purpose options: removed "Coaching", kept "Coach"
+- Made onboarding page 1 scrollable to prevent button cropping
 
 ---
 
