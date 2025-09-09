@@ -11,12 +11,31 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 ### In Development
 - Advanced animation sequences for sacred journaling
 
+### Added
+- **Media Handling System (P27)** - Complete media processing infrastructure
+  - Audio transcription service with MLKit integration
+  - Video keyframe extraction and analysis
+  - Vision analysis service for image processing
+  - Enhanced encryption system with at-rest encryption
+  - Content-Addressable Storage (CAS) with hash-based deduplication
+  - Media import service with multi-format support
+  - Background processing for media operations
+  - Privacy controls and data protection
+  - Storage profiles for different media types
+  - Pointer resolver system for media references
+  - Cross-platform media handling (iOS, Android, macOS, Linux, Windows)
+  - Comprehensive test coverage for media functionality
+
 ### Fixed
 - Fixed 3.5px right overflow in timeline filter buttons
 - Fixed AnimationController dispose error in welcome view
 - Fixed app restart issues after force-quit
 - Fixed zone mismatch errors in bootstrap initialization
 - Fixed onboarding screen button cropping issue
+- Fixed missing metadata field in JournalEntry model
+- Fixed Uint8List import in import_bottom_sheet.dart
+- Fixed bloc_test dependency version conflicts
+- Fixed rivet_models.g.dart keywords type mismatch (List<String> → Set<String>)
 - Improved error handling and recovery mechanisms
 
 ### Changed
