@@ -28,7 +28,10 @@ class _ArcformMVPViewState extends State<ArcformMVPView> {
     setState(() => _isLoading = true);
     
     try {
-      final box = await Hive.openBox('arcform_snapshots');
+      if (!Hive.isBoxOpen('arcform_snapshots')) {
+        await Hive.openBox('arcform_snapshots');
+      }
+      final box = Hive.box('arcform_snapshots');
       final snapshots = <Map<String, dynamic>>[];
       
       for (final key in box.keys) {
@@ -86,7 +89,10 @@ class _ArcformMVPViewState extends State<ArcformMVPView> {
         'createdAt': DateTime.now().toIso8601String(),
       };
       
-      final box = await Hive.openBox('arcform_snapshots');
+      if (!Hive.isBoxOpen('arcform_snapshots')) {
+        await Hive.openBox('arcform_snapshots');
+      }
+      final box = Hive.box('arcform_snapshots');
       await box.put(demoData['id'], demoData);
       
       await _loadSnapshots();
@@ -114,7 +120,10 @@ class _ArcformMVPViewState extends State<ArcformMVPView> {
   /// Delete an Arcform snapshot
   Future<void> _deleteSnapshot(String id) async {
     try {
-      final box = await Hive.openBox('arcform_snapshots');
+      if (!Hive.isBoxOpen('arcform_snapshots')) {
+        await Hive.openBox('arcform_snapshots');
+      }
+      final box = Hive.box('arcform_snapshots');
       await box.delete(id);
       await _loadSnapshots();
       
