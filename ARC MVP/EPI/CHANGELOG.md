@@ -1940,4 +1940,26 @@ All commits follow the established pattern:
 
 ---
 
+## [2025-01-09] - Force-Quit Recovery Fix
+
+### Fixed
+- **Force-Quit Recovery**: Resolved HiveError "box already open" issue that prevented app restart after force-quit
+- **Hive Database Access**: Fixed direct `Hive.openBox` calls that bypassed bootstrap recovery system
+- **Box Conflict Resolution**: Added proper box existence checks before opening Hive boxes
+- **Recovery Reliability**: Force-quit recovery now works consistently without database conflicts
+
+### Technical Details
+- Modified 4 files with 42 insertions, 14 deletions
+- Updated historical_arcform_view.dart, arcform_renderer_cubit.dart, journal_capture_cubit.dart, arcform_mvp_view.dart
+- Implemented consistent box access pattern: check `Hive.isBoxOpen()` before `Hive.openBox()`
+- Resolved arcform_snapshots box conflicts in multiple code locations
+
+### Impact
+- App now restarts reliably after force-quit scenarios
+- No more HiveError exceptions during recovery
+- Improved user experience with consistent app behavior
+- Enhanced data integrity and recovery mechanisms
+
+---
+
 *This changelog is automatically maintained as a backup to git history and provides quick access to development progress and technical decisions.*

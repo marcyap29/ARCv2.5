@@ -902,6 +902,120 @@ Implement a deterministic insight generation system that creates 3-5 personalize
 
 ---
 
+## P27 — Coach Mode MVP Complete Implementation ✅
+
+**Status:** ✅ **COMPLETE** - Full Coach Mode MVP system implemented with all P27, P27.1, P27.2, P27.3 features
+
+**Implementation Date:** January 9, 2025
+
+### Core Features Implemented
+
+#### P27: Core Coach Mode
+- **Coaching Tools Drawer**: Complete UI with mode toggle and feature access
+- **Guided Droplets**: 13+ predefined templates for various coaching scenarios
+- **Coach Share Bundle (CSB) Export**: JSON and PDF export for coach communication
+- **Keyword Detection**: Smart suggestions when coach-related keywords are detected
+- **Status Indicator**: Visual indicator at top of screen when Coach Mode is active
+
+#### P27.1: Coach → Client Sharing (CRB v0)
+- **Coach Reply Bundle Import**: Import coach recommendations as insight cards
+- **CRB Data Models**: Complete data structure for coach-client communication
+- **File Import System**: OS file picker integration for CRB import
+
+#### P27.2: Trackers & Checklists
+- **Diet Intake Tracking**: Quick meal logging with nutritional data
+- **Daily Habits Check-in**: Habit completion tracking with customizable options
+- **Checklist Done**: Task completion logging with effort tracking
+- **Sleep & Recovery**: Sleep quality and recovery metrics
+- **Exercise Session**: Workout logging with duration and intensity
+
+#### P27.3: Fitness & Weight Training
+- **Strength Training**: Simple and detailed workout logging with RPE
+- **Cardio Sessions**: Endurance activity tracking with heart rate
+- **Mobility & Rehab**: Joint health and recovery tracking
+- **Body Metrics**: Weight, bodyfat, and progress photo support
+- **Hydration Tracking**: Daily fluid intake monitoring
+- **Nutrition Timing**: Pre/post workout nutrition logging
+- **Weekly Planning**: Training plan creation and review
+
+### Technical Implementation
+
+**Files Created (57 files, 15,502+ lines):**
+- `lib/mode/coach/` - Complete Coach Mode implementation directory
+- `lib/features/settings/coach_mode_settings_section.dart` - Settings integration
+- `lib/mode/coach/widgets/coach_mode_status_indicator.dart` - Status indicator
+- `lib/mode/coach/models/coach_models.dart` - Data models and enums
+- `lib/mode/coach/templates/default_droplets.dart` - Predefined templates
+- `lib/mode/coach/coach_mode_cubit.dart` - State management
+- `lib/mode/coach/coach_droplet_service.dart` - Droplet management
+- `lib/mode/coach/coach_share_service.dart` - Export/import functionality
+- `lib/mode/coach/coach_keyword_listener.dart` - Smart suggestions
+- `lib/mode/coach/ui/` - Complete UI implementation
+- `lib/mode/coach/widgets/` - Reusable Coach Mode widgets
+
+**Data Models:**
+- `CoachDropletTemplate` - Immutable template definitions
+- `DropletField` - Flexible field system with 8 field types
+- `CoachDropletResponse` - User responses and data
+- `CoachShareBundle` - Export data structure
+- `CoachReplyBundle` - Import data structure
+- `CoachRecommendation` - Coach suggestions and plans
+
+**Services:**
+- `CoachModeCubit` - Comprehensive state management
+- `CoachDropletService` - Droplet creation and persistence
+- `CoachShareService` - Export/import with PDF generation
+- `CoachKeywordListener` - Keyword detection and suggestions
+- `CoachModeService` - Central coordination service
+
+**UI Components:**
+- `CoachModeDrawer` - Main coaching tools interface
+- `DropletRunnerView` - Dynamic form rendering
+- `ShareReviewSheet` - Export review and redaction
+- `CoachWhatChangesSheet` - Feature explanation modal
+- `CoachModeStatusIndicator` - Top-screen status display
+
+### First Responder Mode Improvements
+
+**Toggle Behavior Enhancement:**
+- **Immediate Activation**: FR Mode now activates instantly when toggled
+- **Inline Toggles**: Individual feature toggles displayed directly in settings
+- **Removed Sub-menu**: Eliminated separate popup for feature explanations
+- **Fixed Toggle Logic**: Resolved FRSettings.defaults() activation issues
+- **Added FRSettings.enabled()**: New factory method for proper mode activation
+
+**Files Modified:**
+- `lib/mode/first_responder/fr_settings.dart` - Added enabled() factory method
+- `lib/mode/first_responder/fr_settings_cubit.dart` - Simplified toggle logic
+- `lib/features/settings/first_responder_settings_section.dart` - Removed sub-menu
+
+### Integration & Testing
+
+**App Integration:**
+- **Settings Screen**: Both modes integrated with consistent styling
+- **Home Screen**: Status indicators for active modes
+- **Hive Storage**: Complete data persistence setup
+- **Dependencies**: Added pdf and crypto packages for export functionality
+
+**Testing Results:**
+- **Build Success**: iOS build completes without errors
+- **Runtime Stability**: App runs without crashes or rendering issues
+- **Toggle Functionality**: Both modes activate/deactivate properly
+- **Data Persistence**: All Coach Mode data saves and loads correctly
+- **Export Functionality**: PDF and JSON export working properly
+
+**Status:** ✅ **COMPLETE** - Coach Mode MVP fully implemented and integrated
+
+**Impact:**
+- **User Experience**: Comprehensive coaching platform for client-coach communication
+- **Feature Completeness**: All P27, P27.1, P27.2, P27.3 requirements implemented
+- **Data Management**: Complete droplet system with flexible templates
+- **Export Capabilities**: Professional coach communication tools
+- **Fitness Tracking**: Comprehensive workout and nutrition logging
+- **Code Quality**: Clean, maintainable implementation with proper state management
+
+---
+
 ---
 
 ## Prompt 27 — First Responder Mode (P27-P34) ✅ COMPLETE
@@ -989,6 +1103,179 @@ Implement a deterministic insight generation system that creates 3-5 personalize
 - **Emergency Resources**: Help Now button for crisis situations
 
 **Status:** ✅ **COMPLETE** - First Responder Mode fully implemented and production-ready
+
+---
+
+## P35: Critical UI & App Stability Fixes (2025-01-09)
+
+### Overview
+Comprehensive fixes for critical UI overflow errors and app restart issues that were affecting user experience and app reliability.
+
+### Issues Addressed
+
+#### 1. Timeline Filter Buttons Overflow
+- **Problem**: 3.5px right overflow causing red error indicators
+- **Solution**: Implemented SingleChildScrollView with horizontal scrolling
+- **Files**: `timeline_view.dart`, status indicator widgets
+
+#### 2. AnimationController Dispose Error
+- **Problem**: Crashes during navigation due to disposed controllers
+- **Solution**: Added proper mounted and animation state checks
+- **Files**: `welcome_view.dart`
+
+#### 3. App Restart Failure After Force-Quit
+- **Problem**: Zone mismatch errors preventing app restart
+- **Solution**: Improved zone handling and error recovery in bootstrap
+- **Files**: `bootstrap.dart`, `main.dart`
+
+#### 4. Onboarding Screen Button Cropping
+- **Problem**: "First Responder" button cropped at bottom of screen
+- **Solution**: Made onboarding page scrollable and cleaned up button options
+- **Files**: `onboarding_view.dart`
+
+### Technical Implementation
+- **UI Layout**: SingleChildScrollView for responsive filter buttons and onboarding
+- **Animation Safety**: Proper controller lifecycle management
+- **Zone Handling**: Consistent zone context throughout app lifecycle
+- **Onboarding UX**: Scrollable interface preventing button cropping
+- **Error Recovery**: Enhanced error handling and user feedback
+
+### Status
+✅ **COMPLETE** - All critical UI and app stability issues resolved
+
+---
+
+## P36: Media Handling System Integration & Build Fixes (2025-01-09)
+
+### Overview
+Successfully merged the media-handling branch into main, integrating a comprehensive media processing infrastructure while resolving critical build errors that were preventing compilation.
+
+### Problems Addressed
+1. **Missing Metadata Field**: JournalEntry model lacked metadata field causing compilation errors
+2. **Import Issues**: Missing Uint8List import in import_bottom_sheet.dart
+3. **Dependency Conflicts**: bloc_test version incompatibility with flutter_bloc
+4. **Type Mismatches**: rivet_models.g.dart keywords field type casting issues
+5. **Media Infrastructure**: Complete media handling system integration
+
+### Solutions Implemented
+
+#### 1. JournalEntry Model Enhancement
+- **Added metadata field**: `@HiveField(13) final Map<String, dynamic>? metadata;`
+- **Updated all methods**: constructor, copyWith, props, toJson, fromJson
+- **Regenerated Hive models**: Ensured proper serialization support
+
+#### 2. Import Resolution
+- **Fixed Uint8List import**: Added `import 'dart:typed_data';` to import_bottom_sheet.dart
+- **Resolved type errors**: Enabled proper typed data handling
+
+#### 3. Dependency Management
+- **Updated bloc_test**: Changed from ^9.1.7 to ^10.0.0 for compatibility
+- **Resolved conflicts**: Fixed flutter_bloc version compatibility issues
+- **Enabled testing**: Restored test compilation capabilities
+
+#### 4. Type Safety Fixes
+- **Fixed rivet_models.g.dart**: Corrected keywords field casting from List<String> to Set<String>
+- **Proper conversion**: `(fields[2] as List).cast<String>().toSet()`
+- **Type consistency**: Ensured proper Set<String> handling throughout
+
+#### 5. Media Handling System Integration
+- **Audio Processing**: MLKit-based transcription service
+- **Video Analysis**: Keyframe extraction and analysis
+- **Vision Services**: Image processing and analysis
+- **Encryption**: Enhanced at-rest encryption system
+- **Storage**: Content-Addressable Storage (CAS) with hash deduplication
+- **Privacy**: Comprehensive privacy controls and data protection
+- **Cross-Platform**: iOS, Android, macOS, Linux, Windows support
+- **Background Processing**: Asynchronous media operations
+- **Storage Profiles**: Configurable media storage settings
+- **Pointer Resolution**: Efficient media reference system
+- **Testing**: Comprehensive test coverage for all functionality
+
+### Technical Implementation
+
+#### Files Modified
+- `lib/models/journal_entry_model.dart` - Added metadata field
+- `lib/models/journal_entry_model.g.dart` - Regenerated Hive models
+- `lib/ui/import/import_bottom_sheet.dart` - Fixed Uint8List import
+- `lib/core/rivet/rivet_models.g.dart` - Fixed keywords type casting
+- `pubspec.yaml` - Updated bloc_test dependency
+- `test/media/enhanced_media_tests.dart` - Added CASStore import
+- 41 new media handling files added to codebase
+
+#### Build Process
+1. **Dependency Resolution**: Fixed version conflicts
+2. **Code Generation**: Regenerated Hive models with new field
+3. **Type Safety**: Corrected all type mismatches
+4. **Testing**: Verified compilation and runtime functionality
+5. **Integration**: Successfully merged media-handling branch
+
+### Results
+- **Build Success**: App compiles and runs without errors
+- **Media Infrastructure**: Complete media processing capabilities
+- **Type Safety**: All type mismatches resolved
+- **Dependency Health**: All package conflicts resolved
+- **Test Coverage**: Comprehensive testing for media functionality
+- **Cross-Platform**: Full multi-platform media support
+
+### Status
+✅ **COMPLETE** - Media handling system integrated and all build errors resolved
+
+---
+
+## P37: Force-Quit Recovery System Fix (2025-01-09)
+
+### Problem Description
+The app was failing to restart after force-quit scenarios with a critical HiveError: "The box 'arcform_snapshots' is already open and of type Box<ArcformSnapshot>". This prevented reliable app recovery and caused user frustration with app crashes and restart failures.
+
+### Root Cause Analysis
+- **Direct Hive Access**: Multiple files were calling `Hive.openBox<ArcformSnapshot>('arcform_snapshots')` directly
+- **Bootstrap Bypass**: These calls bypassed the bootstrap recovery system designed to handle force-quit scenarios
+- **Box Conflicts**: When the app tried to restart after force-quit, the bootstrap system attempted to reinitialize Hive boxes that were already open
+- **Inconsistent Pattern**: Different parts of the codebase used different patterns for Hive box access
+
+### Technical Solution
+
+#### 1. Box Access Pattern Standardization
+**Before:**
+```dart
+final box = await Hive.openBox<ArcformSnapshot>('arcform_snapshots');
+```
+
+**After:**
+```dart
+if (!Hive.isBoxOpen('arcform_snapshots')) {
+  await Hive.openBox<ArcformSnapshot>('arcform_snapshots');
+}
+final box = Hive.box<ArcformSnapshot>('arcform_snapshots');
+```
+
+#### 2. Files Modified
+- `lib/features/timeline/widgets/historical_arcform_view.dart` - Added box existence check
+- `lib/features/arcforms/arcform_renderer_cubit.dart` - Added box existence check  
+- `lib/features/journal/journal_capture_cubit.dart` - Added box existence check (4 instances)
+- `lib/features/arcforms/arcform_mvp_view.dart` - Added box existence check (3 instances)
+
+#### 3. Implementation Details
+- **Total Changes**: 42 insertions, 14 deletions across 4 files
+- **Pattern Applied**: Check `Hive.isBoxOpen()` before `Hive.openBox()`
+- **Recovery Integration**: All Hive access now goes through bootstrap recovery system
+- **Error Prevention**: Eliminated "box already open" HiveError exceptions
+
+### Testing Results
+- ✅ **App Restart**: App restarts successfully after force-quit scenarios
+- ✅ **Error Elimination**: No more HiveError exceptions during recovery
+- ✅ **Box Access**: All Hive boxes open properly during recovery
+- ✅ **Bootstrap Recovery**: Force-quit recovery system works reliably
+- ✅ **User Experience**: Seamless app behavior after force-quit
+
+### Impact
+- **Reliability**: App now consistently restarts after force-quit
+- **User Experience**: No more app crashes or restart failures
+- **Data Integrity**: Hive database access is now safe and consistent
+- **Recovery**: Force-quit recovery system works as intended
+
+### Status
+✅ **COMPLETE** - Force-quit recovery system fixed and fully functional
 
 ---
 
