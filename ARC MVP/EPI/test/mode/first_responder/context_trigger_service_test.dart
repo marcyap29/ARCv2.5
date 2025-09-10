@@ -44,7 +44,7 @@ void main() {
 
       test('returns false when dismissed today', () async {
         await service.markDismissedToday();
-        final entry = _createTestEntry(body: 'Severe trauma call at scene');
+        final entry = _createTestEntry(content: 'Severe trauma call at scene');
 
         final result = await service.shouldOfferDebrief(
           entry: entry,
@@ -57,7 +57,7 @@ void main() {
       test('returns false when recently triggered', () async {
         // Simulate recent trigger
         await mockBox.put('last_debrief_trigger', DateTime.now().millisecondsSinceEpoch);
-        final entry = _createTestEntry(body: 'Critical patient overdose scene');
+        final entry = _createTestEntry(content: 'Critical patient overdose scene');
 
         final result = await service.shouldOfferDebrief(
           entry: entry,
@@ -69,7 +69,7 @@ void main() {
 
       test('returns true for heavy entry with FR keywords', () async {
         final entry = _createTestEntry(
-          body: 'Responded to emergency call with patient trauma. Multiple casualties at scene.',
+          content: 'Responded to emergency call with patient trauma. Multiple casualties at scene.',
           keywords: ['stress', 'pressure', 'difficult'],
         );
 
@@ -83,7 +83,7 @@ void main() {
 
       test('returns true for crisis terms', () async {
         final entry = _createTestEntry(
-          body: 'Cardiac arrest at downtown location. Pediatric patient involved.',
+          content: 'Cardiac arrest at downtown location. Pediatric patient involved.',
         );
 
         final result = await service.shouldOfferDebrief(
@@ -96,7 +96,7 @@ void main() {
 
       test('returns true for challenging mood entry', () async {
         final entry = _createTestEntry(
-          body: 'Call went okay overall.',
+          content: 'Call went okay overall.',
           mood: 'Challenging',
         );
 
@@ -110,7 +110,7 @@ void main() {
 
       test('returns false for light entry', () async {
         final entry = _createTestEntry(
-          body: 'Nice weather today. Had lunch with team.',
+          content: 'Nice weather today. Had lunch with team.',
         );
 
         final result = await service.shouldOfferDebrief(
@@ -123,7 +123,7 @@ void main() {
 
       test('handles long entries appropriately', () async {
         final longText = List.generate(50, (i) => 'Routine call response. ').join();
-        final entry = _createTestEntry(body: longText);
+        final entry = _createTestEntry(content: longText);
 
         final result = await service.shouldOfferDebrief(
           entry: entry,
@@ -149,7 +149,7 @@ void main() {
       test('prevents offering debrief after dismissal', () async {
         await service.markDismissedToday();
         final heavyEntry = _createTestEntry(
-          body: 'Severe trauma emergency call with multiple casualties and fatality.',
+          content: 'Severe trauma emergency call with multiple casualties and fatality.',
         );
 
         final result = await service.shouldOfferDebrief(
@@ -198,7 +198,7 @@ void main() {
     group('heavy entry detection', () {
       test('detects FR keywords correctly', () async {
         final entry = _createTestEntry(
-          body: 'Emergency call dispatch. Patient trauma at scene with ambulance response.',
+          content: 'Emergency call dispatch. Patient trauma at scene with ambulance response.',
         );
 
         final result = await service.shouldOfferDebrief(
@@ -211,7 +211,7 @@ void main() {
 
       test('detects crisis terms correctly', () async {
         final entry = _createTestEntry(
-          body: 'Overdose situation with severe complications.',
+          content: 'Overdose situation with severe complications.',
         );
 
         final result = await service.shouldOfferDebrief(
@@ -224,7 +224,7 @@ void main() {
 
       test('considers multiple factors in scoring', () async {
         final entry = _createTestEntry(
-          body: 'Emergency call with patient. Feeling overwhelmed by the pressure.',
+          content: 'Emergency call with patient. Feeling overwhelmed by the pressure.',
           keywords: ['stress', 'anxiety', 'pressure'],
           mood: 'Difficult',
         );
@@ -239,7 +239,7 @@ void main() {
 
       test('does not trigger on false positives', () async {
         final entry = _createTestEntry(
-          body: 'Called my friend John. We had a great patient discussion about Monday.',
+          content: 'Called my friend John. We had a great patient discussion about Monday.',
         );
 
         final result = await service.shouldOfferDebrief(
@@ -257,7 +257,7 @@ void main() {
         final oneHourAgo = DateTime.now().subtract(const Duration(hours: 1));
         await mockBox.put('last_debrief_trigger', oneHourAgo.millisecondsSinceEpoch);
 
-        final entry = _createTestEntry(body: 'Critical emergency with casualties');
+        final entry = _createTestEntry(content: 'Critical emergency with casualties');
 
         final result = await service.shouldOfferDebrief(
           entry: entry,
@@ -272,7 +272,7 @@ void main() {
         final threeHoursAgo = DateTime.now().subtract(const Duration(hours: 3));
         await mockBox.put('last_debrief_trigger', threeHoursAgo.millisecondsSinceEpoch);
 
-        final entry = _createTestEntry(body: 'Emergency trauma call with fatality');
+        final entry = _createTestEntry(content: 'Emergency trauma call with fatality');
 
         final result = await service.shouldOfferDebrief(
           entry: entry,
@@ -288,7 +288,7 @@ void main() {
         final yesterdayKey = '${yesterday.year}-${yesterday.month}-${yesterday.day}';
         await mockBox.put('dismissed_debrief_today', yesterdayKey);
 
-        final entry = _createTestEntry(body: 'Severe emergency call with trauma');
+        final entry = _createTestEntry(content: 'Severe emergency call with trauma');
 
         final result = await service.shouldOfferDebrief(
           entry: entry,
@@ -305,7 +305,6 @@ JournalEntry _createTestEntry({
   String? content,
   List<String>? keywords,
   String? mood,
-  Map<String, dynamic>? metadata,
 }) {
   return JournalEntry(
     id: 'test-${DateTime.now().millisecondsSinceEpoch}',

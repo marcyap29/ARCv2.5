@@ -1,8 +1,96 @@
 import 'dart:typed_data';
-import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
-import 'package:google_mlkit_face_detection/google_mlkit_face_detection.dart';
+// import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
+// import 'package:google_mlkit_face_detection/google_mlkit_face_detection.dart';
 import 'package:image/image.dart' as img;
 import '../pointer/pointer_models.dart';
+
+// Stub classes for ML Kit functionality
+class TextRecognizer {
+  TextRecognizer({String? script});
+  static TextRecognizer get instance => TextRecognizer();
+  Future<Text> processImage(dynamic image) async => Text([]);
+  void close() {}
+}
+
+class FaceDetector {
+  FaceDetector({FaceDetectorOptions? options});
+  static FaceDetector get instance => FaceDetector();
+  Future<List<Face>> processImage(dynamic image) async => [];
+  void close() {}
+}
+
+class Text {
+  final List<TextBlock> blocks;
+  Text(this.blocks);
+  
+  String get text => blocks.map((block) => block.text).join(' ');
+}
+
+class TextBlock {
+  final String text;
+  TextBlock({required this.text});
+}
+
+class Face {
+  final Rect boundingBox;
+  Face({required this.boundingBox});
+}
+
+class Rect {
+  final double left, top, right, bottom;
+  Rect({required this.left, required this.top, required this.right, required this.bottom});
+}
+
+class FaceDetectorOptions {
+  final bool enableClassification;
+  final bool enableLandmarks;
+  final bool enableContours;
+  final bool enableTracking;
+  
+  FaceDetectorOptions({
+    this.enableClassification = false,
+    this.enableLandmarks = false,
+    this.enableContours = false,
+    this.enableTracking = false,
+  });
+  
+  static FaceDetectorOptions get defaultOptions => FaceDetectorOptions();
+}
+
+class TextRecognitionScript {
+  static const latin = 'latin';
+}
+
+class InputImage {
+  static InputImage fromBytes({required Uint8List bytes, required InputImageMetadata metadata}) => InputImage();
+}
+
+class InputImageMetadata {
+  final Size size;
+  final int rotation;
+  final int format;
+  final int? bytesPerRow;
+  InputImageMetadata({
+    required this.size, 
+    required this.rotation, 
+    required this.format,
+    this.bytesPerRow,
+  });
+}
+
+class Size {
+  final double width, height;
+  Size({required this.width, required this.height});
+}
+
+class InputImageRotation {
+  static const rotation0deg = 0;
+}
+
+class InputImageFormat {
+  static const nv21 = 0;
+  static const yuv420 = 1;
+}
 
 /// Result of image analysis operations
 class ImageAnalysisResult {
@@ -66,7 +154,7 @@ class MLKitVisionAnalysisService implements VisionAnalysisService {
       // Decode image to get dimensions and format info
       final decodedImage = img.decodeImage(imageBytes);
       if (decodedImage == null) {
-        throw VisionAnalysisException('Failed to decode image');
+        throw const VisionAnalysisException('Failed to decode image');
       }
 
       final width = decodedImage.width;
@@ -86,7 +174,7 @@ class MLKitVisionAnalysisService implements VisionAnalysisService {
       final inputImage = InputImage.fromBytes(
         bytes: imageBytes,
         metadata: InputImageMetadata(
-          size: Size(width.toDouble(), height.toDouble()),
+          size: Size(width: width.toDouble(), height: height.toDouble()),
           rotation: InputImageRotation.rotation0deg,
           format: InputImageFormat.yuv420,
           bytesPerRow: width * 4, // Approximate for RGBA
@@ -218,9 +306,9 @@ class MLKitVisionAnalysisService implements VisionAnalysisService {
       for (int x = 0; x < image.width; x += stepX) {
         if (x < image.width && y < image.height) {
           final pixel = image.getPixel(x, y);
-          final r = img.getRed(pixel);
-          final g = img.getGreen(pixel);
-          final b = img.getBlue(pixel);
+          final r = pixel.r;
+          final g = pixel.g;
+          final b = pixel.b;
           
           if (g > r && g > b && g > 100) greenCount++;
           if (b > r && b > g && b > 100) blueCount++;
@@ -239,8 +327,8 @@ class MLKitVisionAnalysisService implements VisionAnalysisService {
 
   @override
   Future<void> dispose() async {
-    await _textRecognizer.close();
-    await _faceDetector.close();
+    _textRecognizer.close();
+    _faceDetector.close();
   }
 }
 
@@ -251,7 +339,7 @@ class StubVisionAnalysisService implements VisionAnalysisService {
     // Decode image for basic info
     final decodedImage = img.decodeImage(imageBytes);
     if (decodedImage == null) {
-      throw VisionAnalysisException('Failed to decode image');
+      throw const VisionAnalysisException('Failed to decode image');
     }
 
     // Return minimal analysis result

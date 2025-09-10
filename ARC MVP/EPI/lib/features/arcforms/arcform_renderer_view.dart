@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:my_app/features/arcforms/arcform_renderer_cubit.dart';
 import 'package:my_app/features/arcforms/arcform_renderer_state.dart';
+// import 'package:my_app/features/arcforms/widgets/arcform_layout.dart';
 import 'package:my_app/features/arcforms/widgets/simple_3d_arcform.dart';
 import 'package:my_app/features/arcforms/arcform_mvp_implementation.dart';
 import 'package:my_app/features/arcforms/services/emotional_valence_service.dart';
@@ -30,6 +31,7 @@ class ArcformRendererViewContent extends StatefulWidget {
 }
 
 class _ArcformRendererViewContentState extends State<ArcformRendererViewContent> {
+  bool _is3DMode = true; // Default to 3D mode to show off the new feature
   final GlobalKey _arcformRepaintBoundaryKey = GlobalKey();
 
   ArcformGeometry _convertToArcformGeometry(GeometryPattern geometry) {
@@ -335,7 +337,7 @@ class _ArcformRendererViewContentState extends State<ArcformRendererViewContent>
                   Navigator.of(context).pop();
                   _confirmPhaseChange(context, currentPhase, phase);
                 },
-              )).toList(),
+              )),
             ],
           ),
           actions: [
@@ -510,37 +512,42 @@ class _ArcformRendererViewContentState extends State<ArcformRendererViewContent>
                   children: [
                     // Phase indicator header with change button
                     _buildPhaseIndicatorWithChangeButton(context, state.currentPhase, state.selectedGeometry),
-                    // Main Arcform layout - 3D molecular style
+                    // Main Arcform layout - switch between 2D and 3D
                     Expanded(
                       child: Container(
                         padding: const EdgeInsets.only(top: 4, bottom: 70), // Reduced top padding to move interface higher and bottom padding for navigation bar
                         child: RepaintBoundary(
                           key: _arcformRepaintBoundaryKey,
-                          child: Simple3DArcform(
-                            nodes: state.nodes,
-                            edges: state.edges,
-                            onNodeMoved: (nodeId, x, y) {
-                              context
-                                  .read<ArcformRendererCubit>()
-                                  .updateNodePosition(nodeId, x, y);
-                            },
-                            onNodeTapped: (keyword) {
-                              _showKeywordDialog(context, keyword);
-                            },
-                            selectedGeometry: _convertToArcformGeometry(state.selectedGeometry),
-                            onGeometryChanged: (geometry) {
-                              context.read<ArcformRendererCubit>().changeGeometry(
-                                _convertFromArcformGeometry(geometry)
-                              );
-                            },
-                            onExport: () => _exportArcform(context, state),
-                            onAutoRotate: () {
-                              // This will be handled by the Simple3DArcform widget
-                            },
-                            onResetView: () {
-                              // This will be handled by the Simple3DArcform widget
-                            },
-                          ),
+                          child: _is3DMode
+                              ? Simple3DArcform(
+                                  nodes: state.nodes,
+                                  edges: state.edges,
+                                  onNodeMoved: (nodeId, x, y) {
+                                    context
+                                        .read<ArcformRendererCubit>()
+                                        .updateNodePosition(nodeId, x, y);
+                                  },
+                                  onNodeTapped: (keyword) {
+                                    _showKeywordDialog(context, keyword);
+                                  },
+                                  selectedGeometry: _convertToArcformGeometry(state.selectedGeometry),
+                                  onGeometryChanged: (geometry) {
+                                    context.read<ArcformRendererCubit>().changeGeometry(
+                                      _convertFromArcformGeometry(geometry)
+                                    );
+                                  },
+                                  // on3DToggle removed - not supported by Simple3DArcform
+                                  onExport: () => _exportArcform(context, state),
+                                  onAutoRotate: () {
+                                    // This will be handled by the Simple3DArcform widget
+                                  },
+                                  onResetView: () {
+                                    // This will be handled by the Simple3DArcform widget
+                                  },
+                                )
+                              : Container(
+                                  child: Text('ArcformLayout not available'),
+                                ),
                         ),
                       ),
                     ),

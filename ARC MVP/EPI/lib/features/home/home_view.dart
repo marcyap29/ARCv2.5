@@ -26,6 +26,8 @@ import 'package:my_app/services/analytics_service.dart';
 import 'package:my_app/core/services/audio_service.dart';
 import 'package:my_app/mode/first_responder/widgets/fr_status_indicator.dart';
 import 'package:my_app/mode/coach/widgets/coach_mode_status_indicator.dart';
+import 'package:my_app/lumara/ui/lumara_assistant_screen.dart';
+import 'package:my_app/core/app_flags.dart';
 import 'package:flutter/foundation.dart';
 
 // Debug flag for showing RIVET engineering labels
@@ -42,15 +44,32 @@ class HomeView extends StatefulWidget {
 
 class _HomeViewState extends State<HomeView> {
   late HomeCubit _homeCubit;
-  final List<TabItem> _tabs = const [
-    TabItem(icon: Icons.edit_note, text: 'Journal'),
-    TabItem(icon: Icons.auto_graph, text: 'Phase'),
-    TabItem(icon: Icons.timeline, text: 'Timeline'),
-    TabItem(icon: Icons.insights, text: 'Insights'),
-    TabItem(icon: Icons.settings, text: 'Settings'),
-  ];
+  
+  List<TabItem> get _tabs {
+    final baseTabs = const [
+      TabItem(icon: Icons.edit_note, text: 'Journal'),
+      TabItem(icon: Icons.auto_graph, text: 'Phase'),
+      TabItem(icon: Icons.timeline, text: 'Timeline'),
+      TabItem(icon: Icons.insights, text: 'Insights'),
+      TabItem(icon: Icons.settings, text: 'Settings'),
+    ];
+    
+    if (AppFlags.isLumaraEnabled) {
+      return [
+        ...baseTabs,
+        const TabItem(icon: Icons.psychology, text: 'LUMARA'),
+      ];
+    }
+    return baseTabs;
+  }
 
-  final List<String> _tabNames = const ['Journal', 'Phase', 'Timeline', 'Insights', 'Settings'];
+  List<String> get _tabNames {
+    final baseNames = const ['Journal', 'Phase', 'Timeline', 'Insights', 'Settings'];
+    if (AppFlags.isLumaraEnabled) {
+      return [...baseNames, 'LUMARA'];
+    }
+    return baseNames;
+  }
 
   late final List<Widget> _pages;
 
@@ -62,12 +81,14 @@ class _HomeViewState extends State<HomeView> {
     if (widget.initialTab != 0) {
       _homeCubit.changeTab(widget.initialTab);
     }
+    
     _pages = [
       const StartEntryFlow(),
       const ArcformRendererView(),
       const TimelineView(),
       const _InsightsPage(),
       const SettingsView(),
+      if (AppFlags.isLumaraEnabled) const LumaraAssistantScreen(),
     ];
     
     // Initialize ethereal music (P22)

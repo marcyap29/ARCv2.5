@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 import 'dart:isolate';
 import 'dart:io';
+import 'dart:math';
 import 'package:image/image.dart' as img;
 
 /// Performance optimization defaults for mobile devices
@@ -176,13 +177,13 @@ class OptimizedWaveformGenerator {
         }
         
         if (sampleCount > 0) {
-          rms = (rms / sampleCount).sqrt();
+          rms = sqrt(rms / sampleCount);
           final amplitude = (rms * centerY).round().clamp(0, centerY);
           
           // Draw waveform line
           for (int y = centerY - amplitude; y <= centerY + amplitude; y++) {
             if (y >= 0 && y < height) {
-              img.setPixel(image, x, y, img.ColorRgb8(100, 150, 255));
+              image.setPixel(x, y, img.ColorRgb8(100, 150, 255));
             }
           }
         }
@@ -207,7 +208,7 @@ class OptimizedVideoProxyGenerator {
     // This would require FFmpeg integration in a real implementation
     // For now, return a placeholder
     
-    print('OptimizedVideoProxyGenerator: Would generate ${resolution} proxy with CRF $crf');
+    print('OptimizedVideoProxyGenerator: Would generate $resolution proxy with CRF $crf');
     
     // Simulate compression by returning a smaller version of the data
     final compressionRatio = _getCompressionRatio(resolution);
