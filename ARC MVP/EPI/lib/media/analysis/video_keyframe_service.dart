@@ -310,7 +310,7 @@ class FFmpegVideoKeyframeService implements VideoKeyframeService {
       final endTime = (t + segmentDuration).clamp(0, metadata.duration);
       
       captions.add(TranscriptSegment(
-        ts: [t, endTime],
+        ts: [t.toDouble(), endTime.toDouble()],
         text: _generateMockCaption(t),
       ));
     }
@@ -350,7 +350,7 @@ class FFmpegVideoKeyframeService implements VideoKeyframeService {
   /// Generate mock proxy video data
   Future<Uint8List> _generateMockProxyData(ProxyQuality quality, VideoMetadata metadata) async {
     // Generate mock compressed video data
-    final originalSize = 1000000; // 1MB mock original
+    const originalSize = 1000000; // 1MB mock original
     final compressionRatio = _getCompressionRatio(quality);
     final proxySize = (originalSize * compressionRatio).round();
     

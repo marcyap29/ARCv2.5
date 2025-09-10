@@ -35,12 +35,21 @@ dependencies:
   pdf: ^3.10.7
   crypto: ^3.0.3
   photo_manager: ^3.5.0
+  args: ^2.4.2
   ffmpeg_kit_flutter_new_min_gpl: ^1.1.0
-  google_mlkit_text_recognition: ^0.13.0
-  google_mlkit_face_detection: ^0.11.1
+  # google_mlkit_text_recognition: ^0.13.0
+  # google_mlkit_face_detection: ^0.11.1
   mime: ^1.0.6
   collection: ^1.18.0
   flutter_secure_storage: ^9.2.2
+  
+  # LUMARA Dependencies - On-Device AI with Qwen Stack
+  # Runtime options: llama.cpp (GGUF) or MLC LLM
+  http: ^1.1.0
+  dio: ^5.3.2
+  
+  # Qwen Models: Chat (Qwen3-4B-Instruct) + VLM (Qwen2.5-VL-3B) + Embeddings (Qwen3-Embedding-0.6B)
+  # Native bridges via llama.cpp and MLC LLM
   
   # Firebase Dependencies
   # Uncomment these lines when you need Firebase functionality
@@ -73,6 +82,7 @@ flutter:
   assets:
     - assets/audio/
     - assets/insights/rules_v1.json
+    - assets/models/
 
 
 flutter_launcher_icons:

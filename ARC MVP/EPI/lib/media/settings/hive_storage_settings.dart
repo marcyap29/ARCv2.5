@@ -308,7 +308,7 @@ class MediaSettingsManager {
       },
       'last_cleanup': null,
       'next_cleanup': settings.enableRetentionPruner 
-          ? DateTime.now().add(Duration(days: 1)).toIso8601String()
+          ? DateTime.now().add(const Duration(days: 1)).toIso8601String()
           : null,
     };
   }
@@ -394,7 +394,7 @@ class ConsentRecord extends HiveObject {
   @HiveField(8)
   final String consentVersion;
 
-  const ConsentRecord({
+  ConsentRecord({
     required this.entryId,
     required this.userId,
     required this.deviceId,

@@ -5,6 +5,19 @@ import 'package:photo_manager/photo_manager.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../pointer/pointer_models.dart';
 
+// Storage policy definitions
+enum StoragePolicy {
+  localOnly,
+  encryptedLocal,
+  cloudSync,
+  temporary,
+  permanent,
+  minimal,
+  balanced,
+  comprehensive,
+  hiFidelity
+}
+
 /// Abstract interface for resolving media pointers to actual content
 abstract class PointerResolver {
   Future<Uint8List?> loadBytes(

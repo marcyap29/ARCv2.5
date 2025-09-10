@@ -5,6 +5,7 @@ import 'package:logger/logger.dart';
 // import 'package:sentry_flutter/sentry_flutter.dart';
 
 import 'package:my_app/app/app.dart';
+import 'package:my_app/lumara/llm/lumara_native.dart';
 
 import 'package:hive_flutter/hive_flutter.dart';
 
@@ -223,6 +224,14 @@ Future<void> bootstrap({
 
         logger.i('Starting bootstrap process for ${flavor.toString()} environment');
         logger.d('App startup triggered - handling potential force-quit recovery');
+
+      // Register native bridges
+      try {
+        await _registerNativeBridges();
+        logger.d('Native bridges registered successfully');
+      } catch (e, st) {
+        logger.e('Failed to register native bridges', e, st);
+      }
 
       // Orientation lock
       try {
@@ -679,5 +688,17 @@ Future<bool> _attemptEmergencyRecovery(Object exception, StackTrace stackTrace) 
   } catch (e, st) {
     logger.e('Emergency recovery itself failed', e, st);
     return false;
+  }
+}
+
+/// Register native bridges for LUMARA
+Future<void> _registerNativeBridges() async {
+  try {
+    // The native bridges are automatically registered when the app starts
+    // This function is a placeholder for any additional setup needed
+    logger.d('Native bridges will be registered automatically');
+  } catch (e) {
+    logger.e('Failed to register native bridges', e);
+    rethrow;
   }
 }

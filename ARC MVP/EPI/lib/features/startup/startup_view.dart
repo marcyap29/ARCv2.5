@@ -22,107 +22,12 @@ class _StartupViewState extends State<StartupView> {
     _checkOnboardingStatus();
   }
 
-  /// Ensures Hive is ready and critical boxes are available
-  Future<void> _ensureHiveReady() async {
-    print('DEBUG: Ensuring Hive is ready for StartupView');
-    
-    // Wait for Hive to be initialized with exponential backoff
-    int attempts = 0;
-    const maxAttempts = 15; // Increased from 10
-    
-    while (attempts < maxAttempts) {
-      try {
-        // First check if Hive itself is initialized
-        if (!Hive.isBoxOpen('settings')) {
-          print('DEBUG: Settings box not open, attempting to open... (attempt ${attempts + 1})');
-          
-          // Try to open the settings box
-          try {
-            await Hive.openBox('settings');
-            print('DEBUG: Successfully opened settings box');
-          } catch (openError) {
-            print('DEBUG: Failed to open settings box: $openError');
-            
-            // If opening fails, wait longer and try again
-            final waitTime = Duration(milliseconds: 200 * (attempts + 1)); // Exponential backoff
-            await Future.delayed(waitTime);
-            attempts++;
-            continue;
-          }
-        }
-        
-        // Test if Hive is actually working
-        final settingsBox = Hive.box('settings');
-        final testKey = '_startup_health_check_${DateTime.now().millisecondsSinceEpoch}';
-        
-        await settingsBox.put(testKey, DateTime.now().millisecondsSinceEpoch);
-        final testValue = settingsBox.get(testKey);
-        await settingsBox.delete(testKey);
-        
-        if (testValue == null) {
-          throw Exception('Hive read/write test failed - value not persisted');
-        }
-        
-        print('DEBUG: Hive is ready for StartupView (attempt ${attempts + 1})');
-        
-        // Also ensure user_profile box is available
-        if (!Hive.isBoxOpen('user_profile')) {
-          try {
-            await Hive.openBox<UserProfile>('user_profile');
-            print('DEBUG: Successfully opened user_profile box');
-          } catch (profileError) {
-            print('DEBUG: Failed to open user_profile box: $profileError');
-            // Try opening as generic box
-            await Hive.openBox('user_profile');
-            print('DEBUG: Opened user_profile as generic box');
-          }
-        }
-        
-        return; // Success!
-        
-      } catch (e) {
-        print('DEBUG: Hive health check failed (attempt ${attempts + 1}): $e');
-        
-        // Progressive backoff: wait longer each time
-        final waitTime = Duration(milliseconds: 300 * (attempts + 1));
-        await Future.delayed(waitTime);
-        attempts++;
-        
-        // On later attempts, try more aggressive recovery
-        if (attempts > 5) {
-          print('DEBUG: Attempting aggressive Hive recovery (attempt $attempts)');
-          try {
-            // Close all boxes and try to reinitialize
-            await Hive.close();
-            await Future.delayed(const Duration(milliseconds: 200));
-            
-            // Don't reinit Hive here as that's done in bootstrap
-            // Just try to reopen the critical boxes
-            if (!Hive.isBoxOpen('settings')) {
-              await Hive.openBox('settings');
-            }
-          } catch (recoveryError) {
-            print('DEBUG: Aggressive recovery failed: $recoveryError');
-          }
-        }
-      }
-    }
-    
-    // If we get here, we've exhausted all attempts
-    print('DEBUG: WARNING - Could not ensure Hive is ready after $maxAttempts attempts');
-    print('DEBUG: Proceeding anyway - errors will be handled downstream');
-  }
-
   void _checkOnboardingStatus() async {
     print('DEBUG: _checkOnboardingStatus called');
     await Future.delayed(const Duration(seconds: 1));
     if (!mounted) return;
 
     try {
-      // Ensure Hive is properly initialized before accessing boxes
-      await _ensureHiveReady();
-      if (!mounted) return;
-      
       // Check if box is already open (from bootstrap)
       Box<UserProfile> userBox;
       if (Hive.isBoxOpen('user_profile')) {

@@ -2,7 +2,6 @@ import 'dart:convert';
 import 'dart:math';
 import 'dart:typed_data';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:crypto/crypto.dart';
 
 /// At-rest encryption service for media content
 /// Uses AES-256-GCM with keys stored in secure storage
@@ -13,12 +12,9 @@ class AtRestEncryption {
   static const int _ivLengthBytes = 12; // 96 bits for GCM
   static const int _tagLengthBytes = 16; // 128 bits
 
-  static const FlutterSecureStorage _secureStorage = FlutterSecureStorage(
-    aOptions: AndroidOptions(
+  static final FlutterSecureStorage _secureStorage = FlutterSecureStorage(
+    aOptions: const AndroidOptions(
       encryptedSharedPreferences: true,
-    ),
-    iOptions: IOSOptions(
-      accessibility: KeychainAccessibility.when_unlocked,
     ),
   );
 

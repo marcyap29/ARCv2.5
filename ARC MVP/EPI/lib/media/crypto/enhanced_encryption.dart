@@ -2,7 +2,6 @@ import 'dart:convert';
 import 'dart:math';
 import 'dart:typed_data';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:crypto/crypto.dart';
 
 /// Enhanced encryption service with DEK/KEK architecture and key rotation
 class EnhancedEncryptionService {
@@ -14,12 +13,9 @@ class EnhancedEncryptionService {
   static const int _tagLengthBytes = 16; // 128 bits
   static const int _defaultRotationDays = 30;
 
-  static const FlutterSecureStorage _secureStorage = FlutterSecureStorage(
-    aOptions: AndroidOptions(
+  static final FlutterSecureStorage _secureStorage = FlutterSecureStorage(
+    aOptions: const AndroidOptions(
       encryptedSharedPreferences: true,
-    ),
-    iOptions: IOSOptions(
-      accessibility: KeychainAccessibility.when_unlocked,
     ),
   );
 
@@ -104,7 +100,7 @@ class EnhancedEncryptionService {
   static Future<EncryptedDEK> _encryptDEKWithKEK(Uint8List plainDEK) async {
     final kekBase64 = await _secureStorage.read(key: _kekKeyId);
     if (kekBase64 == null) {
-      throw EncryptionException('KEK not found');
+      throw const EncryptionException('KEK not found');
     }
     
     final kek = base64.decode(kekBase64);
@@ -125,7 +121,7 @@ class EnhancedEncryptionService {
   static Future<Uint8List> _decryptDEKWithKEK(EncryptedDEK encryptedDEK) async {
     final kekBase64 = await _secureStorage.read(key: _kekKeyId);
     if (kekBase64 == null) {
-      throw EncryptionException('KEK not found');
+      throw const EncryptionException('KEK not found');
     }
     
     final kek = base64.decode(kekBase64);
@@ -143,7 +139,7 @@ class EnhancedEncryptionService {
   /// Check if DEK should be rotated
   static bool _shouldRotateDEK(DEKInfo dekInfo) {
     final rotationThreshold = DateTime.now().subtract(
-      Duration(days: _defaultRotationDays),
+      const Duration(days: _defaultRotationDays),
     );
     return dekInfo.createdAt.isBefore(rotationThreshold);
   }
@@ -172,7 +168,7 @@ class EnhancedEncryptionService {
     
     final taskId = 'reencrypt_${contentId}_${DateTime.now().millisecondsSinceEpoch}';
     await _secureStorage.write(
-      key: '${_keyRotationPrefix}$taskId',
+      key: '$_keyRotationPrefix$taskId',
       value: jsonEncode({
         'contentId': contentId,
         'oldKeyId': oldDEK.keyId,
@@ -250,7 +246,7 @@ class EnhancedEncryptionService {
 
   /// Check for and perform key rotation
   static Future<void> _checkAndRotateKeys() async {
-    final lastRotationKey = '${_kekKeyId}_last_rotation';
+    const lastRotationKey = '${_kekKeyId}_last_rotation';
     final lastRotationStr = await _secureStorage.read(key: lastRotationKey);
     
     DateTime? lastRotation;
@@ -259,7 +255,7 @@ class EnhancedEncryptionService {
     }
     
     final rotationThreshold = DateTime.now().subtract(
-      Duration(days: _defaultRotationDays),
+      const Duration(days: _defaultRotationDays),
     );
     
     if (lastRotation == null || lastRotation.isBefore(rotationThreshold)) {

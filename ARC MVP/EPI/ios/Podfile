@@ -1,5 +1,5 @@
 # Uncomment this line to define a global platform for your project
-platform :ios, '14.0'
+platform :ios, '16.0'
 
 # CocoaPods analytics sends network stats synchronously affecting flutter build latency.
 ENV['COCOAPODS_DISABLE_STATS'] = 'true'
@@ -29,6 +29,10 @@ flutter_ios_podfile_setup
 
 target 'Runner' do
   use_frameworks!
+  
+  # MediaPipe Tasks for Gemma models (temporarily disabled due to linker errors)
+  # pod 'MediaPipeTasksGenAI', '~> 0.10.24'
+  # pod 'MediaPipeTasksText', '~> 0.10.21'
 
   flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
   target 'RunnerTests' do
@@ -40,17 +44,26 @@ post_install do |installer|
   installer.pods_project.targets.each do |target|
     flutter_additional_ios_build_settings(target)
     
-    # Fix iOS deployment target to minimum 14.0 for all pods
+    # Fix iOS deployment target to minimum 16.0 for all pods
     target.build_configurations.each do |config|
-      config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '14.0'
+      config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '16.0'
+      
+      # MediaPipe specific linker fixes
+      if target.name.start_with?('MediaPipe')
+        config.build_settings['ENABLE_BITCODE'] = 'NO'
+        config.build_settings['OTHER_LDFLAGS'] = ['$(inherited)', '-lc++', '-ObjC']
+        config.build_settings['LIBRARY_SEARCH_PATHS'] = ['$(inherited)']
+        config.build_settings['CLANG_CXX_LANGUAGE_STANDARD'] = 'c++17'
+        config.build_settings['CLANG_CXX_LIBRARY'] = 'libc++'
+      end
       
       # Additional fixes for common pod issues
       if target.name == 'permission_handler_apple'
-        config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '14.0'
+        config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '16.0'
       end
       
       if target.name.start_with?('Sentry')
-        config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '14.0'
+        config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '16.0'
       end
     end
   end
@@ -59,7 +72,14 @@ post_install do |installer|
   installer.generated_projects.each do |project|
     project.targets.each do |target|
       target.build_configurations.each do |config|
-        config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '14.0'
+        config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '16.0'
+        # Force linking for MediaPipe
+        if target.name == 'Runner'
+          config.build_settings['ENABLE_BITCODE'] = 'NO'
+          config.build_settings['OTHER_LDFLAGS'] = ['$(inherited)', '-lc++', '-ObjC']
+          config.build_settings['CLANG_CXX_LANGUAGE_STANDARD'] = 'c++17'
+          config.build_settings['CLANG_CXX_LIBRARY'] = 'libc++'
+        end
       end
     end
   end

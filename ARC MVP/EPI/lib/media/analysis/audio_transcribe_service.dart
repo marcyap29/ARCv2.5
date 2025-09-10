@@ -139,8 +139,8 @@ class WhisperStubTranscribeService implements AudioTranscribeService {
       final numSegments = (audioInfo.duration / windowSec).ceil();
       
       for (int i = 0; i < numSegments; i++) {
-        final startTime = i * windowSec.toDouble();
-        final endTime = ((i + 1) * windowSec.toDouble()).clamp(0, audioInfo.duration);
+        final startTime = (i * windowSec).toDouble();
+        final endTime = ((i + 1) * windowSec).toDouble().clamp(0.0, audioInfo.duration).toDouble();
         
         // Calculate segment data range
         final startByte = (startTime / audioInfo.duration * audioBytes.length).round();
@@ -251,7 +251,7 @@ class WhisperStubTranscribeService implements AudioTranscribeService {
         
         final transcript = _generateMockTranscript(endTime - startTime, enableDiarization);
         segments.add(TranscriptSegment(
-          ts: [startTime, endTime],
+          ts: [startTime.toDouble(), endTime.toDouble()],
           text: transcript,
         ));
       }

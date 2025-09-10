@@ -40,7 +40,7 @@ void main() {
     });
 
     test('should respect retention policies', () async {
-      final policy = RetentionPolicy.aggressive;
+      const policy = RetentionPolicy.aggressive;
       
       // Mock device state
       final result = await EnhancedCASStore.runRetentionPolicy(
@@ -153,11 +153,11 @@ void main() {
     });
 
     test('should generate privacy compliance reports', () {
-      final settings = PrivacySettings.balanced;
-      final imageResult = ProcessedImageResult(
-        sanitizedExif: const SanitizedExifData(redactedFields: ['Make']),
+      const settings = PrivacySettings.balanced;
+      const imageResult = ProcessedImageResult(
+        sanitizedExif: SanitizedExifData(redactedFields: ['Make']),
       );
-      final textAnalysis = const PIIAnalysis(
+      const textAnalysis = PIIAnalysis(
         hasPii: true,
         piiTypes: [PIIType.email],
         confidence: 0.8,
@@ -242,7 +242,7 @@ void main() {
 
   group('Pointer Resolution', () {
     test('should detect platform from URI', () {
-      const resolver = CrossPlatformPointerResolver();
+      final resolver = CrossPlatformPointerResolver();
       
       // Test iOS URI detection
       const iosUri = 'ph://ABC123-DEF456';
@@ -265,7 +265,7 @@ void main() {
     });
 
     test('should handle missing source resolution', () {
-      const handler = MissingSourceHandler(CrossPlatformPointerResolver());
+      final handler = MissingSourceHandler(CrossPlatformPointerResolver());
       
       const originalUri = 'ph://MISSING123';
       const action = SourceResolutionAction.selectReplacement;
@@ -375,7 +375,7 @@ void main() {
     });
 
     test('should handle privacy settings validation', () {
-      final settings = PrivacySettings.privacyFocused;
+      const settings = PrivacySettings.privacyFocused;
       final processingOptions = {'detectFaces': true, 'includeLocation': true};
       
       final isCompliant = PrivacyComplianceChecker.isCompliant(

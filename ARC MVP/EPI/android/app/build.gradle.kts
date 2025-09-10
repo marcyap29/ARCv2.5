@@ -42,3 +42,9 @@ android {
 flutter {
     source = "../.."
 }
+
+dependencies {
+    // MediaPipe Tasks for Gemma models (temporarily disabled due to linker errors)
+    // implementation("com.google.mediapipe:tasks-genai:0.10.14")
+    // implementation("com.google.mediapipe:tasks-text:0.10.14")
+}
