@@ -4,6 +4,51 @@ This document contains the complete set of prompts to guide ARC MVP development 
 
 ---
 
+## Prompt 36 — Comprehensive MCP Export System (September 2025)
+
+**Goal:** Implement standards-compliant MCP (Memory Bundle) v1 export system for full data portability and AI ecosystem interoperability.
+
+**Generate:**
+- Complete MCP v1 schema implementation with all required data models
+- SAGE-to-Node mapping service for structured memory export
+- Content-addressable storage (CAS) system with hash-based URIs
+- Privacy propagation system with automatic PII detection
+- Deterministic export system with checksums and validation
+- Command-line interface (CLI) tool for programmatic exports
+
+**Technical Requirements:**
+- MCP v1 Memory Bundle specification compliance
+- NDJSON format support for large data collections
+- Four storage profiles: minimal, space_saver, balanced, hi_fidelity
+- SHA-256 checksums for deterministic exports
+- Comprehensive schema validation with guardrails
+- Privacy field detection and propagation throughout export process
+
+**MCP Export Features:**
+- **Node Mapping**: Convert journal entries to MCP nodes with semantic relationships
+- **Edge Creation**: Generate meaningful connections between memory fragments
+- **Pointer System**: Content-addressable URIs for derivative content
+- **Embedding Support**: Export vector embeddings for semantic search
+- **Manifest Generation**: Complete metadata and validation checksums
+- **Privacy Protection**: Automatic redaction and privacy field management
+
+**Acceptance Criteria:**
+- Full MCP v1 specification compliance validated
+- All journal data exportable to MCP format
+- CLI tool functional for batch exports
+- Privacy propagation working correctly
+- Deterministic exports with reproducible checksums
+- Comprehensive test coverage with golden tests
+- Documentation complete with usage examples
+
+**Copy:**
+- Export status: "Exporting your memories to MCP format..."
+- CLI help: "arc_mcp_export - Export EPI journal data to MCP Memory Bundle format"
+- Progress: "Processing 150 journal entries → 150 nodes, 89 edges"
+- Success: "MCP export complete: manifest.json (validated ✓) + memories.ndjson"
+
+---
+
 ## Prompt 35 — Qwen AI Integration and Critical Error Resolution (December 2024)
 
 **Goal:** Integrate Qwen 2.5 1.5B Instruct as primary on-device language model and resolve all critical linter errors blocking development.
