@@ -12,6 +12,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - Advanced animation sequences for sacred journaling
 
 ### Added
+- **MCP Export System (P35)** - Complete standards-compliant MCP v1 export implementation
+  - Full MCP Memory Bundle export format with SAGE-to-Node mapping
+  - Content-Addressable Storage (CAS) with hash-based URIs for deduplication
+  - Privacy propagation system with automatic PII detection
+  - Deterministic exports with SHA-256 checksums and metadata validation
+  - Four storage profiles: minimal, space_saver, balanced, hi_fidelity
+  - Command-line interface (CLI) tool for programmatic exports
+  - Comprehensive MCP schema validation with guardrails
+  - NDJSON writer for large collections and JSON for manifests
+  - Complete test coverage with golden tests
 - **Media Handling System (P27)** - Complete media processing infrastructure
   - Audio transcription service with MLKit integration
   - Video keyframe extraction and analysis
@@ -27,6 +37,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
   - Comprehensive test coverage for media functionality
 
 ### Fixed
+- **Project Cleanup**: Removed obsolete Android bridge files and archived documentation
+  - Removed duplicate GemmaEdgeBridge.kt files (java and kotlin variants)
+  - Cleaned up archived ARC MVP documentation files
+  - Removed outdated PROJECT_BRIEF.md
+  - Updated pubspec dependencies
 - Fixed 3.5px right overflow in timeline filter buttons
 - Fixed AnimationController dispose error in welcome view
 - Fixed app restart issues after force-quit
