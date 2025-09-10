@@ -1,8 +1,8 @@
 # ARC_MVP_IMPLEMENTATION.md
 
-> **Status:** Production-ready with comprehensive error handling & journal UX improvements ✅  
-> **Scope:** ARC MVP (journaling → emotional analysis → RIVET gating → interactive 2D/3D Arcforms → timeline) with sacred UX and cinematic animations.  
-> **Last updated:** 2025‑09‑06 9:45 PM (America/Los_Angeles)
+> **Status:** Production-ready with comprehensive MCP export system & project cleanup ✅  
+> **Scope:** ARC MVP (journaling → emotional analysis → RIVET gating → interactive 2D/3D Arcforms → timeline) with sacred UX, cinematic animations, and standards-compliant MCP v1 export system.  
+> **Last updated:** 2025‑09‑10 2:30 PM (America/Los_Angeles)
 
 ---
 
@@ -17,7 +17,7 @@
 - Critical stability + UX issues addressed (navigation, save, loading, lifecycle safety).
 - **Prompts 21–23** added: Welcome flow, Audio framework, Arcform sovereignty (auto vs manual).  
 - **Recent enhancements**: RIVET phase-stability gating, dual-dial insights visualization, keyword-driven phase detection, EmotionalValenceService, advanced notifications, progressive disclosure UI, complete journal entry deletion system, phase quiz synchronization.
-- **Latest completion**: P5-MM Multi-Modal Journaling Integration Complete - Fixed critical issue where multimodal features were implemented in JournalCaptureView but app uses StartEntryFlow. Successfully integrated camera, gallery, and media management into actual journal entry flow.
+- **Latest completion**: **Comprehensive MCP Export System Complete** - Full implementation of standards-compliant MCP v1 export format with SAGE-to-Node mapping, content-addressable storage, privacy propagation, deterministic exports, and CLI tool. Project cleanup completed with removal of obsolete Android bridge files and archived documentation.
 - **RIVET Deletion Fix**: Fixed RIVET TRACE calculation to properly recalculate from remaining entries when entries are deleted, ensuring accurate phase-stability metrics.
 - **P27 RIVET Simple Copy UI**: Complete user-friendly RIVET interface with Match/Confidence labels, details modal, and comprehensive status communication.
 - **First Responder Mode Complete (P27-P34)**: Comprehensive First Responder Mode implementation with incident capture, debrief coaching, recovery planning, privacy protection, grounding exercises, shift rhythm management, and emergency resources.
@@ -137,6 +137,7 @@ chips |
 | P32   | Grounding Pack (30-90s exercises)     | ✅ Complete  | Stress management grounding exercises |
 | P33   | AURORA-Lite Shift Rhythm             | ✅ Complete  | Shift-aware prompts and recovery recommendations |
 | P34   | Help Now Button (user-configured)    | ✅ Complete  | Emergency resources and support |
+| P35   | MCP Export System                     | ✅ Complete  | Standards-compliant MCP v1 export with CLI tool |
 
 > **Legend:** ✅ Complete · ✅ Framework = wired & waiting for asset/service · ⏳ Planned = ticketed below
 
@@ -164,6 +165,19 @@ chips |
 ---
 
 ## 5) Changelog (Key Milestones)
+
+### 2025‑09‑10 — Comprehensive MCP Export System & Project Cleanup ⭐
+- **Complete MCP v1 Export Implementation**: Full standards-compliant Memory Bundle export system
+- **SAGE-to-Node Mapping**: Converts journal entries to structured MCP nodes with semantic relationships
+- **Content-Addressable Storage (CAS)**: Hash-based URIs for derivative content and deduplication
+- **Privacy Propagation**: Automatic PII detection and privacy field management
+- **Deterministic Exports**: Reproducible exports with SHA-256 checksums and metadata validation
+- **Storage Profiles**: Four export profiles (minimal, space_saver, balanced, hi_fidelity) for different use cases
+- **Command-Line Interface**: Dart CLI tool for programmatic and manual MCP exports
+- **Comprehensive Validation**: Full MCP schema validation with guardrails and error reporting
+- **Project Cleanup**: Removed obsolete Android bridge files and archived documentation
+- **Technical Implementation**: 8 new files with comprehensive test coverage and golden tests
+- **Export Formats**: NDJSON for large collections, JSON for manifests, all with compression support
 
 ### 2025‑01‑21 — First Responder Mode Complete Implementation (P27-P34) ⭐
 - **Complete First Responder Module**: 51 files created/modified with 13,081+ lines of code
@@ -606,12 +620,13 @@ dart test_arc_mvp.dart  # Run tests
 ## 11) Project Summary
 
 ### 📊 Implementation Status
-- **Total Prompts**: 32 (P0-P23, P27-P34)
-- **Complete**: 30 prompts (94%)
+- **Total Prompts**: 33 (P0-P23, P27-P35)
+- **Complete**: 31 prompts (94%)
 - **Planned**: 2 prompts (6%)
 - **Framework**: 1 prompt (3%)
 
 ### 🎯 Recent Major Completions
+- **MCP Export System (P35)**: Complete standards-compliant MCP v1 export with SAGE-to-Node mapping and CLI tool
 - **First Responder Mode (P27-P34)**: Complete specialized tools for emergency responders
 - **P5-MM Multi-Modal Journaling**: Complete multi-modal journaling with audio, camera, gallery, and OCR
 - **P19 Accessibility & Performance**: Full accessibility compliance and performance monitoring
@@ -627,6 +642,7 @@ dart test_arc_mvp.dart  # Run tests
 - **Settings**: Complete privacy controls, data management, and personalization
 - **Accessibility**: Full WCAG compliance with screen reader support
 - **Export**: PNG and JSON data export with share functionality
+- **MCP Export System**: Standards-compliant MCP v1 export with content-addressable storage, privacy propagation, and CLI tool
 - **First Responder Mode**: Specialized tools for emergency responders including incident capture, debrief coaching, recovery planning, privacy protection, grounding exercises, shift rhythm management, and emergency resources
 
 ### 📋 Remaining Planned Features (2 prompts)
