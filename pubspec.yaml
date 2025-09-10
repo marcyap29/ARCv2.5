@@ -17,7 +17,6 @@ dependencies:
   url_launcher: ^6.3.0
   sentry: ^9.6.0    
   sentry_flutter: ^9.6.0
-  sentry_dart_plugin: ^2.4.1
   hive: ^2.2.3
   hive_flutter: ^1.1.0 
   permission_handler: ^11.3.1
