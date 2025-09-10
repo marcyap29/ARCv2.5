@@ -5,8 +5,8 @@
 
 import 'dart:io';
 import 'dart:convert';
-import 'dart:crypto';
 import 'dart:math';
+import 'package:crypto/crypto.dart';
 import '../models/mcp_schemas.dart';
 import '../validation/mcp_validator.dart';
 import 'ndjson_writer.dart';
@@ -515,8 +515,8 @@ class McpExportService {
       normB += b[i] * b[i];
     }
     
-    normA = normA.sqrt();
-    normB = normB.sqrt();
+    normA = sqrt(normA);
+    normB = sqrt(normB);
     
     if (normA == 0.0 || normB == 0.0) return 0.0;
     
