@@ -2,6 +2,7 @@
 /// 
 /// High-level orchestrator for exporting MIRA memory into MCP Memory Bundle format.
 /// Handles SAGE-to-Node mapping, pointer creation, embedding generation, and edge derivation.
+library;
 
 import 'dart:io';
 import 'dart:convert';

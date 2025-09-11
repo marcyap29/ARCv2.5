@@ -2,17 +2,18 @@
 /// 
 /// Comprehensive test suite for MCP export functionality including
 /// golden tests, schema validation, and determinism checks.
+library;
 
 import 'dart:io';
 import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as path;
-import '../lib/mcp/export/mcp_export_service.dart';
-import '../lib/mcp/models/mcp_schemas.dart';
-import '../lib/mcp/validation/mcp_validator.dart';
-import '../lib/mcp/export/ndjson_writer.dart';
-import '../lib/mcp/export/manifest_builder.dart';
-import '../lib/mcp/export/checksum_utils.dart';
+import 'package:my_app/mcp/export/mcp_export_service.dart';
+import 'package:my_app/mcp/models/mcp_schemas.dart';
+import 'package:my_app/mcp/validation/mcp_validator.dart';
+import 'package:my_app/mcp/export/ndjson_writer.dart';
+import 'package:my_app/mcp/export/manifest_builder.dart';
+import 'package:my_app/mcp/export/checksum_utils.dart';
 
 void main() {
   group('MCP Exporter Golden Tests', () {
@@ -476,7 +477,7 @@ void main() {
         type: 'journal_entry',
         timestamp: DateTime.now().toUtc(),
         contentSummary: 'Test content',
-        provenance: McpProvenance(source: 'ARC'),
+        provenance: const McpProvenance(source: 'ARC'),
       );
 
       final result = McpValidator.validateNode(validNode);
@@ -487,7 +488,7 @@ void main() {
         type: 'journal_entry',
         timestamp: DateTime.now(), // Invalid: not UTC
         contentSummary: 'Test content',
-        provenance: McpProvenance(source: 'ARC'),
+        provenance: const McpProvenance(source: 'ARC'),
       );
 
       final invalidResult = McpValidator.validateNode(invalidNode);
@@ -511,15 +512,15 @@ void main() {
       final validPointer = McpPointer(
         id: 'test_pointer',
         mediaType: 'text',
-        descriptor: McpDescriptor(),
-        samplingManifest: McpSamplingManifest(),
+        descriptor: const McpDescriptor(),
+        samplingManifest: const McpSamplingManifest(),
         integrity: McpIntegrity(
           contentHash: 'a' * 64, // Valid SHA-256 length
           bytes: 100,
           createdAt: DateTime.now().toUtc(),
         ),
-        provenance: McpProvenance(source: 'ARC'),
-        privacy: McpPrivacy(),
+        provenance: const McpProvenance(source: 'ARC'),
+        privacy: const McpPrivacy(),
       );
 
       final result = McpValidator.validatePointer(validPointer);
@@ -548,7 +549,7 @@ void main() {
           id: 'node1',
           type: 'journal_entry',
           timestamp: DateTime.now().toUtc(),
-          provenance: McpProvenance(source: 'ARC'),
+          provenance: const McpProvenance(source: 'ARC'),
         ),
       ];
 
@@ -557,7 +558,7 @@ void main() {
           id: 'node2', // Different ID
           type: 'journal_entry',
           timestamp: DateTime.now().toUtc(),
-          provenance: McpProvenance(source: 'ARC'),
+          provenance: const McpProvenance(source: 'ARC'),
         ),
       ];
 
@@ -570,7 +571,7 @@ void main() {
           id: 'node1', // Same ID as existing
           type: 'journal_entry',
           timestamp: DateTime.now().toUtc(),
-          provenance: McpProvenance(source: 'ARC'),
+          provenance: const McpProvenance(source: 'ARC'),
         ),
       ];
 
@@ -582,15 +583,15 @@ void main() {
       final validPointer = McpPointer(
         id: 'test_pointer',
         mediaType: 'text',
-        descriptor: McpDescriptor(metadata: {'key': 'value'}),
-        samplingManifest: McpSamplingManifest(metadata: {'sampling': 'automatic'}),
+        descriptor: const McpDescriptor(metadata: {'key': 'value'}),
+        samplingManifest: const McpSamplingManifest(metadata: {'sampling': 'automatic'}),
         integrity: McpIntegrity(
           contentHash: 'a' * 64,
           bytes: 100,
           createdAt: DateTime.now().toUtc(),
         ),
-        provenance: McpProvenance(source: 'ARC'),
-        privacy: McpPrivacy(sharingPolicy: 'private'),
+        provenance: const McpProvenance(source: 'ARC'),
+        privacy: const McpPrivacy(sharingPolicy: 'private'),
       );
 
       final isDeterministic = McpGuardrails.isDeterministicPointer(validPointer);
@@ -601,15 +602,15 @@ void main() {
       final pointerWithPrivacy = McpPointer(
         id: 'test_pointer',
         mediaType: 'image',
-        descriptor: McpDescriptor(),
-        samplingManifest: McpSamplingManifest(),
+        descriptor: const McpDescriptor(),
+        samplingManifest: const McpSamplingManifest(),
         integrity: McpIntegrity(
           contentHash: 'a' * 64,
           bytes: 100,
           createdAt: DateTime.now().toUtc(),
         ),
-        provenance: McpProvenance(source: 'ARC'),
-        privacy: McpPrivacy(
+        provenance: const McpProvenance(source: 'ARC'),
+        privacy: const McpPrivacy(
           containsPii: true,
           facesDetected: true,
           sharingPolicy: 'private',

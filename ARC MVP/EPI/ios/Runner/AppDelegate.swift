@@ -9,12 +9,6 @@ import UIKit
   ) -> Bool {
     GeneratedPluginRegistrant.register(with: self)
     
-    // Register custom native bridges
-    // TODO: Re-enable QwenBridge once native integration is complete
-    // if let controller = window?.rootViewController as? FlutterViewController {
-    //   QwenBridge.register(with: controller.binaryMessenger)
-    // }
-    
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
   }
 }

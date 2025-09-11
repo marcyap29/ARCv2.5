@@ -2,6 +2,7 @@
 /// 
 /// Provides SHA-256 checksum computation for MCP bundle files
 /// and validation utilities.
+library;
 
 import 'dart:convert';
 import 'dart:io';

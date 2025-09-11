@@ -31,7 +31,7 @@ class ArcformRendererViewContent extends StatefulWidget {
 }
 
 class _ArcformRendererViewContentState extends State<ArcformRendererViewContent> {
-  bool _is3DMode = true; // Default to 3D mode to show off the new feature
+  final bool _is3DMode = true; // Default to 3D mode to show off the new feature
   final GlobalKey _arcformRepaintBoundaryKey = GlobalKey();
 
   ArcformGeometry _convertToArcformGeometry(GeometryPattern geometry) {
@@ -546,7 +546,7 @@ class _ArcformRendererViewContentState extends State<ArcformRendererViewContent>
                                   },
                                 )
                               : Container(
-                                  child: Text('ArcformLayout not available'),
+                                  child: const Text('ArcformLayout not available'),
                                 ),
                         ),
                       ),

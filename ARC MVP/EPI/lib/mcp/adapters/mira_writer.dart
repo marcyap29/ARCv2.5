@@ -81,14 +81,10 @@ class MiraWriter {
         'id': pointer.id,
         'descriptor': pointer.descriptor,
         'source_uri': pointer.sourceUri,
-        'storage_type': pointer.storageType?.toString().split('.').last,
-        'content_hash': pointer.contentHash,
-        'content_encoding': pointer.contentEncoding,
-        'metadata': pointer.metadata,
-        'privacy_level': pointer.privacyLevel?.toString().split('.').last,
-        'created_at': pointer.createdAt?.toUtc().toIso8601String(),
-        'expires_at': pointer.expiresAt?.toUtc().toIso8601String(),
-        'cas_refs': pointer.casRefs,
+        'media_type': pointer.mediaType,
+        'source_uri': pointer.sourceUri,
+        'alt_uris': pointer.altUris,
+        'labels': pointer.labels,
         
         // MIRA metadata
         'batch_id': batchId,
@@ -101,7 +97,7 @@ class MiraWriter {
         // Read existing record to preserve history
         final existing = jsonDecode(await file.readAsString());
         record['previous_versions'] = existing['previous_versions'] ?? [];
-        record['previous_versions'].add({
+        (record['previous_versions'] as List).add({
           'imported_at': existing['imported_at'],
           'batch_id': existing['batch_id'],
         });
@@ -129,14 +125,12 @@ class MiraWriter {
       final record = {
         'id': embedding.id,
         'vector': embedding.vector,
-        'model': embedding.model,
-        'source_text': embedding.sourceText,
-        'chunk_index': embedding.chunkIndex,
-        'total_chunks': embedding.totalChunks,
-        'metadata': embedding.metadata,
-        'created_at': embedding.createdAt?.toUtc().toIso8601String(),
-        'source_hash': embedding.sourceHash,
-        'privacy_level': embedding.privacyLevel?.toString().split('.').last,
+        'model_id': embedding.modelId,
+        'embedding_version': embedding.embeddingVersion,
+        'dim': embedding.dim,
+        'pointer_ref': embedding.pointerRef,
+        'span_ref': embedding.spanRef,
+        'doc_scope': embedding.docScope,
         
         // MIRA metadata
         'batch_id': batchId,
@@ -148,7 +142,7 @@ class MiraWriter {
       if (file.existsSync()) {
         final existing = jsonDecode(await file.readAsString());
         record['previous_versions'] = existing['previous_versions'] ?? [];
-        record['previous_versions'].add({
+        (record['previous_versions'] as List).add({
           'imported_at': existing['imported_at'],
           'batch_id': existing['batch_id'],
           'model': existing['model'],
@@ -176,20 +170,20 @@ class MiraWriter {
       final record = {
         'id': node.id,
         'type': node.type,
-        'label': node.label,
-        'properties': node.properties,
-        'created_at': node.createdAt?.toUtc().toIso8601String(),
-        'updated_at': node.updatedAt?.toUtc().toIso8601String(),
-        'privacy_level': node.privacyLevel?.toString().split('.').last,
-        'phase': node.phase?.toString().split('.').last,
-        'source_hash': node.sourceHash,
-        'metadata': node.metadata,
+        'type': node.type,
+        'timestamp': node.timestamp.toUtc().toIso8601String(),
+        'pointer_ref': node.pointerRef,
+        'content_summary': node.contentSummary,
+        'phase_hint': node.phaseHint,
+        'keywords': node.keywords,
+        'embedding_ref': node.embeddingRef,
+        'emotions': node.emotions,
         
         // SAGE mapping
-        'sage_situation': node.properties?['situation'],
-        'sage_action': node.properties?['action'], 
-        'sage_growth': node.properties?['growth'],
-        'sage_essence': node.properties?['essence'],
+        'sage_situation': node.narrative?.situation,
+        'sage_action': node.narrative?.action, 
+        'sage_growth': node.narrative?.growth,
+        'sage_essence': node.narrative?.essence,
         
         // MIRA metadata
         'batch_id': batchId,
@@ -201,7 +195,7 @@ class MiraWriter {
       if (file.existsSync()) {
         final existing = jsonDecode(await file.readAsString());
         record['previous_versions'] = existing['previous_versions'] ?? [];
-        record['previous_versions'].add({
+        (record['previous_versions'] as List).add({
           'imported_at': existing['imported_at'],
           'batch_id': existing['batch_id'],
           'updated_at': existing['updated_at'],
@@ -223,33 +217,27 @@ class MiraWriter {
     await initialize();
     
     try {
-      final filename = _sanitizeFilename('${edge.id}.json');
+      final filename = _sanitizeFilename('${edge.source}_${edge.target}.json');
       final file = File(path.join(_storageRoot, 'edges', filename));
       
       final record = {
-        'id': edge.id,
-        'type': edge.type,
-        'source_id': edge.sourceId,
-        'target_id': edge.targetId,
-        'properties': edge.properties,
+        'source': edge.source,
+        'target': edge.target,
+        'relation': edge.relation,
+        'timestamp': edge.timestamp.toUtc().toIso8601String(),
         'weight': edge.weight,
-        'directed': edge.directed,
-        'created_at': edge.createdAt?.toUtc().toIso8601String(),
-        'privacy_level': edge.privacyLevel?.toString().split('.').last,
-        'phase': edge.phase?.toString().split('.').last,
-        'metadata': edge.metadata,
         
         // MIRA metadata
         'batch_id': batchId,
         'imported_at': DateTime.now().toUtc().toIso8601String(),
-        'lineage_hash': _generateLineageHash(edge.id, batchId),
+        'lineage_hash': _generateLineageHash('${edge.source}_${edge.target}', batchId),
       };
 
       // Track edge evolution
       if (file.existsSync()) {
         final existing = jsonDecode(await file.readAsString());
         record['previous_versions'] = existing['previous_versions'] ?? [];
-        record['previous_versions'].add({
+        (record['previous_versions'] as List).add({
           'imported_at': existing['imported_at'],
           'batch_id': existing['batch_id'],
           'weight': existing['weight'],
@@ -258,11 +246,11 @@ class MiraWriter {
       }
 
       await file.writeAsString(jsonEncode(record));
-      await _updateLineageRecord('edge', edge.id, batchId);
+      await _updateLineageRecord('edge', '${edge.source}_${edge.target}', batchId);
       
       _stats.edgesWritten++;
     } catch (e) {
-      throw MiraWriteException('Failed to write edge ${edge.id}', e);
+      throw MiraWriteException('Failed to write edge ${edge.source}_${edge.target}', e);
     }
   }
 

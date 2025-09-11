@@ -14,6 +14,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - Vision-language model integration
 
 ### Added
+- **MCP Export/Import Integration** - Complete MCP Memory Bundle v1 format support for AI ecosystem interoperability
+  - MCP Export Service with four storage profiles (minimal, space_saver, balanced, hi_fidelity)
+  - MCP Import Service with validation and error handling
+  - Settings integration with dedicated MCP Export/Import buttons
+  - Automatic data conversion between app's JournalEntry model and MCP format
+  - Progress tracking and real-time status updates during export/import operations
+  - Export to Documents/mcp_exports directory for easy access
+  - User-friendly import dialog with directory path input
+  - Comprehensive error handling with recovery options
 - **Qwen 2.5 1.5B Instruct Integration** - Primary on-device language model
 - **Enhanced Fallback Mode** - Context-aware AI responses when native bridge unavailable
 - **Comprehensive Debug Logging** - Detailed logging for AI model operations

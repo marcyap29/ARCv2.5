@@ -1,5 +1,4 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:my_app/lumara/llm/qwen_service.dart';
 
 /// Model Management States
 abstract class ModelManagementState {}
@@ -63,17 +62,17 @@ class ModelManagementCubit extends Cubit<ModelManagementState> {
       print('LUMARA Debug: ModelManagementCubit.loadModels() called');
       emit(ModelManagementLoading());
       
-      // Get model information from QwenService
-      print('LUMARA Debug: Getting model info from QwenService');
-      final availableModels = QwenService.availableModels;
-      final status = QwenService.getStatus();
+      // Model information (placeholder for future LLM integration)
+      print('LUMARA Debug: Getting model info (rule-based mode)');
+      final availableModels = <String, String>{
+        'rule_based': 'Rule-based responses (no model required)',
+      };
       print('LUMARA Debug: Available models: $availableModels');
-      print('LUMARA Debug: Service status: $status');
       
-      // Check if AI is enabled (not rule-based)
-      final isAiEnabled = status['aiInferenceEnabled'] as bool? ?? false;
-      final currentModel = status['currentModel'] as String?;
-      final adapterType = status['adapterType'] as String?;
+      // Currently using rule-based adapter only
+      final isAiEnabled = false;
+      final currentModel = 'rule_based';
+      final adapterType = 'rule_based';
       
       // For now, we don't have actual downloaded models - they need to be manually installed
       final downloadedModels = <String>[];
@@ -157,8 +156,8 @@ class ModelManagementCubit extends Cubit<ModelManagementState> {
     try {
       emit(ModelManagementLoading());
 
-      // Initialize the model in QwenService
-      final success = await QwenService.initialize();
+      // Model activation (placeholder for future LLM integration)
+      final success = modelName == 'rule_based'; // Only rule-based model available
 
       if (success) {
         emit(currentState.copyWith(activeModel: modelName));
@@ -188,7 +187,7 @@ class ModelManagementCubit extends Cubit<ModelManagementState> {
       if (currentState.activeModel == modelName) {
         // If deleting the active model, deactivate it
         newActiveModel = null;
-        await QwenService.dispose();
+        // Model disposal (placeholder for future LLM integration)
       }
 
       emit(currentState.copyWith(

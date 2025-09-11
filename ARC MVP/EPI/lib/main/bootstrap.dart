@@ -5,7 +5,6 @@ import 'package:logger/logger.dart';
 // import 'package:sentry_flutter/sentry_flutter.dart';
 
 import 'package:my_app/app/app.dart';
-import 'package:my_app/lumara/llm/lumara_native.dart';
 
 import 'package:hive_flutter/hive_flutter.dart';
 
