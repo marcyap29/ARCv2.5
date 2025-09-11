@@ -22,6 +22,10 @@ dependencies:
   permission_handler: ^11.3.1
   path_provider: ^2.1.4
   audioplayers: ^6.1.0
+  crypto: ^3.0.3
+  http: ^1.2.2
+  args: ^2.5.0
+  path: ^1.9.0
   
   # Firebase Dependencies
   # Uncomment these lines when you need Firebase functionality
