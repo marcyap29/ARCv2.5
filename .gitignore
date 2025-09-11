@@ -1,0 +1,6 @@
+# Large models
+ARC MVP/EPI/assets/models/**
+ARC MVP/EPI/assets/models/qwen/**
+ARC MVP/EPI/assets/models/**/*.gguf
+ARC MVP/EPI/assets/models/**/*.bin
+ARC MVP/EPI/temp_models/**
