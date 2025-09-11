@@ -2,6 +2,7 @@
 /// 
 /// This file contains Dart models that serialize to the normative MCP v1 field names
 /// for Nodes, Edges, Pointers, Embeddings, and Manifest records.
+library;
 
 import 'dart:convert';
 
@@ -19,6 +20,16 @@ class McpNode {
   final McpNarrative? narrative;
   final Map<String, double> emotions;
   final McpProvenance provenance;
+  
+  // Additional properties for compatibility
+  final String? label;
+  final Map<String, dynamic>? properties;
+  final DateTime? createdAt;
+  final DateTime? updatedAt;
+  final String? privacyLevel;
+  final String? phase;
+  final String? sourceHash;
+  final Map<String, dynamic>? metadata;
 
   const McpNode({
     required this.id,
@@ -33,6 +44,14 @@ class McpNode {
     this.narrative,
     this.emotions = const {},
     required this.provenance,
+    this.label,
+    this.properties,
+    this.createdAt,
+    this.updatedAt,
+    this.privacyLevel,
+    this.phase,
+    this.sourceHash,
+    this.metadata,
   });
 
   Map<String, dynamic> toJson() {
@@ -51,6 +70,14 @@ class McpNode {
     if (embeddingRef != null) json['embedding_ref'] = embeddingRef;
     if (narrative != null) json['narrative'] = narrative!.toJson();
     if (emotions.isNotEmpty) json['emotions'] = emotions;
+    if (label != null) json['label'] = label;
+    if (properties != null) json['properties'] = properties;
+    if (createdAt != null) json['created_at'] = createdAt!.toUtc().toIso8601String();
+    if (updatedAt != null) json['updated_at'] = updatedAt!.toUtc().toIso8601String();
+    if (privacyLevel != null) json['privacy_level'] = privacyLevel;
+    if (phase != null) json['phase'] = phase;
+    if (sourceHash != null) json['source_hash'] = sourceHash;
+    if (metadata != null) json['metadata'] = metadata;
 
     return json;
   }
@@ -71,6 +98,14 @@ class McpNode {
           : null,
       emotions: Map<String, double>.from(json['emotions'] ?? {}),
       provenance: McpProvenance.fromJson(json['provenance'] as Map<String, dynamic>),
+      label: json['label'] as String?,
+      properties: json['properties'] != null ? Map<String, dynamic>.from(json['properties']) : null,
+      createdAt: json['created_at'] != null ? DateTime.parse(json['created_at'] as String) : null,
+      updatedAt: json['updated_at'] != null ? DateTime.parse(json['updated_at'] as String) : null,
+      privacyLevel: json['privacy_level'] as String?,
+      phase: json['phase'] as String?,
+      sourceHash: json['source_hash'] as String?,
+      metadata: json['metadata'] != null ? Map<String, dynamic>.from(json['metadata']) : null,
     );
   }
 }
@@ -116,6 +151,18 @@ class McpEdge {
   final DateTime timestamp;
   final String schemaVersion;
   final double? weight;
+  
+  // Additional properties for compatibility
+  final String? id;
+  final String? type;
+  final String? sourceId;
+  final String? targetId;
+  final Map<String, dynamic>? properties;
+  final bool? directed;
+  final DateTime? createdAt;
+  final String? privacyLevel;
+  final String? phase;
+  final Map<String, dynamic>? metadata;
 
   const McpEdge({
     required this.source,
@@ -124,6 +171,16 @@ class McpEdge {
     required this.timestamp,
     this.schemaVersion = 'edge.v1',
     this.weight,
+    this.id,
+    this.type,
+    this.sourceId,
+    this.targetId,
+    this.properties,
+    this.directed,
+    this.createdAt,
+    this.privacyLevel,
+    this.phase,
+    this.metadata,
   });
 
   Map<String, dynamic> toJson() {
@@ -136,6 +193,17 @@ class McpEdge {
     };
 
     if (weight != null) json['weight'] = weight;
+    if (id != null) json['id'] = id;
+    if (type != null) json['type'] = type;
+    if (sourceId != null) json['source_id'] = sourceId;
+    if (targetId != null) json['target_id'] = targetId;
+    if (properties != null) json['properties'] = properties;
+    if (directed != null) json['directed'] = directed;
+    if (createdAt != null) json['created_at'] = createdAt!.toUtc().toIso8601String();
+    if (privacyLevel != null) json['privacy_level'] = privacyLevel;
+    if (phase != null) json['phase'] = phase;
+    if (metadata != null) json['metadata'] = metadata;
+
     return json;
   }
 
@@ -147,6 +215,16 @@ class McpEdge {
       timestamp: DateTime.parse(json['timestamp'] as String),
       schemaVersion: json['schema_version'] as String? ?? 'edge.v1',
       weight: (json['weight'] as num?)?.toDouble(),
+      id: json['id'] as String?,
+      type: json['type'] as String?,
+      sourceId: json['source_id'] as String?,
+      targetId: json['target_id'] as String?,
+      properties: json['properties'] != null ? Map<String, dynamic>.from(json['properties']) : null,
+      directed: json['directed'] as bool?,
+      createdAt: json['created_at'] != null ? DateTime.parse(json['created_at'] as String) : null,
+      privacyLevel: json['privacy_level'] as String?,
+      phase: json['phase'] as String?,
+      metadata: json['metadata'] != null ? Map<String, dynamic>.from(json['metadata']) : null,
     );
   }
 }
@@ -164,6 +242,16 @@ class McpPointer {
   final McpPrivacy privacy;
   final List<String> labels;
   final String schemaVersion;
+  
+  // Additional properties for compatibility
+  final String? storageType;
+  final String? contentHash;
+  final String? contentEncoding;
+  final Map<String, dynamic>? metadata;
+  final String? privacyLevel;
+  final DateTime? createdAt;
+  final DateTime? expiresAt;
+  final List<String>? casRefs;
 
   const McpPointer({
     required this.id,
@@ -177,10 +265,18 @@ class McpPointer {
     required this.privacy,
     this.labels = const [],
     this.schemaVersion = 'pointer.v1',
+    this.storageType,
+    this.contentHash,
+    this.contentEncoding,
+    this.metadata,
+    this.privacyLevel,
+    this.createdAt,
+    this.expiresAt,
+    this.casRefs,
   });
 
   Map<String, dynamic> toJson() {
-    return {
+    final json = <String, dynamic>{
       'id': id,
       'media_type': mediaType,
       'source_uri': sourceUri,
@@ -193,6 +289,17 @@ class McpPointer {
       'labels': labels,
       'schema_version': schemaVersion,
     };
+    
+    if (storageType != null) json['storage_type'] = storageType;
+    if (contentHash != null) json['content_hash'] = contentHash;
+    if (contentEncoding != null) json['content_encoding'] = contentEncoding;
+    if (metadata != null) json['metadata'] = metadata;
+    if (privacyLevel != null) json['privacy_level'] = privacyLevel;
+    if (createdAt != null) json['created_at'] = createdAt!.toUtc().toIso8601String();
+    if (expiresAt != null) json['expires_at'] = expiresAt!.toUtc().toIso8601String();
+    if (casRefs != null) json['cas_refs'] = casRefs;
+
+    return json;
   }
 
   factory McpPointer.fromJson(Map<String, dynamic> json) {
@@ -208,6 +315,14 @@ class McpPointer {
       privacy: McpPrivacy.fromJson(json['privacy'] as Map<String, dynamic>),
       labels: List<String>.from(json['labels'] ?? []),
       schemaVersion: json['schema_version'] as String? ?? 'pointer.v1',
+      storageType: json['storage_type'] as String?,
+      contentHash: json['content_hash'] as String?,
+      contentEncoding: json['content_encoding'] as String?,
+      metadata: json['metadata'] != null ? Map<String, dynamic>.from(json['metadata']) : null,
+      privacyLevel: json['privacy_level'] as String?,
+      createdAt: json['created_at'] != null ? DateTime.parse(json['created_at'] as String) : null,
+      expiresAt: json['expires_at'] != null ? DateTime.parse(json['expires_at'] as String) : null,
+      casRefs: json['cas_refs'] != null ? List<String>.from(json['cas_refs']) : null,
     );
   }
 }
@@ -218,12 +333,16 @@ class McpDescriptor {
   final int? length;
   final String? mimeType;
   final Map<String, dynamic> metadata;
+  
+  // Additional properties for compatibility
+  final bool? isNotEmpty;
 
   const McpDescriptor({
     this.language,
     this.length,
     this.mimeType,
     this.metadata = const {},
+    this.isNotEmpty,
   });
 
   Map<String, dynamic> toJson() {
@@ -233,6 +352,7 @@ class McpDescriptor {
     if (language != null) json['language'] = language;
     if (length != null) json['length'] = length;
     if (mimeType != null) json['mime_type'] = mimeType;
+    if (isNotEmpty != null) json['isNotEmpty'] = isNotEmpty;
     return json;
   }
 
@@ -242,6 +362,7 @@ class McpDescriptor {
       length: json['length'] as int?,
       mimeType: json['mime_type'] as String?,
       metadata: Map<String, dynamic>.from(json['metadata'] ?? {}),
+      isNotEmpty: json['isNotEmpty'] as bool?,
     );
   }
 }
@@ -422,6 +543,16 @@ class McpEmbedding {
   final String embeddingVersion;
   final int dim;
   final String schemaVersion;
+  
+  // Additional properties for compatibility
+  final String? model;
+  final String? sourceText;
+  final int? chunkIndex;
+  final int? totalChunks;
+  final Map<String, dynamic>? metadata;
+  final DateTime? createdAt;
+  final String? sourceHash;
+  final String? privacyLevel;
 
   const McpEmbedding({
     required this.id,
@@ -433,6 +564,14 @@ class McpEmbedding {
     required this.embeddingVersion,
     required this.dim,
     this.schemaVersion = 'embedding.v1',
+    this.model,
+    this.sourceText,
+    this.chunkIndex,
+    this.totalChunks,
+    this.metadata,
+    this.createdAt,
+    this.sourceHash,
+    this.privacyLevel,
   });
 
   Map<String, dynamic> toJson() {
@@ -447,6 +586,14 @@ class McpEmbedding {
     };
     if (spanRef != null) json['span_ref'] = spanRef;
     if (docScope != null) json['doc_scope'] = docScope;
+    if (model != null) json['model'] = model;
+    if (sourceText != null) json['source_text'] = sourceText;
+    if (chunkIndex != null) json['chunk_index'] = chunkIndex;
+    if (totalChunks != null) json['total_chunks'] = totalChunks;
+    if (metadata != null) json['metadata'] = metadata;
+    if (createdAt != null) json['created_at'] = createdAt!.toUtc().toIso8601String();
+    if (sourceHash != null) json['source_hash'] = sourceHash;
+    if (privacyLevel != null) json['privacy_level'] = privacyLevel;
     return json;
   }
 
@@ -461,6 +608,14 @@ class McpEmbedding {
       embeddingVersion: json['embedding_version'] as String,
       dim: json['dim'] as int,
       schemaVersion: json['schema_version'] as String? ?? 'embedding.v1',
+      model: json['model'] as String?,
+      sourceText: json['source_text'] as String?,
+      chunkIndex: json['chunk_index'] as int?,
+      totalChunks: json['total_chunks'] as int?,
+      metadata: json['metadata'] != null ? Map<String, dynamic>.from(json['metadata']) : null,
+      createdAt: json['created_at'] != null ? DateTime.parse(json['created_at'] as String) : null,
+      sourceHash: json['source_hash'] as String?,
+      privacyLevel: json['privacy_level'] as String?,
     );
   }
 }
@@ -519,6 +674,7 @@ class McpManifest {
   final List<String> casRemotes;
   final String? notes;
   final String schemaVersion;
+  final List<String>? bundles;
 
   const McpManifest({
     required this.bundleId,
@@ -531,6 +687,7 @@ class McpManifest {
     this.casRemotes = const [],
     this.notes,
     this.schemaVersion = 'manifest.v1',
+    this.bundles,
   });
 
   Map<String, dynamic> toJson() {
@@ -546,6 +703,7 @@ class McpManifest {
       'schema_version': schemaVersion,
     };
     if (notes != null) json['notes'] = notes;
+    if (bundles != null) json['bundles'] = bundles;
     return json;
   }
 
@@ -563,6 +721,7 @@ class McpManifest {
       casRemotes: List<String>.from(json['cas_remotes'] ?? []),
       notes: json['notes'] as String?,
       schemaVersion: json['schema_version'] as String? ?? 'manifest.v1',
+      bundles: json['bundles'] != null ? List<String>.from(json['bundles']) : null,
     );
   }
 }
@@ -573,21 +732,27 @@ class McpCounts {
   final int edges;
   final int pointers;
   final int embeddings;
+  
+  // Additional properties for compatibility
+  final Map<String, int>? entries;
 
   const McpCounts({
     required this.nodes,
     required this.edges,
     required this.pointers,
     required this.embeddings,
+    this.entries,
   });
 
   Map<String, dynamic> toJson() {
-    return {
+    final json = <String, dynamic>{
       'nodes': nodes,
       'edges': edges,
       'pointers': pointers,
       'embeddings': embeddings,
     };
+    if (entries != null) json['entries'] = entries;
+    return json;
   }
 
   factory McpCounts.fromJson(Map<String, dynamic> json) {
@@ -596,6 +761,7 @@ class McpCounts {
       edges: json['edges'] as int,
       pointers: json['pointers'] as int,
       embeddings: json['embeddings'] as int,
+      entries: json['entries'] != null ? Map<String, int>.from(json['entries']) : null,
     );
   }
 }
@@ -607,6 +773,9 @@ class McpChecksums {
   final String pointersJsonl;
   final String embeddingsJsonl;
   final String? vectorsParquet;
+  
+  // Additional properties for compatibility
+  final int? length;
 
   const McpChecksums({
     required this.nodesJsonl,
@@ -614,6 +783,7 @@ class McpChecksums {
     required this.pointersJsonl,
     required this.embeddingsJsonl,
     this.vectorsParquet,
+    this.length,
   });
 
   Map<String, dynamic> toJson() {
@@ -624,6 +794,7 @@ class McpChecksums {
       'embeddings_jsonl': embeddingsJsonl,
     };
     if (vectorsParquet != null) json['vectors_parquet'] = vectorsParquet;
+    if (length != null) json['length'] = length;
     return json;
   }
 
@@ -634,6 +805,7 @@ class McpChecksums {
       pointersJsonl: json['pointers_jsonl'] as String,
       embeddingsJsonl: json['embeddings_jsonl'] as String,
       vectorsParquet: json['vectors_parquet'] as String?,
+      length: json['length'] as int?,
     );
   }
 }

@@ -33,6 +33,9 @@ target 'Runner' do
   # MediaPipe Tasks for Gemma models (temporarily disabled due to linker errors)
   # pod 'MediaPipeTasksGenAI', '~> 0.10.24'
   # pod 'MediaPipeTasksText', '~> 0.10.21'
+  
+  # Real llama.cpp for actual Qwen model inference
+  # We'll integrate llama.cpp source files directly
 
   flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
   target 'RunnerTests' do

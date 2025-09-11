@@ -5,6 +5,8 @@ import 'sync_settings_section.dart';
 import 'music_control_section.dart';
 import 'first_responder_settings_section.dart';
 import 'coach_mode_settings_section.dart';
+import 'data_view.dart';
+import 'mcp_settings_view.dart';
 
 class SettingsView extends StatelessWidget {
   const SettingsView({super.key});
@@ -59,10 +61,37 @@ class SettingsView extends StatelessWidget {
                 _buildSettingsTile(
                   context,
                   title: 'Data Export',
-                  subtitle: 'Export your journal data',
+                  subtitle: 'Export your journal data as JSON',
                   icon: Icons.download,
                   onTap: () {
-                    // TODO: Implement data export
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const DataView()),
+                    );
+                  },
+                ),
+                _buildSettingsTile(
+                  context,
+                  title: 'MCP Export',
+                  subtitle: 'Export to MCP Memory Bundle format',
+                  icon: Icons.cloud_upload,
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const McpSettingsView()),
+                    );
+                  },
+                ),
+                _buildSettingsTile(
+                  context,
+                  title: 'MCP Import',
+                  subtitle: 'Import from MCP Memory Bundle',
+                  icon: Icons.cloud_download,
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const McpSettingsView()),
+                    );
                   },
                 ),
                 _buildSettingsTile(
@@ -71,7 +100,10 @@ class SettingsView extends StatelessWidget {
                   subtitle: 'Permanently delete all data',
                   icon: Icons.delete_forever,
                   onTap: () {
-                    // TODO: Implement erase all
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const DataView()),
+                    );
                   },
                 ),
               ],

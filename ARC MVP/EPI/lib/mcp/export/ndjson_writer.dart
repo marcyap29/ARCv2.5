@@ -2,6 +2,7 @@
 /// 
 /// Handles writing MCP records to NDJSON format with proper formatting
 /// and deterministic ordering for reproducible exports.
+library;
 
 import 'dart:convert';
 import 'dart:io';

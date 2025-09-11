@@ -2,6 +2,25 @@ import Foundation
 import Flutter
 import UIKit
 
+// Import the C++ wrapper
+// Note: In a real implementation, this would be linked to the actual llama.cpp library
+
+// C function declarations for llama.cpp integration
+@_silgen_name("llama_init")
+func llama_init(_ modelPath: UnsafePointer<CChar>) -> Int32
+
+@_silgen_name("llama_generate")
+func llama_generate(_ prompt: UnsafePointer<CChar>, 
+                   _ temperature: Float, 
+                   _ topP: Float, 
+                   _ maxTokens: Int32) -> UnsafePointer<CChar>?
+
+@_silgen_name("llama_cleanup")
+func llama_cleanup()
+
+@_silgen_name("llama_is_loaded")
+func llama_is_loaded() -> Int32
+
 // Stub implementation for Qwen models until llama.cpp integration is complete
 // This maintains the API structure while providing development functionality
 
@@ -13,7 +32,18 @@ import UIKit
     
     // Model configurations
     private var currentRuntime: String = "llamacpp"
+    private var temperature: Float = 0.6
+    private var topP: Float = 0.9
+    private var maxTokens: Int = 256
     
+    // Required FlutterPlugin method
+    static func register(with registrar: FlutterPluginRegistrar) {
+        let channel = FlutterMethodChannel(name: "lumara_native", binaryMessenger: registrar.messenger())
+        let instance = QwenBridge()
+        registrar.addMethodCallDelegate(instance, channel: channel)
+    }
+    
+    // Custom register method for direct use
     static func register(with binaryMessenger: FlutterBinaryMessenger) {
         let channel = FlutterMethodChannel(name: "lumara_native", binaryMessenger: binaryMessenger)
         let instance = QwenBridge()
@@ -85,11 +115,28 @@ import UIKit
         print("  Top-P: \(topP)")
         print("  Max tokens: \(maxTokens)")
         
-        // For now, simulate initialization but mark as loaded
-        // TODO: Initialize actual llama.cpp model here
-        self.chatModelLoaded = true
-        print("QwenBridge: Chat model marked as loaded (stub implementation)")
-        result(true)
+        // Store parameters for later use
+        self.temperature = Float(temperature)
+        self.topP = Float(topP)
+        self.maxTokens = maxTokens
+        
+        // Initialize llama.cpp model
+        DispatchQueue.global(qos: .userInitiated).async {
+            print("QwenBridge: Calling native llama_init with path: \(modelPath)")
+            let success = llama_init(modelPath)
+            print("QwenBridge: Native llama_init returned: \(success)")
+            
+            DispatchQueue.main.async {
+                if success == 1 {
+                    self.chatModelLoaded = true
+                    print("QwenBridge: Chat model loaded successfully via native C++")
+                    result(true)
+                } else {
+                    print("QwenBridge: Failed to load chat model via native C++")
+                    result(false)
+                }
+            }
+        }
     }
     
     private func qwenText(call: FlutterMethodCall, result: @escaping FlutterResult) {
@@ -107,12 +154,24 @@ import UIKit
         
         print("QwenBridge: Generating text for prompt: \(prompt.prefix(50))...")
         
-        // Parse the prompt to extract context information
-        let response = generateContextualResponse(from: prompt)
-        
-        DispatchQueue.global().asyncAfter(deadline: .now() + 0.5) {
+        // Generate response using llama.cpp
+        DispatchQueue.global(qos: .userInitiated).async {
+            print("QwenBridge: Calling native llama_generate...")
+            print("QwenBridge: Prompt length: \(prompt.count) characters")
+            
+            let response = llama_generate(prompt, self.temperature, self.topP, Int32(self.maxTokens))
+            
+            let responseString: String
+            if let cString = response {
+                responseString = String(cString: cString)
+                print("QwenBridge: Native C++ generated response: \(responseString.prefix(100))...")
+            } else {
+                print("QwenBridge: Native C++ returned null, using fallback")
+                responseString = self.generateContextualResponse(from: prompt)
+            }
+            
             DispatchQueue.main.async {
-                result(response)
+                result(responseString)
             }
         }
     }
@@ -312,7 +371,7 @@ import UIKit
         let machineMirror = Mirror(reflecting: systemInfo.machine)
         let identifier = machineMirror.children.reduce("") { identifier, element in
             guard let value = element.value as? Int8, value != 0 else { return identifier }
-            return identifier + String(UnicodeScalar(UInt8(value))!)
+            return identifier + String(UnicodeScalar(UInt8(value)))
         }
         return identifier
     }
@@ -329,7 +388,8 @@ import UIKit
         let ready: Bool
         switch modelType {
         case "chat":
-            ready = chatModelLoaded
+            // Check both our flag and the native C++ status
+            ready = chatModelLoaded && (llama_is_loaded() == 1)
         case "vision":
             ready = visionModelLoaded
         case "embedding":
@@ -395,12 +455,14 @@ import UIKit
     private func dispose(result: @escaping FlutterResult) {
         print("QwenBridge: Disposing models and cleaning up resources")
         
+        // Clean up llama.cpp resources
+        llama_cleanup()
+        
         chatModelLoaded = false
         visionModelLoaded = false
         embeddingModelLoaded = false
         
-        // TODO: Properly dispose of llama.cpp resources
-        
+        print("QwenBridge: Cleanup complete")
         result(nil)
     }
 }

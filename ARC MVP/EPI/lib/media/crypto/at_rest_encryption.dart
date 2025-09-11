@@ -12,7 +12,7 @@ class AtRestEncryption {
   static const int _ivLengthBytes = 12; // 96 bits for GCM
   static const int _tagLengthBytes = 16; // 128 bits
 
-  static final FlutterSecureStorage _secureStorage = FlutterSecureStorage(
+  static const FlutterSecureStorage _secureStorage = FlutterSecureStorage(
     aOptions: const AndroidOptions(
       encryptedSharedPreferences: true,
     ),

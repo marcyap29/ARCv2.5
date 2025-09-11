@@ -2,6 +2,7 @@
 /// 
 /// Provides runtime validation for MCP records and bundles
 /// following MCP v1 guardrails and schema requirements.
+library;
 
 import 'dart:io';
 import '../models/mcp_schemas.dart';

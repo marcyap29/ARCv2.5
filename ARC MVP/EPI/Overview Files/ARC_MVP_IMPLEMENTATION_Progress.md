@@ -16,7 +16,7 @@
   - **Cinematic Animations**: Full-screen Arcform reveals with staggered particle effects.
 - Critical stability + UX issues addressed (navigation, save, loading, lifecycle safety).
 - **Prompts 21–23** added: Welcome flow, Audio framework, Arcform sovereignty (auto vs manual).  
-- **Recent enhancements**: RIVET phase-stability gating, dual-dial insights visualization, keyword-driven phase detection, EmotionalValenceService, advanced notifications, progressive disclosure UI, complete journal entry deletion system, phase quiz synchronization.
+- **Recent enhancements**: RIVET phase-stability gating, dual-dial insights visualization, keyword-driven phase detection, EmotionalValenceService, advanced notifications, progressive disclosure UI, complete journal entry deletion system, phase quiz synchronization, MCP export/import integration.
 - **Latest completion**: P5-MM Multi-Modal Journaling Integration Complete - Fixed critical issue where multimodal features were implemented in JournalCaptureView but app uses StartEntryFlow. Successfully integrated camera, gallery, and media management into actual journal entry flow.
 - **RIVET Deletion Fix**: Fixed RIVET TRACE calculation to properly recalculate from remaining entries when entries are deleted, ensuring accurate phase-stability metrics.
 - **P27 RIVET Simple Copy UI**: Complete user-friendly RIVET interface with Match/Confidence labels, details modal, and comprehensive status communication.
@@ -64,6 +64,17 @@
   - **Cursor Visibility**: White cursor with proper sizing clearly visible against purple gradient background
   - **User Experience**: Smooth 300ms animated scroll, accessible Continue button, improved text readability
   - **iOS Project Updates**: Debug/release compatibility, plugin dependencies updates, Xcode configuration
+- **MCP Export/Import Integration (2025-01-31)**:
+  - **Settings Integration**: Added MCP Export and Import buttons to Settings tab for easy access
+  - **MCP Export Service**: Complete integration with MCP Memory Bundle v1 format for AI ecosystem interoperability
+  - **MCP Import Service**: Full import capability for MCP Memory Bundle format with validation and error handling
+  - **Storage Profiles**: Four export profiles (minimal, space_saver, balanced, hi_fidelity) for different use cases
+  - **User Interface**: Dedicated MCP settings view with progress indicators, storage profile selection, and comprehensive error handling
+  - **Data Conversion**: Automatic conversion between app's JournalEntry model and MCP format
+  - **Export Location**: Saves to Documents/mcp_exports directory for easy access
+  - **Import Dialog**: User-friendly directory path input for MCP bundle import
+  - **Progress Tracking**: Real-time progress indicators with status updates during export/import operations
+  - **Error Handling**: Comprehensive error handling with user-friendly messages and recovery options
 - Remaining prompts broken into **actionable tickets** with file paths and acceptance criteria.
 
 ---
@@ -71,11 +82,12 @@
 ## 2) Architecture Snapshot
 
 - **Data flow:**  
-  `Journal Entry → Emotional Analysis → Keyword Extraction/Selection → Keyword-Driven Phase Detection → RIVET Phase-Stability Gating → Arcform Creation → Storage → Interactive Visualization (Arcforms / Timeline) → Insights with RIVET Status`
+  `Journal Entry → Emotional Analysis → Keyword Extraction/Selection → Keyword-Driven Phase Detection → RIVET Phase-Stability Gating → Arcform Creation → Storage → Interactive Visualization (Arcforms / Timeline) → Insights with RIVET Status → MCP Export/Import`
 - **Storage:** Hive (encrypted, offline‑first).  
 - **State:** Bloc/Cubit (global providers).  
 - **Rendering:** Flutter (60 fps targets; reduced motion compatible).  
 - **Emotional Intelligence:** Advanced sentiment analysis with color temperature mapping.
+- **MCP Integration:** Complete MCP Memory Bundle v1 export/import for AI ecosystem interoperability.
 - **Error & Perf:** Sentry init fixed; dev tools available.
 
 ---

@@ -2,7 +2,6 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:my_app/lumara/data/context_scope.dart';
 import 'package:my_app/lumara/data/context_provider.dart';
 import 'package:my_app/lumara/data/models/lumara_message.dart';
-import 'package:my_app/lumara/llm/qwen_service.dart';
 import 'package:my_app/lumara/llm/rule_based_adapter.dart';
 
 /// LUMARA Assistant Cubit State
@@ -57,9 +56,6 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
   Future<void> initialize() async {
     try {
       emit(LumaraAssistantLoading());
-      
-      // Initialize Qwen service (falls back to rule-based if needed)
-      await QwenService.initialize();
       
       // Start with default scope
       const scope = LumaraScope.defaultScope;
@@ -148,48 +144,10 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
     // Debug logging
     print('LUMARA Debug: Query: "$text" -> Task: ${task.name}');
     
-    // Try Qwen AI first, fall back to rule-based
-    if (QwenService.isAiEnabled) {
-      try {
-        print('LUMARA Debug: Using Qwen AI for response generation');
-        
-        // Convert context to format expected by QwenService
-        final facts = {
-          'task_type': task.name,
-          'user_query': text,
-          'total_entries': context.totalEntries,
-          'total_arcforms': context.totalArcforms,
-          'date_range': '${context.startDate.toIso8601String().split('T')[0]} to ${context.endDate.toIso8601String().split('T')[0]}',
-          'scope': scope.enabledScopes.join(', '),
-        };
-        
-        final snippets = context.nodes.map((node) => node['text'] as String).toList();
-        
-        final chat = [
-          {'role': 'user', 'content': text}
-        ];
-        
-        // Get AI response stream and collect first response
-        final responseStream = QwenService.generateResponse(
-          task: task.name,
-          facts: facts,
-          snippets: snippets,
-          chat: chat,
-        );
-        
-        final response = await responseStream.first;
-        print('LUMARA Debug: Qwen AI generated response length: ${response.length}');
-        return response;
-        
-      } catch (e) {
-        print('LUMARA Debug: Qwen AI failed, falling back to rule-based: $e');
-        // Fall through to rule-based adapter
-      }
-    } else {
-      print('LUMARA Debug: Qwen AI not available, using rule-based adapter');
-    }
+    // Use rule-based adapter for responses
+    print('LUMARA Debug: Using rule-based adapter for response generation');
     
-    // Fallback to rule-based adapter
+    // Generate response using rule-based adapter
     final response = await _fallbackAdapter.generateResponse(
       task: task,
       userQuery: text,

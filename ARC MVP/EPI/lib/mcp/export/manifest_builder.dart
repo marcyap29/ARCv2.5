@@ -2,6 +2,7 @@
 /// 
 /// Builds the root manifest.json file with metadata, checksums,
 /// and encoder registry information.
+library;
 
 import 'dart:io';
 import 'dart:convert';

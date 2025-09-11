@@ -124,7 +124,12 @@ class McpImportService {
         return McpImportResult(
           success: errors.isEmpty,
           message: 'Dry run completed',
-          counts: manifest.counts ?? {},
+              counts: {
+                'nodes': manifest.counts.nodes,
+                'edges': manifest.counts.edges,
+                'pointers': manifest.counts.pointers,
+                'embeddings': manifest.counts.embeddings,
+              },
           warnings: warnings,
           errors: errors,
           processingTime: stopwatch.elapsed,
@@ -236,6 +241,24 @@ class McpImportService {
     }
   }
 
+  /// Get checksum for a specific file from manifest
+  String? _getChecksumForFile(McpChecksums checksums, String filename) {
+    switch (filename) {
+      case 'nodes.jsonl':
+        return checksums.nodesJsonl;
+      case 'edges.jsonl':
+        return checksums.edgesJsonl;
+      case 'pointers.jsonl':
+        return checksums.pointersJsonl;
+      case 'embeddings.jsonl':
+        return checksums.embeddingsJsonl;
+      case 'vectors.parquet':
+        return checksums.vectorsParquet;
+      default:
+        return null;
+    }
+  }
+
   /// Verify bundle integrity using checksums
   Future<bool> _verifyBundleIntegrity(
     Directory bundleDir,
@@ -256,7 +279,7 @@ class McpImportService {
         continue; // Optional files
       }
 
-      final expectedChecksum = manifest.checksums![filename];
+          final expectedChecksum = _getChecksumForFile(manifest.checksums, filename);
       if (expectedChecksum == null) {
         errors.add('Missing checksum for $filename');
         allValid = false;
@@ -476,7 +499,14 @@ class McpImportService {
       return;
     }
 
-    for (final entry in manifest.counts!.entries) {
+    final expectedCounts = {
+      'nodes': manifest.counts.nodes,
+      'edges': manifest.counts.edges,
+      'pointers': manifest.counts.pointers,
+      'embeddings': manifest.counts.embeddings,
+    };
+    
+    for (final entry in expectedCounts.entries) {
       final expected = entry.value;
       final actual = actualCounts[entry.key] ?? 0;
       
@@ -527,6 +557,6 @@ class McpImportService {
     // Require ID and descriptor, but not source_uri
     return pointer.id.isNotEmpty && 
            pointer.descriptor != null &&
-           pointer.descriptor!.isNotEmpty;
+           (pointer.descriptor?.isNotEmpty ?? false);
   }
 }

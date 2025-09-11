@@ -2,7 +2,6 @@ import 'dart:async';
 import 'dart:collection';
 import 'dart:isolate';
 import 'dart:typed_data';
-import 'package:collection/collection.dart';
 
 /// Progress event for media import operations
 class ImportProgress {

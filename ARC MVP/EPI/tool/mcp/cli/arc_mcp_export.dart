@@ -8,9 +8,9 @@
 import 'dart:io';
 import 'dart:convert';
 import 'package:args/args.dart';
-import '../../../lib/mcp/export/mcp_export_service.dart';
-import '../../../lib/mcp/models/mcp_schemas.dart';
-import '../../../lib/mcp/validation/mcp_validator.dart';
+import 'package:my_app/mcp/export/mcp_export_service.dart';
+import 'package:my_app/mcp/models/mcp_schemas.dart';
+import 'package:my_app/mcp/validation/mcp_validator.dart';
 
 void main(List<String> arguments) async {
   final parser = ArgParser()

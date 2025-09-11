@@ -46,15 +46,16 @@ class ManifestReader {
       
       // Parse with explicit field extraction for better error handling
       return McpManifest(
-        schemaVersion: json['schema_version'] as String? ?? '',
+        bundleId: json['bundle_id'] as String? ?? '',
         version: json['version'] as String? ?? '',
-        createdAt: _parseDateTime(json['created_at']),
-        counts: _parseCounts(json['counts']),
-        checksums: _parseChecksums(json['checksums']),
-        encoderRegistry: _parseEncoderRegistry(json['encoder_registry']),
-        casRemotes: _parseCasRemotes(json['cas_remotes']),
-        storageProfile: json['storage_profile'] as String?,
+        createdAt: _parseDateTime(json['created_at']) ?? DateTime.now(),
+        storageProfile: json['storage_profile'] as String? ?? 'balanced',
+        counts: _parseCounts(json['counts']) ?? McpCounts(nodes: 0, edges: 0, pointers: 0, embeddings: 0),
+        checksums: _parseChecksums(json['checksums']) ?? McpChecksums(nodesJsonl: '', edgesJsonl: '', pointersJsonl: '', embeddingsJsonl: ''),
+        encoderRegistry: _parseEncoderRegistry(json['encoder_registry']) ?? [],
+        casRemotes: _parseCasRemotes(json['cas_remotes']) ?? [],
         notes: json['notes'] as String?,
+        schemaVersion: json['schema_version'] as String? ?? 'manifest.v1',
         bundles: _parseBundles(json['bundles']),
       );
     } catch (e) {
@@ -96,53 +97,52 @@ class ManifestReader {
   }
 
   /// Parse counts object
-  Map<String, int>? _parseCounts(dynamic value) {
+  McpCounts? _parseCounts(dynamic value) {
     if (value == null) return null;
     
     if (value is Map<String, dynamic>) {
-      final counts = <String, int>{};
-      for (final entry in value.entries) {
-        if (entry.value is int) {
-          counts[entry.key] = entry.value as int;
-        } else {
-          throw ManifestReadException('Count values must be integers, got ${entry.value.runtimeType} for ${entry.key}');
-        }
-      }
-      return counts;
+      return McpCounts(
+        nodes: (value['nodes'] as int?) ?? 0,
+        edges: (value['edges'] as int?) ?? 0,
+        pointers: (value['pointers'] as int?) ?? 0,
+        embeddings: (value['embeddings'] as int?) ?? 0,
+      );
     }
     
     throw ManifestReadException('Counts must be an object, got: ${value.runtimeType}');
   }
 
   /// Parse checksums object
-  Map<String, String>? _parseChecksums(dynamic value) {
+  McpChecksums? _parseChecksums(dynamic value) {
     if (value == null) return null;
     
     if (value is Map<String, dynamic>) {
-      final checksums = <String, String>{};
-      for (final entry in value.entries) {
-        if (entry.value is String) {
-          checksums[entry.key] = entry.value as String;
-        } else {
-          throw ManifestReadException('Checksum values must be strings, got ${entry.value.runtimeType} for ${entry.key}');
-        }
-      }
-      return checksums;
+      return McpChecksums(
+        nodesJsonl: value['nodes_jsonl'] as String? ?? '',
+        edgesJsonl: value['edges_jsonl'] as String? ?? '',
+        pointersJsonl: value['pointers_jsonl'] as String? ?? '',
+        embeddingsJsonl: value['embeddings_jsonl'] as String? ?? '',
+        vectorsParquet: value['vectors_parquet'] as String?,
+      );
     }
     
     throw ManifestReadException('Checksums must be an object, got: ${value.runtimeType}');
   }
 
   /// Parse encoder registry array
-  List<Map<String, dynamic>>? _parseEncoderRegistry(dynamic value) {
+  List<McpEncoderRegistry>? _parseEncoderRegistry(dynamic value) {
     if (value == null) return null;
     
     if (value is List) {
-      final registry = <Map<String, dynamic>>[];
+      final registry = <McpEncoderRegistry>[];
       for (int i = 0; i < value.length; i++) {
         final item = value[i];
         if (item is Map<String, dynamic>) {
-          registry.add(item);
+          registry.add(McpEncoderRegistry(
+            modelId: item['model_id'] as String? ?? '',
+            embeddingVersion: item['embedding_version'] as String? ?? '',
+            dim: item['dim'] as int? ?? 0,
+          ));
         } else {
           throw ManifestReadException('Encoder registry item $i must be an object, got: ${item.runtimeType}');
         }
@@ -174,17 +174,17 @@ class ManifestReader {
   }
 
   /// Parse bundles array (for multi-bundle manifests)
-  List<Map<String, dynamic>>? _parseBundles(dynamic value) {
+  List<String>? _parseBundles(dynamic value) {
     if (value == null) return null;
     
     if (value is List) {
-      final bundles = <Map<String, dynamic>>[];
+      final bundles = <String>[];
       for (int i = 0; i < value.length; i++) {
         final item = value[i];
-        if (item is Map<String, dynamic>) {
+        if (item is String) {
           bundles.add(item);
         } else {
-          throw ManifestReadException('Bundle item $i must be an object, got: ${item.runtimeType}');
+          throw ManifestReadException('Bundle item $i must be a string, got: ${item.runtimeType}');
         }
       }
       return bundles;
@@ -208,12 +208,12 @@ class ManifestReader {
     }
     
     // Validate created_at is in the past
-    if (manifest.createdAt != null && manifest.createdAt!.isAfter(DateTime.now().toUtc())) {
+    if (manifest.createdAt.isAfter(DateTime.now().toUtc())) {
       errors.add('created_at cannot be in the future: ${manifest.createdAt}');
     }
     
     // Validate storage profile if present
-    if (manifest.storageProfile != null && !_isValidStorageProfile(manifest.storageProfile!)) {
+    if (!_isValidStorageProfile(manifest.storageProfile)) {
       errors.add('Invalid storage_profile: ${manifest.storageProfile}');
     }
     
@@ -246,27 +246,20 @@ class ManifestReader {
     buffer.writeln('MCP Manifest Summary:');
     buffer.writeln('  Schema Version: ${manifest.schemaVersion}');
     buffer.writeln('  Version: ${manifest.version}');
-    buffer.writeln('  Created: ${manifest.createdAt?.toIso8601String() ?? 'unknown'}');
-    buffer.writeln('  Storage Profile: ${manifest.storageProfile ?? 'not specified'}');
+    buffer.writeln('  Created: ${manifest.createdAt.toIso8601String()}');
+    buffer.writeln('  Storage Profile: ${manifest.storageProfile}');
     
-    if (manifest.counts != null) {
-      buffer.writeln('  Counts:');
-      for (final entry in manifest.counts!.entries) {
-        buffer.writeln('    ${entry.key}: ${entry.value}');
-      }
-    }
+    buffer.writeln('  Counts:');
+    buffer.writeln('    nodes: ${manifest.counts.nodes}');
+    buffer.writeln('    edges: ${manifest.counts.edges}');
+    buffer.writeln('    pointers: ${manifest.counts.pointers}');
+    buffer.writeln('    embeddings: ${manifest.counts.embeddings}');
     
-    if (manifest.checksums != null) {
-      buffer.writeln('  Checksums: ${manifest.checksums!.length} files');
-    }
+    buffer.writeln('  Checksums: ${manifest.checksums.nodesJsonl.isNotEmpty ? 'present' : 'missing'}');
     
-    if (manifest.encoderRegistry != null) {
-      buffer.writeln('  Encoder Registry: ${manifest.encoderRegistry!.length} entries');
-    }
+    buffer.writeln('  Encoder Registry: ${manifest.encoderRegistry.length} entries');
     
-    if (manifest.casRemotes != null) {
-      buffer.writeln('  CAS Remotes: ${manifest.casRemotes!.length} configured');
-    }
+    buffer.writeln('  CAS Remotes: ${manifest.casRemotes.length} configured');
     
     if (manifest.notes != null) {
       buffer.writeln('  Notes: ${manifest.notes}');
