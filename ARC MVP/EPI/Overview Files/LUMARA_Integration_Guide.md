@@ -91,9 +91,9 @@ BottomNavigationBar(
 - No external API calls
 
 ### 2. **Smart Response Generation**
-- Rule-based templates (currently active)
-- Ready for Gemma 3 4B-Instruct integration
-- Streaming responses for better UX
+- Gemini API via `LLMRegistry` (primary)
+- ArcLLM one-liners for consistent contracts
+- Rule-based fallback when API unavailable
 
 ### 3. **Quick Actions**
 - Weekly summary
@@ -102,22 +102,23 @@ BottomNavigationBar(
 - Period comparison
 - Prompt suggestions
 
-### 4. **Contextual Insights**
+### 4. **Contextual Insights & Prompts**
 - Uses your actual data (journal entries, phase history, etc.)
 - Provides source citations
 - Maintains conversation history
+ - Prompts centralized: `lib/core/prompts_arc.dart` (Dart) and `ios/Runner/Sources/Runner/PromptTemplates.swift` (Swift)
 
 ## 🔄 **Current Status**
 
 ### Working Now
-- ✅ Rule-based responses with enhanced templates
+- ✅ Gemini API streaming via ArcLLM
+- ✅ Rule-based responses as fallback
 - ✅ Privacy scope management
 - ✅ Chat interface with message history
 - ✅ Quick action palette
 - ✅ Device capability detection
 
-### Ready for Future
-- 🔄 Gemma 3 4B-Instruct integration (when model files added)
+- 🔄 On-device engines via iOS bridge using the same prompt contracts
 - 🔄 Voice input support
 - 🔄 Media analysis capabilities
 - 🔄 Advanced pattern recognition
