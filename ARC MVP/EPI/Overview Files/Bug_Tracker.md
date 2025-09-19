@@ -1,4 +1,11 @@
 # EPI ARC MVP - Bug Tracker
+## Note: mvp_api_inference – Gemini integration
+- Use `gemini-1.5-flash` (v1beta). `gemini-pro` returns 404 in v1beta.
+- Streaming can arrive as a JSON array across chunks; buffer then decode.
+- If Send appears idle, check logs for HTTP 200 and text parts; otherwise verify key/quota/network.
+- Fallback: on error/empty, app switches to rule-based adapter.
+- Priority: dart-define key > stored key (SharedPreferences) > rule-based.
+- Demo artifacts removed: the "Test Gemini LLM Demo" button is removed; avoid `/llm-demo` routes in production.
 
 > **Last Updated**: January 2025 (America/Los_Angeles)  
 > **Total Items Tracked**: 47 (35 bugs + 12 enhancements)  
