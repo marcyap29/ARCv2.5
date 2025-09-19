@@ -49,10 +49,10 @@ Instructions:
 Output (JSON):
 {
   "sage": {
-    "summarize": ["..."],
-    "analyze": ["..."],
-    "ground": ["..."],
-    "emerge": ["..."]
+    "situation": ["..."],
+    "action": ["..."],
+    "growth": ["..."],
+    "essence": ["..."]
   },
   "note": "optional, only if something was missing"
 }
