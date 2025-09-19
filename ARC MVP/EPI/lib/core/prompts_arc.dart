@@ -21,7 +21,7 @@ ARC domain rules:
 If the model output is incomplete or malformed: return what you have and add a single “note” explaining the gap.
 """;
 
-  static const chat = r"""
+  static const chat = r'''
 Task: Chat
 Context:
 - User intent: {{user_intent}}
@@ -30,19 +30,19 @@ Context:
 
 Instructions:
 - Answer directly and briefly.
-- Tie suggestions back to the user’s current themes when helpful.
+- Tie suggestions back to the user's current themes when helpful.
 - Do not invent facts. If unknown, say so.
 Output: plain text (2–6 sentences).
-""";
+''';
 
-  static const sageEcho = r"""
+  static const sageEcho = r'''
 Task: SAGE Echo
 Input free-write:
 """{{entry_text}}"""
 
 Instructions:
 - Create SAGE labels and 1–3 concise bullets for each.
-- Keep the user’s tone; no advice unless explicitly requested.
+- Keep the user's tone; no advice unless explicitly requested.
 - Avoid em dashes.
 - If the entry is too short, return minimal plausible SAGE with a note.
 
@@ -56,9 +56,9 @@ Output (JSON):
   },
   "note": "optional, only if something was missing"
 }
-""";
+''';
 
-  static const arcformKeywords = r"""
+  static const arcformKeywords = r'''
 Task: Arcform Keywords
 Input material:
 - SAGE Echo (if available): {{sage_json}}
@@ -73,9 +73,9 @@ Instructions:
 
 Output (JSON):
 { "arcform_keywords": ["...", "...", "..."], "note": "optional" }
-""";
+''';
 
-  static const phaseHints = r"""
+  static const phaseHints = r'''
 Task: Phase Hints
 Signals:
 - Entry:
@@ -96,7 +96,7 @@ Output (JSON):
   },
   "rationale": "..."
 }
-""";
+''';
 
   static const rivetLite = r"""
 Task: RIVET-lite
