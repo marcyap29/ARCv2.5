@@ -429,3 +429,11 @@ build/
 
 # Ignore SwiftPM build artifacts
 ARC MVP/EPI/ios/LumaraCoreMLEngine/.build/
+
+# Ignore embedded/vendored repos and build artifacts
+ARC MVP/EPI/ios/LumaraCoreMLEngine/.build/
+ARC MVP/EPI/ios/Llama.xcframework/
+ARC MVP/EPI/ios/Llama.xcframework.backup/
+ARC MVP/EPI/ios/Runner/Llama.xcframework/
+ARC MVP/EPI/third_party/
+ios-llm/
