@@ -426,3 +426,6 @@ build/
 *.ipa
 *.apk
 *.aab
+
+# Ignore SwiftPM build artifacts
+ARC MVP/EPI/ios/LumaraCoreMLEngine/.build/
