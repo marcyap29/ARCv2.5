@@ -1,5 +1,7 @@
 // ios/Runner/Sources/Runner/PromptTemplates.swift
-// Mirrors Dart ARC prompts for native usage and future on-device models.
+// Mirrors Dart ArcPrompts for native iOS bridge usage.
+
+import Foundation
 
 enum PromptTemplates {
     static let system = #"""
@@ -125,6 +127,34 @@ Output (JSON):
     static let fallbackRules = #"""
 Fallback Rules v1
 
-If the model API fails OR returns malformed JSON, follow the same heuristics as the Dart `fallbackRules` string.
+If the model API fails OR returns malformed JSON:
+
+1) SAGE Echo Heuristics:
+   - summarize: extract 1–2 sentences from the first 20–30% of the entry.
+   - analyze: list 1–2 tensions or patterns using verbs (“shifting from…, balancing…”).
+   - ground: pull 1 concrete detail (date, place, person, metric) per 2–3 paragraphs.
+   - emerge: 1 small next step phrased as a choice.
+
+2) Arcform Keywords Heuristics:
+   - Tokenize entry, remove stop-words, count stems.
+   - Top terms by frequency × recency boost (recent lines ×1.3).
+   - Keep 5–10; merge near-duplicates; lowercase.
+
+3) Phase Hints Heuristics:
+   - discovery: many questions, “explore/learning” words.
+   - expansion: shipping, momentum, plural outputs, “launched”.
+   - transition: fork words, compare/contrast, uncertainty markers.
+   - consolidation: refactor, simplify, pruning, “cut”, “clean”.
+   - recovery: rest, overwhelm, grief, softness, “reset”.
+   - breakthrough: sudden clarity terms, decisive verbs, “finally”.
+   - Normalize to 0–0.7 max; cap the top two at most.
+
+4) RIVET-lite:
+   - format_match = 0.9 if our heuristic JSON validates; else 0.6.
+   - prompt_following = 0.8 if required fields present; else 0.5.
+   - coherence = 0.75 unless conflicting bullets; drop to 0.5 if contradictions.
+   - repetition_control = 0.85 unless duplicate keywords; then 0.6.
+
+Always return best partial with a single “note” field describing what was approximated.
 """#
 }

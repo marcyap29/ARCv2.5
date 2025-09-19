@@ -1,9 +1,9 @@
 // lib/core/prompts_arc.dart
-// Centralized ARC prompt templates for consistent outputs across Gemini and future on-device engines.
-// Use raw strings (r"""...""") so {{handlebars}} placeholders pass through unescaped.
+// Centralized ARC prompt templates and fallback rules.
+// Raw strings are used so {{handlebars}} placeholders pass through.
 
 class ArcPrompts {
-  static const String system = r"""
+  static const system = r"""
 You are ARC’s journaling copilot for a privacy-first app. Your job is to:
 1) Preserve narrative dignity and steady tone (no therapy, no diagnosis, no hype).
 2) Reflect the user’s voice, use concise, integrative sentences, and avoid em dashes.
@@ -21,7 +21,7 @@ ARC domain rules:
 If the model output is incomplete or malformed: return what you have and add a single “note” explaining the gap.
 """;
 
-  static const String chat = r"""
+  static const chat = r"""
 Task: Chat
 Context:
 - User intent: {{user_intent}}
@@ -35,7 +35,7 @@ Instructions:
 Output: plain text (2–6 sentences).
 """;
 
-  static const String sageEcho = r"""
+  static const sageEcho = r"""
 Task: SAGE Echo
 Input free-write:
 """{{entry_text}}"""
@@ -58,7 +58,7 @@ Output (JSON):
 }
 """;
 
-  static const String arcformKeywords = r"""
+  static const arcformKeywords = r"""
 Task: Arcform Keywords
 Input material:
 - SAGE Echo (if available): {{sage_json}}
@@ -75,7 +75,7 @@ Output (JSON):
 { "arcform_keywords": ["...", "...", "..."], "note": "optional" }
 """;
 
-  static const String phaseHints = r"""
+  static const phaseHints = r"""
 Task: Phase Hints
 Signals:
 - Entry:
@@ -98,7 +98,7 @@ Output (JSON):
 }
 """;
 
-  static const String rivetLite = r"""
+  static const rivetLite = r"""
 Task: RIVET-lite
 Target:
 - Proposed output name: {{target_name}}  // e.g., "Arcform Keywords" or "SAGE Echo"
@@ -123,7 +123,7 @@ Output (JSON):
 }
 """;
 
-  static const String fallbackRules = r"""
+  static const fallbackRules = r"""
 Fallback Rules v1
 
 If the model API fails OR returns malformed JSON:
