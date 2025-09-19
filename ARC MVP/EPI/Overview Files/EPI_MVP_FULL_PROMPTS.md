@@ -1,5 +1,7 @@
 # EPI MVP — Vibe Studio Step‑by‑Step Prompts (Unified with UI/UX)
 
+> Note (mvp_api_inference): Main MVP uses Gemini via LLMRegistry with rule-based fallback. Configure key at runtime (Lumara → AI Models → Gemini API → Configure → Activate) or via `--dart-define=GEMINI_API_KEY=...`. Demo UI for Gemini has been removed; use main MVP flows.
+
 This document contains the complete set of prompts to guide ARC MVP development in Vibe Studio and Cursor. Each block includes goals, generation requirements, data models, acceptance criteria, and sample copy. Keep dark mode as default, avoid harsh system messages, and maintain a calm, reflective tone throughout.
 
 ---

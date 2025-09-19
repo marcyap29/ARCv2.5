@@ -69,6 +69,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - Updated onboarding purpose options: removed "Coaching", kept "Coach"
 - Made onboarding page 1 scrollable to prevent button cropping
 
+### mvp_api_inference (Main MVP API-based LLM)
+- Integrated Gemini API streaming via `LLMRegistry` with rule-based fallback.
+- Runtime key entry in Lumara → AI Models → Gemini API → Configure → Activate.
+- Startup selection via `--dart-define=GEMINI_API_KEY`.
+- Model path aligned to `gemini-1.5-flash` (v1beta).
+- Streaming parser updated to buffer and decode full JSON arrays.
+- Removed temporary "Test Gemini LLM Demo" UI button and route exposure.
+
+### Ops
+- `.gitignore` now excludes SwiftPM `.build`, Llama.xcframeworks, `ios-llm/`, and `third_party/` to silence embedded repo warnings.
+
 ---
 
 ## [1.0.17] - 2025-01-09 - Coach Mode MVP Complete Implementation (P27, P27.1, P27.2, P27.3) 🏋️
