@@ -25,10 +25,11 @@ A Flutter-based AI companion app that provides life-aware assistance through jou
 
 ### AI Integration
 
-- **Qwen 2.5 1.5B Instruct** - Primary on-device language model
-- **Enhanced Fallback Mode** - Context-aware responses when native bridge unavailable
-- **Rule-Based Adapter** - Fallback for basic functionality
-- **Embedding Support** - Semantic search and pattern recognition
+- **Gemini API (Cloud)** - Primary API-based LLM via `LLMRegistry` with streaming
+- **ArcLLM One-Liners** - `arc.sageEcho(entry)`, `arc.arcformKeywords(...)`, `arc.phaseHints(...)`, `arc.rivetLite(...)`
+- **Prompt Contracts** - Centralized in `lib/core/prompts_arc.dart` (Dart) and mirrored in `ios/.../PromptTemplates.swift`
+- **On-Device Ready** - Same contracts usable by iOS bridge later
+- **Rule-Based Adapter** - Deterministic fallback if API unavailable
 
 ## 🛠️ Development Setup
 
@@ -52,12 +53,24 @@ A Flutter-based AI companion app that provides life-aware assistance through jou
    flutter pub get
    ```
 
-3. **Run the app**
+3. **Run the app (full MVP)**
    ```bash
-   flutter run
+   # Debug
+   flutter run -d DEVICE_ID --dart-define=GEMINI_API_KEY=YOUR_KEY
+   # Profile
+   flutter run --profile -d DEVICE_ID --dart-define=GEMINI_API_KEY=YOUR_KEY
+   # Release (no debugging)
+   flutter run --release -d DEVICE_ID --dart-define=GEMINI_API_KEY=YOUR_KEY
    ```
 
-### Model Setup
+### Model & Prompts Setup
+* ARC prompts are in `lib/core/prompts_arc.dart` and mirrored for iOS in `ios/Runner/Sources/Runner/PromptTemplates.swift`.
+* Use `provideArcLLM()` from `lib/services/gemini_send.dart` to obtain a ready `ArcLLM`.
+* Example:
+  ```dart
+  final arc = provideArcLLM();
+  final sage = await arc.sageEcho(entryText);
+  ```
 
 The app includes Qwen 2.5 1.5B Instruct model files in `assets/models/qwen/`:
 - `qwen2.5-1.5b-instruct-q4_k_m.gguf` - Main model file

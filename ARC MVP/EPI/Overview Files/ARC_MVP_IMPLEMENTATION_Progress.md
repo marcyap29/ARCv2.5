@@ -14,6 +14,7 @@
   - **Complete 3D Arcform Feature**: Full 3D visualization with labels, emotional warmth, connecting lines, and interactive controls.
   - **Advanced Emotional Intelligence**: Color temperature mapping, interactive clickable letters, sentiment analysis.
   - **Cinematic Animations**: Full-screen Arcform reveals with staggered particle effects.
+- **ARC Prompts Integration**: Centralized prompt contracts (`prompts_arc.dart`, `PromptTemplates.swift`) and ArcLLM helpers wired to Gemini.
 - Critical stability + UX issues addressed (navigation, save, loading, lifecycle safety).
 - **Prompts 21–23** added: Welcome flow, Audio framework, Arcform sovereignty (auto vs manual).  
 - **Recent enhancements**: RIVET phase-stability gating, dual-dial insights visualization, keyword-driven phase detection, EmotionalValenceService, advanced notifications, progressive disclosure UI, complete journal entry deletion system, phase quiz synchronization, MCP export/import integration.
