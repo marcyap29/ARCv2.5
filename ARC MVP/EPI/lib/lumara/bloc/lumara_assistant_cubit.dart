@@ -3,6 +3,8 @@ import 'package:my_app/lumara/data/context_scope.dart';
 import 'package:my_app/lumara/data/context_provider.dart';
 import 'package:my_app/lumara/data/models/lumara_message.dart';
 import 'package:my_app/lumara/llm/rule_based_adapter.dart';
+import 'package:my_app/services/gemini_send.dart';
+import 'package:my_app/services/llm_bridge_adapter.dart';
 
 /// LUMARA Assistant Cubit State
 abstract class LumaraAssistantState {}
@@ -45,12 +47,16 @@ class LumaraAssistantError extends LumaraAssistantState {
 class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
   final ContextProvider _contextProvider;
   final RuleBasedAdapter _fallbackAdapter;
-  
+  late final ArcLLM _arcLLM;
+
   LumaraAssistantCubit({
     required ContextProvider contextProvider,
   }) : _contextProvider = contextProvider,
        _fallbackAdapter = const RuleBasedAdapter(),
-       super(LumaraAssistantInitial());
+       super(LumaraAssistantInitial()) {
+    // Initialize ArcLLM with Gemini integration
+    _arcLLM = provideArcLLM();
+  }
   
   /// Initialize the assistant
   Future<void> initialize() async {
@@ -137,25 +143,52 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
   Future<String> _processMessage(String text, LumaraScope scope) async {
     // Get context
     final context = await _contextProvider.buildContext();
-    
+
     // Determine task type based on query
     final task = _determineTaskType(text);
-    
+
     // Debug logging
     print('LUMARA Debug: Query: "$text" -> Task: ${task.name}');
-    
-    // Use rule-based adapter for responses
-    print('LUMARA Debug: Using rule-based adapter for response generation');
-    
-    // Generate response using rule-based adapter
-    final response = await _fallbackAdapter.generateResponse(
-      task: task,
-      userQuery: text,
-      context: context,
-    );
-    
-    print('LUMARA Debug: Rule-based adapter response length: ${response.length}');
-    return response;
+
+    try {
+      // Check if Gemini API key is available
+      const apiKey = String.fromEnvironment('GEMINI_API_KEY');
+      if (apiKey.isNotEmpty) {
+        print('LUMARA Debug: Using ArcLLM/Gemini for response generation');
+
+        // Prepare context for ArcLLM
+        final entryText = _buildEntryContext(context);
+        final phaseHint = _buildPhaseHint(context);
+        final keywords = _buildKeywordsContext(context);
+
+        // Use ArcLLM chat function with context
+        final response = await _arcLLM.chat(
+          userIntent: text,
+          entryText: entryText,
+          phaseHintJson: phaseHint,
+          lastKeywordsJson: keywords,
+        );
+
+        print('LUMARA Debug: ArcLLM/Gemini response length: ${response.length}');
+        return response;
+      } else {
+        print('LUMARA Debug: No Gemini API key found, falling back to rule-based responses');
+        throw StateError('GEMINI_API_KEY not provided');
+      }
+    } catch (e) {
+      print('LUMARA Debug: Error with ArcLLM/Gemini, falling back to rule-based: $e');
+
+      // Fallback to rule-based adapter
+      print('LUMARA Debug: Using rule-based adapter for response generation');
+      final response = await _fallbackAdapter.generateResponse(
+        task: task,
+        userQuery: text,
+        context: context,
+      );
+
+      print('LUMARA Debug: Rule-based adapter response length: ${response.length}');
+      return response;
+    }
   }
   
   /// Determine task type from user query
@@ -282,5 +315,47 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
   /// Get context summary
   Future<String> getContextSummary() async {
     return await _contextProvider.getContextSummary();
+  }
+
+  /// Build entry context for ArcLLM
+  String _buildEntryContext(ContextWindow context) {
+    final recentEntries = context.nodes.where((n) => n['type'] == 'journal').toList();
+    if (recentEntries.isEmpty) return '';
+
+    final buffer = StringBuffer();
+    for (final entry in recentEntries.take(3)) {
+      final text = entry['text'] as String? ?? '';
+      if (text.isNotEmpty) {
+        buffer.writeln(text);
+      }
+    }
+    return buffer.toString().trim();
+  }
+
+  /// Build phase hint for ArcLLM
+  String? _buildPhaseHint(ContextWindow context) {
+    final phaseNodes = context.nodes.where((n) => n['type'] == 'phase').toList();
+    if (phaseNodes.isEmpty) return null;
+
+    final currentPhase = phaseNodes.first['text'] as String?;
+    if (currentPhase == null) return null;
+
+    return '{"phase": "$currentPhase"}';
+  }
+
+  /// Build keywords context for ArcLLM
+  String? _buildKeywordsContext(ContextWindow context) {
+    final arcformNodes = context.nodes.where((n) => n['type'] == 'arcform').toList();
+    if (arcformNodes.isEmpty) return null;
+
+    final keywords = <String>[];
+    for (final node in arcformNodes) {
+      final nodeKeywords = node['meta']?['keywords'] as List<dynamic>? ?? [];
+      keywords.addAll(nodeKeywords.cast<String>().take(5));
+    }
+
+    if (keywords.isEmpty) return null;
+    final uniqueKeywords = keywords.take(10).toSet().toList();
+    return '{"keywords": [${uniqueKeywords.map((k) => '"$k"').join(', ')}]}';
   }
 }
