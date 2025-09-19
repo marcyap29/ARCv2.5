@@ -2,15 +2,15 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:my_app/core/prompts_arc.dart';
 
 void main() {
-  test('SAGE Echo prompt should interpolate entry', () {
+  test('SAGE Echo prompt interpolates entry', () {
     final p = ArcPrompts.sageEcho.replaceAll('{{entry_text}}', 'hello world');
     expect(p.contains('hello world'), true);
     expect(p.contains('{{entry_text}}'), false);
   });
 
-  test('Phase Hints prompt has all phases', () {
+  test('Phase Hints prompt includes all phases', () {
     final p = ArcPrompts.phaseHints;
-    for (final phase in const [
+    for (final phase in [
       'discovery',
       'expansion',
       'transition',
