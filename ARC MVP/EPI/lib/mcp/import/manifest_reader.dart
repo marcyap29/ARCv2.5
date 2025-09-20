@@ -242,10 +242,27 @@ class ManifestReader {
     }
   }
 
-  /// Check if schema version is valid (e.g., "1.0.0")
+  /// Check if schema version is valid (e.g., "1.0.0" or "manifest.v1")
   bool _isValidSchemaVersion(String version) {
-    final pattern = RegExp(r'^\d+\.\d+\.\d+$');
-    return pattern.hasMatch(version);
+    if (version.isEmpty) return false;
+
+    // Accept semantic versioning format (1.0.0, 1.0, etc.)
+    final semanticPattern = RegExp(r'^\d+(\.\d+)*$');
+    if (semanticPattern.hasMatch(version)) {
+      return true;
+    }
+
+    // Accept legacy format (manifest.v1, manifest.v1.0, etc.)
+    if (version.startsWith('manifest.v')) {
+      return true;
+    }
+
+    // Accept simple version formats
+    if (version == 'v1' || version == '1') {
+      return true;
+    }
+
+    return false;
   }
 
   /// Check if version follows semantic versioning

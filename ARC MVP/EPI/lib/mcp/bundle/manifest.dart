@@ -73,6 +73,7 @@ class ManifestBuilder {
     final manifest = {
       'bundle_id': _bundleId!,
       'version': _version!,
+      'schema_version': '1.0.0', // Add schema_version for manifest compatibility
       'created_at': DateTime.now().toUtc().toIso8601String(),
       'storage_profile': _storageProfile!,
       'counts': Map<String, dynamic>.from(_counts),
