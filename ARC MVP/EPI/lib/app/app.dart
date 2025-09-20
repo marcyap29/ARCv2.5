@@ -20,8 +20,8 @@ import 'package:my_app/mode/coach/coach_droplet_service.dart';
 import 'package:my_app/mode/coach/coach_share_service.dart';
 import 'package:my_app/lumara/bloc/lumara_assistant_cubit.dart';
 import 'package:my_app/lumara/data/context_provider.dart';
-import 'package:my_app/lumara/llm/rule_based_adapter.dart';
 import 'package:my_app/lumara/data/context_scope.dart';
+import 'package:my_app/features/settings/settings_cubit.dart';
 import 'package:hive/hive.dart';
 
 class App extends StatefulWidget {
@@ -72,6 +72,10 @@ class _AppState extends State<App> {
           // Accessibility cubit for accessibility features
           BlocProvider(
             create: (context) => A11yCubit(),
+          ),
+          // Settings cubit used by settings screens (DataView, export/delete)
+          BlocProvider(
+            create: (context) => SettingsCubit(),
           ),
           // RIVET provider for phase stability gating
           Provider(

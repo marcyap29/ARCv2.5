@@ -20,10 +20,30 @@ class ManifestReadException implements Exception {
 class ManifestReader {
   /// Read and parse manifest.json from the bundle directory
   Future<McpManifest> readManifest(Directory bundleDir) async {
-    final manifestFile = File('${bundleDir.path}/manifest.json');
-    
-    if (!manifestFile.existsSync()) {
-      throw ManifestReadException('Manifest file not found: ${manifestFile.path}');
+    File? manifestFile;
+    final rootCandidate = File('${bundleDir.path}/manifest.json');
+    if (rootCandidate.existsSync()) {
+      manifestFile = rootCandidate;
+    } else {
+      // Fallback: search recursively for a file named manifest.json (case-insensitive)
+      try {
+        await for (final entity in bundleDir.list(recursive: true, followLinks: false)) {
+          if (entity is File) {
+            final name = entity.uri.pathSegments.isNotEmpty
+                ? entity.uri.pathSegments.last
+                : '';
+            if (name.toLowerCase() == 'manifest.json') {
+              manifestFile = entity;
+              break;
+            }
+          }
+        }
+      } catch (e) {
+        // Ignore search errors; we will throw below if still null
+      }
+      if (manifestFile == null) {
+        throw ManifestReadException('Manifest file not found anywhere under: ${bundleDir.path}');
+      }
     }
 
     try {
@@ -50,8 +70,8 @@ class ManifestReader {
         version: json['version'] as String? ?? '',
         createdAt: _parseDateTime(json['created_at']) ?? DateTime.now(),
         storageProfile: json['storage_profile'] as String? ?? 'balanced',
-        counts: _parseCounts(json['counts']) ?? McpCounts(nodes: 0, edges: 0, pointers: 0, embeddings: 0),
-        checksums: _parseChecksums(json['checksums']) ?? McpChecksums(nodesJsonl: '', edgesJsonl: '', pointersJsonl: '', embeddingsJsonl: ''),
+        counts: _parseCounts(json['counts']) ?? const McpCounts(nodes: 0, edges: 0, pointers: 0, embeddings: 0),
+        checksums: _parseChecksums(json['checksums']) ?? const McpChecksums(nodesJsonl: '', edgesJsonl: '', pointersJsonl: '', embeddingsJsonl: ''),
         encoderRegistry: _parseEncoderRegistry(json['encoder_registry']) ?? [],
         casRemotes: _parseCasRemotes(json['cas_remotes']) ?? [],
         notes: json['notes'] as String?,

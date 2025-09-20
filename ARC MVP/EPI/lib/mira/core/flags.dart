@@ -37,6 +37,9 @@ class MiraFlags {
         retrievalEnabled = false,
         useSqliteRepo = false;
 
+  /// Default configuration
+  static MiraFlags defaults() => const MiraFlags();
+
   @override
   String toString() => 'MiraFlags(mira: $miraEnabled, advanced: $miraAdvancedEnabled, '
       'retrieval: $retrievalEnabled, sqlite: $useSqliteRepo)';

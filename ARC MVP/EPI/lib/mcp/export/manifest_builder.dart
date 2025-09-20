@@ -52,6 +52,7 @@ class McpManifestBuilder {
       encoderRegistry: encoderRegistry,
       casRemotes: casRemotes,
       notes: notes,
+      schemaVersion: '1.0.0',
     );
   }
 

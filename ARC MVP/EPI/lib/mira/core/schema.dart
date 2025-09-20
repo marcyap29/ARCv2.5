@@ -1,6 +1,7 @@
 // lib/mira/core/schema.dart
 // Core MIRA schema definitions for nodes and edges
 // Follows additive-only evolution policy - never change field meanings
+import 'ids.dart';
 
 /// Types of nodes in the MIRA semantic memory graph
 enum NodeType {
@@ -78,6 +79,22 @@ class MiraNode {
     required this.updatedAt,
   });
 
+  /// Convenience properties for backward compatibility
+  String get narrative => data['content'] ?? data['text'] ?? '';
+  List<String> get keywords => List<String>.from(data['keywords'] ?? []);
+  DateTime get timestamp => createdAt;
+  Map<String, dynamic> get metadata => Map<String, dynamic>.from(data);
+
+  /// Convert to JSON for serialization
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'type': type.index,
+    'schemaVersion': schemaVersion,
+    'data': data,
+    'createdAt': createdAt.toUtc().toIso8601String(),
+    'updatedAt': updatedAt.toUtc().toIso8601String(),
+  };
+
   /// Create a new node with updated timestamp
   MiraNode copyWith({
     String? id,
@@ -99,89 +116,95 @@ class MiraNode {
 
   /// Create keyword node
   factory MiraNode.keyword({
-    required String id,
     required String text,
+    DateTime? timestamp,
     int frequency = 1,
     double confidence = 1.0,
   }) {
+    final now = timestamp ?? DateTime.now().toUtc();
     return MiraNode(
-      id: id,
+      id: stableKeywordId(text),
       type: NodeType.keyword,
       schemaVersion: 1,
       data: {
         'text': text,
+        'content': text,
         'frequency': frequency,
         'confidence': confidence,
         'normalized': text.toLowerCase().trim(),
       },
-      createdAt: DateTime.now().toUtc(),
-      updatedAt: DateTime.now().toUtc(),
+      createdAt: now,
+      updatedAt: now,
     );
   }
 
   /// Create entry node with SAGE narrative
   factory MiraNode.entry({
-    required String id,
-    required String content,
-    Map<String, dynamic>? sage,
-    List<String>? keywords,
-    Map<String, dynamic>? emotions,
-    String? phaseHint,
+    required String narrative,
+    required List<String> keywords,
+    required DateTime timestamp,
+    required Map<String, dynamic> metadata,
+    String? id,
   }) {
+    final entryId = id ?? deterministicEntryId(narrative, timestamp);
     return MiraNode(
-      id: id,
+      id: entryId,
       type: NodeType.entry,
       schemaVersion: 1,
       data: {
-        'content': content,
-        'sage': sage ?? {},
-        'keywords': keywords ?? [],
-        'emotions': emotions ?? {},
-        'phase_hint': phaseHint,
-        'word_count': content.split(RegExp(r'\s+')).length,
+        'content': narrative,
+        'keywords': keywords,
+        ...metadata,
+        'word_count': narrative.split(RegExp(r'\s+')).length,
       },
-      createdAt: DateTime.now().toUtc(),
-      updatedAt: DateTime.now().toUtc(),
+      createdAt: timestamp,
+      updatedAt: timestamp,
     );
   }
 
   /// Create phase node
   factory MiraNode.phase({
-    required String id,
-    required String name,
+    required String text,
+    required DateTime timestamp,
+    required Map<String, dynamic> metadata,
     double confidence = 1.0,
   }) {
     return MiraNode(
-      id: id,
+      id: stableKeywordId('phase_$text'),
       type: NodeType.phase,
       schemaVersion: 1,
       data: {
-        'name': name,
+        'text': text,
+        'content': text,
+        'name': text,
         'confidence': confidence,
-        'normalized': name.toLowerCase().trim(),
+        'normalized': text.toLowerCase().trim(),
+        ...metadata,
       },
-      createdAt: DateTime.now().toUtc(),
-      updatedAt: DateTime.now().toUtc(),
+      createdAt: timestamp,
+      updatedAt: timestamp,
     );
   }
 
   /// Create emotion node
   factory MiraNode.emotion({
-    required String id,
-    required String name,
+    required String text,
+    required DateTime timestamp,
     double intensity = 1.0,
   }) {
     return MiraNode(
-      id: id,
+      id: stableKeywordId('emotion_$text'),
       type: NodeType.emotion,
       schemaVersion: 1,
       data: {
-        'name': name,
+        'text': text,
+        'content': text,
+        'name': text,
         'intensity': intensity,
-        'normalized': name.toLowerCase().trim(),
+        'normalized': text.toLowerCase().trim(),
       },
-      createdAt: DateTime.now().toUtc(),
-      updatedAt: DateTime.now().toUtc(),
+      createdAt: timestamp,
+      updatedAt: timestamp,
     );
   }
 
@@ -231,6 +254,23 @@ class MiraEdge {
     required this.createdAt,
   });
 
+  /// Convenience properties for backward compatibility
+  EdgeType get relation => label;
+  double get weight => (data['weight'] as num?)?.toDouble() ?? 1.0;
+  DateTime get timestamp => createdAt;
+  Map<String, dynamic> get metadata => Map<String, dynamic>.from(data);
+
+  /// Convert to JSON for serialization
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'src': src,
+    'dst': dst,
+    'label': label.index,
+    'schemaVersion': schemaVersion,
+    'data': data,
+    'createdAt': createdAt.toUtc().toIso8601String(),
+  };
+
   /// Create edge with automatic ID generation
   factory MiraEdge.create({
     required String src,
@@ -253,19 +293,23 @@ class MiraEdge {
 
   /// Create mentions edge (entry → keyword)
   factory MiraEdge.mentions({
-    required String entryId,
-    required String keywordId,
+    required String src,
+    required String dst,
+    required DateTime timestamp,
     double weight = 1.0,
     double confidence = 1.0,
   }) {
-    return MiraEdge.create(
-      src: entryId,
-      dst: keywordId,
+    return MiraEdge(
+      id: deterministicEdgeId(src, 'mentions', dst),
+      src: src,
+      dst: dst,
       label: EdgeType.mentions,
+      schemaVersion: 1,
       data: {
         'weight': weight,
         'confidence': confidence,
       },
+      createdAt: timestamp,
     );
   }
 
@@ -289,17 +333,41 @@ class MiraEdge {
 
   /// Create expression edge (entry → emotion)
   factory MiraEdge.expresses({
-    required String entryId,
-    required String emotionId,
+    required String src,
+    required String dst,
+    required DateTime timestamp,
     double intensity = 1.0,
   }) {
-    return MiraEdge.create(
-      src: entryId,
-      dst: emotionId,
+    return MiraEdge(
+      id: deterministicEdgeId(src, 'expresses', dst),
+      src: src,
+      dst: dst,
       label: EdgeType.expresses,
+      schemaVersion: 1,
       data: {
         'intensity': intensity,
       },
+      createdAt: timestamp,
+    );
+  }
+
+  /// Create tagged-as edge (entry → phase)
+  factory MiraEdge.taggedAs({
+    required String src,
+    required String dst,
+    required DateTime timestamp,
+    double confidence = 1.0,
+  }) {
+    return MiraEdge(
+      id: deterministicEdgeId(src, 'taggedAs', dst),
+      src: src,
+      dst: dst,
+      label: EdgeType.taggedAs,
+      schemaVersion: 1,
+      data: {
+        'confidence': confidence,
+      },
+      createdAt: timestamp,
     );
   }
 

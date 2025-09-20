@@ -37,6 +37,14 @@ String deterministicEdgeId(String src, String label, String dst) {
   return 'e_$hash';
 }
 
+/// Generate deterministic entry ID from content and timestamp
+String deterministicEntryId(String content, DateTime timestamp) {
+  final normalized = content.trim();
+  final combined = '$normalized|${timestamp.toUtc().toIso8601String()}';
+  final hash = sha1.convert(utf8.encode(combined)).toString().substring(0, 12);
+  return 'entry_$hash';
+}
+
 /// Generate stable topic ID from topic slug
 String stableTopicId(String topicSlug) {
   final normalized = topicSlug.trim().toLowerCase();

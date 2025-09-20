@@ -2,6 +2,7 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:crypto/crypto.dart';
+import 'package:convert/convert.dart';
 import '../../mira/core/mira_repo.dart';
 import 'manifest.dart';
 
@@ -29,14 +30,14 @@ class McpBundleWriter {
     final embeddingsSink = embeddingsPath.openWrite();
 
     var nodesBytes = 0, edgesBytes = 0, pointersBytes = 0, embeddingsBytes = 0;
-    final nodesHash = AccumulatorSink<Digest>();
-    final edgesHash = AccumulatorSink<Digest>();
-    final pointersHash = AccumulatorSink<Digest>();
-    final embeddingsHash = AccumulatorSink<Digest>();
-    final nodesDigest = sha256.startChunkedConversion(nodesHash);
-    final edgesDigest = sha256.startChunkedConversion(edgesHash);
-    final pointersDigest = sha256.startChunkedConversion(pointersHash);
-    final embeddingsDigest = sha256.startChunkedConversion(embeddingsHash);
+    final nodesHashSink = AccumulatorSink<Digest>();
+    final edgesHashSink = AccumulatorSink<Digest>();
+    final pointersHashSink = AccumulatorSink<Digest>();
+    final embeddingsHashSink = AccumulatorSink<Digest>();
+    final nodesDigest = sha256.startChunkedConversion(nodesHashSink);
+    final edgesDigest = sha256.startChunkedConversion(edgesHashSink);
+    final pointersDigest = sha256.startChunkedConversion(pointersHashSink);
+    final embeddingsDigest = sha256.startChunkedConversion(embeddingsHashSink);
 
     int nodesCount = 0, edgesCount = 0, pointersCount = 0, embeddingsCount = 0;
 
@@ -66,10 +67,14 @@ class McpBundleWriter {
           pointersCount++;
           break;
         case 'embedding':
-          embeddingsSink.add(bytes);
-          embeddingsDigest.add(bytes);
-          embeddingsBytes += bytes.length;
-          embeddingsCount++;
+          // Validate pointer_ref before writing; skip invalid embeddings
+          final pointerRef = rec['pointer_ref'];
+          if (pointerRef is String && pointerRef.isNotEmpty) {
+            embeddingsSink.add(bytes);
+            embeddingsDigest.add(bytes);
+            embeddingsBytes += bytes.length;
+            embeddingsCount++;
+          }
           break;
         case 'event':
           if (includeEvents) {
@@ -110,10 +115,10 @@ class McpBundleWriter {
         'embeddings_jsonl': embeddingsBytes,
       },
       'checksums': {
-        'nodes_jsonl': 'sha256:${nodesHash.events.single}',
-        'edges_jsonl': 'sha256:${edgesHash.events.single}',
-        'pointers_jsonl': 'sha256:${pointersHash.events.single}',
-        'embeddings_jsonl': 'sha256:${embeddingsHash.events.single}',
+        'nodes_jsonl': 'sha256:${nodesHashSink.events.single}',
+        'edges_jsonl': 'sha256:${edgesHashSink.events.single}',
+        'pointers_jsonl': 'sha256:${pointersHashSink.events.single}',
+        'embeddings_jsonl': 'sha256:${embeddingsHashSink.events.single}',
       },
       'encoder_registry': encoderRegistry,
       'cas_remotes': <String>[],

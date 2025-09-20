@@ -5,8 +5,8 @@ import 'dart:io';
 import 'mira_service.dart';
 import 'core/flags.dart';
 import 'core/schema.dart';
-import '../core/arc_llm.dart';
-import '../services/llm_bridge_adapter.dart';
+import '../core/arc_llm.dart' as core_arc;
+import '../services/llm_bridge_adapter.dart' as bridge_arc;
 
 class MiraIntegration {
   static MiraIntegration? _instance;
@@ -45,8 +45,8 @@ class MiraIntegration {
   }
 
   /// Create MIRA-aware ArcLLM instance
-  ArcLLM createArcLLM({required ArcSendFn sendFunction}) {
-    return ArcLLM(
+  core_arc.ArcLLM createArcLLM({required core_arc.ArcSendFn sendFunction}) {
+    return core_arc.ArcLLM(
       send: sendFunction,
       miraService: _miraService,
     );
@@ -54,8 +54,8 @@ class MiraIntegration {
 
   /// Create MIRA-aware LLM bridge adapter
   // ignore: deprecated_member_use_from_same_package
-  ArcLLM createLLMBridge({required LLMInvocation sendFunction}) {
-    return ArcLLM(
+  bridge_arc.ArcLLM createLLMBridge({required bridge_arc.LLMInvocation sendFunction}) {
+    return bridge_arc.ArcLLM(
       send: sendFunction,
       miraService: _miraService,
     );
