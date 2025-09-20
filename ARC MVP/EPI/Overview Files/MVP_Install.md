@@ -1,12 +1,11 @@
-# EPI MVP Install Guide (Main MVP – Gemini API)
+ate# EPI MVP Install Guide (Main MVP – Gemini API)
 
-This guide installs and runs the full MVP with complete Gemini API integration. The app uses the enhanced ArcLLM system with centralized prompt contracts and rule-based fallback.
+This guide installs and runs the full MVP. The app uses Gemini via the LLMRegistry. If no key is provided (or the API fails), it falls back to the rule‑based client.
 
 ## Prerequisites
-- Flutter 3.24+ (stable)
-- Dart 3.5+
+- Flutter 3.35+ (stable)
 - Xcode (iOS) and/or Android SDK
-- Gemini API key from Google AI Studio (https://makersuite.google.com/app/apikey)
+- Gemini API key from Google AI Studio
 
 ## One‑time setup
 ```bash
@@ -21,34 +20,28 @@ flutter doctor
 flutter run -d DEVICE_ID --dart-define=GEMINI_API_KEY=YOUR_KEY
 ```
 
-- Profile (recommended for perf testing):
+- Full Install to Phone
 ```bash
-flutter run --profile -d DEVICE_ID --dart-define=GEMINI_API_KEY=YOUR_KEY
+1.Flutter clean 
+2.Flutter pub get
+3.flutter devices
+4. Choose Device
+- Build and Install:
+1.flutter build ios --release --dart-define=GEMINI_API_KEY=YOUR_KEY
+2.flutter install -d YOUR_DEVICE_ID
+
 ```
 
-- Release (no debugging):
+## Run and Debug on Simulator
+- Debug (full app):
 ```bash
-flutter run --release -d DEVICE_ID --dart-define=GEMINI_API_KEY=YOUR_KEY
+1.Flutter clean 
+2.Flutter pub get
+3.flutter devices
+flutter run -d DEVICE_ID --dart-define=GEMINI_API_KEY=YOUR_KEY
 ```
 
-- If you omit `GEMINI_API_KEY`, the app will fall back to Rule‑Based unless you set the key in‑app via Settings.
-
-## ArcLLM Usage
-The app now includes a complete ArcLLM system for easy AI integration:
-
-```dart
-final arc = provideArcLLM();
-final sage = await arc.sageEcho(entryText);
-final keywords = await arc.arcformKeywords(entryText: text, sageJson: sage);
-final phase = await arc.phaseHints(entryText: text, sageJson: sage, keywordsJson: keywords);
-```
-
-## MCP Export/Import
-Access MCP Memory Bundle export/import from Settings → MCP Export/Import:
-- Export your journal data in MCP Memory Bundle v1 format
-- Four storage profiles: minimal, space_saver, balanced, hi_fidelity
-- Import MCP bundles from other compatible systems
-- Exported files saved to Documents/mcp_exports/
+- If you omit `GEMINI_API_KEY`, the app will fall back to Rule‑Based unless you set the key in‑app via Lumara → AI Models → Gemini API → Configure → Activate.
 
 ## iOS device install (release)
 ```bash
@@ -86,6 +79,10 @@ flutter run -d DEVICE_ID --dart-define=GEMINI_API_KEY=$GEMINI_API_KEY
 - Ensure model path is `gemini-1.5-flash` (v1beta)
 - If Send does nothing, confirm logs show HTTP 200 and text chunks; otherwise check the key
 - iOS: enable Developer Mode, trust the device in Xcode
+
+## MCP Export/Import (Files app)
+- Export: Settings → MCP Export & Import → Export to MCP. After export completes, a Files share sheet opens to save the `.zip` where you want.
+- Import: Settings → MCP Export & Import → Import from MCP. Pick the `.zip` from Files; the app extracts it and imports automatically. If the ZIP has a top‑level folder, the app detects the bundle root.
 
 ## What’s in this MVP
 - `lib/llm/*`: LLMClient, GeminiClient (streaming), RuleBasedClient, LLMRegistry

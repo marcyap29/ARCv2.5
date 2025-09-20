@@ -57,6 +57,7 @@ A Flutter-based AI companion app that provides life-aware assistance through jou
 - **Four Storage Profiles**: minimal, space_saver, balanced, hi_fidelity
 - **JSON Schema Validation**: Embedded MCP v1 schemas with additive evolution support
 - **Deterministic Export**: Stable IDs and checksums for reproducible bundles
+- **iOS UX**: Export now zips the bundle and opens the Files share sheet so you can choose a destination. Import opens Files to pick a .zip, then extracts and auto-detects the bundle root.
 
 ## 🛠️ Development Setup
 
@@ -195,7 +196,13 @@ MCP (Memory Bundle) is a standardized format for exporting and sharing personal 
 - **Deterministic Exports**: Same input always produces identical output
 - **Storage Profiles**: Choose between minimal, space-saver, balanced, or hi-fidelity exports
 
-### Using the MCP Export
+### Using the MCP Export (App UX)
+
+In the app: Settings → MCP Export & Import
+- Export: choose storage profile → Export → Files share sheet appears → Save to Files (.zip)
+- Import: Import from MCP → pick .zip from Files → app extracts and imports
+
+### Using the MCP Export (CLI/programmatic)
 
 #### Command Line Interface
 

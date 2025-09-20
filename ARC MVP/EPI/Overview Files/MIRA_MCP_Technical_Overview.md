@@ -246,11 +246,11 @@ class MiraEvent {
 
 ## 4. MCP Bundle System
 
-### 4.1 JSON Schema Validation
+### 4.1 Manifest and JSON Schema Validation
 
 **File**: `lib/mcp/bundle/schemas.dart`
 
-Embedded JSON Schema definitions for MCP v1 records:
+Embedded JSON Schema definitions for MCP v1 records. The manifest now uses `schema_version: "1.0.0"` (semantic) rather than `manifest.v1`:
 
 ```dart
 class McpSchemas {
