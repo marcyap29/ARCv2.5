@@ -198,6 +198,37 @@ class SqliteMiraRepo implements MiraRepo {
 
 Activated via `useSqliteRepo: true` flag when ready.
 
+### 2.3 iOS Deployment & Sandbox Compatibility
+
+**Critical Fix**: MCP import functionality now supports iOS app sandbox environments.
+
+**Issue Resolved** (BUG-2025-09-20-001): MiraWriter previously used hardcoded development paths that don't exist in iOS sandboxes:
+
+```dart
+// ❌ BEFORE: Hardcoded development path
+: _storageRoot = storageRoot ?? '/Users/mymac/Software Development/EPI/ARC MVP/EPI/mira_storage';
+
+// ✅ AFTER: Dynamic iOS sandbox path resolution
+Future<String> get _storageRoot async {
+  if (_customStorageRoot != null) return _customStorageRoot!;
+
+  final appDir = await getApplicationDocumentsDirectory();
+  return path.join(appDir.path, 'mira_storage');
+}
+```
+
+**iOS Storage Paths**:
+- **Development**: `/Users/mymac/.../mira_storage`
+- **iOS Production**: `/var/mobile/Containers/Data/Application/.../Documents/mira_storage/`
+
+**Key Technical Changes**:
+- Added `path_provider` dependency for cross-platform path resolution
+- Updated all 20+ MiraWriter storage methods to use async path resolution
+- Ensured proper directory creation with `recursive: true` for app sandbox
+- Maintains compatibility with CLI tools and desktop development
+
+**Impact**: MCP import/export now works seamlessly on iOS devices, enabling full AI ecosystem interoperability on mobile platforms.
+
 ---
 
 ## 3. Event Logging System

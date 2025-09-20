@@ -3908,3 +3908,61 @@ _(None yet)_
 ## Notes
 - Debug logging added for troubleshooting
 - Consider implementing simpler fallback UI if state management fails
+---
+
+## Bug ID: BUG-2025-09-20-001
+**Title**: MCP Import Failure on iOS - Hardcoded Development Paths in MiraWriter
+
+**Type**: Bug
+**Priority**: P1 (Critical - Blocks iOS MCP import functionality)
+**Status**: ✅ Fixed
+**Reporter**: User (Testing MCP import on iPhone)
+**Assignee**: Claude Code
+**Resolution Date**: 2025-09-20
+
+#### Description
+MCP import process failed on iOS devices with `PathNotFoundException` when trying to rebuild indexes. The MiraWriter component was using hardcoded desktop development paths instead of proper iOS app sandbox directories.
+
+#### Steps to Reproduce
+1. Export MCP bundle successfully
+2. Import MCP bundle on iOS device
+3. Import fails during index rebuilding with error:
+   ```
+   PathNotFoundException: Cannot open file, path = '/Users/mymac/Software Development/EPI/ARC MVP/EPI/mira_storage/indexes/time/monthly_index.json'
+   ```
+
+#### Root Cause
+**MiraWriter Path Issue**: The `MiraWriter` class had hardcoded default path:
+```dart
+: _storageRoot = storageRoot ?? '/Users/mymac/Software Development/EPI/ARC MVP/EPI/mira_storage';
+```
+
+This development path doesn't exist in iOS app sandbox environments, causing all storage operations to fail.
+
+#### Resolution
+**MiraWriter iOS Sandbox Fix:**
+- Added `path_provider` dependency for proper iOS sandbox path resolution
+- Implemented async `_storageRoot` getter using `getApplicationDocumentsDirectory()`
+- Updated all 20+ storage methods to use resolved sandbox paths
+- Ensured proper directory creation with `recursive: true` for all MIRA storage directories
+
+**Key Technical Changes:**
+- Path resolution: `/Users/mymac/.../mira_storage` → `/var/mobile/Containers/Data/Application/.../Documents/mira_storage/`
+- All storage operations now use `await _storageRoot` for proper iOS compatibility
+- Directory initialization creates full path structure in app sandbox
+
+#### Testing Results
+- ✅ **ZIP Extraction**: All 5 files extracted successfully including zero-byte files
+- ✅ **Manifest Found**: No more "manifest.json not found" errors
+- ✅ **Import Success**: Complete import with proper index rebuilding
+- ✅ **iOS Sandbox**: Proper storage in `/var/mobile/Containers/Data/Application/.../Documents/mira_storage/`
+
+#### Files Modified
+- `lib/mcp/adapters/mira_writer.dart` - iOS sandbox path resolution, async storage operations
+- Related MCP validation and import components for schema compatibility
+
+#### Impact
+- **iOS Compatibility**: MCP import now fully functional on iOS devices
+- **Cross-Platform**: Maintains compatibility with CLI and desktop usage
+- **Data Portability**: Enables AI ecosystem interoperability on mobile devices
+
