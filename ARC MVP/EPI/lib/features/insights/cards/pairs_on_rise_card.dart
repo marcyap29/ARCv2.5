@@ -1,12 +1,11 @@
 import 'package:flutter/material.dart';
-import '../../../core/mira/mira_cubit.dart';
 import '../../../core/mira/mira_feature_flags.dart';
 import '../../../shared/app_colors.dart';
 import '../../../shared/text_style.dart';
 
 /// Card showing keyword pairs that are co-occurring more frequently
 class PairsOnRiseCard extends StatelessWidget {
-  const PairsOnRiseCard({Key? key}) : super(key: key);
+  const PairsOnRiseCard({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -31,7 +30,7 @@ class PairsOnRiseCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              Icon(Icons.trending_up, color: kcSuccessColor, size: 20),
+              const Icon(Icons.trending_up, color: kcSuccessColor, size: 20),
               const SizedBox(width: 8),
               Text(
                 'Pairs on the Rise',
@@ -64,7 +63,7 @@ class PairsOnRiseCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              Icon(Icons.trending_up, color: kcSuccessColor, size: 20),
+              const Icon(Icons.trending_up, color: kcSuccessColor, size: 20),
               const SizedBox(width: 8),
               Text(
                 'Pairs on the Rise',
@@ -76,7 +75,7 @@ class PairsOnRiseCard extends StatelessWidget {
           Center(
             child: Column(
               children: [
-                Icon(
+                const Icon(
                   Icons.trending_flat,
                   size: 32,
                   color: kcSecondaryTextColor,
@@ -112,7 +111,7 @@ class PairsOnRiseCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              Icon(Icons.trending_up, color: kcSuccessColor, size: 20),
+              const Icon(Icons.trending_up, color: kcSuccessColor, size: 20),
               const SizedBox(width: 8),
               Text(
                 'Pairs on the Rise',
@@ -126,7 +125,7 @@ class PairsOnRiseCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 16),
-          ...pairs.take(5).map((pair) => _buildPairItem(context, pair)).toList(),
+          ...pairs.take(5).map((pair) => _buildPairItem(context, pair)),
           if (pairs.length > 5) ...[
             const SizedBox(height: 8),
             Text(
@@ -195,7 +194,7 @@ class PairsOnRiseCard extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(width: 4),
-                    Icon(
+                    const Icon(
                       Icons.add,
                       size: 12,
                       color: kcSecondaryTextColor,
@@ -228,7 +227,7 @@ class PairsOnRiseCard extends StatelessWidget {
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(
+                const Icon(
                   Icons.trending_up,
                   size: 12,
                   color: kcSuccessColor,

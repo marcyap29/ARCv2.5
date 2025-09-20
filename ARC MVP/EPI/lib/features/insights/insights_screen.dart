@@ -11,7 +11,7 @@ import 'mira_graph_view.dart';
 
 /// Insights screen showing MIRA semantic memory analysis
 class InsightsScreen extends StatefulWidget {
-  const InsightsScreen({Key? key}) : super(key: key);
+  const InsightsScreen({super.key});
 
   @override
   State<InsightsScreen> createState() => _InsightsScreenState();
@@ -123,7 +123,7 @@ class _InsightsScreenState extends State<InsightsScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
+            const Icon(
               Icons.insights_outlined,
               size: 64,
               color: kcSecondaryTextColor,
@@ -150,7 +150,7 @@ class _InsightsScreenState extends State<InsightsScreen> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
+          const Icon(
             Icons.error_outline,
             size: 64,
             color: kcDangerColor,
@@ -324,7 +324,7 @@ class _InsightsScreenState extends State<InsightsScreen> {
         children: [
           Row(
             children: [
-              Icon(Icons.account_tree, color: kcPrimaryColor, size: 20),
+              const Icon(Icons.account_tree, color: kcPrimaryColor, size: 20),
               const SizedBox(width: 8),
               Text(
                 'Your Patterns',

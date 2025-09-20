@@ -5,7 +5,7 @@ import '../strings/insights_strings.dart';
 
 /// About Insights bottom sheet with collapsible sections
 class AboutInsightsSheet extends StatefulWidget {
-  const AboutInsightsSheet({Key? key}) : super(key: key);
+  const AboutInsightsSheet({super.key});
 
   @override
   State<AboutInsightsSheet> createState() => _AboutInsightsSheetState();

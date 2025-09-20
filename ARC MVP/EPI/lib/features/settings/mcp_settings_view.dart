@@ -18,13 +18,13 @@ class McpSettingsView extends StatelessWidget {
       create: (context) => McpSettingsCubit(
         journalRepository: context.read<JournalRepository>(),
       ),
-      child: _McpSettingsViewContent(),
+      child: const _McpSettingsViewContent(),
     );
   }
 }
 
 class _McpSettingsViewContent extends StatelessWidget {
-  _McpSettingsViewContent();
+  const _McpSettingsViewContent();
 
   @override
   Widget build(BuildContext context) {
@@ -155,7 +155,7 @@ class _McpSettingsViewContent extends StatelessWidget {
         ),
         const SizedBox(height: 8),
         DropdownButtonFormField<McpStorageProfile>(
-          value: state.selectedProfile,
+          initialValue: state.selectedProfile,
           decoration: InputDecoration(
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8),

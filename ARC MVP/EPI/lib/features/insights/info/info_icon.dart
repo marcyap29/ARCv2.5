@@ -11,12 +11,12 @@ class InfoIcon extends StatelessWidget {
   final VoidCallback? onCta;
 
   const InfoIcon({
-    Key? key,
+    super.key,
     required this.title,
     required this.bullets,
     this.ctaText,
     this.onCta,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

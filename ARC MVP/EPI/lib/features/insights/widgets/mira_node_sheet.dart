@@ -12,12 +12,12 @@ class MiraNodeSheet extends StatelessWidget {
   final bool isEdge;
 
   const MiraNodeSheet({
-    Key? key,
+    super.key,
     required this.keyword,
     required this.frequency,
     required this.entries,
     this.isEdge = false,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -94,7 +94,7 @@ class MiraNodeSheet extends StatelessWidget {
       padding: const EdgeInsets.all(32),
       child: Column(
         children: [
-          Icon(
+          const Icon(
             Icons.inbox_outlined,
             size: 48,
             color: kcSecondaryTextColor,
