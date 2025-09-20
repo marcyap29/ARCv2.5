@@ -15,6 +15,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - Settings UI for MIRA feature flag configuration
 
 ### Added
+- iOS export/import UX improvements (2025-09-20)
+  - Export: ZIP and present Files share sheet to choose destination
+  - Import: Files picker for `.zip`, robust unzip, bundle-root auto-detection
+  - Manifest `schema_version` standardized to `1.0.0` for validator compatibility
 - **MIRA-MCP Semantic Memory System Complete** (2025-09-20)
   - Complete MIRA core: semantic graph storage with Hive backend, feature flags, deterministic IDs
   - MCP bundle system: bidirectional export/import with NDJSON streaming, SHA-256 integrity, JSON validation
