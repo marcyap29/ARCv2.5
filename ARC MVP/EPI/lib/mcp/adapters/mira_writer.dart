@@ -2,6 +2,7 @@ import 'dart:io';
 import 'dart:convert';
 import 'package:crypto/crypto.dart';
 import 'package:path/path.dart' as path;
+import 'package:path_provider/path_provider.dart';
 import 'package:my_app/mcp/models/mcp_schemas.dart';
 
 /// Exception thrown during MIRA write operations
@@ -33,19 +34,38 @@ class MiraWriteStats {
 }
 
 /// MIRA writer for append-only operations
-/// 
+///
 /// Handles writing MCP data into MIRA storage with proper lineage tracking,
 /// privacy propagation, and index management. All operations are append-only
 /// to maintain data integrity and audit trails.
 class MiraWriter {
-  final String _storageRoot;
+  final String? _customStorageRoot;
   final MiraWriteStats _stats = MiraWriteStats();
-  
-  MiraWriter({String? storageRoot}) 
-    : _storageRoot = storageRoot ?? '/Users/mymac/Software Development/EPI/ARC MVP/EPI/mira_storage';
+  String? _resolvedStorageRoot;
+
+  MiraWriter({String? storageRoot})
+    : _customStorageRoot = storageRoot;
+
+  /// Get the storage root directory, using iOS app sandbox paths when needed
+  Future<String> get _storageRoot async {
+    if (_resolvedStorageRoot != null) {
+      return _resolvedStorageRoot!;
+    }
+
+    if (_customStorageRoot != null) {
+      _resolvedStorageRoot = _customStorageRoot;
+    } else {
+      // Use proper iOS app sandbox path instead of hardcoded development path
+      final appDir = await getApplicationDocumentsDirectory();
+      _resolvedStorageRoot = path.join(appDir.path, 'mira_storage');
+    }
+
+    return _resolvedStorageRoot!;
+  }
 
   /// Initialize MIRA storage directories
   Future<void> initialize() async {
+    final storageRoot = await _storageRoot;
     final directories = [
       'pointers',
       'embeddings', 
@@ -60,7 +80,7 @@ class MiraWriter {
     ];
 
     for (final dir in directories) {
-      final directory = Directory(path.join(_storageRoot, dir));
+      final directory = Directory(path.join(storageRoot, dir));
       if (!directory.existsSync()) {
         await directory.create(recursive: true);
       }
@@ -70,11 +90,12 @@ class MiraWriter {
   /// Store pointer as durable substrate with privacy tracking
   Future<void> putPointer(McpPointer pointer, String batchId) async {
     await initialize();
-    
+
     try {
       // Generate deterministic filename based on pointer ID
       final filename = _sanitizeFilename('${pointer.id}.json');
-      final file = File(path.join(_storageRoot, 'pointers', filename));
+      final storageRoot = await _storageRoot;
+      final file = File(path.join(storageRoot, 'pointers', filename));
       
       // Prepare pointer record with metadata
       final record = {
@@ -117,10 +138,11 @@ class MiraWriter {
   /// Store embedding with lineage tracking
   Future<void> putEmbedding(McpEmbedding embedding, String batchId) async {
     await initialize();
-    
+
     try {
       final filename = _sanitizeFilename('${embedding.id}.json');
-      final file = File(path.join(_storageRoot, 'embeddings', filename));
+      final storageRoot = await _storageRoot;
+      final file = File(path.join(storageRoot, 'embeddings', filename));
       
       final record = {
         'id': embedding.id,
@@ -161,10 +183,11 @@ class MiraWriter {
   /// Store node with SAGE mapping
   Future<void> putNode(McpNode node, String batchId) async {
     await initialize();
-    
+
     try {
       final filename = _sanitizeFilename('${node.id}.json');
-      final file = File(path.join(_storageRoot, 'nodes', filename));
+      final storageRoot = await _storageRoot;
+      final file = File(path.join(storageRoot, 'nodes', filename));
       
       // Map SAGE fields to MIRA structure
       final record = {
@@ -215,10 +238,11 @@ class MiraWriter {
   /// Store edge (normalized relations)
   Future<void> putEdge(McpEdge edge, String batchId) async {
     await initialize();
-    
+
     try {
       final filename = _sanitizeFilename('${edge.source}_${edge.target}.json');
-      final file = File(path.join(_storageRoot, 'edges', filename));
+      final storageRoot = await _storageRoot;
+      final file = File(path.join(storageRoot, 'edges', filename));
       
       final record = {
         'source': edge.source,
@@ -257,12 +281,13 @@ class MiraWriter {
   /// Rebuild time-based indexes
   Future<void> rebuildTimeIndexes(String batchId) async {
     print('🕐 Rebuilding time indexes...');
-    
+
+    final storageRoot = await _storageRoot;
     final timeIndex = <String, List<String>>{};
     final types = ['pointers', 'embeddings', 'nodes', 'edges'];
-    
+
     for (final type in types) {
-      final dir = Directory(path.join(_storageRoot, type));
+      final dir = Directory(path.join(storageRoot, type));
       if (!dir.existsSync()) continue;
       
       await for (final entity in dir.list()) {
@@ -286,7 +311,7 @@ class MiraWriter {
     }
     
     // Write time index
-    final indexFile = File(path.join(_storageRoot, 'indexes/time', 'monthly_index.json'));
+    final indexFile = File(path.join(storageRoot, 'indexes/time', 'monthly_index.json'));
     await indexFile.writeAsString(jsonEncode({
       'last_updated': DateTime.now().toUtc().toIso8601String(),
       'batch_id': batchId,
@@ -299,11 +324,12 @@ class MiraWriter {
   /// Rebuild keyword indexes
   Future<void> rebuildKeywordIndexes(String batchId) async {
     print('🔍 Rebuilding keyword indexes...');
-    
+
+    final storageRoot = await _storageRoot;
     final keywordIndex = <String, List<String>>{};
-    
+
     // Index node labels and properties
-    final nodesDir = Directory(path.join(_storageRoot, 'nodes'));
+    final nodesDir = Directory(path.join(storageRoot, 'nodes'));
     if (nodesDir.existsSync()) {
       await for (final entity in nodesDir.list()) {
         if (entity is File && entity.path.endsWith('.json')) {
@@ -337,7 +363,7 @@ class MiraWriter {
     }
     
     // Write keyword index
-    final indexFile = File(path.join(_storageRoot, 'indexes/keyword', 'keyword_index.json'));
+    final indexFile = File(path.join(storageRoot, 'indexes/keyword', 'keyword_index.json'));
     await indexFile.writeAsString(jsonEncode({
       'last_updated': DateTime.now().toUtc().toIso8601String(),
       'batch_id': batchId,
@@ -350,12 +376,13 @@ class MiraWriter {
   /// Rebuild phase indexes
   Future<void> rebuildPhaseIndexes(String batchId) async {
     print('📊 Rebuilding phase indexes...');
-    
+
+    final storageRoot = await _storageRoot;
     final phaseIndex = <String, List<String>>{};
     final types = ['nodes', 'edges'];
-    
+
     for (final type in types) {
-      final dir = Directory(path.join(_storageRoot, type));
+      final dir = Directory(path.join(storageRoot, type));
       if (!dir.existsSync()) continue;
       
       await for (final entity in dir.list()) {
@@ -376,7 +403,7 @@ class MiraWriter {
     }
     
     // Write phase index
-    final indexFile = File(path.join(_storageRoot, 'indexes/phase', 'phase_index.json'));
+    final indexFile = File(path.join(storageRoot, 'indexes/phase', 'phase_index.json'));
     await indexFile.writeAsString(jsonEncode({
       'last_updated': DateTime.now().toUtc().toIso8601String(),
       'batch_id': batchId,
@@ -389,14 +416,15 @@ class MiraWriter {
   /// Rebuild relation indexes
   Future<void> rebuildRelationIndexes(String batchId) async {
     print('🔗 Rebuilding relation indexes...');
-    
+
+    final storageRoot = await _storageRoot;
     final relationIndex = <String, Map<String, List<String>>>{
       'outgoing': {},
       'incoming': {},
       'by_type': {},
     };
-    
-    final edgesDir = Directory(path.join(_storageRoot, 'edges'));
+
+    final edgesDir = Directory(path.join(storageRoot, 'edges'));
     if (edgesDir.existsSync()) {
       await for (final entity in edgesDir.list()) {
         if (entity is File && entity.path.endsWith('.json')) {
@@ -430,7 +458,7 @@ class MiraWriter {
     }
     
     // Write relation index
-    final indexFile = File(path.join(_storageRoot, 'indexes/relation', 'relation_index.json'));
+    final indexFile = File(path.join(storageRoot, 'indexes/relation', 'relation_index.json'));
     await indexFile.writeAsString(jsonEncode({
       'last_updated': DateTime.now().toUtc().toIso8601String(),
       'batch_id': batchId,
@@ -442,7 +470,8 @@ class MiraWriter {
 
   /// Update lineage tracking record
   Future<void> _updateLineageRecord(String type, String id, String batchId) async {
-    final lineageFile = File(path.join(_storageRoot, 'lineage', '$type.jsonl'));
+    final storageRoot = await _storageRoot;
+    final lineageFile = File(path.join(storageRoot, 'lineage', '$type.jsonl'));
     
     final lineageRecord = {
       'id': id,
@@ -482,8 +511,9 @@ class MiraWriter {
   /// Create batch summary record
   Future<void> createBatchSummary(String batchId, Map<String, int> counts) async {
     await initialize();
-    
-    final batchFile = File(path.join(_storageRoot, 'batches', '$batchId.json'));
+
+    final storageRoot = await _storageRoot;
+    final batchFile = File(path.join(storageRoot, 'batches', '$batchId.json'));
     
     final summary = {
       'batch_id': batchId,
@@ -504,7 +534,8 @@ class MiraWriter {
 
   /// Clean up old batch data (for maintenance)
   Future<void> cleanupOldBatches({int keepRecentBatches = 10}) async {
-    final batchesDir = Directory(path.join(_storageRoot, 'batches'));
+    final storageRoot = await _storageRoot;
+    final batchesDir = Directory(path.join(storageRoot, 'batches'));
     if (!batchesDir.existsSync()) return;
     
     final batchFiles = <File>[];

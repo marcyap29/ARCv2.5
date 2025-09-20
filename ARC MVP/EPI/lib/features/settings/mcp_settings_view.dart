@@ -9,6 +9,7 @@ import '../../mcp/models/mcp_schemas.dart';
 import '../../mcp/import/mcp_import_service.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:archive/archive_io.dart';
+import 'package:archive/archive.dart';
 import '../../mcp/export/zip_utils.dart';
 import '../../repositories/journal_repository.dart';
 import 'mcp_settings_cubit.dart';
@@ -404,21 +405,29 @@ class _McpSettingsViewContent extends StatelessWidget {
       final dest = Directory('${importRoot.path}/extracted_$ts');
       await dest.create(recursive: true);
 
-      // Extract ZIP with two strategies for robustness
+      // Extract ZIP with robust handling of zero-byte files
       try {
         final bytes = await localZip.readAsBytes();
         final archive = ZipDecoder().decodeBytes(bytes, verify: true);
-        extractArchiveToDisk(archive, dest.path);
-      } catch (_) {
+
+        print('📦 ZIP contains ${archive.files.length} files:');
+        for (final file in archive.files) {
+          print('  ${file.name} (${file.size} bytes, isFile: ${file.isFile})');
+        }
+
+        // Custom extraction to handle zero-byte files properly
+        await _extractArchiveRobustly(archive, dest);
+      } catch (e) {
+        print('❌ Primary extraction failed: $e');
         try {
           final inputStream = InputFileStream(localZip.path);
           final archive = ZipDecoder().decodeBuffer(inputStream);
-          extractArchiveToDisk(archive, dest.path);
-        } catch (e) {
+          await _extractArchiveRobustly(archive, dest);
+        } catch (e2) {
           if (context.mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
-                content: Text('Import failed: Unable to extract ZIP ($e)'),
+                content: Text('Import failed: Unable to extract ZIP ($e2)'),
                 backgroundColor: Colors.red,
               ),
             );
@@ -449,33 +458,102 @@ class _McpSettingsViewContent extends StatelessWidget {
 
   /// Find the directory that actually contains manifest.json
   Future<Directory> _locateBundleRoot(Directory extractedDir) async {
+    // Debug: List all files in extraction directory
+    print('🔍 Looking for manifest.json in: ${extractedDir.path}');
+
     final manifestAtRoot = File('${extractedDir.path}/manifest.json');
     if (await manifestAtRoot.exists()) {
+      print('✅ Found manifest.json at root: ${manifestAtRoot.path}');
       return extractedDir;
     }
 
     // Check first-level subdirectories
     final entries = await extractedDir.list(followLinks: false).toList();
     final dirs = entries.whereType<Directory>().toList();
+
+    print('📂 Searching in ${dirs.length} subdirectories...');
     for (final d in dirs) {
       final mf = File('${d.path}/manifest.json');
       if (await mf.exists()) {
+        print('✅ Found manifest.json in: ${d.path}');
         return d;
       }
     }
 
     // As a fallback, search depth=2
+    print('🔍 Deep search in subdirectories...');
     for (final d in dirs) {
-      final subEntries = await d.list(followLinks: false).toList();
-      for (final se in subEntries.whereType<Directory>()) {
-        final mf = File('${se.path}/manifest.json');
-        if (await mf.exists()) {
-          return se;
+      try {
+        final subEntries = await d.list(followLinks: false).toList();
+        for (final se in subEntries.whereType<Directory>()) {
+          final mf = File('${se.path}/manifest.json');
+          if (await mf.exists()) {
+            print('✅ Found manifest.json in: ${se.path}');
+            return se;
+          }
+        }
+      } catch (e) {
+        print('⚠️ Error searching ${d.path}: $e');
+      }
+    }
+
+    // List all files for debugging
+    print('❌ manifest.json not found. Contents of ${extractedDir.path}:');
+    try {
+      await for (final entity in extractedDir.list(recursive: true, followLinks: false)) {
+        print('  ${entity.path}');
+      }
+    } catch (e) {
+      print('  Error listing files: $e');
+    }
+
+    // Throw instead of returning invalid directory
+    throw Exception('manifest.json not found in extracted ZIP. Expected files: manifest.json, nodes.jsonl, edges.jsonl');
+  }
+
+  /// Custom archive extraction that handles zero-byte files properly
+  Future<void> _extractArchiveRobustly(Archive archive, Directory destDir) async {
+    print('🔧 Starting robust extraction to: ${destDir.path}');
+
+    for (final file in archive.files) {
+      if (!file.isFile) {
+        print('📁 Skipping directory: ${file.name}');
+        continue;
+      }
+
+      final filePath = '${destDir.path}/${file.name}';
+      final outputFile = File(filePath);
+
+      // Ensure parent directory exists
+      final parentDir = outputFile.parent;
+      if (!await parentDir.exists()) {
+        await parentDir.create(recursive: true);
+        print('📁 Created directory: ${parentDir.path}');
+      }
+
+      try {
+        if (file.size == 0) {
+          // Handle zero-byte files explicitly
+          await outputFile.writeAsBytes(<int>[], flush: true);
+          print('📄 Created zero-byte file: ${file.name}');
+        } else {
+          // Extract non-zero files normally
+          final content = file.content as List<int>;
+          await outputFile.writeAsBytes(content, flush: true);
+          print('📄 Extracted file: ${file.name} (${content.length} bytes)');
+        }
+      } catch (e) {
+        print('❌ Failed to extract ${file.name}: $e');
+        // Try to create an empty file as fallback
+        try {
+          await outputFile.writeAsBytes(<int>[], flush: true);
+          print('🔄 Created empty fallback file: ${file.name}');
+        } catch (e2) {
+          print('❌ Fallback also failed for ${file.name}: $e2');
         }
       }
     }
 
-    // If not found, return the original dir (import will surface an error)
-    return extractedDir;
+    print('✅ Extraction completed');
   }
 }

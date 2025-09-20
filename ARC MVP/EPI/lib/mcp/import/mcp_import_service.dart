@@ -540,16 +540,31 @@ class McpImportService {
 
   /// Check if schema version is compatible
   bool _isSchemaVersionCompatible(String version) {
-    // Accept same major version (1.x.x)
+    // Accept both semantic versioning (1.0.0) and legacy format (manifest.v1)
+    if (version.isEmpty) return false;
+
+    // Accept semantic versioning format (1.x.x)
     final parts = version.split('.');
-    if (parts.isEmpty) return false;
-    
-    try {
-      final major = int.parse(parts[0]);
-      return major == 1; // Compatible with MCP v1.x
-    } catch (e) {
-      return false;
+    if (parts.length >= 2) {
+      try {
+        final major = int.parse(parts[0]);
+        return major == 1; // Compatible with MCP v1.x
+      } catch (e) {
+        // Fall through to legacy format check
+      }
     }
+
+    // Accept legacy format (manifest.v1, manifest.v1.0, etc.)
+    if (version.startsWith('manifest.v1')) {
+      return true;
+    }
+
+    // Accept other common v1 formats
+    if (version == 'v1' || version == '1' || version == 'manifest.v1.0') {
+      return true;
+    }
+
+    return false;
   }
 
   /// Validate pointer structure

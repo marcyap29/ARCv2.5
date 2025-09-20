@@ -196,19 +196,50 @@ class McpSettingsCubit extends Cubit<McpSettingsState> {
           currentOperation: null,
         ));
       } else {
+        // Enhanced error reporting with specific details
+        String detailedError = result.message;
+        if (result.errors.isNotEmpty) {
+          detailedError += '\n\nDetails:\n${result.errors.take(3).join('\n')}';
+          if (result.errors.length > 3) {
+            detailedError += '\n... and ${result.errors.length - 3} more errors';
+          }
+        }
+        if (result.warnings.isNotEmpty) {
+          detailedError += '\n\nWarnings:\n${result.warnings.take(2).join('\n')}';
+        }
+
         emit(state.copyWith(
           isLoading: false,
           isImporting: false,
-          error: 'Import failed: ${result.message}',
+          error: detailedError,
           progress: 0.0,
           currentOperation: null,
         ));
       }
     } catch (e) {
+      // Enhanced exception handling with specific messaging
+      String errorMessage = 'Import error: $e';
+
+      // Provide specific guidance for common issues
+      if (e.toString().contains('manifest.json not found')) {
+        errorMessage = 'Import failed: ZIP file does not contain a valid MCP bundle.\n\n'
+            'Expected structure:\n'
+            '• manifest.json\n'
+            '• nodes.jsonl\n'
+            '• edges.jsonl\n\n'
+            'Please ensure you\'re importing a properly exported MCP bundle.';
+      } else if (e.toString().contains('schema_version')) {
+        errorMessage = 'Import failed: Bundle was created with an incompatible version.\n\n'
+            'Try re-exporting your data with the current version of the app.';
+      } else if (e.toString().contains('Invalid JSON')) {
+        errorMessage = 'Import failed: Bundle contains corrupted data.\n\n'
+            'The manifest.json file is not valid JSON. Please re-export your data.';
+      }
+
       emit(state.copyWith(
         isLoading: false,
         isImporting: false,
-        error: 'Import error: $e',
+        error: errorMessage,
         progress: 0.0,
         currentOperation: null,
       ));

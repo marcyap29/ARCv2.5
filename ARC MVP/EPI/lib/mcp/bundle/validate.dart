@@ -24,8 +24,8 @@ class McpValidatorV1 implements McpValidator {
         'bundle_id', 'version', 'created_at', 'storage_profile',
         'counts', 'bytes', 'checksums', 'encoder_registry'
       ],
-      versionField: null, // manifest itself is versioned by "version" semver
-      versionAllowed: null,
+      versionField: 'schema_version', // Check schema_version field if present
+      versionAllowed: const ['1.0.0', 'manifest.v1', 'v1', '1'], // Accept multiple formats
       errors: errors,
     ) && _checkUtcIso8601('manifest.created_at', manifest['created_at'], errors);
   }
@@ -131,7 +131,7 @@ class McpValidatorV1 implements McpValidator {
         ok = false;
       }
     }
-    if (versionField != null) {
+    if (versionField != null && obj.containsKey(versionField)) {
       final v = obj[versionField];
       if (v is! String) {
         _err(errors, '$name has invalid `$versionField` (must be string like "node.v1")');
@@ -144,6 +144,7 @@ class McpValidatorV1 implements McpValidator {
         }
       }
     }
+    // Note: schema_version is optional for backward compatibility
     return ok;
   }
 
