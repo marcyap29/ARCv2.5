@@ -6,7 +6,7 @@ import '../info/info_icon.dart';
 /// AURORA card for rhythm and restoration insights
 /// Currently shows as placeholder "not yet active"
 class AuroraCard extends StatelessWidget {
-  const AuroraCard({Key? key}) : super(key: key);
+  const AuroraCard({super.key});
 
   @override
   Widget build(BuildContext context) {

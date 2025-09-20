@@ -5,7 +5,7 @@ import '../strings/insight_tips_strings.dart';
 
 /// "Why held?" bottom sheet for phase change explanation
 class WhyHeldSheet extends StatelessWidget {
-  const WhyHeldSheet({Key? key}) : super(key: key);
+  const WhyHeldSheet({super.key});
 
   @override
   Widget build(BuildContext context) {

@@ -4,7 +4,7 @@ import 'about_insights_sheet.dart';
 
 /// Info icon for Insights AppBar
 class InsightsInfoIcon extends StatelessWidget {
-  const InsightsInfoIcon({Key? key}) : super(key: key);
+  const InsightsInfoIcon({super.key});
 
   @override
   Widget build(BuildContext context) {
