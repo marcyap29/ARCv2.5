@@ -1,7 +1,7 @@
 # ARC_MVP_IMPLEMENTATION.md
 
-> **Status:** Production-ready with iOS build errors resolved & Gemini integration active ✅
-> **Scope:** ARC MVP (journaling → emotional analysis → RIVET gating → interactive 2D/3D Arcforms → timeline) with sacred UX and cinematic animations.
+> **Status:** MIRA-MCP semantic memory system complete, production-ready ✅
+> **Scope:** ARC MVP with comprehensive MIRA semantic memory, MCP export/import, and enhanced AI integration
 > **Last updated:** September 2025 (America/Los_Angeles)
 
 ---
@@ -14,9 +14,9 @@
   - **Complete 3D Arcform Feature**: Full 3D visualization with labels, emotional warmth, connecting lines, and interactive controls.
   - **Advanced Emotional Intelligence**: Color temperature mapping, interactive clickable letters, sentiment analysis.
   - **Cinematic Animations**: Full-screen Arcform reveals with staggered particle effects.
-- **ARC Prompts Integration**: Centralized prompt contracts (`prompts_arc.dart`, `PromptTemplates.swift`) and ArcLLM helpers wired to Gemini.
-- **MCP Memory Bundle v1**: Complete export/import system with NDJSON format, four storage profiles, and Settings integration.
-- **MIRA Semantic Graph**: Interactive keyword visualization with co-occurrence analysis and ConstellationBox component.
+- **MIRA-MCP System Complete**: Full semantic memory with bidirectional MCP export/import, feature flags, and context-aware AI responses.
+- **ARC Prompts Integration**: Enhanced with MIRA semantic context for intelligent, memory-aware AI responses.
+- **MCP Memory Bundle v1**: Complete bidirectional export/import with NDJSON streaming, SHA-256 integrity, and JSON validation.
 - Critical stability + UX issues addressed (navigation, save, loading, lifecycle safety).
 - **Prompts 21–23** added: Welcome flow, Audio framework, Arcform sovereignty (auto vs manual).
 - **Recent enhancements**: RIVET phase-stability gating, dual-dial insights visualization, keyword-driven phase detection, EmotionalValenceService, advanced notifications, progressive disclosure UI, complete journal entry deletion system, phase quiz synchronization, MCP export/import integration.
@@ -26,14 +26,20 @@
 - **First Responder Mode Complete (P27-P34)**: Comprehensive First Responder Mode implementation with incident capture, debrief coaching, recovery planning, privacy protection, grounding exercises, shift rhythm management, and emergency resources.
 - **Critical Error Resolution (December 2024)**: Fixed 202 critical linter errors, reduced total issues from 1,713 to 1,511 (0 critical), enabling clean compilation and development workflow.
 - **Qwen AI Integration Complete**: Successfully integrated Qwen 2.5 1.5B Instruct as primary on-device language model with enhanced fallback mode and context-aware responses.
+- **MIRA-MCP Semantic Memory System Complete (2025-09-20)**:
+  - **MIRA Core**: Complete semantic graph implementation with Hive storage backend, feature flags, deterministic IDs
+  - **MCP Bundle System**: Full bidirectional export/import with NDJSON streaming, SHA-256 integrity, JSON validation
+  - **Semantic Integration**: ArcLLM enhanced with context-aware responses from MIRA memory graph
+  - **Feature Flags**: Controlled rollout system (miraEnabled, miraAdvancedEnabled, retrievalEnabled, useSqliteRepo)
+  - **Bidirectional Adapters**: Full MIRA ↔ MCP conversion with semantic fidelity preservation
+  - **Event Logging**: Append-only event system with integrity verification for audit trails
+  - **High-Level Integration**: MiraIntegration service with simplified API for existing components
 - **Gemini API Integration Complete (2025-09-19)**:
   - **ArcLLM System**: Complete integration with `provideArcLLM()` factory from `lib/services/gemini_send.dart`
+  - **MIRA Enhancement**: ArcLLM now includes semantic context from MIRA memory for intelligent responses
   - **Enhanced LLM Architecture**: New `lib/llm/` directory with client abstractions and rule-based fallback
   - **Prompt Contracts**: Centralized in `lib/core/prompts_arc.dart` with Swift mirror templates
-  - **Critical Compilation Fixes**: Resolved syntax errors in prompts_arc.dart by changing raw string delimiters from `"""` to `'''`
-  - **Type System Corrections**: Fixed lumara_assistant_cubit.dart type mismatches by updating method signatures to accept ContextWindow
   - **Build Success**: iOS builds complete successfully (24.1s build time, 43.0MB app size)
-  - **Deployment Ready**: All compilation errors eliminated, physical device deployment restored
   - **Smart Box Management**: Enhanced Hive box handling with graceful error recovery and fallback mechanisms
 - **Critical Startup Resilience (2025-01-31)**:
   - **App Restart Reliability**: Fixed critical issue where app failed to start after phone restart
@@ -88,13 +94,15 @@
 
 ## 2) Architecture Snapshot
 
-- **Data flow:**  
-  `Journal Entry → Emotional Analysis → Keyword Extraction/Selection → Keyword-Driven Phase Detection → RIVET Phase-Stability Gating → Arcform Creation → Storage → Interactive Visualization (Arcforms / Timeline) → Insights with RIVET Status → MCP Export/Import`
-- **Storage:** Hive (encrypted, offline‑first).  
-- **State:** Bloc/Cubit (global providers).  
-- **Rendering:** Flutter (60 fps targets; reduced motion compatible).  
+- **Data flow:**
+  `Journal Entry → Emotional Analysis → Keyword Extraction/Selection → MIRA Semantic Storage → Keyword-Driven Phase Detection → RIVET Phase-Stability Gating → Arcform Creation → Interactive Visualization (Arcforms / Timeline) → Insights with RIVET Status → MCP Export/Import`
+- **Storage:** Hive (encrypted, offline‑first) with MIRA semantic graph backend.
+- **MIRA System:** Complete semantic memory with feature flags, deterministic IDs, event logging.
+- **State:** Bloc/Cubit (global providers).
+- **Rendering:** Flutter (60 fps targets; reduced motion compatible).
 - **Emotional Intelligence:** Advanced sentiment analysis with color temperature mapping.
-- **MCP Integration:** Complete MCP Memory Bundle v1 export/import for AI ecosystem interoperability.
+- **MCP Integration:** Complete bidirectional MCP Memory Bundle v1 for AI ecosystem interoperability.
+- **AI Enhancement:** Context-aware ArcLLM with MIRA semantic memory integration.
 - **Error & Perf:** Sentry init fixed; dev tools available.
 
 ---

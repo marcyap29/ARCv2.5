@@ -12,11 +12,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - Advanced animation sequences for sacred journaling
 - Native llama.cpp integration for Qwen models
 - Vision-language model integration
-- Enhanced MCP-MIRA integration for AI context sharing
+- Settings UI for MIRA feature flag configuration
 
 ### Added
+- **MIRA-MCP Semantic Memory System Complete** (2025-09-20)
+  - Complete MIRA core: semantic graph storage with Hive backend, feature flags, deterministic IDs
+  - MCP bundle system: bidirectional export/import with NDJSON streaming, SHA-256 integrity, JSON validation
+  - Bidirectional adapters: full MIRA ↔ MCP conversion with semantic fidelity preservation
+  - Semantic integration: ArcLLM enhanced with context-aware responses from MIRA memory graph
+  - Event logging: append-only event system with integrity verification for audit trails
+  - Feature flags: controlled rollout (miraEnabled, miraAdvancedEnabled, retrievalEnabled, useSqliteRepo)
+  - High-level integration: MiraIntegration service with simplified API for existing components
 - **Gemini API Integration Complete** (2025-09-19)
   - Complete ArcLLM system with `provideArcLLM()` factory for easy access
+  - MIRA enhancement: ArcLLM now includes semantic context from MIRA memory for intelligent responses
   - Enhanced LLM architecture with new `lib/llm/` directory and client abstractions
   - Centralized prompt contracts in `lib/core/prompts_arc.dart` with Swift mirror templates
   - Rule-based fallback system for graceful degradation when API unavailable

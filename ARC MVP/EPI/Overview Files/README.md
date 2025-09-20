@@ -4,13 +4,14 @@ A Flutter-based AI companion app that provides life-aware assistance through jou
 
 ## 🚀 Current Status
 
-**✅ Production Ready** - Gemini API integration complete, MCP export/import functional
+**✅ Production Ready** - MIRA-MCP semantic memory system complete, Gemini API integrated
 
 - **Build Status:** ✅ iOS builds successfully (24.1s, 43.0MB)
 - **Compilation:** ✅ All syntax errors resolved
-- **AI Integration:** ✅ Gemini API with ArcLLM one-liners + rule-based fallback
-- **MCP Support:** ✅ Full Memory Bundle v1 export/import capabilities
-- **MIRA Graph:** ✅ Interactive semantic memory visualization
+- **AI Integration:** ✅ Gemini API with MIRA-enhanced ArcLLM + semantic context
+- **MIRA System:** ✅ Complete semantic memory graph with Hive storage backend
+- **MCP Support:** ✅ Full Memory Bundle v1 bidirectional export/import
+- **Feature Flags:** ✅ Controlled rollout system for MIRA capabilities
 - **Deployment:** ✅ Ready for physical iOS device installation
 - **Test Status:** ⚠️ Some test failures (non-critical, mock setup issues)
 
@@ -29,30 +30,33 @@ A Flutter-based AI companion app that provides life-aware assistance through jou
 ### AI Integration
 
 - **Gemini API (Cloud)** - Primary API-based LLM via `LLMRegistry` with streaming
-- **ArcLLM One-Liners** - `arc.sageEcho(entry)`, `arc.arcformKeywords(...)`, `arc.phaseHints(...)`, `arc.rivetLite(...)`
+- **MIRA Semantic Memory** - Complete semantic graph storage with context-aware retrieval
+- **ArcLLM One-Liners** - `arc.sageEcho(entry)`, `arc.arcformKeywords(...)`, `arc.phaseHints(...)` with MIRA enhancement
 - **Prompt Contracts** - Centralized in `lib/core/prompts_arc.dart` (Dart) and mirrored in `ios/.../PromptTemplates.swift`
-- **MCP Memory Bundle v1** - Standards-compliant export/import for AI ecosystem interoperability
-- **MIRA Semantic Graph** - Interactive keyword visualization with co-occurrence analysis
+- **MCP Memory Bundle v1** - Standards-compliant bidirectional export/import for AI ecosystem interoperability
+- **Feature Flags** - Controlled rollout: `miraEnabled`, `miraAdvancedEnabled`, `retrievalEnabled`, `useSqliteRepo`
 - **Rule-Based Adapter** - Deterministic fallback if API unavailable
 
 ## 🔧 Recent Updates (September 2025)
 
+### MIRA-MCP Semantic Memory System Complete
+- **MIRA Core**: Complete semantic graph implementation with Hive storage backend
+- **MCP Bundle System**: Full bidirectional export/import with NDJSON streaming and SHA-256 integrity
+- **Feature Flags**: Controlled rollout system (`miraEnabled`, `miraAdvancedEnabled`, `retrievalEnabled`)
+- **Semantic Integration**: ArcLLM enhanced with context-aware responses from semantic memory
+- **Bidirectional Adapters**: Full MIRA ↔ MCP conversion with semantic fidelity
+
 ### Gemini API Integration Complete
 - **ArcLLM System**: Complete integration with `provideArcLLM()` factory for easy access
+- **MIRA Enhancement**: ArcLLM now includes semantic context from MIRA memory graph
 - **Prompt Contracts**: Centralized prompts in `lib/core/prompts_arc.dart` with Swift mirrors
 - **Rule-Based Fallback**: Graceful degradation when API unavailable
-- **Enhanced LLM Architecture**: New `lib/llm/` directory with client abstractions
 
-### MCP Export/Import System
-- **MCP Memory Bundle v1**: Complete export to NDJSON format with manifest
+### MCP Export/Import System Enhanced
+- **MCP Memory Bundle v1**: Complete bidirectional export/import with NDJSON streaming
 - **Four Storage Profiles**: minimal, space_saver, balanced, hi_fidelity
-- **Settings Integration**: Export/Import buttons accessible from Settings tab
-- **Privacy Protection**: Automatic PII detection and content-addressable storage
-
-### iOS Build Error Resolution
-- **Fixed prompts_arc.dart**: Changed raw string delimiters from `"""` to `'''` to resolve nested triple quote conflicts
-- **Fixed lumara_assistant_cubit.dart**: Updated method signatures to accept `ContextWindow` instead of `Map<String, dynamic>`
-- **Result**: iOS builds complete successfully, deployment to physical devices restored
+- **JSON Schema Validation**: Embedded MCP v1 schemas with additive evolution support
+- **Deterministic Export**: Stable IDs and checksums for reproducible bundles
 
 ## 🛠️ Development Setup
 
@@ -131,11 +135,12 @@ The app includes Qwen 2.5 1.5B Instruct model files in `assets/models/qwen/`:
 ### Dependencies
 
 - **State Management:** flutter_bloc, bloc_test
-- **Storage:** hive, flutter_secure_storage
+- **Storage:** hive_flutter, flutter_secure_storage (MIRA backend)
 - **UI:** flutter/material, custom widgets
 - **Media:** audioplayers, photo_manager
-- **AI/ML:** Custom adapters for Qwen models
-- **MCP Export:** crypto, args (for CLI)
+- **AI/ML:** Custom adapters for Qwen models, MIRA semantic memory
+- **MCP Export:** crypto, args (for CLI), deterministic bundle generation
+- **MIRA Core:** Feature flags, deterministic IDs, event logging
 
 ### Code Quality
 
@@ -282,6 +287,6 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 ---
 
-**Last Updated:** December 2024  
-**Version:** 0.1.0-alpha  
-**Status:** Development Ready
+**Last Updated:** September 2025
+**Version:** 0.2.0-alpha
+**Status:** MIRA-MCP Production Ready
