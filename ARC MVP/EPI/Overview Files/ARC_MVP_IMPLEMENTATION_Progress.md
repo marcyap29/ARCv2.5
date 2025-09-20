@@ -15,8 +15,10 @@
   - **Advanced Emotional Intelligence**: Color temperature mapping, interactive clickable letters, sentiment analysis.
   - **Cinematic Animations**: Full-screen Arcform reveals with staggered particle effects.
 - **ARC Prompts Integration**: Centralized prompt contracts (`prompts_arc.dart`, `PromptTemplates.swift`) and ArcLLM helpers wired to Gemini.
+- **MCP Memory Bundle v1**: Complete export/import system with NDJSON format, four storage profiles, and Settings integration.
+- **MIRA Semantic Graph**: Interactive keyword visualization with co-occurrence analysis and ConstellationBox component.
 - Critical stability + UX issues addressed (navigation, save, loading, lifecycle safety).
-- **Prompts 21–23** added: Welcome flow, Audio framework, Arcform sovereignty (auto vs manual).  
+- **Prompts 21–23** added: Welcome flow, Audio framework, Arcform sovereignty (auto vs manual).
 - **Recent enhancements**: RIVET phase-stability gating, dual-dial insights visualization, keyword-driven phase detection, EmotionalValenceService, advanced notifications, progressive disclosure UI, complete journal entry deletion system, phase quiz synchronization, MCP export/import integration.
 - **Latest completion**: P5-MM Multi-Modal Journaling Integration Complete - Fixed critical issue where multimodal features were implemented in JournalCaptureView but app uses StartEntryFlow. Successfully integrated camera, gallery, and media management into actual journal entry flow.
 - **RIVET Deletion Fix**: Fixed RIVET TRACE calculation to properly recalculate from remaining entries when entries are deleted, ensuring accurate phase-stability metrics.
@@ -24,10 +26,12 @@
 - **First Responder Mode Complete (P27-P34)**: Comprehensive First Responder Mode implementation with incident capture, debrief coaching, recovery planning, privacy protection, grounding exercises, shift rhythm management, and emergency resources.
 - **Critical Error Resolution (December 2024)**: Fixed 202 critical linter errors, reduced total issues from 1,713 to 1,511 (0 critical), enabling clean compilation and development workflow.
 - **Qwen AI Integration Complete**: Successfully integrated Qwen 2.5 1.5B Instruct as primary on-device language model with enhanced fallback mode and context-aware responses.
-- **iOS Build Error Resolution (2025-09-19)**:
+- **Gemini API Integration Complete (2025-09-19)**:
+  - **ArcLLM System**: Complete integration with `provideArcLLM()` factory from `lib/services/gemini_send.dart`
+  - **Enhanced LLM Architecture**: New `lib/llm/` directory with client abstractions and rule-based fallback
+  - **Prompt Contracts**: Centralized in `lib/core/prompts_arc.dart` with Swift mirror templates
   - **Critical Compilation Fixes**: Resolved syntax errors in prompts_arc.dart by changing raw string delimiters from `"""` to `'''`
   - **Type System Corrections**: Fixed lumara_assistant_cubit.dart type mismatches by updating method signatures to accept ContextWindow
-  - **Gemini Integration Complete**: Added proper ArcLLM/Gemini integration with rule-based fallback for robust AI responses
   - **Build Success**: iOS builds complete successfully (24.1s build time, 43.0MB app size)
   - **Deployment Ready**: All compilation errors eliminated, physical device deployment restored
   - **Smart Box Management**: Enhanced Hive box handling with graceful error recovery and fallback mechanisms

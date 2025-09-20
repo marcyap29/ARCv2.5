@@ -12,6 +12,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - Advanced animation sequences for sacred journaling
 - Native llama.cpp integration for Qwen models
 - Vision-language model integration
+- Enhanced MCP-MIRA integration for AI context sharing
+
+### Added
+- **Gemini API Integration Complete** (2025-09-19)
+  - Complete ArcLLM system with `provideArcLLM()` factory for easy access
+  - Enhanced LLM architecture with new `lib/llm/` directory and client abstractions
+  - Centralized prompt contracts in `lib/core/prompts_arc.dart` with Swift mirror templates
+  - Rule-based fallback system for graceful degradation when API unavailable
+  - Integration with existing SAGE, Arcform, and Phase detection workflows
 
 ### Fixed
 - **iOS Build Compilation Errors** (2025-09-19)
@@ -21,7 +30,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
   - iOS builds now complete successfully (24.1s build time, 43.0MB app size)
   - All compilation errors eliminated, deployment to physical devices restored
 
-### Added
+### Enhanced
 - **MCP Export/Import Integration** - Complete MCP Memory Bundle v1 format support for AI ecosystem interoperability
   - MCP Export Service with four storage profiles (minimal, space_saver, balanced, hi_fidelity)
   - MCP Import Service with validation and error handling

@@ -1,17 +1,18 @@
 # EPI ARC MVP - Bug Tracker
-## Note: mvp_api_inference – Gemini integration
-- Use `gemini-1.5-flash` (v1beta). `gemini-pro` returns 404 in v1beta.
-- Streaming can arrive as a JSON array across chunks; buffer then decode.
-- If Send appears idle, check logs for HTTP 200 and text parts; otherwise verify key/quota/network.
-- Fallback: on error/empty, app switches to rule-based adapter.
-- Priority: dart-define key > stored key (SharedPreferences) > rule-based.
-- Demo artifacts removed: the "Test Gemini LLM Demo" button is removed; avoid `/llm-demo` routes in production.
+## Note: Gemini API Integration Complete
+- **ArcLLM System**: Use `provideArcLLM()` from `lib/services/gemini_send.dart` for easy access
+- **API Configuration**: Uses `gemini-1.5-flash` (v1beta) with proper error handling
+- **Prompt Contracts**: Centralized in `lib/core/prompts_arc.dart` with Swift mirror templates
+- **Fallback System**: Rule-based adapter provides graceful degradation when API unavailable
+- **Key Priority**: dart-define key > SharedPreferences > rule-based fallback
+- **Enhanced Architecture**: New `lib/llm/` directory with client abstractions and type safety
+- **MCP Integration**: Complete Memory Bundle v1 export/import for AI ecosystem interoperability
 
 > **Last Updated**: September 2025 (America/Los_Angeles)
-> **Total Items Tracked**: 48 (36 bugs + 12 enhancements)
-> **Critical Issues Fixed**: 36
+> **Total Items Tracked**: 49 (37 bugs + 12 enhancements)
+> **Critical Issues Fixed**: 37
 > **Enhancements Completed**: 12
-> **Status**: Production ready - iOS build errors resolved, Gemini integration active, all critical systems operational ✅
+> **Status**: Production ready - Gemini API integration complete, MCP export/import functional, all systems operational ✅
 
 ---
 
