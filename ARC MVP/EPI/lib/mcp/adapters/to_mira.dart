@@ -33,13 +33,16 @@ class McpToMiraAdapter {
         record['metadata'] as Map<String, dynamic>? ?? {},
       );
 
-      return MiraNode(
-        id: id,
-        type: type,
+      return MiraNode.entry(
         narrative: narrative,
         keywords: keywords,
         timestamp: timestamp,
-        metadata: metadata,
+        metadata: {
+          ...metadata,
+          'mcp_id': id,
+          'mcp_type': typeStr,
+        },
+        id: id,
       );
     } catch (e) {
       // Log error and skip malformed record
@@ -73,14 +76,43 @@ class McpToMiraAdapter {
         record['metadata'] as Map<String, dynamic>? ?? {},
       );
 
-      return MiraEdge(
-        src: src,
-        dst: dst,
-        relation: relation,
-        weight: weight,
-        timestamp: timestamp,
-        metadata: metadata,
-      );
+      switch (relation) {
+        case EdgeType.mentions:
+          return MiraEdge.mentions(
+            src: src,
+            dst: dst,
+            timestamp: timestamp,
+            weight: weight,
+          );
+        case EdgeType.expresses:
+          return MiraEdge.expresses(
+            src: src,
+            dst: dst,
+            timestamp: timestamp,
+            intensity: metadata['intensity'] is num ? (metadata['intensity'] as num).toDouble() : 1.0,
+          );
+        case EdgeType.taggedAs:
+          return MiraEdge.taggedAs(
+            src: src,
+            dst: dst,
+            timestamp: timestamp,
+            confidence: metadata['confidence'] is num ? (metadata['confidence'] as num).toDouble() : 1.0,
+          );
+        case EdgeType.cooccurs:
+          return MiraEdge.cooccurs(
+            keyword1Id: src,
+            keyword2Id: dst,
+            count: (metadata['count'] as int?) ?? 1,
+            lift: (metadata['lift'] as num?)?.toDouble() ?? 1.0,
+          );
+        default:
+          return MiraEdge.create(
+            src: src,
+            dst: dst,
+            label: relation,
+            data: metadata,
+          );
+      }
     } catch (e) {
       // Log error and skip malformed record
       return null;

@@ -2,6 +2,7 @@
 // Converts MIRA semantic records to MCP interchange format
 
 import 'dart:convert';
+import 'package:crypto/crypto.dart';
 import '../../mira/core/schema.dart';
 import '../../mira/core/ids.dart';
 
@@ -46,7 +47,7 @@ class MiraToMcpAdapter {
     String? encoderId,
     Map<String, dynamic>? metadata,
   }) {
-    final id = pointerId ?? deterministicPointerId(content, mediaType);
+    final id = pointerId ?? _deterministicPointerId(content, mediaType);
     final now = DateTime.now().toUtc().toIso8601String();
 
     return _sortKeys({
@@ -64,7 +65,7 @@ class MiraToMcpAdapter {
       },
       'integrity': {
         'created_at': now,
-        'content_hash': contentHash(content),
+        'content_hash': _contentHash(content),
         'stable': true,
       },
       'provenance': {
@@ -91,7 +92,7 @@ class MiraToMcpAdapter {
     String? encoderId,
     Map<String, dynamic>? metadata,
   }) {
-    final id = embeddingId ?? deterministicEmbeddingId(pointerId, modelId);
+    final id = embeddingId ?? _deterministicEmbeddingId(pointerId, modelId);
 
     return _sortKeys({
       'id': id,
@@ -194,6 +195,25 @@ class MiraToMcpAdapter {
     });
 
     return sorted;
+  }
+
+  /// Generate deterministic pointer ID
+  static String _deterministicPointerId(String content, String mediaType) {
+    final combined = '$mediaType:$content';
+    final hash = sha1.convert(utf8.encode(combined)).toString().substring(0, 12);
+    return 'ptr_$hash';
+  }
+
+  /// Generate content hash
+  static String _contentHash(String content) {
+    return sha1.convert(utf8.encode(content)).toString();
+  }
+
+  /// Generate deterministic embedding ID
+  static String _deterministicEmbeddingId(String pointerId, String modelId) {
+    final combined = '${pointerId}:$modelId';
+    final hash = sha1.convert(utf8.encode(combined)).toString().substring(0, 12);
+    return 'emb_$hash';
   }
 }
 

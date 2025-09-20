@@ -4,7 +4,7 @@
 
 import 'dart:convert';
 import 'dart:io';
-import 'package:crypto/crypto.dart';
+import 'package:crypto/crypto.dart' as crypto;
 
 /// Builder for MCP bundle manifest
 class ManifestBuilder {
@@ -136,14 +136,14 @@ class ManifestBuilder {
 /// Helper class for file checksum calculation
 class FileChecksumCalculator {
   final File file;
-  final Digest digest;
+  final crypto.Digest digest;
 
   FileChecksumCalculator._(this.file, this.digest);
 
   /// Calculate SHA-256 checksum of a file
   static Future<FileChecksumCalculator> sha256(File file) async {
-    final input = file.openRead();
-    final digest = await sha256Hash.bind(input).first;
+    final bytes = await file.readAsBytes();
+    final digest = crypto.sha256.convert(bytes);
     return FileChecksumCalculator._(file, digest);
   }
 
@@ -151,7 +151,7 @@ class FileChecksumCalculator {
   String get checksumString => 'sha256:$digest';
 
   /// Get raw digest
-  Digest get rawDigest => digest;
+  crypto.Digest get rawDigest => digest;
 
   /// Get file size in bytes
   Future<int> get fileSize async => await file.length();

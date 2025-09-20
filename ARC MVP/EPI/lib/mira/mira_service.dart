@@ -11,8 +11,6 @@ import 'core/schema.dart';
 import '../mcp/bundle/writer.dart';
 import '../mcp/bundle/reader.dart';
 import '../mcp/bundle/manifest.dart';
-import '../mcp/adapters/from_mira.dart';
-import '../mcp/adapters/to_mira.dart';
 
 class MiraService {
   static MiraService? _instance;
@@ -50,8 +48,7 @@ class MiraService {
       // Register adapters for MIRA types
       _registerHiveAdapters();
 
-      _repo = HiveMiraRepo(boxName: hiveBoxName ?? 'mira_default');
-      await (_repo as HiveMiraRepo).initialize();
+      _repo = await HiveMiraRepo.create(boxName: hiveBoxName ?? 'mira_default');
     }
 
     // Initialize MCP components
@@ -149,8 +146,8 @@ class MiraService {
           await _repo.upsertNode(keywordNode);
 
           final mentionsEdge = MiraEdge.mentions(
-            entryNode.id,
-            keywordNode.id,
+            src: entryNode.id,
+            dst: keywordNode.id,
             timestamp: timestamp,
           );
           await _repo.upsertEdge(mentionsEdge);
@@ -163,8 +160,8 @@ class MiraService {
         await _repo.upsertNode(emotionNode);
 
         final expressesEdge = MiraEdge.expresses(
-          entryNode.id,
-          emotionNode.id,
+          src: entryNode.id,
+          dst: emotionNode.id,
           timestamp: timestamp,
         );
         await _repo.upsertEdge(expressesEdge);
@@ -181,8 +178,8 @@ class MiraService {
           await _repo.upsertNode(phaseNode);
 
           final taggedAsEdge = MiraEdge.taggedAs(
-            entryNode.id,
-            phaseNode.id,
+            src: entryNode.id,
+            dst: phaseNode.id,
             timestamp: timestamp,
           );
           await _repo.upsertEdge(taggedAsEdge);
@@ -263,18 +260,7 @@ class MiraService {
 
   void _registerHiveAdapters() {
     // Register Hive adapters for MIRA types if not already registered
-    if (!Hive.isAdapterRegistered(0)) {
-      Hive.registerAdapter(MiraNodeAdapter());
-    }
-    if (!Hive.isAdapterRegistered(1)) {
-      Hive.registerAdapter(MiraEdgeAdapter());
-    }
-    if (!Hive.isAdapterRegistered(2)) {
-      Hive.registerAdapter(NodeTypeAdapter());
-    }
-    if (!Hive.isAdapterRegistered(3)) {
-      Hive.registerAdapter(EdgeTypeAdapter());
-    }
+    // JSON persistence only; no Hive type adapters needed in this implementation
   }
 }
 

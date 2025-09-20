@@ -5,7 +5,6 @@
 library;
 
 import 'dart:io';
-import 'dart:convert';
 import 'dart:math';
 import 'package:crypto/crypto.dart';
 import '../models/mcp_schemas.dart';
@@ -392,25 +391,24 @@ class McpExportService {
   ) async {
     final embeddings = <McpEmbedding>[];
     
-    // Generate embeddings for nodes
+    // Generate embeddings for nodes only if they reference a valid pointer
     for (int i = 0; i < nodes.length; i++) {
       final node = nodes[i];
-      final embeddingId = 'emb_node_$i';
-      
-      // This would use your existing embedding service
-      final vector = await _generateEmbeddingVector(node.contentSummary ?? '');
-      
-      final embedding = McpEmbedding(
-        id: embeddingId,
-        pointerRef: node.pointerRef ?? '',
-        docScope: node.id,
-        vector: vector,
-        modelId: 'qwen-2.5-1.5b',
-        embeddingVersion: '1.0.0',
-        dim: vector.length,
-      );
-      
-      embeddings.add(embedding);
+      final String? ptr = node.pointerRef; // optional in schema
+      if (ptr != null && ptr.isNotEmpty) {
+        final embeddingId = 'emb_node_$i';
+        final vector = await _generateEmbeddingVector(node.contentSummary ?? '');
+        final embedding = McpEmbedding(
+          id: embeddingId,
+          pointerRef: ptr,
+          docScope: node.id,
+          vector: vector,
+          modelId: 'qwen-2.5-1.5b',
+          embeddingVersion: '1.0.0',
+          dim: vector.length,
+        );
+        embeddings.add(embedding);
+      }
     }
     
     // Generate embeddings for pointers
@@ -473,14 +471,11 @@ class McpExportService {
         final node2 = nodes[j];
         
         // Find embeddings for these nodes
-        final emb1 = embeddings.firstWhere(
-          (e) => e.docScope == node1.id,
-          orElse: () => throw StateError('Embedding not found for node ${node1.id}'),
-        );
-        final emb2 = embeddings.firstWhere(
-          (e) => e.docScope == node2.id,
-          orElse: () => throw StateError('Embedding not found for node ${node2.id}'),
-        );
+        final emb1 = embeddings.where((e) => e.docScope == node1.id).cast<McpEmbedding?>().firstOrNull;
+        final emb2 = embeddings.where((e) => e.docScope == node2.id).cast<McpEmbedding?>().firstOrNull;
+        if (emb1 == null || emb2 == null) {
+          continue;
+        }
         
         // Calculate cosine similarity
         final similarity = _calculateCosineSimilarity(emb1.vector, emb2.vector);

@@ -1,11 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
 import 'dart:io';
 import '../../shared/app_colors.dart';
 import '../../shared/text_style.dart';
 import '../../mcp/models/mcp_schemas.dart';
 import '../../mcp/import/mcp_import_service.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:archive/archive_io.dart';
+import '../../mcp/export/zip_utils.dart';
 import '../../repositories/journal_repository.dart';
 import 'mcp_settings_cubit.dart';
 
@@ -163,12 +167,18 @@ class _McpSettingsViewContent extends StatelessWidget {
             filled: true,
             fillColor: kcSurfaceAltColor,
           ),
+          isExpanded: true,
           dropdownColor: kcSurfaceAltColor,
           style: bodyStyle(context).copyWith(color: Colors.white),
           items: McpStorageProfile.values.map((profile) {
             return DropdownMenuItem(
               value: profile,
-              child: Text(_getProfileDescription(profile)),
+              child: Text(
+                _getProfileDescription(profile),
+                overflow: TextOverflow.ellipsis,
+                maxLines: 1,
+                softWrap: false,
+              ),
             );
           }).toList(),
           onChanged: (profile) {
@@ -312,12 +322,48 @@ class _McpSettingsViewContent extends StatelessWidget {
     try {
       // Get downloads directory
       final directory = await getApplicationDocumentsDirectory();
-      final outputDir = Directory('${directory.path}/mcp_exports');
+      final rootDir = Directory('${directory.path}/mcp_exports');
+      if (!await rootDir.exists()) {
+        await rootDir.create(recursive: true);
+      }
+      // Unique folder per export so each bundle is isolated
+      final runDir = Directory('${rootDir.path}/${DateTime.now().millisecondsSinceEpoch}');
+      await runDir.create(recursive: true);
       
-      await context.read<McpSettingsCubit>().exportToMcp(
-        outputDir: outputDir,
+      final result = await context.read<McpSettingsCubit>().exportToMcp(
+        outputDir: runDir,
         scope: McpExportScope.all,
+        emitSuccessMessage: false,
       );
+
+      // On success: zip the folder and open share sheet so user chooses destination in Files
+      if (result != null && result.success) {
+        final bundleDir = result.outputDir;
+        // Create ZIP of the export directory
+        final zipFile = await ZipUtils.zipDirectory(
+          bundleDir,
+          zipFileName: 'mcp_${result.bundleId}.zip',
+        );
+        // Open iOS share sheet so user can save to Files
+        await Share.shareXFiles([
+          XFile(
+            zipFile.path,
+            mimeType: 'application/zip',
+            name: 'mcp_${result.bundleId}.zip',
+          ),
+        ]);
+
+        // After share sheet returns, show one concise success notice
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Export saved: mcp_${result.bundleId}.zip'),
+              backgroundColor: Colors.green,
+              duration: const Duration(seconds: 4),
+            ),
+          );
+        }
+      }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -330,55 +376,106 @@ class _McpSettingsViewContent extends StatelessWidget {
 
   Future<void> _importFromMcp(BuildContext context) async {
     try {
-      // For now, show a dialog asking for directory path
-      final TextEditingController controller = TextEditingController();
-      final result = await showDialog<String>(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: const Text('Import MCP Bundle'),
-          content: TextField(
-            controller: controller,
-            decoration: const InputDecoration(
-              labelText: 'Enter MCP bundle directory path',
-              hintText: '/path/to/mcp/bundle',
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel'),
-            ),
-            TextButton(
-              onPressed: () => Navigator.pop(context, controller.text),
-              child: const Text('Import'),
-            ),
-          ],
-        ),
+      // Let the user pick a .zip or a folder containing an MCP bundle
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['zip'],
+        allowMultiple: false,
+        withData: false,
       );
-      
-      if (result != null && result.isNotEmpty) {
-        final bundleDir = Directory(result);
-        if (await bundleDir.exists()) {
-          await context.read<McpSettingsCubit>().importFromMcp(
-            bundleDir: bundleDir,
-            options: const McpImportOptions(),
-          );
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Directory does not exist'),
-              backgroundColor: Colors.red,
-            ),
-          );
+
+      if (result == null || result.files.isEmpty) return;
+
+      final pickedPath = result.files.single.path;
+      if (pickedPath == null) return;
+
+      final pickedFile = File(pickedPath);
+      if (!await pickedFile.exists()) return;
+
+      // Copy picked ZIP into app sandbox first to avoid security-scope issues
+      final docs = await getApplicationDocumentsDirectory();
+      final importRoot = Directory('${docs.path}/mcp_imports');
+      if (!await importRoot.exists()) await importRoot.create(recursive: true);
+      final ts = DateTime.now().millisecondsSinceEpoch;
+      final localZip = File('${importRoot.path}/incoming_$ts.zip');
+      await localZip.writeAsBytes(await pickedFile.readAsBytes(), flush: true);
+
+      // Unzip into app documents under mcp_imports/<timestamp>
+      final dest = Directory('${importRoot.path}/extracted_$ts');
+      await dest.create(recursive: true);
+
+      // Extract ZIP with two strategies for robustness
+      try {
+        final bytes = await localZip.readAsBytes();
+        final archive = ZipDecoder().decodeBytes(bytes, verify: true);
+        extractArchiveToDisk(archive, dest.path);
+      } catch (_) {
+        try {
+          final inputStream = InputFileStream(localZip.path);
+          final archive = ZipDecoder().decodeBuffer(inputStream);
+          extractArchiveToDisk(archive, dest.path);
+        } catch (e) {
+          if (context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Import failed: Unable to extract ZIP ($e)'),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
+          return;
         }
       }
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Import failed: $e'),
-          backgroundColor: Colors.red,
-        ),
+
+      // Locate bundle root (some zips contain a top-level folder)
+      final bundleRoot = await _locateBundleRoot(dest);
+
+      // Kick off import from detected bundle root directory
+      await context.read<McpSettingsCubit>().importFromMcp(
+        bundleDir: bundleRoot,
+        options: const McpImportOptions(),
       );
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Import failed: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
+  }
+
+  /// Find the directory that actually contains manifest.json
+  Future<Directory> _locateBundleRoot(Directory extractedDir) async {
+    final manifestAtRoot = File('${extractedDir.path}/manifest.json');
+    if (await manifestAtRoot.exists()) {
+      return extractedDir;
+    }
+
+    // Check first-level subdirectories
+    final entries = await extractedDir.list(followLinks: false).toList();
+    final dirs = entries.whereType<Directory>().toList();
+    for (final d in dirs) {
+      final mf = File('${d.path}/manifest.json');
+      if (await mf.exists()) {
+        return d;
+      }
+    }
+
+    // As a fallback, search depth=2
+    for (final d in dirs) {
+      final subEntries = await d.list(followLinks: false).toList();
+      for (final se in subEntries.whereType<Directory>()) {
+        final mf = File('${se.path}/manifest.json');
+        if (await mf.exists()) {
+          return se;
+        }
+      }
+    }
+
+    // If not found, return the original dir (import will surface an error)
+    return extractedDir;
   }
 }

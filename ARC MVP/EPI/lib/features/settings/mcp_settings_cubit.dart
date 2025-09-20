@@ -78,9 +78,10 @@ class McpSettingsCubit extends Cubit<McpSettingsState> {
   }
 
   /// Export journal data to MCP format
-  Future<void> exportToMcp({
+  Future<McpExportResult?> exportToMcp({
     required Directory outputDir,
     McpExportScope scope = McpExportScope.all,
+    bool emitSuccessMessage = false,
   }) async {
     if (_exportService == null) {
       _initializeServices();
@@ -115,16 +116,27 @@ class McpSettingsCubit extends Cubit<McpSettingsState> {
       );
 
       if (result.success) {
-        emit(state.copyWith(
-          isLoading: false,
-          isExporting: false,
-          successMessage: 'MCP export completed successfully!\n'
-              'Bundle ID: ${result.bundleId}\n'
-              'Output: ${result.outputDir.path}\n'
-                  'Files: ${result.ndjsonFiles?.length ?? 0}',
-          progress: 1.0,
-          currentOperation: null,
-        ));
+        // Always end loading states; optionally emit a success snackbar
+        if (emitSuccessMessage) {
+          emit(state.copyWith(
+            isLoading: false,
+            isExporting: false,
+            successMessage: 'MCP export completed successfully!\n'
+                'Bundle ID: ${result.bundleId}\n'
+                'Output: ${result.outputDir.path}\n'
+                    'Files: ${result.ndjsonFiles?.length ?? 0}',
+            progress: 1.0,
+            currentOperation: null,
+          ));
+        } else {
+          emit(state.copyWith(
+            isLoading: false,
+            isExporting: false,
+            progress: 1.0,
+            currentOperation: null,
+          ));
+        }
+        return result;
       } else {
         emit(state.copyWith(
           isLoading: false,
@@ -133,6 +145,7 @@ class McpSettingsCubit extends Cubit<McpSettingsState> {
           progress: 0.0,
           currentOperation: null,
         ));
+        return null;
       }
     } catch (e) {
       emit(state.copyWith(
@@ -142,6 +155,7 @@ class McpSettingsCubit extends Cubit<McpSettingsState> {
         progress: 0.0,
         currentOperation: null,
       ));
+      return null;
     }
   }
 
@@ -150,9 +164,7 @@ class McpSettingsCubit extends Cubit<McpSettingsState> {
     required Directory bundleDir,
     McpImportOptions options = const McpImportOptions(),
   }) async {
-    if (_importService == null) {
-      _importService = McpImportService();
-    }
+    _importService ??= McpImportService();
 
     emit(state.copyWith(
       isLoading: true,

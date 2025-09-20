@@ -25,6 +25,7 @@ class McpValidatorV1 implements McpValidator {
         'counts', 'bytes', 'checksums', 'encoder_registry'
       ],
       versionField: null, // manifest itself is versioned by "version" semver
+      versionAllowed: null,
       errors: errors,
     ) && _checkUtcIso8601('manifest.created_at', manifest['created_at'], errors);
   }

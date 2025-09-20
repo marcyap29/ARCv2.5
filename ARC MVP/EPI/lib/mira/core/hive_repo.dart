@@ -106,7 +106,7 @@ class HiveMiraRepo implements MiraRepo {
   final Map<String, Set<String>> _outIndex = {}; // src -> edgeIds
   final Map<String, Set<String>> _inIndex = {};  // dst -> edgeIds
 
-  HiveMiraRepo({
+  HiveMiraRepo._({
     required this.nodesBox,
     required this.edgesBox,
     required this.eventsBox,
@@ -114,6 +114,23 @@ class HiveMiraRepo implements MiraRepo {
     required this.embeddingsBox,
   }) {
     _rebuildIndexes();
+  }
+
+  /// Create repository with boxes for the given name
+  static Future<HiveMiraRepo> create({String boxName = 'mira_default'}) async {
+    final nodesBox = await Hive.openBox('${boxName}_nodes');
+    final edgesBox = await Hive.openBox('${boxName}_edges');
+    final eventsBox = await Hive.openBox('${boxName}_events');
+    final pointersBox = await Hive.openBox('${boxName}_pointers');
+    final embeddingsBox = await Hive.openBox('${boxName}_embeddings');
+
+    return HiveMiraRepo._(
+      nodesBox: nodesBox,
+      edgesBox: edgesBox,
+      eventsBox: eventsBox,
+      pointersBox: pointersBox,
+      embeddingsBox: embeddingsBox,
+    );
   }
 
   void _rebuildIndexes() {
@@ -475,7 +492,11 @@ class HiveMiraRepo implements MiraRepo {
     final embKeys = embeddingsBox.keys.toList()..sort();
     for (final k in embKeys) {
       final rec = Map<String, dynamic>.from(embeddingsBox.get(k));
-      yield {'kind':'embedding', ...rec};
+      // Only yield embeddings with a valid pointer_ref
+      final ptr = rec['pointer_ref'];
+      if (ptr is String && ptr.isNotEmpty) {
+        yield {'kind':'embedding', ...rec};
+      }
     }
     // events (optional for audit export)
     final evKeys = eventsBox.keys.toList()..sort();
