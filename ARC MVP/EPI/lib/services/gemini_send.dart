@@ -13,7 +13,7 @@ Future<String> geminiSend({
   required String user,
   bool jsonExpected = false,
 }) async {
-  final apiKey = const String.fromEnvironment('GEMINI_API_KEY');
+  const apiKey = String.fromEnvironment('GEMINI_API_KEY');
   if (apiKey.isEmpty) {
     throw StateError('GEMINI_API_KEY not provided');
   }
@@ -72,3 +72,5 @@ Future<String> geminiSend({
 ArcLLM provideArcLLM() => ArcLLM(send: ({required system, required user, bool jsonExpected = false}) async {
       return geminiSend(system: system, user: user, jsonExpected: jsonExpected);
     });
+
+

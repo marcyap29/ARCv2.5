@@ -9,7 +9,7 @@ void main() {
   });
 
   test('Phase Hints prompt includes all phases', () {
-    final p = ArcPrompts.phaseHints;
+    const p = ArcPrompts.phaseHints;
     for (final phase in [
       'discovery',
       'expansion',
