@@ -36,6 +36,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
   - Integration with existing SAGE, Arcform, and Phase detection workflows
 
 ### Fixed
+- **MCP Import iOS Sandbox Path Resolution** (2025-09-20)
+  - Fixed critical PathNotFoundException during MCP import on iOS devices
+  - MiraWriter now uses getApplicationDocumentsDirectory() instead of hardcoded development paths
+  - All 20+ storage operations updated for proper iOS app sandbox compatibility
+  - MCP import/export now fully functional on iOS devices enabling AI ecosystem interoperability
+  - Path resolution: `/Users/mymac/.../mira_storage` → `/var/mobile/Containers/Data/Application/.../Documents/mira_storage/`
 - **iOS Build Compilation Errors** (2025-09-19)
   - Fixed prompts_arc.dart syntax errors by changing raw string delimiters from `"""` to `'''`
   - Resolved type mismatches in lumara_assistant_cubit.dart by updating method signatures to accept ContextWindow
