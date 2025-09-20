@@ -2,6 +2,8 @@
 
 Complete listing of all prompts used in the ARC MVP system, centralized in `lib/core/prompts_arc.dart` with Swift mirror templates in `ios/Runner/Sources/Runner/PromptTemplates.swift`.
 
+**Enhanced with MIRA-MCP Integration**: ArcLLM now includes semantic memory context from MIRA for more intelligent, context-aware responses.
+
 ## System Prompt
 
 **Purpose**: Core personality and behavior guidelines for ARC's journaling copilot
@@ -27,8 +29,9 @@ If the model output is incomplete or malformed: return what you have and add a s
 
 ## Chat Prompt
 
-**Purpose**: General conversation and context-aware responses
+**Purpose**: General conversation and context-aware responses with MIRA semantic memory enhancement
 **Usage**: `arc.chat(userIntent, entryText?, phaseHint?, keywords?)`
+**MIRA Enhancement**: Automatically includes relevant context from semantic memory when available
 
 ```
 Task: Chat
@@ -49,6 +52,7 @@ Output: plain text (2–6 sentences).
 **Purpose**: Extract Situation/Action/Growth/Essence structure from journal entries
 **Usage**: `arc.sageEcho(entryText)`
 **Output**: JSON with SAGE categories and optional note
+**MIRA Integration**: Results automatically stored in semantic memory for context building
 
 ```
 Task: SAGE Echo
@@ -78,6 +82,7 @@ Output (JSON):
 **Purpose**: Extract 5-10 emotionally resonant keywords for visualization
 **Usage**: `arc.arcformKeywords(entryText, sageJson?)`
 **Output**: JSON array of keywords
+**MIRA Integration**: Keywords automatically stored as semantic nodes with relationships
 
 ```
 Task: Arcform Keywords
@@ -210,19 +215,58 @@ Always return best partial with a single "note" field describing what was approx
 
 ### ArcLLM Interface
 ```dart
+// Traditional usage
 final arc = provideArcLLM();
 final sage = await arc.sageEcho(entryText);
 final keywords = await arc.arcformKeywords(entryText: text, sageJson: sage);
-final phase = await arc.phaseHints(entryText: text, sageJson: sage, keywordsJson: keywords);
-final quality = await arc.rivetLite(targetName: "SAGE Echo", targetContent: sage, contractSummary: "JSON with sage categories");
+
+// MIRA-enhanced usage with semantic memory
+final miraIntegration = MiraIntegration.instance;
+await miraIntegration.initialize(miraEnabled: true, retrievalEnabled: true);
+final arcWithMira = miraIntegration.createArcLLM(sendFunction: geminiSend);
+
+// Context-aware responses with semantic memory
+final contextualResponse = await arcWithMira.chat(
+  userIntent: "How am I doing with work stress?",
+  entryText: currentEntry,
+);
 ```
 
 ### Fallback Integration
-- **Primary**: Gemini API via `gemini-1.5-flash` model
+- **Primary**: Gemini API via `gemini-1.5-flash` model with MIRA semantic enhancement
 - **Fallback**: Rule-based heuristics in `lib/llm/rule_based_client.dart`
 - **Priority**: dart-define key > SharedPreferences > rule-based
+
+## MIRA-MCP Integration Features
+
+### Semantic Memory Enhancement
+- **Context Retrieval**: ArcLLM automatically searches MIRA memory for relevant context
+- **Keyword Storage**: Extracted keywords stored as semantic nodes with relationships
+- **SAGE Storage**: SAGE Echo results stored as metadata for pattern recognition
+- **Memory Export**: Complete semantic memory can be exported to MCP bundles
+
+### Feature Flags
+- `miraEnabled`: Enable/disable MIRA semantic memory system
+- `miraAdvancedEnabled`: Enable advanced semantic features like SAGE phase storage
+- `retrievalEnabled`: Enable context-aware responses from semantic memory
+- `useSqliteRepo`: Use SQLite backend instead of Hive (future implementation)
+
+### MCP Export Integration
+```dart
+// Export semantic memory to MCP bundle
+final bundlePath = await MiraIntegration.instance.exportMcpBundle(
+  outputPath: '/path/to/export',
+  storageProfile: 'balanced',
+);
+
+// Import MCP bundle into semantic memory
+final result = await MiraIntegration.instance.importMcpBundle(
+  bundlePath: '/path/to/bundle',
+);
+```
 
 ---
 
 *Last updated: September 2025*
 *Total prompts: 6 (5 AI prompts + 1 fallback rules)*
+*MIRA-MCP Enhancement: Context-aware AI with semantic memory integration*
