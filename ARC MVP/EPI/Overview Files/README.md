@@ -4,11 +4,13 @@ A Flutter-based AI companion app that provides life-aware assistance through jou
 
 ## 🚀 Current Status
 
-**✅ Production Ready** - iOS build errors resolved, Gemini integration active
+**✅ Production Ready** - Gemini API integration complete, MCP export/import functional
 
 - **Build Status:** ✅ iOS builds successfully (24.1s, 43.0MB)
 - **Compilation:** ✅ All syntax errors resolved
-- **Gemini Integration:** ✅ ArcLLM working with rule-based fallback
+- **AI Integration:** ✅ Gemini API with ArcLLM one-liners + rule-based fallback
+- **MCP Support:** ✅ Full Memory Bundle v1 export/import capabilities
+- **MIRA Graph:** ✅ Interactive semantic memory visualization
 - **Deployment:** ✅ Ready for physical iOS device installation
 - **Test Status:** ⚠️ Some test failures (non-critical, mock setup issues)
 
@@ -29,15 +31,27 @@ A Flutter-based AI companion app that provides life-aware assistance through jou
 - **Gemini API (Cloud)** - Primary API-based LLM via `LLMRegistry` with streaming
 - **ArcLLM One-Liners** - `arc.sageEcho(entry)`, `arc.arcformKeywords(...)`, `arc.phaseHints(...)`, `arc.rivetLite(...)`
 - **Prompt Contracts** - Centralized in `lib/core/prompts_arc.dart` (Dart) and mirrored in `ios/.../PromptTemplates.swift`
-- **On-Device Ready** - Same contracts usable by iOS bridge later
+- **MCP Memory Bundle v1** - Standards-compliant export/import for AI ecosystem interoperability
+- **MIRA Semantic Graph** - Interactive keyword visualization with co-occurrence analysis
 - **Rule-Based Adapter** - Deterministic fallback if API unavailable
 
-## 🔧 Recent Fixes (September 2025)
+## 🔧 Recent Updates (September 2025)
+
+### Gemini API Integration Complete
+- **ArcLLM System**: Complete integration with `provideArcLLM()` factory for easy access
+- **Prompt Contracts**: Centralized prompts in `lib/core/prompts_arc.dart` with Swift mirrors
+- **Rule-Based Fallback**: Graceful degradation when API unavailable
+- **Enhanced LLM Architecture**: New `lib/llm/` directory with client abstractions
+
+### MCP Export/Import System
+- **MCP Memory Bundle v1**: Complete export to NDJSON format with manifest
+- **Four Storage Profiles**: minimal, space_saver, balanced, hi_fidelity
+- **Settings Integration**: Export/Import buttons accessible from Settings tab
+- **Privacy Protection**: Automatic PII detection and content-addressable storage
 
 ### iOS Build Error Resolution
 - **Fixed prompts_arc.dart**: Changed raw string delimiters from `"""` to `'''` to resolve nested triple quote conflicts
 - **Fixed lumara_assistant_cubit.dart**: Updated method signatures to accept `ContextWindow` instead of `Map<String, dynamic>`
-- **Added Gemini Integration**: Proper ArcLLM/Gemini integration with graceful fallback to rule-based responses
 - **Result**: iOS builds complete successfully, deployment to physical devices restored
 
 ## 🛠️ Development Setup

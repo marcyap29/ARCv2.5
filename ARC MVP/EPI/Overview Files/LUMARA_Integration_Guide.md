@@ -7,10 +7,12 @@ This guide shows you how to integrate the complete LUMARA system into your exist
 ## ✅ **What's Already Implemented**
 
 ### Core Architecture
-- ✅ `ModelAdapter` interface with `RuleBasedAdapter` and `GemmaAdapter`
+- ✅ Enhanced LLM Architecture with `lib/llm/` directory
+- ✅ `ModelAdapter` interface with `RuleBasedAdapter` and `GeminiAdapter`
+- ✅ ArcLLM System with `provideArcLLM()` factory
+- ✅ Centralized prompt contracts in `lib/core/prompts_arc.dart`
 - ✅ Native bridges for Android (Kotlin) and iOS (Swift)
-- ✅ `GemmaService` with adapter pattern
-- ✅ Prompt templates and few-shot examples
+- ✅ Gemini API integration with streaming support
 
 ### UI Components
 - ✅ `LumaraAssistantScreen` - Main chat interface
