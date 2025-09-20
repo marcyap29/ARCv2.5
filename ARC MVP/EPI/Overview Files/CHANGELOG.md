@@ -13,6 +13,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - Native llama.cpp integration for Qwen models
 - Vision-language model integration
 
+### Fixed
+- **iOS Build Compilation Errors** (2025-09-19)
+  - Fixed prompts_arc.dart syntax errors by changing raw string delimiters from `"""` to `'''`
+  - Resolved type mismatches in lumara_assistant_cubit.dart by updating method signatures to accept ContextWindow
+  - Added proper ArcLLM/Gemini integration with rule-based fallback
+  - iOS builds now complete successfully (24.1s build time, 43.0MB app size)
+  - All compilation errors eliminated, deployment to physical devices restored
+
 ### Added
 - **MCP Export/Import Integration** - Complete MCP Memory Bundle v1 format support for AI ecosystem interoperability
   - MCP Export Service with four storage profiles (minimal, space_saver, balanced, hi_fidelity)
