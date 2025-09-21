@@ -3,7 +3,7 @@
 ## Overview
 ARC is the **first module of EPI (Evolving Personal Intelligence)**. It is a journaling app that treats reflection as a **sacred act**. The experience should feel like the *Blessed* app: calming, atmospheric, and emotionally resonant. Journaling is the entry point, but the core differentiation is that each entry generates a **visual Arcform** — a glowing, constellation-like structure that evolves with the user's story.
 
-This MVP focuses on **journaling → AI analysis → Arcform visualization → memory graph**, with complete AI integration via Gemini API and MCP Memory Bundle export/import for ecosystem interoperability.
+This MVP focuses on **journaling → AI analysis → Arcform visualization → memory graph**, with complete AI integration via Gemini API and enhanced MCP Memory Bundle export/import featuring comprehensive journal entry preservation and semantic relationship mapping for full ecosystem interoperability.
 
 ---
 
