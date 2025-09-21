@@ -149,11 +149,12 @@ class _KeywordAnalysisViewState extends State<KeywordAnalysisView>
   }
 
   Widget _buildAnalysisProgress() {
-    return Padding(
-      padding: const EdgeInsets.all(24.0),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
+    return SingleChildScrollView(
+      child: Padding(
+        padding: const EdgeInsets.all(24.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
           // Sacred geometry animation/icon
           Container(
             width: 120,
@@ -223,6 +224,7 @@ class _KeywordAnalysisViewState extends State<KeywordAnalysisView>
             },
           ),
         ],
+        ),
       ),
     );
   }
