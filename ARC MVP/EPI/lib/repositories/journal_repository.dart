@@ -35,10 +35,28 @@ class JournalRepository {
 
   // Read
   List<JournalEntry> getAllJournalEntries() {
-    if (Hive.isBoxOpen(_boxName)) {
-      return Hive.box<JournalEntry>(_boxName).values.toList();
+    try {
+      if (Hive.isBoxOpen(_boxName)) {
+        final entries = Hive.box<JournalEntry>(_boxName).values.toList();
+        print('🔍 JournalRepository: Retrieved ${entries.length} journal entries from open box');
+        return entries;
+      } else {
+        print('🔍 JournalRepository: WARNING - Box $_boxName is not open, cannot retrieve entries');
+        // Try to open the box synchronously if possible
+        try {
+          final box = Hive.box<JournalEntry>(_boxName);
+          final entries = box.values.toList();
+          print('🔍 JournalRepository: Successfully opened box and retrieved ${entries.length} entries');
+          return entries;
+        } catch (e) {
+          print('🔍 JournalRepository: ERROR - Could not open box $_boxName: $e');
+          return const [];
+        }
+      }
+    } catch (e) {
+      print('🔍 JournalRepository: ERROR in getAllJournalEntries: $e');
+      return const [];
     }
-    return const [];
   }
 
   JournalEntry? getJournalEntryById(String id) {
