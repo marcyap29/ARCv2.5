@@ -15,6 +15,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - Settings UI for MIRA feature flag configuration
 
 ### Added
+- **Enhanced MCP Journal Export System** (2025-09-21)
+  - Complete journal entry export as MCP Pointer + Node + Edge records
+  - Full text preservation in pointer records with SHA-256 content integrity
+  - SAGE narrative structure (Situation, Action, Growth, Essence) extraction and preservation
+  - Automatic relationship edge generation for entry→phase and entry→keyword connections
+  - Deterministic ID generation ensuring stable exports across multiple runs
+  - McpEntryProjector adapter for efficient bulk journal entry processing
+- **Arcform Widget Enhancements** (2025-09-21)
+  - Enhanced phase recommendation modal with improved animations and visual feedback
+  - Refined simple 3D arcform widget with better 3D transformations and interaction controls
+  - Updated Flutter plugins dependencies for improved cross-platform compatibility
 - iOS export/import UX improvements (2025-09-20)
   - Export: ZIP and present Files share sheet to choose destination
   - Import: Files picker for `.zip`, robust unzip, bundle-root auto-detection

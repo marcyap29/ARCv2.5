@@ -2,7 +2,7 @@
 
 > **Status:** MIRA-MCP semantic memory system complete, production-ready ✅
 > **Scope:** ARC MVP with comprehensive MIRA semantic memory, MCP export/import, and enhanced AI integration
-> **Last updated:** September 2025 (America/Los_Angeles)
+> **Last updated:** September 21, 2025 (America/Los_Angeles)
 
 ---
 
@@ -20,7 +20,9 @@
 - Critical stability + UX issues addressed (navigation, save, loading, lifecycle safety).
 - **Prompts 21–23** added: Welcome flow, Audio framework, Arcform sovereignty (auto vs manual).
 - **Recent enhancements**: RIVET phase-stability gating, dual-dial insights visualization, keyword-driven phase detection, EmotionalValenceService, advanced notifications, progressive disclosure UI, complete journal entry deletion system, phase quiz synchronization, MCP export/import integration.
-- **Latest completion**: P5-MM Multi-Modal Journaling Integration Complete - Fixed critical issue where multimodal features were implemented in JournalCaptureView but app uses StartEntryFlow. Successfully integrated camera, gallery, and media management into actual journal entry flow.
+- **Latest completion**: Enhanced MCP Journal Export System (2025-09-21) - Complete journal entry export as MCP Pointer + Node + Edge records with full text preservation, SAGE narrative extraction, and automatic relationship generation. Every confirmed journal entry now becomes a first-class MCP record with deterministic IDs and SHA-256 integrity.
+- **Previous completion**: Arcform Widget Enhancements (2025-09-21) - Enhanced phase recommendation modal with improved animations and refined simple 3D arcform widget with better transformations and interaction controls.
+- **Previous completion**: P5-MM Multi-Modal Journaling Integration Complete - Fixed critical issue where multimodal features were implemented in JournalCaptureView but app uses StartEntryFlow. Successfully integrated camera, gallery, and media management into actual journal entry flow.
 - **RIVET Deletion Fix**: Fixed RIVET TRACE calculation to properly recalculate from remaining entries when entries are deleted, ensuring accurate phase-stability metrics.
 - **P27 RIVET Simple Copy UI**: Complete user-friendly RIVET interface with Match/Confidence labels, details modal, and comprehensive status communication.
 - **First Responder Mode Complete (P27-P34)**: Comprehensive First Responder Mode implementation with incident capture, debrief coaching, recovery planning, privacy protection, grounding exercises, shift rhythm management, and emergency resources.

@@ -39,6 +39,14 @@ A Flutter-based AI companion app that provides life-aware assistance through jou
 
 ## 🔧 Recent Updates (September 2025)
 
+### Enhanced MCP Journal Export System (September 21, 2025)
+- **Complete Journal Entry Export**: Every confirmed journal entry now exported as comprehensive MCP records
+- **Pointer + Node + Edge Model**: Journal entries become evidence pointers, semantic nodes, and relationship edges
+- **Text Preservation**: Full journal text content preserved in pointer records with SHA-256 integrity
+- **SAGE Integration**: Situation, Action, Growth, Essence extracted and structured in node records
+- **Automatic Relationships**: Phase and keyword edges generated automatically from journal metadata
+- **Deterministic IDs**: Stable identifiers ensure consistent exports across multiple runs
+
 ### MIRA-MCP Semantic Memory System Complete
 - **MIRA Core**: Complete semantic graph implementation with Hive storage backend
 - **MCP Bundle System**: Full bidirectional export/import with NDJSON streaming and SHA-256 integrity
@@ -124,12 +132,14 @@ The app includes Qwen 2.5 1.5B Instruct model files in `assets/models/qwen/`:
 
 ### MCP Export System ✅
 
-- **MCP Memory Bundle Export** - Standards-compliant export to MCP v1 format
-- **SAGE-to-Node Mapping** - Converts journal entries to structured MCP nodes
-- **Content-Addressable Storage** - CAS URIs for derivative content
-- **Privacy Propagation** - Automatic PII and privacy field detection
-- **Deterministic Exports** - Reproducible exports with checksums
+- **Enhanced Journal Entry Export** - Every confirmed journal entry exported as Pointer + Node + Edge records
+- **MCP Memory Bundle Export** - Standards-compliant export to MCP v1 format with full journal content
+- **SAGE-to-Node Mapping** - Converts journal entries to structured MCP nodes with narrative preservation
+- **Content-Addressable Storage** - CAS URIs for derivative content with SHA-256 integrity
+- **Privacy Propagation** - Automatic PII and privacy field detection across all exported content
+- **Deterministic Exports** - Reproducible exports with checksums and stable IDs
 - **Storage Profiles** - Minimal, space-saver, balanced, and hi-fidelity options
+- **Semantic Relationships** - Automatic edge creation for entry→phase and entry→keyword connections
 
 ## 🔧 Technical Details
 
@@ -294,6 +304,6 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 ---
 
-**Last Updated:** September 2025
-**Version:** 0.2.0-alpha
-**Status:** MIRA-MCP Production Ready
+**Last Updated:** September 21, 2025
+**Version:** 0.2.1-alpha
+**Status:** MIRA-MCP Production Ready + Enhanced Arcform UI
