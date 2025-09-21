@@ -246,7 +246,7 @@ class PhaseDriftCard extends StatelessWidget {
 
     int totalCount = 0;
     for (final count in counts.values) {
-      totalCount += count as int;
+      totalCount += count;
     }
     final dateStr = _formatDate(timestamp);
 
