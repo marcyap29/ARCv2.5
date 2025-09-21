@@ -7,7 +7,7 @@
 - **Key Priority**: dart-define key > SharedPreferences > rule-based fallback
 - **Enhanced Architecture**: New `lib/llm/` directory with client abstractions and type safety
 - **MCP Integration**: Complete Memory Bundle v1 export/import for AI ecosystem interoperability
-- **Enhanced MCP Export**: Complete journal entry export as Pointer + Node + Edge records with full text preservation
+- **MCP Export Resolution**: FIXED critical issue where MCP export generated empty files - now includes complete journal entry export as Pointer + Node + Edge records with full text preservation
 
 > **Last Updated**: September 21, 2025 (America/Los_Angeles)
 > **Total Items Tracked**: 49 (37 bugs + 12 enhancements)

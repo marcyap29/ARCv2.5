@@ -39,13 +39,16 @@ A Flutter-based AI companion app that provides life-aware assistance through jou
 
 ## 🔧 Recent Updates (September 2025)
 
-### Enhanced MCP Journal Export System (September 21, 2025)
+### MCP Export System Resolution (September 21, 2025)
+- **CRITICAL FIX**: Resolved issue where MCP export generated empty files instead of journal content
+- **Unified Export Architecture**: Merged standalone MCP export with MIRA-based system for actual data inclusion
 - **Complete Journal Entry Export**: Every confirmed journal entry now exported as comprehensive MCP records
 - **Pointer + Node + Edge Model**: Journal entries become evidence pointers, semantic nodes, and relationship edges
 - **Text Preservation**: Full journal text content preserved in pointer records with SHA-256 integrity
 - **SAGE Integration**: Situation, Action, Growth, Essence extracted and structured in node records
 - **Automatic Relationships**: Phase and keyword edges generated automatically from journal metadata
 - **Deterministic IDs**: Stable identifiers ensure consistent exports across multiple runs
+- **Architecture Fix**: McpSettingsCubit now uses MiraService.exportToMcp() instead of stub McpExportService
 
 ### MIRA-MCP Semantic Memory System Complete
 - **MIRA Core**: Complete semantic graph implementation with Hive storage backend
@@ -132,6 +135,8 @@ The app includes Qwen 2.5 1.5B Instruct model files in `assets/models/qwen/`:
 
 ### MCP Export System ✅
 
+- **FIXED: Complete Journal Export** - Resolved critical issue where exports contained empty files instead of journal data
+- **Unified Export Architecture** - Integrated standalone MCP export with MIRA semantic system for real data inclusion
 - **Enhanced Journal Entry Export** - Every confirmed journal entry exported as Pointer + Node + Edge records
 - **MCP Memory Bundle Export** - Standards-compliant export to MCP v1 format with full journal content
 - **SAGE-to-Node Mapping** - Converts journal entries to structured MCP nodes with narrative preservation
@@ -305,5 +310,5 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 ---
 
 **Last Updated:** September 21, 2025
-**Version:** 0.2.1-alpha
-**Status:** MIRA-MCP Production Ready + Enhanced Arcform UI
+**Version:** 0.2.2-alpha
+**Status:** MIRA-MCP Production Ready + Complete Journal Export Integration
