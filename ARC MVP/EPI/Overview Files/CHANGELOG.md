@@ -15,16 +15,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - Settings UI for MIRA feature flag configuration
 
 ### Added
-- **MCP Export System Resolution** (2025-09-21)
-  - CRITICAL FIX: Resolved issue where MCP export generated empty .jsonl files instead of actual journal content
+- **MCP Export System Resolution** (2025-09-21) ✅ COMPLETE
+  - CRITICAL FIX: Resolved persistent issue where MCP export generated empty .jsonl files despite correct manifest counts
+  - ROOT CAUSE FIXED: JournalRepository.getAllJournalEntries() Hive box initialization race condition resolved
+  - Hive adapter null safety: Fixed type casting errors in generated adapters for older journal entries
+  - Complete data pipeline restoration: Journal entries now successfully retrieved and exported
   - Unified export architecture: Merged standalone McpExportService with MIRA-based semantic export system
-  - Complete journal entry export as MCP Pointer + Node + Edge records with real data inclusion
+  - Complete journal entry export as MCP Pointer + Node + Edge records with actual journal content
   - Full text preservation in pointer records with SHA-256 content integrity
   - SAGE narrative structure (Situation, Action, Growth, Essence) extraction and preservation
   - Automatic relationship edge generation for entry→phase and entry→keyword connections
   - Deterministic ID generation ensuring stable exports across multiple runs
-  - McpEntryProjector adapter for efficient bulk journal entry processing
-  - Architecture fix: McpSettingsCubit now uses MiraService.exportToMcp() instead of stub service
+  - McpEntryProjector adapter with proper 'kind' field mapping for record routing
+  - Architecture integration: McpSettingsCubit uses MiraService.exportToMcp() with functioning data pipeline
+  - End-to-end verification: Complete MCP export flow now working from journal retrieval to file generation
 - **Arcform Widget Enhancements** (2025-09-21)
   - Enhanced phase recommendation modal with improved animations and visual feedback
   - Refined simple 3D arcform widget with better 3D transformations and interaction controls
