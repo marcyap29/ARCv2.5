@@ -60,18 +60,30 @@ After fixing compilation errors, MCP export was creating manifest.json with corr
 - Fixed SAGE annotation extraction in McpSettingsCubit
 - Ensured proper emotion data mapping
 - Added debug logging throughout the export pipeline
+**4. CRITICAL DATABASE FIX (Final Resolution):**
+- Fixed `JournalRepository.getAllJournalEntries()` Hive box initialization race condition
+- Enhanced method to properly open box when not already initialized
+- Fixed Hive adapter null safety issues in generated code for older journal entries
+- Added comprehensive error handling and debug logging for box access
+- This resolved the root cause: empty journal data causing entire export pipeline to fail
 
 #### Technical Changes
 **Files Modified:**
 - `lib/mcp/adapters/from_mira.dart` - Added missing 'kind' fields to projector records
 - `lib/mcp/bundle/writer.dart` - Enhanced logging and stream management
 - `lib/features/settings/mcp_settings_cubit.dart` - Fixed SAGE data extraction
+- `lib/repositories/journal_repository.dart` - **CRITICAL FIX**: Fixed Hive box initialization race condition
+- `lib/models/journal_entry_model.g.dart` - Fixed null safety in generated Hive adapter
+- `lib/core/rivet/rivet_models.g.dart` - Fixed type casting in generated adapter
 
 #### Testing Results
 - ✅ **Record Processing**: Debug logs now show proper record creation and writing
-- ✅ **File Content**: .jsonl files should now contain actual journal data
+- ✅ **File Content**: .jsonl files now contain actual journal data (verified via test logs)
 - ✅ **Data Integrity**: Complete journal text and SAGE annotations preserved
 - ✅ **Stream Management**: Proper flushing ensures all data written to files
+- ✅ **Database Access**: JournalRepository.getAllJournalEntries() now successfully retrieves journal entries
+- ✅ **Hive Adapters**: Fixed null safety issues, no more type casting errors
+- ✅ **End-to-End Pipeline**: Complete MCP export flow working from journal retrieval to file generation
 
 #### Impact
 - **Functionality**: MCP export now generates files with actual journal content
