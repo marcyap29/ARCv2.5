@@ -39,19 +39,22 @@ A Flutter-based AI companion app that provides life-aware assistance through jou
 
 ## 🔧 Recent Updates (September 2025)
 
-### MCP Export System Resolution (September 21, 2025)
-- **CRITICAL FIX**: Resolved issue where MCP export generated empty files instead of journal content
-- **Root Cause**: Missing 'kind' field in McpEntryProjector records caused bundle writer to ignore them
-- **Data Flow Fix**: Fixed SAGE annotation extraction from entry.sageAnnotation instead of metadata.narrative
+### MCP Export System Resolution (September 21, 2025) ✅ RESOLVED
+- **CRITICAL FIX COMPLETE**: Resolved the persistent issue where MCP export generated empty .jsonl files despite correct manifest counts
+- **Root Cause Identified**: JournalRepository.getAllJournalEntries() had Hive box initialization race condition
+- **Database Access Fix**: Enhanced getAllJournalEntries() with proper box opening logic and comprehensive error handling
+- **Hive Adapter Fixes**: Fixed null safety issues in generated adapters that prevented loading older journal entries
+- **Data Flow Restoration**: Fixed SAGE annotation extraction from entry.sageAnnotation instead of metadata.narrative
 - **Stream Management**: Added proper file flushing and enhanced error handling in bundle writer
-- **Complete Journal Entry Export**: Every confirmed journal entry now exported as comprehensive MCP records
+- **Complete Journal Entry Export**: Every confirmed journal entry now exported as comprehensive MCP records with actual content
 - **Pointer + Node + Edge Model**: Journal entries become evidence pointers, semantic nodes, and relationship edges
 - **Text Preservation**: Full journal text content preserved in pointer records with SHA-256 integrity
 - **SAGE Integration**: Situation, Action, Growth, Essence extracted and structured in node records
 - **Automatic Relationships**: Phase and keyword edges generated automatically from journal metadata
 - **Deterministic IDs**: Stable identifiers ensure consistent exports across multiple runs
-- **Architecture Fix**: McpSettingsCubit now uses MiraService.exportToMcp() instead of stub McpExportService
-- **Compilation Fixes**: Resolved all hot restart errors after interface changes, iOS builds successfully
+- **Architecture Integration**: McpSettingsCubit uses MiraService.exportToMcp() with functioning data pipeline
+- **Compilation Fixes**: Resolved all hot restart errors and type casting issues, iOS builds successfully
+- **Testing Verified**: Journal repository now successfully retrieves entries for MCP export processing
 
 ### MIRA-MCP Semantic Memory System Complete
 - **MIRA Core**: Complete semantic graph implementation with Hive storage backend
