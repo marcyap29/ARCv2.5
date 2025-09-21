@@ -19,7 +19,7 @@ class RivetEventAdapter extends TypeAdapter<RivetEvent> {
     return RivetEvent(
       date: fields[0] as DateTime,
       source: fields[1] as EvidenceSource,
-      keywords: (fields[2] as List).cast<String>().toSet(),
+      keywords: Set<String>.from((fields[2] as List?) ?? []),
       predPhase: fields[3] as String,
       refPhase: fields[4] as String,
       tolerance: (fields[5] as Map).cast<String, double>(),
