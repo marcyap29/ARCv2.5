@@ -45,7 +45,7 @@ class McpBundleWriter {
     await for (final rec in repo.exportAll()) {
       final kind = rec['kind'];
       // Stable key order for determinism
-      final line = JsonEncoder.withIndent(null, (o) => o).convert(_sortKeys(rec)) + '\n';
+      final line = '${JsonEncoder.withIndent(null, (o) => o).convert(_sortKeys(rec))}\n';
       final bytes = utf8.encode(line);
       switch (kind) {
         case 'node':
