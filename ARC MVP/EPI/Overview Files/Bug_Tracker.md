@@ -10,8 +10,8 @@
 - **MCP Export Resolution**: FIXED critical issue where MCP export generated empty files - now includes complete journal entry export as Pointer + Node + Edge records with full text preservation
 
 > **Last Updated**: September 21, 2025 (America/Los_Angeles)
-> **Total Items Tracked**: 49 (37 bugs + 12 enhancements)
-> **Critical Issues Fixed**: 37
+> **Total Items Tracked**: 50 (38 bugs + 12 enhancements)
+> **Critical Issues Fixed**: 38
 > **Enhancements Completed**: 12
 > **Status**: Production ready - Gemini API integration complete, MCP export/import functional, all systems operational ✅
 
@@ -67,6 +67,73 @@ Flutter build failed on iOS with compilation errors preventing app deployment. T
 - **Development**: iOS development workflow fully restored
 - **Deployment**: Reliable app builds and device installation
 - **Features**: Gemini AI integration now functional with proper error handling
+
+---
+
+## Bug ID: BUG-2025-09-21-001
+**Title**: MCP Export Generates Empty Files Instead of Journal Content
+
+**Type**: Bug
+**Priority**: P1 (Critical - Data Export Failure)
+**Status**: ✅ Fixed
+**Reporter**: User
+**Assignee**: Claude Code
+**Resolution Date**: 2025-09-21
+
+#### Description
+The MCP Export functionality in Settings was generating empty .jsonl files (nodes.jsonl, edges.jsonl, pointers.jsonl) instead of exporting actual journal entries. While the "Data Export" feature worked correctly, the MCP export was completely disconnected from real journal data.
+
+#### Steps to Reproduce
+1. Create several journal entries in the app
+2. Navigate to Settings → MCP Export & Import
+3. Select storage profile and export to MCP format
+4. Open the generated ZIP file
+5. Observe that all .jsonl files were empty despite having journal entries
+
+#### Root Cause Analysis
+**Architecture Issue**: Two separate, unconnected export systems:
+1. **Data Export Service** (`data_export_service.dart`) - Working correctly, used real `JournalRepository.getAllJournalEntries()`
+2. **MCP Export Service** (`mcp_export_service.dart`) - Using placeholder/stub classes, not connected to real data
+
+**Specific Problem**: `McpSettingsCubit` was using standalone `McpExportService` instead of the integrated `MiraService` that contains the enhanced `McpBundleWriter` with `McpEntryProjector`.
+
+#### Resolution
+**1. Unified Export Architecture:**
+- Updated `McpSettingsCubit` to use `MiraService.exportToMcp()` instead of standalone `McpExportService`
+- Connected to enhanced export system with `McpEntryProjector` for real data inclusion
+
+**2. Real Data Population:**
+- Added `_populateMiraWithJournalEntries()` method to convert actual journal entries into MIRA semantic nodes
+- Creates proper keyword nodes and relationship edges
+- Preserves SAGE narrative structure and all metadata
+
+**3. Proper MIRA Integration:**
+- Ensures MIRA service initialization before export
+- Uses deterministic ID generation for stable exports
+- Creates comprehensive Pointer + Node + Edge records for each journal entry
+
+#### Technical Changes
+**Files Modified:**
+- `lib/features/settings/mcp_settings_cubit.dart` - Complete rewrite of export method
+- `lib/features/journal/widgets/keyword_analysis_view.dart` - Fixed UI overflow bug
+
+**Architecture Changes:**
+- Removed dependency on stub `McpExportService` placeholder classes
+- Used enhanced `McpBundleWriter` with `McpEntryProjector` integration
+- Proper conversion of `JournalEntry` models to MIRA semantic nodes
+
+#### Testing Results
+- ✅ **MCP Export**: Now generates non-empty files with actual journal content
+- ✅ **Content Preservation**: Full journal text in pointer records with SHA-256 integrity
+- ✅ **Semantic Relationships**: Automatic keyword and phase edges generated
+- ✅ **SAGE Integration**: Situation, Action, Growth, Essence structure preserved
+- ✅ **Deterministic Export**: Stable IDs ensure consistent exports across runs
+
+#### Impact
+- **Functionality**: MCP export now works exactly like Data Export but in MCP format
+- **Interoperability**: Journal data now properly exportable to AI ecosystem in standard format
+- **User Experience**: Settings MCP export delivers expected results instead of empty files
+- **Data Integrity**: Complete journal content preservation with cryptographic verification
 
 ---
 
