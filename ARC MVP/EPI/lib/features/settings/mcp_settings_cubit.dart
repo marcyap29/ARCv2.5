@@ -5,6 +5,9 @@ import '../../mcp/import/mcp_import_service.dart';
 import '../../mcp/models/mcp_schemas.dart';
 import '../../repositories/journal_repository.dart';
 import '../../models/journal_entry_model.dart' as model;
+import '../../mira/mira_service.dart';
+import '../../mira/core/schema.dart';
+import '../../mira/core/ids.dart';
 
 /// State for MCP settings operations
 class McpSettingsState {
@@ -54,7 +57,6 @@ class McpSettingsState {
 /// Cubit for managing MCP export and import operations
 class McpSettingsCubit extends Cubit<McpSettingsState> {
   final JournalRepository _journalRepository;
-  McpExportService? _exportService;
   McpImportService? _importService;
 
   McpSettingsCubit({
@@ -64,10 +66,6 @@ class McpSettingsCubit extends Cubit<McpSettingsState> {
 
   /// Initialize MCP services
   void _initializeServices() {
-    _exportService = McpExportService(
-      storageProfile: state.selectedProfile,
-      notes: 'EPI ARC MVP Export - ${DateTime.now().toIso8601String()}',
-    );
     _importService = McpImportService();
   }
 
@@ -77,15 +75,12 @@ class McpSettingsCubit extends Cubit<McpSettingsState> {
     _initializeServices();
   }
 
-  /// Export journal data to MCP format
-  Future<McpExportResult?> exportToMcp({
+  /// Export journal data to MCP format using MIRA system
+  Future<Directory?> exportToMcp({
     required Directory outputDir,
     McpExportScope scope = McpExportScope.all,
     bool emitSuccessMessage = false,
   }) async {
-    if (_exportService == null) {
-      _initializeServices();
-    }
 
     emit(state.copyWith(
       isLoading: true,
@@ -99,54 +94,67 @@ class McpSettingsCubit extends Cubit<McpSettingsState> {
     try {
       // Get all journal entries
       final journalEntries = _journalRepository.getAllJournalEntries();
-      
+
       emit(state.copyWith(
         currentOperation: 'Processing ${journalEntries.length} journal entries...',
         progress: 0.2,
       ));
 
-      // Convert JournalEntry models to MCP format
-      final mcpJournalEntries = journalEntries.map((entry) => _convertToMcpJournalEntry(entry)).toList();
-      
-      // Export to MCP format
-      final result = await _exportService!.exportToMcp(
+      // Initialize MIRA service if needed
+      final miraService = MiraService.instance;
+
+      // Ensure MIRA is initialized
+      try {
+        await miraService.initialize();
+      } catch (e) {
+        // MIRA might already be initialized, continue
+      }
+
+      emit(state.copyWith(
+        currentOperation: 'Populating semantic memory...',
+        progress: 0.4,
+      ));
+
+      // Convert and populate MIRA with journal entries
+      await _populateMiraWithJournalEntries(miraService, journalEntries);
+
+      emit(state.copyWith(
+        currentOperation: 'Generating MCP bundle...',
+        progress: 0.7,
+      ));
+
+      // Export using MIRA's enhanced MCP export system
+      final resultDir = await miraService.exportToMcp(
         outputDir: outputDir,
-        scope: scope,
-        journalEntries: mcpJournalEntries,
+        storageProfile: _getStorageProfileString(state.selectedProfile),
+        includeEvents: false,
       );
 
-      if (result.success) {
-        // Always end loading states; optionally emit a success snackbar
-        if (emitSuccessMessage) {
-          emit(state.copyWith(
-            isLoading: false,
-            isExporting: false,
-            successMessage: 'MCP export completed successfully!\n'
-                'Bundle ID: ${result.bundleId}\n'
-                'Output: ${result.outputDir.path}\n'
-                    'Files: ${result.ndjsonFiles?.length ?? 0}',
-            progress: 1.0,
-            currentOperation: null,
-          ));
-        } else {
-          emit(state.copyWith(
-            isLoading: false,
-            isExporting: false,
-            progress: 1.0,
-            currentOperation: null,
-          ));
-        }
-        return result;
+      emit(state.copyWith(
+        currentOperation: 'Export completed',
+        progress: 1.0,
+      ));
+
+      // Always end loading states; optionally emit a success snackbar
+      if (emitSuccessMessage) {
+        emit(state.copyWith(
+          isLoading: false,
+          isExporting: false,
+          successMessage: 'MCP export completed successfully!\n'
+              'Output: ${resultDir.path}\n'
+              'Entries: ${journalEntries.length} journal entries exported',
+          progress: 1.0,
+          currentOperation: null,
+        ));
       } else {
         emit(state.copyWith(
           isLoading: false,
           isExporting: false,
-          error: 'Export failed: ${result.error}',
-          progress: 0.0,
+          progress: 1.0,
           currentOperation: null,
         ));
-        return null;
       }
+      return resultDir;
     } catch (e) {
       emit(state.copyWith(
         isLoading: false,
@@ -261,16 +269,93 @@ class McpSettingsCubit extends Cubit<McpSettingsState> {
     emit(const McpSettingsState());
   }
 
-  /// Convert JournalEntry model to MCP JournalEntry format
-  JournalEntry _convertToMcpJournalEntry(model.JournalEntry entry) {
-    // Create MCP JournalEntry object
-    return JournalEntry(
-      id: entry.id,
-      content: entry.content,
-      createdAt: entry.createdAt,
-      tags: entry.keywords.toSet(),
-      userId: 'default_user', // TODO: Get actual user ID
-      metadata: entry.metadata ?? {},
+  /// Populate MIRA repository with journal entries
+  Future<void> _populateMiraWithJournalEntries(MiraService miraService, List<model.JournalEntry> entries) async {
+    final repo = miraService.repo;
+
+    for (final entry in entries) {
+      // Convert journal entry to MIRA node
+      final miraNode = _convertToMiraNode(entry);
+      await repo.upsertNode(miraNode);
+
+      // Create keyword nodes and edges
+      for (final keyword in entry.keywords) {
+        final keywordNode = MiraNode.keyword(
+          text: keyword,
+          timestamp: entry.createdAt,
+        );
+        await repo.upsertNode(keywordNode);
+
+        // Create mentions edge
+        final edge = MiraEdge.mentions(
+          src: miraNode.id,
+          dst: keywordNode.id,
+          timestamp: entry.createdAt,
+        );
+        await repo.upsertEdge(edge);
+      }
+
+      // Create phase node and edge if phase info exists
+      if (entry.metadata != null && entry.metadata!['phase'] != null) {
+        final phase = entry.metadata!['phase'].toString();
+        final phaseNode = MiraNode.phase(
+          text: phase,
+          timestamp: entry.createdAt,
+          metadata: {'source': 'journal_entry'},
+        );
+        await repo.upsertNode(phaseNode);
+
+        final phaseEdge = MiraEdge.taggedAs(
+          src: miraNode.id,
+          dst: phaseNode.id,
+          timestamp: entry.createdAt,
+        );
+        await repo.upsertEdge(phaseEdge);
+      }
+    }
+  }
+
+  /// Convert journal entry model to MIRA node
+  MiraNode _convertToMiraNode(model.JournalEntry entry) {
+    // Extract SAGE narrative if available
+    final narrative = entry.metadata?['narrative'] as Map<String, dynamic>? ?? {};
+
+    return MiraNode.entry(
+      id: deterministicEntryId(entry.content, entry.createdAt),
+      narrative: entry.content,
+      keywords: entry.keywords,
+      timestamp: entry.createdAt,
+      metadata: {
+        'text': entry.content,
+        'journal': {'text': entry.content},
+        'narrative': {
+          'situation': narrative['situation'],
+          'action': narrative['action'],
+          'growth': narrative['growth'],
+          'essence': narrative['essence'],
+        },
+        'phase': entry.metadata?['phase'],
+        'phase_hint': entry.metadata?['phase_hint'],
+        'keywords': entry.keywords,
+        'emotions': entry.metadata?['emotions'] ?? {},
+        'original_entry_id': entry.id,
+        ...?entry.metadata,
+      },
     );
   }
+
+  /// Convert storage profile enum to string
+  String _getStorageProfileString(McpStorageProfile profile) {
+    switch (profile) {
+      case McpStorageProfile.minimal:
+        return 'minimal';
+      case McpStorageProfile.spaceSaver:
+        return 'space_saver';
+      case McpStorageProfile.balanced:
+        return 'balanced';
+      case McpStorageProfile.hiFidelity:
+        return 'hi_fidelity';
+    }
+  }
+
 }
