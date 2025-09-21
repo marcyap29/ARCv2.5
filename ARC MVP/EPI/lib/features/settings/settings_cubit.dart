@@ -1,12 +1,11 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:my_app/core/services/audio_service.dart';
-import 'package:my_app/services/data_export_service.dart';
 import 'package:my_app/repositories/journal_repository.dart';
 
 class SettingsState {
   final bool localOnlyMode;
   final bool biometricLock;
-  final bool exportDataEnabled;
+  final bool exportDataEnabled; // legacy JSON export removed; flag retained for compatibility
   final bool deleteDataEnabled;
   final bool isLoading;
   final String? error;
@@ -104,26 +103,7 @@ class SettingsCubit extends Cubit<SettingsState> {
     emit(state.copyWith(error: error));
   }
 
-  // Data export methods
-  Future<void> exportAllData(JournalRepository journalRepository) async {
-    setLoading(true);
-    setError(null);
-    
-    await DataExportService.exportAllData(
-      journalRepository: journalRepository,
-      onProgress: (message) {
-        // Could emit progress updates here if needed
-      },
-      onError: (error) {
-        setError(error);
-        setLoading(false);
-      },
-      onSuccess: (message) {
-        setLoading(false);
-        // Could emit success message here if needed
-      },
-    );
-  }
+  // Legacy JSON export removed
 
   Future<void> deleteAllData(JournalRepository journalRepository) async {
     setLoading(true);
@@ -139,7 +119,25 @@ class SettingsCubit extends Cubit<SettingsState> {
   }
 
   Future<Map<String, dynamic>> getStorageInfo(JournalRepository journalRepository) async {
-    return await DataExportService.getStorageInfo(journalRepository: journalRepository);
+    // Minimal local summary without legacy service dependency
+    try {
+      final entries = journalRepository.getAllJournalEntries();
+      final total = entries.length;
+      return {
+        'total_entries': total,
+        'total_snapshots': 0,
+        'estimated_size_bytes': total * 500,
+        'estimated_size_mb': ((total * 500) / (1024 * 1024)).toStringAsFixed(2),
+      };
+    } catch (e) {
+      return {
+        'error': 'Failed to get storage info: $e',
+        'total_entries': 0,
+        'total_snapshots': 0,
+        'estimated_size_bytes': 0,
+        'estimated_size_mb': '0.00',
+      };
+    }
   }
 
   // Personalization methods
