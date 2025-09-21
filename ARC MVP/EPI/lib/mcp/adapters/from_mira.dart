@@ -4,6 +4,7 @@
 import 'dart:convert';
 import 'package:crypto/crypto.dart';
 import '../../mira/core/schema.dart';
+import '../../mira/core/mira_repo.dart';
 import '../../mira/core/ids.dart';
 
 class MiraToMcpAdapter {
@@ -242,5 +243,83 @@ extension MiraEdgeExtensions on MiraEdge {
   /// Convert this edge to MCP format
   Map<String, dynamic> toMcp({String? encoderId}) {
     return MiraToMcpAdapter.edgeToMcp(this, encoderId: encoderId);
+  }
+}
+
+/// Projector to emit MCP pointers/nodes/edges for journal entry nodes
+class McpEntryProjector {
+  /// Collect MCP-shaped records for all entry nodes
+  /// Returns records in the order: pointer, node, edges (per entry)
+  static Future<List<Map<String, dynamic>>> projectAll({
+    required MiraRepo repo,
+    int limit = 100000,
+  }) async {
+    final out = <Map<String, dynamic>>[];
+
+    final entries = await repo.findNodesByType(NodeType.entry, limit: limit);
+    for (final entry in entries) {
+      final narrative = entry.narrative;
+      // 1) Pointer for text narrative (optional if empty)
+      Map<String, dynamic>? pointer;
+      if (narrative.isNotEmpty) {
+        pointer = MiraToMcpAdapter.contentToPointer(
+          content: narrative,
+          mediaType: 'text/plain',
+          metadata: {
+            'mira_node_id': entry.id,
+            'mira_node_type': entry.type.toString(),
+          },
+        );
+        pointer['kind'] = 'pointer';  // Add missing kind field
+        out.add(pointer);
+      }
+
+      // 2) Node (journal_entry) with optional pointer_ref
+      final node = MiraToMcpAdapter.nodeToMcp(entry);
+      node['kind'] = 'node';  // Add missing kind field
+      node['type'] = 'journal_entry';
+      if (pointer != null && pointer['id'] is String) {
+        node['pointer_ref'] = pointer['id'];
+      }
+      out.add(node);
+
+      // 3) Edges to keywords
+      final keywords = entry.keywords;
+      for (final kw in keywords) {
+        if (kw.trim().isEmpty) continue;
+        final kwId = stableKeywordId(kw);
+        out.add({
+          'kind': 'edge',
+          'source': entry.id,
+          'target': kwId,
+          'relation': 'mentions',
+          'timestamp': entry.timestamp.toUtc().toIso8601String(),
+          'schema_version': 'edge.v1',
+          'weight': 1.0,
+          'metadata': {
+            'keyword_text': kw,
+          },
+        });
+      }
+
+      // 4) Edge to phase if present
+      final phase = entry.metadata['phase'];
+      if (phase is String && phase.trim().isNotEmpty) {
+        final phaseId = stableKeywordId('phase_${phase.trim()}');
+        out.add({
+          'kind': 'edge',
+          'source': entry.id,
+          'target': phaseId,
+          'relation': 'taggedAs',
+          'timestamp': entry.timestamp.toUtc().toIso8601String(),
+          'schema_version': 'edge.v1',
+          'metadata': {
+            'phase': phase,
+          },
+        });
+      }
+    }
+
+    return out;
   }
 }

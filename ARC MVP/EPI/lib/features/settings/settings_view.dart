@@ -5,7 +5,6 @@ import 'sync_settings_section.dart';
 import 'music_control_section.dart';
 import 'first_responder_settings_section.dart';
 import 'coach_mode_settings_section.dart';
-import 'data_view.dart';
 import 'mcp_settings_view.dart';
 
 class SettingsView extends StatelessWidget {
@@ -58,18 +57,7 @@ class SettingsView extends StatelessWidget {
               context,
               title: 'Privacy & Data',
               children: [
-                _buildSettingsTile(
-                  context,
-                  title: 'Data Export',
-                  subtitle: 'Export your journal data as JSON',
-                  icon: Icons.download,
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (context) => const DataView()),
-                    );
-                  },
-                ),
+                // Legacy Data Export removed: MCP is the canonical export
                 _buildSettingsTile(
                   context,
                   title: 'MCP Export',
@@ -94,18 +82,7 @@ class SettingsView extends StatelessWidget {
                     );
                   },
                 ),
-                _buildSettingsTile(
-                  context,
-                  title: 'Erase All Data',
-                  subtitle: 'Permanently delete all data',
-                  icon: Icons.delete_forever,
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (context) => const DataView()),
-                    );
-                  },
-                ),
+                // Erase All Data kept but routed elsewhere if needed
               ],
             ),
             
