@@ -2,7 +2,7 @@
 
 > **Purpose**: Comprehensive technical reference for implementing MIRA graph visualization and insights
 > **Audience**: AI systems, developers implementing MIRA UI components
-> **Last Updated**: September 2025
+> **Last Updated**: September 21, 2025
 
 ---
 
@@ -10,7 +10,7 @@
 
 This document provides a complete technical overview of the MIRA-MCP semantic memory system implemented in the EPI ARC MVP. MIRA (semantic memory graph) and MCP (Memory Bundle v1 serialization) work together to provide context-aware AI responses and semantic data export/import capabilities.
 
-**Key Achievement**: Full bidirectional semantic memory system with deterministic export/import, enabling AI context sharing and persistent semantic knowledge graphs.
+**Key Achievement**: Full bidirectional semantic memory system with deterministic export/import, enabling AI context sharing and persistent semantic knowledge graphs. Now includes complete journal entry export as MCP Pointer + Node + Edge records with full text preservation and automatic relationship generation.
 
 ---
 
