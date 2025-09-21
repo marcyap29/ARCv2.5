@@ -49,6 +49,7 @@ A Flutter-based AI companion app that provides life-aware assistance through jou
 - **Automatic Relationships**: Phase and keyword edges generated automatically from journal metadata
 - **Deterministic IDs**: Stable identifiers ensure consistent exports across multiple runs
 - **Architecture Fix**: McpSettingsCubit now uses MiraService.exportToMcp() instead of stub McpExportService
+- **Compilation Fixes**: Resolved all hot restart errors after interface changes, iOS builds successfully
 
 ### MIRA-MCP Semantic Memory System Complete
 - **MIRA Core**: Complete semantic graph implementation with Hive storage backend
@@ -181,15 +182,14 @@ The app includes Qwen 2.5 1.5B Instruct model files in `assets/models/qwen/`:
 
 ## 📊 Recent Changes
 
-### Latest Commit: Fix critical linter errors and improve Qwen integration
+### Latest Commit: Fix MCP export compilation errors after interface changes
 
-- ✅ Fixed 202 critical linter errors
-- ✅ Removed GemmaAdapter references
-- ✅ Added missing math imports
-- ✅ Fixed type conversion issues
-- ✅ Stubbed ML Kit classes
-- ✅ Enhanced Qwen integration
-- ✅ Improved error handling
+- ✅ Updated mcp_settings_view.dart to handle Directory return type from exportToMcp()
+- ✅ Removed McpEntryProjector stub code from from_mira.dart (now in bundle/writer.dart)
+- ✅ Fixed various type and import issues in MCP modules
+- ✅ Cleaned up unused imports and dead code
+- ✅ Ensured iOS build compiles successfully after hot restart
+- ✅ Unified MCP export architecture fully operational
 
 ## 📦 MCP Export System
 
