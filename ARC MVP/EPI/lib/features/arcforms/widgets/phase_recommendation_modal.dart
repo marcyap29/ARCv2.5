@@ -156,7 +156,7 @@ class _PhaseRecommendationModalState extends State<PhaseRecommendationModal>
                       ),
                       child: Row(
                         children: [
-                          Icon(
+                          const Icon(
                             Icons.lightbulb_outline,
                             color: kcPrimaryColor,
                             size: 20,

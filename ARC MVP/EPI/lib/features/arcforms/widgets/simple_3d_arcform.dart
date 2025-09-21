@@ -280,7 +280,7 @@ class _Simple3DArcformState extends State<Simple3DArcform>
             onScaleStart: _handleScaleStart,
             onScaleUpdate: _handleScaleUpdate,
             onScaleEnd: _handleScaleEnd,
-            child: Container(
+            child: SizedBox(
               width: double.infinity,
               height: double.infinity,
               child: AnimatedBuilder(
@@ -338,7 +338,7 @@ class _Simple3DArcformState extends State<Simple3DArcform>
                 children: [
                   Row(
                     children: [
-                      Icon(
+                      const Icon(
                         Icons.view_in_ar,
                         color: kcPrimaryColor,
                         size: 18,
@@ -491,7 +491,7 @@ class SpherePainter extends CustomPainter {
     
     // Create gradient for 3D sphere effect
     final gradient = RadialGradient(
-      center: Alignment(-0.3, -0.3), // Light source from top-left
+      center: const Alignment(-0.3, -0.3), // Light source from top-left
       radius: 1.0,
       colors: [
         color.withOpacity(0.9), // Highlight
