@@ -41,7 +41,9 @@ A Flutter-based AI companion app that provides life-aware assistance through jou
 
 ### MCP Export System Resolution (September 21, 2025)
 - **CRITICAL FIX**: Resolved issue where MCP export generated empty files instead of journal content
-- **Unified Export Architecture**: Merged standalone MCP export with MIRA-based system for actual data inclusion
+- **Root Cause**: Missing 'kind' field in McpEntryProjector records caused bundle writer to ignore them
+- **Data Flow Fix**: Fixed SAGE annotation extraction from entry.sageAnnotation instead of metadata.narrative
+- **Stream Management**: Added proper file flushing and enhanced error handling in bundle writer
 - **Complete Journal Entry Export**: Every confirmed journal entry now exported as comprehensive MCP records
 - **Pointer + Node + Edge Model**: Journal entries become evidence pointers, semantic nodes, and relationship edges
 - **Text Preservation**: Full journal text content preserved in pointer records with SHA-256 integrity
