@@ -10,10 +10,66 @@
 - **MCP Export Resolution**: FIXED critical issue where MCP export generated empty files - now includes complete journal entry export as Pointer + Node + Edge records with full text preservation
 
 > **Last Updated**: September 21, 2025 (America/Los_Angeles)
-> **Total Items Tracked**: 50 (38 bugs + 12 enhancements)
-> **Critical Issues Fixed**: 38
+> **Total Items Tracked**: 51 (39 bugs + 12 enhancements)
+> **Critical Issues Fixed**: 39
 > **Enhancements Completed**: 12
 > **Status**: Production ready - Gemini API integration complete, MCP export/import functional, all systems operational ✅
+
+---
+
+## Bug ID: BUG-2025-09-21-002
+**Title**: MCP Export Interface Changes Cause Hot Restart Compilation Errors
+
+**Type**: Bug
+**Priority**: P2 (Medium - Development workflow interruption)
+**Status**: ✅ Fixed
+**Reporter**: User
+**Assignee**: Claude Code
+**Resolution Date**: 2025-09-21
+
+#### Description
+After implementing the unified MCP export architecture (BUG-2025-09-21-001), hot restart in Flutter development failed with compilation errors in `mcp_settings_view.dart`. The view was still expecting the old `McpExportResult` object but the updated cubit now returns a `Directory` directly.
+
+#### Steps to Reproduce
+1. Complete the MCP export architecture unification fix
+2. Attempt hot restart in Flutter development environment
+3. Observe compilation errors in mcp_settings_view.dart
+
+#### Error Details
+```
+lib/features/settings/mcp_settings_view.dart:341:37: Error: The getter 'success' isn't defined for the class 'Directory'
+      if (result != null && result.success) {
+                                    ^^^^^^^
+lib/features/settings/mcp_settings_view.dart:342:34: Error: The getter 'outputDir' isn't defined for the class 'Directory'
+        final bundleDir = result.outputDir;
+                                 ^^^^^^^^^
+```
+
+#### Root Cause Analysis
+**Interface Change**: When unifying the MCP export architecture, the return type of `McpSettingsCubit.exportToMcp()` was changed from `McpExportResult` to `Directory` to match the new `MiraService.exportToMcp()` interface, but the view layer wasn't updated accordingly.
+
+#### Resolution
+**Updated mcp_settings_view.dart:**
+- Changed `if (result != null && result.success)` to `if (result != null)`
+- Used `result` directly as `bundleDir` instead of `result.outputDir`
+- Generated `bundleId` locally instead of using `result.bundleId`
+- Maintained all existing functionality while adapting to new interface
+
+#### Technical Changes
+**Files Modified:**
+- `lib/features/settings/mcp_settings_view.dart` - Updated to handle Directory return type
+- Various MCP modules cleaned up unused imports and code
+
+#### Testing Results
+- ✅ **Compilation**: iOS build succeeds without errors
+- ✅ **Hot Restart**: Flutter development workflow restored
+- ✅ **Functionality**: MCP export maintains all expected behavior
+- ✅ **Code Quality**: Removed dead code and unused imports
+
+#### Impact
+- **Development Workflow**: Hot restart functionality restored
+- **Code Consistency**: Interface changes properly propagated through all layers
+- **Maintainability**: Cleaner codebase with reduced technical debt
 
 ---
 

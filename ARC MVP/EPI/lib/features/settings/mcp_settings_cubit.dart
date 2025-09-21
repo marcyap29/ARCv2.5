@@ -95,6 +95,14 @@ class McpSettingsCubit extends Cubit<McpSettingsState> {
       // Get all journal entries
       final journalEntries = _journalRepository.getAllJournalEntries();
 
+      // Debug logging
+      print('🔍 MCP Export Debug: Found ${journalEntries.length} journal entries');
+      for (int i = 0; i < journalEntries.length && i < 3; i++) {
+        final entry = journalEntries[i];
+        print('🔍 Entry $i: id=${entry.id}, content length=${entry.content.length}, keywords=${entry.keywords.length}');
+        print('🔍 Entry $i SAGE: ${entry.sageAnnotation != null ? "present" : "null"}');
+      }
+
       emit(state.copyWith(
         currentOperation: 'Processing ${journalEntries.length} journal entries...',
         progress: 0.2,
@@ -124,11 +132,13 @@ class McpSettingsCubit extends Cubit<McpSettingsState> {
       ));
 
       // Export using MIRA's enhanced MCP export system
+      print('🔍 Starting MCP export to: ${outputDir.path}');
       final resultDir = await miraService.exportToMcp(
         outputDir: outputDir,
         storageProfile: _getStorageProfileString(state.selectedProfile),
         includeEvents: false,
       );
+      print('🔍 MCP export completed, result dir: ${resultDir.path}');
 
       emit(state.copyWith(
         currentOperation: 'Export completed',
@@ -273,9 +283,12 @@ class McpSettingsCubit extends Cubit<McpSettingsState> {
   Future<void> _populateMiraWithJournalEntries(MiraService miraService, List<model.JournalEntry> entries) async {
     final repo = miraService.repo;
 
+    print('🔍 MIRA Population: Processing ${entries.length} entries');
+
     for (final entry in entries) {
       // Convert journal entry to MIRA node
       final miraNode = _convertToMiraNode(entry);
+      print('🔍 Created MIRA node: ${miraNode.id}, type=${miraNode.type}, content length=${miraNode.data['text']?.toString().length ?? 0}');
       await repo.upsertNode(miraNode);
 
       // Create keyword nodes and edges
@@ -317,8 +330,8 @@ class McpSettingsCubit extends Cubit<McpSettingsState> {
 
   /// Convert journal entry model to MIRA node
   MiraNode _convertToMiraNode(model.JournalEntry entry) {
-    // Extract SAGE narrative if available
-    final narrative = entry.metadata?['narrative'] as Map<String, dynamic>? ?? {};
+    // Extract SAGE narrative from sageAnnotation field
+    final sageAnnotation = entry.sageAnnotation;
 
     return MiraNode.entry(
       id: deterministicEntryId(entry.content, entry.createdAt),
@@ -329,16 +342,21 @@ class McpSettingsCubit extends Cubit<McpSettingsState> {
         'text': entry.content,
         'journal': {'text': entry.content},
         'narrative': {
-          'situation': narrative['situation'],
-          'action': narrative['action'],
-          'growth': narrative['growth'],
-          'essence': narrative['essence'],
+          'situation': sageAnnotation?.situation ?? '',
+          'action': sageAnnotation?.action ?? '',
+          'growth': sageAnnotation?.growth ?? '',
+          'essence': sageAnnotation?.essence ?? '',
         },
         'phase': entry.metadata?['phase'],
         'phase_hint': entry.metadata?['phase_hint'],
         'keywords': entry.keywords,
-        'emotions': entry.metadata?['emotions'] ?? {},
+        'emotions': {
+          'emotion': entry.emotion,
+          'emotionReason': entry.emotionReason,
+          'mood': entry.mood,
+        },
         'original_entry_id': entry.id,
+        'sage_confidence': sageAnnotation?.confidence,
         ...?entry.metadata,
       },
     );
