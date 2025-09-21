@@ -5,7 +5,6 @@
 // This mirrors MCP's guardrails: versioned records, append-only, encoder lineage,
 // pointer durability, UTC timestamps.
 
-import 'dart:convert';
 import 'schemas.dart';
 
 abstract class McpValidator {

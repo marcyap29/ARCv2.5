@@ -279,7 +279,7 @@ class MiraEdge {
     Map<String, dynamic>? data,
     String? id,
   }) {
-    final edgeId = id ?? '${src}_${label.name}_${dst}';
+    final edgeId = id ?? '${src}_${label.name}_$dst';
     return MiraEdge(
       id: edgeId,
       src: src,
