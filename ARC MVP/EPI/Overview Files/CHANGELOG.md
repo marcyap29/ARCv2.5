@@ -15,13 +15,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - Settings UI for MIRA feature flag configuration
 
 ### Added
-- **Enhanced MCP Journal Export System** (2025-09-21)
-  - Complete journal entry export as MCP Pointer + Node + Edge records
+- **MCP Export System Resolution** (2025-09-21)
+  - CRITICAL FIX: Resolved issue where MCP export generated empty .jsonl files instead of actual journal content
+  - Unified export architecture: Merged standalone McpExportService with MIRA-based semantic export system
+  - Complete journal entry export as MCP Pointer + Node + Edge records with real data inclusion
   - Full text preservation in pointer records with SHA-256 content integrity
   - SAGE narrative structure (Situation, Action, Growth, Essence) extraction and preservation
   - Automatic relationship edge generation for entry→phase and entry→keyword connections
   - Deterministic ID generation ensuring stable exports across multiple runs
   - McpEntryProjector adapter for efficient bulk journal entry processing
+  - Architecture fix: McpSettingsCubit now uses MiraService.exportToMcp() instead of stub service
 - **Arcform Widget Enhancements** (2025-09-21)
   - Enhanced phase recommendation modal with improved animations and visual feedback
   - Refined simple 3D arcform widget with better 3D transformations and interaction controls
@@ -47,6 +50,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
   - Integration with existing SAGE, Arcform, and Phase detection workflows
 
 ### Fixed
+- **UI Overflow in Keyword Analysis View** (2025-09-21)
+  - Fixed RenderFlex overflow error (77 pixels) in keyword analysis progress view
+  - Wrapped Column widget in SingleChildScrollView for proper content scrolling
+  - Improved user experience on smaller screens during journal analysis
 - **MCP Import iOS Sandbox Path Resolution** (2025-09-20)
   - Fixed critical PathNotFoundException during MCP import on iOS devices
   - MiraWriter now uses getApplicationDocumentsDirectory() instead of hardcoded development paths
