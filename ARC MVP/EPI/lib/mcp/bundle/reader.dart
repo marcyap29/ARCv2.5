@@ -91,7 +91,7 @@ class McpBundleReader {
 
     // Validate checksum if requested
     if (validateChecksums) {
-      final expectedChecksum = manifest['checksums']['${filename}'] as String?;
+      final expectedChecksum = manifest['checksums'][filename] as String?;
       if (expectedChecksum != null) {
         final actualChecksum = await _calculateFileChecksum(file);
         if (actualChecksum != expectedChecksum) {

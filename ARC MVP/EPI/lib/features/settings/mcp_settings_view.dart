@@ -338,19 +338,22 @@ class _McpSettingsViewContent extends StatelessWidget {
       );
 
       // On success: zip the folder and open share sheet so user chooses destination in Files
-      if (result != null && result.success) {
-        final bundleDir = result.outputDir;
+      if (result != null) {
+        final bundleDir = result;
+        // Generate a simple bundle ID based on timestamp
+        final bundleId = 'mcp_${DateTime.now().millisecondsSinceEpoch}';
+
         // Create ZIP of the export directory
         final zipFile = await ZipUtils.zipDirectory(
           bundleDir,
-          zipFileName: 'mcp_${result.bundleId}.zip',
+          zipFileName: '$bundleId.zip',
         );
         // Open iOS share sheet so user can save to Files
         await Share.shareXFiles([
           XFile(
             zipFile.path,
             mimeType: 'application/zip',
-            name: 'mcp_${result.bundleId}.zip',
+            name: '$bundleId.zip',
           ),
         ]);
 
@@ -358,7 +361,7 @@ class _McpSettingsViewContent extends StatelessWidget {
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Export saved: mcp_${result.bundleId}.zip'),
+              content: Text('Export saved: $bundleId.zip'),
               backgroundColor: Colors.green,
               duration: const Duration(seconds: 4),
             ),
