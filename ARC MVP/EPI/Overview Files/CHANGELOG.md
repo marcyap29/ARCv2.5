@@ -14,6 +14,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - Vision-language model integration
 - Settings UI for MIRA feature flag configuration
 
+### Fixed
+- **MCP Export Embeddings Generation** (2025-01-22)
+  - Fixed empty `embeddings.jsonl` files in MCP exports (was 0 bytes)
+  - Enabled `includeEmbeddingPlaceholders: true` in export settings
+  - Implemented content-based embedding generation with 384-dimensional vectors
+  - Added proper embedding metadata (doc_scope, model_id, dimensions)
+  - Embeddings now based on actual journal entry content for AI ecosystem integration
+
 ### Added
 - **FFmpeg iOS Simulator Compatibility Fix** (2025-09-21) ✅ COMPLETE
   - CRITICAL FIX: Resolved FFmpeg framework iOS simulator architecture incompatibility
