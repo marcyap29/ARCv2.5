@@ -38,7 +38,10 @@ dependencies:
   crypto: ^3.0.3
   photo_manager: ^3.5.0
   args: ^2.4.2
-  ffmpeg_kit_flutter_new_min_gpl: ^1.1.0
+  # FFmpeg temporarily disabled due to iOS simulator architecture incompatibility
+  # See Bug_Tracker-3.md for details. FFmpeg is currently unused (stub implementation).
+  # Re-enable when video processing features are actually implemented.
+  # ffmpeg_kit_flutter_new_min_gpl: ^1.1.0
   # google_mlkit_text_recognition: ^0.13.0
   # google_mlkit_face_detection: ^0.11.1
   mime: ^1.0.6

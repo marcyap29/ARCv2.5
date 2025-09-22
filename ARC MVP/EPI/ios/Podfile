@@ -29,13 +29,10 @@ flutter_ios_podfile_setup
 
 target 'Runner' do
   use_frameworks!
-  
+
   # MediaPipe Tasks for Gemma models (temporarily disabled due to linker errors)
   # pod 'MediaPipeTasksGenAI', '~> 0.10.24'
   # pod 'MediaPipeTasksText', '~> 0.10.21'
-  
-  # Real llama.cpp for actual Qwen model inference
-  # We'll integrate llama.cpp source files directly
 
   flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
   target 'RunnerTests' do
@@ -44,44 +41,71 @@ target 'Runner' do
 end
 
 post_install do |installer|
+  # 1) Normalize all Pods: sim + device, no sim arch exclusions
   installer.pods_project.targets.each do |target|
     flutter_additional_ios_build_settings(target)
-    
-    # Fix iOS deployment target to minimum 16.0 for all pods
+
     target.build_configurations.each do |config|
       config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '16.0'
-      
-      # MediaPipe specific linker fixes
-      if target.name.start_with?('MediaPipe')
-        config.build_settings['ENABLE_BITCODE'] = 'NO'
-        config.build_settings['OTHER_LDFLAGS'] = ['$(inherited)', '-lc++', '-ObjC']
-        config.build_settings['LIBRARY_SEARCH_PATHS'] = ['$(inherited)']
-        config.build_settings['CLANG_CXX_LANGUAGE_STANDARD'] = 'c++17'
-        config.build_settings['CLANG_CXX_LIBRARY'] = 'libc++'
+      config.build_settings['SUPPORTED_PLATFORMS'] = 'iphonesimulator iphoneos'
+      # Override for FFmpeg - exclude arm64 from simulator
+      if target.name.include?('ffmpeg_kit')
+        config.build_settings['EXCLUDED_ARCHS[sdk=iphonesimulator*]'] = 'arm64'
+      else
+        config.build_settings['EXCLUDED_ARCHS[sdk=iphonesimulator*]'] = ''
       end
-      
-      # Additional fixes for common pod issues
-      if target.name == 'permission_handler_apple'
-        config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '16.0'
-      end
-      
-      if target.name.start_with?('Sentry')
-        config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '16.0'
+      config.build_settings.delete('VALID_ARCHS')
+      config.build_settings.delete('VALID_ARCHS[sdk=iphonesimulator*]')
+      config.build_settings.delete('VALID_ARCHS[sdk=iphoneos*]')
+
+      # Additional FFmpeg framework simulator compatibility fix
+      if target.name.include?('ffmpeg_kit')
+        config.build_settings['ONLY_ACTIVE_ARCH'] = 'YES'
+        config.build_settings['BUILD_LIBRARY_FOR_DISTRIBUTION'] = 'NO'
       end
     end
   end
-  
-  # Fix for Xcode 15+ compatibility
+
+  # 2) Xcode 15+ / Runner target tweaks
   installer.generated_projects.each do |project|
-    project.targets.each do |target|
-      target.build_configurations.each do |config|
+    project.targets.each do |t|
+      t.build_configurations.each do |config|
         config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '16.0'
-        # Force linking for MediaPipe
-        if target.name == 'Runner'
+        if t.name == 'Runner'
           config.build_settings['ENABLE_BITCODE'] = 'NO'
           config.build_settings['OTHER_LDFLAGS'] = ['$(inherited)', '-lc++', '-ObjC']
           config.build_settings['CLANG_CXX_LANGUAGE_STANDARD'] = 'c++17'
           config.build_settings['CLANG_CXX_LIBRARY'] = 'libc++'
+        end
+      end
+    end
+  end
+
+  # 3) Make Runner ignore plugin-bundled frameworks (use Pods XCFramework slices)
+  installer.aggregate_targets.each do |agg|
+    next unless agg.name == 'Pods-Runner'
+    agg.user_targets.each do |user_target|
+      next unless user_target.name == 'Runner'
+
+      # Clean search paths so Xcode doesn’t crawl the plugin’s Frameworks dir
+      user_target.build_configurations.each do |config|
+        config.build_settings['FRAMEWORK_SEARCH_PATHS'] = ['$(inherited)']
+        config.build_settings['LIBRARY_SEARCH_PATHS']   = ['$(inherited)']
+        paths = Array(config.build_settings['FRAMEWORK_SEARCH_PATHS'])
+        paths.reject! { |p| p.to_s.include?('.symlinks/plugins/ffmpeg_kit_flutter_new_min_gpl/ios/Frameworks') }
+        config.build_settings['FRAMEWORK_SEARCH_PATHS'] = paths.uniq
+      end
+
+      # Remove any direct linkage to the plugin-bundled ffmpegkit.framework
+      # so the linker uses the Pod’s xcframework slice instead.
+      user_target.build_phases.each do |phase|
+        next unless phase.respond_to?(:files)
+        phase.files.to_a.each do |bf|
+          ref = bf.file_ref
+          next unless ref && ref.path
+          if ref.path.to_s.include?('ffmpegkit.framework')
+            phase.remove_build_file(bf)
+          end
         end
       end
     end

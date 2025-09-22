@@ -97,8 +97,18 @@ enum ProxyQuality {
   high,   // 1080p
 }
 
-/// FFmpeg-based implementation (stub)
-/// In production, this would use ffmpeg_kit_flutter
+/// FFmpeg-based implementation (STUB IMPLEMENTATION)
+///
+/// IMPORTANT: This is currently a placeholder implementation with mock data.
+/// The ffmpeg_kit_flutter_new_min_gpl dependency has been temporarily removed
+/// due to iOS simulator architecture incompatibility issues.
+///
+/// When video processing is actually needed:
+/// 1. Re-enable ffmpeg_kit_flutter_new_min_gpl in pubspec.yaml
+/// 2. Implement actual FFmpeg video processing calls
+/// 3. Test on iOS physical devices (simulator may have issues)
+///
+/// See Bug_Tracker-3.md for details on the FFmpeg iOS simulator fix.
 class FFmpegVideoKeyframeService implements VideoKeyframeService {
   static const String _tempDirectoryName = 'video_processing';
   

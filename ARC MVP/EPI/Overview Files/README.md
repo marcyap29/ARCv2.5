@@ -6,13 +6,14 @@ A Flutter-based AI companion app that provides life-aware assistance through jou
 
 **✅ Production Ready** - MIRA-MCP semantic memory system complete, Gemini API integrated
 
-- **Build Status:** ✅ iOS builds successfully (24.1s, 43.0MB)
+- **Build Status:** ✅ iOS builds successfully (simulator + device)
+- **iOS Simulator:** ✅ FFmpeg compatibility issue resolved - full simulator development workflow
 - **Compilation:** ✅ All syntax errors resolved
 - **AI Integration:** ✅ Gemini API with MIRA-enhanced ArcLLM + semantic context
 - **MIRA System:** ✅ Complete semantic memory graph with Hive storage backend
 - **MCP Support:** ✅ Full Memory Bundle v1 bidirectional export/import
 - **Feature Flags:** ✅ Controlled rollout system for MIRA capabilities
-- **Deployment:** ✅ Ready for physical iOS device installation
+- **Deployment:** ✅ Ready for iOS simulator and physical device installation
 - **Test Status:** ⚠️ Some test failures (non-critical, mock setup issues)
 
 ## 🏗️ Architecture
@@ -38,6 +39,16 @@ A Flutter-based AI companion app that provides life-aware assistance through jou
 - **Rule-Based Adapter** - Deterministic fallback if API unavailable
 
 ## 🔧 Recent Updates (September 2025)
+
+### FFmpeg iOS Simulator Compatibility Fix (September 21, 2025) ✅ RESOLVED
+- **CRITICAL FIX COMPLETE**: Resolved FFmpeg framework iOS simulator architecture incompatibility blocking development
+- **Root Cause**: ffmpeg_kit_flutter_new_min_gpl framework built for iOS device but not compatible with simulator
+- **Analysis**: Confirmed FFmpeg is currently unused (stub implementation in video_keyframe_service.dart)
+- **Pragmatic Solution**: Temporarily removed unused FFmpeg dependency from pubspec.yaml
+- **Impact**: Restored complete iOS simulator development workflow without functionality loss
+- **Verification**: App builds and runs successfully on iOS simulator
+- **Documentation**: Comprehensive fix documentation in Bug_Tracker-3.md
+- **Future Ready**: Clear implementation path when video processing features are actually needed
 
 ### MCP Export System Resolution (September 21, 2025) ✅ RESOLVED
 - **CRITICAL FIX COMPLETE**: Resolved the persistent issue where MCP export generated empty .jsonl files despite correct manifest counts
