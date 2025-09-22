@@ -15,6 +15,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - Settings UI for MIRA feature flag configuration
 
 ### Added
+- **FFmpeg iOS Simulator Compatibility Fix** (2025-09-21) ✅ COMPLETE
+  - CRITICAL FIX: Resolved FFmpeg framework iOS simulator architecture incompatibility
+  - ROOT CAUSE: ffmpeg_kit_flutter_new_min_gpl built for iOS device but not simulator compatible
+  - PRAGMATIC SOLUTION: Temporarily removed unused FFmpeg dependency (was placeholder code)
+  - IMPACT: Restored complete iOS simulator development workflow
+  - VERIFICATION: App builds and runs successfully on iOS simulator without functionality loss
+  - DOCUMENTATION: Created Bug_Tracker-3.md with comprehensive fix documentation
+  - FUTURE READY: Clear path for proper FFmpeg integration when video features needed
+  - DEPENDENCIES: Cleaned pubspec.yaml, iOS Pods, and build artifacts
+
 - **MCP Export System Resolution** (2025-09-21) ✅ COMPLETE
   - CRITICAL FIX: Resolved persistent issue where MCP export generated empty .jsonl files despite correct manifest counts
   - ROOT CAUSE FIXED: JournalRepository.getAllJournalEntries() Hive box initialization race condition resolved

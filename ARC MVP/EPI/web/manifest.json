@@ -1,13 +1,16 @@
 {
-    "name": "my_app",
-    "short_name": "my_app",
+    "name": "EPI - ARC MVP",
+    "short_name": "EPI",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "background_color": "#000000",
+    "theme_color": "#000000",
+    "description": "EPI - Enhanced Personal Intelligence App",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
+    "scope": "/",
+    "lang": "en",
+    "categories": ["productivity", "lifestyle"],
     "icons": [
         {
             "src": "icons/Icon-192.png",
