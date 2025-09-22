@@ -87,7 +87,7 @@ class _FRDashboardState extends State<FRDashboard> {
         children: [
           Row(
             children: [
-              Icon(
+              const Icon(
                 Icons.person,
                 color: kcAccentColor,
                 size: 24,
@@ -350,7 +350,7 @@ class _FRDashboardState extends State<FRDashboard> {
             children: [
               Row(
                 children: [
-                  Icon(Icons.psychology, color: Colors.orange, size: 20),
+                  const Icon(Icons.psychology, color: Colors.orange, size: 20),
                   const SizedBox(width: 8),
                   Text(
                     'High Stress Detected',

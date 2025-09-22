@@ -380,7 +380,7 @@ class _FRProfileSetupState extends State<FRProfileSetup> {
                         autoRedactNames: value,
                       );
                     },
-                    activeColor: kcPrimaryColor,
+                    activeThumbColor: kcPrimaryColor,
                   ),
                   SwitchListTile(
                     title: Text(
@@ -397,7 +397,7 @@ class _FRProfileSetupState extends State<FRProfileSetup> {
                         autoRedactLocations: value,
                       );
                     },
-                    activeColor: kcPrimaryColor,
+                    activeThumbColor: kcPrimaryColor,
                   ),
                   SwitchListTile(
                     title: Text(
@@ -414,7 +414,7 @@ class _FRProfileSetupState extends State<FRProfileSetup> {
                         shareByDefaultRedacted: value,
                       );
                     },
-                    activeColor: kcPrimaryColor,
+                    activeThumbColor: kcPrimaryColor,
                   ),
                 ],
               );

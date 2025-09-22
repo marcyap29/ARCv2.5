@@ -1,12 +1,11 @@
 import 'package:flutter/material.dart';
-import '../../../core/mira/mira_cubit.dart';
 import '../../../core/mira/mira_feature_flags.dart';
 import '../../../shared/app_colors.dart';
 import '../../../shared/text_style.dart';
 
 /// Card showing keywords that often precede breakthrough moments
 class PrecursorsCard extends StatelessWidget {
-  const PrecursorsCard({Key? key}) : super(key: key);
+  const PrecursorsCard({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -31,7 +30,7 @@ class PrecursorsCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              Icon(Icons.psychology, color: kcSuccessColor, size: 20),
+              const Icon(Icons.psychology, color: kcSuccessColor, size: 20),
               const SizedBox(width: 8),
               Text(
                 'Breakthrough Precursors',
@@ -64,7 +63,7 @@ class PrecursorsCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              Icon(Icons.psychology, color: kcSuccessColor, size: 20),
+              const Icon(Icons.psychology, color: kcSuccessColor, size: 20),
               const SizedBox(width: 8),
               Text(
                 'Breakthrough Precursors',
@@ -76,7 +75,7 @@ class PrecursorsCard extends StatelessWidget {
           Center(
             child: Column(
               children: [
-                Icon(
+                const Icon(
                   Icons.psychology_outlined,
                   size: 32,
                   color: kcSecondaryTextColor,
@@ -112,7 +111,7 @@ class PrecursorsCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              Icon(Icons.psychology, color: kcSuccessColor, size: 20),
+              const Icon(Icons.psychology, color: kcSuccessColor, size: 20),
               const SizedBox(width: 8),
               Text(
                 'Breakthrough Precursors',
@@ -131,7 +130,7 @@ class PrecursorsCard extends StatelessWidget {
             style: captionStyle(context).copyWith(color: kcSecondaryTextColor),
           ),
           const SizedBox(height: 16),
-          ...precursors.take(5).map((precursor) => _buildPrecursorItem(context, precursor)).toList(),
+          ...precursors.take(5).map((precursor) => _buildPrecursorItem(context, precursor)),
           if (precursors.length > 5) ...[
             const SizedBox(height: 8),
             Text(
@@ -168,7 +167,7 @@ class PrecursorsCard extends StatelessWidget {
         : displayKeyword;
 
     // Calculate precursor strength (0-1)
-    final maxScore = 10.0; // Adjust based on expected max score
+    const maxScore = 10.0; // Adjust based on expected max score
     final strength = (score / maxScore).clamp(0.0, 1.0);
 
     return Padding(
@@ -216,7 +215,7 @@ class PrecursorsCard extends StatelessWidget {
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(
+                const Icon(
                   Icons.trending_up,
                   size: 12,
                   color: kcSuccessColor,

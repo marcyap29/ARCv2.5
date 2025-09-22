@@ -361,7 +361,7 @@ class _JournalEditViewState extends State<JournalEditView> {
                         right: 8,
                         child: Container(
                           padding: const EdgeInsets.all(4),
-                          decoration: BoxDecoration(
+                          decoration: const BoxDecoration(
                             color: kcPrimaryColor,
                             shape: BoxShape.circle,
                           ),

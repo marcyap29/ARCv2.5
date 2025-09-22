@@ -305,7 +305,7 @@ class _VoiceRecordingWidgetState extends State<VoiceRecordingWidget> {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(
+          const Icon(
             Icons.timer,
             color: kcAccentColor,
             size: 16,
@@ -341,7 +341,7 @@ class _VoiceRecordingWidgetState extends State<VoiceRecordingWidget> {
         children: [
           Row(
             children: [
-              Icon(
+              const Icon(
                 Icons.check_circle,
                 color: kcAccentColor,
                 size: 20,
@@ -420,7 +420,7 @@ class _VoiceRecordingWidgetState extends State<VoiceRecordingWidget> {
         children: [
           Row(
             children: [
-              Icon(
+              const Icon(
                 Icons.text_fields,
                 color: kcAccentColor,
                 size: 20,
@@ -461,7 +461,7 @@ class _VoiceRecordingWidgetState extends State<VoiceRecordingWidget> {
       ),
       child: Row(
         children: [
-          SizedBox(
+          const SizedBox(
             width: 16,
             height: 16,
             child: CircularProgressIndicator(

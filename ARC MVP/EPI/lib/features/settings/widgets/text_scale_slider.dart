@@ -53,7 +53,7 @@ class TextScaleSlider extends StatelessWidget {
             onChanged: onScaleChanged,
           ),
         ),
-        Row(
+        const Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text(

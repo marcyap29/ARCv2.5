@@ -4,7 +4,6 @@
 /// for Nodes, Edges, Pointers, Embeddings, and Manifest records.
 library;
 
-import 'dart:convert';
 
 /// MCP Node v1 Schema
 class McpNode {

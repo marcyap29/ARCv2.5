@@ -216,21 +216,17 @@ class McpImportService {
         errors.add('Manifest missing required field: version');
       }
 
-      if (manifest.createdAt == null) {
-        errors.add('Manifest missing required field: created_at');
-      }
-
       // Validate schema version compatibility
       if (!_isSchemaVersionCompatible(manifest.schemaVersion)) {
         errors.add('Incompatible schema version: ${manifest.schemaVersion}');
       }
 
       // Record warnings for optional sections
-      if (manifest.encoderRegistry == null || manifest.encoderRegistry!.isEmpty) {
+      if (manifest.encoderRegistry.isEmpty) {
         warnings.add('Manifest missing encoder_registry - lineage tracking limited');
       }
 
-      if (manifest.casRemotes == null || manifest.casRemotes!.isEmpty) {
+      if (manifest.casRemotes.isEmpty) {
         warnings.add('Manifest missing cas_remotes - CAS resolution disabled');
       }
 
@@ -265,11 +261,6 @@ class McpImportService {
     McpManifest manifest,
     List<String> errors,
   ) async {
-    if (manifest.checksums == null) {
-      errors.add('Manifest missing checksums - cannot verify integrity');
-      return false;
-    }
-
     final files = ['nodes.jsonl', 'edges.jsonl', 'pointers.jsonl', 'embeddings.jsonl'];
     bool allValid = true;
 
@@ -494,11 +485,6 @@ class McpImportService {
     Map<String, int> actualCounts,
     List<String> warnings,
   ) async {
-    if (manifest.counts == null) {
-      warnings.add('Manifest missing counts - cannot verify import completeness');
-      return;
-    }
-
     final expectedCounts = {
       'nodes': manifest.counts.nodes,
       'edges': manifest.counts.edges,
@@ -540,38 +526,22 @@ class McpImportService {
 
   /// Check if schema version is compatible
   bool _isSchemaVersionCompatible(String version) {
-    // Accept both semantic versioning (1.0.0) and legacy format (manifest.v1)
-    if (version.isEmpty) return false;
-
-    // Accept semantic versioning format (1.x.x)
+    // Accept same major version (1.x.x)
     final parts = version.split('.');
-    if (parts.length >= 2) {
-      try {
-        final major = int.parse(parts[0]);
-        return major == 1; // Compatible with MCP v1.x
-      } catch (e) {
-        // Fall through to legacy format check
-      }
+    if (parts.isEmpty) return false;
+    
+    try {
+      final major = int.parse(parts[0]);
+      return major == 1; // Compatible with MCP v1.x
+    } catch (e) {
+      return false;
     }
-
-    // Accept legacy format (manifest.v1, manifest.v1.0, etc.)
-    if (version.startsWith('manifest.v1')) {
-      return true;
-    }
-
-    // Accept other common v1 formats
-    if (version == 'v1' || version == '1' || version == 'manifest.v1.0') {
-      return true;
-    }
-
-    return false;
   }
 
   /// Validate pointer structure
   bool _isValidPointer(McpPointer pointer) {
     // Require ID and descriptor, but not source_uri
-    return pointer.id.isNotEmpty && 
-           pointer.descriptor != null &&
-           (pointer.descriptor?.isNotEmpty ?? false);
+    return pointer.id.isNotEmpty &&
+           (pointer.descriptor.isNotEmpty ?? false);
   }
 }

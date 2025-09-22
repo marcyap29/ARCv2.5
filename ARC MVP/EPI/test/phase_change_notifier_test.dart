@@ -19,7 +19,7 @@ void main() {
                       reason: 'Phase changed from Discovery to Expansion (score: 0.900)',
                     );
                   },
-                  child: Text('Test Notification'),
+                  child: const Text('Test Notification'),
                 );
               },
             ),
@@ -51,7 +51,7 @@ void main() {
                       reason: 'No phase change needed - current phase remains optimal',
                     );
                   },
-                  child: Text('Test Stability'),
+                  child: const Text('Test Stability'),
                 );
               },
             ),
@@ -82,7 +82,7 @@ void main() {
                       toPhase: 'Breakthrough',
                     );
                   },
-                  child: Text('Test Celebration'),
+                  child: const Text('Test Celebration'),
                 );
               },
             ),

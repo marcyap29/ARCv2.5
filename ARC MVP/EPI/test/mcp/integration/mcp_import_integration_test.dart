@@ -2,7 +2,6 @@ import 'dart:io';
 import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:my_app/mcp/import/mcp_import_service.dart';
-import 'package:my_app/mcp/models/mcp_schemas.dart';
 
 /// Integration tests for the complete MCP import pipeline
 /// 
@@ -37,7 +36,7 @@ void main() {
       await _createGoldenTestBundle(bundleDir);
 
       // Step 2: Import with default options
-      final options = const McpImportOptions(
+      const options = McpImportOptions(
         dryRun: false,
         strictMode: true,
         rebuildIndexes: true,
@@ -72,7 +71,7 @@ void main() {
       await _createGoldenTestBundle(bundleDir);
 
       // Step 2: Perform dry run
-      final options = const McpImportOptions(dryRun: true);
+      const options = McpImportOptions(dryRun: true);
       final result = await importService.importBundle(bundleDir, options);
 
       // Step 3: Verify validation success without data import
@@ -90,7 +89,7 @@ void main() {
       await _createInvalidBundle(bundleDir);
 
       // Step 2: Attempt import
-      final options = const McpImportOptions();
+      const options = McpImportOptions();
       final result = await importService.importBundle(bundleDir, options);
 
       // Step 3: Verify appropriate error handling
@@ -105,7 +104,7 @@ void main() {
 
       // Step 2: Import with performance tracking
       final stopwatch = Stopwatch()..start();
-      final options = const McpImportOptions();
+      const options = McpImportOptions();
       final result = await importService.importBundle(bundleDir, options);
       stopwatch.stop();
 
@@ -124,7 +123,7 @@ void main() {
       await _createPrivacyTestBundle(bundleDir);
 
       // Step 2: Import bundle
-      final options = const McpImportOptions();
+      const options = McpImportOptions();
       final result = await importService.importBundle(bundleDir, options);
 
       // Step 3: Verify privacy level handling
@@ -139,7 +138,7 @@ void main() {
       await _createSchemaValidationBundle(bundleDir);
 
       // Step 2: Import with strict validation
-      final options = const McpImportOptions(strictMode: true);
+      const options = McpImportOptions(strictMode: true);
       final result = await importService.importBundle(bundleDir, options);
 
       // Step 3: Verify schema compliance

@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'dart:typed_data';
 import 'package:image/image.dart' as img;
 
@@ -16,7 +15,7 @@ class MediaSanitizer {
       // Decode the image
       final image = img.decodeImage(imageData);
       if (image == null) {
-        throw MediaSanitizerException('Failed to decode image');
+        throw const MediaSanitizerException('Failed to decode image');
       }
       
       // Check if image needs downscaling
@@ -134,7 +133,7 @@ class MediaSanitizer {
     try {
       final image = img.decodeImage(imageData);
       if (image == null) {
-        throw MediaSanitizerException('Failed to decode image for thumbnail');
+        throw const MediaSanitizerException('Failed to decode image for thumbnail');
       }
       
       // Calculate thumbnail dimensions maintaining aspect ratio

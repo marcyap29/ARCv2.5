@@ -5,7 +5,6 @@ import 'package:my_app/features/journal/widgets/reason_picker.dart';
 import 'package:my_app/features/journal/widgets/keyword_analysis_view.dart';
 import 'package:my_app/features/journal/journal_capture_cubit.dart';
 import 'package:my_app/features/journal/keyword_extraction_cubit.dart';
-import 'package:my_app/features/home/home_view.dart';
 import 'package:my_app/repositories/journal_repository.dart';
 import 'package:my_app/shared/app_colors.dart';
 import 'package:my_app/shared/text_style.dart';

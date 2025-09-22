@@ -18,7 +18,7 @@ class PhaseChangeNotifier {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
+          const Row(
             children: [
               Icon(
                 Icons.auto_awesome,
@@ -35,16 +35,16 @@ class PhaseChangeNotifier {
               ),
             ],
           ),
-          SizedBox(height: 4),
+          const SizedBox(height: 4),
           Text(
             'Your journey has evolved from $fromPhase to $toPhase',
-            style: TextStyle(fontSize: 14),
+            style: const TextStyle(fontSize: 14),
           ),
           if (reason.isNotEmpty) ...[
-            SizedBox(height: 2),
+            const SizedBox(height: 2),
             Text(
               reason,
-              style: TextStyle(
+              style: const TextStyle(
                 fontSize: 12,
                 fontStyle: FontStyle.italic,
                 color: Colors.white70,
@@ -59,7 +59,7 @@ class PhaseChangeNotifier {
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
       ),
-      margin: EdgeInsets.all(16),
+      margin: const EdgeInsets.all(16),
       action: SnackBarAction(
         label: 'Dismiss',
         textColor: Colors.white,
@@ -83,18 +83,18 @@ class PhaseChangeNotifier {
     final snackBar = SnackBar(
       content: Row(
         children: [
-          Icon(
+          const Icon(
             Icons.anchor,
             color: Colors.white,
             size: 20,
           ),
-          SizedBox(width: 8),
+          const SizedBox(width: 8),
           Expanded(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
+                const Text(
                   'Phase Stability',
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
@@ -103,7 +103,7 @@ class PhaseChangeNotifier {
                 ),
                 Text(
                   'Your $currentPhase phase continues to serve you well',
-                  style: TextStyle(fontSize: 12),
+                  style: const TextStyle(fontSize: 12),
                 ),
               ],
             ),
@@ -111,12 +111,12 @@ class PhaseChangeNotifier {
         ],
       ),
       backgroundColor: getPhaseColor(currentPhase).withOpacity(0.8),
-      duration: Duration(seconds: 2),
+      duration: const Duration(seconds: 2),
       behavior: SnackBarBehavior.floating,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(8),
       ),
-      margin: EdgeInsets.all(16),
+      margin: const EdgeInsets.all(16),
     );
     
     ScaffoldMessenger.of(context).showSnackBar(snackBar);
@@ -165,7 +165,7 @@ class PhaseChangeNotifier {
               color: getPhaseColor(toPhase),
               size: 28,
             ),
-            SizedBox(width: 12),
+            const SizedBox(width: 12),
             Text(
               'Phase Evolution!',
               style: TextStyle(
@@ -180,17 +180,17 @@ class PhaseChangeNotifier {
           children: [
             Text(
               'Your journey has evolved from $fromPhase to $toPhase',
-              style: TextStyle(fontSize: 16),
+              style: const TextStyle(fontSize: 16),
               textAlign: TextAlign.center,
             ),
-            SizedBox(height: 16),
+            const SizedBox(height: 16),
             Container(
-              padding: EdgeInsets.all(12),
+              padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
                 color: getPhaseColor(toPhase).withOpacity(0.1),
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: Text(
+              child: const Text(
                 'This new phase represents a significant step in your personal growth journey.',
                 style: TextStyle(
                   fontSize: 14,

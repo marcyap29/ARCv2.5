@@ -367,7 +367,7 @@ class MiraService {
         final precursorEnd = entryTime.subtract(const Duration(days: 3));
         
         // Find entries in precursor window
-        final precursorEntries = _repo.getEntriesInWindow(Duration(days: 2))
+        final precursorEntries = _repo.getEntriesInWindow(const Duration(days: 2))
             .where((id) {
               final node = _repo.getNode(id);
               if (node != null) {
@@ -378,7 +378,7 @@ class MiraService {
             })
             .toList();
         
-        precursorWindows[Duration(days: 2)] = precursorEntries;
+        precursorWindows[const Duration(days: 2)] = precursorEntries;
       }
     }
     
@@ -429,7 +429,7 @@ class MiraService {
     final normalizedKeywords = candidateKeywords.map((k) => _normalizeKeywordId(k)).toList();
     
     // Calculate prior mentions (30-day window)
-    final priorWindow = const Duration(days: 30);
+    const priorWindow = Duration(days: 30);
     final priorCutoff = now.subtract(priorWindow);
     final mentionEdges = _repo.getMentionEdges();
     
@@ -446,7 +446,7 @@ class MiraService {
     priorMentions = math.min(priorMentions / normalizedKeywords.length, 10.0) / 10.0;
     
     // Calculate co-occurrence lift (14-day window)
-    final cooccurWindow = const Duration(days: 14);
+    const cooccurWindow = Duration(days: 14);
     final cooccurCutoff = now.subtract(cooccurWindow);
     final cooccurEdges = _repo.getCooccurrenceEdges();
     

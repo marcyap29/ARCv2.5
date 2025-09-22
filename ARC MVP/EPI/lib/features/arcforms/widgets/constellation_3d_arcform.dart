@@ -1,12 +1,10 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:vector_math/vector_math_64.dart' as vm;
 import 'package:my_app/features/arcforms/arcform_mvp_implementation.dart';
 import 'package:my_app/features/arcforms/arcform_renderer_state.dart';
 import 'package:my_app/features/arcforms/services/emotional_valence_service.dart';
 import 'package:my_app/features/arcforms/geometry/geometry_layouts.dart';
-import 'package:my_app/features/arcforms/widgets/spherical_node_widget.dart';
 import 'package:my_app/shared/app_colors.dart';
 import 'package:my_app/shared/text_style.dart';
 

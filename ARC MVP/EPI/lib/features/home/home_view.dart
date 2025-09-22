@@ -46,7 +46,7 @@ class _HomeViewState extends State<HomeView> {
   late HomeCubit _homeCubit;
   
   List<TabItem> get _tabs {
-    final baseTabs = const [
+    const baseTabs = [
       TabItem(icon: Icons.edit_note, text: 'Journal'),
       TabItem(icon: Icons.auto_graph, text: 'Phase'),
       TabItem(icon: Icons.timeline, text: 'Timeline'),
@@ -64,7 +64,7 @@ class _HomeViewState extends State<HomeView> {
   }
 
   List<String> get _tabNames {
-    final baseNames = const ['Journal', 'Phase', 'Timeline', 'Insights', 'Settings'];
+    const baseNames = ['Journal', 'Phase', 'Timeline', 'Insights', 'Settings'];
     if (AppFlags.isLumaraEnabled) {
       return [...baseNames, 'LUMARA'];
     }
@@ -163,12 +163,12 @@ class _HomeViewState extends State<HomeView> {
                         constraints: BoxConstraints(
                           maxWidth: MediaQuery.of(context).size.width * 0.6,
                         ),
-                        child: Row(
+                        child: const Row(
                           mainAxisSize: MainAxisSize.min,
                           mainAxisAlignment: MainAxisAlignment.end,
                           children: [
-                            const FRStatusIndicator(),
-                            const CoachModeStatusIndicator(),
+                            FRStatusIndicator(),
+                            CoachModeStatusIndicator(),
                           ],
                         ),
                       ),

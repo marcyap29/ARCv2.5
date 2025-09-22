@@ -1,12 +1,11 @@
 import 'package:flutter/material.dart';
-import '../../../core/mira/mira_cubit.dart';
 import '../../../core/mira/mira_feature_flags.dart';
 import '../../../shared/app_colors.dart';
 import '../../../shared/text_style.dart';
 
 /// Card showing top themes (keywords) for the current time window
 class ThemesCard extends StatelessWidget {
-  const ThemesCard({Key? key}) : super(key: key);
+  const ThemesCard({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -31,7 +30,7 @@ class ThemesCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              Icon(Icons.topic, color: kcPrimaryColor, size: 20),
+              const Icon(Icons.topic, color: kcPrimaryColor, size: 20),
               const SizedBox(width: 8),
               Text(
                 'This Week\'s Themes',
@@ -64,7 +63,7 @@ class ThemesCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              Icon(Icons.topic, color: kcPrimaryColor, size: 20),
+              const Icon(Icons.topic, color: kcPrimaryColor, size: 20),
               const SizedBox(width: 8),
               Text(
                 'This Week\'s Themes',
@@ -76,7 +75,7 @@ class ThemesCard extends StatelessWidget {
           Center(
             child: Column(
               children: [
-                Icon(
+                const Icon(
                   Icons.topic_outlined,
                   size: 32,
                   color: kcSecondaryTextColor,
@@ -112,7 +111,7 @@ class ThemesCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              Icon(Icons.topic, color: kcPrimaryColor, size: 20),
+              const Icon(Icons.topic, color: kcPrimaryColor, size: 20),
               const SizedBox(width: 8),
               Text(
                 'This Week\'s Themes',
@@ -126,7 +125,7 @@ class ThemesCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 16),
-          ...themes.take(5).map((theme) => _buildThemeItem(context, theme)).toList(),
+          ...themes.take(5).map((theme) => _buildThemeItem(context, theme)),
           if (themes.length > 5) ...[
             const SizedBox(height: 8),
             Text(
@@ -163,7 +162,7 @@ class ThemesCard extends StatelessWidget {
         : displayKeyword;
 
     // Calculate relative intensity (0-1)
-    final maxScore = 10.0; // Adjust based on expected max score
+    const maxScore = 10.0; // Adjust based on expected max score
     final intensity = (score / maxScore).clamp(0.0, 1.0);
 
     return Padding(

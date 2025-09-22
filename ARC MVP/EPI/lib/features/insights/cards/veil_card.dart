@@ -6,7 +6,7 @@ import '../info/info_icon.dart';
 /// VEIL card for rhythm and restoration insights
 /// Currently shows as placeholder "not yet active"
 class VeilCard extends StatelessWidget {
-  const VeilCard({Key? key}) : super(key: key);
+  const VeilCard({super.key});
 
   @override
   Widget build(BuildContext context) {

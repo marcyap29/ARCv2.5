@@ -77,7 +77,7 @@ class RivetService {
     final newAlign = (1 - beta) * state.align + beta * sample;
 
     // Update TRACE with saturating accumulator
-    final baseWeight = 1.0;
+    const baseWeight = 1.0;
     final independenceBoost = _independenceMultiplier(event, lastEvent);
     final noveltyBoost = _noveltyMultiplier(event, lastEvent);
     final evidenceIncrement = baseWeight * independenceBoost * noveltyBoost;
@@ -122,8 +122,8 @@ class RivetService {
     // Log gate decision for debugging
     print('DEBUG RIVET: ALIGN=${newAlign.toStringAsFixed(3)}, '
           'TRACE=${newTrace.toStringAsFixed(3)}, '
-          'Sustain=${newSustainCount}/$W, '
-          'Independent=${updatedSawIndependent}, '
+          'Sustain=$newSustainCount/$W, '
+          'Independent=$updatedSawIndependent, '
           'Gate=${gateOpen ? "OPEN" : "CLOSED"}${whyNot != null ? " ($whyNot)" : ""}');
 
     return RivetGateDecision(

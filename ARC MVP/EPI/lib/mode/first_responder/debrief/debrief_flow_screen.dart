@@ -117,7 +117,7 @@ class _DebriefFlowScreenState extends State<DebriefFlowScreen> {
   }
 
   Widget _buildProgressIndicator(DebriefStep currentStep) {
-    final steps = DebriefStep.values;
+    const steps = DebriefStep.values;
     final currentIndex = steps.indexOf(currentStep);
     
     return Container(
@@ -342,7 +342,7 @@ class _DebriefFlowScreenState extends State<DebriefFlowScreen> {
         
         // Body score slider
         Text(
-          'Overall feeling: ${_bodyScore}/5',
+          'Overall feeling: $_bodyScore/5',
           style: heading3Style(context).copyWith(
             color: Colors.white,
             fontSize: 18,

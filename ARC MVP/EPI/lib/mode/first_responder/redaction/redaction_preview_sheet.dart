@@ -90,7 +90,7 @@ class _RedactionPreviewSheetState extends State<RedactionPreviewSheet> {
   @override
   Widget build(BuildContext context) {
     return SafeArea(
-      child: Container(
+      child: SizedBox(
         height: MediaQuery.of(context).size.height * 0.85,
         child: Column(
           children: [
@@ -187,8 +187,8 @@ class _RedactionPreviewSheetState extends State<RedactionPreviewSheet> {
                       length: 2,
                       child: Column(
                         children: [
-                          TabBar(
-                            tabs: const [
+                          const TabBar(
+                            tabs: [
                               Tab(text: 'Original'),
                               Tab(text: 'Redacted'),
                             ],

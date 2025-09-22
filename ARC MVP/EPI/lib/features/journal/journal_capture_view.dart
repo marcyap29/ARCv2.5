@@ -412,7 +412,7 @@ class _JournalCaptureViewState extends State<JournalCaptureView> {
                                     style: heading1Style(context).copyWith(fontSize: 18),
                                   ),
                                   IconButton(
-                                    icon: Icon(
+                                    icon: const Icon(
                                       Icons.keyboard_arrow_up,
                                       color: kcPrimaryColor,
                                     ),

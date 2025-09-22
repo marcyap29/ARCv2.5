@@ -81,7 +81,7 @@ class _AboutViewState extends State<AboutView> {
                           ),
                         ),
                         const SizedBox(height: 8),
-                        Text(
+                        const Text(
                           'Evolving Personal Intelligence',
                           style: TextStyle(
                             color: Colors.white70,
@@ -92,7 +92,7 @@ class _AboutViewState extends State<AboutView> {
                         if (_appInfo != null && _appInfo!['version'] != null)
                           Text(
                             'Version ${_appInfo!['version']} (${_appInfo!['build_number']})',
-                            style: TextStyle(
+                            style: const TextStyle(
                               color: Colors.white54,
                               fontSize: 14,
                             ),

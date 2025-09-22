@@ -781,7 +781,7 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
       
       // Get all remaining entries
       final journalRepository = JournalRepository();
-      final remainingEntries = journalRepository.getAllJournalEntries();
+      final remainingEntries = journalRepository.getAllJournalEntriesSync();
       
       print('DEBUG: Remaining entries count: ${remainingEntries.length}');
       

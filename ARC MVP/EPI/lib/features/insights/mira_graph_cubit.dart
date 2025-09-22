@@ -118,7 +118,7 @@ class MiraGraphCubit extends Cubit<MiraGraphState> {
     emit(MiraGraphLoading());
 
     try {
-      final entries = _journalRepository.getAllJournalEntries();
+      final entries = _journalRepository.getAllJournalEntriesSync();
       print('DEBUG: MIRA Graph - Found ${entries.length} journal entries');
       
       if (entries.isEmpty) {

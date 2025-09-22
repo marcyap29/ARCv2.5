@@ -20,7 +20,7 @@ class HashUtils {
 
   /// Compute SHA-256 hash of a stream (for large files)
   static Future<String> sha256HashStream(Stream<List<int>> stream) async {
-    final digest = sha256;
+    const digest = sha256;
     final chunks = <List<int>>[];
     
     await for (final chunk in stream) {

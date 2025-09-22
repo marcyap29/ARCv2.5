@@ -14,7 +14,7 @@ class EnhancedEncryptionService {
   static const int _defaultRotationDays = 30;
 
   static const FlutterSecureStorage _secureStorage = FlutterSecureStorage(
-    aOptions: const AndroidOptions(
+    aOptions: AndroidOptions(
       encryptedSharedPreferences: true,
     ),
   );

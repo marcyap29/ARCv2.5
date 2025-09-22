@@ -52,16 +52,15 @@ class SettingsView extends StatelessWidget {
             
             const SizedBox(height: 32),
             
-            // Privacy Section
+            // MCP Memory Bundle Section
             _buildSection(
               context,
-              title: 'Privacy & Data',
+              title: 'Memory Bundle (MCP)',
               children: [
-                // Legacy Data Export removed: MCP is the canonical export
                 _buildSettingsTile(
                   context,
-                  title: 'MCP Export',
-                  subtitle: 'Export to MCP Memory Bundle format',
+                  title: 'Export MCP Memory Bundle',
+                  subtitle: 'Export your journal memories in portable MCP format',
                   icon: Icons.cloud_upload,
                   onTap: () {
                     Navigator.push(
@@ -72,8 +71,8 @@ class SettingsView extends StatelessWidget {
                 ),
                 _buildSettingsTile(
                   context,
-                  title: 'MCP Import',
-                  subtitle: 'Import from MCP Memory Bundle',
+                  title: 'Import MCP Memory Bundle',
+                  subtitle: 'Import memories from MCP bundle',
                   icon: Icons.cloud_download,
                   onTap: () {
                     Navigator.push(
@@ -82,7 +81,40 @@ class SettingsView extends StatelessWidget {
                     );
                   },
                 ),
-                // Erase All Data kept but routed elsewhere if needed
+                _buildSettingsTile(
+                  context,
+                  title: 'Validate MCP Bundle',
+                  subtitle: 'Check bundle health and auto-repair if needed',
+                  icon: Icons.health_and_safety,
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const McpSettingsView()),
+                    );
+                  },
+                ),
+              ],
+            ),
+            
+            const SizedBox(height: 32),
+            
+            // Data Management Section
+            _buildSection(
+              context,
+              title: 'Data Management',
+              children: [
+                _buildSettingsTile(
+                  context,
+                  title: 'Erase All Data',
+                  subtitle: 'Permanently delete all journal entries and data',
+                  icon: Icons.delete_forever,
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const DataView()),
+                    );
+                  },
+                ),
               ],
             ),
             

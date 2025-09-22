@@ -127,9 +127,9 @@ class MediaPreviewDialog extends StatelessWidget {
             size: 80,
           ),
           const SizedBox(height: 16),
-          Text(
+          const Text(
             'Audio Recording',
-            style: const TextStyle(
+            style: TextStyle(
               color: Colors.white,
               fontSize: 24,
               fontWeight: FontWeight.w600,
@@ -179,28 +179,28 @@ class MediaPreviewDialog extends StatelessWidget {
   
   Widget _buildImageContent() {
     // TODO: Implement actual image display
-    return Center(
+    return const Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(
+          Icon(
             Icons.image,
             color: Colors.green,
             size: 80,
           ),
-          const SizedBox(height: 16),
+          SizedBox(height: 16),
           Text(
             'Image',
-            style: const TextStyle(
+            style: TextStyle(
               color: Colors.white,
               fontSize: 24,
               fontWeight: FontWeight.w600,
             ),
           ),
-          const SizedBox(height: 8),
+          SizedBox(height: 8),
           Text(
             'Preview not implemented yet',
-            style: const TextStyle(
+            style: TextStyle(
               color: Colors.white70,
               fontSize: 16,
             ),
@@ -221,9 +221,9 @@ class MediaPreviewDialog extends StatelessWidget {
             size: 80,
           ),
           const SizedBox(height: 16),
-          Text(
+          const Text(
             'Video',
-            style: const TextStyle(
+            style: TextStyle(
               color: Colors.white,
               fontSize: 24,
               fontWeight: FontWeight.w600,
@@ -272,28 +272,28 @@ class MediaPreviewDialog extends StatelessWidget {
   }
   
   Widget _buildFileContent() {
-    return Center(
+    return const Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(
+          Icon(
             Icons.insert_drive_file,
             color: Colors.orange,
             size: 80,
           ),
-          const SizedBox(height: 16),
+          SizedBox(height: 16),
           Text(
             'File',
-            style: const TextStyle(
+            style: TextStyle(
               color: Colors.white,
               fontSize: 24,
               fontWeight: FontWeight.w600,
             ),
           ),
-          const SizedBox(height: 8),
+          SizedBox(height: 8),
           Text(
             'Preview not available',
-            style: const TextStyle(
+            style: TextStyle(
               color: Colors.white70,
               fontSize: 16,
             ),

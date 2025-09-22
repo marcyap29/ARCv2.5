@@ -1,7 +1,6 @@
 import 'dart:io';
 import 'dart:convert';
 import 'package:my_app/mcp/import/ndjson_stream_reader.dart';
-import 'package:my_app/mcp/models/mcp_schemas.dart';
 
 /// Validation error details
 class ValidationError {
@@ -125,7 +124,7 @@ class McpImportValidator {
         
         // Limit error collection to prevent memory issues
         if (errors.length > 10000) {
-          warnings.add(ValidationError(
+          warnings.add(const ValidationError(
             message: 'Too many errors, stopping validation early',
             severity: 'warning',
           ));
@@ -437,7 +436,7 @@ class McpImportValidator {
       return;
     }
     
-    final narrative = value as Map<String, dynamic>;
+    final narrative = value;
     final sageFields = ['situation', 'action', 'growth', 'essence'];
     
     for (final field in sageFields) {
@@ -491,7 +490,7 @@ class McpImportValidator {
       return;
     }
     
-    final keywords = value as List;
+    final keywords = value;
     for (int i = 0; i < keywords.length; i++) {
       if (keywords[i] is! String) {
         errors.add(ValidationError(
@@ -516,7 +515,7 @@ class McpImportValidator {
       return;
     }
     
-    final emotions = value as Map<String, dynamic>;
+    final emotions = value;
     
     // Validate valence and arousal if present
     if (emotions.containsKey('valence')) {
@@ -598,7 +597,7 @@ class McpImportValidator {
       return;
     }
     
-    final integrity = value as Map<String, dynamic>;
+    final integrity = value;
     
     // Validate hash algorithm and value
     if (integrity.containsKey('algorithm') && integrity['algorithm'] is! String) {
@@ -632,7 +631,7 @@ class McpImportValidator {
       return;
     }
     
-    final privacy = value as Map<String, dynamic>;
+    final privacy = value;
     
     // Validate boolean privacy flags
     final boolFields = ['has_pii', 'has_faces', 'has_location'];
@@ -673,7 +672,7 @@ class McpImportValidator {
       return;
     }
     
-    final vector = value as List;
+    final vector = value;
     if (vector.isEmpty) {
       errors.add(ValidationError(
         message: 'Vector cannot be empty',

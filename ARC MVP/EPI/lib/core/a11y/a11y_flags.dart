@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -37,9 +36,9 @@ Widget withTextScale(BuildContext context, Widget child, {required bool enabled}
   final mq = MediaQuery.of(context);
   return MediaQuery(
     data: mq.copyWith(
-      textScaleFactor: enabled 
+      textScaler: TextScaler.linear(enabled 
         ? (mq.textScaleFactor * 1.2).clamp(1.0, 1.6) 
-        : mq.textScaleFactor
+        : mq.textScaleFactor)
     ),
     child: child,
   );

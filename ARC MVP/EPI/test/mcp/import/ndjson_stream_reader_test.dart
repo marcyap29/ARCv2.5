@@ -66,7 +66,7 @@ void main() {
 
       test('should include empty lines when skipEmptyLines is false', () async {
         // Arrange
-        final config = const NdjsonStreamConfig(skipEmptyLines: false);
+        const config = NdjsonStreamConfig(skipEmptyLines: false);
         reader = NdjsonStreamReader(config: config);
         
         final file = File('${tempDir.path}/test.jsonl');
@@ -108,7 +108,7 @@ void main() {
 
       test('should enforce maximum line length', () async {
         // Arrange
-        final config = const NdjsonStreamConfig(maxLineLength: 50);
+        const config = NdjsonStreamConfig(maxLineLength: 50);
         reader = NdjsonStreamReader(config: config);
         
         final file = File('${tempDir.path}/test.jsonl');
@@ -194,7 +194,7 @@ void main() {
 
       test('should trim whitespace when configured', () async {
         // Arrange
-        final config = const NdjsonStreamConfig(trimLines: true);
+        const config = NdjsonStreamConfig(trimLines: true);
         reader = NdjsonStreamReader(config: config);
         
         final file = File('${tempDir.path}/test.jsonl');

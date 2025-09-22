@@ -22,13 +22,13 @@ flutter run -d DEVICE_ID --dart-define=GEMINI_API_KEY=YOUR_KEY
 
 - Full Install to Phone
 ```bash
-1.Flutter clean 
-2.Flutter pub get
-3.flutter devices
-4. Choose Device
-- Build and Install:
-1.flutter build ios --release --dart-define=GEMINI_API_KEY=YOUR_KEY
-2.flutter install -d YOUR_DEVICE_ID
+flutter clean 
+flutter pub get
+flutter devices
+-Choose Device
+-Build and Install:
+flutter build ios --release --dart-define=GEMINI_API_KEY=YOUR_KEY
+flutter install -d YOUR_DEVICE_ID
 
 ```
 

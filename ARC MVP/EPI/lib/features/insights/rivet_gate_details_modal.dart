@@ -12,12 +12,12 @@ class RivetGateDetailsModal extends StatelessWidget {
   final int sustainTarget;
 
   const RivetGateDetailsModal({
-    Key? key,
+    super.key,
     required this.rivetState,
     this.alignThreshold = 0.6,
     this.traceThreshold = 0.6,
     this.sustainTarget = 2,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -54,7 +54,7 @@ class RivetGateDetailsModal extends StatelessWidget {
             // Header
             Row(
               children: [
-                Icon(
+                const Icon(
                   Icons.info_outline,
                   color: kcPrimaryTextColor,
                   size: 24,
@@ -184,7 +184,7 @@ class RivetGateDetailsModal extends StatelessWidget {
                 ),
                 child: Row(
                   children: [
-                    Icon(
+                    const Icon(
                       Icons.lightbulb_outline,
                       color: Colors.blue,
                       size: 18,

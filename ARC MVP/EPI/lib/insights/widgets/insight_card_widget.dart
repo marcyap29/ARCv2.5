@@ -10,10 +10,10 @@ class InsightCardWidget extends StatelessWidget {
   final VoidCallback? onTap;
 
   const InsightCardWidget({
-    Key? key,
+    super.key,
     required this.card,
     this.onTap,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -87,7 +87,7 @@ class InsightCardWidget extends StatelessWidget {
                   ),
                   const Spacer(),
                   if (card.deeplink != null)
-                    Icon(
+                    const Icon(
                       Icons.arrow_forward_ios,
                       size: 12,
                       color: kcAccentColor,
@@ -110,7 +110,7 @@ class InsightCardWidget extends StatelessWidget {
     } else if (daysDiff == 1) {
       return 'Yesterday';
     } else if (daysDiff < 7) {
-      return '${daysDiff} days ago';
+      return '$daysDiff days ago';
     } else if (daysDiff < 30) {
       final weeks = (daysDiff / 7).floor();
       return weeks == 1 ? '1 week ago' : '$weeks weeks ago';
@@ -128,11 +128,11 @@ class InsightCardsList extends StatelessWidget {
   final bool isLoading;
 
   const InsightCardsList({
-    Key? key,
+    super.key,
     required this.cards,
     this.onCardTap,
     this.isLoading = false,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

@@ -6,19 +6,19 @@ void main() {
     test('should have correct default profiles', () {
       expect(StorageProfile.allProfiles, hasLength(3));
       
-      final minimal = StorageProfile.minimal;
+      const minimal = StorageProfile.minimal;
       expect(minimal.policy, equals(StoragePolicy.minimal));
       expect(minimal.displayName, equals('Space-Saver'));
       expect(minimal.keepThumbnails, isTrue);
       expect(minimal.keepFullResolution, isFalse);
       expect(minimal.enableEncryption, isFalse);
 
-      final balanced = StorageProfile.balanced;
+      const balanced = StorageProfile.balanced;
       expect(balanced.policy, equals(StoragePolicy.balanced));
       expect(balanced.keepAnalysisVariant, isTrue);
       expect(balanced.enableEncryption, isTrue);
 
-      final hiFidelity = StorageProfile.hiFidelity;
+      const hiFidelity = StorageProfile.hiFidelity;
       expect(hiFidelity.policy, equals(StoragePolicy.hiFidelity));
       expect(hiFidelity.keepFullResolution, isTrue);
       expect(hiFidelity.enableEncryption, isTrue);

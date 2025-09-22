@@ -47,10 +47,10 @@ void main() {
       // Register fallback values
       registerFallbackValue(mockBundleDir);
       registerFallbackValue(const McpImportOptions());
-      registerFallbackValue(McpPointer(id: 'test', descriptor: 'test'));
-      registerFallbackValue(McpEmbedding(id: 'test', vector: [], model: 'test'));
-      registerFallbackValue(McpNode(id: 'test', type: 'test'));
-      registerFallbackValue(McpEdge(id: 'test', sourceId: 'test', targetId: 'test', type: 'test'));
+      registerFallbackValue(const McpPointer(id: 'test', descriptor: 'test'));
+      registerFallbackValue(const McpEmbedding(id: 'test', vector: [], model: 'test'));
+      registerFallbackValue(const McpNode(id: 'test', type: 'test'));
+      registerFallbackValue(const McpEdge(id: 'test', sourceId: 'test', targetId: 'test', type: 'test'));
     });
 
     group('importBundle', () {
@@ -67,7 +67,7 @@ void main() {
           },
         );
 
-        final options = const McpImportOptions(dryRun: false);
+        const options = McpImportOptions(dryRun: false);
 
         when(() => mockBundleDir.path).thenReturn('/test/bundle');
         when(() => mockManifestReader.readManifest(any())).thenAnswer((_) async => manifest);
@@ -106,7 +106,7 @@ void main() {
 
       test('should handle manifest reading failure', () async {
         // Arrange
-        final options = const McpImportOptions();
+        const options = McpImportOptions();
         when(() => mockManifestReader.readManifest(any()))
             .thenThrow(Exception('Manifest not found'));
 
@@ -127,13 +127,13 @@ void main() {
           createdAt: DateTime.now().toUtc(),
         );
 
-        final options = const McpImportOptions(dryRun: true);
+        const options = McpImportOptions(dryRun: true);
 
         when(() => mockBundleDir.path).thenReturn('/test/bundle');
         when(() => mockManifestReader.readManifest(any())).thenAnswer((_) async => manifest);
         when(() => File('/test/bundle/nodes.jsonl').existsSync()).thenReturn(false);
         when(() => mockValidator.validateNdjsonFile(any(), any()))
-            .thenAnswer((_) async => McpValidationResult(isValid: true, errors: []));
+            .thenAnswer((_) async => const McpValidationResult(isValid: true, errors: []));
 
         // Act
         final result = await service.importBundle(mockBundleDir, options);
@@ -154,7 +154,7 @@ void main() {
           checksums: {'nodes.jsonl': 'expected_checksum'},
         );
 
-        final options = const McpImportOptions(strictMode: true);
+        const options = McpImportOptions(strictMode: true);
 
         when(() => mockBundleDir.path).thenReturn('/test/bundle');
         when(() => mockManifestReader.readManifest(any())).thenAnswer((_) async => manifest);
@@ -181,7 +181,7 @@ void main() {
           checksums: {},
         );
 
-        final options = const McpImportOptions(maxErrors: 2);
+        const options = McpImportOptions(maxErrors: 2);
 
         when(() => mockBundleDir.path).thenReturn('/test/bundle');
         when(() => mockManifestReader.readManifest(any())).thenAnswer((_) async => manifest);
@@ -211,7 +211,7 @@ void main() {
           createdAt: DateTime.now().toUtc(),
         );
 
-        final options = const McpImportOptions(dryRun: true);
+        const options = McpImportOptions(dryRun: true);
 
         when(() => mockBundleDir.path).thenReturn('/test/bundle');
         when(() => mockManifestReader.readManifest(any())).thenAnswer((_) async => manifest);
@@ -232,7 +232,7 @@ void main() {
           createdAt: DateTime.now().toUtc(),
         );
 
-        final options = const McpImportOptions();
+        const options = McpImportOptions();
 
         when(() => mockBundleDir.path).thenReturn('/test/bundle');
         when(() => mockManifestReader.readManifest(any())).thenAnswer((_) async => manifest);
@@ -256,7 +256,7 @@ void main() {
           createdAt: dateTime,
         );
 
-        final options = const McpImportOptions(dryRun: true);
+        const options = McpImportOptions(dryRun: true);
 
         when(() => mockBundleDir.path).thenReturn('/test/bundle');
         when(() => mockManifestReader.readManifest(any())).thenAnswer((_) async => manifest);
@@ -289,7 +289,7 @@ void main() {
           checksums: {},
         );
 
-        final options = const McpImportOptions();
+        const options = McpImportOptions();
         final importOrder = <String>[];
 
         when(() => mockBundleDir.path).thenReturn('/test/bundle');

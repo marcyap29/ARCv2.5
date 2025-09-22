@@ -1,8 +1,10 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'dart:io';
-import '../../mcp/export/mcp_export_service.dart';
+import 'dart:convert';
 import '../../mcp/import/mcp_import_service.dart';
 import '../../mcp/models/mcp_schemas.dart';
+import '../../mcp/export/mcp_export_service.dart';
+import '../../mcp/bundle/journal_bundle_writer.dart';
 import '../../repositories/journal_repository.dart';
 import '../../models/journal_entry_model.dart' as model;
 import '../../mira/mira_service.dart';
@@ -144,6 +146,36 @@ class McpSettingsCubit extends Cubit<McpSettingsState> {
         currentOperation: 'Export completed',
         progress: 1.0,
       ));
+
+      // Read the actual counts from the generated files
+      final manifestFile = File('${resultDir.path}/manifest.json');
+      Map<String, dynamic> manifest = {};
+      if (await manifestFile.exists()) {
+        final manifestContent = await manifestFile.readAsString();
+        manifest = jsonDecode(manifestContent);
+      }
+
+      final counts = manifest['counts'] as Map<String, dynamic>? ?? {};
+      
+      // Create result object
+      final result = McpExportResult(
+        success: true,
+        bundleId: manifest['bundle_id']?.toString() ?? 'epi_export_${DateTime.now().millisecondsSinceEpoch}',
+        outputDir: resultDir,
+        manifestFile: manifestFile,
+        ndjsonFiles: {
+          'nodes': File('${resultDir.path}/nodes.jsonl'),
+          'edges': File('${resultDir.path}/edges.jsonl'),
+          'pointers': File('${resultDir.path}/pointers.jsonl'),
+          'embeddings': File('${resultDir.path}/embeddings.jsonl'),
+        },
+        counts: McpCounts(
+          nodes: counts['nodes'] ?? 0,
+          edges: counts['edges'] ?? 0,
+          pointers: counts['pointers'] ?? 0,
+          embeddings: counts['embeddings'] ?? 0,
+        ),
+      );
 
       // Always end loading states; optionally emit a success snackbar
       if (emitSuccessMessage) {
@@ -376,4 +408,19 @@ class McpSettingsCubit extends Cubit<McpSettingsState> {
     }
   }
 
+=======
+
+  /// Convert storage profile enum to string
+  String _getStorageProfileString(McpStorageProfile profile) {
+    switch (profile) {
+      case McpStorageProfile.minimal:
+        return 'minimal';
+      case McpStorageProfile.spaceSaver:
+        return 'space_saver';
+      case McpStorageProfile.balanced:
+        return 'balanced';
+      case McpStorageProfile.hiFidelity:
+        return 'hi_fidelity';
+    }
+  }
 }

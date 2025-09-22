@@ -135,7 +135,7 @@ class TimelineCubit extends Cubit<TimelineState> {
       }
     } catch (e) {
       print('ERROR: Failed to update arcform snapshot: $e');
-      throw e;
+      rethrow;
     }
   }
 
@@ -164,7 +164,7 @@ class TimelineCubit extends Cubit<TimelineState> {
 
       final effectiveFilter = filter ?? currentState.filter;
 
-      final newEntries = _journalRepository.getEntriesPaginated(
+      final newEntries = _journalRepository.getEntriesPaginatedSync(
         page: _currentPage,
         pageSize: _pageSize,
         filter: effectiveFilter,
