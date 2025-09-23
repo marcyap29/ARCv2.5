@@ -35,15 +35,26 @@ class _JournalEditViewState extends State<JournalEditView> {
     _textController = TextEditingController(text: widget.entry.preview);
     _focusNode = FocusNode();
     
-    // Initialize with existing data
-    _selectedMood = null; // TimelineEntry doesn't have mood, will be set by user
-    _selectedKeywords = List<String>.from(widget.entry.keywords);
-    _currentPhase = widget.entry.phase ?? 'Discovery';
-    _currentGeometry = widget.entry.geometry ?? 'spiral';
-    // Get the actual journal entry to access the timestamp
+    // Get the actual journal entry to access metadata and timestamp
     final journalRepository = JournalRepository();
     final journalEntry = journalRepository.getJournalEntryById(widget.entry.id);
     _selectedDateTime = journalEntry?.createdAt ?? DateTime.now();
+    
+    // Initialize with existing data, prioritizing journal entry metadata
+    _selectedMood = null; // TimelineEntry doesn't have mood, will be set by user
+    _selectedKeywords = List<String>.from(widget.entry.keywords);
+    
+    // Check if journal entry has user-updated metadata first
+    if (journalEntry?.metadata != null && journalEntry!.metadata!['updated_by_user'] == true) {
+      _currentPhase = journalEntry.metadata!['phase'] as String? ?? 'Discovery';
+      _currentGeometry = journalEntry.metadata!['geometry'] as String? ?? 'spiral';
+      print('DEBUG: Using user-updated metadata - Phase: $_currentPhase, Geometry: $_currentGeometry');
+    } else {
+      // Fallback to TimelineEntry phase/geometry
+      _currentPhase = widget.entry.phase ?? 'Discovery';
+      _currentGeometry = widget.entry.geometry ?? 'spiral';
+      print('DEBUG: Using TimelineEntry - Phase: $_currentPhase, Geometry: $_currentGeometry');
+    }
   }
 
   @override

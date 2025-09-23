@@ -226,13 +226,22 @@ class TimelineCubit extends Cubit<TimelineState> {
 
   List<TimelineEntry> _mapToTimelineEntries(List<JournalEntry> journalEntries) {
     return journalEntries.map((entry) {
-      // Get phase from arcform snapshots first (most accurate)
-      String? phase = _getPhaseForEntry(entry);
-      String? geometry = _getGeometryForEntry(entry);
+      // Check if entry has user-updated metadata first (highest priority)
+      String? phase;
+      String? geometry;
       
-      print('DEBUG: Entry ${entry.id} - Initial phase: $phase, geometry: $geometry');
+      if (entry.metadata != null && entry.metadata!['updated_by_user'] == true) {
+        phase = entry.metadata!['phase'] as String?;
+        geometry = entry.metadata!['geometry'] as String?;
+        print('DEBUG: Entry ${entry.id} - Using user-updated metadata - Phase: $phase, Geometry: $geometry');
+      } else {
+        // Get phase from arcform snapshots (fallback)
+        phase = _getPhaseForEntry(entry);
+        geometry = _getGeometryForEntry(entry);
+        print('DEBUG: Entry ${entry.id} - Using arcform snapshots - Phase: $phase, Geometry: $geometry');
+      }
       
-      // Fallback to text-based phase detection if no arcform snapshot found
+      // Fallback to text-based phase detection if no phase found
       if (phase == null) {
         if (entry.sageAnnotation != null) {
           // Extract phase from sageAnnotation if available
