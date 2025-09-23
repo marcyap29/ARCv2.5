@@ -4,3 +4,16 @@ ARC MVP/EPI/assets/models/qwen/**
 ARC MVP/EPI/assets/models/**/*.gguf
 ARC MVP/EPI/assets/models/**/*.bin
 ARC MVP/EPI/temp_models/**
+
+cat >> .gitignore << 'EOF'
+
+**bfg-report*/
+..bfg-report/
+
+.dart_tool/
+**/.flutter-plugins-dependencies
+**/.flutter-plugins
+.buildlog/
+..bfg-report/
+**/.flutter-plugins-dependencies
+.DS_Store

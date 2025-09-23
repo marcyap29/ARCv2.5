@@ -351,7 +351,7 @@ class AudioService {
     
     const steps = 30;
     final stepDuration = Duration(milliseconds: duration.inMilliseconds ~/ steps);
-    final volumeStep = 0.3 / steps; // Fade to 30% volume
+    const volumeStep = 0.3 / steps; // Fade to 30% volume
     
     for (int i = 0; i <= steps; i++) {
       await Future.delayed(stepDuration);

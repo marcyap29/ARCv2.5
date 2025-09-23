@@ -437,3 +437,102 @@ ARC MVP/EPI/ios/Llama.xcframework.backup/
 ARC MVP/EPI/ios/Runner/Llama.xcframework/
 ARC MVP/EPI/third_party/
 ios-llm/
+
+# Large models (from main branch)
+ARC MVP/EPI/assets/models/**
+ARC MVP/EPI/assets/models/qwen/**
+ARC MVP/EPI/assets/models/**/*.gguf
+ARC MVP/EPI/assets/models/**/*.bin
+ARC MVP/EPI/temp_models/**
+
+# macOS system files
+.DS_Store
+**/.DS_Store
+*.DS_Store
+
+# Backup files
+*backup*
+backup-*
+*.backup
+
+# BFG report files
+..bfg-report/
+
+# Extension discovery files
+.dart_tool/extension_discovery/
+
+# Large model files and assets
+*.gguf
+*.bin
+*.safetensors
+*.h5
+*.pkl
+*.pt
+*.pth
+*.onnx
+*.tflite
+*.mlmodel
+
+# Large media files
+*.mp4
+*.mov
+*.avi
+*.mkv
+*.wmv
+*.flv
+*.webm
+*.m4v
+*.3gp
+*.3g2
+
+# Large audio files
+*.wav
+*.flac
+*.aiff
+*.aif
+*.au
+*.raw
+*.pcm
+
+# Large image files
+*.tiff
+*.tif
+*.bmp
+*.raw
+*.cr2
+*.nef
+*.arw
+*.dng
+
+# Archive files
+*.zip
+*.tar
+*.tar.gz
+*.tar.bz2
+*.rar
+*.7z
+*.gz
+*.bz2
+
+# Log files
+*.log
+logs/
+log/
+
+# Temporary files
+*.tmp
+*.temp
+temp/
+tmp/
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS generated files
+Thumbs.db
+ehthumbs.db
+Desktop.ini
