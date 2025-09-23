@@ -144,7 +144,7 @@ class JournalBundleWriter {
       ],
       'cas_remotes': <String>[],
       'notes': notes ?? 'Exported from EPI journal entries using MCP-only pipeline',
-      'schema_version': 'manifest.v1',
+      'schema_version': '1.0.0',
     });
   }
 

@@ -685,7 +685,7 @@ class McpManifest {
     required this.encoderRegistry,
     this.casRemotes = const [],
     this.notes,
-    this.schemaVersion = 'manifest.v1',
+    this.schemaVersion = '1.0.0',
     this.bundles,
   });
 
