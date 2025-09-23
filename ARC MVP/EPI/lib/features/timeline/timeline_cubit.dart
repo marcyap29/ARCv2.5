@@ -17,24 +17,24 @@ class TimelineCubit extends Cubit<TimelineState> {
       : _journalRepository = journalRepository ?? JournalRepository(),
         super(const TimelineInitial());
 
-  void loadEntries() {
+  Future<void> loadEntries() async {
     emit(const TimelineLoading());
     _currentPage = 0;
     _hasMore = true;
-    _loadEntries();
+    await _loadEntries();
   }
 
-  void loadMoreEntries() {
+  Future<void> loadMoreEntries() async {
     if (!_hasMore) return;
     _currentPage++;
-    _loadEntries();
+    await _loadEntries();
   }
 
-  void refreshEntries() {
+  Future<void> refreshEntries() async {
     print('DEBUG: TimelineCubit.refreshEntries() called');
     _currentPage = 0;
     _hasMore = true;
-    _loadEntries();
+    await _loadEntries();
   }
 
   /// Check if all entries have been deleted and emit a special state
@@ -77,7 +77,7 @@ class TimelineCubit extends Cubit<TimelineState> {
 
       // Refresh the timeline to show updated data
       emit(const TimelineLoading());
-      refreshEntries();
+      await refreshEntries();
       
       print('DEBUG: Successfully updated entry $entryId - Phase: $newPhase, Geometry: $newGeometry');
     } catch (e) {
@@ -145,7 +145,7 @@ class TimelineCubit extends Cubit<TimelineState> {
     }
   }
 
-  void setFilter(TimelineFilter filter) {
+  Future<void> setFilter(TimelineFilter filter) async {
     if (state is TimelineLoaded) {
       final currentState = state as TimelineLoaded;
       if (currentState.filter == filter) return;
@@ -153,11 +153,11 @@ class TimelineCubit extends Cubit<TimelineState> {
       emit(const TimelineLoading());
       _currentPage = 0;
       _hasMore = true;
-      _loadEntries(filter: filter);
+      await _loadEntries(filter: filter);
     }
   }
 
-  void _loadEntries({TimelineFilter? filter}) {
+  Future<void> _loadEntries({TimelineFilter? filter}) async {
     print('DEBUG: TimelineCubit._loadEntries() called with filter: $filter');
     try {
       final currentState = state is TimelineLoaded

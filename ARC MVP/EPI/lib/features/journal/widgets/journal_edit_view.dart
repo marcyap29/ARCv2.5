@@ -597,11 +597,11 @@ class _JournalEditViewState extends State<JournalEditView> {
 
       await journalRepository.updateJournalEntry(updatedEntry);
 
-      // Also update the timeline cubit to refresh the UI
-      if (mounted) {
-        final timelineCubit = context.read<TimelineCubit>();
-        timelineCubit.refreshEntries();
-      }
+        // Also update the timeline cubit to refresh the UI
+        if (mounted) {
+          final timelineCubit = context.read<TimelineCubit>();
+          await timelineCubit.refreshEntries();
+        }
 
       // Show success message
       if (mounted) {
