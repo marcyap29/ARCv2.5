@@ -98,31 +98,6 @@ class SettingsView extends StatelessWidget {
             
             const SizedBox(height: 32),
             
-            // Data Management Section
-            _buildSection(
-              context,
-              title: 'Data Management',
-              children: [
-                _buildSettingsTile(
-                  context,
-                  title: 'Erase All Data',
-                  subtitle: 'Permanently delete all journal entries and data',
-                  icon: Icons.delete_forever,
-                  onTap: () {
-                    // TODO: Implement data erasure functionality
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Data erasure functionality not yet implemented'),
-                        backgroundColor: Colors.orange,
-                      ),
-                    );
-                  },
-                ),
-              ],
-            ),
-            
-            const SizedBox(height: 32),
-            
             // About Section
             _buildSection(
               context,
