@@ -27,6 +27,7 @@ class _JournalEditViewState extends State<JournalEditView> {
   List<String> _selectedKeywords = [];
   late String _currentPhase;
   late String _currentGeometry;
+  late DateTime _selectedDateTime;
 
   @override
   void initState() {
@@ -39,6 +40,10 @@ class _JournalEditViewState extends State<JournalEditView> {
     _selectedKeywords = List<String>.from(widget.entry.keywords);
     _currentPhase = widget.entry.phase ?? 'Discovery';
     _currentGeometry = widget.entry.geometry ?? 'spiral';
+    // Get the actual journal entry to access the timestamp
+    final journalRepository = JournalRepository();
+    final journalEntry = journalRepository.getJournalEntryById(widget.entry.id);
+    _selectedDateTime = journalEntry?.createdAt ?? DateTime.now();
   }
 
   @override
@@ -77,34 +82,8 @@ class _JournalEditViewState extends State<JournalEditView> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Entry date
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(16.0),
-                decoration: BoxDecoration(
-                  gradient: kcPrimaryGradient,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Editing entry from:',
-                      style: captionStyle(context).copyWith(
-                        color: Colors.white.withOpacity(0.8),
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      widget.entry.date,
-                      style: heading1Style(context).copyWith(
-                        color: Colors.white,
-                        fontSize: 18,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+              // Entry date/time picker
+              _buildDateTimeSection(),
               
               const SizedBox(height: 24),
 
@@ -159,6 +138,64 @@ class _JournalEditViewState extends State<JournalEditView> {
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildDateTimeSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Date & Time',
+          style: heading1Style(context).copyWith(fontSize: 18),
+        ),
+        const SizedBox(height: 12),
+        GestureDetector(
+          onTap: _selectDateTime,
+          child: Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(16.0),
+            decoration: BoxDecoration(
+              gradient: kcPrimaryGradient,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: kcPrimaryColor.withOpacity(0.3),
+                width: 1,
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Entry Date & Time:',
+                  style: captionStyle(context).copyWith(
+                    color: Colors.white.withOpacity(0.8),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        _formatDateTime(_selectedDateTime),
+                        style: heading1Style(context).copyWith(
+                          color: Colors.white,
+                          fontSize: 18,
+                        ),
+                      ),
+                    ),
+                    Icon(
+                      Icons.edit_calendar,
+                      color: Colors.white.withOpacity(0.8),
+                      size: 20,
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -550,12 +587,13 @@ class _JournalEditViewState extends State<JournalEditView> {
       updatedMetadata['updated_by_user'] = true;
       updatedMetadata['last_modified'] = DateTime.now().toIso8601String();
 
-      // Update the journal entry with new text and metadata
-      final updatedEntry = existingEntry.copyWith(
-        content: _textController.text.trim(),
-        metadata: updatedMetadata,
-        updatedAt: DateTime.now(),
-      );
+        // Update the journal entry with new text, metadata, and timestamp
+        final updatedEntry = existingEntry.copyWith(
+          content: _textController.text.trim(),
+          metadata: updatedMetadata,
+          createdAt: _selectedDateTime,
+          updatedAt: DateTime.now(),
+        );
 
       await journalRepository.updateJournalEntry(updatedEntry);
 
@@ -585,6 +623,89 @@ class _JournalEditViewState extends State<JournalEditView> {
             backgroundColor: kcDangerColor,
           ),
         );
+      }
+    }
+  }
+
+  String _formatDateTime(DateTime dateTime) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final entryDate = DateTime(dateTime.year, dateTime.month, dateTime.day);
+    
+    if (entryDate == today) {
+      return 'Today, ${_formatTime(dateTime)}';
+    } else if (entryDate == today.subtract(const Duration(days: 1))) {
+      return 'Yesterday, ${_formatTime(dateTime)}';
+    } else {
+      return '${_formatDate(dateTime)}, ${_formatTime(dateTime)}';
+    }
+  }
+
+  String _formatDate(DateTime dateTime) {
+    const months = [
+      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+    ];
+    return '${months[dateTime.month - 1]} ${dateTime.day}, ${dateTime.year}';
+  }
+
+  String _formatTime(DateTime dateTime) {
+    final hour = dateTime.hour == 0 ? 12 : (dateTime.hour > 12 ? dateTime.hour - 12 : dateTime.hour);
+    final minute = dateTime.minute.toString().padLeft(2, '0');
+    final period = dateTime.hour < 12 ? 'AM' : 'PM';
+    return '$hour:$minute $period';
+  }
+
+  Future<void> _selectDateTime() async {
+    final DateTime? pickedDate = await showDatePicker(
+      context: context,
+      initialDate: _selectedDateTime,
+      firstDate: DateTime(2020),
+      lastDate: DateTime.now().add(const Duration(days: 365)),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: const ColorScheme.dark(
+              primary: kcPrimaryColor,
+              onPrimary: Colors.white,
+              surface: kcSurfaceColor,
+              onSurface: Colors.white,
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+
+    if (pickedDate != null) {
+      final TimeOfDay? pickedTime = await showTimePicker(
+        context: context,
+        initialTime: TimeOfDay.fromDateTime(_selectedDateTime),
+        builder: (context, child) {
+          return Theme(
+            data: Theme.of(context).copyWith(
+              colorScheme: const ColorScheme.dark(
+                primary: kcPrimaryColor,
+                onPrimary: Colors.white,
+                surface: kcSurfaceColor,
+                onSurface: Colors.white,
+              ),
+            ),
+            child: child!,
+          );
+        },
+      );
+
+      if (pickedTime != null) {
+        setState(() {
+          _selectedDateTime = DateTime(
+            pickedDate.year,
+            pickedDate.month,
+            pickedDate.day,
+            pickedTime.hour,
+            pickedTime.minute,
+          );
+        });
       }
     }
   }

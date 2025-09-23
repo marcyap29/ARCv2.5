@@ -109,9 +109,12 @@ class SettingsView extends StatelessWidget {
                   subtitle: 'Permanently delete all journal entries and data',
                   icon: Icons.delete_forever,
                   onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (context) => const DataView()),
+                    // TODO: Implement data erasure functionality
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Data erasure functionality not yet implemented'),
+                        backgroundColor: Colors.orange,
+                      ),
                     );
                   },
                 ),
