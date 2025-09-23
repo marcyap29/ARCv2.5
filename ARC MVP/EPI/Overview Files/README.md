@@ -13,6 +13,8 @@ A Flutter-based AI companion app that provides life-aware assistance through jou
 - **MIRA System:** ✅ Complete semantic memory graph with Hive storage backend
 - **MCP Support:** ✅ Full Memory Bundle v1 bidirectional export/import
 - **Feature Flags:** ✅ Controlled rollout system for MIRA capabilities
+- **Repository Health:** ✅ Clean Git workflow - large files removed, normal push operations
+- **Branch Management:** ✅ MIRA integration complete, main-clean branch available
 - **Deployment:** ✅ Ready for iOS simulator and physical device installation
 - **Test Status:** ⚠️ Some test failures (non-critical, mock setup issues)
 
@@ -34,11 +36,24 @@ A Flutter-based AI companion app that provides life-aware assistance through jou
 - **MIRA Semantic Memory** - Complete semantic graph storage with context-aware retrieval
 - **ArcLLM One-Liners** - `arc.sageEcho(entry)`, `arc.arcformKeywords(...)`, `arc.phaseHints(...)` with MIRA enhancement
 - **Prompt Contracts** - Centralized in `lib/core/prompts_arc.dart` (Dart) and mirrored in `ios/.../PromptTemplates.swift`
+- **Prompt Tracking** - Version management, performance metrics, and quality assurance (see Arc_Prompts.md)
 - **MCP Memory Bundle v1** - Standards-compliant bidirectional export/import for AI ecosystem interoperability
 - **Feature Flags** - Controlled rollout: `miraEnabled`, `miraAdvancedEnabled`, `retrievalEnabled`, `useSqliteRepo`
 - **Rule-Based Adapter** - Deterministic fallback if API unavailable
 
-## 🔧 Recent Updates (January 2025)
+## 🔧 Recent Updates (September 2025)
+
+### Repository Hygiene & MIRA Integration Complete - September 23, 2025 ✅ RESOLVED
+- **CRITICAL FIX COMPLETE**: Resolved GitHub push failures due to 9.63 GiB repository pack size
+- **Root Cause Fixed**: Large AI model files (*.gguf) tracked in Git history causing HTTP 500 errors and timeouts
+- **BFG Cleanup Applied**: Removed 3.2 GB of large files from Git history (Qwen models, tinyllama)
+- **Solution Success**: Used BFG Repo-Cleaner + clean branch strategy for immediate push resolution
+- **Repository Health**: Enhanced .gitignore rules prevent future large file tracking
+- **Development Workflow**: Normal Git operations fully restored with main-clean branch
+- **MIRA Integration**: Successfully merged all MIRA branch work with code quality improvements
+- **Branch Management**: Clean main branch with repository hygiene and semantic memory complete
+
+## 🔧 Previous Updates (January 2025)
 
 ### MCP Export Embeddings Fix - January 22, 2025
 - **Fixed Empty Embeddings**: Resolved issue where `embeddings.jsonl` was empty (0 bytes) in MCP exports
@@ -332,6 +347,6 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 ---
 
-**Last Updated:** September 21, 2025
-**Version:** 0.2.2-alpha
-**Status:** MIRA-MCP Production Ready + Complete Journal Export Integration
+**Last Updated:** September 23, 2025
+**Version:** 0.2.3-alpha
+**Status:** Production Ready - Repository Hygiene Complete + MIRA-MCP Integration + Clean Git Workflow
