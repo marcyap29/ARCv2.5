@@ -1,4 +1,5 @@
 import 'package:my_app/lumara/data/context_scope.dart';
+import 'package:my_app/services/user_phase_service.dart';
 
 /// Context window for LUMARA processing
 class ContextWindow {
@@ -50,12 +51,14 @@ class ContextProvider {
     
     // Mock phase data if phase scope is enabled
     if (_scope.hasScope('phase')) {
-      nodes.addAll(_generateMockPhaseData());
+      final phaseData = await _generateMockPhaseData();
+      nodes.addAll(phaseData);
     }
     
     // Mock arcform data if arcforms scope is enabled
     if (_scope.hasScope('arcforms')) {
-      nodes.addAll(_generateMockArcformData());
+      final arcformData = await _generateMockArcformData();
+      nodes.addAll(arcformData);
     }
     
     // Mock voice transcripts if voice scope is enabled
@@ -107,12 +110,16 @@ class ContextProvider {
   }
   
   /// Generate mock phase data for testing
-  List<Map<String, dynamic>> _generateMockPhaseData() {
+  Future<List<Map<String, dynamic>>> _generateMockPhaseData() async {
+    // Get the actual current phase instead of hardcoding 'Discovery'
+    final currentPhase = await UserPhaseService.getCurrentPhase();
+    print('ContextProvider: Using actual current phase: $currentPhase');
+
     return [
       {
         'id': 'p_current',
         'type': 'phase',
-        'text': 'Discovery',
+        'text': currentPhase,
         'meta': {
           'align': 0.74,
           'trace': 0.71,
@@ -124,14 +131,17 @@ class ContextProvider {
   }
   
   /// Generate mock arcform data for testing
-  List<Map<String, dynamic>> _generateMockArcformData() {
+  Future<List<Map<String, dynamic>>> _generateMockArcformData() async {
+    // Get the actual current phase for arcform data too
+    final currentPhase = await UserPhaseService.getCurrentPhase();
+
     return [
       {
         'id': 'a_001',
         'type': 'arcform',
         'text': 'Sample arcform snapshot',
         'meta': {
-          'phase': 'Discovery',
+          'phase': currentPhase,
           'keywords': ['clarity', 'focus', 'growth'],
           'geometry': 'circle',
         },

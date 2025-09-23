@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:my_app/features/timeline/timeline_entry_model.dart';
 import 'package:my_app/features/timeline/timeline_cubit.dart';
+import 'package:my_app/repositories/journal_repository.dart';
 import 'package:my_app/shared/app_colors.dart';
 import 'package:my_app/shared/text_style.dart';
 
@@ -509,7 +510,7 @@ class _JournalEditViewState extends State<JournalEditView> {
     );
   }
 
-  void _onSavePressed() {
+  void _onSavePressed() async {
     if (_textController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -520,16 +521,72 @@ class _JournalEditViewState extends State<JournalEditView> {
       return;
     }
 
-    // TODO: Implement save functionality
-    // This would update the existing entry with new content, mood, and keywords
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Entry updated successfully'),
-        backgroundColor: kcSuccessColor,
-      ),
-    );
-    
-    Navigator.of(context).pop();
+    try {
+      // Show loading state
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Updating entry...'),
+          backgroundColor: kcPrimaryColor,
+          duration: Duration(seconds: 1),
+        ),
+      );
+
+      // Get the repository and update the entry
+      final journalRepository = JournalRepository();
+      final existingEntry = journalRepository.getJournalEntryById(widget.entry.id);
+
+      if (existingEntry == null) {
+        throw Exception('Entry not found');
+      }
+
+      // Update metadata with new keywords, mood, and phase
+      final updatedMetadata = Map<String, dynamic>.from(existingEntry.metadata ?? {});
+      updatedMetadata['keywords'] = _selectedKeywords;
+      updatedMetadata['phase'] = _currentPhase;
+      updatedMetadata['geometry'] = _currentGeometry;
+      if (_selectedMood != null) {
+        updatedMetadata['mood'] = _selectedMood;
+      }
+      updatedMetadata['updated_by_user'] = true;
+      updatedMetadata['last_modified'] = DateTime.now().toIso8601String();
+
+      // Update the journal entry with new text and metadata
+      final updatedEntry = existingEntry.copyWith(
+        content: _textController.text.trim(),
+        metadata: updatedMetadata,
+        updatedAt: DateTime.now(),
+      );
+
+      await journalRepository.updateJournalEntry(updatedEntry);
+
+      // Also update the timeline cubit to refresh the UI
+      if (mounted) {
+        final timelineCubit = context.read<TimelineCubit>();
+        timelineCubit.refreshEntries();
+      }
+
+      // Show success message
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Entry updated successfully'),
+            backgroundColor: kcSuccessColor,
+          ),
+        );
+      }
+
+      Navigator.of(context).pop();
+    } catch (e) {
+      // Show error message
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to update entry: $e'),
+            backgroundColor: kcDangerColor,
+          ),
+        );
+      }
+    }
   }
 }
 

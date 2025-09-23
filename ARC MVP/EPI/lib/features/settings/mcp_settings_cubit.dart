@@ -407,20 +407,4 @@ class McpSettingsCubit extends Cubit<McpSettingsState> {
         return 'hi_fidelity';
     }
   }
-
-=======
-
-  /// Convert storage profile enum to string
-  String _getStorageProfileString(McpStorageProfile profile) {
-    switch (profile) {
-      case McpStorageProfile.minimal:
-        return 'minimal';
-      case McpStorageProfile.spaceSaver:
-        return 'space_saver';
-      case McpStorageProfile.balanced:
-        return 'balanced';
-      case McpStorageProfile.hiFidelity:
-        return 'hi_fidelity';
-    }
-  }
 }

@@ -59,8 +59,14 @@ class TimelineCubit extends Cubit<TimelineState> {
         return;
       }
 
-      // Update the journal entry with new metadata
+      // Update the journal entry with new metadata including phase
+      final updatedMetadata = Map<String, dynamic>.from(existingEntry.metadata ?? {});
+      updatedMetadata['phase'] = newPhase;
+      updatedMetadata['geometry'] = newGeometry;
+      updatedMetadata['updated_by_user'] = true;
+
       final updatedEntry = existingEntry.copyWith(
+        metadata: updatedMetadata,
         updatedAt: DateTime.now(),
       );
       
