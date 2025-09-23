@@ -7,10 +7,10 @@
 This is the fourth iteration of the EPI ARC MVP Bug Tracker, focusing on current development issues and ongoing improvements.
 
 > **Last Updated**: September 23, 2025 (America/Los_Angeles)
-> **Total Items Tracked**: 2 (2 bugs + 0 enhancements)
-> **Critical Issues Fixed**: 2
+> **Total Items Tracked**: 5 (5 bugs + 0 enhancements)
+> **Critical Issues Fixed**: 5
 > **Enhancements Completed**: 0
-> **Status**: Repository hygiene and MIRA integration complete
+> **Status**: MVP finalizations complete - all critical functionality working
 
 ---
 
@@ -26,6 +26,130 @@ This is the fourth iteration of the EPI ARC MVP Bug Tracker, focusing on current
 ---
 
 ## Resolved Issues
+
+## Bug ID: BUG-2025-09-23-004
+**Title**: LUMARA Hardcoded Phase Detection
+
+**Type**: Bug
+**Priority**: P1 (Critical)
+**Status**: ✅ Fixed
+**Reporter**: User
+**Assignee**: Claude Code
+**Found Date**: 2025-09-23
+**Fixed Date**: 2025-09-23
+
+#### Description
+LUMARA (powered by Gemini) was hardcoded to always use "Discovery" phase instead of the user's actual chosen phase from onboarding. When users asked LUMARA for more details, it would default to "Discovery" phase even though they had created other phases.
+
+#### Steps to Reproduce
+1. Complete onboarding and select a phase other than "Discovery"
+2. Navigate to LUMARA tab
+3. Ask LUMARA for more details about current phase
+4. Observe LUMARA always responds with "Discovery" phase context
+
+#### Root Cause Analysis
+The `ContextProvider._generateMockPhaseData()` method in `lib/lumara/data/context_provider.dart` had hardcoded `'text': 'Discovery'` on line 115, completely ignoring the user's actual phase selection.
+
+#### Solution Applied
+- Integrated `UserPhaseService.getCurrentPhase()` to fetch actual user phase
+- Updated both `_generateMockPhaseData()` and `_generateMockArcformData()` methods to use real phase data
+- Made methods async to properly handle phase data fetching
+- Added debug logging to track phase detection
+
+#### Files Modified
+- `lib/lumara/data/context_provider.dart` - Fixed hardcoded phase detection
+
+#### Testing
+- Verified LUMARA now uses actual user phase from onboarding
+- Confirmed phase data flows correctly through context provider
+- Tested with different phase selections during onboarding
+
+---
+
+## Bug ID: BUG-2025-09-23-005
+**Title**: Timeline Phase Changes Not Persisting
+
+**Type**: Bug
+**Priority**: P1 (Critical)
+**Status**: ✅ Fixed
+**Reporter**: User
+**Assignee**: Claude Code
+**Found Date**: 2025-09-23
+**Fixed Date**: 2025-09-23
+
+#### Description
+When users tried to change the phase of past entries in Timeline, clicking "Save" and exiting back to the main timeline would not persist the phase change. The phase would revert to the original value.
+
+#### Steps to Reproduce
+1. Navigate to Timeline view
+2. Select a past journal entry
+3. Change the phase using the phase selector
+4. Click "Save" button
+5. Exit back to main timeline
+6. Observe phase change has not persisted
+
+#### Root Cause Analysis
+The `updateEntryPhase()` method in `lib/features/timeline/timeline_cubit.dart` was only updating the `updatedAt` timestamp but not actually modifying the journal entry's phase metadata.
+
+#### Solution Applied
+- Enhanced `updateEntryPhase()` method to properly update journal entry metadata
+- Added phase and geometry updates to the entry's metadata
+- Added `updated_by_user` flag to track user modifications
+- Ensured database persistence through proper repository integration
+
+#### Files Modified
+- `lib/features/timeline/timeline_cubit.dart` - Fixed phase persistence logic
+
+#### Testing
+- Verified phase changes now persist when users click "Save"
+- Confirmed metadata updates are properly stored in database
+- Tested with multiple entries and different phase selections
+
+---
+
+## Bug ID: BUG-2025-09-23-006
+**Title**: Timeline Journal Entry Modifications Not Saving
+
+**Type**: Bug
+**Priority**: P1 (Critical)
+**Status**: ✅ Fixed
+**Reporter**: User
+**Assignee**: Claude Code
+**Found Date**: 2025-09-23
+**Fixed Date**: 2025-09-23
+
+#### Description
+When users tried to modify journal entries in Timeline (add more text, update context), clicking "Save" would not persist the changes. The entry's updates would not stick and would revert to original content.
+
+#### Steps to Reproduce
+1. Navigate to Timeline view
+2. Select a past journal entry for editing
+3. Modify the text content or add more context
+4. Click "Save" button
+5. Exit back to main timeline
+6. Observe text changes have not persisted
+
+#### Root Cause Analysis
+The `_onSavePressed()` method in `lib/features/journal/widgets/journal_edit_view.dart` was just a TODO placeholder with no actual implementation. The method only showed a success message but didn't save any changes.
+
+#### Solution Applied
+- Implemented complete save functionality with proper repository integration
+- Added error handling and user feedback via SnackBars
+- Ensured database persistence through `JournalRepository.updateJournalEntry()`
+- Added proper BuildContext safety with mounted checks
+- Updated metadata including keywords, mood, phase, and geometry
+- Added loading states and success/error feedback
+
+#### Files Modified
+- `lib/features/journal/widgets/journal_edit_view.dart` - Implemented save functionality
+
+#### Testing
+- Verified text updates now persist when users hit "Save"
+- Confirmed all metadata updates are properly stored
+- Tested error handling with various edge cases
+- Verified user feedback works correctly
+
+---
 
 ## Bug ID: BUG-2025-09-23-001
 **Title**: GitHub Push Failures Due to Large Repository Pack Size
