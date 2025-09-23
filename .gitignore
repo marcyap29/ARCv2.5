@@ -7,13 +7,46 @@ ARC MVP/EPI/temp_models/**
 
 cat >> .gitignore << 'EOF'
 
-**bfg-report*/
-..bfg-report/
-
+# Build & tool output
+build/
 .dart_tool/
-**/.flutter-plugins-dependencies
-**/.flutter-plugins
-.buildlog/
+.flutter-plugins*
+**/DerivedData/
+
+# CocoaPods (vendor binaries)
+ios/Pods/
+
+# iOS binary artifacts
+*.ipa
+*.xcarchive
+*.a
+*.dylib
+*.so
+*.o
+
+# AI/ML Models (large binary files - should be downloaded or use LFS)
+*.gguf
+*.bin
+*.model
+*.weights
+
+# Bundled frameworks (should be resolved via Pods/SPM, not vendored)
+*.framework/
+*.xcframework/
+
+# Big media/archives that shouldn't be versioned
+*.zip
+*.tar
+*.tgz
+*.gz
+*.mp4
+*.mov
+
+# Previously problematic
 ..bfg-report/
+**bfg-report*/
 **/.flutter-plugins-dependencies
 .DS_Store
+
+# Build cache
+.buildlog/
