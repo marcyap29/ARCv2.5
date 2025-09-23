@@ -75,7 +75,7 @@ class ManifestReader {
         encoderRegistry: _parseEncoderRegistry(json['encoder_registry']) ?? [],
         casRemotes: _parseCasRemotes(json['cas_remotes']) ?? [],
         notes: json['notes'] as String?,
-        schemaVersion: json['schema_version'] as String? ?? 'manifest.v1',
+        schemaVersion: json['schema_version'] as String? ?? '1.0.0',
         bundles: _parseBundles(json['bundles']),
       );
     } catch (e) {
@@ -85,7 +85,8 @@ class ManifestReader {
 
   /// Validate that required fields are present
   void _validateRequiredFields(Map<String, dynamic> json) {
-    final requiredFields = ['schema_version', 'version', 'created_at'];
+    // schema_version is optional since we have a fallback default
+    final requiredFields = ['version', 'created_at'];
     final missingFields = <String>[];
 
     for (final field in requiredFields) {
