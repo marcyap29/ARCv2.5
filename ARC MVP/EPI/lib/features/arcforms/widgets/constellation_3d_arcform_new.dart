@@ -4,7 +4,6 @@ import 'package:vector_math/vector_math_64.dart' as vm;
 import 'package:my_app/features/arcforms/arcform_mvp_implementation.dart';
 import 'package:my_app/features/arcforms/arcform_renderer_state.dart';
 import 'package:my_app/features/arcforms/services/emotional_valence_service.dart';
-import 'package:my_app/features/arcforms/geometry/geometry_layouts.dart';
 
 /// New 3D Constellation Arcform using proper 3D mathematics
 class Constellation3DArcformNew extends StatefulWidget {
@@ -37,7 +36,7 @@ class _Constellation3DArcformNewState extends State<Constellation3DArcformNew>
   double _rotationY = 0.0;
   double _rotationZ = 0.0;
   double _scale = 1.0;
-  bool _autoRotate = true;
+  final bool _autoRotate = true;
   
   // Interactive selection state
   String? _selectedNodeId;
@@ -156,10 +155,10 @@ class _ConstellationPainter extends CustomPainter {
     // 1) Generate a vertical helix in MODEL space (y up)
     final points = <vm.Vector3>[];
     final edges = <(int, int)>[];
-    final turns = 2.5; // helix length (in revolutions)
-    final totalAngle = turns * 2 * math.pi;
-    final radius = 90.0;
-    final pitch = 15.0; // vertical spacing per radian
+    const turns = 2.5; // helix length (in revolutions)
+    const totalAngle = turns * 2 * math.pi;
+    const radius = 90.0;
+    const pitch = 15.0; // vertical spacing per radian
     
     // Generate helix points based on the number of nodes we have
     final nodeCount = nodes.length;
@@ -174,7 +173,7 @@ class _ConstellationPainter extends CustomPainter {
     }
 
     // Center the helix at origin
-    final midY = (pitch * totalAngle) * 0.5;
+    const midY = (pitch * totalAngle) * 0.5;
     for (final p in points) {
       p.y -= midY;
     }
@@ -249,7 +248,7 @@ class _ConstellationPainter extends CustomPainter {
         final color = _getEmotionalColor(valence);
         
         // Calculate star size based on selection and depth
-        final baseSize = 8.0;
+        const baseSize = 8.0;
         final depthScale = math.max(0.3, 1.0 - (p.depth / 200.0));
         final selectionScale = isSelected ? 1.0 + selectionPulse * 0.5 : 1.0;
         final finalSize = baseSize * depthScale * selectionScale * scale;
@@ -263,7 +262,7 @@ class _ConstellationPainter extends CustomPainter {
           ..isAntiAlias = true;
 
         // tiny twinkle by depth (or time via repaint)
-        final rCore = 2.2;
+        const rCore = 2.2;
         canvas.drawCircle(p.screen, rCore + 2.5, halo);
         canvas.drawCircle(p.screen, rCore, core);
         

@@ -260,7 +260,7 @@ class _Arcform3DLayoutState extends State<Arcform3DLayout>
             onScaleStart: _handleScaleStart,
             onScaleUpdate: _handleScaleUpdate,
             onScaleEnd: _handleScaleEnd,
-            child: Container(
+            child: SizedBox(
               width: double.infinity,
               height: double.infinity,
               child: AnimatedBuilder(
@@ -295,7 +295,7 @@ class _Arcform3DLayoutState extends State<Arcform3DLayout>
                 children: [
                   Row(
                     children: [
-                      Icon(
+                      const Icon(
                         Icons.view_in_ar,
                         color: kcPrimaryColor,
                         size: 20,
@@ -382,7 +382,7 @@ class _Arcform3DLayoutState extends State<Arcform3DLayout>
                     });
                   },
                   backgroundColor: kcSurfaceAltColor,
-                  child: Icon(
+                  child: const Icon(
                     Icons.center_focus_strong,
                     color: kcSecondaryColor,
                   ),
