@@ -719,7 +719,7 @@ class McpManifest {
           .toList(),
       casRemotes: List<String>.from(json['cas_remotes'] ?? []),
       notes: json['notes'] as String?,
-      schemaVersion: json['schema_version'] as String? ?? 'manifest.v1',
+      schemaVersion: json['schema_version'] as String? ?? '1.0.0',
       bundles: json['bundles'] != null ? List<String>.from(json['bundles']) : null,
     );
   }
