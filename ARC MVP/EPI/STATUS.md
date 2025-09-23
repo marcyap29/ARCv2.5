@@ -28,6 +28,13 @@
 - **Files**: `lib/features/journal/widgets/journal_edit_view.dart`
 - **Status**: ✅ Complete
 
+#### 4. Date/Time Editing for Past Entries Added
+- **Feature**: Ability to change date and time of past journal entries
+- **Implementation**: Interactive date/time picker with native Flutter pickers
+- **Features**: Smart formatting, dark theme, visual feedback, data persistence
+- **Files**: `lib/features/journal/widgets/journal_edit_view.dart`
+- **Status**: ✅ Complete
+
 ---
 
 ## 🏗️ Technical Status
@@ -53,6 +60,7 @@
 ### User Interface
 - **Timeline**: ✅ Phase changes and text modifications working
 - **Journal Editing**: ✅ Save functionality implemented
+- **Date/Time Editing**: ✅ Native pickers with smart formatting
 - **LUMARA Tab**: ✅ Phase detection working correctly
 - **Settings**: ✅ MCP configuration working
 

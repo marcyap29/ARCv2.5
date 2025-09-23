@@ -7,9 +7,9 @@
 This is the fourth iteration of the EPI ARC MVP Bug Tracker, focusing on current development issues and ongoing improvements.
 
 > **Last Updated**: September 23, 2025 (America/Los_Angeles)
-> **Total Items Tracked**: 5 (5 bugs + 0 enhancements)
+> **Total Items Tracked**: 6 (5 bugs + 1 enhancement)
 > **Critical Issues Fixed**: 5
-> **Enhancements Completed**: 0
+> **Enhancements Completed**: 1
 > **Status**: MVP finalizations complete - all critical functionality working
 
 ---
@@ -26,6 +26,50 @@ This is the fourth iteration of the EPI ARC MVP Bug Tracker, focusing on current
 ---
 
 ## Resolved Issues
+
+## Enhancement ID: ENH-2025-09-23-001
+**Title**: Date/Time Editing for Past Journal Entries
+
+**Type**: Enhancement
+**Priority**: P2 (Medium)
+**Status**: ✅ Complete
+**Reporter**: User
+**Assignee**: Claude Code
+**Requested Date**: 2025-09-23
+**Completed Date**: 2025-09-23
+
+#### Description
+Users requested the ability to change the date and time of past journal entries in the timeline. This would allow users to correct timestamps or backdate entries that were created at the wrong time.
+
+#### Implementation Details
+- Added interactive date/time picker section to journal edit view
+- Implemented Flutter's native date and time pickers with dark theme integration
+- Added smart date formatting (Today, Yesterday, full date display)
+- Implemented 12-hour time format with AM/PM display
+- Added visual feedback with edit icon and clickable container
+- Updated save functionality to persist new createdAt timestamp
+- Integrated with existing journal entry model and repository pattern
+
+#### Features Added
+- Clickable date/time display with edit icon
+- Native date picker with reasonable date range (2020 to 1 year from now)
+- Native time picker with 12-hour format
+- Smart date formatting for better UX
+- Dark theme integration for consistency
+- Data persistence through repository pattern
+- Timeline integration for immediate UI updates
+
+#### Files Modified
+- `lib/features/journal/widgets/journal_edit_view.dart` - Added date/time editing functionality
+
+#### Testing
+- Verified date/time picker opens correctly
+- Confirmed date and time selection works properly
+- Tested smart formatting display
+- Verified data persistence when saving
+- Confirmed timeline updates reflect changes
+
+---
 
 ## Bug ID: BUG-2025-09-23-004
 **Title**: LUMARA Hardcoded Phase Detection

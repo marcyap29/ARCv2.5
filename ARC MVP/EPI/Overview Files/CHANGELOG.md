@@ -27,6 +27,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
   - BuildContext Safety: Added proper mounted checks for async operations
   - Files Modified: journal_edit_view.dart, timeline_cubit.dart, context_provider.dart, mcp_settings_cubit.dart
 
+### Added
+- **Date/Time Editing for Past Entries** (2025-09-23) ✅ COMPLETE
+  - Interactive Date/Time Picker: Added clickable date/time section in journal edit view
+  - Native Pickers: Implemented Flutter's native date and time pickers with dark theme
+  - Smart Formatting: Added intelligent date display (Today, Yesterday, full date)
+  - Time Formatting: 12-hour format with AM/PM display
+  - Visual Feedback: Edit icon and clickable container for intuitive UX
+  - Data Persistence: Updates journal entry's createdAt timestamp when saved
+  - Timeline Integration: Changes reflect immediately in timeline view
+  - File Modified: journal_edit_view.dart (161 insertions, 37 deletions)
+
 ### Fixed
 - **Repository Push Failures** (2025-09-23) ✅ COMPLETE
   - CRITICAL FIX: Resolved GitHub push failures due to 9.63 GiB repository pack size
