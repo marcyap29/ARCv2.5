@@ -90,7 +90,7 @@ class CleanShareService {
                     pw.SizedBox(height: 8),
                     pw.Text(
                       'Generated: ${_formatDate(DateTime.now())}',
-                      style: pw.TextStyle(fontSize: 12, color: PdfColors.grey600),
+                      style: const pw.TextStyle(fontSize: 12, color: PdfColors.grey600),
                     ),
                   ],
                 ),
@@ -239,11 +239,11 @@ class CleanShareService {
                     pw.SizedBox(height: 8),
                     pw.Text(
                       'Incident ID: ${incident.id}',
-                      style: pw.TextStyle(fontSize: 12, color: PdfColors.grey600),
+                      style: const pw.TextStyle(fontSize: 12, color: PdfColors.grey600),
                     ),
                     pw.Text(
                       'Generated: ${_formatDate(DateTime.now())}',
-                      style: pw.TextStyle(fontSize: 12, color: PdfColors.grey600),
+                      style: const pw.TextStyle(fontSize: 12, color: PdfColors.grey600),
                     ),
                   ],
                 ),
@@ -400,7 +400,7 @@ class CleanShareService {
         pw.SizedBox(height: 8),
         pw.Text(
           content.isEmpty ? 'No content provided' : content,
-          style: pw.TextStyle(fontSize: 12),
+          style: const pw.TextStyle(fontSize: 12),
         ),
       ],
     );
@@ -427,7 +427,7 @@ class CleanShareService {
           pw.SizedBox(height: 4),
           ...wentWell.map((item) => pw.Padding(
             padding: const pw.EdgeInsets.only(left: 16, bottom: 2),
-            child: pw.Text('• $item', style: pw.TextStyle(fontSize: 12)),
+            child: pw.Text('• $item', style: const pw.TextStyle(fontSize: 12)),
           )),
           pw.SizedBox(height: 8),
         ],
@@ -440,7 +440,7 @@ class CleanShareService {
           pw.SizedBox(height: 4),
           ...wasHard.map((item) => pw.Padding(
             padding: const pw.EdgeInsets.only(left: 16, bottom: 2),
-            child: pw.Text('• $item', style: pw.TextStyle(fontSize: 12)),
+            child: pw.Text('• $item', style: const pw.TextStyle(fontSize: 12)),
           )),
         ],
       ],
@@ -461,7 +461,7 @@ class CleanShareService {
         pw.SizedBox(height: 8),
         pw.Text(
           'Stress Level: $bodyScore/5',
-          style: pw.TextStyle(fontSize: 12),
+          style: const pw.TextStyle(fontSize: 12),
         ),
       ],
     );
@@ -498,7 +498,7 @@ class CleanShareService {
                   pw.SizedBox(height: 4),
                   pw.Text(
                     recording.transcription.toString(),
-                    style: pw.TextStyle(fontSize: 11),
+                    style: const pw.TextStyle(fontSize: 11),
                   ),
                 ],
               ],
@@ -523,11 +523,11 @@ class CleanShareService {
         pw.SizedBox(height: 8),
         pw.Text(
           'Created: ${_formatDate(debrief.createdAt)}',
-          style: pw.TextStyle(fontSize: 10, color: PdfColors.grey600),
+          style: const pw.TextStyle(fontSize: 10, color: PdfColors.grey600),
         ),
         pw.Text(
           'ID: ${debrief.id}',
-          style: pw.TextStyle(fontSize: 10, color: PdfColors.grey600),
+          style: const pw.TextStyle(fontSize: 10, color: PdfColors.grey600),
         ),
       ],
     );
@@ -552,7 +552,7 @@ class CleanShareService {
           pw.SizedBox(height: 4),
           ...actions.map((action) => pw.Padding(
             padding: const pw.EdgeInsets.only(left: 16, bottom: 2),
-            child: pw.Text('• $action', style: pw.TextStyle(fontSize: 11)),
+            child: pw.Text('• $action', style: const pw.TextStyle(fontSize: 11)),
           )),
           pw.SizedBox(height: 8),
         ],
@@ -562,14 +562,14 @@ class CleanShareService {
           pw.SizedBox(height: 4),
           ...challenges.map((challenge) => pw.Padding(
             padding: const pw.EdgeInsets.only(left: 16, bottom: 2),
-            child: pw.Text('• $challenge', style: pw.TextStyle(fontSize: 11)),
+            child: pw.Text('• $challenge', style: const pw.TextStyle(fontSize: 11)),
           )),
           pw.SizedBox(height: 8),
         ],
         
         if (outcome.isNotEmpty) ...[
           pw.Text('Outcome:', style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold)),
-          pw.Text(outcome, style: pw.TextStyle(fontSize: 11)),
+          pw.Text(outcome, style: const pw.TextStyle(fontSize: 11)),
         ],
       ],
     );
@@ -590,19 +590,19 @@ class CleanShareService {
         
         if (situation.isNotEmpty) ...[
           pw.Text('Situation:', style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold)),
-          pw.Text(situation, style: pw.TextStyle(fontSize: 11)),
+          pw.Text(situation, style: const pw.TextStyle(fontSize: 11)),
           pw.SizedBox(height: 8),
         ],
         
         if (awareness.isNotEmpty) ...[
           pw.Text('Awareness:', style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold)),
-          pw.Text(awareness, style: pw.TextStyle(fontSize: 11)),
+          pw.Text(awareness, style: const pw.TextStyle(fontSize: 11)),
           pw.SizedBox(height: 8),
         ],
         
         if (environment.isNotEmpty) ...[
           pw.Text('Environment:', style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold)),
-          pw.Text(environment, style: pw.TextStyle(fontSize: 11)),
+          pw.Text(environment, style: const pw.TextStyle(fontSize: 11)),
         ],
       ],
     );
@@ -623,16 +623,16 @@ class CleanShareService {
         pw.SizedBox(height: 8),
         pw.Text(
           'Created: ${_formatDate(incident.createdAt)}',
-          style: pw.TextStyle(fontSize: 10, color: PdfColors.grey600),
+          style: const pw.TextStyle(fontSize: 10, color: PdfColors.grey600),
         ),
         if (incident.updatedAt != null)
           pw.Text(
             'Updated: ${_formatDate(incident.updatedAt!)}',
-            style: pw.TextStyle(fontSize: 10, color: PdfColors.grey600),
+            style: const pw.TextStyle(fontSize: 10, color: PdfColors.grey600),
           ),
         pw.Text(
           'ID: ${incident.id}',
-          style: pw.TextStyle(fontSize: 10, color: PdfColors.grey600),
+          style: const pw.TextStyle(fontSize: 10, color: PdfColors.grey600),
         ),
       ],
     );

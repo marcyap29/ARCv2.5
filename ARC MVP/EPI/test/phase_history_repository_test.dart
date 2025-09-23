@@ -78,7 +78,7 @@ void main() {
 
       final entry2 = PhaseHistoryEntry(
         id: 'same-id',
-        timestamp: DateTime.now().add(Duration(hours: 1)),
+        timestamp: DateTime.now().add(const Duration(hours: 1)),
         phaseScores: {'Discovery': 0.8},
         journalEntryId: 'journal-2',
         emotion: 'sad',

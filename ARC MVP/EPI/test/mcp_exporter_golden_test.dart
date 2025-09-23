@@ -7,7 +7,6 @@ library;
 import 'dart:io';
 import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:path/path.dart' as path;
 import 'package:my_app/mcp/export/mcp_export_service.dart';
 import 'package:my_app/mcp/models/mcp_schemas.dart';
 import 'package:my_app/mcp/validation/mcp_validator.dart';

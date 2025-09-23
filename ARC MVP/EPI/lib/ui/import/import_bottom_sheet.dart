@@ -296,7 +296,7 @@ class _ImportBottomSheetState extends State<ImportBottomSheet> {
                 ],
               ),
             ),
-            Icon(
+            const Icon(
               Icons.arrow_forward_ios,
               color: Colors.white30,
               size: 16,

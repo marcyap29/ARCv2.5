@@ -13,7 +13,7 @@ class VoiceDebriefService {
   VoiceDebriefService._internal();
 
   // final AudioRecorder _recorder = AudioRecorder();  // Temporarily disabled
-  bool _isRecording = false;
+  final bool _isRecording = false;
   StreamController<RecordingState>? _recordingStateController;
   Timer? _recordingTimer;
 
@@ -194,7 +194,7 @@ class VoiceDebriefService {
       final recordings = await getAllRecordings();
       
       if (recordings.isEmpty) {
-        return VoiceRecordingStatistics(
+        return const VoiceRecordingStatistics(
           totalRecordings: 0,
           totalDuration: Duration.zero,
           totalFileSize: 0,
@@ -224,7 +224,7 @@ class VoiceDebriefService {
       );
     } catch (e) {
       debugPrint('Error getting statistics: $e');
-      return VoiceRecordingStatistics(
+      return const VoiceRecordingStatistics(
         totalRecordings: 0,
         totalDuration: Duration.zero,
         totalFileSize: 0,

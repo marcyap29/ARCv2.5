@@ -38,7 +38,7 @@ class _DebriefBreathWidgetState extends State<DebriefBreathWidget>
     super.initState();
     
     _controller = AnimationController(
-      duration: Duration(seconds: _totalCycleDuration),
+      duration: const Duration(seconds: _totalCycleDuration),
       vsync: this,
     );
     
@@ -110,9 +110,9 @@ class _DebriefBreathWidgetState extends State<DebriefBreathWidget>
     // Listen to animation progress for breathing instructions
     _controller.addListener(() {
       final progress = _controller.value;
-      final inhaleEnd = _inhaleDuration / _totalCycleDuration;
-      final holdAfterInhaleEnd = inhaleEnd + (_holdAfterInhaleDuration / _totalCycleDuration);
-      final exhaleEnd = holdAfterInhaleEnd + (_exhaleDuration / _totalCycleDuration);
+      const inhaleEnd = _inhaleDuration / _totalCycleDuration;
+      const holdAfterInhaleEnd = inhaleEnd + (_holdAfterInhaleDuration / _totalCycleDuration);
+      const exhaleEnd = holdAfterInhaleEnd + (_exhaleDuration / _totalCycleDuration);
       
       bool newIsInhaling;
       if (progress <= inhaleEnd) {
@@ -150,9 +150,9 @@ class _DebriefBreathWidgetState extends State<DebriefBreathWidget>
     if (!_hasStarted) return 'Ready to breathe?';
     
     final progress = _controller.value;
-    final inhaleEnd = _inhaleDuration / _totalCycleDuration;
-    final holdAfterInhaleEnd = inhaleEnd + (_holdAfterInhaleDuration / _totalCycleDuration);
-    final exhaleEnd = holdAfterInhaleEnd + (_exhaleDuration / _totalCycleDuration);
+    const inhaleEnd = _inhaleDuration / _totalCycleDuration;
+    const holdAfterInhaleEnd = inhaleEnd + (_holdAfterInhaleDuration / _totalCycleDuration);
+    const exhaleEnd = holdAfterInhaleEnd + (_exhaleDuration / _totalCycleDuration);
     
     if (progress <= inhaleEnd) {
       return 'Breathe in...';
@@ -188,7 +188,7 @@ class _DebriefBreathWidgetState extends State<DebriefBreathWidget>
           child: AnimatedBuilder(
             animation: _controller,
             builder: (context, child) {
-              return Container(
+              return SizedBox(
                 width: 200,
                 height: 200,
                 child: Stack(

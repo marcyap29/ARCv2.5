@@ -70,13 +70,13 @@ class ModelManagementCubit extends Cubit<ModelManagementState> {
       print('LUMARA Debug: Available models: $availableModels');
       
       // Currently using rule-based adapter only
-      final isAiEnabled = false;
-      final currentModel = 'rule_based';
-      final adapterType = 'rule_based';
+      const isAiEnabled = false;
+      const currentModel = 'rule_based';
+      const adapterType = 'rule_based';
       
       // For now, we don't have actual downloaded models - they need to be manually installed
       final downloadedModels = <String>[];
-      final activeModel = isAiEnabled ? currentModel : null;
+      const activeModel = isAiEnabled ? currentModel : null;
 
       print('LUMARA Debug: Available models: $availableModels');
       print('LUMARA Debug: Downloaded models: $downloadedModels');
@@ -110,7 +110,7 @@ class ModelManagementCubit extends Cubit<ModelManagementState> {
 
       // For now, model downloads are not supported in the new adapter pattern
       // The app will automatically use the best available model
-      final success = false; // No actual download - models need to be manually installed
+      const success = false; // No actual download - models need to be manually installed
 
       if (success) {
         // Update downloaded models list

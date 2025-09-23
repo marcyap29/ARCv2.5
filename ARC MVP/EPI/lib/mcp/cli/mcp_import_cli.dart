@@ -234,15 +234,15 @@ class McpImportCli {
     }
 
     // Get global options; parent may be unavailable in analyzer env. Provide defaults.
-    final bool dryRun = false;
-    final bool strict = false;
-    final bool verifyCas = false;
-    final bool skipIndexes = false;
-    final int maxErrors = 100;
-    final String storagePath = './mira_storage';
-    final String? casRemotesRaw = null;
+    const bool dryRun = false;
+    const bool strict = false;
+    const bool verifyCas = false;
+    const bool skipIndexes = false;
+    const int maxErrors = 100;
+    const String storagePath = './mira_storage';
+    const String? casRemotesRaw = null;
 
-    final options = McpImportOptions(
+    const options = McpImportOptions(
       dryRun: dryRun,
       strictMode: strict,
       verifyCas: verifyCas,

@@ -55,7 +55,7 @@ void main() {
         name: 'Test User',
         email: 'test@example.com',
         createdAt: DateTime.now(),
-        preferences: {},
+        preferences: const {},
         currentPhase: 'Discovery',
         lastPhaseChangeAt: null,
       );
@@ -79,7 +79,7 @@ void main() {
       );
 
       // Wait for the save to complete
-      await Future.delayed(Duration(milliseconds: 100));
+      await Future.delayed(const Duration(milliseconds: 100));
 
       // Verify the entry was saved
       expect(states.last, isA<JournalCaptureSaved>());
@@ -109,7 +109,7 @@ void main() {
         );
         
         // Wait between entries
-        await Future.delayed(Duration(milliseconds: 50));
+        await Future.delayed(const Duration(milliseconds: 50));
       }
 
       // Verify all entries were saved
@@ -141,7 +141,7 @@ void main() {
       );
 
       // Wait for processing
-      await Future.delayed(Duration(milliseconds: 100));
+      await Future.delayed(const Duration(milliseconds: 100));
 
       // Verify the entry was saved
       expect(states.last, isA<JournalCaptureSaved>());
@@ -194,7 +194,7 @@ void main() {
         );
         
         // Wait between entries
-        await Future.delayed(Duration(milliseconds: 50));
+        await Future.delayed(const Duration(milliseconds: 50));
       }
 
       // Verify all entries were saved
@@ -230,7 +230,7 @@ void main() {
       );
 
       // Wait for processing
-      await Future.delayed(Duration(milliseconds: 100));
+      await Future.delayed(const Duration(milliseconds: 100));
 
       // Verify the entry was saved
       expect(states.last, isA<JournalCaptureSaved>());

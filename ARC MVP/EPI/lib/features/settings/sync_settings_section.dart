@@ -83,7 +83,7 @@ class _SyncSettingsContent extends StatelessWidget {
                               : (value) {
                                   context.read<SyncToggleCubit>().toggleSync(value);
                                 },
-                          activeColor: kcAccentColor,
+                          activeThumbColor: kcAccentColor,
                           inactiveThumbColor: kcSecondaryTextColor,
                           inactiveTrackColor: kcSecondaryTextColor.withOpacity(0.3),
                         ),

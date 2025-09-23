@@ -236,7 +236,7 @@ class _StorageProfileSettingsState extends State<StorageProfileSettings> {
               });
               widget.onSettingsChanged(_settings);
             },
-            activeColor: Colors.blue,
+            activeThumbColor: Colors.blue,
           ),
           const Divider(color: Colors.white12),
           ListTile(
@@ -268,7 +268,7 @@ class _StorageProfileSettingsState extends State<StorageProfileSettings> {
               });
               widget.onSettingsChanged(_settings);
             },
-            activeColor: Colors.blue,
+            activeThumbColor: Colors.blue,
           ),
         ],
       ),
@@ -418,7 +418,7 @@ class _StorageProfileSettingsState extends State<StorageProfileSettings> {
       await Future.delayed(const Duration(seconds: 1));
       
       // In a real implementation, this would query the CAS store and media files
-      final estimate = const StorageEstimate(
+      const estimate = StorageEstimate(
         totalFiles: 42,
         totalSizeBytes: 15728640, // ~15MB
         thumbnailSizeBytes: 2097152, // ~2MB

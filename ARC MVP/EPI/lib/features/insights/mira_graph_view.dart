@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/gestures.dart';
 import 'dart:math' as math;
 import '../../shared/app_colors.dart';
 import '../../shared/text_style.dart';
@@ -9,7 +8,7 @@ import 'info/info_icon.dart';
 
 /// Interactive MIRA graph visualization
 class MiraGraphView extends StatefulWidget {
-  const MiraGraphView({Key? key}) : super(key: key);
+  const MiraGraphView({super.key});
 
   @override
   State<MiraGraphView> createState() => _MiraGraphViewState();
@@ -95,7 +94,7 @@ class _MiraGraphViewState extends State<MiraGraphView> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
+          const Icon(
             Icons.error_outline,
             size: 64,
             color: kcDangerColor,
@@ -128,7 +127,7 @@ class _MiraGraphViewState extends State<MiraGraphView> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
+          const Icon(
             Icons.account_tree_outlined,
             size: 64,
             color: kcSecondaryTextColor,
@@ -205,7 +204,7 @@ class _MiraGraphViewState extends State<MiraGraphView> {
 
   void _handleTapDown(TapDownDetails details, MiraGraphLoaded state) {
     final localPosition = details.localPosition;
-    final center = Offset(250, 250); // Simple center for 500x500 canvas
+    const center = Offset(250, 250); // Simple center for 500x500 canvas
 
     // DEBUG: Store tap position for visual debugging
     setState(() {
@@ -320,7 +319,7 @@ class MiraGraphPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final center = Offset(250, 250); // Simple center for 500x500 canvas
+    const center = Offset(250, 250); // Simple center for 500x500 canvas
 
     // Draw edges first (so they appear behind nodes)
     for (final edge in edges) {

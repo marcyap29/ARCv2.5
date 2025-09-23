@@ -214,7 +214,7 @@ class NdjsonStreamReader {
       // Basic JSON validation - check if line starts and ends with { }
       if (line.isNotEmpty && (!line.startsWith('{') || !line.endsWith('}'))) {
         stats.invalidLinesSkipped++;
-        throw NdjsonStreamException('Line does not appear to be valid JSON object');
+        throw const NdjsonStreamException('Line does not appear to be valid JSON object');
       }
       
       return line;

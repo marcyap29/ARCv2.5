@@ -40,9 +40,9 @@ void main() {
     });
 
     test('should provide consistent results between recommend() and score()', () {
-      final emotion = 'excited';
-      final reason = 'learning';
-      final text = 'I am excited to learn new things';
+      const emotion = 'excited';
+      const reason = 'learning';
+      const text = 'I am excited to learn new things';
       final keywords = ['curious', 'learning'];
 
       final recommendation = PhaseRecommender.recommend(

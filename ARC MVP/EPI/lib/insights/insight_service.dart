@@ -35,7 +35,7 @@ class InsightService {
       print('DEBUG: Loaded ${rulePack.rules.length} rules');
       
       // Get journal entries for the period
-      final allEntries = _journalRepository.getAllJournalEntries();
+      final allEntries = _journalRepository.getAllJournalEntriesSync();
       print('DEBUG: Found ${allEntries.length} total journal entries');
       
       final entries = allEntries

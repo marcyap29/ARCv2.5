@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../shared/app_colors.dart';
 import '../../shared/text_style.dart';
 import '../../core/services/audio_service.dart';
@@ -71,7 +70,7 @@ class _MusicControlSectionState extends State<MusicControlSection> {
               // Track Info
               Row(
                 children: [
-                  Icon(
+                  const Icon(
                     Icons.music_note,
                     color: kcAccentColor,
                     size: 24,

@@ -103,8 +103,9 @@ class ContextTriggerService {
       (keyword) => entryText.contains(keyword.toLowerCase())
     ).length;
     
-    if (foundFRKeywords >= 3) heavyScore += 2;
-    else if (foundFRKeywords >= 1) heavyScore += 1;
+    if (foundFRKeywords >= 3) {
+      heavyScore += 2;
+    } else if (foundFRKeywords >= 1) heavyScore += 1;
     
     // 2. Check emotional valence using existing service
     final keywords = entry.keywords;
@@ -117,8 +118,9 @@ class ContextTriggerService {
       }
     }
     
-    if (negativeEmotions >= 3) heavyScore += 2;
-    else if (negativeEmotions >= 1) heavyScore += 1;
+    if (negativeEmotions >= 3) {
+      heavyScore += 2;
+    } else if (negativeEmotions >= 1) heavyScore += 1;
     
     // 3. Check entry length (longer entries might indicate processing heavy content)
     final wordCount = entryText.split(' ').length;

@@ -31,7 +31,7 @@ class AuroraLiteService {
     final activeSchedule = await getActiveShiftSchedule();
     
     if (activeSchedule == null) {
-      return ShiftStatus(
+      return const ShiftStatus(
         isOnShift: false,
         timeUntilNextShift: null,
         timeSinceLastShift: null,
@@ -229,7 +229,7 @@ class AuroraLiteService {
 
   List<ShiftAction> _getOnDutyActions() {
     return [
-      ShiftAction(
+      const ShiftAction(
         id: 'check_in_during_shift',
         title: 'Check In',
         description: 'How are you feeling right now?',
@@ -237,7 +237,7 @@ class AuroraLiteService {
         priority: 8,
         estimatedMinutes: 2,
       ),
-      ShiftAction(
+      const ShiftAction(
         id: 'quick_debrief_after_call',
         title: 'Quick Debrief',
         description: 'Brief reflection after a call',
@@ -250,7 +250,7 @@ class AuroraLiteService {
 
   List<ShiftAction> _getImmediateRecoveryActions() {
     return [
-      ShiftAction(
+      const ShiftAction(
         id: 'end_of_shift_check_in',
         title: 'End of Shift Check-in',
         description: 'Reflect on your shift',
@@ -258,7 +258,7 @@ class AuroraLiteService {
         priority: 9,
         estimatedMinutes: 3,
       ),
-      ShiftAction(
+      const ShiftAction(
         id: 'full_debrief',
         title: 'Full Debrief',
         description: 'Complete debrief process',
@@ -266,7 +266,7 @@ class AuroraLiteService {
         priority: 8,
         estimatedMinutes: 15,
       ),
-      ShiftAction(
+      const ShiftAction(
         id: 'grounding_exercise',
         title: 'Grounding Exercise',
         description: 'Calm your nervous system',
@@ -279,7 +279,7 @@ class AuroraLiteService {
 
   List<ShiftAction> _getShortTermRecoveryActions() {
     return [
-      ShiftAction(
+      const ShiftAction(
         id: 'recovery_check_in',
         title: 'Recovery Check-in',
         description: 'How is your recovery going?',
@@ -287,7 +287,7 @@ class AuroraLiteService {
         priority: 6,
         estimatedMinutes: 2,
       ),
-      ShiftAction(
+      const ShiftAction(
         id: 'wellness_activity',
         title: 'Wellness Activity',
         description: 'Engage in a wellness activity',
@@ -300,7 +300,7 @@ class AuroraLiteService {
 
   List<ShiftAction> _getLongTermRecoveryActions() {
     return [
-      ShiftAction(
+      const ShiftAction(
         id: 'general_check_in',
         title: 'General Check-in',
         description: 'How are you doing overall?',
@@ -308,7 +308,7 @@ class AuroraLiteService {
         priority: 4,
         estimatedMinutes: 2,
       ),
-      ShiftAction(
+      const ShiftAction(
         id: 'reflection_exercise',
         title: 'Reflection Exercise',
         description: 'Reflect on recent experiences',
@@ -321,7 +321,7 @@ class AuroraLiteService {
 
   List<ShiftAction> _getOffDutyActions() {
     return [
-      ShiftAction(
+      const ShiftAction(
         id: 'general_wellness',
         title: 'General Wellness',
         description: 'Maintain your wellness routine',
@@ -334,7 +334,7 @@ class AuroraLiteService {
 
   List<ShiftPrompt> _getDuringShiftPrompts(ShiftStatus status) {
     return [
-      ShiftPrompt(
+      const ShiftPrompt(
         id: 'shift_check_in',
         title: 'Shift Check-in',
         message: 'How are you feeling during your shift?',
@@ -342,7 +342,7 @@ class AuroraLiteService {
         priority: 8,
         estimatedMinutes: 2,
       ),
-      ShiftPrompt(
+      const ShiftPrompt(
         id: 'post_call_debrief',
         title: 'Post-Call Debrief',
         message: 'Take a moment to reflect after that call',
@@ -360,7 +360,7 @@ class AuroraLiteService {
       final hoursSince = status.timeSinceLastShift!.inHours;
       
       if (hoursSince < 2) {
-        prompts.add(ShiftPrompt(
+        prompts.add(const ShiftPrompt(
           id: 'immediate_recovery',
           title: 'Immediate Recovery',
           message: 'Take time to decompress after your shift',
@@ -369,7 +369,7 @@ class AuroraLiteService {
           estimatedMinutes: 15,
         ));
       } else if (hoursSince < 24) {
-        prompts.add(ShiftPrompt(
+        prompts.add(const ShiftPrompt(
           id: 'short_term_recovery',
           title: 'Short-term Recovery',
           message: 'How is your recovery going?',
@@ -388,7 +388,7 @@ class AuroraLiteService {
     final prompts = <ShiftPrompt>[];
     
     if (recentActivity.averageStress > 6) {
-      prompts.add(ShiftPrompt(
+      prompts.add(const ShiftPrompt(
         id: 'high_stress_recovery',
         title: 'High Stress Recovery',
         message: 'You\'ve had some stressful shifts. Consider extra recovery time.',
@@ -399,7 +399,7 @@ class AuroraLiteService {
     }
     
     if (recentActivity.recentIncidents > 3) {
-      prompts.add(ShiftPrompt(
+      prompts.add(const ShiftPrompt(
         id: 'high_incident_recovery',
         title: 'High Incident Recovery',
         message: 'You\'ve had several incidents recently. How are you processing them?',

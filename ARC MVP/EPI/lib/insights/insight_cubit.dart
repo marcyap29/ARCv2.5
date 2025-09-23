@@ -155,7 +155,7 @@ class InsightCubit extends Cubit<InsightState> {
     try {
       final box = await Hive.openBox<InsightCard>('insight_cards');
       await box.clear();
-      emit(InsightLoaded(cards: [], lastUpdated: DateTime.now()));
+      emit(InsightLoaded(cards: const [], lastUpdated: DateTime.now()));
     } catch (e) {
       emit(InsightError('Failed to clear insights: $e'));
     }

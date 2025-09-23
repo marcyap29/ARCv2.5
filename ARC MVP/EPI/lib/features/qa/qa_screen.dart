@@ -10,7 +10,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 /// QA screen for debugging and device information
 /// Implements P15 requirements for analytics & QA
 class QAScreen extends StatefulWidget {
-  const QAScreen({Key? key}) : super(key: key);
+  const QAScreen({super.key});
 
   @override
   State<QAScreen> createState() => _QAScreenState();
@@ -144,7 +144,7 @@ class _QAScreenState extends State<QAScreen> {
           children: [
             Row(
               children: [
-                Icon(Icons.analytics, color: kcPrimaryColor),
+                const Icon(Icons.analytics, color: kcPrimaryColor),
                 const SizedBox(width: 8),
                 Text(
                   'Analytics Consent',
@@ -191,7 +191,7 @@ class _QAScreenState extends State<QAScreen> {
           children: [
             Row(
               children: [
-                Icon(Icons.phone_android, color: kcPrimaryColor),
+                const Icon(Icons.phone_android, color: kcPrimaryColor),
                 const SizedBox(width: 8),
                 Text(
                   'Device Information',
@@ -221,7 +221,7 @@ class _QAScreenState extends State<QAScreen> {
           children: [
             Row(
               children: [
-                Icon(Icons.info, color: kcPrimaryColor),
+                const Icon(Icons.info, color: kcPrimaryColor),
                 const SizedBox(width: 8),
                 Text(
                   'App Information',
@@ -251,7 +251,7 @@ class _QAScreenState extends State<QAScreen> {
           children: [
             Row(
               children: [
-                Icon(Icons.bar_chart, color: kcPrimaryColor),
+                const Icon(Icons.bar_chart, color: kcPrimaryColor),
                 const SizedBox(width: 8),
                 Text(
                   'Analytics Data',
@@ -288,7 +288,7 @@ class _QAScreenState extends State<QAScreen> {
           children: [
             Row(
               children: [
-                Icon(Icons.data_object, color: kcPrimaryColor),
+                const Icon(Icons.data_object, color: kcPrimaryColor),
                 const SizedBox(width: 8),
                 Text(
                   'Sample Data Seeder',

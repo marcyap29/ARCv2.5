@@ -55,7 +55,7 @@ class QwenAdapter implements ModelAdapter {
         
         final success = await LumaraNative.initChatModel(
           modelPath: modelPath,
-          params: GenParams(
+          params: const GenParams(
             temperature: 0.7,
             topP: 0.9,
             maxTokens: 512,
@@ -302,7 +302,7 @@ Please respond to the user's latest message: "${latestMessage['content']}"''';
       final response = await LumaraNative.qwenText(prompt);
       print('QwenAdapter: Native call completed successfully');
       print('QwenAdapter: Native response length: ${response.length}');
-      print('QwenAdapter: Native response preview: ${response.length > 100 ? response.substring(0, 100) + "..." : response}');
+      print('QwenAdapter: Native response preview: ${response.length > 100 ? "${response.substring(0, 100)}..." : response}');
       
       if (response.isNotEmpty) {
         print('QwenAdapter: Using native response');

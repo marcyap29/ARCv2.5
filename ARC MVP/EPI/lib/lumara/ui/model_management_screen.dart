@@ -231,7 +231,7 @@ class _ModelManagementScreenState extends State<ModelManagementScreen> {
                         onDelete: () => _deleteModel(context, modelName),
                       ),
                     );
-                  }).toList(),
+                  }),
                   
                   const SizedBox(height: 24),
                   

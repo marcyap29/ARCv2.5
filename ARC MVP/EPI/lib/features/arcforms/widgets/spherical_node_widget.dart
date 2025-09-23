@@ -2,7 +2,6 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart' hide Material;
 import 'package:flutter_cube/flutter_cube.dart' as cube;
 import 'package:my_app/features/arcforms/arcform_renderer_state.dart';
-import 'package:my_app/shared/app_colors.dart';
 
 /// A 3D spherical node widget using flutter_cube
 class SphericalNodeWidget extends StatefulWidget {
@@ -134,7 +133,7 @@ class _SphericalNodeWidgetState extends State<SphericalNodeWidget>
           builder: (context, child) {
             return Transform.scale(
               scale: widget.scale * _pulseAnimation.value,
-              child: Container(
+              child: SizedBox(
                 width: size,
                 height: size,
                 child: cube.Cube(

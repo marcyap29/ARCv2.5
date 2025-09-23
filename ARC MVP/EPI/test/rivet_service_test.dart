@@ -22,10 +22,10 @@ void main() {
       final event = RivetEvent(
         date: DateTime.now(),
         source: EvidenceSource.text,
-        keywords: {'keyword1', 'keyword2'},
+        keywords: const {'keyword1', 'keyword2'},
         predPhase: 'discovery',
         refPhase: 'discovery', // Matching phase
-        tolerance: {},
+        tolerance: const {},
       );
 
       final decision = service.ingest(event);
@@ -39,10 +39,10 @@ void main() {
       final event = RivetEvent(
         date: DateTime.now(),
         source: EvidenceSource.text,
-        keywords: {'keyword1', 'keyword2'},
+        keywords: const {'keyword1', 'keyword2'},
         predPhase: 'discovery',
         refPhase: 'expansion', // Different phase
-        tolerance: {},
+        tolerance: const {},
       );
 
       final decision = service.ingest(event);
@@ -58,10 +58,10 @@ void main() {
       final event1 = RivetEvent(
         date: DateTime.now(),
         source: EvidenceSource.text,
-        keywords: {'keyword1'},
+        keywords: const {'keyword1'},
         predPhase: 'discovery',
         refPhase: 'discovery',
-        tolerance: {},
+        tolerance: const {},
       );
 
       final decision1 = service.ingest(event1);
@@ -77,10 +77,10 @@ void main() {
       final baseEvent = RivetEvent(
         date: DateTime.now(),
         source: EvidenceSource.text,
-        keywords: {'keyword1'},
+        keywords: const {'keyword1'},
         predPhase: phase,
         refPhase: phase,
-        tolerance: {},
+        tolerance: const {},
       );
 
       // Send multiple events to build confidence
@@ -92,7 +92,7 @@ void main() {
           keywords: {'keyword$i'},
           predPhase: phase,
           refPhase: phase,
-          tolerance: {},
+          tolerance: const {},
         );
         lastDecision = service.ingest(event, lastEvent: i > 0 ? baseEvent : null);
       }
@@ -109,10 +109,10 @@ void main() {
       final event1 = RivetEvent(
         date: now,
         source: EvidenceSource.text,
-        keywords: {'keyword1'},
+        keywords: const {'keyword1'},
         predPhase: 'discovery',
         refPhase: 'discovery',
-        tolerance: {},
+        tolerance: const {},
       );
 
       final decision1 = service.ingest(event1);
@@ -125,10 +125,10 @@ void main() {
       final event2 = RivetEvent(
         date: now.add(const Duration(minutes: 1)),
         source: EvidenceSource.voice, // Different source
-        keywords: {'keyword2'},
+        keywords: const {'keyword2'},
         predPhase: 'discovery',
         refPhase: 'discovery',
-        tolerance: {},
+        tolerance: const {},
       );
 
       final decision2 = service.ingest(event2, lastEvent: event1);
@@ -144,10 +144,10 @@ void main() {
       final event = RivetEvent(
         date: DateTime.now(),
         source: EvidenceSource.text,
-        keywords: {'keyword1'},
+        keywords: const {'keyword1'},
         predPhase: 'discovery',
         refPhase: 'discovery',
-        tolerance: {},
+        tolerance: const {},
       );
 
       service.ingest(event);
@@ -180,10 +180,10 @@ void main() {
       final event = RivetEvent(
         date: DateTime.now(),
         source: EvidenceSource.text,
-        keywords: {},
+        keywords: const {},
         predPhase: 'discovery',
         refPhase: 'discovery',
-        tolerance: {},
+        tolerance: const {},
       );
 
       expect(() => service.ingest(event), returnsNormally);
@@ -192,10 +192,10 @@ void main() {
       final event2 = RivetEvent(
         date: event.date,
         source: EvidenceSource.text,
-        keywords: {'keyword1'},
+        keywords: const {'keyword1'},
         predPhase: 'discovery',
         refPhase: 'discovery',
-        tolerance: {},
+        tolerance: const {},
       );
 
       expect(() => service.ingest(event2, lastEvent: event), returnsNormally);

@@ -38,7 +38,14 @@ A Flutter-based AI companion app that provides life-aware assistance through jou
 - **Feature Flags** - Controlled rollout: `miraEnabled`, `miraAdvancedEnabled`, `retrievalEnabled`, `useSqliteRepo`
 - **Rule-Based Adapter** - Deterministic fallback if API unavailable
 
-## 🔧 Recent Updates (September 2025)
+## 🔧 Recent Updates (January 2025)
+
+### MCP Export Embeddings Fix - January 22, 2025
+- **Fixed Empty Embeddings**: Resolved issue where `embeddings.jsonl` was empty (0 bytes) in MCP exports
+- **Content-Based Embeddings**: Now generates 384-dimensional vectors based on actual journal entry content
+- **Proper Metadata**: Includes `doc_scope`, `model_id`, `embedding_version`, and vector dimensions
+- **Export Completeness**: All MCP files now populated with meaningful data for AI ecosystem integration
+- **Technical Fix**: Changed `includeEmbeddingPlaceholders: false` to `true` in export settings
 
 ### FFmpeg iOS Simulator Compatibility Fix (September 21, 2025) ✅ RESOLVED
 - **CRITICAL FIX COMPLETE**: Resolved FFmpeg framework iOS simulator architecture incompatibility blocking development

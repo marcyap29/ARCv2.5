@@ -106,21 +106,11 @@ void main() async {
     final process = await Process.start('flutter', ['run', '--debug']);
     
     // Wait a bit to see if the app starts successfully
-    await Future.delayed(Duration(seconds: 10));
+    await Future.delayed(const Duration(seconds: 10));
     
-    if (process.exitCode == null) {
-      print('✅ App appears to be running successfully!');
-      print('You can now close this script and use the app normally.');
-      print('');
-      print('If the app still has issues, try:');
-      print('1. Restart your device/simulator');
-      print('2. Delete and reinstall the app');
-      print('3. Check the Flutter logs for specific errors');
-    } else {
-      print('❌ App failed to start. Exit code: ${process.exitCode}');
-      print('Check the error messages above for more details.');
-    }
-  } catch (e) {
+    print('❌ App failed to start. Exit code: ${process.exitCode}');
+    print('Check the error messages above for more details.');
+    } catch (e) {
     print('❌ Failed to run app: $e');
     exit(1);
   }

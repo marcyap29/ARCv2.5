@@ -1,6 +1,6 @@
 import 'package:hive/hive.dart';
-import 'package:uuid/uuid.dart'; // For generating unique IDs
-import 'package:collection/collection.dart'; // For firstWhereOrNull
+// For generating unique IDs
+// For firstWhereOrNull
 
 part 'phase_history_repository.g.dart'; // Hive generated file
 

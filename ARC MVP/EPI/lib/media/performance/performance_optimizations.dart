@@ -1,6 +1,5 @@
 import 'dart:typed_data';
 import 'dart:isolate';
-import 'dart:io';
 import 'dart:math';
 import 'package:image/image.dart' as img;
 

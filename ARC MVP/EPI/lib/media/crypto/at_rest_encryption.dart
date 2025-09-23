@@ -13,7 +13,7 @@ class AtRestEncryption {
   static const int _tagLengthBytes = 16; // 128 bits
 
   static const FlutterSecureStorage _secureStorage = FlutterSecureStorage(
-    aOptions: const AndroidOptions(
+    aOptions: AndroidOptions(
       encryptedSharedPreferences: true,
     ),
   );

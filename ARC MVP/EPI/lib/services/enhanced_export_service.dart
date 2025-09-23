@@ -33,7 +33,7 @@ class EnhancedExportService {
     // Check if we should apply redaction
     final shouldRedact = settings.redactionEnabled && 
                         (entry.metadata?['frMode'] == true || 
-                         entry.tags?.contains('first_responder') == true);
+                         entry.tags.contains('first_responder') == true);
 
     if (shouldRedact) {
       if (showRedactionPreview) {

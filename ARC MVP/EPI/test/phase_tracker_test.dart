@@ -1,7 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hive/hive.dart';
 import 'package:my_app/features/atlas/phase_tracker.dart';
-import 'package:my_app/features/atlas/phase_scoring.dart';
 import 'package:my_app/features/atlas/phase_history_repository.dart';
 import 'package:my_app/models/user_profile_model.dart';
 
@@ -30,7 +29,7 @@ void main() {
         name: 'Test User',
         email: 'test@example.com',
         createdAt: DateTime.now(),
-        preferences: {},
+        preferences: const {},
         currentPhase: 'Discovery',
         lastPhaseChangeAt: null,
       );
@@ -123,9 +122,9 @@ void main() {
         name: 'Test User',
         email: 'test@example.com',
         createdAt: DateTime.now(),
-        preferences: {},
+        preferences: const {},
         currentPhase: 'Discovery',
-        lastPhaseChangeAt: DateTime.now().subtract(Duration(days: 1)), // 1 day ago
+        lastPhaseChangeAt: DateTime.now().subtract(const Duration(days: 1)), // 1 day ago
       );
       
       final trackerWithCooldown = PhaseTracker(userProfile: recentChangeProfile);
@@ -159,9 +158,9 @@ void main() {
         name: 'Test User',
         email: 'test@example.com',
         createdAt: DateTime.now(),
-        preferences: {},
+        preferences: const {},
         currentPhase: 'Discovery',
-        lastPhaseChangeAt: DateTime.now().subtract(Duration(days: 10)), // 10 days ago
+        lastPhaseChangeAt: DateTime.now().subtract(const Duration(days: 10)), // 10 days ago
       );
       
       final trackerWithHysteresis = PhaseTracker(userProfile: oldChangeProfile);

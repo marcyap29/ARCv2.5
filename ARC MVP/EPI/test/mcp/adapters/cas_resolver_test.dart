@@ -48,8 +48,8 @@ void main() {
         // Arrange
         const testContent = 'Hello, World!';
         final contentBytes = utf8.encode(testContent);
-        final expectedHash = 'dffd6021bb2bd5b0af676290809ec3a53191dd81c7f70a4b28688a362182986f'; // SHA-256 of "Hello, World!"
-        final casUri = 'cas:sha256:$expectedHash';
+        const expectedHash = 'dffd6021bb2bd5b0af676290809ec3a53191dd81c7f70a4b28688a362182986f'; // SHA-256 of "Hello, World!"
+        const casUri = 'cas:sha256:$expectedHash';
 
         // Create local cache file
         final cacheFile = File('${tempDir.path}/cache/sha256/$expectedHash.bin');
@@ -71,8 +71,8 @@ void main() {
         // Arrange
         const testContent = 'Remote content';
         final contentBytes = utf8.encode(testContent);
-        final expectedHash = 'a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3'; // SHA-256 of "Remote content"
-        final casUri = 'cas:sha256:$expectedHash';
+        const expectedHash = 'a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3'; // SHA-256 of "Remote content"
+        const casUri = 'cas:sha256:$expectedHash';
 
         final mockResponse = MockResponse();
         when(() => mockResponse.statusCode).thenReturn(200);
@@ -102,8 +102,8 @@ void main() {
         // Arrange
         const testContent = 'Content to cache';
         final contentBytes = utf8.encode(testContent);
-        final expectedHash = 'b94adf72e17f85a1a6b3f8c3ac2f1e7b5e4b2a8c8a7b5e4c3d2e1f0a9b8c7d6e5'; // Example hash
-        final casUri = 'cas:sha256:$expectedHash';
+        const expectedHash = 'b94adf72e17f85a1a6b3f8c3ac2f1e7b5e4b2a8c8a7b5e4c3d2e1f0a9b8c7d6e5'; // Example hash
+        const casUri = 'cas:sha256:$expectedHash';
 
         final mockResponse = MockResponse();
         when(() => mockResponse.statusCode).thenReturn(200);
@@ -161,7 +161,7 @@ void main() {
         const testContent = 'Corrupted content';
         final contentBytes = utf8.encode(testContent);
         const wrongHash = 'wronghash123456789abcdef';
-        final casUri = 'cas:sha256:$wrongHash';
+        const casUri = 'cas:sha256:$wrongHash';
 
         final mockResponse = MockResponse();
         when(() => mockResponse.statusCode).thenReturn(200);
@@ -183,7 +183,7 @@ void main() {
 
       test('should respect content size limit', () async {
         // Arrange
-        final config = const CasResolverConfig(
+        const config = CasResolverConfig(
           maxContentSize: 100, // Small limit
           trustedRemotes: ['https://cas.example.com'],
         );
@@ -219,8 +219,8 @@ void main() {
         // Arrange
         const testContent = 'Cached content';
         final contentBytes = utf8.encode(testContent);
-        final expectedHash = 'somehash123'; // Mock hash
-        final casUri = 'cas:sha256:$expectedHash';
+        const expectedHash = 'somehash123'; // Mock hash
+        const casUri = 'cas:sha256:$expectedHash';
 
         final mockResponse = MockResponse();
         when(() => mockResponse.statusCode).thenReturn(200);
@@ -250,8 +250,8 @@ void main() {
         // Arrange
         const testContent = 'Test content for verification';
         final contentBytes = utf8.encode(testContent);
-        final actualHash = 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855'; // Example SHA-256
-        final casUri = 'cas:sha256:$actualHash';
+        const actualHash = 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855'; // Example SHA-256
+        const casUri = 'cas:sha256:$actualHash';
 
         // Act
         final isValid = await resolver.verifyContentHash(casUri, contentBytes);
@@ -265,7 +265,7 @@ void main() {
         const testContent = 'Different content';
         final contentBytes = utf8.encode(testContent);
         const wrongHash = 'wronghashvalue123456789abcdef';
-        final casUri = 'cas:sha256:$wrongHash';
+        const casUri = 'cas:sha256:$wrongHash';
 
         // Act
         final isValid = await resolver.verifyContentHash(casUri, contentBytes);

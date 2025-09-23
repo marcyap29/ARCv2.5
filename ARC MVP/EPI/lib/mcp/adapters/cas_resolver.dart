@@ -203,7 +203,7 @@ class CasResolver {
   /// Store content in local CAS storage
   Future<String> storeContent(Uint8List content, {String algorithm = 'sha256'}) async {
     if (_localStorageRoot == null) {
-      throw CasResolutionException('Local storage not configured');
+      throw const CasResolutionException('Local storage not configured');
     }
 
     final hash = _calculateHash(content, algorithm);
