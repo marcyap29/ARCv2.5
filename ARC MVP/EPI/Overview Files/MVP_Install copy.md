@@ -35,9 +35,7 @@ flutter install -d YOUR_DEVICE_ID
 ## Run and Debug on Simulator
 - Debug (full app):
 ```bash
-1.Flutter clean 
-2.Flutter pub get
-3.flutter devices
+flutter clean && flutter pub get && flutter devices
 flutter run -d DEVICE_ID --dart-define=GEMINI_API_KEY=YOUR_KEY
 ```
 

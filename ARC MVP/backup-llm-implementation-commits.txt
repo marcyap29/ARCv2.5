@@ -1,0 +1,236 @@
+18f901b Remove large binary files from git tracking
+a8fd059 Add comprehensive .gitignore patterns for large files
+034d2b9 iOS LLM bridge: fix method channel (llm_bridge_v2), add diagnostics (bundleInfo/resolveModelPath), copy .gguf to AppSupport, expose llm_last_error, disable mmap/mlock, reduce params; update CHANGELOG and Bug_Tracker with current status and next steps
+ceb9e3d iOS LLM Integration: Critical dyld startup crash investigation
+e7f321b feat(architecture): implement unified LLM bridge architecture
+0a11b15 docs: update documentation for iOS startup crash resolution
+84dda8a fix(ios): embed Llama.xcframework to resolve libllama.dylib runtime error
+d73b1a4 feat(ios): implement iOS LLM integration with llama.cpp and Qwen models
+ae6d3e1 chore(qwen_runner): add tools/fetch_llama.sh to vendor llama.cpp into third_party
+05cf7b0 feat(lumara): add engine green/red dot to LUMARA Chat AppBar using QwenService.engineStatusStream
+b114bf4 feat(models): add red/green engine status pill to Model Manager header via QwenService.engineStatusStream
+365c5b8d feat(lumara): add custom LUMARA icon asset and replace icons in nav + assistant app bar; include assets/images in pubspec
+d84489d fix(models): provide ModelManagementCubit in Settings->Model Manager route to fix ProviderNotFoundException
+ac64d80 feat(models): detect installed default Qwen GGUF in QwenService; reflect in Model Management 'downloaded' status
+ed2e420 feat(settings): add Model Manager entry in Settings -> navigates to ModelManagementScreen
+e09cd63 chore(qwen_runner): add third_party/llama.cpp vendor dir with README placeholder
+a89cb30 chore(qwen_runner): scaffold third_party/llama.cpp vendor directory (no sources)
+8541853 feat(chat): engine red/green indicator; expose engineStatus in QwenService; ChatCubit tracks it
+12a3d67 feat(nav): register /lumara-chat route in App for Qwen chat UI
+2e0882e build(android): add CMake config and qwen_runner stub shared lib; enable externalNativeBuild
+ed69210 feat(qwen): add QwenService, ChatCubit, and ChatScreen with streaming scaffolding; asset copy and prompt assembly
+887f0a2 feat(qwen): scaffold packages/qwen_runner FFI (Dart API + native stubs); wire path dep in app pubspec; add domain/chat_types.dart
+4953c42 Remove model assets from index; ignore model directories and GGUF/bin files
+31974cf Remove LLM (Qwen/Gemma) implementation and native bridges; preserve LUMARA UI and rule-based adapter. Add MCP settings UI and cubit; update Overview Files; clean iOS project refs.
+5acebcf Clean up project structure and update iOS configuration
+3a1ed52 Implement comprehensive MCP Importer system (P28)
+1afd190 Complete documentation updates for MCP export system merge
+1ec8f9d Update documentation with MCP export system completion
+0932d1a Clean up project: Remove obsolete Android bridge files and archived documentation
+608df64 Fix MCP export service import issues
+c474863 Implement comprehensive MCP export system
+724188c Update documentation: Force-quit recovery system fix
+8890292 Fix force-quit recovery: Resolve HiveError 'box already open' issue
+df4a04a docs: update all documentation for media-handling merge
+fc8bcf8 fix: resolve critical build errors for media-handling branch
+54a1d8b feat(media): enhance edge case handling - cross-platform resolvers, background processing, privacy controls
+3218a45 feat(media): add MCP pointers for image/audio/video with storage profiles + CAS (P27)
+b9ebb40 Update documentation with onboarding screen fixes
+dd5277a Fix onboarding screen scrolling and update button options
+e5c328c Update project documentation with recent fixes
+610be5c Fix overflow errors and app restart issues
+678622f merge(coaching): merge coaching branch into main
+3442c72 fix(coaching): final cleanup and fixes for Coach Mode implementation
+ae18720 feat(coaching): implement Coach Mode MVP with droplets, keyword trigger, and share bundle export
+2953ada docs: Update documentation files with First Responder Mode completion
+8b9c1f3 docs: Update all documentation files with First Responder Mode completion
+b13c79a feat: Complete First Responder Mode implementation
+ae35ea3 docs: Update documentation for legacy 2D arcform removal
+ca354ec refactor: Remove legacy 2D arcform implementation
+529a8ff docs: Update documentation for journal keyboard visibility fixes
+be023e4 fix: Resolve journal text input keyboard visibility issues
+ec8b9a5 docs: Update documentation for iOS build fixes and dependency updates
+aa701f4 chore: Update Flutter plugins dependencies after iOS build fixes
+f47b77a fix: Update iOS dependencies to resolve build errors
+a7ba6be fix: Enhance Hive error handling for type conflicts and update documentation
+8803b2a feat: Implement comprehensive force-quit recovery system
+1d05c9b Document iOS build fixes and device deployment
+21ec13d Fix iOS build issues - update share_plus to v11.1.0
+b8c070d docs: Update documentation for complete Hive database conflict resolution
+a9293d8 fix: Complete Hive box conflict resolution with dependency fix
+7d774a1 fix: Resolve Hive box conflict in _migrateUserProfileData function
+e325d24 docs: Add OnboardingCubit and WelcomeView Hive box conflict bugs to Bug_Tracker.md
+49136a4 fix: Resolve remaining Hive box conflicts in OnboardingCubit and WelcomeView
+c142a5f docs: Final documentation updates for startup resilience
+548a848 docs: Add force-quit recovery testing to documentation
+22ecc0a docs: Update all documentation for startup resilience fixes
+1e932b3 Fix: Resolve app startup failures after restart
+523bc2c Implement smart music continuation with 2-loop fade-out
+ff1c7f4 Update documentation for fixed welcome screen logic
+f4b3ca4 Fix welcome screen logic: Continue Your Journey for users WITH entries
+7a686e3 Add debug logging to startup flow to diagnose navigation issue
+61f25c2 Fix welcome screen logic: show dynamic button text based on onboarding status
+7092f9f Update documentation for enhanced post-onboarding welcome experience
+324a531 Adjust pulse rate to 1.8 seconds for balanced ARC glow effect
+e1ecccd Adjust pulse rate to 1.5 seconds for faster ARC glow effect
+1f20e6f Adjust pulse rate to 2.5 seconds for ARC glow effect
+38a0047 Update title to 'ARC' and enhance pulsing glow effect with multiple layers
+4a9c2ed Add debug logging to startup flow to diagnose welcome screen issue
+92a4a8a Fix onboarding flow: enhanced welcome screen now only shows for post-onboarding users with initial phase
+1f61cc9 Enhance onboarding experience: add ethereal music fade-in, update button text to 'Continue Your Journey', and add transition delay
+329b8ab Fix navigation black screen issue - simplify back button and save completion navigation
+726070d Change onboarding screen from 'EPI: Evolving Personal Intelligence' to just 'Arc'
+75a6644 docs: complete P14 documentation updates across all tracking files
+e5e456f docs: update P14 completion status in progress tracking and changelog
+b9977e9 fix: resolve P14 Cloud Sync build issues - remove missing audio asset and improve error handling
+165572b merge: integrate P14 Cloud Sync Stubs with P10 MIRA Graph and P10C Insight Cards
+4af0565 feat(sync): implement P14 Cloud Sync Stubs - offline-first scaffold with settings toggle, status indicator, and local queue
+6077e9d docs: final documentation updates for P10C completion
+22c2998 docs: add problem-solving methodology to P10C Bug_Tracker entry
+f7de432 docs: update documentation for P10C Insight Cards completion
+1304ab9 feat: implement P10C Insight Cards with proper constraint handling
+31a39f6 fix: resolve semantics errors and layout overflow issues
+6ed4ddf fix(insights): resolve overflow in Your Patterns card + add debug logging for MIRA graph taps
+be54050 feat(insights): P10A-Lite About sheet + P10B micro-tips + Why Held explainer
+d49630b fix(insights): add MIRA Graph card to home view insights page
+af9d39c feat(insights): implement P10 MIRA v1 Graph visualization
+807cb4d chore: remove build artifacts from git tracking and update .gitignore
+e08f5dc fix(insights): fix RIVET details modal overflow with proper height constraints
+1a4c5eb docs: update documentation for multimodal integration completion
+cb1e9d8 feat(journal): complete multimodal integration in StartEntryFlow
+5d01a91 feat(journal): add multimodal media capture to StartEntryFlow
+b3e31e3 fix(insights): fix RIVET details modal overflow by making it scrollable
+bb16807 feat(insights): simplify RIVET copy to Match/Confidence, add details modal and checklist (P27)
+0af838a Fix RIVET TRACE calculation to properly recalculate from remaining entries when entries are deleted
+b657b4c P5-MM Phase 4: Integration Complete
+4b5901b P5-MM Phase 3: UI Components Complete
+107eeeb P5-MM Phase 2: Core Services Complete
+5e11e25 P5-MM Phase 1: Data Models & Migration Complete
+721f8e3 Update documentation with systematic prompt verification results
+ac5e3ff Mark P12 as Complete - AURORA/VEIL placeholder cards already implemented
+f0ee97d Update Bug Tracker for P10 Polymeta to MIRA rename
+fbcadfb Rename P10 from Polymeta to MIRA across all documentation
+c594b25 P15-cleanup: Update documentation to reflect P15, P17, P19 completion status
+c0af6d3 EPI ARC MVP v1.0.0 - Production Ready Stable Release
+bdb2ed7 Merge P13 Settings & Privacy into Main
+00b3cdd P13 Settings & Privacy - Complete Implementation
+e883e00 Documentation Updates - P19 Successfully Merged to Main Branch
+e28e19f P19 Documentation Updates - Complete Implementation Tracking
+9609197 P19 Phase 1 & 2 Complete: 80/20 Accessibility Features Implemented
+3ac84b0 Document P19 Accessibility & Performance Pass - Core Features Complete
+b564f5c P19 Accessibility & Performance Pass - Core Features Complete
+769d5f9 Document successful debugging strategy in bug tracker
+edc4e52 P19: Document successful debugging strategy and current progress
+9b382f0 P19: Complete Step 5 - FPS Performance Overlay Integration
+2f9e0f7 P19: Implement 80/20 accessibility approach - Step 3 complete
+fb8d15d Fix export PathNotFoundException by ensuring directory creation
+b8f7522 Fix critical Hive database error in onboarding completion
+fb66709 Update documentation for final UI optimization and Hive error resolution
+4dffd29 Final UI positioning adjustment for 3D Arcform Geometry box
+d16c14a Fix Hive box already open errors
+b0364f1 Bring 3D Arcform Geometry box even closer to Current Phase
+affcf15 Correct 3D Arcform Geometry box positioning
+9de161f Move 3D Arcform Geometry box higher on screen
+f0ccbb0 Reduce spacing and padding in 3D Arcform Geometry box
+c233d3f Properly move control interface higher on screen
+85fde1e Center horizontal row of control buttons
+0230874 Complete P17: Move all control buttons to horizontal row
+d407253 Fix P17: Move control buttons below 3D Arcform Geometry section
+08e30a1 Implement P17: Share/Export Arcform (PNG)
+75137e4 Implement P15: Analytics & QA System
+ab4f0ff Implement P12: AURORA and VEIL placeholder cards
+0eacb51 Update documentation for 3D arcform positioning fix
+5e1fcf6 Fix 3D arcform positioning and resolve critical compilation errors
+cbac3b8 Step 3.4: Complete phase stability system testing and validation
+da5d9e6 Step 3.3: Add phase change notifications and toast messages
+116bee3 Step 3.2: Update journal capture flow to use PhaseTracker
+314a353 Step 3.1: Update PhaseRecommender to expose score() method
+e54a1a8 Phase 2.2: Implement PhaseTracker class with EMA smoothing and hysteresis logic
+4deda5e Phase 2.1: Implement PhaseHistoryRepository for persistent phase time series
+54d528f Phase 1.2: Update UserProfile model with phase tracking fields
+7a93f98 Phase 1.1: Implement PhaseScoring class for probability-based phase detection
+1630952 Update documentation for Phase Recommendation Dialog removal
+f31509d Remove Phase Recommendation Dialog and restore original journal save flow
+4908812 Add MIRA system and enhanced insights features
+beb1e76 Complete onboarding and phase discovery fixes
+2017f6e Implement visual celebration flow for phase discovery
+163945a Complete merge of existing changes
+9c14efa Fix keyword selection interface - remove 5 keyword limit
+a211cb9 Update documentation for phase quiz synchronization fix
+7a91725 Fix phase quiz synchronization with 3D geometry selection
+5736d20 Update documentation: Journal Entry Deletion System Complete
+58e19f8 Fix success message count for journal entry deletion
+0ac48b5 Add debug logging to identify BlocBuilder state update issue
+9a7e1c4 Add debug logging for timeline refresh after deletion
+ed9cdf5 Add debug logging to journal entry deletion feature
+7a82844 Fix RIVET implementation compilation errors
+211429c Update documentation for RIVET phase-stability gating implementation
+6e55f68 Implement RIVET phase-stability gating system
+49c96be Update Bug Tracker with latest phase confirmation dialog and navigation fixes
+f860fd3 Restore phase confirmation dialog and fix navigation flow for new journal entries
+6553972 Update documentation with arcform synchronization fixes
+3283429 Fix arcform phase/geometry synchronization and timeline editing
+42ec6bf Add comprehensive journal entry management and historical arcform features
+90a95be Clean up Flutter build artifacts and temporary files
+e24c694 Fix missing selectedKeywords parameter in PhaseRecommender call
+8f5e2cd Add debug logging to PhaseRecommender to trace keyword analysis
+5bc7f27 Fix Breakthrough phase detection by removing keyword conflicts
+2761e5e Add debug logging to investigate phase synchronization issue
+bf9f08f Fix hardcoded 'Expansion' phase override in arcform renderer
+c9726c2 Fix phase and geometry synchronization in arcform renderer
+f15a6b8 Minimal fix for arcform phase synchronization
+bf1c551 Update documentation with keyword extraction algorithm fixes
+f145ff4 Fix keyword extraction to only include words actually in the text
+99a8cb0 Fix keyword extraction algorithm - make RIVET gating less restrictive
+75eae7c Document keyword-driven phase detection enhancement
+1ac126f Fix import error: Add KeywordCandidate import to keyword_analysis_view
+3ad4271 Implement P26: Enhanced Keyword Extractor with RIVET Gating
+d2dfcbe Update documentation for keyword-driven phase detection
+c883e0d Enhance phase detection with keyword-driven recommendations
+f202880 Enhance keywords system: Expand to 10 selections with 25+ curated options
+351e778 Implement P23 Arcform Sovereignty: Complete phase override and reshape functionality
+0365b09 Document 3D arcform development bugs and enhancements
+b14ab9d Enhance 3D arcform with labels, emotional warmth, and connecting lines
+056b62b Fix arcform positioning: Move node-link diagram higher on screen
+a46b3bc Fix Arcform centering and update CHANGELOG.md
+21ad312 Document KEYWORD-WARMTH merge conflicts in Bug_Tracker.md
+12acfda Merge KEYWORD-WARMTH branch - Integrate streamlined keyword analysis flow
+6fe619e Fix UI layout issues and make phase indicator more compact
+d5e3fea Fix build errors and type mismatches
+997bbb3 Implement phase indicators, timeline phase display, and 3D rotatable Arcforms
+cf84fef Implement proper ATLAS phase geometries in Arcforms tab
+8075495 Fix tab navigation and compilation errors
+c7f4993 Fix Arcform visualization to show all keywords instead of just 3
+fb6b6bb Add horizontal timeline line and clickable entry editing
+a38aae6 Implement interactive timeline with Arcform-based navigation
+5c7eba6 Update documentation with latest progress and notch fix
+36fc67c Fix notch blocking issue in Arcforms and Timeline tabs
+7546ef4 Update CHANGELOG.md with comprehensive journal flow improvements
+0f74a12 Document all bugs fixed in today's session
+dae5e01 Fix recursive loop in save flow
+685f18a Reorder journal entry flow and remove mood chips
+e8bc4d8 Fix keyword display and UI issues
+9b56efd Fix keyword warmth, expansion, and screen layout issues
+01b39b6 Implement streamlined keyword analysis flow
+c2c7923 Implement explicit current phase display in Arcforms tab
+6d58fea Post-startup testing: Enhanced starter experience working well
+23da3aa Remove confusing purple 'Write what is true' screen
+4f5c628 Fix Provider error in writing screen transition
+01e7d62 Fix writing screen transition issue
+aacf657 Post-testing state after successful iOS simulator launch
+ac0a355 Implement enhanced starter experience with ATLAS phase integration
+aaa8dab Document ATLAS Phase integration and golden spiral optimization
+768459e Update CHANGELOG.md with production hotfix details
+47b1df4 Fix color API usage for Flutter Color class
+1f530ce Add comprehensive CHANGELOG.md for development tracking and git backup
+8e673e0 Implement advanced emotional visualization with color temperature and interactive clickable letters
+175d1c7 Add comprehensive bug tracking system and documentation sovereignty
+632cf6b Fix critical widget lifecycle issues preventing app startup
+b979abc Implement elegant in-app notifications and cinematic Arcform introduction animations
+bd75899 Fix critical UX issues and enhance sacred journaling experience
+f282ac1 Fix critical tab navigation and journal save issues - ARC MVP fully functional
+d23d652 Complete ARC MVP production readiness with Provider setup fixes
+4f3c778 Fix journal save functionality and keyword selection
+466edf9 Enhance journal save functionality and document MVP completion
+9c62f76 Fix critical startup issues and validate journal → Arcform pipeline
+c7828df Initial commit: EPI journaling app with ARC MVP
