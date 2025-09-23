@@ -14,3 +14,6 @@ cat >> .gitignore << 'EOF'
 **/.flutter-plugins-dependencies
 **/.flutter-plugins
 .buildlog/
+..bfg-report/
+**/.flutter-plugins-dependencies
+.DS_Store
