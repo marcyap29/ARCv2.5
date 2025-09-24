@@ -429,42 +429,90 @@ class McpImportService {
     McpImportOptions options,
   ) async {
     final file = File('${bundleDir.path}/nodes.jsonl');
+    print('🔍 DEBUG: Checking for nodes.jsonl at: ${file.path}');
+
     if (!file.existsSync()) {
+      print('❌ DEBUG: nodes.jsonl file not found at ${file.path}');
       errors.add('Required nodes.jsonl file not found');
       return 0;
     }
 
+    final fileSize = await file.length();
+    print('✅ DEBUG: Found nodes.jsonl, size: $fileSize bytes');
+
     print('📝 Importing nodes...');
     int count = 0;
     int journalEntriesImported = 0;
+    int totalLines = 0;
 
     await for (final line in _ndjsonReader.readStream(file)) {
+      totalLines++;
       try {
-        final node = McpNode.fromJson(jsonDecode(line));
-        
+        // Debug: Show the raw line content
+        print('🔍 DEBUG: Line ${totalLines} content (first 200 chars): ${line.length > 200 ? line.substring(0, 200) + '...' : line}');
+
+        // First decode the JSON
+        final jsonData = jsonDecode(line);
+        print('🔍 DEBUG: JSON decoded successfully, type: ${jsonData.runtimeType}');
+
+        // Check if the JSON is valid
+        if (jsonData == null) {
+          print('❌ DEBUG: Line ${totalLines} contains null JSON');
+          errors.add('Line ${totalLines} contains null JSON');
+          continue;
+        }
+
+        if (jsonData is! Map<String, dynamic>) {
+          print('❌ DEBUG: Line ${totalLines} JSON is not a Map, type: ${jsonData.runtimeType}');
+          errors.add('Line ${totalLines} JSON is not a Map: ${jsonData.runtimeType}');
+          continue;
+        }
+
+        print('🔍 DEBUG: JSON keys: ${jsonData.keys.toList()}');
+
+        // Now try to create the McpNode
+        final node = McpNode.fromJson(jsonData);
+        print('🔍 DEBUG: Processing node ${node.id} of type "${node.type}"');
+
         // Check if this is a journal entry that needs special handling
         if (node.type == 'journal_entry') {
+          print('📄 DEBUG: Found journal_entry node: ${node.id}');
+          print('📄 DEBUG: Node has contentSummary: ${node.contentSummary != null && node.contentSummary!.isNotEmpty}');
+          print('📄 DEBUG: Node has metadata: ${node.metadata != null}');
+          if (node.metadata != null) {
+            print('📄 DEBUG: Metadata keys: ${node.metadata!.keys}');
+            if (node.metadata!.containsKey('journal_entry')) {
+              final journalMeta = node.metadata!['journal_entry'] as Map<String, dynamic>?;
+              print('📄 DEBUG: Journal metadata has content: ${journalMeta?['content'] != null}');
+            }
+          }
+
           final journalEntry = await _convertMcpNodeToJournalEntry(node);
           if (journalEntry != null) {
             await _importJournalEntry(journalEntry);
             journalEntriesImported++;
-            print('  Imported journal entry: ${journalEntry.title}');
+            print('✅ DEBUG: Successfully imported journal entry: ${journalEntry.title}');
+          } else {
+            print('❌ DEBUG: Failed to convert node ${node.id} to journal entry');
           }
         }
-        
+
         // Map SAGE fields to MIRA structure
         await _miraWriter.putNode(node, batchId);
         count++;
 
-        if (count % 1000 == 0) {
+        if (count % 100 == 0) {  // More frequent logging
           print('  Imported $count nodes...');
         }
-      } catch (e) {
-        errors.add('Failed to import node at line ${count + 1}: $e');
+      } catch (e, stackTrace) {
+        print('❌ DEBUG: Error processing line ${totalLines}: $e');
+        print('❌ DEBUG: Stack trace: $stackTrace');
+        errors.add('Failed to import node at line ${totalLines}: $e');
         if (errors.length > options.maxErrors) break;
       }
     }
 
+    print('✅ DEBUG: Total lines read from nodes.jsonl: $totalLines');
     print('✅ Imported $count nodes ($journalEntriesImported journal entries)');
     return count;
   }
@@ -661,36 +709,71 @@ class McpImportService {
   /// Convert MCP Node to JournalEntry
   Future<JournalEntry?> _convertMcpNodeToJournalEntry(McpNode node) async {
     try {
+      print('🔄 DEBUG: Converting node ${node.id} to journal entry');
+
       // Extract content from the node - check multiple possible locations
       String content = '';
       String title = 'Imported Entry';
-      
+
       // Try to get content from the node's content field or metadata
       if (node.contentSummary != null && node.contentSummary!.isNotEmpty) {
         content = node.contentSummary!;
+        print('🔄 DEBUG: Got content from contentSummary: ${content.length} chars');
       } else if (node.narrative != null) {
         content = _extractNarrativeText(node.narrative) ?? '';
+        print('🔄 DEBUG: Got content from narrative: ${content.length} chars');
       }
-      
-      // Check if there's a title in metadata
+
+      // Check if there's content or title in metadata
       if (node.metadata != null) {
+        print('🔄 DEBUG: Node metadata keys: ${node.metadata!.keys}');
+
+        // Check for journal metadata (used by export)
+        if (node.metadata!.containsKey('journal_entry')) {
+          final journalEntryMeta = node.metadata!['journal_entry'] as Map<String, dynamic>?;
+          if (journalEntryMeta != null) {
+            final metaContent = journalEntryMeta['content'] as String?;
+            if (metaContent != null && metaContent.isNotEmpty) {
+              content = metaContent;
+              print('🔄 DEBUG: Got content from journal_entry metadata: ${content.length} chars');
+            }
+
+            final metaTitle = journalEntryMeta['title'] as String?;
+            if (metaTitle != null && metaTitle.isNotEmpty) {
+              title = metaTitle;
+              print('🔄 DEBUG: Got title from journal_entry metadata: $title');
+            }
+          }
+        }
+
+        // Also check legacy journal format
         final journalData = node.metadata!['journal'] as Map<String, dynamic>?;
         if (journalData != null) {
-          content = journalData['text'] as String? ?? content;
+          final legacyContent = journalData['text'] as String?;
+          if (legacyContent != null && legacyContent.isNotEmpty && content.isEmpty) {
+            content = legacyContent;
+            print('🔄 DEBUG: Got content from legacy journal metadata: ${content.length} chars');
+          }
         }
-        
-        // Try to get title from metadata
+
+        // Try to get title from top-level metadata
         final titleFromMeta = node.metadata!['title'] as String?;
         if (titleFromMeta != null && titleFromMeta.isNotEmpty) {
           title = titleFromMeta;
+          print('🔄 DEBUG: Got title from top-level metadata: $title');
         }
       }
-      
+
       // If we still don't have content, skip this entry
       if (content.isEmpty) {
-        print('  Skipping journal entry ${node.id} - no content found');
+        print('❌ DEBUG: Skipping journal entry ${node.id} - no content found');
+        print('❌ DEBUG: ContentSummary: ${node.contentSummary}');
+        print('❌ DEBUG: Narrative: ${node.narrative}');
+        print('❌ DEBUG: Metadata: ${node.metadata}');
         return null;
       }
+
+      print('✅ DEBUG: Successfully extracted content: ${content.length} chars, title: $title');
       
       // Extract emotions from node
       String mood = 'Neutral';

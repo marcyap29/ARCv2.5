@@ -96,7 +96,15 @@ class McpNode {
           ? McpNarrative.fromJson(json['narrative'] as Map<String, dynamic>)
           : null,
       emotions: Map<String, double>.from(json['emotions'] ?? {}),
-      provenance: McpProvenance.fromJson(json['provenance'] as Map<String, dynamic>),
+      provenance: json['provenance'] != null
+          ? McpProvenance.fromJson(json['provenance'] as Map<String, dynamic>)
+          : McpProvenance(
+              source: 'imported',
+              device: 'unknown',
+              app: 'EPI',
+              importMethod: 'mcp_import',
+              userId: null,
+            ),
       label: json['label'] as String?,
       properties: json['properties'] != null ? Map<String, dynamic>.from(json['properties']) : null,
       createdAt: json['created_at'] != null ? DateTime.parse(json['created_at'] as String) : null,

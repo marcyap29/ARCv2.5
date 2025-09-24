@@ -460,12 +460,36 @@ class _McpSettingsViewContent extends StatelessWidget {
 
   /// Find the directory that actually contains manifest.json
   Future<Directory> _locateBundleRoot(Directory extractedDir) async {
-    // Debug: List all files in extraction directory
-    print('🔍 Looking for manifest.json in: ${extractedDir.path}');
+    print('🔍 DEBUG: Looking for manifest.json in: ${extractedDir.path}');
+
+    // First, list what we have in the extraction directory
+    print('🔍 DEBUG: Contents of extraction directory:');
+    try {
+      final entries = await extractedDir.list(followLinks: false).toList();
+      for (final entry in entries) {
+        if (entry is File) {
+          final size = await entry.length();
+          print('  📄 FILE: ${entry.path} ($size bytes)');
+        } else if (entry is Directory) {
+          print('  📁 DIR:  ${entry.path}');
+        }
+      }
+    } catch (e) {
+      print('❌ DEBUG: Error listing extraction directory: $e');
+    }
 
     final manifestAtRoot = File('${extractedDir.path}/manifest.json');
     if (await manifestAtRoot.exists()) {
-      print('✅ Found manifest.json at root: ${manifestAtRoot.path}');
+      print('✅ DEBUG: Found manifest.json at root: ${manifestAtRoot.path}');
+
+      // Verify the bundle structure at root level
+      final nodesFile = File('${extractedDir.path}/nodes.jsonl');
+      final edgesFile = File('${extractedDir.path}/edges.jsonl');
+      print('🔍 DEBUG: Root bundle structure check:');
+      print('  manifest.json: EXISTS');
+      print('  nodes.jsonl: ${await nodesFile.exists() ? "EXISTS" : "MISSING"}');
+      print('  edges.jsonl: ${await edgesFile.exists() ? "EXISTS" : "MISSING"}');
+
       return extractedDir;
     }
 
@@ -473,11 +497,26 @@ class _McpSettingsViewContent extends StatelessWidget {
     final entries = await extractedDir.list(followLinks: false).toList();
     final dirs = entries.whereType<Directory>().toList();
 
-    print('📂 Searching in ${dirs.length} subdirectories...');
+    print('📂 DEBUG: Searching in ${dirs.length} subdirectories...');
     for (final d in dirs) {
       final mf = File('${d.path}/manifest.json');
       if (await mf.exists()) {
-        print('✅ Found manifest.json in: ${d.path}');
+        print('✅ DEBUG: Found manifest.json in: ${d.path}');
+
+        // Verify the bundle structure in subdirectory
+        final nodesFile = File('${d.path}/nodes.jsonl');
+        final edgesFile = File('${d.path}/edges.jsonl');
+        print('🔍 DEBUG: Subdirectory bundle structure check:');
+        print('  manifest.json: EXISTS');
+        print('  nodes.jsonl: ${await nodesFile.exists() ? "EXISTS" : "MISSING"}');
+        print('  edges.jsonl: ${await edgesFile.exists() ? "EXISTS" : "MISSING"}');
+
+        // Also check the file sizes
+        if (await nodesFile.exists()) {
+          final size = await nodesFile.length();
+          print('  nodes.jsonl size: $size bytes');
+        }
+
         return d;
       }
     }
