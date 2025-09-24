@@ -11,6 +11,9 @@ import 'core/schema.dart';
 import '../mcp/bundle/writer.dart';
 import '../mcp/bundle/reader.dart';
 import '../mcp/bundle/manifest.dart';
+import '../mcp/export/mcp_export_service.dart';
+import '../mcp/import/mcp_import_service.dart';
+import '../lumara/chat/chat_repo.dart';
 
 class MiraService {
   static MiraService? _instance;
@@ -18,6 +21,9 @@ class MiraService {
   late final MiraFlags _flags;
   late final McpBundleWriter _bundleWriter;
   late final McpBundleReader _bundleReader;
+  late final McpExportService _mcpExportService;
+  late final McpImportService _mcpImportService;
+  ChatRepo? _chatRepo;
 
   bool _initialized = false;
 
@@ -33,6 +39,7 @@ class MiraService {
     MiraFlags? flags,
     String? hiveBoxName,
     dynamic sqliteDatabase,
+    ChatRepo? chatRepo,
   }) async {
     if (_initialized) return;
 
@@ -54,6 +61,18 @@ class MiraService {
     // Initialize MCP components
     _bundleWriter = McpBundleWriter(_repo);
     _bundleReader = McpBundleReader(_repo);
+
+    // Store chat repository reference
+    _chatRepo = chatRepo;
+
+    // Initialize enhanced MCP export/import services
+    _mcpExportService = McpExportService(
+      storageProfile: McpStorageProfile.balanced,
+      chatRepo: _chatRepo,
+    );
+    _mcpImportService = McpImportService(
+      chatRepo: _chatRepo,
+    );
 
     _initialized = true;
   }
@@ -112,6 +131,51 @@ class MiraService {
       bundleDir: bundleDir,
       validateChecksums: validateChecksums,
       skipExisting: skipExisting,
+    );
+  }
+
+  /// Enhanced export that includes both MIRA and chat data
+  Future<McpExportResult> exportToMcpEnhanced({
+    required Directory outputDir,
+    required List<JournalEntry> journalEntries,
+    McpExportScope scope = McpExportScope.all,
+    List<MediaFile>? mediaFiles,
+    Map<String, dynamic>? customScope,
+    bool includeChats = true,
+    bool includeArchivedChats = true,
+    String? notes,
+  }) async {
+    _ensureInitialized();
+
+    if (!_flags.miraEnabled) {
+      throw StateError('MIRA export disabled by feature flags');
+    }
+
+    return await _mcpExportService.exportToMcp(
+      outputDir: outputDir,
+      scope: scope,
+      journalEntries: journalEntries,
+      mediaFiles: mediaFiles,
+      customScope: customScope,
+      includeChats: includeChats,
+      includeArchivedChats: includeArchivedChats,
+    );
+  }
+
+  /// Enhanced import that handles both MIRA and chat data
+  Future<McpImportResult> importFromMcpEnhanced({
+    required Directory bundleDir,
+    McpImportOptions? options,
+  }) async {
+    _ensureInitialized();
+
+    if (!_flags.miraEnabled) {
+      throw StateError('MIRA import disabled by feature flags');
+    }
+
+    return await _mcpImportService.importBundle(
+      bundleDir,
+      options ?? const McpImportOptions(),
     );
   }
 
@@ -221,7 +285,7 @@ class MiraService {
     return await _repo.getRecentEntries(limit: limit);
   }
 
-  /// Get analytics about MIRA data
+  /// Get analytics about MIRA data including chat statistics
   Future<Map<String, dynamic>> getAnalytics() async {
     _ensureInitialized();
 
@@ -230,7 +294,7 @@ class MiraService {
     final recentEntries = await _repo.getRecentEntries(limit: 10);
     final topKeywords = await _repo.getTopKeywords(limit: 20);
 
-    return {
+    final analytics = {
       'enabled': _flags.miraEnabled,
       'advanced_enabled': _flags.miraAdvancedEnabled,
       'retrieval_enabled': _flags.retrievalEnabled,
@@ -242,6 +306,33 @@ class MiraService {
       'recent_entries_count': recentEntries.length,
       'top_keywords_count': topKeywords.length,
     };
+
+    // Add chat analytics if chat repository is available
+    if (_chatRepo != null) {
+      try {
+        final chatStats = await _chatRepo!.getStats();
+        analytics['chat'] = {
+          'enabled': true,
+          'total_sessions': chatStats['total_sessions'] ?? 0,
+          'active_sessions': chatStats['active_sessions'] ?? 0,
+          'archived_sessions': chatStats['archived_sessions'] ?? 0,
+          'pinned_sessions': chatStats['pinned_sessions'] ?? 0,
+          'total_messages': chatStats['total_messages'] ?? 0,
+        };
+      } catch (e) {
+        analytics['chat'] = {
+          'enabled': true,
+          'error': 'Failed to get chat stats: $e',
+        };
+      }
+    } else {
+      analytics['chat'] = {
+        'enabled': false,
+        'reason': 'No chat repository configured',
+      };
+    }
+
+    return analytics;
   }
 
   /// Close MIRA service and clean up resources

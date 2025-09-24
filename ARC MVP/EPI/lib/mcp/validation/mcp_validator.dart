@@ -21,7 +21,8 @@ class McpValidator {
     if (node.type.isEmpty) {
       errors.add('Node type cannot be empty');
     }
-    if (node.schemaVersion != 'node.v1') {
+    // Support both v1 and v2 schema versions
+    if (!['node.v1', 'node.v2'].contains(node.schemaVersion)) {
       errors.add('Invalid schema version: ${node.schemaVersion}');
     }
 
@@ -30,9 +31,17 @@ class McpValidator {
       errors.add('Timestamp must be in UTC');
     }
 
-    // Content validation
-    if (node.pointerRef == null && node.contentSummary == null) {
-      errors.add('Node must have either pointer_ref or content_summary');
+    // Content validation (different rules for different node types)
+    if (_isChatNodeType(node.type)) {
+      // Chat nodes can have minimal content requirements
+      if (node.narrative == null && node.contentSummary == null) {
+        errors.add('Chat nodes must have either narrative or content_summary');
+      }
+    } else {
+      // Standard validation for journal/media nodes
+      if (node.pointerRef == null && node.contentSummary == null) {
+        errors.add('Node must have either pointer_ref or content_summary');
+      }
     }
 
     // Phase hint validation
@@ -88,6 +97,16 @@ class McpValidator {
     // Timestamp validation
     if (edge.timestamp.isUtc == false) {
       errors.add('Timestamp must be in UTC');
+    }
+
+    // Relation validation
+    final validRelations = [
+      'mentions', 'cooccurs', 'expresses', 'taggedAs', 'inPeriod',
+      'belongsTo', 'evidenceFor', 'partOf', 'precedes', 'contains',
+      'time_adjacent', 'theme_similar'
+    ];
+    if (!validRelations.contains(edge.relation)) {
+      errors.add('Invalid relation type: ${edge.relation}');
     }
 
     // Weight validation
@@ -303,6 +322,45 @@ class McpValidator {
   static bool isValidCasUri(String uri) {
     final regex = RegExp(r'^cas://sha256/[a-f0-9]{64}$');
     return regex.hasMatch(uri);
+  }
+
+  /// Check if node type is a chat-related type
+  static bool _isChatNodeType(String nodeType) {
+    return ['ChatSession', 'ChatMessage'].contains(nodeType);
+  }
+
+  /// Validate chat-specific node fields
+  static ValidationResult validateChatNode(McpNode node) {
+    final errors = <String>[];
+
+    if (!_isChatNodeType(node.type)) {
+      errors.add('Not a chat node type: ${node.type}');
+      return ValidationResult(isValid: false, errors: errors);
+    }
+
+    // Chat-specific validations
+    if (node.type == 'ChatSession') {
+      // Session should have meaningful subject/title
+      if ((node.contentSummary?.isEmpty ?? true) && (node.narrative?.isEmpty ?? true)) {
+        errors.add('ChatSession must have a meaningful subject');
+      }
+    }
+
+    if (node.type == 'ChatMessage') {
+      // Message should have content
+      if ((node.narrative?.isEmpty ?? true) && (node.contentSummary?.isEmpty ?? true)) {
+        errors.add('ChatMessage must have content');
+      }
+    }
+
+    // Standard node validation plus chat-specific checks
+    final standardResult = validateNode(node);
+    errors.addAll(standardResult.errors);
+
+    return ValidationResult(
+      isValid: errors.isEmpty,
+      errors: errors,
+    );
   }
 }
 

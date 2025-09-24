@@ -7,6 +7,8 @@ import 'package:my_app/mcp/validation/mcp_import_validator.dart';
 import 'package:my_app/mcp/adapters/mira_writer.dart';
 import 'package:my_app/mcp/adapters/cas_resolver.dart';
 import 'package:my_app/mcp/models/mcp_schemas.dart';
+import 'package:my_app/lumara/chat/chat_repo.dart';
+import 'package:my_app/lumara/chat/chat_models.dart';
 
 /// Result of an MCP import operation
 class McpImportResult {
@@ -66,6 +68,7 @@ class McpImportService {
   final McpImportValidator _validator;
   final MiraWriter _miraWriter;
   final CasResolver? _casResolver;
+  final ChatRepo? _chatRepo;
 
   McpImportService({
     ManifestReader? manifestReader,
@@ -73,11 +76,13 @@ class McpImportService {
     McpImportValidator? validator,
     MiraWriter? miraWriter,
     CasResolver? casResolver,
+    ChatRepo? chatRepo,
   })  : _manifestReader = manifestReader ?? ManifestReader(),
         _ndjsonReader = ndjsonReader ?? NdjsonStreamReader(),
         _validator = validator ?? McpImportValidator(),
         _miraWriter = miraWriter ?? MiraWriter(),
-        _casResolver = casResolver;
+        _casResolver = casResolver,
+        _chatRepo = chatRepo;
 
   /// Import an MCP bundle from the specified directory
   Future<McpImportResult> importBundle(
@@ -158,6 +163,14 @@ class McpImportService {
       // Import edges (relations)
       final edgeCount = await _importEdges(bundleDir, manifest, batchId, errors, warnings, options);
       counts['edges'] = edgeCount;
+
+      // Step 4.5: Import chat data if chat repository is available
+      if (_chatRepo != null) {
+        final chatCounts = await _importChatData(bundleDir, manifest, batchId, errors, warnings, options);
+        counts['chat_sessions'] = chatCounts['sessions'] ?? 0;
+        counts['chat_messages'] = chatCounts['messages'] ?? 0;
+        print('📱 Imported ${chatCounts['sessions']} chat sessions, ${chatCounts['messages']} messages');
+      }
 
       // Step 5: Verify counts match manifest
       await _verifyImportCounts(manifest, counts, warnings);
@@ -477,6 +490,179 @@ class McpImportService {
 
     print('✅ Imported $count edges');
     return count;
+  }
+
+  /// Import chat data (sessions and messages)
+  Future<Map<String, int>> _importChatData(
+    Directory bundleDir,
+    McpManifest manifest,
+    String batchId,
+    List<String> errors,
+    List<String> warnings,
+    McpImportOptions options,
+  ) async {
+    if (_chatRepo == null) {
+      warnings.add('No chat repository available - skipping chat data import');
+      return {'sessions': 0, 'messages': 0};
+    }
+
+    final file = File('${bundleDir.path}/nodes.jsonl');
+    if (!file.existsSync()) {
+      warnings.add('No nodes.jsonl found - skipping chat import');
+      return {'sessions': 0, 'messages': 0};
+    }
+
+    print('📱 Importing chat data...');
+    int sessionCount = 0;
+    int messageCount = 0;
+
+    final sessionNodes = <McpNode>[];
+    final messageNodes = <McpNode>[];
+
+    // First pass: collect chat nodes
+    await for (final line in _ndjsonReader.readStream(file)) {
+      try {
+        final node = McpNode.fromJson(jsonDecode(line));
+
+        if (node.type == 'ChatSession') {
+          sessionNodes.add(node);
+        } else if (node.type == 'ChatMessage') {
+          messageNodes.add(node);
+        }
+      } catch (e) {
+        errors.add('Failed to parse node for chat import: $e');
+        if (errors.length > options.maxErrors) break;
+      }
+    }
+
+    // Import chat sessions
+    final sessionMap = <String, String>{}; // MCP ID -> Chat ID mapping
+    for (final node in sessionNodes) {
+      try {
+        final chatSession = await _convertMcpNodeToChatSession(node);
+        final sessionId = await _chatRepo!.createSession(
+          subject: chatSession.subject,
+          tags: chatSession.tags,
+        );
+
+        // Store mapping for message imports
+        sessionMap[node.id] = sessionId;
+        sessionCount++;
+
+        if (sessionCount % 100 == 0) {
+          print('  Imported $sessionCount chat sessions...');
+        }
+      } catch (e) {
+        errors.add('Failed to import chat session ${node.id}: $e');
+        if (errors.length > options.maxErrors) break;
+      }
+    }
+
+    // Import chat messages (requires sessions to exist first)
+    for (final node in messageNodes) {
+      try {
+        final chatMessage = await _convertMcpNodeToChatMessage(node);
+
+        // Find the session this message belongs to by looking at edges
+        final sessionId = await _findSessionForMessage(bundleDir, node.id, sessionMap);
+        if (sessionId == null) {
+          warnings.add('No session found for message ${node.id} - skipping');
+          continue;
+        }
+
+        await _chatRepo!.addMessage(
+          sessionId: sessionId,
+          role: chatMessage.role,
+          content: chatMessage.content,
+        );
+
+        messageCount++;
+
+        if (messageCount % 500 == 0) {
+          print('  Imported $messageCount chat messages...');
+        }
+      } catch (e) {
+        errors.add('Failed to import chat message ${node.id}: $e');
+        if (errors.length > options.maxErrors) break;
+      }
+    }
+
+    print('✅ Imported $sessionCount chat sessions, $messageCount chat messages');
+    return {'sessions': sessionCount, 'messages': messageCount};
+  }
+
+  /// Convert MCP Node to ChatSession
+  Future<ChatSession> _convertMcpNodeToChatSession(McpNode node) async {
+    return ChatSession(
+      id: '', // Will be generated by repository
+      subject: node.contentSummary ?? node.narrative ?? 'Imported Session',
+      createdAt: node.timestamp,
+      updatedAt: node.timestamp,
+      isPinned: false,
+      isArchived: false,
+      archivedAt: null,
+      tags: node.keywords,
+      messageCount: 0, // Will be updated as messages are added
+    );
+  }
+
+  /// Convert MCP Node to ChatMessage
+  Future<ChatMessage> _convertMcpNodeToChatMessage(McpNode node) async {
+    // Determine role from node metadata or content analysis
+    MessageRole role = MessageRole.user; // Default
+
+    // Check if we can infer the role from the narrative or metadata
+    final content = node.narrative ?? node.contentSummary ?? '';
+    if (content.toLowerCase().contains('assistant:') ||
+        content.toLowerCase().startsWith('ai:') ||
+        content.toLowerCase().contains('lumara:')) {
+      role = MessageRole.assistant;
+    }
+
+    return ChatMessage(
+      id: '', // Will be generated by repository
+      sessionId: '', // Will be set during import
+      role: role,
+      content: content,
+      createdAt: node.timestamp,
+      metadata: {
+        'imported_from_mcp': true,
+        'original_mcp_id': node.id,
+        'import_timestamp': DateTime.now().toIso8601String(),
+      },
+    );
+  }
+
+  /// Find the session ID for a message by looking at contains edges
+  Future<String?> _findSessionForMessage(
+    Directory bundleDir,
+    String messageNodeId,
+    Map<String, String> sessionMap,
+  ) async {
+    final edgesFile = File('${bundleDir.path}/edges.jsonl');
+    if (!edgesFile.existsSync()) {
+      return null;
+    }
+
+    await for (final line in _ndjsonReader.readStream(edgesFile)) {
+      try {
+        final edge = McpEdge.fromJson(jsonDecode(line));
+
+        // Look for contains relationship where target is our message
+        if (edge.relation == 'contains' && edge.target == messageNodeId) {
+          // The source should be a session node
+          final sessionId = sessionMap[edge.source];
+          if (sessionId != null) {
+            return sessionId;
+          }
+        }
+      } catch (e) {
+        // Skip malformed edges
+        continue;
+      }
+    }
+
+    return null;
   }
 
   /// Verify import counts match manifest expectations

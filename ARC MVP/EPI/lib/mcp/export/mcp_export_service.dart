@@ -12,25 +12,34 @@ import '../validation/mcp_validator.dart';
 import 'ndjson_writer.dart';
 import 'manifest_builder.dart';
 import 'checksum_utils.dart';
+import 'chat_exporter.dart';
+import '../../lumara/chat/chat_repo.dart';
+import '../../lumara/chat/chat_models.dart';
 
 class McpExportService {
   final String bundleId;
   final McpStorageProfile storageProfile;
   final String? notes;
+  final ChatRepo? chatRepo;
+  final ChatMcpExporter? _chatExporter;
 
   McpExportService({
     String? bundleId,
     this.storageProfile = McpStorageProfile.balanced,
     this.notes,
-  }) : bundleId = bundleId ?? McpManifestBuilder.generateBundleId();
+    this.chatRepo,
+  }) : bundleId = bundleId ?? McpManifestBuilder.generateBundleId(),
+       _chatExporter = chatRepo != null ? ChatMcpExporter(chatRepo) : null;
 
-  /// Export MIRA memory to MCP bundle
+  /// Export MIRA memory to MCP bundle (including chat data)
   Future<McpExportResult> exportToMcp({
     required Directory outputDir,
     required McpExportScope scope,
     required List<JournalEntry> journalEntries,
     List<MediaFile>? mediaFiles,
     Map<String, dynamic>? customScope,
+    bool includeChats = true,
+    bool includeArchivedChats = true,
   }) async {
     try {
       // Ensure output directory exists
@@ -43,28 +52,37 @@ class McpExportService {
       
       // Convert journal entries to MCP nodes (SAGE mapping)
       final nodes = await _convertJournalEntriesToNodes(filteredEntries);
-      
+
       // Create pointers for media files
       final pointers = await _createPointersFromMedia(mediaFiles ?? []);
-      
+
+      // Export chat data if chat repository is available
+      final chatData = await _exportChatData(scope, customScope, includeChats, includeArchivedChats);
+
+      // Combine all nodes, edges, and pointers
+      final allNodes = <McpNode>[...nodes, ...chatData.nodes];
+      final allEdges = <McpEdge>[...chatData.edges];
+      final allPointers = <McpPointer>[...pointers, ...chatData.pointers];
+
       // Generate embeddings for nodes and pointers
-      final embeddings = await _generateEmbeddings(nodes, pointers);
-      
-      // Derive edges from relationships
-      final edges = await _deriveEdges(nodes, embeddings);
+      final embeddings = await _generateEmbeddings(allNodes, allPointers);
+
+      // Derive edges from relationships (journal entries)
+      final journalEdges = await _deriveEdges(nodes, embeddings);
+      final allCombinedEdges = <McpEdge>[...allEdges, ...journalEdges];
       
       // Validate all records
-      final validationResult = await _validateRecords(nodes, edges, pointers, embeddings);
+      final validationResult = await _validateRecords(allNodes, allCombinedEdges, allPointers, embeddings);
       if (!validationResult.isValid) {
         throw McpExportException('Validation failed: ${validationResult.errors.join(', ')}');
       }
-      
+
       // Write NDJSON files
       final ndjsonWriter = McpNdjsonWriter(outputDir: outputDir);
       final ndjsonFiles = await ndjsonWriter.writeAll(
-        nodes: nodes,
-        edges: edges,
-        pointers: pointers,
+        nodes: allNodes,
+        edges: allCombinedEdges,
+        pointers: allPointers,
         embeddings: embeddings,
       );
       
@@ -76,9 +94,9 @@ class McpExportService {
       );
       
       final counts = McpCounts(
-        nodes: nodes.length,
-        edges: edges.length,
-        pointers: pointers.length,
+        nodes: allNodes.length,
+        edges: allCombinedEdges.length,
+        pointers: allPointers.length,
         embeddings: embeddings.length,
       );
       
@@ -519,6 +537,177 @@ class McpExportService {
     return dotProduct / (normA * normB);
   }
 
+  /// Export chat data to MCP format
+  Future<ChatExportData> _exportChatData(
+    McpExportScope scope,
+    Map<String, dynamic>? customScope,
+    bool includeChats,
+    bool includeArchivedChats,
+  ) async {
+    if (!includeChats || _chatExporter == null) {
+      return ChatExportData(
+        nodes: [],
+        edges: [],
+        pointers: [],
+      );
+    }
+
+    try {
+      // Apply date filtering based on scope for chats
+      DateTime? since;
+      DateTime? until;
+
+      switch (scope) {
+        case McpExportScope.last30Days:
+          since = DateTime.now().subtract(const Duration(days: 30));
+          break;
+        case McpExportScope.last90Days:
+          since = DateTime.now().subtract(const Duration(days: 90));
+          break;
+        case McpExportScope.lastYear:
+          since = DateTime.now().subtract(const Duration(days: 365));
+          break;
+        case McpExportScope.custom:
+          if (customScope != null) {
+            since = customScope['start_date'] as DateTime?;
+            until = customScope['end_date'] as DateTime?;
+          }
+          break;
+        case McpExportScope.all:
+          // No date filtering
+          break;
+      }
+
+      // Get chat sessions and messages within scope
+      final sessions = await chatRepo!.listAll(includeArchived: includeArchivedChats);
+
+      // Filter sessions by date if specified
+      final filteredSessions = sessions.where((session) {
+        if (since != null && session.createdAt.isBefore(since)) return false;
+        if (until != null && session.createdAt.isAfter(until)) return false;
+        return true;
+      }).toList();
+
+      // Convert chat data to MCP format
+      final chatNodes = <McpNode>[];
+      final chatEdges = <McpEdge>[];
+      final chatPointers = <McpPointer>[];
+
+      for (final session in filteredSessions) {
+        // Convert session to MCP node
+        final sessionNode = await _convertChatSessionToNode(session);
+        chatNodes.add(sessionNode);
+
+        // Create session pointer for discoverability
+        final sessionPointer = await _createChatSessionPointer(session);
+        chatPointers.add(sessionPointer);
+
+        // Get messages for this session
+        final messages = await chatRepo!.getMessages(session.id, lazy: false);
+
+        // Convert messages and create contains edges
+        for (int i = 0; i < messages.length; i++) {
+          final message = messages[i];
+
+          // Convert message to MCP node
+          final messageNode = await _convertChatMessageToNode(message);
+          chatNodes.add(messageNode);
+
+          // Create contains edge
+          final containsEdge = await _createChatContainsEdge(session.id, message.id, message.createdAt, i);
+          chatEdges.add(containsEdge);
+        }
+      }
+
+      return ChatExportData(
+        nodes: chatNodes,
+        edges: chatEdges,
+        pointers: chatPointers,
+      );
+
+    } catch (e) {
+      print('Warning: Failed to export chat data: $e');
+      return ChatExportData(
+        nodes: [],
+        edges: [],
+        pointers: [],
+      );
+    }
+  }
+
+  /// Convert ChatSession to MCP Node
+  Future<McpNode> _convertChatSessionToNode(ChatSession session) async {
+    return McpNode(
+      id: 'session:${session.id}',
+      type: 'ChatSession',
+      timestamp: session.createdAt.toUtc(),
+      contentSummary: session.subject,
+      keywords: session.tags.toList(),
+      narrative: session.subject,
+      provenance: McpProvenance(
+        source: 'LUMARA',
+        device: Platform.operatingSystem,
+        app: 'EPI',
+        importMethod: 'chat_session',
+        userId: null, // Chat sessions don't have individual user IDs in this model
+      ),
+    );
+  }
+
+  /// Convert ChatMessage to MCP Node
+  Future<McpNode> _convertChatMessageToNode(ChatMessage message) async {
+    return McpNode(
+      id: 'msg:${message.id}',
+      type: 'ChatMessage',
+      timestamp: message.createdAt.toUtc(),
+      contentSummary: message.content.length > 100
+          ? '${message.content.substring(0, 100)}...'
+          : message.content,
+      keywords: [],
+      narrative: message.content,
+      provenance: McpProvenance(
+        source: 'LUMARA',
+        device: Platform.operatingSystem,
+        app: 'EPI',
+        importMethod: 'chat_message',
+        userId: null,
+      ),
+    );
+  }
+
+  /// Create MCP Pointer for ChatSession
+  Future<McpPointer> _createChatSessionPointer(ChatSession session) async {
+    return McpPointer(
+      id: 'ptr_session:${session.id}',
+      mediaType: 'application/json',
+      descriptor: McpDescriptor(
+        language: 'en',
+        length: session.subject.length,
+        mimeType: 'application/json',
+        metadata: {
+          'session_id': session.id,
+          'subject': session.subject,
+          'message_count': session.messageCount,
+          'is_archived': session.isArchived,
+          'is_pinned': session.isPinned,
+          'tags': session.tags,
+        },
+      ),
+      labels: ['chat_session', ...session.tags],
+    );
+  }
+
+  /// Create contains edge between session and message
+  Future<McpEdge> _createChatContainsEdge(String sessionId, String messageId, DateTime timestamp, int order) async {
+    return McpEdge(
+      source: 'session:$sessionId',
+      target: 'msg:$messageId',
+      relation: 'contains',
+      timestamp: timestamp.toUtc(),
+      weight: 1.0,
+    );
+  }
+
   /// Validate all records
   Future<ValidationResult> _validateRecords(
     List<McpNode> nodes,
@@ -643,5 +832,18 @@ class MediaFile {
     required this.userId,
     required this.tags,
     required this.file,
+  });
+}
+
+/// Container for chat export data
+class ChatExportData {
+  final List<McpNode> nodes;
+  final List<McpEdge> edges;
+  final List<McpPointer> pointers;
+
+  const ChatExportData({
+    required this.nodes,
+    required this.edges,
+    required this.pointers,
   });
 }
