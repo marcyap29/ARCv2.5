@@ -143,7 +143,7 @@ void main() {
 
     test('should validate against golden bundle structure', () async {
       // Read the actual golden bundle
-      final goldenDir = Directory('ARC MVP/EPI/mcp/golden/mcp_chats_2025-09_mixed_versions');
+      final goldenDir = Directory('mcp/golden/mcp_chats_2025-09_mixed_versions');
       expect(await goldenDir.exists(), isTrue, reason: 'Golden bundle should exist');
 
       // Validate golden bundle files

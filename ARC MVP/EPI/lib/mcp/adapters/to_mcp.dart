@@ -82,8 +82,8 @@ class MiraToMcpAdapter {
       'kind': 'edge',
       'id': edge.id,
       'timestamp': edge.createdAt.toUtc().toIso8601String(),
-      'source_id': edge.sourceId,
-      'target_id': edge.targetId,
+      'source_id': edge.src,
+      'target_id': edge.dst,
       'schema_version': 'edge.v1',
     };
 
@@ -96,7 +96,7 @@ class MiraToMcpAdapter {
       };
     } else {
       // Handle legacy edges (mentions, cooccurs, etc.)
-      record['type'] = edge.type.name;
+      record['type'] = edge.label.name;
       record['metadata'] = edge.data;
     }
 

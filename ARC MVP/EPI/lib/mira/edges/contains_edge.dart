@@ -1,21 +1,30 @@
-import 'package:my_app/core/mira/mira_edge.dart';
+import 'package:my_app/mira/core/schema.dart';
 
 /// MIRA edge representing a "contains" relationship (session contains messages)
 class ContainsEdge extends MiraEdge {
-  final int order;
-
   ContainsEdge({
     required String sourceId,
     required String targetId,
     required DateTime timestamp,
-    required this.order,
+    required int order,
   }) : super(
           id: '${sourceId}_contains_${targetId}',
-          sourceId: sourceId,
-          targetId: targetId,
-          relation: 'contains',
-          timestamp: timestamp,
+          src: sourceId,
+          dst: targetId,
+          label: EdgeType.belongsTo, // Using belongsTo as closest match
+          schemaVersion: 1,
+          data: {
+            'order': order,
+            'source': 'LUMARA',
+            'relation': 'contains',
+          },
+          createdAt: timestamp,
         );
+
+  // Convenience getters
+  String get sourceId => src;
+  String get targetId => dst;
+  int get order => data['order'] as int;
 
   /// Create contains edge for session -> message relationship
   factory ContainsEdge.sessionMessage({
@@ -32,37 +41,11 @@ class ContainsEdge extends MiraEdge {
     );
   }
 
-  @override
-  Map<String, dynamic> toJson() {
-    return {
-      'id': id,
-      'sourceId': sourceId,
-      'targetId': targetId,
-      'relation': relation,
-      'timestamp': timestamp.toIso8601String(),
-      'order': order,
-      'metadata': {
-        'order': order,
-        'source': 'LUMARA',
-      },
-    };
-  }
-
-  @override
+  /// Get metadata for MCP export
   Map<String, dynamic> getMetadata() {
     return {
       'order': order,
       'source': 'LUMARA',
     };
   }
-
-  @override
-  List<Object?> get props => [
-        id,
-        sourceId,
-        targetId,
-        relation,
-        timestamp,
-        order,
-      ];
 }

@@ -1,33 +1,46 @@
-import 'package:my_app/core/mira/mira_node.dart';
+import 'package:my_app/mira/core/schema.dart';
 import 'package:my_app/lumara/chat/chat_models.dart';
 
 /// MIRA node representing a chat session
 class ChatSessionNode extends MiraNode {
-  final String sessionId;
-  final String subject;
-  final DateTime createdAt;
-  final DateTime updatedAt;
-  final bool isPinned;
-  final bool isArchived;
-  final DateTime? archivedAt;
-  final List<String> tags;
-  final int messageCount;
-
   ChatSessionNode({
-    required this.sessionId,
-    required this.subject,
-    required this.createdAt,
-    required this.updatedAt,
-    required this.isPinned,
-    required this.isArchived,
-    this.archivedAt,
-    required this.tags,
-    required this.messageCount,
+    required String sessionId,
+    required String subject,
+    required DateTime createdAt,
+    required DateTime updatedAt,
+    required bool isPinned,
+    required bool isArchived,
+    DateTime? archivedAt,
+    required List<String> tags,
+    required int messageCount,
   }) : super(
           id: 'session:$sessionId',
-          type: 'ChatSession',
-          timestamp: createdAt,
+          type: NodeType.entry, // Using entry type for compatibility
+          schemaVersion: 2,
+          data: {
+            'sessionId': sessionId,
+            'subject': subject,
+            'isPinned': isPinned,
+            'isArchived': isArchived,
+            'archivedAt': archivedAt?.toIso8601String(),
+            'tags': tags,
+            'messageCount': messageCount,
+            'retention': 'auto-archive-30d',
+            'source': 'LUMARA',
+            'content': subject,
+          },
+          createdAt: createdAt,
+          updatedAt: updatedAt,
         );
+
+  // Convenience getters
+  String get sessionId => data['sessionId'] as String;
+  String get subject => data['subject'] as String;
+  bool get isPinned => data['isPinned'] as bool;
+  bool get isArchived => data['isArchived'] as bool;
+  DateTime? get archivedAt => data['archivedAt'] != null ? DateTime.parse(data['archivedAt'] as String) : null;
+  List<String> get tags => List<String>.from(data['tags'] as List);
+  int get messageCount => data['messageCount'] as int;
 
   /// Create from ChatSession model
   factory ChatSessionNode.fromModel(ChatSession session) {
@@ -44,29 +57,8 @@ class ChatSessionNode extends MiraNode {
     );
   }
 
-  @override
-  Map<String, dynamic> toJson() {
-    return {
-      'id': id,
-      'type': type,
-      'timestamp': timestamp.toIso8601String(),
-      'sessionId': sessionId,
-      'subject': subject,
-      'createdAt': createdAt.toIso8601String(),
-      'updatedAt': updatedAt.toIso8601String(),
-      'isPinned': isPinned,
-      'isArchived': isArchived,
-      'archivedAt': archivedAt?.toIso8601String(),
-      'tags': tags,
-      'messageCount': messageCount,
-      'metadata': {
-        'retention': 'auto-archive-30d',
-        'source': 'LUMARA',
-      },
-    };
-  }
 
-  @override
+  /// Get content for MCP export
   Map<String, dynamic> getContent() {
     return {
       'title': subject,
@@ -74,7 +66,7 @@ class ChatSessionNode extends MiraNode {
     };
   }
 
-  @override
+  /// Get metadata for MCP export
   Map<String, dynamic> getMetadata() {
     return {
       'isArchived': isArchived,
@@ -88,19 +80,4 @@ class ChatSessionNode extends MiraNode {
       'updatedAt': updatedAt.toIso8601String(),
     };
   }
-
-  @override
-  List<Object?> get props => [
-        id,
-        type,
-        sessionId,
-        subject,
-        createdAt,
-        updatedAt,
-        isPinned,
-        isArchived,
-        archivedAt,
-        tags,
-        messageCount,
-      ];
 }

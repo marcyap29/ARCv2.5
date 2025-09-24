@@ -1,26 +1,37 @@
-import 'package:my_app/core/mira/mira_node.dart';
+import 'package:my_app/mira/core/schema.dart';
 import 'package:my_app/lumara/chat/chat_models.dart';
 
 /// MIRA node representing a chat message
 class ChatMessageNode extends MiraNode {
-  final String messageId;
-  final String sessionId;
-  final String role;
-  final String content;
-  final String? originalTextHash;
-
   ChatMessageNode({
-    required this.messageId,
-    required this.sessionId,
-    required this.role,
-    required this.content,
+    required String messageId,
+    required String sessionId,
+    required String role,
+    required String content,
     required DateTime createdAt,
-    this.originalTextHash,
+    String? originalTextHash,
   }) : super(
           id: 'msg:$messageId',
-          type: 'ChatMessage',
-          timestamp: createdAt,
+          type: NodeType.entry, // Using entry type for compatibility
+          schemaVersion: 2,
+          data: {
+            'messageId': messageId,
+            'sessionId': sessionId,
+            'role': role,
+            'content': content,
+            'originalTextHash': originalTextHash,
+            'source': 'LUMARA',
+          },
+          createdAt: createdAt,
+          updatedAt: createdAt,
         );
+
+  // Convenience getters
+  String get messageId => data['messageId'] as String;
+  String get sessionId => data['sessionId'] as String;
+  String get role => data['role'] as String;
+  String get content => data['content'] as String;
+  String? get originalTextHash => data['originalTextHash'] as String?;
 
   /// Create from ChatMessage model
   factory ChatMessageNode.fromModel(ChatMessage message) {
@@ -34,25 +45,8 @@ class ChatMessageNode extends MiraNode {
     );
   }
 
-  @override
-  Map<String, dynamic> toJson() {
-    return {
-      'id': id,
-      'type': type,
-      'timestamp': timestamp.toIso8601String(),
-      'messageId': messageId,
-      'sessionId': sessionId,
-      'role': role,
-      'content': content,
-      'originalTextHash': originalTextHash,
-      'metadata': {
-        'source': 'LUMARA',
-        'sessionId': sessionId,
-      },
-    };
-  }
 
-  @override
+  /// Get content for MCP export
   Map<String, dynamic> getContent() {
     return {
       'mime': 'text/plain',
@@ -60,7 +54,7 @@ class ChatMessageNode extends MiraNode {
     };
   }
 
-  @override
+  /// Get metadata for MCP export
   Map<String, dynamic> getMetadata() {
     return {
       'role': role,
@@ -69,16 +63,4 @@ class ChatMessageNode extends MiraNode {
       'originalTextHash': originalTextHash,
     };
   }
-
-  @override
-  List<Object?> get props => [
-        id,
-        type,
-        messageId,
-        sessionId,
-        role,
-        content,
-        originalTextHash,
-        timestamp,
-      ];
 }
