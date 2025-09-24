@@ -1,0 +1,78 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.mcp.ai/chat_session.v1.json",
+  "title": "MCP Chat Session v1",
+  "description": "Schema for ChatSession nodes in MCP format",
+  "allOf": [
+    {
+      "$ref": "node.v2.json"
+    },
+    {
+      "properties": {
+        "type": {
+          "const": "ChatSession"
+        },
+        "content": {
+          "type": "object",
+          "properties": {
+            "title": {
+              "type": "string",
+              "description": "Chat session subject/title"
+            },
+            "messageCount": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Number of messages in the session"
+            }
+          },
+          "required": ["title"]
+        },
+        "metadata": {
+          "type": "object",
+          "properties": {
+            "isArchived": {
+              "type": "boolean",
+              "description": "Whether the session is archived"
+            },
+            "archivedAt": {
+              "type": ["string", "null"],
+              "format": "date-time",
+              "description": "When the session was archived"
+            },
+            "isPinned": {
+              "type": "boolean",
+              "description": "Whether the session is pinned"
+            },
+            "tags": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Tags associated with the session"
+            },
+            "messageCount": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Number of messages in the session"
+            },
+            "retention": {
+              "type": "string",
+              "description": "Retention policy applied"
+            },
+            "createdAt": {
+              "type": "string",
+              "format": "date-time",
+              "description": "When the session was created"
+            },
+            "updatedAt": {
+              "type": "string",
+              "format": "date-time",
+              "description": "When the session was last updated"
+            }
+          },
+          "required": ["isArchived", "isPinned", "tags", "messageCount"]
+        }
+      }
+    }
+  ]
+}

@@ -5,6 +5,7 @@ import 'package:gap/gap.dart';
 import '../bloc/lumara_assistant_cubit.dart';
 import '../bloc/model_management_cubit.dart';
 import '../data/models/lumara_message.dart';
+import '../chat/ui/chats_screen.dart';
 import 'lumara_quick_palette.dart';
 import 'lumara_consent_sheet.dart';
 import 'model_management_screen.dart';
@@ -77,6 +78,14 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
             icon: const Icon(Icons.settings),
             onPressed: () => _showConsentSheet(),
             tooltip: 'Settings',
+          ),
+          IconButton(
+            icon: const Icon(Icons.history),
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const ChatsScreen()),
+            ),
+            tooltip: 'Chat History',
           ),
           IconButton(
             icon: const Icon(Icons.clear_all),
