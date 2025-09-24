@@ -14,6 +14,8 @@ This document provides a complete technical overview of the MIRA-MCP semantic me
 
 **NEW**: **LUMARA Chat Memory Integration** - Complete implementation of persistent chat sessions with 30-day auto-archive, MIRA graph integration (ChatSession/ChatMessage nodes with contains edges), and MCP export system with node.v2 schema compliance.
 
+**CRITICAL FIX**: **MCP Import Journal Entry Restoration** - Resolved critical bug where imported MCP bundles didn't show journal entries in UI. Enhanced import service to detect journal_entry nodes and convert them back to JournalEntry objects with proper field mapping and journal repository integration.
+
 ---
 
 ## 1. MIRA Core Architecture

@@ -27,6 +27,48 @@ This is the fourth iteration of the EPI ARC MVP Bug Tracker, focusing on current
 
 ## Resolved Issues
 
+## Bug ID: BUG-2025-09-24-001
+**Title**: MCP Import Not Showing Journal Entries in UI
+
+**Type**: Bug
+**Priority**: P1 (Critical)
+**Status**: ✅ Complete
+**Reporter**: User
+**Assignee**: Claude Code
+**Requested Date**: 2025-09-24
+**Completed Date**: 2025-09-24
+
+#### Description
+When importing MCP bundles back into the MVP, journal entries were not appearing in the UI. The export process was working correctly and producing valid .jsonl files, but the import process was not converting the journal_entry nodes back to JournalEntry objects that could be displayed in the journal interface.
+
+#### Root Cause
+- MCP import service was only storing MCP nodes as MIRA data
+- No conversion logic existed to transform journal_entry nodes back to JournalEntry objects
+- Journal repository was not being used during import process
+- Test files had incorrect JournalEntry model usage causing compilation issues
+
+#### Solution
+- Enhanced `_importNodes` method to detect journal_entry nodes during import
+- Added `_convertMcpNodeToJournalEntry` method for proper field mapping from MCP to JournalEntry
+- Added `_importJournalEntry` method to store entries in journal repository
+- Updated constructor to accept JournalRepository dependency
+- Fixed test compilation by using real JournalEntry model instead of mock
+- Confirmed .jsonl (NDJSON) format is correct per MCP v1 specification
+
+#### Technical Details
+- **Files Modified**: `lib/mcp/import/mcp_import_service.dart`, `test/mcp/integration/mcp_integration_test.dart`
+- **New Methods**: `_convertMcpNodeToJournalEntry()`, `_importJournalEntry()`, `_extractOriginalId()`
+- **Dependencies**: Added JournalRepository injection to McpImportService constructor
+- **Field Mapping**: Comprehensive mapping from MCP node fields to JournalEntry properties including content, emotions, metadata, etc.
+
+#### Impact
+- Complete bidirectional MCP workflow now functional
+- Export and re-import preserves all journal data
+- Journal entries appear correctly in UI after import
+- MCP v1 specification compliance maintained
+
+---
+
 ## Bug ID: BUG-2025-09-23-007
 **Title**: Phase Changes Reverting to Previous Values
 

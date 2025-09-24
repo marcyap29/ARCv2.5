@@ -32,6 +32,13 @@ This guide shows you how to integrate the complete LUMARA system into your exist
 - ✅ Scope toggling and message handling
 - ✅ Chat session management with auto-archive policy
 
+### MCP Integration
+- ✅ **Complete Bidirectional Export/Import** - Full MCP v1 specification compliance
+- ✅ **Journal Entry Restoration** - Import process correctly converts journal_entry nodes back to JournalEntry objects
+- ✅ **Chat Data Export/Import** - Persistent chat sessions with MCP bundle support
+- ✅ **Schema Validation** - Comprehensive validation for MCP node.v2 schemas
+- ✅ **Privacy & Provenance** - PII detection, redaction, and metadata tracking
+
 ## 🔧 **Integration Steps**
 
 ### 1. Add LUMARA to Bottom Navigation

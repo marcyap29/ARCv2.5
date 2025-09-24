@@ -14,6 +14,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - Vision-language model integration
 - Settings UI for MIRA feature flag configuration
 
+### Latest Update - 2025-09-24
+
+### Fixed
+- **MCP Import Journal Entry Restoration** (2025-09-24) ✅ COMPLETE
+  - **Critical Bug Fix**: Resolved issue where imported MCP bundles didn't show journal entries in UI
+  - **Root Cause Analysis**: Import process was storing MCP nodes as MIRA data instead of converting back to journal entries
+  - **Solution Implementation**: Enhanced MCP import service with journal_entry node detection and conversion
+  - **Journal Repository Integration**: Added proper JournalEntry object creation and storage
+  - **Field Mapping**: Implemented comprehensive mapping from MCP node fields to JournalEntry properties
+  - **Test Fixes**: Resolved test compilation issues by using real JournalEntry model instead of mock
+  - **File Format Confirmation**: Verified .jsonl (NDJSON) format is correct per MCP v1 specification
+  - **Impact**: Complete bidirectional MCP workflow now functional - export and re-import preserves all journal data
+  - **Technical Details**: Added _convertMcpNodeToJournalEntry() and _importJournalEntry() methods to McpImportService
+
 ### Latest Update - 2025-09-23
 
 ### Added

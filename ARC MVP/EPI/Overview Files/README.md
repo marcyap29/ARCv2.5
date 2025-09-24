@@ -11,9 +11,9 @@ A Flutter-based AI companion app that provides life-aware assistance through jou
 - **Compilation:** ✅ All syntax errors resolved
 - **AI Integration:** ✅ Gemini API with MIRA-enhanced ArcLLM + semantic context
 - **MIRA System:** ✅ Complete semantic memory graph with Hive storage backend
-- **MCP Support:** ✅ Full Memory Bundle v1 bidirectional export/import
+- **MCP Support:** ✅ Full Memory Bundle v1 bidirectional export/import with journal entry restoration
 - **LUMARA Chat Memory:** ✅ Persistent chat sessions with 30-day auto-archive, MCP export, and MIRA integration
-- **MCP Integration:** ✅ Complete bidirectional export/import with chat data, schema validation, and enterprise features
+- **MCP Integration:** ✅ Complete bidirectional export/import with chat data, journal entries, schema validation, and enterprise features
 - **Feature Flags:** ✅ Controlled rollout system for MIRA capabilities
 - **Repository Health:** ✅ Clean Git workflow - large files removed, normal push operations
 - **Branch Management:** ✅ MIRA integration complete, main-clean branch available
@@ -45,6 +45,14 @@ A Flutter-based AI companion app that provides life-aware assistance through jou
 - **Rule-Based Adapter** - Deterministic fallback if API unavailable
 
 ## 🔧 Recent Updates (September 2025)
+
+### MCP Import Journal Entry Restoration - September 24, 2025 ✅ COMPLETE
+- **Issue Resolved**: Fixed critical bug where imported MCP bundles didn't show journal entries in UI
+- **Root Cause**: Import process was storing MCP nodes as MIRA data instead of converting back to journal entries
+- **Solution**: Enhanced MCP import service to detect journal_entry nodes and convert them back to JournalEntry objects
+- **Impact**: Complete bidirectional MCP workflow now functional - export and re-import preserves all journal data
+- **Technical Details**: Added journal repository integration, proper field mapping, and test fixes
+- **File Format**: Confirmed .jsonl (NDJSON) is correct per MCP v1 specification - issue was in import logic, not format
 
 ### MCP Integration Architecture Complete - September 23, 2025 ✅ COMPLETE
 - **Bidirectional Integration**: Fully integrated LUMARA Chat Memory with existing MCP export/import infrastructure
