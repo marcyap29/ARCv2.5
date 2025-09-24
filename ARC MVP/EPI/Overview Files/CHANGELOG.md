@@ -16,6 +16,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ### Latest Update - 2025-09-24
 
+### Added
+- **MIRA Insights Mixed-Version Analytics Complete** (2025-09-24) ✅ COMPLETE
+  - **ChatMetricsService**: Analytics engine for chat session insights with engagement scoring
+  - **EnhancedInsightService**: Combined journal+chat insights with 60/40 weighting
+  - **Mixed Schema Support**: node.v1 (legacy journals) + node.v2 (chat sessions/messages) in same exports
+  - **Golden Bundle**: Real-world mixed-version export with 3 v1 + 3 v2 records
+  - **Comprehensive Testing**: 6/6 tests passing with AJV-ready JSON validation
+  - **Node Compatibility**: Fixed ChatSessionNode, ChatMessageNode, ContainsEdge to properly extend MIRA base classes
+  - **MCP Adapter Routing**: Smart routing between schema versions based on node type
+  - **Export Integration**: ChatExporter updated to use new MiraToMcpAdapter
+
 ### Fixed
 - **MCP Import Journal Entry Restoration** (2025-09-24) ✅ COMPLETE
   - **Critical Bug Fix**: Resolved issue where imported MCP bundles didn't show journal entries in UI

@@ -14,6 +14,7 @@ A Flutter-based AI companion app that provides life-aware assistance through jou
 - **MCP Support:** ✅ Full Memory Bundle v1 bidirectional export/import with journal entry restoration (Critical import bug fixed Sept 24)
 - **LUMARA Chat Memory:** ✅ Persistent chat sessions with 30-day auto-archive, MCP export, and MIRA integration
 - **MCP Integration:** ✅ Complete bidirectional export/import with chat data, journal entries, schema validation, and enterprise features
+- **MIRA Insights:** ✅ Mixed-version MCP support (node.v1 + node.v2) with combined journal+chat analytics - ALL TESTS PASSING
 - **Feature Flags:** ✅ Controlled rollout system for MIRA capabilities
 - **Repository Health:** ✅ Clean Git workflow - large files removed, normal push operations
 - **Branch Management:** ✅ MIRA integration complete, main-clean branch available

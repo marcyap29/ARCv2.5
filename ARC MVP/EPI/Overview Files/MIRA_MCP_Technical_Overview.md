@@ -2,7 +2,7 @@
 
 > **Purpose**: Comprehensive technical reference for implementing MIRA graph visualization and insights
 > **Audience**: AI systems, developers implementing MIRA UI components
-> **Last Updated**: September 21, 2025
+> **Last Updated**: September 24, 2025
 
 ---
 
@@ -15,6 +15,8 @@ This document provides a complete technical overview of the MIRA-MCP semantic me
 **NEW**: **LUMARA Chat Memory Integration** - Complete implementation of persistent chat sessions with 30-day auto-archive, MIRA graph integration (ChatSession/ChatMessage nodes with contains edges), and MCP export system with node.v2 schema compliance.
 
 **CRITICAL FIX**: **MCP Import Journal Entry Restoration** - Resolved critical bug where imported MCP bundles didn't show journal entries in UI. Enhanced import service to detect journal_entry nodes and convert them back to JournalEntry objects with proper field mapping and journal repository integration.
+
+**MIRA INSIGHTS COMPLETE**: **Mixed-Version MCP Analytics** - Full implementation of combined journal+chat insights with node.v1/v2 mixed exports. ChatMetricsService and EnhancedInsightService provide 60/40 weighted analytics (journal/chat). All tests passing (6/6) with AJV-ready JSON validation.
 
 ---
 
