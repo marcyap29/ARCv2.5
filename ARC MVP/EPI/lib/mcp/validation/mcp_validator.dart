@@ -329,6 +329,16 @@ class McpValidator {
     return ['ChatSession', 'ChatMessage'].contains(nodeType);
   }
 
+  /// Check if McpNarrative is empty (has no meaningful content)
+  static bool _isNarrativeEmpty(McpNarrative? narrative) {
+    if (narrative == null) return true;
+    
+    return (narrative.situation?.isEmpty ?? true) &&
+           (narrative.action?.isEmpty ?? true) &&
+           (narrative.growth?.isEmpty ?? true) &&
+           (narrative.essence?.isEmpty ?? true);
+  }
+
   /// Validate chat-specific node fields
   static ValidationResult validateChatNode(McpNode node) {
     final errors = <String>[];
@@ -341,14 +351,14 @@ class McpValidator {
     // Chat-specific validations
     if (node.type == 'ChatSession') {
       // Session should have meaningful subject/title
-      if ((node.contentSummary?.isEmpty ?? true) && (node.narrative?.isEmpty ?? true)) {
+      if ((node.contentSummary?.isEmpty ?? true) && _isNarrativeEmpty(node.narrative)) {
         errors.add('ChatSession must have a meaningful subject');
       }
     }
 
     if (node.type == 'ChatMessage') {
       // Message should have content
-      if ((node.narrative?.isEmpty ?? true) && (node.contentSummary?.isEmpty ?? true)) {
+      if (_isNarrativeEmpty(node.narrative) && (node.contentSummary?.isEmpty ?? true)) {
         errors.add('ChatMessage must have content');
       }
     }

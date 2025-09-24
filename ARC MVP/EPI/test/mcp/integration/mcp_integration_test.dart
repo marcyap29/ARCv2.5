@@ -8,6 +8,7 @@ import 'package:my_app/mcp/export/mcp_export_service.dart';
 import 'package:my_app/mcp/import/mcp_import_service.dart';
 import 'package:my_app/mcp/models/mcp_schemas.dart';
 import 'package:my_app/mira/mira_service.dart';
+import 'package:my_app/models/journal_entry_model.dart';
 
 void main() {
   group('MCP Integration Tests', () {
@@ -232,10 +233,12 @@ void main() {
         final journalEntries = [
           JournalEntry(
             id: 'journal_1',
+            title: 'Testing Conversation',
             content: 'Today I had a great conversation with LUMARA about testing.',
             createdAt: DateTime.now(),
-            tags: {'journal', 'testing'},
-            userId: 'test_user',
+            updatedAt: DateTime.now(),
+            tags: ['journal', 'testing'],
+            mood: 'Excited',
             metadata: {'phase': 'Discovery'},
           ),
         ];
@@ -414,20 +417,3 @@ void main() {
 }
 
 /// Mock journal entry for testing
-class JournalEntry {
-  final String id;
-  final String content;
-  final DateTime createdAt;
-  final Set<String> tags;
-  final String userId;
-  final Map<String, dynamic> metadata;
-
-  const JournalEntry({
-    required this.id,
-    required this.content,
-    required this.createdAt,
-    required this.tags,
-    required this.userId,
-    this.metadata = const {},
-  });
-}

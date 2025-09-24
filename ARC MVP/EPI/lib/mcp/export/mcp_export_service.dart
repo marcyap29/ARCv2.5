@@ -15,6 +15,8 @@ import 'checksum_utils.dart';
 import 'chat_exporter.dart';
 import '../../lumara/chat/chat_repo.dart';
 import '../../lumara/chat/chat_models.dart';
+import '../../models/journal_entry_model.dart';
+import '../../data/models/media_item.dart';
 
 class McpExportService {
   final String bundleId;
@@ -36,7 +38,7 @@ class McpExportService {
     required Directory outputDir,
     required McpExportScope scope,
     required List<JournalEntry> journalEntries,
-    List<MediaFile>? mediaFiles,
+    List<MediaItem>? mediaFiles,
     Map<String, dynamic>? customScope,
     bool includeChats = true,
     bool includeArchivedChats = true,
@@ -200,7 +202,7 @@ class McpExportService {
         timestamp: entry.createdAt.toUtc(),
         contentSummary: _createContentSummary(entry),
         phaseHint: phaseHint,
-        keywords: entry.tags.toList(),
+        keywords: entry.tags,
         narrative: narrative,
         emotions: emotions,
         provenance: McpProvenance(
@@ -208,7 +210,7 @@ class McpExportService {
           device: Platform.operatingSystem,
           app: 'EPI',
           importMethod: 'journal_entry',
-          userId: entry.userId,
+          userId: null, // JournalEntry doesn't have userId in the real model
         ),
       );
       
@@ -284,7 +286,7 @@ class McpExportService {
   String? _determinePhaseHint(JournalEntry entry) {
     // This would integrate with your existing phase detection system
     // For now, return a default or extract from entry metadata
-    return entry.metadata['phase'] as String?;
+    return entry.metadata?['phase'] as String?;
   }
 
   /// Extract emotions from journal entry
@@ -309,14 +311,15 @@ class McpExportService {
   }
 
   /// Create pointers from media files
-  Future<List<McpPointer>> _createPointersFromMedia(List<MediaFile> mediaFiles) async {
+  Future<List<McpPointer>> _createPointersFromMedia(List<MediaItem> mediaFiles) async {
     final pointers = <McpPointer>[];
     
     for (final mediaFile in mediaFiles) {
       final pointerId = 'ptr_${mediaFile.id}';
       
       // Create content hash
-      final contentBytes = await mediaFile.file.readAsBytes();
+      final file = File(mediaFile.uri);
+      final contentBytes = await file.readAsBytes();
       final contentHash = sha256.convert(contentBytes).toString();
       
       // Create CAS URI
@@ -324,16 +327,19 @@ class McpExportService {
       
       final pointer = McpPointer(
         id: pointerId,
-        mediaType: mediaFile.type,
+        mediaType: mediaFile.type.name,
         sourceUri: mediaFile.uri,
         altUris: [casUri],
         descriptor: McpDescriptor(
-          language: mediaFile.language,
+          language: 'en', // Default language
           length: contentBytes.length,
-          mimeType: mediaFile.mimeType,
+          mimeType: _getMimeTypeForMediaType(mediaFile.type),
           metadata: {
-            'original_filename': mediaFile.filename,
-            'duration': mediaFile.duration,
+            'original_filename': mediaFile.uri.split('/').last,
+            'duration': mediaFile.duration?.inMicroseconds,
+            'size_bytes': mediaFile.sizeBytes,
+            'transcript': mediaFile.transcript,
+            'ocr_text': mediaFile.ocrText,
           },
         ),
         samplingManifest: McpSamplingManifest(
@@ -347,7 +353,7 @@ class McpExportService {
         integrity: McpIntegrity(
           contentHash: contentHash,
           bytes: contentBytes.length,
-          mime: mediaFile.mimeType,
+          mime: _getMimeTypeForMediaType(mediaFile.type),
           createdAt: mediaFile.createdAt.toUtc(),
         ),
         provenance: McpProvenance(
@@ -355,7 +361,7 @@ class McpExportService {
           device: Platform.operatingSystem,
           app: 'EPI',
           importMethod: 'media_import',
-          userId: mediaFile.userId,
+          userId: null, // MediaItem doesn't have userId
         ),
         privacy: McpPrivacy(
           containsPii: _detectPii(mediaFile),
@@ -363,7 +369,7 @@ class McpExportService {
           locationPrecision: _detectLocation(mediaFile),
           sharingPolicy: 'private',
         ),
-        labels: mediaFile.tags.toList(),
+        labels: [], // MediaItem doesn't have tags
       );
       
       pointers.add(pointer);
@@ -372,32 +378,46 @@ class McpExportService {
     return pointers;
   }
 
+  /// Get MIME type for MediaType
+  String _getMimeTypeForMediaType(MediaType type) {
+    switch (type) {
+      case MediaType.audio:
+        return 'audio/mpeg';
+      case MediaType.image:
+        return 'image/jpeg';
+      case MediaType.video:
+        return 'video/mp4';
+      case MediaType.file:
+        return 'application/octet-stream';
+    }
+  }
+
   /// Create spans for media file
-  List<McpSpan> _createSpansForMedia(MediaFile mediaFile) {
+  List<McpSpan> _createSpansForMedia(MediaItem mediaFile) {
     // This would create text spans for audio transcripts, video captions, etc.
     return [];
   }
 
   /// Create keyframes for media file
-  List<McpKeyframe> _createKeyframesForMedia(MediaFile mediaFile) {
+  List<McpKeyframe> _createKeyframesForMedia(MediaItem mediaFile) {
     // This would create keyframes for video files
     return [];
   }
 
   /// Detect PII in media file
-  bool _detectPii(MediaFile mediaFile) {
+  bool _detectPii(MediaItem mediaFile) {
     // This would use your existing PII detection
     return false;
   }
 
   /// Detect faces in media file
-  bool _detectFaces(MediaFile mediaFile) {
+  bool _detectFaces(MediaItem mediaFile) {
     // This would use your existing face detection
     return false;
   }
 
   /// Detect location in media file
-  String? _detectLocation(MediaFile mediaFile) {
+  String? _detectLocation(MediaItem mediaFile) {
     // This would use your existing location detection
     return null;
   }
@@ -643,7 +663,9 @@ class McpExportService {
       timestamp: session.createdAt.toUtc(),
       contentSummary: session.subject,
       keywords: session.tags.toList(),
-      narrative: session.subject,
+        narrative: McpNarrative(
+          situation: session.subject,
+        ),
       provenance: McpProvenance(
         source: 'LUMARA',
         device: Platform.operatingSystem,
@@ -664,7 +686,9 @@ class McpExportService {
           ? '${message.content.substring(0, 100)}...'
           : message.content,
       keywords: [],
-      narrative: message.content,
+      narrative: McpNarrative(
+        situation: message.content,
+      ),
       provenance: McpProvenance(
         source: 'LUMARA',
         device: Platform.operatingSystem,
@@ -692,6 +716,33 @@ class McpExportService {
           'is_pinned': session.isPinned,
           'tags': session.tags,
         },
+      ),
+      samplingManifest: McpSamplingManifest(
+        spans: [],
+        keyframes: [],
+        metadata: {
+          'sampling_method': 'none',
+          'content_type': 'chat_session',
+        },
+      ),
+      integrity: McpIntegrity(
+        contentHash: 'dummy_hash_${session.id}',
+        bytes: session.subject.length,
+        mime: 'application/json',
+        createdAt: session.createdAt.toUtc(),
+      ),
+      provenance: McpProvenance(
+        source: 'LUMARA',
+        device: Platform.operatingSystem,
+        app: 'EPI',
+        importMethod: 'chat_session_pointer',
+        userId: null,
+      ),
+      privacy: McpPrivacy(
+        containsPii: false,
+        facesDetected: false,
+        locationPrecision: null,
+        sharingPolicy: 'private',
       ),
       labels: ['chat_session', ...session.tags],
     );
@@ -788,52 +839,6 @@ class McpExportException implements Exception {
   String toString() => 'McpExportException: $message';
 }
 
-/// Placeholder classes for journal and media data
-class JournalEntry {
-  final String id;
-  final String content;
-  final DateTime createdAt;
-  final Set<String> tags;
-  final String userId;
-  final Map<String, dynamic> metadata;
-
-  const JournalEntry({
-    required this.id,
-    required this.content,
-    required this.createdAt,
-    required this.tags,
-    required this.userId,
-    this.metadata = const {},
-  });
-}
-
-class MediaFile {
-  final String id;
-  final String type;
-  final String uri;
-  final String filename;
-  final String mimeType;
-  final String? language;
-  final Duration? duration;
-  final DateTime createdAt;
-  final String userId;
-  final Set<String> tags;
-  final File file;
-
-  const MediaFile({
-    required this.id,
-    required this.type,
-    required this.uri,
-    required this.filename,
-    required this.mimeType,
-    this.language,
-    this.duration,
-    required this.createdAt,
-    required this.userId,
-    required this.tags,
-    required this.file,
-  });
-}
 
 /// Container for chat export data
 class ChatExportData {

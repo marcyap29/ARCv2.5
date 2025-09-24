@@ -13,6 +13,7 @@ A Flutter-based AI companion app that provides life-aware assistance through jou
 - **MIRA System:** ✅ Complete semantic memory graph with Hive storage backend
 - **MCP Support:** ✅ Full Memory Bundle v1 bidirectional export/import
 - **LUMARA Chat Memory:** ✅ Persistent chat sessions with 30-day auto-archive, MCP export, and MIRA integration
+- **MCP Integration:** ✅ Complete bidirectional export/import with chat data, schema validation, and enterprise features
 - **Feature Flags:** ✅ Controlled rollout system for MIRA capabilities
 - **Repository Health:** ✅ Clean Git workflow - large files removed, normal push operations
 - **Branch Management:** ✅ MIRA integration complete, main-clean branch available
@@ -44,6 +45,18 @@ A Flutter-based AI companion app that provides life-aware assistance through jou
 - **Rule-Based Adapter** - Deterministic fallback if API unavailable
 
 ## 🔧 Recent Updates (September 2025)
+
+### MCP Integration Architecture Complete - September 23, 2025 ✅ COMPLETE
+- **Bidirectional Integration**: Fully integrated LUMARA Chat Memory with existing MCP export/import infrastructure
+- **Enhanced Export Service**: Updated McpExportService with ChatRepo dependency injection and chat data processing
+- **Enhanced Import Service**: Updated McpImportService with session-message relationship reconstruction from MCP bundles
+- **Schema Evolution**: Extended MCP validation to support node.v2 schemas and ChatSession/ChatMessage node types
+- **Enterprise Features**: Added date filtering, archive control, privacy redaction, and provenance tracking
+- **MiraService Integration**: Enhanced MiraService with exportToMcpEnhanced() and importFromMcpEnhanced() methods
+- **Comprehensive Testing**: End-to-end integration tests with export → import → verification workflows
+- **Performance Optimization**: Streaming processing for large datasets with progress tracking and error handling
+- **Data Integrity**: Complete round-trip testing ensures zero data loss during export/import cycles
+- **AI Ecosystem Ready**: MCP-compliant exports enable cross-platform AI data sharing and interoperability
 
 ### LUMARA Chat Memory Implementation - September 23, 2025 ✅ COMPLETE
 - **Persistent Chat Sessions**: Implemented local Hive storage with ChatSession and ChatMessage models using ULID IDs for stability
@@ -375,5 +388,5 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 ---
 
 **Last Updated:** September 23, 2025
-**Version:** 0.2.4-alpha
-**Status:** Production Ready - LUMARA Chat Memory Complete + Repository Hygiene + MIRA-MCP Integration + Clean Git Workflow
+**Version:** 0.2.5-alpha
+**Status:** Production Ready - Complete MCP Integration + LUMARA Chat Memory + Repository Hygiene + MIRA-MCP Architecture + Clean Git Workflow

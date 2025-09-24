@@ -13,7 +13,10 @@ import '../mcp/bundle/reader.dart';
 import '../mcp/bundle/manifest.dart';
 import '../mcp/export/mcp_export_service.dart';
 import '../mcp/import/mcp_import_service.dart';
+import '../mcp/models/mcp_schemas.dart';
 import '../lumara/chat/chat_repo.dart';
+import '../data/models/media_item.dart';
+import '../models/journal_entry_model.dart';
 
 class MiraService {
   static MiraService? _instance;
@@ -139,7 +142,7 @@ class MiraService {
     required Directory outputDir,
     required List<JournalEntry> journalEntries,
     McpExportScope scope = McpExportScope.all,
-    List<MediaFile>? mediaFiles,
+    List<MediaItem>? mediaFiles,
     Map<String, dynamic>? customScope,
     bool includeChats = true,
     bool includeArchivedChats = true,
