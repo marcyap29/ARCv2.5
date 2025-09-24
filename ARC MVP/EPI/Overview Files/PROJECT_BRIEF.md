@@ -3,7 +3,7 @@
 ## Overview
 ARC is the **first module of EPI (Evolving Personal Intelligence)**. It is a journaling app that treats reflection as a **sacred act**. The experience should feel like the *Blessed* app: calming, atmospheric, and emotionally resonant. Journaling is the entry point, but the core differentiation is that each entry generates a **visual Arcform** — a glowing, constellation-like structure that evolves with the user's story.
 
-This MVP focuses on **journaling → AI analysis → Arcform visualization → memory graph**, with complete AI integration via Gemini API and enhanced MCP Memory Bundle export/import featuring comprehensive journal entry preservation and semantic relationship mapping for full ecosystem interoperability.
+This MVP focuses on **journaling → AI analysis → Arcform visualization → memory graph**, with complete AI integration via Gemini API, MIRA semantic memory system, and enhanced MCP Memory Bundle export/import featuring mixed-version schema support (node.v1 + node.v2), chat analytics integration, and comprehensive semantic relationship mapping for full ecosystem interoperability.
 
 ---
 
@@ -74,12 +74,18 @@ This MVP focuses on **journaling → AI analysis → Arcform visualization → m
 - **Coach Mode**: Coaching tools, fitness tracking, progress monitoring, client sharing
 
 ### Technical Features ✅
+- **MIRA Semantic Memory System**: Complete semantic memory graph with mixed-version MCP support
+  - Chat analytics with ChatMetricsService and EnhancedInsightService
+  - Combined journal+chat insights with 60/40 weighting
+  - Mixed schema exports (node.v1 legacy + node.v2 chat sessions)
+  - Golden bundle validation with comprehensive test suite (6/6 tests passing)
 - **MCP Export/Import System**: Complete MCP Memory Bundle v1 format support for AI ecosystem interoperability
   - Export with four storage profiles (minimal, space_saver, balanced, hi_fidelity)
   - Import with validation and error handling
   - Settings integration with dedicated MCP Export/Import buttons
   - Automatic data conversion between app's JournalEntry model and MCP format
   - Progress tracking and real-time status updates
+  - Mixed-version exports with AJV-ready JSON validation
 - **Settings & Privacy**: Complete privacy controls, data management, and personalization
 - **Accessibility**: Full WCAG compliance with screen reader support and performance monitoring
 - **Export**: PNG and JSON data export with share functionality
@@ -126,10 +132,11 @@ This MVP focuses on **journaling → AI analysis → Arcform visualization → m
 
 ## Engineering Priorities
 1. **Production Deployment**: App is ready for production deployment with all core features stable ✅
-2. **Feature Enhancement**: Continue developing advanced features like MIRA graph visualization and cloud sync
-3. **Performance Optimization**: Monitor and optimize performance across all platforms
-4. **User Experience**: Refine UI/UX based on user feedback and testing
-5. **Platform Expansion**: Ensure compatibility across iOS, Android, and other platforms  
+2. **MIRA Insights Complete**: Mixed-version MCP analytics with chat integration fully implemented ✅
+3. **Feature Enhancement**: Continue developing advanced features like enhanced MIRA graph visualization and cloud sync
+4. **Performance Optimization**: Monitor and optimize performance across all platforms
+5. **User Experience**: Refine UI/UX based on user feedback and testing
+6. **Platform Expansion**: Ensure compatibility across iOS, Android, and other platforms  
 
 ---
 
@@ -141,11 +148,12 @@ This MVP focuses on **journaling → AI analysis → Arcform visualization → m
 
 ---
 
-This is the **ARC MVP brief for Cursor**.  
-The project is now **production-ready** with:  
+This is the **ARC MVP brief for Cursor**.
+The project is now **production-ready** with:
 1. ✅ All startup and navigation issues resolved - app boots reliably and flows work end-to-end
 2. ✅ Complete data pipeline (journal entry → keywords → Arcform snapshot) implemented and tested
 3. ✅ Reflective, humane tone maintained throughout the UI with sacred journaling experience
 4. ✅ Production-ready features: First Responder Mode, Coach Mode, MCP Export/Import, Accessibility, Settings
 5. ✅ MCP Memory Bundle v1 integration for AI ecosystem interoperability with Settings UI
-6. ✅ Comprehensive testing, documentation, and error handling implemented  
+6. ✅ MIRA Insights Complete: Mixed-version MCP support with chat analytics and combined insights (ALL TESTS PASSING)
+7. ✅ Comprehensive testing, documentation, and error handling implemented  
