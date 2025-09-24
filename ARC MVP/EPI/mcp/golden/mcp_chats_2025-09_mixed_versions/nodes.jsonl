@@ -1,0 +1,7 @@
+{"type":"entry","id":"entry:01J9MIXLEGACY0A1","timestamp":"2025-09-05T10:00:00Z","schema_version":"node.v1","content_summary":"Rough week. Not sleeping well; stressed about deadlines.","keywords":["sleep","stress","deadline"],"phase_hint":"Consolidation"}
+{"type":"keyword","id":"kw:sleep","timestamp":"2025-09-05T10:00:01Z","schema_version":"node.v1","content_summary":"Keyword node: sleep","keywords":["sleep"]}
+{"type":"keyword","id":"kw:stress","timestamp":"2025-09-05T10:00:01Z","schema_version":"node.v1","content_summary":"Keyword node: stress","keywords":["stress"]}
+
+{"kind":"node","type":"ChatSession","id":"session:01J9MIXCHAT0S1","timestamp":"2025-09-15T09:00:00Z","content":{"title":"Coping plan for deadlines"},"metadata":{"isArchived":false,"isPinned":false,"tags":["work","planning"],"messageCount":2,"retention":"auto-archive-30d"},"schema_version":"node.v2"}
+{"kind":"node","type":"ChatMessage","id":"msg:01J9MIXCHAT0M1","timestamp":"2025-09-15T09:01:00Z","content":{"text":"How do I manage sleep when crunch time hits?","mime":"text/plain"},"metadata":{"role":"user"},"schema_version":"node.v2"}
+{"kind":"node","type":"ChatMessage","id":"msg:01J9MIXCHAT0M2","timestamp":"2025-09-15T09:02:20Z","content":{"text":"Set a hard cutoff and a wind-down. We will track keywords sleep and stress for 2 weeks.","mime":"text/plain"},"metadata":{"role":"assistant"},"schema_version":"node.v2"}

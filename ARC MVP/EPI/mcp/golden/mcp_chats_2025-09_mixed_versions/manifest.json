@@ -1,0 +1,36 @@
+{
+  "bundle_id": "mcp_chats_2025-09_mixed_versions",
+  "version": "1.0.0",
+  "created_at": "2025-09-23T17:40:00Z",
+  "profile": "monthly_chat_mixed_versions",
+  "export_options": {
+    "active_only": false,
+    "include_archived": true,
+    "date_range": { "since": "2025-09-01", "until": "2025-09-23" }
+  },
+  "files": {
+    "nodes_jsonl": {
+      "path": "nodes.jsonl",
+      "records": 6,
+      "checksum": "sha256:PLACEHOLDER"
+    },
+    "edges_jsonl": {
+      "path": "edges.jsonl",
+      "records": 5,
+      "checksum": "sha256:PLACEHOLDER"
+    },
+    "pointers_jsonl": {
+      "path": "pointers.jsonl",
+      "records": 1,
+      "checksum": "sha256:PLACEHOLDER"
+    }
+  },
+  "schemas": {
+    "node_v1": "schemas/node.v1.json",
+    "node_v2": "schemas/node.v2.json",
+    "chat_session_v1": "schemas/chat_session.v1.json",
+    "chat_message_v1": "schemas/chat_message.v1.json",
+    "edge_v1": "schemas/edge.v1.json"
+  },
+  "notes": "Demonstrates a single bundle containing legacy node.v1 records (journal + keyword) and new node.v2 chat records."
+}

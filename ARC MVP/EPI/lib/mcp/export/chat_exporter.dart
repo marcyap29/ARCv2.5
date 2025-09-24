@@ -5,6 +5,9 @@ import 'package:my_app/lumara/chat/chat_repo.dart';
 import 'package:my_app/lumara/chat/chat_models.dart';
 import 'package:my_app/lumara/chat/privacy_redactor.dart';
 import 'package:my_app/lumara/chat/provenance_tracker.dart';
+import '../../mira/ingest/chat_ingest.dart';
+import '../../mira/graph/chat_graph_builder.dart';
+import '../adapters/to_mcp.dart';
 
 /// MCP exporter for chat sessions and messages
 class ChatMcpExporter {
@@ -59,32 +62,45 @@ class ChatMcpExporter {
 
       // Export each session
       for (final session in filteredSessions) {
-        // Export session node
-        final sessionNode = _createSessionNode(session);
-        nodesStream.writeln(jsonEncode(sessionNode));
-        nodeCount++;
+        // Get messages for this session
+        final messages = await _chatRepo.getMessages(session.id, lazy: false);
+
+        // Create MIRA graph fragment
+        final fragment = ChatGraphBuilder.fromSessions(
+          [session],
+          {session.id: messages},
+        );
+
+        // Export session node using MIRA adapter
+        final sessionNode = ChatIngest.toSessionNode(session);
+        final sessionMcp = MiraToMcpAdapter.nodeToMcp(sessionNode);
+        if (sessionMcp != null) {
+          nodesStream.writeln(jsonEncode(sessionMcp));
+          nodeCount++;
+        }
 
         // Export session pointer
         final sessionPointer = _createSessionPointer(session);
         pointersStream.writeln(jsonEncode(sessionPointer));
         pointerCount++;
 
-        // Get messages for this session
-        final messages = await _chatRepo.getMessages(session.id, lazy: false);
+        // Export message nodes using MIRA adapter
+        for (final message in messages) {
+          final messageNode = ChatIngest.toMessageNode(message);
+          final messageMcp = MiraToMcpAdapter.nodeToMcp(messageNode);
+          if (messageMcp != null) {
+            nodesStream.writeln(jsonEncode(messageMcp));
+            nodeCount++;
+          }
+        }
 
-        // Export message nodes and edges
-        for (int i = 0; i < messages.length; i++) {
-          final message = messages[i];
-
-          // Export message node
-          final messageNode = _createMessageNode(message);
-          nodesStream.writeln(jsonEncode(messageNode));
-          nodeCount++;
-
-          // Export contains edge
-          final containsEdge = _createContainsEdge(session.id, message.id, message.createdAt, i);
-          edgesStream.writeln(jsonEncode(containsEdge));
-          edgeCount++;
+        // Export edges using MIRA adapter
+        for (final edge in fragment.edges) {
+          final edgeMcp = MiraToMcpAdapter.edgeToMcp(edge);
+          if (edgeMcp != null) {
+            edgesStream.writeln(jsonEncode(edgeMcp));
+            edgeCount++;
+          }
         }
       }
 
