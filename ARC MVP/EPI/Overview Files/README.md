@@ -11,7 +11,7 @@ A Flutter-based AI companion app that provides life-aware assistance through jou
 - **Compilation:** ✅ All syntax errors resolved
 - **AI Integration:** ✅ Gemini API with MIRA-enhanced ArcLLM + semantic context
 - **MIRA System:** ✅ Complete semantic memory graph with Hive storage backend
-- **MCP Support:** ✅ Full Memory Bundle v1 bidirectional export/import with journal entry restoration
+- **MCP Support:** ✅ Full Memory Bundle v1 bidirectional export/import with journal entry restoration (Critical import bug fixed Sept 24)
 - **LUMARA Chat Memory:** ✅ Persistent chat sessions with 30-day auto-archive, MCP export, and MIRA integration
 - **MCP Integration:** ✅ Complete bidirectional export/import with chat data, journal entries, schema validation, and enterprise features
 - **Feature Flags:** ✅ Controlled rollout system for MIRA capabilities

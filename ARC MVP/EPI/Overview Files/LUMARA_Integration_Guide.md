@@ -34,10 +34,11 @@ This guide shows you how to integrate the complete LUMARA system into your exist
 
 ### MCP Integration
 - ✅ **Complete Bidirectional Export/Import** - Full MCP v1 specification compliance
-- ✅ **Journal Entry Restoration** - Import process correctly converts journal_entry nodes back to JournalEntry objects
+- ✅ **Journal Entry Restoration** - Import process correctly converts journal_entry nodes back to JournalEntry objects (Critical bug fixed Sept 24, 2025)
 - ✅ **Chat Data Export/Import** - Persistent chat sessions with MCP bundle support
 - ✅ **Schema Validation** - Comprehensive validation for MCP node.v2 schemas
 - ✅ **Privacy & Provenance** - PII detection, redaction, and metadata tracking
+- ✅ **Enhanced Debug System** - Comprehensive logging and troubleshooting tools for import issues
 
 ## 🔧 **Integration Steps**
 
