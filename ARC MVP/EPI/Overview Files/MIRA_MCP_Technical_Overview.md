@@ -12,6 +12,8 @@ This document provides a complete technical overview of the MIRA-MCP semantic me
 
 **Key Achievement**: Full bidirectional semantic memory system with deterministic export/import, enabling AI context sharing and persistent semantic knowledge graphs. CRITICAL RESOLUTION: Fixed issue where MCP export generated empty files instead of journal content by unifying standalone McpExportService with MIRA-based semantic export system. Now includes complete journal entry export as MCP Pointer + Node + Edge records with full text preservation and automatic relationship generation.
 
+**NEW**: **LUMARA Chat Memory Integration** - Complete implementation of persistent chat sessions with 30-day auto-archive, MIRA graph integration (ChatSession/ChatMessage nodes with contains edges), and MCP export system with node.v2 schema compliance.
+
 ---
 
 ## 1. MIRA Core Architecture
@@ -34,7 +36,9 @@ enum NodeType {
   concept,     // Abstract concepts
   episode,     // Narrative segments
   summary,     // Compressed narratives
-  evidence     // Supporting data
+  evidence,    // Supporting data
+  chatSession, // LUMARA chat sessions
+  chatMessage  // LUMARA chat messages
 }
 ```
 
@@ -49,7 +53,8 @@ enum EdgeType {
   belongsTo,    // Belongs to category
   evidenceFor,  // Evidence for claim
   partOf,       // Part of larger concept
-  precedes      // Temporal precedence
+  precedes,     // Temporal precedence
+  contains      // Session contains message
 }
 ```
 
@@ -275,9 +280,306 @@ class MiraEvent {
 
 ---
 
-## 4. MCP Bundle System
+## 4. LUMARA Chat Memory System
 
-### 4.1 Manifest and JSON Schema Validation
+### 4.1 Chat Memory Architecture
+
+**Files**:
+- `lib/lumara/chat/chat_models.dart` - Core data models
+- `lib/lumara/chat/chat_repo.dart` - Repository interface
+- `lib/lumara/chat/chat_repo_impl.dart` - Hive-backed implementation
+
+The chat memory system provides persistent storage for LUMARA conversations:
+
+#### Chat Data Models
+```dart
+@HiveType(typeId: 20)
+class ChatSession extends Equatable {
+  @HiveField(0) final String id;           // ULID for stability
+  @HiveField(1) final String subject;      // Auto-generated from first message
+  @HiveField(2) final DateTime createdAt;  // Session creation time
+  @HiveField(3) final DateTime updatedAt;  // Last activity time
+  @HiveField(4) final bool isPinned;       // Prevents auto-archive
+  @HiveField(5) final bool isArchived;     // Archive status
+  @HiveField(6) final DateTime? archivedAt; // Archive timestamp
+  @HiveField(7) final List<String> tags;   // User tags for organization
+  @HiveField(8) final int messageCount;    // Cached count for performance
+}
+
+@HiveType(typeId: 21)
+class ChatMessage extends Equatable {
+  @HiveField(0) final String id;           // ULID for stability
+  @HiveField(1) final String sessionId;    // Parent session ID
+  @HiveField(2) final MessageRole role;    // user/assistant
+  @HiveField(3) final String content;      // Message text
+  @HiveField(4) final DateTime createdAt;  // Message timestamp
+  @HiveField(5) final Map<String, dynamic> metadata; // Extensible properties
+}
+```
+
+#### Repository Pattern
+```dart
+abstract class ChatRepo {
+  Future<String> createSession({String? subject, List<String> tags = const []});
+  Future<void> addMessage({required String sessionId, required MessageRole role, required String content});
+  Future<List<ChatSession>> listActive({String? query, int limit = 50});
+  Future<List<ChatSession>> listArchived({String? query, int limit = 50});
+  Future<void> archiveSession(String sessionId, bool archived);
+  Future<void> deleteSession(String sessionId);
+  Future<void> pruneByPolicy({Duration maxAge = const Duration(days: 30)});
+}
+```
+
+### 4.2 30-Day Auto-Archive Policy
+
+**File**: `lib/lumara/chat/chat_archive_policy.dart`
+
+Non-destructive archive system with configurable policies:
+
+```dart
+class ChatArchivePolicy {
+  static const Duration defaultMaxAge = Duration(days: 30);
+  static const int defaultMessageThreshold = 5;
+
+  // Check if session should be archived
+  static bool shouldArchive(ChatSession session, {
+    Duration maxAge = defaultMaxAge,
+    int messageThreshold = defaultMessageThreshold,
+  }) {
+    // Never archive pinned sessions
+    if (session.isPinned) return false;
+
+    // Already archived
+    if (session.isArchived) return false;
+
+    // Check age-based criteria
+    final age = DateTime.now().difference(session.updatedAt);
+    if (age > maxAge) return true;
+
+    // Check activity-based criteria
+    if (session.messageCount < messageThreshold && age > Duration(days: 7)) {
+      return true;
+    }
+
+    return false;
+  }
+}
+```
+
+### 4.3 MIRA Graph Integration
+
+**Files**:
+- `lib/mira/nodes/chat_session_node.dart` - ChatSession → MIRA Node
+- `lib/mira/nodes/chat_message_node.dart` - ChatMessage → MIRA Node
+- `lib/mira/edges/contains_edge.dart` - Session-Message relationships
+- `lib/mira/adapters/chat_to_mira.dart` - Conversion utilities
+
+Chat sessions and messages are integrated into the MIRA semantic graph:
+
+#### MIRA Node Creation
+```dart
+class ChatSessionNode extends MiraNode {
+  final String sessionId;
+  final String subject;
+  final bool isPinned;
+  final bool isArchived;
+  final List<String> tags;
+  final int messageCount;
+
+  // Convert from ChatSession model
+  factory ChatSessionNode.fromModel(ChatSession session) {
+    return ChatSessionNode(
+      id: 'chat_session_${session.id}',
+      sessionId: session.id,
+      subject: session.subject,
+      isPinned: session.isPinned,
+      isArchived: session.isArchived,
+      tags: session.tags,
+      messageCount: session.messageCount,
+      timestamp: session.createdAt,
+      metadata: {
+        'source': 'lumara_chat',
+        'session_type': 'conversation',
+        'updated_at': session.updatedAt.toIso8601String(),
+      },
+    );
+  }
+}
+```
+
+#### Relationship Edges
+```dart
+class ContainsEdge extends MiraEdge {
+  final int messageOrder;
+
+  factory ContainsEdge.sessionToMessage({
+    required String sessionId,
+    required String messageId,
+    required int order,
+    required DateTime timestamp,
+  }) {
+    return ContainsEdge(
+      src: 'chat_session_$sessionId',
+      dst: 'chat_message_$messageId',
+      relation: EdgeType.contains,
+      weight: 1.0,
+      timestamp: timestamp,
+      messageOrder: order,
+      metadata: {
+        'order': order,
+        'relationship_type': 'session_message',
+      },
+    );
+  }
+}
+```
+
+### 4.4 MCP Export Integration
+
+**File**: `lib/mcp/export/chat_exporter.dart`
+
+Complete MCP export system for chat data:
+
+#### Chat-Specific MCP Export
+```dart
+class ChatMcpExporter {
+  /// Export chats to MCP format with node.v2 compliance
+  Future<Directory> exportChatsToMcp({
+    required Directory outputDir,
+    bool includeArchived = true,
+    DateTime? since,
+    DateTime? until,
+    String profile = "monthly_chat_archive",
+  }) async {
+    // Export sessions as MCP nodes
+    for (final session in sessions) {
+      final sessionNode = _createSessionNode(session);
+      nodesStream.writeln(jsonEncode(sessionNode));
+
+      // Export session pointer for discoverability
+      final sessionPointer = _createSessionPointer(session);
+      pointersStream.writeln(jsonEncode(sessionPointer));
+
+      // Export messages and contains edges
+      final messages = await _chatRepo.getMessages(session.id);
+      for (int i = 0; i < messages.length; i++) {
+        final message = messages[i];
+
+        // Export message node with privacy processing
+        final messageNode = _createMessageNode(message);
+        nodesStream.writeln(jsonEncode(messageNode));
+
+        // Export contains edge with order metadata
+        final containsEdge = _createContainsEdge(
+          session.id, message.id, message.createdAt, i
+        );
+        edgesStream.writeln(jsonEncode(containsEdge));
+      }
+    }
+  }
+
+  /// Create MCP node.v2 for chat session
+  Map<String, dynamic> _createSessionNode(ChatSession session) {
+    return {
+      "kind": "node",
+      "type": "ChatSession",
+      "id": "session:${session.id}",
+      "timestamp": session.createdAt.toUtc().toIso8601String(),
+      "content": {"title": session.subject},
+      "metadata": {
+        "isArchived": session.isArchived,
+        "isPinned": session.isPinned,
+        "tags": session.tags,
+        "messageCount": session.messageCount,
+        "retention": "auto-archive-30d",
+      },
+      "schema_version": "node.v2"
+    };
+  }
+}
+```
+
+#### Privacy and Provenance
+```dart
+class ChatPrivacyRedactor {
+  /// Process message content for privacy
+  ChatPrivacyResult processContent(String content) {
+    bool containsPii = false;
+    String processedContent = content;
+    final List<String> detectedPii = [];
+
+    // Detect PII patterns (email, phone, SSN, etc.)
+    for (final pattern in _piiPatterns) {
+      final matches = pattern.allMatches(content);
+      if (matches.isNotEmpty) {
+        containsPii = true;
+        for (final match in matches) {
+          detectedPii.add(match.group(0) ?? '');
+          if (maskPii) {
+            processedContent = processedContent.replaceFirst(
+              match.group(0)!, '[REDACTED-${detectedPii.length}]'
+            );
+          }
+        }
+      }
+    }
+
+    return ChatPrivacyResult(
+      content: processedContent,
+      containsPii: containsPii,
+      detectedPatterns: detectedPii,
+      originalHash: preserveHashes ? _hashContent(content) : null,
+    );
+  }
+}
+```
+
+### 4.5 JSON Schema Validation
+
+**Files**: `lib/mcp/bundle/schemas/`
+- `chat_session.v1.json` - ChatSession node schema
+- `chat_message.v1.json` - ChatMessage node schema
+- `edge.v1.json` - Enhanced with contains relationship
+- `node.v2.json` - Updated with ChatSession/ChatMessage types
+
+#### Chat Session Schema
+```json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.mcp.ai/chat_session.v1.json",
+  "title": "MCP Chat Session v1",
+  "type": "object",
+  "properties": {
+    "kind": {"const": "node"},
+    "type": {"const": "ChatSession"},
+    "id": {"type": "string", "pattern": "^session:"},
+    "content": {
+      "type": "object",
+      "properties": {
+        "title": {"type": "string", "maxLength": 200}
+      },
+      "required": ["title"]
+    },
+    "metadata": {
+      "type": "object",
+      "properties": {
+        "isArchived": {"type": "boolean"},
+        "isPinned": {"type": "boolean"},
+        "messageCount": {"type": "integer", "minimum": 0},
+        "tags": {"type": "array", "items": {"type": "string"}},
+        "retention": {"type": "string"}
+      }
+    }
+  },
+  "required": ["kind", "type", "id", "timestamp", "content", "schema_version"]
+}
+```
+
+---
+
+## 5. MCP Bundle System
+
+### 5.1 Manifest and JSON Schema Validation
 
 **File**: `lib/mcp/bundle/schemas.dart`
 
@@ -321,7 +623,7 @@ class McpSchemas {
 }
 ```
 
-### 4.2 Bundle Export (Deterministic)
+### 5.2 Bundle Export (Deterministic)
 
 **File**: `lib/mcp/bundle/writer.dart`
 
@@ -380,7 +682,7 @@ class McpBundleWriter {
 }
 ```
 
-### 4.3 Bundle Import (Streaming)
+### 5.3 Bundle Import (Streaming)
 
 **File**: `lib/mcp/bundle/reader.dart`
 
@@ -432,9 +734,9 @@ class McpBundleReader {
 
 ---
 
-## 5. Bidirectional Adapters
+## 6. Bidirectional Adapters
 
-### 5.1 MIRA → MCP Conversion
+### 6.1 MIRA → MCP Conversion
 
 **File**: `lib/mcp/adapters/from_mira.dart`
 
@@ -473,7 +775,7 @@ class MiraToMcpAdapter {
 }
 ```
 
-### 5.2 MCP → MIRA Conversion
+### 6.2 MCP → MIRA Conversion
 
 **File**: `lib/mcp/adapters/to_mira.dart`
 
@@ -510,9 +812,9 @@ class McpToMiraAdapter {
 
 ---
 
-## 6. AI Integration Enhancement
+## 7. AI Integration Enhancement
 
-### 6.1 Context-Aware ArcLLM
+### 7.1 Context-Aware ArcLLM
 
 **Files**:
 - `lib/core/arc_llm.dart` (enhanced)
@@ -566,7 +868,7 @@ class ArcLLM {
 }
 ```
 
-### 6.2 Semantic Data Storage
+### 7.2 Semantic Data Storage
 
 When AI processes user input, results are automatically stored in MIRA:
 
@@ -577,9 +879,9 @@ When AI processes user input, results are automatically stored in MIRA:
 
 ---
 
-## 7. High-Level Integration API
+## 8. High-Level Integration API
 
-### 7.1 MiraIntegration Service
+### 8.1 MiraIntegration Service
 
 **File**: `lib/mira/mira_integration.dart`
 
@@ -626,7 +928,7 @@ class MiraIntegration {
 }
 ```
 
-### 7.2 Usage Examples
+### 8.2 Usage Examples
 
 ```dart
 // Initialize MIRA system
@@ -662,9 +964,9 @@ final workStressEntries = await MiraIntegration.instance.searchMemory(
 
 ---
 
-## 8. Graph Visualization Requirements
+## 9. Graph Visualization Requirements
 
-### 8.1 Data Access Patterns
+### 9.1 Data Access Patterns
 
 For implementing MIRA graph visualization, you'll need these data access patterns:
 
@@ -694,7 +996,7 @@ final nodeCounts = await repo.getNodeCounts();
 final edgeCounts = await repo.getEdgeCounts();
 ```
 
-### 8.2 Graph Structure
+### 9.2 Graph Structure
 
 The semantic graph has these characteristics:
 
@@ -720,7 +1022,7 @@ The semantic graph has these characteristics:
 4. **Emotional Landscape**: Entries colored by emotional valence
 5. **Phase Progression**: Entries connected by temporal sequence with phase annotations
 
-### 8.3 Performance Considerations
+### 9.3 Performance Considerations
 
 - **In-memory indexes** provide O(1) lookups for node types and relationships
 - **Batch queries** for efficient data loading
@@ -730,9 +1032,9 @@ The semantic graph has these characteristics:
 
 ---
 
-## 9. Insights Generation Patterns
+## 10. Insights Generation Patterns
 
-### 9.1 Semantic Patterns
+### 10.1 Semantic Patterns
 
 ```dart
 // Keyword frequency over time
@@ -748,7 +1050,7 @@ final phaseTransitions = await analyzePhaseTransitions(entries);
 final topicClusters = await analyzeKeywordClusters(threshold: 0.5);
 ```
 
-### 9.2 Insight Types
+### 10.2 Insight Types
 
 Based on the semantic graph, generate insights for:
 
@@ -762,7 +1064,7 @@ Based on the semantic graph, generate insights for:
 
 ---
 
-## 10. Implementation Files Reference
+## 11. Implementation Files Reference
 
 ### Core MIRA Files
 ```
@@ -806,9 +1108,62 @@ lib/core/arc_llm.dart              # Enhanced ArcLLM
 lib/services/llm_bridge_adapter.dart  # Enhanced bridge
 ```
 
+### LUMARA Chat Memory Files
+```
+lib/lumara/chat/
+├── chat_models.dart        # ChatSession/ChatMessage data models
+├── chat_repo.dart          # Repository interface
+├── chat_repo_impl.dart     # Hive storage implementation
+├── chat_archive_policy.dart # 30-day auto-archive policy
+├── chat_pruner.dart        # Archive policy executor
+├── privacy_redactor.dart   # PII detection and redaction
+├── provenance_tracker.dart # Export metadata tracking
+├── ulid.dart              # Stable ID generation
+└── ui/
+    ├── chats_screen.dart   # Chat history with search/filter
+    ├── archive_screen.dart # Archived sessions view
+    └── session_view.dart   # Individual session display
+```
+
+### MIRA Chat Integration Files
+```
+lib/mira/nodes/
+├── chat_session_node.dart  # ChatSession → MIRA Node
+└── chat_message_node.dart  # ChatMessage → MIRA Node
+
+lib/mira/edges/
+└── contains_edge.dart      # Session-Message relationships
+
+lib/mira/adapters/
+└── chat_to_mira.dart      # Chat → MIRA conversion utilities
+```
+
+### Chat MCP Export Files
+```
+lib/mcp/export/
+└── chat_exporter.dart      # Chat-specific MCP export
+
+lib/mcp/bundle/schemas/
+├── chat_session.v1.json    # ChatSession schema
+├── chat_message.v1.json    # ChatMessage schema
+├── edge.v1.json           # Enhanced with contains relation
+└── node.v2.json           # Updated with chat types
+```
+
+### Chat Memory Tests
+```
+test/lumara/chat/
+├── chat_repo_test.dart          # Repository functionality
+├── privacy_redactor_test.dart   # PII detection/redaction
+└── provenance_tracker_test.dart # Metadata generation
+
+test/mcp/export/
+└── chat_exporter_test.dart      # MCP export validation
+```
+
 ---
 
-## 11. Next Steps for Graph Implementation
+## 12. Next Steps for Graph Implementation
 
 ### Immediate Requirements
 1. **Graph Visualization Component**: Create Flutter widget for interactive graph display
@@ -830,4 +1185,5 @@ This technical overview provides the complete foundation for implementing MIRA g
 
 *Document Status: Complete*
 *Implementation Status: Production Ready*
+*LUMARA Chat Memory: Complete with 30-day auto-archive + MIRA integration + MCP export*
 *Next Phase: Graph Visualization UI*

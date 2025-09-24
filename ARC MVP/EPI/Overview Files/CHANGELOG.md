@@ -16,6 +16,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ### Latest Update - 2025-09-23
 
+### Added
+- **LUMARA Chat Memory System** (2025-09-23) ✅ COMPLETE
+  - Persistent Chat Sessions: Implemented local Hive storage with ChatSession and ChatMessage models using ULID IDs for stability
+  - 30-Day Auto-Archive: Non-destructive archive policy automatically archives unpinned sessions older than 30 days with lazy loading
+  - Complete UI System: ChatsScreen, ArchiveScreen, and SessionView with search, filter, swipe actions, and real-time updates
+  - MIRA Graph Integration: ChatSession and ChatMessage nodes with contains edges for semantic memory integration
+  - MCP Export System: Full MCP node.v2 schema compliance with chat_session.v1 and chat_message.v1 JSON schemas
+  - Privacy & Provenance: PII detection/redaction system with device info and export metadata tracking
+  - Comprehensive Testing: Unit tests for ChatRepo, Privacy Redactor, Provenance Tracker, and MCP Exporter
+  - Fixed "History Disappears": Chat history now persists when switching tabs, solving critical UX issue
+  - Repository Pattern: Clean abstraction with ChatRepo interface and Hive-backed ChatRepoImpl implementation
+  - Archive Policy: ChatArchivePolicy with configurable age and activity thresholds for automatic session management
+  - 26 Files Added: Complete chat memory system with models, UI, MIRA integration, MCP export, and tests
+  - Files Created: lib/lumara/chat/, lib/mira/{nodes,edges,adapters}/, lib/mcp/{export,bundle/schemas}/, test/{lumara/chat,mcp/export}/
+
 ### Fixed
 - **MVP Finalization Critical Issues** (2025-09-23) ✅ COMPLETE
   - LUMARA Phase Detection: Fixed hardcoded "Discovery" phase by integrating with UserPhaseService.getCurrentPhase()

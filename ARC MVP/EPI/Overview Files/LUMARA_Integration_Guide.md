@@ -15,7 +15,10 @@ This guide shows you how to integrate the complete LUMARA system into your exist
 - ✅ Gemini API integration with streaming support
 
 ### UI Components
-- ✅ `LumaraAssistantScreen` - Main chat interface
+- ✅ `LumaraAssistantScreen` - Main chat interface with persistent memory
+- ✅ `ChatsScreen` - Chat history with search, filter, and archive access
+- ✅ `ArchiveScreen` - Dedicated view for archived chat sessions
+- ✅ `SessionView` - Individual chat session display with message history
 - ✅ `LumaraNavItem` - Bottom navigation item
 - ✅ `LumaraQuickPalette` - Quick action suggestions
 - ✅ `LumaraConsentSheet` - Privacy settings
@@ -25,7 +28,9 @@ This guide shows you how to integrate the complete LUMARA system into your exist
 ### State Management
 - ✅ `LumaraAssistantCubit` - BLoC for chat state
 - ✅ `LumaraAssistantState` - State classes
+- ✅ `ChatRepo` & `ChatRepoImpl` - Repository pattern for persistent chat storage
 - ✅ Scope toggling and message handling
+- ✅ Chat session management with auto-archive policy
 
 ## 🔧 **Integration Steps**
 
@@ -89,8 +94,9 @@ BottomNavigationBar(
 
 ### 1. **Privacy-First Design**
 - Scope toggles for Journal, Phase, Arcforms, Voice, Media
-- All data stays on device
-- No external API calls
+- All data stays on device with local Hive storage
+- PII detection and redaction for export security
+- No external API calls for chat storage
 
 ### 2. **Smart Response Generation**
 - Gemini API via `LLMRegistry` (primary)
@@ -107,8 +113,15 @@ BottomNavigationBar(
 ### 4. **Contextual Insights & Prompts**
 - Uses your actual data (journal entries, phase history, etc.)
 - Provides source citations
-- Maintains conversation history
- - Prompts centralized: `lib/core/prompts_arc.dart` (Dart) and `ios/Runner/Sources/Runner/PromptTemplates.swift` (Swift)
+- Maintains conversation history with persistent sessions
+- Prompts centralized: `lib/core/prompts_arc.dart` (Dart) and `ios/Runner/Sources/Runner/PromptTemplates.swift` (Swift)
+
+### 5. **Chat Memory System**
+- Persistent chat sessions with stable ULID identifiers
+- 30-day auto-archive for non-pinned sessions (non-destructive)
+- Search and filter chat history by subject or tags
+- Archive management with lazy loading for performance
+- MCP export integration for AI ecosystem interoperability
 
 ## 🔄 **Current Status**
 
@@ -116,9 +129,12 @@ BottomNavigationBar(
 - ✅ Gemini API streaming via ArcLLM
 - ✅ Rule-based responses as fallback
 - ✅ Privacy scope management
-- ✅ Chat interface with message history
+- ✅ Chat interface with persistent message history
+- ✅ Chat session management with archive system
 - ✅ Quick action palette
 - ✅ Device capability detection
+- ✅ MCP export for chat sessions and messages
+- ✅ MIRA graph integration for semantic memory
 
 - 🔄 On-device engines via iOS bridge using the same prompt contracts
 - 🔄 Voice input support
@@ -144,8 +160,10 @@ BottomNavigationBar(
 ### Regular Users
 1. Quick access to common queries
 2. Contextual insights based on their data
-3. Conversation history maintained
+3. Persistent conversation history across sessions
 4. Source citations for transparency
+5. Chat archive management and search capabilities
+6. Export chat data for AI ecosystem integration
 
 ## 🔧 **Customization**
 

@@ -12,6 +12,7 @@ A Flutter-based AI companion app that provides life-aware assistance through jou
 - **AI Integration:** ✅ Gemini API with MIRA-enhanced ArcLLM + semantic context
 - **MIRA System:** ✅ Complete semantic memory graph with Hive storage backend
 - **MCP Support:** ✅ Full Memory Bundle v1 bidirectional export/import
+- **LUMARA Chat Memory:** ✅ Persistent chat sessions with 30-day auto-archive, MCP export, and MIRA integration
 - **Feature Flags:** ✅ Controlled rollout system for MIRA capabilities
 - **Repository Health:** ✅ Clean Git workflow - large files removed, normal push operations
 - **Branch Management:** ✅ MIRA integration complete, main-clean branch available
@@ -29,7 +30,7 @@ A Flutter-based AI companion app that provides life-aware assistance through jou
 - **PRISM** - Multimodal perception (text, images, audio)
 - **MIRA** - Long-term memory and recall under user control
 - **VEIL** - Nightly pruning and coherence renewal
-- **LUMARA** - AI assistant that orchestrates the system
+- **LUMARA** - AI assistant that orchestrates the system with persistent chat memory
 
 ### AI Integration
 
@@ -43,6 +44,18 @@ A Flutter-based AI companion app that provides life-aware assistance through jou
 - **Rule-Based Adapter** - Deterministic fallback if API unavailable
 
 ## 🔧 Recent Updates (September 2025)
+
+### LUMARA Chat Memory Implementation - September 23, 2025 ✅ COMPLETE
+- **Persistent Chat Sessions**: Implemented local Hive storage with ChatSession and ChatMessage models using ULID IDs for stability
+- **30-Day Auto-Archive**: Non-destructive archive policy automatically archives unpinned sessions older than 30 days with lazy loading
+- **Complete UI System**: ChatsScreen, ArchiveScreen, and SessionView with search, filter, swipe actions, and real-time updates
+- **MIRA Graph Integration**: ChatSession and ChatMessage nodes with contains edges for semantic memory integration
+- **MCP Export System**: Full MCP node.v2 schema compliance with chat_session.v1 and chat_message.v1 JSON schemas
+- **Privacy & Provenance**: PII detection/redaction system with device info and export metadata tracking
+- **Comprehensive Testing**: Unit tests for ChatRepo, Privacy Redactor, Provenance Tracker, and MCP Exporter
+- **Fixed "History Disappears"**: Chat history now persists when switching tabs, solving critical UX issue
+- **26 Files Added**: Complete chat memory system with models, UI, MIRA integration, MCP export, and tests
+- **Files Created**: lib/lumara/chat/, lib/mira/{nodes,edges,adapters}/, lib/mcp/{export,bundle/schemas}/, test/{lumara/chat,mcp/export}/
 
 ### MVP Finalization Complete - September 23, 2025 ✅ RESOLVED
 - **LUMARA Phase Detection**: Fixed hardcoded "Discovery" phase - now uses actual user phase from onboarding
@@ -174,10 +187,11 @@ The app includes Qwen 2.5 1.5B Instruct model files in `assets/models/qwen/`:
 ### Current Implementation
 
 - **Journaling Interface** - Text, voice, and photo journaling
-- **AI Assistant (LUMARA)** - Context-aware responses and insights
+- **AI Assistant (LUMARA)** - Context-aware responses and insights with persistent chat memory
 - **Pattern Recognition** - Keyword extraction and phase detection
 - **Visual Arcforms** - Constellation-style visualizations of journal themes
-- **Privacy-First** - On-device processing when possible
+- **Chat Memory System** - Persistent chat sessions with 30-day auto-archive policy and search
+- **Privacy-First** - On-device processing when possible with PII detection and redaction
 
 ### Planned Features
 
@@ -361,5 +375,5 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 ---
 
 **Last Updated:** September 23, 2025
-**Version:** 0.2.3-alpha
-**Status:** Production Ready - Repository Hygiene Complete + MIRA-MCP Integration + Clean Git Workflow
+**Version:** 0.2.4-alpha
+**Status:** Production Ready - LUMARA Chat Memory Complete + Repository Hygiene + MIRA-MCP Integration + Clean Git Workflow
