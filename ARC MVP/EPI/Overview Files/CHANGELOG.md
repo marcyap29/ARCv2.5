@@ -27,6 +27,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
   - BuildContext Safety: Added proper mounted checks for async operations
   - Files Modified: journal_edit_view.dart, timeline_cubit.dart, context_provider.dart, mcp_settings_cubit.dart
 
+- **Phase Persistence Issues** (2025-09-23) ✅ COMPLETE
+  - Phase Reversion: Fixed phase changes reverting back to previous values after saving
+  - Timeline Phase Detection: Updated priority to use user-updated metadata over arcform snapshots
+  - Journal Edit View: Fixed initialization to read from journal entry metadata instead of TimelineEntry
+  - MCP Import/Export: Fixed schema_version compatibility for successful MCP bundle import/export
+  - Async Refresh: Made timeline refresh methods properly async to ensure UI updates
+  - Debug Logging: Added comprehensive logging to track phase detection priority
+  - Files Modified: timeline_cubit.dart, journal_edit_view.dart, journal_bundle_writer.dart, mcp_schemas.dart
+
 ### Added
 - **Date/Time Editing for Past Entries** (2025-09-23) ✅ COMPLETE
   - Interactive Date/Time Picker: Added clickable date/time section in journal edit view

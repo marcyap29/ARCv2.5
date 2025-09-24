@@ -7,9 +7,9 @@
 This is the fourth iteration of the EPI ARC MVP Bug Tracker, focusing on current development issues and ongoing improvements.
 
 > **Last Updated**: September 23, 2025 (America/Los_Angeles)
-> **Total Items Tracked**: 6 (5 bugs + 1 enhancement)
-> **Critical Issues Fixed**: 5
-> **Enhancements Completed**: 1
+> **Total Items Tracked**: 8 (6 bugs + 2 enhancements)
+> **Critical Issues Fixed**: 6
+> **Enhancements Completed**: 2
 > **Status**: MVP finalizations complete - all critical functionality working
 
 ---
@@ -26,6 +26,68 @@ This is the fourth iteration of the EPI ARC MVP Bug Tracker, focusing on current
 ---
 
 ## Resolved Issues
+
+## Bug ID: BUG-2025-09-23-007
+**Title**: Phase Changes Reverting to Previous Values
+
+**Type**: Bug
+**Priority**: P1 (Critical)
+**Status**: ✅ Complete
+**Reporter**: User
+**Assignee**: Claude Code
+**Requested Date**: 2025-09-23
+**Completed Date**: 2025-09-23
+
+#### Description
+Phase changes in the timeline were reverting back to previous values after saving. When users changed a phase from Discovery → Expansion → Breakthrough, the phase would revert back to "Expansion" in both the timeline and edit views.
+
+#### Root Cause
+- Timeline phase detection was prioritizing arcform snapshots over user-updated journal entry metadata
+- Journal edit view was using TimelineEntry phase instead of the actual journal entry's metadata
+- User changes were being saved to journal metadata but the UI was reading from arcform snapshots
+
+#### Solution
+- Updated timeline phase detection priority to use user-updated metadata first
+- Fixed journal edit view initialization to read from journal entry metadata
+- Added comprehensive debug logging to track phase detection priority
+- Ensured proper async refresh handling for UI updates
+
+#### Files Modified
+- `lib/features/timeline/timeline_cubit.dart`
+- `lib/features/journal/widgets/journal_edit_view.dart`
+
+---
+
+## Bug ID: BUG-2025-09-23-008
+**Title**: MCP Import/Export Schema Version Compatibility
+
+**Type**: Bug
+**Priority**: P2 (High)
+**Status**: ✅ Complete
+**Reporter**: User
+**Assignee**: Claude Code
+**Requested Date**: 2025-09-23
+**Completed Date**: 2025-09-23
+
+#### Description
+MCP import was failing with "Missing required fields: schema_version" error. Users could export MCP bundles but could not import them back into the app.
+
+#### Root Cause
+- Export side was generating 'manifest.v1' as schema_version
+- Import side validator was expecting '1.0.0' as the primary format
+- Inconsistent schema_version values across different manifest generation methods
+
+#### Solution
+- Standardized schema_version to '1.0.0' across all MCP manifest generation
+- Updated journal_bundle_writer.dart to use '1.0.0' instead of 'manifest.v1'
+- Updated McpManifest model default schema_version to '1.0.0'
+- Ensured full round-trip export/import functionality
+
+#### Files Modified
+- `lib/mcp/bundle/journal_bundle_writer.dart`
+- `lib/mcp/models/mcp_schemas.dart`
+
+---
 
 ## Enhancement ID: ENH-2025-09-23-001
 **Title**: Date/Time Editing for Past Journal Entries

@@ -15,7 +15,7 @@ A Flutter-based AI companion app that provides life-aware assistance through jou
 - **Feature Flags:** ✅ Controlled rollout system for MIRA capabilities
 - **Repository Health:** ✅ Clean Git workflow - large files removed, normal push operations
 - **Branch Management:** ✅ MIRA integration complete, main-clean branch available
-- **MVP Functionality:** ✅ All critical user workflows working (LUMARA phase detection, Timeline persistence, Journal editing, Date/time editing)
+- **MVP Functionality:** ✅ All critical user workflows working (LUMARA phase detection, Timeline persistence, Journal editing, Date/time editing, Phase persistence)
 - **Deployment:** ✅ Ready for iOS simulator and physical device installation
 - **Test Status:** ⚠️ Some test failures (non-critical, mock setup issues)
 
@@ -48,6 +48,8 @@ A Flutter-based AI companion app that provides life-aware assistance through jou
 - **LUMARA Phase Detection**: Fixed hardcoded "Discovery" phase - now uses actual user phase from onboarding
 - **Timeline Persistence**: Fixed phase changes not persisting when users click "Save" in Timeline
 - **Journal Entry Modifications**: Implemented missing save functionality for journal entry text updates
+- **Phase Persistence**: Fixed phase changes reverting to previous values - now properly persists user selections
+- **MCP Import/Export**: Fixed schema_version compatibility for successful MCP bundle import/export
 - **Date/Time Editing**: Added ability to change date and time of past journal entries with native pickers
 - **Error Handling**: Added comprehensive error handling and user feedback via SnackBars
 - **Database Persistence**: Ensured all changes properly persist through repository pattern
