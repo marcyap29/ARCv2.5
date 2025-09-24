@@ -17,6 +17,7 @@ import '../mcp/models/mcp_schemas.dart';
 import '../lumara/chat/chat_repo.dart';
 import '../data/models/media_item.dart';
 import '../models/journal_entry_model.dart';
+import '../repositories/journal_repository.dart';
 
 class MiraService {
   static MiraService? _instance;
@@ -27,6 +28,7 @@ class MiraService {
   late final McpExportService _mcpExportService;
   late final McpImportService _mcpImportService;
   ChatRepo? _chatRepo;
+  JournalRepository? _journalRepo;
 
   bool _initialized = false;
 
@@ -43,6 +45,7 @@ class MiraService {
     String? hiveBoxName,
     dynamic sqliteDatabase,
     ChatRepo? chatRepo,
+    JournalRepository? journalRepo,
   }) async {
     if (_initialized) return;
 
@@ -65,8 +68,9 @@ class MiraService {
     _bundleWriter = McpBundleWriter(_repo);
     _bundleReader = McpBundleReader(_repo);
 
-    // Store chat repository reference
+    // Store repository references
     _chatRepo = chatRepo;
+    _journalRepo = journalRepo ?? JournalRepository();
 
     // Initialize enhanced MCP export/import services
     _mcpExportService = McpExportService(
@@ -75,6 +79,7 @@ class MiraService {
     );
     _mcpImportService = McpImportService(
       chatRepo: _chatRepo,
+      journalRepo: _journalRepo,
     );
 
     _initialized = true;

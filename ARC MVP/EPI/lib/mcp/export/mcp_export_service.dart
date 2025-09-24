@@ -182,19 +182,28 @@ class McpExportService {
   /// Convert journal entries to MCP nodes with SAGE mapping
   Future<List<McpNode>> _convertJournalEntriesToNodes(List<JournalEntry> entries) async {
     final nodes = <McpNode>[];
-    
+
+    print('📝 Converting ${entries.length} journal entries to MCP nodes...');
+
     for (final entry in entries) {
+      print('🔄 Processing entry: "${entry.title}" (${entry.content.length} chars)');
+
       // Extract SAGE narrative from journal content
       final narrative = _extractSageNarrative(entry);
-      
+
       // Determine phase hint from entry metadata
       final phaseHint = _determinePhaseHint(entry);
-      
+
       // Extract emotions from entry
       final emotions = _extractEmotions(entry);
-      
+
       // Create node ID
       final nodeId = 'entry_${entry.createdAt.year}_${entry.createdAt.month.toString().padLeft(2, '0')}_${entry.createdAt.day.toString().padLeft(2, '0')}_${entry.id}';
+
+      print('   Node ID: $nodeId');
+      print('   Content preserved in: contentSummary (${entry.content.length} chars), narrative.situation (${entry.content.length} chars), metadata');
+      print('   Tags: ${entry.tags}');
+      print('   Phase: $phaseHint');
       
       final node = McpNode(
         id: nodeId,
@@ -212,22 +221,43 @@ class McpExportService {
           importMethod: 'journal_entry',
           userId: null, // JournalEntry doesn't have userId in the real model
         ),
+        // Add metadata to preserve additional journal entry fields
+        metadata: {
+          'journal_entry': {
+            'id': entry.id,
+            'title': entry.title,
+            'content': entry.content, // Full content backup
+            'mood': entry.mood,
+            'emotion': entry.emotion,
+            'emotion_reason': entry.emotionReason,
+            'created_at': entry.createdAt.toIso8601String(),
+            'updated_at': entry.updatedAt.toIso8601String(),
+            'keywords': entry.keywords,
+          },
+          'export_info': {
+            'exported_at': DateTime.now().toIso8601String(),
+            'content_length': entry.content.length,
+            'has_full_content': true,
+          }
+        },
       );
-      
+
+      print('✅ Created MCP node with enhanced metadata preservation');
       nodes.add(node);
     }
-    
+
+    print('✅ Converted all ${entries.length} journal entries to MCP nodes');
     return nodes;
   }
 
   /// Extract SAGE narrative from journal entry
   McpNarrative _extractSageNarrative(JournalEntry entry) {
-    // This is a simplified implementation
-    // In a real implementation, you'd use AI to extract SAGE components
+    // Store the full content in the situation field to preserve it
+    // This ensures complete content preservation for import restoration
     final content = entry.content;
-    
+
     return McpNarrative(
-      situation: _extractSituation(content),
+      situation: content, // Store full content here for preservation
       action: _extractAction(content),
       growth: _extractGrowth(content),
       essence: _extractEssence(content),
@@ -301,13 +331,9 @@ class McpExportService {
 
   /// Create content summary from journal entry
   String _createContentSummary(JournalEntry entry) {
-    // Create a summary of the journal entry
-    final words = entry.content.split(' ');
-    if (words.length <= 20) {
-      return entry.content;
-    } else {
-      return '${words.take(20).join(' ')}...';
-    }
+    // For journal entries, preserve the full content in contentSummary
+    // This ensures complete content preservation during export/import cycle
+    return entry.content;
   }
 
   /// Create pointers from media files

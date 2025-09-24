@@ -7,6 +7,7 @@ import 'core/flags.dart';
 import 'core/schema.dart';
 import '../core/arc_llm.dart' as core_arc;
 import '../services/llm_bridge_adapter.dart' as bridge_arc;
+import '../repositories/journal_repository.dart';
 
 class MiraIntegration {
   static MiraIntegration? _instance;
@@ -28,6 +29,7 @@ class MiraIntegration {
     bool useSqliteRepo = false,
     String? hiveBoxName,
     dynamic sqliteDatabase,
+    JournalRepository? journalRepo,
   }) async {
     _flags = MiraFlags(
       miraEnabled: miraEnabled,
@@ -41,6 +43,7 @@ class MiraIntegration {
       flags: _flags,
       hiveBoxName: hiveBoxName,
       sqliteDatabase: sqliteDatabase,
+      journalRepo: journalRepo,
     );
   }
 

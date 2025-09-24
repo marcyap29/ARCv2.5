@@ -68,7 +68,7 @@ class McpSettingsCubit extends Cubit<McpSettingsState> {
 
   /// Initialize MCP services
   void _initializeServices() {
-    _importService = McpImportService();
+    _importService = McpImportService(journalRepo: _journalRepository);
   }
 
   /// Set storage profile for export
@@ -112,12 +112,14 @@ class McpSettingsCubit extends Cubit<McpSettingsState> {
 
       // Initialize MIRA service if needed
       final miraService = MiraService.instance;
+      final journalRepo = JournalRepository();
 
-      // Ensure MIRA is initialized
+      // Ensure MIRA is initialized with journal repository
       try {
-        await miraService.initialize();
+        await miraService.initialize(journalRepo: journalRepo);
       } catch (e) {
         // MIRA might already be initialized, continue
+        print('⚠️ MIRA initialization warning: $e');
       }
 
       emit(state.copyWith(
@@ -214,7 +216,8 @@ class McpSettingsCubit extends Cubit<McpSettingsState> {
     required Directory bundleDir,
     McpImportOptions options = const McpImportOptions(),
   }) async {
-    _importService ??= McpImportService();
+    // Initialize import service with journal repository
+    _importService ??= McpImportService(journalRepo: JournalRepository());
 
     emit(state.copyWith(
       isLoading: true,

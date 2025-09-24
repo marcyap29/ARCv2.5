@@ -1,12 +1,21 @@
 # EPI ARC MVP - Current Status
 
-**Last Updated**: September 23, 2025  
-**Branch**: mvp-finalizations  
-**Status**: ✅ Production Ready - MVP finalizations complete
+**Last Updated**: September 24, 2025  
+**Branch**: lumara-memory  
+**Status**: ✅ Production Ready - MVP finalizations complete + MCP import fix
 
 ---
 
 ## 🎯 MVP Finalization Status
+
+### ✅ Critical Issues Resolved (September 24, 2025)
+
+#### 5. MCP Import Journal Entry Restoration Fixed
+- **Issue**: Imported MCP bundles not showing journal entries in UI
+- **Root Cause**: Import process storing MCP nodes as MIRA data instead of converting to journal entries
+- **Solution**: Enhanced MCP import service with journal_entry node detection and conversion
+- **Files**: `lib/mcp/import/mcp_import_service.dart`, `test/mcp/integration/mcp_integration_test.dart`
+- **Status**: ✅ Complete
 
 ### ✅ Critical Issues Resolved (September 23, 2025)
 
