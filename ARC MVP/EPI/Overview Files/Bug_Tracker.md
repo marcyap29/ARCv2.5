@@ -39,3 +39,26 @@
 - `test/mcp/integration/mixed_version_test.dart` - Validation suite
 
 **Architecture:** MIRA now supports both legacy journal entries (node.v1) and modern chat sessions (node.v2) in the same export bundles, maintaining backward compatibility while enabling rich chat-based insights.
+
+## 2025-09-25 — LUMARA Context Provider Phase Detection Fix ✅
+- ✅ **Critical Issue Resolved**: Fixed LUMARA reporting "Based on 1 entries" instead of showing all 3 journal entries with correct phases
+- ✅ **Root Cause Analysis**: Journal entries had phases detected by Timeline content analysis but NOT stored in entry.metadata['phase']
+- ✅ **Content Analysis Integration**: Added same phase analysis logic used by Timeline to LUMARA context provider
+- ✅ **Fallback Strategy**: Updated context provider to check entry.metadata['phase'] first, then analyze from content using _determinePhaseFromContent()
+- ✅ **Phase History Fix**: Updated phase history extraction to process ALL entries using content analysis instead of filtering for metadata-only
+- ✅ **Enhanced Debug Logging**: Added logging to show whether phases come from metadata vs content analysis
+- ✅ **Timeline Integration**: Confirmed Timeline already correctly persists user manual phase updates to entry.metadata['phase']
+- ✅ **Result**: LUMARA now correctly reports "Based on 3 entries" with accurate phase history (Transition, Discovery, Breakthrough)
+
+**Key Files Modified:**
+- `lib/lumara/data/context_provider.dart` - Added content analysis methods and updated phase detection logic
+- `lib/features/home/home_view.dart` - Removed const from ContextProvider
+- `lib/app/app.dart` - Removed const from ContextProvider
+
+**Technical Details:**
+- Added _determinePhaseFromContent(entry) and _determinePhaseFromText(content) methods
+- Updated phase detection: entry.metadata?['phase'] ?? _determinePhaseFromContent(entry)
+- Phase history now processes all entries instead of filtering for metadata-only
+- Same phase analysis logic as Timeline: Discovery, Expansion, Transition, Consolidation, Recovery, Breakthrough
+
+**Architecture:** LUMARA context provider now has full access to journal entries and phases through both metadata (user manual updates) and content analysis fallback (automatic detection), ensuring accurate phase history reporting.

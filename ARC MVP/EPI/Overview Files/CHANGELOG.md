@@ -14,6 +14,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - Vision-language model integration
 - Settings UI for MIRA feature flag configuration
 
+### Latest Update - 2025-09-25
+
+### Fixed
+- **LUMARA Context Provider Phase Detection** (2025-09-25) ✅ COMPLETE
+  - **Critical Bug Fix**: Resolved issue where LUMARA reported "Based on 1 entries" instead of showing all 3 journal entries with correct phases
+  - **Root Cause Analysis**: Journal entries had phases detected by Timeline content analysis but NOT stored in entry.metadata['phase']
+  - **Content Analysis Integration**: Added same phase analysis logic used by Timeline to LUMARA context provider
+  - **Fallback Strategy**: Updated context provider to check entry.metadata['phase'] first, then analyze from content using _determinePhaseFromContent()
+  - **Phase History Fix**: Updated phase history extraction to process ALL entries using content analysis instead of filtering for metadata-only
+  - **Enhanced Debug Logging**: Added logging to show whether phases come from metadata vs content analysis
+  - **Timeline Integration**: Confirmed Timeline already correctly persists user manual phase updates to entry.metadata['phase']
+  - **Result**: LUMARA now correctly reports "Based on 3 entries" with accurate phase history (Transition, Discovery, Breakthrough)
+  - **Technical Details**: Added _determinePhaseFromContent(entry) and _determinePhaseFromText(content) methods with same logic as Timeline
+  - **Files Modified**: lib/lumara/data/context_provider.dart, lib/features/home/home_view.dart, lib/app/app.dart
+
 ### Latest Update - 2025-09-24
 
 ### Added
