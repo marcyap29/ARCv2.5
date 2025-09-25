@@ -106,7 +106,7 @@ class _AppState extends State<App> {
           BlocProvider(
             create: (context) {
               const scope = LumaraScope.defaultScope;
-              const contextProvider = ContextProvider(scope);
+              final contextProvider = ContextProvider(scope);
               return LumaraAssistantCubit(
                 contextProvider: contextProvider,
               )..initialize();

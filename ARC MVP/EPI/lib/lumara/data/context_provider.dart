@@ -1,5 +1,6 @@
 import 'package:my_app/lumara/data/context_scope.dart';
 import 'package:my_app/services/user_phase_service.dart';
+import 'package:my_app/repositories/journal_repository.dart';
 
 /// Context window for LUMARA processing
 class ContextWindow {
@@ -28,30 +29,30 @@ class ContextWindow {
 /// Provides context data for LUMARA based on scope and time range
 class ContextProvider {
   final LumaraScope _scope;
-  
-  const ContextProvider(this._scope);
+  final JournalRepository _journalRepository;
+
+  ContextProvider(this._scope) : _journalRepository = JournalRepository();
   
   /// Build context window for LUMARA processing
   Future<ContextWindow> buildContext({
     int daysBack = 14,
     int maxEntries = 200,
   }) async {
-    // For now, return a simple mock context
-    // This will be replaced with actual data retrieval later
     final now = DateTime.now();
     final startDate = now.subtract(Duration(days: daysBack));
-    
+
     final nodes = <Map<String, dynamic>>[];
     final edges = <Map<String, dynamic>>[];
-    
-    // Mock journal entries if journal scope is enabled
+
+    // Get real journal entries if journal scope is enabled
     if (_scope.hasScope('journal')) {
-      nodes.addAll(_generateMockJournalEntries(daysBack));
+      final realEntries = await _getRealJournalEntries(daysBack, maxEntries);
+      nodes.addAll(realEntries);
     }
     
-    // Mock phase data if phase scope is enabled
+    // Real phase data if phase scope is enabled
     if (_scope.hasScope('phase')) {
-      final phaseData = await _generateMockPhaseData();
+      final phaseData = await _generatePhaseData();
       nodes.addAll(phaseData);
     }
     
@@ -81,53 +82,128 @@ class ContextProvider {
     );
   }
   
-  /// Generate mock journal entries for testing
-  List<Map<String, dynamic>> _generateMockJournalEntries(int daysBack) {
+  /// Get real journal entries from repository
+  Future<List<Map<String, dynamic>>> _getRealJournalEntries(int daysBack, int maxEntries) async {
     final entries = <Map<String, dynamic>>[];
-    final now = DateTime.now();
-    
-    for (int i = 0; i < 5; i++) {
-      final date = now.subtract(Duration(days: i * 2));
-      entries.add({
-        'id': 'j_${date.toIso8601String().split('T')[0]}',
-        'type': 'journal',
-        'text': 'Sample journal entry from ${date.toIso8601String().split('T')[0]}. This is a test entry for LUMARA context.',
-        'meta': {
-          'date': date.toIso8601String(),
-          'valence': 0.5 + (i * 0.1),
-          'labels': ['test', 'sample'],
-          'keywords': [
-            ['clarity', 0.8],
-            ['focus', 0.6],
-            ['growth', 0.4],
-          ],
-          'private': false,
-        },
-      });
+
+    try {
+      // Get all journal entries from repository
+      final allEntries = _journalRepository.getAllJournalEntries();
+      print('LUMARA Context: Found ${allEntries.length} total journal entries');
+
+      // Debug: Print details of first few entries
+      for (int i = 0; i < allEntries.length && i < 5; i++) {
+        final entry = allEntries[i];
+        print('LUMARA Context: Entry $i - ID: ${entry.id}, Date: ${entry.createdAt}, Phase: ${entry.metadata?['phase']}, Content length: ${entry.content.length}');
+      }
+
+      // Sort by creation date (newest first)
+      allEntries.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+
+      // Take the most recent entries up to maxEntries
+      final recentEntries = allEntries.take(maxEntries).toList();
+      print('LUMARA Context: Using ${recentEntries.length} recent entries for context');
+
+      for (final entry in recentEntries) {
+        entries.add({
+          'id': entry.id,
+          'type': 'journal',
+          'text': entry.content,
+          'meta': {
+            'date': entry.createdAt.toIso8601String(),
+            'valence': 0.0, // emotion is a string, not an object with valence
+            'labels': entry.keywords,
+            'keywords': entry.keywords.map((k) => [k, 1.0]).toList(),
+            'private': false,
+            'phase': entry.metadata?['phase'] as String? ?? _determinePhaseFromContent(entry), // get phase from metadata or analyze from content
+            'sage': entry.sageAnnotation?.toJson() ?? {},
+          },
+        });
+      }
+
+      print('LUMARA Context: Created ${entries.length} journal context nodes');
+    } catch (e) {
+      print('LUMARA Context: Error getting journal entries: $e');
+      // Return empty list on error
     }
-    
+
     return entries;
   }
   
-  /// Generate mock phase data for testing
-  Future<List<Map<String, dynamic>>> _generateMockPhaseData() async {
-    // Get the actual current phase instead of hardcoding 'Discovery'
+  /// Generate phase data using real journal entries
+  Future<List<Map<String, dynamic>>> _generatePhaseData() async {
     final currentPhase = await UserPhaseService.getCurrentPhase();
     print('ContextProvider: Using actual current phase: $currentPhase');
 
-    return [
-      {
-        'id': 'p_current',
-        'type': 'phase',
-        'text': currentPhase,
-        'meta': {
-          'align': 0.74,
-          'trace': 0.71,
-          'window': 2,
-          'independent': 1,
-        },
+    final phaseNodes = <Map<String, dynamic>>[];
+
+    // Always include current phase as the primary phase node
+    phaseNodes.add({
+      'id': 'p_current',
+      'type': 'phase',
+      'text': currentPhase,
+      'meta': {
+        'current': true,
+        'source': 'user_setting',
+        'align': 0.74,
+        'trace': 0.71,
+        'window': 2,
+        'independent': 1,
       },
-    ];
+    });
+
+    // Get phase history from real journal entries
+    try {
+      final allEntries = _journalRepository.getAllJournalEntries();
+      // Get phase history from all journal entries (using content analysis)
+      final entriesWithPhases = allEntries.toList();
+
+      // Sort by creation date (newest first)
+      entriesWithPhases.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+
+      print('ContextProvider: Found ${entriesWithPhases.length} entries with phases');
+
+      // Debug: Print entries with phases
+      for (final entry in entriesWithPhases.take(5)) {
+        final contentPreview = entry.content.length > 50 ? entry.content.substring(0, 50) : entry.content;
+        final analyzedPhase = entry.metadata?['phase'] ?? _determinePhaseFromContent(entry);
+        print('ContextProvider: Entry with phase - Date: ${entry.createdAt}, Phase: $analyzedPhase (from ${entry.metadata?['phase'] != null ? 'metadata' : 'content'}), Content: "$contentPreview..."');
+      }
+
+      // Add unique phases from entries as history (excluding current phase)
+      final seenPhases = <String>{currentPhase}; // Don't duplicate current phase
+      int historyIndex = 0;
+
+      for (final entry in entriesWithPhases) {
+        final entryPhase = entry.metadata?['phase'] as String? ?? _determinePhaseFromContent(entry);
+        if (!seenPhases.contains(entryPhase) && historyIndex < 5) { // Limit to 5 historical phases
+          seenPhases.add(entryPhase);
+
+          final now = DateTime.now();
+          final daysAgo = now.difference(entry.createdAt).inDays;
+
+          phaseNodes.add({
+            'id': 'p_history_$historyIndex',
+            'type': 'phase_history',
+            'text': entryPhase,
+            'meta': {
+              'current': false,
+              'source': 'entry_analysis',
+              'days_ago': daysAgo,
+              'confidence': 0.8, // High confidence since it's from actual entries
+              'entry_date': entry.createdAt.toIso8601String(),
+            },
+          });
+          historyIndex++;
+        }
+      }
+
+      print('ContextProvider: Added ${historyIndex} historical phases from real entries');
+    } catch (e) {
+      print('ContextProvider: Error getting phase history: $e');
+    }
+
+    return phaseNodes;
   }
   
   /// Generate mock arcform data for testing
@@ -184,5 +260,31 @@ class ContextProvider {
   Future<String> getContextSummary() async {
     final context = await buildContext();
     return context.summary;
+  }
+
+  /// Determine phase from journal entry content (same logic as Timeline)
+  String _determinePhaseFromContent(dynamic entry) {
+    return _determinePhaseFromText(entry.content);
+  }
+
+  /// Analyze phase from text content
+  String _determinePhaseFromText(String content) {
+    final text = content.toLowerCase();
+
+    if (text.contains('discover') || text.contains('explore') || text.contains('new') || text.contains('beginning')) {
+      return 'Discovery';
+    } else if (text.contains('grow') || text.contains('expand') || text.contains('possibility') || text.contains('energy')) {
+      return 'Expansion';
+    } else if (text.contains('change') || text.contains('transition') || text.contains('moving') || text.contains('shift')) {
+      return 'Transition';
+    } else if (text.contains('integrate') || text.contains('wisdom') || text.contains('balance') || text.contains('center')) {
+      return 'Consolidation';
+    } else if (text.contains('heal') || text.contains('recover') || text.contains('restore') || text.contains('rest')) {
+      return 'Recovery';
+    } else if (text.contains('breakthrough') || text.contains('transcend') || text.contains('quantum') || text.contains('beyond')) {
+      return 'Breakthrough';
+    }
+
+    return 'Discovery'; // Default fallback
   }
 }

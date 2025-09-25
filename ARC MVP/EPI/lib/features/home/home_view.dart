@@ -27,6 +27,9 @@ import 'package:my_app/core/services/audio_service.dart';
 import 'package:my_app/mode/first_responder/widgets/fr_status_indicator.dart';
 import 'package:my_app/mode/coach/widgets/coach_mode_status_indicator.dart';
 import 'package:my_app/lumara/ui/lumara_assistant_screen.dart';
+import 'package:my_app/lumara/bloc/lumara_assistant_cubit.dart';
+import 'package:my_app/lumara/data/context_provider.dart';
+import 'package:my_app/lumara/data/context_scope.dart';
 import 'package:my_app/core/app_flags.dart';
 import 'package:flutter/foundation.dart';
 
@@ -44,6 +47,7 @@ class HomeView extends StatefulWidget {
 
 class _HomeViewState extends State<HomeView> {
   late HomeCubit _homeCubit;
+  LumaraAssistantCubit? _lumaraCubit;
   
   List<TabItem> get _tabs {
     const baseTabs = [
@@ -81,14 +85,27 @@ class _HomeViewState extends State<HomeView> {
     if (widget.initialTab != 0) {
       _homeCubit.changeTab(widget.initialTab);
     }
-    
+
+    // Initialize LUMARA cubit if enabled
+    if (AppFlags.isLumaraEnabled) {
+      _lumaraCubit = LumaraAssistantCubit(
+        contextProvider: ContextProvider(LumaraScope.defaultScope),
+      );
+      // Initialize the cubit once when HomeView is created
+      _lumaraCubit!.initializeLumara();
+    }
+
     _pages = [
       const StartEntryFlow(),
       const ArcformRendererView(),
       const TimelineView(),
       const _InsightsPage(),
       const SettingsView(),
-      if (AppFlags.isLumaraEnabled) const LumaraAssistantScreen(),
+      if (AppFlags.isLumaraEnabled)
+        BlocProvider<LumaraAssistantCubit>.value(
+          value: _lumaraCubit!,
+          child: const LumaraAssistantScreen(),
+        ),
     ];
     
     // Initialize ethereal music (P22)
@@ -187,6 +204,13 @@ class _HomeViewState extends State<HomeView> {
         ),
       ),
     );
+  }
+
+  @override
+  void dispose() {
+    _homeCubit.close();
+    _lumaraCubit?.close();
+    super.dispose();
   }
 }
 

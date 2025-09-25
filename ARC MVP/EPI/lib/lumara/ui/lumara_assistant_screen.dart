@@ -25,8 +25,11 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
   @override
   void initState() {
     super.initState();
-    // Initialize LUMARA when screen loads
-    context.read<LumaraAssistantCubit>().initializeLumara();
+    // Only initialize LUMARA if not already loaded (to preserve chat history)
+    final cubit = context.read<LumaraAssistantCubit>();
+    if (cubit.state is! LumaraAssistantLoaded) {
+      cubit.initializeLumara();
+    }
   }
 
   @override

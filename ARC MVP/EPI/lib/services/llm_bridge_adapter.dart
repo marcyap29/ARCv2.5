@@ -5,6 +5,7 @@
 
 import 'dart:convert';
 import 'package:my_app/core/prompts_arc.dart';
+import 'package:my_app/lumara/llm/prompt_templates.dart';
 import '../mira/mira_service.dart';
 
 typedef LLMInvocation = Future<String> Function({
@@ -32,8 +33,9 @@ class ArcLLM {
         .replaceAll('{{phase_hint?}}', phaseHintJson ?? 'null')
         .replaceAll('{{keywords?}}', lastKeywordsJson ?? 'null');
 
+    // Use LUMARA's comprehensive system prompt for chat interactions
     return send(
-      system: ArcPrompts.system,
+      system: PromptTemplates.systemPrompt,
       user: userPrompt,
       jsonExpected: false,
     );

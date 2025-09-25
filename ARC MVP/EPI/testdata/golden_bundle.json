@@ -1,0 +1,60 @@
+{
+  "schemaVersion": "mcp-1.0",
+  "bundleId": "b-golden-reference",
+  "pointers": [
+    {
+      "id": "p-chat-session-001",
+      "kind": "chat_session",
+      "ref": "lumara://sessions/golden-chat"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "n-entry-001",
+      "type": "entry",
+      "timestamp": "2025-09-24T21:00:00.000Z",
+      "content": {
+        "text": "Golden sample entry for contract testing"
+      },
+      "emotions": ["focused", "optimistic"],
+      "phaseHint": "Expansion",
+      "provenance": {
+        "source": "lumara.chat",
+        "pointer": "p-chat-session-001"
+      }
+    },
+    {
+      "id": "n-keyword-golden",
+      "type": "keyword",
+      "timestamp": "2025-09-24T21:00:01.000Z",
+      "label": "golden",
+      "frequency": 3
+    },
+    {
+      "id": "n-phase-expansion",
+      "type": "phase",
+      "timestamp": "2025-09-24T21:00:02.000Z",
+      "label": "Expansion",
+      "confidence": 0.85
+    }
+  ],
+  "edges": [
+    {
+      "from": "n-entry-001",
+      "to": "n-keyword-golden",
+      "type": "mentions",
+      "weight": 0.9
+    },
+    {
+      "from": "n-entry-001",
+      "to": "n-phase-expansion",
+      "type": "phase_hint",
+      "weight": 0.85
+    }
+  ],
+  "metadata": {
+    "createdAt": "2025-09-24T21:00:00.000Z",
+    "exportedBy": "lumara-test-suite",
+    "version": "1.0.0-golden"
+  }
+}

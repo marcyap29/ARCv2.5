@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:my_app/lumara/data/context_scope.dart';
 import 'package:my_app/lumara/data/context_provider.dart';
@@ -332,15 +333,43 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
     return buffer.toString().trim();
   }
 
-  /// Build phase hint for ArcLLM
+  /// Build phase hint for ArcLLM - uses actual current phase from context provider
   String? _buildPhaseHint(ContextWindow context) {
-    final phaseNodes = context.nodes.where((n) => n['type'] == 'phase').toList();
-    if (phaseNodes.isEmpty) return null;
+    // Get current phase (from user setting)
+    final currentPhaseNodes = context.nodes
+        .where((n) => n['type'] == 'phase' && n['meta']?['current'] == true)
+        .toList();
 
-    final currentPhase = phaseNodes.first['text'] as String?;
+    // Get phase history (from entry analysis)
+    final historyPhaseNodes = context.nodes
+        .where((n) => n['type'] == 'phase_history')
+        .toList();
+
+    if (currentPhaseNodes.isEmpty) return null;
+
+    final currentPhase = currentPhaseNodes.first['text'] as String?;
     if (currentPhase == null) return null;
 
-    return '{"phase": "$currentPhase"}';
+    print('LUMARA Debug: Using current phase from Phase tab: $currentPhase');
+
+    // Build phase context with current phase prioritized
+    final phaseContext = <String, dynamic>{
+      'current_phase': currentPhase,
+      'current_phase_source': 'user_setting',
+      'confidence': 1.0,
+    };
+
+    // Add phase history for context
+    if (historyPhaseNodes.isNotEmpty) {
+      final history = historyPhaseNodes.map((node) => {
+        'phase': node['text'],
+        'days_ago': node['meta']?['days_ago'] ?? 0,
+        'confidence': node['meta']?['confidence'] ?? 0.5,
+      }).toList();
+      phaseContext['phase_history'] = history;
+    }
+
+    return jsonEncode(phaseContext);
   }
 
   /// Build keywords context for ArcLLM
