@@ -44,7 +44,9 @@ This MVP focuses on **journaling → AI analysis → Arcform visualization → m
 
 7. **Insights (Polymeta v1)**  
    - Graph view of keywords (nodes) and co-occurrences (edges).  
-   - Tap node to see linked entries.  
+   - Tap node to see linked entries.
+   - **Fixed**: Insight cards now generate properly with real data instead of placeholders
+   - **Enhanced**: Your Patterns submenu displays imported keywords in circular pattern  
 
 ---
 
@@ -66,7 +68,7 @@ This MVP focuses on **journaling → AI analysis → Arcform visualization → m
 - **Journal Capture**: Text and multi-modal journaling with audio, camera, gallery, and OCR
 - **Arcforms**: 2D and 3D visualization with phase detection and emotional mapping
 - **Timeline**: Chronological entry management with editing and phase tracking
-- **Insights**: Pattern analysis, phase recommendations, and emotional insights
+- **Insights**: Pattern analysis, phase recommendations, and emotional insights (Fixed: Now generates actual insight cards with real data)
 - **Onboarding**: Reflective 3-step flow with mood selection and personalization
 
 ### Specialized Modes ✅
@@ -156,4 +158,5 @@ The project is now **production-ready** with:
 4. ✅ Production-ready features: First Responder Mode, Coach Mode, MCP Export/Import, Accessibility, Settings
 5. ✅ MCP Memory Bundle v1 integration for AI ecosystem interoperability with Settings UI
 6. ✅ MIRA Insights Complete: Mixed-version MCP support with chat analytics and combined insights (ALL TESTS PASSING)
-7. ✅ Comprehensive testing, documentation, and error handling implemented  
+7. ✅ Insights System Fixed: Keyword extraction, rule evaluation, and template rendering now working properly
+8. ✅ Comprehensive testing, documentation, and error handling implemented  

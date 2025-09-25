@@ -15,6 +15,7 @@ A Flutter-based AI companion app that provides life-aware assistance through jou
 - **LUMARA Chat Memory:** ✅ Persistent chat sessions with 30-day auto-archive, MCP export, and MIRA integration
 - **MCP Integration:** ✅ Complete bidirectional export/import with chat data, journal entries, schema validation, and enterprise features
 - **MIRA Insights:** ✅ Mixed-version MCP support (node.v1 + node.v2) with combined journal+chat analytics - ALL TESTS PASSING
+- **Insights System:** ✅ Fixed keyword extraction and rule evaluation - now generates actual insight cards with real data
 - **Feature Flags:** ✅ Controlled rollout system for MIRA capabilities
 - **Repository Health:** ✅ Clean Git workflow - large files removed, normal push operations
 - **Branch Management:** ✅ MIRA integration complete, main-clean branch available
@@ -46,6 +47,19 @@ A Flutter-based AI companion app that provides life-aware assistance through jou
 - **Rule-Based Adapter** - Deterministic fallback if API unavailable
 
 ## 🔧 Recent Updates (September 2025)
+
+### Insights System Fix Complete - September 24, 2025 ✅ COMPLETE
+- **Critical Issue Resolved**: Fixed insights system showing "No insights yet" despite having journal data
+- **Keyword Extraction Fix**: Fixed McpNode.fromJson to extract keywords from content.keywords field instead of top-level keywords
+- **Rule Evaluation Fix**: Corrected mismatch between rule IDs (R1_TOP_THEMES) and template keys (TOP_THEMES) in switch statements
+- **Template Parameter Fix**: Fixed _createCardFromRule switch statement to use templateKey instead of rule.id
+- **Rule Thresholds**: Lowered insight rule thresholds for better triggering with small datasets
+- **Missing Rules**: Added missing rule definitions for TOP_THEMES and STUCK_NUDGE
+- **Null Safety**: Fixed null safety issues in arc_llm.dart and llm_bridge_adapter.dart
+- **MCP Schema**: Updated MCP schema constructors with required parameters
+- **Test Files**: Fixed test files to use correct JournalEntry and MediaItem constructors
+- **Result**: Insights tab now shows 3 actual insight cards with real data instead of placeholders
+- **Your Patterns**: Submenu displays all imported keywords correctly in circular pattern
 
 ### MCP Import Journal Entry Restoration - September 24, 2025 ✅ COMPLETE
 - **Issue Resolved**: Fixed critical bug where imported MCP bundles didn't show journal entries in UI
@@ -396,6 +410,6 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 ---
 
-**Last Updated:** September 23, 2025
-**Version:** 0.2.5-alpha
-**Status:** Production Ready - Complete MCP Integration + LUMARA Chat Memory + Repository Hygiene + MIRA-MCP Architecture + Clean Git Workflow
+**Last Updated:** September 24, 2025
+**Version:** 0.2.6-alpha
+**Status:** Production Ready - Complete MCP Integration + LUMARA Chat Memory + Repository Hygiene + MIRA-MCP Architecture + Clean Git Workflow + Insights System Fixed

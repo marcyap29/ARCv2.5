@@ -1,5 +1,28 @@
 # Bug Tracker Notes
 
+## 2025-09-24 — Insights System Fix Complete ✅
+- ✅ **Critical Issue Resolved**: Fixed insights system showing "No insights yet" despite having journal data
+- ✅ **Keyword Extraction Fix**: Fixed McpNode.fromJson to extract keywords from content.keywords field instead of top-level keywords
+- ✅ **Rule Evaluation Fix**: Corrected mismatch between rule IDs (R1_TOP_THEMES) and template keys (TOP_THEMES) in switch statements
+- ✅ **Template Parameter Fix**: Fixed _createCardFromRule switch statement to use templateKey instead of rule.id
+- ✅ **Rule Thresholds**: Lowered insight rule thresholds for better triggering with small datasets
+- ✅ **Missing Rules**: Added missing rule definitions for TOP_THEMES and STUCK_NUDGE
+- ✅ **Null Safety**: Fixed null safety issues in arc_llm.dart and llm_bridge_adapter.dart
+- ✅ **MCP Schema**: Updated MCP schema constructors with required parameters
+- ✅ **Test Files**: Fixed test files to use correct JournalEntry and MediaItem constructors
+- ✅ **Result**: Insights tab now shows 3 actual insight cards with real data instead of placeholders
+- ✅ **Your Patterns**: Submenu displays all imported keywords correctly in circular pattern
+
+**Key Files Modified:**
+- `lib/mcp/models/mcp_schemas.dart` - Fixed keyword extraction from content.keywords
+- `lib/insights/insight_service.dart` - Fixed rule evaluation and template parameter logic
+- `lib/core/arc_llm.dart` - Fixed null safety issues
+- `lib/services/llm_bridge_adapter.dart` - Fixed null safety issues
+- `test/mcp/import/mcp_import_service_test.dart` - Updated test constructors
+- `test/mcp_exporter_golden_test.dart` - Fixed JournalEntry and MediaItem constructors
+
+**Architecture:** Insights system now properly extracts keywords from MCP import data, evaluates rules correctly, and generates actual insight cards with real data instead of placeholders.
+
 ## 2025-09-24 — MIRA Insights Implementation Complete ✅
 - ✅ **Mixed-Version MCP Support**: Created golden bundle (`mcp_chats_2025-09_mixed_versions`) with node.v1 journals + node.v2 chat records
 - ✅ **Chat Ingestion Layer**: Implemented `ChatIngest` and `ChatGraphBuilder` for converting chat models to MIRA nodes

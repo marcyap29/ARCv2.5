@@ -20,7 +20,8 @@
 - Critical stability + UX issues addressed (navigation, save, loading, lifecycle safety).
 - **Prompts 21–23** added: Welcome flow, Audio framework, Arcform sovereignty (auto vs manual).
 - **Recent enhancements**: RIVET phase-stability gating, dual-dial insights visualization, keyword-driven phase detection, EmotionalValenceService, advanced notifications, progressive disclosure UI, complete journal entry deletion system, phase quiz synchronization, MCP export/import integration.
-- **Latest completion**: MIRA Insights Mixed-Version Analytics Complete (2025-09-24) - FINAL IMPLEMENTATION: Full mixed-version MCP support (node.v1 + node.v2) with ChatMetricsService and EnhancedInsightService providing combined journal+chat analytics (60/40 weighting). ChatSessionNode, ChatMessageNode, and ContainsEdge properly extend MIRA base classes. All tests passing (6/6) with AJV-ready JSON validation. Golden bundle demonstrates real-world mixed schema exports.
+- **Latest completion**: Insights System Fix Complete (2025-09-24) - CRITICAL FIX: Resolved insights system showing "No insights yet" despite having journal data. Fixed keyword extraction from MCP import data (content.keywords field), corrected rule evaluation logic (rule IDs vs template keys), and fixed template parameter filling. Lowered insight rule thresholds for better triggering with small datasets. Result: Insights tab now shows 3 actual insight cards with real data instead of placeholders. Your Patterns submenu displays all imported keywords correctly.
+- **Previous completion**: MIRA Insights Mixed-Version Analytics Complete (2025-09-24) - FINAL IMPLEMENTATION: Full mixed-version MCP support (node.v1 + node.v2) with ChatMetricsService and EnhancedInsightService providing combined journal+chat analytics (60/40 weighting). ChatSessionNode, ChatMessageNode, and ContainsEdge properly extend MIRA base classes. All tests passing (6/6) with AJV-ready JSON validation. Golden bundle demonstrates real-world mixed schema exports.
 - **Previous completion**: MCP Export System Resolution (2025-09-21) - CRITICAL FIX: Resolved issue where MCP export generated empty .jsonl files instead of actual journal content. Unified standalone McpExportService with MIRA-based semantic export system. Complete journal entry export as MCP Pointer + Node + Edge records with full text preservation, SAGE narrative extraction, and automatic relationship generation. Every confirmed journal entry now becomes a first-class MCP record with deterministic IDs and SHA-256 integrity. Architecture fix: McpSettingsCubit now uses MiraService.exportToMcp() instead of stub service.
 - **Previous completion**: Arcform Widget Enhancements (2025-09-21) - Enhanced phase recommendation modal with improved animations and refined simple 3D arcform widget with better transformations and interaction controls.
 - **Previous completion**: P5-MM Multi-Modal Journaling Integration Complete - Fixed critical issue where multimodal features were implemented in JournalCaptureView but app uses StartEntryFlow. Successfully integrated camera, gallery, and media management into actual journal entry flow.
@@ -176,6 +177,19 @@ chips |
 ---
 
 ## 5) Changelog (Key Milestones)
+
+### 2025‑09‑24 — Insights System Fix Complete ⭐
+- **Critical Issue Resolution**: Fixed insights system showing "No insights yet" despite having journal data
+- **Keyword Extraction Fix**: Fixed McpNode.fromJson to extract keywords from content.keywords field instead of top-level keywords
+- **Rule Evaluation Fix**: Corrected mismatch between rule IDs (R1_TOP_THEMES) and template keys (TOP_THEMES) in switch statements
+- **Template Parameter Fix**: Fixed _createCardFromRule switch statement to use templateKey instead of rule.id
+- **Rule Thresholds**: Lowered insight rule thresholds for better triggering with small datasets
+- **Missing Rules**: Added missing rule definitions for TOP_THEMES and STUCK_NUDGE
+- **Null Safety**: Fixed null safety issues in arc_llm.dart and llm_bridge_adapter.dart
+- **MCP Schema**: Updated MCP schema constructors with required parameters
+- **Test Files**: Fixed test files to use correct JournalEntry and MediaItem constructors
+- **Result**: Insights tab now shows 3 actual insight cards with real data instead of placeholders
+- **Your Patterns**: Submenu displays all imported keywords correctly in circular pattern
 
 ### 2025‑01‑21 — First Responder Mode Complete Implementation (P27-P34) ⭐
 - **Complete First Responder Module**: 51 files created/modified with 13,081+ lines of code

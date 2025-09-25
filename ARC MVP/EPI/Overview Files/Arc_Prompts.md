@@ -413,4 +413,5 @@ Respond to user questions using provided context with helpful, accurate, and evi
 *Total prompts: 12 (5 ARC prompts + 6 LUMARA prompts + 1 fallback rules)*
 *MIRA-MCP Enhancement: Context-aware AI with semantic memory integration*
 *LUMARA Integration: Personal AI assistant with pattern analysis and growth insights*
-*Prompt Tracking: Version 1.2.1 with LUMARA chat assistant integration*
+*Insights System: Fixed keyword extraction and rule evaluation for proper insight card generation*
+*Prompt Tracking: Version 1.2.2 with insights system fixes and enhanced MIRA integration*
