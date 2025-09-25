@@ -141,23 +141,23 @@ class _CustomTabBarState extends State<CustomTabBar> {
                 onTap: () => widget.onTabSelected(elevatedIndex),
                 child: AnimatedContainer(
                   duration: const Duration(milliseconds: 250),
-                  width: 50, // Smaller purple border
-                  height: 50,
+                  width: 45, // Smaller purple border to prevent cropping
+                  height: 45,
                   decoration: BoxDecoration(
                     gradient: elevatedIndex == widget.selectedIndex ? kcPrimaryGradient : kcPrimaryGradient,
                     shape: BoxShape.circle,
                     boxShadow: [
                       BoxShadow(
                         color: kcPrimaryColor.withOpacity(0.4),
-                        blurRadius: 15,
-                        offset: const Offset(0, 6),
+                        blurRadius: 12,
+                        offset: const Offset(0, 5),
                       ),
                     ],
                   ),
                   child: Center(
                     child: Icon(
                       elevatedTab.icon,
-                      size: 28, // Keep icon size prominent but not oversized
+                      size: 28, // Keep icon size the same
                       color: Colors.white,
                     ),
                   ),
