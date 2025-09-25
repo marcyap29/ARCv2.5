@@ -206,6 +206,7 @@ class _HomeViewState extends State<HomeView> {
                 tabs: _tabs,
                 selectedIndex: selectedIndex,
                 onTabSelected: (index) {
+                  print('DEBUG: Tab selected: $index');
                   _homeCubit.changeTab(index);
                   // Refresh RIVET card when Insights tab is selected
                   if (index == 2) { // Insights tab index
@@ -578,6 +579,7 @@ class _RivetCardState extends State<_RivetCard> {
   }
 
   Future<void> _loadRivetState() async {
+    print('DEBUG: _loadRivetState called');
     setState(() {
       _isLoading = true;
     });
@@ -586,13 +588,19 @@ class _RivetCardState extends State<_RivetCard> {
       final rivetProvider = RivetProvider();
       const userId = 'default_user'; // TODO: Use actual user ID
       
+      print('DEBUG: RIVET provider available: ${rivetProvider.isAvailable}');
+      
       // Initialize provider if needed
       if (!rivetProvider.isAvailable) {
+        print('DEBUG: Initializing RIVET provider...');
         await rivetProvider.initialize(userId);
+        print('DEBUG: RIVET provider initialized: ${rivetProvider.isAvailable}');
       }
       
       // Safely get state
+      print('DEBUG: Getting RIVET state for user: $userId');
       final state = await rivetProvider.safeGetState(userId);
+      print('DEBUG: RIVET state retrieved: $state');
       
       if (state != null && rivetProvider.service != null) {
         // Update service with current state
@@ -602,7 +610,9 @@ class _RivetCardState extends State<_RivetCard> {
           _rivetState = state;
           _isLoading = false;
         });
+        print('DEBUG: RIVET state updated successfully: $_rivetState');
       } else {
+        print('DEBUG: No RIVET state found, using default state');
         setState(() {
           _rivetState = const RivetState(
             align: 0,
@@ -629,7 +639,9 @@ class _RivetCardState extends State<_RivetCard> {
   
   Future<void> _refreshRivetState() async {
     print('DEBUG: Refreshing RIVET state...');
+    print('DEBUG: Current RIVET state before refresh: $_rivetState');
     await _loadRivetState();
+    print('DEBUG: RIVET state after refresh: $_rivetState');
   }
   
 

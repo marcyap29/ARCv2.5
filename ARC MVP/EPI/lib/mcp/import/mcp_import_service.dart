@@ -11,6 +11,10 @@ import 'package:my_app/lumara/chat/chat_repo.dart';
 import 'package:my_app/lumara/chat/chat_models.dart';
 import 'package:my_app/models/journal_entry_model.dart';
 import 'package:my_app/repositories/journal_repository.dart';
+import 'package:my_app/core/rivet/rivet_provider.dart';
+import 'package:my_app/core/rivet/rivet_models.dart';
+import 'package:my_app/services/user_phase_service.dart';
+import 'package:my_app/features/arcforms/phase_recommender.dart';
 
 /// Result of an MCP import operation
 class McpImportResult {
@@ -847,8 +851,68 @@ class McpImportService {
       await _journalRepo!.createJournalEntry(entry);
       print('  Stored journal entry: ${entry.title}');
       
+      // Create RIVET event for the imported entry
+      await _createRivetEventForEntry(entry);
+      
     } catch (e) {
       print('  Failed to import journal entry ${entry.id}: $e');
+    }
+  }
+  
+  /// Create RIVET event for imported journal entry
+  Future<void> _createRivetEventForEntry(JournalEntry entry) async {
+    try {
+      const userId = 'default_user'; // TODO: Use actual user ID
+      
+      // Get current phase from user profile
+      final currentPhase = await _getCurrentUserPhase();
+      if (currentPhase == null) {
+        print('  Warning: No current phase found, skipping RIVET event creation');
+        return;
+      }
+      
+      // Get recommended phase from PhaseRecommender
+      final recommendedPhase = PhaseRecommender.recommend(
+        emotion: '', // No emotion data from MCP import
+        reason: '', // No reason data from MCP import
+        text: entry.content,
+        selectedKeywords: entry.keywords,
+      );
+      
+      // Create RIVET event
+      final rivetEvent = RivetEvent(
+        date: entry.createdAt,
+        source: EvidenceSource.text,
+        keywords: entry.keywords.toSet(),
+        predPhase: recommendedPhase,
+        refPhase: currentPhase,
+        tolerance: const {}, // Stub for categorical phases
+      );
+      
+      // Submit to RIVET
+      final rivetProvider = RivetProvider();
+      if (rivetProvider.isAvailable) {
+        final decision = await rivetProvider.safeIngest(rivetEvent, userId);
+        print('  RIVET event created for imported entry: ${entry.title}');
+        print('  RIVET decision: ${decision != null && decision.open ? "OPEN" : "CLOSED"}');
+      } else {
+        print('  Warning: RIVET provider not available, skipping RIVET event creation');
+      }
+      
+    } catch (e) {
+      print('  Failed to create RIVET event for entry ${entry.id}: $e');
+    }
+  }
+  
+  /// Get current user phase
+  Future<String?> _getCurrentUserPhase() async {
+    try {
+      // Import UserPhaseService
+      final currentPhase = await UserPhaseService.getCurrentPhase();
+      return currentPhase;
+    } catch (e) {
+      print('  Error getting current user phase: $e');
+      return null;
     }
   }
 
