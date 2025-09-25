@@ -82,7 +82,7 @@ class _CustomTabBarState extends State<CustomTabBar> {
     final otherTabs = widget.tabs.where((tab) => tab != elevatedTab).toList();
     
     return Container(
-      height: (widget.height ?? 80) + 25, // Reduced extra height for elevated button
+      height: (widget.height ?? 80) + 30, // Slightly more height for elevated button
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Stack(
         children: [
@@ -133,7 +133,7 @@ class _CustomTabBarState extends State<CustomTabBar> {
           ),
           // Elevated + button
           Positioned(
-            top: 5, // Move down slightly to prevent cropping
+            top: -5, // Move up to prevent blocking Insights tab
             left: 0,
             right: 0,
             child: Center(
