@@ -6,6 +6,7 @@ class CustomTabBar extends StatefulWidget {
   final int selectedIndex;
   final ValueChanged<int> onTabSelected;
   final double? height;
+  final int? elevatedTabIndex; // Index of tab to elevate (e.g., + button)
 
   const CustomTabBar({
     super.key,
@@ -13,6 +14,7 @@ class CustomTabBar extends StatefulWidget {
     required this.selectedIndex,
     required this.onTabSelected,
     this.height,
+    this.elevatedTabIndex,
   });
 
   @override
@@ -22,6 +24,15 @@ class CustomTabBar extends StatefulWidget {
 class _CustomTabBarState extends State<CustomTabBar> {
   @override
   Widget build(BuildContext context) {
+    // Check if we have an elevated tab (roman numeral 1 shape)
+    final hasElevatedTab = widget.elevatedTabIndex != null && 
+                          widget.elevatedTabIndex! < widget.tabs.length;
+    
+    if (hasElevatedTab) {
+      return _buildRomanNumeralOneShape();
+    }
+    
+    // Default flat tab bar
     return Container(
       height: widget.height ?? 80,
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -61,6 +72,100 @@ class _CustomTabBarState extends State<CustomTabBar> {
             ),
           );
         }).toList(),
+      ),
+    );
+  }
+
+  Widget _buildRomanNumeralOneShape() {
+    final elevatedIndex = widget.elevatedTabIndex!;
+    final elevatedTab = widget.tabs[elevatedIndex];
+    final otherTabs = widget.tabs.where((tab) => tab != elevatedTab).toList();
+    
+    return Container(
+      height: (widget.height ?? 80) + 20, // Extra height for elevated button
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Stack(
+        children: [
+          // Main tab bar container
+          Positioned(
+            bottom: 0,
+            left: 0,
+            right: 0,
+            child: Container(
+              height: widget.height ?? 80,
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: kcSurfaceAltColor,
+                borderRadius: BorderRadius.circular(24),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.2),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Row(
+                children: otherTabs.asMap().entries.map((entry) {
+                  final originalIndex = widget.tabs.indexOf(otherTabs[entry.key]);
+                  final isSelected = originalIndex == widget.selectedIndex;
+
+                  return Expanded(
+                    child: GestureDetector(
+                      onTap: () => widget.onTabSelected(originalIndex),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 250),
+                        margin: const EdgeInsets.all(4),
+                        decoration: BoxDecoration(
+                          gradient: isSelected ? kcPrimaryGradient : null,
+                          color: isSelected ? null : kcSurfaceAltColor,
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        child: Center(
+                          child: _buildTabContent(otherTabs[entry.key], isSelected),
+                        ),
+                      ),
+                    ),
+                  );
+                }).toList(),
+              ),
+            ),
+          ),
+          // Elevated + button
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            child: Center(
+              child: GestureDetector(
+                onTap: () => widget.onTabSelected(elevatedIndex),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 250),
+                  width: 60,
+                  height: 60,
+                  decoration: BoxDecoration(
+                    gradient: elevatedIndex == widget.selectedIndex ? kcPrimaryGradient : kcPrimaryGradient,
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: kcPrimaryColor.withOpacity(0.4),
+                        blurRadius: 15,
+                        offset: const Offset(0, 6),
+                      ),
+                    ],
+                  ),
+                  child: Center(
+                    child: Icon(
+                      elevatedTab.icon,
+                      size: 28,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

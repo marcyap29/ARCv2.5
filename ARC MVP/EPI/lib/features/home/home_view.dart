@@ -55,9 +55,9 @@ class _HomeViewState extends State<HomeView> {
     const baseTabs = [
       TabItem(icon: Icons.auto_graph, text: 'Phase'),
       TabItem(icon: Icons.timeline, text: 'Timeline'),
-      TabItem(icon: Icons.add_circle, text: '+'),
       TabItem(icon: Icons.insights, text: 'Insights'),
       TabItem(icon: Icons.settings, text: 'Settings'),
+      TabItem(icon: Icons.add_circle, text: '+'), // This will be elevated
     ];
     
     if (AppFlags.isLumaraEnabled) {
@@ -70,7 +70,7 @@ class _HomeViewState extends State<HomeView> {
   }
 
   List<String> get _tabNames {
-    const baseNames = ['Phase', 'Timeline', '+', 'Insights', 'Settings'];
+    const baseNames = ['Phase', 'Timeline', 'Insights', 'Settings', '+'];
     if (AppFlags.isLumaraEnabled) {
       return [...baseNames, 'LUMARA'];
     }
@@ -100,16 +100,16 @@ class _HomeViewState extends State<HomeView> {
     }
 
     _pages = [
-      const ArcformRendererView(),
-      const TimelineView(),
-      const StartEntryFlow(),
-      const _InsightsPage(),
-      const SettingsView(),
+      const ArcformRendererView(), // Phase (index 0)
+      const TimelineView(), // Timeline (index 1)
+      const _InsightsPage(), // Insights (index 2)
+      const SettingsView(), // Settings (index 3)
+      const StartEntryFlow(), // + (index 4) - elevated
       if (AppFlags.isLumaraEnabled)
         BlocProvider<LumaraAssistantCubit>.value(
           value: _lumaraCubit!,
           child: const LumaraAssistantScreen(),
-        ),
+        ), // LUMARA (index 5)
     ];
     
     // Initialize ethereal music (P22)
@@ -207,6 +207,7 @@ class _HomeViewState extends State<HomeView> {
                 selectedIndex: selectedIndex,
                 onTabSelected: _homeCubit.changeTab,
                 height: 80,
+                elevatedTabIndex: 4, // Elevate the + button (index 4)
               ),
             );
           },
