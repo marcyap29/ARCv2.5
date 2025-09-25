@@ -276,6 +276,14 @@ class _InsightsPageState extends State<_InsightsPage> with WidgetsBindingObserve
   }
   
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Refresh RIVET card when dependencies change (e.g., when navigating to Insights)
+    print('DEBUG: _InsightsPage didChangeDependencies called');
+    refreshRivetCard();
+  }
+  
+  @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
@@ -293,6 +301,7 @@ class _InsightsPageState extends State<_InsightsPage> with WidgetsBindingObserve
   
   void refreshRivetCard() {
     print('DEBUG: Refreshing RIVET card from Insights page');
+    print('DEBUG: RIVET card key current state: ${_rivetCardKey.currentState}');
     _rivetCardKey.currentState?._refreshRivetState();
   }
 
