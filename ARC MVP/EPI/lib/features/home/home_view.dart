@@ -205,7 +205,14 @@ class _HomeViewState extends State<HomeView> {
               bottomNavigationBar: CustomTabBar(
                 tabs: _tabs,
                 selectedIndex: selectedIndex,
-                onTabSelected: _homeCubit.changeTab,
+                onTabSelected: (index) {
+                  _homeCubit.changeTab(index);
+                  // Refresh RIVET card when Insights tab is selected
+                  if (index == 2) { // Insights tab index
+                    print('DEBUG: Insights tab selected, refreshing RIVET card');
+                    _refreshRivetCardInInsights();
+                  }
+                },
                 height: 80,
                 elevatedTabIndex: 3, // Elevate the + button (index 3)
               ),
@@ -226,6 +233,13 @@ class _HomeViewState extends State<HomeView> {
       print('DEBUG: Error refreshing phase cache from Phase tab: $e');
     }
   }
+  
+  /// Refresh RIVET card in Insights page
+  void _refreshRivetCardInInsights() {
+    // This will be called when Insights tab is selected
+    // The actual refresh will be handled by the _InsightsPage
+    print('DEBUG: Requesting RIVET card refresh from home view');
+  }
 
   @override
   void dispose() {
@@ -242,18 +256,43 @@ class _InsightsPage extends StatefulWidget {
   State<_InsightsPage> createState() => _InsightsPageState();
 }
 
-class _InsightsPageState extends State<_InsightsPage> {
+class _InsightsPageState extends State<_InsightsPage> with WidgetsBindingObserver {
   InsightCubit? _insightCubit;
+  final GlobalKey<_RivetCardState> _rivetCardKey = GlobalKey<_RivetCardState>();
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     print('DEBUG: _InsightsPage initState called');
     // Initialize insight cubit after the widget is built
     WidgetsBinding.instance.addPostFrameCallback((_) {
       print('DEBUG: Post-frame callback executing');
       _initializeInsightCubit();
+      // Refresh RIVET card when Insights page loads
+      refreshRivetCard();
     });
+  }
+  
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+  
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    // Refresh RIVET card when app becomes active (user might have added entries)
+    if (state == AppLifecycleState.resumed) {
+      print('DEBUG: App resumed, refreshing RIVET card');
+      refreshRivetCard();
+    }
+  }
+  
+  void refreshRivetCard() {
+    print('DEBUG: Refreshing RIVET card from Insights page');
+    _rivetCardKey.currentState?._refreshRivetState();
   }
 
   void _initializeInsightCubit() {
@@ -276,11 +315,6 @@ class _InsightsPageState extends State<_InsightsPage> {
     }
   }
 
-  @override
-  void dispose() {
-    _insightCubit?.close();
-    super.dispose();
-  }
 
   Widget _buildInsightsSection() {
     if (_insightCubit == null) {
@@ -403,7 +437,7 @@ class _InsightsPageState extends State<_InsightsPage> {
                   children: [
                     _buildMiraGraphCard(context),
                     const SizedBox(height: 20),
-                    const _RivetCard(),
+                    _RivetCard(key: _rivetCardKey),
                     const SizedBox(height: 20),
                     const AuroraCard(),
                     const SizedBox(height: 20),
@@ -500,7 +534,7 @@ class _InsightsPageState extends State<_InsightsPage> {
 }
 
 class _RivetCard extends StatefulWidget {
-  const _RivetCard();
+  const _RivetCard({super.key});
 
   @override
   State<_RivetCard> createState() => _RivetCardState();
@@ -544,6 +578,10 @@ class _RivetCardState extends State<_RivetCard> {
   }
 
   Future<void> _loadRivetState() async {
+    setState(() {
+      _isLoading = true;
+    });
+    
     try {
       final rivetProvider = RivetProvider();
       const userId = 'default_user'; // TODO: Use actual user ID
@@ -589,6 +627,11 @@ class _RivetCardState extends State<_RivetCard> {
     }
   }
   
+  Future<void> _refreshRivetState() async {
+    print('DEBUG: Refreshing RIVET state...');
+    await _loadRivetState();
+  }
+  
 
   @override
   Widget build(BuildContext context) {
@@ -626,7 +669,7 @@ class _RivetCardState extends State<_RivetCard> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header with title and subtitle
+          // Header with title, subtitle, and refresh button
           Row(
             children: [
               Container(
@@ -659,6 +702,15 @@ class _RivetCardState extends State<_RivetCard> {
                     ),
                   ],
                 ),
+              ),
+              IconButton(
+                onPressed: _refreshRivetState,
+                icon: const Icon(
+                  Icons.refresh,
+                  color: kcPrimaryTextColor,
+                  size: 20,
+                ),
+                tooltip: 'Refresh RIVET state',
               ),
             ],
           ),
