@@ -187,6 +187,47 @@ class MiraService {
     );
   }
 
+  /// ---- Graph Access Convenience API (thin wrappers over repo) ----
+  Future<void> addNode(MiraNode node) async {
+    _ensureInitialized();
+    await _repo.upsertNode(node);
+  }
+
+  Future<void> addEdge(MiraEdge edge) async {
+    _ensureInitialized();
+    await _repo.upsertEdge(edge);
+  }
+
+  Future<void> removeNode(String nodeId) async {
+    _ensureInitialized();
+    await _repo.removeNode(nodeId);
+  }
+
+  Future<void> removeEdge(String edgeId) async {
+    _ensureInitialized();
+    await _repo.removeEdge(edgeId);
+  }
+
+  Future<List<MiraNode>> getNodesByType(NodeType type, {int limit = 100}) async {
+    _ensureInitialized();
+    return _repo.findNodesByType(type, limit: limit);
+  }
+
+  Future<List<MiraEdge>> getEdgesBySource(String nodeId, {EdgeType? label}) async {
+    _ensureInitialized();
+    return _repo.edgesFrom(nodeId, label: label);
+  }
+
+  Future<List<MiraEdge>> getEdgesByDestination(String nodeId, {EdgeType? label}) async {
+    _ensureInitialized();
+    return _repo.edgesTo(nodeId, label: label);
+  }
+
+  Future<MiraNode?> getNode(String nodeId) async {
+    _ensureInitialized();
+    return _repo.getNode(nodeId);
+  }
+
   /// Add semantic data to MIRA
   Future<void> addSemanticData({
     String? entryText,

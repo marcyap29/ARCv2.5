@@ -78,7 +78,6 @@ class EnhancedInsightService extends InsightService {
     );
 
     // Get journal entry count for the period
-    final journalRepository = super._journalRepository;
     final allEntries = journalRepository.getAllJournalEntriesSync();
     final journalCount = allEntries.where((entry) {
       return entry.createdAt.isAfter(periodStart) &&

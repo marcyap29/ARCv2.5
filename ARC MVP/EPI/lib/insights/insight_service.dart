@@ -1,4 +1,5 @@
 import 'package:hive/hive.dart';
+import 'package:meta/meta.dart';
 import '../repositories/journal_repository.dart';
 import '../models/journal_entry_model.dart';
 import '../core/rivet/rivet_provider.dart';
@@ -13,6 +14,9 @@ class InsightService {
   final JournalRepository _journalRepository;
   final RivetProvider? _rivetProvider;
   final String _userId;
+
+  @protected
+  JournalRepository get journalRepository => _journalRepository;
 
   InsightService({
     required JournalRepository journalRepository,
@@ -110,7 +114,21 @@ class InsightService {
     }
 
     // Prioritized fallbacks
-    // 1) Emotion tilt (usually available)
+    // 1) Top themes (usually available)
+    await addRuleIfMissing(RuleSpec(
+      id: 'R1_TOP_THEMES',
+      enabled: true,
+      priority: 10,
+      windowDays: 7,
+      when: const {},
+      templateKey: 'TOP_THEMES',
+      gate: 'none',
+      deeplinkAnchor: 'top_words',
+    ));
+
+    if (cards.length >= minCards) return;
+
+    // 2) Emotion tilt (usually available)
     await addRuleIfMissing(RuleSpec(
       id: 'R3_EMOTION_TILT',
       enabled: true,
@@ -152,7 +170,21 @@ class InsightService {
 
     if (cards.length >= minCards) return;
 
-    // 4) Theme stability or new theme
+    // 4) Stuck nudge
+    await addRuleIfMissing(RuleSpec(
+      id: 'R8_STUCK_NUDGE',
+      enabled: true,
+      priority: 80,
+      windowDays: 7,
+      when: const {},
+      templateKey: 'STUCK_NUDGE',
+      gate: 'none',
+      deeplinkAnchor: 'stuck_keywords',
+    ));
+
+    if (cards.length >= minCards) return;
+
+    // 5) Theme stability or new theme
     await addRuleIfMissing(RuleSpec(
       id: 'R11_THEME_STABILITY',
       enabled: true,
@@ -171,11 +203,14 @@ class InsightService {
     DateTime periodStart,
     DateTime periodEnd,
   ) async {
+    print('DEBUG: _computeSignals processing ${entries.length} entries');
+
     // Extract keywords and compute frequencies
     final keywordFrequencies = <String, int>{};
     final keywordToEntries = <String, List<JournalEntry>>{};
-    
+
     for (final entry in entries) {
+      print('DEBUG: Entry ${entry.id} has ${entry.keywords.length} keywords: ${entry.keywords}');
       for (final keyword in entry.keywords) {
         if (keyword.isNotEmpty) {
           keywordFrequencies[keyword] = (keywordFrequencies[keyword] ?? 0) + 1;
@@ -189,15 +224,33 @@ class InsightService {
       ..sort((a, b) => b.value.compareTo(a.value));
     final topWords = sortedKeywords.take(5).map((e) => e.key).toList();
 
-    // Compute emotion scores (simplified - using emotion strings)
+    print('DEBUG: Top words: $topWords');
+    print('DEBUG: Keyword frequencies: $keywordFrequencies');
+
+    // Compute emotion scores (use mood as fallback if emotion is missing)
     final emotionScores = <String, double>{};
     final emotionCounts = <String, int>{};
+
     for (final entry in entries) {
-      if (entry.emotion != null && entry.emotion!.isNotEmpty) {
-        emotionCounts[entry.emotion!] = (emotionCounts[entry.emotion!] ?? 0) + 1;
+      String? emotionValue = entry.emotion;
+
+      // If no explicit emotion, derive from mood
+      if (emotionValue == null || emotionValue.isEmpty) {
+        final mood = entry.mood.toLowerCase();
+        if (mood.contains('happy') || mood.contains('joy') || mood.contains('content')) {
+          emotionValue = 'positive';
+        } else if (mood.contains('sad') || mood.contains('down') || mood.contains('difficult')) {
+          emotionValue = 'negative';
+        } else if (mood.contains('calm') || mood.contains('peaceful') || mood.contains('steady')) {
+          emotionValue = 'neutral';
+        } else {
+          emotionValue = 'mixed'; // Default for any mood
+        }
       }
+
+      emotionCounts[emotionValue] = (emotionCounts[emotionValue] ?? 0) + 1;
     }
-    
+
     // Convert counts to percentages
     final totalEmotions = emotionCounts.values.fold(0, (a, b) => a + b);
     if (totalEmotions > 0) {
@@ -206,58 +259,96 @@ class InsightService {
       });
     }
 
-    // Compute phase counts (using mood as a proxy for now)
+    print('DEBUG: Emotion counts: $emotionCounts');
+    print('DEBUG: Emotion scores: $emotionScores');
+
+    // Compute phase counts (improved logic using mood, keywords, and content analysis)
     final phaseCounts = <String, int>{};
     for (final entry in entries) {
-      // For now, use mood as a simple phase indicator
-      // In a real implementation, you'd have phase detection logic
       final mood = entry.mood.toLowerCase();
-      if (mood.contains('discovery') || mood.contains('explore')) {
-        phaseCounts['Discovery'] = (phaseCounts['Discovery'] ?? 0) + 1;
-      } else if (mood.contains('growth') || mood.contains('expand')) {
-        phaseCounts['Expansion'] = (phaseCounts['Expansion'] ?? 0) + 1;
-      } else if (mood.contains('change') || mood.contains('transition')) {
-        phaseCounts['Transition'] = (phaseCounts['Transition'] ?? 0) + 1;
-      } else if (mood.contains('consolidate') || mood.contains('stable')) {
-        phaseCounts['Consolidation'] = (phaseCounts['Consolidation'] ?? 0) + 1;
-      } else if (mood.contains('recover') || mood.contains('rest')) {
-        phaseCounts['Recovery'] = (phaseCounts['Recovery'] ?? 0) + 1;
-      } else if (mood.contains('breakthrough') || mood.contains('break')) {
-        phaseCounts['Breakthrough'] = (phaseCounts['Breakthrough'] ?? 0) + 1;
+      final keywords = entry.keywords.map((k) => k.toLowerCase()).join(' ');
+      final content = entry.content.toLowerCase();
+      final allText = '$mood $keywords $content';
+
+      // Use a scoring system for better phase detection
+      final phaseScores = <String, int>{
+        'Discovery': 0,
+        'Expansion': 0,
+        'Transition': 0,
+        'Consolidation': 0,
+        'Recovery': 0,
+        'Breakthrough': 0,
+      };
+
+      // Discovery indicators
+      if (allText.contains(RegExp(r'\b(discover|explore|learn|new|question|wonder|curious|unknown)\b'))) {
+        phaseScores['Discovery'] = phaseScores['Discovery']! + 2;
       }
+
+      // Expansion indicators
+      if (allText.contains(RegExp(r'\b(grow|expand|build|create|progress|develop|move|forward)\b'))) {
+        phaseScores['Expansion'] = phaseScores['Expansion']! + 2;
+      }
+
+      // Transition indicators
+      if (allText.contains(RegExp(r'\b(change|shift|transition|between|different|transform|evolve)\b'))) {
+        phaseScores['Transition'] = phaseScores['Transition']! + 2;
+      }
+
+      // Consolidation indicators
+      if (allText.contains(RegExp(r'\b(stable|consolidate|organize|focus|refine|settle|established)\b'))) {
+        phaseScores['Consolidation'] = phaseScores['Consolidation']! + 2;
+      }
+
+      // Recovery indicators
+      if (allText.contains(RegExp(r'\b(recover|rest|heal|pause|tired|overwhelm|reset|gentle)\b'))) {
+        phaseScores['Recovery'] = phaseScores['Recovery']! + 2;
+      }
+
+      // Breakthrough indicators
+      if (allText.contains(RegExp(r'\b(breakthrough|break|clarity|suddenly|realize|understand|insight)\b'))) {
+        phaseScores['Breakthrough'] = phaseScores['Breakthrough']! + 2;
+      }
+
+      // Find the highest scoring phase, default to Expansion if tied/no matches
+      final maxScore = phaseScores.values.reduce((a, b) => a > b ? a : b);
+      final dominantPhase = maxScore > 0
+          ? phaseScores.entries.where((e) => e.value == maxScore).first.key
+          : 'Expansion'; // Default phase
+
+      phaseCounts[dominantPhase] = (phaseCounts[dominantPhase] ?? 0) + 1;
     }
+
+    print('DEBUG: Phase counts: $phaseCounts');
 
     // Compute SAGE coverage
     final sageCoverage = <String, double>{};
-    int totalSageTokens = 0;
+    final sageCounts = <String, int>{
+      'situation': 0,
+      'action': 0,
+      'growth': 0,
+      'essence': 0,
+    };
+
     for (final entry in entries) {
       if (entry.sageAnnotation != null) {
         final sage = entry.sageAnnotation!;
-        if (sage.situation.isNotEmpty) {
-          sageCoverage['situation'] = (sageCoverage['situation'] ?? 0.0) + 1.0;
-          totalSageTokens++;
-        }
-        if (sage.action.isNotEmpty) {
-          sageCoverage['action'] = (sageCoverage['action'] ?? 0.0) + 1.0;
-          totalSageTokens++;
-        }
-        if (sage.growth.isNotEmpty) {
-          sageCoverage['growth'] = (sageCoverage['growth'] ?? 0.0) + 1.0;
-          totalSageTokens++;
-        }
-        if (sage.essence.isNotEmpty) {
-          sageCoverage['essence'] = (sageCoverage['essence'] ?? 0.0) + 1.0;
-          totalSageTokens++;
-        }
+        if (sage.situation.isNotEmpty) sageCounts['situation'] = sageCounts['situation']! + 1;
+        if (sage.action.isNotEmpty) sageCounts['action'] = sageCounts['action']! + 1;
+        if (sage.growth.isNotEmpty) sageCounts['growth'] = sageCounts['growth']! + 1;
+        if (sage.essence.isNotEmpty) sageCounts['essence'] = sageCounts['essence']! + 1;
       }
     }
-    
-    // Normalize SAGE coverage
-    if (totalSageTokens > 0) {
-      sageCoverage.forEach((key, value) {
-        sageCoverage[key] = value / totalSageTokens;
+
+    // Convert to percentages of total entries (not just SAGE entries)
+    if (entries.isNotEmpty) {
+      sageCounts.forEach((key, count) {
+        sageCoverage[key] = count / entries.length;
       });
     }
+
+    print('DEBUG: SAGE counts: $sageCounts');
+    print('DEBUG: SAGE coverage: $sageCoverage');
 
     // Compute emotion variance
     final emotionVariance = _computeEmotionVariance(entries);
@@ -332,17 +423,17 @@ class InsightService {
       // Evaluate rule conditions
       switch (rule.id) {
         case 'R1_TOP_THEMES':
-          return signals.topWords.length >= (when['topWordsMin'] as int? ?? 2);
+          return signals.topWords.length >= (when['topWordsMin'] as int? ?? 1);
         
         case 'R2_PHASE_LEAN':
-          final minPct = when['phaseLeanMinPct'] as double? ?? 0.35;
+          final minPct = when['phaseLeanMinPct'] as double? ?? 0.3;
           final totalPhases = signals.phaseCounts.values.fold(0, (a, b) => a + b);
           if (totalPhases == 0) return false;
           final maxPhaseCount = signals.phaseCounts.values.fold(0, (a, b) => a > b ? a : b);
           return (maxPhaseCount / totalPhases) >= minPct;
         
         case 'R3_EMOTION_TILT':
-          final minDelta = when['emotionDominantDeltaMin'] as double? ?? 0.12;
+          final minDelta = when['emotionDominantDeltaMin'] as double? ?? 0.1;
           // Check if any emotion dominates significantly
           if (signals.emotionScores.isEmpty) return false;
           final maxEmotionScore = signals.emotionScores.values.reduce((a, b) => a > b ? a : b);
@@ -393,56 +484,85 @@ class InsightService {
       String title = template.title;
       String body = template.body;
 
-      switch (rule.id) {
-        case 'R1_TOP_THEMES':
-          params = buildTopThemesParams(signals.topWords.take(3).toList());
+      switch (rule.templateKey) {
+        case 'TOP_THEMES':
+          final topWords = signals.topWords.take(3).toList();
+          if (topWords.isEmpty) {
+            // Fallback: use most frequent keywords from all entries
+            final fallbackWords = signals.keywordFrequencies.entries
+                .take(3)
+                .map((e) => e.key)
+                .toList();
+            params = buildTopThemesParams(fallbackWords.isNotEmpty ? fallbackWords : ['reflection', 'thoughts', 'today']);
+          } else {
+            params = buildTopThemesParams(topWords);
+          }
           break;
-        
-        case 'R2_PHASE_LEAN':
-          final dominantPhase = signals.phaseCounts.entries
-              .fold<MapEntry<String, int>>(
-                const MapEntry('', 0),
-                (a, b) => a.value > b.value ? a : b)
-              .key;
+
+        case 'PHASE_LEAN':
+          String dominantPhase = 'Expansion'; // Default phase
+          if (signals.phaseCounts.isNotEmpty) {
+            final maxEntry = signals.phaseCounts.entries
+                .reduce((a, b) => a.value > b.value ? a : b);
+            dominantPhase = maxEntry.key;
+          }
           params = buildPhaseLeanParams(dominantPhase, rivetPass: rivetPass);
           break;
-        
-        case 'R3_EMOTION_TILT':
-          // Find the dominant emotion
+
+        case 'EMOTION_TILT':
           String dominantEmotion = 'neutral';
           if (signals.emotionScores.isNotEmpty) {
-            final maxEntry = signals.emotionScores.entries.reduce((a, b) => a.value > b.value ? a : b);
+            final maxEntry = signals.emotionScores.entries
+                .reduce((a, b) => a.value > b.value ? a : b);
             dominantEmotion = maxEntry.key;
           }
           params = buildEmotionTiltParams(dominantEmotion);
           break;
-        
-        case 'R4_SAGE_NUDGE':
+
+        case 'SAGE_NUDGE':
           final sageEntries = signals.sageCoverage.entries.toList()
             ..sort((a, b) => b.value.compareTo(a.value));
-          if (sageEntries.length >= 2) {
-            params = {
-              'maxTag': sageEntries.first.key,
-              'minTag': sageEntries.last.key,
-            };
+
+          String maxTag = 'situation';
+          String minTag = 'essence';
+
+          if (sageEntries.isNotEmpty) {
+            maxTag = sageEntries.first.key;
+            if (sageEntries.length >= 2) {
+              minTag = sageEntries.last.key;
+            } else {
+              // Find the least used SAGE category
+              final allSage = ['situation', 'action', 'growth', 'essence'];
+              minTag = allSage.firstWhere(
+                (tag) => !sageEntries.any((e) => e.key == tag),
+                orElse: () => 'essence',
+              );
+            }
           }
+
+          params = {
+            'maxTag': maxTag,
+            'minTag': minTag,
+          };
           break;
-        
-        case 'R8_STUCK_NUDGE':
+
+        case 'STUCK_NUDGE':
           final stuckWord = signals.topWords.firstWhere(
-            (word) => ['stuck', 'drift', 'fog'].any((stuck) => 
+            (word) => ['stuck', 'drift', 'fog'].any((stuck) =>
                 word.toLowerCase().contains(stuck)),
             orElse: () => 'uncertain');
           params = {'stuckWord': stuckWord};
           break;
-        
-        case 'R11_THEME_STABILITY':
-          // No parameters needed
+
+        case 'THEME_STABILITY':
+          // No parameters needed for this template
           break;
-        
+
         default:
           return null;
       }
+
+      print('DEBUG: Rule ${rule.id} params: $params');
 
       body = formatTemplate(body, params);
 

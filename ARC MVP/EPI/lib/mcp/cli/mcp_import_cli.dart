@@ -279,7 +279,14 @@ class McpImportCli {
       stopwatch.stop();
 
       if (format == 'json') {
-        print(jsonEncode({'success': result.success, 'imported': result.imported, 'skipped': result.skipped}));
+        print(jsonEncode({
+          'success': result.success,
+          'counts': result.counts,
+          'warnings': result.warnings,
+          'errors': result.errors,
+          'processing_time_ms': stopwatch.elapsedMilliseconds,
+          'batch_id': result.batchId,
+        }));
       } else {
         _printImportResult(result, verbose, quiet);
       }

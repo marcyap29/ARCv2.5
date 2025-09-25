@@ -9,6 +9,8 @@ import 'dart:io';
 import 'package:args/args.dart';
 import 'package:my_app/mcp/export/mcp_export_service.dart';
 import 'package:my_app/mcp/models/mcp_schemas.dart';
+import 'package:my_app/models/journal_entry_model.dart';
+import 'package:my_app/data/models/media_item.dart';
 import 'package:my_app/mcp/validation/mcp_validator.dart';
 
 void main(List<String> arguments) async {
@@ -224,25 +226,29 @@ Future<List<JournalEntry>> loadJournalEntries() async {
   return [
     JournalEntry(
       id: 'entry_001',
+      title: 'Learning MCP',
       content: 'Today I learned about MCP export and how it can help preserve my journal memories in a portable format.',
       createdAt: DateTime.now().subtract(const Duration(days: 1)),
-      tags: {'learning', 'technology', 'memory'},
-      userId: 'user_001',
-      metadata: {'phase': 'Discovery'},
+      updatedAt: DateTime.now().subtract(const Duration(hours: 12)),
+      tags: const ['learning', 'technology', 'memory'],
+      mood: 'Curious',
+      metadata: const {'phase': 'Discovery'},
     ),
     JournalEntry(
       id: 'entry_002',
+      title: 'Preservation Value',
       content: 'I realized that having a standardized way to export my thoughts and experiences is really valuable for long-term preservation.',
       createdAt: DateTime.now().subtract(const Duration(days: 2)),
-      tags: {'insight', 'preservation', 'value'},
-      userId: 'user_001',
-      metadata: {'phase': 'Growth'},
+      updatedAt: DateTime.now().subtract(const Duration(days: 1, hours: 6)),
+      tags: const ['insight', 'preservation', 'value'],
+      mood: 'Grateful',
+      metadata: const {'phase': 'Growth'},
     ),
   ];
 }
 
 /// Load media files from your data layer
-Future<List<MediaFile>> loadMediaFiles() async {
+Future<List<MediaItem>> loadMediaFiles() async {
   // This would integrate with your existing media repository
   // For now, return empty list
   return [];

@@ -45,6 +45,27 @@ class ChatMessageNode extends MiraNode {
     );
   }
 
+  /// Create from a generic MIRA node
+  static ChatMessageNode? fromMiraNode(MiraNode node) {
+    if (node.type != NodeType.entry) {
+      return null;
+    }
+
+    final data = node.data;
+    if (!data.containsKey('messageId') || !data.containsKey('sessionId')) {
+      return null;
+    }
+
+    return ChatMessageNode(
+      messageId: data['messageId'] as String,
+      sessionId: data['sessionId'] as String,
+      role: data['role'] as String? ?? 'unknown',
+      content: data['content'] as String? ?? '',
+      createdAt: node.createdAt,
+      originalTextHash: data['originalTextHash'] as String?,
+    );
+  }
+
 
   /// Get content for MCP export
   Map<String, dynamic> getContent() {

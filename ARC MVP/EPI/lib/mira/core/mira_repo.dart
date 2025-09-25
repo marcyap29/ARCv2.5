@@ -32,6 +32,9 @@ abstract class MiraRepo {
     int limit = 100,
   });
 
+  /// Remove a node and its associated edges
+  Future<void> removeNode(String nodeId);
+
   // ---- Edge Operations ----
 
   /// Store or update an edge in the graph

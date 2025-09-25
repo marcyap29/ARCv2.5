@@ -172,6 +172,33 @@ class HiveMiraRepo implements MiraRepo {
     }
 
   @override
+  Future<void> removeNode(String nodeId) async {
+    final raw = nodesBox.get(nodeId);
+    if (raw == null) {
+      return;
+    }
+
+    // Remove node record
+    final node = _NodeRec.fromJson(Map<String, dynamic>.from(raw)).n;
+    await nodesBox.delete(nodeId);
+    _byType[node.type]?.remove(nodeId);
+
+    // Remove outgoing edges
+    final outgoing = _outIndex[nodeId]?.toList() ?? const [];
+    for (final edgeId in outgoing) {
+      await removeEdge(edgeId);
+    }
+    _outIndex.remove(nodeId);
+
+    // Remove incoming edges
+    final incoming = _inIndex[nodeId]?.toList() ?? const [];
+    for (final edgeId in incoming) {
+      await removeEdge(edgeId);
+    }
+    _inIndex.remove(nodeId);
+  }
+
+  @override
   Future<List<MiraNode>> findNodesByType(NodeType type, {int limit = 100}) async {
     final ids = _byType[type]!.take(limit);
     final out = <MiraNode>[];

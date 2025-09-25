@@ -774,6 +774,7 @@ class McpImportService {
       }
 
       print('✅ DEBUG: Successfully extracted content: ${content.length} chars, title: $title');
+      print('🔄 DEBUG: Node keywords: ${node.keywords}');
       
       // Extract emotions from node
       String mood = 'Neutral';
@@ -806,6 +807,7 @@ class McpImportService {
         createdAt: node.timestamp,
         updatedAt: node.timestamp,
         tags: node.keywords,
+        keywords: node.keywords, // Use node keywords for insights
         mood: mood,
         emotion: emotion,
         emotionReason: emotionReason,

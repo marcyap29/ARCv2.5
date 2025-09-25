@@ -97,6 +97,11 @@ class SqliteMiraRepo implements MiraRepo {
   }
 
   @override
+  Future<void> removeNode(String nodeId) {
+    throw UnimplementedError('SQLite implementation pending');
+  }
+
+  @override
   Future<Map<NodeType, int>> getNodeCounts() {
     throw UnimplementedError('SQLite implementation pending');
   }

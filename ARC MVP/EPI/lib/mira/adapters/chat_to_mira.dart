@@ -1,6 +1,7 @@
-import 'package:my_app/core/mira/mira_service.dart';
+import 'package:my_app/mira/mira_service.dart';
 import 'package:my_app/lumara/chat/chat_models.dart';
 import 'package:my_app/lumara/chat/chat_repo.dart';
+import '../core/schema.dart';
 import '../nodes/chat_session_node.dart';
 import '../nodes/chat_message_node.dart';
 import '../edges/contains_edge.dart';
@@ -122,10 +123,10 @@ class ChatToMiraAdapter {
   /// Get chat-related nodes from MIRA
   Future<List<ChatSessionNode>> getChatSessionsFromMira() async {
     try {
-      final nodes = await _miraService.getNodesByType('ChatSession');
+      final nodes = await _miraService.getNodesByType(NodeType.entry);
       return nodes
-          .where((node) => node is ChatSessionNode)
-          .cast<ChatSessionNode>()
+          .map(ChatSessionNode.fromMiraNode)
+          .whereType<ChatSessionNode>()
           .toList();
     } catch (e) {
       print('ChatToMira: Failed to get sessions from MIRA: $e');
@@ -136,28 +137,34 @@ class ChatToMiraAdapter {
   /// Get message nodes for a session from MIRA
   Future<List<ChatMessageNode>> getSessionMessagesFromMira(String sessionId) async {
     try {
-      final edges = await _miraService.getEdgesBySource('session:$sessionId');
-      final messageNodes = <ChatMessageNode>[];
+      final edges = await _miraService.getEdgesBySource(
+        'session:$sessionId',
+        label: EdgeType.belongsTo,
+      );
 
-      for (final edge in edges) {
-        if (edge.relation == 'contains') {
-          final messageNode = await _miraService.getNode(edge.targetId);
-          if (messageNode is ChatMessageNode) {
-            messageNodes.add(messageNode);
-          }
+      // Sort edges by recorded order before resolving nodes
+      final orderedEdges = edges
+          .where((edge) => (edge.data['relation'] as String?) == 'contains')
+          .toList()
+        ..sort((a, b) {
+          final orderA = (a.data['order'] as num?)?.toInt() ?? 0;
+          final orderB = (b.data['order'] as num?)?.toInt() ?? 0;
+          return orderA.compareTo(orderB);
+        });
+
+      final messages = <ChatMessageNode>[];
+      for (final edge in orderedEdges) {
+        final rawNode = await _miraService.getNode(edge.dst);
+        if (rawNode == null) {
+          continue;
+        }
+        final messageNode = ChatMessageNode.fromMiraNode(rawNode);
+        if (messageNode != null) {
+          messages.add(messageNode);
         }
       }
 
-      // Sort by order metadata
-      messageNodes.sort((a, b) {
-        final aEdge = edges.firstWhere((e) => e.targetId == a.id);
-        final bEdge = edges.firstWhere((e) => e.targetId == b.id);
-        final aOrder = (aEdge as ContainsEdge).order;
-        final bOrder = (bEdge as ContainsEdge).order;
-        return aOrder.compareTo(bOrder);
-      });
-
-      return messageNodes;
+      return messages;
     } catch (e) {
       print('ChatToMira: Failed to get messages for session $sessionId from MIRA: $e');
       return [];

@@ -57,7 +57,7 @@ class ArcLLM {
         await _miraService!.addSemanticData(
           entryText: entryText,
           sagePhases: {'sage_echo': result},
-          metadata: {'source': 'sage_echo', 'timestamp': DateTime.now().toIso8601String()},
+          metadata: {'source': 'sage_echo_bridge', 'timestamp': DateTime.now().toIso8601String()},
         );
       } catch (e) {
         // Continue if MIRA storage fails
@@ -84,7 +84,7 @@ class ArcLLM {
         await _miraService!.addSemanticData(
           entryText: entryText,
           keywords: keywordsList,
-          metadata: {'source': 'arcform_keywords', 'timestamp': DateTime.now().toIso8601String()},
+          metadata: {'source': 'arcform_keywords_bridge', 'timestamp': DateTime.now().toIso8601String()},
         );
       } catch (e) {
         // Continue if MIRA storage fails

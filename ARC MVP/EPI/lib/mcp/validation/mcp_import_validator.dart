@@ -47,6 +47,33 @@ class McpValidationResult {
   int get invalidRecords => totalRecords - validRecords;
   double get validPercent => totalRecords > 0 ? (validRecords / totalRecords) * 100 : 0.0;
 
+  Map<String, dynamic> toJson() => {
+        'is_valid': isValid,
+       'errors': errors
+            .map((e) => {
+                  'message': e.message,
+                  if (e.lineNumber != null) 'line_number': e.lineNumber,
+                  if (e.fieldPath != null) 'field_path': e.fieldPath,
+                  if (e.value != null) 'value': e.value,
+                  'severity': e.severity,
+                })
+            .toList(),
+        'warnings': warnings
+            .map((w) => {
+                  'message': w.message,
+                  if (w.lineNumber != null) 'line_number': w.lineNumber,
+                  if (w.fieldPath != null) 'field_path': w.fieldPath,
+                  if (w.value != null) 'value': w.value,
+                  'severity': w.severity,
+                })
+            .toList(),
+        'total_records': totalRecords,
+        'valid_records': validRecords,
+        'invalid_records': invalidRecords,
+        'valid_percent': validPercent,
+        'processing_time_ms': processingTime.inMilliseconds,
+      };
+
   @override
   String toString() {
     return 'McpValidationResult(valid: $isValid, records: $validRecords/$totalRecords '

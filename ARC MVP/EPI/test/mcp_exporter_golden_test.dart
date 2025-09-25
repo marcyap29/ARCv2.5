@@ -13,6 +13,8 @@ import 'package:my_app/mcp/validation/mcp_validator.dart';
 import 'package:my_app/mcp/export/ndjson_writer.dart';
 import 'package:my_app/mcp/export/manifest_builder.dart';
 import 'package:my_app/mcp/export/checksum_utils.dart';
+import 'package:my_app/models/journal_entry_model.dart';
+import 'package:my_app/data/models/media_item.dart';
 
 void main() {
   group('MCP Exporter Golden Tests', () {
@@ -40,15 +42,17 @@ void main() {
       final journalEntries = [
         JournalEntry(
           id: 'entry_2025_09_10_01',
+          title: 'Test Entry',
           content: 'This is a test journal entry for MCP export.',
           createdAt: DateTime(2025, 9, 10, 20, 0, 0),
-          tags: {'test', 'mcp'},
-          userId: 'test_user',
-          metadata: {'phase': 'Discovery'},
+          updatedAt: DateTime(2025, 9, 10, 22, 0, 0),
+          tags: const ['test', 'mcp'],
+          mood: 'Neutral',
+          metadata: const {'phase': 'Discovery'},
         ),
       ];
 
-      final mediaFiles = <MediaFile>[];
+      final mediaFiles = <MediaItem>[];
 
       // Export to MCP
       final result = await exportService.exportToMcp(
@@ -111,10 +115,12 @@ void main() {
       final journalEntries = [
         JournalEntry(
           id: 'entry_001',
+          title: 'Schema Test',
           content: 'Test content for schema validation.',
           createdAt: DateTime.now(),
-          tags: {'test'},
-          userId: 'user_001',
+          updatedAt: DateTime.now(),
+          tags: const ['test'],
+          mood: 'Neutral',
         ),
       ];
 
@@ -152,17 +158,21 @@ void main() {
       final journalEntries = [
         JournalEntry(
           id: 'entry_001',
+          title: 'Deterministic Test 1',
           content: 'Deterministic test content.',
           createdAt: DateTime(2025, 9, 10, 12, 0, 0),
-          tags: {'test', 'deterministic'},
-          userId: 'user_001',
+          updatedAt: DateTime(2025, 9, 10, 12, 30, 0),
+          tags: const ['test', 'deterministic'],
+          mood: 'Focused',
         ),
         JournalEntry(
           id: 'entry_002',
+          title: 'Deterministic Test 2',
           content: 'Another deterministic test entry.',
           createdAt: DateTime(2025, 9, 10, 13, 0, 0),
-          tags: {'test', 'deterministic'},
-          userId: 'user_001',
+          updatedAt: DateTime(2025, 9, 10, 13, 30, 0),
+          tags: const ['test', 'deterministic'],
+          mood: 'Focused',
         ),
       ];
 
@@ -210,24 +220,21 @@ void main() {
       final journalEntries = [
         JournalEntry(
           id: 'entry_001',
+          title: 'Media Test',
           content: 'Test with media reference.',
           createdAt: DateTime.now(),
-          tags: {'test'},
-          userId: 'user_001',
+          updatedAt: DateTime.now(),
+          tags: const ['test'],
+          mood: 'Curious',
         ),
       ];
 
       final mediaFiles = [
-        MediaFile(
+        MediaItem(
           id: 'media_001',
-          type: 'image',
+          type: MediaType.image,
           uri: 'file:///nonexistent/path/image.jpg', // Invalid URI
-          filename: 'image.jpg',
-          mimeType: 'image/jpeg',
           createdAt: DateTime.now(),
-          userId: 'user_001',
-          tags: {'test'},
-          file: File('/nonexistent/path/image.jpg'),
         ),
       ];
 
@@ -264,24 +271,21 @@ void main() {
       final journalEntries = [
         JournalEntry(
           id: 'entry_001',
+          title: 'Privacy Test',
           content: 'This entry contains personal information about John Doe.',
           createdAt: DateTime.now(),
-          tags: {'personal', 'pii'},
-          userId: 'user_001',
+          updatedAt: DateTime.now(),
+          tags: const ['personal', 'pii'],
+          mood: 'Concerned',
         ),
       ];
 
       final mediaFiles = [
-        MediaFile(
+        MediaItem(
           id: 'media_001',
-          type: 'image',
+          type: MediaType.image,
           uri: 'file:///path/to/photo.jpg',
-          filename: 'photo.jpg',
-          mimeType: 'image/jpeg',
           createdAt: DateTime.now(),
-          userId: 'user_001',
-          tags: {'photo', 'faces'},
-          file: File('/path/to/photo.jpg'),
         ),
       ];
 
@@ -316,10 +320,12 @@ void main() {
       final journalEntries = [
         JournalEntry(
           id: 'entry_001',
+          title: 'Encoder Test',
           content: 'Test content for encoder registry.',
           createdAt: DateTime.now(),
-          tags: {'test'},
-          userId: 'user_001',
+          updatedAt: DateTime.now(),
+          tags: const ['test'],
+          mood: 'Technical',
         ),
       ];
 
@@ -359,10 +365,12 @@ void main() {
       final journalEntries = [
         JournalEntry(
           id: 'entry_001',
+          title: 'SAGE Reflection',
           content: 'Situation: I was working on a difficult problem. Action: I decided to take a break and think about it differently. Growth: I realized that stepping back often helps me see the bigger picture. Essence: Patience and perspective are key to problem-solving.',
           createdAt: DateTime.now(),
-          tags: {'sage', 'reflection'},
-          userId: 'user_001',
+          updatedAt: DateTime.now(),
+          tags: const ['sage', 'reflection'],
+          mood: 'Reflective',
         ),
       ];
 
@@ -413,10 +421,12 @@ void main() {
         final journalEntries = [
           JournalEntry(
             id: 'entry_001',
+            title: 'Profile Test',
             content: 'Test content for storage profile: ${profile.value}',
             createdAt: DateTime.now(),
-            tags: {'test', 'profile'},
-            userId: 'user_001',
+            updatedAt: DateTime.now(),
+            tags: const ['test', 'profile'],
+            mood: 'Testing',
           ),
         ];
 
@@ -446,10 +456,12 @@ void main() {
       final journalEntries = [
         JournalEntry(
           id: 'entry_001',
+          title: 'Bundle Validation Test',
           content: 'Test content for bundle validation.',
           createdAt: DateTime.now(),
-          tags: {'test'},
-          userId: 'user_001',
+          updatedAt: DateTime.now(),
+          tags: const ['test'],
+          mood: 'Validating',
         ),
       ];
 

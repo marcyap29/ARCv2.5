@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'dart:convert';
+import 'dart:typed_data';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:my_app/mcp/import/mcp_import_service.dart';
@@ -47,24 +48,23 @@ void main() {
       // Register fallback values
       registerFallbackValue(mockBundleDir);
       registerFallbackValue(const McpImportOptions());
-      registerFallbackValue(const McpPointer(id: 'test', descriptor: 'test'));
-      registerFallbackValue(const McpEmbedding(id: 'test', vector: [], model: 'test'));
-      registerFallbackValue(const McpNode(id: 'test', type: 'test'));
-      registerFallbackValue(const McpEdge(id: 'test', sourceId: 'test', targetId: 'test', type: 'test'));
+      registerFallbackValue(_testPointer());
+      registerFallbackValue(_testEmbedding());
+      registerFallbackValue(_testNode());
+      registerFallbackValue(_testEdge());
     });
 
     group('importBundle', () {
       test('should successfully import a valid bundle', () async {
         // Arrange
-        final manifest = McpManifest(
-          schemaVersion: '1.0.0',
-          version: '1.0.0',
-          createdAt: DateTime.now().toUtc(),
-          counts: {'nodes': 2, 'edges': 1},
-          checksums: {
-            'nodes.jsonl': 'test_checksum_nodes',
-            'edges.jsonl': 'test_checksum_edges',
-          },
+        final manifest = _testManifest(
+          counts: const McpCounts(nodes: 2, edges: 1),
+          checksums: const McpChecksums(
+            nodesJsonl: 'checksum-nodes',
+            edgesJsonl: 'checksum-edges',
+            pointersJsonl: 'checksum-pointers',
+            embeddingsJsonl: 'checksum-embeddings',
+          ),
         );
 
         const options = McpImportOptions(dryRun: false);
@@ -75,8 +75,8 @@ void main() {
         // Mock file existence and checksums
         when(() => File('/test/bundle/nodes.jsonl').existsSync()).thenReturn(true);
         when(() => File('/test/bundle/edges.jsonl').existsSync()).thenReturn(true);
-        when(() => File('/test/bundle/nodes.jsonl').readAsBytes()).thenAnswer((_) async => []);
-        when(() => File('/test/bundle/edges.jsonl').readAsBytes()).thenAnswer((_) async => []);
+        when(() => File('/test/bundle/nodes.jsonl').readAsBytes()).thenAnswer((_) async => Uint8List.fromList([1]));
+        when(() => File('/test/bundle/edges.jsonl').readAsBytes()).thenAnswer((_) async => Uint8List.fromList([2]));
         
         // Mock NDJSON streams
         when(() => mockNdjsonReader.readStream(any())).thenAnswer((_) async* {
@@ -121,19 +121,22 @@ void main() {
 
       test('should perform dry run validation only', () async {
         // Arrange
-        final manifest = McpManifest(
-          schemaVersion: '1.0.0',
-          version: '1.0.0',
-          createdAt: DateTime.now().toUtc(),
-        );
+        final manifest = _testManifest();
 
         const options = McpImportOptions(dryRun: true);
 
         when(() => mockBundleDir.path).thenReturn('/test/bundle');
         when(() => mockManifestReader.readManifest(any())).thenAnswer((_) async => manifest);
         when(() => File('/test/bundle/nodes.jsonl').existsSync()).thenReturn(false);
-        when(() => mockValidator.validateNdjsonFile(any(), any()))
-            .thenAnswer((_) async => const McpValidationResult(isValid: true, errors: []));
+        when(() => mockValidator.validateNdjsonFile(any(), any())).thenAnswer((_) async =>
+            const McpValidationResult(
+              isValid: true,
+              errors: [],
+              warnings: [],
+              totalRecords: 0,
+              validRecords: 0,
+              processingTime: Duration.zero,
+            ));
 
         // Act
         final result = await service.importBundle(mockBundleDir, options);
@@ -147,11 +150,13 @@ void main() {
 
       test('should handle checksum validation failure in strict mode', () async {
         // Arrange
-        final manifest = McpManifest(
-          schemaVersion: '1.0.0',
-          version: '1.0.0',
-          createdAt: DateTime.now().toUtc(),
-          checksums: {'nodes.jsonl': 'expected_checksum'},
+        final manifest = _testManifest(
+          checksums: const McpChecksums(
+            nodesJsonl: 'expected_checksum',
+            edgesJsonl: 'checksum-edges',
+            pointersJsonl: 'checksum-pointers',
+            embeddingsJsonl: 'checksum-embeddings',
+          ),
         );
 
         const options = McpImportOptions(strictMode: true);
@@ -160,7 +165,7 @@ void main() {
         when(() => mockManifestReader.readManifest(any())).thenAnswer((_) async => manifest);
         when(() => File('/test/bundle/nodes.jsonl').existsSync()).thenReturn(true);
         when(() => File('/test/bundle/nodes.jsonl').readAsBytes())
-            .thenAnswer((_) async => utf8.encode('invalid content'));
+            .thenAnswer((_) async => Uint8List.fromList(utf8.encode('invalid content')));
 
         // Act
         final result = await service.importBundle(mockBundleDir, options);
@@ -173,12 +178,8 @@ void main() {
 
       test('should respect max errors limit', () async {
         // Arrange
-        final manifest = McpManifest(
-          schemaVersion: '1.0.0',
-          version: '1.0.0',
-          createdAt: DateTime.now().toUtc(),
-          counts: {'nodes': 1},
-          checksums: {},
+        final manifest = _testManifest(
+          counts: const McpCounts(nodes: 1),
         );
 
         const options = McpImportOptions(maxErrors: 2);
@@ -205,11 +206,7 @@ void main() {
     group('schema version compatibility', () {
       test('should accept compatible schema versions', () async {
         // Arrange
-        final manifest = McpManifest(
-          schemaVersion: '1.2.3',
-          version: '1.0.0',
-          createdAt: DateTime.now().toUtc(),
-        );
+        final manifest = _testManifest(schemaVersion: '1.2.3');
 
         const options = McpImportOptions(dryRun: true);
 
@@ -226,11 +223,7 @@ void main() {
 
       test('should reject incompatible schema versions', () async {
         // Arrange
-        final manifest = McpManifest(
-          schemaVersion: '2.0.0',
-          version: '1.0.0',
-          createdAt: DateTime.now().toUtc(),
-        );
+        final manifest = _testManifest(schemaVersion: '2.0.0');
 
         const options = McpImportOptions();
 
@@ -250,7 +243,7 @@ void main() {
       test('should generate consistent batch IDs for same manifest', () async {
         // Arrange
         final dateTime = DateTime.utc(2024, 1, 1, 12, 0, 0);
-        final manifest = McpManifest(
+        final manifest = _testManifest(
           schemaVersion: '1.0.0',
           version: '1.2.3',
           createdAt: dateTime,
@@ -276,17 +269,8 @@ void main() {
     group('import order validation', () {
       test('should import in correct order: pointers → embeddings → nodes → edges', () async {
         // Arrange
-        final manifest = McpManifest(
-          schemaVersion: '1.0.0',
-          version: '1.0.0',
-          createdAt: DateTime.now().toUtc(),
-          counts: {
-            'pointers': 1,
-            'embeddings': 1,
-            'nodes': 1,
-            'edges': 1,
-          },
-          checksums: {},
+        final manifest = _testManifest(
+          counts: const McpCounts(nodes: 1, edges: 1, pointers: 1, embeddings: 1),
         );
 
         const options = McpImportOptions();
@@ -333,3 +317,74 @@ void main() {
     });
   });
 }
+
+McpProvenance _testProvenance() => const McpProvenance(
+      source: 'test',
+      device: 'device',
+      app: 'app',
+      importMethod: 'unit_test',
+    );
+
+McpManifest _testManifest({
+  String schemaVersion = '1.0.0',
+  McpCounts counts = const McpCounts(),
+  McpChecksums? checksums,
+  String version = '1.0.0',
+  DateTime? createdAt,
+}) => McpManifest(
+      schemaVersion: schemaVersion,
+      version: version,
+      createdAt: createdAt ?? DateTime.fromMillisecondsSinceEpoch(0, isUtc: true),
+      bundleId: 'bundle-id',
+      counts: counts,
+      checksums: checksums ?? const McpChecksums(
+        nodesJsonl: 'checksum-nodes',
+        edgesJsonl: 'checksum-edges',
+        pointersJsonl: 'checksum-pointers',
+        embeddingsJsonl: 'checksum-embeddings',
+      ),
+      encoderRegistry: const [McpEncoderRegistry(modelId: 'model', embeddingVersion: 'v1', dim: 0)],
+      storageProfile: McpStorageProfile.balanced.value,
+      casRemotes: const [],
+    );
+
+McpPointer _testPointer() => McpPointer(
+      id: 'pointer',
+      mediaType: 'application/json',
+      descriptor: const McpDescriptor(),
+      samplingManifest: const McpSamplingManifest(),
+      integrity: McpIntegrity(
+        contentHash: 'hash',
+        bytes: 0,
+        createdAt: DateTime.fromMillisecondsSinceEpoch(0, isUtc: true),
+      ),
+      provenance: _testProvenance(),
+      privacy: const McpPrivacy(),
+      labels: const [],
+      casRefs: const [],
+    );
+
+McpEmbedding _testEmbedding() => McpEmbedding(
+      id: 'embedding',
+      vector: const [],
+      modelId: 'model',
+      embeddingVersion: 'v1',
+      dim: 0,
+      pointerRef: 'pointer',
+    );
+
+McpNode _testNode() => McpNode(
+      id: 'node',
+      type: 'test',
+      timestamp: DateTime.fromMillisecondsSinceEpoch(0, isUtc: true),
+      provenance: _testProvenance(),
+      schemaVersion: 'node.v1',
+    );
+
+McpEdge _testEdge() => McpEdge(
+      source: 'node',
+      target: 'node2',
+      relation: 'rel',
+      timestamp: DateTime.fromMillisecondsSinceEpoch(0, isUtc: true),
+      schemaVersion: 'edge.v1',
+    );

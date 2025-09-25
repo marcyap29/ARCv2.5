@@ -57,6 +57,32 @@ class ChatSessionNode extends MiraNode {
     );
   }
 
+  /// Create from a generic MIRA node
+  static ChatSessionNode? fromMiraNode(MiraNode node) {
+    if (node.type != NodeType.entry) {
+      return null;
+    }
+
+    final data = node.data;
+    if (!data.containsKey('sessionId') || !data.containsKey('subject')) {
+      return null;
+    }
+
+    return ChatSessionNode(
+      sessionId: data['sessionId'] as String,
+      subject: data['subject'] as String? ?? '',
+      createdAt: node.createdAt,
+      updatedAt: node.updatedAt,
+      isPinned: data['isPinned'] as bool? ?? false,
+      isArchived: data['isArchived'] as bool? ?? false,
+      archivedAt: (data['archivedAt'] as String?) != null
+          ? DateTime.tryParse(data['archivedAt'] as String)
+          : null,
+      tags: List<String>.from(data['tags'] as List? ?? const []),
+      messageCount: data['messageCount'] as int? ?? 0,
+    );
+  }
+
 
   /// Get content for MCP export
   Map<String, dynamic> getContent() {

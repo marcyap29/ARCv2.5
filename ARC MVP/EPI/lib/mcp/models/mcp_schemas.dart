@@ -81,6 +81,30 @@ class McpNode {
     return json;
   }
 
+  /// Extract keywords from JSON, checking both top-level and content.keywords
+  static List<String> _extractKeywordsFromJson(Map<String, dynamic> json) {
+    // First try top-level keywords
+    if (json.containsKey('keywords')) {
+      final keywords = json['keywords'];
+      if (keywords is List) {
+        return keywords.map((k) => k.toString()).toList();
+      }
+    }
+    
+    // Then try content.keywords
+    if (json.containsKey('content')) {
+      final content = json['content'];
+      if (content is Map<String, dynamic> && content.containsKey('keywords')) {
+        final contentKeywords = content['keywords'];
+        if (contentKeywords is List) {
+          return contentKeywords.map((k) => k.toString()).toList();
+        }
+      }
+    }
+    
+    return [];
+  }
+
   factory McpNode.fromJson(Map<String, dynamic> json) {
     return McpNode(
       id: json['id'] as String,
@@ -90,7 +114,7 @@ class McpNode {
       pointerRef: json['pointer_ref'] as String?,
       contentSummary: json['content_summary'] as String?,
       phaseHint: json['phase_hint'] as String?,
-      keywords: List<String>.from(json['keywords'] ?? []),
+      keywords: _extractKeywordsFromJson(json),
       embeddingRef: json['embedding_ref'] as String?,
       narrative: json['narrative'] != null 
           ? McpNarrative.fromJson(json['narrative'] as Map<String, dynamic>)
@@ -744,12 +768,25 @@ class McpCounts {
   final Map<String, int>? entries;
 
   const McpCounts({
-    required this.nodes,
-    required this.edges,
-    required this.pointers,
-    required this.embeddings,
+    this.nodes = 0,
+    this.edges = 0,
+    this.pointers = 0,
+    this.embeddings = 0,
     this.entries,
   });
+
+  factory McpCounts.fromMap(Map<String, int> map) {
+    return McpCounts(
+      nodes: map['nodes'] ?? 0,
+      edges: map['edges'] ?? 0,
+      pointers: map['pointers'] ?? 0,
+      embeddings: map['embeddings'] ?? 0,
+      entries: map,
+    );
+  }
+
+  const McpCounts.single({int nodes = 0, int edges = 0, int pointers = 0, int embeddings = 0})
+      : this(nodes: nodes, edges: edges, pointers: pointers, embeddings: embeddings);
 
   Map<String, dynamic> toJson() {
     final json = <String, dynamic>{
@@ -785,13 +822,34 @@ class McpChecksums {
   final int? length;
 
   const McpChecksums({
-    required this.nodesJsonl,
-    required this.edgesJsonl,
-    required this.pointersJsonl,
-    required this.embeddingsJsonl,
+    this.nodesJsonl = '',
+    this.edgesJsonl = '',
+    this.pointersJsonl = '',
+    this.embeddingsJsonl = '',
     this.vectorsParquet,
     this.length,
   });
+
+  factory McpChecksums.fromMap(Map<String, String> map) {
+    return McpChecksums(
+      nodesJsonl: map['nodesJsonl'] ?? '',
+      edgesJsonl: map['edgesJsonl'] ?? '',
+      pointersJsonl: map['pointersJsonl'] ?? '',
+      embeddingsJsonl: map['embeddingsJsonl'] ?? '',
+    );
+  }
+
+  const McpChecksums.defaults({
+    String nodes = '',
+    String edges = '',
+    String pointers = '',
+    String embeddings = '',
+  }) : this(
+          nodesJsonl: nodes,
+          edgesJsonl: edges,
+          pointersJsonl: pointers,
+          embeddingsJsonl: embeddings,
+        );
 
   Map<String, dynamic> toJson() {
     final json = <String, dynamic>{
