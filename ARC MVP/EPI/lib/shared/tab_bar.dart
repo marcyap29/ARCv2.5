@@ -92,8 +92,8 @@ class _CustomTabBarState extends State<CustomTabBar> {
             left: 0,
             right: 0,
             child: Container(
-              height: widget.height ?? 80,
-              padding: const EdgeInsets.all(8),
+              height: (widget.height ?? 80) - 15, // Reduce height by 15px
+              padding: const EdgeInsets.all(6), // Reduce padding from 8 to 6
               decoration: BoxDecoration(
                 color: kcSurfaceAltColor,
                 borderRadius: BorderRadius.circular(24),
@@ -115,7 +115,7 @@ class _CustomTabBarState extends State<CustomTabBar> {
                       onTap: () => widget.onTabSelected(originalIndex),
                       child: AnimatedContainer(
                         duration: const Duration(milliseconds: 250),
-                        margin: const EdgeInsets.all(4),
+                        margin: const EdgeInsets.all(2), // Reduce margin from 4 to 2
                         decoration: BoxDecoration(
                           gradient: isSelected ? kcPrimaryGradient : null,
                           color: isSelected ? null : kcSurfaceAltColor,
@@ -179,14 +179,14 @@ class _CustomTabBarState extends State<CustomTabBar> {
         children: [
           Icon(
             tab.icon,
-            size: 24,
+            size: 20, // Reduce icon size from 24 to 20
             color: textColor,
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 2), // Reduce spacing from 4 to 2
           Text(
             tab.text!,
             style: TextStyle(
-              fontSize: 12,
+              fontSize: 10, // Reduce text size from 12 to 10
               fontWeight: FontWeight.w500,
               color: textColor,
             ),
@@ -198,14 +198,14 @@ class _CustomTabBarState extends State<CustomTabBar> {
     } else if (tab.icon != null) {
       return Icon(
         tab.icon,
-        size: 24,
+        size: 20, // Reduce icon size from 24 to 20
         color: textColor,
       );
     } else {
       return Text(
         tab.text!,
         style: TextStyle(
-          fontSize: 14,
+          fontSize: 12, // Reduce text size from 14 to 12
           fontWeight: FontWeight.w500,
           color: textColor,
         ),
