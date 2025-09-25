@@ -82,7 +82,7 @@ class _CustomTabBarState extends State<CustomTabBar> {
     final otherTabs = widget.tabs.where((tab) => tab != elevatedTab).toList();
     
     return Container(
-      height: (widget.height ?? 80) + 20, // Extra height for elevated button
+      height: (widget.height ?? 80) + 40, // Extra height for elevated button
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Stack(
         children: [
@@ -133,7 +133,7 @@ class _CustomTabBarState extends State<CustomTabBar> {
           ),
           // Elevated + button
           Positioned(
-            top: 0,
+            top: -10, // Move higher up for better separation
             left: 0,
             right: 0,
             child: Center(
@@ -141,23 +141,28 @@ class _CustomTabBarState extends State<CustomTabBar> {
                 onTap: () => widget.onTabSelected(elevatedIndex),
                 child: AnimatedContainer(
                   duration: const Duration(milliseconds: 250),
-                  width: 60,
-                  height: 60,
+                  width: 65, // Slightly larger for better visibility
+                  height: 65,
                   decoration: BoxDecoration(
                     gradient: elevatedIndex == widget.selectedIndex ? kcPrimaryGradient : kcPrimaryGradient,
                     shape: BoxShape.circle,
                     boxShadow: [
                       BoxShadow(
-                        color: kcPrimaryColor.withOpacity(0.4),
-                        blurRadius: 15,
-                        offset: const Offset(0, 6),
+                        color: kcPrimaryColor.withOpacity(0.5),
+                        blurRadius: 20,
+                        offset: const Offset(0, 8),
+                      ),
+                      BoxShadow(
+                        color: kcPrimaryColor.withOpacity(0.2),
+                        blurRadius: 30,
+                        offset: const Offset(0, 12),
                       ),
                     ],
                   ),
                   child: Center(
                     child: Icon(
                       elevatedTab.icon,
-                      size: 28,
+                      size: 32, // Larger icon for better visibility
                       color: Colors.white,
                     ),
                   ),
