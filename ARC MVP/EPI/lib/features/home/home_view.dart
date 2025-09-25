@@ -510,10 +510,32 @@ class _RivetCardState extends State<_RivetCard> {
   RivetState? _rivetState;
   bool _isLoading = true;
   
-  // RIVET thresholds (matching RivetService defaults)
-  static const double _alignThreshold = 0.6;
-  static const double _traceThreshold = 0.6;
-  static const int _sustainTarget = 2;
+  // Simplified readiness calculation
+  double _calculateReadinessScore() {
+    if (_rivetState == null) return 0.0;
+    
+    // Weight the different metrics for a single readiness score
+    final alignWeight = 0.3; // 30% - how well entries match new phase
+    final traceWeight = 0.3; // 30% - confidence in the match
+    final sustainWeight = 0.25; // 25% - consistency over time
+    final independentWeight = 0.15; // 15% - independent confirmation
+    
+    final alignScore = _rivetState!.align;
+    final traceScore = _rivetState!.trace;
+    final sustainScore = (_rivetState!.sustainCount / 2.0).clamp(0.0, 1.0); // 2 is target
+    final independentScore = _rivetState!.sawIndependentInWindow ? 1.0 : 0.0;
+    
+    return (alignScore * alignWeight + 
+            traceScore * traceWeight + 
+            sustainScore * sustainWeight + 
+            independentScore * independentWeight);
+  }
+  
+  String _getReadinessStatus(double score) {
+    if (score >= 0.8) return 'ready';
+    if (score >= 0.6) return 'almost';
+    return 'not_ready';
+  }
 
   @override
   void initState() {
@@ -588,14 +610,9 @@ class _RivetCardState extends State<_RivetCard> {
       );
     }
 
-    // Calculate status booleans
-    final matchGood = _rivetState!.align >= _alignThreshold;
-    final confidenceGood = _rivetState!.trace >= _traceThreshold;
-    final consistencyGood = _rivetState!.sustainCount >= _sustainTarget;
-    final independentGood = _rivetState!.sawIndependentInWindow;
-    
-    final ready = matchGood && confidenceGood && consistencyGood && independentGood;
-    final almost = confidenceGood && !ready && (_sustainTarget - _rivetState!.sustainCount) <= 1;
+    // Calculate simplified readiness
+    final readinessScore = _calculateReadinessScore();
+    final status = _getReadinessStatus(readinessScore);
 
     return Container(
       padding: const EdgeInsets.all(20),
@@ -609,7 +626,7 @@ class _RivetCardState extends State<_RivetCard> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header with title, subtitle, and info tooltip
+          // Header with title and subtitle
           Row(
             children: [
               Container(
@@ -619,7 +636,7 @@ class _RivetCardState extends State<_RivetCard> {
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: const Icon(
-                  Icons.gps_fixed,
+                  Icons.psychology,
                   size: 20,
                   color: kcPrimaryTextColor,
                 ),
@@ -643,258 +660,189 @@ class _RivetCardState extends State<_RivetCard> {
                   ],
                 ),
               ),
-              InfoIcons.safety(),
             ],
           ),
           const SizedBox(height: 24),
           
-          // Dual dials with simple copy
-          Row(
-            children: [
-              Expanded(
-                child: _SimpleDial(
-                  title: Copy.rivetDialMatch,
-                  subtitle: matchGood ? Copy.rivetDialGood : Copy.rivetDialLow,
-                  value: _rivetState!.align,
-                  threshold: _alignThreshold,
-                  debugLabel: kShowRivetDebugLabels ? 'ALIGN' : null,
-                ),
-              ),
-              const SizedBox(width: 20),
-              Expanded(
-                child: _SimpleDial(
-                  title: Copy.rivetDialConfidence,
-                  subtitle: confidenceGood ? Copy.rivetDialGood : Copy.rivetDialLow,
-                  value: _rivetState!.trace,
-                  threshold: _traceThreshold,
-                  debugLabel: kShowRivetDebugLabels ? 'TRACE' : null,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 20),
-          
-          // Status banner
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: ready 
-                  ? Colors.green.withOpacity(0.1)
-                  : almost 
-                      ? Colors.orange.withOpacity(0.1)
-                      : Colors.red.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(
-                color: ready 
-                    ? Colors.green.withOpacity(0.3)
-                    : almost 
-                        ? Colors.orange.withOpacity(0.3)
-                        : Colors.red.withOpacity(0.3),
-              ),
-            ),
-            child: Row(
+          // Single progress ring with status
+          Center(
+            child: Column(
               children: [
-                Icon(
-                  ready 
-                      ? Icons.lock_open
-                      : almost 
-                          ? Icons.schedule
-                          : Icons.lock,
-                  color: ready 
-                      ? Colors.green
-                      : almost 
-                          ? Colors.orange
-                          : Colors.red,
-                  size: 20,
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    ready 
-                        ? Copy.rivetBannerReady
-                        : almost 
-                            ? Copy.rivetStateAlmost
-                            : Copy.rivetBannerHeld,
-                    style: bodyStyle(context).copyWith(
-                      color: ready 
-                          ? Colors.green
-                          : almost 
-                              ? Colors.orange
-                              : Colors.red,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ),
-                if (!ready)
-                  TextButton(
-                    onPressed: () {
-                      showModalBottomSheet(
-                        context: context,
-                        isScrollControlled: true,
-                        backgroundColor: Colors.transparent,
-                        builder: (context) => const WhyHeldSheet(),
-                      );
-                    },
-                    child: Text(
-                      Copy.rivetBannerWhy,
-                      style: bodyStyle(context).copyWith(
-                        color: Colors.blue,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ),
+                _buildProgressRing(context, readinessScore, status),
+                const SizedBox(height: 16),
+                _buildStatusMessage(context, status),
               ],
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 24),
           
-          // Simple checklist
-          _buildChecklist(context, matchGood, confidenceGood, consistencyGood, independentGood),
+          // Action buttons
+          _buildActionButtons(context, status),
         ],
       ),
     );
   }
   
-  Widget _buildChecklist(
-    BuildContext context,
-    bool matchGood,
-    bool confidenceGood,
-    bool consistencyGood,
-    bool independentGood,
-  ) {
-    return Column(
+  Widget _buildProgressRing(BuildContext context, double score, String status) {
+    Color ringColor;
+    switch (status) {
+      case 'ready':
+        ringColor = Colors.green;
+        break;
+      case 'almost':
+        ringColor = Colors.orange;
+        break;
+      default:
+        ringColor = Colors.red;
+    }
+    
+    return Stack(
+      alignment: Alignment.center,
       children: [
-        _buildCheckItem(
-          context,
-          Copy.rivetCheckMatch(matchGood ? Copy.rivetDialGood : Copy.rivetDialLow),
-          matchGood,
+        SizedBox(
+          width: 120,
+          height: 120,
+          child: CircularProgressIndicator(
+            value: score,
+            strokeWidth: 8,
+            backgroundColor: Colors.white.withOpacity(0.2),
+            valueColor: AlwaysStoppedAnimation<Color>(ringColor),
+          ),
         ),
-        const SizedBox(height: 8),
-        _buildCheckItem(
-          context,
-          Copy.rivetCheckConfidence(confidenceGood ? Copy.rivetDialGood : Copy.rivetDialLow),
-          confidenceGood,
-        ),
-        const SizedBox(height: 8),
-        _buildCheckItem(
-          context,
-          Copy.rivetCheckConsistency(_rivetState!.sustainCount, _sustainTarget),
-          consistencyGood,
-        ),
-        const SizedBox(height: 8),
-        _buildCheckItem(
-          context,
-          independentGood ? Copy.rivetCheckIndependentOk : Copy.rivetCheckIndependentMissing,
-          independentGood,
+        Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(
+              '${(score * 100).round()}%',
+              style: heading1Style(context).copyWith(
+                color: ringColor,
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            Text(
+              _getProgressLabel(status),
+              style: bodyStyle(context).copyWith(
+                color: kcPrimaryTextColor.withOpacity(0.7),
+                fontSize: 12,
+              ),
+            ),
+          ],
         ),
       ],
     );
   }
   
-  Widget _buildCheckItem(BuildContext context, String text, bool isGood) {
-    return Row(
-      children: [
-        Icon(
-          isGood ? Icons.check_circle : Icons.radio_button_unchecked,
-          color: isGood ? Colors.green : Colors.orange,
-          size: 18,
+  String _getProgressLabel(String status) {
+    switch (status) {
+      case 'ready':
+        return Copy.rivetProgressReady;
+      case 'almost':
+        return Copy.rivetProgressAlmost;
+      default:
+        return Copy.rivetProgressNotReady;
+    }
+  }
+  
+  Widget _buildStatusMessage(BuildContext context, String status) {
+    String message;
+    Color messageColor;
+    IconData icon;
+    
+    switch (status) {
+      case 'ready':
+        message = Copy.rivetStatusReady;
+        messageColor = Colors.green;
+        icon = Icons.check_circle;
+        break;
+      case 'almost':
+        message = Copy.rivetStatusAlmost;
+        messageColor = Colors.orange;
+        icon = Icons.schedule;
+        break;
+      default:
+        message = Copy.rivetStatusNotReady;
+        messageColor = Colors.red;
+        icon = Icons.lock;
+    }
+    
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: messageColor.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: messageColor.withOpacity(0.3),
         ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: Text(
-            text,
-            style: bodyStyle(context).copyWith(
-              color: kcPrimaryTextColor,
-              fontSize: 13,
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            icon,
+            color: messageColor,
+            size: 20,
+          ),
+          const SizedBox(width: 8),
+          Flexible(
+            child: Text(
+              message,
+              style: bodyStyle(context).copyWith(
+                color: messageColor,
+                fontWeight: FontWeight.w500,
+                fontSize: 14,
+              ),
+              textAlign: TextAlign.center,
             ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
-}
-
-class _SimpleDial extends StatelessWidget {
-  final String title;
-  final String subtitle;
-  final double value;
-  final double threshold;
-  final String? debugLabel;
-
-  const _SimpleDial({
-    required this.title,
-    required this.subtitle,
-    required this.value,
-    required this.threshold,
-    this.debugLabel,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final isActive = value >= threshold;
-    final percentage = (value * 100).round();
-
-    return Column(
+  
+  Widget _buildActionButtons(BuildContext context, String status) {
+    return Row(
       children: [
-        Stack(
-          alignment: Alignment.center,
-          children: [
-            SizedBox(
-              width: 80,
-              height: 80,
-              child: CircularProgressIndicator(
-                value: value,
-                strokeWidth: 6,
-                backgroundColor: Colors.white.withOpacity(0.2),
-                valueColor: AlwaysStoppedAnimation<Color>(
-                  isActive ? Colors.green : Colors.orange,
-                ),
+        Expanded(
+          child: ElevatedButton(
+            onPressed: status == 'ready' ? () {
+              // Navigate to phase change
+              // TODO: Implement phase change navigation
+            } : null,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: status == 'ready' ? Colors.green : Colors.grey,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
               ),
             ),
-            Column(
-              children: [
-                Text(
-                  '$percentage%',
-                  style: const TextStyle(
-                    color: kcPrimaryTextColor,
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                Icon(
-                  isActive ? Icons.check_circle : Icons.radio_button_unchecked,
-                  size: 16,
-                  color: isActive ? Colors.green : Colors.orange,
-                ),
-              ],
+            child: Text(
+              status == 'ready' ? Copy.rivetActionChangePhase : Copy.rivetActionKeepJournaling,
+              style: const TextStyle(
+                fontWeight: FontWeight.w600,
+                fontSize: 14,
+              ),
             ),
-          ],
-        ),
-        const SizedBox(height: 8),
-        Text(
-          title,
-          style: const TextStyle(
-            color: kcPrimaryTextColor,
-            fontSize: 14,
-            fontWeight: FontWeight.bold,
           ),
         ),
-        Text(
-          subtitle,
-          style: TextStyle(
-            color: isActive ? Colors.green : Colors.orange,
-            fontSize: 12,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-        if (debugLabel != null) ...[
-          const SizedBox(height: 2),
-          Text(
-            debugLabel!,
-            style: const TextStyle(
-              color: kcSecondaryTextColor,
-              fontSize: 10,
-              fontFamily: 'monospace',
+        if (status != 'ready') ...[
+          const SizedBox(width: 12),
+          TextButton(
+            onPressed: () {
+              showModalBottomSheet(
+                context: context,
+                isScrollControlled: true,
+                backgroundColor: Colors.transparent,
+                builder: (context) => const WhyHeldSheet(),
+              );
+            },
+            child: Text(
+              Copy.rivetActionWhy,
+              style: bodyStyle(context).copyWith(
+                color: Colors.blue,
+                fontWeight: FontWeight.w500,
+              ),
             ),
           ),
         ],
@@ -902,6 +850,7 @@ class _SimpleDial extends StatelessWidget {
     );
   }
 }
+
 
 class MiniRadialPainter extends CustomPainter {
   @override
