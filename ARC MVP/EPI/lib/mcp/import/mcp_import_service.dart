@@ -896,12 +896,23 @@ class McpImportService {
       
       // Submit to RIVET
       final rivetProvider = RivetProvider();
+      print('  DEBUG: RIVET provider isAvailable: ${rivetProvider.isAvailable}');
+
+      if (!rivetProvider.isAvailable) {
+        print('  DEBUG: RIVET provider not available, attempting to initialize...');
+        await rivetProvider.initialize(userId);
+        print('  DEBUG: RIVET provider isAvailable after init: ${rivetProvider.isAvailable}');
+      }
+
       if (rivetProvider.isAvailable) {
+        print('  DEBUG: Submitting RIVET event to provider...');
         final decision = await rivetProvider.safeIngest(rivetEvent, userId);
         print('  RIVET event created for imported entry: ${entry.title}');
         print('  RIVET decision: ${decision != null && decision.open ? "OPEN" : "CLOSED"}');
+        print('  RIVET decision details: $decision');
       } else {
-        print('  Warning: RIVET provider not available, skipping RIVET event creation');
+        print('  ERROR: RIVET provider still not available after initialization attempt');
+        print('  ERROR: Init error: ${rivetProvider.initError}');
       }
       
     } catch (e) {

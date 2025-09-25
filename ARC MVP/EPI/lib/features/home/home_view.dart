@@ -50,6 +50,7 @@ class HomeView extends StatefulWidget {
 class _HomeViewState extends State<HomeView> {
   late HomeCubit _homeCubit;
   LumaraAssistantCubit? _lumaraCubit;
+  final GlobalKey<_InsightsPageState> _insightsPageKey = GlobalKey<_InsightsPageState>();
   
   List<TabItem> get _tabs {
     const baseTabs = [
@@ -102,7 +103,7 @@ class _HomeViewState extends State<HomeView> {
     _pages = [
       const ArcformRendererView(), // Phase (index 0)
       const TimelineView(), // Timeline (index 1)
-      const _InsightsPage(), // Insights (index 2)
+      _InsightsPage(key: _insightsPageKey), // Insights (index 2)
       const StartEntryFlow(), // + (index 3) - elevated
       const SettingsView(), // Settings (index 4)
       if (AppFlags.isLumaraEnabled)
@@ -207,10 +208,12 @@ class _HomeViewState extends State<HomeView> {
                 selectedIndex: selectedIndex,
                 onTabSelected: (index) {
                   print('DEBUG: Tab selected: $index');
+                  print('DEBUG: Current selected index was: $selectedIndex');
                   _homeCubit.changeTab(index);
                   // Refresh RIVET card when Insights tab is selected
                   if (index == 2) { // Insights tab index
                     print('DEBUG: Insights tab selected, refreshing RIVET card');
+                    print('DEBUG: Calling _refreshRivetCardInInsights...');
                     _refreshRivetCardInInsights();
                   }
                 },
@@ -237,9 +240,22 @@ class _HomeViewState extends State<HomeView> {
   
   /// Refresh RIVET card in Insights page
   void _refreshRivetCardInInsights() {
-    // This will be called when Insights tab is selected
-    // The actual refresh will be handled by the _InsightsPage
-    print('DEBUG: Requesting RIVET card refresh from home view');
+    print('DEBUG: _refreshRivetCardInInsights called from home view');
+    print('DEBUG: _insightsPageKey: $_insightsPageKey');
+    print('DEBUG: _insightsPageKey.currentState: ${_insightsPageKey.currentState}');
+
+    if (_insightsPageKey.currentState != null) {
+      print('DEBUG: Found InsightsPage state, calling refreshRivetCard...');
+      try {
+        _insightsPageKey.currentState!.refreshRivetCard();
+        print('DEBUG: Successfully called refreshRivetCard on InsightsPage');
+      } catch (e) {
+        print('ERROR: Failed to call refreshRivetCard on InsightsPage: $e');
+      }
+    } else {
+      print('DEBUG: ERROR - InsightsPage state is null!');
+      print('DEBUG: Widget tree may not be fully built yet');
+    }
   }
 
   @override
@@ -300,13 +316,23 @@ class _InsightsPageState extends State<_InsightsPage> with WidgetsBindingObserve
   }
   
   void refreshRivetCard() {
-    print('DEBUG: Refreshing RIVET card from Insights page');
-    print('DEBUG: RIVET card key current state: ${_rivetCardKey.currentState}');
+    print('DEBUG: refreshRivetCard called from Insights page');
+    print('DEBUG: _rivetCardKey: $_rivetCardKey');
+    print('DEBUG: _rivetCardKey.currentState: ${_rivetCardKey.currentState}');
+    print('DEBUG: _rivetCardKey.currentWidget: ${_rivetCardKey.currentWidget}');
+    print('DEBUG: _rivetCardKey.currentContext: ${_rivetCardKey.currentContext}');
+
     if (_rivetCardKey.currentState != null) {
-      print('DEBUG: Calling _refreshRivetState on RIVET card');
-      _rivetCardKey.currentState!._refreshRivetState();
+      print('DEBUG: Calling _refreshRivetState on RIVET card...');
+      try {
+        _rivetCardKey.currentState!._refreshRivetState();
+        print('DEBUG: _refreshRivetState call completed');
+      } catch (e) {
+        print('ERROR: Failed to call _refreshRivetState: $e');
+      }
     } else {
       print('DEBUG: ERROR - RIVET card key current state is null!');
+      print('DEBUG: Widget tree may not be fully built yet');
     }
   }
 
@@ -589,6 +615,7 @@ class _RivetCardState extends State<_RivetCard> {
   @override
   void initState() {
     super.initState();
+    print('DEBUG: _RivetCard initState called - widget hashCode: ${hashCode}');
     _loadRivetState();
   }
 
@@ -652,10 +679,12 @@ class _RivetCardState extends State<_RivetCard> {
   }
   
   Future<void> _refreshRivetState() async {
-    print('DEBUG: Refreshing RIVET state...');
+    print('DEBUG: _refreshRivetState called - widget hashCode: ${hashCode}');
     print('DEBUG: Current RIVET state before refresh: $_rivetState');
+    print('DEBUG: Current loading state: $_isLoading');
     await _loadRivetState();
     print('DEBUG: RIVET state after refresh: $_rivetState');
+    print('DEBUG: Loading state after refresh: $_isLoading');
   }
   
 
