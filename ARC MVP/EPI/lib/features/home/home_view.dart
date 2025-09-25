@@ -302,7 +302,12 @@ class _InsightsPageState extends State<_InsightsPage> with WidgetsBindingObserve
   void refreshRivetCard() {
     print('DEBUG: Refreshing RIVET card from Insights page');
     print('DEBUG: RIVET card key current state: ${_rivetCardKey.currentState}');
-    _rivetCardKey.currentState?._refreshRivetState();
+    if (_rivetCardKey.currentState != null) {
+      print('DEBUG: Calling _refreshRivetState on RIVET card');
+      _rivetCardKey.currentState!._refreshRivetState();
+    } else {
+      print('DEBUG: ERROR - RIVET card key current state is null!');
+    }
   }
 
   void _initializeInsightCubit() {

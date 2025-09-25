@@ -841,6 +841,7 @@ class McpImportService {
 
   /// Import a journal entry into the journal repository
   Future<void> _importJournalEntry(JournalEntry entry) async {
+    print('  DEBUG: _importJournalEntry called for entry: ${entry.title}');
     try {
       if (_journalRepo == null) {
         print('  Warning: No journal repository available - cannot import journal entry: ${entry.title}');
@@ -852,6 +853,7 @@ class McpImportService {
       print('  Stored journal entry: ${entry.title}');
       
       // Create RIVET event for the imported entry
+      print('  DEBUG: Creating RIVET event for imported entry...');
       await _createRivetEventForEntry(entry);
       
     } catch (e) {
@@ -861,11 +863,14 @@ class McpImportService {
   
   /// Create RIVET event for imported journal entry
   Future<void> _createRivetEventForEntry(JournalEntry entry) async {
+    print('  DEBUG: _createRivetEventForEntry called for entry: ${entry.title}');
     try {
       const userId = 'default_user'; // TODO: Use actual user ID
       
       // Get current phase from user profile
+      print('  DEBUG: Getting current user phase...');
       final currentPhase = await _getCurrentUserPhase();
+      print('  DEBUG: Current phase: $currentPhase');
       if (currentPhase == null) {
         print('  Warning: No current phase found, skipping RIVET event creation');
         return;
