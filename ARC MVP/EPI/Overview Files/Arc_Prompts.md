@@ -4,6 +4,8 @@ Complete listing of all prompts used in the ARC MVP system, centralized in `lib/
 
 **Enhanced with MIRA-MCP Integration**: ArcLLM now includes semantic memory context from MIRA for more intelligent, context-aware responses.
 
+**Phase Selector Redesign (2025-09-25)**: Interactive 3D geometry preview system allows users to explore different phase geometries before committing to changes, with live previews and confirmation flow.
+
 ## System Prompt
 
 **Purpose**: Core personality and behavior guidelines for ARC's journaling copilot

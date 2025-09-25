@@ -1,5 +1,23 @@
 # Bug Tracker Notes
 
+## 2025-09-25 — Phase Selector Redesign Complete ✅
+- ✅ **Phase Geometry Display Issues**: Fixed nodes not recreating with correct geometry when changing phases
+- ✅ **Geometry Pattern Conflicts**: Resolved conflicts between different phase layouts (spiral, flower, branch, weave, glowCore, fractal)
+- ✅ **Edge Generation Fix**: Corrected edge generation to match specific geometry patterns instead of generic cross-connections
+- ✅ **Phase Cache Synchronization**: Fixed phase cache refresh to maintain sync between displayed phase and geometry
+- ✅ **UI/UX Redesign**: Replaced old Change Phase dialog with interactive 3D geometry selector
+- ✅ **Live Preview System**: Implemented phase preview functionality - click phase names to see geometry previews instantly
+- ✅ **Save Confirmation**: Added "Save this phase?" button that appears when phase is selected for preview
+- ✅ **Success Message Fix**: Fixed success message to show actual phase name instead of "null"
+- ✅ **Hidden Geometry Box**: 3D Arcform Geometry box now hidden by default, only appears when "Change" button is clicked
+
+**Key Files Modified:**
+- `lib/features/arcforms/arcform_renderer_cubit.dart` - Fixed geometry recreation in changeGeometry, explorePhaseGeometry, and changePhaseAndGeometry methods
+- `lib/features/arcforms/arcform_renderer_view.dart` - Replaced old dialog with new phase selector system
+- `lib/features/arcforms/widgets/simple_3d_arcform.dart` - Added conditional geometry selector with preview functionality
+
+**Architecture:** Phase selector now provides intuitive way to explore different phase geometries before committing to change, with proper visual previews and confirmation flow.
+
 ## 2025-09-24 — Insights System Fix Complete ✅
 - ✅ **Critical Issue Resolved**: Fixed insights system showing "No insights yet" despite having journal data
 - ✅ **Keyword Extraction Fix**: Fixed McpNode.fromJson to extract keywords from content.keywords field instead of top-level keywords

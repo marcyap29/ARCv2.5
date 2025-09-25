@@ -16,7 +16,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ### Latest Update - 2025-09-25
 
+### Added
+- **Phase Selector Redesign with 3D Geometry Preview** (2025-09-25) ✅ COMPLETE
+  - Interactive 3D Arcform Geometry selector that appears only when "Change" button is clicked
+  - Live phase preview functionality - click phase names to see geometry previews instantly
+  - "Save this phase?" confirmation button that appears when phase is selected for preview
+  - Improved UI/UX with better visual feedback and streamlined phase selection flow
+  - Proper success messages showing actual phase name instead of "null"
+
 ### Fixed
+- **Phase Geometry Display Issues** (2025-09-25) ✅ COMPLETE
+  - Fixed nodes not recreating with correct geometry when changing phases
+  - Resolved geometry pattern conflicts between different phase layouts
+  - Corrected edge generation to match specific geometry patterns (spiral, flower, branch, weave, glowCore, fractal)
+  - Fixed phase cache refresh to maintain synchronization between displayed phase and geometry
+
 - **LUMARA Context Provider Phase Detection** (2025-09-25) ✅ COMPLETE
   - **Critical Bug Fix**: Resolved issue where LUMARA reported "Based on 1 entries" instead of showing all 3 journal entries with correct phases
   - **Root Cause Analysis**: Journal entries had phases detected by Timeline content analysis but NOT stored in entry.metadata['phase']

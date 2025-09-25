@@ -36,7 +36,9 @@ This MVP focuses on **journaling → AI analysis → Arcform visualization → m
 5. **Arcform Renderer**  
    - Uses keywords to render constellation/radial layout.  
    - Geometry mapped to ATLAS phase hint (spiral, flower, branch, weave, glow core, fractal).  
-   - Emotional colors: warm = growth, cool = recovery.  
+   - Emotional colors: warm = growth, cool = recovery.
+   - **Enhanced**: Interactive phase selector with live geometry previews
+   - **Fixed**: Proper geometry recreation when changing phases, correct edge generation patterns  
 
 6. **Timeline View**  
    - Chronological scroll of entries + Arcform snapshots.  
