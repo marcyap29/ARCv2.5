@@ -19,6 +19,13 @@ class Simple3DArcform extends StatefulWidget {
   final VoidCallback? onExport;
   final VoidCallback? onAutoRotate;
   final VoidCallback? onResetView;
+  
+  // New parameters for phase selection
+  final bool showGeometrySelector;
+  final String? previewPhase;
+  final Function(String)? onPhasePreview;
+  final VoidCallback? onSavePhase;
+  final VoidCallback? onCancelPreview;
 
   const Simple3DArcform({
     super.key,
@@ -31,6 +38,11 @@ class Simple3DArcform extends StatefulWidget {
     this.onExport,
     this.onAutoRotate,
     this.onResetView,
+    this.showGeometrySelector = false,
+    this.previewPhase,
+    this.onPhasePreview,
+    this.onSavePhase,
+    this.onCancelPreview,
   });
 
   @override
@@ -318,159 +330,147 @@ class _Simple3DArcformState extends State<Simple3DArcform>
             ),
           ),
           
-          // Geometry selector overlay
-          Positioned(
-            top: 05,
-            left: 16,
-            right: 16,
-            child: Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: kcSurfaceColor.withOpacity(0.9),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: kcPrimaryColor.withOpacity(0.3),
-                  width: 1,
-                ),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      const Icon(
-                        Icons.view_in_ar,
-                        color: kcPrimaryColor,
-                        size: 18,
-                      ),
-                      const SizedBox(width: 6),
-                      Text(
-                        '3D Arcform Geometry',
-                        style: heading3Style(context).copyWith(
-                          color: Colors.white,
-                          fontSize: 14,
-                        ),
-                      ),
-                    ],
+          // Conditional Geometry selector overlay - only show when showGeometrySelector is true
+          if (widget.showGeometrySelector)
+            Positioned(
+              top: 05,
+              left: 16,
+              right: 16,
+              child: Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: kcSurfaceColor.withOpacity(0.95),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: kcPrimaryColor.withOpacity(0.5),
+                    width: 2,
                   ),
-                  const SizedBox(height: 8),
-                  SizedBox(
-                    height: 36,
-                    child: ListView(
-                      scrollDirection: Axis.horizontal,
-                      children: ArcformGeometry.values.map((geometry) {
-                        final isSelected = geometry == widget.selectedGeometry;
-                        return Padding(
-                          padding: const EdgeInsets.only(right: 6),
-                          child: ChoiceChip(
-                            label: Text(
-                              geometry.name,
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons.view_in_ar,
+                          color: kcPrimaryColor,
+                          size: 20,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          '3D Arcform Geometry',
+                          style: heading3Style(context).copyWith(
+                            color: Colors.white,
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const Spacer(),
+                        // Close button
+                        GestureDetector(
+                          onTap: widget.onCancelPreview,
+                          child: Container(
+                            padding: const EdgeInsets.all(4),
+                            decoration: BoxDecoration(
+                              color: kcSurfaceAltColor,
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: const Icon(
+                              Icons.close,
+                              color: kcSecondaryColor,
+                              size: 16,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      'Choose a phase to preview its geometry:',
+                      style: bodyStyle(context).copyWith(
+                        color: kcSecondaryTextColor,
+                        fontSize: 14,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    // Phase selection buttons
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: ['Discovery', 'Expansion', 'Transition', 'Consolidation', 'Recovery', 'Breakthrough'].map((phase) {
+                        final isPreview = phase == widget.previewPhase;
+                        return GestureDetector(
+                          onTap: () => widget.onPhasePreview?.call(phase),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            decoration: BoxDecoration(
+                              color: isPreview ? kcPrimaryColor : kcSurfaceAltColor,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: isPreview ? kcPrimaryColor : kcSecondaryColor.withOpacity(0.3),
+                                width: 1,
+                              ),
+                            ),
+                            child: Text(
+                              phase,
                               style: captionStyle(context).copyWith(
-                                color: isSelected ? Colors.white : kcSecondaryColor,
-                                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+                                color: isPreview ? Colors.white : kcSecondaryColor,
+                                fontWeight: isPreview ? FontWeight.w600 : FontWeight.w400,
                                 fontSize: 12,
                               ),
                             ),
-                            selected: isSelected,
-                            selectedColor: kcPrimaryColor,
-                            backgroundColor: kcSurfaceAltColor,
-                            onSelected: (selected) {
-                              if (selected) {
-                                widget.onGeometryChanged(geometry);
-                              }
-                            },
                           ),
                         );
                       }).toList(),
                     ),
-                  ),
-                  const SizedBox(height: 8),
-                  // Control buttons row
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      // Export/Share button
-                      Container(
-                        decoration: BoxDecoration(
-                          color: kcSurfaceAltColor,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: kcSecondaryColor.withOpacity(0.3),
-                            width: 1,
+                    // Save button - only show when a phase is selected for preview
+                    if (widget.previewPhase != null) ...[
+                      const SizedBox(height: 16),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Container(
+                              height: 40,
+                              decoration: BoxDecoration(
+                                color: kcPrimaryColor,
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Material(
+                                color: Colors.transparent,
+                                child: InkWell(
+                                  onTap: widget.onSavePhase,
+                                  borderRadius: BorderRadius.circular(12),
+                                  child: Center(
+                                    child: Row(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        const Icon(
+                                          Icons.check,
+                                          color: Colors.white,
+                                          size: 18,
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Text(
+                                          'Save this phase?',
+                                          style: buttonStyle(context).copyWith(
+                                            color: Colors.white,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
                           ),
-                        ),
-                        child: IconButton(
-                          onPressed: widget.onExport,
-                          icon: const Icon(
-                            Icons.share,
-                            color: kcSecondaryColor,
-                            size: 20,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      // Auto-rotate button
-                      Container(
-                        decoration: BoxDecoration(
-                          color: _autoRotate ? kcPrimaryColor : kcSurfaceAltColor,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: _autoRotate ? kcPrimaryColor : kcSecondaryColor.withOpacity(0.3),
-                            width: 1,
-                          ),
-                        ),
-                        child: IconButton(
-                          onPressed: () {
-                            setState(() {
-                              _autoRotate = !_autoRotate;
-                            });
-                            if (_autoRotate) {
-                              _autoRotateController.repeat();
-                            } else {
-                              _autoRotateController.stop();
-                            }
-                            widget.onAutoRotate?.call();
-                          },
-                          icon: Icon(
-                            Icons.refresh,
-                            color: _autoRotate ? Colors.white : kcSecondaryColor,
-                            size: 20,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      // Reset view button
-                      Container(
-                        decoration: BoxDecoration(
-                          color: kcSurfaceAltColor,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: kcSecondaryColor.withOpacity(0.3),
-                            width: 1,
-                          ),
-                        ),
-                        child: IconButton(
-                          onPressed: () {
-                            setState(() {
-                              _rotationX = 0.2;
-                              _rotationY = 0.0;
-                              _scale = 1.0;
-                            });
-                            widget.onResetView?.call();
-                          },
-                          icon: const Icon(
-                            Icons.center_focus_strong,
-                            color: kcSecondaryColor,
-                            size: 20,
-                          ),
-                        ),
+                        ],
                       ),
                     ],
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
-          ),
         ],
       ),
     );

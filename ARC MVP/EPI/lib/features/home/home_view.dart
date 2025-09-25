@@ -13,6 +13,7 @@ import 'package:my_app/core/rivet/rivet_provider.dart';
 import 'package:my_app/core/rivet/rivet_models.dart';
 import 'package:my_app/core/i18n/copy.dart';
 import 'package:my_app/features/insights/cards/aurora_card.dart';
+import 'package:my_app/services/user_phase_service.dart';
 import 'package:my_app/features/insights/cards/veil_card.dart';
 import 'package:my_app/features/insights/mira_graph_view.dart';
 import 'package:my_app/features/insights/info/insights_info_icon.dart';
@@ -162,6 +163,11 @@ class _HomeViewState extends State<HomeView> {
             if (state.selectedIndex == 2) {
               context.read<TimelineCubit>().refreshEntries();
             }
+            
+            // Refresh phase cache when switching to Phase tab (index 1)
+            if (state.selectedIndex == 1) {
+              _refreshPhaseCache();
+            }
           }
         },
         child: BlocBuilder<HomeCubit, HomeState>(
@@ -204,6 +210,17 @@ class _HomeViewState extends State<HomeView> {
         ),
       ),
     );
+  }
+
+  /// Refresh the phase cache when Phase tab is opened
+  Future<void> _refreshPhaseCache() async {
+    try {
+      // Import the UserPhaseService
+      final currentPhase = await UserPhaseService.getCurrentPhase();
+      print('DEBUG: Refreshed phase cache from Phase tab: $currentPhase');
+    } catch (e) {
+      print('DEBUG: Error refreshing phase cache from Phase tab: $e');
+    }
   }
 
   @override

@@ -221,14 +221,19 @@ class ArcformRendererCubit extends Cubit<ArcformRendererState> {
     required List<String> keywords,
   }) async {
     try {
-      // Determine geometry pattern based on content and keywords
-      final geometry = _determineGeometry(content, keywords);
+      // Get current phase from user profile and use its geometry
+      final currentPhase = await UserPhaseService.getCurrentPhase();
+      final geometry = _phaseToGeometryPattern(currentPhase);
+      
+      print('DEBUG: createArcformFromEntry - using phase: $currentPhase, geometry: $geometry');
       
       // Generate color map for keywords
       final colorMap = _generateColorMap(keywords);
       
-      // Generate edges between keywords
-      final edges = _generateEdges(keywords);
+      // Generate edges based on geometry pattern
+      final edgeObjects = _createEdgesForGeometry(keywords.length, geometry);
+      // Convert Edge objects to the format expected by snapshot
+      final edges = edgeObjects.map((edge) => [edge.source, edge.target, 0.8]).toList();
       
       // Create snapshot data
       final snapshotData = {
@@ -249,7 +254,7 @@ class ArcformRendererCubit extends Cubit<ArcformRendererState> {
       await _saveSnapshot(snapshotData);
       
       // Update the current state with new data
-      _updateStateWithKeywords(keywords, geometry);
+      _updateStateWithKeywords(keywords, geometry, currentPhase);
       
     } catch (e) {
       emit(ArcformRendererError('Failed to create Arcform: $e'));
@@ -324,12 +329,10 @@ class ArcformRendererCubit extends Cubit<ArcformRendererState> {
       canvasSize: canvasSize,
     );
     
-    // Debug: Print spiral positions
-    if (geometry == ArcformGeometry.spiral) {
-      print('DEBUG: Spiral positions for ${keywords.length} nodes:');
-      for (int i = 0; i < positions.length; i++) {
-        print('  Node ${i + 1} (${keywords[i]}): (${positions[i].dx.toStringAsFixed(2)}, ${positions[i].dy.toStringAsFixed(2)})');
-      }
+    // Debug: Print all geometry positions
+    print('DEBUG: Creating nodes with geometry: $geometry for ${keywords.length} nodes');
+    for (int i = 0; i < positions.length; i++) {
+      print('  Node ${i + 1} (${keywords[i]}): (${positions[i].dx.toStringAsFixed(2)}, ${positions[i].dy.toStringAsFixed(2)})');
     }
     
     // Create nodes at calculated positions
@@ -583,7 +586,22 @@ class ArcformRendererCubit extends Cubit<ArcformRendererState> {
     if (state is ArcformRendererLoaded) {
       final currentState = state as ArcformRendererLoaded;
       final newPhase = _geometryToPhase(geometry);
+      
+      // Recreate nodes with the new geometry
+      final newNodes = _createNodesWithGeometry(
+        currentState.nodes.map((n) => n.label).toList(),
+        _mapGeometryPattern(geometry),
+      );
+      
+      // Recreate edges for the new geometry
+      final newEdges = _createEdgesForGeometry(
+        currentState.nodes.length,
+        geometry,
+      );
+      
       emit(currentState.copyWith(
+        nodes: newNodes,
+        edges: newEdges,
         selectedGeometry: geometry,
         currentPhase: newPhase,
       ));
@@ -594,8 +612,23 @@ class ArcformRendererCubit extends Cubit<ArcformRendererState> {
   void explorePhaseGeometry(GeometryPattern geometry) {
     if (state is ArcformRendererLoaded) {
       final currentState = state as ArcformRendererLoaded;
+      
+      // Recreate nodes with the new geometry
+      final newNodes = _createNodesWithGeometry(
+        currentState.nodes.map((n) => n.label).toList(),
+        _mapGeometryPattern(geometry),
+      );
+      
+      // Recreate edges for the new geometry
+      final newEdges = _createEdgesForGeometry(
+        currentState.nodes.length,
+        geometry,
+      );
+      
       // Keep the original current phase, only change the geometry for exploration
       emit(currentState.copyWith(
+        nodes: newNodes,
+        edges: newEdges,
         selectedGeometry: geometry,
         // Don't change currentPhase - keep the user's actual phase
       ));
@@ -606,7 +639,22 @@ class ArcformRendererCubit extends Cubit<ArcformRendererState> {
   void changePhaseAndGeometry(String newPhase, GeometryPattern geometry) {
     if (state is ArcformRendererLoaded) {
       final currentState = state as ArcformRendererLoaded;
+      
+      // Recreate nodes with the new geometry
+      final newNodes = _createNodesWithGeometry(
+        currentState.nodes.map((n) => n.label).toList(),
+        _mapGeometryPattern(geometry),
+      );
+      
+      // Recreate edges for the new geometry
+      final newEdges = _createEdgesForGeometry(
+        currentState.nodes.length,
+        geometry,
+      );
+      
       emit(currentState.copyWith(
+        nodes: newNodes,
+        edges: newEdges,
         selectedGeometry: geometry,
         currentPhase: newPhase,
       ));

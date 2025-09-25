@@ -34,6 +34,11 @@ class ArcformRendererViewContent extends StatefulWidget {
 class _ArcformRendererViewContentState extends State<ArcformRendererViewContent> {
   final bool _is3DMode = true; // Default to 3D mode to show off the new feature
   final GlobalKey _arcformRepaintBoundaryKey = GlobalKey();
+  
+  // New state for phase selection UI
+  bool _showGeometrySelector = false;
+  String? _previewPhase;
+  GeometryPattern? _previewGeometry;
 
   @override
   void initState() {
@@ -75,25 +80,6 @@ class _ArcformRendererViewContentState extends State<ArcformRendererViewContent>
         return ArcformGeometry.fractal;
     }
   }
-
-  GeometryPattern _convertFromArcformGeometry(ArcformGeometry geometry) {
-    switch (geometry) {
-      case ArcformGeometry.spiral:
-        return GeometryPattern.spiral;
-      case ArcformGeometry.flower:
-        return GeometryPattern.flower;
-      case ArcformGeometry.branch:
-        return GeometryPattern.branch;
-      case ArcformGeometry.weave:
-        return GeometryPattern.weave;
-      case ArcformGeometry.glowCore:
-        return GeometryPattern.glowCore;
-      case ArcformGeometry.fractal:
-        return GeometryPattern.fractal;
-    }
-  }
-
-
 
   Widget _buildPhaseIndicatorWithChangeButton(BuildContext context, String currentPhase, GeometryPattern geometry) {
     print('DEBUG: _buildPhaseIndicatorWithChangeButton - currentPhase: $currentPhase, geometry: $geometry');
@@ -142,7 +128,7 @@ class _ArcformRendererViewContentState extends State<ArcformRendererViewContent>
               const Spacer(),
               // Phase change button
               GestureDetector(
-                onTap: () => _showPhaseChangeDialog(context, currentPhase),
+                onTap: () => _showGeometrySelectorDialog(),
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
@@ -308,171 +294,59 @@ class _ArcformRendererViewContentState extends State<ArcformRendererViewContent>
     );
   }
 
-  void _showPhaseChangeDialog(BuildContext context, String currentPhase) {
-    final phases = ['Discovery', 'Expansion', 'Transition', 'Consolidation', 'Recovery', 'Breakthrough'];
+  void _showGeometrySelectorDialog() {
+    setState(() {
+      _showGeometrySelector = true;
+      _previewPhase = null;
+      _previewGeometry = null;
+    });
+  }
+
+  void _hideGeometrySelectorDialog() {
+    setState(() {
+      _showGeometrySelector = false;
+      _previewPhase = null;
+      _previewGeometry = null;
+    });
+  }
+
+  void _handlePhasePreview(String phase) {
+    setState(() {
+      _previewPhase = phase;
+      _previewGeometry = _phaseToGeometryPattern(phase);
+    });
     
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          backgroundColor: kcSurfaceColor,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-          title: Text(
-            'Change Phase',
-            style: heading1Style(context).copyWith(
-              color: Colors.white,
-              fontSize: 20,
-            ),
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                'Current phase: $currentPhase',
-                style: bodyStyle(context).copyWith(
-                  color: kcSecondaryTextColor,
-                  fontSize: 14,
-                ),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                'Select a new phase:',
-                style: bodyStyle(context).copyWith(
-                  color: Colors.white,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-              const SizedBox(height: 12),
-              ...phases.map((phase) => ListTile(
-                title: Text(
-                  phase,
-                  style: bodyStyle(context).copyWith(
-                    color: phase == currentPhase ? kcPrimaryColor : Colors.white,
-                    fontWeight: phase == currentPhase ? FontWeight.bold : FontWeight.normal,
-                  ),
-                ),
-                leading: Icon(
-                  _getPhaseIcon(_phaseToGeometryPattern(phase)),
-                  color: phase == currentPhase ? kcPrimaryColor : kcSecondaryTextColor,
-                ),
-                onTap: () {
-                  Navigator.of(context).pop();
-                  _confirmPhaseChange(context, currentPhase, phase);
-                },
-              )),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: Text(
-                'Cancel',
-                style: buttonStyle(context).copyWith(
-                  color: kcSecondaryTextColor,
-                ),
-              ),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  void _confirmPhaseChange(BuildContext context, String currentPhase, String newPhase) {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          backgroundColor: kcSurfaceColor,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-          title: Text(
-            'Confirm Phase Change',
-            style: heading1Style(context).copyWith(
-              color: Colors.white,
-              fontSize: 18,
-            ),
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                'Are you sure you want to change your phase from $currentPhase to $newPhase?',
-                style: bodyStyle(context).copyWith(
-                  color: kcSecondaryTextColor,
-                  fontSize: 14,
-                ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 12),
-              Text(
-                'This will update your current phase and may affect your Arcform visualization.',
-                style: captionStyle(context).copyWith(
-                  color: kcSecondaryTextColor.withOpacity(0.8),
-                  fontSize: 12,
-                ),
-                textAlign: TextAlign.center,
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: Text(
-                'Cancel',
-                style: buttonStyle(context).copyWith(
-                  color: kcSecondaryTextColor,
-                ),
-              ),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-                _changePhase(newPhase);
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: kcPrimaryColor,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-              ),
-              child: Text(
-                'Change Phase',
-                style: buttonStyle(context).copyWith(
-                  color: Colors.white,
-                ),
-              ),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  void _changePhase(String newPhase) async {
-    // Update the phase in the cubit
+    // Update the cubit to show preview
     final cubit = context.read<ArcformRendererCubit>();
-    final newGeometry = _phaseToGeometryPattern(newPhase);
-    
-    // Refresh the phase cache by updating the user profile
-    await _updateUserPhase(newPhase);
-    
-    // Update the cubit with the new phase and geometry
-    cubit.changePhaseAndGeometry(newPhase, newGeometry);
-    
-    // Show success message
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Phase changed to $newPhase'),
-        backgroundColor: kcPrimaryColor,
-        duration: const Duration(seconds: 2),
-      ),
-    );
+    cubit.explorePhaseGeometry(_previewGeometry!);
   }
+
+  void _savePhase() async {
+    if (_previewPhase != null && _previewGeometry != null) {
+      // Store the phase name before clearing the preview state
+      final savedPhase = _previewPhase!;
+      
+      // Update the user profile
+      await _updateUserPhase(savedPhase);
+      
+      // Update the cubit with the new phase
+      final cubit = context.read<ArcformRendererCubit>();
+      cubit.changePhaseAndGeometry(savedPhase, _previewGeometry!);
+      
+      // Hide the dialog
+      _hideGeometrySelectorDialog();
+      
+      // Show success message
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Phase changed to $savedPhase'),
+          backgroundColor: kcPrimaryColor,
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    }
+  }
+
 
   /// Update the user's phase in the user profile to refresh the phase cache
   Future<void> _updateUserPhase(String newPhase) async {
@@ -582,10 +456,15 @@ class _ArcformRendererViewContentState extends State<ArcformRendererViewContent>
                                   },
                                   selectedGeometry: _convertToArcformGeometry(state.selectedGeometry),
                                   onGeometryChanged: (geometry) {
-                                    context.read<ArcformRendererCubit>().changeGeometry(
-                                      _convertFromArcformGeometry(geometry)
-                                    );
+                                    // Only refresh the cache when exploring different phases
+                                    _refreshPhaseFromCache();
                                   },
+                                  // New parameters for phase selection
+                                  showGeometrySelector: _showGeometrySelector,
+                                  previewPhase: _previewPhase,
+                                  onPhasePreview: (phase) => _handlePhasePreview(phase),
+                                  onSavePhase: _savePhase,
+                                  onCancelPreview: _hideGeometrySelectorDialog,
                                   // on3DToggle removed - not supported by Simple3DArcform
                                   onExport: () => _exportArcform(context, state),
                                   onAutoRotate: () {
