@@ -41,7 +41,7 @@ const bool kShowRivetDebugLabels = false;
 class HomeView extends StatefulWidget {
   final int initialTab;
   
-  const HomeView({super.key, this.initialTab = 1}); // Default to Phase tab (index 1)
+  const HomeView({super.key, this.initialTab = 0}); // Default to Phase tab (index 0)
 
   @override
   State<HomeView> createState() => _HomeViewState();
@@ -53,9 +53,9 @@ class _HomeViewState extends State<HomeView> {
   
   List<TabItem> get _tabs {
     const baseTabs = [
-      TabItem(icon: Icons.add_circle, text: '+'),
       TabItem(icon: Icons.auto_graph, text: 'Phase'),
       TabItem(icon: Icons.timeline, text: 'Timeline'),
+      TabItem(icon: Icons.add_circle, text: '+'),
       TabItem(icon: Icons.insights, text: 'Insights'),
       TabItem(icon: Icons.settings, text: 'Settings'),
     ];
@@ -70,7 +70,7 @@ class _HomeViewState extends State<HomeView> {
   }
 
   List<String> get _tabNames {
-    const baseNames = ['+', 'Phase', 'Timeline', 'Insights', 'Settings'];
+    const baseNames = ['Phase', 'Timeline', '+', 'Insights', 'Settings'];
     if (AppFlags.isLumaraEnabled) {
       return [...baseNames, 'LUMARA'];
     }
@@ -84,11 +84,11 @@ class _HomeViewState extends State<HomeView> {
     super.initState();
     _homeCubit = HomeCubit();
     _homeCubit.initialize();
-    if (widget.initialTab != 1) {
-      _homeCubit.changeTab(widget.initialTab);
-    } else {
-      _homeCubit.changeTab(1); // Set Phase tab as default
-    }
+      if (widget.initialTab != 0) {
+        _homeCubit.changeTab(widget.initialTab);
+      } else {
+        _homeCubit.changeTab(0); // Set Phase tab as default
+      }
 
     // Initialize LUMARA cubit if enabled
     if (AppFlags.isLumaraEnabled) {
@@ -100,9 +100,9 @@ class _HomeViewState extends State<HomeView> {
     }
 
     _pages = [
-      const StartEntryFlow(),
       const ArcformRendererView(),
       const TimelineView(),
+      const StartEntryFlow(),
       const _InsightsPage(),
       const SettingsView(),
       if (AppFlags.isLumaraEnabled)
