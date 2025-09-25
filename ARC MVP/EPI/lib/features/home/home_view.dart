@@ -15,7 +15,7 @@ import 'package:my_app/core/i18n/copy.dart';
 import 'package:my_app/features/insights/cards/aurora_card.dart';
 import 'package:my_app/services/user_phase_service.dart';
 import 'package:my_app/features/insights/cards/veil_card.dart';
-import 'package:my_app/features/insights/mira_graph_view.dart';
+import 'package:my_app/features/insights/your_patterns_view.dart';
 import 'package:my_app/features/insights/info/insights_info_icon.dart';
 import 'package:my_app/features/insights/info/info_icon.dart';
 import 'package:my_app/features/insights/info/why_held_sheet.dart';
@@ -458,7 +458,7 @@ class _InsightsPageState extends State<_InsightsPage> {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (context) => const MiraGraphView(),
+                      builder: (context) => const YourPatternsView(),
                     ),
                   );
                 },
@@ -474,7 +474,7 @@ class _InsightsPageState extends State<_InsightsPage> {
           ),
           const SizedBox(height: 12),
           Text(
-            'Follow a word to its moments.',
+            'Interactive visualization with multiple views and semantic insights.',
             style: bodyStyle(context).copyWith(
               color: kcPrimaryTextColor.withOpacity(0.7),
             ),

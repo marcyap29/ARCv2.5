@@ -121,7 +121,7 @@ class _YourPatternsViewState extends State<YourPatternsView> {
           onTapNode: _showDetails,
         );
       case PatternsView.timeline:
-        return TimelineView(
+        return PatternsTimelineView(
           key: const ValueKey('timeline'),
           nodes: filteredNodes,
           onTap: _showDetails,
@@ -935,9 +935,9 @@ class _GlowDot extends StatelessWidget {
   }
 }
 
-/// TIMELINE (simple list with mini trend; swap with charts later)
-class TimelineView extends StatelessWidget {
-  const TimelineView({super.key, required this.nodes, required this.onTap});
+/// PATTERNS TIMELINE (simple list with mini trend; swap with charts later)
+class PatternsTimelineView extends StatelessWidget {
+  const PatternsTimelineView({super.key, required this.nodes, required this.onTap});
   final List<KeywordNode> nodes;
   final ValueChanged<KeywordNode> onTap;
 
