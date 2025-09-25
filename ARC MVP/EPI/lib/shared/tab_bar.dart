@@ -133,7 +133,7 @@ class _CustomTabBarState extends State<CustomTabBar> {
           ),
           // Elevated + button
           Positioned(
-            top: -5, // Move up to prevent blocking Insights tab
+            top: 0, // Lower the + button slightly
             left: 0,
             right: 0,
             child: Center(
