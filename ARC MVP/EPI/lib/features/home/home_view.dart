@@ -33,6 +33,7 @@ import 'package:my_app/lumara/data/context_provider.dart';
 import 'package:my_app/lumara/data/context_scope.dart';
 import 'package:my_app/core/app_flags.dart';
 import 'package:flutter/foundation.dart';
+import 'dart:math' as math;
 
 // Debug flag for showing RIVET engineering labels
 const bool kShowRivetDebugLabels = false;
@@ -40,7 +41,7 @@ const bool kShowRivetDebugLabels = false;
 class HomeView extends StatefulWidget {
   final int initialTab;
   
-  const HomeView({super.key, this.initialTab = 0});
+  const HomeView({super.key, this.initialTab = 1}); // Default to Phase tab (index 1)
 
   @override
   State<HomeView> createState() => _HomeViewState();
@@ -52,7 +53,7 @@ class _HomeViewState extends State<HomeView> {
   
   List<TabItem> get _tabs {
     const baseTabs = [
-      TabItem(icon: Icons.edit_note, text: 'Journal'),
+      TabItem(icon: Icons.add_circle, text: '+'),
       TabItem(icon: Icons.auto_graph, text: 'Phase'),
       TabItem(icon: Icons.timeline, text: 'Timeline'),
       TabItem(icon: Icons.insights, text: 'Insights'),
@@ -69,7 +70,7 @@ class _HomeViewState extends State<HomeView> {
   }
 
   List<String> get _tabNames {
-    const baseNames = ['Journal', 'Phase', 'Timeline', 'Insights', 'Settings'];
+    const baseNames = ['+', 'Phase', 'Timeline', 'Insights', 'Settings'];
     if (AppFlags.isLumaraEnabled) {
       return [...baseNames, 'LUMARA'];
     }
@@ -83,8 +84,10 @@ class _HomeViewState extends State<HomeView> {
     super.initState();
     _homeCubit = HomeCubit();
     _homeCubit.initialize();
-    if (widget.initialTab != 0) {
+    if (widget.initialTab != 1) {
       _homeCubit.changeTab(widget.initialTab);
+    } else {
+      _homeCubit.changeTab(1); // Set Phase tab as default
     }
 
     // Initialize LUMARA cubit if enabled
@@ -397,9 +400,9 @@ class _InsightsPageState extends State<_InsightsPage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const _RivetCard(),
-                    const SizedBox(height: 20),
                     _buildMiraGraphCard(context),
+                    const SizedBox(height: 20),
+                    const _RivetCard(),
                     const SizedBox(height: 20),
                     const AuroraCard(),
                     const SizedBox(height: 20),
@@ -432,11 +435,7 @@ class _InsightsPageState extends State<_InsightsPage> {
         children: [
           Row(
             children: [
-              const Icon(
-                Icons.account_tree,
-                color: kcPrimaryTextColor,
-                size: 24,
-              ),
+              _buildMiniRadialIcon(),
               const SizedBox(width: 12),
               Expanded(
                 child: Row(
@@ -480,6 +479,20 @@ class _InsightsPageState extends State<_InsightsPage> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildMiniRadialIcon() {
+    return Container(
+      width: 24,
+      height: 24,
+      decoration: BoxDecoration(
+        color: Colors.transparent,
+        shape: BoxShape.circle,
+      ),
+      child: CustomPaint(
+        painter: MiniRadialPainter(),
       ),
     );
   }
@@ -887,4 +900,43 @@ class _SimpleDial extends StatelessWidget {
       ],
     );
   }
+}
+
+class MiniRadialPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = Offset(size.width / 2, size.height / 2);
+    final radius = size.width / 2;
+
+    final paint = Paint()
+      ..color = kcPrimaryTextColor
+      ..strokeWidth = 1.5
+      ..style = PaintingStyle.stroke;
+
+    // Draw center circle
+    canvas.drawCircle(center, 2, Paint()..color = kcPrimaryTextColor..style = PaintingStyle.fill);
+
+    // Draw radial lines (simplified version of radial visualization)
+    final angles = [0, 60, 120, 180, 240, 300]; // 6 spokes
+
+    for (final angle in angles) {
+      final radians = angle * 3.14159 / 180;
+      final startPoint = Offset(
+        center.dx + 3 * math.cos(radians),
+        center.dy + 3 * math.sin(radians),
+      );
+      final endPoint = Offset(
+        center.dx + radius * math.cos(radians),
+        center.dy + radius * math.sin(radians),
+      );
+
+      canvas.drawLine(startPoint, endPoint, paint);
+
+      // Draw small circles at the end of each spoke
+      canvas.drawCircle(endPoint, 1.5, Paint()..color = kcPrimaryTextColor.withOpacity(0.7)..style = PaintingStyle.fill);
+    }
+  }
+
+  @override
+  bool shouldRepaint(CustomPainter oldDelegate) => false;
 }

@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:my_app/features/home/home_view.dart';
-import 'package:my_app/features/startup/welcome_view.dart';
 import 'package:my_app/features/startup/phase_quiz_prompt_view.dart';
 import 'package:hive/hive.dart';
 import 'package:my_app/models/user_profile_model.dart';
-import 'package:my_app/repositories/journal_repository.dart';
 import 'package:my_app/shared/app_colors.dart';
 
 class StartupView extends StatefulWidget {
@@ -42,44 +40,28 @@ class _StartupViewState extends State<StartupView> {
       
       print('DEBUG: User profile found: ${userProfile != null}');
       print('DEBUG: Onboarding completed: ${userProfile?.onboardingCompleted}');
+      print('DEBUG: Current season: ${userProfile?.onboardingCurrentSeason}');
 
-      if (userProfile != null && userProfile.onboardingCompleted) {
-        print('DEBUG: User has completed onboarding, checking journal entries');
-        // User has completed onboarding, but check if they have journal entries
-        await _checkJournalEntriesAndNavigate();
-      } else {
-        print('DEBUG: User has not completed onboarding, navigating to welcome');
-        _navigateToWelcome();
-      }
-    } catch (e) {
-      print('DEBUG: Error in _checkOnboardingStatus: $e');
-      // If there's an error accessing the profile, go to welcome
-      _navigateToWelcome();
-    }
-  }
+      // Check if user has a phase (onboardingCurrentSeason)
+      final hasPhase = userProfile?.onboardingCurrentSeason != null && 
+                      userProfile!.onboardingCurrentSeason!.isNotEmpty;
 
-  Future<void> _checkJournalEntriesAndNavigate() async {
-    try {
-      final journalRepository = JournalRepository();
-      final entryCount = await journalRepository.getEntryCount();
-      
-      print('DEBUG: Journal entry count: $entryCount');
-      
-      if (entryCount > 0) {
-        print('DEBUG: $entryCount entries found, navigating to welcome screen (Continue Your Journey)');
-        // User has entries, navigate to welcome screen with "Continue Your Journey"
-        _navigateToWelcome();
+      if (hasPhase) {
+        print('DEBUG: User has a phase (${userProfile.onboardingCurrentSeason}), navigating to main menu');
+        // User has a phase, go directly to main menu (Phase tab as starting screen)
+        _navigateToHome();
       } else {
-        print('DEBUG: No entries found, navigating to phase quiz (post-onboarding user)');
-        // No journal entries exist, navigate to phase quiz for post-onboarding users
+        print('DEBUG: User does not have a phase, navigating to phase quiz');
+        // User doesn't have a phase, take them straight to phase quiz
         _navigateToPhaseQuiz();
       }
     } catch (e) {
-      print('DEBUG: Error checking journal entries: $e');
-      // If there's an error checking entries, go to home as fallback
-      _navigateToHome();
+      print('DEBUG: Error in _checkOnboardingStatus: $e');
+      // If there's an error accessing the profile, go to phase quiz
+      _navigateToPhaseQuiz();
     }
   }
+
 
   void _navigateToHome() {
     if (mounted) {
@@ -90,14 +72,6 @@ class _StartupViewState extends State<StartupView> {
     }
   }
 
-  void _navigateToWelcome() {
-    if (mounted) {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => const WelcomeView()),
-      );
-    }
-  }
 
   void _navigateToPhaseQuiz() {
     if (mounted) {
