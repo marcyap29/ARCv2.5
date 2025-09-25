@@ -17,6 +17,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 ### Latest Update - 2025-09-25
 
 ### Added
+- **Your Patterns Visualization System** (2025-09-25) ✅ COMPLETE
+  - Comprehensive visualization system with 4 distinct views: Word Cloud, Network Graph, Timeline, and Radial
+  - Force-directed network graph using graphview with FruchtermanReingoldAlgorithm for physics-based layout
+  - Curved edges overlay with custom Bezier curve rendering, arrowheads, and weight indicators
+  - Phase icons and selection highlighting with neighbor opacity filtering and animated containers
+  - MIRA co-occurrence matrix adapter for semantic memory integration with real-time data processing
+  - Interactive filtering system by emotion, phase, and time range with dynamic data updates
+  - Detailed keyword analysis with sparkline trends, frequency scoring, and related excerpts
+  - ATLAS phase system integration with semantic zoom and neighborhood depth exploration
+  - Emotion-based color coding (positive, reflective, neutral) with dynamic node sizing
+  - MockData generator for testing with comprehensive keyword relationships and time series
+  - InteractiveViewer support for zoom/pan navigation with boundary constraints
+  - Files Created: lib/features/insights/your_patterns_view.dart
+  - Dependencies Added: graphview ^1.2.0 for force-directed graph layouts
+
 - **Phase Selector Redesign with 3D Geometry Preview** (2025-09-25) ✅ COMPLETE
   - Interactive 3D Arcform Geometry selector that appears only when "Change" button is clicked
   - Live phase preview functionality - click phase names to see geometry previews instantly

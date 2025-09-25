@@ -411,10 +411,11 @@ Respond to user questions using provided context with helpful, accurate, and evi
 
 ---
 
-*Last updated: September 24, 2025*
+*Last updated: September 25, 2025*
 *Total prompts: 12 (5 ARC prompts + 6 LUMARA prompts + 1 fallback rules)*
 *MIRA-MCP Enhancement: Context-aware AI with semantic memory integration*
 *LUMARA Integration: Universal system prompt with Bundle Doctor validation*
 *Insights System: Fixed keyword extraction and rule evaluation for proper insight card generation*
 *Bundle Doctor: MCP validation and auto-repair with comprehensive test suite*
-*Prompt Tracking: Version 1.2.3 with complete LUMARA prompt system and MCP Bundle Doctor*
+*Your Patterns Visualization: Force-directed network graphs with curved edges and MIRA semantic integration*
+*Prompt Tracking: Version 1.2.4 with comprehensive Your Patterns visualization system*

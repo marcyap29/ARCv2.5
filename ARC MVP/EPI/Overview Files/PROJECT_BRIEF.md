@@ -44,10 +44,18 @@ This MVP focuses on **journaling → AI analysis → Arcform visualization → m
    - Chronological scroll of entries + Arcform snapshots.  
    - Cards show excerpt + Arcform thumbnail.  
 
-7. **Insights (Polymeta v1)**  
-   - Graph view of keywords (nodes) and co-occurrences (edges).  
+7. **Insights & Your Patterns Visualization**
+   - Graph view of keywords (nodes) and co-occurrences (edges).
    - Tap node to see linked entries.
    - **Fixed**: Insight cards now generate properly with real data instead of placeholders
+   - **Enhanced**: Comprehensive Your Patterns visualization system with 4 views:
+     - Word Cloud: Frequency-based keyword layout with emotion coloring
+     - Network Graph: Force-directed physics layout with curved Bezier edges
+     - Timeline: Chronological keyword trends with sparkline visualization
+     - Radial: Central theme with spoke connections to related concepts
+   - **Interactive Features**: Phase filtering, emotion filtering, time range selection
+   - **MIRA Integration**: Co-occurrence matrix adapter for semantic memory data
+   - **Visual Enhancements**: Phase icons, selection highlighting, neighbor filtering
    - **Enhanced**: Your Patterns submenu displays imported keywords in circular pattern  
 
 ---
