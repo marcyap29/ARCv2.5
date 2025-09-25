@@ -267,7 +267,7 @@ class _HomeViewState extends State<HomeView> {
 }
 
 class _InsightsPage extends StatefulWidget {
-  const _InsightsPage();
+  const _InsightsPage({super.key});
 
   @override
   State<_InsightsPage> createState() => _InsightsPageState();
