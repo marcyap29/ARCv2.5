@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:hive/hive.dart';
 import 'package:my_app/features/arcforms/arcform_renderer_cubit.dart';
 import 'package:my_app/features/arcforms/arcform_renderer_state.dart';
 // import 'package:my_app/features/arcforms/widgets/arcform_layout.dart';
@@ -33,6 +34,30 @@ class ArcformRendererViewContent extends StatefulWidget {
 class _ArcformRendererViewContentState extends State<ArcformRendererViewContent> {
   final bool _is3DMode = true; // Default to 3D mode to show off the new feature
   final GlobalKey _arcformRepaintBoundaryKey = GlobalKey();
+
+  @override
+  void initState() {
+    super.initState();
+    // Refresh the phase cache when the Phase tab is opened
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _refreshPhaseFromCache();
+    });
+  }
+
+  /// Refresh the phase from the user profile cache
+  Future<void> _refreshPhaseFromCache() async {
+    try {
+      final currentPhase = await UserPhaseService.getCurrentPhase();
+      final cubit = context.read<ArcformRendererCubit>();
+      final correctGeometry = _phaseToGeometryPattern(currentPhase);
+      
+      // Update the cubit with the current phase from cache
+      cubit.changePhaseAndGeometry(currentPhase, correctGeometry);
+      print('DEBUG: Refreshed phase from cache: $currentPhase with geometry $correctGeometry');
+    } catch (e) {
+      print('DEBUG: Error refreshing phase from cache: $e');
+    }
+  }
 
   ArcformGeometry _convertToArcformGeometry(GeometryPattern geometry) {
     switch (geometry) {
@@ -428,11 +453,16 @@ class _ArcformRendererViewContentState extends State<ArcformRendererViewContent>
     );
   }
 
-  void _changePhase(String newPhase) {
+  void _changePhase(String newPhase) async {
     // Update the phase in the cubit
     final cubit = context.read<ArcformRendererCubit>();
     final newGeometry = _phaseToGeometryPattern(newPhase);
-    cubit.changeGeometry(newGeometry);
+    
+    // Refresh the phase cache by updating the user profile
+    await _updateUserPhase(newPhase);
+    
+    // Update the cubit with the new phase and geometry
+    cubit.changePhaseAndGeometry(newPhase, newGeometry);
     
     // Show success message
     ScaffoldMessenger.of(context).showSnackBar(
@@ -442,6 +472,26 @@ class _ArcformRendererViewContentState extends State<ArcformRendererViewContent>
         duration: const Duration(seconds: 2),
       ),
     );
+  }
+
+  /// Update the user's phase in the user profile to refresh the phase cache
+  Future<void> _updateUserPhase(String newPhase) async {
+    try {
+      // Import Hive and UserProfile
+      final userBox = Hive.box('user_profile');
+      final userProfile = userBox.get('profile');
+      
+      if (userProfile != null) {
+        // Update the onboarding current season with the new phase
+        final updatedProfile = userProfile.copyWith(
+          onboardingCurrentSeason: newPhase,
+        );
+        await userBox.put('profile', updatedProfile);
+        print('DEBUG: Updated user profile phase to: $newPhase');
+      }
+    } catch (e) {
+      print('DEBUG: Error updating user phase: $e');
+    }
   }
 
   GeometryPattern _phaseToGeometryPattern(String phase) {

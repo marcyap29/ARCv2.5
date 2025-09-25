@@ -590,6 +590,30 @@ class ArcformRendererCubit extends Cubit<ArcformRendererState> {
     }
   }
 
+  /// Explore a different phase geometry without changing the actual current phase
+  void explorePhaseGeometry(GeometryPattern geometry) {
+    if (state is ArcformRendererLoaded) {
+      final currentState = state as ArcformRendererLoaded;
+      // Keep the original current phase, only change the geometry for exploration
+      emit(currentState.copyWith(
+        selectedGeometry: geometry,
+        // Don't change currentPhase - keep the user's actual phase
+      ));
+    }
+  }
+
+  /// Change both phase and geometry (for explicit phase changes from UI)
+  void changePhaseAndGeometry(String newPhase, GeometryPattern geometry) {
+    if (state is ArcformRendererLoaded) {
+      final currentState = state as ArcformRendererLoaded;
+      emit(currentState.copyWith(
+        selectedGeometry: geometry,
+        currentPhase: newPhase,
+      ));
+      print('DEBUG: Changed phase to $newPhase with geometry $geometry');
+    }
+  }
+
   String _geometryToPhase(GeometryPattern geometry) {
     switch (geometry) {
       case GeometryPattern.spiral:
