@@ -1,9 +1,9 @@
 import 'dart:io';
 import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:my_app/mcp/adapters/to_mcp.dart';
-import 'package:my_app/mcp/import/mcp_import_service.dart';
-import 'package:my_app/mcp/export/chat_exporter.dart';
+import 'package:my_app/prism/mcp/adapters/to_mcp.dart';
+import 'package:my_app/prism/mcp/import/mcp_import_service.dart';
+import 'package:my_app/prism/mcp/export/chat_exporter.dart';
 import 'package:my_app/mira/core/schema.dart';
 import 'package:my_app/mira/nodes/chat_session_node.dart';
 import 'package:my_app/mira/nodes/chat_message_node.dart';

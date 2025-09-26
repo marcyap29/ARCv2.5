@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:my_app/media/settings/storage_profiles.dart';
+import 'package:my_app/prism/processors/settings/storage_profiles.dart';
 
 void main() {
   group('StorageProfile', () {

@@ -9,9 +9,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:my_app/models/user_profile_model.dart';
-import 'package:my_app/models/journal_entry_model.dart';
+import 'package:my_app/arc/models/journal_entry_model.dart';
 import 'package:my_app/models/arcform_snapshot_model.dart';
-import 'package:my_app/features/journal/sage_annotation_model.dart';
+import 'package:my_app/arc/core/sage_annotation_model.dart';
 
 import 'package:my_app/app/app.dart';
 

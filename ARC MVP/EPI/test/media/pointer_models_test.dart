@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:my_app/media/pointer/pointer_models.dart';
+import 'package:my_app/prism/processors/pointer/pointer_models.dart';
 
 void main() {
   group('Pointer Models JSON Serialization', () {

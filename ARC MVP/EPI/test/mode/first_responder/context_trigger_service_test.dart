@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hive_flutter/hive_flutter.dart';
-import 'package:my_app/models/journal_entry_model.dart';
+import 'package:my_app/arc/models/journal_entry_model.dart';
 import 'package:my_app/mode/first_responder/context_trigger_service.dart';
 import 'package:my_app/mode/first_responder/fr_settings.dart';
 

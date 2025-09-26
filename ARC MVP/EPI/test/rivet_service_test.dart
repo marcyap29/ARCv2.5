@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:my_app/core/rivet/rivet_service.dart';
-import 'package:my_app/core/rivet/rivet_models.dart';
+import 'package:my_app/atlas/rivet/rivet_service.dart';
+import 'package:my_app/atlas/rivet/rivet_models.dart';
 
 void main() {
   group('RivetService', () {

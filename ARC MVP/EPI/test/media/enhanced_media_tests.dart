@@ -1,12 +1,12 @@
 import 'dart:typed_data';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:my_app/media/crypto/enhanced_encryption.dart';
-import 'package:my_app/media/crypto/hash_utils.dart';
-import 'package:my_app/media/storage/enhanced_cas_store.dart';
-import 'package:my_app/media/privacy/privacy_controls.dart';
-import 'package:my_app/media/settings/hive_storage_settings.dart';
-import 'package:my_app/media/resolver/pointer_resolver.dart';
-import 'package:my_app/media/processing/background_processor.dart';
+import 'package:my_app/prism/processors/crypto/enhanced_encryption.dart';
+import 'package:my_app/prism/processors/crypto/hash_utils.dart';
+import 'package:my_app/prism/processors/storage/enhanced_cas_store.dart';
+import 'package:my_app/prism/processors/privacy/privacy_controls.dart';
+import 'package:my_app/prism/processors/settings/hive_storage_settings.dart';
+import 'package:my_app/prism/processors/resolver/pointer_resolver.dart';
+import 'package:my_app/prism/processors/processing/background_processor.dart';
 
 void main() {
   group('Enhanced CAS Store', () {

@@ -3,13 +3,13 @@ import 'dart:convert';
 import 'dart:typed_data';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
-import 'package:my_app/mcp/import/mcp_import_service.dart';
-import 'package:my_app/mcp/import/manifest_reader.dart';
-import 'package:my_app/mcp/import/ndjson_stream_reader.dart';
-import 'package:my_app/mcp/validation/mcp_import_validator.dart';
-import 'package:my_app/mcp/adapters/mira_writer.dart';
-import 'package:my_app/mcp/adapters/cas_resolver.dart';
-import 'package:my_app/mcp/models/mcp_schemas.dart';
+import 'package:my_app/prism/mcp/import/mcp_import_service.dart';
+import 'package:my_app/prism/mcp/import/manifest_reader.dart';
+import 'package:my_app/prism/mcp/import/ndjson_stream_reader.dart';
+import 'package:my_app/prism/mcp/validation/mcp_import_validator.dart';
+import 'package:my_app/prism/mcp/adapters/mira_writer.dart';
+import 'package:my_app/prism/mcp/adapters/cas_resolver.dart';
+import 'package:my_app/prism/mcp/models/mcp_schemas.dart';
 
 // Mock classes
 class MockManifestReader extends Mock implements ManifestReader {}

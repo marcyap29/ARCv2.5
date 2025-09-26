@@ -7,7 +7,7 @@ import 'package:my_app/lumara/chat/chat_models.dart';
 import 'package:my_app/lumara/chat/chat_repo_impl.dart';
 import 'package:my_app/lumara/chat/privacy_redactor.dart';
 import 'package:my_app/lumara/chat/provenance_tracker.dart';
-import 'package:my_app/mcp/export/chat_exporter.dart';
+import 'package:my_app/prism/mcp/export/chat_exporter.dart';
 
 void main() {
   group('ChatMcpExporter Tests', () {

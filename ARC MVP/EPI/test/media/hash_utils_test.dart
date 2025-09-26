@@ -1,6 +1,6 @@
 import 'dart:typed_data';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:my_app/media/crypto/hash_utils.dart';
+import 'package:my_app/prism/processors/crypto/hash_utils.dart';
 
 void main() {
   group('HashUtils', () {

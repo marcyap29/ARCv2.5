@@ -7,13 +7,13 @@ library;
 import 'dart:io';
 import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:my_app/mcp/export/mcp_export_service.dart';
-import 'package:my_app/mcp/models/mcp_schemas.dart';
-import 'package:my_app/mcp/validation/mcp_validator.dart';
-import 'package:my_app/mcp/export/ndjson_writer.dart';
-import 'package:my_app/mcp/export/manifest_builder.dart';
-import 'package:my_app/mcp/export/checksum_utils.dart';
-import 'package:my_app/models/journal_entry_model.dart';
+import 'package:my_app/prism/mcp/export/mcp_export_service.dart';
+import 'package:my_app/prism/mcp/models/mcp_schemas.dart';
+import 'package:my_app/prism/mcp/validation/mcp_validator.dart';
+import 'package:my_app/prism/mcp/export/ndjson_writer.dart';
+import 'package:my_app/prism/mcp/export/manifest_builder.dart';
+import 'package:my_app/prism/mcp/export/checksum_utils.dart';
+import 'package:my_app/arc/models/journal_entry_model.dart';
 import 'package:my_app/data/models/media_item.dart';
 
 void main() {

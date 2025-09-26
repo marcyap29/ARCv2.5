@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hive/hive.dart';
-import 'package:my_app/features/atlas/phase_history_repository.dart';
+import 'package:my_app/atlas/phase_detection/phase_history_repository.dart';
 
 void main() {
   group('PhaseHistoryRepository', () {

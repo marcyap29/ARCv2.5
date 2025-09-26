@@ -4,7 +4,7 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:test/test.dart';
-import 'package:my_app/mcp/bundle_doctor/bundle_doctor.dart';
+import 'package:my_app/prism/mcp/bundle_doctor/bundle_doctor.dart';
 
 void main() {
   group('Golden Contract Tests', () {
