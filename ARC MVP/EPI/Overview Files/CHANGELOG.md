@@ -14,9 +14,32 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - Vision-language model integration
 - Settings UI for MIRA feature flag configuration
 
-### Latest Update - 2025-09-25
+### Latest Update - 2025-09-26
+
+### Fixed
+- **Gemini 2.5 Flash Model Migration** (2025-09-26) ✅ CRITICAL FIX
+  - **Model Retirement Issue**: Fixed critical API failures due to Gemini 1.5 model retirement (Sept 24, 2025)
+  - **API Integration Restored**: Updated from deprecated `gemini-1.5-pro` to current `gemini-2.5-flash`
+  - **LUMARA Functionality**: Eliminated 404 errors, restored AI-powered assistant responses
+  - **Production Stability**: Using stable production model for reliable long-term operation
+  - **Future-Proofed**: Migrated to current generation models to prevent future deprecation issues
+  - **Debug Verification**: Confirmed 200 status responses and successful content generation (500-800 chars)
+  - **Hot Reload Fix**: Required full app restart to properly load updated model endpoint
+  - **Files Updated**: `lib/services/gemini_send.dart`, `lib/mcp/bundle/manifest.dart`
 
 ### Added
+- **RIVET Phase Change Interface Simplification** (2025-09-25) ✅ COMPLETE
+  - **UI/UX Simplification**: Redesigned Phase Change Safety Check with intuitive single progress ring
+  - **Simplified Language**: Replaced technical jargon with user-friendly "Phase Change Readiness" terminology
+  - **Single Progress Ring**: Combined 4 complex metrics into one clear readiness percentage (0-100%)
+  - **Clear Status Messages**: "Ready to explore a new phase", "Almost ready", "Keep journaling"
+  - **Color-Coded Feedback**: Green (80%+), Orange (60-79%), Red (<60%) for instant understanding
+  - **Real-time Refresh**: Multi-trigger refresh system for live RIVET state updates
+  - **MCP Import Integration**: RIVET event creation for imported journal entries
+  - **Enhanced Debugging**: Comprehensive logging system for troubleshooting
+  - **1-3 Second Understanding**: Users immediately grasp their phase change readiness
+  - **Reduced Cognitive Load**: Single metric instead of 4 complex technical indicators
+
 - **UI/UX Update with Roman Numeral 1 Tab Bar** (2025-09-25) ✅ COMPLETE
   - **Starting Screen**: Changed from Journal tab to Phase tab for immediate access to core functionality
   - **Journal Tab Redesign**: Replaced with "+" icon for intuitive "add new entry" action

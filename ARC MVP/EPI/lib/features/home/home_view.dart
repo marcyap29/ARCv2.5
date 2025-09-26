@@ -50,6 +50,7 @@ class HomeView extends StatefulWidget {
 class _HomeViewState extends State<HomeView> {
   late HomeCubit _homeCubit;
   LumaraAssistantCubit? _lumaraCubit;
+  final GlobalKey<_InsightsPageState> _insightsPageKey = GlobalKey<_InsightsPageState>();
   
   List<TabItem> get _tabs {
     const baseTabs = [
@@ -102,7 +103,7 @@ class _HomeViewState extends State<HomeView> {
     _pages = [
       const ArcformRendererView(), // Phase (index 0)
       const TimelineView(), // Timeline (index 1)
-      const _InsightsPage(), // Insights (index 2)
+      _InsightsPage(key: _insightsPageKey), // Insights (index 2)
       const StartEntryFlow(), // + (index 3) - elevated
       const SettingsView(), // Settings (index 4)
       if (AppFlags.isLumaraEnabled)
@@ -205,7 +206,17 @@ class _HomeViewState extends State<HomeView> {
               bottomNavigationBar: CustomTabBar(
                 tabs: _tabs,
                 selectedIndex: selectedIndex,
-                onTabSelected: _homeCubit.changeTab,
+                onTabSelected: (index) {
+                  print('DEBUG: Tab selected: $index');
+                  print('DEBUG: Current selected index was: $selectedIndex');
+                  _homeCubit.changeTab(index);
+                  // Refresh RIVET card when Insights tab is selected
+                  if (index == 2) { // Insights tab index
+                    print('DEBUG: Insights tab selected, refreshing RIVET card');
+                    print('DEBUG: Calling _refreshRivetCardInInsights...');
+                    _refreshRivetCardInInsights();
+                  }
+                },
                 height: 80,
                 elevatedTabIndex: 3, // Elevate the + button (index 3)
               ),
@@ -226,6 +237,26 @@ class _HomeViewState extends State<HomeView> {
       print('DEBUG: Error refreshing phase cache from Phase tab: $e');
     }
   }
+  
+  /// Refresh RIVET card in Insights page
+  void _refreshRivetCardInInsights() {
+    print('DEBUG: _refreshRivetCardInInsights called from home view');
+    print('DEBUG: _insightsPageKey: $_insightsPageKey');
+    print('DEBUG: _insightsPageKey.currentState: ${_insightsPageKey.currentState}');
+
+    if (_insightsPageKey.currentState != null) {
+      print('DEBUG: Found InsightsPage state, calling refreshRivetCard...');
+      try {
+        _insightsPageKey.currentState!.refreshRivetCard();
+        print('DEBUG: Successfully called refreshRivetCard on InsightsPage');
+      } catch (e) {
+        print('ERROR: Failed to call refreshRivetCard on InsightsPage: $e');
+      }
+    } else {
+      print('DEBUG: ERROR - InsightsPage state is null!');
+      print('DEBUG: Widget tree may not be fully built yet');
+    }
+  }
 
   @override
   void dispose() {
@@ -236,24 +267,73 @@ class _HomeViewState extends State<HomeView> {
 }
 
 class _InsightsPage extends StatefulWidget {
-  const _InsightsPage();
+  const _InsightsPage({super.key});
 
   @override
   State<_InsightsPage> createState() => _InsightsPageState();
 }
 
-class _InsightsPageState extends State<_InsightsPage> {
+class _InsightsPageState extends State<_InsightsPage> with WidgetsBindingObserver {
   InsightCubit? _insightCubit;
+  final GlobalKey<_RivetCardState> _rivetCardKey = GlobalKey<_RivetCardState>();
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     print('DEBUG: _InsightsPage initState called');
     // Initialize insight cubit after the widget is built
     WidgetsBinding.instance.addPostFrameCallback((_) {
       print('DEBUG: Post-frame callback executing');
       _initializeInsightCubit();
+      // Refresh RIVET card when Insights page loads
+      refreshRivetCard();
     });
+  }
+  
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Refresh RIVET card when dependencies change (e.g., when navigating to Insights)
+    print('DEBUG: _InsightsPage didChangeDependencies called');
+    refreshRivetCard();
+  }
+  
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+  
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    // Refresh RIVET card when app becomes active (user might have added entries)
+    if (state == AppLifecycleState.resumed) {
+      print('DEBUG: App resumed, refreshing RIVET card');
+      refreshRivetCard();
+    }
+  }
+  
+  void refreshRivetCard() {
+    print('DEBUG: refreshRivetCard called from Insights page');
+    print('DEBUG: _rivetCardKey: $_rivetCardKey');
+    print('DEBUG: _rivetCardKey.currentState: ${_rivetCardKey.currentState}');
+    print('DEBUG: _rivetCardKey.currentWidget: ${_rivetCardKey.currentWidget}');
+    print('DEBUG: _rivetCardKey.currentContext: ${_rivetCardKey.currentContext}');
+
+    if (_rivetCardKey.currentState != null) {
+      print('DEBUG: Calling _refreshRivetState on RIVET card...');
+      try {
+        _rivetCardKey.currentState!._refreshRivetState();
+        print('DEBUG: _refreshRivetState call completed');
+      } catch (e) {
+        print('ERROR: Failed to call _refreshRivetState: $e');
+      }
+    } else {
+      print('DEBUG: ERROR - RIVET card key current state is null!');
+      print('DEBUG: Widget tree may not be fully built yet');
+    }
   }
 
   void _initializeInsightCubit() {
@@ -276,11 +356,6 @@ class _InsightsPageState extends State<_InsightsPage> {
     }
   }
 
-  @override
-  void dispose() {
-    _insightCubit?.close();
-    super.dispose();
-  }
 
   Widget _buildInsightsSection() {
     if (_insightCubit == null) {
@@ -403,7 +478,7 @@ class _InsightsPageState extends State<_InsightsPage> {
                   children: [
                     _buildMiraGraphCard(context),
                     const SizedBox(height: 20),
-                    const _RivetCard(),
+                    _RivetCard(key: _rivetCardKey),
                     const SizedBox(height: 20),
                     const AuroraCard(),
                     const SizedBox(height: 20),
@@ -500,7 +575,7 @@ class _InsightsPageState extends State<_InsightsPage> {
 }
 
 class _RivetCard extends StatefulWidget {
-  const _RivetCard();
+  const _RivetCard({super.key});
 
   @override
   State<_RivetCard> createState() => _RivetCardState();
@@ -510,29 +585,63 @@ class _RivetCardState extends State<_RivetCard> {
   RivetState? _rivetState;
   bool _isLoading = true;
   
-  // RIVET thresholds (matching RivetService defaults)
-  static const double _alignThreshold = 0.6;
-  static const double _traceThreshold = 0.6;
-  static const int _sustainTarget = 2;
+  // Simplified readiness calculation
+  double _calculateReadinessScore() {
+    if (_rivetState == null) return 0.0;
+    
+    // Weight the different metrics for a single readiness score
+    final alignWeight = 0.3; // 30% - how well entries match new phase
+    final traceWeight = 0.3; // 30% - confidence in the match
+    final sustainWeight = 0.25; // 25% - consistency over time
+    final independentWeight = 0.15; // 15% - independent confirmation
+    
+    final alignScore = _rivetState!.align;
+    final traceScore = _rivetState!.trace;
+    final sustainScore = (_rivetState!.sustainCount / 2.0).clamp(0.0, 1.0); // 2 is target
+    final independentScore = _rivetState!.sawIndependentInWindow ? 1.0 : 0.0;
+    
+    return (alignScore * alignWeight + 
+            traceScore * traceWeight + 
+            sustainScore * sustainWeight + 
+            independentScore * independentWeight);
+  }
+  
+  String _getReadinessStatus(double score) {
+    if (score >= 0.8) return 'ready';
+    if (score >= 0.6) return 'almost';
+    return 'not_ready';
+  }
 
   @override
   void initState() {
     super.initState();
+    print('DEBUG: _RivetCard initState called - widget hashCode: ${hashCode}');
     _loadRivetState();
   }
 
   Future<void> _loadRivetState() async {
+    print('DEBUG: _loadRivetState called');
+    setState(() {
+      _isLoading = true;
+    });
+    
     try {
       final rivetProvider = RivetProvider();
       const userId = 'default_user'; // TODO: Use actual user ID
       
+      print('DEBUG: RIVET provider available: ${rivetProvider.isAvailable}');
+      
       // Initialize provider if needed
       if (!rivetProvider.isAvailable) {
+        print('DEBUG: Initializing RIVET provider...');
         await rivetProvider.initialize(userId);
+        print('DEBUG: RIVET provider initialized: ${rivetProvider.isAvailable}');
       }
       
       // Safely get state
+      print('DEBUG: Getting RIVET state for user: $userId');
       final state = await rivetProvider.safeGetState(userId);
+      print('DEBUG: RIVET state retrieved: $state');
       
       if (state != null && rivetProvider.service != null) {
         // Update service with current state
@@ -542,7 +651,9 @@ class _RivetCardState extends State<_RivetCard> {
           _rivetState = state;
           _isLoading = false;
         });
+        print('DEBUG: RIVET state updated successfully: $_rivetState');
       } else {
+        print('DEBUG: No RIVET state found, using default state');
         setState(() {
           _rivetState = const RivetState(
             align: 0,
@@ -567,6 +678,15 @@ class _RivetCardState extends State<_RivetCard> {
     }
   }
   
+  Future<void> _refreshRivetState() async {
+    print('DEBUG: _refreshRivetState called - widget hashCode: ${hashCode}');
+    print('DEBUG: Current RIVET state before refresh: $_rivetState');
+    print('DEBUG: Current loading state: $_isLoading');
+    await _loadRivetState();
+    print('DEBUG: RIVET state after refresh: $_rivetState');
+    print('DEBUG: Loading state after refresh: $_isLoading');
+  }
+  
 
   @override
   Widget build(BuildContext context) {
@@ -588,14 +708,9 @@ class _RivetCardState extends State<_RivetCard> {
       );
     }
 
-    // Calculate status booleans
-    final matchGood = _rivetState!.align >= _alignThreshold;
-    final confidenceGood = _rivetState!.trace >= _traceThreshold;
-    final consistencyGood = _rivetState!.sustainCount >= _sustainTarget;
-    final independentGood = _rivetState!.sawIndependentInWindow;
-    
-    final ready = matchGood && confidenceGood && consistencyGood && independentGood;
-    final almost = confidenceGood && !ready && (_sustainTarget - _rivetState!.sustainCount) <= 1;
+    // Calculate simplified readiness
+    final readinessScore = _calculateReadinessScore();
+    final status = _getReadinessStatus(readinessScore);
 
     return Container(
       padding: const EdgeInsets.all(20),
@@ -609,7 +724,7 @@ class _RivetCardState extends State<_RivetCard> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header with title, subtitle, and info tooltip
+          // Header with title, subtitle, and refresh button
           Row(
             children: [
               Container(
@@ -619,7 +734,7 @@ class _RivetCardState extends State<_RivetCard> {
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: const Icon(
-                  Icons.gps_fixed,
+                  Icons.psychology,
                   size: 20,
                   color: kcPrimaryTextColor,
                 ),
@@ -643,258 +758,198 @@ class _RivetCardState extends State<_RivetCard> {
                   ],
                 ),
               ),
-              InfoIcons.safety(),
+              IconButton(
+                onPressed: _refreshRivetState,
+                icon: const Icon(
+                  Icons.refresh,
+                  color: kcPrimaryTextColor,
+                  size: 20,
+                ),
+                tooltip: 'Refresh RIVET state',
+              ),
             ],
           ),
           const SizedBox(height: 24),
           
-          // Dual dials with simple copy
-          Row(
-            children: [
-              Expanded(
-                child: _SimpleDial(
-                  title: Copy.rivetDialMatch,
-                  subtitle: matchGood ? Copy.rivetDialGood : Copy.rivetDialLow,
-                  value: _rivetState!.align,
-                  threshold: _alignThreshold,
-                  debugLabel: kShowRivetDebugLabels ? 'ALIGN' : null,
-                ),
-              ),
-              const SizedBox(width: 20),
-              Expanded(
-                child: _SimpleDial(
-                  title: Copy.rivetDialConfidence,
-                  subtitle: confidenceGood ? Copy.rivetDialGood : Copy.rivetDialLow,
-                  value: _rivetState!.trace,
-                  threshold: _traceThreshold,
-                  debugLabel: kShowRivetDebugLabels ? 'TRACE' : null,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 20),
-          
-          // Status banner
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: ready 
-                  ? Colors.green.withOpacity(0.1)
-                  : almost 
-                      ? Colors.orange.withOpacity(0.1)
-                      : Colors.red.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(
-                color: ready 
-                    ? Colors.green.withOpacity(0.3)
-                    : almost 
-                        ? Colors.orange.withOpacity(0.3)
-                        : Colors.red.withOpacity(0.3),
-              ),
-            ),
-            child: Row(
+          // Single progress ring with status
+          Center(
+            child: Column(
               children: [
-                Icon(
-                  ready 
-                      ? Icons.lock_open
-                      : almost 
-                          ? Icons.schedule
-                          : Icons.lock,
-                  color: ready 
-                      ? Colors.green
-                      : almost 
-                          ? Colors.orange
-                          : Colors.red,
-                  size: 20,
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    ready 
-                        ? Copy.rivetBannerReady
-                        : almost 
-                            ? Copy.rivetStateAlmost
-                            : Copy.rivetBannerHeld,
-                    style: bodyStyle(context).copyWith(
-                      color: ready 
-                          ? Colors.green
-                          : almost 
-                              ? Colors.orange
-                              : Colors.red,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ),
-                if (!ready)
-                  TextButton(
-                    onPressed: () {
-                      showModalBottomSheet(
-                        context: context,
-                        isScrollControlled: true,
-                        backgroundColor: Colors.transparent,
-                        builder: (context) => const WhyHeldSheet(),
-                      );
-                    },
-                    child: Text(
-                      Copy.rivetBannerWhy,
-                      style: bodyStyle(context).copyWith(
-                        color: Colors.blue,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ),
+                _buildProgressRing(context, readinessScore, status),
+                const SizedBox(height: 16),
+                _buildStatusMessage(context, status),
               ],
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 24),
           
-          // Simple checklist
-          _buildChecklist(context, matchGood, confidenceGood, consistencyGood, independentGood),
+          // Action buttons
+          _buildActionButtons(context, status),
         ],
       ),
     );
   }
   
-  Widget _buildChecklist(
-    BuildContext context,
-    bool matchGood,
-    bool confidenceGood,
-    bool consistencyGood,
-    bool independentGood,
-  ) {
-    return Column(
+  Widget _buildProgressRing(BuildContext context, double score, String status) {
+    Color ringColor;
+    switch (status) {
+      case 'ready':
+        ringColor = Colors.green;
+        break;
+      case 'almost':
+        ringColor = Colors.orange;
+        break;
+      default:
+        ringColor = Colors.red;
+    }
+    
+    return Stack(
+      alignment: Alignment.center,
       children: [
-        _buildCheckItem(
-          context,
-          Copy.rivetCheckMatch(matchGood ? Copy.rivetDialGood : Copy.rivetDialLow),
-          matchGood,
+        SizedBox(
+          width: 120,
+          height: 120,
+          child: CircularProgressIndicator(
+            value: score,
+            strokeWidth: 8,
+            backgroundColor: Colors.white.withOpacity(0.2),
+            valueColor: AlwaysStoppedAnimation<Color>(ringColor),
+          ),
         ),
-        const SizedBox(height: 8),
-        _buildCheckItem(
-          context,
-          Copy.rivetCheckConfidence(confidenceGood ? Copy.rivetDialGood : Copy.rivetDialLow),
-          confidenceGood,
-        ),
-        const SizedBox(height: 8),
-        _buildCheckItem(
-          context,
-          Copy.rivetCheckConsistency(_rivetState!.sustainCount, _sustainTarget),
-          consistencyGood,
-        ),
-        const SizedBox(height: 8),
-        _buildCheckItem(
-          context,
-          independentGood ? Copy.rivetCheckIndependentOk : Copy.rivetCheckIndependentMissing,
-          independentGood,
+        Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(
+              '${(score * 100).round()}%',
+              style: heading1Style(context).copyWith(
+                color: ringColor,
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            Text(
+              _getProgressLabel(status),
+              style: bodyStyle(context).copyWith(
+                color: kcPrimaryTextColor.withOpacity(0.7),
+                fontSize: 12,
+              ),
+            ),
+          ],
         ),
       ],
     );
   }
   
-  Widget _buildCheckItem(BuildContext context, String text, bool isGood) {
-    return Row(
-      children: [
-        Icon(
-          isGood ? Icons.check_circle : Icons.radio_button_unchecked,
-          color: isGood ? Colors.green : Colors.orange,
-          size: 18,
+  String _getProgressLabel(String status) {
+    switch (status) {
+      case 'ready':
+        return Copy.rivetProgressReady;
+      case 'almost':
+        return Copy.rivetProgressAlmost;
+      default:
+        return Copy.rivetProgressNotReady;
+    }
+  }
+  
+  Widget _buildStatusMessage(BuildContext context, String status) {
+    String message;
+    Color messageColor;
+    IconData icon;
+    
+    switch (status) {
+      case 'ready':
+        message = Copy.rivetStatusReady;
+        messageColor = Colors.green;
+        icon = Icons.check_circle;
+        break;
+      case 'almost':
+        message = Copy.rivetStatusAlmost;
+        messageColor = Colors.orange;
+        icon = Icons.schedule;
+        break;
+      default:
+        message = Copy.rivetStatusNotReady;
+        messageColor = Colors.red;
+        icon = Icons.lock;
+    }
+    
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: messageColor.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: messageColor.withOpacity(0.3),
         ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: Text(
-            text,
-            style: bodyStyle(context).copyWith(
-              color: kcPrimaryTextColor,
-              fontSize: 13,
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            icon,
+            color: messageColor,
+            size: 20,
+          ),
+          const SizedBox(width: 8),
+          Flexible(
+            child: Text(
+              message,
+              style: bodyStyle(context).copyWith(
+                color: messageColor,
+                fontWeight: FontWeight.w500,
+                fontSize: 14,
+              ),
+              textAlign: TextAlign.center,
             ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
-}
-
-class _SimpleDial extends StatelessWidget {
-  final String title;
-  final String subtitle;
-  final double value;
-  final double threshold;
-  final String? debugLabel;
-
-  const _SimpleDial({
-    required this.title,
-    required this.subtitle,
-    required this.value,
-    required this.threshold,
-    this.debugLabel,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final isActive = value >= threshold;
-    final percentage = (value * 100).round();
-
-    return Column(
+  
+  Widget _buildActionButtons(BuildContext context, String status) {
+    return Row(
       children: [
-        Stack(
-          alignment: Alignment.center,
-          children: [
-            SizedBox(
-              width: 80,
-              height: 80,
-              child: CircularProgressIndicator(
-                value: value,
-                strokeWidth: 6,
-                backgroundColor: Colors.white.withOpacity(0.2),
-                valueColor: AlwaysStoppedAnimation<Color>(
-                  isActive ? Colors.green : Colors.orange,
-                ),
+        Expanded(
+          child: ElevatedButton(
+            onPressed: status == 'ready' ? () {
+              // Navigate to phase change
+              // TODO: Implement phase change navigation
+            } : null,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: status == 'ready' ? Colors.green : Colors.grey,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
               ),
             ),
-            Column(
-              children: [
-                Text(
-                  '$percentage%',
-                  style: const TextStyle(
-                    color: kcPrimaryTextColor,
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                Icon(
-                  isActive ? Icons.check_circle : Icons.radio_button_unchecked,
-                  size: 16,
-                  color: isActive ? Colors.green : Colors.orange,
-                ),
-              ],
+            child: Text(
+              status == 'ready' ? Copy.rivetActionChangePhase : Copy.rivetActionKeepJournaling,
+              style: const TextStyle(
+                fontWeight: FontWeight.w600,
+                fontSize: 14,
+              ),
             ),
-          ],
-        ),
-        const SizedBox(height: 8),
-        Text(
-          title,
-          style: const TextStyle(
-            color: kcPrimaryTextColor,
-            fontSize: 14,
-            fontWeight: FontWeight.bold,
           ),
         ),
-        Text(
-          subtitle,
-          style: TextStyle(
-            color: isActive ? Colors.green : Colors.orange,
-            fontSize: 12,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-        if (debugLabel != null) ...[
-          const SizedBox(height: 2),
-          Text(
-            debugLabel!,
-            style: const TextStyle(
-              color: kcSecondaryTextColor,
-              fontSize: 10,
-              fontFamily: 'monospace',
+        if (status != 'ready') ...[
+          const SizedBox(width: 12),
+          TextButton(
+            onPressed: () {
+              showModalBottomSheet(
+                context: context,
+                isScrollControlled: true,
+                backgroundColor: Colors.transparent,
+                builder: (context) => const WhyHeldSheet(),
+              );
+            },
+            child: Text(
+              Copy.rivetActionWhy,
+              style: bodyStyle(context).copyWith(
+                color: Colors.blue,
+                fontWeight: FontWeight.w500,
+              ),
             ),
           ),
         ],
@@ -902,6 +957,7 @@ class _SimpleDial extends StatelessWidget {
     );
   }
 }
+
 
 class MiniRadialPainter extends CustomPainter {
   @override

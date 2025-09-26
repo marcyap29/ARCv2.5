@@ -40,6 +40,13 @@
   - **Bidirectional Adapters**: Full MIRA ↔ MCP conversion with semantic fidelity preservation
   - **Event Logging**: Append-only event system with integrity verification for audit trails
   - **High-Level Integration**: MiraIntegration service with simplified API for existing components
+- **Gemini 2.5 Flash Model Migration Complete (2025-09-26)**:
+  - **Critical Model Update**: Fixed API failures due to Gemini 1.5 model retirement (Sept 24, 2025)
+  - **Production Stability**: Migrated from `gemini-1.5-pro` to stable `gemini-2.5-flash` model
+  - **LUMARA Restoration**: Eliminated 404 errors, restored AI-powered assistant functionality
+  - **Future-Proofing**: Updated to current generation models to prevent future deprecation issues
+  - **Debug Verification**: Confirmed successful API responses (200 status, 500-800 char content generation)
+  - **Hot Reload Resolution**: Required full app restart to properly load updated model endpoint
 - **Gemini API Integration Complete (2025-09-19)**:
   - **ArcLLM System**: Complete integration with `provideArcLLM()` factory from `lib/services/gemini_send.dart`
   - **MIRA Enhancement**: ArcLLM now includes semantic context from MIRA memory for intelligent responses

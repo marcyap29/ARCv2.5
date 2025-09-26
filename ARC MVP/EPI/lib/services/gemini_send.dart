@@ -14,13 +14,20 @@ Future<String> geminiSend({
   bool jsonExpected = false,
 }) async {
   const apiKey = String.fromEnvironment('GEMINI_API_KEY');
+  print('DEBUG GEMINI: API Key available: ${apiKey.isNotEmpty}');
+  print('DEBUG GEMINI: API Key length: ${apiKey.length}');
+  print('DEBUG GEMINI: API Key prefix: ${apiKey.isNotEmpty ? apiKey.substring(0, apiKey.length > 10 ? 10 : apiKey.length) : 'none'}');
+
   if (apiKey.isEmpty) {
+    print('DEBUG GEMINI: No API key found, throwing StateError');
     throw StateError('GEMINI_API_KEY not provided');
   }
 
   final uri = Uri.parse(
-    'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=$apiKey',
+    'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=$apiKey',
   );
+
+  print('DEBUG GEMINI: Using endpoint: ${uri.toString().replaceAll(apiKey, '[API_KEY]')}');
 
   final body = {
     if (system.trim().isNotEmpty)
@@ -43,18 +50,34 @@ Future<String> geminiSend({
 
   final client = HttpClient();
   try {
+    print('DEBUG GEMINI: Making POST request to: ${uri.host}${uri.path}');
     final req = await client.postUrl(uri);
     req.headers.contentType = ContentType('application', 'json', charset: 'utf-8');
-    req.write(jsonEncode(body));
+
+    final bodyJson = jsonEncode(body);
+    print('DEBUG GEMINI: Request body length: ${bodyJson.length}');
+    req.write(bodyJson);
+
+    print('DEBUG GEMINI: Sending request...');
     final res = await req.close();
+    print('DEBUG GEMINI: Response status: ${res.statusCode}');
+    print('DEBUG GEMINI: Response headers: ${res.headers}');
 
     final text = await res.transform(utf8.decoder).join();
+    print('DEBUG GEMINI: Response body length: ${text.length}');
+    print('DEBUG GEMINI: Response preview: ${text.substring(0, text.length > 200 ? 200 : text.length)}...');
+
     if (res.statusCode < 200 || res.statusCode >= 300) {
+      print('DEBUG GEMINI: HTTP Error - Status: ${res.statusCode}, Body: $text');
       throw HttpException('Gemini error ${res.statusCode}: $text');
     }
     final json = jsonDecode(text) as Map<String, dynamic>;
     final candidates = json['candidates'] as List?;
-    if (candidates == null || candidates.isEmpty) return '';
+    if (candidates == null || candidates.isEmpty) {
+      print('DEBUG GEMINI: No candidates in response');
+      return '';
+    }
+
     final content = candidates.first['content'] as Map<String, dynamic>?;
     final parts = content?['parts'] as List? ?? const [];
     final buffer = StringBuffer();
@@ -62,7 +85,10 @@ Future<String> geminiSend({
       final t = (p as Map)['text'];
       if (t is String) buffer.write(t);
     }
-    return buffer.toString();
+
+    final result = buffer.toString();
+    print('DEBUG GEMINI: Successfully parsed response, result length: ${result.length}');
+    return result;
   } finally {
     client.close(force: true);
   }

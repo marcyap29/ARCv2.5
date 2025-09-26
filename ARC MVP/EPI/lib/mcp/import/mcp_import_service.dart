@@ -11,6 +11,10 @@ import 'package:my_app/lumara/chat/chat_repo.dart';
 import 'package:my_app/lumara/chat/chat_models.dart';
 import 'package:my_app/models/journal_entry_model.dart';
 import 'package:my_app/repositories/journal_repository.dart';
+import 'package:my_app/core/rivet/rivet_provider.dart';
+import 'package:my_app/core/rivet/rivet_models.dart';
+import 'package:my_app/services/user_phase_service.dart';
+import 'package:my_app/features/arcforms/phase_recommender.dart';
 
 /// Result of an MCP import operation
 class McpImportResult {
@@ -837,6 +841,7 @@ class McpImportService {
 
   /// Import a journal entry into the journal repository
   Future<void> _importJournalEntry(JournalEntry entry) async {
+    print('  DEBUG: _importJournalEntry called for entry: ${entry.title}');
     try {
       if (_journalRepo == null) {
         print('  Warning: No journal repository available - cannot import journal entry: ${entry.title}');
@@ -847,8 +852,83 @@ class McpImportService {
       await _journalRepo!.createJournalEntry(entry);
       print('  Stored journal entry: ${entry.title}');
       
+      // Create RIVET event for the imported entry
+      print('  DEBUG: Creating RIVET event for imported entry...');
+      await _createRivetEventForEntry(entry);
+      
     } catch (e) {
       print('  Failed to import journal entry ${entry.id}: $e');
+    }
+  }
+  
+  /// Create RIVET event for imported journal entry
+  Future<void> _createRivetEventForEntry(JournalEntry entry) async {
+    print('  DEBUG: _createRivetEventForEntry called for entry: ${entry.title}');
+    try {
+      const userId = 'default_user'; // TODO: Use actual user ID
+      
+      // Get current phase from user profile
+      print('  DEBUG: Getting current user phase...');
+      final currentPhase = await _getCurrentUserPhase();
+      print('  DEBUG: Current phase: $currentPhase');
+      if (currentPhase == null) {
+        print('  Warning: No current phase found, skipping RIVET event creation');
+        return;
+      }
+      
+      // Get recommended phase from PhaseRecommender
+      final recommendedPhase = PhaseRecommender.recommend(
+        emotion: '', // No emotion data from MCP import
+        reason: '', // No reason data from MCP import
+        text: entry.content,
+        selectedKeywords: entry.keywords,
+      );
+      
+      // Create RIVET event
+      final rivetEvent = RivetEvent(
+        date: entry.createdAt,
+        source: EvidenceSource.text,
+        keywords: entry.keywords.toSet(),
+        predPhase: recommendedPhase,
+        refPhase: currentPhase,
+        tolerance: const {}, // Stub for categorical phases
+      );
+      
+      // Submit to RIVET
+      final rivetProvider = RivetProvider();
+      print('  DEBUG: RIVET provider isAvailable: ${rivetProvider.isAvailable}');
+
+      if (!rivetProvider.isAvailable) {
+        print('  DEBUG: RIVET provider not available, attempting to initialize...');
+        await rivetProvider.initialize(userId);
+        print('  DEBUG: RIVET provider isAvailable after init: ${rivetProvider.isAvailable}');
+      }
+
+      if (rivetProvider.isAvailable) {
+        print('  DEBUG: Submitting RIVET event to provider...');
+        final decision = await rivetProvider.safeIngest(rivetEvent, userId);
+        print('  RIVET event created for imported entry: ${entry.title}');
+        print('  RIVET decision: ${decision != null && decision.open ? "OPEN" : "CLOSED"}');
+        print('  RIVET decision details: $decision');
+      } else {
+        print('  ERROR: RIVET provider still not available after initialization attempt');
+        print('  ERROR: Init error: ${rivetProvider.initError}');
+      }
+      
+    } catch (e) {
+      print('  Failed to create RIVET event for entry ${entry.id}: $e');
+    }
+  }
+  
+  /// Get current user phase
+  Future<String?> _getCurrentUserPhase() async {
+    try {
+      // Import UserPhaseService
+      final currentPhase = await UserPhaseService.getCurrentPhase();
+      return currentPhase;
+    } catch (e) {
+      print('  Error getting current user phase: $e');
+      return null;
     }
   }
 

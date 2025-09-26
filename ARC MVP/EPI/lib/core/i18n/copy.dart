@@ -40,25 +40,25 @@ class Copy {
     'School', 'Family', 'Health', 'Weather', 'Other'
   ];
   
-  // RIVET Simple Copy (P27)
-  static const String rivetTitle = "Phase change safety check";
-  static const String rivetSubtitle = "ARC only switches phases when the signal is clear.";
-  static const String rivetTooltip = "RIVET is the safety system that prevents jumpy phase flips.";
+  // RIVET Simple Copy (P27) - Simplified UI/UX
+  static const String rivetTitle = "Phase Change Readiness";
+  static const String rivetSubtitle = "Your journal entries show you're ready for a new phase";
+  static const String rivetTooltip = "We analyze your journal entries to determine when you're ready for a new phase.";
   
-  static const String rivetDialMatch = "Match";
-  static const String rivetDialConfidence = "Confidence";
-  static const String rivetDialGood = "Good";
-  static const String rivetDialLow = "Low";
+  // Simplified status messages
+  static const String rivetStatusReady = "Ready to explore a new phase";
+  static const String rivetStatusAlmost = "Almost ready - keep journaling for 1-2 more days";
+  static const String rivetStatusNotReady = "Keep journaling to unlock your next phase";
   
-  static const String rivetBannerHeld = "Holding steady. We need a clearer signal before changing your phase.";
-  static const String rivetBannerReady = "Ready to switch. All checks passed.";
-  static const String rivetBannerWhy = "Why held?";
+  // Action buttons
+  static const String rivetActionChangePhase = "Change Phase";
+  static const String rivetActionKeepJournaling = "Keep Journaling";
+  static const String rivetActionWhy = "Why?";
   
-  static String rivetCheckMatch(String level) => "Match: $level";
-  static String rivetCheckConfidence(String level) => "Confidence: $level";
-  static String rivetCheckConsistency(int current, int target) => "Consistency: $current/$target days";
-  static const String rivetCheckIndependentMissing = "Independent check: Missing";
-  static const String rivetCheckIndependentOk = "Independent check: Complete";
+  // Progress indicators
+  static const String rivetProgressReady = "Ready";
+  static const String rivetProgressAlmost = "Almost ready";
+  static const String rivetProgressNotReady = "Not ready";
   
   static const String rivetDetailsTitle = "Why is this held?";
   static const String rivetDetailsBlurb = "ARC changes your phase only when three checks pass: your entries match a new phase, we have enough confidence, and the signal stays consistent for a short time with one independent confirmation.";

@@ -9,7 +9,7 @@ A Flutter-based AI companion app that provides life-aware assistance through jou
 - **Build Status:** ✅ iOS builds successfully (simulator + device)
 - **iOS Simulator:** ✅ FFmpeg compatibility issue resolved - full simulator development workflow
 - **Compilation:** ✅ All syntax errors resolved
-- **AI Integration:** ✅ Gemini API with MIRA-enhanced ArcLLM + semantic context
+- **AI Integration:** ✅ Gemini 2.5 Flash API with MIRA-enhanced ArcLLM + semantic context (Updated Sept 26 - model migration complete)
 - **MIRA System:** ✅ Complete semantic memory graph with Hive storage backend
 - **MCP Support:** ✅ Full Memory Bundle v1 bidirectional export/import with journal entry restoration (Critical import bug fixed Sept 24)
 - **LUMARA Chat Memory:** ✅ Persistent chat sessions with 30-day auto-archive, MCP export, and MIRA integration
