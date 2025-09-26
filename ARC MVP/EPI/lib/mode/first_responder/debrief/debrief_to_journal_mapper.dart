@@ -1,4 +1,4 @@
-import '../../../models/journal_entry_model.dart';
+import '../../../arc/models/journal_entry_model.dart';
 import 'debrief_models.dart';
 
 class DebriefToJournalMapper {

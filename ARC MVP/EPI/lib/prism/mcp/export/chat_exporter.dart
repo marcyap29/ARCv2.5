@@ -1,12 +1,12 @@
 import 'dart:io';
 import 'dart:convert';
 import 'package:crypto/crypto.dart';
-import 'package:my_app/lumara/chat/chat_repo.dart';
+import '../../../lumara/chat/chat_repo.dart';
 import 'package:my_app/lumara/chat/chat_models.dart';
 import 'package:my_app/lumara/chat/privacy_redactor.dart';
 import 'package:my_app/lumara/chat/provenance_tracker.dart';
-import '../../mira/ingest/chat_ingest.dart';
-import '../../mira/graph/chat_graph_builder.dart';
+import '../../../mira/ingest/chat_ingest.dart';
+import '../../../mira/graph/chat_graph_builder.dart';
 import '../adapters/to_mcp.dart';
 
 /// MCP exporter for chat sessions and messages

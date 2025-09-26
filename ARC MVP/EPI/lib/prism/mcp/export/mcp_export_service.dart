@@ -13,10 +13,10 @@ import 'ndjson_writer.dart';
 import 'manifest_builder.dart';
 import 'checksum_utils.dart';
 import 'chat_exporter.dart';
-import '../../lumara/chat/chat_repo.dart';
-import '../../lumara/chat/chat_models.dart';
-import '../../models/journal_entry_model.dart';
-import '../../data/models/media_item.dart';
+import '../../../lumara/chat/chat_repo.dart';
+import '../../../lumara/chat/chat_models.dart';
+import '../../../arc/models/journal_entry_model.dart';
+import '../../../data/models/media_item.dart';
 
 class McpExportService {
   final String bundleId;

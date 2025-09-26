@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:equatable/equatable.dart';
 import '../../repositories/journal_repository.dart';
-import '../../models/journal_entry_model.dart';
+import '../../arc/models/journal_entry_model.dart';
 
 /// State for MIRA graph visualization
 abstract class MiraGraphState extends Equatable {

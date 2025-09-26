@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../shared/app_colors.dart';
 import '../../../shared/text_style.dart';
-import '../../../models/journal_entry_model.dart';
+import '../../../arc/models/journal_entry_model.dart';
 import '../../timeline/timeline_view.dart';
 
 /// Bottom sheet showing entries linked to a keyword or edge
