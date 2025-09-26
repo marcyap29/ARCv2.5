@@ -2,6 +2,8 @@
 import 'package:flutter/material.dart';
 import 'dart:math' as math;
 import 'package:graphview/GraphView.dart';
+import 'package:my_app/features/insights/pattern_analysis_service.dart';
+import 'package:my_app/repositories/journal_repository.dart';
 
 enum PatternsView { wordCloud, network, timeline, radial }
 
@@ -50,16 +52,35 @@ class _YourPatternsViewState extends State<YourPatternsView> {
   String? phaseFilter;   // null = all
   DateTimeRange? range;  // null = all time
 
-  // Data (replace with MIRA-powered repository later)
+  // Real data from journal entries
   late List<KeywordNode> nodes;
   late List<KeywordEdge> edges;
+  late PatternAnalysisService _patternService;
 
   @override
   void initState() {
     super.initState();
-    final demo = _demoData();
-    nodes = demo.$1;
-    edges = demo.$2;
+    _patternService = PatternAnalysisService(JournalRepository());
+    _loadRealData();
+  }
+
+  void _loadRealData() {
+    final realData = _patternService.analyzePatterns(
+      minWeight: 0.1, // More permissive to work with limited data
+      maxNodes: 8,
+    );
+    print('DEBUG: Pattern analysis results - Nodes: ${realData.$1.length}, Edges: ${realData.$2.length}');
+    if (realData.$1.isNotEmpty) {
+      print('DEBUG: First node: ${realData.$1.first.label} (${realData.$1.first.frequency} freq)');
+      print('DEBUG: Sample node excerpts: ${realData.$1.first.excerpts}');
+    }
+    if (realData.$2.isNotEmpty) {
+      print('DEBUG: First edge: ${realData.$2.first.a} -> ${realData.$2.first.b} (${realData.$2.first.weight})');
+    }
+    setState(() {
+      nodes = realData.$1;
+      edges = realData.$2;
+    });
   }
 
   @override
@@ -152,15 +173,6 @@ class _YourPatternsViewState extends State<YourPatternsView> {
     );
   }
 
-  (List<KeywordNode>, List<KeywordEdge>) _demoData() {
-    // Use the MIRA co-occurrence matrix adapter for demo data
-    final mockSemanticData = CoOccurrenceMatrixAdapter.generateMockSemanticData();
-    return CoOccurrenceMatrixAdapter.fromMiraSemanticData(
-      semanticData: mockSemanticData,
-      minWeight: 0.3, // Show only stronger connections for demo
-      maxNodes: 8,    // Limit to keep visualization clean
-    );
-  }
 }
 
 class _ViewSwitcher extends StatelessWidget {
@@ -310,7 +322,7 @@ class WordCloudView extends StatelessWidget {
   }
 }
 
-/// NETWORK GRAPH FORCE LAYOUT with curved edges and enhanced visuals
+/// SIMPLE NETWORK GRAPH - Clean implementation
 class NetworkGraphForceView extends StatefulWidget {
   const NetworkGraphForceView({super.key, required this.nodes, required this.edges, required this.onTapNode});
   final List<KeywordNode> nodes;
@@ -322,184 +334,96 @@ class NetworkGraphForceView extends StatefulWidget {
 }
 
 class _NetworkGraphForceViewState extends State<NetworkGraphForceView> {
-  late Graph graph;
-  late SugiyamaConfiguration builder;
   String? selectedNodeId;
-  Map<String, Offset> nodePositions = {};
-  GlobalKey _graphViewKey = GlobalKey();
-
-  @override
-  void initState() {
-    super.initState();
-    _buildGraph();
-  }
-
-  @override
-  void didUpdateWidget(NetworkGraphForceView oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.nodes != widget.nodes || oldWidget.edges != widget.edges) {
-      _buildGraph();
-    }
-  }
-
-  void _buildGraph() {
-    graph = Graph();
-
-    // Create graphview nodes from KeywordNode data
-    final nodeMap = <String, Node>{};
-    for (final kNode in widget.nodes) {
-      final gNode = Node.Id(kNode.id);
-      nodeMap[kNode.id] = gNode;
-      graph.addNode(gNode);
-    }
-
-    // Create edges with weights
-    for (final kEdge in widget.edges) {
-      final nodeA = nodeMap[kEdge.a];
-      final nodeB = nodeMap[kEdge.b];
-      if (nodeA != null && nodeB != null) {
-        graph.addEdge(nodeA, nodeB);
-      }
-    }
-
-    // Configure force-directed layout
-    builder = SugiyamaConfiguration()
-      ..bendPointShape = CurvedBendPointShape(curveLength: 10)
-      ..orientation = SugiyamaConfiguration.ORIENTATION_TOP_BOTTOM;
-  }
 
   @override
   Widget build(BuildContext context) {
+    print('DEBUG: NetworkGraphForceView build - Nodes: ${widget.nodes.length}, Edges: ${widget.edges.length}');
     if (widget.nodes.isEmpty) {
       return const Center(child: Text('No network data available'));
     }
 
-    return InteractiveViewer(
-      constrained: false,
-      boundaryMargin: const EdgeInsets.all(100),
-      minScale: 0.01,
-      maxScale: 5.6,
-      child: Stack(
-        children: [
-          // Base GraphView for layout calculation
-          GraphView(
-            key: _graphViewKey,
-            graph: graph,
-            algorithm: FruchtermanReingoldAlgorithm(iterations: 1000),
-            paint: Paint()
-              ..color = Colors.transparent
-              ..strokeWidth = 0
-              ..style = PaintingStyle.stroke,
-            builder: (Node node) {
-              // Find corresponding KeywordNode
-              final kNode = widget.nodes.firstWhere(
-                (n) => n.id == node.key!.value,
-                orElse: () => widget.nodes.first,
-              );
+    return Container(
+      width: double.infinity,
+      height: double.infinity,
+      decoration: BoxDecoration(
+        gradient: RadialGradient(
+          center: Alignment.center,
+          radius: 1.5,
+          colors: [
+            Colors.black.withOpacity(0.2),
+            Colors.black.withOpacity(0.05),
+            Colors.transparent,
+          ],
+        ),
+      ),
+      child: InteractiveViewer(
+        constrained: false,
+        boundaryMargin: const EdgeInsets.all(200),
+        minScale: 0.3,
+        maxScale: 3.0,
+        child: SizedBox(
+          width: 1200,
+          height: 1200,
+          child: Stack(
+            children: [
+              // Simple circular layout for now
+              ...widget.nodes.asMap().entries.map((entry) {
+                final index = entry.key;
+                final node = entry.value;
+                final angle = (index / widget.nodes.length) * 2 * math.pi;
+                final radius = 200.0;
+                final centerX = 600.0;
+                final centerY = 600.0;
+                final x = centerX + radius * math.cos(angle);
+                final y = centerY + radius * math.sin(angle);
+                
+                final size = 32.0 + (node.frequency.clamp(0, 50) / 50.0) * 24.0;
+                final color = _emotionColor(node.emotion);
+                final isSelected = selectedNodeId == node.id;
 
-              final size = 32.0 + (kNode.frequency.clamp(0, 50) / 50.0) * 24.0;
-              final color = _emotionColor(kNode.emotion);
-              final isSelected = selectedNodeId == kNode.id;
-              final isNeighbor = selectedNodeId != null &&
-                widget.edges.any((e) =>
-                  (e.a == selectedNodeId && e.b == kNode.id) ||
-                  (e.b == selectedNodeId && e.a == kNode.id)
-                );
-
-              // Store position for curved edge rendering
-              WidgetsBinding.instance.addPostFrameCallback((_) {
-                final RenderBox? renderBox = context.findRenderObject() as RenderBox?;
-                if (renderBox != null) {
-                  final position = renderBox.localToGlobal(Offset.zero);
-                  setState(() {
-                    nodePositions[kNode.id] = position;
-                  });
-                }
-              });
-
-              return GestureDetector(
-                onTap: () {
-                  setState(() {
-                    selectedNodeId = selectedNodeId == kNode.id ? null : kNode.id;
-                  });
-                  widget.onTapNode(kNode);
-                },
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 200),
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: color,
-                    borderRadius: BorderRadius.circular(size / 2),
-                    boxShadow: [
-                      BoxShadow(
-                        color: color.withOpacity(isSelected ? 1.0 : 0.6),
-                        blurRadius: isSelected ? 12 : 8,
-                        spreadRadius: isSelected ? 4 : 2,
+                return Positioned(
+                  left: x - size / 2,
+                  top: y - size / 2,
+                  child: GestureDetector(
+                    onTap: () {
+                      setState(() {
+                        selectedNodeId = selectedNodeId == node.id ? null : node.id;
+                      });
+                      widget.onTapNode(node);
+                    },
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 200),
+                      width: size,
+                      height: size,
+                      decoration: BoxDecoration(
+                        color: color,
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: color.withOpacity(isSelected ? 1.0 : 0.6),
+                            blurRadius: isSelected ? 12 : 8,
+                            spreadRadius: isSelected ? 4 : 2,
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
-                  child: Opacity(
-                    opacity: selectedNodeId == null || isSelected || isNeighbor ? 1.0 : 0.3,
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        // Phase icon overlay
-                        Stack(
-                          alignment: Alignment.center,
-                          children: [
-                            Container(
-                              width: size,
-                              height: size,
-                              decoration: BoxDecoration(
-                                color: color,
-                                shape: BoxShape.circle,
-                                border: isSelected
-                                  ? Border.all(color: Colors.white, width: 3)
-                                  : null,
-                              ),
-                            ),
-                            Icon(
-                              _phaseIcon(kNode.phase),
-                              color: Colors.white,
-                              size: size * 0.4,
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 4),
-                        ConstrainedBox(
-                          constraints: const BoxConstraints(maxWidth: 80),
-                          child: Text(
-                            kNode.label,
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: isSelected ? 11 : 10,
-                              fontWeight: isSelected ? FontWeight.w800 : FontWeight.bold,
-                            ),
-                            overflow: TextOverflow.ellipsis,
+                      child: Center(
+                        child: Text(
+                          node.label.length > 3 ? node.label.substring(0, 3) : node.label,
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: size * 0.3,
+                            fontWeight: FontWeight.bold,
                           ),
                         ),
-                      ],
+                      ),
                     ),
                   ),
-                ),
-              );
-            },
+                );
+              }),
+            ],
           ),
-          // Curved edges overlay
-          Positioned.fill(
-            child: IgnorePointer(
-              child: CustomPaint(
-                painter: CurvedEdgesPainter(
-                  nodes: widget.nodes,
-                  edges: widget.edges,
-                  nodePositions: nodePositions,
-                  selectedNodeId: selectedNodeId,
-                ),
-              ),
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -515,7 +439,6 @@ class _NetworkGraphForceViewState extends State<NetworkGraphForceView> {
       default: return Icons.circle;
     }
   }
-}
 
 /// Custom painter for curved edges with Bezier curves and arrowheads
 class CurvedEdgesPainter extends CustomPainter {
@@ -673,239 +596,6 @@ extension on Offset {
   }
 }
 
-/// Co-occurrence matrix adapter for MIRA semantic memory integration
-class CoOccurrenceMatrixAdapter {
-  /// Converts MIRA semantic data into keyword nodes and weighted edges
-  static (List<KeywordNode>, List<KeywordEdge>) fromMiraSemanticData({
-    required Map<String, dynamic> semanticData,
-    double minWeight = 0.1,
-    int maxNodes = 50,
-  }) {
-    final nodes = <KeywordNode>[];
-    final edges = <KeywordEdge>[];
-
-    // Extract co-occurrence matrix
-    final coOccurrenceMatrix = semanticData['co_occurrence_matrix'] as Map<String, dynamic>? ?? {};
-    final keywordStats = semanticData['keyword_stats'] as Map<String, dynamic>? ?? {};
-    final phaseAssociations = semanticData['phase_associations'] as Map<String, dynamic>? ?? {};
-    final emotionMappings = semanticData['emotion_mappings'] as Map<String, dynamic>? ?? {};
-    final timeSeries = semanticData['time_series'] as Map<String, dynamic>? ?? {};
-
-    // Build nodes from keyword statistics
-    final nodeMap = <String, KeywordNode>{};
-    for (final entry in keywordStats.entries) {
-      final keyword = entry.key;
-      final stats = entry.value as Map<String, dynamic>;
-
-      final frequency = (stats['frequency'] as int?) ?? 0;
-      final recencyScore = (stats['recency_score'] as double?) ?? 0.0;
-      final phase = phaseAssociations[keyword] as String? ?? 'Discovery';
-      final emotion = emotionMappings[keyword] as String? ?? 'neutral';
-      final excerpts = (stats['excerpts'] as List<dynamic>?)?.cast<String>() ?? [];
-      final series = (timeSeries[keyword] as List<dynamic>?)?.cast<int>() ?? [0];
-
-      final node = KeywordNode(
-        id: keyword,
-        label: keyword,
-        frequency: frequency,
-        recencyScore: recencyScore,
-        emotion: emotion,
-        phase: phase,
-        excerpts: excerpts.take(5).toList(), // Limit to 5 excerpts
-        series: series,
-      );
-
-      nodeMap[keyword] = node;
-      nodes.add(node);
-    }
-
-    // Sort by frequency and limit nodes
-    nodes.sort((a, b) => b.frequency.compareTo(a.frequency));
-    final limitedNodes = nodes.take(maxNodes).toList();
-    final limitedNodeIds = limitedNodes.map((n) => n.id).toSet();
-
-    // Build edges from co-occurrence matrix
-    for (final entry in coOccurrenceMatrix.entries) {
-      final keywordA = entry.key;
-      if (!limitedNodeIds.contains(keywordA)) continue;
-
-      final connections = entry.value as Map<String, dynamic>;
-      for (final connectionEntry in connections.entries) {
-        final keywordB = connectionEntry.key;
-        if (!limitedNodeIds.contains(keywordB) || keywordA == keywordB) continue;
-
-        final weight = (connectionEntry.value as double?) ?? 0.0;
-        if (weight >= minWeight) {
-          // Avoid duplicate edges (A-B is same as B-A)
-          final existingEdge = edges.any((e) =>
-            (e.a == keywordA && e.b == keywordB) ||
-            (e.a == keywordB && e.b == keywordA)
-          );
-
-          if (!existingEdge) {
-            edges.add(KeywordEdge(a: keywordA, b: keywordB, weight: weight));
-          }
-        }
-      }
-    }
-
-    // Normalize edge weights
-    if (edges.isNotEmpty) {
-      final maxWeight = edges.map((e) => e.weight).reduce((a, b) => a > b ? a : b);
-      for (final edge in edges) {
-        edge.weight = edge.weight / maxWeight;
-      }
-    }
-
-    return (limitedNodes, edges);
-  }
-
-  /// Generates mock MIRA-compatible semantic data for testing
-  static Map<String, dynamic> generateMockSemanticData() {
-    return {
-      'co_occurrence_matrix': {
-        'breakthrough': {
-          'resilience': 0.9,
-          'uncertainty': 0.6,
-          'focus': 0.3,
-          'creativity': 0.8,
-          'momentum': 0.7,
-        },
-        'resilience': {
-          'breakthrough': 0.9,
-          'recovery': 0.8,
-          'persistence': 0.7,
-          'strength': 0.6,
-        },
-        'uncertainty': {
-          'breakthrough': 0.6,
-          'transition': 0.8,
-          'exploration': 0.7,
-          'adaptation': 0.5,
-        },
-        'focus': {
-          'breakthrough': 0.3,
-          'clarity': 0.9,
-          'concentration': 0.8,
-          'discipline': 0.7,
-        },
-        'creativity': {
-          'breakthrough': 0.8,
-          'innovation': 0.9,
-          'inspiration': 0.7,
-          'imagination': 0.6,
-        },
-        'momentum': {
-          'breakthrough': 0.7,
-          'progress': 0.8,
-          'acceleration': 0.6,
-        },
-        'recovery': {
-          'resilience': 0.8,
-          'healing': 0.9,
-          'restoration': 0.7,
-        },
-        'transition': {
-          'uncertainty': 0.8,
-          'change': 0.9,
-          'evolution': 0.6,
-        },
-      },
-      'keyword_stats': {
-        'breakthrough': {
-          'frequency': 42,
-          'recency_score': 0.8,
-          'excerpts': [
-            'Felt an inflection today on the project.',
-            'Noticed a pattern in how I approach tough problems.',
-            'The insight came suddenly and changed everything.',
-          ],
-        },
-        'resilience': {
-          'frequency': 35,
-          'recency_score': 0.9,
-          'excerpts': [
-            'Kept going even with low energy.',
-            'Found strength I didn\'t know I had.',
-          ],
-        },
-        'uncertainty': {
-          'frequency': 28,
-          'recency_score': 0.6,
-          'excerpts': [
-            'Leaning into unknowns with more patience.',
-          ],
-        },
-        'focus': {
-          'frequency': 18,
-          'recency_score': 0.5,
-          'excerpts': [
-            'Tightened scope and reduced noise today.',
-          ],
-        },
-        'creativity': {
-          'frequency': 25,
-          'recency_score': 0.7,
-          'excerpts': [
-            'New ideas flowing more freely.',
-            'Connected disparate concepts in a novel way.',
-          ],
-        },
-        'momentum': {
-          'frequency': 20,
-          'recency_score': 0.8,
-          'excerpts': [
-            'Building speed on this initiative.',
-          ],
-        },
-        'recovery': {
-          'frequency': 15,
-          'recency_score': 0.4,
-          'excerpts': [
-            'Taking time to rest and recharge.',
-          ],
-        },
-        'transition': {
-          'frequency': 22,
-          'recency_score': 0.6,
-          'excerpts': [
-            'Moving between phases feels natural now.',
-          ],
-        },
-      },
-      'phase_associations': {
-        'breakthrough': 'Breakthrough',
-        'resilience': 'Recovery',
-        'uncertainty': 'Transition',
-        'focus': 'Consolidation',
-        'creativity': 'Expansion',
-        'momentum': 'Expansion',
-        'recovery': 'Recovery',
-        'transition': 'Transition',
-      },
-      'emotion_mappings': {
-        'breakthrough': 'positive',
-        'resilience': 'positive',
-        'uncertainty': 'reflective',
-        'focus': 'neutral',
-        'creativity': 'positive',
-        'momentum': 'positive',
-        'recovery': 'neutral',
-        'transition': 'reflective',
-      },
-      'time_series': {
-        'breakthrough': [1, 2, 3, 5, 8, 13, 21],
-        'resilience': [2, 3, 3, 4, 6, 7, 10],
-        'uncertainty': [3, 3, 4, 4, 5, 6, 6],
-        'focus': [5, 5, 4, 4, 3, 3, 2],
-        'creativity': [1, 3, 5, 8, 6, 9, 12],
-        'momentum': [2, 4, 6, 8, 10, 12, 14],
-        'recovery': [8, 6, 4, 3, 2, 4, 6],
-        'transition': [3, 4, 5, 4, 5, 6, 5],
-      },
-    };
-  }
-}
 
 class _GlowDot extends StatelessWidget {
   const _GlowDot({required this.label, required this.size, required this.color});
@@ -935,7 +625,7 @@ class _GlowDot extends StatelessWidget {
   }
 }
 
-/// TIMELINE (simple list with mini trend; swap with charts later)
+/// PATTERNS TIMELINE (simple list with mini trend; swap with charts later)
 class PatternsTimelineView extends StatelessWidget {
   const PatternsTimelineView({super.key, required this.nodes, required this.onTap});
   final List<KeywordNode> nodes;
