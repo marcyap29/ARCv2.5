@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../shared/app_colors.dart';
 import '../../../shared/text_style.dart';
 import '../../../arc/models/journal_entry_model.dart';
-import '../../timeline/timeline_view.dart';
+import '../../../features/timeline/timeline_view.dart';
 
 /// Bottom sheet showing entries linked to a keyword or edge
 class MiraNodeSheet extends StatelessWidget {
