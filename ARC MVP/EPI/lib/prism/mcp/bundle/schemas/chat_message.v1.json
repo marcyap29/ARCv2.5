@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.mcp.ai/chat_message.v1.json",
+  "title": "MCP Chat Message v1",
+  "description": "Schema for ChatMessage nodes in MCP format",
+  "allOf": [
+    {
+      "$ref": "node.v2.json"
+    },
+    {
+      "properties": {
+        "type": {
+          "const": "ChatMessage"
+        },
+        "content": {
+          "type": "object",
+          "properties": {
+            "mime": {
+              "type": "string",
+              "const": "text/plain",
+              "description": "MIME type for message content"
+            },
+            "text": {
+              "type": "string",
+              "description": "Message text content"
+            }
+          },
+          "required": ["mime", "text"]
+        },
+        "metadata": {
+          "type": "object",
+          "properties": {
+            "role": {
+              "type": "string",
+              "enum": ["user", "assistant", "system"],
+              "description": "Role of the message sender"
+            },
+            "sessionId": {
+              "type": "string",
+              "description": "ID of the session this message belongs to"
+            }
+          },
+          "required": ["role", "sessionId"]
+        }
+      }
+    }
+  ]
+}
