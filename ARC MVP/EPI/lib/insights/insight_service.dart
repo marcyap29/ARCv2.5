@@ -1,7 +1,7 @@
 import 'package:hive/hive.dart';
 import 'package:meta/meta.dart';
-import '../repositories/journal_repository.dart';
-import '../models/journal_entry_model.dart';
+import '../arc/core/journal_repository.dart';
+import '../arc/models/journal_entry_model.dart';
 import '../atlas/rivet/rivet_provider.dart';
 import '../atlas/rivet/rivet_models.dart';
 import 'models/insight_card.dart';

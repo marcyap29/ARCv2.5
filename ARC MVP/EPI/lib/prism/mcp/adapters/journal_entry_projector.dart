@@ -5,9 +5,9 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:crypto/crypto.dart';
-import '../../repositories/journal_repository.dart';
-import '../../arc/models/journal_entry_model.dart';
-import '../../mira/core/ids.dart';
+import '../../../arc/core/journal_repository.dart';
+import '../../../arc/models/journal_entry_model.dart';
+import '../../../mira/core/ids.dart';
 
 class McpEntryProjector {
   /// Project all journal entries to MCP format, emitting to the provided sinks

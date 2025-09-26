@@ -2,7 +2,7 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:crypto/crypto.dart';
-import '../../mira/core/mira_repo.dart';
+import '../../../mira/core/mira_repo.dart';
 import 'validate.dart';
 
 class McpBundleReader {

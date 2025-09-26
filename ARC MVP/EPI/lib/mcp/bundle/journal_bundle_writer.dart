@@ -4,7 +4,7 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:crypto/crypto.dart';
-import '../../repositories/journal_repository.dart';
+import '../../arc/core/journal_repository.dart';
 import '../adapters/journal_entry_projector.dart';
 import 'doctor.dart';
 import 'validate.dart';

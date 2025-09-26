@@ -3,7 +3,7 @@ import 'package:equatable/equatable.dart';
 import 'package:hive/hive.dart';
 import 'insight_service.dart';
 import 'models/insight_card.dart';
-import '../repositories/journal_repository.dart';
+import '../arc/core/journal_repository.dart';
 import '../atlas/rivet/rivet_provider.dart';
 
 /// State for insight generation

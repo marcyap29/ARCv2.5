@@ -7,7 +7,7 @@ import 'core/flags.dart';
 import 'core/schema.dart';
 import '../core/arc_llm.dart' as core_arc;
 import '../services/llm_bridge_adapter.dart' as bridge_arc;
-import '../repositories/journal_repository.dart';
+import '../arc/core/journal_repository.dart';
 
 class MiraIntegration {
   static MiraIntegration? _instance;

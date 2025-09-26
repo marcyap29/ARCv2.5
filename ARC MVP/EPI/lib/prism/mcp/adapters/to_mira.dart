@@ -1,7 +1,7 @@
 // lib/mcp/adapters/to_mira.dart
 // Converts MCP interchange format to MIRA semantic records
 
-import '../../mira/core/schema.dart';
+import '../../../mira/core/schema.dart';
 
 class McpToMiraAdapter {
   /// Convert MCP node record to MiraNode

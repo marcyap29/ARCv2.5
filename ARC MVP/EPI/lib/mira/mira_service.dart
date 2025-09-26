@@ -16,8 +16,8 @@ import '../mcp/import/mcp_import_service.dart';
 import '../mcp/models/mcp_schemas.dart';
 import '../lumara/chat/chat_repo.dart';
 import '../data/models/media_item.dart';
-import '../models/journal_entry_model.dart';
-import '../repositories/journal_repository.dart';
+import '../arc/models/journal_entry_model.dart';
+import '../arc/core/journal_repository.dart';
 
 class MiraService {
   static MiraService? _instance;

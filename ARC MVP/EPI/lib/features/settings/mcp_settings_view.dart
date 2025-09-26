@@ -10,7 +10,7 @@ import '../../prism/mcp/import/mcp_import_service.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:archive/archive_io.dart';
 import '../../prism/mcp/export/zip_utils.dart';
-import '../../repositories/journal_repository.dart';
+import '../../arc/core/journal_repository.dart';
 import 'mcp_settings_cubit.dart';
 
 class McpSettingsView extends StatelessWidget {

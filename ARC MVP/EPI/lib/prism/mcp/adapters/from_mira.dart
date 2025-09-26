@@ -3,9 +3,9 @@
 
 import 'dart:convert';
 import 'package:crypto/crypto.dart';
-import '../../mira/core/schema.dart';
-import '../../mira/core/mira_repo.dart';
-import '../../mira/core/ids.dart';
+import '../../../mira/core/schema.dart';
+import '../../../mira/core/mira_repo.dart';
+import '../../../mira/core/ids.dart';
 
 class MiraToMcpAdapter {
   static const String _defaultEncoderId = 'gemini_1_5_flash';

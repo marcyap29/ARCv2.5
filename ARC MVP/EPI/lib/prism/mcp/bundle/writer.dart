@@ -3,8 +3,8 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:crypto/crypto.dart';
 import 'package:convert/convert.dart';
-import '../../mira/core/mira_repo.dart';
-import '../../mira/core/schema.dart';
+import '../../../mira/core/mira_repo.dart';
+import '../../../mira/core/schema.dart';
 import '../../prism/mcp/adapters/from_mira.dart';
 // import 'manifest.dart';
 

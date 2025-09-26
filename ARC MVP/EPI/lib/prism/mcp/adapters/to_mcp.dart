@@ -1,10 +1,10 @@
 // lib/mcp/adapters/to_mcp.dart
 // Converts MIRA nodes to MCP records (node.v1 and node.v2)
 
-import '../../mira/core/schema.dart';
-import '../../mira/nodes/chat_session_node.dart';
-import '../../mira/nodes/chat_message_node.dart';
-import '../../mira/edges/contains_edge.dart';
+import '../../../mira/core/schema.dart';
+import '../../../mira/nodes/chat_session_node.dart';
+import '../../../mira/nodes/chat_message_node.dart';
+import '../../../mira/edges/contains_edge.dart';
 
 class MiraToMcpAdapter {
   /// Convert MiraNode to appropriate MCP node record based on type
