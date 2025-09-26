@@ -90,12 +90,12 @@ class PatternAnalysisService {
       final node = KeywordNode(
         id: keyword,
         label: keyword,
-        frequency: frequency.toDouble(), // Convert int to double
+        frequency: frequency, // Keep as int
         recencyScore: 1.0,
         emotion: 'neutral', // Will be improved in next step
         phase: 'Discovery', // Will be improved in next step
         excerpts: ['Keyword: $keyword'],
-        series: series,
+        series: series.map((e) => e.round()).toList(), // Convert double to int
       );
       
       nodes.add(node);
@@ -133,12 +133,12 @@ class PatternAnalysisService {
       final node = KeywordNode(
         id: keyword,
         label: keyword,
-        frequency: frequency.toDouble(),
+        frequency: frequency,
         recencyScore: 1.0,
         emotion: emotion, // Now using analyzed emotion
         phase: phase, // Now using analyzed phase
         excerpts: ['Keyword: $keyword'],
-        series: series,
+        series: series.map((e) => e.round()).toList(), // Convert double to int
       );
       
       nodes.add(node);
@@ -406,32 +406,32 @@ class PatternAnalysisService {
     KeywordNode(
       id: 'breakthrough',
       label: 'breakthrough',
-      frequency: 8.0, // Use double
+      frequency: 8, // Use int
       recencyScore: 0.9,
       emotion: 'positive',
       phase: 'Breakthrough',
       excerpts: ['Had a major breakthrough in understanding myself', 'Finally broke through that barrier', 'The insight came suddenly'],
-      series: [1.0, 2.0, 4.0, 6.0, 8.0], // Use double
+      series: [1, 2, 4, 6, 8], // Use int
     ),
     KeywordNode(
       id: 'growth',
       label: 'growth',
-      frequency: 6.0, // Use double
+      frequency: 6, // Use int
       recencyScore: 0.8,
       emotion: 'positive',
       phase: 'Expansion',
       excerpts: ['Feeling real growth happening', 'Personal growth accelerating'],
-      series: [2.0, 3.0, 4.0, 5.0, 6.0], // Use double
+      series: [2, 3, 4, 5, 6], // Use int
     ),
     KeywordNode(
       id: 'insight',
       label: 'insight',
-      frequency: 5.0, // Use double
+      frequency: 5, // Use int
       recencyScore: 0.7,
       emotion: 'reflective',
       phase: 'Discovery',
       excerpts: ['New insight about my patterns', 'Deep insight emerged today'],
-      series: [1.0, 1.0, 3.0, 4.0, 5.0], // Use double
+      series: [1, 1, 3, 4, 5], // Use int
     ),
   ];
 
