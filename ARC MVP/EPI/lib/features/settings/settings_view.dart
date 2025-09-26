@@ -6,6 +6,7 @@ import 'music_control_section.dart';
 import 'first_responder_settings_section.dart';
 import 'coach_mode_settings_section.dart';
 import 'mcp_settings_view.dart';
+import 'privacy_settings_view.dart';
 
 class SettingsView extends StatelessWidget {
   const SettingsView({super.key});
@@ -32,26 +33,48 @@ class SettingsView extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Privacy & Security Section (Top Priority)
+            _buildSection(
+              context,
+              title: 'Privacy & Security',
+              children: [
+                _buildSettingsTile(
+                  context,
+                  title: 'Privacy Protection',
+                  subtitle: 'Configure PII detection and masking settings',
+                  icon: Icons.security,
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const PrivacySettingsView()),
+                    );
+                  },
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 32),
+
             // Sync Settings Section
             const SyncSettingsSection(),
-            
+
             const SizedBox(height: 32),
-            
+
             // Music Control Section
             const MusicControlSection(),
-            
+
             const SizedBox(height: 32),
-            
+
             // First Responder Settings Section
             const FirstResponderSettingsSection(),
-            
+
             const SizedBox(height: 32),
-            
+
             // Coach Mode Settings Section
             const CoachModeSettingsSection(),
-            
+
             const SizedBox(height: 32),
-            
+
             // MCP Memory Bundle Section
             _buildSection(
               context,
