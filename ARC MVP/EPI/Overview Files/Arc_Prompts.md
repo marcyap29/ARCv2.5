@@ -235,7 +235,7 @@ final contextualResponse = await arcWithMira.chat(
 ```
 
 ### Fallback Integration
-- **Primary**: Gemini API via `gemini-1.5-flash` model with MIRA semantic enhancement
+- **Primary**: Gemini API via `gemini-2.5-flash` model with MIRA semantic enhancement (Updated Sept 26, 2025)
 - **Fallback**: Rule-based heuristics in `lib/llm/rule_based_client.dart`
 - **Priority**: dart-define key > SharedPreferences > rule-based
 

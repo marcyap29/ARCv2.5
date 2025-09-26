@@ -14,7 +14,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - Vision-language model integration
 - Settings UI for MIRA feature flag configuration
 
-### Latest Update - 2025-09-25
+### Latest Update - 2025-09-26
+
+### Fixed
+- **Gemini 2.5 Flash Model Migration** (2025-09-26) ✅ CRITICAL FIX
+  - **Model Retirement Issue**: Fixed critical API failures due to Gemini 1.5 model retirement (Sept 24, 2025)
+  - **API Integration Restored**: Updated from deprecated `gemini-1.5-pro` to current `gemini-2.5-flash`
+  - **LUMARA Functionality**: Eliminated 404 errors, restored AI-powered assistant responses
+  - **Production Stability**: Using stable production model for reliable long-term operation
+  - **Future-Proofed**: Migrated to current generation models to prevent future deprecation issues
+  - **Debug Verification**: Confirmed 200 status responses and successful content generation (500-800 chars)
+  - **Hot Reload Fix**: Required full app restart to properly load updated model endpoint
+  - **Files Updated**: `lib/services/gemini_send.dart`, `lib/mcp/bundle/manifest.dart`
 
 ### Added
 - **RIVET Phase Change Interface Simplification** (2025-09-25) ✅ COMPLETE
