@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../core/i18n/copy.dart';
-import '../../core/rivet/rivet_models.dart';
+import '../../atlas/rivet/rivet_models.dart';
 import '../../shared/app_colors.dart';
 import '../../shared/text_style.dart';
 

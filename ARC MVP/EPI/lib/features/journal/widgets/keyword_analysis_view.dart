@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:my_app/features/journal/keyword_extraction_cubit.dart';
-import 'package:my_app/features/journal/keyword_extraction_state.dart';
-import 'package:my_app/features/journal/journal_capture_cubit.dart';
+import 'package:my_app/arc/core/keyword_extraction_cubit.dart';
+import 'package:my_app/arc/core/keyword_extraction_state.dart';
+import 'package:my_app/arc/core/journal_capture_cubit.dart';
 import 'package:my_app/features/timeline/timeline_cubit.dart';
 import 'package:my_app/features/home/home_view.dart';
 import 'package:my_app/shared/app_colors.dart';

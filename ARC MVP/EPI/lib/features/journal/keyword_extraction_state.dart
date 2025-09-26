@@ -1,5 +1,5 @@
 import 'package:equatable/equatable.dart';
-import 'package:my_app/features/keyword_extraction/enhanced_keyword_extractor.dart';
+import 'package:my_app/prism/extractors/enhanced_keyword_extractor.dart';
 
 abstract class KeywordExtractionState extends Equatable {
   const KeywordExtractionState();

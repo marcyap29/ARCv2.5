@@ -4,7 +4,7 @@ import 'package:hive/hive.dart';
 import 'insight_service.dart';
 import 'models/insight_card.dart';
 import '../repositories/journal_repository.dart';
-import '../core/rivet/rivet_provider.dart';
+import '../atlas/rivet/rivet_provider.dart';
 
 /// State for insight generation
 abstract class InsightState extends Equatable {

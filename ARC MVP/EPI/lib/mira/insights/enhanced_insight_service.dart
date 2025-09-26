@@ -2,7 +2,7 @@ import 'package:my_app/lumara/chat/chat_repo.dart';
 import '../../insights/models/insight_card.dart';
 import '../../insights/insight_service.dart';
 import '../../repositories/journal_repository.dart';
-import '../../core/rivet/rivet_provider.dart';
+import '../../atlas/rivet/rivet_provider.dart';
 import 'chat_metrics_service.dart';
 
 /// Enhanced insight service that combines journal and chat insights

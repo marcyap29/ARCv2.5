@@ -2,11 +2,11 @@ import 'dart:io';
 import 'dart:convert';
 import 'package:args/args.dart';
 import 'package:path/path.dart' as path;
-import 'package:my_app/mcp/import/mcp_import_service.dart';
-import 'package:my_app/mcp/import/manifest_reader.dart';
-import 'package:my_app/mcp/validation/mcp_import_validator.dart';
-import 'package:my_app/mcp/adapters/mira_writer.dart';
-import 'package:my_app/mcp/adapters/cas_resolver.dart';
+import 'package:my_app/prism/mcp/import/mcp_import_service.dart';
+import 'package:my_app/prism/mcp/import/manifest_reader.dart';
+import 'package:my_app/prism/mcp/validation/mcp_import_validator.dart';
+import 'package:my_app/prism/mcp/adapters/mira_writer.dart';
+import 'package:my_app/prism/mcp/adapters/cas_resolver.dart';
 
 /// CLI tool for MCP bundle import operations
 /// 

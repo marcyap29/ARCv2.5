@@ -1,6 +1,6 @@
 import 'dart:math' as math;
-import 'package:my_app/features/atlas/phase_scoring.dart';
-import 'package:my_app/features/atlas/phase_history_repository.dart';
+import 'package:my_app/atlas/phase_detection/phase_scoring.dart';
+import 'package:my_app/atlas/phase_detection/phase_history_repository.dart';
 import 'package:my_app/models/user_profile_model.dart';
 
 /// Configuration constants for phase tracking

@@ -2,8 +2,8 @@
 import 'package:flutter/material.dart';
 import 'dart:math' as math;
 import 'package:graphview/GraphView.dart';
-import 'package:my_app/features/insights/pattern_analysis_service.dart';
-import 'package:my_app/repositories/journal_repository.dart';
+import 'package:my_app/atlas/phase_detection/pattern_analysis_service.dart';
+import 'package:my_app/arc/core/journal_repository.dart';
 
 enum PatternsView { wordCloud, network, timeline, radial }
 

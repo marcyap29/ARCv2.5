@@ -5,11 +5,11 @@ import 'package:share_plus/share_plus.dart';
 import 'dart:io';
 import '../../shared/app_colors.dart';
 import '../../shared/text_style.dart';
-import '../../mcp/models/mcp_schemas.dart';
-import '../../mcp/import/mcp_import_service.dart';
+import '../../prism/mcp/models/mcp_schemas.dart';
+import '../../prism/mcp/import/mcp_import_service.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:archive/archive_io.dart';
-import '../../mcp/export/zip_utils.dart';
+import '../../prism/mcp/export/zip_utils.dart';
 import '../../repositories/journal_repository.dart';
 import 'mcp_settings_cubit.dart';
 

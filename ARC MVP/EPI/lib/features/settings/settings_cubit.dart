@@ -1,6 +1,6 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:my_app/core/services/audio_service.dart';
-import 'package:my_app/repositories/journal_repository.dart';
+import 'package:my_app/arc/core/journal_repository.dart';
 
 class SettingsState {
   final bool localOnlyMode;

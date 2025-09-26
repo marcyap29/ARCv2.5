@@ -1,4 +1,4 @@
-import 'package:my_app/models/journal_entry_model.dart';
+import 'package:my_app/arc/models/journal_entry_model.dart';
 import 'package:my_app/data/models/media_item.dart';
 import 'package:hive/hive.dart';
 

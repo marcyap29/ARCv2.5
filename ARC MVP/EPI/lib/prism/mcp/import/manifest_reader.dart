@@ -1,6 +1,6 @@
 import 'dart:io';
 import 'dart:convert';
-import 'package:my_app/mcp/models/mcp_schemas.dart';
+import 'package:my_app/prism/mcp/models/mcp_schemas.dart';
 
 /// Exception thrown when manifest reading fails
 class ManifestReadException implements Exception {

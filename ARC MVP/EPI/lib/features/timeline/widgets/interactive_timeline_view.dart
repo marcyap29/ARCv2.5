@@ -5,13 +5,13 @@ import 'package:my_app/features/timeline/timeline_state.dart';
 import 'package:my_app/features/timeline/timeline_entry_model.dart';
 
 import 'package:my_app/features/arcforms/arcform_renderer_state.dart';
-import 'package:my_app/repositories/journal_repository.dart';
+import 'package:my_app/arc/core/journal_repository.dart';
 import 'package:my_app/shared/app_colors.dart';
 import 'package:my_app/shared/text_style.dart';
 import 'package:my_app/features/startup/phase_quiz_prompt_view.dart';
-import 'package:my_app/core/rivet/rivet_provider.dart';
-import 'package:my_app/core/rivet/rivet_models.dart';
-import 'package:my_app/core/rivet/rivet_service.dart';
+import 'package:my_app/atlas/rivet/rivet_provider.dart';
+import 'package:my_app/atlas/rivet/rivet_models.dart';
+import 'package:my_app/atlas/rivet/rivet_service.dart';
 import 'package:hive/hive.dart';
 import 'package:my_app/services/user_phase_service.dart';
 import 'package:my_app/features/arcforms/phase_recommender.dart';

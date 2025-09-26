@@ -1,6 +1,6 @@
 import 'package:equatable/equatable.dart';
 import 'package:hive/hive.dart';
-import 'package:my_app/features/journal/sage_annotation_model.dart';
+import 'package:my_app/arc/core/sage_annotation_model.dart';
 import 'package:my_app/data/models/media_item.dart';
 
 part 'journal_entry_model.g.dart';

@@ -1,6 +1,6 @@
 import 'dart:io';
 import 'dart:convert';
-import 'package:my_app/mcp/import/ndjson_stream_reader.dart';
+import 'package:my_app/prism/mcp/import/ndjson_stream_reader.dart';
 
 /// Validation error details
 class ValidationError {

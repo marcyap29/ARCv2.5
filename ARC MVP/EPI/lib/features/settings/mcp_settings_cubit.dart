@@ -1,10 +1,10 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'dart:io';
 import 'dart:convert';
-import '../../mcp/import/mcp_import_service.dart';
-import '../../mcp/models/mcp_schemas.dart';
-import '../../mcp/export/mcp_export_service.dart';
-import '../../mcp/bundle/journal_bundle_writer.dart';
+import '../../prism/mcp/import/mcp_import_service.dart';
+import '../../prism/mcp/models/mcp_schemas.dart';
+import '../../prism/mcp/export/mcp_export_service.dart';
+import '../../prism/mcp/bundle/journal_bundle_writer.dart';
 import '../../repositories/journal_repository.dart';
 import '../../models/journal_entry_model.dart' as model;
 import '../../mira/mira_service.dart';

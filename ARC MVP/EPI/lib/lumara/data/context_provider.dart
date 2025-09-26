@@ -1,6 +1,6 @@
 import 'package:my_app/lumara/data/context_scope.dart';
 import 'package:my_app/services/user_phase_service.dart';
-import 'package:my_app/repositories/journal_repository.dart';
+import 'package:my_app/arc/core/journal_repository.dart';
 
 /// Context window for LUMARA processing
 class ContextWindow {

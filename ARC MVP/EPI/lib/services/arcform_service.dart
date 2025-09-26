@@ -1,5 +1,5 @@
 import 'package:hive/hive.dart';
-import 'package:my_app/models/journal_entry_model.dart';
+import 'package:my_app/arc/models/journal_entry_model.dart';
 import 'package:my_app/models/arcform_snapshot_model.dart';
 import 'package:uuid/uuid.dart';
 

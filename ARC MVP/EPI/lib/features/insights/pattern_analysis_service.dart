@@ -3,9 +3,9 @@
 // Replaces hardcoded mock data with actual keyword analysis
 
 import 'dart:math';
-import 'package:my_app/repositories/journal_repository.dart';
-import 'package:my_app/models/journal_entry_model.dart';
-import 'package:my_app/features/insights/your_patterns_view.dart';
+import 'package:my_app/arc/core/journal_repository.dart';
+import 'package:my_app/arc/models/journal_entry_model.dart';
+import 'package:my_app/atlas/phase_detection/your_patterns_view.dart';
 
 /// Service for analyzing journal patterns from real data
 class PatternAnalysisService {

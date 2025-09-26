@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'package:crypto/crypto.dart';
 import 'package:path/path.dart' as path;
 import 'package:path_provider/path_provider.dart';
-import 'package:my_app/mcp/models/mcp_schemas.dart';
+import 'package:my_app/prism/mcp/models/mcp_schemas.dart';
 
 /// Exception thrown during MIRA write operations
 class MiraWriteException implements Exception {

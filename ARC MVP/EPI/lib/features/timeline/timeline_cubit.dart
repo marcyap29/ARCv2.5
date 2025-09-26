@@ -1,10 +1,10 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:my_app/features/timeline/timeline_state.dart';
 import 'package:my_app/features/timeline/timeline_entry_model.dart';
-import 'package:my_app/repositories/journal_repository.dart';
-import 'package:my_app/models/journal_entry_model.dart';
+import 'package:my_app/arc/core/journal_repository.dart';
+import 'package:my_app/arc/models/journal_entry_model.dart';
 import 'package:my_app/models/arcform_snapshot_model.dart';
-import 'package:my_app/features/journal/sage_annotation_model.dart';
+import 'package:my_app/arc/core/sage_annotation_model.dart';
 import 'package:hive/hive.dart';
 
 class TimelineCubit extends Cubit<TimelineState> {
