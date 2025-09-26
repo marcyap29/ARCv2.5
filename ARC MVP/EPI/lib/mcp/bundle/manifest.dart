@@ -166,7 +166,7 @@ class DefaultEncoderRegistry {
       'encoder_id': 'gemini_1_5_flash',
       'version': '1.0.0',
       'config': {
-        'model': 'gemini-1.5-flash',
+        'model': 'gemini-2.5-flash',
         'temperature': 0.7,
         'max_tokens': 2048,
         'features': ['sage_echo', 'arcform_keywords', 'phase_hints'],
