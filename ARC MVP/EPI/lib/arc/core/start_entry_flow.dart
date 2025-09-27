@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:my_app/arc/core/widgets/emotion_picker.dart';
@@ -14,6 +15,7 @@ import 'package:my_app/arc/core/media/media_capture_sheet.dart';
 import 'package:my_app/arc/core/media/media_strip.dart';
 import 'package:my_app/arc/core/media/media_preview_dialog.dart';
 import 'package:my_app/core/services/media_store.dart';
+import 'package:my_app/services/journal_session_cache.dart';
 
 class StartEntryFlow extends StatefulWidget {
   const StartEntryFlow({super.key});
@@ -32,6 +34,7 @@ class _StartEntryFlowState extends State<StartEntryFlow> {
   String _textContent = '';
   final List<MediaItem> _mediaItems = [];
   final MediaStore _mediaStore = MediaStore();
+  Timer? _debounceTimer;
 
   @override
   void initState() {
@@ -50,10 +53,14 @@ class _StartEntryFlowState extends State<StartEntryFlow> {
         });
       }
     });
+    
+    // Restore session cache on startup
+    _restoreSession();
   }
 
   @override
   void dispose() {
+    _debounceTimer?.cancel();
     _pageController.dispose();
     _textController.dispose();
     _scrollController.dispose();
@@ -61,10 +68,68 @@ class _StartEntryFlowState extends State<StartEntryFlow> {
     super.dispose();
   }
 
+  /// Restore session from cache
+  Future<void> _restoreSession() async {
+    try {
+      final sessionData = await JournalSessionCache.restoreSession();
+      if (sessionData != null && sessionData.hasData) {
+        print('DEBUG: Restoring journal session: ${sessionData.summary}');
+        
+        setState(() {
+          _selectedEmotion = sessionData.emotion;
+          _selectedReason = sessionData.reason;
+          _textContent = sessionData.textContent ?? '';
+          _textController.text = _textContent;
+        });
+        
+        // Restore media items if any
+        if (sessionData.mediaItems != null) {
+          for (final itemData in sessionData.mediaItems!) {
+            try {
+              final mediaItem = MediaItem.fromJson(itemData);
+              _mediaItems.add(mediaItem);
+            } catch (e) {
+              print('ERROR: Failed to restore media item: $e');
+            }
+          }
+        }
+        
+        // Navigate to appropriate page based on restored data
+        if (_selectedEmotion != null && _selectedReason != null) {
+          // Go to writing page
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            _pageController.jumpToPage(2);
+          });
+        } else if (_selectedEmotion != null) {
+          // Go to reason picker
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            _pageController.jumpToPage(1);
+          });
+        }
+        
+        // Show restoration message
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Restored previous journal session'),
+              backgroundColor: kcPrimaryColor,
+              duration: const Duration(seconds: 2),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      print('ERROR: Failed to restore session: $e');
+    }
+  }
+
   void _onEmotionSelected(String emotion) {
     setState(() {
       _selectedEmotion = emotion;
     });
+    
+    // Cache the emotion selection
+    JournalSessionCache.cacheSession(emotion: emotion);
     
     // Animate to reason picker
     Future.delayed(const Duration(milliseconds: 300), () {
@@ -80,6 +145,12 @@ class _StartEntryFlowState extends State<StartEntryFlow> {
       _selectedReason = reason;
     });
     
+    // Cache the reason selection
+    JournalSessionCache.cacheSession(
+      emotion: _selectedEmotion,
+      reason: reason,
+    );
+    
     // Animate to text editor
     Future.delayed(const Duration(milliseconds: 300), () {
       _pageController.nextPage(
@@ -92,6 +163,17 @@ class _StartEntryFlowState extends State<StartEntryFlow> {
   void _onTextChanged(String text) {
     setState(() {
       _textContent = text;
+    });
+    
+    // Cache the text content (debounced to avoid too frequent saves)
+    _debounceTimer?.cancel();
+    _debounceTimer = Timer(const Duration(milliseconds: 500), () {
+      JournalSessionCache.cacheSession(
+        emotion: _selectedEmotion,
+        reason: _selectedReason,
+        textContent: text,
+        mediaItems: _mediaItems.map((item) => item.toJson()).toList(),
+      );
     });
   }
 
@@ -129,6 +211,8 @@ class _StartEntryFlowState extends State<StartEntryFlow> {
     ).then((result) {
       // Handle save result - if saved successfully, go back to home
       if (result != null && result['save'] == true) {
+        // Clear the session cache since entry was saved
+        JournalSessionCache.clearSession();
         // Navigate back to the previous screen
         Navigator.of(context).pop();
       }
@@ -139,6 +223,14 @@ class _StartEntryFlowState extends State<StartEntryFlow> {
     setState(() {
       _mediaItems.add(mediaItem);
     });
+    
+    // Cache the updated media items
+    JournalSessionCache.cacheSession(
+      emotion: _selectedEmotion,
+      reason: _selectedReason,
+      textContent: _textContent,
+      mediaItems: _mediaItems.map((item) => item.toJson()).toList(),
+    );
   }
 
   void _onMediaDeleted(MediaItem mediaItem) async {
@@ -147,6 +239,14 @@ class _StartEntryFlowState extends State<StartEntryFlow> {
       setState(() {
         _mediaItems.remove(mediaItem);
       });
+      
+      // Cache the updated media items
+      JournalSessionCache.cacheSession(
+        emotion: _selectedEmotion,
+        reason: _selectedReason,
+        textContent: _textContent,
+        mediaItems: _mediaItems.map((item) => item.toJson()).toList(),
+      );
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
