@@ -33,6 +33,12 @@ class _LumaraFabState extends State<LumaraFab> with TickerProviderStateMixin {
       lowerBound: 1.0,
       upperBound: 1.05,
     );
+    
+    // Ensure bounds are respected
+    _pulse.addListener(() {
+      if (_pulse.value < 0.0) _pulse.value = 0.0;
+      if (_pulse.value > 1.0) _pulse.value = 1.0;
+    });
 
     _scale = CurvedAnimation(parent: _pulse, curve: Curves.easeInOut);
 
@@ -40,6 +46,12 @@ class _LumaraFabState extends State<LumaraFab> with TickerProviderStateMixin {
       vsync: this,
       duration: const Duration(milliseconds: 200),
     );
+    
+    // Ensure bounds are respected
+    _nudge.addListener(() {
+      if (_nudge.value < 0.0) _nudge.value = 0.0;
+      if (_nudge.value > 1.0) _nudge.value = 1.0;
+    });
 
     _offset = Tween<Offset>(begin: const Offset(0, -0.08), end: Offset.zero)
         .animate(CurvedAnimation(parent: _nudge, curve: Curves.easeOut));
@@ -51,8 +63,16 @@ class _LumaraFabState extends State<LumaraFab> with TickerProviderStateMixin {
     while (mounted) {
       await Future.delayed(const Duration(seconds: 7));
       if (!mounted || widget.reducedMotion) break;
-      await _pulse.forward();
-      await _pulse.reverse();
+      try {
+        if (_pulse.isCompleted) {
+          await _pulse.reverse();
+        } else {
+          await _pulse.forward();
+        }
+      } catch (e) {
+        // Handle animation errors gracefully
+        break;
+      }
     }
   }
 
@@ -60,7 +80,12 @@ class _LumaraFabState extends State<LumaraFab> with TickerProviderStateMixin {
   void didUpdateWidget(covariant LumaraFab oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (widget.nudge && !_nudge.isAnimating && !widget.reducedMotion) {
-      _nudge.forward(from: 0);
+      try {
+        _nudge.reset();
+        _nudge.forward();
+      } catch (e) {
+        // Handle animation errors gracefully
+      }
     }
   }
 

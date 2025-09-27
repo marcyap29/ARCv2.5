@@ -93,11 +93,17 @@ class _JournalScreenState extends State<JournalScreen> {
 
       // Scroll to show the new reflection
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        _scrollController.animateTo(
-          _scrollController.position.maxScrollExtent,
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.easeOut,
-        );
+        if (_scrollController.hasClients) {
+          try {
+            _scrollController.animateTo(
+              _scrollController.position.maxScrollExtent,
+              duration: const Duration(milliseconds: 300),
+              curve: Curves.easeOut,
+            );
+          } catch (e) {
+            // Handle scroll animation errors gracefully
+          }
+        }
       });
     } catch (e) {
       _analytics.log('lumara_error', {'error': e.toString()});
