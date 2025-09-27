@@ -76,11 +76,11 @@ class _ReasonPickerState extends State<ReasonPicker>
               Navigator.popUntil(context, (route) => route.isFirst);
             },
             icon: const Icon(
-              Icons.home,
+              Icons.close,
               color: Colors.white,
               size: 28,
             ),
-            tooltip: 'Home',
+            tooltip: 'Close',
           ),
         ],
       ),

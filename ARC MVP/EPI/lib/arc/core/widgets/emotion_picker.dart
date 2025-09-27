@@ -57,11 +57,11 @@ class _EmotionPickerState extends State<EmotionPicker>
             Navigator.popUntil(context, (route) => route.isFirst);
           },
           icon: const Icon(
-            Icons.home,
+            Icons.close,
             color: Colors.white,
             size: 28,
           ),
-          tooltip: 'Home',
+          tooltip: 'Close',
         ),
       ),
       body: Container(
