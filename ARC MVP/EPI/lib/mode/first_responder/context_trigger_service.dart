@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:hive/hive.dart';
-import '../../arc/models/journal_entry_model.dart';
+import 'package:my_app/models/journal_entry_model.dart';
 import 'fr_settings.dart';
 import 'debrief/debrief_flow_screen.dart';
 import '../../features/arcforms/services/emotional_valence_service.dart';

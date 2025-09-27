@@ -5,7 +5,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
-import '../llm_bridge_adapter.dart';
+import '../services/llm_bridge_adapter.dart';
 import 'pii_detection_service.dart';
 import 'pii_masking_service.dart';
 

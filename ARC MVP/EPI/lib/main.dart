@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:logger/logger.dart';
 import 'package:my_app/main/bootstrap.dart';
 import 'package:my_app/models/enums/flavor.dart';
 import 'package:my_app/app/app.dart';

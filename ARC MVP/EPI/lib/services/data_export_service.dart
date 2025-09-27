@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:my_app/models/journal_entry_model.dart';
 import 'dart:io';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';

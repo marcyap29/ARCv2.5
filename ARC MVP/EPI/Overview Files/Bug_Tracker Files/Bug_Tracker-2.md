@@ -31,7 +31,7 @@
 
 ---
 
-## Bug ID: BUG-2024-12-19-007
+## Bug ID: BUG-2025-12-19-007
 **Title**: Arcform Nodes Not Showing Keyword Information on Tap
 
 **Severity**: Medium  
@@ -39,8 +39,8 @@
 **Status**: ✅ Fixed  
 **Reporter**: User Testing  
 **Assignee**: Claude Code  
-**Found Date**: 2024-12-19  
-**Fixed Date**: 2024-12-19  
+**Found Date**: 2025-12-19  
+**Fixed Date**: 2025-12-19  
 
 #### Description
 Clicking on nodes in the Arcforms constellation didn't show what the keywords were, requiring users to guess the meaning of each node.
@@ -61,7 +61,7 @@ Implemented keyword display dialog:
 
 ---
 
-## Bug ID: BUG-2024-12-19-008
+## Bug ID: BUG-2025-12-19-008
 **Title**: Confusing Purple "Write What Is True" Screen in Journal Flow
 
 **Severity**: High  
@@ -69,8 +69,8 @@ Implemented keyword display dialog:
 **Status**: ✅ Fixed  
 **Reporter**: User Testing  
 **Assignee**: Claude Code  
-**Found Date**: 2024-12-19  
-**Fixed Date**: 2024-12-19  
+**Found Date**: 2025-12-19  
+**Fixed Date**: 2025-12-19  
 
 #### Description
 Intermediate purple screen asking "Write what is true" appeared between reason selection and journal entry, creating confusing user experience and navigation flow.
@@ -91,7 +91,7 @@ Streamlined user flow:
 
 ---
 
-## Bug ID: BUG-2024-12-19-009
+## Bug ID: BUG-2025-12-19-009
 **Title**: Black Mood Chips Cluttering New Entry Interface
 
 **Severity**: Medium  
@@ -99,8 +99,8 @@ Streamlined user flow:
 **Status**: ✅ Fixed  
 **Reporter**: User Testing  
 **Assignee**: Claude Code  
-**Found Date**: 2024-12-19  
-**Fixed Date**: 2024-12-19  
+**Found Date**: 2025-12-19  
+**Fixed Date**: 2025-12-19  
 
 #### Description
 Black mood chips (calm, hopeful, stressed, tired, grateful) were displayed in the New Entry screen, creating visual clutter and confusion about their purpose.
@@ -120,7 +120,7 @@ Removed mood chips from New Entry screen:
 
 ---
 
-## Bug ID: BUG-2024-12-19-010
+## Bug ID: BUG-2025-12-19-010
 **Title**: Suboptimal Journal Entry Flow Order
 
 **Severity**: High  
@@ -128,8 +128,8 @@ Removed mood chips from New Entry screen:
 **Status**: ✅ Fixed  
 **Reporter**: UX Review  
 **Assignee**: Claude Code  
-**Found Date**: 2024-12-19  
-**Fixed Date**: 2024-12-19  
+**Found Date**: 2025-12-19  
+**Fixed Date**: 2025-12-19  
 
 #### Description
 Journal entry flow started with emotion selection before writing, which felt unnatural. Users wanted to write first, then reflect on emotions and reasons.
@@ -151,7 +151,7 @@ Reordered flow to be more natural:
 
 ---
 
-## Bug ID: BUG-2024-12-19-011
+## Bug ID: BUG-2025-12-19-011
 **Title**: Analyze Button Misplaced in Journal Flow
 
 **Severity**: Medium  
@@ -159,8 +159,8 @@ Reordered flow to be more natural:
 **Status**: ✅ Fixed  
 **Reporter**: UX Review  
 **Assignee**: Claude Code  
-**Found Date**: 2024-12-19  
-**Fixed Date**: 2024-12-19  
+**Found Date**: 2025-12-19  
+**Fixed Date**: 2025-12-19  
 
 #### Description
 Analyze button was in the New Entry screen, but it should be the final step after emotion and reason selection to indicate completion of the entry process.
@@ -181,7 +181,7 @@ Moved Analyze button to final step:
 
 ---
 
-## Bug ID: BUG-2024-12-19-012
+## Bug ID: BUG-2025-12-19-012
 **Title**: Recursive Loop in Save Flow - Infinite Navigation Cycle
 
 **Severity**: Critical  
@@ -189,8 +189,8 @@ Moved Analyze button to final step:
 **Status**: ✅ Fixed  
 **Reporter**: User Testing  
 **Assignee**: Claude Code  
-**Found Date**: 2024-12-19  
-**Fixed Date**: 2024-12-19  
+**Found Date**: 2025-12-19  
+**Fixed Date**: 2025-12-19  
 
 #### Description
 When users hit "Save" in the keyword analysis screen, instead of saving and exiting, the app would navigate back to emotion selection, creating an infinite loop: Emotion → Reason → Analysis → Back to Emotion → Repeat.

@@ -3,7 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:my_app/features/settings/settings_cubit.dart';
 import 'package:my_app/features/settings/widgets/settings_tile.dart';
 import 'package:my_app/features/settings/widgets/confirmation_dialog.dart';
-import 'package:my_app/repositories/journal_repository.dart';
+import 'package:my_app/arc/core/journal_repository.dart';
 
 class DataView extends StatefulWidget {
   const DataView({super.key});

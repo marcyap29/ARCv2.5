@@ -86,7 +86,7 @@ provenance: json['provenance'] != null
 ### After Fix
 ```
 📝 Importing nodes...
-🔍 DEBUG: Processing node entry_2024_01_15_abc123 of type "journal_entry"
+🔍 DEBUG: Processing node entry_2025_01_15_abc123 of type "journal_entry"
 ✅ DEBUG: Successfully imported journal entry: My Journal Entry
 ✅ Imported 9 nodes (X journal entries)
 ```

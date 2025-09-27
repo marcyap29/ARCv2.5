@@ -1,4 +1,5 @@
 import 'package:my_app/lumara/data/context_scope.dart';
+import 'package:my_app/models/journal_entry_model.dart';
 import 'package:my_app/services/user_phase_service.dart';
 import 'package:my_app/arc/core/journal_repository.dart';
 

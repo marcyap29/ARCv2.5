@@ -9,10 +9,10 @@ import 'package:my_app/prism/mcp/adapters/cas_resolver.dart';
 import 'package:my_app/prism/mcp/models/mcp_schemas.dart';
 import 'package:my_app/lumara/chat/chat_repo.dart';
 import 'package:my_app/lumara/chat/chat_models.dart';
-import 'package:my_app/arc/models/journal_entry_model.dart';
+import 'package:my_app/models/journal_entry_model.dart';
 import 'package:my_app/arc/core/journal_repository.dart';
-import 'package:my_app/atlas/rivet/rivet_provider.dart';
-import 'package:my_app/atlas/rivet/rivet_models.dart';
+import 'package:my_app/rivet/validation/rivet_provider.dart';
+import 'package:my_app/rivet/models/rivet_models.dart';
 import 'package:my_app/services/user_phase_service.dart';
 import 'package:my_app/features/arcforms/phase_recommender.dart';
 

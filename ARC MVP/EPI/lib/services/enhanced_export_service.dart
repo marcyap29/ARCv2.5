@@ -1,6 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:share_plus/share_plus.dart';
-import '../arc/models/journal_entry_model.dart';
+import 'package:my_app/models/journal_entry_model.dart';
 import '../mode/first_responder/fr_settings_cubit.dart';
 import '../mode/first_responder/redaction/redaction_service.dart';
 import '../mode/first_responder/redaction/redaction_preview_sheet.dart';

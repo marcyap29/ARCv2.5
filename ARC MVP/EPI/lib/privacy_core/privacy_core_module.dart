@@ -7,8 +7,9 @@ export 'interfaces/guardrail_interface.dart';
 export 'models/pii_types.dart';
 export 'models/detection_result.dart';
 export 'models/masking_result.dart';
-export 'utils/privacy_patterns.dart';
-export 'utils/confidence_calculators.dart';
-export 'utils/validation_utils.dart';
-export 'config/module_privacy_configs.dart';
-export 'config/cross_module_policies.dart';
+// TODO: Create these utility and config files
+// export 'utils/privacy_patterns.dart';
+// export 'utils/confidence_calculators.dart';
+// export 'utils/validation_utils.dart';
+// export 'config/module_privacy_configs.dart';
+// export 'config/cross_module_policies.dart';

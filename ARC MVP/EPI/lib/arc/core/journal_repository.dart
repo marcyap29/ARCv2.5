@@ -1,6 +1,6 @@
 import 'dart:async';
 import 'package:hive/hive.dart';
-import 'package:my_app/arc/models/journal_entry_model.dart';
+import 'package:my_app/models/journal_entry_model.dart';
 import 'package:my_app/features/timeline/timeline_state.dart';
 import 'package:my_app/arc/core/sage_annotation_model.dart';
 

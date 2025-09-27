@@ -6,7 +6,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:crypto/crypto.dart';
 import '../../arc/core/journal_repository.dart';
-import '../../arc/models/journal_entry_model.dart';
+import 'package:my_app/models/journal_entry_model.dart';
 import '../../../mira/core/ids.dart';
 
 class McpEntryProjector {

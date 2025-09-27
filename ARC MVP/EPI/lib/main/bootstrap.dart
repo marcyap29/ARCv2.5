@@ -12,10 +12,10 @@ import 'package:my_app/models/enums/flavor.dart';
 import 'package:my_app/utils/flavors.dart';
 
 import 'package:my_app/models/user_profile_model.dart';
-import 'package:my_app/arc/models/journal_entry_model.dart';
+import 'package:my_app/models/journal_entry_model.dart';
 import 'package:my_app/models/arcform_snapshot_model.dart';
 import 'package:my_app/arc/core/sage_annotation_model.dart';
-import 'package:my_app/atlas/rivet/rivet_storage.dart';
+import 'package:my_app/rivet/validation/rivet_storage.dart';
 import 'package:my_app/services/analytics_service.dart';
 import 'package:my_app/data/hive/insight_snapshot.dart';
 import 'package:my_app/core/sync/sync_item_adapter.dart';

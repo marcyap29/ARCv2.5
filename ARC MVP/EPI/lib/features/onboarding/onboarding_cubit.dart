@@ -3,7 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:my_app/features/onboarding/onboarding_state.dart';
 import 'package:hive/hive.dart';
 import 'package:my_app/models/user_profile_model.dart';
-import 'package:my_app/arc/models/journal_entry_model.dart';
+import 'package:my_app/models/journal_entry_model.dart';
 import 'package:logger/logger.dart';
 import 'package:my_app/services/starter_arcform_service.dart';
 import 'package:my_app/mode/first_responder/fr_settings_cubit.dart';
