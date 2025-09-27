@@ -1,9 +1,9 @@
 # ARC MVP — Project Brief for Cursor
 
 ## Overview
-ARC is the **first module of EPI (Evolving Personal Intelligence)**. It is a journaling app that treats reflection as a **sacred act**. The experience should feel like the *Blessed* app: calming, atmospheric, and emotionally resonant. Journaling is the entry point, but the core differentiation is that each entry generates a **visual Arcform** — a glowing, constellation-like structure that evolves with the user's story.
+ARC is the **core journaling module of EPI (Evolving Personal Intelligence)**, built using a new 8-module architecture. It is a journaling app that treats reflection as a **sacred act**. The experience should feel like the *Blessed* app: calming, atmospheric, and emotionally resonant. Journaling is the entry point, but the core differentiation is that each entry generates a **visual Arcform** — a glowing, constellation-like structure that evolves with the user's story.
 
-This MVP focuses on **journaling → AI analysis → Arcform visualization → memory graph**, with complete AI integration via Gemini API, MIRA semantic memory system, and enhanced MCP Memory Bundle export/import featuring mixed-version schema support (node.v1 + node.v2), chat analytics integration, and comprehensive semantic relationship mapping for full ecosystem interoperability.
+This MVP now implements **modular architecture** with RIVET (safety validation) and ECHO (expressive response layer) modules migrated to their proper locations, providing a foundation for the complete 8-module system: ARC→PRISM→ECHO→ATLAS→MIRA→AURORA→VEIL→RIVET.
 
 ---
 
