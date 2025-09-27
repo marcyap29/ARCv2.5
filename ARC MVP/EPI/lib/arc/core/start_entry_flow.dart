@@ -220,6 +220,42 @@ class _StartEntryFlowState extends State<StartEntryFlow> {
     return Scaffold(
       backgroundColor: kcBackgroundColor,
       resizeToAvoidBottomInset: true,
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        leading: IconButton(
+          onPressed: () {
+            // Check if we can go back in the PageView
+            if (_pageController.page != null && _pageController.page! > 0) {
+              _pageController.previousPage(
+                duration: const Duration(milliseconds: 400),
+                curve: Curves.easeInOutCubic,
+              );
+            } else {
+              // If we're on the first page, just pop back to previous screen
+              Navigator.of(context).pop();
+            }
+          },
+          icon: const Icon(
+            Icons.arrow_back_ios,
+            color: Colors.white,
+            size: 24,
+          ),
+        ),
+        actions: [
+          IconButton(
+            onPressed: () {
+              Navigator.popUntil(context, (route) => route.isFirst);
+            },
+            icon: const Icon(
+              Icons.home,
+              color: Colors.white,
+              size: 28,
+            ),
+            tooltip: 'Home',
+          ),
+        ],
+      ),
       body: Container(
         decoration: const BoxDecoration(
           gradient: kcPrimaryGradient,
@@ -236,27 +272,6 @@ class _StartEntryFlowState extends State<StartEntryFlow> {
                 child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Back button
-                IconButton(
-                  onPressed: () {
-                    // Check if we can go back in the PageView
-                    if (_pageController.page != null && _pageController.page! > 0) {
-                      _pageController.previousPage(
-                        duration: const Duration(milliseconds: 400),
-                        curve: Curves.easeInOutCubic,
-                      );
-                    } else {
-                      // If we're on the first page, just pop back to previous screen
-                      Navigator.of(context).pop();
-                    }
-                  },
-                  icon: const Icon(
-                    Icons.arrow_back_ios,
-                    color: Colors.white,
-                    size: 24,
-                  ),
-                ),
-                
                 const SizedBox(height: 20),
                 
                 // Context hint

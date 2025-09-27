@@ -59,6 +59,31 @@ class _ReasonPickerState extends State<ReasonPicker>
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: kcBackgroundColor,
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        leading: IconButton(
+          onPressed: widget.onBackPressed ?? () => Navigator.of(context).pop(),
+          icon: const Icon(
+            Icons.arrow_back_ios,
+            color: Colors.white,
+            size: 24,
+          ),
+        ),
+        actions: [
+          IconButton(
+            onPressed: () {
+              Navigator.popUntil(context, (route) => route.isFirst);
+            },
+            icon: const Icon(
+              Icons.home,
+              color: Colors.white,
+              size: 28,
+            ),
+            tooltip: 'Home',
+          ),
+        ],
+      ),
       body: Container(
         decoration: const BoxDecoration(
           gradient: kcPrimaryGradient,
@@ -73,16 +98,6 @@ class _ReasonPickerState extends State<ReasonPicker>
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Back button
-                    IconButton(
-                      onPressed: widget.onBackPressed ?? () => Navigator.of(context).pop(),
-                      icon: const Icon(
-                        Icons.arrow_back_ios,
-                        color: Colors.white,
-                        size: 24,
-                      ),
-                    ),
-                    
                     const SizedBox(height: 20),
                     
                     // Context hint

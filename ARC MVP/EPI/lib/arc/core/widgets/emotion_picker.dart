@@ -49,6 +49,21 @@ class _EmotionPickerState extends State<EmotionPicker>
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: kcBackgroundColor,
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        leading: IconButton(
+          onPressed: () {
+            Navigator.popUntil(context, (route) => route.isFirst);
+          },
+          icon: const Icon(
+            Icons.home,
+            color: Colors.white,
+            size: 28,
+          ),
+          tooltip: 'Home',
+        ),
+      ),
       body: Container(
         decoration: const BoxDecoration(
           gradient: kcPrimaryGradient,
