@@ -18,7 +18,9 @@ import 'package:my_app/core/services/media_store.dart';
 import 'package:my_app/services/journal_session_cache.dart';
 
 class StartEntryFlow extends StatefulWidget {
-  const StartEntryFlow({super.key});
+  final VoidCallback? onExitToPhase;
+  
+  const StartEntryFlow({super.key, this.onExitToPhase});
 
   @override
   State<StartEntryFlow> createState() => _StartEntryFlowState();
@@ -294,6 +296,7 @@ class _StartEntryFlowState extends State<StartEntryFlow> {
             onEmotionSelected: _onEmotionSelected,
             onBackPressed: () => Navigator.of(context).pop(),
             selectedEmotion: _selectedEmotion,
+            onExitToPhase: widget.onExitToPhase,
           ),
           
           // Step 2: Reason Picker
@@ -306,6 +309,7 @@ class _StartEntryFlowState extends State<StartEntryFlow> {
               ),
               selectedEmotion: _selectedEmotion!,
               selectedReason: _selectedReason,
+              onExitToPhase: widget.onExitToPhase,
             ),
           
           // Step 3: Text Editor
@@ -345,8 +349,12 @@ class _StartEntryFlowState extends State<StartEntryFlow> {
         actions: [
           IconButton(
             onPressed: () {
-              // For now, just pop - the tab navigation will handle the rest
-              Navigator.popUntil(context, (route) => route.isFirst);
+              // Use callback to navigate to Phase tab if available, otherwise pop
+              if (widget.onExitToPhase != null) {
+                widget.onExitToPhase!();
+              } else {
+                Navigator.popUntil(context, (route) => route.isFirst);
+              }
             },
             icon: const Icon(
               Icons.close,

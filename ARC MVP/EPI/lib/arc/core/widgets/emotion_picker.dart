@@ -7,12 +7,14 @@ class EmotionPicker extends StatefulWidget {
   final Function(String) onEmotionSelected;
   final VoidCallback? onBackPressed;
   final String? selectedEmotion;
+  final VoidCallback? onExitToPhase;
 
   const EmotionPicker({
     super.key,
     required this.onEmotionSelected,
     this.onBackPressed,
     this.selectedEmotion,
+    this.onExitToPhase,
   });
 
   @override
@@ -54,8 +56,12 @@ class _EmotionPickerState extends State<EmotionPicker>
         elevation: 0,
         leading: IconButton(
           onPressed: () {
-            // For now, just pop - the tab navigation will handle the rest
-            Navigator.popUntil(context, (route) => route.isFirst);
+            // Use callback to navigate to Phase tab if available, otherwise pop
+            if (widget.onExitToPhase != null) {
+              widget.onExitToPhase!();
+            } else {
+              Navigator.popUntil(context, (route) => route.isFirst);
+            }
           },
           icon: const Icon(
             Icons.close,

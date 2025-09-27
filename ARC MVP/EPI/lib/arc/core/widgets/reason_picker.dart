@@ -8,6 +8,7 @@ class ReasonPicker extends StatefulWidget {
   final VoidCallback? onBackPressed;
   final String? selectedReason;
   final String selectedEmotion;
+  final VoidCallback? onExitToPhase;
 
   const ReasonPicker({
     super.key,
@@ -15,6 +16,7 @@ class ReasonPicker extends StatefulWidget {
     this.onBackPressed,
     required this.selectedEmotion,
     this.selectedReason,
+    this.onExitToPhase,
   });
 
   @override
@@ -73,8 +75,12 @@ class _ReasonPickerState extends State<ReasonPicker>
         actions: [
           IconButton(
             onPressed: () {
-              // For now, just pop - the tab navigation will handle the rest
-              Navigator.popUntil(context, (route) => route.isFirst);
+              // Use callback to navigate to Phase tab if available, otherwise pop
+              if (widget.onExitToPhase != null) {
+                widget.onExitToPhase!();
+              } else {
+                Navigator.popUntil(context, (route) => route.isFirst);
+              }
             },
             icon: const Icon(
               Icons.close,

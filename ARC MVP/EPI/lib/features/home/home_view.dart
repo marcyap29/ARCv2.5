@@ -93,7 +93,9 @@ class _HomeViewState extends State<HomeView> {
     _pages = [
       const ArcformRendererView(), // Phase (index 0)
       const TimelineView(), // Timeline (index 1)
-      const StartEntryFlow(), // Write (index 2) - Center tab
+      StartEntryFlow(
+        onExitToPhase: () => _homeCubit.changeTab(0), // Go to Phase tab
+      ), // Write (index 2) - Center tab
       _InsightsPage(key: _insightsPageKey), // Insights (index 3)
       const SettingsView(), // Settings (index 4)
     ];
