@@ -12,15 +12,13 @@ import 'package:my_app/features/timeline/timeline_cubit.dart';
 import 'package:my_app/arc/core/journal_capture_cubit.dart';
 import 'package:my_app/arc/core/keyword_extraction_cubit.dart';
 import 'package:my_app/core/a11y/a11y_flags.dart';
-import 'package:my_app/atlas/rivet/rivet_provider.dart';
+import 'package:my_app/rivet/rivet_module.dart';
 import 'package:my_app/core/services/app_lifecycle_manager.dart';
 import 'package:my_app/mode/first_responder/fr_settings_cubit.dart';
 import 'package:my_app/mode/coach/coach_mode_cubit.dart';
 import 'package:my_app/mode/coach/coach_droplet_service.dart';
 import 'package:my_app/mode/coach/coach_share_service.dart';
-import 'package:my_app/lumara/bloc/lumara_assistant_cubit.dart';
-import 'package:my_app/lumara/data/context_provider.dart';
-import 'package:my_app/lumara/data/context_scope.dart';
+import 'package:my_app/echo/echo_module.dart';
 import 'package:my_app/features/settings/settings_cubit.dart';
 import 'package:hive/hive.dart';
 
