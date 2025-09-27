@@ -193,6 +193,9 @@ class _StartEntryFlowState extends State<StartEntryFlow> {
   }
 
   Widget _buildTextEditor() {
-    return JournalScreen();
+    return JournalScreen(
+      selectedEmotion: _selectedEmotion,
+      selectedReason: _selectedReason,
+    );
   }
 }

@@ -1,18 +1,31 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../state/journal_entry_state.dart';
 import '../../state/feature_flags.dart';
 import '../../telemetry/analytics.dart';
 import '../../services/lumara/lumara_inline_api.dart';
 import '../../services/ocr/ocr_service.dart';
+import '../../services/journal_session_cache.dart';
+import '../../arc/core/keyword_extraction_cubit.dart';
+import '../../arc/core/journal_capture_cubit.dart';
+import '../../arc/core/journal_repository.dart';
+import '../../arc/core/widgets/keyword_analysis_view.dart';
 import 'widgets/lumara_fab.dart';
 import 'widgets/lumara_suggestion_sheet.dart';
 import 'widgets/inline_reflection_block.dart';
 
 /// Main journal screen with integrated LUMARA companion and OCR scanning
 class JournalScreen extends StatefulWidget {
-  const JournalScreen({super.key});
+  final String? selectedEmotion;
+  final String? selectedReason;
+  
+  const JournalScreen({
+    super.key,
+    this.selectedEmotion,
+    this.selectedReason,
+  });
 
   @override
   State<JournalScreen> createState() => _JournalScreenState();
@@ -248,8 +261,35 @@ class _JournalScreenState extends State<JournalScreen> {
       'reflection_count': _entryState.blocks.length,
     });
     
-    // TODO: Save entry and navigate to next step
-    Navigator.of(context).pop();
+    // Navigate to keyword analysis
+    Navigator.of(context).push<Map<String, dynamic>>(
+      MaterialPageRoute(
+        builder: (context) => MultiBlocProvider(
+          providers: [
+            BlocProvider(
+              create: (context) => JournalCaptureCubit(context.read<JournalRepository>()),
+            ),
+            BlocProvider(
+              create: (context) => KeywordExtractionCubit()..initialize(),
+            ),
+          ],
+          child: KeywordAnalysisView(
+            content: _entryState.text,
+            mood: widget.selectedEmotion ?? 'Other',
+            initialEmotion: widget.selectedEmotion,
+            initialReason: widget.selectedReason,
+          ),
+        ),
+      ),
+    ).then((result) {
+      // Handle save result - if saved successfully, go back to home
+      if (result != null && result['save'] == true) {
+        // Clear the session cache since entry was saved
+        JournalSessionCache.clearSession();
+        // Navigate back to the previous screen
+        Navigator.of(context).pop();
+      }
+    });
   }
 
   @override
