@@ -53,29 +53,18 @@ class _HomeViewState extends State<HomeView> {
   final GlobalKey<_InsightsPageState> _insightsPageKey = GlobalKey<_InsightsPageState>();
   
   List<TabItem> get _tabs {
-    const baseTabs = [
+    // Keep only the 4 main exploration tabs - remove LUMARA and + button
+    return const [
       TabItem(icon: Icons.auto_graph, text: 'Phase'),
       TabItem(icon: Icons.timeline, text: 'Timeline'),
       TabItem(icon: Icons.insights, text: 'Insights'),
-      TabItem(icon: Icons.add_circle, text: '+'), // This will be elevated
       TabItem(icon: Icons.settings, text: 'Settings'),
     ];
-    
-    if (AppFlags.isLumaraEnabled) {
-      return [
-        ...baseTabs,
-        const TabItem(icon: Icons.psychology, text: 'LUMARA'),
-      ];
-    }
-    return baseTabs;
   }
 
   List<String> get _tabNames {
-    const baseNames = ['Phase', 'Timeline', 'Insights', '+', 'Settings'];
-    if (AppFlags.isLumaraEnabled) {
-      return [...baseNames, 'LUMARA'];
-    }
-    return baseNames;
+    // Updated to match the new tab structure
+    return const ['Phase', 'Timeline', 'Insights', 'Settings'];
   }
 
   late final List<Widget> _pages;
@@ -104,13 +93,7 @@ class _HomeViewState extends State<HomeView> {
       const ArcformRendererView(), // Phase (index 0)
       const TimelineView(), // Timeline (index 1)
       _InsightsPage(key: _insightsPageKey), // Insights (index 2)
-      const StartEntryFlow(), // + (index 3) - elevated
-      const SettingsView(), // Settings (index 4)
-      if (AppFlags.isLumaraEnabled)
-        BlocProvider<LumaraAssistantCubit>.value(
-          value: _lumaraCubit!,
-          child: const LumaraAssistantScreen(),
-        ), // LUMARA (index 5)
+      const SettingsView(), // Settings (index 3)
     ];
     
     // Initialize ethereal music (P22)
@@ -218,8 +201,56 @@ class _HomeViewState extends State<HomeView> {
                   }
                 },
                 height: 80,
-                elevatedTabIndex: 3, // Elevate the + button (index 3)
+                // No elevated tab - using flat navigation
               ),
+              // Primary FAB for New Journal Entry (center bottom)
+              floatingActionButton: Column(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  // Secondary FAB for LUMARA Chat (top-right)
+                  if (AppFlags.isLumaraEnabled)
+                    FloatingActionButton(
+                      heroTag: "lumara_chat",
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => BlocProvider<LumaraAssistantCubit>.value(
+                              value: _lumaraCubit!,
+                              child: const LumaraAssistantScreen(),
+                            ),
+                          ),
+                        );
+                      },
+                      backgroundColor: kcSurfaceAltColor,
+                      child: const Icon(
+                        Icons.chat_bubble_outline,
+                        color: kcPrimaryTextColor,
+                        size: 24,
+                      ),
+                    ),
+                  const SizedBox(height: 16),
+                  // Primary FAB for New Journal Entry (center)
+                  FloatingActionButton(
+                    heroTag: "new_entry",
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const StartEntryFlow(),
+                        ),
+                      );
+                    },
+                    backgroundColor: kcPrimaryColor,
+                    child: const Icon(
+                      Icons.edit,
+                      color: Colors.white,
+                      size: 28,
+                    ),
+                  ),
+                ],
+              ),
+              floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
             );
           },
         ),
