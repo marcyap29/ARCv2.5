@@ -800,9 +800,11 @@ class _RivetCardState extends State<_RivetCard> {
         ringColor = Colors.orange;
         break;
       default:
-        ringColor = Colors.red;
+        ringColor = Colors.blue; // Changed from red to blue for more encouraging tone
     }
-    
+
+    final progressInfo = _getProgressInfo();
+
     return Stack(
       alignment: Alignment.center,
       children: [
@@ -810,7 +812,7 @@ class _RivetCardState extends State<_RivetCard> {
           width: 120,
           height: 120,
           child: CircularProgressIndicator(
-            value: score,
+            value: _getVisualProgress(), // Visual progress based on entries, not RIVET math
             strokeWidth: 8,
             backgroundColor: Colors.white.withOpacity(0.2),
             valueColor: AlwaysStoppedAnimation<Color>(ringColor),
@@ -820,36 +822,91 @@ class _RivetCardState extends State<_RivetCard> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Text(
-              '${(score * 100).round()}%',
+              progressInfo['display']!,
               style: heading1Style(context).copyWith(
                 color: ringColor,
-                fontSize: 24,
+                fontSize: 20,
                 fontWeight: FontWeight.bold,
               ),
+              textAlign: TextAlign.center,
             ),
             Text(
-              _getProgressLabel(status),
+              progressInfo['subtitle']!,
               style: bodyStyle(context).copyWith(
                 color: kcPrimaryTextColor.withOpacity(0.7),
-                fontSize: 12,
+                fontSize: 10,
               ),
+              textAlign: TextAlign.center,
             ),
           ],
         ),
       ],
     );
   }
-  
-  String _getProgressLabel(String status) {
-    switch (status) {
-      case 'ready':
-        return Copy.rivetProgressReady;
-      case 'almost':
-        return Copy.rivetProgressAlmost;
-      default:
-        return Copy.rivetProgressNotReady;
+
+  // Get visual progress for ring (simpler than RIVET math)
+  double _getVisualProgress() {
+    if (_rivetState == null) return 0.0;
+
+    final sustainCount = _rivetState!.sustainCount;
+    final targetCount = 2; // Need 2 qualifying entries
+
+    // Visual progress based on entry count, capped at 0.9 until fully ready
+    final progress = (sustainCount / targetCount).clamp(0.0, 0.9);
+
+    // Only show 1.0 when actually ready
+    if (sustainCount >= targetCount &&
+        _rivetState!.sawIndependentInWindow &&
+        _rivetState!.align >= 0.6 &&
+        _rivetState!.trace >= 0.6) {
+      return 1.0;
+    }
+
+    return progress;
+  }
+
+  // Get user-friendly progress information
+  Map<String, String> _getProgressInfo() {
+    if (_rivetState == null) {
+      return {
+        'display': 'Getting\nStarted',
+        'subtitle': 'Begin journaling'
+      };
+    }
+
+    final sustainCount = _rivetState!.sustainCount;
+    final targetCount = 2;
+    final entriesNeeded = (targetCount - sustainCount).clamp(0, targetCount);
+    final hasIndependent = _rivetState!.sawIndependentInWindow;
+
+    if (sustainCount >= targetCount && hasIndependent) {
+      return {
+        'display': 'Ready!',
+        'subtitle': 'Phase unlocked'
+      };
+    } else if (sustainCount >= targetCount && !hasIndependent) {
+      return {
+        'display': 'Almost\nThere',
+        'subtitle': 'Try different day'
+      };
+    } else if (sustainCount == 1) {
+      return {
+        'display': '1 More\nEntry',
+        'subtitle': 'Great momentum!'
+      };
+    } else if (sustainCount == 0) {
+      return {
+        'display': '2 More\nEntries',
+        'subtitle': 'Building evidence'
+      };
+    } else {
+      return {
+        'display': '$entriesNeeded More\nEntries',
+        'subtitle': 'Keep exploring'
+      };
     }
   }
+  
   
   Widget _buildStatusMessage(BuildContext context, String status) {
     String message;
@@ -865,13 +922,13 @@ class _RivetCardState extends State<_RivetCard> {
         icon = Icons.check_circle;
         break;
       case 'almost':
-        message = "Almost there - ${(readinessScore * 100).round()}% ready";
+        message = _getPersonalizedStatusMessage(readinessScore);
         messageColor = Colors.orange;
         icon = Icons.schedule;
         break;
       default:
         message = _getPersonalizedStatusMessage(readinessScore);
-        messageColor = Colors.red;
+        messageColor = Colors.blue; // Changed from red to blue for encouragement
         icon = Icons.trending_up;
     }
 
@@ -911,21 +968,24 @@ class _RivetCardState extends State<_RivetCard> {
 
   String _getPersonalizedStatusMessage(double score) {
     if (_rivetState == null) {
-      return "Start journaling to build phase readiness";
+      return "Start journaling to build your story";
     }
 
-    final percentage = (score * 100).round();
+    final sustainCount = _rivetState!.sustainCount;
+    final hasIndependent = _rivetState!.sawIndependentInWindow;
+    final targetCount = 2;
 
-    if (percentage == 0) {
-      return "Begin your readiness journey";
-    } else if (percentage < 20) {
-      return "$percentage% ready - great start!";
-    } else if (percentage < 40) {
-      return "$percentage% ready - building momentum";
-    } else if (percentage < 60) {
-      return "$percentage% ready - you're halfway there";
+    if (sustainCount >= targetCount && hasIndependent) {
+      return "Phase change ready - explore new territory!";
+    } else if (sustainCount >= targetCount && !hasIndependent) {
+      return "Almost ready - try journaling on a different day";
+    } else if (sustainCount == 1) {
+      return "Great momentum - 1 more quality entry needed";
+    } else if (sustainCount == 0) {
+      return "Building your foundation - every entry matters";
     } else {
-      return "$percentage% ready - so close!";
+      final needed = targetCount - sustainCount;
+      return "Strong progress - $needed more qualifying entries";
     }
   }
   
@@ -1053,42 +1113,46 @@ class _RivetCardState extends State<_RivetCard> {
   }
 
   List<String> _getSpecificGuidance() {
-    if (_rivetState == null) return ["Continue journaling to build readiness"];
+    if (_rivetState == null) return ["Start journaling to begin building your story"];
 
     final guidance = <String>[];
-    final readinessScore = _calculateReadinessScore();
-
-    // Check specific areas that need improvement
-    final alignScore = _rivetState!.align;
-    final traceScore = _rivetState!.trace;
     final sustainCount = _rivetState!.sustainCount;
     final hasIndependent = _rivetState!.sawIndependentInWindow;
+    final alignScore = _rivetState!.align;
+    final targetCount = 2;
 
-    if (alignScore < 0.4) {
-      guidance.add("Write entries that deeply explore your current phase themes");
+    // Entry-specific guidance
+    if (sustainCount == 0) {
+      guidance.add("✨ Write 2 thoughtful entries exploring your current life phase");
+      guidance.add("🌱 Focus on meaningful experiences and feelings");
+    } else if (sustainCount == 1) {
+      guidance.add("🎯 1 more quality entry needed - you're building great momentum!");
+      guidance.add("📝 Continue exploring themes from your current phase");
+    } else if (sustainCount >= targetCount && !hasIndependent) {
+      guidance.add("🗓️ Try journaling on a different day for independence");
+      guidance.add("✨ You've built strong evidence - just need variety");
     }
 
-    if (traceScore < 0.4) {
-      guidance.add("Continue journaling consistently to build confidence");
+    // Quality guidance
+    if (alignScore < 0.4 && sustainCount > 0) {
+      guidance.add("💭 Dive deeper into your current phase's themes and challenges");
     }
 
-    if (sustainCount < 2) {
-      guidance.add("Need ${2 - sustainCount} more qualifying journal entries");
+    // Independence guidance
+    if (!hasIndependent && sustainCount > 0) {
+      guidance.add("🔄 Journal at different times or on different days");
     }
 
-    if (!hasIndependent) {
-      guidance.add("Try journaling on different days or at different times");
-    }
-
-    if (readinessScore < 0.3) {
-      guidance.add("Focus on meaningful reflection about your life experiences");
-    }
-
-    // Always provide an encouraging next step
-    if (guidance.isEmpty) {
-      guidance.add("Keep journaling regularly - you're making progress!");
+    // Always provide encouraging completion message
+    if (sustainCount >= targetCount && hasIndependent) {
+      guidance.add("🎉 Ready to explore your next phase - amazing progress!");
+    } else if (sustainCount == 1) {
+      guidance.add("💪 Great foundation built - 1 more entry unlocks phase change");
+    } else if (sustainCount == 0) {
+      guidance.add("🚀 Every entry matters - you're building something meaningful");
     } else {
-      guidance.add("You're ${(readinessScore * 100).round()}% ready - keep going!");
+      final needed = targetCount - sustainCount;
+      guidance.add("📈 Strong progress made - $needed more entries to unlock");
     }
 
     return guidance;
