@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:my_app/features/home/home_cubit.dart';
 import 'package:my_app/features/home/home_state.dart';
-import 'package:my_app/arc/core/start_entry_flow.dart';
+import 'package:my_app/ui/journal/journal_screen.dart';
 import 'package:my_app/features/arcforms/arcform_renderer_view.dart';
 import 'package:my_app/features/timeline/timeline_view.dart';
 import 'package:my_app/features/timeline/timeline_cubit.dart';
@@ -93,9 +93,7 @@ class _HomeViewState extends State<HomeView> {
     _pages = [
       const ArcformRendererView(), // Phase (index 0)
       const TimelineView(), // Timeline (index 1)
-      StartEntryFlow(
-        onExitToPhase: () => _homeCubit.changeTab(0), // Go to Phase tab
-      ), // Write (index 2) - Center tab
+      const JournalScreen(), // Write (index 2) - Center tab with LUMARA integration
       _InsightsPage(key: _insightsPageKey), // Insights (index 3)
       const SettingsView(), // Settings (index 4)
     ];
