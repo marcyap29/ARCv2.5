@@ -73,6 +73,7 @@ class _ReasonPickerState extends State<ReasonPicker>
         actions: [
           IconButton(
             onPressed: () {
+              // For now, just pop - the tab navigation will handle the rest
               Navigator.popUntil(context, (route) => route.isFirst);
             },
             icon: const Icon(

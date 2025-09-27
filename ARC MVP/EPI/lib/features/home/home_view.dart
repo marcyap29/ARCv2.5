@@ -205,6 +205,30 @@ class _HomeViewState extends State<HomeView> {
                 height: 80,
                 // No elevated tab - using flat navigation
               ),
+              // LUMARA floating action button
+              floatingActionButton: AppFlags.isLumaraEnabled
+                  ? FloatingActionButton(
+                      heroTag: "lumara_chat",
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => BlocProvider<LumaraAssistantCubit>.value(
+                              value: _lumaraCubit!,
+                              child: const LumaraAssistantScreen(),
+                            ),
+                          ),
+                        );
+                      },
+                      backgroundColor: kcSurfaceAltColor,
+                      child: const Icon(
+                        Icons.psychology,
+                        color: kcPrimaryTextColor,
+                        size: 24,
+                      ),
+                    )
+                  : null,
+              floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
             );
           },
         ),

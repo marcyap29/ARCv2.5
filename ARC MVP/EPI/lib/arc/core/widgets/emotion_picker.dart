@@ -54,6 +54,7 @@ class _EmotionPickerState extends State<EmotionPicker>
         elevation: 0,
         leading: IconButton(
           onPressed: () {
+            // For now, just pop - the tab navigation will handle the rest
             Navigator.popUntil(context, (route) => route.isFirst);
           },
           icon: const Icon(
