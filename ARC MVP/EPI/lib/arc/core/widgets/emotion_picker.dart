@@ -61,16 +61,6 @@ class _EmotionPickerState extends State<EmotionPicker>
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Back button
-                  IconButton(
-                    onPressed: widget.onBackPressed ?? () => Navigator.of(context).pop(),
-                    icon: const Icon(
-                      Icons.arrow_back_ios,
-                      color: Colors.white,
-                      size: 24,
-                    ),
-                  ),
-                  
                   const SizedBox(height: 20),
                   
                   // Title

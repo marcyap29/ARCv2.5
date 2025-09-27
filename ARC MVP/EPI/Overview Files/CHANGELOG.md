@@ -17,6 +17,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 ### Latest Update - 2025-09-27
 
 ### Added
+- **UI/UX Improvement - Journaling Flow** (2025-09-27) ✅ COMPLETE
+  - **Removed Unnecessary Back Arrow**: Eliminated back button from "How are you feeling today?" emotion selection screen
+  - **Simplified Navigation**: Main menu at bottom provides sufficient navigation options
+  - **Cleaner Interface**: Streamlined emotion picker UI for better focus on feeling selection
+  - **File Updated**: `lib/arc/core/widgets/emotion_picker.dart`
+
 - **Modular Architecture Implementation** (2025-09-27) ✅ COMPLETE
   - **RIVET Module Migration**: Moved Risk-Validation Evidence Tracker to lib/rivet/ with proper structure
   - **ECHO Module Migration**: Migrated LUMARA response layer to lib/echo/ with provider-agnostic interfaces
