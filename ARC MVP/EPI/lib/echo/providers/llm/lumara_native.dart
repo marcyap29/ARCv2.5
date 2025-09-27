@@ -3,7 +3,7 @@
 // so the app compiles and runs without native plugins.
 
 import 'dart:async';
-import '../../core/app_flags.dart';
+import 'package:my_app/core/app_flags.dart';
 
 class DeviceCapabilities {
   final int totalRamMB;

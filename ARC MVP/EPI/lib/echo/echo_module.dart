@@ -6,11 +6,11 @@ export 'response/prompts/lumara_system_prompt.dart';
 export 'response/prompts/prompt_library.dart';
 
 // Provider-agnostic LLM interfaces
-export 'providers/llm/model_adapter.dart';
 export 'providers/llm/rule_based_adapter.dart';
-export 'providers/llm/qwen_adapter.dart';
-export 'providers/llm/lumara_native.dart';
 export 'providers/llm/prompt_templates.dart';
+// TODO: Re-enable after fixing QwenModel dependencies
+// export 'providers/llm/qwen_adapter.dart';
+// export 'providers/llm/lumara_native.dart';
 
 // Context and data models
 export 'models/data/context_scope.dart';
