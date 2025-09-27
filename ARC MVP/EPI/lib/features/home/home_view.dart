@@ -172,7 +172,7 @@ class _HomeViewState extends State<HomeView> {
                 child: Stack(
                   children: [
                     Padding(
-                      padding: const EdgeInsets.only(bottom: 80.0), // Add bottom padding for floating button
+                      padding: const EdgeInsets.only(bottom: 100.0), // Add bottom padding for center floating button
                       child: _pages[selectedIndex],
                     ),
                     // Status indicators at top right
@@ -216,7 +216,6 @@ class _HomeViewState extends State<HomeView> {
             // Write floating action button
             floatingActionButton: FloatingActionButton(
               heroTag: "write_entry",
-              mini: true, // Make it smaller
               onPressed: () {
                 Navigator.push(
                   context,
@@ -231,10 +230,10 @@ class _HomeViewState extends State<HomeView> {
               child: const Icon(
                 Icons.edit,
                 color: Colors.white,
-                size: 20,
+                size: 24,
               ),
             ),
-            floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
+            floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
             );
           },
         ),
