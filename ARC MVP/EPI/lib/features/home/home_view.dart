@@ -855,24 +855,26 @@ class _RivetCardState extends State<_RivetCard> {
     String message;
     Color messageColor;
     IconData icon;
-    
+
+    final readinessScore = _calculateReadinessScore();
+
     switch (status) {
       case 'ready':
-        message = Copy.rivetStatusReady;
+        message = "Ready to explore a new phase";
         messageColor = Colors.green;
         icon = Icons.check_circle;
         break;
       case 'almost':
-        message = Copy.rivetStatusAlmost;
+        message = "Almost there - ${(readinessScore * 100).round()}% ready";
         messageColor = Colors.orange;
         icon = Icons.schedule;
         break;
       default:
-        message = Copy.rivetStatusNotReady;
+        message = _getPersonalizedStatusMessage(readinessScore);
         messageColor = Colors.red;
-        icon = Icons.lock;
+        icon = Icons.trending_up;
     }
-    
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
@@ -906,55 +908,190 @@ class _RivetCardState extends State<_RivetCard> {
       ),
     );
   }
+
+  String _getPersonalizedStatusMessage(double score) {
+    if (_rivetState == null) {
+      return "Start journaling to build phase readiness";
+    }
+
+    final percentage = (score * 100).round();
+
+    if (percentage == 0) {
+      return "Begin your readiness journey";
+    } else if (percentage < 20) {
+      return "$percentage% ready - great start!";
+    } else if (percentage < 40) {
+      return "$percentage% ready - building momentum";
+    } else if (percentage < 60) {
+      return "$percentage% ready - you're halfway there";
+    } else {
+      return "$percentage% ready - so close!";
+    }
+  }
   
   Widget _buildActionButtons(BuildContext context, String status) {
-    return Row(
-      children: [
-        Expanded(
-          child: ElevatedButton(
-            onPressed: status == 'ready' ? () {
-              // Navigate to phase change
-              // TODO: Implement phase change navigation
-            } : null,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: status == 'ready' ? Colors.green : Colors.grey,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(vertical: 12),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
+    if (status == 'ready') {
+      return Row(
+        children: [
+          Expanded(
+            child: ElevatedButton(
+              onPressed: () {
+                // Navigate to phase change
+                // TODO: Implement phase change navigation
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.green,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
               ),
-            ),
-            child: Text(
-              status == 'ready' ? Copy.rivetActionChangePhase : Copy.rivetActionKeepJournaling,
-              style: const TextStyle(
-                fontWeight: FontWeight.w600,
-                fontSize: 14,
-              ),
-            ),
-          ),
-        ),
-        if (status != 'ready') ...[
-          const SizedBox(width: 12),
-          TextButton(
-            onPressed: () {
-              showModalBottomSheet(
-                context: context,
-                isScrollControlled: true,
-                backgroundColor: Colors.transparent,
-                builder: (context) => const WhyHeldSheet(),
-              );
-            },
-            child: Text(
-              Copy.rivetActionWhy,
-              style: bodyStyle(context).copyWith(
-                color: Colors.blue,
-                fontWeight: FontWeight.w500,
+              child: const Text(
+                "Change Phase",
+                style: TextStyle(
+                  fontWeight: FontWeight.w600,
+                  fontSize: 14,
+                ),
               ),
             ),
           ),
         ],
+      );
+    }
+
+    // For not ready status, show actionable guidance instead of grayed-out button
+    return _buildActionableGuidance(context);
+  }
+
+  Widget _buildActionableGuidance(BuildContext context) {
+    if (_rivetState == null) return const SizedBox.shrink();
+
+    final guidance = _getSpecificGuidance();
+
+    return Column(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.blue.withOpacity(0.05),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: Colors.blue.withOpacity(0.2),
+            ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(
+                    Icons.lightbulb_outline,
+                    color: Colors.blue,
+                    size: 20,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    "Next Steps",
+                    style: bodyStyle(context).copyWith(
+                      color: Colors.blue,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 14,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              ...guidance.map((item) => Padding(
+                padding: const EdgeInsets.only(bottom: 4),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      "• ",
+                      style: bodyStyle(context).copyWith(
+                        color: Colors.blue,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    Expanded(
+                      child: Text(
+                        item,
+                        style: bodyStyle(context).copyWith(
+                          color: kcSecondaryTextColor,
+                          fontSize: 13,
+                          height: 1.3,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              )).toList(),
+            ],
+          ),
+        ),
+        const SizedBox(height: 12),
+        TextButton(
+          onPressed: () {
+            showModalBottomSheet(
+              context: context,
+              isScrollControlled: true,
+              backgroundColor: Colors.transparent,
+              builder: (context) => const WhyHeldSheet(),
+            );
+          },
+          child: Text(
+            "See detailed breakdown",
+            style: bodyStyle(context).copyWith(
+              color: Colors.blue,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ),
       ],
     );
+  }
+
+  List<String> _getSpecificGuidance() {
+    if (_rivetState == null) return ["Continue journaling to build readiness"];
+
+    final guidance = <String>[];
+    final readinessScore = _calculateReadinessScore();
+
+    // Check specific areas that need improvement
+    final alignScore = _rivetState!.align;
+    final traceScore = _rivetState!.trace;
+    final sustainCount = _rivetState!.sustainCount;
+    final hasIndependent = _rivetState!.sawIndependentInWindow;
+
+    if (alignScore < 0.4) {
+      guidance.add("Write entries that deeply explore your current phase themes");
+    }
+
+    if (traceScore < 0.4) {
+      guidance.add("Continue journaling consistently to build confidence");
+    }
+
+    if (sustainCount < 2) {
+      guidance.add("Need ${2 - sustainCount} more qualifying journal entries");
+    }
+
+    if (!hasIndependent) {
+      guidance.add("Try journaling on different days or at different times");
+    }
+
+    if (readinessScore < 0.3) {
+      guidance.add("Focus on meaningful reflection about your life experiences");
+    }
+
+    // Always provide an encouraging next step
+    if (guidance.isEmpty) {
+      guidance.add("Keep journaling regularly - you're making progress!");
+    } else {
+      guidance.add("You're ${(readinessScore * 100).round()}% ready - keep going!");
+    }
+
+    return guidance;
   }
 }
 
