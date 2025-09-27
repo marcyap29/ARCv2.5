@@ -28,15 +28,16 @@ A Flutter-based AI companion app that provides life-aware assistance through jou
 
 ## 🏗️ Architecture
 
-### Core Components
+### Core Components (8-Module Architecture)
 
-- **ARC** - Journaling and meaning-making layer with visual Arcforms
-- **ATLAS** - Life-phase detection and pacing system
-- **AURORA** - Daily and seasonal rhythm orchestration
-- **PRISM** - Multimodal perception (text, images, audio)
-- **MIRA** - Long-term memory and recall under user control
-- **VEIL** - Nightly pruning and coherence renewal
-- **LUMARA** - AI assistant that orchestrates the system with persistent chat memory
+- **ARC** - Core journaling interface and meaning-making layer with visual Arcforms
+- **PRISM** - Multimodal perception engine (text, images, audio, biometric streams)
+- **ECHO** - Expressive response layer (voice of LUMARA, provider-agnostic LLM interfaces)
+- **ATLAS** - Life-phase detection and pacing system with adaptive transitions
+- **MIRA** - Long-term memory and semantic graph with context-aware retrieval
+- **AURORA** - Daily and seasonal rhythm orchestration with circadian alignment
+- **VEIL** - Universal privacy guardrail with nightly pruning and coherence renewal
+- **RIVET** - Risk-Validation Evidence Tracker with ALIGN/TRACE metrics for safety gating
 
 ### AI Integration
 

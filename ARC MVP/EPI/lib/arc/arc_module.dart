@@ -13,4 +13,4 @@ export 'core/start_entry_flow.dart';
 export 'privacy/privacy_demo_screen.dart';
 
 // Models
-export 'arc/models/journal_entry_model.dart';
+export 'models/journal_entry_model.dart';
