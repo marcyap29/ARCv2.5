@@ -53,19 +53,19 @@ class _HomeViewState extends State<HomeView> {
   final GlobalKey<_InsightsPageState> _insightsPageKey = GlobalKey<_InsightsPageState>();
   
   List<TabItem> get _tabs {
-    // 4 tabs with LUMARA in the center position
+    // 5 tabs with Write in the center position
     return const [
       TabItem(icon: Icons.auto_graph, text: 'Phase'),
       TabItem(icon: Icons.timeline, text: 'Timeline'),
-      TabItem(icon: Icons.psychology, text: 'LUMARA'), // Center tab for LUMARA
+      TabItem(icon: Icons.edit, text: 'Write'), // Center tab for journal entry flow
       TabItem(icon: Icons.insights, text: 'Insights'),
       TabItem(icon: Icons.settings, text: 'Settings'),
     ];
   }
 
   List<String> get _tabNames {
-    // Updated to match the new tab structure with LUMARA in center
-    return const ['Phase', 'Timeline', 'LUMARA', 'Insights', 'Settings'];
+    // Updated to match the new tab structure with Write in center
+    return const ['Phase', 'Timeline', 'Write', 'Insights', 'Settings'];
   }
 
   late final List<Widget> _pages;
@@ -93,12 +93,7 @@ class _HomeViewState extends State<HomeView> {
     _pages = [
       const ArcformRendererView(), // Phase (index 0)
       const TimelineView(), // Timeline (index 1)
-      _lumaraCubit != null
-          ? BlocProvider<LumaraAssistantCubit>.value(
-              value: _lumaraCubit!,
-              child: const LumaraAssistantScreen(),
-            )
-          : const Center(child: Text('LUMARA not available')), // LUMARA (index 2) - Center tab
+      StartEntryFlow(onExitToPhase: () => _homeCubit.changeTab(0)), // Write (index 2) - Center tab
       _InsightsPage(key: _insightsPageKey), // Insights (index 3)
       const SettingsView(), // Settings (index 4)
     ];
@@ -210,27 +205,30 @@ class _HomeViewState extends State<HomeView> {
                 height: 80,
                 // No elevated tab - using flat navigation
               ),
-            // Write floating action button above bottom bar
-            floatingActionButton: FloatingActionButton(
-              heroTag: "write_entry",
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => StartEntryFlow(
-                      onExitToPhase: () => Navigator.pop(context),
+            // LUMARA floating action button
+            floatingActionButton: _lumaraCubit != null
+                ? FloatingActionButton(
+                    heroTag: "lumara_chat",
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => BlocProvider<LumaraAssistantCubit>.value(
+                            value: _lumaraCubit!,
+                            child: const LumaraAssistantScreen(),
+                          ),
+                        ),
+                      );
+                    },
+                    backgroundColor: kcPrimaryColor,
+                    child: const Icon(
+                      Icons.psychology,
+                      color: Colors.white,
+                      size: 24,
                     ),
-                  ),
-                );
-              },
-              backgroundColor: kcPrimaryColor,
-              child: const Icon(
-                Icons.edit,
-                color: Colors.white,
-                size: 24,
-              ),
-            ),
-            floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
+                  )
+                : null,
+            floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
             );
           },
         ),
