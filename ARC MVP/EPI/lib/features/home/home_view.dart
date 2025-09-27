@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:my_app/features/home/home_cubit.dart';
 import 'package:my_app/features/home/home_state.dart';
-import 'package:my_app/arc/core/start_entry_flow.dart';
+import 'package:my_app/ui/journal/journal_screen.dart';
 import 'package:my_app/features/arcforms/arcform_renderer_view.dart';
 import 'package:my_app/features/timeline/timeline_view.dart';
 import 'package:my_app/features/timeline/timeline_cubit.dart';
@@ -27,7 +27,6 @@ import 'package:my_app/services/analytics_service.dart';
 import 'package:my_app/core/services/audio_service.dart';
 import 'package:my_app/mode/first_responder/widgets/fr_status_indicator.dart';
 import 'package:my_app/mode/coach/widgets/coach_mode_status_indicator.dart';
-import 'package:my_app/lumara/ui/lumara_assistant_screen.dart';
 import 'package:my_app/lumara/bloc/lumara_assistant_cubit.dart';
 import 'package:my_app/lumara/data/context_provider.dart';
 import 'package:my_app/lumara/data/context_scope.dart';
@@ -53,19 +52,19 @@ class _HomeViewState extends State<HomeView> {
   final GlobalKey<_InsightsPageState> _insightsPageKey = GlobalKey<_InsightsPageState>();
   
   List<TabItem> get _tabs {
-    // 4 tabs with LUMARA in the center position
+    // 5 tabs with Write in the center position
     return const [
       TabItem(icon: Icons.auto_graph, text: 'Phase'),
       TabItem(icon: Icons.timeline, text: 'Timeline'),
-      TabItem(icon: Icons.psychology, text: 'LUMARA'), // Center tab for LUMARA
+      TabItem(icon: Icons.edit, text: 'Write'), // Center tab for advanced journal with LUMARA
       TabItem(icon: Icons.insights, text: 'Insights'),
       TabItem(icon: Icons.settings, text: 'Settings'),
     ];
   }
 
   List<String> get _tabNames {
-    // Updated to match the new tab structure with LUMARA in center
-    return const ['Phase', 'Timeline', 'LUMARA', 'Insights', 'Settings'];
+    // Updated to match the new tab structure with Write in center
+    return const ['Phase', 'Timeline', 'Write', 'Insights', 'Settings'];
   }
 
   late final List<Widget> _pages;
@@ -93,12 +92,7 @@ class _HomeViewState extends State<HomeView> {
     _pages = [
       const ArcformRendererView(), // Phase (index 0)
       const TimelineView(), // Timeline (index 1)
-      _lumaraCubit != null
-          ? BlocProvider<LumaraAssistantCubit>.value(
-              value: _lumaraCubit!,
-              child: const LumaraAssistantScreen(),
-            )
-          : const Center(child: Text('LUMARA not available')), // LUMARA (index 2) - Center tab
+      const JournalScreen(), // Write (index 2) - Center tab with advanced LUMARA integration
       _InsightsPage(key: _insightsPageKey), // Insights (index 3)
       const SettingsView(), // Settings (index 4)
     ];
@@ -171,10 +165,7 @@ class _HomeViewState extends State<HomeView> {
               body: SafeArea(
                 child: Stack(
                   children: [
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 100.0), // Add bottom padding for center floating button
-                      child: _pages[selectedIndex],
-                    ),
+                    _pages[selectedIndex],
                     // Status indicators at top right
                     Positioned(
                       top: 0,
@@ -213,27 +204,7 @@ class _HomeViewState extends State<HomeView> {
                 height: 80,
                 // No elevated tab - using flat navigation
               ),
-            // Write floating action button
-            floatingActionButton: FloatingActionButton(
-              heroTag: "write_entry",
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => StartEntryFlow(
-                      onExitToPhase: () => Navigator.pop(context),
-                    ),
-                  ),
-                );
-              },
-              backgroundColor: kcPrimaryColor,
-              child: const Icon(
-                Icons.edit,
-                color: Colors.white,
-                size: 24,
-              ),
-            ),
-            floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
+            // No floating action button - Write is now a center tab
             );
           },
         ),
