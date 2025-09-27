@@ -53,18 +53,19 @@ class _HomeViewState extends State<HomeView> {
   final GlobalKey<_InsightsPageState> _insightsPageKey = GlobalKey<_InsightsPageState>();
   
   List<TabItem> get _tabs {
-    // Keep only the 4 main exploration tabs - remove LUMARA and + button
+    // 5 tabs with Write in the center position
     return const [
       TabItem(icon: Icons.auto_graph, text: 'Phase'),
       TabItem(icon: Icons.timeline, text: 'Timeline'),
+      TabItem(icon: Icons.edit, text: 'Write'), // Center tab for journal entry
       TabItem(icon: Icons.insights, text: 'Insights'),
       TabItem(icon: Icons.settings, text: 'Settings'),
     ];
   }
 
   List<String> get _tabNames {
-    // Updated to match the new tab structure
-    return const ['Phase', 'Timeline', 'Insights', 'Settings'];
+    // Updated to match the new tab structure with Write in center
+    return const ['Phase', 'Timeline', 'Write', 'Insights', 'Settings'];
   }
 
   late final List<Widget> _pages;
@@ -92,8 +93,9 @@ class _HomeViewState extends State<HomeView> {
     _pages = [
       const ArcformRendererView(), // Phase (index 0)
       const TimelineView(), // Timeline (index 1)
-      _InsightsPage(key: _insightsPageKey), // Insights (index 2)
-      const SettingsView(), // Settings (index 3)
+      const StartEntryFlow(), // Write (index 2) - Center tab
+      _InsightsPage(key: _insightsPageKey), // Insights (index 3)
+      const SettingsView(), // Settings (index 4)
     ];
     
     // Initialize ethereal music (P22)
@@ -194,7 +196,7 @@ class _HomeViewState extends State<HomeView> {
                   print('DEBUG: Current selected index was: $selectedIndex');
                   _homeCubit.changeTab(index);
                   // Refresh RIVET card when Insights tab is selected
-                  if (index == 2) { // Insights tab index
+                  if (index == 3) { // Insights tab index (now index 3)
                     print('DEBUG: Insights tab selected, refreshing RIVET card');
                     print('DEBUG: Calling _refreshRivetCardInInsights...');
                     _refreshRivetCardInInsights();
@@ -203,54 +205,6 @@ class _HomeViewState extends State<HomeView> {
                 height: 80,
                 // No elevated tab - using flat navigation
               ),
-              // Primary FAB for New Journal Entry (center bottom)
-              floatingActionButton: Column(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  // Secondary FAB for LUMARA Chat (top-right)
-                  if (AppFlags.isLumaraEnabled)
-                    FloatingActionButton(
-                      heroTag: "lumara_chat",
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => BlocProvider<LumaraAssistantCubit>.value(
-                              value: _lumaraCubit!,
-                              child: const LumaraAssistantScreen(),
-                            ),
-                          ),
-                        );
-                      },
-                      backgroundColor: kcSurfaceAltColor,
-                      child: const Icon(
-                        Icons.chat_bubble_outline,
-                        color: kcPrimaryTextColor,
-                        size: 24,
-                      ),
-                    ),
-                  const SizedBox(height: 16),
-                  // Primary FAB for New Journal Entry (center)
-                  FloatingActionButton(
-                    heroTag: "new_entry",
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const StartEntryFlow(),
-                        ),
-                      );
-                    },
-                    backgroundColor: kcPrimaryColor,
-                    child: const Icon(
-                      Icons.edit,
-                      color: Colors.white,
-                      size: 28,
-                    ),
-                  ),
-                ],
-              ),
-              floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
             );
           },
         ),

@@ -53,6 +53,7 @@ class _CustomTabBarState extends State<CustomTabBar> {
           final index = entry.key;
           final tab = entry.value;
           final isSelected = index == widget.selectedIndex;
+          final isCenterTab = tab.text == 'Write'; // Check if this is the center Write tab
 
           return Expanded(
             child: GestureDetector(
@@ -64,6 +65,14 @@ class _CustomTabBarState extends State<CustomTabBar> {
                   gradient: isSelected ? kcPrimaryGradient : null,
                   color: isSelected ? null : kcSurfaceAltColor,
                   borderRadius: BorderRadius.circular(16),
+                  // Add special styling for center tab when selected
+                  boxShadow: isSelected && isCenterTab ? [
+                    BoxShadow(
+                      color: kcPrimaryColor.withOpacity(0.3),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ] : null,
                 ),
                 child: Center(
                   child: _buildTabContent(tab, isSelected),
@@ -172,6 +181,7 @@ class _CustomTabBarState extends State<CustomTabBar> {
 
   Widget _buildTabContent(TabItem tab, bool isSelected) {
     final textColor = isSelected ? Colors.white : kcPrimaryTextColor;
+    final isCenterTab = tab.text == 'Write'; // Check if this is the center Write tab
 
     if (tab.icon != null && tab.text != null) {
       return Column(
@@ -179,15 +189,15 @@ class _CustomTabBarState extends State<CustomTabBar> {
         children: [
           Icon(
             tab.icon,
-            size: 20, // Reduce icon size from 24 to 20
+            size: isCenterTab ? 24 : 20, // Larger icon for center tab
             color: textColor,
           ),
           const SizedBox(height: 2), // Reduce spacing from 4 to 2
           Text(
             tab.text!,
             style: TextStyle(
-              fontSize: 10, // Reduce text size from 12 to 10
-              fontWeight: FontWeight.w500,
+              fontSize: isCenterTab ? 12 : 10, // Larger text for center tab
+              fontWeight: isCenterTab ? FontWeight.w600 : FontWeight.w500, // Bolder for center tab
               color: textColor,
             ),
             maxLines: 1,
