@@ -45,8 +45,8 @@ class _StartEntryFlowState extends State<StartEntryFlow> {
       }
     });
     
-    // Restore session cache on startup
-    _restoreSession();
+    // Restore session cache on startup - TEMPORARILY DISABLED FOR UI/UX FLOW TESTING
+    // _restoreSession();
   }
 
   @override
@@ -119,8 +119,8 @@ class _StartEntryFlowState extends State<StartEntryFlow> {
       _selectedEmotion = emotion;
     });
     
-    // Cache the emotion selection
-    JournalSessionCache.cacheSession(emotion: emotion);
+    // Cache the emotion selection - TEMPORARILY DISABLED FOR UI/UX FLOW TESTING
+    // JournalSessionCache.cacheSession(emotion: emotion);
     
     // Animate to reason picker
     Future.delayed(const Duration(milliseconds: 300), () {
@@ -136,11 +136,11 @@ class _StartEntryFlowState extends State<StartEntryFlow> {
       _selectedReason = reason;
     });
     
-    // Cache the reason selection
-    JournalSessionCache.cacheSession(
-      emotion: _selectedEmotion,
-      reason: reason,
-    );
+    // Cache the reason selection - TEMPORARILY DISABLED FOR UI/UX FLOW TESTING
+    // JournalSessionCache.cacheSession(
+    //   emotion: _selectedEmotion,
+    //   reason: reason,
+    // );
     
     // Animate to text editor
     Future.delayed(const Duration(milliseconds: 300), () {

@@ -33,6 +33,7 @@ import 'package:my_app/lumara/data/context_provider.dart';
 import 'package:my_app/lumara/data/context_scope.dart';
 import 'package:my_app/core/app_flags.dart';
 import 'package:flutter/foundation.dart';
+import 'package:my_app/services/journal_session_cache.dart';
 import 'dart:math' as math;
 
 // Debug flag for showing RIVET engineering labels
@@ -53,19 +54,31 @@ class _HomeViewState extends State<HomeView> {
   final GlobalKey<_InsightsPageState> _insightsPageKey = GlobalKey<_InsightsPageState>();
   
   List<TabItem> get _tabs {
-    // 5 tabs with Write in the center position
-    return const [
+    const baseTabs = [
       TabItem(icon: Icons.auto_graph, text: 'Phase'),
       TabItem(icon: Icons.timeline, text: 'Timeline'),
-      TabItem(icon: Icons.edit, text: 'Write'), // Center tab for journal entry flow
       TabItem(icon: Icons.insights, text: 'Insights'),
       TabItem(icon: Icons.settings, text: 'Settings'),
     ];
+
+    if (AppFlags.isLumaraEnabled) {
+      return [
+        baseTabs[0], // Phase
+        baseTabs[1], // Timeline
+        const TabItem(icon: Icons.psychology, text: 'LUMARA'), // Center position
+        baseTabs[2], // Insights
+        baseTabs[3], // Settings
+      ];
+    }
+    return baseTabs;
   }
 
   List<String> get _tabNames {
-    // Updated to match the new tab structure with Write in center
-    return const ['Phase', 'Timeline', 'Write', 'Insights', 'Settings'];
+    const baseNames = ['Phase', 'Timeline', 'Insights', 'Settings'];
+    if (AppFlags.isLumaraEnabled) {
+      return ['Phase', 'Timeline', 'LUMARA', 'Insights', 'Settings'];
+    }
+    return baseNames;
   }
 
   late final List<Widget> _pages;
@@ -93,9 +106,15 @@ class _HomeViewState extends State<HomeView> {
     _pages = [
       const ArcformRendererView(), // Phase (index 0)
       const TimelineView(), // Timeline (index 1)
-      StartEntryFlow(onExitToPhase: () => _homeCubit.changeTab(0)), // Write (index 2) - Center tab
-      _InsightsPage(key: _insightsPageKey), // Insights (index 3)
-      const SettingsView(), // Settings (index 4)
+      if (AppFlags.isLumaraEnabled)
+        BlocProvider<LumaraAssistantCubit>.value(
+          value: _lumaraCubit!,
+          child: const LumaraAssistantScreen(),
+        ) // LUMARA (index 2)
+      else
+        const Center(child: Text('LUMARA not available')),
+      _InsightsPage(key: _insightsPageKey), // Insights (index 2 or 3)
+      const SettingsView(), // Settings (index 3 or 4)
     ];
     
     // Initialize ethereal music (P22)
@@ -196,7 +215,8 @@ class _HomeViewState extends State<HomeView> {
                   print('DEBUG: Current selected index was: $selectedIndex');
                   _homeCubit.changeTab(index);
                   // Refresh RIVET card when Insights tab is selected
-                  if (index == 3) { // Insights tab index (now index 3)
+                  final insightsIndex = AppFlags.isLumaraEnabled ? 3 : 2;
+                  if (index == insightsIndex) {
                     print('DEBUG: Insights tab selected, refreshing RIVET card');
                     print('DEBUG: Calling _refreshRivetCardInInsights...');
                     _refreshRivetCardInInsights();
@@ -205,30 +225,30 @@ class _HomeViewState extends State<HomeView> {
                 height: 80,
                 // No elevated tab - using flat navigation
               ),
-            // LUMARA floating action button
-            floatingActionButton: _lumaraCubit != null
-                ? FloatingActionButton(
-                    heroTag: "lumara_chat",
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => BlocProvider<LumaraAssistantCubit>.value(
-                            value: _lumaraCubit!,
-                            child: const LumaraAssistantScreen(),
-                          ),
-                        ),
-                      );
-                    },
-                    backgroundColor: kcPrimaryColor,
-                    child: const Icon(
-                      Icons.psychology,
-                      color: Colors.white,
-                      size: 24,
+            // Write floating action button above bottom row
+            floatingActionButton: FloatingActionButton(
+              heroTag: "write_entry",
+              onPressed: () async {
+                // Clear any existing session cache to ensure fresh start
+                await JournalSessionCache.clearSession();
+
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => StartEntryFlow(
+                      onExitToPhase: () => Navigator.pop(context),
                     ),
-                  )
-                : null,
-            floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
+                  ),
+                );
+              },
+              backgroundColor: kcAccentColor,
+              child: const Icon(
+                Icons.edit,
+                color: Colors.white,
+                size: 24,
+              ),
+            ),
+            floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
             );
           },
         ),

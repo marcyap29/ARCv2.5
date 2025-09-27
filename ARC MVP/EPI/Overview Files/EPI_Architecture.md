@@ -10,6 +10,31 @@
   - VEIL: Self-Pruning & Coherence
   - RIVET: Risk-Validation Evidence Tracker
 
+  ## 📱 Navigation & User Interface Architecture (Updated Sept 27, 2025)
+
+  **Primary Navigation Structure**:
+  ```
+  Phase → Timeline → LUMARA → Insights → Settings
+   [0]     [1]       [2]       [3]       [4]
+  ```
+
+  **Floating Actions**:
+  - **Write FAB**: Center-float above navigation, launches complete journal flow
+  - **Flow**: Emotion Picker → Reason Picker → Advanced Writing → Keyword Analysis → Save
+
+  **Key Components**:
+  - `lib/features/home/home_view.dart` - Main navigation controller
+  - `lib/shared/tab_bar.dart` - Custom tab bar implementation
+  - `lib/arc/core/start_entry_flow.dart` - Complete journal creation flow
+  - `lib/ui/journal/journal_screen.dart` - Advanced writing interface
+
+  **UI/UX Fixes (Sept 27, 2025)**:
+  - ✅ LUMARA positioned in center tab (index 2)
+  - ✅ Write moved from tab to prominent floating action button
+  - ✅ Fixed UI frame overlap with 120px bottom padding + SafeArea
+  - ✅ Session cache clearing for clean emotion → reason → writing flow
+  - ✅ Proper navigation indices for LUMARA enabled/disabled states
+
   1. ARC Module: Core Journaling Interface
 
   lib/arc/

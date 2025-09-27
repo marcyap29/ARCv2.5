@@ -312,7 +312,9 @@ class _JournalScreenState extends State<JournalScreen> {
             ),
         ],
       ),
-      body: Stack(
+      body: SafeArea(
+        bottom: true, // Ensure safe area at bottom for navigation
+        child: Stack(
         children: [
           // Main content
           Column(
@@ -321,7 +323,7 @@ class _JournalScreenState extends State<JournalScreen> {
               Expanded(
                 child: SingleChildScrollView(
                   controller: _scrollController,
-                  padding: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 120), // Bottom padding for FAB and nav
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
@@ -428,6 +430,7 @@ class _JournalScreenState extends State<JournalScreen> {
               ),
             ),
         ],
+        ),
       ),
     );
   }
