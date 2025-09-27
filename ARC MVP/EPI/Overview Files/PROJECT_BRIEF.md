@@ -5,24 +5,27 @@ ARC is the **core journaling module of EPI (Evolving Personal Intelligence)**, b
 
 This MVP now implements **modular architecture** with RIVET (safety validation) and ECHO (expressive response layer) modules migrated to their proper locations, providing a foundation for the complete 8-module system: ARC→PRISM→ECHO→ATLAS→MIRA→AURORA→VEIL→RIVET.
 
-## 🌟 **LATEST ENHANCEMENT: Phase Readiness UX** (2025-09-27) ✅
+## 🌟 **LATEST ENHANCEMENT: Phase Readiness UX with Blended Approach** (2025-09-27) ✅
 
-**🎯 Problem Solved**: Eliminated the grayed-out "Keep journaling" button that provided no actionable guidance to users at 14% readiness.
+**🎯 Problem Solved**: Eliminated confusing "9% ready" display that didn't match "need 2 more entries" logic, replacing with clear entry-based progress.
 
-**✨ Smart Solution Implemented**:
-- **Personalized Status**: "14% ready - great start!" (celebrates progress while motivating)
-- **Actionable Guidance Box**: Specific recommendations based on actual RIVET state analysis
-- **Smart Analysis**: Reviews ALIGN, TRACE, sustainment, and independence scores for targeted advice
-- **User Understanding**: Users now immediately grasp WHY they're at their current level and what to do next
+**✨ Blended Solution Implemented**:
+- **Entry-Based Progress**: "2 More Entries" instead of misleading "9% ready"
+- **Visual Consistency**: Progress ring shows 0%, 50%, 90%, 100% based on actual entry count (0, 1, 2, 2+ entries)
+- **Qualitative Encouragement**: "Building evidence" and "Great momentum!" paired with concrete numbers
+- **Smart Guidance**: Entry-specific recommendations with encouraging emojis and clear next steps
 
-**📊 Example Guidance for 14% Readiness**:
-• "Write entries that deeply explore your current phase themes"
-• "Continue journaling consistently to build confidence"
-• "Need 2 more qualifying journal entries"
-• "Try journaling on different days or at different times"
-• "You're 14% ready - keep going!"
+**📊 Example User Experience Transformation**:
+**Before**: "9% ready - building momentum" ❌ (confusing, doesn't match requirements)
+**After**: "2 More Entries - Building evidence" ✅ (clear, actionable, encouraging)
 
-**🔗 Enhanced Access**: "See detailed breakdown" link provides easy access to comprehensive RIVET analysis.
+**🎯 Example Guidance for Entry-Based Progress**:
+• "✨ Write 2 thoughtful entries exploring your current life phase"
+• "🎯 1 more quality entry needed - you're building great momentum!"
+• "🗓️ Try journaling on a different day for independence"
+• "💪 Great foundation built - 1 more entry unlocks phase change"
+
+**🏆 Result**: Numbers finally make sense - users understand exactly what they need to do and feel encouraged by clear progress indicators.
 
 ---
 
