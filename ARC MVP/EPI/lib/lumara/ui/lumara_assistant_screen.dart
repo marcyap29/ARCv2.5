@@ -457,7 +457,7 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
   }
 
           void _goToMainMenu() {
-            // Just dismiss the keyboard - no popup
-            _dismissKeyboard();
+            // Navigate back to the main page
+            Navigator.pop(context);
           }
 }
