@@ -2,9 +2,11 @@
 ///
 /// Provides phase-aware response generation that adapts LUMARA's voice
 /// to the user's current developmental phase while maintaining dignity
+library;
 
-// import '../../atlas/phase_detection/pattern_analysis_service.dart';
+import '../../atlas/phase_detection/pattern_analysis_service.dart';
 import '../voice/lumara_voice_controller.dart';
+import '../../arc/core/journal_repository.dart';
 
 class AtlasPhaseIntegration {
   /// Current detected ATLAS phase
@@ -24,42 +26,29 @@ class AtlasPhaseIntegration {
   /// Update phase detection from ATLAS system
   Future<void> updatePhaseDetection() async {
     try {
-      // TODO: Integrate with existing ATLAS pattern analysis when available
-      // For now, use placeholder phase detection
+      // Integrate with existing ATLAS pattern analysis
+      final patternService = PatternAnalysisService(JournalRepository());
 
-      // Simulate phase analysis - in production this would connect to ATLAS
-      final simulatedAnalysis = _simulatePhaseAnalysis();
+      // Get latest phase analysis
+      final (nodes, edges) = patternService.analyzePatterns();
 
-      final newPhase = simulatedAnalysis['phase'] as String?;
-      final stability = simulatedAnalysis['stability'] as double? ?? 1.0;
-
-      if (newPhase != null && newPhase != _currentPhase) {
-        _handlePhaseTransition(_currentPhase, newPhase);
+      // Process the pattern analysis results
+      if (nodes.isNotEmpty) {
+        // For now, use a simple phase detection based on keyword patterns
+        final phase = _detectPhaseFromPatterns(nodes, edges);
+        if (phase != null && phase != _currentPhase) {
+          _handlePhaseTransition(_currentPhase, phase);
+          _currentPhase = phase;
+          _phaseStability = 0.8; // Default stability
+          _isInTransition = false; // Simplified for now
+        }
       }
-
-      _currentPhase = newPhase;
-      _phaseStability = stability;
-      _isInTransition = stability < 0.7; // Below 70% stability indicates transition
     } catch (e) {
       // Graceful fallback to Discovery phase
       _currentPhase ??= 'Discovery';
       _phaseStability = 1.0;
       _isInTransition = false;
     }
-  }
-
-  /// Simulate phase analysis for development purposes
-  Map<String, dynamic> _simulatePhaseAnalysis() {
-    // Simple simulation - in production this would be real ATLAS integration
-    final phases = ['Discovery', 'Expansion', 'Transition', 'Consolidation', 'Recovery', 'Breakthrough'];
-    final currentTime = DateTime.now().millisecondsSinceEpoch;
-    final phaseIndex = (currentTime ~/ (24 * 60 * 60 * 1000)) % phases.length; // Change daily
-
-    return {
-      'phase': phases[phaseIndex],
-      'stability': 0.8 + (0.2 * (currentTime % 100) / 100), // 0.8-1.0 stability
-      'confidence': 0.9,
-    };
   }
 
   /// Handle phase transitions with appropriate voice adaptation
@@ -218,5 +207,15 @@ class AtlasPhaseIntegration {
       default:
         return 'General life pattern and emotional resonance experiences';
     }
+  }
+
+  /// Detect phase from pattern analysis results
+  String? _detectPhaseFromPatterns(List<dynamic> nodes, List<dynamic> edges) {
+    // Simple phase detection based on keyword patterns
+    // This is a placeholder implementation
+    if (nodes.isEmpty) return null;
+    
+    // For now, return a default phase
+    return 'Discovery';
   }
 }

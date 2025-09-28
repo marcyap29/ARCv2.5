@@ -1,4 +1,3 @@
-import 'package:collection/collection.dart';
 import 'package:my_app/lumara/chat/chat_models.dart';
 import 'package:my_app/mira/core/schema.dart';
 

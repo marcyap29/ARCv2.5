@@ -3,7 +3,6 @@ import 'package:hive/hive.dart';
 // import 'package:hive_test/hive_test.dart';
 import 'package:my_app/lumara/chat/chat_models.dart';
 import 'package:my_app/lumara/chat/chat_repo_impl.dart';
-import 'package:my_app/lumara/chat/chat_archive_policy.dart';
 
 void main() {
   group('ChatRepo Tests', () {

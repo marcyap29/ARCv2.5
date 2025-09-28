@@ -6,7 +6,7 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:args/args.dart';
-import '../lib/mcp/bundle_doctor/bundle_doctor.dart';
+import 'package:my_app/mcp/bundle_doctor/bundle_doctor.dart';
 
 void main(List<String> arguments) async {
   final parser = ArgParser()
@@ -36,7 +36,7 @@ void main(List<String> arguments) async {
     await _processBundle(results);
   } catch (e, stackTrace) {
     _printError('Fatal error: $e');
-    if (!results['quiet'] as bool) {
+    if (!results['quiet']) {
       _printError('Stack trace: $stackTrace');
     }
     exit(1);

@@ -139,7 +139,7 @@ class _YourPatternsViewState extends State<YourPatternsView> {
     final emotionOk = emotionFilter == null || n.emotion == emotionFilter;
     final phaseOk = phaseFilter == null || n.phase == phaseFilter;
     // Time filtering would require per-entry timestamps; here we rely on series/recencyScore.
-    final timeOk = true; // Replace with real check when wired to entries
+    const timeOk = true; // Replace with real check when wired to entries
     return emotionOk && phaseOk && timeOk;
   }
 
@@ -326,7 +326,7 @@ class _NetworkGraphForceViewState extends State<NetworkGraphForceView> {
   late SugiyamaConfiguration builder;
   String? selectedNodeId;
   Map<String, Offset> nodePositions = {};
-  GlobalKey _graphViewKey = GlobalKey();
+  final GlobalKey _graphViewKey = GlobalKey();
 
   @override
   void initState() {
@@ -597,7 +597,7 @@ class CurvedEdgesPainter extends CustomPainter {
 
   void _drawArrowhead(Canvas canvas, Offset start, Offset end, Offset control, Paint paint) {
     // Calculate direction at the end of the curve
-    final t = 0.9; // Position along curve for arrowhead
+    const t = 0.9; // Position along curve for arrowhead
     final curvePoint = _bezierPoint(start, control, end, t);
     final nextPoint = _bezierPoint(start, control, end, t + 0.05);
     final direction = (nextPoint - curvePoint).normalize();
@@ -1122,7 +1122,7 @@ class _Pill extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(999),
-        color: Theme.of(context).colorScheme.surfaceVariant,
+        color: Theme.of(context).colorScheme.surfaceContainerHighest,
       ),
       child: Row(mainAxisSize: MainAxisSize.min, children: [
         Text('$label: ', style: Theme.of(context).textTheme.labelMedium),
@@ -1162,7 +1162,11 @@ class _SparkPainter extends CustomPainter {
     for (var i = 0; i < series.length; i++) {
       final x = i * dx;
       final y = size.height - (series[i] / maxVal) * size.height;
-      if (i == 0) path.moveTo(x, y); else path.lineTo(x, y);
+      if (i == 0) {
+        path.moveTo(x, y);
+      } else {
+        path.lineTo(x, y);
+      }
     }
     final paint = Paint()
       ..style = PaintingStyle.stroke

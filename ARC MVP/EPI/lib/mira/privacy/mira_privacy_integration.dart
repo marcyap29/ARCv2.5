@@ -1,7 +1,6 @@
 // MIRA Privacy Integration
 // Narrative-aware anonymization for memory graphs
 
-import '../../../privacy_core/privacy_core_module.dart';
 
 class MiraPrivacyIntegration {
   // Future implementation for MIRA privacy features:

@@ -2,6 +2,7 @@
 ///
 /// Lightweight safety validation that ensures dignified, non-manipulative
 /// responses while maintaining LUMARA's authentic voice
+library;
 
 class RivetLiteValidator {
   /// Safety validation thresholds

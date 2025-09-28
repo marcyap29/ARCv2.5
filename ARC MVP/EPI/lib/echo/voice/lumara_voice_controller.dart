@@ -2,6 +2,7 @@
 ///
 /// Ensures consistent, dignified voice across all LUMARA interactions
 /// Maintains coherent personality while adapting to ATLAS phases
+library;
 
 import '../prompts/echo_system_prompt.dart';
 

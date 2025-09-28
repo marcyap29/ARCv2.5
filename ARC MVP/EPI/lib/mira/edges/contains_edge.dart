@@ -8,7 +8,7 @@ class ContainsEdge extends MiraEdge {
     required DateTime timestamp,
     required int order,
   }) : super(
-          id: '${sourceId}_contains_${targetId}',
+          id: '${sourceId}_contains_$targetId',
           src: sourceId,
           dst: targetId,
           label: EdgeType.belongsTo, // Using belongsTo as closest match

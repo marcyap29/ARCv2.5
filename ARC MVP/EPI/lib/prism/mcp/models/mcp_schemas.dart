@@ -122,7 +122,7 @@ class McpNode {
       emotions: Map<String, double>.from(json['emotions'] ?? {}),
       provenance: json['provenance'] != null
           ? McpProvenance.fromJson(json['provenance'] as Map<String, dynamic>)
-          : McpProvenance(
+          : const McpProvenance(
               source: 'imported',
               device: 'unknown',
               app: 'EPI',

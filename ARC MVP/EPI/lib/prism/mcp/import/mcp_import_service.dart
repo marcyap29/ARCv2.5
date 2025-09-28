@@ -453,7 +453,7 @@ class McpImportService {
       totalLines++;
       try {
         // Debug: Show the raw line content
-        print('🔍 DEBUG: Line ${totalLines} content (first 200 chars): ${line.length > 200 ? line.substring(0, 200) + '...' : line}');
+        print('🔍 DEBUG: Line $totalLines content (first 200 chars): ${line.length > 200 ? '${line.substring(0, 200)}...' : line}');
 
         // First decode the JSON
         final jsonData = jsonDecode(line);
@@ -461,14 +461,14 @@ class McpImportService {
 
         // Check if the JSON is valid
         if (jsonData == null) {
-          print('❌ DEBUG: Line ${totalLines} contains null JSON');
-          errors.add('Line ${totalLines} contains null JSON');
+          print('❌ DEBUG: Line $totalLines contains null JSON');
+          errors.add('Line $totalLines contains null JSON');
           continue;
         }
 
         if (jsonData is! Map<String, dynamic>) {
-          print('❌ DEBUG: Line ${totalLines} JSON is not a Map, type: ${jsonData.runtimeType}');
-          errors.add('Line ${totalLines} JSON is not a Map: ${jsonData.runtimeType}');
+          print('❌ DEBUG: Line $totalLines JSON is not a Map, type: ${jsonData.runtimeType}');
+          errors.add('Line $totalLines JSON is not a Map: ${jsonData.runtimeType}');
           continue;
         }
 
@@ -509,9 +509,9 @@ class McpImportService {
           print('  Imported $count nodes...');
         }
       } catch (e, stackTrace) {
-        print('❌ DEBUG: Error processing line ${totalLines}: $e');
+        print('❌ DEBUG: Error processing line $totalLines: $e');
         print('❌ DEBUG: Stack trace: $stackTrace');
-        errors.add('Failed to import node at line ${totalLines}: $e');
+        errors.add('Failed to import node at line $totalLines: $e');
         if (errors.length > options.maxErrors) break;
       }
     }

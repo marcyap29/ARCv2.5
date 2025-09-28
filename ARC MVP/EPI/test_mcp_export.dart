@@ -66,7 +66,7 @@ void main() async {
       if (nodeType == 'journal_entry') {
         journalEntries++;
         if (journalEntries <= 3) {  // Show details for first 3 journal entries
-          print('\n📝 Journal Entry ${journalEntries}:');
+          print('\n📝 Journal Entry $journalEntries:');
           print('  ID: ${nodeJson['id']}');
           print('  Type: ${nodeJson['type']}');
           print('  Has contentSummary: ${nodeJson['contentSummary'] != null}');

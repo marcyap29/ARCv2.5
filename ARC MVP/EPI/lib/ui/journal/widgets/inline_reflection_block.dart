@@ -24,7 +24,7 @@ class InlineReflectionBlock extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final bg = theme.colorScheme.surfaceVariant.withOpacity(0.3);
+    final bg = theme.colorScheme.surfaceContainerHighest.withOpacity(0.3);
     final borderColor = theme.colorScheme.primary;
 
     return Container(

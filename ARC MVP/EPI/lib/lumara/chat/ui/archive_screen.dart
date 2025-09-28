@@ -81,7 +81,7 @@ class _ArchiveScreenState extends State<ArchiveScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Chat restored'),
+            content: const Text('Chat restored'),
             action: SnackBarAction(
               label: 'View',
               onPressed: () => Navigator.push(
@@ -215,7 +215,7 @@ class _ArchiveScreenState extends State<ArchiveScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.error, color: kcDangerColor, size: 48),
+            const Icon(Icons.error, color: kcDangerColor, size: 48),
             const SizedBox(height: 16),
             Text('Error: $_error', style: bodyStyle(context)),
             const SizedBox(height: 16),
@@ -233,7 +233,7 @@ class _ArchiveScreenState extends State<ArchiveScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.archive_outlined, color: kcTextSecondaryColor, size: 48),
+            const Icon(Icons.archive_outlined, color: kcTextSecondaryColor, size: 48),
             const SizedBox(height: 16),
             Text(
               _searchController.text.isNotEmpty
@@ -307,7 +307,7 @@ class _ArchivedChatCard extends StatelessWidget {
         children: [
           ListTile(
             contentPadding: const EdgeInsets.all(16),
-            leading: Icon(
+            leading: const Icon(
               Icons.archive,
               color: kcTextSecondaryColor,
               size: 20,
@@ -326,7 +326,7 @@ class _ArchivedChatCard extends StatelessWidget {
                   ),
                 ),
                 if (session.isPinned)
-                  Icon(Icons.push_pin, color: kcPrimaryColor, size: 16),
+                  const Icon(Icons.push_pin, color: kcPrimaryColor, size: 16),
               ],
             ),
             subtitle: Column(

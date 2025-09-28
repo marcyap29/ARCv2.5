@@ -2,6 +2,7 @@
 ///
 /// The core system prompt that ensures dignity, safety, and developmental alignment
 /// in all LUMARA responses across the EPI stack.
+library;
 
 class EchoSystemPrompt {
   /// The master ECHO system prompt template for dignified, phase-aware responses

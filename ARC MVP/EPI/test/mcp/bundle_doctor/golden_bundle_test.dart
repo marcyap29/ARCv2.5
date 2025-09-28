@@ -1,8 +1,6 @@
 // test/mcp/bundle_doctor/golden_bundle_test.dart
 // Golden contract tests for MCP bundle format stability
 
-import 'dart:convert';
-import 'dart:io';
 import 'package:test/test.dart';
 import 'package:my_app/prism/mcp/bundle_doctor/bundle_doctor.dart';
 

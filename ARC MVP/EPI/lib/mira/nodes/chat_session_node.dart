@@ -6,8 +6,8 @@ class ChatSessionNode extends MiraNode {
   ChatSessionNode({
     required String sessionId,
     required String subject,
-    required DateTime createdAt,
-    required DateTime updatedAt,
+    required super.createdAt,
+    required super.updatedAt,
     required bool isPinned,
     required bool isArchived,
     DateTime? archivedAt,
@@ -29,8 +29,6 @@ class ChatSessionNode extends MiraNode {
             'source': 'LUMARA',
             'content': subject,
           },
-          createdAt: createdAt,
-          updatedAt: updatedAt,
         );
 
   // Convenience getters

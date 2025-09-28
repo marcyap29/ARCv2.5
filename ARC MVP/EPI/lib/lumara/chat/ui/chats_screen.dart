@@ -133,7 +133,7 @@ class _ChatsScreenState extends State<ChatsScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Chat archived'),
+            content: const Text('Chat archived'),
             action: SnackBarAction(
               label: 'Undo',
               onPressed: () => _restoreSession(session.id),
@@ -232,7 +232,7 @@ class _ChatsScreenState extends State<ChatsScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.error, color: kcDangerColor, size: 48),
+            const Icon(Icons.error, color: kcDangerColor, size: 48),
             const SizedBox(height: 16),
             Text('Error: $_error', style: bodyStyle(context)),
             const SizedBox(height: 16),
@@ -250,7 +250,7 @@ class _ChatsScreenState extends State<ChatsScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.chat_bubble_outline, color: kcTextSecondaryColor, size: 48),
+            const Icon(Icons.chat_bubble_outline, color: kcTextSecondaryColor, size: 48),
             const SizedBox(height: 16),
             Text(
               _searchController.text.isNotEmpty
@@ -378,7 +378,7 @@ class _ChatSessionCard extends StatelessWidget {
                 ),
               ),
               if (session.isPinned)
-                Icon(Icons.push_pin, color: kcPrimaryColor, size: 16),
+                const Icon(Icons.push_pin, color: kcPrimaryColor, size: 16),
             ],
           ),
           subtitle: Column(

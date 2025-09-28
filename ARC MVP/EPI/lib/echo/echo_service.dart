@@ -13,6 +13,7 @@ import 'safety/rivet_lite_validator.dart';
 import 'voice/lumara_voice_controller.dart';
 import 'prompts/echo_system_prompt.dart';
 import 'models/data/context_provider.dart';
+import '../../mira/mira_service.dart';
 
 /// Core ECHO service for generating contextual, dignified responses
 class EchoService {
@@ -24,7 +25,7 @@ class EchoService {
   EchoService({
     required ContextProvider contextProvider,
   })  : _phaseIntegration = AtlasPhaseIntegration(),
-        _memoryGrounding = MiraMemoryGrounding(),
+        _memoryGrounding = MiraMemoryGrounding(MiraService.instance),
         _contextProvider = contextProvider {
     _arcLLM = provideArcLLM();
   }
@@ -44,9 +45,11 @@ class EchoService {
       final phaseRules = _phaseIntegration.getPhaseResponseParameters();
 
       // Step 2: Retrieve relevant memory nodes from MIRA
-      final memoryContext = await _memoryGrounding.retrieveRelevantMemory(
-        utterance,
-        atlasPhase,
+      final memoryContext = await _memoryGrounding.retrieveGroundingMemory(
+        userUtterance: utterance,
+        atlasPhase: atlasPhase,
+        emotionalContext: 'neutral', // Will be analyzed in next step
+        maxNodes: 5,
       );
 
       // Step 3: Analyze emotional context
@@ -61,7 +64,7 @@ class EchoService {
         phaseRules: phaseRules,
         emotionVectorSummary: _formatEmotionContext(emotionContext),
         resonanceMode: resonanceMode,
-        retrievedNodesBlock: _formatMemoryNodes(memoryContext),
+        retrievedNodesBlock: _formatMemoryNodes(_convertGroundingNodesToMemoryNodes(memoryContext.nodes)),
         stylePrefs: stylePrefs ?? LumaraVoiceController.voiceCharacteristics,
       );
 
@@ -72,8 +75,8 @@ class EchoService {
       final validation = await RivetLiteValidator.validateResponse(
         response: rawResponse,
         originalUtterance: utterance,
-        memoryNodeIds: memoryContext.map((node) => node.id).toList(),
-        groundingConfidence: memoryContext.isNotEmpty ? 0.8 : 0.3,
+        memoryNodeIds: memoryContext.nodes.map((node) => node.nodeId).toList(),
+        groundingConfidence: memoryContext.nodes.isNotEmpty ? 0.8 : 0.3,
       );
 
       // Step 7: Handle validation results
@@ -97,7 +100,7 @@ class EchoService {
         content: finalResponse,
         atlasPhase: atlasPhase,
         emotionContext: emotionContext,
-        memoryGrounding: memoryContext,
+        memoryGrounding: _convertGroundingNodesToMemoryNodes(memoryContext.nodes),
         validation: validation,
         phaseStability: _phaseIntegration.getPhaseStability(),
         isTransition: _phaseIntegration.isInTransition(),
@@ -315,6 +318,17 @@ What feels most important for you to explore right now?''',
       timestamp: timestamp,
       error: error.toString(),
     );
+  }
+
+  /// Convert GroundingNode list to MemoryNode list
+  List<MemoryNode> _convertGroundingNodesToMemoryNodes(List<dynamic> groundingNodes) {
+    return groundingNodes.map((node) => MemoryNode(
+      id: node.nodeId,
+      content: node.content,
+      relevance: node.relevanceScore,
+      type: node.nodeType,
+      timestamp: node.timestamp ?? DateTime.now(),
+    )).toList();
   }
 }
 

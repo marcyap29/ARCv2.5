@@ -148,7 +148,7 @@ class JournalRepository {
     required int pageSize,
     TimelineFilter? filter,
   }) async {
-    final allEntries = await getAllJournalEntries();
+    final allEntries = getAllJournalEntries();
     allEntries.sort((a, b) => b.createdAt.compareTo(a.createdAt)); // Newest first
 
     // Apply filter if provided

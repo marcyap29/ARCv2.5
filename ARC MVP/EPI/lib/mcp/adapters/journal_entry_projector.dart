@@ -22,7 +22,7 @@ class McpEntryProjector {
     int nodeCount = 0, edgeCount = 0, pointerCount = 0, embeddingCount = 0;
 
     // Get all journal entries from the fixed repository
-    final entries = await repo.getAllJournalEntries();
+    final entries = repo.getAllJournalEntries();
 
     for (final entry in entries) {
       final text = _extractEntryText(entry);

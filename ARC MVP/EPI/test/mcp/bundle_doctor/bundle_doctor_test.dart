@@ -166,7 +166,7 @@ void main() {
 
   group('Bundle Validation', () {
     test('validates correct bundle', () {
-      final bundle = MCPBundle(
+      const bundle = MCPBundle(
         schemaVersion: 'mcp-1.0',
         bundleId: 'b-test',
         pointers: [],
@@ -187,7 +187,7 @@ void main() {
     });
 
     test('detects invalid schema version', () {
-      final bundle = MCPBundle(
+      const bundle = MCPBundle(
         schemaVersion: 'invalid-version',
         bundleId: 'b-test',
         pointers: [],
@@ -201,7 +201,7 @@ void main() {
     });
 
     test('detects duplicate node IDs', () {
-      final bundle = MCPBundle(
+      const bundle = MCPBundle(
         schemaVersion: 'mcp-1.0',
         bundleId: 'b-test',
         pointers: [],
@@ -226,7 +226,7 @@ void main() {
     });
 
     test('detects invalid timestamp format', () {
-      final bundle = MCPBundle(
+      const bundle = MCPBundle(
         schemaVersion: 'mcp-1.0',
         bundleId: 'b-test',
         pointers: [],
@@ -246,7 +246,7 @@ void main() {
     });
 
     test('detects invalid edge references', () {
-      final bundle = MCPBundle(
+      const bundle = MCPBundle(
         schemaVersion: 'mcp-1.0',
         bundleId: 'b-test',
         pointers: [],
@@ -272,7 +272,7 @@ void main() {
     });
 
     test('generates warnings for ID format conventions', () {
-      final bundle = MCPBundle(
+      const bundle = MCPBundle(
         schemaVersion: 'mcp-1.0',
         bundleId: 'bad-bundle-id', // Should start with b-
         pointers: [],

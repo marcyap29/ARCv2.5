@@ -96,7 +96,7 @@ class ChatMetricsService {
         id: 'chat_activity_${periodStart.millisecondsSinceEpoch}',
         title: 'Active Chat Period',
         body: 'You had ${sessions.length} chat sessions this period, showing consistent engagement with AI assistance.',
-        badges: ['activity', 'engagement'],
+        badges: const ['activity', 'engagement'],
         periodStart: periodStart,
         periodEnd: periodEnd,
         sources: {
@@ -128,7 +128,7 @@ class ChatMetricsService {
         id: 'chat_topics_${periodStart.millisecondsSinceEpoch}',
         title: 'Key Discussion Theme',
         body: 'Your most discussed topic was "${topTag.key}" appearing in ${topTag.value} conversations.',
-        badges: ['topics', 'themes'],
+        badges: const ['topics', 'themes'],
         periodStart: periodStart,
         periodEnd: periodEnd,
         sources: {
@@ -160,7 +160,7 @@ class ChatMetricsService {
         id: 'chat_engagement_${periodStart.millisecondsSinceEpoch}',
         title: 'Deep Conversations',
         body: 'Your conversations averaged ${avgMessages.toStringAsFixed(1)} messages, indicating thoughtful exchanges.',
-        badges: ['engagement', 'depth'],
+        badges: const ['engagement', 'depth'],
         periodStart: periodStart,
         periodEnd: periodEnd,
         sources: {

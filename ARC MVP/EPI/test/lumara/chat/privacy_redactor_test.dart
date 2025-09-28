@@ -282,7 +282,7 @@ void main() {
 
       test('should handle very long content', () {
         const redactor = ChatPrivacyRedactor(enabled: true, maskPii: true);
-        final longContent = 'A' * 10000 + ' test@example.com ' + 'B' * 10000;
+        final longContent = '${'A' * 10000} test@example.com ${'B' * 10000}';
 
         final result = redactor.processContent(longContent);
 

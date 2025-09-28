@@ -43,7 +43,7 @@ class HiveCoerce {
   static List<Map<String, dynamic>> listMapStrDynamic(Object? raw) {
     if (raw == null) return const [];
     if (raw is List) {
-      return raw.where((e) => e is Map).map((e) => (e as Map).cast<String, dynamic>()).toList();
+      return raw.whereType<Map>().map((e) => (e as Map).cast<String, dynamic>()).toList();
     }
     return const [];
   }

@@ -8,7 +8,7 @@ class ChatMessageNode extends MiraNode {
     required String sessionId,
     required String role,
     required String content,
-    required DateTime createdAt,
+    required super.createdAt,
     String? originalTextHash,
   }) : super(
           id: 'msg:$messageId',
@@ -22,7 +22,6 @@ class ChatMessageNode extends MiraNode {
             'originalTextHash': originalTextHash,
             'source': 'LUMARA',
           },
-          createdAt: createdAt,
           updatedAt: createdAt,
         );
 

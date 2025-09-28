@@ -66,7 +66,7 @@ class _NetworkGraphForceCurvedViewState extends State<NetworkGraphForceCurvedVie
 
 
   void _initializePositions() {
-    final center = const Offset(400, 400); // Center of 800x800 container
+    const center = Offset(400, 400); // Center of 800x800 container
     
     if (widget.nodes.isEmpty) return;
     
@@ -88,7 +88,7 @@ class _NetworkGraphForceCurvedViewState extends State<NetworkGraphForceCurvedVie
     
     if (remainingNodes.length <= 6) {
       // First ring - more spread out
-      final radius = 200.0; // Increased from 120.0
+      const radius = 200.0; // Increased from 120.0
       for (int i = 0; i < remainingNodes.length; i++) {
         final node = remainingNodes[i];
         final angle = (2 * math.pi * i) / remainingNodes.length;
@@ -102,7 +102,7 @@ class _NetworkGraphForceCurvedViewState extends State<NetworkGraphForceCurvedVie
       final secondRingCount = remainingNodes.length - firstRingCount;
       
       // First ring - more spread out
-      final radius1 = 180.0; // Increased from 100.0
+      const radius1 = 180.0; // Increased from 100.0
       for (int i = 0; i < firstRingCount; i++) {
         final node = remainingNodes[i];
         final angle = (2 * math.pi * i) / firstRingCount;
@@ -113,7 +113,7 @@ class _NetworkGraphForceCurvedViewState extends State<NetworkGraphForceCurvedVie
       
       // Second ring - much more spread out
       if (secondRingCount > 0) {
-        final radius2 = 300.0; // Increased from 180.0
+        const radius2 = 300.0; // Increased from 180.0
         for (int i = 0; i < secondRingCount; i++) {
           final node = remainingNodes[firstRingCount + i];
           final angle = (2 * math.pi * i) / secondRingCount;
@@ -308,7 +308,7 @@ class _NetworkGraphForceCurvedViewState extends State<NetworkGraphForceCurvedVie
           onInteractionEnd: (details) {
             _sampleEdgeScreenPositions();
           },
-          child: Container(
+          child: SizedBox(
             width: 800,
             height: 800,
             child: Stack(
@@ -371,7 +371,7 @@ class _NetworkGraphForceCurvedViewState extends State<NetworkGraphForceCurvedVie
       final dotSize = 24.0 + (node.frequency.clamp(0, 60) / 60.0) * 24.0; // Increased base size
       
       // Show all nodes with full opacity
-      final opacity = 1.0;
+      const opacity = 1.0;
       
         nodes.add(
           Positioned(

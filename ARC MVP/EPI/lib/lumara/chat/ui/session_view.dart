@@ -185,7 +185,7 @@ class _SessionViewState extends State<SessionView> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.error, color: kcDangerColor, size: 48),
+            const Icon(Icons.error, color: kcDangerColor, size: 48),
             const SizedBox(height: 16),
             Text('Error: $_error', style: bodyStyle(context)),
             const SizedBox(height: 16),
@@ -203,7 +203,7 @@ class _SessionViewState extends State<SessionView> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.chat_bubble_outline, color: kcTextSecondaryColor, size: 48),
+            const Icon(Icons.chat_bubble_outline, color: kcTextSecondaryColor, size: 48),
             const SizedBox(height: 16),
             Text(
               'Start the conversation',
@@ -307,10 +307,10 @@ class _MessageBubble extends StatelessWidget {
         mainAxisAlignment: isUser ? MainAxisAlignment.end : MainAxisAlignment.start,
         children: [
           if (!isUser && !isSystem) ...[
-            CircleAvatar(
+            const CircleAvatar(
               radius: 16,
               backgroundColor: kcPrimaryColor,
-              child: const Icon(Icons.auto_awesome, color: Colors.white, size: 16),
+              child: Icon(Icons.auto_awesome, color: Colors.white, size: 16),
             ),
             const SizedBox(width: 12),
           ],
@@ -355,10 +355,10 @@ class _MessageBubble extends StatelessWidget {
           ),
           if (isUser) ...[
             const SizedBox(width: 12),
-            CircleAvatar(
+            const CircleAvatar(
               radius: 16,
               backgroundColor: kcAccentColor,
-              child: const Icon(Icons.person, color: Colors.white, size: 16),
+              child: Icon(Icons.person, color: Colors.white, size: 16),
             ),
           ],
         ],

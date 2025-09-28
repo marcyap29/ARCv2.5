@@ -591,7 +591,7 @@ class McpExportService {
     bool includeArchivedChats,
   ) async {
     if (!includeChats || _chatExporter == null) {
-      return ChatExportData(
+      return const ChatExportData(
         nodes: [],
         edges: [],
         pointers: [],
@@ -673,7 +673,7 @@ class McpExportService {
 
     } catch (e) {
       print('Warning: Failed to export chat data: $e');
-      return ChatExportData(
+      return const ChatExportData(
         nodes: [],
         edges: [],
         pointers: [],
@@ -743,7 +743,7 @@ class McpExportService {
           'tags': session.tags,
         },
       ),
-      samplingManifest: McpSamplingManifest(
+      samplingManifest: const McpSamplingManifest(
         spans: [],
         keyframes: [],
         metadata: {
@@ -764,7 +764,7 @@ class McpExportService {
         importMethod: 'chat_session_pointer',
         userId: null,
       ),
-      privacy: McpPrivacy(
+      privacy: const McpPrivacy(
         containsPii: false,
         facesDetected: false,
         locationPrecision: null,

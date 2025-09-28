@@ -4,7 +4,6 @@ import 'dart:convert';
 import '../../prism/mcp/import/mcp_import_service.dart';
 import '../../prism/mcp/models/mcp_schemas.dart';
 import '../../prism/mcp/export/mcp_export_service.dart';
-import '../../prism/mcp/bundle/journal_bundle_writer.dart';
 import '../../arc/core/journal_repository.dart';
 import 'package:my_app/models/journal_entry_model.dart' as model;
 import '../../mira/mira_service.dart';

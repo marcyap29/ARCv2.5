@@ -161,7 +161,7 @@ void main() {
 
     group('Privacy Redaction', () {
       test('should redact PII when privacy is enabled', () async {
-        final privacyRedactor = const ChatPrivacyRedactor(
+        const privacyRedactor = ChatPrivacyRedactor(
           enabled: true,
           maskPii: true,
         );
@@ -194,7 +194,7 @@ void main() {
       });
 
       test('should preserve original hash when enabled', () async {
-        final privacyRedactor = const ChatPrivacyRedactor(
+        const privacyRedactor = ChatPrivacyRedactor(
           enabled: true,
           preserveHashes: true,
         );

@@ -1,4 +1,3 @@
-import '../prompts/lumara_system_prompt.dart';
 
 /// Prompt templates for LUMARA's Gemma models
 class PromptTemplates {

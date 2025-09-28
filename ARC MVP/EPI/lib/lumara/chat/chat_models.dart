@@ -78,7 +78,7 @@ class ChatSession extends Equatable {
 
     String subject = words.join(' ');
     if (subject.length > 50) {
-      subject = subject.substring(0, 47) + '...';
+      subject = '${subject.substring(0, 47)}...';
     }
 
     return subject;

@@ -306,7 +306,7 @@ ChatSession _createTestChatSession() {
     updatedAt: DateTime.now(),
     isPinned: false,
     isArchived: false,
-    tags: ['test', 'example'],
+    tags: const ['test', 'example'],
     messageCount: 2,
   );
 }

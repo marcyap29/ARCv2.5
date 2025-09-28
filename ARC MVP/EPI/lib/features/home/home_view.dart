@@ -275,6 +275,9 @@ class _HomeViewState extends State<HomeView> {
   }
 
   void _onWritePressed() async {
+    // Clear any existing session cache to ensure fresh start
+    await JournalSessionCache.clearSession();
+
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -590,7 +593,7 @@ class _InsightsPageState extends State<_InsightsPage> with WidgetsBindingObserve
     return Container(
       width: 24,
       height: 24,
-      decoration: BoxDecoration(
+      decoration: const BoxDecoration(
         color: Colors.transparent,
         shape: BoxShape.circle,
       ),
@@ -617,10 +620,10 @@ class _RivetCardState extends State<_RivetCard> {
     if (_rivetState == null) return 0.0;
     
     // Weight the different metrics for a single readiness score
-    final alignWeight = 0.3; // 30% - how well entries match new phase
-    final traceWeight = 0.3; // 30% - confidence in the match
-    final sustainWeight = 0.25; // 25% - consistency over time
-    final independentWeight = 0.15; // 15% - independent confirmation
+    const alignWeight = 0.3; // 30% - how well entries match new phase
+    const traceWeight = 0.3; // 30% - confidence in the match
+    const sustainWeight = 0.25; // 25% - consistency over time
+    const independentWeight = 0.15; // 15% - independent confirmation
     
     final alignScore = _rivetState!.align;
     final traceScore = _rivetState!.trace;
@@ -642,7 +645,7 @@ class _RivetCardState extends State<_RivetCard> {
   @override
   void initState() {
     super.initState();
-    print('DEBUG: _RivetCard initState called - widget hashCode: ${hashCode}');
+    print('DEBUG: _RivetCard initState called - widget hashCode: $hashCode');
     _loadRivetState();
   }
 
@@ -706,7 +709,7 @@ class _RivetCardState extends State<_RivetCard> {
   }
   
   Future<void> _refreshRivetState() async {
-    print('DEBUG: _refreshRivetState called - widget hashCode: ${hashCode}');
+    print('DEBUG: _refreshRivetState called - widget hashCode: $hashCode');
     print('DEBUG: Current RIVET state before refresh: $_rivetState');
     print('DEBUG: Current loading state: $_isLoading');
     await _loadRivetState();
@@ -876,7 +879,7 @@ class _RivetCardState extends State<_RivetCard> {
     if (_rivetState == null) return 0.0;
 
     final sustainCount = _rivetState!.sustainCount;
-    final targetCount = 2; // Need 2 qualifying entries
+    const targetCount = 2; // Need 2 qualifying entries
 
     // Visual progress based on entry count, capped at 0.9 until fully ready
     final progress = (sustainCount / targetCount).clamp(0.0, 0.9);
@@ -902,7 +905,7 @@ class _RivetCardState extends State<_RivetCard> {
     }
 
     final sustainCount = _rivetState!.sustainCount;
-    final targetCount = 2;
+    const targetCount = 2;
     final entriesNeeded = (targetCount - sustainCount).clamp(0, targetCount);
     final hasIndependent = _rivetState!.sawIndependentInWindow;
 
@@ -1000,7 +1003,7 @@ class _RivetCardState extends State<_RivetCard> {
 
     final sustainCount = _rivetState!.sustainCount;
     final hasIndependent = _rivetState!.sawIndependentInWindow;
-    final targetCount = 2;
+    const targetCount = 2;
 
     if (sustainCount >= targetCount && hasIndependent) {
       return "Phase change ready - explore new territory!";
@@ -1072,7 +1075,7 @@ class _RivetCardState extends State<_RivetCard> {
             children: [
               Row(
                 children: [
-                  Icon(
+                  const Icon(
                     Icons.lightbulb_outline,
                     color: Colors.blue,
                     size: 20,
@@ -1113,7 +1116,7 @@ class _RivetCardState extends State<_RivetCard> {
                     ),
                   ],
                 ),
-              )).toList(),
+              )),
             ],
           ),
         ),
@@ -1146,7 +1149,7 @@ class _RivetCardState extends State<_RivetCard> {
     final sustainCount = _rivetState!.sustainCount;
     final hasIndependent = _rivetState!.sawIndependentInWindow;
     final alignScore = _rivetState!.align;
-    final targetCount = 2;
+    const targetCount = 2;
 
     // Entry-specific guidance
     if (sustainCount == 0) {

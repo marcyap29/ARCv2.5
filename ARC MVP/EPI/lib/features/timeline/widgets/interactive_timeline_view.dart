@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:my_app/models/journal_entry_model.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:my_app/features/timeline/timeline_cubit.dart';
 import 'package:my_app/features/timeline/timeline_state.dart';

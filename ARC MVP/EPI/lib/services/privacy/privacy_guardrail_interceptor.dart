@@ -137,7 +137,7 @@ class PrivacyGuardrailInterceptor {
     bool jsonExpected = false,
     required String endpoint,
   }) async {
-    final apiKey = const String.fromEnvironment('GEMINI_API_KEY');
+    const apiKey = String.fromEnvironment('GEMINI_API_KEY');
     if (apiKey.isEmpty) {
       throw StateError('GEMINI_API_KEY not provided');
     }

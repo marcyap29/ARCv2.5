@@ -364,9 +364,9 @@ McpPointer _testPointer() => McpPointer(
       casRefs: const [],
     );
 
-McpEmbedding _testEmbedding() => McpEmbedding(
+McpEmbedding _testEmbedding() => const McpEmbedding(
       id: 'embedding',
-      vector: const [],
+      vector: [],
       modelId: 'model',
       embeddingVersion: 'v1',
       dim: 0,

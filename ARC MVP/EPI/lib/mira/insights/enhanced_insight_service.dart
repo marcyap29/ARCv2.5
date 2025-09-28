@@ -11,16 +11,14 @@ class EnhancedInsightService extends InsightService {
   final ChatRepo _chatRepo;
 
   EnhancedInsightService({
-    required JournalRepository journalRepository,
+    required super.journalRepository,
     required ChatRepo chatRepo,
     RivetProvider? rivetProvider,
-    required String userId,
+    required super.userId,
   }) : _chatRepo = chatRepo,
        _chatMetricsService = ChatMetricsService(chatRepo: chatRepo),
        super(
-         journalRepository: journalRepository,
          rivetProvider: rivetProvider,
-         userId: userId,
        );
 
   /// Generate combined insights from journals and chat sessions

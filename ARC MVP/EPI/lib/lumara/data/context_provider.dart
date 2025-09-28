@@ -199,7 +199,7 @@ class ContextProvider {
         }
       }
 
-      print('ContextProvider: Added ${historyIndex} historical phases from real entries');
+      print('ContextProvider: Added $historyIndex historical phases from real entries');
     } catch (e) {
       print('ContextProvider: Error getting phase history: $e');
     }
