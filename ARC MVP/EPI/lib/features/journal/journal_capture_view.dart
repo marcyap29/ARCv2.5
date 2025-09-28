@@ -18,6 +18,7 @@ import 'package:my_app/arc/core/media/ocr_text_insert_dialog.dart';
 import 'package:my_app/core/services/media_store.dart';
 import 'package:my_app/core/services/ocr_service.dart';
 import 'package:my_app/mode/first_responder/fr_mode_suggestion_service.dart';
+import 'package:my_app/features/journal/widgets/draft_recovery_dialog.dart';
 
 class JournalCaptureView extends StatefulWidget {
   final String? initialEmotion;
@@ -52,6 +53,11 @@ class _JournalCaptureViewState extends State<JournalCaptureView> {
 
     // Add listener for auto-save
     _textController.addListener(_onTextChanged);
+
+    // Draft recovery is now handled by StartEntryFlow
+    // WidgetsBinding.instance.addPostFrameCallback((_) {
+    //   _startNewDraftSession();
+    // });
   }
 
   @override
@@ -66,11 +72,42 @@ class _JournalCaptureViewState extends State<JournalCaptureView> {
     context.read<JournalCaptureCubit>().updateDraft(_textController.text);
   }
 
+  Future<void> _startNewDraftSession() async {
+    final cubit = context.read<JournalCaptureCubit>();
+
+    // Check for recoverable draft first
+    final recoverableDraft = await cubit.getRecoverableDraft();
+    if (recoverableDraft != null && mounted) {
+      // Show draft recovery dialog
+      await DraftRecoveryDialog.show(
+        context,
+        recoverableDraft,
+        onRestore: () => cubit.restoreDraft(recoverableDraft),
+        onDiscard: () => cubit.discardDraft(),
+        onViewHistory: () async {
+          final history = await cubit.getDraftHistory();
+          if (mounted) {
+            await DraftHistorySheet.show(
+              context,
+              history,
+              onRestoreDraft: (draft) => cubit.restoreDraft(draft),
+            );
+          }
+        },
+      );
+    } else {
+      // Start a new draft session
+      await cubit.startNewDraft(
+        initialEmotion: widget.initialEmotion,
+        initialReason: widget.initialReason,
+      );
+    }
+  }
+
   // Media handling methods
   void _onMediaCaptured(MediaItem mediaItem) async {
-    setState(() {
-      _mediaItems.add(mediaItem);
-    });
+    // Add to draft cache first
+    context.read<JournalCaptureCubit>().addMediaToDraft(mediaItem);
 
     // If it's an image, try OCR
     if (mediaItem.type == MediaType.image && mediaItem.ocrText == null) {
@@ -115,9 +152,8 @@ class _JournalCaptureViewState extends State<JournalCaptureView> {
   void _onMediaDeleted(MediaItem mediaItem) async {
     try {
       await _mediaStore.deleteMedia(mediaItem.uri);
-      setState(() {
-        _mediaItems.remove(mediaItem);
-      });
+      // Remove from draft cache
+      context.read<JournalCaptureCubit>().removeMediaFromDraft(mediaItem);
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -222,6 +258,29 @@ class _JournalCaptureViewState extends State<JournalCaptureView> {
                   // Optional: Handle dismissal if needed
                 },
               );
+            } else if (state is JournalCaptureDraftRestored) {
+              // Restore draft content and media
+              _textController.text = state.content;
+              setState(() {
+                _mediaItems.clear();
+                _mediaItems.addAll(state.mediaItems);
+              });
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Draft restored successfully'),
+                  backgroundColor: kcSuccessColor,
+                ),
+              );
+            } else if (state is JournalCaptureMediaAdded) {
+              // Add media to local list
+              setState(() {
+                _mediaItems.add(state.mediaItem);
+              });
+            } else if (state is JournalCaptureMediaRemoved) {
+              // Remove media from local list
+              setState(() {
+                _mediaItems.removeWhere((item) => item.uri == state.mediaItem.uri);
+              });
             }
           },
           child: Scaffold(

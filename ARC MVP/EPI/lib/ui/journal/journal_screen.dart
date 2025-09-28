@@ -20,11 +20,13 @@ import 'widgets/inline_reflection_block.dart';
 class JournalScreen extends StatefulWidget {
   final String? selectedEmotion;
   final String? selectedReason;
+  final String? initialContent;
   
   const JournalScreen({
     super.key,
     this.selectedEmotion,
     this.selectedReason,
+    this.initialContent,
   });
 
   @override
@@ -45,6 +47,12 @@ class _JournalScreenState extends State<JournalScreen> {
     _lumaraApi = LumaraInlineApi(_analytics);
     _ocrService = StubOcrService(_analytics); // TODO: Use platform-specific implementation
     _analytics.logJournalEvent('opened');
+
+    // Initialize with draft content if provided
+    if (widget.initialContent != null) {
+      _textController.text = widget.initialContent!;
+      _entryState.text = widget.initialContent!;
+    }
   }
 
   @override
@@ -243,9 +251,7 @@ class _JournalScreenState extends State<JournalScreen> {
     final currentText = _textController.text;
     final cursorPosition = _textController.selection.baseOffset;
     
-    final newText = currentText.substring(0, cursorPosition) + 
-                   '\n\n$text' + 
-                   currentText.substring(cursorPosition);
+    final newText = '${currentText.substring(0, cursorPosition)}\n\n$text${currentText.substring(cursorPosition)}';
     
     _textController.text = newText;
     _textController.selection = TextSelection.collapsed(
@@ -298,7 +304,7 @@ class _JournalScreenState extends State<JournalScreen> {
     final reducedMotion = MediaQuery.of(context).disableAnimations;
 
     return Scaffold(
-      backgroundColor: theme.colorScheme.background,
+      backgroundColor: theme.colorScheme.surface,
       appBar: AppBar(
         title: const Text('Write what is true right now'),
         backgroundColor: Colors.transparent,
@@ -332,7 +338,7 @@ class _JournalScreenState extends State<JournalScreen> {
                         onChanged: _onTextChanged,
                         maxLines: null,
                         style: theme.textTheme.bodyLarge,
-                        decoration: InputDecoration(
+                        decoration: const InputDecoration(
                           hintText: 'What\'s on your mind right now?',
                           border: InputBorder.none,
                           contentPadding: EdgeInsets.zero,
@@ -385,7 +391,7 @@ class _JournalScreenState extends State<JournalScreen> {
                       icon: const Icon(Icons.add_photo_alternate),
                       tooltip: 'Add Media',
                     ),
-
+                    
                     // Scan page button
                     if (FeatureFlags.scanPage)
                       IconButton(
@@ -393,25 +399,19 @@ class _JournalScreenState extends State<JournalScreen> {
                         icon: const Icon(Icons.document_scanner),
                         tooltip: 'Scan Page',
                       ),
-
+                    
                     const Spacer(),
-
+                    
                     // Reflect with LUMARA button (secondary)
                     if (_entryState.text.isNotEmpty)
-                      Flexible(
-                        child: TextButton.icon(
-                          onPressed: _onLumaraFabTapped,
-                          icon: const Icon(Icons.auto_awesome, size: 18),
-                          label: const Text(
-                            'Reflect with LUMARA',
-                            overflow: TextOverflow.ellipsis,
-                            maxLines: 1,
-                          ),
-                        ),
+                      TextButton.icon(
+                        onPressed: _onLumaraFabTapped,
+                        icon: const Icon(Icons.auto_awesome, size: 18),
+                        label: const Text('Reflect with LUMARA'),
                       ),
-
+                    
                     const SizedBox(width: 8),
-
+                    
                     // Continue button (primary)
                     ElevatedButton(
                       onPressed: _entryState.text.isNotEmpty ? _onContinue : null,
@@ -445,7 +445,7 @@ class _JournalScreenState extends State<JournalScreen> {
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.3),
+        color: Theme.of(context).colorScheme.surfaceContainerHighest.withOpacity(0.3),
         borderRadius: BorderRadius.circular(8),
         border: Border.all(
           color: Theme.of(context).colorScheme.outline.withOpacity(0.2),
