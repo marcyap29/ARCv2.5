@@ -275,9 +275,6 @@ class _HomeViewState extends State<HomeView> {
   }
 
   void _onWritePressed() async {
-    // Clear any existing session cache to ensure fresh start
-    await JournalSessionCache.clearSession();
-
     Navigator.push(
       context,
       MaterialPageRoute(

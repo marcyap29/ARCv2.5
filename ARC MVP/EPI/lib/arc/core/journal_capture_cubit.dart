@@ -25,11 +25,16 @@ import 'package:audioplayers/audioplayers.dart';
 import 'package:hive/hive.dart';
 import 'package:my_app/mode/first_responder/fr_mode_suggestion_service.dart';
 import 'package:my_app/mode/first_responder/fr_settings_cubit.dart';
+import 'package:my_app/core/services/draft_cache_service.dart';
+import 'package:my_app/data/models/media_item.dart';
 
 class JournalCaptureCubit extends Cubit<JournalCaptureState> {
   final JournalRepository _journalRepository;
   final SyncService _syncService = SyncService();
+  final DraftCacheService _draftCache = DraftCacheService.instance;
   String _draftContent = '';
+  String? _currentDraftId;
+  List<MediaItem> _draftMediaItems = [];
   static const _autoSaveDelay = Duration(seconds: 3);
   DateTime? _lastSaveTime;
   final AudioPlayer _audioPlayer = AudioPlayer();
@@ -43,7 +48,9 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
   final FRModeSuggestionService _frSuggestionService = FRModeSuggestionService();
   bool _hasTriggeredFRSuggestion = false;
 
-  JournalCaptureCubit(this._journalRepository) : super(JournalCaptureInitial());
+  JournalCaptureCubit(this._journalRepository) : super(JournalCaptureInitial()) {
+    _initializeDraftCache();
+  }
 
   void updateDraft(String content) {
     _draftContent = content;
@@ -83,13 +90,130 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
     }
   }
 
+  /// Initialize draft cache and check for recoverable drafts
+  Future<void> _initializeDraftCache() async {
+    try {
+      await _draftCache.initialize();
+      await _checkForRecoverableDraft();
+    } catch (e) {
+      print('Failed to initialize draft cache: $e');
+    }
+  }
+
+  /// Check for recoverable draft on startup
+  Future<void> _checkForRecoverableDraft() async {
+    try {
+      final recoverableDraft = await _draftCache.getRecoverableDraft();
+      if (recoverableDraft != null && recoverableDraft.hasContent) {
+        emit(JournalCaptureDraftRecoverable(recoverableDraft: recoverableDraft));
+      }
+    } catch (e) {
+      print('Error checking for recoverable draft: $e');
+    }
+  }
+
+  /// Start a new draft session
+  Future<void> startNewDraft({
+    String? initialEmotion,
+    String? initialReason,
+  }) async {
+    try {
+      _currentDraftId = await _draftCache.createDraft(
+        initialEmotion: initialEmotion,
+        initialReason: initialReason,
+      );
+      _draftContent = '';
+      _draftMediaItems = [];
+      emit(JournalCaptureDraftStarted(draftId: _currentDraftId!));
+    } catch (e) {
+      print('Error starting new draft: $e');
+    }
+  }
+
+  /// Restore a draft from cache
+  Future<void> restoreDraft(JournalDraft draft) async {
+    try {
+      await _draftCache.restoreDraft(draft);
+      _currentDraftId = draft.id;
+      _draftContent = draft.content;
+      _draftMediaItems = List.from(draft.mediaItems);
+
+      emit(JournalCaptureDraftRestored(
+        draft: draft,
+        content: _draftContent,
+        mediaItems: _draftMediaItems,
+      ));
+    } catch (e) {
+      print('Error restoring draft: $e');
+    }
+  }
+
+  /// Add media item to current draft
+  Future<void> addMediaToDraft(MediaItem mediaItem) async {
+    try {
+      _draftMediaItems.add(mediaItem);
+      await _draftCache.addMediaToDraft(mediaItem);
+      emit(JournalCaptureMediaAdded(mediaItem: mediaItem));
+    } catch (e) {
+      print('Error adding media to draft: $e');
+    }
+  }
+
+  /// Remove media item from current draft
+  Future<void> removeMediaFromDraft(MediaItem mediaItem) async {
+    try {
+      _draftMediaItems.removeWhere((item) => item.uri == mediaItem.uri);
+      await _draftCache.removeMediaFromDraft(mediaItem);
+      emit(JournalCaptureMediaRemoved(mediaItem: mediaItem));
+    } catch (e) {
+      print('Error removing media from draft: $e');
+    }
+  }
+
+  /// Discard current draft
+  Future<void> discardDraft() async {
+    try {
+      await _draftCache.discardDraft();
+      _currentDraftId = null;
+      _draftContent = '';
+      _draftMediaItems = [];
+      emit(JournalCaptureDraftDiscarded());
+    } catch (e) {
+      print('Error discarding draft: $e');
+    }
+  }
+
+  /// Get recoverable draft
+  Future<JournalDraft?> getRecoverableDraft() async {
+    try {
+      return await _draftCache.getRecoverableDraft();
+    } catch (e) {
+      print('Error getting recoverable draft: $e');
+      return null;
+    }
+  }
+
+  /// Get draft history
+  Future<List<JournalDraft>> getDraftHistory() async {
+    try {
+      return await _draftCache.getDraftHistory();
+    } catch (e) {
+      print('Error getting draft history: $e');
+      return [];
+    }
+  }
+
   void _autoSaveDraft() {
     // Auto-save after delay if content has changed
     if (_lastSaveTime == null ||
         DateTime.now().difference(_lastSaveTime!) > _autoSaveDelay) {
       _lastSaveTime = DateTime.now();
-      // In a real implementation, we would save to a drafts repository
-      // For now, we just update the state to indicate draft saved
+
+      // Save to draft cache
+      if (_currentDraftId != null) {
+        _draftCache.updateDraftContent(_draftContent);
+      }
+
       emit(JournalCaptureDraftSaved());
     }
   }
@@ -132,6 +256,12 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
           'createdAt': entry.createdAt.toIso8601String(),
         },
       );
+
+      // Complete the draft since entry was saved successfully
+      await _draftCache.completeDraft();
+      _currentDraftId = null;
+      _draftContent = '';
+      _draftMediaItems = [];
 
       // Emit saved state immediately - don't wait for background processing
       emit(JournalCaptureSaved());

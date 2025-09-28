@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -6,13 +7,14 @@ import '../../state/journal_entry_state.dart';
 import '../../state/feature_flags.dart';
 import '../../telemetry/analytics.dart';
 import '../../services/lumara/lumara_inline_api.dart';
+import '../../lumara/services/enhanced_lumara_api.dart';
 import '../../services/ocr/ocr_service.dart';
 import '../../services/journal_session_cache.dart';
 import '../../arc/core/keyword_extraction_cubit.dart';
 import '../../arc/core/journal_capture_cubit.dart';
 import '../../arc/core/journal_repository.dart';
 import '../../arc/core/widgets/keyword_analysis_view.dart';
-import 'widgets/lumara_fab.dart';
+import '../../core/services/draft_cache_service.dart';
 import 'widgets/lumara_suggestion_sheet.dart';
 import 'widgets/inline_reflection_block.dart';
 
@@ -20,11 +22,13 @@ import 'widgets/inline_reflection_block.dart';
 class JournalScreen extends StatefulWidget {
   final String? selectedEmotion;
   final String? selectedReason;
+  final String? initialContent;
   
   const JournalScreen({
     super.key,
     this.selectedEmotion,
     this.selectedReason,
+    this.initialContent,
   });
 
   @override
@@ -34,21 +38,37 @@ class JournalScreen extends StatefulWidget {
 class _JournalScreenState extends State<JournalScreen> {
   final TextEditingController _textController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
-  final JournalEntryState _entryState = JournalEntryState();
+  JournalEntryState _entryState = JournalEntryState();
   final Analytics _analytics = Analytics();
   late final LumaraInlineApi _lumaraApi;
+  late final EnhancedLumaraApi _enhancedLumaraApi;
   late final OcrService _ocrService;
+  final DraftCacheService _draftCache = DraftCacheService.instance;
+  String? _currentDraftId;
+  Timer? _autoSaveTimer;
 
   @override
   void initState() {
     super.initState();
     _lumaraApi = LumaraInlineApi(_analytics);
+    _enhancedLumaraApi = EnhancedLumaraApi(_analytics);
+    _enhancedLumaraApi.initialize();
     _ocrService = StubOcrService(_analytics); // TODO: Use platform-specific implementation
     _analytics.logJournalEvent('opened');
+
+    // Initialize with draft content if provided
+    if (widget.initialContent != null) {
+      _textController.text = widget.initialContent!;
+      _entryState.text = widget.initialContent!;
+    }
+
+    // Initialize draft cache and create new draft
+    _initializeDraftCache();
   }
 
   @override
   void dispose() {
+    _autoSaveTimer?.cancel();
     _textController.dispose();
     _scrollController.dispose();
     super.dispose();
@@ -58,6 +78,9 @@ class _JournalScreenState extends State<JournalScreen> {
     setState(() {
       _entryState.text = text;
     });
+    
+    // Update draft cache
+    _updateDraftContent(text);
   }
 
   void _onLumaraFabTapped() {
@@ -81,7 +104,8 @@ class _JournalScreenState extends State<JournalScreen> {
     });
 
     try {
-      final reflection = await _lumaraApi.generatePromptedReflection(
+      // Use enhanced LUMARA API with full LLM support
+      final reflection = await _enhancedLumaraApi.generatePromptedReflection(
         entryText: _entryState.text,
         intent: intent.name,
         phase: _entryState.phase,
@@ -243,9 +267,7 @@ class _JournalScreenState extends State<JournalScreen> {
     final currentText = _textController.text;
     final cursorPosition = _textController.selection.baseOffset;
     
-    final newText = currentText.substring(0, cursorPosition) + 
-                   '\n\n$text' + 
-                   currentText.substring(cursorPosition);
+    final newText = '${currentText.substring(0, cursorPosition)}\n\n$text${currentText.substring(cursorPosition)}';
     
     _textController.text = newText;
     _textController.selection = TextSelection.collapsed(
@@ -284,6 +306,8 @@ class _JournalScreenState extends State<JournalScreen> {
     ).then((result) {
       // Handle save result - if saved successfully, go back to home
       if (result != null && result['save'] == true) {
+        // Complete the draft since entry was saved
+        _completeDraft();
         // Clear the session cache since entry was saved
         JournalSessionCache.clearSession();
         // Navigate back to the previous screen
@@ -295,10 +319,9 @@ class _JournalScreenState extends State<JournalScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final reducedMotion = MediaQuery.of(context).disableAnimations;
 
     return Scaffold(
-      backgroundColor: theme.colorScheme.background,
+      backgroundColor: theme.colorScheme.surface,
       appBar: AppBar(
         title: const Text('Write what is true right now'),
         backgroundColor: Colors.transparent,
@@ -332,7 +355,7 @@ class _JournalScreenState extends State<JournalScreen> {
                         onChanged: _onTextChanged,
                         maxLines: null,
                         style: theme.textTheme.bodyLarge,
-                        decoration: InputDecoration(
+                        decoration: const InputDecoration(
                           hintText: 'What\'s on your mind right now?',
                           border: InputBorder.none,
                           contentPadding: EdgeInsets.zero,
@@ -374,48 +397,97 @@ class _JournalScreenState extends State<JournalScreen> {
                     ),
                   ),
                 ),
-                child: Row(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    // Add media button
-                    IconButton(
-                      onPressed: () {
-                        // TODO: Implement media picker
-                        _analytics.logJournalEvent('media_button_pressed');
-                      },
-                      icon: const Icon(Icons.add_photo_alternate),
-                      tooltip: 'Add Media',
-                    ),
-
-                    // Scan page button
-                    if (FeatureFlags.scanPage)
-                      IconButton(
-                        onPressed: _onScanPage,
-                        icon: const Icon(Icons.document_scanner),
-                        tooltip: 'Scan Page',
-                      ),
-
-                    const Spacer(),
-
-                    // Reflect with LUMARA button (secondary)
-                    if (_entryState.text.isNotEmpty)
-                      Flexible(
-                        child: TextButton.icon(
-                          onPressed: _onLumaraFabTapped,
-                          icon: const Icon(Icons.auto_awesome, size: 18),
-                          label: const Text(
-                            'Reflect with LUMARA',
-                            overflow: TextOverflow.ellipsis,
-                            maxLines: 1,
+                    // Primary action row - flexible layout
+                    Row(
+                      children: [
+                        // Left side: Media buttons (compact)
+                        Expanded(
+                          flex: 2,
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              // Add photo button
+                              IconButton(
+                                onPressed: () {
+                                  // TODO: Implement photo picker
+                                  _analytics.logJournalEvent('photo_button_pressed');
+                                },
+                                icon: const Icon(Icons.add_photo_alternate),
+                                tooltip: 'Add Photo',
+                                padding: const EdgeInsets.all(8),
+                                constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                              ),
+                              
+                              // Add voice button (placeholder for future)
+                              IconButton(
+                                onPressed: () {
+                                  // TODO: Implement voice recorder
+                                  _analytics.logJournalEvent('voice_button_pressed');
+                                },
+                                icon: const Icon(Icons.mic),
+                                tooltip: 'Add Voice Note',
+                                padding: const EdgeInsets.all(8),
+                                constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                              ),
+                              
+                              // Scan page button (only if enabled)
+                              if (FeatureFlags.scanPage)
+                                IconButton(
+                                  onPressed: _onScanPage,
+                                  icon: const Icon(Icons.document_scanner),
+                                  tooltip: 'Scan Page',
+                                  padding: const EdgeInsets.all(8),
+                                  constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                                ),
+                            ],
                           ),
                         ),
-                      ),
-
-                    const SizedBox(width: 8),
-
-                    // Continue button (primary)
-                    ElevatedButton(
-                      onPressed: _entryState.text.isNotEmpty ? _onContinue : null,
-                      child: const Text('Continue'),
+                        
+                        // Center: LUMARA button (only show if text exists)
+                        if (_entryState.text.isNotEmpty)
+                          Expanded(
+                            flex: 1,
+                            child: Center(
+                              child: IconButton(
+                                onPressed: _onLumaraFabTapped,
+                                icon: const Icon(Icons.psychology),
+                                tooltip: 'Reflect with LUMARA',
+                                style: IconButton.styleFrom(
+                                  foregroundColor: theme.colorScheme.primary,
+                                  backgroundColor: theme.colorScheme.primary.withOpacity(0.1),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                    side: BorderSide(
+                                      color: theme.colorScheme.primary.withOpacity(0.3),
+                                      width: 1,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        
+                        // Right side: Continue button (flexible)
+                        Expanded(
+                          flex: 2,
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.end,
+                            children: [
+                              ElevatedButton(
+                                onPressed: _entryState.text.isNotEmpty ? _onContinue : null,
+                                style: ElevatedButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                ),
+                                child: const Text('Continue'),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
@@ -423,17 +495,6 @@ class _JournalScreenState extends State<JournalScreen> {
             ],
           ),
           
-          // LUMARA floating action button
-          if (FeatureFlags.inlineLumara)
-            Positioned(
-              right: 16,
-              bottom: 100, // Above the bottom action bar
-              child: LumaraFab(
-                nudge: _entryState.showLumaraNudge,
-                reducedMotion: reducedMotion,
-                onTap: _onLumaraFabTapped,
-              ),
-            ),
         ],
         ),
       ),
@@ -445,7 +506,7 @@ class _JournalScreenState extends State<JournalScreen> {
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.3),
+        color: Theme.of(context).colorScheme.surfaceContainerHighest.withOpacity(0.3),
         borderRadius: BorderRadius.circular(8),
         border: Border.all(
           color: Theme.of(context).colorScheme.outline.withOpacity(0.2),
@@ -571,11 +632,111 @@ class _JournalScreenState extends State<JournalScreen> {
   void _onContinueWithLumara() {
     _analytics.logLumaraEvent('continue_with_lumara_opened_chat');
     
-    // TODO: Navigate to full LUMARA chat screen
-    // This would open the existing LUMARA assistant screen
-    Navigator.of(context).pushNamed('/lumara-chat', arguments: {
-      'seed': _entryState.text,
-      'phase': _entryState.phase,
+    // Show LUMARA suggestion sheet for in-context integration
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (context) => LumaraSuggestionSheet(
+        onSelect: (intent) async {
+          // Convert LumaraIntent to string for the API
+          final suggestion = intent.name;
+          await _handleLumaraSuggestion(suggestion);
+        },
+      ),
+    );
+  }
+
+  /// Handle LUMARA suggestion selection
+  Future<void> _handleLumaraSuggestion(String suggestion) async {
+    try {
+      _analytics.logLumaraEvent('suggestion_selected', data: {'intent': suggestion});
+      
+      // Generate reflection using LUMARA inline API
+      final reflection = await _lumaraApi.generatePromptedReflection(
+        entryText: _entryState.text,
+        intent: suggestion,
+        phase: _entryState.phase,
+      );
+      
+      // Insert the reflection into the text
+      final currentText = _textController.text;
+      final cursorPosition = _textController.selection.baseOffset;
+      
+      // Insert reflection at cursor position or end of text
+      final insertPosition = cursorPosition >= 0 ? cursorPosition : currentText.length;
+      final newText = '${currentText.substring(0, insertPosition)}\n\n$reflection\n\n${currentText.substring(insertPosition)}';
+      
+      // Update text controller and state
+      _textController.text = newText;
+      _textController.selection = TextSelection.collapsed(
+        offset: insertPosition + reflection.length + 4, // Position after inserted text
+      );
+      
+      // Update entry state
+      setState(() {
+        _entryState.text = newText;
+      });
+      
+      // Auto-save the updated content
+      _updateDraftContent(newText);
+      
+      _analytics.logLumaraEvent('inline_reflection_inserted', data: {'intent': suggestion});
+      
+    } catch (e) {
+      _analytics.log('lumara_suggestion_error', {'error': e.toString()});
+      
+      // Show error message to user
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error generating reflection: ${e.toString()}'),
+            backgroundColor: Theme.of(context).colorScheme.error,
+          ),
+        );
+      }
+    }
+  }
+
+  /// Initialize draft cache and create new draft
+  Future<void> _initializeDraftCache() async {
+    try {
+      await _draftCache.initialize();
+      
+      // Create new draft with emotion and reason if available
+      _currentDraftId = await _draftCache.createDraft(
+        initialEmotion: widget.selectedEmotion,
+        initialReason: widget.selectedReason,
+        initialContent: _entryState.text,
+      );
+      
+      debugPrint('JournalScreen: Created draft $_currentDraftId');
+    } catch (e) {
+      debugPrint('JournalScreen: Failed to initialize draft cache: $e');
+    }
+  }
+
+  /// Update draft content with auto-save
+  void _updateDraftContent(String content) {
+    if (_currentDraftId == null) return;
+    
+    // Cancel existing timer
+    _autoSaveTimer?.cancel();
+    
+    // Start new timer for auto-save
+    _autoSaveTimer = Timer(const Duration(seconds: 2), () {
+      _draftCache.updateDraftContent(content);
+      debugPrint('JournalScreen: Auto-saved draft content');
     });
+  }
+
+  /// Complete the current draft when entry is saved
+  Future<void> _completeDraft() async {
+    try {
+      await _draftCache.completeDraft();
+      _currentDraftId = null;
+      debugPrint('JournalScreen: Completed draft');
+    } catch (e) {
+      debugPrint('JournalScreen: Failed to complete draft: $e');
+    }
   }
 }

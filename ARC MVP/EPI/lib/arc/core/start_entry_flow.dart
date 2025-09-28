@@ -4,8 +4,9 @@ import 'package:my_app/arc/core/widgets/emotion_picker.dart';
 import 'package:my_app/arc/core/widgets/reason_picker.dart';
 import 'package:my_app/shared/app_colors.dart';
 import 'package:my_app/data/models/media_item.dart';
-import 'package:my_app/services/journal_session_cache.dart';
 import 'package:my_app/ui/journal/journal_screen.dart';
+import 'package:my_app/core/services/draft_cache_service.dart';
+import 'package:my_app/features/journal/widgets/draft_recovery_dialog.dart';
 
 class StartEntryFlow extends StatefulWidget {
   final VoidCallback? onExitToPhase;
@@ -26,6 +27,7 @@ class _StartEntryFlowState extends State<StartEntryFlow> {
   String _textContent = '';
   final List<MediaItem> _mediaItems = [];
   Timer? _debounceTimer;
+  bool _draftRecoveryAttempted = false; // Circuit breaker to prevent infinite loops
 
   @override
   void initState() {
@@ -45,8 +47,10 @@ class _StartEntryFlowState extends State<StartEntryFlow> {
       }
     });
     
-    // Restore session cache on startup - TEMPORARILY DISABLED FOR UI/UX FLOW TESTING
-    // _restoreSession();
+    // Check for recoverable drafts on startup
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkForRecoverableDraft();
+    });
   }
 
   @override
@@ -59,60 +63,109 @@ class _StartEntryFlowState extends State<StartEntryFlow> {
     super.dispose();
   }
 
-  /// Restore session from cache
-  Future<void> _restoreSession() async {
+  /// Check for recoverable drafts and navigate appropriately
+  Future<void> _checkForRecoverableDraft() async {
+    // Circuit breaker to prevent infinite loops
+    if (_draftRecoveryAttempted) {
+      debugPrint('Draft recovery already attempted, skipping');
+      return;
+    }
+    _draftRecoveryAttempted = true;
+
     try {
-      final sessionData = await JournalSessionCache.restoreSession();
-      if (sessionData != null && sessionData.hasData) {
-        print('DEBUG: Restoring journal session: ${sessionData.summary}');
-        
-        setState(() {
-          _selectedEmotion = sessionData.emotion;
-          _selectedReason = sessionData.reason;
-          _textContent = sessionData.textContent ?? '';
-          _textController.text = _textContent;
-        });
-        
-        // Restore media items if any
-        if (sessionData.mediaItems != null) {
-          for (final itemData in sessionData.mediaItems!) {
-            try {
-              final mediaItem = MediaItem.fromJson(itemData);
-              _mediaItems.add(mediaItem);
-            } catch (e) {
-              print('ERROR: Failed to restore media item: $e');
-            }
-          }
-        }
-        
-        // Navigate to appropriate page based on restored data
-        if (_selectedEmotion != null && _selectedReason != null) {
-          // Go to writing page
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            _pageController.jumpToPage(2);
-          });
-        } else if (_selectedEmotion != null) {
-          // Go to reason picker
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            _pageController.jumpToPage(1);
-          });
-        }
-        
-        // Show restoration message
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Restored previous journal session'),
-              backgroundColor: kcPrimaryColor,
-              duration: const Duration(seconds: 2),
-            ),
+      debugPrint('Starting draft recovery check...');
+      final draftCache = DraftCacheService.instance;
+      await draftCache.initialize();
+      final recoverableDraft = await draftCache.getRecoverableDraft();
+
+      if (recoverableDraft != null && recoverableDraft.hasContent && mounted) {
+        // Check if the draft has all necessary components for advanced writing
+        final hasEmotion = recoverableDraft.initialEmotion != null;
+        final hasReason = recoverableDraft.initialReason != null;
+        final hasContent = recoverableDraft.content.trim().isNotEmpty;
+
+        if (hasEmotion && hasReason && hasContent) {
+          // Complete draft - navigate directly to advanced writing interface
+          debugPrint('Complete draft found, navigating to advanced writing');
+          _navigateToAdvancedWriting(recoverableDraft);
+        } else if (hasContent) {
+          // Draft with content but missing emotion/reason - show recovery dialog
+          debugPrint('Draft with content found, showing recovery dialog');
+          await DraftRecoveryDialog.show(
+            context,
+            recoverableDraft,
+            onRestore: () => _restoreDraft(recoverableDraft),
+            onDiscard: () => _discardDraft(),
+            onViewHistory: () async {
+              // TODO: Implement draft history view
+              debugPrint('Draft history view requested');
+            },
           );
         }
       }
     } catch (e) {
-      print('ERROR: Failed to restore session: $e');
+      debugPrint('Error checking for recoverable draft: $e');
+      // Continue with normal flow if draft recovery fails
     }
   }
+
+  /// Navigate directly to advanced writing interface with complete draft
+  void _navigateToAdvancedWriting(JournalDraft draft) {
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(
+        builder: (context) => JournalScreen(
+          selectedEmotion: draft.initialEmotion,
+          selectedReason: draft.initialReason,
+          initialContent: draft.content,
+        ),
+      ),
+    );
+  }
+
+  /// Restore draft data and navigate to appropriate step
+  void _restoreDraft(JournalDraft draft) {
+    setState(() {
+      _selectedEmotion = draft.initialEmotion;
+      _selectedReason = draft.initialReason;
+      _textContent = draft.content;
+      _textController.text = _textContent;
+      _mediaItems.clear();
+      _mediaItems.addAll(draft.mediaItems);
+    });
+
+    // Navigate to appropriate page based on restored data
+    if (_selectedEmotion != null && _selectedReason != null) {
+      // Go directly to writing page
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _pageController.animateTo(
+          2,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeInOut,
+        );
+      });
+    } else if (_selectedEmotion != null) {
+      // Go to reason picker
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _pageController.animateTo(
+          1,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeInOut,
+        );
+      });
+    }
+    // If no emotion selected, stay on first page (emotion picker)
+  }
+
+  /// Discard the current draft
+  Future<void> _discardDraft() async {
+    try {
+      final draftCache = DraftCacheService.instance;
+      await draftCache.discardDraft();
+    } catch (e) {
+      debugPrint('Error discarding draft: $e');
+    }
+  }
+
 
   void _onEmotionSelected(String emotion) {
     setState(() {

@@ -1,5 +1,7 @@
 import 'package:equatable/equatable.dart';
 import 'package:my_app/mode/first_responder/fr_settings_cubit.dart';
+import 'package:my_app/core/services/draft_cache_service.dart';
+import 'package:my_app/data/models/media_item.dart';
 
 abstract class JournalCaptureState extends Equatable {
   const JournalCaptureState();
@@ -92,4 +94,66 @@ class JournalCaptureFRSuggestionTriggered extends JournalCaptureState {
 
   @override
   List<Object> get props => [draftContent, frCubit];
+}
+
+// Draft-related states
+class JournalCaptureDraftRecoverable extends JournalCaptureState {
+  final JournalDraft recoverableDraft;
+
+  const JournalCaptureDraftRecoverable({
+    required this.recoverableDraft,
+  });
+
+  @override
+  List<Object> get props => [recoverableDraft];
+}
+
+class JournalCaptureDraftStarted extends JournalCaptureState {
+  final String draftId;
+
+  const JournalCaptureDraftStarted({
+    required this.draftId,
+  });
+
+  @override
+  List<Object> get props => [draftId];
+}
+
+class JournalCaptureDraftRestored extends JournalCaptureState {
+  final JournalDraft draft;
+  final String content;
+  final List<MediaItem> mediaItems;
+
+  const JournalCaptureDraftRestored({
+    required this.draft,
+    required this.content,
+    required this.mediaItems,
+  });
+
+  @override
+  List<Object> get props => [draft, content, mediaItems];
+}
+
+class JournalCaptureDraftDiscarded extends JournalCaptureState {}
+
+class JournalCaptureMediaAdded extends JournalCaptureState {
+  final MediaItem mediaItem;
+
+  const JournalCaptureMediaAdded({
+    required this.mediaItem,
+  });
+
+  @override
+  List<Object> get props => [mediaItem];
+}
+
+class JournalCaptureMediaRemoved extends JournalCaptureState {
+  final MediaItem mediaItem;
+
+  const JournalCaptureMediaRemoved({
+    required this.mediaItem,
+  });
+
+  @override
+  List<Object> get props => [mediaItem];
 }
