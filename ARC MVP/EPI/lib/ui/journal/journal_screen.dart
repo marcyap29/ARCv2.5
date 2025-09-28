@@ -37,7 +37,7 @@ class JournalScreen extends StatefulWidget {
 class _JournalScreenState extends State<JournalScreen> {
   final TextEditingController _textController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
-  final JournalEntryState _entryState = JournalEntryState();
+  JournalEntryState _entryState = JournalEntryState();
   final Analytics _analytics = Analytics();
   late final LumaraInlineApi _lumaraApi;
   late final OcrService _ocrService;
@@ -630,40 +630,69 @@ class _JournalScreenState extends State<JournalScreen> {
   void _onContinueWithLumara() {
     _analytics.logLumaraEvent('continue_with_lumara_opened_chat');
     
-    // Show LUMARA dialog for now (until full chat screen is implemented)
-    showDialog(
+    // Show LUMARA suggestion sheet for in-context integration
+    showModalBottomSheet(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('LUMARA Reflection'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text('This will open the full LUMARA chat interface where you can have a deeper conversation about your journal entry.'),
-            const SizedBox(height: 16),
-            Text('Current text: "${_entryState.text.length > 100 ? '${_entryState.text.substring(0, 100)}...' : _entryState.text}"'),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Close'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.of(context).pop();
-              // TODO: Implement full LUMARA chat screen navigation
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('LUMARA chat screen coming soon!'),
-                  duration: Duration(seconds: 2),
-                ),
-              );
-            },
-            child: const Text('Open Chat'),
-          ),
-        ],
+      isScrollControlled: true,
+      builder: (context) => LumaraSuggestionSheet(
+        onSelect: (intent) async {
+          // Convert LumaraIntent to string for the API
+          final suggestion = intent.name;
+          await _handleLumaraSuggestion(suggestion);
+        },
       ),
     );
+  }
+
+  /// Handle LUMARA suggestion selection
+  Future<void> _handleLumaraSuggestion(String suggestion) async {
+    try {
+      _analytics.logLumaraEvent('suggestion_selected', data: {'intent': suggestion});
+      
+      // Generate reflection using LUMARA inline API
+      final reflection = await _lumaraApi.generatePromptedReflection(
+        entryText: _entryState.text,
+        intent: suggestion,
+        phase: _entryState.phase,
+      );
+      
+      // Insert the reflection into the text
+      final currentText = _textController.text;
+      final cursorPosition = _textController.selection.baseOffset;
+      
+      // Insert reflection at cursor position or end of text
+      final insertPosition = cursorPosition >= 0 ? cursorPosition : currentText.length;
+      final newText = '${currentText.substring(0, insertPosition)}\n\n$reflection\n\n${currentText.substring(insertPosition)}';
+      
+      // Update text controller and state
+      _textController.text = newText;
+      _textController.selection = TextSelection.collapsed(
+        offset: insertPosition + reflection.length + 4, // Position after inserted text
+      );
+      
+      // Update entry state
+      setState(() {
+        _entryState.text = newText;
+      });
+      
+      // Auto-save the updated content
+      _updateDraftContent(newText);
+      
+      _analytics.logLumaraEvent('inline_reflection_inserted', data: {'intent': suggestion});
+      
+    } catch (e) {
+      _analytics.log('lumara_suggestion_error', {'error': e.toString()});
+      
+      // Show error message to user
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error generating reflection: ${e.toString()}'),
+            backgroundColor: Theme.of(context).colorScheme.error,
+          ),
+        );
+      }
+    }
   }
 
   /// Initialize draft cache and create new draft
