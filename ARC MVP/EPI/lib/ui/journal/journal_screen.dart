@@ -7,6 +7,7 @@ import '../../state/journal_entry_state.dart';
 import '../../state/feature_flags.dart';
 import '../../telemetry/analytics.dart';
 import '../../services/lumara/lumara_inline_api.dart';
+import '../../lumara/services/enhanced_lumara_api.dart';
 import '../../services/ocr/ocr_service.dart';
 import '../../services/journal_session_cache.dart';
 import '../../arc/core/keyword_extraction_cubit.dart';
@@ -40,6 +41,7 @@ class _JournalScreenState extends State<JournalScreen> {
   JournalEntryState _entryState = JournalEntryState();
   final Analytics _analytics = Analytics();
   late final LumaraInlineApi _lumaraApi;
+  late final EnhancedLumaraApi _enhancedLumaraApi;
   late final OcrService _ocrService;
   final DraftCacheService _draftCache = DraftCacheService.instance;
   String? _currentDraftId;
@@ -49,6 +51,8 @@ class _JournalScreenState extends State<JournalScreen> {
   void initState() {
     super.initState();
     _lumaraApi = LumaraInlineApi(_analytics);
+    _enhancedLumaraApi = EnhancedLumaraApi(_analytics);
+    _enhancedLumaraApi.initialize();
     _ocrService = StubOcrService(_analytics); // TODO: Use platform-specific implementation
     _analytics.logJournalEvent('opened');
 
@@ -100,7 +104,8 @@ class _JournalScreenState extends State<JournalScreen> {
     });
 
     try {
-      final reflection = await _lumaraApi.generatePromptedReflection(
+      // Use enhanced LUMARA API with full LLM support
+      final reflection = await _enhancedLumaraApi.generatePromptedReflection(
         entryText: _entryState.text,
         intent: intent.name,
         phase: _entryState.phase,

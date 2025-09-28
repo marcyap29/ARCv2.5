@@ -3,12 +3,11 @@ import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:gap/gap.dart';
 import '../bloc/lumara_assistant_cubit.dart';
-import '../bloc/model_management_cubit.dart';
 import '../data/models/lumara_message.dart';
 import '../chat/ui/chats_screen.dart';
 import 'lumara_quick_palette.dart';
 import 'lumara_consent_sheet.dart';
-import 'model_management_screen.dart';
+import 'lumara_settings_screen.dart';
 
 /// Main LUMARA Assistant screen
 class LumaraAssistantScreen extends StatefulWidget {
@@ -68,14 +67,9 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
         automaticallyImplyLeading: false, // Remove back button since this is a tab
         actions: [
           IconButton(
-            icon: const Icon(Icons.psychology),
-            onPressed: () => _showModelManagement(),
-            tooltip: 'AI Models',
-          ),
-          IconButton(
             icon: const Icon(Icons.settings),
-            onPressed: () => _showConsentSheet(),
-            tooltip: 'Settings',
+            onPressed: () => _showEnhancedSettings(),
+            tooltip: 'API Settings',
           ),
           IconButton(
             icon: const Icon(Icons.history),
@@ -145,7 +139,7 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
                   
                   return ListView.builder(
                     controller: _scrollController,
-                    padding: const EdgeInsets.all(16),
+                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
                     itemCount: state.messages.length,
                     itemBuilder: (context, index) {
                       final message = state.messages[index];
@@ -173,7 +167,7 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
         if (state is! LumaraAssistantLoaded) return const SizedBox.shrink();
         
         return Container(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
           child: Wrap(
             spacing: 8,
             children: [
@@ -358,7 +352,7 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
 
   Widget _buildMessageInput() {
     return Container(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 90), // Reduced padding since FAB is lower
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 16), // Reduced top padding for more chat space
       decoration: BoxDecoration(
         color: Theme.of(context).scaffoldBackgroundColor,
         border: Border(
@@ -436,17 +430,15 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
     );
   }
 
-  void _showModelManagement() {
+
+  void _showEnhancedSettings() {
     // Dismiss keyboard first
     _dismissKeyboard();
     
-    // Navigate to model management screen with BlocProvider
+    // Navigate to enhanced LUMARA settings
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (context) => BlocProvider(
-          create: (context) => ModelManagementCubit(),
-          child: const ModelManagementScreen(),
-        ),
+        builder: (context) => const LumaraSettingsScreen(),
       ),
     );
   }

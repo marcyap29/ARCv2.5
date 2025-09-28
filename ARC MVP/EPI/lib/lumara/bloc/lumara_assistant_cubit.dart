@@ -6,6 +6,8 @@ import 'package:my_app/lumara/data/models/lumara_message.dart';
 import 'package:my_app/lumara/llm/rule_based_adapter.dart';
 import 'package:my_app/services/gemini_send.dart';
 import 'package:my_app/services/llm_bridge_adapter.dart';
+import '../services/enhanced_lumara_api.dart';
+import '../../telemetry/analytics.dart';
 
 /// LUMARA Assistant Cubit State
 abstract class LumaraAssistantState {}
@@ -49,6 +51,8 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
   final ContextProvider _contextProvider;
   final RuleBasedAdapter _fallbackAdapter;
   late final ArcLLM _arcLLM;
+  late final EnhancedLumaraApi _enhancedApi;
+  final Analytics _analytics = Analytics();
 
   LumaraAssistantCubit({
     required ContextProvider contextProvider,
@@ -57,12 +61,17 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
        super(LumaraAssistantInitial()) {
     // Initialize ArcLLM with Gemini integration
     _arcLLM = provideArcLLM();
+    // Initialize enhanced LUMARA API
+    _enhancedApi = EnhancedLumaraApi(_analytics);
   }
   
   /// Initialize the assistant
   Future<void> initialize() async {
     try {
       emit(LumaraAssistantLoading());
+      
+      // Initialize enhanced LUMARA API
+      await _enhancedApi.initialize();
       
       // Start with default scope
       const scope = LumaraScope.defaultScope;
@@ -86,6 +95,18 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
   /// Alias for initialize method (for UI compatibility)
   Future<void> initializeLumara() async {
     await initialize();
+  }
+
+  /// Get enhanced API status
+  Map<String, dynamic> getApiStatus() {
+    return _enhancedApi.getStatus();
+  }
+
+  /// Switch to a different LLM provider
+  Future<void> switchProvider(String providerType) async {
+    // This would need to be implemented based on the provider type
+    // For now, just log the request
+    print('LUMARA Debug: Provider switch requested: $providerType');
   }
   
   /// Send a message to LUMARA
@@ -152,32 +173,24 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
     print('LUMARA Debug: Query: "$text" -> Task: ${task.name}');
 
     try {
-      // Check if Gemini API key is available
-      const apiKey = String.fromEnvironment('GEMINI_API_KEY');
-      if (apiKey.isNotEmpty) {
-        print('LUMARA Debug: Using ArcLLM/Gemini for response generation');
+      // Use enhanced LUMARA API with multi-provider support
+      print('LUMARA Debug: Using Enhanced LUMARA API for response generation');
+      
+      // Build context for enhanced API
+      final entryText = _buildEntryContext(context);
+      final phaseHint = _buildPhaseHint(context);
+      
+      // Use enhanced API for response generation
+      final response = await _enhancedApi.generatePromptedReflection(
+        entryText: entryText,
+        intent: _mapTaskToIntent(task),
+        phase: phaseHint,
+      );
 
-        // Prepare context for ArcLLM
-        final entryText = _buildEntryContext(context);
-        final phaseHint = _buildPhaseHint(context);
-        final keywords = _buildKeywordsContext(context);
-
-        // Use ArcLLM chat function with context
-        final response = await _arcLLM.chat(
-          userIntent: text,
-          entryText: entryText,
-          phaseHintJson: phaseHint,
-          lastKeywordsJson: keywords,
-        );
-
-        print('LUMARA Debug: ArcLLM/Gemini response length: ${response.length}');
-        return response;
-      } else {
-        print('LUMARA Debug: No Gemini API key found, falling back to rule-based responses');
-        throw StateError('GEMINI_API_KEY not provided');
-      }
+      print('LUMARA Debug: Enhanced API response length: ${response.length}');
+      return response;
     } catch (e) {
-      print('LUMARA Debug: Error with ArcLLM/Gemini, falling back to rule-based: $e');
+      print('LUMARA Debug: Error with Enhanced API, falling back to rule-based: $e');
 
       // Fallback to rule-based adapter
       print('LUMARA Debug: Using rule-based adapter for response generation');
@@ -190,6 +203,18 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
       print('LUMARA Debug: Rule-based adapter response length: ${response.length}');
       return response;
     }
+  }
+
+  /// Map task type to LUMARA intent
+  String _mapTaskToIntent(InsightKind task) {
+    return switch (task) {
+      InsightKind.weeklySummary => 'analyze',
+      InsightKind.risingPatterns => 'analyze',
+      InsightKind.phaseRationale => 'think',
+      InsightKind.comparePeriod => 'analyze',
+      InsightKind.promptSuggestion => 'ideas',
+      InsightKind.chat => 'think',
+    };
   }
   
   /// Determine task type from user query
