@@ -137,6 +137,7 @@ class DraftCacheService {
   Timer? _autoSaveTimer;
   JournalDraft? _currentDraft;
   bool _isInitialized = false;
+  bool _isInitializing = false;
 
   /// Initialize the draft cache service
   Future<void> initialize() async {
@@ -145,17 +146,37 @@ class DraftCacheService {
       return;
     }
 
+    if (_isInitializing) {
+      debugPrint('DraftCacheService: Initialization already in progress, skipping');
+      return;
+    }
+
     try {
+      _isInitializing = true;
       debugPrint('DraftCacheService: Starting initialization...');
-      _box = await Hive.openBox(_boxName);
-      await _cleanupOldDrafts();
+      
+      // Add timeout to prevent hanging
+      await Future.any([
+        _performInitialization(),
+        Future.delayed(const Duration(seconds: 10), () {
+          throw TimeoutException('DraftCacheService initialization timed out', const Duration(seconds: 10));
+        }),
+      ]);
+      
       _isInitialized = true;
       debugPrint('DraftCacheService: Initialized successfully');
     } catch (e) {
       debugPrint('DraftCacheService: Failed to initialize - $e');
       _isInitialized = false; // Reset flag on failure
       rethrow;
+    } finally {
+      _isInitializing = false;
     }
+  }
+
+  Future<void> _performInitialization() async {
+    _box = await Hive.openBox(_boxName);
+    await _cleanupOldDrafts();
   }
 
   /// Create a new draft session
@@ -370,22 +391,26 @@ class DraftCacheService {
 
   Future<void> _cleanupOldDrafts() async {
     try {
-      // Clean up current draft if too old
-      final current = await getRecoverableDraft();
-      if (current != null && current.age > _maxDraftAge) {
-        await _clearCurrentDraft();
+      // Clean up current draft if too old (direct access to avoid recursion)
+      final draftData = _box?.get(_currentDraftKey);
+      if (draftData != null) {
+        final current = JournalDraft.fromJson(Map<String, dynamic>.from(draftData));
+        if (current.hasContent && current.age > _maxDraftAge) {
+          await _clearCurrentDraft();
+        }
       }
 
-      // Clean up history
-      final history = await getDraftHistory();
-      final validHistory = history
-          .where((draft) => draft.age < _maxDraftAge)
-          .take(_maxDraftHistory)
-          .toList();
+      // Clean up history (direct access to avoid recursion)
+      final historyData = _box?.get(_draftHistoryKey) as List?;
+      if (historyData != null) {
+        final history = historyData
+            .map((item) => JournalDraft.fromJson(Map<String, dynamic>.from(item)))
+            .where((draft) => draft.hasContent && draft.age < _maxDraftAge)
+            .take(_maxDraftHistory)
+            .toList();
 
-      if (validHistory.length != history.length) {
         await _box?.put(_draftHistoryKey,
-            validHistory.map((d) => d.toJson()).toList());
+            history.map((d) => d.toJson()).toList());
       }
     } catch (e) {
       debugPrint('DraftCacheService: Error during cleanup - $e');
