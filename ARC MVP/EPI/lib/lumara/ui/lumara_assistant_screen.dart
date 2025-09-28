@@ -363,7 +363,7 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
 
   Widget _buildMessageInput() {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 90), // Reduced padding since FAB is lower
       decoration: BoxDecoration(
         color: Theme.of(context).scaffoldBackgroundColor,
         border: Border(

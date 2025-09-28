@@ -57,6 +57,7 @@ class _HomeViewState extends State<HomeView> {
     const baseTabs = [
       TabItem(icon: Icons.auto_graph, text: 'Phase'),
       TabItem(icon: Icons.timeline, text: 'Timeline'),
+      TabItem(icon: Icons.add, text: 'Write'), // Write button as elevated tab
       TabItem(icon: Icons.insights, text: 'Insights'),
       TabItem(icon: Icons.settings, text: 'Settings'),
     ];
@@ -65,18 +66,19 @@ class _HomeViewState extends State<HomeView> {
       return [
         baseTabs[0], // Phase
         baseTabs[1], // Timeline
-        const TabItem(icon: Icons.psychology, text: 'LUMARA'), // Center position
-        baseTabs[2], // Insights
-        baseTabs[3], // Settings
+        baseTabs[2], // Write (elevated)
+        const TabItem(icon: Icons.psychology, text: 'LUMARA'),
+        baseTabs[3], // Insights
+        baseTabs[4], // Settings
       ];
     }
     return baseTabs;
   }
 
   List<String> get _tabNames {
-    const baseNames = ['Phase', 'Timeline', 'Insights', 'Settings'];
+    const baseNames = ['Phase', 'Timeline', 'Write', 'Insights', 'Settings'];
     if (AppFlags.isLumaraEnabled) {
-      return ['Phase', 'Timeline', 'LUMARA', 'Insights', 'Settings'];
+      return ['Phase', 'Timeline', 'Write', 'LUMARA', 'Insights', 'Settings'];
     }
     return baseNames;
   }
@@ -106,15 +108,16 @@ class _HomeViewState extends State<HomeView> {
     _pages = [
       const ArcformRendererView(), // Phase (index 0)
       const TimelineView(), // Timeline (index 1)
+      const Center(child: Text('Write Action')), // Write placeholder (index 2) - won't be shown
       if (AppFlags.isLumaraEnabled)
         BlocProvider<LumaraAssistantCubit>.value(
           value: _lumaraCubit!,
           child: const LumaraAssistantScreen(),
-        ) // LUMARA (index 2)
+        ) // LUMARA (index 3)
       else
         const Center(child: Text('LUMARA not available')),
-      _InsightsPage(key: _insightsPageKey), // Insights (index 2 or 3)
-      const SettingsView(), // Settings (index 3 or 4)
+      _InsightsPage(key: _insightsPageKey), // Insights (index 4 or 3)
+      const SettingsView(), // Settings (index 5 or 4)
     ];
     
     // Initialize ethereal music (P22)
@@ -213,42 +216,26 @@ class _HomeViewState extends State<HomeView> {
                 onTabSelected: (index) {
                   print('DEBUG: Tab selected: $index');
                   print('DEBUG: Current selected index was: $selectedIndex');
+
+                  // Handle Write tab action instead of navigation
+                  if (_tabs[index].text == 'Write') {
+                    _onWritePressed();
+                    return;
+                  }
+
                   _homeCubit.changeTab(index);
                   // Refresh RIVET card when Insights tab is selected
-                  final insightsIndex = AppFlags.isLumaraEnabled ? 3 : 2;
+                  final insightsIndex = AppFlags.isLumaraEnabled ? 4 : 3; // Adjusted for Write tab
                   if (index == insightsIndex) {
                     print('DEBUG: Insights tab selected, refreshing RIVET card');
                     print('DEBUG: Calling _refreshRivetCardInInsights...');
                     _refreshRivetCardInInsights();
                   }
                 },
-                height: 80,
-                // No elevated tab - using flat navigation
+                height: 100, // Increased height to accommodate elevated Write button
+                elevatedTabIndex: 2, // Write button is at index 2, elevated above other tabs
               ),
-            // Write floating action button above bottom row
-            floatingActionButton: FloatingActionButton(
-              heroTag: "write_entry",
-              onPressed: () async {
-                // Clear any existing session cache to ensure fresh start
-                await JournalSessionCache.clearSession();
-
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => StartEntryFlow(
-                      onExitToPhase: () => Navigator.pop(context),
-                    ),
-                  ),
-                );
-              },
-              backgroundColor: kcAccentColor,
-              child: const Icon(
-                Icons.edit,
-                color: Colors.white,
-                size: 24,
-              ),
-            ),
-            floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
+            // Write button is now integrated into the elevated tab bar design
             );
           },
         ),
@@ -285,6 +272,20 @@ class _HomeViewState extends State<HomeView> {
       print('DEBUG: ERROR - InsightsPage state is null!');
       print('DEBUG: Widget tree may not be fully built yet');
     }
+  }
+
+  void _onWritePressed() async {
+    // Clear any existing session cache to ensure fresh start
+    await JournalSessionCache.clearSession();
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => StartEntryFlow(
+          onExitToPhase: () => Navigator.pop(context),
+        ),
+      ),
+    );
   }
 
   @override
@@ -1227,3 +1228,6 @@ class MiniRadialPainter extends CustomPainter {
   @override
   bool shouldRepaint(CustomPainter oldDelegate) => false;
 }
+
+/// Custom FAB location that positions the button lower, closer to bottom navigation
+// Custom FloatingActionButton location removed - using elevated tab design instead

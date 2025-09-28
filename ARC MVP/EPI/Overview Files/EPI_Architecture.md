@@ -14,26 +14,26 @@
 
   **Primary Navigation Structure**:
   ```
-  Phase → Timeline → LUMARA → Insights → Settings
-   [0]     [1]       [2]       [3]       [4]
+  Phase → Timeline → Write (Elevated) → LUMARA → Insights → Settings
+   [0]     [1]       [2]               [3]       [4]       [5]
   ```
 
-  **Floating Actions**:
-  - **Write FAB**: Center-float above navigation, launches complete journal flow
+  **Elevated Actions**:
+  - **Write Button**: Elevated circular button above navigation tabs, launches complete journal flow
   - **Flow**: Emotion Picker → Reason Picker → Advanced Writing → Keyword Analysis → Save
 
   **Key Components**:
-  - `lib/features/home/home_view.dart` - Main navigation controller
-  - `lib/shared/tab_bar.dart` - Custom tab bar implementation
+  - `lib/features/home/home_view.dart` - Main navigation controller with elevated tab design
+  - `lib/shared/tab_bar.dart` - Custom tab bar with elevated tab functionality
   - `lib/arc/core/start_entry_flow.dart` - Complete journal creation flow
   - `lib/ui/journal/journal_screen.dart` - Advanced writing interface
 
-  **UI/UX Fixes (Sept 27, 2025)**:
-  - ✅ LUMARA positioned in center tab (index 2)
-  - ✅ Write moved from tab to prominent floating action button
-  - ✅ Fixed UI frame overlap with 120px bottom padding + SafeArea
-  - ✅ Session cache clearing for clean emotion → reason → writing flow
-  - ✅ Proper navigation indices for LUMARA enabled/disabled states
+  **UI/UX Design Evolution (Sept 27, 2025)**:
+  - ✅ **Elevated Write Button**: Replaced floating action button with elegant elevated tab design
+  - ✅ **Thicker Navigation**: Increased bottom navigation height to 100px for elevated button
+  - ✅ **No Content Blocking**: Eliminated FAB interference with content across all tabs
+  - ✅ **Perfect Integration**: Seamless integration with existing CustomTabBar elevated functionality
+  - ✅ **Action vs Navigation**: Write triggers action (journal flow) rather than navigation to page
 
   1. ARC Module: Core Journaling Interface
 
