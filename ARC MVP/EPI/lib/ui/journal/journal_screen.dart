@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -12,6 +13,7 @@ import '../../arc/core/keyword_extraction_cubit.dart';
 import '../../arc/core/journal_capture_cubit.dart';
 import '../../arc/core/journal_repository.dart';
 import '../../arc/core/widgets/keyword_analysis_view.dart';
+import '../../core/services/draft_cache_service.dart';
 import 'widgets/lumara_fab.dart';
 import 'widgets/lumara_suggestion_sheet.dart';
 import 'widgets/inline_reflection_block.dart';
@@ -40,6 +42,9 @@ class _JournalScreenState extends State<JournalScreen> {
   final Analytics _analytics = Analytics();
   late final LumaraInlineApi _lumaraApi;
   late final OcrService _ocrService;
+  final DraftCacheService _draftCache = DraftCacheService.instance;
+  String? _currentDraftId;
+  Timer? _autoSaveTimer;
 
   @override
   void initState() {
@@ -53,10 +58,14 @@ class _JournalScreenState extends State<JournalScreen> {
       _textController.text = widget.initialContent!;
       _entryState.text = widget.initialContent!;
     }
+
+    // Initialize draft cache and create new draft
+    _initializeDraftCache();
   }
 
   @override
   void dispose() {
+    _autoSaveTimer?.cancel();
     _textController.dispose();
     _scrollController.dispose();
     super.dispose();
@@ -66,6 +75,9 @@ class _JournalScreenState extends State<JournalScreen> {
     setState(() {
       _entryState.text = text;
     });
+    
+    // Update draft cache
+    _updateDraftContent(text);
   }
 
   void _onLumaraFabTapped() {
@@ -290,6 +302,8 @@ class _JournalScreenState extends State<JournalScreen> {
     ).then((result) {
       // Handle save result - if saved successfully, go back to home
       if (result != null && result['save'] == true) {
+        // Complete the draft since entry was saved
+        _completeDraft();
         // Clear the session cache since entry was saved
         JournalSessionCache.clearSession();
         // Navigate back to the previous screen
@@ -586,5 +600,48 @@ class _JournalScreenState extends State<JournalScreen> {
       'seed': _entryState.text,
       'phase': _entryState.phase,
     });
+  }
+
+  /// Initialize draft cache and create new draft
+  Future<void> _initializeDraftCache() async {
+    try {
+      await _draftCache.initialize();
+      
+      // Create new draft with emotion and reason if available
+      _currentDraftId = await _draftCache.createDraft(
+        initialEmotion: widget.selectedEmotion,
+        initialReason: widget.selectedReason,
+        initialContent: _entryState.text,
+      );
+      
+      debugPrint('JournalScreen: Created draft $_currentDraftId');
+    } catch (e) {
+      debugPrint('JournalScreen: Failed to initialize draft cache: $e');
+    }
+  }
+
+  /// Update draft content with auto-save
+  void _updateDraftContent(String content) {
+    if (_currentDraftId == null) return;
+    
+    // Cancel existing timer
+    _autoSaveTimer?.cancel();
+    
+    // Start new timer for auto-save
+    _autoSaveTimer = Timer(const Duration(seconds: 2), () {
+      _draftCache.updateDraftContent(content);
+      debugPrint('JournalScreen: Auto-saved draft content');
+    });
+  }
+
+  /// Complete the current draft when entry is saved
+  Future<void> _completeDraft() async {
+    try {
+      await _draftCache.completeDraft();
+      _currentDraftId = null;
+      debugPrint('JournalScreen: Completed draft');
+    } catch (e) {
+      debugPrint('JournalScreen: Failed to complete draft: $e');
+    }
   }
 }

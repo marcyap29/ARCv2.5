@@ -88,9 +88,9 @@ class _StartEntryFlowState extends State<StartEntryFlow> {
           // Complete draft - navigate directly to advanced writing interface
           debugPrint('Complete draft found, navigating to advanced writing');
           _navigateToAdvancedWriting(recoverableDraft);
-        } else {
-          // Incomplete draft - show recovery dialog and resume normal flow
-          debugPrint('Incomplete draft found, showing recovery dialog');
+        } else if (hasContent) {
+          // Draft with content but missing emotion/reason - show recovery dialog
+          debugPrint('Draft with content found, showing recovery dialog');
           await DraftRecoveryDialog.show(
             context,
             recoverableDraft,
