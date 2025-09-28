@@ -398,11 +398,12 @@ class _JournalScreenState extends State<JournalScreen> {
                     // Primary action row - flexible layout
                     Row(
                       children: [
-                        // Left side: Media buttons (flexible)
+                        // Left side: Media buttons (compact)
                         Expanded(
                           flex: 2,
                           child: Row(
                             mainAxisAlignment: MainAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
                             children: [
                               // Add photo button
                               IconButton(
@@ -412,16 +413,8 @@ class _JournalScreenState extends State<JournalScreen> {
                                 },
                                 icon: const Icon(Icons.add_photo_alternate),
                                 tooltip: 'Add Photo',
-                              ),
-                              
-                              // Add video button (placeholder for future)
-                              IconButton(
-                                onPressed: () {
-                                  // TODO: Implement video picker
-                                  _analytics.logJournalEvent('video_button_pressed');
-                                },
-                                icon: const Icon(Icons.videocam),
-                                tooltip: 'Add Video',
+                                padding: const EdgeInsets.all(8),
+                                constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
                               ),
                               
                               // Add voice button (placeholder for future)
@@ -432,14 +425,18 @@ class _JournalScreenState extends State<JournalScreen> {
                                 },
                                 icon: const Icon(Icons.mic),
                                 tooltip: 'Add Voice Note',
+                                padding: const EdgeInsets.all(8),
+                                constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
                               ),
                               
-                              // Scan page button
+                              // Scan page button (only if enabled)
                               if (FeatureFlags.scanPage)
                                 IconButton(
                                   onPressed: _onScanPage,
                                   icon: const Icon(Icons.document_scanner),
                                   tooltip: 'Scan Page',
+                                  padding: const EdgeInsets.all(8),
+                                  constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
                                 ),
                             ],
                           ),
