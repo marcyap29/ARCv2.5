@@ -445,12 +445,11 @@ class _JournalScreenState extends State<JournalScreen> {
                         
                         // Center: LUMARA button (only show if text exists)
                         if (_entryState.text.isNotEmpty)
-                          TextButton.icon(
+                          IconButton(
                             onPressed: _onLumaraFabTapped,
-                            icon: const Icon(Icons.auto_awesome, size: 16),
-                            label: const Text('LUMARA'),
-                            style: TextButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            icon: const Icon(Icons.psychology),
+                            tooltip: 'Reflect with LUMARA',
+                            style: IconButton.styleFrom(
                               foregroundColor: theme.colorScheme.primary,
                               backgroundColor: theme.colorScheme.primary.withOpacity(0.1),
                               shape: RoundedRectangleBorder(
