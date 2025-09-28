@@ -304,12 +304,11 @@ class _JournalScreenState extends State<JournalScreen> {
         backgroundColor: Colors.transparent,
         elevation: 0,
         actions: [
-          if (FeatureFlags.scanPage)
-            IconButton(
-              onPressed: _onScanPage,
-              icon: const Icon(Icons.document_scanner),
-              tooltip: 'Scan Page',
-            ),
+          IconButton(
+            onPressed: () => Navigator.of(context).pop(),
+            icon: const Icon(Icons.home),
+            tooltip: 'Home',
+          ),
         ],
       ),
       body: SafeArea(

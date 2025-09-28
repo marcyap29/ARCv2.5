@@ -5,7 +5,19 @@ ARC is the **core journaling module of EPI (Evolving Personal Intelligence)**, b
 
 This MVP now implements **modular architecture** with RIVET (safety validation) and ECHO (expressive response layer) modules migrated to their proper locations, providing a foundation for the complete 8-module system: ARC→PRISM→ECHO→ATLAS→MIRA→AURORA→VEIL→RIVET.
 
-## 🌟 **LATEST ENHANCEMENT: Elevated Write Button Redesign** (2025-09-27) ✅
+## 🌟 **LATEST ENHANCEMENT: Home Icon Navigation Fix** (2025-09-27) ✅
+
+**🎯 Problem Solved**: Fixed duplicate scan document icons in advanced writing page and improved navigation with proper home icon.
+
+**✨ Duplicate Icon Resolution**:
+- **Removed Duplicate**: Fixed duplicate scan document icons in advanced writing interface
+- **Home Icon Navigation**: Changed upper right scan icon to home icon for better navigation
+- **Clear Functionality**: Upper right provides home navigation, lower left provides scan functionality
+- **User Experience**: Eliminated confusion from duplicate icons and improved navigation clarity
+
+---
+
+## 🌟 **PREVIOUS ENHANCEMENT: Elevated Write Button Redesign** (2025-09-27) ✅
 
 **🎯 Problem Solved**: Replaced floating action button design with elegant elevated tab design to eliminate content blocking and improve visual hierarchy.
 

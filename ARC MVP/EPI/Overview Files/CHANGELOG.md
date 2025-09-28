@@ -2,6 +2,22 @@
 
 ## [Unreleased]
 
+### 🎉 **HOME ICON NAVIGATION FIX** - September 27, 2025
+
+#### **Duplicate Scan Icon Resolution** ✅ **COMPLETE**
+- **Removed Duplicate**: Fixed duplicate scan document icons in advanced writing page
+- **Upper Right to Home**: Changed upper right scan icon to home icon for better navigation
+- **Clear Functionality**: Upper right now shows home icon for navigation back to main screen
+- **Lower Left Scan**: Kept lower left scan icon for document scanning functionality
+
+#### **Navigation Enhancement** ✅ **COMPLETE**
+- **Home Icon**: Added proper home navigation from advanced writing interface
+- **User Experience**: Clear distinction between scan functionality and navigation
+- **Consistent Design**: Home icon provides intuitive way to return to main interface
+- **No Confusion**: Eliminated duplicate icons that could confuse users
+
+---
+
 ### 🎉 **ELEVATED WRITE BUTTON REDESIGN** - September 27, 2025
 
 #### **Elevated Tab Design Implementation** ✅ **COMPLETE**
