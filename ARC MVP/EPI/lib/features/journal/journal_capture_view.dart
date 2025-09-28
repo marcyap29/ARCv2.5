@@ -277,9 +277,11 @@ class _JournalCaptureViewState extends State<JournalCaptureView> {
                               ),
                             ),
                             const SizedBox(height: 8),
-                            Row(
+                            Wrap(
+                              spacing: 8,
+                              runSpacing: 8,
                               children: [
-                                if (widget.initialEmotion != null) ...[
+                                if (widget.initialEmotion != null)
                                   Container(
                                     padding: const EdgeInsets.symmetric(
                                       horizontal: 12,
@@ -295,10 +297,10 @@ class _JournalCaptureViewState extends State<JournalCaptureView> {
                                         color: Colors.white,
                                         fontWeight: FontWeight.w600,
                                       ),
+                                      overflow: TextOverflow.ellipsis,
+                                      maxLines: 1,
                                     ),
                                   ),
-                                  const SizedBox(width: 8),
-                                ],
                                 if (widget.initialReason != null)
                                   Container(
                                     padding: const EdgeInsets.symmetric(
@@ -315,6 +317,8 @@ class _JournalCaptureViewState extends State<JournalCaptureView> {
                                         color: Colors.white,
                                         fontWeight: FontWeight.w600,
                                       ),
+                                      overflow: TextOverflow.ellipsis,
+                                      maxLines: 1,
                                     ),
                                   ),
                               ],
