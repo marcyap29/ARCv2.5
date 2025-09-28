@@ -395,35 +395,62 @@ class _JournalScreenState extends State<JournalScreen> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    // Primary action row
+                    // Primary action row - balanced layout
                     Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                       children: [
-                        // Add media button
-                        IconButton(
-                          onPressed: () {
-                            // TODO: Implement media picker
-                            _analytics.logJournalEvent('media_button_pressed');
-                          },
-                          icon: const Icon(Icons.add_photo_alternate),
-                          tooltip: 'Add Media',
+                        // Left side: Media buttons
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            // Add photo button
+                            IconButton(
+                              onPressed: () {
+                                // TODO: Implement photo picker
+                                _analytics.logJournalEvent('photo_button_pressed');
+                              },
+                              icon: const Icon(Icons.add_photo_alternate),
+                              tooltip: 'Add Photo',
+                            ),
+                            
+                            // Add video button (placeholder for future)
+                            IconButton(
+                              onPressed: () {
+                                // TODO: Implement video picker
+                                _analytics.logJournalEvent('video_button_pressed');
+                              },
+                              icon: const Icon(Icons.videocam),
+                              tooltip: 'Add Video',
+                            ),
+                            
+                            // Add voice button (placeholder for future)
+                            IconButton(
+                              onPressed: () {
+                                // TODO: Implement voice recorder
+                                _analytics.logJournalEvent('voice_button_pressed');
+                              },
+                              icon: const Icon(Icons.mic),
+                              tooltip: 'Add Voice Note',
+                            ),
+                            
+                            // Scan page button
+                            if (FeatureFlags.scanPage)
+                              IconButton(
+                                onPressed: _onScanPage,
+                                icon: const Icon(Icons.document_scanner),
+                                tooltip: 'Scan Page',
+                              ),
+                          ],
                         ),
                         
-                        // Scan page button
-                        if (FeatureFlags.scanPage)
-                          IconButton(
-                            onPressed: _onScanPage,
-                            icon: const Icon(Icons.document_scanner),
-                            tooltip: 'Scan Page',
-                          ),
-                        
-                        // LUMARA button (only show if text exists)
+                        // Center: LUMARA button (only show if text exists)
                         if (_entryState.text.isNotEmpty)
                           TextButton.icon(
                             onPressed: _onLumaraFabTapped,
                             icon: const Icon(Icons.auto_awesome, size: 16),
                             label: const Text('LUMARA'),
                             style: TextButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                               foregroundColor: theme.colorScheme.primary,
                               backgroundColor: theme.colorScheme.primary.withOpacity(0.1),
                               shape: RoundedRectangleBorder(
@@ -436,13 +463,11 @@ class _JournalScreenState extends State<JournalScreen> {
                             ),
                           ),
                         
-                        const Spacer(),
-                        
-                        // Continue button (primary) with reduced padding
+                        // Right side: Continue button
                         ElevatedButton(
                           onPressed: _entryState.text.isNotEmpty ? _onContinue : null,
                           style: ElevatedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                           ),
                           child: const Text('Continue'),
                         ),
