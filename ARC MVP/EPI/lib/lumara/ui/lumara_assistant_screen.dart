@@ -73,11 +73,6 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
             tooltip: 'AI Models',
           ),
           IconButton(
-            icon: const Icon(Icons.home),
-            onPressed: () => _goToMainMenu(),
-            tooltip: 'Main Menu',
-          ),
-          IconButton(
             icon: const Icon(Icons.settings),
             onPressed: () => _showConsentSheet(),
             tooltip: 'Settings',
@@ -456,8 +451,4 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
     );
   }
 
-          void _goToMainMenu() {
-            // Navigate back to the main page
-            Navigator.pop(context);
-          }
 }

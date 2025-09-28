@@ -14,6 +14,7 @@ This MVP now implements **modular architecture** with RIVET (safety validation) 
 - **Home Icon Navigation**: Changed upper right scan icon to home icon for better navigation
 - **Clear Functionality**: Upper right provides home navigation, lower left provides scan functionality
 - **User Experience**: Eliminated confusion from duplicate icons and improved navigation clarity
+- **LUMARA Cleanup**: Removed redundant home icon from LUMARA Assistant screen since bottom navigation provides home access
 
 ---
 
