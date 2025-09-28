@@ -14,7 +14,6 @@ import '../../arc/core/journal_capture_cubit.dart';
 import '../../arc/core/journal_repository.dart';
 import '../../arc/core/widgets/keyword_analysis_view.dart';
 import '../../core/services/draft_cache_service.dart';
-import 'widgets/lumara_fab.dart';
 import 'widgets/lumara_suggestion_sheet.dart';
 import 'widgets/inline_reflection_block.dart';
 
@@ -315,7 +314,6 @@ class _JournalScreenState extends State<JournalScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final reducedMotion = MediaQuery.of(context).disableAnimations;
 
     return Scaffold(
       backgroundColor: theme.colorScheme.surface,
@@ -418,45 +416,44 @@ class _JournalScreenState extends State<JournalScreen> {
                             tooltip: 'Scan Page',
                           ),
                         
+                        // LUMARA button (only show if text exists)
+                        if (_entryState.text.isNotEmpty)
+                          TextButton.icon(
+                            onPressed: _onLumaraFabTapped,
+                            icon: const Icon(Icons.auto_awesome, size: 16),
+                            label: const Text('LUMARA'),
+                            style: TextButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                              foregroundColor: theme.colorScheme.primary,
+                              backgroundColor: theme.colorScheme.primary.withOpacity(0.1),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                                side: BorderSide(
+                                  color: theme.colorScheme.primary.withOpacity(0.3),
+                                  width: 1,
+                                ),
+                              ),
+                            ),
+                          ),
+                        
                         const Spacer(),
                         
-                        // Continue button (primary)
+                        // Continue button (primary) with reduced padding
                         ElevatedButton(
                           onPressed: _entryState.text.isNotEmpty ? _onContinue : null,
+                          style: ElevatedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          ),
                           child: const Text('Continue'),
                         ),
                       ],
                     ),
-                    
-                    // Secondary action row (only show if text exists)
-                    if (_entryState.text.isNotEmpty) ...[
-                      const SizedBox(height: 8),
-                      SizedBox(
-                        width: double.infinity,
-                        child: TextButton.icon(
-                          onPressed: _onLumaraFabTapped,
-                          icon: const Icon(Icons.auto_awesome, size: 18),
-                          label: const Text('Reflect with LUMARA'),
-                        ),
-                      ),
-                    ],
                   ],
                 ),
               ),
             ],
           ),
           
-          // LUMARA floating action button
-          if (FeatureFlags.inlineLumara)
-            Positioned(
-              right: 16,
-              bottom: 100, // Above the bottom action bar
-              child: LumaraFab(
-                nudge: _entryState.showLumaraNudge,
-                reducedMotion: reducedMotion,
-                onTap: _onLumaraFabTapped,
-              ),
-            ),
         ],
         ),
       ),
