@@ -395,80 +395,95 @@ class _JournalScreenState extends State<JournalScreen> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    // Primary action row - balanced layout
+                    // Primary action row - flexible layout
                     Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                       children: [
-                        // Left side: Media buttons
-                        Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            // Add photo button
-                            IconButton(
-                              onPressed: () {
-                                // TODO: Implement photo picker
-                                _analytics.logJournalEvent('photo_button_pressed');
-                              },
-                              icon: const Icon(Icons.add_photo_alternate),
-                              tooltip: 'Add Photo',
-                            ),
-                            
-                            // Add video button (placeholder for future)
-                            IconButton(
-                              onPressed: () {
-                                // TODO: Implement video picker
-                                _analytics.logJournalEvent('video_button_pressed');
-                              },
-                              icon: const Icon(Icons.videocam),
-                              tooltip: 'Add Video',
-                            ),
-                            
-                            // Add voice button (placeholder for future)
-                            IconButton(
-                              onPressed: () {
-                                // TODO: Implement voice recorder
-                                _analytics.logJournalEvent('voice_button_pressed');
-                              },
-                              icon: const Icon(Icons.mic),
-                              tooltip: 'Add Voice Note',
-                            ),
-                            
-                            // Scan page button
-                            if (FeatureFlags.scanPage)
+                        // Left side: Media buttons (flexible)
+                        Expanded(
+                          flex: 2,
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.start,
+                            children: [
+                              // Add photo button
                               IconButton(
-                                onPressed: _onScanPage,
-                                icon: const Icon(Icons.document_scanner),
-                                tooltip: 'Scan Page',
+                                onPressed: () {
+                                  // TODO: Implement photo picker
+                                  _analytics.logJournalEvent('photo_button_pressed');
+                                },
+                                icon: const Icon(Icons.add_photo_alternate),
+                                tooltip: 'Add Photo',
                               ),
-                          ],
+                              
+                              // Add video button (placeholder for future)
+                              IconButton(
+                                onPressed: () {
+                                  // TODO: Implement video picker
+                                  _analytics.logJournalEvent('video_button_pressed');
+                                },
+                                icon: const Icon(Icons.videocam),
+                                tooltip: 'Add Video',
+                              ),
+                              
+                              // Add voice button (placeholder for future)
+                              IconButton(
+                                onPressed: () {
+                                  // TODO: Implement voice recorder
+                                  _analytics.logJournalEvent('voice_button_pressed');
+                                },
+                                icon: const Icon(Icons.mic),
+                                tooltip: 'Add Voice Note',
+                              ),
+                              
+                              // Scan page button
+                              if (FeatureFlags.scanPage)
+                                IconButton(
+                                  onPressed: _onScanPage,
+                                  icon: const Icon(Icons.document_scanner),
+                                  tooltip: 'Scan Page',
+                                ),
+                            ],
+                          ),
                         ),
                         
                         // Center: LUMARA button (only show if text exists)
                         if (_entryState.text.isNotEmpty)
-                          IconButton(
-                            onPressed: _onLumaraFabTapped,
-                            icon: const Icon(Icons.psychology),
-                            tooltip: 'Reflect with LUMARA',
-                            style: IconButton.styleFrom(
-                              foregroundColor: theme.colorScheme.primary,
-                              backgroundColor: theme.colorScheme.primary.withOpacity(0.1),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(8),
-                                side: BorderSide(
-                                  color: theme.colorScheme.primary.withOpacity(0.3),
-                                  width: 1,
+                          Expanded(
+                            flex: 1,
+                            child: Center(
+                              child: IconButton(
+                                onPressed: _onLumaraFabTapped,
+                                icon: const Icon(Icons.psychology),
+                                tooltip: 'Reflect with LUMARA',
+                                style: IconButton.styleFrom(
+                                  foregroundColor: theme.colorScheme.primary,
+                                  backgroundColor: theme.colorScheme.primary.withOpacity(0.1),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                    side: BorderSide(
+                                      color: theme.colorScheme.primary.withOpacity(0.3),
+                                      width: 1,
+                                    ),
+                                  ),
                                 ),
                               ),
                             ),
                           ),
                         
-                        // Right side: Continue button
-                        ElevatedButton(
-                          onPressed: _entryState.text.isNotEmpty ? _onContinue : null,
-                          style: ElevatedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        // Right side: Continue button (flexible)
+                        Expanded(
+                          flex: 2,
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.end,
+                            children: [
+                              ElevatedButton(
+                                onPressed: _entryState.text.isNotEmpty ? _onContinue : null,
+                                style: ElevatedButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                ),
+                                child: const Text('Continue'),
+                              ),
+                            ],
                           ),
-                          child: const Text('Continue'),
                         ),
                       ],
                     ),
@@ -615,12 +630,40 @@ class _JournalScreenState extends State<JournalScreen> {
   void _onContinueWithLumara() {
     _analytics.logLumaraEvent('continue_with_lumara_opened_chat');
     
-    // TODO: Navigate to full LUMARA chat screen
-    // This would open the existing LUMARA assistant screen
-    Navigator.of(context).pushNamed('/lumara-chat', arguments: {
-      'seed': _entryState.text,
-      'phase': _entryState.phase,
-    });
+    // Show LUMARA dialog for now (until full chat screen is implemented)
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('LUMARA Reflection'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('This will open the full LUMARA chat interface where you can have a deeper conversation about your journal entry.'),
+            const SizedBox(height: 16),
+            Text('Current text: "${_entryState.text.length > 100 ? '${_entryState.text.substring(0, 100)}...' : _entryState.text}"'),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Close'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              // TODO: Implement full LUMARA chat screen navigation
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('LUMARA chat screen coming soon!'),
+                  duration: Duration(seconds: 2),
+                ),
+              );
+            },
+            child: const Text('Open Chat'),
+          ),
+        ],
+      ),
+    );
   }
 
   /// Initialize draft cache and create new draft
