@@ -380,43 +380,52 @@ class _JournalScreenState extends State<JournalScreen> {
                     ),
                   ),
                 ),
-                child: Row(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    // Add media button
-                    IconButton(
-                      onPressed: () {
-                        // TODO: Implement media picker
-                        _analytics.logJournalEvent('media_button_pressed');
-                      },
-                      icon: const Icon(Icons.add_photo_alternate),
-                      tooltip: 'Add Media',
+                    // Primary action row
+                    Row(
+                      children: [
+                        // Add media button
+                        IconButton(
+                          onPressed: () {
+                            // TODO: Implement media picker
+                            _analytics.logJournalEvent('media_button_pressed');
+                          },
+                          icon: const Icon(Icons.add_photo_alternate),
+                          tooltip: 'Add Media',
+                        ),
+                        
+                        // Scan page button
+                        if (FeatureFlags.scanPage)
+                          IconButton(
+                            onPressed: _onScanPage,
+                            icon: const Icon(Icons.document_scanner),
+                            tooltip: 'Scan Page',
+                          ),
+                        
+                        const Spacer(),
+                        
+                        // Continue button (primary)
+                        ElevatedButton(
+                          onPressed: _entryState.text.isNotEmpty ? _onContinue : null,
+                          child: const Text('Continue'),
+                        ),
+                      ],
                     ),
                     
-                    // Scan page button
-                    if (FeatureFlags.scanPage)
-                      IconButton(
-                        onPressed: _onScanPage,
-                        icon: const Icon(Icons.document_scanner),
-                        tooltip: 'Scan Page',
+                    // Secondary action row (only show if text exists)
+                    if (_entryState.text.isNotEmpty) ...[
+                      const SizedBox(height: 8),
+                      SizedBox(
+                        width: double.infinity,
+                        child: TextButton.icon(
+                          onPressed: _onLumaraFabTapped,
+                          icon: const Icon(Icons.auto_awesome, size: 18),
+                          label: const Text('Reflect with LUMARA'),
+                        ),
                       ),
-                    
-                    const Spacer(),
-                    
-                    // Reflect with LUMARA button (secondary)
-                    if (_entryState.text.isNotEmpty)
-                      TextButton.icon(
-                        onPressed: _onLumaraFabTapped,
-                        icon: const Icon(Icons.auto_awesome, size: 18),
-                        label: const Text('Reflect with LUMARA'),
-                      ),
-                    
-                    const SizedBox(width: 8),
-                    
-                    // Continue button (primary)
-                    ElevatedButton(
-                      onPressed: _entryState.text.isNotEmpty ? _onContinue : null,
-                      child: const Text('Continue'),
-                    ),
+                    ],
                   ],
                 ),
               ),
