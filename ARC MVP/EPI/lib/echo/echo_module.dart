@@ -1,6 +1,25 @@
-// ECHO Module - Expressive response layer (voice of LUMARA, provider-agnostic)
+// ECHO Module - Expressive Contextual Heuristic Output layer (voice of LUMARA)
+// Externalized safety, dignity, and phase-aware response generation
 
-// Response management and generation
+// Core ECHO service
+export 'echo_service.dart';
+export 'echo_integration.dart';
+
+// ECHO system prompts and templates
+export 'prompts/echo_system_prompt.dart';
+export 'prompts/phase_templates.dart';
+
+// Core integration layers
+export 'core/atlas_phase_integration.dart';
+export 'core/mira_memory_grounding.dart';
+
+// Voice and style management
+export 'voice/lumara_voice_controller.dart';
+
+// Safety and validation
+export 'safety/rivet_lite_validator.dart';
+
+// Response management and generation (legacy)
 export 'response/lumara_assistant_cubit.dart';
 export 'response/prompts/lumara_system_prompt.dart';
 export 'response/prompts/prompt_library.dart';
