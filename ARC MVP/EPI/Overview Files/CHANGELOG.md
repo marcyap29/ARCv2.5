@@ -2,6 +2,28 @@
 
 ## [Unreleased]
 
+### 🎉 **PHASE ALIGNMENT FIX** - September 29, 2025
+
+#### **Timeline Phase Consistency** ✅ **COMPLETE**
+- **Problem Resolved**: Fixed confusing rapid phase changes in timeline that didn't match stable overall phase
+- **Priority-Based System**: Implemented clear phase priority: User Override > Overall Phase > Default Fallback
+- **Removed Keyword Matching**: Eliminated unreliable keyword-based phase detection that caused rapid switching
+- **Consistent UX**: Timeline entries now use the same sophisticated phase tracking as the Phase tab
+
+#### **Technical Implementation** ✅ **COMPLETE**
+- **Phase Priority Hierarchy**: User manual overrides take highest priority, followed by overall phase from arcform snapshots
+- **Code Cleanup**: Removed 35+ lines of unreliable phase detection methods (_determinePhaseFromText, etc.)
+- **Overall Phase Integration**: Timeline now respects EMA smoothing, 7-day cooldown, and hysteresis mechanisms
+- **Default Behavior**: Clean fallback to "Discovery" when no phase information exists
+
+#### **User Experience Enhancement** ✅ **COMPLETE**
+- **No More Confusion**: Timeline shows consistent phases that match the Phase tab
+- **Stable Display**: Individual entries use the stable overall phase instead of reacting to keywords
+- **User Control Preserved**: Users can still manually change entry phases after creation
+- **Predictable Behavior**: Clear, understandable phase assignment across all views
+
+---
+
 ### 🎉 **GEMINI 2.5 FLASH UPGRADE & CHAT HISTORY FIX** - September 29, 2025
 
 #### **Gemini API Model Upgrade** ✅ **COMPLETE**
