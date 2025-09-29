@@ -4,7 +4,6 @@ import 'package:my_app/features/timeline/timeline_entry_model.dart';
 import 'package:my_app/arc/core/journal_repository.dart';
 import 'package:my_app/models/journal_entry_model.dart';
 import 'package:my_app/models/arcform_snapshot_model.dart';
-import 'package:my_app/arc/core/sage_annotation_model.dart';
 import 'package:hive/hive.dart';
 
 class TimelineCubit extends Cubit<TimelineState> {
@@ -226,36 +225,32 @@ class TimelineCubit extends Cubit<TimelineState> {
 
   List<TimelineEntry> _mapToTimelineEntries(List<JournalEntry> journalEntries) {
     return journalEntries.map((entry) {
-      // Check if entry has user-updated metadata first (highest priority)
+      // Priority 1: Check if entry has user-updated metadata (highest priority - user override)
       String? phase;
       String? geometry;
-      
+
       if (entry.metadata != null && entry.metadata!['updated_by_user'] == true) {
         phase = entry.metadata!['phase'] as String?;
         geometry = entry.metadata!['geometry'] as String?;
         print('DEBUG: Entry ${entry.id} - Using user-updated metadata - Phase: $phase, Geometry: $geometry');
-      } else {
-        // Get phase from arcform snapshots (fallback)
+      }
+
+      // Priority 2: Use overall phase from arcform snapshots (authoritative source)
+      if (phase == null) {
         phase = _getPhaseForEntry(entry);
         geometry = _getGeometryForEntry(entry);
-        print('DEBUG: Entry ${entry.id} - Using arcform snapshots - Phase: $phase, Geometry: $geometry');
+        print('DEBUG: Entry ${entry.id} - Using overall phase from arcform snapshots - Phase: $phase, Geometry: $geometry');
       }
-      
-      // Fallback to text-based phase detection if no phase found
+
+      // Priority 3: Final fallback to Discovery if no phase is found
+      // Note: We removed the unreliable keyword-based phase detection
       if (phase == null) {
-        if (entry.sageAnnotation != null) {
-          // Extract phase from sageAnnotation if available
-          phase = _determinePhaseFromAnnotation(entry.sageAnnotation!);
-          print('DEBUG: Entry ${entry.id} - Phase from annotation: $phase');
-        } else {
-          // Determine phase from content and other factors
-          phase = _determinePhaseFromContent(entry);
-          print('DEBUG: Entry ${entry.id} - Phase from content: $phase');
-        }
+        phase = 'Discovery';
+        print('DEBUG: Entry ${entry.id} - No phase found, using default: $phase');
       }
-      
+
       print('DEBUG: Entry ${entry.id} - Final phase: $phase');
-      
+
       return TimelineEntry(
         id: entry.id,
         date: _formatDate(entry.createdAt),
@@ -271,36 +266,6 @@ class TimelineCubit extends Cubit<TimelineState> {
     }).toList();
   }
 
-  String? _determinePhaseFromAnnotation(SAGEAnnotation annotation) {
-    // Analyze SAGE components to determine phase
-    final content = '${annotation.situation} ${annotation.action} ${annotation.growth} ${annotation.essence}';
-    return _determinePhaseFromText(content);
-  }
-
-  String _determinePhaseFromContent(JournalEntry entry) {
-    return _determinePhaseFromText(entry.content);
-  }
-
-  String _determinePhaseFromText(String content) {
-    final text = content.toLowerCase();
-    
-    if (text.contains('discover') || text.contains('explore') || text.contains('new') || text.contains('beginning')) {
-      return 'Discovery';
-    } else if (text.contains('grow') || text.contains('expand') || text.contains('possibility') || text.contains('energy')) {
-      return 'Expansion';
-    } else if (text.contains('change') || text.contains('transition') || text.contains('moving') || text.contains('shift')) {
-      return 'Transition';
-    } else if (text.contains('integrate') || text.contains('wisdom') || text.contains('balance') || text.contains('center')) {
-      return 'Consolidation';
-    } else if (text.contains('heal') || text.contains('recover') || text.contains('restore') || text.contains('rest')) {
-      return 'Recovery';
-    } else if (text.contains('breakthrough') || text.contains('transcend') || text.contains('quantum') || text.contains('beyond')) {
-      return 'Breakthrough';
-    }
-    
-    // Default based on entry characteristics
-    return 'Discovery';
-  }
 
   List<String> _extractKeywords(JournalEntry entry) {
     // Use the actual keywords that were stored in the entry
