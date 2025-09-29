@@ -20,6 +20,7 @@ import 'package:my_app/services/analytics_service.dart';
 import 'package:my_app/data/hive/insight_snapshot.dart';
 import 'package:my_app/core/sync/sync_item_adapter.dart';
 import 'package:my_app/core/services/audio_service.dart';
+import 'package:my_app/lumara/chat/chat_models.dart';
 
 import 'package:my_app/shared/app_colors.dart';
 import 'package:my_app/shared/text_style.dart';
@@ -191,6 +192,14 @@ void _registerHiveAdapters() {
     if (!Hive.isAdapterRegistered(5)) {
       Hive.registerAdapter(SyncItemAdapter());
     }
+    // Chat adapters - COMMENTED OUT: Adapters not accessible from part file
+    // TODO: Move adapter registration to ChatRepoImpl.initialize() where they're accessible
+    // if (!Hive.isAdapterRegistered(70)) {
+    //   Hive.registerAdapter(ChatSessionAdapter());
+    // }
+    // if (!Hive.isAdapterRegistered(71)) {
+    //   Hive.registerAdapter(ChatMessageAdapter());
+    // }
   } catch (e) {
     logger.w('Some adapters may already be registered: $e');
     // Continue - this is not critical

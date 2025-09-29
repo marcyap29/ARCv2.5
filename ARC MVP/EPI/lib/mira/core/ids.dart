@@ -79,3 +79,17 @@ String stableEmbeddingId(String pointerId, String modelId, String embeddingVersi
   final hash = sha1.convert(utf8.encode(combined)).toString().substring(0, 12);
   return 'emb_$hash';
 }
+
+/// Generate entry ID for enhanced memory nodes
+String generateEntryId(DateTime timestamp) {
+  final dateStr = timestamp.toIso8601String().substring(0, 19);
+  final hash = sha1.convert(utf8.encode(dateStr)).toString().substring(0, 8);
+  return 'ent_$hash';
+}
+
+/// Generate message ID for chat messages
+String generateMessageId(DateTime timestamp, String role) {
+  final combined = '${timestamp.toIso8601String()}:$role';
+  final hash = sha1.convert(utf8.encode(combined)).toString().substring(0, 8);
+  return 'msg_$hash';
+}

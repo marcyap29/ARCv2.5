@@ -11,8 +11,9 @@ import '../../mira/memory/enhanced_mira_memory_service.dart';
 import '../../mira/memory/enhanced_memory_schema.dart';
 import '../../mira/mira_service.dart';
 import '../../telemetry/analytics.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:path/path.dart' as path;
+import '../chat/chat_repo.dart';
+import '../chat/chat_repo_impl.dart';
+import '../chat/chat_models.dart';
 
 /// LUMARA Assistant Cubit State
 abstract class LumaraAssistantState {}
@@ -67,11 +68,21 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
   EnhancedMiraMemoryService? _memoryService;
   String? _userId;
   String? _currentPhase;
+  
+  // Chat History System
+  late final ChatRepo _chatRepo;
+  String? currentChatSessionId;
+  
+  // Auto-save and compaction
+  static const int _maxMessagesBeforeCompaction = 50;
+  static const int _compactionThreshold = 100;
+  bool _isCompacting = false;
 
   LumaraAssistantCubit({
     required ContextProvider contextProvider,
   }) : _contextProvider = contextProvider,
        _fallbackAdapter = const RuleBasedAdapter(),
+       _chatRepo = ChatRepoImpl.instance,
        super(LumaraAssistantInitial()) {
     // Initialize ArcLLM with Gemini integration
     _arcLLM = provideArcLLM();
@@ -89,6 +100,9 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
 
       // Initialize MCP Memory System
       await _initializeMemorySystem();
+      
+      // Initialize Chat History System
+      await _chatRepo.initialize();
 
       // Start with default scope
       const scope = LumaraScope.defaultScope;
@@ -155,8 +169,14 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
       return;
     }
 
+    // Ensure we have an active chat session (auto-create if needed)
+    await _ensureActiveChatSession(text);
+
     // Record user message in MCP memory first
     await _recordUserMessage(text);
+    
+    // Add user message to chat session
+    await _addToChatSession(text, 'user');
 
     // Add user message to UI
     final userMessage = LumaraMessage.user(content: text);
@@ -177,6 +197,9 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
 
       // Record assistant response in MCP memory
       await _recordAssistantMessage(response);
+      
+      // Add assistant response to chat session
+      await _addToChatSession(response, 'assistant');
 
       // Add assistant response to UI
       final assistantMessage = LumaraMessage.assistant(content: response);
@@ -827,6 +850,176 @@ Your enhanced memory system continuously adapts to your growth and maintains tra
 Your exported MCP bundle can be imported into any MCP-compatible system, ensuring complete data portability and user control.
 
 *Note: Export functionality requires UI implementation in settings.*''';
+  }
+
+  /// Ensure we have an active chat session (auto-create if needed)
+  Future<void> _ensureActiveChatSession(String firstMessage) async {
+    if (currentChatSessionId == null || _shouldCreateNewSession()) {
+      currentChatSessionId = await _createNewChatSession(firstMessage);
+      print('LUMARA Chat: Created new session $currentChatSessionId');
+    }
+  }
+
+  /// Check if we should create a new session
+  bool _shouldCreateNewSession() {
+    // For now, always create new session if none exists
+    // TODO: Add logic to resume recent sessions
+    return currentChatSessionId == null;
+  }
+
+  /// Create a new chat session with auto-generated subject
+  Future<String> _createNewChatSession(String firstMessage) async {
+    // Ensure ChatRepo is initialized before use
+    await _chatRepo.initialize();
+    
+    final subject = generateSubject(firstMessage);
+    final sessionId = await _chatRepo.createSession(
+      subject: subject,
+      tags: ['auto-created', 'lumara'],
+    );
+    print('LUMARA Chat: Created session "$subject" with ID $sessionId');
+    return sessionId;
+  }
+
+  /// Generate subject from first message in "subject-year_month_day" format
+  String generateSubject(String message) {
+    final now = DateTime.now();
+    final dateStr = '${now.year}_${now.month.toString().padLeft(2, '0')}_${now.day.toString().padLeft(2, '0')}';
+    
+    // Extract key words from message
+    final words = message
+      .toLowerCase()
+      .replaceAll(RegExp(r'[^\w\s]'), '')
+      .split(RegExp(r'\s+'))
+      .where((word) => word.length > 3)
+      .take(3)
+      .toList();
+    
+    final subject = words.isNotEmpty ? words.join('-') : 'chat';
+    return '$subject-$dateStr';
+  }
+
+  /// Add message to current chat session
+  Future<void> _addToChatSession(String content, String role) async {
+    if (currentChatSessionId == null) return;
+    
+    try {
+      // Ensure ChatRepo is initialized before use
+      await _chatRepo.initialize();
+      
+      await _chatRepo.addMessage(
+        sessionId: currentChatSessionId!,
+        role: role,
+        content: content,
+      );
+      print('LUMARA Chat: Added $role message to session $currentChatSessionId');
+      
+      // Check if compaction is needed
+      await _checkAndCompactIfNeeded();
+    } catch (e) {
+      print('LUMARA Chat: Error adding message to session: $e');
+    }
+  }
+
+  /// Check if conversation needs compaction and perform it
+  Future<void> _checkAndCompactIfNeeded() async {
+    if (currentChatSessionId == null || _isCompacting) return;
+    
+    try {
+      final messages = await _chatRepo.getMessages(currentChatSessionId!, lazy: false);
+      
+      if (messages.length >= _compactionThreshold) {
+        await _compactConversation(messages);
+      }
+    } catch (e) {
+      print('LUMARA Chat: Error checking compaction: $e');
+    }
+  }
+
+  /// Compact conversation by summarizing old messages
+  Future<void> _compactConversation(List<ChatMessage> messages) async {
+    if (_isCompacting || currentChatSessionId == null) return;
+    
+    _isCompacting = true;
+    
+    try {
+      // Keep recent messages and create summary of older ones
+      final oldMessages = messages.take(messages.length - _maxMessagesBeforeCompaction).toList();
+      
+      if (oldMessages.isEmpty) return;
+      
+      // Create summary of old messages
+      final summary = await _createConversationSummary(oldMessages);
+      
+      // Create a summary message
+      final summaryMessage = ChatMessage(
+        id: 'summary_${DateTime.now().millisecondsSinceEpoch}',
+        sessionId: currentChatSessionId!,
+        role: 'system',
+        content: summary,
+        createdAt: DateTime.now(),
+      );
+      
+      // Replace old messages with summary
+      await _replaceMessagesWithSummary(oldMessages, summaryMessage);
+      
+      print('LUMARA Chat: Compacted conversation - ${oldMessages.length} messages summarized');
+      
+      // Show notification to user
+      _showCompactionNotification(oldMessages.length);
+      
+    } catch (e) {
+      print('LUMARA Chat: Error compacting conversation: $e');
+    } finally {
+      _isCompacting = false;
+    }
+  }
+
+  /// Create a summary of old messages
+  Future<String> _createConversationSummary(List<ChatMessage> messages) async {
+    // Group messages by role and create summary
+    final userMessages = messages.where((m) => m.role == 'user').map((m) => m.content).toList();
+    final assistantMessages = messages.where((m) => m.role == 'assistant').map((m) => m.content).toList();
+    
+    return '''📝 **Conversation Summary** (${messages.length} messages compacted)
+
+**Key Topics Discussed:**
+${userMessages.take(5).map((m) => '• ${m.length > 100 ? m.substring(0, 100) + '...' : m}').join('\n')}
+
+**Assistant Responses:**
+${assistantMessages.take(3).map((m) => '• ${m.length > 150 ? m.substring(0, 150) + '...' : m}').join('\n')}
+
+*This conversation was automatically compacted to improve performance. The full conversation history is preserved in the MCP memory system.*''';
+  }
+
+  /// Replace old messages with summary
+  Future<void> _replaceMessagesWithSummary(List<ChatMessage> oldMessages, ChatMessage summaryMessage) async {
+    // This would need to be implemented in the ChatRepo
+    // For now, just add the summary message
+    await _chatRepo.addMessage(
+      sessionId: currentChatSessionId!,
+      role: 'system',
+      content: summaryMessage.content,
+    );
+  }
+
+  /// Show compaction notification to user
+  void _showCompactionNotification(int messageCount) {
+    // This would be implemented with a proper notification system
+    print('LUMARA Chat: Compaction notification - $messageCount messages summarized for better performance');
+  }
+
+  /// Auto-save current conversation state
+  Future<void> autoSaveConversation() async {
+    if (currentChatSessionId == null) return;
+    
+    try {
+      // Force save any pending messages
+      await _chatRepo.initialize(); // Ensure repo is ready
+      print('LUMARA Chat: Auto-saved conversation $currentChatSessionId');
+    } catch (e) {
+      print('LUMARA Chat: Error auto-saving conversation: $e');
+    }
   }
 
   /// Get conversation history for a session

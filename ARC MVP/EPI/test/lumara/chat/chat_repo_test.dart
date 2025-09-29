@@ -20,7 +20,7 @@ void main() {
         Hive.registerAdapter(ChatMessageAdapter());
       }
 
-      chatRepo = ChatRepoImpl();
+      chatRepo = ChatRepoImpl.instance;
       await chatRepo.initialize();
     });
 

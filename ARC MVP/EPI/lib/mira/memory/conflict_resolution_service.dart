@@ -253,12 +253,21 @@ class ConflictResolutionService {
 
     // Sort by severity and recency
     conflicts.sort((a, b) {
-      final severityCompare = b.severity.index.compareTo(a.severity.index);
+      final severityCompare = b.severity.compareTo(a.severity);
       if (severityCompare != 0) return severityCompare;
       return b.detected.compareTo(a.detected);
     });
 
     return conflicts;
+  }
+
+  /// Convert severity double to string level
+  String _getSeverityLevel(double severity) {
+    if (severity >= 0.8) return 'critical';
+    if (severity >= 0.6) return 'high';
+    if (severity >= 0.4) return 'medium';
+    if (severity >= 0.2) return 'low';
+    return 'minimal';
   }
 
   /// Generate conflict summary for user dashboard
@@ -269,7 +278,8 @@ class ConflictResolutionService {
 
     for (final conflict in _activeConflicts.values) {
       activeByType[conflict.conflictType] = (activeByType[conflict.conflictType] ?? 0) + 1;
-      activeBySeverity[conflict.severity.name] = (activeBySeverity[conflict.severity.name] ?? 0) + 1;
+      final severityLevel = _getSeverityLevel(conflict.severity);
+      activeBySeverity[severityLevel] = (activeBySeverity[severityLevel] ?? 0) + 1;
 
       final domainA = conflict.context['domain_a'] as String?;
       final domainB = conflict.context['domain_b'] as String?;

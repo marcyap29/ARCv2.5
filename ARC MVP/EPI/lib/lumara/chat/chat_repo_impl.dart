@@ -8,6 +8,15 @@ class ChatRepoImpl implements ChatRepo {
   static const String _sessionsBoxName = 'chat_sessions';
   static const String _messagesBoxName = 'chat_messages';
 
+  // Singleton pattern
+  static ChatRepoImpl? _instance;
+  static ChatRepoImpl get instance {
+    _instance ??= ChatRepoImpl._internal();
+    return _instance!;
+  }
+  
+  ChatRepoImpl._internal();
+
   Box<ChatSession>? _sessionsBox;
   Box<ChatMessage>? _messagesBox;
 
@@ -18,11 +27,11 @@ class ChatRepoImpl implements ChatRepo {
     if (_isInitialized) return;
 
     try {
-      // Register adapters if not already registered
-      if (!Hive.isAdapterRegistered(20)) {
+      // Register adapters (they're accessible here since we import chat_models.dart)
+      if (!Hive.isAdapterRegistered(70)) {
         Hive.registerAdapter(ChatSessionAdapter());
       }
-      if (!Hive.isAdapterRegistered(21)) {
+      if (!Hive.isAdapterRegistered(71)) {
         Hive.registerAdapter(ChatMessageAdapter());
       }
 
@@ -353,12 +362,23 @@ class ChatRepoImpl implements ChatRepo {
 
   @override
   Future<void> close() async {
-    if (_sessionsBox?.isOpen == true) {
-      await _sessionsBox!.close();
+    try {
+      if (_sessionsBox?.isOpen == true) {
+        await _sessionsBox!.close();
+      }
+      if (_messagesBox?.isOpen == true) {
+        await _messagesBox!.close();
+      }
+    } catch (e) {
+      // Ignore Hive lock file deletion errors - they're not critical
+      if (e.toString().contains('PathNotFoundException') && e.toString().contains('.lock')) {
+        print('ChatRepo: Ignoring Hive lock file deletion error (non-critical): $e');
+      } else {
+        print('ChatRepo: Error closing boxes: $e');
+        rethrow;
+      }
+    } finally {
+      _isInitialized = false;
     }
-    if (_messagesBox?.isOpen == true) {
-      await _messagesBox!.close();
-    }
-    _isInitialized = false;
   }
 }

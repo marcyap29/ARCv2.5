@@ -27,7 +27,7 @@ void main() {
         Hive.registerAdapter(ChatMessageAdapter());
       }
 
-      chatRepo = ChatRepoImpl();
+      chatRepo = ChatRepoImpl.instance;
       await chatRepo.initialize();
 
       // Create test exporter with default settings

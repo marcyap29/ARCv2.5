@@ -90,7 +90,7 @@ class _PhaseCelebrationViewState extends State<PhaseCelebrationView>
     Navigator.pushAndRemoveUntil(
       context,
       MaterialPageRoute(
-        builder: (context) => const HomeView(initialTab: 1), // Phase tab
+        builder: (context) => const HomeView(initialTab: 0), // Phase tab (index 0)
       ),
       (route) => false,
     );

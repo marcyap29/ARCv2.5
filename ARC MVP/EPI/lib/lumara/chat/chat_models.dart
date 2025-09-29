@@ -5,7 +5,7 @@ import 'ulid.dart';
 part 'chat_models.g.dart';
 
 /// Represents a chat session with LUMARA
-@HiveType(typeId: 20)
+@HiveType(typeId: 70)
 class ChatSession extends Equatable {
   @HiveField(0)
   final String id; // ULID, stable
@@ -121,7 +121,7 @@ class ChatSession extends Equatable {
 }
 
 /// Represents a single message in a chat session
-@HiveType(typeId: 21)
+@HiveType(typeId: 71)
 class ChatMessage extends Equatable {
   @HiveField(0)
   final String id; // ULID
