@@ -7,7 +7,11 @@ import 'package:my_app/lumara/llm/rule_based_adapter.dart';
 import 'package:my_app/services/gemini_send.dart';
 import 'package:my_app/services/llm_bridge_adapter.dart';
 import '../services/enhanced_lumara_api.dart';
+import '../memory/mcp_memory_service.dart';
+import '../memory/memory_index_service.dart';
 import '../../telemetry/analytics.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:path/path.dart' as path;
 
 /// LUMARA Assistant Cubit State
 abstract class LumaraAssistantState {}
@@ -20,22 +24,26 @@ class LumaraAssistantLoaded extends LumaraAssistantState {
   final List<LumaraMessage> messages;
   final LumaraScope scope;
   final bool isProcessing;
-  
+  final String? currentSessionId;
+
   LumaraAssistantLoaded({
     required this.messages,
     required this.scope,
     this.isProcessing = false,
+    this.currentSessionId,
   });
-  
+
   LumaraAssistantLoaded copyWith({
     List<LumaraMessage>? messages,
     LumaraScope? scope,
     bool? isProcessing,
+    String? currentSessionId,
   }) {
     return LumaraAssistantLoaded(
       messages: messages ?? this.messages,
       scope: scope ?? this.scope,
       isProcessing: isProcessing ?? this.isProcessing,
+      currentSessionId: currentSessionId ?? this.currentSessionId,
     );
   }
 }
@@ -54,6 +62,11 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
   late final EnhancedLumaraApi _enhancedApi;
   final Analytics _analytics = Analytics();
 
+  // MCP Memory System
+  McpMemoryService? _memoryService;
+  MemoryIndexService? _indexService;
+  String? _userId;
+
   LumaraAssistantCubit({
     required ContextProvider contextProvider,
   }) : _contextProvider = contextProvider,
@@ -69,29 +82,39 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
   Future<void> initialize() async {
     try {
       emit(LumaraAssistantLoading());
-      
+
       // Initialize enhanced LUMARA API
       await _enhancedApi.initialize();
-      
+
+      // Initialize MCP Memory System
+      await _initializeMemorySystem();
+
       // Start with default scope
       const scope = LumaraScope.defaultScope;
-      
+
       // Check if API key is configured
       const apiKey = String.fromEnvironment('GEMINI_API_KEY');
       final hasApiKey = apiKey.isNotEmpty;
-      
-      // Add welcome message
+
+      // Start or resume a conversation session
+      final sessionId = await _getOrCreateSession();
+
+      // Add welcome message and record it in memory
+      final welcomeContent = hasApiKey
+        ? "Hello! I'm LUMARA, your personal assistant. I can help you understand your patterns, explain your current phase, and provide insights about your journey. What would you like to know?"
+        : "Hello! I'm LUMARA, your personal assistant. I'm currently running in basic mode with rule-based responses. To enable full AI-powered responses, please configure your Gemini API key using the key icon in the top bar. What would you like to know?";
+
       final List<LumaraMessage> messages = [
-        LumaraMessage.assistant(
-          content: hasApiKey 
-            ? "Hello! I'm LUMARA, your personal assistant. I can help you understand your patterns, explain your current phase, and provide insights about your journey. What would you like to know?"
-            : "Hello! I'm LUMARA, your personal assistant. I'm currently running in basic mode with rule-based responses. To enable full AI-powered responses, please configure your Gemini API key using the key icon in the top bar. What would you like to know?",
-        ),
+        LumaraMessage.assistant(content: welcomeContent),
       ];
-      
+
+      // Record welcome message in MCP memory
+      await _recordAssistantMessage(welcomeContent);
+
       emit(LumaraAssistantLoaded(
         messages: messages,
         scope: scope,
+        currentSessionId: sessionId,
       ));
     } catch (e) {
       emit(LumaraAssistantError('Failed to initialize LUMARA: $e'));
@@ -118,48 +141,65 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
   /// Send a message to LUMARA
   Future<void> sendMessage(String text) async {
     if (text.trim().isEmpty) return;
-    
+
     final currentState = state;
     if (currentState is! LumaraAssistantLoaded) return;
-    
+
     print('LUMARA Debug: Sending message: "$text"');
     print('LUMARA Debug: Current message count: ${currentState.messages.length}');
-    
-    // Add user message
+
+    // Check for memory commands
+    if (text.startsWith('/memory')) {
+      await _handleMemoryCommand(text);
+      return;
+    }
+
+    // Record user message in MCP memory first
+    await _recordUserMessage(text);
+
+    // Add user message to UI
     final userMessage = LumaraMessage.user(content: text);
     final updatedMessages = [...currentState.messages, userMessage];
-    
+
     print('LUMARA Debug: Added user message, new count: ${updatedMessages.length}');
-    
+
     emit(currentState.copyWith(
       messages: updatedMessages,
       isProcessing: true,
     ));
-    
+
     try {
       // Process the message
       print('LUMARA Debug: Processing message...');
       final response = await _processMessage(text, currentState.scope);
       print('LUMARA Debug: Generated response length: ${response.length}');
-      
-      // Add assistant response
-          final assistantMessage = LumaraMessage.assistant(content: response);
+
+      // Record assistant response in MCP memory
+      await _recordAssistantMessage(response);
+
+      // Add assistant response to UI
+      final assistantMessage = LumaraMessage.assistant(content: response);
       final finalMessages = [...updatedMessages, assistantMessage];
-      
+
       print('LUMARA Debug: Added assistant message, final count: ${finalMessages.length}');
-      
+
       emit(currentState.copyWith(
         messages: finalMessages,
         isProcessing: false,
       ));
     } catch (e) {
       print('LUMARA Debug: Error processing message: $e');
-      // Add error message
+
+      // Add error message to UI
       final errorMessage = LumaraMessage.assistant(
-            content: "I'm sorry, I encountered an error processing your request. Please try again.",
+        content: "I'm sorry, I encountered an error processing your request. Please try again.",
       );
+
+      // Record error in memory too
+      await _recordAssistantMessage(errorMessage.content);
+
       final finalMessages = [...updatedMessages, errorMessage];
-      
+
       emit(currentState.copyWith(
         messages: finalMessages,
         isProcessing: false,
@@ -438,5 +478,230 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
     if (keywords.isEmpty) return null;
     final uniqueKeywords = keywords.take(10).toSet().toList();
     return '{"keywords": [${uniqueKeywords.map((k) => '"$k"').join(', ')}]}';
+  }
+
+  // MCP Memory System Methods
+
+  /// Initialize the MCP memory system
+  Future<void> _initializeMemorySystem() async {
+    try {
+      // Get user ID (simplified - in real implementation, get from user service)
+      _userId = 'user_${DateTime.now().millisecondsSinceEpoch}';
+
+      // Initialize memory service
+      _memoryService = McpMemoryService();
+      await _memoryService!.initialize(_userId!);
+
+      // Initialize memory index service
+      final documentsDir = await getApplicationDocumentsDirectory();
+      final indexPath = path.join(documentsDir.path, 'user_profiles', _userId!, 'mcp', 'memory.index.json');
+      _indexService = MemoryIndexService(userId: _userId!, indexPath: indexPath);
+      await _indexService!.initialize();
+
+      print('LUMARA Memory: MCP memory system initialized for user $_userId');
+    } catch (e) {
+      print('LUMARA Memory: Error initializing memory system: $e');
+    }
+  }
+
+  /// Get or create a conversation session
+  Future<String> _getOrCreateSession() async {
+    if (_memoryService == null) {
+      throw Exception('Memory service not initialized');
+    }
+
+    // Check if we have an active session, if not create one
+    final sessions = await _memoryService!.listSessions();
+    if (sessions.isNotEmpty) {
+      final latestSession = sessions.first;
+      final sessionId = latestSession['session_id'] as String;
+      final success = await _memoryService!.resumeSession(sessionId);
+      if (success) {
+        print('LUMARA Memory: Resumed session $sessionId');
+        return sessionId;
+      }
+    }
+
+    // Create new session
+    final sessionId = await _memoryService!.startSession(
+      title: 'LUMARA Chat ${DateTime.now().day}/${DateTime.now().month}',
+    );
+    print('LUMARA Memory: Created new session $sessionId');
+    return sessionId;
+  }
+
+  /// Record user message in MCP memory
+  Future<void> _recordUserMessage(String content) async {
+    if (_memoryService == null) return;
+
+    try {
+      await _memoryService!.addMessage(
+        role: 'user',
+        content: content,
+      );
+      print('LUMARA Memory: Recorded user message');
+    } catch (e) {
+      print('LUMARA Memory: Error recording user message: $e');
+    }
+  }
+
+  /// Record assistant message in MCP memory
+  Future<void> _recordAssistantMessage(String content) async {
+    if (_memoryService == null) return;
+
+    try {
+      await _memoryService!.addMessage(
+        role: 'assistant',
+        content: content,
+      );
+      print('LUMARA Memory: Recorded assistant message');
+    } catch (e) {
+      print('LUMARA Memory: Error recording assistant message: $e');
+    }
+  }
+
+  /// Handle memory commands
+  Future<void> _handleMemoryCommand(String command) async {
+    final currentState = state;
+    if (currentState is! LumaraAssistantLoaded) return;
+
+    try {
+      String response;
+
+      if (_memoryService == null) {
+        response = 'Memory system not available. Please restart LUMARA.';
+      } else {
+        response = await _memoryService!.handleMemoryCommand(command);
+      }
+
+      // Add command and response to UI
+      final userMessage = LumaraMessage.user(content: command);
+      final assistantMessage = LumaraMessage.assistant(content: response);
+      final updatedMessages = [...currentState.messages, userMessage, assistantMessage];
+
+      emit(currentState.copyWith(messages: updatedMessages));
+
+      print('LUMARA Memory: Handled command: $command');
+    } catch (e) {
+      final errorMessage = LumaraMessage.assistant(
+        content: 'Error processing memory command: $e',
+      );
+      final updatedMessages = [
+        ...currentState.messages,
+        LumaraMessage.user(content: command),
+        errorMessage,
+      ];
+
+      emit(currentState.copyWith(messages: updatedMessages));
+      print('LUMARA Memory: Error handling command: $e');
+    }
+  }
+
+  /// Get conversation history for a session
+  Future<List<Map<String, dynamic>>> getConversationHistory([String? sessionId]) async {
+    if (_memoryService == null) return [];
+
+    try {
+      if (sessionId != null) {
+        return await _memoryService!.getSessionMessages(sessionId);
+      } else {
+        // Get current session messages
+        final context = await _memoryService!.getConversationContext();
+        return List<Map<String, dynamic>>.from(context['messages'] ?? []);
+      }
+    } catch (e) {
+      print('LUMARA Memory: Error getting conversation history: $e');
+      return [];
+    }
+  }
+
+  /// List all conversation sessions
+  Future<List<Map<String, dynamic>>> getConversationSessions() async {
+    if (_memoryService == null) return [];
+
+    try {
+      return await _memoryService!.listSessions();
+    } catch (e) {
+      print('LUMARA Memory: Error getting sessions: $e');
+      return [];
+    }
+  }
+
+  /// Switch to a different conversation session
+  Future<void> switchToSession(String sessionId) async {
+    if (_memoryService == null) return;
+
+    try {
+      final success = await _memoryService!.resumeSession(sessionId);
+      if (success) {
+        final messages = await _memoryService!.getSessionMessages(sessionId);
+        final lumaraMessages = messages.map((msg) {
+          return msg['role'] == 'user'
+              ? LumaraMessage.user(content: msg['content'])
+              : LumaraMessage.assistant(content: msg['content']);
+        }).toList();
+
+        final currentState = state;
+        if (currentState is LumaraAssistantLoaded) {
+          emit(currentState.copyWith(
+            messages: lumaraMessages,
+            currentSessionId: sessionId,
+          ));
+        }
+
+        print('LUMARA Memory: Switched to session $sessionId with ${messages.length} messages');
+      }
+    } catch (e) {
+      print('LUMARA Memory: Error switching to session: $e');
+    }
+  }
+
+  /// Delete a conversation session
+  Future<void> deleteConversationSession(String sessionId) async {
+    if (_memoryService == null) return;
+
+    try {
+      await _memoryService!.deleteSession(sessionId);
+
+      // If this was the current session, start a new one
+      final currentState = state;
+      if (currentState is LumaraAssistantLoaded &&
+          currentState.currentSessionId == sessionId) {
+        await initialize(); // Restart with new session
+      }
+
+      print('LUMARA Memory: Deleted session $sessionId');
+    } catch (e) {
+      print('LUMARA Memory: Error deleting session: $e');
+    }
+  }
+
+  /// Get memory statistics
+  Future<Map<String, dynamic>> getMemoryStatistics() async {
+    final stats = <String, dynamic>{};
+
+    if (_memoryService != null) {
+      try {
+        final sessions = await _memoryService!.listSessions();
+        stats['total_sessions'] = sessions.length;
+        stats['total_messages'] = sessions.fold<int>(
+          0,
+          (sum, session) => sum + (session['message_count'] as int? ?? 0),
+        );
+      } catch (e) {
+        print('LUMARA Memory: Error getting memory stats: $e');
+      }
+    }
+
+    if (_indexService != null) {
+      try {
+        final indexStats = _indexService!.getStatistics();
+        stats.addAll(indexStats);
+      } catch (e) {
+        print('LUMARA Memory: Error getting index stats: $e');
+      }
+    }
+
+    return stats;
   }
 }
