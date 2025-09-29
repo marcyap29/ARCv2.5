@@ -1,7 +1,6 @@
 // lib/lumara/llm/providers/rule_based_provider.dart
 // Rule-based fallback provider implementation
 
-import 'package:flutter/foundation.dart';
 import '../llm_provider.dart';
 import '../../config/api_config.dart';
 
