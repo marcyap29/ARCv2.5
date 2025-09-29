@@ -7,17 +7,27 @@ import 'package:my_app/models/user_profile_model.dart';
 class UserPhaseService {
   static const String _snapshotsBoxName = 'arcform_snapshots';
   
-  /// Get the user's current phase, first checking UserProfile, then Arcform snapshots
-  static Future<String> getCurrentPhase() async {
+  /// Helper method to get user profile safely
+  static Future<UserProfile?> _getUserProfile() async {
     try {
-      // First, check the UserProfile for onboarding phase
       Box<UserProfile> userBox;
       if (Hive.isBoxOpen('user_profile')) {
         userBox = Hive.box<UserProfile>('user_profile');
       } else {
         userBox = await Hive.openBox<UserProfile>('user_profile');
       }
-      final userProfile = userBox.get('profile');
+      return userBox.get('profile');
+    } catch (e) {
+      print('DEBUG: Error getting user profile: $e');
+      return null;
+    }
+  }
+  
+  /// Get the user's current phase, prioritizing UserProfile over snapshots
+  static Future<String> getCurrentPhase() async {
+    try {
+      // Always check UserProfile first - this is the authoritative source
+      final userProfile = await _getUserProfile();
       
       if (userProfile?.onboardingCurrentSeason != null && 
           userProfile!.onboardingCurrentSeason!.isNotEmpty) {
@@ -25,27 +35,32 @@ class UserPhaseService {
         return userProfile.onboardingCurrentSeason!;
       }
       
-      // Fallback to arcform snapshots
-      Box<ArcformSnapshot> box;
-      if (Hive.isBoxOpen(_snapshotsBoxName)) {
-        box = Hive.box<ArcformSnapshot>(_snapshotsBoxName);
-      } else {
-        box = await Hive.openBox<ArcformSnapshot>(_snapshotsBoxName);
+      // Only fall back to snapshots if no UserProfile phase exists
+      // AND the user has completed onboarding (to avoid using stale data)
+      if (userProfile?.onboardingCompleted == true) {
+        print('DEBUG: User completed onboarding but no phase set, checking snapshots');
+        
+        Box<ArcformSnapshot> box;
+        if (Hive.isBoxOpen(_snapshotsBoxName)) {
+          box = Hive.box<ArcformSnapshot>(_snapshotsBoxName);
+        } else {
+          box = await Hive.openBox<ArcformSnapshot>(_snapshotsBoxName);
+        }
+        
+        if (box.isNotEmpty) {
+          // Get all snapshots and find the most recent one
+          final allSnapshots = box.values.toList();
+          allSnapshots.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+          
+          final mostRecent = allSnapshots.first;
+          print('DEBUG: Using phase from arcform snapshot: ${mostRecent.phase}');
+          return mostRecent.phase;
+        }
       }
       
-      if (box.isEmpty) {
-        // No snapshots yet, default to Discovery for first-time users
-        print('DEBUG: No snapshots found, defaulting to Discovery');
-        return 'Discovery';
-      }
-      
-      // Get all snapshots and find the most recent one
-      final allSnapshots = box.values.toList();
-      allSnapshots.sort((a, b) => b.createdAt.compareTo(a.createdAt));
-      
-      final mostRecent = allSnapshots.first;
-      print('DEBUG: Using phase from arcform snapshot: ${mostRecent.phase}');
-      return mostRecent.phase;
+      // Default fallback
+      print('DEBUG: No phase found, defaulting to Discovery');
+      return 'Discovery';
       
     } catch (e) {
       print('DEBUG: Error getting current phase: $e');
@@ -129,5 +144,53 @@ class UserPhaseService {
   static Future<String?> getCurrentPhaseRationale() async {
     final snapshot = await getMostRecentSnapshot();
     return snapshot?.recommendationRationale;
+  }
+  
+  /// Validate that a phase selection was properly saved
+  static Future<bool> validatePhaseSelection(String expectedPhase) async {
+    try {
+      final currentPhase = await getCurrentPhase();
+      final isValid = currentPhase == expectedPhase;
+      
+      if (isValid) {
+        print('DEBUG: Phase selection validated: $expectedPhase');
+      } else {
+        print('DEBUG: Phase selection validation failed: expected $expectedPhase, got $currentPhase');
+      }
+      
+      return isValid;
+    } catch (e) {
+      print('DEBUG: Error validating phase selection: $e');
+      return false;
+    }
+  }
+  
+  /// Force update the user's phase (useful for debugging)
+  static Future<bool> forceUpdatePhase(String newPhase) async {
+    try {
+      final userProfile = await _getUserProfile();
+      if (userProfile == null) {
+        print('DEBUG: Cannot update phase - no user profile found');
+        return false;
+      }
+      
+      final updatedProfile = userProfile.copyWith(
+        onboardingCurrentSeason: newPhase,
+      );
+      
+      Box<UserProfile> userBox;
+      if (Hive.isBoxOpen('user_profile')) {
+        userBox = Hive.box<UserProfile>('user_profile');
+      } else {
+        userBox = await Hive.openBox<UserProfile>('user_profile');
+      }
+      
+      await userBox.put('profile', updatedProfile);
+      print('DEBUG: Force updated phase to: $newPhase');
+      return true;
+    } catch (e) {
+      print('DEBUG: Error force updating phase: $e');
+      return false;
+    }
   }
 }

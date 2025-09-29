@@ -235,7 +235,7 @@ class InsightService {
       String? emotionValue = entry.emotion;
 
       // If no explicit emotion, derive from mood
-      if (emotionValue == null || emotionValue.isEmpty) {
+      if (emotionValue?.isEmpty ?? true) {
         final mood = entry.mood.toLowerCase();
         if (mood.contains('happy') || mood.contains('joy') || mood.contains('content')) {
           emotionValue = 'positive';
@@ -248,7 +248,8 @@ class InsightService {
         }
       }
 
-      emotionCounts[emotionValue] = (emotionCounts[emotionValue] ?? 0) + 1;
+      final emotion = emotionValue ?? 'mixed';
+      emotionCounts[emotion] = (emotionCounts[emotion] ?? 0) + 1;
     }
 
     // Convert counts to percentages

@@ -1,9 +1,3 @@
-/// ECHO Integration Utility
-///
-/// Provides integration points for the ECHO system with existing EPI modules
-/// and demonstrates how to use the new dignified response generation.
-
-import 'dart:convert';
 import 'echo_service.dart';
 import 'models/data/context_provider.dart';
 

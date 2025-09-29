@@ -6,6 +6,7 @@ import 'package:my_app/models/user_profile_model.dart';
 import 'package:my_app/models/journal_entry_model.dart';
 import 'package:logger/logger.dart';
 import 'package:my_app/services/starter_arcform_service.dart';
+import 'package:my_app/services/user_phase_service.dart';
 import 'package:my_app/mode/first_responder/fr_settings_cubit.dart';
 
 class OnboardingCubit extends Cubit<OnboardingState> {
@@ -35,6 +36,28 @@ class OnboardingCubit extends Cubit<OnboardingState> {
     _logger.d('Selecting current season: $season');
     emit(state.copyWith(currentSeason: season));
     _completeOnboarding();
+    
+    // Add validation to ensure phase selection is properly saved
+    _validatePhaseSelection(season);
+  }
+  
+  /// Validate that the phase selection was properly saved
+  Future<void> _validatePhaseSelection(String selectedPhase) async {
+    // Wait a moment for the profile to be saved
+    await Future.delayed(const Duration(milliseconds: 500));
+    
+    try {
+      final isValid = await UserPhaseService.validatePhaseSelection(selectedPhase);
+      if (isValid) {
+        _logger.i('Phase selection validated: $selectedPhase');
+      } else {
+        _logger.e('Phase selection validation failed: $selectedPhase');
+        // Try to force update the phase
+        await UserPhaseService.forceUpdatePhase(selectedPhase);
+      }
+    } catch (e) {
+      _logger.e('Error validating phase selection: $e');
+    }
   }
 
   void setCentralWord(String word) {

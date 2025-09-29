@@ -28,9 +28,16 @@ class _ChatsScreenState extends State<ChatsScreen> {
   @override
   void initState() {
     super.initState();
-    _chatRepo = ChatRepoImpl();
+    _chatRepo = ChatRepoImpl.instance;
     _searchController.addListener(_filterSessions);
     _initializeAndLoad();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Refresh sessions when returning to this screen
+    _loadSessions();
   }
 
   @override

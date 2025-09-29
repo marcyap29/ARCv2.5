@@ -1,8 +1,54 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:my_app/shared/app_colors.dart';
 import 'package:my_app/shared/text_style.dart';
 import '../chat_models.dart';
 import '../chat_repo.dart';
+import '../../bloc/lumara_assistant_cubit.dart';
+import '../../data/context_provider.dart';
+import '../../data/context_scope.dart';
+
+// Mock context provider for SessionView
+class MockContextProvider extends ContextProvider {
+  MockContextProvider() : super(LumaraScope.defaultScope);
+  
+  @override
+  Future<ContextWindow> buildContext({
+    int daysBack = 14,
+    int maxEntries = 200,
+  }) async {
+    return ContextWindow(
+      nodes: [],
+      edges: [],
+      totalEntries: 0,
+      totalArcforms: 0,
+      startDate: DateTime.now().subtract(const Duration(days: 14)),
+      endDate: DateTime.now(),
+    );
+  }
+}
+
+// App lifecycle observer for auto-save
+class _AppLifecycleObserver extends WidgetsBindingObserver {
+  final VoidCallback? onPaused;
+  final VoidCallback? onDetached;
+
+  _AppLifecycleObserver({this.onPaused, this.onDetached});
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    switch (state) {
+      case AppLifecycleState.paused:
+        onPaused?.call();
+        break;
+      case AppLifecycleState.detached:
+        onDetached?.call();
+        break;
+      default:
+        break;
+    }
+  }
+}
 
 /// Screen for viewing and interacting with a single chat session
 class SessionView extends StatefulWidget {
@@ -28,18 +74,37 @@ class _SessionViewState extends State<SessionView> {
   bool _isLoading = true;
   bool _isSending = false;
   String? _error;
+  LumaraAssistantCubit? _lumaraCubit;
 
   @override
   void initState() {
     super.initState();
+    _initializeLumaraCubit();
     _loadSession();
+    _setupAutoSave();
   }
 
   @override
   void dispose() {
     _messageController.dispose();
     _scrollController.dispose();
+    _lumaraCubit?.close();
     super.dispose();
+  }
+
+  Future<void> _initializeLumaraCubit() async {
+    _lumaraCubit = LumaraAssistantCubit(
+      contextProvider: MockContextProvider(),
+    );
+    await _lumaraCubit!.initialize();
+  }
+
+  void _setupAutoSave() {
+    // Auto-save on app lifecycle changes
+    WidgetsBinding.instance.addObserver(_AppLifecycleObserver(
+      onPaused: () => _lumaraCubit?.autoSaveConversation(),
+      onDetached: () => _lumaraCubit?.autoSaveConversation(),
+    ));
   }
 
   Future<void> _loadSession() async {
@@ -72,31 +137,20 @@ class _SessionViewState extends State<SessionView> {
 
   Future<void> _sendMessage() async {
     final content = _messageController.text.trim();
-    if (content.isEmpty || _isSending) return;
+    if (content.isEmpty || _isSending || _lumaraCubit == null) return;
 
     setState(() {
       _isSending = true;
     });
 
     try {
-      // Add user message
-      await widget.chatRepo.addMessage(
-        sessionId: widget.sessionId,
-        role: MessageRole.user,
-        content: content,
-      );
-
+      // Set the current chat session ID in LUMARA cubit
+      _lumaraCubit!.currentChatSessionId = widget.sessionId;
+      
+      // Send message through LUMARA assistant
+      await _lumaraCubit!.sendMessage(content);
+      
       _messageController.clear();
-
-      // TODO: Integrate with LUMARA assistant for response
-      // For now, add a simple acknowledgment
-      await Future.delayed(const Duration(milliseconds: 500));
-      await widget.chatRepo.addMessage(
-        sessionId: widget.sessionId,
-        role: MessageRole.assistant,
-        content: "I understand. Let me think about that...",
-      );
-
       await _loadSession();
     } catch (e) {
       if (mounted) {

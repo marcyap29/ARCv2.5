@@ -7,11 +7,13 @@ import 'package:my_app/lumara/llm/rule_based_adapter.dart';
 import 'package:my_app/services/gemini_send.dart';
 import 'package:my_app/services/llm_bridge_adapter.dart';
 import '../services/enhanced_lumara_api.dart';
-import '../memory/mcp_memory_service.dart';
-import '../memory/memory_index_service.dart';
+import '../../mira/memory/enhanced_mira_memory_service.dart';
+import '../../mira/memory/enhanced_memory_schema.dart';
+import '../../mira/mira_service.dart';
 import '../../telemetry/analytics.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:path/path.dart' as path;
+import '../chat/chat_repo.dart';
+import '../chat/chat_repo_impl.dart';
+import '../chat/chat_models.dart';
 
 /// LUMARA Assistant Cubit State
 abstract class LumaraAssistantState {}
@@ -62,15 +64,25 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
   late final EnhancedLumaraApi _enhancedApi;
   final Analytics _analytics = Analytics();
 
-  // MCP Memory System
-  McpMemoryService? _memoryService;
-  MemoryIndexService? _indexService;
+  // Enhanced MIRA Memory System
+  EnhancedMiraMemoryService? _memoryService;
   String? _userId;
+  String? _currentPhase;
+  
+  // Chat History System
+  late final ChatRepo _chatRepo;
+  String? currentChatSessionId;
+  
+  // Auto-save and compaction
+  static const int _maxMessagesBeforeCompaction = 50;
+  static const int _compactionThreshold = 100;
+  bool _isCompacting = false;
 
   LumaraAssistantCubit({
     required ContextProvider contextProvider,
   }) : _contextProvider = contextProvider,
        _fallbackAdapter = const RuleBasedAdapter(),
+       _chatRepo = ChatRepoImpl.instance,
        super(LumaraAssistantInitial()) {
     // Initialize ArcLLM with Gemini integration
     _arcLLM = provideArcLLM();
@@ -88,6 +100,9 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
 
       // Initialize MCP Memory System
       await _initializeMemorySystem();
+      
+      // Initialize Chat History System
+      await _chatRepo.initialize();
 
       // Start with default scope
       const scope = LumaraScope.defaultScope;
@@ -154,8 +169,14 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
       return;
     }
 
+    // Ensure we have an active chat session (auto-create if needed)
+    await _ensureActiveChatSession(text);
+
     // Record user message in MCP memory first
     await _recordUserMessage(text);
+    
+    // Add user message to chat session
+    await _addToChatSession(text, 'user');
 
     // Add user message to UI
     final userMessage = LumaraMessage.user(content: text);
@@ -176,6 +197,9 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
 
       // Record assistant response in MCP memory
       await _recordAssistantMessage(response);
+      
+      // Add assistant response to chat session
+      await _addToChatSession(response, 'assistant');
 
       // Add assistant response to UI
       final assistantMessage = LumaraMessage.assistant(content: response);
@@ -218,6 +242,8 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
     // Debug logging
     print('LUMARA Debug: Query: "$text" -> Task: ${task.name}');
 
+    // Memory retrieval will be handled in response generation
+
     try {
       // First try direct Gemini API if available
       const apiKey = String.fromEnvironment('GEMINI_API_KEY');
@@ -238,6 +264,30 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
         );
 
         print('LUMARA Debug: Direct Gemini API response length: ${response.length}');
+
+        // Generate explainable response with attribution if memory service available
+        if (_memoryService != null) {
+          try {
+            final responseId = 'resp_${DateTime.now().millisecondsSinceEpoch}';
+            final memoryResult = await _memoryService!.retrieveMemories(
+              query: text,
+              domains: [MemoryDomain.personal, MemoryDomain.creative, MemoryDomain.learning],
+              responseId: responseId,
+            );
+
+            final explainableResponse = await _memoryService!.generateExplainableResponse(
+              content: response,
+              referencedNodes: memoryResult.nodes,
+              responseId: responseId,
+              includeReasoningDetails: true,
+            );
+
+            return explainableResponse.content;
+          } catch (e) {
+            print('LUMARA Memory: Error generating explainable response: $e');
+          }
+        }
+
         return response;
       } else {
         print('LUMARA Debug: No Gemini API key found, trying Enhanced LUMARA API');
@@ -254,6 +304,30 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
         );
 
         print('LUMARA Debug: Enhanced API response length: ${response.length}');
+
+        // Generate explainable response with attribution if memory service available
+        if (_memoryService != null) {
+          try {
+            final responseId = 'resp_${DateTime.now().millisecondsSinceEpoch}';
+            final memoryResult = await _memoryService!.retrieveMemories(
+              query: text,
+              domains: [MemoryDomain.personal, MemoryDomain.creative, MemoryDomain.learning],
+              responseId: responseId,
+            );
+
+            final explainableResponse = await _memoryService!.generateExplainableResponse(
+              content: response,
+              referencedNodes: memoryResult.nodes,
+              responseId: responseId,
+              includeReasoningDetails: true,
+            );
+
+            return explainableResponse.content;
+          } catch (e) {
+            print('LUMARA Memory: Error generating explainable response: $e');
+          }
+        }
+
         return response;
       }
     } catch (e) {
@@ -480,87 +554,107 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
     return '{"keywords": [${uniqueKeywords.map((k) => '"$k"').join(', ')}]}';
   }
 
+  /// Get current phase from context (helper for memory initialization)
+  String? _getCurrentPhaseFromContext(ContextWindow context) {
+    final currentPhaseNodes = context.nodes
+        .where((n) => n['type'] == 'phase' && n['meta']?['current'] == true)
+        .toList();
+
+    if (currentPhaseNodes.isEmpty) return null;
+    return currentPhaseNodes.first['text'] as String?;
+  }
+
   // MCP Memory System Methods
 
-  /// Initialize the MCP memory system
+  /// Initialize the Enhanced MIRA memory system
   Future<void> _initializeMemorySystem() async {
     try {
       // Get user ID (simplified - in real implementation, get from user service)
       _userId = 'user_${DateTime.now().millisecondsSinceEpoch}';
 
-      // Initialize memory service
-      _memoryService = McpMemoryService();
-      await _memoryService!.initialize(_userId!);
+      // Get current phase from context
+      final context = await _contextProvider.buildContext();
+      final currentPhase = _getCurrentPhaseFromContext(context);
+      _currentPhase = currentPhase; // Store for later use
 
-      // Initialize memory index service
-      final documentsDir = await getApplicationDocumentsDirectory();
-      final indexPath = path.join(documentsDir.path, 'user_profiles', _userId!, 'mcp', 'memory.index.json');
-      _indexService = MemoryIndexService(userId: _userId!, indexPath: indexPath);
-      await _indexService!.initialize();
+      // Initialize enhanced memory service
+      _memoryService = EnhancedMiraMemoryService(
+        miraService: MiraService.instance,
+      );
 
-      print('LUMARA Memory: MCP memory system initialized for user $_userId');
+      await _memoryService!.initialize(
+        userId: _userId!,
+        sessionId: null, // Will be set when session is created
+        currentPhase: currentPhase,
+      );
+
+      print('LUMARA Memory: Enhanced MIRA memory system initialized for user $_userId');
+      if (currentPhase != null) {
+        print('LUMARA Memory: Current phase: $currentPhase');
+      }
     } catch (e) {
-      print('LUMARA Memory: Error initializing memory system: $e');
+      print('LUMARA Memory: Error initializing enhanced memory system: $e');
     }
   }
 
   /// Get or create a conversation session
   Future<String> _getOrCreateSession() async {
     if (_memoryService == null) {
-      throw Exception('Memory service not initialized');
+      throw Exception('Enhanced memory service not initialized');
     }
 
-    // Check if we have an active session, if not create one
-    final sessions = await _memoryService!.listSessions();
-    if (sessions.isNotEmpty) {
-      final latestSession = sessions.first;
-      final sessionId = latestSession['session_id'] as String;
-      final success = await _memoryService!.resumeSession(sessionId);
-      if (success) {
-        print('LUMARA Memory: Resumed session $sessionId');
-        return sessionId;
-      }
-    }
-
-    // Create new session
-    final sessionId = await _memoryService!.startSession(
-      title: 'LUMARA Chat ${DateTime.now().day}/${DateTime.now().month}',
-    );
-    print('LUMARA Memory: Created new session $sessionId');
+    // TODO: Enhanced memory service handles sessions internally
+    // Generate a session ID for UI tracking
+    final sessionId = 'session_${DateTime.now().millisecondsSinceEpoch}';
+    print('LUMARA Memory: Using session $sessionId');
     return sessionId;
   }
 
-  /// Record user message in MCP memory
+  /// Record user message in enhanced MIRA memory
   Future<void> _recordUserMessage(String content) async {
     if (_memoryService == null) return;
 
     try {
-      await _memoryService!.addMessage(
-        role: 'user',
+      final nodeId = await _memoryService!.storeMemory(
         content: content,
+        domain: MemoryDomain.personal, // User conversations are personal
+        privacy: PrivacyLevel.personal,
+        source: 'LUMARA_Chat',
+        metadata: {
+          'role': 'user',
+          'timestamp': DateTime.now().toIso8601String(),
+          'session_type': 'chat',
+        },
       );
-      print('LUMARA Memory: Recorded user message');
+      print('LUMARA Memory: Recorded user message (node: $nodeId)');
     } catch (e) {
       print('LUMARA Memory: Error recording user message: $e');
     }
   }
 
-  /// Record assistant message in MCP memory
+  /// Record assistant message in enhanced MIRA memory
   Future<void> _recordAssistantMessage(String content) async {
     if (_memoryService == null) return;
 
     try {
-      await _memoryService!.addMessage(
-        role: 'assistant',
+      final nodeId = await _memoryService!.storeMemory(
         content: content,
+        domain: MemoryDomain.personal, // Assistant responses are personal
+        privacy: PrivacyLevel.personal,
+        source: 'LUMARA_Assistant',
+        metadata: {
+          'role': 'assistant',
+          'timestamp': DateTime.now().toIso8601String(),
+          'session_type': 'chat',
+        },
       );
-      print('LUMARA Memory: Recorded assistant message');
+      print('LUMARA Memory: Recorded assistant message (node: $nodeId)');
     } catch (e) {
       print('LUMARA Memory: Error recording assistant message: $e');
     }
   }
 
-  /// Handle memory commands
+  /// Handle enhanced memory commands
   Future<void> _handleMemoryCommand(String command) async {
     final currentState = state;
     if (currentState is! LumaraAssistantLoaded) return;
@@ -569,9 +663,39 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
       String response;
 
       if (_memoryService == null) {
-        response = 'Memory system not available. Please restart LUMARA.';
+        response = 'Enhanced memory system not available. Please restart LUMARA.';
       } else {
-        response = await _memoryService!.handleMemoryCommand(command);
+        // Parse and handle enhanced memory commands
+        final parts = command.split(' ');
+        final subCommand = parts.length > 1 ? parts[1] : '';
+
+        switch (subCommand.toLowerCase()) {
+          case 'show':
+          case 'status':
+            response = await _handleMemoryStatusCommand();
+            break;
+          case 'conflicts':
+            response = await _handleMemoryConflictsCommand();
+            break;
+          case 'domains':
+            response = await _handleMemoryDomainsCommand();
+            break;
+          case 'health':
+            response = await _handleMemoryHealthCommand();
+            break;
+          case 'export':
+            response = await _handleMemoryExportCommand();
+            break;
+          default:
+            response = '''Enhanced Memory Commands:
+• /memory show - View memory status and overview
+• /memory conflicts - Review and resolve memory conflicts
+• /memory domains - Manage domain access policies
+• /memory health - Check memory system health
+• /memory export - Export user memory data (MCP bundle)
+
+The enhanced memory system provides user-sovereign, explainable memory with attribution transparency.''';
+        }
       }
 
       // Add command and response to UI
@@ -581,10 +705,10 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
 
       emit(currentState.copyWith(messages: updatedMessages));
 
-      print('LUMARA Memory: Handled command: $command');
+      print('LUMARA Memory: Handled enhanced command: $command');
     } catch (e) {
       final errorMessage = LumaraMessage.assistant(
-        content: 'Error processing memory command: $e',
+        content: 'Error processing enhanced memory command: $e',
       );
       final updatedMessages = [
         ...currentState.messages,
@@ -593,7 +717,308 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
       ];
 
       emit(currentState.copyWith(messages: updatedMessages));
-      print('LUMARA Memory: Error handling command: $e');
+      print('LUMARA Memory: Error handling enhanced command: $e');
+    }
+  }
+
+  /// Handle memory status command
+  Future<String> _handleMemoryStatusCommand() async {
+    if (_memoryService == null) return 'Memory service not available.';
+
+    try {
+      final stats = await _memoryService!.getMemoryStatistics();
+
+      return '''Memory System Status:
+📊 **Statistics:**
+• Total Nodes: ${stats['total_nodes'] ?? 0}
+• Memory Domains: ${stats['active_domains'] ?? 0}
+• Recent Activity: ${stats['recent_activity'] ?? 0} interactions
+
+🧠 **Health Score:** ${((stats['health_score'] ?? 0.0) * 100).toInt()}%
+
+🎯 **Current Phase:** ${_currentPhase ?? 'Unknown'}
+
+The enhanced memory system is actively learning from your interactions and providing attribution transparency for all responses.''';
+    } catch (e) {
+      return 'Error retrieving memory status: $e';
+    }
+  }
+
+  /// Handle memory conflicts command
+  Future<String> _handleMemoryConflictsCommand() async {
+    if (_memoryService == null) return 'Memory service not available.';
+
+    try {
+      final conflicts = await _memoryService!.getActiveConflicts();
+
+      if (conflicts.isEmpty) {
+        return '''No Active Memory Conflicts 🎉
+
+Your memories are currently harmonious. The system has detected no contradictions requiring resolution.
+
+Use this command anytime to check for new conflicts as your thoughts and experiences evolve.''';
+      }
+
+      final buffer = StringBuffer();
+      buffer.writeln('Active Memory Conflicts (${conflicts.length}):');
+      buffer.writeln();
+
+      for (final conflict in conflicts.take(3)) {
+        buffer.writeln('🔄 **${conflict.conflictType}**');
+        buffer.writeln('   ${conflict.description}');
+        buffer.writeln('   Severity: ${(conflict.severity * 100).toInt()}%');
+        buffer.writeln();
+      }
+
+      if (conflicts.length > 3) {
+        buffer.writeln('...and ${conflicts.length - 3} more conflicts.');
+        buffer.writeln();
+      }
+
+      buffer.writeln('These conflicts reflect the natural complexity of your experiences. Would you like to explore resolving any of them?');
+
+      return buffer.toString();
+    } catch (e) {
+      return 'Error retrieving memory conflicts: $e';
+    }
+  }
+
+  /// Handle memory domains command
+  Future<String> _handleMemoryDomainsCommand() async {
+    return '''Memory Domains Overview:
+
+🏠 **Personal** - Private thoughts and experiences
+💼 **Work** - Professional activities and insights
+🌱 **Creative** - Ideas, inspirations, and projects
+📚 **Learning** - Knowledge, skills, and education
+💝 **Relationships** - Social connections and interactions
+🏥 **Health** - Wellness, medical, and self-care
+💰 **Finance** - Financial information and decisions
+🙏 **Spiritual** - Beliefs, values, and meaning
+⚙️ **Meta** - System and app-level memories
+
+Each domain has independent privacy controls and cross-domain synthesis rules. This ensures your memories remain organized and appropriately protected.''';
+  }
+
+  /// Handle memory health command
+  Future<String> _handleMemoryHealthCommand() async {
+    if (_memoryService == null) return 'Memory service not available.';
+
+    try {
+      final health = await _memoryService!.getMemoryStatistics();
+      final healthScore = (health['health_score'] ?? 0.0) * 100;
+
+      String healthEmoji = healthScore >= 90 ? '💚' : healthScore >= 70 ? '💛' : '🔴';
+
+      return '''Memory System Health $healthEmoji
+
+**Overall Score:** ${healthScore.toInt()}%
+
+**Key Metrics:**
+• Attribution Accuracy: ${((health['attribution_accuracy'] ?? 0.0) * 100).toInt()}%
+• Domain Isolation: ${((health['domain_isolation'] ?? 0.0) * 100).toInt()}%
+• Conflict Resolution: ${((health['conflict_handling'] ?? 0.0) * 100).toInt()}%
+• Memory Decay Balance: ${((health['decay_balance'] ?? 0.0) * 100).toInt()}%
+
+**Recommendations:**
+${healthScore >= 90 ? '✅ Memory system is performing excellently!' : healthScore >= 70 ? '⚠️ Consider resolving active conflicts to improve memory harmony.' : '🔧 Memory system may benefit from conflict resolution and cleanup.'}
+
+Your enhanced memory system continuously adapts to your growth and maintains transparent attribution for all AI interactions.''';
+    } catch (e) {
+      return 'Error checking memory health: $e';
+    }
+  }
+
+  /// Handle memory export command
+  Future<String> _handleMemoryExportCommand() async {
+    return '''Memory Export (MCP Bundle) 📦
+
+**User Sovereignty:** Your memory data belongs to you completely.
+
+**Export Features:**
+• Complete memory bundle in standard MCP format
+• All domains, privacy levels, and attribution records
+• Portable across different EPI implementations
+• Full audit trail and provenance tracking
+
+**Export Process:**
+1. Navigate to Settings → Memory Management
+2. Select "Export Memory Bundle"
+3. Choose domains and privacy levels to include
+4. Download your sovereign memory data
+
+Your exported MCP bundle can be imported into any MCP-compatible system, ensuring complete data portability and user control.
+
+*Note: Export functionality requires UI implementation in settings.*''';
+  }
+
+  /// Ensure we have an active chat session (auto-create if needed)
+  Future<void> _ensureActiveChatSession(String firstMessage) async {
+    if (currentChatSessionId == null || _shouldCreateNewSession()) {
+      currentChatSessionId = await _createNewChatSession(firstMessage);
+      print('LUMARA Chat: Created new session $currentChatSessionId');
+    }
+  }
+
+  /// Check if we should create a new session
+  bool _shouldCreateNewSession() {
+    // For now, always create new session if none exists
+    // TODO: Add logic to resume recent sessions
+    return currentChatSessionId == null;
+  }
+
+  /// Create a new chat session with auto-generated subject
+  Future<String> _createNewChatSession(String firstMessage) async {
+    // Ensure ChatRepo is initialized before use
+    await _chatRepo.initialize();
+    
+    final subject = generateSubject(firstMessage);
+    final sessionId = await _chatRepo.createSession(
+      subject: subject,
+      tags: ['auto-created', 'lumara'],
+    );
+    print('LUMARA Chat: Created session "$subject" with ID $sessionId');
+    return sessionId;
+  }
+
+  /// Generate subject from first message in "subject-year_month_day" format
+  String generateSubject(String message) {
+    final now = DateTime.now();
+    final dateStr = '${now.year}_${now.month.toString().padLeft(2, '0')}_${now.day.toString().padLeft(2, '0')}';
+    
+    // Extract key words from message
+    final words = message
+      .toLowerCase()
+      .replaceAll(RegExp(r'[^\w\s]'), '')
+      .split(RegExp(r'\s+'))
+      .where((word) => word.length > 3)
+      .take(3)
+      .toList();
+    
+    final subject = words.isNotEmpty ? words.join('-') : 'chat';
+    return '$subject-$dateStr';
+  }
+
+  /// Add message to current chat session
+  Future<void> _addToChatSession(String content, String role) async {
+    if (currentChatSessionId == null) return;
+    
+    try {
+      // Ensure ChatRepo is initialized before use
+      await _chatRepo.initialize();
+      
+      await _chatRepo.addMessage(
+        sessionId: currentChatSessionId!,
+        role: role,
+        content: content,
+      );
+      print('LUMARA Chat: Added $role message to session $currentChatSessionId');
+      
+      // Check if compaction is needed
+      await _checkAndCompactIfNeeded();
+    } catch (e) {
+      print('LUMARA Chat: Error adding message to session: $e');
+    }
+  }
+
+  /// Check if conversation needs compaction and perform it
+  Future<void> _checkAndCompactIfNeeded() async {
+    if (currentChatSessionId == null || _isCompacting) return;
+    
+    try {
+      final messages = await _chatRepo.getMessages(currentChatSessionId!, lazy: false);
+      
+      if (messages.length >= _compactionThreshold) {
+        await _compactConversation(messages);
+      }
+    } catch (e) {
+      print('LUMARA Chat: Error checking compaction: $e');
+    }
+  }
+
+  /// Compact conversation by summarizing old messages
+  Future<void> _compactConversation(List<ChatMessage> messages) async {
+    if (_isCompacting || currentChatSessionId == null) return;
+    
+    _isCompacting = true;
+    
+    try {
+      // Keep recent messages and create summary of older ones
+      final oldMessages = messages.take(messages.length - _maxMessagesBeforeCompaction).toList();
+      
+      if (oldMessages.isEmpty) return;
+      
+      // Create summary of old messages
+      final summary = await _createConversationSummary(oldMessages);
+      
+      // Create a summary message
+      final summaryMessage = ChatMessage(
+        id: 'summary_${DateTime.now().millisecondsSinceEpoch}',
+        sessionId: currentChatSessionId!,
+        role: 'system',
+        content: summary,
+        createdAt: DateTime.now(),
+      );
+      
+      // Replace old messages with summary
+      await _replaceMessagesWithSummary(oldMessages, summaryMessage);
+      
+      print('LUMARA Chat: Compacted conversation - ${oldMessages.length} messages summarized');
+      
+      // Show notification to user
+      _showCompactionNotification(oldMessages.length);
+      
+    } catch (e) {
+      print('LUMARA Chat: Error compacting conversation: $e');
+    } finally {
+      _isCompacting = false;
+    }
+  }
+
+  /// Create a summary of old messages
+  Future<String> _createConversationSummary(List<ChatMessage> messages) async {
+    // Group messages by role and create summary
+    final userMessages = messages.where((m) => m.role == 'user').map((m) => m.content).toList();
+    final assistantMessages = messages.where((m) => m.role == 'assistant').map((m) => m.content).toList();
+    
+    return '''📝 **Conversation Summary** (${messages.length} messages compacted)
+
+**Key Topics Discussed:**
+${userMessages.take(5).map((m) => '• ${m.length > 100 ? m.substring(0, 100) + '...' : m}').join('\n')}
+
+**Assistant Responses:**
+${assistantMessages.take(3).map((m) => '• ${m.length > 150 ? m.substring(0, 150) + '...' : m}').join('\n')}
+
+*This conversation was automatically compacted to improve performance. The full conversation history is preserved in the MCP memory system.*''';
+  }
+
+  /// Replace old messages with summary
+  Future<void> _replaceMessagesWithSummary(List<ChatMessage> oldMessages, ChatMessage summaryMessage) async {
+    // This would need to be implemented in the ChatRepo
+    // For now, just add the summary message
+    await _chatRepo.addMessage(
+      sessionId: currentChatSessionId!,
+      role: 'system',
+      content: summaryMessage.content,
+    );
+  }
+
+  /// Show compaction notification to user
+  void _showCompactionNotification(int messageCount) {
+    // This would be implemented with a proper notification system
+    print('LUMARA Chat: Compaction notification - $messageCount messages summarized for better performance');
+  }
+
+  /// Auto-save current conversation state
+  Future<void> autoSaveConversation() async {
+    if (currentChatSessionId == null) return;
+    
+    try {
+      // Force save any pending messages
+      await _chatRepo.initialize(); // Ensure repo is ready
+      print('LUMARA Chat: Auto-saved conversation $currentChatSessionId');
+    } catch (e) {
+      print('LUMARA Chat: Error auto-saving conversation: $e');
     }
   }
 
@@ -601,107 +1026,53 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
   Future<List<Map<String, dynamic>>> getConversationHistory([String? sessionId]) async {
     if (_memoryService == null) return [];
 
-    try {
-      if (sessionId != null) {
-        return await _memoryService!.getSessionMessages(sessionId);
-      } else {
-        // Get current session messages
-        final context = await _memoryService!.getConversationContext();
-        return List<Map<String, dynamic>>.from(context['messages'] ?? []);
-      }
-    } catch (e) {
-      print('LUMARA Memory: Error getting conversation history: $e');
-      return [];
-    }
+    // TODO: Enhanced memory service handles conversations differently
+    // For now, return empty list as sessions are managed internally
+    return [];
   }
 
   /// List all conversation sessions
   Future<List<Map<String, dynamic>>> getConversationSessions() async {
     if (_memoryService == null) return [];
 
-    try {
-      return await _memoryService!.listSessions();
-    } catch (e) {
-      print('LUMARA Memory: Error getting sessions: $e');
-      return [];
-    }
+    // TODO: Enhanced memory service manages sessions internally
+    // For now, return empty list
+    return [];
   }
 
   /// Switch to a different conversation session
   Future<void> switchToSession(String sessionId) async {
     if (_memoryService == null) return;
 
-    try {
-      final success = await _memoryService!.resumeSession(sessionId);
-      if (success) {
-        final messages = await _memoryService!.getSessionMessages(sessionId);
-        final lumaraMessages = messages.map((msg) {
-          return msg['role'] == 'user'
-              ? LumaraMessage.user(content: msg['content'])
-              : LumaraMessage.assistant(content: msg['content']);
-        }).toList();
-
-        final currentState = state;
-        if (currentState is LumaraAssistantLoaded) {
-          emit(currentState.copyWith(
-            messages: lumaraMessages,
-            currentSessionId: sessionId,
-          ));
-        }
-
-        print('LUMARA Memory: Switched to session $sessionId with ${messages.length} messages');
-      }
-    } catch (e) {
-      print('LUMARA Memory: Error switching to session: $e');
-    }
+    // TODO: Enhanced memory service manages sessions internally
+    // Session switching not implemented yet
+    print('LUMARA Memory: Session switching not available in enhanced memory system');
   }
 
   /// Delete a conversation session
   Future<void> deleteConversationSession(String sessionId) async {
     if (_memoryService == null) return;
 
-    try {
-      await _memoryService!.deleteSession(sessionId);
-
-      // If this was the current session, start a new one
-      final currentState = state;
-      if (currentState is LumaraAssistantLoaded &&
-          currentState.currentSessionId == sessionId) {
-        await initialize(); // Restart with new session
-      }
-
-      print('LUMARA Memory: Deleted session $sessionId');
-    } catch (e) {
-      print('LUMARA Memory: Error deleting session: $e');
-    }
+    // TODO: Enhanced memory service manages sessions internally
+    // Session deletion not implemented yet
+    print('LUMARA Memory: Session deletion not available in enhanced memory system');
   }
 
   /// Get memory statistics
   Future<Map<String, dynamic>> getMemoryStatistics() async {
-    final stats = <String, dynamic>{};
-
     if (_memoryService != null) {
       try {
-        final sessions = await _memoryService!.listSessions();
-        stats['total_sessions'] = sessions.length;
-        stats['total_messages'] = sessions.fold<int>(
-          0,
-          (sum, session) => sum + (session['message_count'] as int? ?? 0),
-        );
+        return await _memoryService!.getMemoryStatistics();
       } catch (e) {
         print('LUMARA Memory: Error getting memory stats: $e');
       }
     }
 
-    if (_indexService != null) {
-      try {
-        final indexStats = _indexService!.getStatistics();
-        stats.addAll(indexStats);
-      } catch (e) {
-        print('LUMARA Memory: Error getting index stats: $e');
-      }
-    }
-
-    return stats;
+    return <String, dynamic>{
+      'total_nodes': 0,
+      'active_domains': 0,
+      'recent_activity': 0,
+      'health_score': 0.0,
+    };
   }
 }

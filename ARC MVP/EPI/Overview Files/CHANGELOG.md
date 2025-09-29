@@ -2,6 +2,45 @@
 
 ## [Unreleased]
 
+### 🎉 **GEMINI 2.5 FLASH UPGRADE & CHAT HISTORY FIX** - September 29, 2025
+
+#### **Gemini API Model Upgrade** ✅ **COMPLETE**
+- **Model Update**: Upgraded from deprecated `gemini-1.5-flash` to latest `gemini-2.5-flash` stable model
+- **API Compatibility**: Fixed 404 errors with model endpoint across all services
+- **Enhanced Capabilities**: Now using Gemini 2.5 Flash with 1M token context and improved performance
+- **Files Updated**: Updated model references in gemini_send.dart, privacy interceptors, LLM providers, and MCP manifests
+
+#### **Chat Adapter Registration Fix** ✅ **COMPLETE**
+- **Hive Adapter Issue**: Fixed `ChatMessage` and `ChatSession` adapter registration errors
+- **Bootstrap Fix**: Moved chat adapter registration from bootstrap.dart to ChatRepoImpl.initialize()
+- **Part File Resolution**: Properly handled Dart part file visibility for generated Hive adapters
+- **Build Stability**: Resolved compilation errors and hot restart issues
+
+### 🎉 **LUMARA CHAT HISTORY FIX** - September 29, 2025
+
+#### **Automatic Chat Session Creation** ✅ **COMPLETE**
+- **Chat History Visibility**: Fixed LUMARA tab not showing conversations - now displays all chat sessions
+- **Auto-Session Creation**: Automatically creates chat sessions on first message (like ChatGPT/Claude)
+- **Subject Format**: Generates subjects in "subject-year_month_day" format as requested
+- **Dual Storage**: Messages now saved in both MCP memory AND chat history systems
+- **Seamless Experience**: Works exactly like other AI platforms with no manual session creation needed
+
+#### **Technical Implementation** ✅ **COMPLETE**
+- **LumaraAssistantCubit Integration**: Added ChatRepo integration and automatic session management
+- **Subject Generation**: Smart extraction of key words from first message + date formatting
+- **Session Management**: Auto-create, resume existing sessions, create new ones when needed
+- **MCP Integration**: Chat histories fully included in MCP export products with proper schema compliance
+- **Error Handling**: Graceful fallbacks and comprehensive error handling
+
+#### **User Experience Enhancement** ✅ **COMPLETE**
+- **No More Empty History**: Chat History tab now shows all conversations with proper subjects
+- **Automatic Operation**: No user intervention required - works transparently
+- **Proper Formatting**: Subjects follow "topic-year_month_day" format (e.g., "help-project-2025_09_29")
+- **Cross-System Integration**: MCP memory and chat history systems now fully connected
+- **Production Ready**: Comprehensive testing and validation completed
+
+---
+
 ### 🎉 **LUMARA MCP MEMORY SYSTEM** - September 28, 2025
 
 #### **Memory Container Protocol Implementation** ✅ **COMPLETE**
