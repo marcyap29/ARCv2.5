@@ -10,7 +10,7 @@
   - VEIL: Self-Pruning & Coherence
   - RIVET: Risk-Validation Evidence Tracker
 
-  ## 📱 Navigation & User Interface Architecture (Updated Sept 27, 2025)
+  ## 📱 Navigation & User Interface Architecture (Updated Sept 28, 2025)
 
   **Primary Navigation Structure**:
   ```
@@ -75,7 +75,7 @@
       ├── mcp_formatter.dart             # Format for MCP export
       └── structured_data_builder.dart   # Build semantic structures
 
-  3. ECHO Module: Expressive Response Layer
+  3. ECHO Module: Expressive Response Layer (Enhanced with MCP Memory - Sept 28, 2025)
 
   lib/echo/
   ├── response/
@@ -93,6 +93,12 @@
   │   ├── cloud_api_adapter.dart         # Cloud API integration
   │   ├── fallback_handler.dart          # Handle provider failures
   │   └── response_orchestrator.dart     # Coordinate multiple providers
+  ├── memory/                            # **NEW: MCP Memory System**
+  │   ├── mcp_memory_models.dart         # MCP data models and JSON serialization
+  │   ├── mcp_memory_service.dart        # Core conversation persistence and session management
+  │   ├── memory_index_service.dart      # Global indexing for topics, entities, open loops
+  │   ├── pii_redaction_service.dart     # Privacy protection with PII detection/redaction
+  │   └── summary_service.dart           # Map-reduce summarization and context extraction
   └── models/
       ├── response_context.dart
       ├── dignity_metrics.dart

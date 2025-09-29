@@ -5,7 +5,37 @@ ARC is the **core journaling module of EPI (Evolving Personal Intelligence)**, b
 
 This MVP now implements **modular architecture** with RIVET (safety validation) and ECHO (expressive response layer) modules migrated to their proper locations, providing a foundation for the complete 8-module system: ARC→PRISM→ECHO→ATLAS→MIRA→AURORA→VEIL→RIVET.
 
-## 🌟 **LATEST ENHANCEMENT: LUMARA Advanced API Management** (2025-09-28) ✅
+## 🌟 **LATEST ENHANCEMENT: LUMARA MCP Memory System** (2025-09-28) ✅
+
+**🎯 Major Achievement**: Complete implementation of Memory Container Protocol (MCP) enabling LUMARA to automatically record, persist, and intelligently retrieve all conversations like major AI systems (ChatGPT, Claude, etc.).
+
+**✨ MCP Memory System Features**:
+- **Automatic Chat Persistence**: Every message automatically saved without manual intervention - fixes chat history issue
+- **Session Management**: Conversations organized into persistent sessions with automatic resume across app restarts
+- **Rolling Summaries**: Map-reduce summarization every 10 messages with intelligent key facts extraction
+- **Memory Indexing**: Topics, entities, and open loops automatically tracked and searchable across sessions
+- **PII Protection**: Built-in redaction of emails, phones, API keys, and sensitive data before storage
+- **Memory Commands**: `/memory show`, `/memory forget`, `/memory export` for user control and transparency
+
+**🎯 Technical Implementation**:
+- **McpMemoryService**: Core conversation persistence and session management with JSON storage
+- **MemoryIndexService**: Global index for topics, entities, and open loops tracking across conversations
+- **SummaryService**: Map-reduce pattern for intelligent conversation summarization and context building
+- **PiiRedactionService**: Comprehensive privacy protection with redaction manifests and secure storage
+- **Enhanced LumaraAssistantCubit**: Fully integrated automatic memory recording and context retrieval
+
+**📱 User Experience**:
+- **Transparent Operation**: All conversations automatically preserved without user intervention
+- **Cross-Session Continuity**: LUMARA remembers past discussions intelligently and references them naturally
+- **Memory Commands**: Users can inspect, manage, and export their complete conversation history
+- **Smart Context**: Responses informed by relevant conversation history, summaries, and identified patterns
+- **Privacy Control**: Built-in PII redaction with user visibility into what data is stored
+
+**🏆 Result**: LUMARA now provides persistent, intelligent conversational memory that builds context over time while maintaining privacy and user sovereignty. Chat history works seamlessly like major AI systems without requiring manual session creation.
+
+---
+
+## 🌟 **PREVIOUS ENHANCEMENT: LUMARA Advanced API Management** (2025-09-28) ✅
 
 **🎯 Major Achievement**: Complete implementation of advanced API management system for LUMARA with intelligent provider selection and enhanced user experience.
 
