@@ -76,10 +76,16 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
       // Start with default scope
       const scope = LumaraScope.defaultScope;
       
+      // Check if API key is configured
+      const apiKey = String.fromEnvironment('GEMINI_API_KEY');
+      final hasApiKey = apiKey.isNotEmpty;
+      
       // Add welcome message
       final List<LumaraMessage> messages = [
         LumaraMessage.assistant(
-          content: "Hello! I'm LUMARA, your personal assistant. I can help you understand your patterns, explain your current phase, and provide insights about your journey. What would you like to know?",
+          content: hasApiKey 
+            ? "Hello! I'm LUMARA, your personal assistant. I can help you understand your patterns, explain your current phase, and provide insights about your journey. What would you like to know?"
+            : "Hello! I'm LUMARA, your personal assistant. I'm currently running in basic mode with rule-based responses. To enable full AI-powered responses, please configure your Gemini API key using the key icon in the top bar. What would you like to know?",
         ),
       ];
       
@@ -173,24 +179,45 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
     print('LUMARA Debug: Query: "$text" -> Task: ${task.name}');
 
     try {
-      // Use enhanced LUMARA API with multi-provider support
-      print('LUMARA Debug: Using Enhanced LUMARA API for response generation');
-      
-      // Build context for enhanced API
-      final entryText = _buildEntryContext(context);
-      final phaseHint = _buildPhaseHint(context);
-      
-      // Use enhanced API for response generation
-      final response = await _enhancedApi.generatePromptedReflection(
-        entryText: entryText,
-        intent: _mapTaskToIntent(task),
-        phase: phaseHint,
-      );
+      // First try direct Gemini API if available
+      const apiKey = String.fromEnvironment('GEMINI_API_KEY');
+      if (apiKey.isNotEmpty) {
+        print('LUMARA Debug: Using direct Gemini API for response generation');
+        
+        // Build context for ArcLLM
+        final entryText = _buildEntryContext(context);
+        final phaseHint = _buildPhaseHint(context);
+        final keywords = _buildKeywordsContext(context);
 
-      print('LUMARA Debug: Enhanced API response length: ${response.length}');
-      return response;
+        // Use ArcLLM chat function with context
+        final response = await _arcLLM.chat(
+          userIntent: text,
+          entryText: entryText,
+          phaseHintJson: phaseHint,
+          lastKeywordsJson: keywords,
+        );
+
+        print('LUMARA Debug: Direct Gemini API response length: ${response.length}');
+        return response;
+      } else {
+        print('LUMARA Debug: No Gemini API key found, trying Enhanced LUMARA API');
+        
+        // Try enhanced LUMARA API with multi-provider support
+        final entryText = _buildEntryContext(context);
+        final phaseHint = _buildPhaseHint(context);
+        
+        // Use enhanced API for response generation
+        final response = await _enhancedApi.generatePromptedReflection(
+          entryText: entryText,
+          intent: _mapTaskToIntent(task),
+          phase: phaseHint,
+        );
+
+        print('LUMARA Debug: Enhanced API response length: ${response.length}');
+        return response;
+      }
     } catch (e) {
-      print('LUMARA Debug: Error with Enhanced API, falling back to rule-based: $e');
+      print('LUMARA Debug: Error with API, falling back to rule-based: $e');
 
       // Fallback to rule-based adapter
       print('LUMARA Debug: Using rule-based adapter for response generation');

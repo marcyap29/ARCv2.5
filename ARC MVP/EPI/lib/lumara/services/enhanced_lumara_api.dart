@@ -24,6 +24,12 @@ class EnhancedLumaraApi {
     _providerFactory = LLMProviderFactory(_apiConfig);
     _currentProvider = _providerFactory!.getBestProvider();
     
+    // Debug logging
+    print('LUMARA Debug: Enhanced API initialized');
+    print('LUMARA Debug: Available providers: ${_apiConfig.getAvailableProviders().length}');
+    print('LUMARA Debug: Selected provider: ${_currentProvider?.name ?? 'none'}');
+    print('LUMARA Debug: Provider type: ${_currentProvider?.runtimeType}');
+    
     _analytics.logLumaraEvent('api_initialized', data: {
       'provider': _currentProvider?.name ?? 'none',
       'availableProviders': _apiConfig.getAvailableProviders().length,
@@ -88,14 +94,29 @@ class EnhancedLumaraApi {
     String? phase,
   }) async {
     if (_currentProvider == null) {
+      print('LUMARA Debug: No LLM provider available, throwing error');
       throw StateError('No LLM provider available');
+    }
+
+    print('LUMARA Debug: Using provider: ${_currentProvider!.name}');
+    print('LUMARA Debug: Provider available: ${_currentProvider!.isAvailable()}');
+    
+    // Check if provider is available
+    final isAvailable = await _currentProvider!.isAvailable();
+    if (!isAvailable) {
+      print('LUMARA Debug: Provider ${_currentProvider!.name} is not available');
+      throw StateError('Current provider is not available');
     }
 
     // Build context for the LLM
     final context = _buildContext(entryText, intent, phase);
+    print('LUMARA Debug: Generated context: ${context.keys.join(', ')}');
     
     // Generate response using the provider
-    return await _currentProvider!.generateResponse(context);
+    print('LUMARA Debug: Calling generateResponse on ${_currentProvider!.name}');
+    final response = await _currentProvider!.generateResponse(context);
+    print('LUMARA Debug: Provider response length: ${response.length}');
+    return response;
   }
 
   /// Build context for LLM generation

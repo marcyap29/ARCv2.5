@@ -297,6 +297,21 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
             ),
             const SizedBox(height: 20),
             ...externalProviders.map((provider) => _buildApiKeyField(provider, theme)),
+            const SizedBox(height: 24),
+            // Save button for API Keys section
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: _saveApiKeys,
+                icon: const Icon(Icons.save),
+                label: const Text('Save API Keys'),
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  backgroundColor: theme.colorScheme.primary,
+                  foregroundColor: theme.colorScheme.onPrimary,
+                ),
+              ),
+            ),
           ],
         ),
       ),
@@ -559,6 +574,40 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
 
   void _updateApiKey(LLMProvider provider, String apiKey) {
     _apiConfig.updateApiKey(provider, apiKey);
+  }
+
+  Future<void> _saveApiKeys() async {
+    try {
+      // Save all API keys that have been entered
+      for (final provider in LLMProvider.values) {
+        final controller = _apiKeyControllers[provider];
+        if (controller != null && controller.text.isNotEmpty) {
+          await _apiConfig.updateApiKey(provider, controller.text.trim());
+        }
+      }
+      
+      // Show success message
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('API keys saved successfully!'),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+    } catch (e) {
+      // Show error message
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error saving API keys: $e'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    }
   }
 
   Future<void> _testConnection() async {

@@ -68,10 +68,13 @@ class LumaraAPIConfig {
   /// Load configurations from environment and storage
   Future<void> _loadConfigs() async {
     // External API providers
+    final geminiApiKey = const String.fromEnvironment('GEMINI_API_KEY');
+    print('LUMARA Debug: Loading Gemini API key from environment: ${geminiApiKey.isNotEmpty ? 'Found' : 'Not found'}');
+    
     _configs[LLMProvider.gemini] = LLMProviderConfig(
       provider: LLMProvider.gemini,
       name: 'Google Gemini',
-      apiKey: const String.fromEnvironment('GEMINI_API_KEY'),
+      apiKey: geminiApiKey,
       baseUrl: 'https://generativelanguage.googleapis.com/v1beta',
       isInternal: false,
     );
@@ -131,13 +134,17 @@ class LumaraAPIConfig {
     for (final config in _configs.values) {
       if (config.isInternal) {
         // For internal models, check if the local server is running
+        final isAvailable = await _checkInternalModelAvailability(config);
+        print('LUMARA Debug: Internal provider ${config.name}: ${isAvailable ? 'Available' : 'Not available'}');
         _configs[config.provider] = config.copyWith(
-          isAvailable: await _checkInternalModelAvailability(config),
+          isAvailable: isAvailable,
         );
       } else {
         // For external APIs, check if API key is available
+        final hasApiKey = config.apiKey?.isNotEmpty == true;
+        print('LUMARA Debug: External provider ${config.name}: ${hasApiKey ? 'API key found' : 'No API key'}');
         _configs[config.provider] = config.copyWith(
-          isAvailable: config.apiKey?.isNotEmpty == true,
+          isAvailable: hasApiKey,
         );
       }
     }
@@ -180,15 +187,6 @@ class LumaraAPIConfig {
     return available.first; // Fallback to rule-based
   }
 
-  /// Update API key for a provider
-  Future<void> updateApiKey(LLMProvider provider, String apiKey) async {
-    final config = _configs[provider];
-    if (config == null) return;
-
-    _configs[provider] = config.copyWith(apiKey: apiKey);
-    await _saveConfigs();
-  }
-
   /// Save configurations to persistent storage
   Future<void> _saveConfigs() async {
     if (_prefs == null) return;
@@ -205,6 +203,16 @@ class LumaraAPIConfig {
   String? getApiKey(LLMProvider provider) {
     final config = _configs[provider];
     return config?.apiKey;
+  }
+
+  /// Update API key for a provider
+  Future<void> updateApiKey(LLMProvider provider, String apiKey) async {
+    final config = _configs[provider];
+    if (config != null) {
+      _configs[provider] = config.copyWith(apiKey: apiKey);
+      await _saveConfigs();
+      await _detectAvailableProviders();
+    }
   }
 
   /// Check if a provider is configured and available

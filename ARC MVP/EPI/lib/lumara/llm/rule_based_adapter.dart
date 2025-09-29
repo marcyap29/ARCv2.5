@@ -168,8 +168,9 @@ ${context.summary}''',
 
 ${context.summary}''',
       ];
-      // Return the first greeting to avoid repetition
-      return greetings[0];
+      // Use a simple hash to select different responses
+      final index = userQuery.hashCode.abs() % greetings.length;
+      return greetings[index];
     }
     
     if (lowerQuery.contains('help') || lowerQuery.contains('what can you do')) {
@@ -206,8 +207,9 @@ Try asking me about your "weekly summary" or "rising patterns"!
 
 ${context.summary}''',
       ];
-      // Return the first help response to avoid repetition
-      return helpResponses[0];
+      // Use a simple hash to select different responses
+      final index = userQuery.hashCode.abs() % helpResponses.length;
+      return helpResponses[index];
     }
     
     // Motivation and encouragement responses
@@ -338,8 +340,9 @@ What aspect of your personal growth would you like to understand better? I'm rea
 ${context.summary}''',
     ];
     
-    // Return the first default response to avoid repetition
-    return defaultResponses[0];
+    // Use a simple hash to select different responses
+    final index = userQuery.hashCode.abs() % defaultResponses.length;
+    return defaultResponses[index];
   }
   
   /// Extract top keywords from journal entries
