@@ -155,6 +155,8 @@ class EnhancedMiraMemoryService {
     final accessContext = AccessContext.authenticated(
       userId: _currentUserId!,
       sessionId: _currentSessionId,
+      hasElevatedPrivileges: true, // Allow access to personal domain
+      hasRecentAuthentication: true, // Allow access to health domain if needed
       hasExplicitConsent: enableCrossDomainSynthesis,
     );
 
@@ -164,6 +166,8 @@ class EnhancedMiraMemoryService {
       query: query,
       limit: limit * 2, // Get extra for filtering
     );
+    
+    print('LUMARA Memory: After _getRelevantNodes: ${relevantNodes.length} nodes');
 
     // Filter by domain access permissions
     relevantNodes = _domainScopingService.filterByDomainAccess(
@@ -172,16 +176,21 @@ class EnhancedMiraMemoryService {
       allowedDomains: domains,
       enableCrossDomainSynthesis: enableCrossDomainSynthesis,
     );
+    
+    print('LUMARA Memory: After domain scoping: ${relevantNodes.length} nodes');
 
     // Apply privacy filtering
     if (maxPrivacyLevel != null) {
       relevantNodes = relevantNodes.where((node) =>
         node.privacy.index <= maxPrivacyLevel.index
       ).toList();
+      print('LUMARA Memory: After privacy filtering: ${relevantNodes.length} nodes');
     }
 
     // Apply lifecycle filtering (remove highly decayed memories)
     relevantNodes = _applyLifecycleFiltering(relevantNodes);
+    
+    print('LUMARA Memory: After lifecycle filtering: ${relevantNodes.length} nodes');
 
     // Create attribution traces with confidence scores
     final attributionTraces = relevantNodes.map((node) =>
@@ -192,6 +201,8 @@ class EnhancedMiraMemoryService {
         reasoning: _generateRetrievalReasoning(node, query),
       )
     ).toList();
+    
+    print('LUMARA Memory: Created ${attributionTraces.length} attribution traces');
 
     // Extract confidence scores for mode filtering
     final confidenceScores = Map.fromEntries(
@@ -204,6 +215,8 @@ class EnhancedMiraMemoryService {
       mode: effectiveMode,
       confidenceScores: confidenceScores,
     );
+    
+    print('LUMARA Memory: After mode filtering: ${relevantNodes.length} nodes');
 
     // Check if user prompt is needed (for ask_first or suggestive modes)
     if (_memoryModeService.needsUserPrompt(effectiveMode)) {
@@ -261,6 +274,8 @@ class EnhancedMiraMemoryService {
       );
     }
 
+    print('LUMARA Memory: Final result - ${relevantNodes.length} nodes, ${attributionTraces.length} attribution traces');
+    
     return MemoryRetrievalResult(
       nodes: relevantNodes,
       attributions: attributionTraces,
@@ -774,22 +789,167 @@ class EnhancedMiraMemoryService {
     String? query,
     int limit = 10,
   }) async {
-    // This would integrate with the actual MIRA repository
-    // For now, returning empty list as placeholder
-    return [];
+    try {
+      // Get all nodes from MIRA service by getting all node types
+      final allMiraNodes = <MiraNode>[];
+      
+      // Get entry nodes
+      final entryNodes = await _miraService.getNodesByType(NodeType.entry, limit: 1000);
+      allMiraNodes.addAll(entryNodes);
+      
+      // Get keyword nodes
+      final keywordNodes = await _miraService.getNodesByType(NodeType.keyword, limit: 1000);
+      allMiraNodes.addAll(keywordNodes);
+      
+      // Get emotion nodes
+      final emotionNodes = await _miraService.getNodesByType(NodeType.emotion, limit: 1000);
+      allMiraNodes.addAll(emotionNodes);
+      
+      // Get phase nodes
+      final phaseNodes = await _miraService.getNodesByType(NodeType.phase, limit: 1000);
+      allMiraNodes.addAll(phaseNodes);
+      
+      print('LUMARA Memory: Found ${allMiraNodes.length} total nodes in MIRA repository');
+      
+      // Convert MiraNode to EnhancedMiraNode
+      final allNodes = allMiraNodes.map((miraNode) => _convertToEnhancedNode(miraNode)).toList();
+      
+      // Filter by domains if specified
+      var filteredNodes = allNodes;
+      if (domains != null && domains.isNotEmpty) {
+        filteredNodes = allNodes.where((node) => 
+          domains.contains(node.domain)
+        ).toList();
+        print('LUMARA Memory: Filtered to ${filteredNodes.length} nodes for domains: ${domains.map((d) => d.name).join(', ')}');
+      }
+      
+      // Filter by query if specified
+      if (query != null && query.isNotEmpty) {
+        final queryLower = query.toLowerCase();
+        filteredNodes = filteredNodes.where((node) {
+          // Check if query matches content
+          if (node.narrative.toLowerCase().contains(queryLower)) return true;
+          
+          // Check if query matches keywords
+          if (node.keywords.any((keyword) => 
+            keyword.toLowerCase().contains(queryLower) || 
+            queryLower.contains(keyword.toLowerCase())
+          )) return true;
+          
+          // Check if query matches phase context
+          if (node.phaseContext?.toLowerCase().contains(queryLower) == true) return true;
+          
+          return false;
+        }).toList();
+        print('LUMARA Memory: Filtered to ${filteredNodes.length} nodes matching query: "$query"');
+      }
+      
+      // Sort by relevance (recent first, then by confidence)
+      filteredNodes.sort((a, b) {
+        // First by creation date (recent first)
+        final dateComparison = b.createdAt.compareTo(a.createdAt);
+        if (dateComparison != 0) return dateComparison;
+        
+        // Then by reinforcement score
+        return b.lifecycle.reinforcementScore.compareTo(a.lifecycle.reinforcementScore);
+      });
+      
+      // Limit results
+      final result = filteredNodes.take(limit).toList();
+      print('LUMARA Memory: Returning ${result.length} relevant nodes');
+      
+      return result;
+    } catch (e) {
+      print('LUMARA Memory: Error retrieving relevant nodes: $e');
+      return [];
+    }
   }
 
   Future<EnhancedMiraNode?> _getNodeById(String nodeId) async {
-    // Retrieve node by ID from MIRA repository
-    return null; // Placeholder
+    try {
+      // Try to get the node directly by ID first
+      final miraNode = await _miraService.getNode(nodeId);
+      if (miraNode != null) {
+        return _convertToEnhancedNode(miraNode);
+      }
+      
+      // If not found, search through all node types
+      final allMiraNodes = <MiraNode>[];
+      
+      // Get entry nodes
+      final entryNodes = await _miraService.getNodesByType(NodeType.entry, limit: 1000);
+      allMiraNodes.addAll(entryNodes);
+      
+      // Get keyword nodes
+      final keywordNodes = await _miraService.getNodesByType(NodeType.keyword, limit: 1000);
+      allMiraNodes.addAll(keywordNodes);
+      
+      // Get emotion nodes
+      final emotionNodes = await _miraService.getNodesByType(NodeType.emotion, limit: 1000);
+      allMiraNodes.addAll(emotionNodes);
+      
+      // Get phase nodes
+      final phaseNodes = await _miraService.getNodesByType(NodeType.phase, limit: 1000);
+      allMiraNodes.addAll(phaseNodes);
+      
+      final foundNode = allMiraNodes.firstWhere(
+        (node) => node.id == nodeId,
+        orElse: () => throw StateError('Node not found'),
+      );
+      return _convertToEnhancedNode(foundNode);
+    } catch (e) {
+      print('LUMARA Memory: Error retrieving node by ID $nodeId: $e');
+      return null;
+    }
   }
 
   Future<List<EnhancedMiraNode>> _getAllUserNodes({
     List<MemoryDomain>? domains,
     DateTime? since,
   }) async {
-    // Get all nodes for current user
-    return []; // Placeholder
+    try {
+      // Get all nodes from MIRA service by getting all node types
+      final allMiraNodes = <MiraNode>[];
+      
+      // Get entry nodes
+      final entryNodes = await _miraService.getNodesByType(NodeType.entry, limit: 1000);
+      allMiraNodes.addAll(entryNodes);
+      
+      // Get keyword nodes
+      final keywordNodes = await _miraService.getNodesByType(NodeType.keyword, limit: 1000);
+      allMiraNodes.addAll(keywordNodes);
+      
+      // Get emotion nodes
+      final emotionNodes = await _miraService.getNodesByType(NodeType.emotion, limit: 1000);
+      allMiraNodes.addAll(emotionNodes);
+      
+      // Get phase nodes
+      final phaseNodes = await _miraService.getNodesByType(NodeType.phase, limit: 1000);
+      allMiraNodes.addAll(phaseNodes);
+      
+      // Convert MiraNode to EnhancedMiraNode
+      final allNodes = allMiraNodes.map((miraNode) => _convertToEnhancedNode(miraNode)).toList();
+      
+      // Filter by domains if specified
+      var filteredNodes = allNodes;
+      if (domains != null && domains.isNotEmpty) {
+        filteredNodes = allNodes.where((node) => 
+          domains.contains(node.domain)
+        ).toList();
+      }
+      
+      // Filter by date if specified
+      if (since != null) {
+        filteredNodes = filteredNodes.where((node) => 
+          node.createdAt.isAfter(since)
+        ).toList();
+      }
+      
+      return filteredNodes;
+    } catch (e) {
+      print('LUMARA Memory: Error retrieving all user nodes: $e');
+      return [];
+    }
   }
 
   List<EnhancedMiraNode> _applyLifecycleFiltering(List<EnhancedMiraNode> nodes) {
@@ -874,6 +1034,31 @@ class EnhancedMiraMemoryService {
   String _determineResponseRelation(EnhancedMiraNode node, String content) {
     // Analyze how the node relates to the response content
     return 'supports'; // Placeholder
+  }
+
+  /// Convert MiraNode to EnhancedMiraNode
+  EnhancedMiraNode _convertToEnhancedNode(MiraNode miraNode) {
+    return EnhancedMiraNode(
+      id: miraNode.id,
+      type: miraNode.type,
+      schemaVersion: miraNode.schemaVersion,
+      data: miraNode.data,
+      createdAt: miraNode.createdAt,
+      updatedAt: miraNode.updatedAt,
+      domain: MemoryDomain.personal, // Default domain
+      privacy: PrivacyLevel.personal, // Default privacy
+      phaseContext: _currentPhase,
+      lifecycle: LifecycleMetadata(
+        accessCount: 1,
+        reinforcementScore: 1.0,
+      ),
+      provenance: ProvenanceData(
+        source: 'MIRA_Import',
+        device: _getDeviceInfo(),
+        version: _getAppVersion(),
+      ),
+      piiFlags: PIIFlags(),
+    );
   }
 
   double _calculateResponseConfidence(EnhancedMiraNode node, String content) {

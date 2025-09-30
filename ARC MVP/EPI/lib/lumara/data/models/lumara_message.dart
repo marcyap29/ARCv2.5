@@ -1,4 +1,5 @@
 import 'package:equatable/equatable.dart';
+import '../../../mira/memory/enhanced_memory_schema.dart';
 
 /// Role of a LUMARA message
 enum LumaraMessageRole {
@@ -15,6 +16,7 @@ class LumaraMessage extends Equatable {
   final DateTime timestamp;
   final List<String> sources;
   final Map<String, dynamic> metadata;
+  final List<AttributionTrace>? attributionTraces;
 
   const LumaraMessage({
     required this.id,
@@ -23,12 +25,14 @@ class LumaraMessage extends Equatable {
     required this.timestamp,
     this.sources = const [],
     this.metadata = const {},
+    this.attributionTraces,
   });
 
   factory LumaraMessage.user({
     required String content,
     List<String> sources = const [],
     Map<String, dynamic> metadata = const {},
+    List<AttributionTrace>? attributionTraces,
   }) {
     return LumaraMessage(
       id: DateTime.now().millisecondsSinceEpoch.toString(),
@@ -37,6 +41,7 @@ class LumaraMessage extends Equatable {
       timestamp: DateTime.now(),
       sources: sources,
       metadata: metadata,
+      attributionTraces: attributionTraces,
     );
   }
 
@@ -44,6 +49,7 @@ class LumaraMessage extends Equatable {
     required String content,
     List<String> sources = const [],
     Map<String, dynamic> metadata = const {},
+    List<AttributionTrace>? attributionTraces,
   }) {
     return LumaraMessage(
       id: DateTime.now().millisecondsSinceEpoch.toString(),
@@ -52,12 +58,14 @@ class LumaraMessage extends Equatable {
       timestamp: DateTime.now(),
       sources: sources,
       metadata: metadata,
+      attributionTraces: attributionTraces,
     );
   }
 
   factory LumaraMessage.system({
     required String content,
     Map<String, dynamic> metadata = const {},
+    List<AttributionTrace>? attributionTraces,
   }) {
     return LumaraMessage(
       id: DateTime.now().millisecondsSinceEpoch.toString(),
@@ -65,6 +73,7 @@ class LumaraMessage extends Equatable {
       content: content,
       timestamp: DateTime.now(),
       metadata: metadata,
+      attributionTraces: attributionTraces,
     );
   }
 
@@ -75,6 +84,7 @@ class LumaraMessage extends Equatable {
     DateTime? timestamp,
     List<String>? sources,
     Map<String, dynamic>? metadata,
+    List<AttributionTrace>? attributionTraces,
   }) {
     return LumaraMessage(
       id: id ?? this.id,
@@ -83,6 +93,7 @@ class LumaraMessage extends Equatable {
       timestamp: timestamp ?? this.timestamp,
       sources: sources ?? this.sources,
       metadata: metadata ?? this.metadata,
+      attributionTraces: attributionTraces ?? this.attributionTraces,
     );
   }
 
@@ -112,5 +123,5 @@ class LumaraMessage extends Equatable {
   }
 
   @override
-  List<Object?> get props => [id, role, content, timestamp, sources, metadata];
+  List<Object?> get props => [id, role, content, timestamp, sources, metadata, attributionTraces];
 }

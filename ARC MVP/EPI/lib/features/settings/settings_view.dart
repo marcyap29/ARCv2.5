@@ -9,6 +9,7 @@ import 'mcp_settings_view.dart';
 import 'privacy_settings_view.dart';
 import 'memory_mode_settings_view.dart';
 import 'memory_snapshot_management_view.dart';
+import 'conflict_management_view.dart';
 
 class SettingsView extends StatelessWidget {
   const SettingsView({super.key});
@@ -73,6 +74,18 @@ class SettingsView extends StatelessWidget {
                     Navigator.push(
                       context,
                       MaterialPageRoute(builder: (context) => const MemorySnapshotManagementView()),
+                    );
+                  },
+                ),
+                _buildSettingsTile(
+                  context,
+                  title: 'Memory Conflicts',
+                  subtitle: 'Resolve memory contradictions',
+                  icon: Icons.psychology,
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const ConflictManagementView()),
                     );
                   },
                 ),

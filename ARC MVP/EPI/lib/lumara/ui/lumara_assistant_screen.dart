@@ -8,6 +8,8 @@ import '../chat/ui/chats_screen.dart';
 import 'lumara_quick_palette.dart';
 import 'lumara_consent_sheet.dart';
 import 'lumara_settings_screen.dart';
+import '../widgets/attribution_display_widget.dart';
+import '../../mira/memory/enhanced_memory_schema.dart';
 
 /// Main LUMARA Assistant screen
 class LumaraAssistantScreen extends StatefulWidget {
@@ -315,6 +317,42 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
                       fontSize: 16,
                     ),
                   ),
+                  
+                  // Attribution display for assistant messages
+                  if (!isUser && message.attributionTraces != null && message.attributionTraces!.isNotEmpty) ...[
+                    const Gap(8),
+                    AttributionDisplayWidget(
+                      traces: message.attributionTraces!,
+                      responseId: message.id,
+                      onWeightChanged: (trace, newWeight) {
+                        // Handle weight change
+                        _handleAttributionWeightChange(message.id, trace, newWeight);
+                      },
+                      onExcludeMemory: (trace) {
+                        // Handle memory exclusion
+                        _handleMemoryExclusion(message.id, trace);
+                      },
+                    ),
+                  ] else if (!isUser) ...[
+                    // Debug: Show why attribution widget is not displayed
+                    const Gap(8),
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.orange.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.orange.withOpacity(0.3)),
+                      ),
+                      child: Text(
+                        'Debug: No attribution traces (${message.attributionTraces?.length ?? 0})',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.orange[700],
+                        ),
+                      ),
+                    ),
+                  ],
+                  
                   if (message.sources.isNotEmpty) ...[
                     const Gap(8),
                     Wrap(
@@ -414,13 +452,6 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
     context.read<LumaraAssistantCubit>().clearChat();
   }
 
-  void _showConsentSheet() {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      builder: (context) => const LumaraConsentSheet(),
-    );
-  }
 
   void _showQuickPalette() {
     showModalBottomSheet(
@@ -441,6 +472,20 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
         builder: (context) => const LumaraSettingsScreen(),
       ),
     );
+  }
+
+  /// Handle attribution weight changes
+  void _handleAttributionWeightChange(String messageId, AttributionTrace trace, double newWeight) {
+    // TODO: Implement weight change logic
+    // This would update the memory influence in real-time
+    print('Weight changed for memory ${trace.nodeRef}: ${(newWeight * 100).toStringAsFixed(0)}%');
+  }
+
+  /// Handle memory exclusion
+  void _handleMemoryExclusion(String messageId, AttributionTrace trace) {
+    // TODO: Implement memory exclusion logic
+    // This would exclude the memory from future responses
+    print('Memory excluded: ${trace.nodeRef}');
   }
 
 }
