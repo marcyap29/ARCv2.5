@@ -333,24 +333,6 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
                         _handleMemoryExclusion(message.id, trace);
                       },
                     ),
-                  ] else if (!isUser) ...[
-                    // Debug: Show why attribution widget is not displayed
-                    const Gap(8),
-                    Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: Colors.orange.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: Colors.orange.withOpacity(0.3)),
-                      ),
-                      child: Text(
-                        'Debug: No attribution traces (${message.attributionTraces?.length ?? 0})',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.orange[700],
-                        ),
-                      ),
-                    ),
                   ],
                   
                   if (message.sources.isNotEmpty) ...[

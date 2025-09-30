@@ -7,6 +7,8 @@ import 'cards/themes_card.dart';
 import 'cards/pairs_on_rise_card.dart';
 import 'cards/phase_drift_card.dart';
 import 'cards/precursors_card.dart';
+import 'cards/memory_dashboard_card.dart';
+import '../settings/memory_snapshot_management_view.dart';
 
 /// Insights screen showing MIRA semantic memory analysis
 class InsightsScreen extends StatefulWidget {
@@ -77,6 +79,17 @@ class _InsightsScreenState extends State<InsightsScreen> {
               const PopupMenuItem(
                 value: 'granularity_week',
                 child: Text('Weekly view'),
+              ),
+              const PopupMenuDivider(),
+              const PopupMenuItem(
+                value: 'memory_snapshots',
+                child: Row(
+                  children: [
+                    Icon(Icons.backup, size: 20),
+                    SizedBox(width: 8),
+                    Text('Memory Snapshots'),
+                  ],
+                ),
               ),
             ],
           ),
@@ -194,6 +207,9 @@ class _InsightsScreenState extends State<InsightsScreen> {
           const SizedBox(height: 16),
 
           // Insights cards
+          const MemoryDashboardCard(),
+          const SizedBox(height: 16),
+          
           const ThemesCard(),
           const SizedBox(height: 16),
 
@@ -302,6 +318,14 @@ class _InsightsScreenState extends State<InsightsScreen> {
         break;
       case 'granularity_week':
         _miraCubit.updateGranularity('week');
+        break;
+      case 'memory_snapshots':
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => const MemorySnapshotManagementView(),
+          ),
+        );
         break;
     }
   }

@@ -194,6 +194,8 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
       print('LUMARA Debug: Processing message...');
       final responseData = await _processMessageWithAttribution(text, currentState.scope);
       print('LUMARA Debug: Generated response length: ${responseData['content'].length}');
+      print('LUMARA Debug: Response data keys: ${responseData.keys.toList()}');
+      print('LUMARA Debug: Attribution traces in response: ${responseData['attributionTraces']?.length ?? 0}');
 
       // Record assistant response in MCP memory
       await _recordAssistantMessage(responseData['content']);
@@ -284,55 +286,26 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
             );
             
             print('LUMARA Debug: Retrieved ${memoryResult.nodes.length} memory nodes');
+            print('LUMARA Debug: Retrieved ${memoryResult.attributions.length} attribution traces from memory service');
+
             if (memoryResult.nodes.isEmpty) {
               print('LUMARA Debug: ⚠️ NO MEMORY NODES RETRIEVED - This is why no attribution data is generated');
             } else {
               for (final node in memoryResult.nodes) {
-                print('LUMARA Debug: Memory node - ID: ${node.id}, Content: ${node.narrative.substring(0, 50)}...');
+                print('LUMARA Debug: Memory node - ID: ${node.id}, Content: ${node.narrative.substring(0, node.narrative.length > 50 ? 50 : node.narrative.length)}...');
               }
             }
 
-            print('LUMARA Debug: Generating explainable response...');
-            final explainableResponse = await _memoryService!.generateExplainableResponse(
-              content: response,
-              referencedNodes: memoryResult.nodes,
-              responseId: responseId,
-              includeReasoningDetails: true,
-            );
-            
-            print('LUMARA Debug: Generated explainable response with attribution: ${explainableResponse.attribution}');
+            // Use attribution traces directly from memory retrieval result
+            final traces = memoryResult.attributions;
 
-            // Extract attribution traces from the attribution data
-            final traces = <AttributionTrace>[];
-            final citationBlocks = explainableResponse.attribution['citation_blocks'] as List<dynamic>?;
-            
-            print('LUMARA Debug: Attribution data: ${explainableResponse.attribution}');
-            print('LUMARA Debug: Citation blocks: $citationBlocks');
-            
-            if (citationBlocks != null) {
-              for (final block in citationBlocks) {
-                final nodes = block['nodes'] as List<dynamic>?;
-                if (nodes != null) {
-                  for (final node in nodes) {
-                    traces.add(AttributionTrace(
-                      nodeRef: node['node_ref'] as String,
-                      relation: block['relation'] as String,
-                      confidence: (node['confidence'] as num).toDouble(),
-                      timestamp: DateTime.now().toUtc(),
-                      reasoning: node['reasoning'] as String?,
-                    ));
-                  }
-                }
-              }
-            }
-
-            print('LUMARA Debug: Generated ${traces.length} attribution traces');
+            print('LUMARA Debug: Using ${traces.length} attribution traces from memory retrieval');
             for (final trace in traces) {
               print('LUMARA Debug: Trace - ${trace.nodeRef}: ${trace.relation} (${(trace.confidence * 100).toInt()}%)');
             }
 
             return {
-              'content': explainableResponse.content,
+              'content': response,
               'attributionTraces': traces,
             };
           } catch (e) {
@@ -373,59 +346,34 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
             );
             
             print('LUMARA Debug: [Enhanced API] Retrieved ${memoryResult.nodes.length} memory nodes');
+            print('LUMARA Debug: [Enhanced API] Retrieved ${memoryResult.attributions.length} attribution traces from memory service');
+
             if (memoryResult.nodes.isEmpty) {
               print('LUMARA Debug: [Enhanced API] ⚠️ NO MEMORY NODES RETRIEVED - This is why no attribution data is generated');
             } else {
               for (final node in memoryResult.nodes) {
-                print('LUMARA Debug: [Enhanced API] Memory node - ID: ${node.id}, Content: ${node.narrative.substring(0, 50)}...');
+                print('LUMARA Debug: [Enhanced API] Memory node - ID: ${node.id}, Content: ${node.narrative.substring(0, node.narrative.length > 50 ? 50 : node.narrative.length)}...');
               }
             }
 
-            print('LUMARA Debug: [Enhanced API] Generating explainable response...');
-            final explainableResponse = await _memoryService!.generateExplainableResponse(
-              content: response,
-              referencedNodes: memoryResult.nodes,
-              responseId: responseId,
-              includeReasoningDetails: true,
-            );
-            
-            print('LUMARA Debug: [Enhanced API] Generated explainable response with attribution: ${explainableResponse.attribution}');
+            // Use attribution traces directly from memory retrieval result
+            print('LUMARA Debug: [Enhanced API] About to extract attribution traces...');
+            final traces = memoryResult.attributions;
+            print('LUMARA Debug: [Enhanced API] Extracted ${traces.length} traces');
 
-            // Extract attribution traces from the attribution data
-            final traces = <AttributionTrace>[];
-            final citationBlocks = explainableResponse.attribution['citation_blocks'] as List<dynamic>?;
-            
-            print('LUMARA Debug: Attribution data: ${explainableResponse.attribution}');
-            print('LUMARA Debug: Citation blocks: $citationBlocks');
-            
-            if (citationBlocks != null) {
-              for (final block in citationBlocks) {
-                final nodes = block['nodes'] as List<dynamic>?;
-                if (nodes != null) {
-                  for (final node in nodes) {
-                    traces.add(AttributionTrace(
-                      nodeRef: node['node_ref'] as String,
-                      relation: block['relation'] as String,
-                      confidence: (node['confidence'] as num).toDouble(),
-                      timestamp: DateTime.now().toUtc(),
-                      reasoning: node['reasoning'] as String?,
-                    ));
-                  }
-                }
-              }
-            }
-
-            print('LUMARA Debug: Generated ${traces.length} attribution traces');
+            print('LUMARA Debug: [Enhanced API] Using ${traces.length} attribution traces from memory retrieval');
             for (final trace in traces) {
-              print('LUMARA Debug: Trace - ${trace.nodeRef}: ${trace.relation} (${(trace.confidence * 100).toInt()}%)');
+              print('LUMARA Debug: [Enhanced API] Trace - ${trace.nodeRef}: ${trace.relation} (${(trace.confidence * 100).toInt()}%)');
             }
 
+            print('LUMARA Debug: [Enhanced API] Returning response with ${traces.length} traces');
             return {
-              'content': explainableResponse.content,
+              'content': response,
               'attributionTraces': traces,
             };
-          } catch (e) {
-            print('LUMARA Memory: Error generating explainable response: $e');
+          } catch (e, stackTrace) {
+            print('LUMARA Memory: Error in memory attribution processing: $e');
+            print('LUMARA Memory: Stack trace: $stackTrace');
           }
         }
 

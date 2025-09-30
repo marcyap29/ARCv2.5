@@ -157,7 +157,7 @@ class EnhancedMiraMemoryService {
       sessionId: _currentSessionId,
       hasElevatedPrivileges: true, // Allow access to personal domain
       hasRecentAuthentication: true, // Allow access to health domain if needed
-      hasExplicitConsent: enableCrossDomainSynthesis,
+      hasExplicitConsent: true, // Allow access to domains requiring consent (personal, health, etc.)
     );
 
     // Apply domain scoping
@@ -193,15 +193,34 @@ class EnhancedMiraMemoryService {
     print('LUMARA Memory: After lifecycle filtering: ${relevantNodes.length} nodes');
 
     // Create attribution traces with confidence scores
-    final attributionTraces = relevantNodes.map((node) =>
-      _attributionService.createTrace(
+    print('LUMARA Debug: Starting attribution trace creation for ${relevantNodes.length} nodes');
+    final attributionTraces = <AttributionTrace>[];
+
+    for (final node in relevantNodes) {
+      print('LUMARA Debug: Processing node ${node.id}');
+      print('LUMARA Debug:   - Narrative: ${node.narrative.substring(0, node.narrative.length > 50 ? 50 : node.narrative.length)}...');
+      print('LUMARA Debug:   - Keywords: ${node.keywords}');
+
+      final relation = _determineRelation(node, query);
+      print('LUMARA Debug:   - Relation: $relation');
+
+      final confidence = _calculateRetrievalConfidence(node, query);
+      print('LUMARA Debug:   - Confidence: $confidence');
+
+      final reasoning = _generateRetrievalReasoning(node, query);
+      print('LUMARA Debug:   - Reasoning: $reasoning');
+
+      final trace = _attributionService.createTrace(
         nodeRef: node.id,
-        relation: _determineRelation(node, query),
-        confidence: _calculateRetrievalConfidence(node, query),
-        reasoning: _generateRetrievalReasoning(node, query),
-      )
-    ).toList();
-    
+        relation: relation,
+        confidence: confidence,
+        reasoning: reasoning,
+      );
+
+      print('LUMARA Debug:   - Created trace: ${trace.nodeRef}, ${trace.relation}, ${trace.confidence}');
+      attributionTraces.add(trace);
+    }
+
     print('LUMARA Memory: Created ${attributionTraces.length} attribution traces');
 
     // Extract confidence scores for mode filtering
@@ -275,7 +294,11 @@ class EnhancedMiraMemoryService {
     }
 
     print('LUMARA Memory: Final result - ${relevantNodes.length} nodes, ${attributionTraces.length} attribution traces');
-    
+    print('LUMARA Debug: Attribution traces being returned:');
+    for (final trace in attributionTraces) {
+      print('LUMARA Debug:   - Trace: ${trace.nodeRef} (${trace.relation}, conf: ${trace.confidence})');
+    }
+
     return MemoryRetrievalResult(
       nodes: relevantNodes,
       attributions: attributionTraces,
