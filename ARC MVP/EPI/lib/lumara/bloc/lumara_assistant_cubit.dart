@@ -190,35 +190,55 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
     ));
 
     try {
-      // Process the message
-      print('LUMARA Debug: Processing message...');
-      final responseData = await _processMessageWithAttribution(text, currentState.scope);
-      print('LUMARA Debug: Generated response length: ${responseData['content'].length}');
-      print('LUMARA Debug: Response data keys: ${responseData.keys.toList()}');
-      print('LUMARA Debug: Attribution traces in response: ${responseData['attributionTraces']?.length ?? 0}');
+      // Check if streaming is available (Gemini API key present)
+      const apiKey = String.fromEnvironment('GEMINI_API_KEY');
+      final useStreaming = apiKey.isNotEmpty;
 
-      // Record assistant response in MCP memory
-      await _recordAssistantMessage(responseData['content']);
-      
-      // Add assistant response to chat session
-      await _addToChatSession(responseData['content'], 'assistant');
+      if (useStreaming) {
+        print('LUMARA Debug: Processing message with streaming...');
 
-      // Add assistant response to UI with attribution traces
-      final attributionTraces = responseData['attributionTraces'] as List<AttributionTrace>?;
-      print('LUMARA Debug: Creating assistant message with ${attributionTraces?.length ?? 0} attribution traces');
-      
-      final assistantMessage = LumaraMessage.assistant(
-        content: responseData['content'],
-        attributionTraces: attributionTraces,
-      );
-      final finalMessages = [...updatedMessages, assistantMessage];
+        // Create placeholder message for streaming
+        final streamingMessage = LumaraMessage.assistant(content: '');
+        final messagesWithPlaceholder = [...updatedMessages, streamingMessage];
 
-      print('LUMARA Debug: Added assistant message, final count: ${finalMessages.length}');
+        emit(currentState.copyWith(
+          messages: messagesWithPlaceholder,
+          isProcessing: true,
+        ));
 
-      emit(currentState.copyWith(
-        messages: finalMessages,
-        isProcessing: false,
-      ));
+        // Stream the response
+        await _processMessageWithStreaming(text, currentState.scope, updatedMessages);
+      } else {
+        print('LUMARA Debug: Processing message without streaming...');
+
+        // Fall back to non-streaming approach
+        final responseData = await _processMessageWithAttribution(text, currentState.scope);
+        print('LUMARA Debug: Generated response length: ${responseData['content'].length}');
+        print('LUMARA Debug: Attribution traces in response: ${responseData['attributionTraces']?.length ?? 0}');
+
+        // Record assistant response in MCP memory
+        await _recordAssistantMessage(responseData['content']);
+
+        // Add assistant response to chat session
+        await _addToChatSession(responseData['content'], 'assistant');
+
+        // Add assistant response to UI with attribution traces
+        final attributionTraces = responseData['attributionTraces'] as List<AttributionTrace>?;
+        print('LUMARA Debug: Creating assistant message with ${attributionTraces?.length ?? 0} attribution traces');
+
+        final assistantMessage = LumaraMessage.assistant(
+          content: responseData['content'],
+          attributionTraces: attributionTraces,
+        );
+        final finalMessages = [...updatedMessages, assistantMessage];
+
+        print('LUMARA Debug: Added assistant message, final count: ${finalMessages.length}');
+
+        emit(currentState.copyWith(
+          messages: finalMessages,
+          isProcessing: false,
+        ));
+      }
     } catch (e) {
       print('LUMARA Debug: Error processing message: $e');
 
@@ -403,6 +423,154 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
     }
   }
 
+  /// Process message with streaming response
+  Future<void> _processMessageWithStreaming(
+    String text,
+    LumaraScope scope,
+    List<LumaraMessage> baseMessages,
+  ) async {
+    // Get context
+    final context = await _contextProvider.buildContext();
+
+    // Build context for streaming
+    final entryText = _buildEntryContext(context);
+    final phaseHint = _buildPhaseHint(context);
+    final keywords = _buildKeywordsContext(context);
+
+    // Build system prompt
+    final systemPrompt = _buildSystemPrompt(entryText, phaseHint, keywords);
+
+    print('LUMARA Debug: Starting streaming response...');
+
+    final fullResponse = StringBuffer();
+
+    try {
+      // Stream the response from Gemini
+      await for (final chunk in geminiSendStream(
+        system: systemPrompt,
+        user: text,
+      )) {
+        fullResponse.write(chunk);
+
+        // Update the UI with the streaming content
+        final currentMessages = state is LumaraAssistantLoaded
+            ? (state as LumaraAssistantLoaded).messages
+            : baseMessages;
+
+        if (currentMessages.isNotEmpty) {
+          final lastIndex = currentMessages.length - 1;
+          final updatedMessage = currentMessages[lastIndex].copyWith(
+            content: fullResponse.toString(),
+          );
+
+          final updatedMessages = [
+            ...currentMessages.sublist(0, lastIndex),
+            updatedMessage,
+          ];
+
+          if (state is LumaraAssistantLoaded) {
+            emit((state as LumaraAssistantLoaded).copyWith(
+              messages: updatedMessages,
+              isProcessing: true,
+            ));
+          }
+        }
+      }
+
+      print('LUMARA Debug: Streaming completed, total length: ${fullResponse.length}');
+
+      final finalContent = fullResponse.toString();
+
+      // Get attribution traces after streaming completes
+      List<AttributionTrace>? attributionTraces;
+      if (_memoryService != null) {
+        try {
+          final responseId = 'resp_${DateTime.now().millisecondsSinceEpoch}';
+          print('LUMARA Debug: Retrieving memories for attribution...');
+
+          final memoryResult = await _memoryService!.retrieveMemories(
+            query: text,
+            domains: [MemoryDomain.personal, MemoryDomain.creative, MemoryDomain.learning],
+            responseId: responseId,
+          );
+
+          attributionTraces = memoryResult.attributions;
+          print('LUMARA Debug: Retrieved ${attributionTraces.length} attribution traces');
+        } catch (e) {
+          print('LUMARA Debug: Error retrieving attribution traces: $e');
+        }
+      }
+
+      // Record assistant response in MCP memory
+      await _recordAssistantMessage(finalContent);
+
+      // Add assistant response to chat session
+      await _addToChatSession(finalContent, 'assistant');
+
+      // Update final message with attribution traces
+      if (state is LumaraAssistantLoaded) {
+        final currentMessages = (state as LumaraAssistantLoaded).messages;
+        if (currentMessages.isNotEmpty) {
+          final lastIndex = currentMessages.length - 1;
+          final finalMessage = currentMessages[lastIndex].copyWith(
+            content: finalContent,
+            attributionTraces: attributionTraces,
+          );
+
+          final finalMessages = [
+            ...currentMessages.sublist(0, lastIndex),
+            finalMessage,
+          ];
+
+          print('LUMARA Debug: Streaming complete with ${attributionTraces?.length ?? 0} attribution traces');
+
+          emit((state as LumaraAssistantLoaded).copyWith(
+            messages: finalMessages,
+            isProcessing: false,
+          ));
+        }
+      }
+    } catch (e) {
+      print('LUMARA Debug: Error during streaming: $e');
+
+      // Handle error by showing error message
+      if (state is LumaraAssistantLoaded) {
+        final currentMessages = (state as LumaraAssistantLoaded).messages;
+        final errorMessage = LumaraMessage.assistant(
+          content: "I'm sorry, I encountered an error while streaming the response. Please try again.",
+        );
+
+        final finalMessages = [...baseMessages, errorMessage];
+
+        emit((state as LumaraAssistantLoaded).copyWith(
+          messages: finalMessages,
+          isProcessing: false,
+        ));
+      }
+    }
+  }
+
+  /// Build system prompt for streaming
+  String _buildSystemPrompt(String? entryText, String? phaseHint, String? keywords) {
+    final buffer = StringBuffer();
+
+    buffer.writeln('You are LUMARA, a compassionate personal assistant for the EPI journaling app.');
+    buffer.writeln('Provide thoughtful, dignified responses that honor the user\'s experiences.');
+
+    if (phaseHint != null) {
+      buffer.writeln('\nUser\'s current phase context: $phaseHint');
+    }
+
+    if (entryText != null && entryText.isNotEmpty) {
+      buffer.writeln('\nRecent journal entries:\n$entryText');
+    }
+
+    if (keywords != null) {
+      buffer.writeln('\nRecent keywords: $keywords');
+    }
+
+    return buffer.toString();
+  }
 
   /// Map task type to LUMARA intent
   String _mapTaskToIntent(InsightKind task) {

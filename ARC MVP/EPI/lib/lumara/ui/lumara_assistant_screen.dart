@@ -430,8 +430,58 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
     context.read<LumaraAssistantCubit>().sendMessage(message);
   }
 
-  void _clearChat() {
-    context.read<LumaraAssistantCubit>().clearChat();
+  void _clearChat() async {
+    // First confirmation
+    final firstConfirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Clear Chat History?'),
+        content: const Text(
+          'This will clear all messages in the current chat. This action cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Clear'),
+          ),
+        ],
+      ),
+    );
+
+    if (firstConfirm != true) return;
+
+    // Second confirmation
+    final secondConfirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Are you absolutely sure?'),
+        content: const Text(
+          'All conversation history will be permanently deleted. This action is irreversible.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('Yes, Clear Everything'),
+          ),
+        ],
+      ),
+    );
+
+    if (secondConfirm == true) {
+      if (mounted) {
+        context.read<LumaraAssistantCubit>().clearChat();
+      }
+    }
   }
 
 

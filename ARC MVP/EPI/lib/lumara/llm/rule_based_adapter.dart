@@ -153,12 +153,15 @@ ${context.summary}''';
   /// Generate chat response
   String _generateChatResponse(String userQuery, ContextWindow context) {
     final lowerQuery = userQuery.toLowerCase().trim();
-    
+
     print('LUMARA Debug: Generating chat response for: "$lowerQuery"');
-    
+
+    // Use timestamp + query hash for better variety
+    final seed = DateTime.now().millisecondsSinceEpoch + userQuery.hashCode.abs();
+
     if (lowerQuery.contains('how are you') || lowerQuery.contains('hello') || lowerQuery.contains('hi') || lowerQuery.contains('hey')) {
       final greetings = [
-        '''Hello! I'm LUMARA, your personal assistant. I'm here to help you understand your patterns and provide insights about your journey. 
+        '''Hello! I'm LUMARA, your personal assistant. I'm here to help you understand your patterns and provide insights about your journey.
 
 ${context.summary}''',
         '''Hi there! I'm LUMARA, ready to help you explore your personal growth journey. What would you like to discover today?
@@ -168,8 +171,8 @@ ${context.summary}''',
 
 ${context.summary}''',
       ];
-      // Use a simple hash to select different responses
-      final index = userQuery.hashCode.abs() % greetings.length;
+      // Use seed for variety across repeated queries
+      final index = seed % greetings.length;
       return greetings[index];
     }
     
@@ -178,7 +181,7 @@ ${context.summary}''',
         '''I can help you with:
 
 • **Weekly Summaries** - Get insights about your recent entries
-• **Pattern Analysis** - Identify rising themes and trends  
+• **Pattern Analysis** - Identify rising themes and trends
 • **Phase Explanations** - Understand your current RIVET phase
 • **Period Comparisons** - Compare different time periods
 • **Prompt Suggestions** - Get journaling prompts for tonight
@@ -207,8 +210,8 @@ Try asking me about your "weekly summary" or "rising patterns"!
 
 ${context.summary}''',
       ];
-      // Use a simple hash to select different responses
-      final index = userQuery.hashCode.abs() % helpResponses.length;
+      // Use seed for variety across repeated queries
+      final index = seed % helpResponses.length;
       return helpResponses[index];
     }
     
@@ -294,7 +297,7 @@ ${context.summary}''';
 
 **Quick Insights**:
 • Ask "weekly summary" for recent patterns
-• Try "current phase" for RIVET analysis  
+• Try "current phase" for RIVET analysis
 • Request "rising patterns" for trend analysis
 • Get "journal prompts" for tonight
 
@@ -339,9 +342,9 @@ What aspect of your personal growth would you like to understand better? I'm rea
 
 ${context.summary}''',
     ];
-    
-    // Use a simple hash to select different responses
-    final index = userQuery.hashCode.abs() % defaultResponses.length;
+
+    // Use seed for variety across repeated queries
+    final index = seed % defaultResponses.length;
     return defaultResponses[index];
   }
   
