@@ -595,6 +595,22 @@ How do you see your growth between these different phases?
   String _generateResolutionId() {
     return 'resolution_${DateTime.now().millisecondsSinceEpoch}_${_resolutionHistory.length}';
   }
+
+  /// Clear all conflicts
+  void clearAllConflicts() {
+    _activeConflicts.clear();
+    _resolutionHistory.clear();
+  }
+
+  /// Restore conflict from backup
+  void restoreConflict(String conflictId, MemoryConflict conflict) {
+    _activeConflicts[conflictId] = conflict;
+  }
+
+  /// Restore resolution from backup
+  void restoreResolution(ConflictResolution resolution) {
+    _resolutionHistory.add(resolution);
+  }
 }
 
 /// Conflict detection rule configuration

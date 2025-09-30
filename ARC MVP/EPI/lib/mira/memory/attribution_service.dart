@@ -312,4 +312,28 @@ Timestamp: ${trace.timestamp.toLocal().toString()}
 Your memory usage is fully tracked and transparent. You can review or export this data anytime.
 ''';
   }
+
+  /// Clear all attribution traces
+  void clearAllTraces() {
+    _responseTraces.clear();
+    _nodeAttributions.clear();
+    _recentResponses.clear();
+  }
+
+  /// Restore response trace from backup
+  void restoreResponseTrace(String responseId, ResponseTrace trace) {
+    _responseTraces[responseId] = trace;
+    _recentResponses.add(responseId);
+    
+    // Maintain max history
+    while (_recentResponses.length > _maxTraceHistory) {
+      final oldest = _recentResponses.removeFirst();
+      _responseTraces.remove(oldest);
+    }
+  }
+
+  /// Restore node attributions from backup
+  void restoreNodeAttributions(String nodeRef, List<AttributionTrace> traces) {
+    _nodeAttributions[nodeRef] = traces;
+  }
 }

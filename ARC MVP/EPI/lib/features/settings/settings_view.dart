@@ -8,6 +8,7 @@ import 'coach_mode_settings_section.dart';
 import 'mcp_settings_view.dart';
 import 'privacy_settings_view.dart';
 import 'memory_mode_settings_view.dart';
+import 'memory_snapshot_management_view.dart';
 
 class SettingsView extends StatelessWidget {
   const SettingsView({super.key});
@@ -60,6 +61,18 @@ class SettingsView extends StatelessWidget {
                     Navigator.push(
                       context,
                       MaterialPageRoute(builder: (context) => const MemoryModeSettingsView()),
+                    );
+                  },
+                ),
+                _buildSettingsTile(
+                  context,
+                  title: 'Memory Snapshots',
+                  subtitle: 'Backup and restore your memories',
+                  icon: Icons.backup,
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const MemorySnapshotManagementView()),
                     );
                   },
                 ),

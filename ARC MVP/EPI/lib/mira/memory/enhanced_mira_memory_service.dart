@@ -3,6 +3,7 @@
 // Provides sovereign, explainable, phase-aware memory with dignity and transparency
 
 import 'dart:convert';
+import 'package:hive/hive.dart';
 import '../core/schema.dart';
 import '../core/mira_repo.dart';
 import '../mira_service.dart';
@@ -488,7 +489,285 @@ class EnhancedMiraMemoryService {
     }
   }
 
+  /// Store a memory snapshot for future rollback
+  Future<String> storeMemorySnapshot({
+    required String name,
+    String? description,
+    List<MemoryDomain>? domains,
+    DateTime? since,
+    bool includeAttributions = true,
+    bool includeConflicts = true,
+  }) async {
+    if (_currentUserId == null) {
+      throw Exception('Service not initialized - no user context');
+    }
+
+    final snapshot = await createMemorySnapshot(
+      domains: domains,
+      since: since,
+      includeAttributions: includeAttributions,
+      includeConflicts: includeConflicts,
+    );
+
+    final snapshotId = _generateBundleId();
+    final snapshotData = {
+      'id': snapshotId,
+      'name': name,
+      'description': description,
+      'created_at': DateTime.now().toUtc().toIso8601String(),
+      'user_id': _currentUserId!,
+      'snapshot': snapshot.toJson(true), // Include private data for rollback
+    };
+
+    // Store in Hive box
+    final box = await Hive.openBox('memory_snapshots');
+    await box.put(snapshotId, snapshotData);
+    await box.close();
+
+    print('MemoryModeService: Stored snapshot "$name" with ID $snapshotId');
+    return snapshotId;
+  }
+
+  /// Get list of available snapshots
+  Future<List<Map<String, dynamic>>> getAvailableSnapshots() async {
+    if (_currentUserId == null) {
+      throw Exception('Service not initialized - no user context');
+    }
+
+    final box = await Hive.openBox('memory_snapshots');
+    final snapshots = <Map<String, dynamic>>[];
+
+    for (final key in box.keys) {
+      final snapshotData = box.get(key) as Map<String, dynamic>?;
+      if (snapshotData != null && snapshotData['user_id'] == _currentUserId) {
+        snapshots.add({
+          'id': snapshotData['id'],
+          'name': snapshotData['name'],
+          'description': snapshotData['description'],
+          'created_at': snapshotData['created_at'],
+          'node_count': (snapshotData['snapshot'] as Map)['nodes']?.length ?? 0,
+        });
+      }
+    }
+
+    await box.close();
+    
+    // Sort by creation date (newest first)
+    snapshots.sort((a, b) => 
+      DateTime.parse(b['created_at']).compareTo(DateTime.parse(a['created_at'])));
+    
+    return snapshots;
+  }
+
+  /// Rollback to a specific memory snapshot
+  Future<bool> rollbackToSnapshot(String snapshotId) async {
+    if (_currentUserId == null) {
+      throw Exception('Service not initialized - no user context');
+    }
+
+    final box = await Hive.openBox('memory_snapshots');
+    final snapshotData = box.get(snapshotId) as Map<String, dynamic>?;
+    
+    if (snapshotData == null) {
+      await box.close();
+      throw Exception('Snapshot not found: $snapshotId');
+    }
+
+    if (snapshotData['user_id'] != _currentUserId) {
+      await box.close();
+      throw Exception('Snapshot does not belong to current user');
+    }
+
+    try {
+      // Parse the snapshot
+      final snapshotJson = snapshotData['snapshot'] as Map<String, dynamic>;
+      final snapshot = MemorySnapshot.fromJson(snapshotJson);
+
+      // Clear current memory data
+      await _clearCurrentMemoryData();
+
+      // Restore nodes from snapshot
+      await _restoreNodesFromSnapshot(snapshot);
+
+      // Restore attribution data if available
+      if (snapshot.attributionData != null) {
+        await _restoreAttributionData(snapshot.attributionData!);
+      }
+
+      // Restore conflict data if available
+      if (snapshot.conflictData != null) {
+        await _restoreConflictData(snapshot.conflictData!);
+      }
+
+      print('MemoryModeService: Successfully rolled back to snapshot "${snapshotData['name']}"');
+      await box.close();
+      return true;
+    } catch (e) {
+      print('MemoryModeService: Failed to rollback to snapshot: $e');
+      await box.close();
+      return false;
+    }
+  }
+
+  /// Delete a memory snapshot
+  Future<bool> deleteSnapshot(String snapshotId) async {
+    if (_currentUserId == null) {
+      throw Exception('Service not initialized - no user context');
+    }
+
+    final box = await Hive.openBox('memory_snapshots');
+    final snapshotData = box.get(snapshotId) as Map<String, dynamic>?;
+    
+    if (snapshotData == null) {
+      await box.close();
+      return false;
+    }
+
+    if (snapshotData['user_id'] != _currentUserId) {
+      await box.close();
+      throw Exception('Snapshot does not belong to current user');
+    }
+
+    await box.delete(snapshotId);
+    await box.close();
+    
+    print('MemoryModeService: Deleted snapshot "${snapshotData['name']}"');
+    return true;
+  }
+
+  /// Compare two snapshots
+  Future<Map<String, dynamic>> compareSnapshots(String snapshotId1, String snapshotId2) async {
+    final box = await Hive.openBox('memory_snapshots');
+    
+    final snapshot1Data = box.get(snapshotId1) as Map<String, dynamic>?;
+    final snapshot2Data = box.get(snapshotId2) as Map<String, dynamic>?;
+    
+    if (snapshot1Data == null || snapshot2Data == null) {
+      await box.close();
+      throw Exception('One or both snapshots not found');
+    }
+
+    if (snapshot1Data['user_id'] != _currentUserId || snapshot2Data['user_id'] != _currentUserId) {
+      await box.close();
+      throw Exception('One or both snapshots do not belong to current user');
+    }
+
+    final snapshot1 = MemorySnapshot.fromJson(snapshot1Data['snapshot']);
+    final snapshot2 = MemorySnapshot.fromJson(snapshot2Data['snapshot']);
+
+    await box.close();
+
+    return {
+      'snapshot1': {
+        'id': snapshotId1,
+        'name': snapshot1Data['name'],
+        'created_at': snapshot1Data['created_at'],
+        'node_count': snapshot1.nodes.length,
+        'domains': snapshot1.manifest.domains,
+      },
+      'snapshot2': {
+        'id': snapshotId2,
+        'name': snapshot2Data['name'],
+        'created_at': snapshot2Data['created_at'],
+        'node_count': snapshot2.nodes.length,
+        'domains': snapshot2.manifest.domains,
+      },
+      'differences': {
+        'node_count_difference': snapshot2.nodes.length - snapshot1.nodes.length,
+        'time_difference': DateTime.parse(snapshot2Data['created_at'])
+            .difference(DateTime.parse(snapshot1Data['created_at']))
+            .inDays,
+        'common_nodes': _findCommonNodes(snapshot1.nodes, snapshot2.nodes),
+        'unique_to_snapshot1': _findUniqueNodes(snapshot1.nodes, snapshot2.nodes),
+        'unique_to_snapshot2': _findUniqueNodes(snapshot2.nodes, snapshot1.nodes),
+      },
+    };
+  }
+
   // Private helper methods
+
+  /// Clear current memory data before rollback
+  Future<void> _clearCurrentMemoryData() async {
+    // Clear all memory nodes
+    final box = await Hive.openBox('enhanced_memory_nodes');
+    await box.clear();
+    await box.close();
+
+    // Clear attribution data
+    _attributionService.clearAllTraces();
+
+    // Clear conflict data
+    _conflictService.clearAllConflicts();
+  }
+
+  /// Restore nodes from snapshot
+  Future<void> _restoreNodesFromSnapshot(MemorySnapshot snapshot) async {
+    final box = await Hive.openBox('enhanced_memory_nodes');
+    
+    for (final node in snapshot.nodes) {
+      await box.put(node.id, node.toJson());
+    }
+    
+    await box.close();
+  }
+
+  /// Restore attribution data from snapshot
+  Future<void> _restoreAttributionData(Map<String, dynamic> attributionData) async {
+    // Restore response traces
+    final responseTraces = attributionData['response_traces'] as Map<String, dynamic>?;
+    if (responseTraces != null) {
+      for (final entry in responseTraces.entries) {
+        final traceData = entry.value as Map<String, dynamic>;
+        final responseTrace = ResponseTrace.fromJson(traceData);
+        _attributionService.restoreResponseTrace(entry.key, responseTrace);
+      }
+    }
+
+    // Restore node attributions
+    final nodeAttributions = attributionData['node_attributions'] as Map<String, dynamic>?;
+    if (nodeAttributions != null) {
+      for (final entry in nodeAttributions.entries) {
+        final tracesData = entry.value as List<dynamic>;
+        final traces = tracesData.map((t) => AttributionTrace.fromJson(t)).toList();
+        _attributionService.restoreNodeAttributions(entry.key, traces);
+      }
+    }
+  }
+
+  /// Restore conflict data from snapshot
+  Future<void> _restoreConflictData(Map<String, dynamic> conflictData) async {
+    // Restore active conflicts
+    final activeConflicts = conflictData['active_conflicts'] as Map<String, dynamic>?;
+    if (activeConflicts != null) {
+      for (final entry in activeConflicts.entries) {
+        final conflict = MemoryConflict.fromJson(entry.value);
+        _conflictService.restoreConflict(entry.key, conflict);
+      }
+    }
+
+    // Restore resolution history
+    final resolutionHistory = conflictData['resolution_history'] as List<dynamic>?;
+    if (resolutionHistory != null) {
+      for (final resolutionData in resolutionHistory) {
+        final resolution = ConflictResolution.fromJson(resolutionData);
+        _conflictService.restoreResolution(resolution);
+      }
+    }
+  }
+
+  /// Find common nodes between two snapshots
+  List<String> _findCommonNodes(List<EnhancedMiraNode> nodes1, List<EnhancedMiraNode> nodes2) {
+    final ids1 = nodes1.map((n) => n.id).toSet();
+    final ids2 = nodes2.map((n) => n.id).toSet();
+    return ids1.intersection(ids2).toList();
+  }
+
+  /// Find unique nodes in first snapshot compared to second
+  List<String> _findUniqueNodes(List<EnhancedMiraNode> nodes1, List<EnhancedMiraNode> nodes2) {
+    final ids1 = nodes1.map((n) => n.id).toSet();
+    final ids2 = nodes2.map((n) => n.id).toSet();
+    return ids1.difference(ids2).toList();
+  }
 
   Future<List<EnhancedMiraNode>> _getRelevantNodes({
     List<MemoryDomain>? domains,
@@ -921,6 +1200,19 @@ class MemoryBundleManifest {
     'privacy_levels': privacyLevels,
     'schema_version': 'mcp_manifest.v1',
   };
+
+  factory MemoryBundleManifest.fromJson(Map<String, dynamic> json) {
+    return MemoryBundleManifest(
+      bundleId: json['bundle_id'],
+      version: json['version'],
+      createdAt: DateTime.parse(json['created_at']),
+      userId: json['user_id'],
+      storageProfile: json['storage_profile'],
+      counts: Map<String, int>.from(json['counts'] ?? {}),
+      domains: json['domains'] != null ? List<String>.from(json['domains']) : null,
+      privacyLevels: List<String>.from(json['privacy_levels'] ?? []),
+    );
+  }
 }
 
 /// Memory snapshot for audit and backup
@@ -997,6 +1289,19 @@ class MemorySnapshot {
     }
 
     return buffer.toString();
+  }
+
+  factory MemorySnapshot.fromJson(Map<String, dynamic> json) {
+    return MemorySnapshot(
+      manifest: MemoryBundleManifest.fromJson(json['manifest']),
+      nodes: (json['nodes'] as List<dynamic>)
+          .map((n) => EnhancedMiraNode.fromJson(n))
+          .toList(),
+      attributionData: json['attribution_data'] as Map<String, dynamic>?,
+      conflictData: json['conflict_data'] as Map<String, dynamic>?,
+      lifecycleStats: Map<String, dynamic>.from(json['lifecycle_stats'] ?? {}),
+      domainStats: Map<String, dynamic>.from(json['domain_stats'] ?? {}),
+    );
   }
 }
 
