@@ -10,6 +10,29 @@ The enhanced MIRA memory system has been **fully implemented and integrated** wi
 
 ## What's Been Completed ✅
 
+### Latest: Hybrid Memory Modes System ✅ **COMPLETE**
+- **Memory Mode Service** (`/lib/mira/memory/memory_mode_service.dart`)
+  - 7 memory modes: alwaysOn, suggestive, askFirst, highConfidenceOnly, soft, hard, disabled
+  - Priority resolution: Session > Domain > Global
+  - Hive persistence with configuration management
+  - Comprehensive validation and error handling
+
+- **Memory Mode Settings UI** (`/lib/features/settings/memory_mode_settings_view.dart`)
+  - Interactive settings interface with real-time sliders
+  - Domain-specific mode configuration
+  - Decay and reinforcement adjustment controls
+  - Reset to defaults functionality
+
+- **Memory Prompt Dialog** (`/lib/lumara/widgets/memory_prompt_dialog.dart`)
+  - Interactive memory recall prompts
+  - User-friendly memory selection interface
+  - Integration with memory mode system
+
+- **Enhanced Integration**
+  - Full integration with EnhancedMiraMemoryService
+  - Settings accessible via main Settings → Memory Modes
+  - 28+ unit tests with comprehensive coverage
+
 ### Core Implementation Files
 - **Enhanced Memory Schema** (`/lib/mira/memory/enhanced_memory_schema.dart`)
   - SAGE structure (Situation, Action, Growth, Essence)

@@ -130,6 +130,39 @@ class LifecycleManagementService {
     _phaseDecayMultipliers['Breakthrough'] = 0.9; // 10% slower decay
   }
 
+  /// Get decay strategy for a specific domain
+  DecayStrategy getDecayStrategy(MemoryDomain domain) {
+    return _decayStrategies[domain] ?? _decayStrategies[MemoryDomain.personal]!;
+  }
+
+  /// Update decay rate for a specific domain
+  void updateDecayRate(MemoryDomain domain, double newDecayRate) {
+    final currentStrategy = _decayStrategies[domain];
+    if (currentStrategy != null) {
+      _decayStrategies[domain] = DecayStrategy(
+        baseDecayRate: newDecayRate,
+        reinforcementSensitivity: currentStrategy.reinforcementSensitivity,
+        minRetentionScore: currentStrategy.minRetentionScore,
+        maxAge: currentStrategy.maxAge,
+        decayFunction: currentStrategy.decayFunction,
+      );
+    }
+  }
+
+  /// Update reinforcement sensitivity for a specific domain
+  void updateReinforcementSensitivity(MemoryDomain domain, double newSensitivity) {
+    final currentStrategy = _decayStrategies[domain];
+    if (currentStrategy != null) {
+      _decayStrategies[domain] = DecayStrategy(
+        baseDecayRate: currentStrategy.baseDecayRate,
+        reinforcementSensitivity: newSensitivity,
+        minRetentionScore: currentStrategy.minRetentionScore,
+        maxAge: currentStrategy.maxAge,
+        decayFunction: currentStrategy.decayFunction,
+      );
+    }
+  }
+
   /// Calculate decay score for a memory node
   double calculateDecayScore({
     required EnhancedMiraNode node,

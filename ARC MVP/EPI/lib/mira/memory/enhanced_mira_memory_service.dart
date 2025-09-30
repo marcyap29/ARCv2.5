@@ -11,6 +11,7 @@ import 'attribution_service.dart';
 import 'domain_scoping_service.dart';
 import 'lifecycle_management_service.dart';
 import 'conflict_resolution_service.dart';
+import 'memory_mode_service.dart';
 
 /// Enhanced MIRA memory service with full EPI narrative infrastructure
 class EnhancedMiraMemoryService {
@@ -19,6 +20,7 @@ class EnhancedMiraMemoryService {
   final DomainScopingService _domainScopingService;
   final LifecycleManagementService _lifecycleService;
   final ConflictResolutionService _conflictService;
+  final MemoryModeService _memoryModeService;
 
   // Memory bundles for MCP compliance
   final Map<String, MemoryBundle> _bundles = {};
@@ -30,11 +32,13 @@ class EnhancedMiraMemoryService {
 
   EnhancedMiraMemoryService({
     required MiraService miraService,
+    MemoryModeService? memoryModeService,
   }) : _miraService = miraService,
        _attributionService = AttributionService(),
        _domainScopingService = DomainScopingService(),
        _lifecycleService = LifecycleManagementService(),
-       _conflictService = ConflictResolutionService();
+       _conflictService = ConflictResolutionService(),
+       _memoryModeService = memoryModeService ?? MemoryModeService();
 
   /// Initialize the enhanced memory service
   Future<void> initialize({
@@ -52,6 +56,9 @@ class EnhancedMiraMemoryService {
     } catch (e) {
       // Service may already be initialized
     }
+
+    // Initialize memory mode service
+    await _memoryModeService.initialize();
   }
 
   /// Store memory with full EPI features
@@ -118,9 +125,30 @@ class EnhancedMiraMemoryService {
     int limit = 10,
     bool enableCrossDomainSynthesis = false,
     String? responseId,
+    MemoryMode? overrideMode,
   }) async {
     if (_currentUserId == null) {
       throw Exception('Service not initialized - no user context');
+    }
+
+    // Get effective memory mode
+    final effectiveMode = overrideMode ?? _memoryModeService.getEffectiveMode(
+      domain: domains?.firstOrNull,
+      sessionId: _currentSessionId,
+    );
+
+    // Check if memories should be retrieved at all
+    if (!_memoryModeService.shouldRetrieveMemories(effectiveMode)) {
+      return MemoryRetrievalResult(
+        nodes: [],
+        attributions: [],
+        totalFound: 0,
+        domainsAccessed: [],
+        privacyLevelsAccessed: [],
+        crossDomainSynthesisUsed: false,
+        memoryMode: effectiveMode,
+        requiresUserPrompt: false,
+      );
     }
 
     final accessContext = AccessContext.authenticated(
@@ -154,12 +182,7 @@ class EnhancedMiraMemoryService {
     // Apply lifecycle filtering (remove highly decayed memories)
     relevantNodes = _applyLifecycleFiltering(relevantNodes);
 
-    // Limit results
-    if (relevantNodes.length > limit) {
-      relevantNodes = relevantNodes.take(limit).toList();
-    }
-
-    // Create attribution traces for this retrieval
+    // Create attribution traces with confidence scores
     final attributionTraces = relevantNodes.map((node) =>
       _attributionService.createTrace(
         nodeRef: node.id,
@@ -168,6 +191,47 @@ class EnhancedMiraMemoryService {
         reasoning: _generateRetrievalReasoning(node, query),
       )
     ).toList();
+
+    // Extract confidence scores for mode filtering
+    final confidenceScores = Map.fromEntries(
+      attributionTraces.map((t) => MapEntry(t.nodeRef, t.confidence))
+    );
+
+    // Apply mode-specific filtering
+    relevantNodes = _memoryModeService.applyModeFilter(
+      memories: relevantNodes,
+      mode: effectiveMode,
+      confidenceScores: confidenceScores,
+    );
+
+    // Check if user prompt is needed (for ask_first or suggestive modes)
+    if (_memoryModeService.needsUserPrompt(effectiveMode)) {
+      // Return with prompt requirement
+      return MemoryRetrievalResult(
+        nodes: relevantNodes.take(limit).toList(),
+        attributions: attributionTraces,
+        totalFound: relevantNodes.length,
+        domainsAccessed: relevantNodes.map((n) => n.domain).toSet().toList(),
+        privacyLevelsAccessed: relevantNodes.map((n) => n.privacy).toSet().toList(),
+        crossDomainSynthesisUsed: enableCrossDomainSynthesis,
+        memoryMode: effectiveMode,
+        requiresUserPrompt: true,
+        promptText: effectiveMode == MemoryMode.askFirst
+            ? _memoryModeService.getAskFirstPrompt(
+                memoryCount: relevantNodes.length,
+                domain: domains?.first ?? MemoryDomain.personal,
+              )
+            : _memoryModeService.getSuggestionText(
+                memories: relevantNodes.take(3).toList(),
+                domain: domains?.first ?? MemoryDomain.personal,
+              ),
+      );
+    }
+
+    // Limit results
+    if (relevantNodes.length > limit) {
+      relevantNodes = relevantNodes.take(limit).toList();
+    }
 
     // Record memory usage if response ID provided
     if (responseId != null) {
@@ -203,8 +267,13 @@ class EnhancedMiraMemoryService {
       domainsAccessed: relevantNodes.map((n) => n.domain).toSet().toList(),
       privacyLevelsAccessed: relevantNodes.map((n) => n.privacy).toSet().toList(),
       crossDomainSynthesisUsed: enableCrossDomainSynthesis,
+      memoryMode: effectiveMode,
+      requiresUserPrompt: false,
     );
   }
+
+  /// Get memory mode service for configuration
+  MemoryModeService get memoryModeService => _memoryModeService;
 
   /// Generate explainable response with full attribution
   Future<ExplainableResponse> generateExplainableResponse({
@@ -711,6 +780,9 @@ class MemoryRetrievalResult {
   final List<MemoryDomain> domainsAccessed;
   final List<PrivacyLevel> privacyLevelsAccessed;
   final bool crossDomainSynthesisUsed;
+  final MemoryMode memoryMode;
+  final bool requiresUserPrompt;
+  final String? promptText;
 
   const MemoryRetrievalResult({
     required this.nodes,
@@ -719,6 +791,9 @@ class MemoryRetrievalResult {
     required this.domainsAccessed,
     required this.privacyLevelsAccessed,
     required this.crossDomainSynthesisUsed,
+    required this.memoryMode,
+    required this.requiresUserPrompt,
+    this.promptText,
   });
 }
 

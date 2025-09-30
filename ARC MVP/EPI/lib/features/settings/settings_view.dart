@@ -7,6 +7,7 @@ import 'first_responder_settings_section.dart';
 import 'coach_mode_settings_section.dart';
 import 'mcp_settings_view.dart';
 import 'privacy_settings_view.dart';
+import 'memory_mode_settings_view.dart';
 
 class SettingsView extends StatelessWidget {
   const SettingsView({super.key});
@@ -47,6 +48,18 @@ class SettingsView extends StatelessWidget {
                     Navigator.push(
                       context,
                       MaterialPageRoute(builder: (context) => const PrivacySettingsView()),
+                    );
+                  },
+                ),
+                _buildSettingsTile(
+                  context,
+                  title: 'Memory Modes',
+                  subtitle: 'Control how LUMARA uses your memories',
+                  icon: Icons.memory,
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const MemoryModeSettingsView()),
                     );
                   },
                 ),
