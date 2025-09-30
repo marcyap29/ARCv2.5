@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'model_adapter.dart';
 import 'lumara_native.dart';
 import '../../core/app_flags.dart';
@@ -9,18 +10,36 @@ class QwenAdapter implements ModelAdapter {
   static bool _isInitialized = false;
   static QwenModel? _loadedModel;
   static DeviceCapabilities? _deviceCaps;
+  static bool _available = false;
+  static String _reason = 'uninitialized';
   
   /// Initialize the Qwen chat adapter
   static Future<bool> initialize() async {
     try {
-      print('QwenAdapter: Starting initialization...');
+      debugPrint('[QwenAdapter] Starting initialization...');
+      
+      // Ensure native bridge is initialized first
+      try {
+        await LumaraNative.ensureInitialized();
+        debugPrint('[QwenAdapter] Native bridge connection verified');
+      } catch (e) {
+        _reason = 'plugin_not_registered: $e';
+        _available = false;
+        debugPrint('[QwenAdapter] ensureInitialized failed -> plugin not registered: $e');
+        _isInitialized = false;
+        return false;
+      }
+      
+      // Run self-test to get diagnostics
+      final diag = await LumaraNative.selfTest();
+      debugPrint('[QwenAdapter] selfTest diag: $diag');
       
       // Try to get device capabilities, but handle missing native bridge gracefully
       try {
         _deviceCaps = await LumaraNative.getDeviceCapabilities();
-        print('QwenAdapter: Got device capabilities from native bridge');
+        debugPrint('[QwenAdapter] Got device capabilities from native bridge');
       } catch (e) {
-        print('QwenAdapter: Native bridge not available, using fallback device capabilities - $e');
+        debugPrint('[QwenAdapter] Native bridge not available, using fallback device capabilities - $e');
         // Create fallback device capabilities
         _deviceCaps = const DeviceCapabilities(
           totalRamMB: 4096, // 4GB in MB
@@ -34,74 +53,30 @@ class QwenAdapter implements ModelAdapter {
       final recommendedModel = _deviceCaps!.recommendedChatModel;
       final modelConfig = modelConfigs[recommendedModel]!;
       
-      print('QwenAdapter: Initializing ${modelConfig.displayName}');
-      print('  Device RAM: ${_deviceCaps!.totalRamGB.toStringAsFixed(1)}GB');
-      print('  Model size: ${modelConfig.estimatedSizeMB}MB');
+      debugPrint('[QwenAdapter] Initializing ${modelConfig.displayName}');
+      debugPrint('[QwenAdapter] Device RAM: ${_deviceCaps!.totalRamGB.toStringAsFixed(1)}GB');
+      debugPrint('[QwenAdapter] Model size: ${modelConfig.estimatedSizeMB}MB');
       
       // Check if actual model files exist
       final modelPath = 'assets/models/qwen/${modelConfig.filename}';
-      print('QwenAdapter: Checking for model file at: $modelPath');
+      debugPrint('[QwenAdapter] Model path: $modelPath');
       
-      // For now, we'll assume the model files exist since they were downloaded
-      // In a real implementation, you'd check file existence here
-      print('QwenAdapter: Model files found, initializing Qwen adapter');
+      // Try to initialize the native Qwen model using new initModel method
+      final ok = await LumaraNative.initModel(modelPath);
+      _isInitialized = ok;
+      _loadedModel = ok ? recommendedModel : null;
+      _available = ok;
+      _reason = ok ? 'ok' : 'init_failed';
       
-      // Try to initialize the native Qwen model
-      try {
-        print('QwenAdapter: Attempting to initialize native Qwen model...');
-        final modelPath = 'assets/models/qwen/${modelConfig.filename}';
-        print('QwenAdapter: Model path: $modelPath');
-        print('QwenAdapter: Creating GenParams with temp=0.7, topP=0.9, maxTokens=512');
-        
-        final success = await LumaraNative.initChatModel(
-          modelPath: modelPath,
-          params: const GenParams(
-            temperature: 0.7,
-            topP: 0.9,
-            maxTokens: 512,
-          ),
-        );
-        
-        print('QwenAdapter: LumaraNative.initChatModel returned: $success');
-        
-        if (success) {
-          print('QwenAdapter: Successfully initialized native Qwen model');
-          _loadedModel = recommendedModel;
-          _isInitialized = true;
-          
-          // Test the native bridge immediately after initialization
-          try {
-            print('QwenAdapter: Testing native bridge with simple call...');
-            final testResponse = await LumaraNative.qwenText("Hello");
-            print('QwenAdapter: Native bridge test response: "$testResponse"');
-            print('QwenAdapter: Native bridge is fully functional');
-          } catch (testError) {
-            print('QwenAdapter: WARNING - Native bridge test failed: $testError');
-            print('QwenAdapter: Model may have loaded but inference calls will fail');
-          }
-          
-          return true;
-        } else {
-          print('QwenAdapter: Native model initialization failed, using fallback mode');
-        }
-      } catch (e) {
-        print('QwenAdapter: Native model initialization error: $e');
-        print('QwenAdapter: Exception type: ${e.runtimeType}');
-        
-        if (e.toString().contains('MissingPluginException')) {
-          print('QwenAdapter: DETECTED: Native plugin not found during initialization');
-          print('QwenAdapter: This suggests the iOS/Android native code is not properly integrated');
-        } else if (e.toString().contains('PlatformException')) {
-          print('QwenAdapter: DETECTED: Platform exception during initialization');
-        }
+      debugPrint('[QwenAdapter] initModel -> $_available ($_reason)');
+      
+      if (ok) {
+        debugPrint('[QwenAdapter] Successfully initialized native Qwen model');
+        return true;
+      } else {
+        debugPrint('[QwenAdapter] Model initialization failed');
+        return false;
       }
-      
-      // Fallback to enhanced mode if native initialization fails
-      print('QwenAdapter: Using enhanced fallback mode (native bridge not available)');
-      _loadedModel = recommendedModel;
-      _isInitialized = true;
-      print('QwenAdapter: Successfully initialized with ${_loadedModel?.name} (fallback mode)');
-      return true;
       
     } catch (e) {
       print('QwenAdapter: Initialization error - $e');
@@ -112,9 +87,15 @@ class QwenAdapter implements ModelAdapter {
   /// Check if adapter is ready
   static bool get isReady {
     final ready = _isInitialized && _loadedModel != null;
-    print('QwenAdapter: isReady check - _isInitialized: $_isInitialized, _loadedModel: $_loadedModel, result: $ready');
+    debugPrint('[QwenAdapter] isReady check - _isInitialized: $_isInitialized, _loadedModel: $_loadedModel, result: $ready');
     return ready;
   }
+
+  /// Check if adapter is available
+  static bool get isAvailable => _available;
+  
+  /// Get reason for availability status
+  static String get reason => _reason;
   
   /// Get loaded model information
   static QwenModel? get loadedModel => _loadedModel;

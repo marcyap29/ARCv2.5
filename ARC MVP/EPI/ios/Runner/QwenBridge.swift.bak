@@ -1,17 +1,14 @@
 import Foundation
 import Flutter
 import UIKit
-import llama
 
-// Modern llama.cpp API integration
-// Updated to use the current llama.cpp API (v2.x)
+// Include the C++ wrapper header
+// The actual C++ functions are implemented in llama_wrapper.cpp
 
-// Global variables for llama.cpp state
-private var llamaModel: OpaquePointer?
-private var llamaContext: OpaquePointer?
-private var llamaSampler: UnsafeMutablePointer<llama_sampler>?
+// Stub implementation for Qwen models until llama.cpp integration is complete
+// This maintains the API structure while providing development functionality
 
-@objc public class QwenBridge: NSObject, FlutterPlugin {
+@objc class QwenBridge: NSObject, FlutterPlugin {
     // Model state tracking
     private var chatModelLoaded = false
     private var visionModelLoaded = false
@@ -24,15 +21,10 @@ private var llamaSampler: UnsafeMutablePointer<llama_sampler>?
     private var maxTokens: Int = 256
     
     // Required FlutterPlugin method
-    public static func register(with registrar: FlutterPluginRegistrar) {
-        let method = FlutterMethodChannel(name: "lumara_llm", binaryMessenger: registrar.messenger())
+    static func register(with registrar: FlutterPluginRegistrar) {
+        let channel = FlutterMethodChannel(name: "lumara_native", binaryMessenger: registrar.messenger())
         let instance = QwenBridge()
-        registrar.addMethodCallDelegate(instance, channel: method)
-
-        let events = FlutterEventChannel(name: "lumara_llm/events", binaryMessenger: registrar.messenger())
-        events.setStreamHandler(TokenStream.shared)
-
-        NSLog("[QwenBridge] register() called ✅")
+        registrar.addMethodCallDelegate(instance, channel: channel)
     }
     
     // Custom register method for direct use
@@ -42,86 +34,8 @@ private var llamaSampler: UnsafeMutablePointer<llama_sampler>?
         channel.setMethodCallHandler(instance.handle)
     }
     
-    public func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
+    func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
         switch call.method {
-        // Test method
-        case "ping":
-            NSLog("[QwenBridge] ping")
-            result("pong")
-            
-        case "selfTest":
-            let diag: [String: Any] = [
-                "registered": true,
-                "thread": Thread.isMainThread ? "main" : "background",
-                "canStream": TokenStream.shared.isReady,
-                "metalAvailable": QwenDiag.metalAvailable(),
-                "llamaLinked": QwenDiag.llamaLinked(),
-                "buildMode": QwenDiag.buildMode()
-            ]
-            NSLog("[QwenBridge] selfTest -> \(diag)")
-            result(diag)
-            
-        case "initModel":
-            guard let args = call.arguments as? [String: Any], let path = args["path"] as? String else {
-                NSLog("[QwenBridge] initModel missing path")
-                result(["ok": false, "error": "missing_path"]); return
-            }
-            NSLog("[QwenBridge] initModel path=\(path)")
-            
-            // Check if the model file exists in the app bundle (Flutter assets)
-            let bundlePath = Bundle.main.path(forResource: "qwen2.5-1.5b-instruct-q4_k_m", ofType: "gguf", inDirectory: "assets/models/qwen")
-            if bundlePath == nil {
-                NSLog("[QwenBridge] model file not found in bundle at assets/models/qwen/qwen2.5-1.5b-instruct-q4_k_m.gguf")
-                result(["ok": false, "error": "file_not_found"]); return
-            }
-            
-            NSLog("[QwenBridge] model file found in bundle at: \(bundlePath!)")
-            
-            // Initialize llama.cpp backend
-            llama_backend_init()
-            
-            // Load model
-            var modelParams = llama_model_default_params()
-            llamaModel = llama_model_load_from_file(bundlePath!, modelParams)
-            
-            if llamaModel == nil {
-                NSLog("[QwenBridge] Failed to load model")
-                result(["ok": false, "error": "model_load_failed"]); return
-            }
-            
-            // Create context
-            var contextParams = llama_context_default_params()
-            contextParams.n_ctx = 2048  // Context length
-            contextParams.n_batch = 512 // Batch size
-            contextParams.n_threads = 4 // Number of threads
-            
-            llamaContext = llama_init_from_model(llamaModel!, contextParams)
-            
-            if llamaContext == nil {
-                NSLog("[QwenBridge] Failed to create context")
-                llama_model_free(llamaModel!)
-                llamaModel = nil
-                result(["ok": false, "error": "context_creation_failed"]); return
-            }
-            
-            // Create sampler chain
-            var samplerParams = llama_sampler_chain_default_params()
-            llamaSampler = llama_sampler_chain_init(samplerParams)
-            
-            // Add sampling strategies
-            let topK = llama_sampler_init_top_k(40)
-            let topP = llama_sampler_init_top_p(0.9, 1)
-            let temp = llama_sampler_init_temp(0.7)
-            let dist = llama_sampler_init_dist(42) // Random seed
-            
-            llama_sampler_chain_add(llamaSampler!, topK)
-            llama_sampler_chain_add(llamaSampler!, topP)
-            llama_sampler_chain_add(llamaSampler!, temp)
-            llama_sampler_chain_add(llamaSampler!, dist)
-            
-            NSLog("[QwenBridge] Model loaded successfully")
-            result(["ok": true])
-            
         // Chat model methods
         case "initChatModel":
             initChatModel(call: call, result: result)
@@ -192,81 +106,19 @@ private var llamaSampler: UnsafeMutablePointer<llama_sampler>?
         
         // Initialize llama.cpp model
         DispatchQueue.global(qos: .userInitiated).async {
-            print("QwenBridge: Initializing llama.cpp model...")
-            
-            // Check if model is already loaded
-            if llamaModel != nil && llamaContext != nil && llamaSampler != nil {
-                print("QwenBridge: Model already loaded")
-                DispatchQueue.main.async {
-                    self.chatModelLoaded = true
-                    result(true)
-                }
-                return
-            }
-            
-            // Load model from bundle
-            let bundlePath = Bundle.main.path(forResource: "qwen2.5-1.5b-instruct-q4_k_m", ofType: "gguf", inDirectory: "assets/models/qwen")
-            if bundlePath == nil {
-                print("QwenBridge: Model file not found in bundle")
-                DispatchQueue.main.async {
-                    result(false)
-                }
-                return
-            }
-            
-            // Initialize llama.cpp backend
-            llama_backend_init()
-            
-            // Load model
-            var modelParams = llama_model_default_params()
-            llamaModel = llama_model_load_from_file(bundlePath!, modelParams)
-            
-            if llamaModel == nil {
-                print("QwenBridge: Failed to load model")
-                DispatchQueue.main.async {
-                    result(false)
-                }
-                return
-            }
-            
-            // Create context
-            var contextParams = llama_context_default_params()
-            contextParams.n_ctx = 2048  // Context length
-            contextParams.n_batch = 512 // Batch size
-            contextParams.n_threads = 4 // Number of threads
-            
-            llamaContext = llama_init_from_model(llamaModel!, contextParams)
-            
-            if llamaContext == nil {
-                print("QwenBridge: Failed to create context")
-                llama_model_free(llamaModel!)
-                llamaModel = nil
-                DispatchQueue.main.async {
-                    result(false)
-                }
-                return
-            }
-            
-            // Create sampler chain
-            var samplerParams = llama_sampler_chain_default_params()
-            llamaSampler = llama_sampler_chain_init(samplerParams)
-            
-            // Add sampling strategies
-            let topK = llama_sampler_init_top_k(40)
-            let topP = llama_sampler_init_top_p(0.9, 1)
-            let temp = llama_sampler_init_temp(0.7)
-            let dist = llama_sampler_init_dist(42) // Random seed
-            
-            llama_sampler_chain_add(llamaSampler!, topK)
-            llama_sampler_chain_add(llamaSampler!, topP)
-            llama_sampler_chain_add(llamaSampler!, temp)
-            llama_sampler_chain_add(llamaSampler!, dist)
-            
-            print("QwenBridge: Model loaded successfully via native C++")
+            print("QwenBridge: Calling native llama_init with path: \(modelPath)")
+            let success = llama_init(modelPath)
+            print("QwenBridge: Native llama_init returned: \(success)")
             
             DispatchQueue.main.async {
-                self.chatModelLoaded = true
-                result(true)
+                if success == 1 {
+                    self.chatModelLoaded = true
+                    print("QwenBridge: Chat model loaded successfully via native C++")
+                    result(true)
+                } else {
+                    print("QwenBridge: Failed to load chat model via native C++")
+                    result(false)
+                }
             }
         }
     }
@@ -278,8 +130,8 @@ private var llamaSampler: UnsafeMutablePointer<llama_sampler>?
             return
         }
         
-        guard chatModelLoaded && llamaContext != nil && llamaSampler != nil else {
-            print("QwenBridge: Chat model not loaded or llama.cpp not initialized")
+        guard chatModelLoaded else {
+            print("QwenBridge: Chat model not loaded")
             result("")
             return
         }
@@ -288,100 +140,24 @@ private var llamaSampler: UnsafeMutablePointer<llama_sampler>?
         
         // Generate response using llama.cpp
         DispatchQueue.global(qos: .userInitiated).async {
-            let responseString = self.generateTextWithLlama(prompt: prompt)
+            print("QwenBridge: Calling native llama_generate...")
+            print("QwenBridge: Prompt length: \(prompt.count) characters")
+            
+            let response = llama_generate(prompt, self.temperature, self.topP, Int32(self.maxTokens))
+            
+            let responseString: String
+            if let cString = response {
+                responseString = String(cString: cString)
+                print("QwenBridge: Native C++ generated response: \(responseString.prefix(100))...")
+            } else {
+                print("QwenBridge: Native C++ returned null, using fallback")
+                responseString = self.generateContextualResponse(from: prompt)
+            }
             
             DispatchQueue.main.async {
                 result(responseString)
             }
         }
-    }
-    
-    private func generateTextWithLlama(prompt: String) -> String {
-        guard let context = llamaContext, let sampler = llamaSampler else {
-            print("QwenBridge: llama.cpp not initialized")
-            return generateContextualResponse(from: prompt)
-        }
-        
-        // Tokenize the prompt
-        let vocab = llama_model_get_vocab(llamaModel!)
-        let promptCString = prompt.cString(using: .utf8)!
-        let promptLength = Int32(prompt.utf8.count)
-        
-        var tokens = [Int32](repeating: 0, count: Int(promptLength) + 100) // Extra space for safety
-        let tokenCount = llama_tokenize(vocab, promptCString, promptLength, &tokens, Int32(tokens.count), true, true)
-        
-        if tokenCount < 0 {
-            print("QwenBridge: Tokenization failed")
-            return generateContextualResponse(from: prompt)
-        }
-        
-        print("QwenBridge: Tokenized \(tokenCount) tokens")
-        
-        // Create batch for the prompt
-        var batch = llama_batch_get_one(&tokens, tokenCount)
-        
-        // Process the prompt
-        let decodeResult = llama_decode(context, batch)
-        if decodeResult != 0 {
-            print("QwenBridge: Failed to process prompt, result: \(decodeResult)")
-            return generateContextualResponse(from: prompt)
-        }
-        
-        // Generate response
-        var responseTokens: [Int32] = []
-        let maxTokens = 256
-        var eosFound = false
-        
-        for _ in 0..<maxTokens {
-            // Sample next token
-            let nextToken = llama_sampler_sample(sampler, context, -1)
-            llama_sampler_accept(sampler, nextToken)
-            
-            responseTokens.append(nextToken)
-            
-            // Check for EOS token
-            let eosToken = llama_vocab_eos(vocab)
-            if nextToken == eosToken {
-                eosFound = true
-                break
-            }
-            
-            // Create batch for next token
-            var nextTokenVar = nextToken
-            var nextBatch = llama_batch_get_one(&nextTokenVar, 1)
-            nextBatch.logits[0] = 1
-            
-            let decodeResult = llama_decode(context, nextBatch)
-            if decodeResult != 0 {
-                print("QwenBridge: Failed to process token, result: \(decodeResult)")
-                break
-            }
-        }
-        
-        // Convert tokens back to text
-        let responseText = tokensToString(tokens: responseTokens, context: context)
-        
-        print("QwenBridge: Generated \(responseTokens.count) tokens, EOS found: \(eosFound)")
-        print("QwenBridge: Response: \(responseText.prefix(100))...")
-        
-        return responseText.isEmpty ? generateContextualResponse(from: prompt) : responseText
-    }
-    
-    private func tokensToString(tokens: [Int32], context: OpaquePointer) -> String {
-        let vocab = llama_model_get_vocab(llamaModel!)
-        var result = ""
-        
-        for token in tokens {
-            var buffer = [CChar](repeating: 0, count: 1000)
-            let length = llama_token_to_piece(vocab, token, &buffer, Int32(buffer.count), 0, true)
-            
-            if length > 0 {
-                let tokenString = String(cString: buffer)
-                result += tokenString
-            }
-        }
-        
-        return result
     }
     
     private func generateContextualResponse(from prompt: String) -> String {
@@ -667,7 +443,7 @@ private var llamaSampler: UnsafeMutablePointer<llama_sampler>?
         switch modelType {
         case "chat":
             // Check both our flag and the native C++ status
-            ready = chatModelLoaded && llamaModel != nil && llamaContext != nil && llamaSampler != nil
+            ready = chatModelLoaded && (llama_is_loaded() == 1)
         case "vision":
             ready = visionModelLoaded
         case "embedding":
@@ -732,65 +508,15 @@ private var llamaSampler: UnsafeMutablePointer<llama_sampler>?
     
     private func dispose(result: @escaping FlutterResult) {
         print("QwenBridge: Disposing models and cleaning up resources")
-
+        
         // Clean up llama.cpp resources
-        if let sampler = llamaSampler {
-            llama_sampler_free(sampler)
-            llamaSampler = nil
-        }
+        llama_cleanup()
         
-        if let context = llamaContext {
-            llama_free(context)
-            llamaContext = nil
-        }
-        
-        if let model = llamaModel {
-            llama_model_free(model)
-            llamaModel = nil
-        }
-        
-        llama_backend_free()
-
         chatModelLoaded = false
         visionModelLoaded = false
         embeddingModelLoaded = false
         
         print("QwenBridge: Cleanup complete")
         result(nil)
-    }
-}
-
-final class TokenStream: NSObject, FlutterStreamHandler {
-    static let shared = TokenStream()
-    private var sink: FlutterEventSink?
-    var isReady: Bool { sink != nil }
-
-    func onListen(withArguments arguments: Any?, eventSink events: @escaping FlutterEventSink) -> FlutterError? {
-        sink = events; NSLog("[QwenBridge] events onListen"); return nil
-    }
-    func onCancel(withArguments arguments: Any?) -> FlutterError? {
-        sink = nil; NSLog("[QwenBridge] events onCancel"); return nil
-    }
-    func send(_ token: String) { sink?(token) }
-}
-
-enum QwenDiag {
-    static func metalAvailable() -> Bool {
-        #if targetEnvironment(simulator)
-        return false // conservative
-        #else
-        return MTLCreateSystemDefaultDevice() != nil
-        #endif
-    }
-    static func llamaLinked() -> Bool {
-        // if you have a C symbol from llama.cpp, try to reference in a dummy call here later
-        return true // placeholder
-    }
-    static func buildMode() -> String {
-        #if DEBUG
-        return "DEBUG"
-        #else
-        return "RELEASE"
-        #endif
     }
 }

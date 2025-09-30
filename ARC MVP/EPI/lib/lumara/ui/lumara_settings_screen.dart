@@ -97,8 +97,12 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
   }
 
   Widget _buildStatusCard(ThemeData theme) {
-    final status = _lumaraApi.getStatus();
     final availableProviders = _apiConfig.getAvailableProviders();
+    final bestProvider = _apiConfig.getBestProvider();
+    
+    // Get current provider display name
+    final currentProviderName = bestProvider?.name ?? 'None';
+    final currentProviderType = bestProvider?.isInternal == true ? 'Internal' : 'Cloud API';
     
     return Card(
       child: Padding(
@@ -119,13 +123,66 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
               ],
             ),
             const SizedBox(height: 16),
-            Text('Current Provider: ${status['currentProvider']}'),
+            Row(
+              children: [
+                Text('Current Provider: '),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: bestProvider != null 
+                        ? theme.colorScheme.primary.withOpacity(0.1)
+                        : theme.colorScheme.error.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: bestProvider != null 
+                          ? theme.colorScheme.primary
+                          : theme.colorScheme.error,
+                      width: 1,
+                    ),
+                  ),
+                  child: Text(
+                    currentProviderName,
+                    style: TextStyle(
+                      color: bestProvider != null 
+                          ? theme.colorScheme.primary
+                          : theme.colorScheme.error,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: bestProvider != null 
+                        ? theme.colorScheme.primary.withOpacity(0.1)
+                        : theme.colorScheme.error.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    currentProviderType,
+                    style: TextStyle(
+                      color: bestProvider != null 
+                          ? theme.colorScheme.primary
+                          : theme.colorScheme.error,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
             Text('Available Providers: ${availableProviders.length}'),
             const SizedBox(height: 8),
             Text(
-              'LUMARA is ready to provide intelligent reflections on your journal entries.',
+              bestProvider != null 
+                  ? 'LUMARA is ready to provide intelligent reflections on your journal entries.'
+                  : 'LUMARA is not available. Please configure a provider below.',
               style: theme.textTheme.bodyMedium?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
+                color: bestProvider != null 
+                    ? theme.colorScheme.onSurfaceVariant
+                    : theme.colorScheme.error,
               ),
             ),
           ],
@@ -135,15 +192,11 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
   }
 
   Widget _buildProviderSelection(ThemeData theme) {
-    final availableProviders = _apiConfig.getAvailableProviders();
+    final allProviders = _apiConfig.getAllProviders();
     
-    // Sort providers to prioritize internal models
-    final sortedProviders = List<LLMProviderConfig>.from(availableProviders)
-      ..sort((a, b) {
-        if (a.isInternal && !b.isInternal) return -1;
-        if (!a.isInternal && b.isInternal) return 1;
-        return 0;
-      });
+    // Separate internal and external providers
+    final internalProviders = allProviders.where((p) => p.isInternal && p.provider != LLMProvider.ruleBased).toList();
+    final externalProviders = allProviders.where((p) => !p.isInternal).toList();
     
     return Card(
       child: Padding(
@@ -151,172 +204,235 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              'AI Provider Selection',
-              style: theme.textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Choose your preferred AI provider. Internal models are recommended for privacy.',
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
+            Row(
+              children: [
+                Icon(Icons.settings, color: theme.colorScheme.primary),
+                const SizedBox(width: 8),
+                Text(
+                  'AI Provider Selection',
+                  style: theme.textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: 16),
-            ...sortedProviders.map((config) => RadioListTile<LLMProvider>(
-              title: Row(
-                children: [
-                  Text(config.name),
-                  const SizedBox(width: 8),
-                  if (config.isInternal)
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: theme.colorScheme.primary.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Text(
-                        'SECURE',
-                        style: theme.textTheme.labelSmall?.copyWith(
-                          color: theme.colorScheme.primary,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-              subtitle: Text(
-                config.isInternal 
-                  ? 'Local Model - Privacy First' 
-                  : 'Cloud API - Fallback Option',
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: config.isInternal 
-                    ? theme.colorScheme.primary 
-                    : theme.colorScheme.onSurfaceVariant,
-                ),
-              ),
-              value: config.provider,
-              groupValue: _selectedProvider,
-              onChanged: (value) {
-                setState(() {
-                  _selectedProvider = value;
-                });
-              },
-            )),
+            
+            // Internal Models Section
+            _buildProviderCategory(
+              theme: theme,
+              title: 'Internal Models',
+              subtitle: 'Privacy-first, on-device processing',
+              providers: internalProviders,
+              isInternal: true,
+            ),
+            
+            const SizedBox(height: 24),
+            
+            // Cloud API Section
+            _buildProviderCategory(
+              theme: theme,
+              title: 'Cloud API',
+              subtitle: 'External services with API keys',
+              providers: externalProviders,
+              isInternal: false,
+            ),
           ],
         ),
       ),
     );
   }
-
-  Widget _buildApiKeySection(ThemeData theme) {
-    final externalProviders = LLMProvider.values
-        .where((p) => p != LLMProvider.ruleBased && p != LLMProvider.llama && p != LLMProvider.qwen)
-        .toList();
-    
-    return Card(
-      elevation: 3, // More prominent elevation
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+  
+  Widget _buildProviderCategory({
+    required ThemeData theme,
+    required String title,
+    required String subtitle,
+    required List<LLMProviderConfig> providers,
+    required bool isInternal,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
           children: [
-            Row(
+            Icon(
+              isInternal ? Icons.security : Icons.cloud,
+              color: isInternal ? theme.colorScheme.primary : theme.colorScheme.secondary,
+              size: 20,
+            ),
+            const SizedBox(width: 8),
+            Text(
+              title,
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.bold,
+                color: isInternal ? theme.colorScheme.primary : theme.colorScheme.secondary,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 4),
+        Text(
+          subtitle,
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
+        ),
+        const SizedBox(height: 12),
+        
+        // Provider options
+        ...providers.map((config) => _buildProviderOption(theme, config, isInternal)),
+        
+        // Show message if no providers available
+        if (providers.isEmpty)
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: theme.colorScheme.error.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: theme.colorScheme.error.withOpacity(0.3)),
+            ),
+            child: Row(
               children: [
-                Icon(Icons.api, color: theme.colorScheme.primary, size: 24),
-                const SizedBox(width: 12),
+                Icon(Icons.warning, color: theme.colorScheme.error, size: 16),
+                const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    'API Keys (Recommended)',
-                    style: theme.textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: theme.colorScheme.primary,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: theme.colorScheme.primary.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Text(
-                    'ACTIVE',
-                    style: theme.textTheme.labelSmall?.copyWith(
-                      color: theme.colorScheme.primary,
-                      fontWeight: FontWeight.bold,
+                    isInternal 
+                        ? 'No internal models available. Check model installation.'
+                        : 'No cloud APIs configured. Add API keys below.',
+                    style: TextStyle(
+                      color: theme.colorScheme.error,
+                      fontSize: 12,
                     ),
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 12),
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: theme.colorScheme.primary.withOpacity(0.05),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: theme.colorScheme.primary.withOpacity(0.2),
+          ),
+      ],
+    );
+  }
+  
+  Widget _buildProviderOption(ThemeData theme, LLMProviderConfig config, bool isInternal) {
+    final isAvailable = config.isAvailable;
+    final isSelected = _selectedProvider == config.provider;
+    
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      decoration: BoxDecoration(
+        border: Border.all(
+          color: isSelected 
+              ? theme.colorScheme.primary
+              : isAvailable 
+                  ? theme.colorScheme.outline.withOpacity(0.3)
+                  : theme.colorScheme.error.withOpacity(0.3),
+          width: isSelected ? 2 : 1,
+        ),
+        borderRadius: BorderRadius.circular(12),
+        color: isSelected 
+            ? theme.colorScheme.primary.withOpacity(0.05)
+            : isAvailable 
+                ? null
+                : theme.colorScheme.error.withOpacity(0.05),
+      ),
+      child: InkWell(
+        onTap: isAvailable ? () {
+          setState(() {
+            _selectedProvider = config.provider;
+          });
+        } : null,
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Row(
+            children: [
+              // Status indicator (green/red light)
+              Container(
+                width: 12,
+                height: 12,
+                decoration: BoxDecoration(
+                  color: isAvailable ? Colors.green : Colors.red,
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: (isAvailable ? Colors.green : Colors.red).withOpacity(0.3),
+                      blurRadius: 4,
+                      spreadRadius: 1,
+                    ),
+                  ],
                 ),
               ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Icon(
-                        Icons.info_outline,
-                        color: theme.colorScheme.primary,
-                        size: 18,
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          'Configure your API keys to enable AI-powered reflections',
-                          style: theme.textTheme.bodyMedium?.copyWith(
-                            color: theme.colorScheme.primary,
-                            fontWeight: FontWeight.w500,
+              const SizedBox(width: 12),
+              
+              // Provider info
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Text(
+                          config.name,
+                          style: theme.textTheme.titleSmall?.copyWith(
+                            fontWeight: FontWeight.w600,
+                            color: isAvailable 
+                                ? theme.colorScheme.onSurface
+                                : theme.colorScheme.onSurface.withOpacity(0.6),
                           ),
                         ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Internal models are not yet available. Add your API keys below to start using LUMARA\'s AI features.',
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
+                        const SizedBox(width: 8),
+                        if (isInternal)
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: theme.colorScheme.primary.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              'SECURE',
+                              style: theme.textTheme.labelSmall?.copyWith(
+                                color: theme.colorScheme.primary,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                      ],
                     ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 20),
-            ...externalProviders.map((provider) => _buildApiKeyField(provider, theme)),
-            const SizedBox(height: 24),
-            // Save button for API Keys section
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: _saveApiKeys,
-                icon: const Icon(Icons.save),
-                label: const Text('Save API Keys'),
-                style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  backgroundColor: theme.colorScheme.primary,
-                  foregroundColor: theme.colorScheme.onPrimary,
+                    const SizedBox(height: 4),
+                    Text(
+                      isInternal 
+                          ? 'Local Model - Privacy First'
+                          : 'Cloud API - External Service',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: isAvailable 
+                            ? theme.colorScheme.onSurfaceVariant
+                            : theme.colorScheme.onSurfaceVariant.withOpacity(0.6),
+                      ),
+                    ),
+                  ],
                 ),
               ),
-            ),
-          ],
+              
+              // Selection indicator
+              if (isSelected)
+                Icon(
+                  Icons.check_circle,
+                  color: theme.colorScheme.primary,
+                  size: 20,
+                )
+              else if (!isAvailable)
+                Icon(
+                  Icons.block,
+                  color: theme.colorScheme.error,
+                  size: 20,
+                ),
+            ],
+          ),
         ),
       ),
     );
   }
+
 
   Widget _buildApiKeyField(LLMProvider provider, ThemeData theme) {
     final controller = _apiKeyControllers[provider]!;
@@ -643,3 +759,4 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
     }
   }
 }
+

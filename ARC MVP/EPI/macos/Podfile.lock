@@ -6,11 +6,6 @@ PODS:
     - FlutterMacOS
   - device_info_plus (0.0.1):
     - FlutterMacOS
-  - ffmpeg_kit_flutter_new_min_gpl (7.1.1):
-    - ffmpeg_kit_flutter_new_min_gpl/min-gpl (= 7.1.1)
-    - FlutterMacOS
-  - ffmpeg_kit_flutter_new_min_gpl/min-gpl (7.1.1):
-    - FlutterMacOS
   - file_picker (0.0.1):
     - FlutterMacOS
   - file_selector_macos (0.0.1):
@@ -41,7 +36,6 @@ DEPENDENCIES:
   - audio_session (from `Flutter/ephemeral/.symlinks/plugins/audio_session/macos`)
   - audioplayers_darwin (from `Flutter/ephemeral/.symlinks/plugins/audioplayers_darwin/darwin`)
   - device_info_plus (from `Flutter/ephemeral/.symlinks/plugins/device_info_plus/macos`)
-  - ffmpeg_kit_flutter_new_min_gpl (from `Flutter/ephemeral/.symlinks/plugins/ffmpeg_kit_flutter_new_min_gpl/macos`)
   - file_picker (from `Flutter/ephemeral/.symlinks/plugins/file_picker/macos`)
   - file_selector_macos (from `Flutter/ephemeral/.symlinks/plugins/file_selector_macos/macos`)
   - flutter_secure_storage_macos (from `Flutter/ephemeral/.symlinks/plugins/flutter_secure_storage_macos/macos`)
@@ -61,8 +55,6 @@ EXTERNAL SOURCES:
     :path: Flutter/ephemeral/.symlinks/plugins/audioplayers_darwin/darwin
   device_info_plus:
     :path: Flutter/ephemeral/.symlinks/plugins/device_info_plus/macos
-  ffmpeg_kit_flutter_new_min_gpl:
-    :path: Flutter/ephemeral/.symlinks/plugins/ffmpeg_kit_flutter_new_min_gpl/macos
   file_picker:
     :path: Flutter/ephemeral/.symlinks/plugins/file_picker/macos
   file_selector_macos:
@@ -90,7 +82,6 @@ SPEC CHECKSUMS:
   audio_session: eaca2512cf2b39212d724f35d11f46180ad3a33e
   audioplayers_darwin: 4f9ca89d92d3d21cec7ec580e78ca888e5fb68bd
   device_info_plus: a56e6e74dbbd2bb92f2da12c64ddd4f67a749041
-  ffmpeg_kit_flutter_new_min_gpl: 3e280d8650c72a719311199086207c6b242a6869
   file_picker: 7584aae6fa07a041af2b36a2655122d42f578c1a
   file_selector_macos: 6280b52b459ae6c590af5d78fc35c7267a3c4b31
   flutter_secure_storage_macos: 7f45e30f838cf2659862a4e4e3ee1c347c2b3b54

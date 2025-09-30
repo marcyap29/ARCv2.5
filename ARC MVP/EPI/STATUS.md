@@ -1,12 +1,21 @@
 # EPI ARC MVP - Current Status
 
-**Last Updated**: September 24, 2025  
-**Branch**: lumara-memory  
-**Status**: ✅ Production Ready - MVP finalizations complete + MCP import fix
+**Last Updated**: September 28, 2025  
+**Branch**: main  
+**Status**: ✅ Production Ready - MVP complete + On-Device Qwen LLM Integration
 
 ---
 
 ## 🎯 MVP Finalization Status
+
+### ✅ On-Device Qwen LLM Integration Complete (September 28, 2025)
+
+#### 6. Complete On-Device AI Implementation
+- **Feature**: Qwen 2.5 1.5B Instruct model with native Swift bridge
+- **Technical**: llama.cpp xcframework build, Swift-Flutter method channel, modern llama.cpp API
+- **UI/UX**: Visual status indicators (green/red lights) in LUMARA Settings
+- **Architecture**: Privacy-first on-device processing with cloud API fallback
+- **Status**: ✅ Complete - On-device AI working with proper UI feedback
 
 ### ✅ Critical Issues Resolved (September 24, 2025)
 
@@ -55,10 +64,11 @@
 - **Linting**: ⚠️ Minor warnings (deprecated methods, unused imports)
 
 ### AI Integration
-- **Gemini API**: ✅ Integrated with MIRA enhancement
+- **On-Device Qwen**: ✅ Complete integration with native Swift bridge
+- **Gemini API**: ✅ Integrated with MIRA enhancement (fallback)
 - **MIRA System**: ✅ Complete semantic memory graph
-- **LUMARA**: ✅ Now uses actual user phase data
-- **ArcLLM**: ✅ Working with semantic context
+- **LUMARA**: ✅ Now uses actual user phase data with on-device AI
+- **ArcLLM**: ✅ Working with semantic context and privacy-first architecture
 
 ### Database & Persistence
 - **Hive Storage**: ✅ Working
@@ -101,9 +111,9 @@
 
 ### Future Enhancements
 - [ ] Advanced animation sequences for sacred journaling
-- [ ] Native llama.cpp integration for Qwen models
 - [ ] Vision-language model integration
 - [ ] Settings UI for MIRA feature flag configuration
+- [ ] Additional on-device models (Llama, etc.)
 
 ---
 

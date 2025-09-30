@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:my_app/lumara/data/context_scope.dart';
 import 'package:my_app/lumara/data/context_provider.dart';
@@ -193,12 +194,73 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
     ));
 
     try {
-      // Check if streaming is available (Gemini API key present)
+      // Log available providers for transparency
+      const geminiKey = String.fromEnvironment('GEMINI_API_KEY');
+      final geminiAvailable = geminiKey.isNotEmpty;
+      final onDeviceAvailable = QwenAdapter.isAvailable;
+
+      print('LUMARA Debug: Provider Status Summary:');
+      print('LUMARA Debug:   - On-Device (Qwen): ${onDeviceAvailable ? "AVAILABLE ✓" : "Not Available (${QwenAdapter.reason})"}');
+      print('LUMARA Debug:   - Cloud API (Gemini): ${geminiAvailable ? "AVAILABLE ✓" : "Not Available (no API key)"}');
+      print('LUMARA Debug: Security-first fallback chain: On-Device → Cloud API → Rule-Based');
+
+      // PRIORITY 1: Try On-Device first (security-first, always)
+      bool onDeviceSuccess = false;
+      try {
+        print('LUMARA Debug: [Priority 1] Attempting on-device QwenAdapter...');
+
+        // Initialize QwenAdapter if not already done
+        if (!QwenAdapter.isReady) {
+          debugPrint('[LumaraAssistantCubit] invoking QwenAdapter.initialize(...)');
+          final initialized = await QwenAdapter.initialize();
+          debugPrint('[LumaraAssistantCubit] QwenAdapter.initialize completed (isAvailable=${QwenAdapter.isAvailable}, reason=${QwenAdapter.reason})');
+        }
+
+        // Check if on-device is available
+        if (QwenAdapter.isAvailable) {
+          print('LUMARA Debug: [On-Device] QwenAdapter available! Using on-device processing.');
+
+          // Use non-streaming on-device processing
+          final responseData = await _processMessageWithAttribution(text, currentState.scope);
+          print('LUMARA Debug: [On-Device] SUCCESS - Response length: ${responseData['content'].length}');
+          print('LUMARA Debug: [On-Device] Attribution traces: ${responseData['attributionTraces']?.length ?? 0}');
+
+          // Record assistant response in MCP memory
+          await _recordAssistantMessage(responseData['content']);
+
+          // Add assistant response to chat session
+          await _addToChatSession(responseData['content'], 'assistant');
+
+          // Add assistant response to UI with attribution traces
+          final assistantMessage = LumaraMessage.assistant(
+            content: responseData['content'],
+            attributionTraces: responseData['attributionTraces'] ?? [],
+          );
+          final finalMessages = [...updatedMessages, assistantMessage];
+
+          emit(currentState.copyWith(
+            messages: finalMessages,
+            isProcessing: false,
+          ));
+
+          onDeviceSuccess = true;
+          print('LUMARA Debug: [On-Device] On-device processing complete - skipping cloud API');
+          return; // Exit early - on-device succeeded
+        } else {
+          print('LUMARA Debug: [On-Device] QwenAdapter not available, reason: ${QwenAdapter.reason}');
+          print('LUMARA Debug: [Priority 2] Falling back to Cloud API...');
+        }
+      } catch (onDeviceError) {
+        print('LUMARA Debug: [On-Device] Failed: $onDeviceError');
+        print('LUMARA Debug: [Priority 2] Falling back to Cloud API...');
+      }
+
+      // PRIORITY 2: Fall back to Cloud API (streaming if available)
       const apiKey = String.fromEnvironment('GEMINI_API_KEY');
       final useStreaming = apiKey.isNotEmpty;
 
       if (useStreaming) {
-        print('LUMARA Debug: Processing message with streaming...');
+        print('LUMARA Debug: [Cloud API] Using streaming (Gemini API available)');
 
         // Create placeholder message for streaming
         final streamingMessage = LumaraMessage.assistant(content: '');
@@ -212,9 +274,9 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
         // Stream the response
         await _processMessageWithStreaming(text, currentState.scope, updatedMessages);
       } else {
-        print('LUMARA Debug: Processing message without streaming...');
+        print('LUMARA Debug: [Cloud API] No API key - using non-streaming approach');
 
-        // Fall back to non-streaming approach
+        // Fall back to non-streaming approach (will use rule-based if no API)
         final responseData = await _processMessageWithAttribution(text, currentState.scope);
         print('LUMARA Debug: Generated response length: ${responseData['content'].length}');
         print('LUMARA Debug: Attribution traces in response: ${responseData['attributionTraces']?.length ?? 0}');
@@ -263,6 +325,7 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
   }
   
   /// Process a message and generate response with attribution
+  /// Priority: On-Device → Cloud API → Rule-Based (security-first)
   Future<Map<String, dynamic>> _processMessageWithAttribution(String text, LumaraScope scope) async {
     // Get context
     final context = await _contextProvider.buildContext();
@@ -272,14 +335,49 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
 
     // Debug logging
     print('LUMARA Debug: Query: "$text" -> Task: ${task.name}');
+    print('LUMARA Debug: Fallback priority: On-Device → Cloud API → Rule-Based');
 
     // Memory retrieval will be handled in response generation
 
+    // PRIORITY 1: Try on-device QwenAdapter first (privacy-first, security-first)
     try {
-      // First try direct Gemini API if available
+      print('LUMARA Debug: [Priority 1] Attempting on-device QwenAdapter...');
+
+      // Initialize QwenAdapter if not already done
+      if (!QwenAdapter.isReady) {
+        debugPrint('[LumaraAssistantCubit] invoking QwenAdapter.initialize(...)');
+        final initialized = await QwenAdapter.initialize();
+        debugPrint('[LumaraAssistantCubit] QwenAdapter.initialize completed (isAvailable=${QwenAdapter.isAvailable}, reason=${QwenAdapter.reason})');
+        if (!initialized) {
+          print('LUMARA Debug: [On-Device] QwenAdapter not available, reason: ${QwenAdapter.reason}');
+          throw Exception('QwenAdapter not available: ${QwenAdapter.reason}');
+        }
+      }
+
+      // Use QwenAdapter for on-device generation
+      final qwenResponse = await _qwenAdapter.realize(
+        task: _mapTaskToString(task),
+        facts: _buildFactsFromContextWindow(context),
+        snippets: _buildSnippetsFromContextWindow(context),
+        chat: _buildChatHistoryFromContextWindow(context),
+      ).first;
+
+      print('LUMARA Debug: [On-Device] SUCCESS - Response length: ${qwenResponse.length}');
+
+      return {
+        'content': qwenResponse,
+        'attributionTraces': <AttributionTrace>[],
+      };
+    } catch (onDeviceError) {
+      print('LUMARA Debug: [On-Device] Failed: $onDeviceError');
+      print('LUMARA Debug: [Priority 2] Falling back to Cloud API...');
+    }
+
+    // PRIORITY 2: Try Cloud API if on-device failed
+    try {
       const apiKey = String.fromEnvironment('GEMINI_API_KEY');
       if (apiKey.isNotEmpty) {
-        print('LUMARA Debug: Using direct Gemini API for response generation');
+        print('LUMARA Debug: [Cloud API] Using Gemini API for response generation');
         
         // Build context for ArcLLM
         final entryText = _buildEntryContext(context);
@@ -341,12 +439,12 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
           'attributionTraces': <AttributionTrace>[],
         };
       } else {
-        print('LUMARA Debug: No Gemini API key found, trying Enhanced LUMARA API');
-        
+        print('LUMARA Debug: [Cloud API] No Gemini API key, trying Enhanced LUMARA API');
+
         // Try enhanced LUMARA API with multi-provider support
         final entryText = _buildEntryContext(context);
         final phaseHint = _buildPhaseHint(context);
-        
+
         // Use enhanced API for response generation
         final response = await _enhancedApi.generatePromptedReflection(
           entryText: entryText,
@@ -354,7 +452,7 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
           phase: phaseHint,
         );
 
-        print('LUMARA Debug: Enhanced API response length: ${response.length}');
+        print('LUMARA Debug: [Cloud API] Enhanced API response length: ${response.length}');
 
         // Generate explainable response with attribution if memory service available
         if (_memoryService != null) {
@@ -405,56 +503,35 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
           'attributionTraces': <AttributionTrace>[],
         };
       }
-    } catch (e) {
-      print('LUMARA Debug: Error with API, trying on-device QwenAdapter: $e');
-      
-      // Try on-device QwenAdapter first
-      try {
-        print('LUMARA Debug: [On-Device] Attempting QwenAdapter for query: "$text"');
-        
-        // Initialize QwenAdapter if not already done
-        if (!QwenAdapter.isReady) {
-          print('LUMARA Debug: [On-Device] Initializing QwenAdapter...');
-          final initialized = await QwenAdapter.initialize();
-          if (!initialized) {
-            print('LUMARA Debug: [On-Device] QwenAdapter initialization failed, falling back to rule-based');
-            throw Exception('QwenAdapter initialization failed');
-          }
-        }
-        
-        // Use QwenAdapter for on-device generation
-        final qwenResponse = await _qwenAdapter.realize(
-          task: _mapTaskToString(task),
-          facts: _buildFactsFromContextWindow(context),
-          snippets: _buildSnippetsFromContextWindow(context),
-          chat: _buildChatHistoryFromContextWindow(context),
-        ).first;
-        
-        print('LUMARA Debug: [On-Device] QwenAdapter response length: ${qwenResponse.length}');
-        
-        return {
-          'content': qwenResponse,
-          'attributionTraces': <AttributionTrace>[],
-        };
-      } catch (qwenError) {
-        print('LUMARA Debug: [On-Device] QwenAdapter failed: $qwenError');
-        
-        // Final fallback to rule-based responses
-        print('LUMARA Debug: [Fallback] Using rule-based adapter for query: "$text"');
-        final response = await _fallbackAdapter.generateResponse(
-          task: task,
-          userQuery: text,
-          context: context,
-        );
-        
-        print('LUMARA Debug: [Fallback] Generated response length: ${response.length}');
-        print('LUMARA Debug: [Fallback] No attribution data available for rule-based responses');
-        
-        return {
-          'content': response,
-          'attributionTraces': <AttributionTrace>[],
-        };
-      }
+    } catch (cloudApiError) {
+      print('LUMARA Debug: [Cloud API] Failed: $cloudApiError');
+      print('LUMARA Debug: [Priority 3] Final fallback to Rule-Based...');
+    }
+
+    // PRIORITY 3: Rule-Based fallback (last resort)
+    try {
+      print('LUMARA Debug: [Rule-Based] Using fallback adapter for query: "$text"');
+      final response = await _fallbackAdapter.generateResponse(
+        task: task,
+        userQuery: text,
+        context: context,
+      );
+
+      print('LUMARA Debug: [Rule-Based] SUCCESS - Response length: ${response.length}');
+      print('LUMARA Debug: [Rule-Based] No attribution data available for rule-based responses');
+
+      return {
+        'content': response,
+        'attributionTraces': <AttributionTrace>[],
+      };
+    } catch (ruleBasedError) {
+      print('LUMARA Debug: [Rule-Based] Failed: $ruleBasedError');
+
+      // Absolute final fallback - return error message
+      return {
+        'content': 'I apologize, but I\'m currently unable to generate a response. Please try again in a moment.',
+        'attributionTraces': <AttributionTrace>[],
+      };
     }
   }
 
