@@ -1,8 +1,8 @@
 import 'dart:async';
 import 'model_adapter.dart';
 import 'lumara_native.dart';
-import 'prompt_templates.dart';
 import '../../core/app_flags.dart';
+import '../../core/prompts_arc.dart';
 
 /// Qwen3 chat adapter for on-device text generation and reasoning
 class QwenAdapter implements ModelAdapter {
@@ -174,15 +174,15 @@ class QwenAdapter implements ModelAdapter {
     }
   }
 
-  /// Build task-specific prompts using templates
+  /// Build task-specific prompts using on-device templates
   String _buildPromptForTask({
     required String task,
     required Map<String, dynamic> facts,
     required List<String> snippets,
     required List<Map<String, String>> chat,
   }) {
-    // Get system prompt template
-    String systemPrompt = PromptTemplates.systemPrompt;
+    // Use on-device system prompt
+    String systemPrompt = ArcPrompts.systemOnDevice;
     
     // Build context section
     final contextBuilder = StringBuffer();
@@ -205,68 +205,79 @@ class QwenAdapter implements ModelAdapter {
       contextBuilder.writeln();
     }
     
-    // Get task-specific template
+    // Get task-specific template using on-device format
     String taskPrompt;
     switch (task) {
       case 'weekly_summary':
-        taskPrompt = 'Please provide a summary of my activities and patterns over the past week.';
+        taskPrompt = ArcPrompts.chatLite.replaceAll('<context>', contextBuilder.toString().trim());
         break;
       case 'rising_patterns':
-        taskPrompt = 'What new patterns or themes are emerging in my recent entries?';
+        taskPrompt = ArcPrompts.chatLite.replaceAll('<context>', contextBuilder.toString().trim());
         break;
       case 'phase_rationale':
-        taskPrompt = 'Why am I currently in this phase? What evidence supports this assessment?';
+        taskPrompt = ArcPrompts.phaseHintsLite
+            .replaceAll('{{entry_text}}', facts['recent_entry']?.toString() ?? '')
+            .replaceAll('{{sage_json}}', facts['sage_json']?.toString() ?? '')
+            .replaceAll('{{keywords}}', facts['keywords']?.toString() ?? '');
         break;
-      case 'compare_period':
-        taskPrompt = 'How does this period compare to previous periods in my journey?';
+      case 'sage_echo':
+        taskPrompt = ArcPrompts.sageEchoLite
+            .replaceAll('{{entry_text}}', facts['entry_text']?.toString() ?? '');
+        break;
+      case 'arcform_keywords':
+        taskPrompt = ArcPrompts.arcformKeywordsLite
+            .replaceAll('{{entry_text}}', facts['entry_text']?.toString() ?? '')
+            .replaceAll('{{sage_json}}', facts['sage_json']?.toString() ?? '');
         break;
       case 'chat':
-        taskPrompt = _buildChatPrompt(chat);
+        taskPrompt = _buildOnDeviceChatPrompt(chat, contextBuilder.toString().trim());
         break;
       default:
         taskPrompt = chat.isNotEmpty 
-            ? _buildChatPrompt(chat)
-            : 'Please provide helpful insights based on the available context.';
+            ? _buildOnDeviceChatPrompt(chat, contextBuilder.toString().trim())
+            : ArcPrompts.chatLite.replaceAll('<context>', contextBuilder.toString().trim());
     }
     
-    // Combine system prompt, context, and task
+    // Combine system prompt and task
     return '''$systemPrompt
-
-<context>
-${contextBuilder.toString().trim()}
-</context>
 
 $taskPrompt''';
   }
 
-  /// Build chat prompt from conversation history
-  String _buildChatPrompt(List<Map<String, String>> chat) {
-    if (chat.isEmpty) return 'How can I help you today?';
+  /// Build on-device chat prompt from conversation history
+  String _buildOnDeviceChatPrompt(List<Map<String, String>> chat, String context) {
+    if (chat.isEmpty) {
+      return ArcPrompts.chatLite.replaceAll('<context>', context);
+    }
     
-    final chatBuilder = StringBuffer();
-    chatBuilder.writeln('CONVERSATION:');
+    // Get the latest user message (for potential future use)
+    // final latestMessage = chat.lastWhere(
+    //   (m) => m['role'] == 'user',
+    //   orElse: () => {'content': 'Please help me understand my journal patterns.'},
+    // );
     
-    for (final message in chat.take(10)) { // Limit context window
+    // Build context with conversation history
+    final contextBuilder = StringBuffer();
+    contextBuilder.writeln(context);
+    contextBuilder.writeln();
+    contextBuilder.writeln('CONVERSATION:');
+    
+    for (final message in chat.take(5)) { // Limit context window for on-device
       final role = message['role'] ?? 'user';
       final content = message['content'] ?? '';
       
       if (role == 'user') {
-        chatBuilder.writeln('User: $content');
+        contextBuilder.writeln('User: $content');
       } else if (role == 'assistant') {
-        chatBuilder.writeln('Assistant: $content');
+        contextBuilder.writeln('Assistant: $content');
       }
     }
     
-    // Get the latest user message
-    final latestMessage = chat.lastWhere(
-      (m) => m['role'] == 'user',
-      orElse: () => {'content': 'Please help me understand my journal patterns.'},
-    );
-    
-    return '''${chatBuilder.toString()}
-
-Please respond to the user's latest message: "${latestMessage['content']}"''';
+    return ArcPrompts.chatLite
+        .replaceAll('<context>', contextBuilder.toString().trim())
+        .replaceAll('{phase_hint: <...>, last_keywords: <...>}', '{}');
   }
+
 
   /// Enhance response with LUMARA signature and citations
   String _enhanceResponse({
@@ -366,89 +377,6 @@ Please respond to the user's latest message: "${latestMessage['content']}"''';
     return response.toString();
   }
 
-  /// Generate fallback response when native bridge is not available
-  String _generateFallbackResponse(
-    String task,
-    Map<String, dynamic> facts,
-    List<String> snippets,
-    List<Map<String, String>> chat,
-  ) {
-    // Create intelligent fallback responses based on task type
-    switch (task) {
-      case 'weekly_summary':
-        return _generateWeeklySummaryFallback(facts, snippets);
-      case 'rising_patterns':
-        return _generateRisingPatternsFallback(facts, snippets);
-      case 'phase_rationale':
-        return _generatePhaseRationaleFallback(facts, snippets);
-      case 'compare_period':
-        return _generateComparePeriodFallback(facts, snippets);
-      case 'prompt_suggestion':
-        return _generatePromptSuggestionFallback(facts, snippets);
-      case 'chat':
-        return _generateChatFallback(chat, snippets);
-      default:
-        return _generateGenericFallback(facts, snippets);
-    }
-  }
-  
-  String _generateWeeklySummaryFallback(Map<String, dynamic> facts, List<String> snippets) {
-    final valence = facts['avgValence'] ?? 0.5;
-    final entryCount = facts['entryCount'] ?? 0;
-    final topTerms = facts['topTerms'] ?? <String>[];
-    
-    final valenceDesc = valence > 0.6 ? 'positive' : valence < 0.4 ? 'challenging' : 'mixed';
-    final termList = topTerms.take(3).join(', ');
-    
-    return 'Looking at your week, I can see $entryCount entries with a $valenceDesc overall tone (${valence.toStringAsFixed(2)}). The main themes that emerged were $termList. ${snippets.isNotEmpty ? 'Notable moments included: "${snippets.first}"' : ''}';
-  }
-  
-  String _generateRisingPatternsFallback(Map<String, dynamic> facts, List<String> snippets) {
-    final topTerms = facts['topTerms'] ?? <String>[];
-    final termList = topTerms.take(3).join(', ');
-    
-    return 'I notice some interesting patterns emerging in your recent entries. The most prominent themes are $termList. ${snippets.isNotEmpty ? 'This is particularly evident in moments like: "${snippets.first}"' : ''} These patterns suggest you might be in a period of growth and reflection.';
-  }
-  
-  String _generatePhaseRationaleFallback(Map<String, dynamic> facts, List<String> snippets) {
-    final currentPhase = facts['currentPhase'] ?? 'Discovery';
-    final phaseStability = facts['phaseStability'] ?? 0.5;
-    
-    return 'Based on your recent entries, you appear to be in the $currentPhase phase. This makes sense given your current patterns and the stability of your recent reflections (${(phaseStability * 100).toStringAsFixed(0)}% consistency). ${snippets.isNotEmpty ? 'Key evidence includes: "${snippets.first}"' : ''}';
-  }
-  
-  String _generateComparePeriodFallback(Map<String, dynamic> facts, List<String> snippets) {
-    final currentValence = facts['currentValence'] ?? 0.5;
-    final previousValence = facts['previousValence'] ?? 0.5;
-    final change = currentValence - previousValence;
-    
-    final changeDesc = change > 0.1 ? 'improved' : change < -0.1 ? 'shifted' : 'remained stable';
-    
-    return 'Comparing this period to the previous one, your overall tone has $changeDesc (${currentValence.toStringAsFixed(2)} vs ${previousValence.toStringAsFixed(2)}). ${snippets.isNotEmpty ? 'This change is reflected in moments like: "${snippets.first}"' : ''}';
-  }
-  
-  String _generatePromptSuggestionFallback(Map<String, dynamic> facts, List<String> snippets) {
-    final topTerms = facts['topTerms'] ?? <String>[];
-    final term = topTerms.isNotEmpty ? topTerms.first : 'reflection';
-    
-    return 'Based on your recent patterns around $term, here are some prompts to explore: 1) "What does $term mean to me right now?" 2) "How has my relationship with $term evolved?" 3) "What would I like to understand better about $term?"';
-  }
-  
-  String _generateChatFallback(List<Map<String, String>> chat, List<String> snippets) {
-    if (chat.isEmpty) {
-      return 'I\'m here to help you explore your thoughts and patterns. What would you like to discuss about your recent entries?';
-    }
-    
-    final lastMessage = chat.last['content'] ?? '';
-    return 'I understand you\'re asking about "$lastMessage". Based on your recent entries${snippets.isNotEmpty ? ' and patterns like "${snippets.first}"' : ''}, this seems like an important topic for you to explore further.';
-  }
-  
-  String _generateGenericFallback(Map<String, dynamic> facts, List<String> snippets) {
-    final entryCount = facts['entryCount'] ?? 0;
-    final valence = facts['avgValence'] ?? 0.5;
-    
-    return 'I can see you have $entryCount recent entries with an average valence of ${valence.toStringAsFixed(2)}. ${snippets.isNotEmpty ? 'Some notable moments include: "${snippets.first}"' : ''} What would you like to explore about these patterns?';
-  }
 
   /// Dispose of resources
   static Future<void> dispose() async {

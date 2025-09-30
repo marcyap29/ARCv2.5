@@ -4,6 +4,7 @@ import 'package:my_app/lumara/data/context_scope.dart';
 import 'package:my_app/lumara/data/context_provider.dart';
 import 'package:my_app/lumara/data/models/lumara_message.dart';
 import 'package:my_app/lumara/llm/rule_based_adapter.dart';
+import 'package:my_app/lumara/llm/qwen_adapter.dart';
 import 'package:my_app/services/gemini_send.dart';
 import 'package:my_app/services/llm_bridge_adapter.dart';
 import '../services/enhanced_lumara_api.dart';
@@ -60,6 +61,7 @@ class LumaraAssistantError extends LumaraAssistantState {
 class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
   final ContextProvider _contextProvider;
   final RuleBasedAdapter _fallbackAdapter;
+  final QwenAdapter _qwenAdapter;
   late final ArcLLM _arcLLM;
   late final EnhancedLumaraApi _enhancedApi;
   final Analytics _analytics = Analytics();
@@ -82,6 +84,7 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
     required ContextProvider contextProvider,
   }) : _contextProvider = contextProvider,
        _fallbackAdapter = const RuleBasedAdapter(),
+       _qwenAdapter = QwenAdapter(),
        _chatRepo = ChatRepoImpl.instance,
        super(LumaraAssistantInitial()) {
     // Initialize ArcLLM with Gemini integration
@@ -403,24 +406,113 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
         };
       }
     } catch (e) {
-      print('LUMARA Debug: Error with API, falling back to rule-based: $e');
+      print('LUMARA Debug: Error with API, trying on-device QwenAdapter: $e');
       
-      // Fallback to rule-based responses
-      print('LUMARA Debug: [Fallback] Using rule-based adapter for query: "$text"');
-      final response = await _fallbackAdapter.generateResponse(
-        task: task,
-        userQuery: text,
-        context: context,
-      );
-      
-      print('LUMARA Debug: [Fallback] Generated response length: ${response.length}');
-      print('LUMARA Debug: [Fallback] No attribution data available for rule-based responses');
-      
-      return {
-        'content': response,
-        'attributionTraces': <AttributionTrace>[],
-      };
+      // Try on-device QwenAdapter first
+      try {
+        print('LUMARA Debug: [On-Device] Attempting QwenAdapter for query: "$text"');
+        
+        // Initialize QwenAdapter if not already done
+        if (!QwenAdapter.isReady) {
+          print('LUMARA Debug: [On-Device] Initializing QwenAdapter...');
+          final initialized = await QwenAdapter.initialize();
+          if (!initialized) {
+            print('LUMARA Debug: [On-Device] QwenAdapter initialization failed, falling back to rule-based');
+            throw Exception('QwenAdapter initialization failed');
+          }
+        }
+        
+        // Use QwenAdapter for on-device generation
+        final qwenResponse = await _qwenAdapter.realize(
+          task: _mapTaskToString(task),
+          facts: _buildFactsFromContextWindow(context),
+          snippets: _buildSnippetsFromContextWindow(context),
+          chat: _buildChatHistoryFromContextWindow(context),
+        ).first;
+        
+        print('LUMARA Debug: [On-Device] QwenAdapter response length: ${qwenResponse.length}');
+        
+        return {
+          'content': qwenResponse,
+          'attributionTraces': <AttributionTrace>[],
+        };
+      } catch (qwenError) {
+        print('LUMARA Debug: [On-Device] QwenAdapter failed: $qwenError');
+        
+        // Final fallback to rule-based responses
+        print('LUMARA Debug: [Fallback] Using rule-based adapter for query: "$text"');
+        final response = await _fallbackAdapter.generateResponse(
+          task: task,
+          userQuery: text,
+          context: context,
+        );
+        
+        print('LUMARA Debug: [Fallback] Generated response length: ${response.length}');
+        print('LUMARA Debug: [Fallback] No attribution data available for rule-based responses');
+        
+        return {
+          'content': response,
+          'attributionTraces': <AttributionTrace>[],
+        };
+      }
     }
+  }
+
+  /// Map InsightKind to string for on-device model
+  String _mapTaskToString(InsightKind task) {
+    return switch (task) {
+      InsightKind.chat => 'chat',
+      InsightKind.weeklySummary => 'weekly_summary',
+      InsightKind.risingPatterns => 'rising_patterns',
+      InsightKind.phaseRationale => 'phase_rationale',
+      InsightKind.comparePeriod => 'compare_period',
+      InsightKind.promptSuggestion => 'prompt_suggestion',
+    };
+  }
+
+  /// Build facts map from ContextWindow for on-device model
+  Map<String, dynamic> _buildFactsFromContextWindow(ContextWindow context) {
+    final recentEntries = context.nodes.where((n) => n['type'] == 'journal').toList();
+    final arcformNodes = context.nodes.where((n) => n['type'] == 'arcform').toList();
+    final phaseNodes = context.nodes.where((n) => n['type'] == 'phase').toList();
+    
+    return {
+      'entry_count': recentEntries.length,
+      'avg_valence': 0.5, // Default value
+      'top_terms': arcformNodes.map((n) => n['content']?.toString() ?? '').toList(),
+      'current_phase': phaseNodes.isNotEmpty ? phaseNodes.first['content']?.toString() : 'Discovery',
+      'phase_score': 0.5, // Default value
+      'recent_entry': recentEntries.isNotEmpty ? recentEntries.first['content']?.toString() : '',
+      'sage_json': '{}', // Default empty JSON
+      'keywords': arcformNodes.map((n) => n['content']?.toString() ?? '').toList(),
+    };
+  }
+
+  /// Build snippets list from ContextWindow for on-device model
+  List<String> _buildSnippetsFromContextWindow(ContextWindow context) {
+    return context.nodes
+        .where((n) => n['type'] == 'journal')
+        .map((n) => n['content']?.toString() ?? '')
+        .take(5)
+        .toList();
+  }
+
+  /// Build chat history from ContextWindow for on-device model
+  List<Map<String, String>> _buildChatHistoryFromContextWindow(ContextWindow context) {
+    final chatHistory = <Map<String, String>>[];
+    
+    // Add recent conversation context if available
+    if (state is LumaraAssistantLoaded) {
+      final currentState = state as LumaraAssistantLoaded;
+      for (final message in currentState.messages.take(10)) { // Limit context
+        chatHistory.add({
+          'role': message.role == LumaraMessageRole.user ? 'user' : 'assistant',
+          'content': message.content,
+        });
+      }
+    }
+    
+    return chatHistory;
   }
 
   /// Process message with streaming response

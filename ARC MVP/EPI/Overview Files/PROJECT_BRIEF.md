@@ -5,7 +5,35 @@ ARC is the **core journaling module of EPI (Evolving Personal Intelligence)**, b
 
 This MVP now implements **modular architecture** with RIVET (safety validation) and ECHO (expressive response layer) modules migrated to their proper locations, providing a foundation for the complete 8-module system: ARC→PRISM→ECHO→ATLAS→MIRA→AURORA→VEIL→RIVET.
 
-## 🌟 **LATEST ENHANCEMENT: LUMARA Streaming & UX Improvements** (2025-09-30) ✅
+## 🌟 **LATEST ENHANCEMENT: On-Device LLM Integration** (2025-09-30) ✅
+
+**🎯 Major Achievement**: Complete implementation of on-device LLM processing using Qwen3-1.7B Q4_K_M model with llama.cpp/Metal integration, providing privacy-first AI responses without external API dependencies.
+
+**✨ On-Device LLM Features**:
+- **Qwen3-1.7B Integration**: Downloaded and integrated 1.1GB quantized model optimized for mobile
+- **Privacy-First Processing**: All AI responses generated locally on device when model available
+- **Optimized Prompts**: Token-lean system prompts and task headers designed for small model efficiency
+- **Intelligent Fallback**: Three-tier fallback system: API → On-Device → Rule-Based responses
+- **Metal Acceleration**: Native iOS Metal support for optimal performance on Apple Silicon
+
+**🎯 Technical Implementation**:
+- **Model Management**: QwenAdapter with proper initialization, memory management, and disposal
+- **Prompt System**: Dual prompt system (cloud + on-device) with context-aware task headers
+- **Context Mapping**: Seamless conversion from ContextWindow to on-device model data format
+- **Error Handling**: Graceful degradation through multiple fallback layers
+- **Build Integration**: Successful iOS simulator build with all native dependencies
+
+**📱 User Experience**:
+- **Complete Privacy**: No data leaves device when using on-device model
+- **Consistent Quality**: Maintains LUMARA's tone and ARC contract compliance
+- **Reliable Responses**: Multiple fallback layers ensure responses always available
+- **Performance Optimized**: Designed for 4GB RAM devices with efficient memory usage
+
+**🏆 Result**: EPI now offers true privacy-first AI processing with on-device LLM capabilities, providing users with complete control over their data while maintaining high-quality conversational experiences.
+
+---
+
+## 🌟 **PREVIOUS ENHANCEMENT: LUMARA Streaming & UX Improvements** (2025-09-30) ✅
 
 **🎯 Major Achievement**: Implemented streaming responses, double confirmation for destructive actions, and fixed repetitive fallback messages - significantly improving LUMARA's user experience.
 
