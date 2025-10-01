@@ -313,7 +313,6 @@ class ChatRepoImpl implements ChatRepo {
   Future<void> pruneByPolicy({Duration maxAge = const Duration(days: 30)}) async {
     _ensureInitialized();
 
-    final cutoff = DateTime.now().subtract(maxAge);
     int archivedCount = 0;
 
     final sessionsToProcess = _sessionsBox!.values
@@ -358,6 +357,35 @@ class ChatRepoImpl implements ChatRepo {
       'pinned_sessions': pinnedCount,
       'total_messages': messages.length,
     };
+  }
+
+  @override
+  Future<void> deleteSessions(List<String> sessionIds) async {
+    _ensureInitialized();
+
+    if (sessionIds.isEmpty) return;
+
+    int deletedMessages = 0;
+    int deletedSessions = 0;
+
+    // Delete all messages for these sessions
+    final messageKeys = _messagesBox!.keys.where((key) {
+      final message = _messagesBox!.get(key);
+      return message != null && sessionIds.contains(message.sessionId);
+    }).toList();
+
+    for (final key in messageKeys) {
+      await _messagesBox!.delete(key);
+      deletedMessages++;
+    }
+
+    // Delete the sessions
+    for (final sessionId in sessionIds) {
+      await _sessionsBox!.delete(sessionId);
+      deletedSessions++;
+    }
+
+    print('ChatRepo: Batch deleted $deletedSessions sessions and $deletedMessages messages');
   }
 
   @override

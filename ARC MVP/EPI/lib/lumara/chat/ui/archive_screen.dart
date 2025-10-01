@@ -25,6 +25,10 @@ class _ArchiveScreenState extends State<ArchiveScreen> {
   List<ChatSession> _filteredSessions = [];
   bool _isLoading = true;
   String? _error;
+  
+  // Batch selection state
+  bool _isSelectionMode = false;
+  Set<String> _selectedSessionIds = {};
 
   @override
   void initState() {
@@ -158,6 +162,86 @@ class _ArchiveScreenState extends State<ArchiveScreen> {
     }
   }
 
+  void _toggleSelectionMode() {
+    setState(() {
+      _isSelectionMode = !_isSelectionMode;
+      if (!_isSelectionMode) {
+        _selectedSessionIds.clear();
+      }
+    });
+  }
+
+  void _toggleSessionSelection(String sessionId) {
+    setState(() {
+      if (_selectedSessionIds.contains(sessionId)) {
+        _selectedSessionIds.remove(sessionId);
+      } else {
+        _selectedSessionIds.add(sessionId);
+      }
+    });
+  }
+
+  void _selectAllSessions() {
+    setState(() {
+      _selectedSessionIds = _filteredSessions.map((s) => s.id).toSet();
+    });
+  }
+
+  void _clearSelection() {
+    setState(() {
+      _selectedSessionIds.clear();
+    });
+  }
+
+  Future<void> _batchDeleteSessions() async {
+    if (_selectedSessionIds.isEmpty) return;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Selected Chats'),
+        content: Text(
+          'Are you sure you want to delete ${_selectedSessionIds.length} archived chat${_selectedSessionIds.length > 1 ? 's' : ''}? This action cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: TextButton.styleFrom(foregroundColor: kcDangerColor),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      try {
+        await widget.chatRepo.deleteSessions(_selectedSessionIds.toList());
+        await _loadSessions();
+        setState(() {
+          _isSelectionMode = false;
+          _selectedSessionIds.clear();
+        });
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Deleted ${_selectedSessionIds.length} archived chat${_selectedSessionIds.length > 1 ? 's' : ''}'),
+            ),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Failed to delete chats: $e')),
+          );
+        }
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -166,13 +250,48 @@ class _ArchiveScreenState extends State<ArchiveScreen> {
         backgroundColor: Colors.transparent,
         elevation: 0,
         title: Text(
-          'Archive',
+          _isSelectionMode 
+            ? '${_selectedSessionIds.length} selected'
+            : 'Archive',
           style: heading1Style(context),
         ),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: kcPrimaryColor),
-          onPressed: () => Navigator.pop(context),
-        ),
+        leading: _isSelectionMode
+          ? IconButton(
+              icon: const Icon(Icons.close, color: kcPrimaryColor),
+              onPressed: _toggleSelectionMode,
+            )
+          : IconButton(
+              icon: const Icon(Icons.arrow_back, color: kcPrimaryColor),
+              onPressed: () => Navigator.pop(context),
+            ),
+        actions: _isSelectionMode
+          ? [
+              if (_selectedSessionIds.length < _filteredSessions.length)
+                IconButton(
+                  icon: const Icon(Icons.select_all, color: kcPrimaryColor),
+                  onPressed: _selectAllSessions,
+                  tooltip: 'Select All',
+                ),
+              if (_selectedSessionIds.isNotEmpty)
+                IconButton(
+                  icon: const Icon(Icons.clear, color: kcPrimaryColor),
+                  onPressed: _clearSelection,
+                  tooltip: 'Clear Selection',
+                ),
+              if (_selectedSessionIds.isNotEmpty)
+                IconButton(
+                  icon: const Icon(Icons.delete, color: kcDangerColor),
+                  onPressed: _batchDeleteSessions,
+                  tooltip: 'Delete Selected',
+                ),
+            ]
+          : [
+              IconButton(
+                icon: const Icon(Icons.checklist, color: kcPrimaryColor),
+                onPressed: _toggleSelectionMode,
+                tooltip: 'Select Multiple',
+              ),
+            ],
       ),
       body: Column(
         children: [
@@ -263,15 +382,19 @@ class _ArchiveScreenState extends State<ArchiveScreen> {
           final session = _filteredSessions[index];
           return _ArchivedChatCard(
             session: session,
-            onTap: () => Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => SessionView(
-                  sessionId: session.id,
-                  chatRepo: widget.chatRepo,
+            isSelectionMode: _isSelectionMode,
+            isSelected: _selectedSessionIds.contains(session.id),
+            onTap: _isSelectionMode
+              ? () => _toggleSessionSelection(session.id)
+              : () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => SessionView(
+                      sessionId: session.id,
+                      chatRepo: widget.chatRepo,
+                    ),
+                  ),
                 ),
-              ),
-            ),
             onRestore: () => _restoreSession(session),
             onPin: () => _pinSession(session),
             onDelete: () => _deleteSession(session),
@@ -288,6 +411,8 @@ class _ArchivedChatCard extends StatelessWidget {
   final VoidCallback onRestore;
   final VoidCallback onPin;
   final VoidCallback onDelete;
+  final bool isSelectionMode;
+  final bool isSelected;
 
   const _ArchivedChatCard({
     required this.session,
@@ -295,23 +420,36 @@ class _ArchivedChatCard extends StatelessWidget {
     required this.onRestore,
     required this.onPin,
     required this.onDelete,
+    this.isSelectionMode = false,
+    this.isSelected = false,
   });
 
   @override
   Widget build(BuildContext context) {
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
-      color: kcSurfaceColor.withOpacity(0.8),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      color: isSelected ? kcPrimaryColor.withOpacity(0.1) : kcSurfaceColor.withOpacity(0.8),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: isSelected 
+          ? BorderSide(color: kcPrimaryColor, width: 2)
+          : BorderSide.none,
+      ),
       child: Column(
         children: [
           ListTile(
             contentPadding: const EdgeInsets.all(16),
-            leading: const Icon(
-              Icons.archive,
-              color: kcTextSecondaryColor,
-              size: 20,
-            ),
+            leading: isSelectionMode
+              ? Checkbox(
+                  value: isSelected,
+                  onChanged: (_) => onTap(),
+                  activeColor: kcPrimaryColor,
+                )
+              : const Icon(
+                  Icons.archive,
+                  color: kcTextSecondaryColor,
+                  size: 20,
+                ),
             title: Row(
               children: [
                 Expanded(
@@ -361,52 +499,53 @@ class _ArchivedChatCard extends StatelessWidget {
             onTap: onTap,
           ),
 
-          // Action buttons
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            decoration: BoxDecoration(
-              color: kcBackgroundColor.withOpacity(0.5),
-              borderRadius: const BorderRadius.only(
-                bottomLeft: Radius.circular(12),
-                bottomRight: Radius.circular(12),
+          // Action buttons (hidden in selection mode)
+          if (!isSelectionMode)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              decoration: BoxDecoration(
+                color: kcBackgroundColor.withOpacity(0.5),
+                borderRadius: const BorderRadius.only(
+                  bottomLeft: Radius.circular(12),
+                  bottomRight: Radius.circular(12),
+                ),
               ),
-            ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: TextButton.icon(
-                    onPressed: onRestore,
-                    icon: const Icon(Icons.restore, size: 16),
-                    label: const Text('Restore'),
-                    style: TextButton.styleFrom(
-                      foregroundColor: kcPrimaryColor,
+              child: Row(
+                children: [
+                  Expanded(
+                    child: TextButton.icon(
+                      onPressed: onRestore,
+                      icon: const Icon(Icons.restore, size: 16),
+                      label: const Text('Restore'),
+                      style: TextButton.styleFrom(
+                        foregroundColor: kcPrimaryColor,
+                      ),
                     ),
                   ),
-                ),
-                const SizedBox(width: 8),
-                TextButton.icon(
-                  onPressed: onPin,
-                  icon: Icon(
-                    session.isPinned ? Icons.push_pin : Icons.push_pin_outlined,
-                    size: 16,
+                  const SizedBox(width: 8),
+                  TextButton.icon(
+                    onPressed: onPin,
+                    icon: Icon(
+                      session.isPinned ? Icons.push_pin : Icons.push_pin_outlined,
+                      size: 16,
+                    ),
+                    label: Text(session.isPinned ? 'Unpin' : 'Pin'),
+                    style: TextButton.styleFrom(
+                      foregroundColor: session.isPinned ? kcPrimaryColor : kcTextSecondaryColor,
+                    ),
                   ),
-                  label: Text(session.isPinned ? 'Unpin' : 'Pin'),
-                  style: TextButton.styleFrom(
-                    foregroundColor: session.isPinned ? kcPrimaryColor : kcTextSecondaryColor,
+                  const SizedBox(width: 8),
+                  TextButton.icon(
+                    onPressed: onDelete,
+                    icon: const Icon(Icons.delete, size: 16),
+                    label: const Text('Delete'),
+                    style: TextButton.styleFrom(
+                      foregroundColor: kcDangerColor,
+                    ),
                   ),
-                ),
-                const SizedBox(width: 8),
-                TextButton.icon(
-                  onPressed: onDelete,
-                  icon: const Icon(Icons.delete, size: 16),
-                  label: const Text('Delete'),
-                  style: TextButton.styleFrom(
-                    foregroundColor: kcDangerColor,
-                  ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
         ],
       ),
     );

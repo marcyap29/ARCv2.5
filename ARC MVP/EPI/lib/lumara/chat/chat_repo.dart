@@ -59,6 +59,9 @@ abstract class ChatRepo {
   /// Initialize repository (setup boxes/tables)
   Future<void> initialize();
 
+  /// Delete multiple sessions and all their messages
+  Future<void> deleteSessions(List<String> sessionIds);
+
   /// Close repository connections
   Future<void> close();
 }

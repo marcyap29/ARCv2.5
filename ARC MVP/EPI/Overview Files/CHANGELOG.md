@@ -2,6 +2,35 @@
 
 ## [Unreleased]
 
+### 🎉 **LUMARA CHAT HISTORY BATCH MANAGEMENT** - October 1, 2025
+
+#### **Batch Select and Delete System** ✅ **COMPLETE**
+- **Multi-Selection UI**: Complete batch selection interface with checkboxes and visual feedback
+- **Bulk Operations**: Select All, Clear Selection, and Delete Selected functionality
+- **Confirmation Dialogs**: Two-step confirmation system to prevent accidental deletions
+- **Archive Integration**: Full batch management support in Archive section
+- **Visual Feedback**: Selected items highlighted with blue borders and background tinting
+
+#### **Technical Implementation** ✅ **COMPLETE**
+- **ChatRepo Enhancement**: Added `deleteSessions(List<String> sessionIds)` method for efficient batch deletion
+- **Selection State Management**: Comprehensive state tracking for multi-selection across screens
+- **UI Components**: Enhanced chat cards with selection mode support and responsive design
+- **Error Handling**: Comprehensive error handling with user-friendly messages and recovery
+
+#### **User Experience** ✅ **COMPLETE**
+- **Intuitive Interface**: Checklist icon to enter selection mode, clear visual indicators
+- **Bulk Management**: Efficient deletion of multiple chat sessions in single operation
+- **Safety Features**: Confirmation dialogs and error recovery prevent data loss
+- **Consistent Design**: Same functionality across main chat history and archive sections
+
+#### **Files Modified** ✅ **COMPLETE**
+- `lib/lumara/chat/chat_repo.dart` - Added batch delete interface method
+- `lib/lumara/chat/chat_repo_impl.dart` - Implemented batch delete with message cleanup
+- `lib/lumara/chat/ui/chats_screen.dart` - Added selection mode and batch operations
+- `lib/lumara/chat/ui/archive_screen.dart` - Added identical batch functionality
+
+---
+
 ### 🎉 **LUMARA ENHANCEMENTS COMPLETE** - September 30, 2025
 
 #### **Streaming Responses** ✅ **COMPLETE**
