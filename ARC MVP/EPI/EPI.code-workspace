@@ -2,6 +2,9 @@
 	"folders": [
 		{
 			"path": "../.."
+		},
+		{
+			"path": "../../../EPI_v2"
 		}
 	],
 	"settings": {}

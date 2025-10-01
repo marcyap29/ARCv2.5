@@ -75,7 +75,7 @@
       ├── mcp_formatter.dart             # Format for MCP export
       └── structured_data_builder.dart   # Build semantic structures
 
-  3. ECHO Module: Expressive Response Layer (Enhanced with MCP Memory - Sept 28, 2025)
+  3. ECHO Module: Expressive Response Layer (Enhanced with MCP Memory & Batch Management - Oct 1, 2025)
 
   lib/echo/
   ├── response/
@@ -93,12 +93,20 @@
   │   ├── cloud_api_adapter.dart         # Cloud API integration
   │   ├── fallback_handler.dart          # Handle provider failures
   │   └── response_orchestrator.dart     # Coordinate multiple providers
-  ├── memory/                            # **NEW: MCP Memory System**
+  ├── memory/                            # **MCP Memory System**
   │   ├── mcp_memory_models.dart         # MCP data models and JSON serialization
   │   ├── mcp_memory_service.dart        # Core conversation persistence and session management
   │   ├── memory_index_service.dart      # Global indexing for topics, entities, open loops
   │   ├── pii_redaction_service.dart     # Privacy protection with PII detection/redaction
   │   └── summary_service.dart           # Map-reduce summarization and context extraction
+  ├── chat/                              # **NEW: Chat History Management**
+  │   ├── chat_repo.dart                 # Repository interface with batch operations
+  │   ├── chat_repo_impl.dart            # Hive-based implementation with batch delete
+  │   ├── chat_models.dart               # ChatSession and ChatMessage data models
+  │   └── ui/
+  │       ├── chats_screen.dart          # Main chat history with batch selection
+  │       ├── archive_screen.dart        # Archive with identical batch functionality
+  │       └── session_view.dart          # Individual chat session view
   └── models/
       ├── response_context.dart
       ├── dignity_metrics.dart
