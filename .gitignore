@@ -1,52 +1,161 @@
-# Large models
-ARC MVP/EPI/assets/models/**
-ARC MVP/EPI/assets/models/qwen/**
-ARC MVP/EPI/assets/models/**/*.gguf
-ARC MVP/EPI/assets/models/**/*.bin
-ARC MVP/EPI/temp_models/**
-
-cat >> .gitignore << 'EOF'
-
-# Build & tool output
-build/
+# Flutter/Dart
 .dart_tool/
-.flutter-plugins*
-**/DerivedData/
-
-# CocoaPods (vendor binaries)
-ios/Pods/
-
-# iOS binary artifacts
+.packages
+.pub-cache/
+.pub/
+build/
+*.dill
+*.snapshot
+*.app
 *.ipa
-*.xcarchive
-*.a
-*.dylib
-*.so
-*.o
+*.apk
+*.aab
 
-# AI/ML Models (large binary files - should be downloaded or use LFS)
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Logs
+*.log
+logs/
+log/
+
+# Temporary files
+*.tmp
+*.temp
+temp/
+tmp/
+
+# Large model files and assets
 *.gguf
 *.bin
-*.model
-*.weights
+*.safetensors
+*.h5
+*.pkl
+*.pt
+*.pth
+*.onnx
+*.tflite
+*.mlmodel
 
-# Bundled frameworks (should be resolved via Pods/SPM, not vendored)
-*.framework/
-*.xcframework/
-
-# Big media/archives that shouldn't be versioned
-*.zip
-*.tar
-*.tgz
-*.gz
+# Large media files
 *.mp4
 *.mov
+*.avi
+*.mkv
+*.wmv
+*.flv
+*.webm
+*.m4v
+*.3gp
+*.3g2
 
-# Previously problematic
-..bfg-report/
-**bfg-report*/
-**/.flutter-plugins-dependencies
-.DS_Store
+# Large audio files
+*.wav
+*.flac
+*.aiff
+*.aif
+*.au
+*.raw
+*.pcm
 
-# Build cache
-.buildlog/
+# Large image files
+*.tiff
+*.tif
+*.bmp
+*.raw
+*.cr2
+*.nef
+*.arw
+*.dng
+
+# Archive files
+*.zip
+*.tar
+*.tar.gz
+*.tar.bz2
+*.rar
+*.7z
+*.gz
+*.bz2
+
+# Backup files
+*backup*
+backup-*
+*.backup
+
+# Test data
+test_data/
+test_hive/
+
+# iOS specific
+ios/Pods/
+ios/.symlinks/
+ios/Flutter/Flutter.framework
+ios/Flutter/Flutter.podspec
+ios/Flutter/Generated.xcconfig
+ios/Flutter/app.flx
+ios/Flutter/app.zip
+ios/Flutter/flutter_assets/
+ios/Flutter/flutter_export_environment.sh
+ios/ServiceDefinitions.json
+ios/Runner/GeneratedPluginRegistrant.*
+
+# Android specific
+android/app/debug
+android/app/profile
+android/app/release
+
+# Web specific
+web/
+
+# Windows specific
+windows/flutter/generated_plugin_registrant.cc
+windows/flutter/generated_plugin_registrant.h
+windows/flutter/generated_plugins.cmake
+
+# macOS specific
+macos/Flutter/GeneratedPluginRegistrant.swift
+macos/Flutter/Flutter-Debug.xcconfig
+macos/Flutter/Flutter-Release.xcconfig
+macos/Flutter/Flutter-Profile.xcconfig
+
+# Linux specific
+linux/flutter/generated_plugin_registrant.cc
+linux/flutter/generated_plugin_registrant.h
+linux/flutter/generated_plugins.cmake
+
+# Coverage
+coverage/
+
+# Firebase
+google-services.json
+GoogleService-Info.plist
+firebase_options.dart
+
+# Sentry
+sentry.properties
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Third party large dependencies
+third_party/llama.cpp/
+ios-llm/
+
+# Large assets
+assets/models/
