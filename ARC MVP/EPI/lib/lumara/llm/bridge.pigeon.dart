@@ -15,6 +15,16 @@ PlatformException _createConnectionError(String channelName) {
   );
 }
 
+List<Object?> wrapResponse({Object? result, PlatformException? error, bool empty = false}) {
+  if (empty) {
+    return <Object?>[];
+  }
+  if (error == null) {
+    return <Object?>[result];
+  }
+  return <Object?>[error.code, error.message, error.details];
+}
+
 /// Self-test result from native side
 class SelfTestResult {
   SelfTestResult({
@@ -554,6 +564,51 @@ class LumaraNative {
       );
     } else {
       return;
+    }
+  }
+}
+
+/// Progress callback from native to Flutter
+/// Used to report model loading progress (0-100%)
+abstract class LumaraNativeProgress {
+  static const MessageCodec<Object?> pigeonChannelCodec = _PigeonCodec();
+
+  /// Report model loading progress
+  /// - modelId: ID of the model being loaded
+  /// - value: Progress percentage (0-100)
+  /// - message: Optional status message
+  void modelProgress(String modelId, int value, String? message);
+
+  static void setUp(LumaraNativeProgress? api, {BinaryMessenger? binaryMessenger, String messageChannelSuffix = '',}) {
+    messageChannelSuffix = messageChannelSuffix.isNotEmpty ? '.$messageChannelSuffix' : '';
+    {
+      final BasicMessageChannel<Object?> pigeonVar_channel = BasicMessageChannel<Object?>(
+          'dev.flutter.pigeon.my_app.LumaraNativeProgress.modelProgress$messageChannelSuffix', pigeonChannelCodec,
+          binaryMessenger: binaryMessenger);
+      if (api == null) {
+        pigeonVar_channel.setMessageHandler(null);
+      } else {
+        pigeonVar_channel.setMessageHandler((Object? message) async {
+          assert(message != null,
+          'Argument for dev.flutter.pigeon.my_app.LumaraNativeProgress.modelProgress was null.');
+          final List<Object?> args = (message as List<Object?>?)!;
+          final String? arg_modelId = (args[0] as String?);
+          assert(arg_modelId != null,
+              'Argument for dev.flutter.pigeon.my_app.LumaraNativeProgress.modelProgress was null, expected non-null String.');
+          final int? arg_value = (args[1] as int?);
+          assert(arg_value != null,
+              'Argument for dev.flutter.pigeon.my_app.LumaraNativeProgress.modelProgress was null, expected non-null int.');
+          final String? arg_message = (args[2] as String?);
+          try {
+            api.modelProgress(arg_modelId!, arg_value!, arg_message);
+            return wrapResponse(empty: true);
+          } on PlatformException catch (e) {
+            return wrapResponse(error: e);
+          }          catch (e) {
+            return wrapResponse(error: PlatformException(code: 'error', message: e.toString()));
+          }
+        });
+      }
     }
   }
 }

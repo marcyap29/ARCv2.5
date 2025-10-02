@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'model_adapter.dart';
 import 'bridge.pigeon.dart' as pigeon;
+import 'model_progress_service.dart';
 
 /// On-device LLM adapter using Pigeon native bridge
 /// Supports multiple model formats: MLX (iOS), GGUF (Android via llama.cpp)
@@ -62,17 +63,33 @@ class LLMAdapter implements ModelAdapter {
       final modelId = _registry!.active ?? _registry!.installed.first!.id;
       debugPrint('[LLMAdapter] Selected model: $modelId');
 
-      // Initialize the model
+      // Initialize the model (async - will report progress via callback)
       try {
+        debugPrint('[LLMAdapter] Starting async model initialization...');
         final success = await _nativeApi.initModel(modelId);
 
         if (success) {
-          _isInitialized = true;
-          _activeModelId = modelId;
-          _available = true;
-          _reason = 'ok';
-          debugPrint('[LLMAdapter] Successfully initialized model: $modelId');
-          return true;
+          // Wait for model to finish loading (progress will reach 100%)
+          debugPrint('[LLMAdapter] Waiting for model to load...');
+          try {
+            await ModelProgressService().waitForCompletion(
+              modelId,
+              timeout: const Duration(minutes: 2),
+            );
+
+            _isInitialized = true;
+            _activeModelId = modelId;
+            _available = true;
+            _reason = 'ok';
+            debugPrint('[LLMAdapter] Successfully initialized model: $modelId');
+            return true;
+          } on TimeoutException {
+            debugPrint('[LLMAdapter] Model loading timeout');
+            _reason = 'model_loading_timeout';
+            _available = false;
+            _isInitialized = false;
+            return false;
+          }
         } else {
           _reason = 'model_init_failed';
           _available = false;

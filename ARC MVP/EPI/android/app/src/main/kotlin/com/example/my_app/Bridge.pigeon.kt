@@ -33,6 +33,9 @@ private fun wrapError(exception: Throwable): List<Any?> {
   }
 }
 
+private fun createConnectionError(channelName: String): FlutterError {
+  return FlutterError("channel-error",  "Unable to establish connection on channel: '$channelName'.", "")}
+
 /**
  * Error class for passing custom error details to Flutter via a thrown PlatformException.
  * @property code The error code.
@@ -491,6 +494,43 @@ interface LumaraNative {
           channel.setMessageHandler(null)
         }
       }
+    }
+  }
+}
+/**
+ * Progress callback from native to Flutter
+ * Used to report model loading progress (0-100%)
+ *
+ * Generated class from Pigeon that represents Flutter messages that can be called from Kotlin.
+ */
+class LumaraNativeProgress(private val binaryMessenger: BinaryMessenger, private val messageChannelSuffix: String = "") {
+  companion object {
+    /** The codec used by LumaraNativeProgress. */
+    val codec: MessageCodec<Any?> by lazy {
+      BridgePigeonCodec()
+    }
+  }
+  /**
+   * Report model loading progress
+   * - modelId: ID of the model being loaded
+   * - value: Progress percentage (0-100)
+   * - message: Optional status message
+   */
+  fun modelProgress(modelIdArg: String, valueArg: Long, messageArg: String?, callback: (Result<Unit>) -> Unit)
+{
+    val separatedMessageChannelSuffix = if (messageChannelSuffix.isNotEmpty()) ".$messageChannelSuffix" else ""
+    val channelName = "dev.flutter.pigeon.my_app.LumaraNativeProgress.modelProgress$separatedMessageChannelSuffix"
+    val channel = BasicMessageChannel<Any?>(binaryMessenger, channelName, codec)
+    channel.send(listOf(modelIdArg, valueArg, messageArg)) {
+      if (it is List<*>) {
+        if (it.size > 1) {
+          callback(Result.failure(FlutterError(it[0] as String, it[1] as String, it[2] as String?)))
+        } else {
+          callback(Result.success(Unit))
+        }
+      } else {
+        callback(Result.failure(createConnectionError(channelName)))
+      } 
     }
   }
 }

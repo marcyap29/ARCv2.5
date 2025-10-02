@@ -1,6 +1,7 @@
 // LLMBridge.swift
 // Swift implementation of LumaraNative Pigeon protocol
 // Provides on-device LLM inference with MLX
+// Updated: Async model loading from bundle with progress reporting
 
 import Foundation
 import UIKit
@@ -26,6 +27,29 @@ class ModelStore {
         registryURL = modelRootURL.appendingPathComponent("models.json")
 
         try? FileManager.default.createDirectory(at: modelRootURL, withIntermediateDirectories: true)
+
+        // Auto-create registry for bundled models if it doesn't exist
+        if !FileManager.default.fileExists(atPath: registryURL.path) {
+            createDefaultRegistry()
+        }
+    }
+
+    private func createDefaultRegistry() {
+        let registry = Registry(
+            installed: [
+                RegistryEntry(
+                    id: "qwen3-1.7b-mlx-4bit",
+                    name: "Qwen3 1.7B MLX 4-bit",
+                    format: .mlx,
+                    path: "Qwen3-1.7B-MLX-4bit",
+                    sizeBytes: 915_000_000, // ~915MB
+                    checksum: nil
+                )
+            ],
+            active: "qwen3-1.7b-mlx-4bit"
+        )
+        try? writeRegistry(registry)
+        logger.info("Created default registry for bundled models")
     }
 
     func readRegistry() -> Registry {
@@ -43,6 +67,21 @@ class ModelStore {
 
     func resolvePath(for entry: RegistryEntry) -> URL {
         return modelRootURL.appendingPathComponent(entry.path)
+    }
+
+    /// Resolve bundled model path from Flutter assets
+    func resolveBundlePath(modelId: String, file: String) -> URL? {
+        // Map model ID to bundle directory
+        let bundleSubpath: String
+        switch modelId {
+        case "qwen3-1.7b-mlx-4bit":
+            bundleSubpath = "Qwen3-1.7B-MLX-4bit"
+        default:
+            bundleSubpath = modelId
+        }
+
+        let relativePath = "flutter_assets/assets/models/MLX/\(bundleSubpath)/\(file)"
+        return Bundle.main.url(forResource: relativePath, withExtension: nil)
     }
 
     struct Registry: Codable {
@@ -79,6 +118,7 @@ class SimpleTokenizer {
     let eosToken: Int
 
     init(vocabPath: URL) throws {
+        logger.info("[ModelPreload] step=tokenizer_load path=\(vocabPath.path)")
         let data = try Data(contentsOf: vocabPath)
         let json = try JSONSerialization.jsonObject(with: data) as! [String: Any]
 
@@ -99,6 +139,8 @@ class SimpleTokenizer {
         // Get special tokens
         self.bosToken = vocab["<|im_start|>"] ?? 0
         self.eosToken = vocab["<|im_end|>"] ?? 1
+
+        logger.info("[ModelPreload] tokenizer=ok vocab_size=\(vocab.count)")
     }
 
     func encode(_ text: String) -> [Int] {
@@ -110,6 +152,8 @@ class SimpleTokenizer {
     func decode(_ tokens: [Int]) -> String {
         return tokens.compactMap { reverseVocab[$0] }.joined(separator: " ")
     }
+
+    private let logger = Logger(subsystem: "EPI", category: "SimpleTokenizer")
 }
 
 /// Manages loaded model state
@@ -121,35 +165,102 @@ class ModelLifecycle {
     private var currentModelId: String?
     private var tokenizer: SimpleTokenizer?
     private var modelWeights: [String: MLXArray]?
+    private let loadQueue = DispatchQueue(label: "com.epi.model.load", qos: .userInitiated)
 
-    func start(modelId: String) throws {
+    // Progress API reference
+    weak var progressApi: LumaraNativeProgress?
+
+    private func emit(modelId: String, value: Int64, message: String) {
+        DispatchQueue.main.async { [weak self] in
+            self?.progressApi?.modelProgress(modelId: modelId, value: value, message: message, completion: { _ in })
+        }
+        logger.info("[ModelPreload] progress=\(value) msg=\(message)")
+    }
+
+    func start(modelId: String, completion: @escaping (Result<Void, Error>) -> Void) {
+        // Fast path: already loaded
         if isRunning && currentModelId == modelId {
-            return // Already running
+            emit(modelId: modelId, value: 100, message: "already loaded")
+            completion(.success(()))
+            return
         }
 
-        if isRunning {
-            try stop()
+        // Stop existing model if different
+        if isRunning && currentModelId != modelId {
+            try? stop()
         }
 
-        let registry = ModelStore.shared.readRegistry()
-        guard let entry = registry.entry(for: modelId) else {
-            throw NSError(domain: "ModelLifecycle", code: 404, userInfo: [
-                NSLocalizedDescriptionKey: "Model '\(modelId)' not found in registry"
-            ])
+        // Start async loading
+        emit(modelId: modelId, value: 0, message: "starting")
+        logger.info("[ModelPreload] step=start modelId=\(modelId)")
+
+        loadQueue.async { [weak self] in
+            guard let self = self else { return }
+
+            do {
+                // Resolve bundle paths
+                self.emit(modelId: modelId, value: 10, message: "locating files")
+
+                guard let configURL = ModelStore.shared.resolveBundlePath(modelId: modelId, file: "config.json"),
+                      let tokenizerURL = ModelStore.shared.resolveBundlePath(modelId: modelId, file: "tokenizer.json"),
+                      let weightsURL = ModelStore.shared.resolveBundlePath(modelId: modelId, file: "model.safetensors") else {
+                    throw NSError(domain: "ModelLifecycle", code: 404, userInfo: [
+                        NSLocalizedDescriptionKey: "Model files not found in bundle for: \(modelId)"
+                    ])
+                }
+
+                self.logger.info("[ModelPreload] path=\(weightsURL.path)")
+
+                // Verify files exist
+                guard FileManager.default.fileExists(atPath: configURL.path),
+                      FileManager.default.fileExists(atPath: tokenizerURL.path),
+                      FileManager.default.fileExists(atPath: weightsURL.path) else {
+                    throw NSError(domain: "ModelLifecycle", code: 404, userInfo: [
+                        NSLocalizedDescriptionKey: "Missing model files in bundle"
+                    ])
+                }
+
+                // Load tokenizer
+                self.emit(modelId: modelId, value: 30, message: "loading tokenizer")
+                self.tokenizer = try SimpleTokenizer(vocabPath: tokenizerURL)
+
+                // Load weights with mmap
+                self.emit(modelId: modelId, value: 60, message: "loading weights (mmap)")
+                do {
+                    let fileSize = try FileManager.default.attributesOfItem(atPath: weightsURL.path)[.size] as? UInt64 ?? 0
+                    self.logger.info("[ModelPreload] mmap=starting size=\(fileSize)")
+
+                    // Use memory-mapped loading for large files
+                    self.modelWeights = try SafetensorsLoader.load(from: weightsURL)
+
+                    self.logger.info("[ModelPreload] mmap=ok tensors=\(self.modelWeights?.count ?? 0)")
+                } catch {
+                    self.logger.error("[ModelPreload] err=\(error.localizedDescription)")
+                    throw error
+                }
+
+                // MLX initialization (warmup would go here)
+                self.emit(modelId: modelId, value: 90, message: "initializing MLX")
+
+                // Mark as loaded
+                self.isRunning = true
+                self.currentModelId = modelId
+
+                self.emit(modelId: modelId, value: 100, message: "ready")
+                self.logger.info("[ModelPreload] ok modelId=\(modelId)")
+
+                DispatchQueue.main.async {
+                    completion(.success(()))
+                }
+
+            } catch {
+                self.logger.error("[ModelPreload] err=\(error.localizedDescription)")
+                self.emit(modelId: modelId, value: 0, message: "failed: \(error.localizedDescription)")
+                DispatchQueue.main.async {
+                    completion(.failure(error))
+                }
+            }
         }
-
-        let modelPath = ModelStore.shared.resolvePath(for: entry)
-
-        switch entry.format {
-        case .mlx:
-            try loadMLXModel(at: modelPath)
-        case .gguf:
-            try loadGGUFModel(at: modelPath)
-        }
-
-        isRunning = true
-        currentModelId = modelId
-        logger.info("Started model: \(modelId)")
     }
 
     func stop() throws {
@@ -207,64 +318,6 @@ class ModelLifecycle {
         )
     }
 
-    // MARK: - Model Loading
-
-    private func loadMLXModel(at path: URL) throws {
-        logger.info("loadMLXModel called for: \(path.path)")
-
-        // Verify directory exists
-        guard FileManager.default.fileExists(atPath: path.path) else {
-            throw NSError(domain: "ModelLifecycle", code: 404, userInfo: [
-                NSLocalizedDescriptionKey: "Model directory not found: \(path.path)"
-            ])
-        }
-
-        // 1. Load tokenizer from tokenizer.json
-        let tokenizerPath = path.appendingPathComponent("tokenizer.json")
-        guard FileManager.default.fileExists(atPath: tokenizerPath.path) else {
-            throw NSError(domain: "ModelLifecycle", code: 404, userInfo: [
-                NSLocalizedDescriptionKey: "tokenizer.json not found"
-            ])
-        }
-
-        self.tokenizer = try SimpleTokenizer(vocabPath: tokenizerPath)
-        logger.info("Tokenizer loaded successfully")
-
-        // 2. Load model weights from model.safetensors
-        let weightsPath = path.appendingPathComponent("model.safetensors")
-        guard FileManager.default.fileExists(atPath: weightsPath.path) else {
-            throw NSError(domain: "ModelLifecycle", code: 404, userInfo: [
-                NSLocalizedDescriptionKey: "model.safetensors not found"
-            ])
-        }
-
-        // Load safetensors file using MLX
-        // Note: Full transformer implementation would require:
-        // - Embedding layer
-        // - Multiple transformer blocks
-        // - Attention mechanisms
-        // - Output projection
-        // This is a simplified version that loads the weights
-        do {
-            // Load and parse safetensors file
-            self.modelWeights = try SafetensorsLoader.load(from: weightsPath)
-            logger.info("MLX model loaded successfully with \(self.modelWeights?.count ?? 0) tensors")
-        } catch {
-            throw NSError(domain: "ModelLifecycle", code: 500, userInfo: [
-                NSLocalizedDescriptionKey: "Failed to load model weights: \(error.localizedDescription)"
-            ])
-        }
-    }
-
-    private func loadGGUFModel(at path: URL) throws {
-        logger.info("loadGGUFModel called for: \(path.path)")
-
-        // GGUF format support placeholder
-        throw NSError(domain: "ModelLifecycle", code: 501, userInfo: [
-            NSLocalizedDescriptionKey: "GGUF format not yet implemented"
-        ])
-    }
-
     // MARK: - Fallback Response Generation
 
     private func generateFallbackResponse(prompt: String) -> String {
@@ -275,10 +328,10 @@ class ModelLifecycle {
 
         Your prompt: "\(prompt.prefix(100))"
 
-        The tokenizer and model weights have been loaded. Full transformer inference \
+        The tokenizer and model weights have been loaded from the app bundle. Full transformer inference \
         requires implementing attention layers, feed-forward networks, and layer normalization.
 
-        Current status: Bridge ✓, MLX loaded ✓, Tokenizer ✓, Full inference pending.
+        Current status: Bridge ✓, MLX loaded ✓, Tokenizer ✓, Bundle mmap ✓, Full inference pending.
         """
     }
 }
@@ -287,15 +340,23 @@ class ModelLifecycle {
 
 class LLMBridge: NSObject, LumaraNative {
     private let logger = Logger(subsystem: "EPI", category: "LLMBridge")
+    private var progressApi: LumaraNativeProgress?
+
+    /// Set progress API for model loading callbacks
+    func setProgressApi(_ api: LumaraNativeProgress) {
+        self.progressApi = api
+        ModelLifecycle.shared.progressApi = api
+        logger.info("Progress API configured")
+    }
 
     func selfTest() throws -> SelfTestResult {
         logger.info("selfTest called")
 
         return SelfTestResult(
             ok: true,
-            message: "LLMBridge operational",
+            message: "LLMBridge operational (bundle loading enabled)",
             platform: "iOS",
-            version: "1.0.0-pigeon"
+            version: "1.0.0-pigeon-async"
         )
     }
 
@@ -317,47 +378,47 @@ class LLMBridge: NSObject, LumaraNative {
     }
 
     func initModel(modelId: String) throws -> Bool {
-        logger.info("initModel called for: \(modelId)")
+        logger.info("initModel called for: \(modelId) (async loading)")
 
-        try ModelLifecycle.shared.start(modelId: modelId)
+        // Start async loading - returns immediately
+        ModelLifecycle.shared.start(modelId: modelId) { result in
+            switch result {
+            case .success:
+                self.logger.info("Model \(modelId) loaded successfully")
+            case .failure(let error):
+                self.logger.error("Model \(modelId) failed to load: \(error.localizedDescription)")
+            }
+        }
+
+        // Return true immediately - progress will be reported via callback
         return true
     }
 
     func getModelStatus(modelId: String) throws -> ModelStatus {
-        let registry = ModelStore.shared.readRegistry()
-
-        guard let entry = registry.entry(for: modelId) else {
-            return ModelStatus(
-                folder: "",
-                loaded: false,
-                missing: ["Model not in registry"],
-                format: "unknown"
-            )
-        }
-
-        let folder = ModelStore.shared.resolvePath(for: entry)
-
-        // Check for required MLX files
-        let configPath = folder.appendingPathComponent("config.json")
-        let tokenizerPath = folder.appendingPathComponent("tokenizer.json")
-        let weightsPath = folder.appendingPathComponent("model.safetensors")
-
+        // Check bundle files instead of Application Support
         var missing: [String] = []
-        if !FileManager.default.fileExists(atPath: configPath.path) {
+
+        let configURL = ModelStore.shared.resolveBundlePath(modelId: modelId, file: "config.json")
+        let tokenizerURL = ModelStore.shared.resolveBundlePath(modelId: modelId, file: "tokenizer.json")
+        let weightsURL = ModelStore.shared.resolveBundlePath(modelId: modelId, file: "model.safetensors")
+
+        if configURL == nil || !FileManager.default.fileExists(atPath: configURL!.path) {
             missing.append("config.json")
         }
-        if !FileManager.default.fileExists(atPath: tokenizerPath.path) {
+        if tokenizerURL == nil || !FileManager.default.fileExists(atPath: tokenizerURL!.path) {
             missing.append("tokenizer.json")
         }
-        if !FileManager.default.fileExists(atPath: weightsPath.path) {
+        if weightsURL == nil || !FileManager.default.fileExists(atPath: weightsURL!.path) {
             missing.append("model.safetensors")
         }
 
+        let folder = weightsURL?.deletingLastPathComponent().path ?? "bundle"
+
         return ModelStatus(
-            folder: folder.path,
+            folder: folder,
             loaded: missing.isEmpty,
             missing: missing,
-            format: entry.format.rawValue
+            format: "mlx"
         )
     }
 
@@ -376,8 +437,11 @@ class LLMBridge: NSObject, LumaraNative {
     }
 
     func getActiveModelPath(modelId: String) throws -> String {
-        let registry = ModelStore.shared.readRegistry()
+        if let bundlePath = ModelStore.shared.resolveBundlePath(modelId: modelId, file: "config.json") {
+            return bundlePath.deletingLastPathComponent().path
+        }
 
+        let registry = ModelStore.shared.readRegistry()
         guard let entry = registry.entry(for: modelId) else {
             throw NSError(domain: "LLMBridge", code: 404, userInfo: [
                 NSLocalizedDescriptionKey: "Model '\(modelId)' not found"

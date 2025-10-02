@@ -55,6 +55,10 @@ private func wrapError(_ error: Any) -> [Any?] {
   ]
 }
 
+private func createConnectionError(withChannelName channelName: String) -> PigeonError {
+  return PigeonError(code: "channel-error", message: "Unable to establish connection on channel: '\(channelName)'.", details: "")
+}
+
 private func isNullish(_ value: Any?) -> Bool {
   return value is NSNull || value == nil
 }
@@ -507,6 +511,50 @@ class LumaraNativeSetup {
       }
     } else {
       setActiveModelChannel.setMessageHandler(nil)
+    }
+  }
+}
+/// Progress callback from native to Flutter
+/// Used to report model loading progress (0-100%)
+///
+/// Generated protocol from Pigeon that represents Flutter messages that can be called from Swift.
+protocol LumaraNativeProgressProtocol {
+  /// Report model loading progress
+  /// - modelId: ID of the model being loaded
+  /// - value: Progress percentage (0-100)
+  /// - message: Optional status message
+  func modelProgress(modelId modelIdArg: String, value valueArg: Int64, message messageArg: String?, completion: @escaping (Result<Void, PigeonError>) -> Void)
+}
+class LumaraNativeProgress: LumaraNativeProgressProtocol {
+  private let binaryMessenger: FlutterBinaryMessenger
+  private let messageChannelSuffix: String
+  init(binaryMessenger: FlutterBinaryMessenger, messageChannelSuffix: String = "") {
+    self.binaryMessenger = binaryMessenger
+    self.messageChannelSuffix = messageChannelSuffix.count > 0 ? ".\(messageChannelSuffix)" : ""
+  }
+  var codec: BridgePigeonCodec {
+    return BridgePigeonCodec.shared
+  }
+  /// Report model loading progress
+  /// - modelId: ID of the model being loaded
+  /// - value: Progress percentage (0-100)
+  /// - message: Optional status message
+  func modelProgress(modelId modelIdArg: String, value valueArg: Int64, message messageArg: String?, completion: @escaping (Result<Void, PigeonError>) -> Void) {
+    let channelName: String = "dev.flutter.pigeon.my_app.LumaraNativeProgress.modelProgress\(messageChannelSuffix)"
+    let channel = FlutterBasicMessageChannel(name: channelName, binaryMessenger: binaryMessenger, codec: codec)
+    channel.sendMessage([modelIdArg, valueArg, messageArg] as [Any?]) { response in
+      guard let listResponse = response as? [Any?] else {
+        completion(.failure(createConnectionError(withChannelName: channelName)))
+        return
+      }
+      if listResponse.count > 1 {
+        let code: String = listResponse[0] as! String
+        let message: String? = nilOrValue(listResponse[1])
+        let details: String? = nilOrValue(listResponse[2])
+        completion(.failure(PigeonError(code: code, message: message, details: details)))
+      } else {
+        completion(.success(Void()))
+      }
     }
   }
 }

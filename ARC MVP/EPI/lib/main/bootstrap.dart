@@ -21,6 +21,8 @@ import 'package:my_app/data/hive/insight_snapshot.dart';
 import 'package:my_app/core/sync/sync_item_adapter.dart';
 import 'package:my_app/core/services/audio_service.dart';
 import 'package:my_app/lumara/chat/chat_models.dart';
+import 'package:my_app/lumara/llm/model_progress_service.dart';
+import 'package:my_app/lumara/llm/bridge.pigeon.dart' as pigeon;
 
 import 'package:my_app/shared/app_colors.dart';
 import 'package:my_app/shared/text_style.dart';
@@ -702,9 +704,12 @@ Future<bool> _attemptEmergencyRecovery(Object exception, StackTrace stackTrace) 
 /// Register native bridges for LUMARA
 Future<void> _registerNativeBridges() async {
   try {
-    // The native bridges are automatically registered when the app starts
-    // This function is a placeholder for any additional setup needed
-    logger.d('Native bridges will be registered automatically');
+    // Register progress API to receive model loading updates from native side
+    pigeon.LumaraNativeProgressSetup.setUp(
+      ServicesBinding.instance.defaultBinaryMessenger,
+      api: ModelProgressService(),
+    );
+    logger.d('ModelProgressService registered for native progress callbacks');
   } catch (e) {
     logger.e('Failed to register native bridges', e);
     rethrow;

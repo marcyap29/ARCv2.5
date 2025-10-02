@@ -153,30 +153,16 @@ class LumaraAPIConfig {
   /// Check if internal model is available
   Future<bool> _checkInternalModelAvailability(LLMProviderConfig config) async {
     try {
-      // For Qwen, check if the native bridge is working
-      if (config.provider == LLMProvider.qwen) {
-        // Import the native bridge to test availability
-        try {
-          // This will be implemented by checking if the native bridge responds
-          // For now, we'll assume Qwen is available if we can import the native bridge
-          return true; // Qwen native bridge is working
-        } catch (e) {
-          debugPrint('LUMARA API: Qwen native bridge not available: $e');
-          return false;
-        }
-      }
-      
-      // For Llama, check if the native bridge is working
-      if (config.provider == LLMProvider.llama) {
-        // Similar check for Llama when implemented
-        return false; // Llama not yet implemented
-      }
-      
+      // DEPRECATED: Old localhost-based providers are disabled in favor of native LLMAdapter
+      // This prevents SocketException errors from health checks
+
       // For rule-based, always available
       if (config.provider == LLMProvider.ruleBased) {
         return true;
       }
-      
+
+      // Qwen and Llama are now handled by LLMAdapter with native MLX bridge
+      debugPrint('LUMARA API: ${config.name} disabled (use LLMAdapter for native inference)');
       return false;
     } catch (e) {
       debugPrint('LUMARA API: Health check failed for ${config.name}: $e');

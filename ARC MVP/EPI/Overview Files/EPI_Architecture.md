@@ -12,29 +12,41 @@
 
   ## 🤖 **On-Device LLM Architecture** (Updated Oct 2, 2025)
 
-  **MLX Integration Pipeline**:
+  **MLX Integration Pipeline with Async Progress**:
   ```
   Flutter (LLMAdapter) → Pigeon Bridge → Swift (LLMBridge) → ModelStore → ModelLifecycle → MLX Inference
+                      ← Progress API ← Swift Callbacks ← Model Loading Progress
   ```
 
   **Key Components**:
-  - `lib/lumara/llm/llm_adapter.dart` - Flutter adapter using Pigeon bridge
-  - `ios/Runner/LLMBridge.swift` - Swift implementation of Pigeon protocol
-  - `ios/Runner/SafetensorsLoader.swift` - Safetensors format parser
-  - `ios/Runner/ModelStore.swift` - Model registry and path management
-  - `ios/Runner/ModelLifecycle.swift` - Model loading and inference lifecycle
+  - `lib/lumara/llm/llm_adapter.dart` - Flutter adapter using Pigeon bridge with progress waiting
+  - `lib/lumara/llm/model_progress_service.dart` - Progress callback handler with stream broadcasting
+  - `ios/Runner/LLMBridge.swift` - Swift implementation of Pigeon protocol with progress emission
+  - `ios/Runner/SafetensorsLoader.swift` - Safetensors format parser with memory-mapped I/O
+  - `ios/Runner/ModelStore.swift` - Model registry and bundle path management
+  - `ios/Runner/ModelLifecycle.swift` - Async model loading lifecycle with completion handlers
+  - `ios/Runner/AppDelegate.swift` - Progress API wiring for native→Flutter callbacks
+
+  **Async Model Loading**:
+  - **Non-Blocking Init**: `initModel()` returns immediately, loading happens in background
+  - **Progress Streaming**: Real-time updates (0%, 10%, 30%, 60%, 90%, 100%) via Pigeon callbacks
+  - **Bundle Loading**: Models loaded directly from `flutter_assets/assets/models/MLX/`
+  - **Memory Mapping**: Large model files (872MB) loaded with memory-mapped I/O
+  - **Background Queue**: `DispatchQueue(label: "com.epi.model.load", qos: .userInitiated)`
 
   **Model Management**:
   - **Registry**: JSON-based model tracking at `~/Library/Application Support/Models/models.json`
-  - **Storage**: Models stored in Application Support with no-backup flag
+  - **Auto-Creation**: Registry auto-created on first launch with bundled model entry
+  - **Bundle Resolution**: `resolveBundlePath()` maps model IDs to flutter_assets paths
   - **Formats**: Supports MLX (iOS) and GGUF (Android) model formats
-  - **Loading**: Real-time safetensors parsing to MLXArrays
+  - **Loading**: Real-time safetensors parsing to MLXArrays with progress reporting
 
   **Privacy Architecture**:
   - **On-Device Processing**: All inference happens locally on device
   - **No External Calls**: No data sent to external servers when using on-device model
-  - **Fallback System**: API → On-Device → Rule-Based response hierarchy
+  - **Fallback System**: On-Device → Cloud API → Rule-Based response hierarchy
   - **Model Verification**: File integrity checks before loading
+  - **Progress Transparency**: User can see model loading progress in UI
 
   ## 📱 Navigation & User Interface Architecture (Updated Sept 28, 2025)
 

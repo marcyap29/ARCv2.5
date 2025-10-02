@@ -147,3 +147,14 @@ abstract class LumaraNative {
   // --- Future streaming support ---
   // Stream<String> generateTextStream(String prompt, GenParams params);
 }
+
+/// Progress callback from native to Flutter
+/// Used to report model loading progress (0-100%)
+@FlutterApi()
+abstract class LumaraNativeProgress {
+  /// Report model loading progress
+  /// - modelId: ID of the model being loaded
+  /// - value: Progress percentage (0-100)
+  /// - message: Optional status message
+  void modelProgress(String modelId, int value, String? message);
+}

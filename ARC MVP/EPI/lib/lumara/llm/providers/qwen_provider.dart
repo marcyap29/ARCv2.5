@@ -16,23 +16,10 @@ class QwenProvider extends LLMProviderBase {
 
   @override
   Future<bool> isAvailable() async {
-    final config = getConfig();
-    if (config?.baseUrl == null) return false;
-
-    try {
-      // Check if local Qwen server is running
-      final client = HttpClient();
-      final uri = Uri.parse('${config!.baseUrl}/health');
-      
-      final request = await client.getUrl(uri);
-      final response = await request.close();
-      
-      client.close();
-      return response.statusCode == 200;
-    } catch (e) {
-      debugPrint('QwenProvider: Health check failed: $e');
-      return false;
-    }
+    // DEPRECATED: This provider is disabled in favor of native MLX bridge (LLMAdapter)
+    // No localhost health checks to avoid SocketException errors
+    debugPrint('QwenProvider: Disabled (use LLMAdapter for native on-device inference)');
+    return false;
   }
 
   @override
