@@ -246,15 +246,9 @@ class ModelLifecycle {
         // - Output projection
         // This is a simplified version that loads the weights
         do {
-            // MLX can load safetensors directly
-            let weightsData = try Data(contentsOf: weightsPath)
-            logger.info("Model weights file loaded: \(weightsData.count) bytes")
-
-            // In a full implementation, we'd parse safetensors format
-            // and create MLXArrays for each layer
-            // For now, we'll note the weights are available
-            self.modelWeights = [:] // Placeholder
-            logger.info("MLX model loaded successfully (simplified mode)")
+            // Load and parse safetensors file
+            self.modelWeights = try SafetensorsLoader.load(from: weightsPath)
+            logger.info("MLX model loaded successfully with \(self.modelWeights?.count ?? 0) tensors")
         } catch {
             throw NSError(domain: "ModelLifecycle", code: 500, userInfo: [
                 NSLocalizedDescriptionKey: "Failed to load model weights: \(error.localizedDescription)"

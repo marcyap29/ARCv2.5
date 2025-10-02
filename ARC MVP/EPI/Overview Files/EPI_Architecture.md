@@ -10,6 +10,32 @@
   - VEIL: Self-Pruning & Coherence
   - RIVET: Risk-Validation Evidence Tracker
 
+  ## 🤖 **On-Device LLM Architecture** (Updated Oct 2, 2025)
+
+  **MLX Integration Pipeline**:
+  ```
+  Flutter (LLMAdapter) → Pigeon Bridge → Swift (LLMBridge) → ModelStore → ModelLifecycle → MLX Inference
+  ```
+
+  **Key Components**:
+  - `lib/lumara/llm/llm_adapter.dart` - Flutter adapter using Pigeon bridge
+  - `ios/Runner/LLMBridge.swift` - Swift implementation of Pigeon protocol
+  - `ios/Runner/SafetensorsLoader.swift` - Safetensors format parser
+  - `ios/Runner/ModelStore.swift` - Model registry and path management
+  - `ios/Runner/ModelLifecycle.swift` - Model loading and inference lifecycle
+
+  **Model Management**:
+  - **Registry**: JSON-based model tracking at `~/Library/Application Support/Models/models.json`
+  - **Storage**: Models stored in Application Support with no-backup flag
+  - **Formats**: Supports MLX (iOS) and GGUF (Android) model formats
+  - **Loading**: Real-time safetensors parsing to MLXArrays
+
+  **Privacy Architecture**:
+  - **On-Device Processing**: All inference happens locally on device
+  - **No External Calls**: No data sent to external servers when using on-device model
+  - **Fallback System**: API → On-Device → Rule-Based response hierarchy
+  - **Model Verification**: File integrity checks before loading
+
   ## 📱 Navigation & User Interface Architecture (Updated Sept 28, 2025)
 
   **Primary Navigation Structure**:

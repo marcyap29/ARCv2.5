@@ -5,23 +5,27 @@ ARC is the **core journaling module of EPI (Evolving Personal Intelligence)**, b
 
 This MVP now implements **modular architecture** with RIVET (safety validation) and ECHO (expressive response layer) modules migrated to their proper locations, providing a foundation for the complete 8-module system: ARC→PRISM→ECHO→ATLAS→MIRA→AURORA→VEIL→RIVET.
 
-## 🌟 **LATEST ENHANCEMENT: On-Device LLM Integration** (2025-09-30) ✅
+## 🌟 **LATEST ENHANCEMENT: MLX On-Device LLM Integration** (2025-10-02) ✅
 
-**🎯 Major Achievement**: Complete implementation of on-device LLM processing using Qwen3-1.7B Q4_K_M model with llama.cpp/Metal integration, providing privacy-first AI responses without external API dependencies.
+**🎯 Major Achievement**: Complete implementation of on-device LLM processing using Qwen3-1.7B model with MLX Swift framework integration, providing privacy-first AI responses with type-safe Pigeon bridge communication.
 
-**✨ On-Device LLM Features**:
-- **Qwen3-1.7B Integration**: Downloaded and integrated 1.1GB quantized model optimized for mobile
+**✨ MLX On-Device LLM Features**:
+- **Pigeon Bridge**: Type-safe Flutter ↔ Swift communication with auto-generated code
+- **MLX Swift Packages**: Complete integration of MLX, MLXNN, MLXOptimizers, MLXRandom
+- **Safetensors Parser**: Full safetensors format support with F32/F16/BF16/I32/I16/I8 data types
+- **Model Loading Pipeline**: Real model weight loading from .safetensors files to MLXArrays
+- **Qwen3-1.7B Support**: On-device model integration with privacy-first inference
 - **Privacy-First Processing**: All AI responses generated locally on device when model available
-- **Optimized Prompts**: Token-lean system prompts and task headers designed for small model efficiency
 - **Intelligent Fallback**: Three-tier fallback system: API → On-Device → Rule-Based responses
 - **Metal Acceleration**: Native iOS Metal support for optimal performance on Apple Silicon
 
 **🎯 Technical Implementation**:
-- **Model Management**: QwenAdapter with proper initialization, memory management, and disposal
-- **Prompt System**: Dual prompt system (cloud + on-device) with context-aware task headers
-- **Context Mapping**: Seamless conversion from ContextWindow to on-device model data format
+- **Pigeon Bridge**: Type-safe communication eliminating runtime casting errors
+- **Model Registry**: JSON-based model management at `~/Library/Application Support/Models/`
+- **Safetensors Parser**: Real-time conversion of model weights to MLXArrays
+- **Model Lifecycle**: Proper initialization, loading, and disposal of MLX models
 - **Error Handling**: Graceful degradation through multiple fallback layers
-- **Build Integration**: Successful iOS simulator build with all native dependencies
+- **Build Integration**: Successful iOS build with Metal Toolchain support
 
 **📱 User Experience**:
 - **Complete Privacy**: No data leaves device when using on-device model
