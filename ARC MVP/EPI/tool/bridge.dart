@@ -1,0 +1,149 @@
+// Copyright 2025 EPI Team
+// SPDX-License-Identifier: MIT
+
+// Pigeon bridge definition for LUMARA native LLM interface
+// This file generates type-safe Dart, Swift, and Kotlin code
+//
+// Generate code with:
+// flutter pub run pigeon --input tool/bridge.dart
+
+import 'package:pigeon/pigeon.dart';
+
+@ConfigurePigeon(PigeonOptions(
+  dartOut: 'lib/lumara/llm/bridge.pigeon.dart',
+  dartOptions: DartOptions(),
+  swiftOut: 'ios/Runner/Bridge.pigeon.swift',
+  swiftOptions: SwiftOptions(),
+  kotlinOut: 'android/app/src/main/kotlin/com/example/my_app/Bridge.pigeon.kt',
+  kotlinOptions: KotlinOptions(),
+))
+
+/// Self-test result from native side
+class SelfTestResult {
+  final bool ok;
+  final String message;
+  final String platform;
+  final String version;
+
+  SelfTestResult({
+    required this.ok,
+    required this.message,
+    required this.platform,
+    required this.version,
+  });
+}
+
+/// Model metadata returned by availableModels
+class ModelInfo {
+  final String id;
+  final String name;
+  final String format; // "mlx", "gguf"
+  final String path;
+  final int? sizeBytes;
+  final String? checksum;
+
+  ModelInfo({
+    required this.id,
+    required this.name,
+    required this.format,
+    required this.path,
+    this.sizeBytes,
+    this.checksum,
+  });
+}
+
+/// Registry response containing installed models and active model
+class ModelRegistry {
+  final List<ModelInfo?> installed;
+  final String? active;
+
+  ModelRegistry({
+    required this.installed,
+    this.active,
+  });
+}
+
+/// Model status response
+class ModelStatus {
+  final String folder;
+  final bool loaded;
+  final List<String?> missing;
+  final String format; // "mlx", "gguf"
+
+  ModelStatus({
+    required this.folder,
+    required this.loaded,
+    required this.missing,
+    required this.format,
+  });
+}
+
+/// Generation parameters
+class GenParams {
+  final int maxTokens;
+  final double temperature;
+  final double topP;
+  final double repeatPenalty;
+  final int seed;
+
+  GenParams({
+    required this.maxTokens,
+    required this.temperature,
+    this.topP = 0.9,
+    this.repeatPenalty = 1.1,
+    this.seed = 101,
+  });
+}
+
+/// Generation result with diagnostics
+class GenResult {
+  final String text;
+  final int tokensIn;
+  final int tokensOut;
+  final int latencyMs;
+  final String provider; // "mlx", "gguf", "cloud", "rule"
+
+  GenResult({
+    required this.text,
+    required this.tokensIn,
+    required this.tokensOut,
+    required this.latencyMs,
+    required this.provider,
+  });
+}
+
+/// Native LLM interface - implemented on iOS (Swift) and Android (Kotlin)
+@HostApi()
+abstract class LumaraNative {
+  /// Self-test: verify native bridge is working
+  SelfTestResult selfTest();
+
+  /// List all installed models (reads registry)
+  ModelRegistry availableModels();
+
+  /// Initialize a specific model (loads into memory)
+  /// Returns true if successful, throws PlatformException on error
+  bool initModel(String modelId);
+
+  /// Get detailed status of a specific model
+  ModelStatus getModelStatus(String modelId);
+
+  /// Stop the currently running model (frees memory)
+  void stopModel();
+
+  /// Generate text with the active model
+  /// Throws PlatformException if no model is loaded or generation fails
+  GenResult generateText(String prompt, GenParams params);
+
+  /// Get model root path (Application Support/Models)
+  String getModelRootPath();
+
+  /// Get absolute path for a specific model
+  String getActiveModelPath(String modelId);
+
+  /// Set active model in registry (doesn't load it)
+  void setActiveModel(String modelId);
+
+  // --- Future streaming support ---
+  // Stream<String> generateTextStream(String prompt, GenParams params);
+}
