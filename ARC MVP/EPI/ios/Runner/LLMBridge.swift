@@ -69,39 +69,37 @@ class ModelStore {
         return modelRootURL.appendingPathComponent(entry.path)
     }
 
-    /// Resolve bundled model path from Flutter assets
-    func resolveBundlePath(modelId: String, file: String) -> URL? {
-        // Map model ID to bundle directory
-        let bundleSubpath: String
+    /// Resolve model path from Application Support directory
+    /// Models are installed via scripts/setup_models.sh to ~/Library/Application Support/Models/
+    /// They are NOT bundled in the app (too large - 2.6GB)
+    func resolveModelPath(modelId: String, file: String) -> URL? {
+        // Map model ID to directory name
+        let modelDir: String
         switch modelId {
         case "qwen3-1.7b-mlx-4bit":
-            bundleSubpath = "Qwen3-1.7B-MLX-4bit"
+            modelDir = "Qwen3-1.7B-MLX-4bit"
         default:
-            bundleSubpath = modelId
+            modelDir = modelId
         }
 
-        let relativePath = "flutter_assets/assets/models/MLX/\(bundleSubpath)/\(file)"
-        let url = Bundle.main.url(forResource: relativePath, withExtension: nil)
-        
-        // Debug logging
-        logger.info("resolveBundlePath: modelId=\(modelId), file=\(file), bundleSubpath=\(bundleSubpath)")
-        logger.info("resolveBundlePath: relativePath=\(relativePath)")
-        logger.info("resolveBundlePath: url=\(url?.path ?? "nil")")
-        
-        // Try alternative paths if the first one fails
-        if url == nil {
-            let altPath1 = "assets/models/MLX/\(bundleSubpath)/\(file)"
-            let altUrl1 = Bundle.main.url(forResource: altPath1, withExtension: nil)
-            logger.info("resolveBundlePath: trying altPath1=\(altPath1), url=\(altUrl1?.path ?? "nil")")
-            if altUrl1 != nil { return altUrl1 }
-            
-            let altPath2 = "\(bundleSubpath)/\(file)"
-            let altUrl2 = Bundle.main.url(forResource: altPath2, withExtension: nil)
-            logger.info("resolveBundlePath: trying altPath2=\(altPath2), url=\(altUrl2?.path ?? "nil")")
-            if altUrl2 != nil { return altUrl2 }
+        // Check Application Support directory first (primary location)
+        let appSupportPath = modelRootURL.appendingPathComponent(modelDir).appendingPathComponent(file)
+        if FileManager.default.fileExists(atPath: appSupportPath.path) {
+            logger.info("resolveModelPath: found in Application Support: \(appSupportPath.path)")
+            return appSupportPath
         }
-        
-        return url
+
+        // Fallback: Try bundle (for smaller test models if ever bundled)
+        let relativePath = "flutter_assets/assets/models/MLX/\(modelDir)/\(file)"
+        if let bundleURL = Bundle.main.url(forResource: relativePath, withExtension: nil) {
+            logger.info("resolveModelPath: found in bundle: \(bundleURL.path)")
+            return bundleURL
+        }
+
+        logger.warning("resolveModelPath: NOT FOUND - modelId=\(modelId), file=\(file)")
+        logger.warning("resolveModelPath: Searched: \(appSupportPath.path)")
+        logger.warning("resolveModelPath: Run scripts/setup_models.sh to install models")
+        return nil
     }
 
     struct Registry: Codable {
@@ -221,9 +219,9 @@ class ModelLifecycle {
                 // Resolve bundle paths
                 self.emit(modelId: modelId, value: 10, message: "locating files")
 
-                guard let configURL = ModelStore.shared.resolveBundlePath(modelId: modelId, file: "config.json"),
-                      let tokenizerURL = ModelStore.shared.resolveBundlePath(modelId: modelId, file: "tokenizer.json"),
-                      let weightsURL = ModelStore.shared.resolveBundlePath(modelId: modelId, file: "model.safetensors") else {
+                guard let configURL = ModelStore.shared.resolveModelPath(modelId: modelId, file: "config.json"),
+                      let tokenizerURL = ModelStore.shared.resolveModelPath(modelId: modelId, file: "tokenizer.json"),
+                      let weightsURL = ModelStore.shared.resolveModelPath(modelId: modelId, file: "model.safetensors") else {
                     throw NSError(domain: "ModelLifecycle", code: 404, userInfo: [
                         NSLocalizedDescriptionKey: "Model files not found in bundle for: \(modelId)"
                     ])
@@ -418,9 +416,9 @@ class LLMBridge: NSObject, LumaraNative {
         // Check bundle files instead of Application Support
         var missing: [String] = []
 
-        let configURL = ModelStore.shared.resolveBundlePath(modelId: modelId, file: "config.json")
-        let tokenizerURL = ModelStore.shared.resolveBundlePath(modelId: modelId, file: "tokenizer.json")
-        let weightsURL = ModelStore.shared.resolveBundlePath(modelId: modelId, file: "model.safetensors")
+        let configURL = ModelStore.shared.resolveModelPath(modelId: modelId, file: "config.json")
+        let tokenizerURL = ModelStore.shared.resolveModelPath(modelId: modelId, file: "tokenizer.json")
+        let weightsURL = ModelStore.shared.resolveModelPath(modelId: modelId, file: "model.safetensors")
 
         if configURL == nil || !FileManager.default.fileExists(atPath: configURL!.path) {
             missing.append("config.json")
@@ -457,7 +455,7 @@ class LLMBridge: NSObject, LumaraNative {
     }
 
     func getActiveModelPath(modelId: String) throws -> String {
-        if let bundlePath = ModelStore.shared.resolveBundlePath(modelId: modelId, file: "config.json") {
+        if let bundlePath = ModelStore.shared.resolveModelPath(modelId: modelId, file: "config.json") {
             return bundlePath.deletingLastPathComponent().path
         }
 

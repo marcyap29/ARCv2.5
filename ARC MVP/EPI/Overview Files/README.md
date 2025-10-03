@@ -243,7 +243,15 @@ A Flutter-based AI companion app that provides life-aware assistance through jou
    flutter pub get
    ```
 
-3. **Run the app (full MVP)**
+3. **Setup MLX models (for on-device LLM)**
+   ```bash
+   ./scripts/setup_models.sh
+   ```
+   This copies the Qwen3-1.7B-MLX-4bit model (2.6GB) to `~/Library/Application Support/Models/`.
+
+   **Why?** Models are excluded from Git (too large) and not bundled in the app. They're loaded from Application Support at runtime.
+
+4. **Run the app (full MVP)**
    ```bash
    # Debug
    flutter run -d DEVICE_ID --dart-define=GEMINI_API_KEY=YOUR_KEY

@@ -2,12 +2,12 @@
 
 ## Active Issues
 
-### Bundle Path Resolution Issue - IN PROGRESS 🔍 **DEBUGGING** - October 2, 2025
-**Status:** 🔍 **IN PROGRESS**
+### Bundle Path Resolution Issue - RESOLVED ✅ - October 2, 2025
+**Status:** ✅ **RESOLVED**
 **Priority:** High
 **Component:** MLX On-Device LLM
 
-**Current Issue:**
+**Issue:**
 Model files not found in bundle despite being properly located in assets directory.
 
 **Error Message:**
@@ -15,28 +15,30 @@ Model files not found in bundle despite being properly located in assets directo
 [ModelProgress] qwen3-1.7b-mlx-4bit: 0% - failed: Model files not found in bundle for: qwen3-1.7b-mlx-4bit
 ```
 
-**Progress Made:**
-- ✅ Model files properly bundled in `assets/models/MLX/Qwen3-1.7B-MLX-4bit/`
-- ✅ All required files present: config.json, tokenizer.json, model.safetensors (914MB)
-- ✅ Swift compilation errors resolved
-- ✅ Pigeon bridge setup fixed
-- ✅ Duplicate ModelStore.swift removed
-- ✅ Debug logging added to bundle path resolution
-- ✅ macOS app running successfully
+**Root Cause:**
+`.gitignore` contains `ARC MVP/EPI/assets/models/**` which prevents model files from being tracked by Git. As a result:
+- Model files (2.6GB) exist locally in `assets/models/MLX/Qwen3-1.7B-MLX-4bit/`
+- Files are not tracked by Git (intentionally - too large for repository)
+- `pubspec.yaml` declares `assets/models/` but files don't exist in Git
+- Flutter build system creates empty `flutter_assets/assets/models/` directory in app bundle
+- Swift code correctly looks for files, but they simply don't exist in the bundle
 
-**Current Status:**
-- App builds and runs successfully on macOS
-- Model registry finds 1 installed model
-- Bundle path resolution debugging in progress
-- Multiple fallback paths implemented in Swift code
+**Why Models Are Excluded:**
+- Model size: 2.6GB (too large for app store distribution)
+- Standard practice: Large ML models are downloaded on demand, not bundled
+- Similar to ChatGPT, Claude, etc. - base app is small, models downloaded separately
 
-**Next Steps:**
-1. Test bundle path resolution with debug logging
-2. Fix bundle path based on actual Flutter asset structure
-3. Verify model loading on device/simulator
+**Solution Implemented:**
+1. **Created `scripts/setup_models.sh`** - Copies models from `assets/models/MLX/` to `~/Library/Application Support/Models/`
+2. **Updated `ModelStore.resolveModelPath()`** - Changed to check Application Support directory first, then fallback to bundle
+3. **Run once before development:** `./scripts/setup_models.sh` to install models locally
 
+**Files Modified:**
+- `scripts/setup_models.sh` (new)
+- `ios/Runner/LLMBridge.swift` - Updated `resolveBundlePath()` → `resolveModelPath()`
 
-System gracefully falls back to Cloud API � Rule-Based responses.
+**Verification:**
+Models now load from Application Support directory. System gracefully falls back to Cloud API → Rule-Based responses if models unavailable.
 
 ---
 
