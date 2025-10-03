@@ -1,8 +1,8 @@
 # Claude Handoff Status Report - MLX On-Device LLM Integration
 
-**Date:** October 2, 2025  
-**Project:** EPI ARC MVP - MLX On-Device LLM Integration  
-**Current Status:** 🔍 **DEBUGGING PHASE** - Bundle Path Resolution Issue
+**Date:** October 2, 2025
+**Project:** EPI ARC MVP - MLX On-Device LLM Integration
+**Current Status:** ✅ **READY FOR TESTING** - Bundle Path Resolution Fixed
 
 ---
 
@@ -67,67 +67,76 @@
 
 ---
 
-## 🚫 **CURRENT BLOCKER**
+## ✅ **RESOLVED - Bundle Path Resolution Issue**
 
-### **Bundle Path Resolution Issue**
-**Error Message:**
+### **Issue Fixed**
+**Previous Error:**
 ```
 [ModelProgress] qwen3-1.7b-mlx-4bit: 0% - failed: Model files not found in bundle for: qwen3-1.7b-mlx-4bit
 ```
 
-**Root Cause:**
-- Swift code is looking for model files in Flutter bundle
-- Bundle path resolution is not finding the files despite them being properly located
-- Multiple fallback paths implemented but none working
+**Root Cause Identified:**
+- `.gitignore` contains `ARC MVP/EPI/assets/models/**` - excludes model files from Git
+- Model files (2.6GB) exist locally but not tracked in repository
+- Flutter build system creates **empty** `flutter_assets/assets/models/` directory in app bundle
+- Swift code was correctly looking for files, but they didn't exist in the bundle
 
-**Current Debug Status:**
-- ✅ Model files exist in `assets/models/MLX/Qwen3-1.7B-MLX-4bit/`
-- ✅ App builds and runs successfully on macOS
-- ✅ Model registry finds 1 installed model
-- 🔍 Debug logging added to `resolveBundlePath()` with multiple fallback paths
-- 🔍 Need to test actual bundle path structure in running app
+**Solution Implemented:**
+1. ✅ Created `scripts/setup_models.sh` - Copies models to `~/Library/Application Support/Models/`
+2. ✅ Updated `ModelStore.resolveModelPath()` - Checks Application Support first, fallback to bundle
+3. ✅ Replaced all `resolveBundlePath()` calls with `resolveModelPath()`
+4. ✅ Updated documentation - Added model setup instructions to README
+5. ✅ Committed changes - Full solution committed to `feature/pigeon-native-bridge`
+
+**Verification:**
+- ✅ Models successfully installed at `~/Library/Application Support/Models/Qwen3-1.7B-MLX-4bit/`
+- ✅ macOS app builds successfully with new path resolution
+- ✅ Swift code now finds model files in Application Support directory
+- 🔜 Ready for end-to-end model loading test
 
 ---
 
 ## 🎯 **WHAT NEEDS TO BE DONE NEXT**
 
-### **IMMEDIATE PRIORITY: Fix Bundle Path Resolution**
+### **PRIORITY: End-to-End Testing**
 
-#### **1. Test Bundle Path Resolution (URGENT)**
-- **Run macOS app** and interact with LUMARA to trigger model loading
-- **Check Console Logs** for debug output showing which paths are being tried:
+#### **1. Test Model Loading Pipeline (NEXT STEP)**
+- **Run macOS app:** `flutter run -d macos --dart-define=GEMINI_API_KEY=dummy`
+- **Interact with LUMARA** to trigger model loading
+- **Check Console Logs** for successful model loading:
   ```
-  resolveBundlePath: modelId=qwen3-1.7b-mlx-4bit, file=config.json
-  resolveBundlePath: relativePath=flutter_assets/assets/models/MLX/Qwen3-1.7B-MLX-4bit/config.json
-  resolveBundlePath: url=nil
-  resolveBundlePath: trying altPath1=assets/models/MLX/Qwen3-1.7B-MLX-4bit/config.json
-  resolveBundlePath: trying altPath2=Qwen3-1.7B-MLX-4bit/config.json
+  resolveModelPath: found in Application Support: /Users/.../Models/Qwen3-1.7B-MLX-4bit/config.json
+  [ModelPreload] step=tokenizer_load path=/Users/.../Models/Qwen3-1.7B-MLX-4bit/tokenizer.json
+  [ModelPreload] progress=30 msg=loading weights
+  [ModelProgress] qwen3-1.7b-mlx-4bit: 100% - completed
   ```
 
-#### **2. Fix Bundle Path Based on Logs**
-- **Identify correct path** from debug output
-- **Update `resolveBundlePath()`** in `ios/Runner/LLMBridge.swift` with correct path
-- **Test model loading** to verify files are found
+#### **2. Verify Complete Pipeline**
+- **Model Loading:** Confirm models load from Application Support directory
+- **Progress Reporting:** Verify progress callbacks (0%, 10%, 30%, 60%, 90%, 100%) work correctly
+- **Inference:** Test actual inference with real model (not stub responses)
+- **iOS Device:** Test on physical device/simulator in addition to macOS
 
-#### **3. Verify Complete Pipeline**
-- **Test model loading** on device/simulator
-- **Verify progress reporting** works correctly
-- **Test inference pipeline** with real model
-- **Update documentation** to reflect completion
+#### **3. Production Model Download (Future)**
+When ready for production release:
+- Host models on CDN (S3, Firebase Storage, etc.)
+- Implement download-on-first-launch with progress UI
+- Cache in Application Support directory
+- Similar to ChatGPT, Claude, and other ML apps
 
 ---
 
 ## 📁 **KEY FILES TO FOCUS ON**
 
 ### **Critical Files:**
-1. **`ios/Runner/LLMBridge.swift`** - Bundle path resolution logic
-2. **`ios/Runner/ModelStore.swift`** - Model registry and path management
+1. **`scripts/setup_models.sh`** - Model installation script (run before first use)
+2. **`ios/Runner/LLMBridge.swift`** - Model path resolution and loading logic
 3. **`lib/lumara/llm/llm_adapter.dart`** - Flutter adapter
 4. **`lib/lumara/llm/model_progress_service.dart`** - Progress handling
 
-### **Debug Files:**
-- **Console logs** from macOS app when testing
-- **`assets/models/MLX/Qwen3-1.7B-MLX-4bit/`** - Model files location
+### **Model Locations:**
+- **Source:** `assets/models/MLX/Qwen3-1.7B-MLX-4bit/` (Git-ignored, 2.6GB)
+- **Runtime:** `~/Library/Application Support/Models/Qwen3-1.7B-MLX-4bit/` (installed by setup script)
 
 ---
 
@@ -159,14 +168,20 @@ Flutter (LLMAdapter) → Pigeon Bridge → Swift (LLMBridge) → ModelStore → 
 
 ## 📞 **HANDOFF NOTES**
 
-**Current Branch:** `feature/pigeon-native-bridge`  
-**Last Commit:** `92979ef` - "Update Overview Files: MLX Integration Status"  
+**Current Branch:** `feature/pigeon-native-bridge`
+**Last Commit:** `46b493b` - "fix: Resolve MLX model bundle path issue - load from Application Support"
 **Working Directory:** `/Users/mymac/Software Development/EPI_v1a/EPI_v1a/ARC MVP/EPI`
 
-**Next Developer Should:**
-1. Run the macOS app and check console logs for bundle path debugging
-2. Fix the bundle path resolution based on actual Flutter asset structure
-3. Test the complete pipeline end-to-end
-4. Update status to complete once working
+**Setup Required Before Testing:**
+```bash
+./scripts/setup_models.sh  # Copies models to Application Support (one-time setup)
+```
 
-**The foundation is solid - just need to fix the final bundle path issue!** 🚀
+**Next Developer Should:**
+1. Run `./scripts/setup_models.sh` to install models locally
+2. Run the macOS app and trigger LUMARA interaction to test model loading
+3. Verify model loads successfully from Application Support directory
+4. Test inference pipeline with real model responses
+5. Test on iOS device/simulator in addition to macOS
+
+**Status:** ✅ Bundle path resolution fixed - Ready for end-to-end testing! 🚀
