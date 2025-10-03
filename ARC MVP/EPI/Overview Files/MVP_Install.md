@@ -15,7 +15,26 @@ flutter doctor
 ```
 
 ## Run the full MVP
-- Debug (full app):
+
+### **With On-Device LLM (Recommended)**
+- **Debug (full app with MLX on-device model)**:
+```bash
+flutter run -d DEVICE_ID --dart-define=GEMINI_API_KEY=YOUR_KEY
+```
+- **Without API key (on-device only)**:
+```bash
+flutter run -d DEVICE_ID
+```
+
+### **On-Device LLM Features** ✅ **NEW**
+- **Real Qwen3-1.7B Model**: 914MB model bundled in app, loads with progress reporting
+- **Privacy-First**: All inference happens locally, no data sent to external servers
+- **Fallback System**: On-Device → Cloud API → Rule-Based responses
+- **Progress UI**: Real-time loading progress (0% → 100%) during model initialization
+- **Metal Acceleration**: Native iOS Metal support for optimal performance
+
+### **Legacy API-Only Mode**
+- **Debug (API only, no on-device model)**:
 ```bash
 flutter run -d DEVICE_ID --dart-define=GEMINI_API_KEY=YOUR_KEY
 ```
