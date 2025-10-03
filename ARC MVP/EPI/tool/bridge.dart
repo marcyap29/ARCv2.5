@@ -154,6 +154,9 @@ abstract class LumaraNative {
   /// Cancel ongoing model download
   void cancelModelDownload();
 
+  /// Delete a downloaded model
+  void deleteModel(String modelId);
+
   // --- Future streaming support ---
   // Stream<String> generateTextStream(String prompt, GenParams params);
 }

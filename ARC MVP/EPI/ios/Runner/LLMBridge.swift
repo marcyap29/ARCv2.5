@@ -923,7 +923,54 @@ class ModelDownloadService: NSObject {
 
     /// Check if model already exists
     func isModelDownloaded(modelId: String) -> Bool {
-        return ModelDownloadService.shared.isModelDownloaded(modelId: modelId)
+        // Map model ID to directory name
+        let modelDir: String
+        switch modelId {
+        case "qwen3-1.7b-mlx-4bit":
+            modelDir = "Qwen3-1.7B-MLX-4bit"
+        case "phi-3.5-mini-instruct-4bit":
+            modelDir = "Phi-3.5-mini-instruct-4bit"
+        default:
+            modelDir = modelId
+        }
+
+        // Check if required files exist in Application Support
+        let modelPath = ModelStore.shared.modelRootURL.appendingPathComponent(modelDir)
+        let configPath = modelPath.appendingPathComponent("config.json")
+        let weightsPath = modelPath.appendingPathComponent("model.safetensors")
+
+        let configExists = FileManager.default.fileExists(atPath: configPath.path)
+        let weightsExist = FileManager.default.fileExists(atPath: weightsPath.path)
+
+        logger.info("isModelDownloaded(\(modelId)): config=\(configExists), weights=\(weightsExist)")
+
+        return configExists && weightsExist
+    }
+
+    /// Delete a downloaded model
+    func deleteModel(modelId: String) throws {
+        logger.info("deleteModel called for: \(modelId)")
+
+        // Map model ID to directory name
+        let modelDir: String
+        switch modelId {
+        case "qwen3-1.7b-mlx-4bit":
+            modelDir = "Qwen3-1.7B-MLX-4bit"
+        case "phi-3.5-mini-instruct-4bit":
+            modelDir = "Phi-3.5-mini-instruct-4bit"
+        default:
+            modelDir = modelId
+        }
+
+        let modelPath = ModelStore.shared.modelRootURL.appendingPathComponent(modelDir)
+
+        guard FileManager.default.fileExists(atPath: modelPath.path) else {
+            logger.warning("Model directory not found: \(modelPath.path)")
+            return // Not an error - already deleted
+        }
+
+        try FileManager.default.removeItem(at: modelPath)
+        logger.info("Successfully deleted model at: \(modelPath.path)")
     }
 }
 

@@ -345,6 +345,8 @@ interface LumaraNative {
   fun isModelDownloaded(modelId: String): Boolean
   /** Cancel ongoing model download */
   fun cancelModelDownload()
+  /** Delete a downloaded model */
+  fun deleteModel(modelId: String)
 
   companion object {
     /** The codec used by LumaraNative. */
@@ -544,6 +546,24 @@ interface LumaraNative {
           channel.setMessageHandler { _, reply ->
             val wrapped: List<Any?> = try {
               api.cancelModelDownload()
+              listOf(null)
+            } catch (exception: Throwable) {
+              wrapError(exception)
+            }
+            reply.reply(wrapped)
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.my_app.LumaraNative.deleteModel$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val modelIdArg = args[0] as String
+            val wrapped: List<Any?> = try {
+              api.deleteModel(modelIdArg)
               listOf(null)
             } catch (exception: Throwable) {
               wrapError(exception)

@@ -169,16 +169,13 @@ class _ModelDownloadScreenState extends State<ModelDownloadScreen> {
 
       if (confirmed != true) return;
 
-      // Delete the model - using a workaround since deleteModel isn't in the bridge yet
-      // For now, we'll just update the UI state and let the user refresh
-      debugPrint('Delete model functionality not yet available in bridge');
-      
+      // Delete the model via bridge
+      await _bridge.deleteModel(modelId);
+
+      // Refresh status
+      await _checkAllModelsStatus();
+
       if (mounted) {
-        setState(() {
-          _isDownloaded[modelId] = false;
-          _statusMessage[modelId] = 'Model deleted';
-        });
-        
         // Show success message
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(

@@ -372,6 +372,8 @@ protocol LumaraNative {
   func isModelDownloaded(modelId: String) throws -> Bool
   /// Cancel ongoing model download
   func cancelModelDownload() throws
+  /// Delete a downloaded model
+  func deleteModel(modelId: String) throws
 }
 
 /// Generated setup class from Pigeon to handle messages through the `binaryMessenger`.
@@ -566,6 +568,22 @@ class LumaraNativeSetup {
       }
     } else {
       cancelModelDownloadChannel.setMessageHandler(nil)
+    }
+    /// Delete a downloaded model
+    let deleteModelChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.my_app.LumaraNative.deleteModel\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      deleteModelChannel.setMessageHandler { message, reply in
+        let args = message as! [Any?]
+        let modelIdArg = args[0] as! String
+        do {
+          try api.deleteModel(modelId: modelIdArg)
+          reply(wrapResult(nil))
+        } catch {
+          reply(wrapError(error))
+        }
+      }
+    } else {
+      deleteModelChannel.setMessageHandler(nil)
     }
   }
 }
