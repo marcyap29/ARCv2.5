@@ -325,7 +325,7 @@ class ModelLifecycle {
 
         // Simple generation loop (simplified - real impl would use transformer layers)
         var outputTokens: [Int] = inputTokens
-        let maxNewTokens = min(Int(params.maxTokens), 256)
+        let maxNewTokens = min(Int(params.maxTokens), 96) // Qwen-3 optimized
 
         for _ in 0..<maxNewTokens {
             // Stub: In real MLX, we'd run forward pass through transformer
@@ -341,16 +341,40 @@ class ModelLifecycle {
 
         // Decode output
         let generatedText = tokenizer.decode(Array(outputTokens[inputTokens.count...]))
+        
+        // Clean up Qwen-3 template tokens and stop strings
+        let cleanedText = cleanQwenOutput(generatedText)
 
         let latencyMs = Int(Date().timeIntervalSince(startTime) * 1000)
 
         return GenResult(
-            text: generatedText.isEmpty ? generateFallbackResponse(prompt: prompt) : generatedText,
+            text: cleanedText.isEmpty ? generateFallbackResponse(prompt: prompt) : cleanedText,
             tokensIn: Int64(inputTokens.count),
             tokensOut: Int64(outputTokens.count - inputTokens.count),
             latencyMs: Int64(latencyMs),
             provider: "mlx-experimental"
         )
+    }
+    
+    private func cleanQwenOutput(_ text: String) -> String {
+        var cleaned = text
+        
+        // Remove Qwen-3 template tokens
+        cleaned = cleaned.replacingOccurrences(of: "<|im_start|>", with: "")
+        cleaned = cleaned.replacingOccurrences(of: "<|im_end|>", with: "")
+        
+        // Remove everything after stop strings
+        let stopStrings = ["<|im_end|>", "<|endoftext|>"]
+        for stopString in stopStrings {
+            if let range = cleaned.range(of: stopString) {
+                cleaned = String(cleaned[..<range.lowerBound])
+            }
+        }
+        
+        // Trim whitespace
+        cleaned = cleaned.trimmingCharacters(in: .whitespacesAndNewlines)
+        
+        return cleaned
     }
 
     // MARK: - Fallback Response Generation
@@ -360,44 +384,46 @@ class ModelLifecycle {
         let userPrompt = extractUserPrompt(from: prompt)
         
         // Generate LUMARA-style response based on prompt content
-        if userPrompt.lowercased().contains("what is lumara") || userPrompt.lowercased().contains("what is epi") {
+        if userPrompt.lowercased().contains("hello") || userPrompt.lowercased().contains("hi") {
+            return "Hi! How can I help today?"
+        } else if userPrompt.lowercased().contains("what is lumara") || userPrompt.lowercased().contains("what is epi") {
             return """
             LUMARA is a privacy-first, on-device assistant that helps you journal, spot patterns, and choose your next wise step. It summarizes gently, protects your data, and adapts its tone to your current season of life.
 
-            **EPI System:**
-            • **ARC:** journaling + visual Arcforms
-            • **ATLAS:** life-phase detection for pacing
-            • **MIRA:** memory you control
-            • **AURORA:** rhythm and cadence
-            • **VEIL:** restorative pruning for clarity
+            EPI System:
+            • ARC: journaling + visual Arcforms
+            • ATLAS: life-phase detection for pacing
+            • MIRA: memory you control
+            • AURORA: rhythm and cadence
+            • VEIL: restorative pruning for clarity
 
-            **Next step:** Would you like a 1-minute check-in prompt?
+            Next step: Would you like a 1-minute check-in prompt?
             """
         } else if userPrompt.lowercased().contains("arcform") || userPrompt.lowercased().contains("keywords") {
             return """
-            **Arcform Keywords:** (extracted from your prompt)
+            Arcform Keywords: (extracted from your prompt)
             • reflection • patterns • growth • insight • next steps
 
-            **Next step:** Choose 5 keywords to anchor today's Arcform visualization.
+            Next step: Choose 5 keywords to anchor today's Arcform visualization.
             """
         } else if userPrompt.lowercased().contains("help") || userPrompt.lowercased().contains("how") {
             return """
-            **LUMARA can help with:**
+            LUMARA can help with:
             • Journaling prompts and reflection
             • Pattern recognition in your thoughts
             • Life phase guidance (Discovery, Expansion, Transition, etc.)
             • Memory organization and tagging
             • Next step planning
 
-            **Next step:** Try asking about a specific area or share what's on your mind.
+            Next step: Try asking about a specific area or share what's on your mind.
             """
         } else {
             return """
             I'm LUMARA, your privacy-first on-device assistant. I'm here to help you journal, see patterns, and take your next wise step.
 
-            **Current status:** Bridge ✓, MLX loaded ✓, Tokenizer ✓, Bundle mmap ✓
+            Current status: Bridge ✓, MLX loaded ✓, Tokenizer ✓, Bundle mmap ✓
 
-            **Next step:** Share what's on your mind, or ask about journaling, patterns, or life phases.
+            Next step: Share what's on your mind, or ask about journaling, patterns, or life phases.
             """
         }
     }
@@ -526,12 +552,18 @@ class LLMBridge: NSObject, LumaraNative {
         
         // Build context prelude from MIRA memory
         let contextPrelude = miraStore.buildContextPrelude()
-        let messages = lumaraSystem.buildLumaraMessages(userPrompt: prompt, contextPrelude: contextPrelude)
+        let qwenPrompt = lumaraSystem.buildLumaraMessages(userPrompt: prompt, contextPrelude: contextPrelude)
         
-        // For now, use the first message (core system prompt) as the enhanced prompt
-        let enhancedPrompt = messages.joined(separator: "\n\n")
+        // Create Qwen-3 optimized generation parameters
+        let qwenParams = GenParams(
+            maxTokens: min(params.maxTokens, 96), // Qwen-3 works well with shorter responses
+            temperature: 0.7,
+            topP: 0.9,
+            repeatPenalty: 1.1,
+            seed: 42
+        )
         
-        let result = try ModelLifecycle.shared.generate(prompt: enhancedPrompt, params: params)
+        let result = try ModelLifecycle.shared.generate(prompt: qwenPrompt, params: qwenParams)
         
         // Check if the response contains a memory save request
         if let memory = lumaraSystem.extractMemoryFromResponse(result.text) {

@@ -6,53 +6,17 @@ import os.log
 class LumaraPromptSystem {
     private let logger = Logger(subsystem: "EPI", category: "LumaraPromptSystem")
     
-    // MARK: - Core System Prompt
+    // MARK: - Core System Prompt (Qwen-3 Format)
     
     static let coreSystemPrompt = """
-    You are LUMARA — Life-aware Unified Memory & Reflection Assistant — a privacy-first, on-device guide that helps a person journal, see patterns, and take the next wise step. You protect the user's dignity and data. You keep answers clear, steady, and concise.
-
-    PRINCIPLES
-    1) Dignity & Safety: Speak with care. Never shame. If content is intense, respond with containment and practical next steps.
-    2) Privacy: Assume on-device processing only. Never suggest sending data outside. If a cloud call is explicitly requested, ask for consent and redact PII.
-    3) No Hallucination: If uncertain, say what you don't know and ask for the minimal information needed. Prefer short, grounded answers over guesses.
-    4) Coherence: Reflect user language and keep a structured, integrative tone. No em dashes. Use short paragraphs and tight bullets.
-    5) Agency: Offer options, not orders. End with one next helpful step when appropriate.
-
-    CONTEXT MAP (EPI stack)
-    - ARC (journaling & Arcforms): Help capture thoughts, extract 5–10 keywords, and reflect themes.
-    - ATLAS (life phases): Shape tone by phase if given or inferable (Discovery, Expansion, Transition, Consolidation, Recovery, Breakthrough).
-    - MIRA (memory): Summarize and tag salient facts; suggest saving or updating a short memory recap.
-    - AURORA (rhythm): Propose light cadence and pacing.
-    - VEIL (restorative): Suggest brief consolidation/pruning rituals when confusion or overload appears.
-    - ECHO (dignity formatter): Before answering, redact obvious PII (phone, email, address, SSN, financial numbers). If outbound use is requested, restate what will be shared and request consent.
-
-    ATLAS TONE SHAPING
-    - Discovery: Curious, light scaffolds; short idea prompts.
-    - Expansion: Energized, focused; help channel momentum.
-    - Transition: Gentle clarity; map options and tradeoffs.
-    - Consolidation: Organize, prune, clarify; protect focus.
-    - Recovery: Soft, stabilizing; small steps and self-care.
-    - Breakthrough: Celebrate succinctly; capture the insight and follow-through.
-
-    OUTPUT STYLE
-    - Default: 3–7 tight bullets or 2–3 short paragraphs.
-    - Keep examples brief. Avoid jargon unless asked.
-    - If action is clear, end with **Next step:** ⟨one precise step⟩.
-    - If uncertainty exists, use **I'm unsure:** and ask 1–2 clarifying questions max.
-
-    REFUSALS & BOUNDARIES
-    - If the request is unsafe or outside scope, briefly refuse and offer a safe alternative.
-    - If asked medical/legal/financial specifics, provide general education and suggest consulting a professional.
-
-    MEMORY (MIRA) HINTS
-    - When the user shares something enduring, propose: "Save to memory?" with a 1–2 sentence summary and 5–10 compact tags.
-    - If the user says yes, output a JSON memory block:
-      {"type":"mira.memory","summary":"…","tags":["…"]}
-
-    FAIL-SAFE
-    - If tools or data are unavailable, say so and provide the smallest viable workaround.
-
-    You now respond as LUMARA with this style and discipline.
+    <|im_start|>system
+    You are LUMARA, the on-device assistant for the EPI stack (ARC, ATLAS, MIRA, AURORA, VEIL, ECHO).
+    Defaults: be concise, supportive, and precise. Use plain language. Offer a brief "Next step" when helpful.
+    Safety: avoid medical/legal/financial claims; suggest professional help if asked for those.
+    Memory: you may reference past user info if provided in context; never invent personal details.
+    Formatting: no markdown headers unless asked; bullets only if it improves clarity.
+    Never print template tokens (<|im_start|>, <|im_end|>) in your output.
+    <|im_end|>
     """
     
     // MARK: - Mode Tags
@@ -171,24 +135,26 @@ class LumaraPromptSystem {
         }
     }
     
-    // MARK: - Message Construction
+    // MARK: - Message Construction (Qwen-3 Format)
     
-    func buildLumaraMessages(userPrompt: String, contextPrelude: ContextPrelude? = nil) -> [String] {
-        var messages: [String] = []
+    func buildLumaraMessages(userPrompt: String, contextPrelude: ContextPrelude? = nil) -> String {
+        var fullPrompt = ""
         
-        // 1. Core system prompt
-        messages.append(Self.coreSystemPrompt)
+        // 1. Core system prompt (already includes <|im_start|>system and <|im_end|>)
+        fullPrompt += Self.coreSystemPrompt
         
-        // 2. Context prelude (if provided)
+        // 2. Context prelude (if provided) - add to system message
         if let prelude = contextPrelude {
-            messages.append(prelude.build())
+            let preludeText = prelude.build()
+            // Insert prelude before the <|im_end|> of the system message
+            fullPrompt = fullPrompt.replacingOccurrences(of: "<|im_end|>", with: "\n\n\(preludeText)\n<|im_end|>")
         }
         
         // 3. User message with mode detection
         let processedPrompt = processModeTags(in: userPrompt)
-        messages.append(processedPrompt)
+        fullPrompt += "\n<|im_start|>user\n\(processedPrompt)\n<|im_end|>\n<|im_start|>assistant\n"
         
-        return messages
+        return fullPrompt
     }
     
     // MARK: - Mode Tag Processing
