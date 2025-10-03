@@ -12,7 +12,7 @@ class LlamaProvider extends LLMProviderBase {
   LlamaProvider(LumaraAPIConfig apiConfig) : super(apiConfig, 'Llama (Internal)', true);
 
   @override
-  LLMProvider getProviderType() => LLMProvider.llama;
+  LLMProvider getProviderType() => LLMProvider.phi;
 
   @override
   Future<bool> isAvailable() async {

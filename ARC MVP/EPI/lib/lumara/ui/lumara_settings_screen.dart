@@ -668,7 +668,7 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
 
   Widget _buildApiKeysCard(ThemeData theme) {
     final externalProviders = LLMProvider.values
-        .where((p) => p != LLMProvider.ruleBased && p != LLMProvider.llama && p != LLMProvider.qwen)
+        .where((p) => p != LLMProvider.ruleBased && p != LLMProvider.phi && p != LLMProvider.qwen)
         .toList();
     
     return Card(

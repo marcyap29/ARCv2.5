@@ -11,7 +11,7 @@ enum LLMProvider {
   gemini,
   openai,
   anthropic,
-  llama,      // Internal Llama model
+  phi,        // Internal Phi model
   qwen,       // Internal Qwen model
   ruleBased,  // Fallback rule-based responses
 }
@@ -137,12 +137,12 @@ class LumaraAPIConfig {
     );
 
     // Internal LLM providers
-    _configs[LLMProvider.llama] = LLMProviderConfig(
-      provider: LLMProvider.llama,
-      name: 'Llama (Internal)',
+    _configs[LLMProvider.phi] = LLMProviderConfig(
+      provider: LLMProvider.phi,
+      name: 'Phi (Internal)',
       baseUrl: 'http://localhost:8080', // Local inference server
       additionalConfig: {
-        'modelPath': 'models/llama-2-7b-chat.gguf',
+        'modelId': 'phi-3.5-mini-instruct-4bit',
         'contextLength': 4096,
         'temperature': 0.7,
       },
@@ -199,10 +199,9 @@ class LumaraAPIConfig {
         return true;
       }
 
-      // For Qwen and Llama, check if model is downloaded via native bridge
+      // For Qwen and Phi, check if model is downloaded via native bridge
       if (config.provider == LLMProvider.qwen) {
         try {
-          // Import bridge at top of file if not already imported
           final bridge = LumaraNative();
           final isDownloaded = await bridge.isModelDownloaded('qwen3-1.7b-mlx-4bit');
           debugPrint('LUMARA API: Qwen model ${isDownloaded ? 'is' : 'is NOT'} downloaded');
@@ -213,7 +212,18 @@ class LumaraAPIConfig {
         }
       }
 
-      // Llama not yet implemented
+      if (config.provider == LLMProvider.phi) {
+        try {
+          final bridge = LumaraNative();
+          final isDownloaded = await bridge.isModelDownloaded('phi-3.5-mini-instruct-4bit');
+          debugPrint('LUMARA API: Phi model ${isDownloaded ? 'is' : 'is NOT'} downloaded');
+          return isDownloaded;
+        } catch (e) {
+          debugPrint('LUMARA API: Error checking Phi availability: $e');
+          return false;
+        }
+      }
+
       debugPrint('LUMARA API: ${config.name} disabled (use LLMAdapter for native inference)');
       return false;
     } catch (e) {

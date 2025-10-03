@@ -36,21 +36,13 @@ class ModelStore {
     }
 
     private func createDefaultRegistry() {
+        // Start with EMPTY registry - models added only when actually downloaded
         let registry = Registry(
-            installed: [
-                RegistryEntry(
-                    id: "qwen3-1.7b-mlx-4bit",
-                    name: "Qwen3 1.7B MLX 4-bit",
-                    format: .mlx,
-                    path: "Qwen3-1.7B-MLX-4bit",
-                    sizeBytes: 915_000_000, // ~915MB
-                    checksum: nil
-                )
-            ],
-            active: "qwen3-1.7b-mlx-4bit"
+            installed: [],
+            active: nil
         )
         try? writeRegistry(registry)
-        logger.info("Created default registry for bundled models")
+        logger.info("Created empty default registry")
     }
 
     func readRegistry() -> Registry {
