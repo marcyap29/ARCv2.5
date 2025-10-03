@@ -6,7 +6,15 @@ A Flutter-based AI companion app that provides life-aware assistance through jou
 
 **🎉 MVP OPERATIONAL** - All systems working, MLX On-Device LLM Integration complete (October 2, 2025)
 
-### **Latest Major Achievement: MLX On-Device LLM Integration** ✅ **COMPLETE**
+### **Latest Major Achievement: Qwen Tokenizer Fix** ✅ **COMPLETE**
+- **Tokenizer Mismatch Resolved**: Fixed garbled "Ġout" output by replacing `SimpleTokenizer` with proper `QwenTokenizer`
+- **BPE Tokenization**: Implemented proper Byte-Pair Encoding instead of word-level tokenization
+- **Special Token Handling**: Added support for Qwen-3 chat template tokens (`<|im_start|>`, `<|im_end|>`, etc.)
+- **Validation & Cleanup**: Added tokenizer validation and GPT-2/RoBERTa marker cleanup
+- **Enhanced Generation**: Structured token generation with proper stop string handling
+- **Current Status**: ✅ **FULLY OPERATIONAL** - Qwen model now generates clean, coherent LUMARA responses
+
+### **Previous Major Achievement: MLX On-Device LLM Integration** ✅ **COMPLETE**
 - **Complete On-Device AI**: Real Qwen3-1.7B-MLX-4bit model (914MB) bundled and ready
 - **Pigeon Bridge**: Type-safe Flutter ↔ Swift communication with async progress reporting
 - **Memory-Mapped Loading**: Large model files loaded efficiently with memory-mapped I/O

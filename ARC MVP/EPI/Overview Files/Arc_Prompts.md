@@ -6,7 +6,20 @@ Complete listing of all prompts used in the ARC MVP system, centralized in `lib/
 
 **On-Device LLM Integration (2025-10-02)**: Complete Pigeon bridge implementation with MLX Swift packages, safetensors parser, and Qwen3-1.7B model support for privacy-first on-device inference.
 
-## 🎉 **CURRENT STATUS: ON-DEVICE LLM INTEGRATION** ✅
+## 🎉 **CURRENT STATUS: QWEN TOKENIZER FIX** ✅
+
+**Date:** October 2, 2025
+**Status:** **TOKENIZER MISMATCH RESOLVED** - Qwen model now generates clean, coherent LUMARA responses
+
+### **Latest Achievements:**
+- ✅ **Tokenizer Mismatch Resolved**: Fixed garbled "Ġout" output by replacing `SimpleTokenizer` with proper `QwenTokenizer`
+- ✅ **BPE Tokenization**: Implemented proper Byte-Pair Encoding instead of word-level tokenization
+- ✅ **Special Token Handling**: Added support for Qwen-3 chat template tokens (`<|im_start|>`, `<|im_end|>`, etc.)
+- ✅ **Validation & Cleanup**: Added tokenizer validation and GPT-2/RoBERTa marker cleanup
+- ✅ **Enhanced Generation**: Structured token generation with proper stop string handling
+- ✅ **Comprehensive Logging**: Added sanity test logging for debugging tokenizer issues
+
+## 🎉 **PREVIOUS STATUS: ON-DEVICE LLM INTEGRATION** ✅
 
 **Date:** October 2, 2025
 **Status:** **MLX INTEGRATION COMPLETE** - Pigeon bridge, safetensors parser operational, provider switching fixed

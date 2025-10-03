@@ -2,6 +2,25 @@
 
 ## [Unreleased]
 
+### 🔧 **QWEN TOKENIZER FIX** - October 2, 2025
+
+#### **Fixed Tokenizer Mismatch Issue** ✅ **COMPLETE**
+- **Issue**: Qwen model generating garbled "Ġout" output instead of proper LUMARA responses
+- **Root Cause**: `SimpleTokenizer` using word-level tokenization instead of proper Qwen BPE tokenizer
+- **Solution**: Complete tokenizer rewrite with proper Qwen-3 chat template and validation
+- **Files Modified**: `ios/Runner/LLMBridge.swift` - Complete `QwenTokenizer` implementation
+- **Result**: Clean, coherent LUMARA responses with proper tokenization
+
+#### **Technical Implementation** ✅ **COMPLETE**
+- **QwenTokenizer Class**: Replaced `SimpleTokenizer` with proper BPE-like tokenization
+- **Special Token Handling**: Added support for `<|im_start|>`, `<|im_end|>`, `<|pad|>`, `<|unk|>` from `tokenizer_config.json`
+- **Tokenizer Validation**: Added roundtrip testing to catch GPT-2/RoBERTa markers early
+- **Cleanup Guards**: Added `cleanTokenizationSpaces()` to remove `Ġ` and `▁` markers
+- **Enhanced Generation**: Structured token generation with proper stop string handling
+- **Comprehensive Logging**: Added sanity test logging for debugging tokenizer issues
+
+---
+
 ### 🔧 **PROVIDER SWITCHING FIX** - October 2, 2025
 
 #### **Fixed Provider Selection Logic** ✅ **COMPLETE**

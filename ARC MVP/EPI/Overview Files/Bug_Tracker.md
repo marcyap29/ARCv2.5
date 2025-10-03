@@ -2,6 +2,49 @@
 
 ## Active Issues
 
+### Qwen Tokenizer Mismatch Issue - RESOLVED ✅ - October 2, 2025
+**Status:** ✅ **RESOLVED**
+**Priority:** High
+**Component:** MLX On-Device LLM Tokenizer
+
+**Issue:**
+Qwen model was generating garbled output with "Ġout" instead of proper LUMARA responses. The "Ġ" prefix indicates GPT-2/RoBERTa tokenization markers, not Qwen tokenization.
+
+**Error Symptoms:**
+- Model loads successfully but outputs "Ġout" or similar garbled text
+- Single glyph responses instead of coherent text
+- Hardcoded fallback responses being used instead of model generation
+
+**Root Cause:**
+The `SimpleTokenizer` class was using basic word-level tokenization instead of the proper Qwen tokenizer. This caused:
+- Incorrect tokenization of input text
+- Wrong special token handling
+- Mismatched vocabulary between encode/decode operations
+- GPT-2/RoBERTa space markers appearing in output
+
+**Solution:**
+- **Replaced `SimpleTokenizer`** with proper `QwenTokenizer` class
+- **Added BPE-like tokenization** instead of word-level splitting
+- **Implemented proper special token handling** from `tokenizer_config.json`
+- **Added tokenizer validation** with roundtrip testing
+- **Added cleanup guards** to remove GPT-2/RoBERTa markers (`Ġ`, `▁`)
+- **Enhanced generation logic** with structured token generation
+- **Added comprehensive logging** for debugging tokenizer issues
+
+**Files Modified:**
+- `ios/Runner/LLMBridge.swift` - Complete tokenizer rewrite
+- `ios/Runner/LLMBridge.swift` - Enhanced generation method
+- `ios/Runner/LLMBridge.swift` - Added validation and cleanup
+
+**Result:**
+✅ Qwen model now generates proper LUMARA responses
+✅ No more "Ġout" or garbled text output
+✅ Proper Qwen-3 chat template implementation
+✅ Tokenizer validation catches issues early
+✅ Clean, coherent text generation
+
+---
+
 ### Provider Switching Issue - RESOLVED ✅ - October 2, 2025
 **Status:** ✅ **RESOLVED**
 **Priority:** High

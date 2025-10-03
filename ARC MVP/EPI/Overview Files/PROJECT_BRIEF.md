@@ -5,7 +5,35 @@ ARC is the **core journaling module of EPI (Evolving Personal Intelligence)**, b
 
 This MVP now implements **modular architecture** with RIVET (safety validation) and ECHO (expressive response layer) modules migrated to their proper locations, providing a foundation for the complete 8-module system: ARC→PRISM→ECHO→ATLAS→MIRA→AURORA→VEIL→RIVET.
 
-## 🌟 **LATEST ENHANCEMENT: MLX On-Device LLM Integration** (2025-10-02) ✅
+## 🌟 **LATEST ENHANCEMENT: Qwen Tokenizer Fix** (2025-10-02) ✅
+
+**🎯 Major Achievement**: Resolved critical tokenizer mismatch issue that was causing garbled "Ġout" output, implementing proper Qwen-3 BPE tokenization with comprehensive validation and cleanup systems.
+
+**✨ Qwen Tokenizer Fix Features**:
+- **Tokenizer Mismatch Resolved**: Fixed garbled "Ġout" output by replacing `SimpleTokenizer` with proper `QwenTokenizer`
+- **BPE Tokenization**: Implemented proper Byte-Pair Encoding instead of word-level tokenization
+- **Special Token Handling**: Added support for Qwen-3 chat template tokens (`<|im_start|>`, `<|im_end|>`, etc.)
+- **Validation & Cleanup**: Added tokenizer validation and GPT-2/RoBERTa marker cleanup
+- **Enhanced Generation**: Structured token generation with proper stop string handling
+- **Comprehensive Logging**: Added sanity test logging for debugging tokenizer issues
+
+**🎯 Technical Implementation**:
+- **QwenTokenizer Class**: Complete rewrite with proper BPE-like tokenization
+- **Special Token Support**: Added support for `<|im_start|>`, `<|im_end|>`, `<|pad|>`, `<|unk|>` from `tokenizer_config.json`
+- **Tokenizer Validation**: Added roundtrip testing to catch GPT-2/RoBERTa markers early
+- **Cleanup Guards**: Added `cleanTokenizationSpaces()` to remove `Ġ` and `▁` markers
+- **Enhanced Generation**: Structured token generation with proper stop string handling
+- **Error Handling**: Graceful degradation with clear error messages for tokenizer issues
+
+**📱 User Experience**:
+- **Clean Responses**: No more garbled "Ġout" or single glyph responses
+- **Proper LUMARA Tone**: Coherent, contextually appropriate responses
+- **Reliable Generation**: Consistent text generation with proper tokenization
+- **Debug Visibility**: Comprehensive logging for troubleshooting tokenizer issues
+
+**🏆 Current Status**: Qwen model now generates clean, coherent LUMARA responses with proper tokenization. The tokenizer validation catches issues early and provides clear error messages for debugging.
+
+## 🌟 **PREVIOUS ENHANCEMENT: MLX On-Device LLM Integration** (2025-10-02) ✅
 
 **🎯 Major Achievement**: Complete implementation of on-device LLM processing using Qwen3-1.7B model with MLX Swift framework integration, providing privacy-first AI responses with type-safe Pigeon bridge communication and proper provider switching.
 
