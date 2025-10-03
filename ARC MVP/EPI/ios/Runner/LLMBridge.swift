@@ -81,7 +81,27 @@ class ModelStore {
         }
 
         let relativePath = "flutter_assets/assets/models/MLX/\(bundleSubpath)/\(file)"
-        return Bundle.main.url(forResource: relativePath, withExtension: nil)
+        let url = Bundle.main.url(forResource: relativePath, withExtension: nil)
+        
+        // Debug logging
+        logger.info("resolveBundlePath: modelId=\(modelId), file=\(file), bundleSubpath=\(bundleSubpath)")
+        logger.info("resolveBundlePath: relativePath=\(relativePath)")
+        logger.info("resolveBundlePath: url=\(url?.path ?? "nil")")
+        
+        // Try alternative paths if the first one fails
+        if url == nil {
+            let altPath1 = "assets/models/MLX/\(bundleSubpath)/\(file)"
+            let altUrl1 = Bundle.main.url(forResource: altPath1, withExtension: nil)
+            logger.info("resolveBundlePath: trying altPath1=\(altPath1), url=\(altUrl1?.path ?? "nil")")
+            if altUrl1 != nil { return altUrl1 }
+            
+            let altPath2 = "\(bundleSubpath)/\(file)"
+            let altUrl2 = Bundle.main.url(forResource: altPath2, withExtension: nil)
+            logger.info("resolveBundlePath: trying altPath2=\(altPath2), url=\(altUrl2?.path ?? "nil")")
+            if altUrl2 != nil { return altUrl2 }
+        }
+        
+        return url
     }
 
     struct Registry: Codable {
@@ -137,10 +157,10 @@ class SimpleTokenizer {
         }
 
         // Get special tokens
-        self.bosToken = vocab["<|im_start|>"] ?? 0
-        self.eosToken = vocab["<|im_end|>"] ?? 1
+        self.bosToken = self.vocab["<|im_start|>"] ?? 0
+        self.eosToken = self.vocab["<|im_end|>"] ?? 1
 
-        logger.info("[ModelPreload] tokenizer=ok vocab_size=\(vocab.count)")
+        logger.info("[ModelPreload] tokenizer=ok vocab_size=\(self.vocab.count)")
     }
 
     func encode(_ text: String) -> [Int] {

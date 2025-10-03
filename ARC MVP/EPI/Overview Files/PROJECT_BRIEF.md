@@ -5,9 +5,9 @@ ARC is the **core journaling module of EPI (Evolving Personal Intelligence)**, b
 
 This MVP now implements **modular architecture** with RIVET (safety validation) and ECHO (expressive response layer) modules migrated to their proper locations, providing a foundation for the complete 8-module system: ARC→PRISM→ECHO→ATLAS→MIRA→AURORA→VEIL→RIVET.
 
-## 🌟 **LATEST ENHANCEMENT: MLX On-Device LLM Integration** (2025-10-02) ✅
+## 🌟 **LATEST ENHANCEMENT: MLX On-Device LLM Integration** (2025-10-02) 🔍
 
-**🎯 Major Achievement**: Complete implementation of on-device LLM processing using Qwen3-1.7B model with MLX Swift framework integration, providing privacy-first AI responses with type-safe Pigeon bridge communication.
+**🎯 Major Achievement**: Implementation of on-device LLM processing using Qwen3-1.7B model with MLX Swift framework integration, providing privacy-first AI responses with type-safe Pigeon bridge communication. Currently debugging bundle path resolution.
 
 **✨ MLX On-Device LLM Features**:
 - **Pigeon Bridge**: Type-safe Flutter ↔ Swift communication with auto-generated code
@@ -33,7 +33,7 @@ This MVP now implements **modular architecture** with RIVET (safety validation) 
 - **Reliable Responses**: Multiple fallback layers ensure responses always available
 - **Performance Optimized**: Designed for 4GB RAM devices with efficient memory usage
 
-**🏆 Result**: EPI now offers true privacy-first AI processing with on-device LLM capabilities, providing users with complete control over their data while maintaining high-quality conversational experiences.
+**🏆 Current Status**: EPI offers privacy-first AI processing with on-device LLM capabilities in development. Bundle path resolution debugging in progress, with macOS app running successfully and debug logging enabled.
 
 ---
 

@@ -6,10 +6,10 @@ Complete listing of all prompts used in the ARC MVP system, centralized in `lib/
 
 **On-Device LLM Integration (2025-10-02)**: Complete Pigeon bridge implementation with MLX Swift packages, safetensors parser, and Qwen3-1.7B model support for privacy-first on-device inference.
 
-## 🎉 **CURRENT STATUS: ON-DEVICE LLM INTEGRATION** ✅
+## 🎉 **CURRENT STATUS: ON-DEVICE LLM INTEGRATION** 🔍
 
 **Date:** October 2, 2025
-**Status:** **MLX INTEGRATION COMPLETE** - Pigeon bridge, safetensors parser, and model loading pipeline operational
+**Status:** **MLX INTEGRATION IN PROGRESS** - Pigeon bridge, safetensors parser operational, bundle path resolution debugging
 
 ### **Latest Achievements:**
 - ✅ **Pigeon Bridge Integration**: Type-safe Flutter ↔ Swift communication with auto-generated code
@@ -26,6 +26,8 @@ Complete listing of all prompts used in the ARC MVP system, centralized in `lib/
 - ✅ **Universal Privacy Guardrail System**: Fully integrated with PII redaction
 - ✅ **Build System**: iOS builds successfully with Metal Toolchain
 - ✅ **App Functionality**: Complete feature set working
+- 🔍 **Bundle Path Resolution**: Debugging model file loading from Flutter assets
+- 🔍 **macOS Testing**: App running successfully on macOS with debug logging
 
 ### **ARC Module Status:**
 - **Core Journaling**: ✅ Fully operational

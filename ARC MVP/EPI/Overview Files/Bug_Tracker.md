@@ -2,29 +2,38 @@
 
 ## Active Issues
 
-### Model Registry Issue - RESOLVED ✅ **COMPLETE** - October 2, 2025
-**Status:** ✅ **RESOLVED**
+### Bundle Path Resolution Issue - IN PROGRESS 🔍 **DEBUGGING** - October 2, 2025
+**Status:** 🔍 **IN PROGRESS**
 **Priority:** High
 **Component:** MLX On-Device LLM
 
-**Issue Resolved:**
-Model registry was reporting 0 installed models due to incorrect bundle path structure.
+**Current Issue:**
+Model files not found in bundle despite being properly located in assets directory.
 
-**Root Cause:**
-- ZIP file extraction created nested directory structure
-- Swift bundle path resolution expected flat structure
-- Model files were in `Qwen3-1.7B-MLX-4bit/Qwen3-1.7B-MLX-4bit/` instead of `Qwen3-1.7B-MLX-4bit/`
+**Error Message:**
+```
+[ModelProgress] qwen3-1.7b-mlx-4bit: 0% - failed: Model files not found in bundle for: qwen3-1.7b-mlx-4bit
+```
 
-**Solution Applied:**
-- Extracted ZIP file to create correct flat directory structure
-- Model files now properly located at `assets/models/MLX/Qwen3-1.7B-MLX-4bit/`
-- All required files present: config.json, tokenizer.json, model.safetensors (914MB), etc.
+**Progress Made:**
+- ✅ Model files properly bundled in `assets/models/MLX/Qwen3-1.7B-MLX-4bit/`
+- ✅ All required files present: config.json, tokenizer.json, model.safetensors (914MB)
+- ✅ Swift compilation errors resolved
+- ✅ Pigeon bridge setup fixed
+- ✅ Duplicate ModelStore.swift removed
+- ✅ Debug logging added to bundle path resolution
+- ✅ macOS app running successfully
 
-**Verification:**
-- ✅ Model files properly bundled in assets
-- ✅ Bundle path resolution working correctly
-- ✅ iOS build successful (61.5s build time)
-- ✅ App ready for on-device testing
+**Current Status:**
+- App builds and runs successfully on macOS
+- Model registry finds 1 installed model
+- Bundle path resolution debugging in progress
+- Multiple fallback paths implemented in Swift code
+
+**Next Steps:**
+1. Test bundle path resolution with debug logging
+2. Fix bundle path based on actual Flutter asset structure
+3. Verify model loading on device/simulator
 
 
 System gracefully falls back to Cloud API � Rule-Based responses.

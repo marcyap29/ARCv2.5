@@ -705,9 +705,9 @@ Future<bool> _attemptEmergencyRecovery(Object exception, StackTrace stackTrace) 
 Future<void> _registerNativeBridges() async {
   try {
     // Register progress API to receive model loading updates from native side
-    pigeon.LumaraNativeProgressSetup.setUp(
-      ServicesBinding.instance.defaultBinaryMessenger,
-      api: ModelProgressService(),
+    pigeon.LumaraNativeProgress.setUp(
+      ModelProgressService(),
+      binaryMessenger: ServicesBinding.instance.defaultBinaryMessenger,
     );
     logger.d('ModelProgressService registered for native progress callbacks');
   } catch (e) {
