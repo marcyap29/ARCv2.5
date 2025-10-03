@@ -2,6 +2,17 @@
 
 ## [Unreleased]
 
+### 🔧 **PROVIDER SWITCHING FIX** - October 2, 2025
+
+#### **Fixed Provider Selection Logic** ✅ **COMPLETE**
+- **Issue**: App got stuck on Google Gemini provider and wouldn't switch back to on-device Qwen model
+- **Root Cause**: Manual provider selection was not being cleared when switching back to Qwen
+- **Solution**: Enhanced provider detection to compare current vs best provider for automatic vs manual mode detection
+- **Files Modified**: `lumara_assistant_cubit.dart`, `enhanced_lumara_api.dart`
+- **Result**: Provider switching now works correctly between on-device Qwen and Google Gemini
+
+---
+
 ### 🎉 **MLX ON-DEVICE LLM WITH ASYNC PROGRESS & BUNDLE LOADING** - October 2, 2025
 
 #### **Complete MLX Swift Integration with Progress Reporting** ✅ **COMPLETE**

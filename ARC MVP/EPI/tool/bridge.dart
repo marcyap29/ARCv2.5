@@ -144,12 +144,22 @@ abstract class LumaraNative {
   /// Set active model in registry (doesn't load it)
   void setActiveModel(String modelId);
 
+  /// Download model from URL (e.g., Google Drive)
+  /// Returns true if download started successfully
+  bool downloadModel(String modelId, String downloadUrl);
+
+  /// Check if model is already downloaded
+  bool isModelDownloaded(String modelId);
+
+  /// Cancel ongoing model download
+  void cancelModelDownload();
+
   // --- Future streaming support ---
   // Stream<String> generateTextStream(String prompt, GenParams params);
 }
 
 /// Progress callback from native to Flutter
-/// Used to report model loading progress (0-100%)
+/// Used to report model loading and download progress
 @FlutterApi()
 abstract class LumaraNativeProgress {
   /// Report model loading progress
@@ -157,4 +167,10 @@ abstract class LumaraNativeProgress {
   /// - value: Progress percentage (0-100)
   /// - message: Optional status message
   void modelProgress(String modelId, int value, String? message);
+
+  /// Report model download progress
+  /// - modelId: ID of the model being downloaded
+  /// - progress: Download progress (0.0-1.0)
+  /// - message: Status message (e.g., "Downloading: 50.2 / 900 MB")
+  void downloadProgress(String modelId, double progress, String message);
 }

@@ -26,6 +26,19 @@ class ModelProgressService implements pigeon.LumaraNativeProgress {
     _controller.add(update);
   }
 
+  @override
+  void downloadProgress(String modelId, double progress, String message) {
+    final update = ModelProgressUpdate(
+      modelId: modelId,
+      progress: (progress * 100).round(),
+      message: message,
+      isComplete: progress >= 1.0,
+    );
+
+    debugPrint('[DownloadProgress] $modelId: ${(progress * 100).toStringAsFixed(1)}% - $message');
+    _controller.add(update);
+  }
+
   /// Wait for model to finish loading
   Future<void> waitForCompletion(String modelId, {Duration timeout = const Duration(minutes: 2)}) async {
     final completer = Completer<void>();

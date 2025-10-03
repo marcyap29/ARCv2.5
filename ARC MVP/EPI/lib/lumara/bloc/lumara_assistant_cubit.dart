@@ -204,21 +204,32 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
       print('LUMARA Debug:   - Cloud API (Gemini): ${geminiAvailable ? "AVAILABLE ✓" : "Not Available (no API key)"}');
       print('LUMARA Debug: Security-first fallback chain: On-Device → Cloud API → Rule-Based');
 
-      // PRIORITY 1: Try On-Device first (security-first, always)
-      bool onDeviceSuccess = false;
-      try {
-        print('LUMARA Debug: [Priority 1] Attempting on-device LLMAdapter...');
+      // Check if user has manually selected a provider
+      final currentProvider = _enhancedApi.getCurrentProvider();
+      final bestProvider = _enhancedApi.getBestProvider();
+      
+      // If current provider is the same as the best provider, treat as automatic mode
+      final isManualSelection = currentProvider?.name != bestProvider?.name;
+      
+      print('LUMARA Debug: Current provider: ${currentProvider?.name ?? 'none'}');
+      print('LUMARA Debug: Best provider: ${bestProvider?.name ?? 'none'}');
+      print('LUMARA Debug: Is manual selection: $isManualSelection');
 
-        // Initialize LLMAdapter if not already done
-        if (!LLMAdapter.isReady) {
-          debugPrint('[LumaraAssistantCubit] invoking LLMAdapter.initialize(...)');
-          final initialized = await LLMAdapter.initialize();
-          debugPrint('[LumaraAssistantCubit] LLMAdapter.initialize completed (isAvailable=${LLMAdapter.isAvailable}, reason=${LLMAdapter.reason})');
-        }
+      // PRIORITY 1: Try On-Device first (security-first, unless manually overridden)
+      if (!isManualSelection) {
+        try {
+          print('LUMARA Debug: [Priority 1] Attempting on-device LLMAdapter...');
 
-        // Check if on-device is available
-        if (LLMAdapter.isAvailable) {
-          print('LUMARA Debug: [On-Device] LLMAdapter available! Using on-device processing.');
+          // Initialize LLMAdapter if not already done
+          if (!LLMAdapter.isReady) {
+            debugPrint('[LumaraAssistantCubit] invoking LLMAdapter.initialize(...)');
+            await LLMAdapter.initialize();
+            debugPrint('[LumaraAssistantCubit] LLMAdapter.initialize completed (isAvailable=${LLMAdapter.isAvailable}, reason=${LLMAdapter.reason})');
+          }
+
+          // Check if on-device is available
+          if (LLMAdapter.isAvailable) {
+            print('LUMARA Debug: [On-Device] LLMAdapter available! Using on-device processing.');
 
           // Use non-streaming on-device processing
           final responseData = await _processMessageWithAttribution(text, currentState.scope);
@@ -243,15 +254,18 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
             isProcessing: false,
           ));
 
-          onDeviceSuccess = true;
-          print('LUMARA Debug: [On-Device] On-device processing complete - skipping cloud API');
-          return; // Exit early - on-device succeeded
-        } else {
-          print('LUMARA Debug: [On-Device] LLMAdapter not available, reason: ${LLMAdapter.reason}');
+            print('LUMARA Debug: [On-Device] On-device processing complete - skipping cloud API');
+            return; // Exit early - on-device succeeded
+          } else {
+            print('LUMARA Debug: [On-Device] LLMAdapter not available, reason: ${LLMAdapter.reason}');
+            print('LUMARA Debug: [Priority 2] Falling back to Cloud API...');
+          }
+        } catch (e) {
+          print('LUMARA Debug: [On-Device] Error: $e');
           print('LUMARA Debug: [Priority 2] Falling back to Cloud API...');
         }
-      } catch (onDeviceError) {
-        print('LUMARA Debug: [On-Device] Failed: $onDeviceError');
+      } else {
+        print('LUMARA Debug: [Manual Selection] Using manually selected provider: ${currentProvider?.name}');
         print('LUMARA Debug: [Priority 2] Falling back to Cloud API...');
       }
 

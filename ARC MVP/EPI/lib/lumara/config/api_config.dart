@@ -4,6 +4,7 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../llm/bridge.pigeon.dart';
 
 /// Supported LLM providers
 enum LLMProvider {
@@ -57,12 +58,26 @@ class LumaraAPIConfig {
 
   final Map<LLMProvider, LLMProviderConfig> _configs = {};
   SharedPreferences? _prefs;
+  LLMProvider? _manualProvider; // User's manually selected provider
 
   /// Initialize the API configuration
   Future<void> initialize() async {
     _prefs = await SharedPreferences.getInstance();
     await _loadConfigs();
     await _detectAvailableProviders();
+
+    // Load manual provider preference
+    final manualProviderName = _prefs?.getString('manual_provider');
+    if (manualProviderName != null) {
+      try {
+        _manualProvider = LLMProvider.values.firstWhere(
+          (p) => p.name == manualProviderName,
+        );
+      } catch (e) {
+        // Invalid provider name, clear it
+        await _prefs?.remove('manual_provider');
+      }
+    }
   }
 
   /// Load configurations from environment and storage
@@ -153,15 +168,26 @@ class LumaraAPIConfig {
   /// Check if internal model is available
   Future<bool> _checkInternalModelAvailability(LLMProviderConfig config) async {
     try {
-      // DEPRECATED: Old localhost-based providers are disabled in favor of native LLMAdapter
-      // This prevents SocketException errors from health checks
-
       // For rule-based, always available
       if (config.provider == LLMProvider.ruleBased) {
         return true;
       }
 
-      // Qwen and Llama are now handled by LLMAdapter with native MLX bridge
+      // For Qwen and Llama, check if model is downloaded via native bridge
+      if (config.provider == LLMProvider.qwen) {
+        try {
+          // Import bridge at top of file if not already imported
+          final bridge = LumaraNative();
+          final isDownloaded = await bridge.isModelDownloaded('qwen3-1.7b-mlx-4bit');
+          debugPrint('LUMARA API: Qwen model ${isDownloaded ? 'is' : 'is NOT'} downloaded');
+          return isDownloaded;
+        } catch (e) {
+          debugPrint('LUMARA API: Error checking Qwen availability: $e');
+          return false;
+        }
+      }
+
+      // Llama not yet implemented
       debugPrint('LUMARA API: ${config.name} disabled (use LLMAdapter for native inference)');
       return false;
     } catch (e) {
@@ -187,6 +213,17 @@ class LumaraAPIConfig {
   LLMProviderConfig? getBestProvider() {
     final available = getAvailableProviders();
     if (available.isEmpty) return null;
+
+    // Check if user has manually selected a provider
+    if (_manualProvider != null) {
+      final manualConfig = _configs[_manualProvider];
+      if (manualConfig != null && manualConfig.isAvailable) {
+        return manualConfig;
+      }
+      // If manual selection is no longer available, clear it
+      _manualProvider = null;
+      _prefs?.remove('manual_provider');
+    }
 
     // Preference order: Internal models first, then external APIs, then rule-based
     final internal = available.where((c) => c.isInternal && c.provider != LLMProvider.ruleBased).toList();
@@ -224,6 +261,18 @@ class LumaraAPIConfig {
       await _saveConfigs();
       await _detectAvailableProviders();
     }
+  }
+
+  /// Set manual provider selection (overrides auto-selection)
+  Future<void> setManualProvider(LLMProvider provider) async {
+    _manualProvider = provider;
+    await _prefs?.setString('manual_provider', provider.name);
+  }
+
+  /// Clear manual provider selection (return to auto-selection)
+  Future<void> clearManualProvider() async {
+    _manualProvider = null;
+    await _prefs?.remove('manual_provider');
   }
 
   /// Check if a provider is configured and available

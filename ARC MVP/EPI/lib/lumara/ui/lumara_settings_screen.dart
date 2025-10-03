@@ -2,9 +2,13 @@
 // LUMARA settings and API key management screen
 
 import 'package:flutter/material.dart';
+import 'dart:async';
 import '../config/api_config.dart';
 import '../services/enhanced_lumara_api.dart';
 import '../../telemetry/analytics.dart';
+import 'model_download_screen.dart';
+import '../llm/model_progress_service.dart';
+import '../llm/bridge.pigeon.dart';
 
 /// LUMARA settings screen for API key management and provider selection
 class LumaraSettingsScreen extends StatefulWidget {
@@ -17,22 +21,73 @@ class LumaraSettingsScreen extends StatefulWidget {
 class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
   final LumaraAPIConfig _apiConfig = LumaraAPIConfig.instance;
   final EnhancedLumaraApi _lumaraApi = EnhancedLumaraApi(Analytics());
+  final ModelProgressService _progressService = ModelProgressService();
+  final LumaraNative _bridge = LumaraNative();
   final Map<LLMProvider, TextEditingController> _apiKeyControllers = {};
+
   LLMProvider? _selectedProvider;
+  StreamSubscription<ModelProgressUpdate>? _progressSubscription;
+  double _downloadProgress = 0.0;
+  String _downloadStatus = '';
+  bool _isDownloading = false;
 
   @override
   void initState() {
     super.initState();
     _initializeControllers();
     _loadCurrentSettings();
+    _setupProgressListener();
   }
 
   @override
   void dispose() {
+    _progressSubscription?.cancel();
     for (final controller in _apiKeyControllers.values) {
       controller.dispose();
     }
     super.dispose();
+  }
+
+  void _setupProgressListener() {
+    _progressSubscription = _progressService.progressStream.listen((progress) async {
+      if (progress.modelId == 'qwen3-1.7b-mlx-4bit' && mounted) {
+        setState(() {
+          _downloadProgress = progress.progress / 100.0;
+          _downloadStatus = progress.message;
+          _isDownloading = !progress.isComplete && progress.progress > 0;
+        });
+
+        // When download completes, refresh provider availability
+        if (progress.isComplete && progress.message.contains('Ready to use')) {
+          // Re-detect available providers (Qwen should now be available)
+          await _apiConfig.initialize();
+          await _lumaraApi.initialize();
+
+          // Reload settings to update UI
+          await _loadCurrentSettings();
+
+          // Show success notification
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Row(
+                  children: [
+                    Icon(Icons.check_circle, color: Colors.white),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text('Qwen model is now available! Tap to activate.'),
+                    ),
+                  ],
+                ),
+                backgroundColor: Colors.green,
+                duration: const Duration(seconds: 3),
+                behavior: SnackBarBehavior.floating,
+              ),
+            );
+          }
+        }
+      }
+    });
   }
 
   void _initializeControllers() {
@@ -126,48 +181,59 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
             Row(
               children: [
                 Text('Current Provider: '),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: bestProvider != null 
-                        ? theme.colorScheme.primary.withOpacity(0.1)
-                        : theme.colorScheme.error.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: bestProvider != null 
-                          ? theme.colorScheme.primary
-                          : theme.colorScheme.error,
-                      width: 1,
-                    ),
-                  ),
-                  child: Text(
-                    currentProviderName,
-                    style: TextStyle(
-                      color: bestProvider != null 
-                          ? theme.colorScheme.primary
-                          : theme.colorScheme.error,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: bestProvider != null 
-                        ? theme.colorScheme.primary.withOpacity(0.1)
-                        : theme.colorScheme.error.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    currentProviderType,
-                    style: TextStyle(
-                      color: bestProvider != null 
-                          ? theme.colorScheme.primary
-                          : theme.colorScheme.error,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w500,
-                    ),
+                const SizedBox(width: 4),
+                Expanded(
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Flexible(
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: bestProvider != null
+                                ? theme.colorScheme.primary.withOpacity(0.1)
+                                : theme.colorScheme.error.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: bestProvider != null
+                                  ? theme.colorScheme.primary
+                                  : theme.colorScheme.error,
+                              width: 1,
+                            ),
+                          ),
+                          child: Text(
+                            currentProviderName,
+                            style: TextStyle(
+                              color: bestProvider != null
+                                  ? theme.colorScheme.primary
+                                  : theme.colorScheme.error,
+                              fontWeight: FontWeight.bold,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: bestProvider != null
+                              ? theme.colorScheme.primary.withOpacity(0.1)
+                              : theme.colorScheme.error.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          currentProviderType,
+                          style: TextStyle(
+                            color: bestProvider != null
+                                ? theme.colorScheme.primary
+                                : theme.colorScheme.error,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ],
@@ -336,10 +402,37 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
                 : theme.colorScheme.error.withOpacity(0.05),
       ),
       child: InkWell(
-        onTap: isAvailable ? () {
+        onTap: isAvailable ? () async {
+          // Set this as the manually selected provider
+          await _apiConfig.setManualProvider(config.provider);
+
+          // Reinitialize LUMARA API to use the new provider
+          await _lumaraApi.initialize();
+
+          // Update UI
           setState(() {
             _selectedProvider = config.provider;
           });
+
+          // Show confirmation
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Row(
+                  children: [
+                    Icon(Icons.swap_horiz, color: Colors.white),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text('Switched to ${config.name}'),
+                    ),
+                  ],
+                ),
+                backgroundColor: Colors.green,
+                duration: const Duration(seconds: 2),
+                behavior: SnackBarBehavior.floating,
+              ),
+            );
+          }
         } : null,
         borderRadius: BorderRadius.circular(12),
         child: Padding(
@@ -438,32 +531,155 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
     final controller = _apiKeyControllers[provider]!;
     final config = _apiConfig.getConfig(provider);
     final isConfigured = config?.apiKey?.isNotEmpty == true;
-    
+    bool hasUnsavedChanges = controller.text.trim() != (config?.apiKey ?? '');
+
     return Padding(
-      padding: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.only(bottom: 20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            provider.name,
-            style: theme.textTheme.titleSmall,
+          Row(
+            children: [
+              Text(
+                provider.name,
+                style: theme.textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(width: 8),
+              if (isConfigured)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: Colors.green.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.check_circle, color: Colors.green, size: 14),
+                      const SizedBox(width: 4),
+                      Text(
+                        'Saved',
+                        style: TextStyle(
+                          color: Colors.green,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+            ],
           ),
           const SizedBox(height: 8),
-          TextField(
-            controller: controller,
-            decoration: InputDecoration(
-              hintText: 'Enter ${provider.name} API key',
-              suffixIcon: isConfigured
-                  ? Icon(Icons.check_circle, color: Colors.green)
-                  : Icon(Icons.help_outline, color: theme.colorScheme.onSurfaceVariant),
-              border: const OutlineInputBorder(),
-            ),
-            obscureText: true,
-            onChanged: (value) => _updateApiKey(provider, value),
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: controller,
+                  decoration: InputDecoration(
+                    hintText: 'Enter ${provider.name} API key',
+                    suffixIcon: isConfigured
+                        ? Icon(Icons.check_circle, color: Colors.green, size: 20)
+                        : Icon(Icons.key, color: theme.colorScheme.onSurfaceVariant.withOpacity(0.5), size: 20),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  ),
+                  obscureText: true,
+                  onChanged: (value) {
+                    setState(() {}); // Trigger rebuild to show/hide Save button
+                  },
+                ),
+              ),
+              const SizedBox(width: 8),
+              ElevatedButton.icon(
+                onPressed: controller.text.trim().isEmpty
+                    ? null
+                    : () async {
+                        await _saveSpecificApiKey(provider);
+                      },
+                icon: Icon(Icons.save, size: 18),
+                label: Text('Save'),
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  backgroundColor: controller.text.trim().isEmpty
+                      ? theme.colorScheme.surfaceVariant
+                      : theme.colorScheme.primary,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+              ),
+            ],
           ),
         ],
       ),
     );
+  }
+
+  Future<void> _saveSpecificApiKey(LLMProvider provider) async {
+    final controller = _apiKeyControllers[provider];
+    if (controller == null || controller.text.trim().isEmpty) {
+      return;
+    }
+
+    try {
+      await _apiConfig.updateApiKey(provider, controller.text.trim());
+
+      // Reinitialize LUMARA API to pick up the new key
+      await _lumaraApi.initialize();
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                Icon(Icons.check_circle, color: Colors.white),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text('${provider.name} API key saved and activated!'),
+                ),
+              ],
+            ),
+            backgroundColor: Colors.green,
+            duration: const Duration(seconds: 2),
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
+          ),
+        );
+
+        // Reload to update UI state
+        await _loadCurrentSettings();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                Icon(Icons.error, color: Colors.white),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text('Error saving API key: $e'),
+                ),
+              ],
+            ),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 3),
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
+          ),
+        );
+      }
+    }
   }
 
   Widget _buildInternalModelsSection(ThemeData theme) {
@@ -520,13 +736,7 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
               theme,
             ),
             const SizedBox(height: 8),
-            _buildInternalModelCard(
-              'Qwen', 
-              'Alibaba\'s multilingual model with excellent performance', 
-              '1-3GB RAM required',
-              Icons.language,
-              theme,
-            ),
+            _buildQwenModelCard(theme),
             const SizedBox(height: 12),
             Container(
               padding: const EdgeInsets.all(12),
@@ -556,6 +766,116 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
                 ],
               ),
             ),
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const ModelDownloadScreen(),
+                    ),
+                  );
+                },
+                icon: Icon(Icons.download, size: 20),
+                label: Text('Download On-Device Model'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: theme.colorScheme.primary,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  elevation: 2,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildQwenModelCard(ThemeData theme) {
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => const ModelDownloadScreen(),
+          ),
+        );
+      },
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          border: Border.all(color: theme.colorScheme.primary.withOpacity(0.3)),
+          borderRadius: BorderRadius.circular(8),
+          color: theme.colorScheme.primary.withOpacity(0.02),
+        ),
+        child: Column(
+          children: [
+            Row(
+              children: [
+                Icon(Icons.language, color: theme.colorScheme.primary),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Qwen',
+                        style: theme.textTheme.titleSmall?.copyWith(
+                          fontWeight: FontWeight.bold,
+                          color: theme.colorScheme.primary,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Alibaba\'s multilingual model with excellent performance',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        _isDownloading ? _downloadStatus : '~900 MB - Tap to download',
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          color: _isDownloading
+                              ? Colors.blue
+                              : theme.colorScheme.primary.withOpacity(0.7),
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                if (_isDownloading)
+                  SizedBox(
+                    width: 24,
+                    height: 24,
+                    child: CircularProgressIndicator(
+                      value: _downloadProgress,
+                      strokeWidth: 3,
+                    ),
+                  )
+                else
+                  Icon(
+                    Icons.download,
+                    color: theme.colorScheme.primary,
+                    size: 20,
+                  ),
+              ],
+            ),
+            if (_isDownloading) ...[
+              const SizedBox(height: 8),
+              LinearProgressIndicator(
+                value: _downloadProgress,
+                minHeight: 4,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ],
           ],
         ),
       ),
@@ -579,7 +899,7 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  name, 
+                  name,
                   style: theme.textTheme.titleSmall?.copyWith(
                     fontWeight: FontWeight.bold,
                     color: theme.colorScheme.primary,
@@ -604,7 +924,7 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
             ),
           ),
           Icon(
-            Icons.check_circle_outline, 
+            Icons.check_circle_outline,
             color: theme.colorScheme.primary,
             size: 20,
           ),
@@ -688,9 +1008,7 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
     );
   }
 
-  void _updateApiKey(LLMProvider provider, String apiKey) {
-    _apiConfig.updateApiKey(provider, apiKey);
-  }
+  // Removed auto-save on change - now using explicit Save button per field
 
   Future<void> _saveApiKeys() async {
     try {

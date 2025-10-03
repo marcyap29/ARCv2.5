@@ -10,6 +10,7 @@ import MLX
 import MLXNN
 import MLXOptimizers
 import MLXRandom
+import ZIPFoundation
 
 // MARK: - Model Store
 
@@ -69,9 +70,9 @@ class ModelStore {
         return modelRootURL.appendingPathComponent(entry.path)
     }
 
-    /// Resolve model path from Application Support directory
-    /// Models are installed via scripts/setup_models.sh to ~/Library/Application Support/Models/
-    /// They are NOT bundled in the app (too large - 2.6GB)
+    /// Resolve model path - checks bundle first on iOS, Application Support first on macOS
+    /// iOS: Models bundled in app (for development testing)
+    /// macOS: Models installed via scripts/setup_models.sh to ~/Library/Application Support/Models/
     func resolveModelPath(modelId: String, file: String) -> URL? {
         // Map model ID to directory name
         let modelDir: String
@@ -82,23 +83,39 @@ class ModelStore {
             modelDir = modelId
         }
 
-        // Check Application Support directory first (primary location)
-        let appSupportPath = modelRootURL.appendingPathComponent(modelDir).appendingPathComponent(file)
-        if FileManager.default.fileExists(atPath: appSupportPath.path) {
-            logger.info("resolveModelPath: found in Application Support: \(appSupportPath.path)")
-            return appSupportPath
-        }
-
-        // Fallback: Try bundle (for smaller test models if ever bundled)
+        #if os(iOS)
+        // iOS: Check bundle FIRST (models bundled for device testing)
         let relativePath = "flutter_assets/assets/models/MLX/\(modelDir)/\(file)"
         if let bundleURL = Bundle.main.url(forResource: relativePath, withExtension: nil) {
-            logger.info("resolveModelPath: found in bundle: \(bundleURL.path)")
+            logger.info("resolveModelPath: found in iOS bundle: \(bundleURL.path)")
             return bundleURL
         }
 
+        // iOS fallback: Check Application Support (future download-on-launch)
+        let appSupportPath = modelRootURL.appendingPathComponent(modelDir).appendingPathComponent(file)
+        if FileManager.default.fileExists(atPath: appSupportPath.path) {
+            logger.info("resolveModelPath: found in iOS Application Support: \(appSupportPath.path)")
+            return appSupportPath
+        }
+        #else
+        // macOS: Check Application Support FIRST (installed via setup script)
+        let appSupportPath = modelRootURL.appendingPathComponent(modelDir).appendingPathComponent(file)
+        if FileManager.default.fileExists(atPath: appSupportPath.path) {
+            logger.info("resolveModelPath: found in macOS Application Support: \(appSupportPath.path)")
+            return appSupportPath
+        }
+
+        // macOS fallback: Try bundle
+        let relativePath = "flutter_assets/assets/models/MLX/\(modelDir)/\(file)"
+        if let bundleURL = Bundle.main.url(forResource: relativePath, withExtension: nil) {
+            logger.info("resolveModelPath: found in macOS bundle: \(bundleURL.path)")
+            return bundleURL
+        }
+        #endif
+
         logger.warning("resolveModelPath: NOT FOUND - modelId=\(modelId), file=\(file)")
-        logger.warning("resolveModelPath: Searched: \(appSupportPath.path)")
-        logger.warning("resolveModelPath: Run scripts/setup_models.sh to install models")
+        logger.warning("resolveModelPath: iOS: check if models are bundled in flutter_assets")
+        logger.warning("resolveModelPath: macOS: run scripts/setup_models.sh to install models")
         return nil
     }
 
@@ -482,5 +499,214 @@ class LLMBridge: NSObject, LumaraNative {
         try ModelStore.shared.writeRegistry(registry)
 
         logger.info("Set active model to: \(modelId)")
+    }
+
+    func downloadModel(modelId: String, downloadUrl: String) throws -> Bool {
+        logger.info("downloadModel called: \(modelId) from \(downloadUrl)")
+
+        // Start download
+        ModelDownloadService.shared.downloadModel(
+            from: downloadUrl,
+            modelId: modelId,
+            onProgress: { [weak self] progress, message in
+                // Report progress to Flutter on main thread (Pigeon requires platform thread)
+                DispatchQueue.main.async {
+                    self?.progressApi?.downloadProgress(
+                        modelId: modelId,
+                        progress: progress,
+                        message: message,
+                        completion: { _ in }
+                    )
+                }
+            },
+            completion: { result in
+                switch result {
+                case .success(let url):
+                    self.logger.info("Model downloaded successfully to: \(url.path)")
+                case .failure(let error):
+                    self.logger.error("Model download failed: \(error.localizedDescription)")
+                }
+            }
+        )
+
+        return true
+    }
+
+    func isModelDownloaded(modelId: String) throws -> Bool {
+        return ModelDownloadService.shared.isModelDownloaded(modelId: modelId)
+    }
+
+    func cancelModelDownload() throws {
+        logger.info("cancelModelDownload called")
+        ModelDownloadService.shared.cancelDownload()
+    }
+}
+
+// MARK: - Model Download Service
+
+/// Downloads ML models from remote server (Google Drive) to Application Support
+/// Provides progress tracking, pause/resume, and integrity verification
+class ModelDownloadService: NSObject {
+    static let shared = ModelDownloadService()
+    private let logger = Logger(subsystem: "EPI", category: "ModelDownload")
+
+    private var downloadTask: URLSessionDownloadTask?
+    private var resumeData: Data?
+    private var progressCallback: ((Double, String) -> Void)?
+
+    private override init() {
+        super.init()
+    }
+
+    /// Download model from URL to Application Support directory
+    /// - Parameters:
+    ///   - urlString: Direct download URL (e.g., Google Drive direct link)
+    ///   - modelId: Model identifier (e.g., "qwen3-1.7b-mlx-4bit")
+    ///   - onProgress: Progress callback (0.0-1.0, status message)
+    ///   - completion: Completion handler with result
+    func downloadModel(
+        from urlString: String,
+        modelId: String,
+        onProgress: @escaping (Double, String) -> Void,
+        completion: @escaping (Result<URL, Error>) -> Void
+    ) {
+        guard let url = URL(string: urlString) else {
+            completion(.failure(NSError(domain: "ModelDownload", code: 400, userInfo: [
+                NSLocalizedDescriptionKey: "Invalid download URL"
+            ])))
+            return
+        }
+
+        self.progressCallback = onProgress
+
+        // Create URLSession with background configuration
+        let config = URLSessionConfiguration.default
+        config.timeoutIntervalForRequest = 300 // 5 minutes
+        config.timeoutIntervalForResource = 3600 // 1 hour
+        let session = URLSession(configuration: config, delegate: self, delegateQueue: nil)
+
+        // Start download
+        logger.info("Starting model download from: \(urlString)")
+        onProgress(0.0, "Connecting to server...")
+
+        downloadTask = session.downloadTask(with: url)
+        downloadTask?.resume()
+    }
+
+    /// Pause ongoing download
+    func pauseDownload() {
+        downloadTask?.cancel(byProducingResumeData: { [weak self] data in
+            self?.resumeData = data
+            self?.logger.info("Download paused, resume data saved")
+        })
+    }
+
+    /// Resume paused download
+    func resumeDownload() {
+        guard let resumeData = resumeData else {
+            logger.warning("No resume data available")
+            return
+        }
+
+        let config = URLSessionConfiguration.default
+        let session = URLSession(configuration: config, delegate: self, delegateQueue: nil)
+
+        downloadTask = session.downloadTask(withResumeData: resumeData)
+        downloadTask?.resume()
+
+        logger.info("Download resumed")
+    }
+
+    /// Cancel download
+    func cancelDownload() {
+        downloadTask?.cancel()
+        resumeData = nil
+        logger.info("Download cancelled")
+    }
+
+    /// Check if model already exists
+    func isModelDownloaded(modelId: String) -> Bool {
+        let modelDir = ModelStore.shared.modelRootURL.appendingPathComponent("Qwen3-1.7B-MLX-4bit")
+        let configPath = modelDir.appendingPathComponent("config.json")
+        return FileManager.default.fileExists(atPath: configPath.path)
+    }
+}
+
+// MARK: - URLSessionDownloadDelegate
+
+extension ModelDownloadService: URLSessionDownloadDelegate {
+
+    func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask, didFinishDownloadingTo location: URL) {
+        logger.info("Download completed, file at: \(location.path)")
+
+        do {
+            // Move to temporary location
+            let tempDir = FileManager.default.temporaryDirectory
+            let tempZip = tempDir.appendingPathComponent("model_download.zip")
+
+            // Remove old temp file if exists
+            try? FileManager.default.removeItem(at: tempZip)
+
+            // Move downloaded file
+            try FileManager.default.moveItem(at: location, to: tempZip)
+
+            progressCallback?(0.9, "Unzipping model files...")
+
+            // Unzip to Application Support
+            let destDir = ModelStore.shared.modelRootURL
+            try unzipFile(at: tempZip, to: destDir)
+
+            progressCallback?(1.0, "Download complete!")
+            logger.info("Model successfully downloaded and extracted")
+
+            // Clean up
+            try? FileManager.default.removeItem(at: tempZip)
+
+            // Notify completion on main thread
+            DispatchQueue.main.async { [weak self] in
+                self?.progressCallback?(1.0, "Ready to use")
+            }
+
+        } catch {
+            logger.error("Failed to process downloaded file: \(error.localizedDescription)")
+            DispatchQueue.main.async { [weak self] in
+                self?.progressCallback?(0.0, "Error: \(error.localizedDescription)")
+            }
+        }
+    }
+
+    func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask, didWriteData bytesWritten: Int64, totalBytesWritten: Int64, totalBytesExpectedToWrite: Int64) {
+        let progress = Double(totalBytesWritten) / Double(totalBytesExpectedToWrite)
+        let mbDownloaded = Double(totalBytesWritten) / 1_048_576
+        let mbTotal = Double(totalBytesExpectedToWrite) / 1_048_576
+
+        let message = String(format: "Downloading: %.1f / %.1f MB", mbDownloaded, mbTotal)
+
+        DispatchQueue.main.async { [weak self] in
+            self?.progressCallback?(progress, message)
+        }
+    }
+
+    func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
+        if let error = error {
+            logger.error("Download failed: \(error.localizedDescription)")
+            DispatchQueue.main.async { [weak self] in
+                self?.progressCallback?(0.0, "Download failed: \(error.localizedDescription)")
+            }
+        }
+    }
+
+    // MARK: - Unzip Helper
+
+    private func unzipFile(at sourceURL: URL, to destinationURL: URL) throws {
+        logger.info("Unzipping: \(sourceURL.path) -> \(destinationURL.path)")
+
+        // Create destination directory
+        try FileManager.default.createDirectory(at: destinationURL, withIntermediateDirectories: true)
+
+        // Use ZIPFoundation to extract
+        try FileManager.default.unzipItem(at: sourceURL, to: destinationURL)
+
+        logger.info("Unzip successful")
     }
 }

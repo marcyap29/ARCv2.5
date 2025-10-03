@@ -365,6 +365,13 @@ protocol LumaraNative {
   func getActiveModelPath(modelId: String) throws -> String
   /// Set active model in registry (doesn't load it)
   func setActiveModel(modelId: String) throws
+  /// Download model from URL (e.g., Google Drive)
+  /// Returns true if download started successfully
+  func downloadModel(modelId: String, downloadUrl: String) throws -> Bool
+  /// Check if model is already downloaded
+  func isModelDownloaded(modelId: String) throws -> Bool
+  /// Cancel ongoing model download
+  func cancelModelDownload() throws
 }
 
 /// Generated setup class from Pigeon to handle messages through the `binaryMessenger`.
@@ -512,10 +519,58 @@ class LumaraNativeSetup {
     } else {
       setActiveModelChannel.setMessageHandler(nil)
     }
+    /// Download model from URL (e.g., Google Drive)
+    /// Returns true if download started successfully
+    let downloadModelChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.my_app.LumaraNative.downloadModel\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      downloadModelChannel.setMessageHandler { message, reply in
+        let args = message as! [Any?]
+        let modelIdArg = args[0] as! String
+        let downloadUrlArg = args[1] as! String
+        do {
+          let result = try api.downloadModel(modelId: modelIdArg, downloadUrl: downloadUrlArg)
+          reply(wrapResult(result))
+        } catch {
+          reply(wrapError(error))
+        }
+      }
+    } else {
+      downloadModelChannel.setMessageHandler(nil)
+    }
+    /// Check if model is already downloaded
+    let isModelDownloadedChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.my_app.LumaraNative.isModelDownloaded\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      isModelDownloadedChannel.setMessageHandler { message, reply in
+        let args = message as! [Any?]
+        let modelIdArg = args[0] as! String
+        do {
+          let result = try api.isModelDownloaded(modelId: modelIdArg)
+          reply(wrapResult(result))
+        } catch {
+          reply(wrapError(error))
+        }
+      }
+    } else {
+      isModelDownloadedChannel.setMessageHandler(nil)
+    }
+    /// Cancel ongoing model download
+    let cancelModelDownloadChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.my_app.LumaraNative.cancelModelDownload\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      cancelModelDownloadChannel.setMessageHandler { _, reply in
+        do {
+          try api.cancelModelDownload()
+          reply(wrapResult(nil))
+        } catch {
+          reply(wrapError(error))
+        }
+      }
+    } else {
+      cancelModelDownloadChannel.setMessageHandler(nil)
+    }
   }
 }
 /// Progress callback from native to Flutter
-/// Used to report model loading progress (0-100%)
+/// Used to report model loading and download progress
 ///
 /// Generated protocol from Pigeon that represents Flutter messages that can be called from Swift.
 protocol LumaraNativeProgressProtocol {
@@ -524,6 +579,11 @@ protocol LumaraNativeProgressProtocol {
   /// - value: Progress percentage (0-100)
   /// - message: Optional status message
   func modelProgress(modelId modelIdArg: String, value valueArg: Int64, message messageArg: String?, completion: @escaping (Result<Void, PigeonError>) -> Void)
+  /// Report model download progress
+  /// - modelId: ID of the model being downloaded
+  /// - progress: Download progress (0.0-1.0)
+  /// - message: Status message (e.g., "Downloading: 50.2 / 900 MB")
+  func downloadProgress(modelId modelIdArg: String, progress progressArg: Double, message messageArg: String, completion: @escaping (Result<Void, PigeonError>) -> Void)
 }
 class LumaraNativeProgress: LumaraNativeProgressProtocol {
   private let binaryMessenger: FlutterBinaryMessenger
@@ -543,6 +603,28 @@ class LumaraNativeProgress: LumaraNativeProgressProtocol {
     let channelName: String = "dev.flutter.pigeon.my_app.LumaraNativeProgress.modelProgress\(messageChannelSuffix)"
     let channel = FlutterBasicMessageChannel(name: channelName, binaryMessenger: binaryMessenger, codec: codec)
     channel.sendMessage([modelIdArg, valueArg, messageArg] as [Any?]) { response in
+      guard let listResponse = response as? [Any?] else {
+        completion(.failure(createConnectionError(withChannelName: channelName)))
+        return
+      }
+      if listResponse.count > 1 {
+        let code: String = listResponse[0] as! String
+        let message: String? = nilOrValue(listResponse[1])
+        let details: String? = nilOrValue(listResponse[2])
+        completion(.failure(PigeonError(code: code, message: message, details: details)))
+      } else {
+        completion(.success(Void()))
+      }
+    }
+  }
+  /// Report model download progress
+  /// - modelId: ID of the model being downloaded
+  /// - progress: Download progress (0.0-1.0)
+  /// - message: Status message (e.g., "Downloading: 50.2 / 900 MB")
+  func downloadProgress(modelId modelIdArg: String, progress progressArg: Double, message messageArg: String, completion: @escaping (Result<Void, PigeonError>) -> Void) {
+    let channelName: String = "dev.flutter.pigeon.my_app.LumaraNativeProgress.downloadProgress\(messageChannelSuffix)"
+    let channel = FlutterBasicMessageChannel(name: channelName, binaryMessenger: binaryMessenger, codec: codec)
+    channel.sendMessage([modelIdArg, progressArg, messageArg] as [Any?]) { response in
       guard let listResponse = response as? [Any?] else {
         completion(.failure(createConnectionError(withChannelName: channelName)))
         return

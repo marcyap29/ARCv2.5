@@ -2,6 +2,34 @@
 
 ## Active Issues
 
+### Provider Switching Issue - RESOLVED ✅ - October 2, 2025
+**Status:** ✅ **RESOLVED**
+**Priority:** High
+**Component:** Provider Selection Logic
+
+**Issue:**
+App gets stuck on Google Gemini provider and won't switch back to on-device Qwen model, even when manually switching back.
+
+**Root Cause:**
+Manual provider selection was not being cleared when switching back to Qwen. The system always thought Google Gemini was manually selected, so it skipped the on-device model and went straight to the cloud API.
+
+**Solution:**
+- Enhanced provider detection logic to compare current provider with best available provider
+- Added `getBestProvider()` method to detect automatic vs manual mode
+- When current provider equals best provider, it's treated as automatic mode (uses on-device Qwen)
+- When current provider differs from best provider, it's treated as manual mode (uses selected provider)
+
+**Files Modified:**
+- `lib/lumara/bloc/lumara_assistant_cubit.dart` - Updated provider detection logic
+- `lib/lumara/services/enhanced_lumara_api.dart` - Added getBestProvider() method
+
+**Result:**
+✅ Provider switching now works correctly between on-device Qwen and Google Gemini
+✅ Automatic mode properly uses on-device Qwen when available
+✅ Manual mode properly uses selected cloud provider when manually chosen
+
+---
+
 ### Bundle Path Resolution Issue - RESOLVED ✅ - October 2, 2025
 **Status:** ✅ **RESOLVED**
 **Priority:** High

@@ -418,7 +418,6 @@
 		810596B1C0D24C098C431893 /* LLMBridge.swift in Sources */,
 		0943C7D7E64F4B5CBCE6F988 /* Bridge.pigeon.swift in Sources */,
 		EADF1F88F9E44D798C3762B8 /* SafetensorsLoader.swift in Sources */,
-		F1A2B3C4D5E6F7G8H9I0J1K2 /* ModelStore.swift in Sources */,
 				1498D2341E8E89220040F4C2 /* GeneratedPluginRegistrant.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

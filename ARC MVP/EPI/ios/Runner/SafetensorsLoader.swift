@@ -93,6 +93,8 @@ class SafetensorsLoader {
             return try convertInt16(data: data, shape: shape)
         case "I8":
             return try convertInt8(data: data, shape: shape)
+        case "U32":
+            return try convertUInt32(data: data, shape: shape)
         default:
             throw NSError(domain: "SafetensorsLoader", code: 400, userInfo: [
                 NSLocalizedDescriptionKey: "Unsupported dtype: \(dtype)"
@@ -108,6 +110,7 @@ class SafetensorsLoader {
         case "I32": return 4
         case "I16": return 2
         case "I8": return 1
+        case "U32": return 4
         default: return 4
         }
     }
@@ -180,5 +183,14 @@ class SafetensorsLoader {
             Array(bytes.bindMemory(to: Int8.self))
         }
         return MLXArray(intArray.map { Float($0) }, shape)
+    }
+    
+    private func convertUInt32(data: Data, shape: [Int]) throws -> MLXArray {
+        let uintArray = data.withUnsafeBytes { bytes in
+            Array(bytes.bindMemory(to: UInt32.self))
+        }
+        // Convert U32 to Float32 for MLX compatibility
+        // For quantized models, this might need special handling
+        return MLXArray(uintArray.map { Float($0) }, shape)
     }
 }

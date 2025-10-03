@@ -566,10 +566,90 @@ class LumaraNative {
       return;
     }
   }
+
+  /// Download model from URL (e.g., Google Drive)
+  /// Returns true if download started successfully
+  Future<bool> downloadModel(String modelId, String downloadUrl) async {
+    final String pigeonVar_channelName = 'dev.flutter.pigeon.my_app.LumaraNative.downloadModel$pigeonVar_messageChannelSuffix';
+    final BasicMessageChannel<Object?> pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final List<Object?>? pigeonVar_replyList =
+        await pigeonVar_channel.send(<Object?>[modelId, downloadUrl]) as List<Object?>?;
+    if (pigeonVar_replyList == null) {
+      throw _createConnectionError(pigeonVar_channelName);
+    } else if (pigeonVar_replyList.length > 1) {
+      throw PlatformException(
+        code: pigeonVar_replyList[0]! as String,
+        message: pigeonVar_replyList[1] as String?,
+        details: pigeonVar_replyList[2],
+      );
+    } else if (pigeonVar_replyList[0] == null) {
+      throw PlatformException(
+        code: 'null-error',
+        message: 'Host platform returned null value for non-null return value.',
+      );
+    } else {
+      return (pigeonVar_replyList[0] as bool?)!;
+    }
+  }
+
+  /// Check if model is already downloaded
+  Future<bool> isModelDownloaded(String modelId) async {
+    final String pigeonVar_channelName = 'dev.flutter.pigeon.my_app.LumaraNative.isModelDownloaded$pigeonVar_messageChannelSuffix';
+    final BasicMessageChannel<Object?> pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final List<Object?>? pigeonVar_replyList =
+        await pigeonVar_channel.send(<Object?>[modelId]) as List<Object?>?;
+    if (pigeonVar_replyList == null) {
+      throw _createConnectionError(pigeonVar_channelName);
+    } else if (pigeonVar_replyList.length > 1) {
+      throw PlatformException(
+        code: pigeonVar_replyList[0]! as String,
+        message: pigeonVar_replyList[1] as String?,
+        details: pigeonVar_replyList[2],
+      );
+    } else if (pigeonVar_replyList[0] == null) {
+      throw PlatformException(
+        code: 'null-error',
+        message: 'Host platform returned null value for non-null return value.',
+      );
+    } else {
+      return (pigeonVar_replyList[0] as bool?)!;
+    }
+  }
+
+  /// Cancel ongoing model download
+  Future<void> cancelModelDownload() async {
+    final String pigeonVar_channelName = 'dev.flutter.pigeon.my_app.LumaraNative.cancelModelDownload$pigeonVar_messageChannelSuffix';
+    final BasicMessageChannel<Object?> pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final List<Object?>? pigeonVar_replyList =
+        await pigeonVar_channel.send(null) as List<Object?>?;
+    if (pigeonVar_replyList == null) {
+      throw _createConnectionError(pigeonVar_channelName);
+    } else if (pigeonVar_replyList.length > 1) {
+      throw PlatformException(
+        code: pigeonVar_replyList[0]! as String,
+        message: pigeonVar_replyList[1] as String?,
+        details: pigeonVar_replyList[2],
+      );
+    } else {
+      return;
+    }
+  }
 }
 
 /// Progress callback from native to Flutter
-/// Used to report model loading progress (0-100%)
+/// Used to report model loading and download progress
 abstract class LumaraNativeProgress {
   static const MessageCodec<Object?> pigeonChannelCodec = _PigeonCodec();
 
@@ -578,6 +658,12 @@ abstract class LumaraNativeProgress {
   /// - value: Progress percentage (0-100)
   /// - message: Optional status message
   void modelProgress(String modelId, int value, String? message);
+
+  /// Report model download progress
+  /// - modelId: ID of the model being downloaded
+  /// - progress: Download progress (0.0-1.0)
+  /// - message: Status message (e.g., "Downloading: 50.2 / 900 MB")
+  void downloadProgress(String modelId, double progress, String message);
 
   static void setUp(LumaraNativeProgress? api, {BinaryMessenger? binaryMessenger, String messageChannelSuffix = '',}) {
     messageChannelSuffix = messageChannelSuffix.isNotEmpty ? '.$messageChannelSuffix' : '';
@@ -601,6 +687,37 @@ abstract class LumaraNativeProgress {
           final String? arg_message = (args[2] as String?);
           try {
             api.modelProgress(arg_modelId!, arg_value!, arg_message);
+            return wrapResponse(empty: true);
+          } on PlatformException catch (e) {
+            return wrapResponse(error: e);
+          }          catch (e) {
+            return wrapResponse(error: PlatformException(code: 'error', message: e.toString()));
+          }
+        });
+      }
+    }
+    {
+      final BasicMessageChannel<Object?> pigeonVar_channel = BasicMessageChannel<Object?>(
+          'dev.flutter.pigeon.my_app.LumaraNativeProgress.downloadProgress$messageChannelSuffix', pigeonChannelCodec,
+          binaryMessenger: binaryMessenger);
+      if (api == null) {
+        pigeonVar_channel.setMessageHandler(null);
+      } else {
+        pigeonVar_channel.setMessageHandler((Object? message) async {
+          assert(message != null,
+          'Argument for dev.flutter.pigeon.my_app.LumaraNativeProgress.downloadProgress was null.');
+          final List<Object?> args = (message as List<Object?>?)!;
+          final String? arg_modelId = (args[0] as String?);
+          assert(arg_modelId != null,
+              'Argument for dev.flutter.pigeon.my_app.LumaraNativeProgress.downloadProgress was null, expected non-null String.');
+          final double? arg_progress = (args[1] as double?);
+          assert(arg_progress != null,
+              'Argument for dev.flutter.pigeon.my_app.LumaraNativeProgress.downloadProgress was null, expected non-null double.');
+          final String? arg_message = (args[2] as String?);
+          assert(arg_message != null,
+              'Argument for dev.flutter.pigeon.my_app.LumaraNativeProgress.downloadProgress was null, expected non-null String.');
+          try {
+            api.downloadProgress(arg_modelId!, arg_progress!, arg_message!);
             return wrapResponse(empty: true);
           } on PlatformException catch (e) {
             return wrapResponse(error: e);

@@ -303,4 +303,10 @@ $entryText
     
     return reflection;
   }
+  
+  /// Get current provider
+  LLMProviderBase? getCurrentProvider() => _currentProvider;
+  
+  /// Get best provider (for automatic mode detection)
+  LLMProviderBase? getBestProvider() => _providerFactory?.getBestProvider();
 }

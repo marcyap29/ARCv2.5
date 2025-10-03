@@ -438,7 +438,7 @@ ARC MVP/EPI/ios/Runner/Llama.xcframework/
 ARC MVP/EPI/third_party/
 ios-llm/
 
-# Large models (from main branch)
+# Large models (downloaded on-demand, not bundled)
 ARC MVP/EPI/assets/models/**
 ARC MVP/EPI/assets/models/qwen/**
 ARC MVP/EPI/assets/models/**/*.gguf

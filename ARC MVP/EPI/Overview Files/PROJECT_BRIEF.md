@@ -5,9 +5,9 @@ ARC is the **core journaling module of EPI (Evolving Personal Intelligence)**, b
 
 This MVP now implements **modular architecture** with RIVET (safety validation) and ECHO (expressive response layer) modules migrated to their proper locations, providing a foundation for the complete 8-module system: ARC→PRISM→ECHO→ATLAS→MIRA→AURORA→VEIL→RIVET.
 
-## 🌟 **LATEST ENHANCEMENT: MLX On-Device LLM Integration** (2025-10-02) 🔍
+## 🌟 **LATEST ENHANCEMENT: MLX On-Device LLM Integration** (2025-10-02) ✅
 
-**🎯 Major Achievement**: Implementation of on-device LLM processing using Qwen3-1.7B model with MLX Swift framework integration, providing privacy-first AI responses with type-safe Pigeon bridge communication. Currently debugging bundle path resolution.
+**🎯 Major Achievement**: Complete implementation of on-device LLM processing using Qwen3-1.7B model with MLX Swift framework integration, providing privacy-first AI responses with type-safe Pigeon bridge communication and proper provider switching.
 
 **✨ MLX On-Device LLM Features**:
 - **Pigeon Bridge**: Type-safe Flutter ↔ Swift communication with auto-generated code
@@ -16,7 +16,8 @@ This MVP now implements **modular architecture** with RIVET (safety validation) 
 - **Model Loading Pipeline**: Real model weight loading from .safetensors files to MLXArrays
 - **Qwen3-1.7B Support**: On-device model integration with privacy-first inference
 - **Privacy-First Processing**: All AI responses generated locally on device when model available
-- **Intelligent Fallback**: Three-tier fallback system: API → On-Device → Rule-Based responses
+- **Intelligent Fallback**: Three-tier fallback system: On-Device → Cloud API → Rule-Based responses
+- **Provider Switching**: Fixed provider selection logic to properly switch between on-device Qwen and Google Gemini
 - **Metal Acceleration**: Native iOS Metal support for optimal performance on Apple Silicon
 
 **🎯 Technical Implementation**:
@@ -33,7 +34,7 @@ This MVP now implements **modular architecture** with RIVET (safety validation) 
 - **Reliable Responses**: Multiple fallback layers ensure responses always available
 - **Performance Optimized**: Designed for 4GB RAM devices with efficient memory usage
 
-**🏆 Current Status**: EPI offers privacy-first AI processing with on-device LLM capabilities in development. Bundle path resolution debugging in progress, with macOS app running successfully and debug logging enabled.
+**🏆 Current Status**: EPI offers complete privacy-first AI processing with fully operational on-device LLM capabilities. Provider switching works correctly between on-device Qwen and Google Gemini, with macOS app running successfully.
 
 ---
 

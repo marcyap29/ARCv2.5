@@ -4,9 +4,9 @@ A Flutter-based AI companion app that provides life-aware assistance through jou
 
 ## 🚀 Current Status
 
-**🎉 MVP OPERATIONAL** - All systems working, MLX On-Device LLM Integration in progress (October 2, 2025)
+**🎉 MVP OPERATIONAL** - All systems working, MLX On-Device LLM Integration complete (October 2, 2025)
 
-### **Latest Major Achievement: MLX On-Device LLM Integration** 🔍 **IN PROGRESS**
+### **Latest Major Achievement: MLX On-Device LLM Integration** ✅ **COMPLETE**
 - **Complete On-Device AI**: Real Qwen3-1.7B-MLX-4bit model (914MB) bundled and ready
 - **Pigeon Bridge**: Type-safe Flutter ↔ Swift communication with async progress reporting
 - **Memory-Mapped Loading**: Large model files loaded efficiently with memory-mapped I/O
@@ -14,7 +14,8 @@ A Flutter-based AI companion app that provides life-aware assistance through jou
 - **Privacy-First Architecture**: All inference happens locally, no data sent to external servers
 - **Fallback System**: On-Device → Cloud API → Rule-Based response hierarchy
 - **Metal Acceleration**: Native iOS Metal support for optimal performance on Apple Silicon
-- **Current Status**: 🔍 **DEBUGGING** - Bundle path resolution in progress, macOS app running
+- **Provider Switching**: Fixed provider selection logic to properly switch between on-device Qwen and Google Gemini
+- **Current Status**: ✅ **FULLY OPERATIONAL** - On-device LLM working with proper provider switching
 
 ### **Previous Achievement: LUMARA MCP Memory System** ✅ **COMPLETE**
 - **Automatic Chat Persistence**: Fixed chat history requiring manual session creation - now works like ChatGPT/Claude

@@ -336,6 +336,15 @@ interface LumaraNative {
   fun getActiveModelPath(modelId: String): String
   /** Set active model in registry (doesn't load it) */
   fun setActiveModel(modelId: String)
+  /**
+   * Download model from URL (e.g., Google Drive)
+   * Returns true if download started successfully
+   */
+  fun downloadModel(modelId: String, downloadUrl: String): Boolean
+  /** Check if model is already downloaded */
+  fun isModelDownloaded(modelId: String): Boolean
+  /** Cancel ongoing model download */
+  fun cancelModelDownload()
 
   companion object {
     /** The codec used by LumaraNative. */
@@ -494,12 +503,63 @@ interface LumaraNative {
           channel.setMessageHandler(null)
         }
       }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.my_app.LumaraNative.downloadModel$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val modelIdArg = args[0] as String
+            val downloadUrlArg = args[1] as String
+            val wrapped: List<Any?> = try {
+              listOf(api.downloadModel(modelIdArg, downloadUrlArg))
+            } catch (exception: Throwable) {
+              wrapError(exception)
+            }
+            reply.reply(wrapped)
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.my_app.LumaraNative.isModelDownloaded$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val modelIdArg = args[0] as String
+            val wrapped: List<Any?> = try {
+              listOf(api.isModelDownloaded(modelIdArg))
+            } catch (exception: Throwable) {
+              wrapError(exception)
+            }
+            reply.reply(wrapped)
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.my_app.LumaraNative.cancelModelDownload$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { _, reply ->
+            val wrapped: List<Any?> = try {
+              api.cancelModelDownload()
+              listOf(null)
+            } catch (exception: Throwable) {
+              wrapError(exception)
+            }
+            reply.reply(wrapped)
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
     }
   }
 }
 /**
  * Progress callback from native to Flutter
- * Used to report model loading progress (0-100%)
+ * Used to report model loading and download progress
  *
  * Generated class from Pigeon that represents Flutter messages that can be called from Kotlin.
  */
@@ -522,6 +582,29 @@ class LumaraNativeProgress(private val binaryMessenger: BinaryMessenger, private
     val channelName = "dev.flutter.pigeon.my_app.LumaraNativeProgress.modelProgress$separatedMessageChannelSuffix"
     val channel = BasicMessageChannel<Any?>(binaryMessenger, channelName, codec)
     channel.send(listOf(modelIdArg, valueArg, messageArg)) {
+      if (it is List<*>) {
+        if (it.size > 1) {
+          callback(Result.failure(FlutterError(it[0] as String, it[1] as String, it[2] as String?)))
+        } else {
+          callback(Result.success(Unit))
+        }
+      } else {
+        callback(Result.failure(createConnectionError(channelName)))
+      } 
+    }
+  }
+  /**
+   * Report model download progress
+   * - modelId: ID of the model being downloaded
+   * - progress: Download progress (0.0-1.0)
+   * - message: Status message (e.g., "Downloading: 50.2 / 900 MB")
+   */
+  fun downloadProgress(modelIdArg: String, progressArg: Double, messageArg: String, callback: (Result<Unit>) -> Unit)
+{
+    val separatedMessageChannelSuffix = if (messageChannelSuffix.isNotEmpty()) ".$messageChannelSuffix" else ""
+    val channelName = "dev.flutter.pigeon.my_app.LumaraNativeProgress.downloadProgress$separatedMessageChannelSuffix"
+    val channel = BasicMessageChannel<Any?>(binaryMessenger, channelName, codec)
+    channel.send(listOf(modelIdArg, progressArg, messageArg)) {
       if (it is List<*>) {
         if (it.size > 1) {
           callback(Result.failure(FlutterError(it[0] as String, it[1] as String, it[2] as String?)))
