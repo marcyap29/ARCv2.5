@@ -2,13 +2,10 @@
 // LUMARA settings and API key management screen
 
 import 'package:flutter/material.dart';
-import 'dart:async';
 import '../config/api_config.dart';
 import '../services/enhanced_lumara_api.dart';
 import '../../telemetry/analytics.dart';
 import 'model_download_screen.dart';
-import '../llm/model_progress_service.dart';
-import '../llm/bridge.pigeon.dart';
 
 /// LUMARA settings screen for API key management and provider selection
 class LumaraSettingsScreen extends StatefulWidget {
@@ -21,73 +18,23 @@ class LumaraSettingsScreen extends StatefulWidget {
 class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
   final LumaraAPIConfig _apiConfig = LumaraAPIConfig.instance;
   final EnhancedLumaraApi _lumaraApi = EnhancedLumaraApi(Analytics());
-  final ModelProgressService _progressService = ModelProgressService();
-  final LumaraNative _bridge = LumaraNative();
   final Map<LLMProvider, TextEditingController> _apiKeyControllers = {};
 
   LLMProvider? _selectedProvider;
-  StreamSubscription<ModelProgressUpdate>? _progressSubscription;
-  double _downloadProgress = 0.0;
-  String _downloadStatus = '';
-  bool _isDownloading = false;
 
   @override
   void initState() {
     super.initState();
     _initializeControllers();
     _loadCurrentSettings();
-    _setupProgressListener();
   }
 
   @override
   void dispose() {
-    _progressSubscription?.cancel();
     for (final controller in _apiKeyControllers.values) {
       controller.dispose();
     }
     super.dispose();
-  }
-
-  void _setupProgressListener() {
-    _progressSubscription = _progressService.progressStream.listen((progress) async {
-      if (progress.modelId == 'qwen3-1.7b-mlx-4bit' && mounted) {
-        setState(() {
-          _downloadProgress = progress.progress / 100.0;
-          _downloadStatus = progress.message;
-          _isDownloading = !progress.isComplete && progress.progress > 0;
-        });
-
-        // When download completes, refresh provider availability
-        if (progress.isComplete && progress.message.contains('Ready to use')) {
-          // Re-detect available providers (Qwen should now be available)
-          await _apiConfig.initialize();
-          await _lumaraApi.initialize();
-
-          // Reload settings to update UI
-          await _loadCurrentSettings();
-
-          // Show success notification
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Row(
-                  children: [
-                    Icon(Icons.check_circle, color: Colors.white),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text('Qwen model is now available! Tap to activate.'),
-                    ),
-                  ],
-                ),
-                backgroundColor: Colors.green,
-                duration: const Duration(seconds: 3),
-                behavior: SnackBarBehavior.floating,
-              ),
-            );
-          }
-        }
-      }
-    });
   }
 
   void _initializeControllers() {
@@ -121,6 +68,19 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
         title: const Text('LUMARA Settings'),
         backgroundColor: Colors.transparent,
         elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () async {
+            // Refresh model availability before returning
+            await _apiConfig.refreshModelAvailability();
+            final bestProvider = _apiConfig.getBestProvider();
+            final isConfigured = bestProvider != null && bestProvider.provider != LLMProvider.ruleBased;
+
+            if (mounted) {
+              Navigator.pop(context, isConfigured);
+            }
+          },
+        ),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
@@ -130,19 +90,15 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
             // Status Overview
             _buildStatusCard(theme),
             const SizedBox(height: 24),
-            
-            // Provider Selection
+
+            // Provider Selection (includes download button)
             _buildProviderSelection(theme),
             const SizedBox(height: 24),
-            
-            // Internal Models Section (Priority for ARC's security focus)
-            _buildInternalModelsSection(theme),
-            const SizedBox(height: 24),
-            
-            // API Keys Card (Prominent placement)
+
+            // API Keys Card
             _buildApiKeysCard(theme),
             const SizedBox(height: 24),
-            
+
             // Actions
             _buildActionButtons(theme),
           ],
@@ -344,10 +300,10 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
           ),
         ),
         const SizedBox(height: 12),
-        
+
         // Provider options
         ...providers.map((config) => _buildProviderOption(theme, config, isInternal)),
-        
+
         // Show message if no providers available
         if (providers.isEmpty)
           Container(
@@ -363,7 +319,7 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    isInternal 
+                    isInternal
                         ? 'No internal models available. Check model installation.'
                         : 'No cloud APIs configured. Add API keys below.',
                     style: TextStyle(
@@ -375,6 +331,34 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
               ],
             ),
           ),
+
+        // Add download button for internal models section
+        if (isInternal) ...[
+          const SizedBox(height: 16),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const ModelDownloadScreen(),
+                  ),
+                );
+              },
+              icon: const Icon(Icons.download, size: 20),
+              label: const Text('Download On-Device Model'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: theme.colorScheme.primary,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+            ),
+          ),
+        ],
       ],
     );
   }
@@ -531,7 +515,6 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
     final controller = _apiKeyControllers[provider]!;
     final config = _apiConfig.getConfig(provider);
     final isConfigured = config?.apiKey?.isNotEmpty == true;
-    bool hasUnsavedChanges = controller.text.trim() != (config?.apiKey ?? '');
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 20),
@@ -682,256 +665,6 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
     }
   }
 
-  Widget _buildInternalModelsSection(ThemeData theme) {
-    return Card(
-      elevation: 2, // Slightly elevated to show priority
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(Icons.security, color: theme.colorScheme.primary),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    'Internal Models (Recommended)',
-                    style: theme.textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: theme.colorScheme.primary,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: theme.colorScheme.primary.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Text(
-                    'SECURE',
-                    style: theme.textTheme.labelSmall?.copyWith(
-                      color: theme.colorScheme.primary,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Privacy-first AI models that run entirely on your device. No data leaves your phone.',
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
-            ),
-            const SizedBox(height: 16),
-            _buildInternalModelCard(
-              'Llama 2', 
-              'Meta\'s open-source model for private conversations', 
-              '2-4GB RAM required',
-              Icons.psychology,
-              theme,
-            ),
-            const SizedBox(height: 8),
-            _buildQwenModelCard(theme),
-            const SizedBox(height: 12),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: theme.colorScheme.primary.withOpacity(0.05),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(
-                  color: theme.colorScheme.primary.withOpacity(0.2),
-                ),
-              ),
-              child: Row(
-                children: [
-                  Icon(
-                    Icons.info_outline,
-                    color: theme.colorScheme.primary,
-                    size: 16,
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      'ARC prioritizes internal models for maximum privacy and security.',
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.primary,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 16),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const ModelDownloadScreen(),
-                    ),
-                  );
-                },
-                icon: Icon(Icons.download, size: 20),
-                label: Text('Download On-Device Model'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: theme.colorScheme.primary,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  elevation: 2,
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildQwenModelCard(ThemeData theme) {
-    return GestureDetector(
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => const ModelDownloadScreen(),
-          ),
-        );
-      },
-      child: Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          border: Border.all(color: theme.colorScheme.primary.withOpacity(0.3)),
-          borderRadius: BorderRadius.circular(8),
-          color: theme.colorScheme.primary.withOpacity(0.02),
-        ),
-        child: Column(
-          children: [
-            Row(
-              children: [
-                Icon(Icons.language, color: theme.colorScheme.primary),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Qwen',
-                        style: theme.textTheme.titleSmall?.copyWith(
-                          fontWeight: FontWeight.bold,
-                          color: theme.colorScheme.primary,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'Alibaba\'s multilingual model with excellent performance',
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        _isDownloading ? _downloadStatus : '~900 MB - Tap to download',
-                        style: theme.textTheme.labelSmall?.copyWith(
-                          color: _isDownloading
-                              ? Colors.blue
-                              : theme.colorScheme.primary.withOpacity(0.7),
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                if (_isDownloading)
-                  SizedBox(
-                    width: 24,
-                    height: 24,
-                    child: CircularProgressIndicator(
-                      value: _downloadProgress,
-                      strokeWidth: 3,
-                    ),
-                  )
-                else
-                  Icon(
-                    Icons.download,
-                    color: theme.colorScheme.primary,
-                    size: 20,
-                  ),
-              ],
-            ),
-            if (_isDownloading) ...[
-              const SizedBox(height: 8),
-              LinearProgressIndicator(
-                value: _downloadProgress,
-                minHeight: 4,
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildInternalModelCard(String name, String description, String requirements, IconData icon, ThemeData theme) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        border: Border.all(color: theme.colorScheme.primary.withOpacity(0.3)),
-        borderRadius: BorderRadius.circular(8),
-        color: theme.colorScheme.primary.withOpacity(0.02),
-      ),
-      child: Row(
-        children: [
-          Icon(icon, color: theme.colorScheme.primary),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  name,
-                  style: theme.textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: theme.colorScheme.primary,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  description,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  requirements,
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    color: theme.colorScheme.primary.withOpacity(0.7),
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Icon(
-            Icons.check_circle_outline,
-            color: theme.colorScheme.primary,
-            size: 20,
-          ),
-        ],
-      ),
-    );
-  }
 
   Widget _buildApiKeysCard(ThemeData theme) {
     final externalProviders = LLMProvider.values
@@ -1010,40 +743,6 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
 
   // Removed auto-save on change - now using explicit Save button per field
 
-  Future<void> _saveApiKeys() async {
-    try {
-      // Save all API keys that have been entered
-      for (final provider in LLMProvider.values) {
-        final controller = _apiKeyControllers[provider];
-        if (controller != null && controller.text.isNotEmpty) {
-          await _apiConfig.updateApiKey(provider, controller.text.trim());
-        }
-      }
-      
-      // Show success message
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('API keys saved successfully!'),
-            backgroundColor: Colors.green,
-            duration: Duration(seconds: 2),
-          ),
-        );
-      }
-    } catch (e) {
-      // Show error message
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error saving API keys: $e'),
-            backgroundColor: Colors.red,
-            duration: const Duration(seconds: 3),
-          ),
-        );
-      }
-    }
-  }
-
   Future<void> _testConnection() async {
     final status = _lumaraApi.getStatus();
     
@@ -1066,14 +765,30 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
         await _apiConfig.updateApiKey(provider, controller.text);
       }
     }
-    
+
+    // Reinitialize to check if any provider is now available
+    await _apiConfig.initialize();
+    final bestProvider = _apiConfig.getBestProvider();
+    final isConfigured = bestProvider != null && bestProvider.provider != LLMProvider.ruleBased;
+
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Settings saved successfully'),
+        SnackBar(
+          content: Text(isConfigured
+              ? 'Settings saved! AI provider configured.'
+              : 'Settings saved successfully'),
           backgroundColor: Colors.green,
+          duration: const Duration(seconds: 2),
         ),
       );
+
+      // If accessed from onboarding and now configured, offer to go back
+      if (isConfigured && ModalRoute.of(context)?.settings.arguments == 'fromOnboarding') {
+        await Future.delayed(const Duration(seconds: 1));
+        if (mounted) {
+          Navigator.pop(context, true);
+        }
+      }
     }
   }
 }

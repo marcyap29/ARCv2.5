@@ -8,8 +8,10 @@ import '../chat/ui/chats_screen.dart';
 import 'lumara_quick_palette.dart';
 import 'lumara_consent_sheet.dart';
 import 'lumara_settings_screen.dart';
+import 'lumara_onboarding_screen.dart';
 import '../widgets/attribution_display_widget.dart';
 import '../../mira/memory/enhanced_memory_schema.dart';
+import '../config/api_config.dart';
 
 /// Main LUMARA Assistant screen
 class LumaraAssistantScreen extends StatefulWidget {
@@ -26,10 +28,33 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
   @override
   void initState() {
     super.initState();
-    // Only initialize LUMARA if not already loaded (to preserve chat history)
-    final cubit = context.read<LumaraAssistantCubit>();
-    if (cubit.state is! LumaraAssistantLoaded) {
-      cubit.initializeLumara();
+    _checkAIConfigurationAndInitialize();
+  }
+
+  Future<void> _checkAIConfigurationAndInitialize() async {
+    // Check if any AI provider is configured
+    final apiConfig = LumaraAPIConfig.instance;
+    await apiConfig.initialize();
+
+    final bestProvider = apiConfig.getBestProvider();
+
+    if (bestProvider == null || bestProvider.provider == LLMProvider.ruleBased) {
+      // No real AI provider configured - show onboarding
+      if (mounted) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(
+              builder: (context) => const LumaraOnboardingScreen(),
+            ),
+          );
+        });
+      }
+    } else {
+      // AI provider is configured - initialize normally
+      final cubit = context.read<LumaraAssistantCubit>();
+      if (cubit.state is! LumaraAssistantLoaded) {
+        cubit.initializeLumara();
+      }
     }
   }
 
@@ -113,23 +138,68 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
                 }
                 
                 if (state is LumaraAssistantError) {
+                  // Check if error is due to missing configuration
+                  final isConfigError = state.message.contains('MissingPluginException') ||
+                                       state.message.contains('Failed to initialize') ||
+                                       state.message.contains('No implementation found');
+
                   return Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.error, size: 64, color: Colors.red[300]),
-                        const Gap(16),
-                        Text(
-                          'Error: ${state.message}',
-                          style: Theme.of(context).textTheme.bodyLarge,
-                          textAlign: TextAlign.center,
-                        ),
-                        const Gap(16),
-                        ElevatedButton(
-                          onPressed: () => context.read<LumaraAssistantCubit>().initializeLumara(),
-                          child: const Text('Retry'),
-                        ),
-                      ],
+                    child: Padding(
+                      padding: const EdgeInsets.all(24.0),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            isConfigError ? Icons.warning : Icons.error,
+                            size: 64,
+                            color: isConfigError ? Colors.orange[300] : Colors.red[300],
+                          ),
+                          const Gap(16),
+                          Text(
+                            isConfigError ? 'Error: Failed to initialize LUMARA' : 'Error: ${state.message}',
+                            style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                              fontWeight: FontWeight.bold,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                          const Gap(8),
+                          Text(
+                            isConfigError
+                                ? 'Please configure an AI provider to continue'
+                                : state.message,
+                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                              color: Theme.of(context).colorScheme.onSurfaceVariant,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                          const Gap(24),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              if (!isConfigError) ...[
+                                OutlinedButton(
+                                  onPressed: () => context.read<LumaraAssistantCubit>().initializeLumara(),
+                                  child: const Text('Retry'),
+                                ),
+                                const Gap(12),
+                              ],
+                              ElevatedButton(
+                                onPressed: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) => isConfigError
+                                          ? const LumaraOnboardingScreen()
+                                          : const LumaraSettingsScreen(),
+                                    ),
+                                  );
+                                },
+                                child: Text(isConfigError ? 'Set Up AI' : 'Settings'),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
                     ),
                   );
                 }

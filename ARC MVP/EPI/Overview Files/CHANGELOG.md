@@ -2,6 +2,35 @@
 
 ## [Unreleased]
 
+### 🔧 **MODEL DOWNLOAD STATUS CHECKING FIX** - October 2, 2025
+
+#### **Fixed Model Status Verification** ✅ **COMPLETE**
+- **Issue**: Model download screen showing incorrect "READY" status for models that weren't actually downloaded
+- **Root Cause**: Hardcoded model checking and incomplete file verification in status checking system
+- **Solution**: Enhanced model status checking to verify both `config.json` and `model.safetensors` files exist
+- **Files Modified**: `ios/Runner/ModelDownloadService.swift`, `ios/Runner/LLMBridge.swift`
+- **Result**: Accurate model status reporting with proper file existence verification
+
+#### **Added Startup Model Availability Check** ✅ **COMPLETE**
+- **Issue**: No automatic check at app startup to verify model availability
+- **Solution**: Implemented `_performStartupModelCheck()` that runs during API configuration initialization
+- **Files Modified**: `lib/lumara/config/api_config.dart`
+- **Result**: App automatically detects model availability at startup and updates UI accordingly
+
+#### **Added Model Delete Functionality** ✅ **COMPLETE**
+- **Issue**: Users couldn't remove downloaded models to refresh status
+- **Solution**: Implemented `deleteModel()` method with confirmation dialog and refresh capability
+- **Files Modified**: `ios/Runner/ModelDownloadService.swift`, `lib/lumara/ui/model_download_screen.dart`
+- **Result**: Users can now delete downloaded models and refresh status to verify availability
+
+#### **Enhanced Error Handling and User Feedback** ✅ **COMPLETE**
+- **Issue**: Poor error handling and unclear status messages
+- **Solution**: Enhanced error messages, status reporting, and user feedback throughout the system
+- **Files Modified**: `lib/lumara/ui/model_download_screen.dart`, `lib/lumara/ui/lumara_settings_screen.dart`
+- **Result**: Clear, actionable error messages and status updates for better user experience
+
+---
+
 ### 🔧 **QWEN TOKENIZER FIX** - October 2, 2025
 
 #### **Fixed Tokenizer Mismatch Issue** ✅ **COMPLETE**

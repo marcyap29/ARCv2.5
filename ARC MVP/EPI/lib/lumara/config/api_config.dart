@@ -78,6 +78,32 @@ class LumaraAPIConfig {
         await _prefs?.remove('manual_provider');
       }
     }
+
+    // Perform startup model availability check
+    await _performStartupModelCheck();
+  }
+
+  /// Perform startup check for model availability
+  Future<void> _performStartupModelCheck() async {
+    debugPrint('LUMARA API: Performing startup model availability check...');
+    
+    // Check all internal models
+    for (final config in _configs.values) {
+      if (config.isInternal && config.provider != LLMProvider.ruleBased) {
+        try {
+          final isAvailable = await _checkInternalModelAvailability(config);
+          debugPrint('LUMARA API: Startup check - ${config.name}: ${isAvailable ? 'Available' : 'Not available'}');
+          
+          // Update the configuration with the current availability status
+          _configs[config.provider] = config.copyWith(isAvailable: isAvailable);
+        } catch (e) {
+          debugPrint('LUMARA API: Startup check failed for ${config.name}: $e');
+          _configs[config.provider] = config.copyWith(isAvailable: false);
+        }
+      }
+    }
+    
+    debugPrint('LUMARA API: Startup model check completed');
   }
 
   /// Load configurations from environment and storage
@@ -295,6 +321,12 @@ class LumaraAPIConfig {
         }),
       ),
     };
+  }
+
+  /// Refresh model availability status
+  Future<void> refreshModelAvailability() async {
+    debugPrint('LUMARA API: Refreshing model availability status...');
+    await _performStartupModelCheck();
   }
 }
 

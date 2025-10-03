@@ -83,11 +83,64 @@ class ModelDownloadService: NSObject {
         logger.info("Download cancelled")
     }
 
-    /// Check if model already exists
+    /// Check if model is available and usable
+    /// Only returns true if model files actually exist on filesystem
     func isModelDownloaded(modelId: String) -> Bool {
-        let modelDir = ModelStore.shared.modelRootURL.appendingPathComponent("Qwen3-1.7B-MLX-4bit")
-        let configPath = modelDir.appendingPathComponent("config.json")
-        return FileManager.default.fileExists(atPath: configPath.path)
+        // Map model IDs to their directory names
+        let modelDirName: String
+        switch modelId {
+        case "qwen3-1.7b-mlx-4bit":
+            modelDirName = "Qwen3-1.7B-MLX-4bit"
+        case "phi-3.5-mini-instruct-4bit":
+            modelDirName = "Phi-3.5-mini-instruct-4bit"
+        default:
+            logger.warning("Unknown model ID: \(modelId)")
+            return false
+        }
+
+        // Use ModelStore's resolveModelPath to check if model files actually exist
+        // This properly checks both bundle and Application Support
+        let configExists = ModelStore.shared.resolveModelPath(modelId: modelId, file: "config.json") != nil
+        let modelExists = ModelStore.shared.resolveModelPath(modelId: modelId, file: "model.safetensors") != nil
+
+        let isAvailable = configExists && modelExists
+
+        if isAvailable {
+            logger.info("Model \(modelId) is available and usable")
+        } else {
+            logger.info("Model \(modelId) not available (config: \(configExists), model: \(modelExists))")
+        }
+
+        return isAvailable
+    }
+
+    /// Delete a downloaded model
+    func deleteModel(modelId: String) throws {
+        // Map model IDs to their directory names
+        let modelDirName: String
+        switch modelId {
+        case "qwen3-1.7b-mlx-4bit":
+            modelDirName = "Qwen3-1.7B-MLX-4bit"
+        case "phi-3.5-mini-instruct-4bit":
+            modelDirName = "Phi-3.5-mini-instruct-4bit"
+        default:
+            throw NSError(domain: "ModelDownload", code: 400, userInfo: [
+                NSLocalizedDescriptionKey: "Unknown model ID: \(modelId)"
+            ])
+        }
+
+        let modelDir = modelRootURL.appendingPathComponent(modelDirName)
+        
+        // Check if model directory exists
+        guard FileManager.default.fileExists(atPath: modelDir.path) else {
+            throw NSError(domain: "ModelDownload", code: 404, userInfo: [
+                NSLocalizedDescriptionKey: "Model directory not found: \(modelDirName)"
+            ])
+        }
+
+        // Delete the model directory
+        try FileManager.default.removeItem(at: modelDir)
+        logger.info("Successfully deleted model: \(modelId) from \(modelDir.path)")
     }
 }
 

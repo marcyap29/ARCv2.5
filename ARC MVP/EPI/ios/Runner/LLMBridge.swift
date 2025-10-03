@@ -832,6 +832,11 @@ class LLMBridge: NSObject, LumaraNative {
         logger.info("cancelModelDownload called")
         ModelDownloadService.shared.cancelDownload()
     }
+
+    func deleteModel(modelId: String) throws {
+        logger.info("deleteModel called for: \(modelId)")
+        try ModelDownloadService.shared.deleteModel(modelId: modelId)
+    }
 }
 
 // MARK: - Model Download Service
@@ -918,9 +923,7 @@ class ModelDownloadService: NSObject {
 
     /// Check if model already exists
     func isModelDownloaded(modelId: String) -> Bool {
-        let modelDir = ModelStore.shared.modelRootURL.appendingPathComponent("Qwen3-1.7B-MLX-4bit")
-        let configPath = modelDir.appendingPathComponent("config.json")
-        return FileManager.default.fileExists(atPath: configPath.path)
+        return ModelDownloadService.shared.isModelDownloaded(modelId: modelId)
     }
 }
 

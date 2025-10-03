@@ -37,10 +37,12 @@
   **Model Management**:
   - **Registry**: JSON-based model tracking at `~/Library/Application Support/Models/models.json`
   - **Auto-Creation**: Registry auto-created on first launch with bundled model entry
-  -   **Bundle Resolution**: `resolveBundlePath()` maps model IDs to flutter_assets paths (debugging in progress)
+  - **Bundle Resolution**: `resolveModelPath()` maps model IDs to flutter_assets paths with proper file verification
   - **Formats**: Supports MLX (iOS) and GGUF (Android) model formats
   - **Loading**: Real-time safetensors parsing to MLXArrays with progress reporting
-  - **Debug Status**: Enhanced logging with multiple fallback paths for bundle resolution
+  - **Status Verification**: Enhanced model status checking that verifies both `config.json` and `model.safetensors` files exist
+  - **Model Deletion**: Complete model deletion functionality with confirmation dialogs and status refresh
+  - **Startup Check**: Automatic model availability detection at app startup with UI updates
 
   **Privacy Architecture**:
   - **On-Device Processing**: All inference happens locally on device

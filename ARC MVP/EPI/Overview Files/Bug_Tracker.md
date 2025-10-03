@@ -2,6 +2,49 @@
 
 ## Active Issues
 
+### Model Download Status Checking Issues - RESOLVED ✅ - October 2, 2025
+**Status:** ✅ **RESOLVED**
+**Priority:** High
+**Component:** Model Download System
+
+**Issue:**
+Model download screen showing incorrect "READY" status for models that weren't actually downloaded, and users couldn't delete downloaded models to refresh status.
+
+**Error Symptoms:**
+- Models showing "READY" status when not actually downloaded
+- No way to delete downloaded models to refresh status
+- No automatic startup check for model availability
+- Incorrect model status checking that didn't verify file existence
+
+**Root Cause:**
+1. **Hardcoded Model Checking**: `isModelDownloaded` method was hardcoded to only check for Qwen models
+2. **Incomplete File Verification**: Status checking didn't verify that both `config.json` and `model.safetensors` files actually exist
+3. **No Startup Check**: App didn't automatically check model availability at startup
+4. **No Delete Functionality**: Users couldn't remove downloaded models to refresh status
+
+**Solution:**
+- **Fixed Model Status Checking**: Updated `ModelDownloadService.swift` to properly check for both Qwen and Phi models by verifying required files exist
+- **Enhanced File Verification**: Now checks for both `config.json` and `model.safetensors` files before marking model as available
+- **Added Startup Check**: Implemented `_performStartupModelCheck()` that runs during API configuration initialization
+- **Added Delete Functionality**: Implemented `deleteModel()` method with confirmation dialog and refresh capability
+- **Improved Error Handling**: Enhanced error messages and status reporting throughout the system
+
+**Files Modified:**
+- `ios/Runner/ModelDownloadService.swift` - Fixed `isModelDownloaded` method and added `deleteModel` functionality
+- `ios/Runner/LLMBridge.swift` - Updated to use proper ModelDownloadService implementation
+- `lib/lumara/config/api_config.dart` - Added startup model availability check and refresh functionality
+- `lib/lumara/ui/model_download_screen.dart` - Added delete button, refresh functionality, and improved error handling
+- `lib/lumara/ui/lumara_settings_screen.dart` - Added model availability refresh on navigation return
+
+**Result:**
+✅ Model status checking now accurately verifies file existence
+✅ Startup check automatically detects model availability at app launch
+✅ Users can delete downloaded models and refresh status
+✅ "READY" status only shows when models are actually available
+✅ Comprehensive error handling and user feedback
+
+---
+
 ### Qwen Tokenizer Mismatch Issue - RESOLVED ✅ - October 2, 2025
 **Status:** ✅ **RESOLVED**
 **Priority:** High
