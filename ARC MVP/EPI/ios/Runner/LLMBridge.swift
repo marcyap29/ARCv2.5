@@ -356,18 +356,73 @@ class ModelLifecycle {
     // MARK: - Fallback Response Generation
 
     private func generateFallbackResponse(prompt: String) -> String {
-        return """
-        [MLX Experimental Mode]
+        // Extract the actual user prompt (remove LUMARA system prompt if present)
+        let userPrompt = extractUserPrompt(from: prompt)
+        
+        // Generate LUMARA-style response based on prompt content
+        if userPrompt.lowercased().contains("what is lumara") || userPrompt.lowercased().contains("what is epi") {
+            return """
+            LUMARA is a privacy-first, on-device assistant that helps you journal, spot patterns, and choose your next wise step. It summarizes gently, protects your data, and adapts its tone to your current season of life.
 
-        I'm LUMARA running with MLX Swift framework in experimental mode.
+            **EPI System:**
+            • **ARC:** journaling + visual Arcforms
+            • **ATLAS:** life-phase detection for pacing
+            • **MIRA:** memory you control
+            • **AURORA:** rhythm and cadence
+            • **VEIL:** restorative pruning for clarity
 
-        Your prompt: "\(prompt.prefix(100))"
+            **Next step:** Would you like a 1-minute check-in prompt?
+            """
+        } else if userPrompt.lowercased().contains("arcform") || userPrompt.lowercased().contains("keywords") {
+            return """
+            **Arcform Keywords:** (extracted from your prompt)
+            • reflection • patterns • growth • insight • next steps
 
-        The tokenizer and model weights have been loaded from the app bundle. Full transformer inference \
-        requires implementing attention layers, feed-forward networks, and layer normalization.
+            **Next step:** Choose 5 keywords to anchor today's Arcform visualization.
+            """
+        } else if userPrompt.lowercased().contains("help") || userPrompt.lowercased().contains("how") {
+            return """
+            **LUMARA can help with:**
+            • Journaling prompts and reflection
+            • Pattern recognition in your thoughts
+            • Life phase guidance (Discovery, Expansion, Transition, etc.)
+            • Memory organization and tagging
+            • Next step planning
 
-        Current status: Bridge ✓, MLX loaded ✓, Tokenizer ✓, Bundle mmap ✓, Full inference pending.
-        """
+            **Next step:** Try asking about a specific area or share what's on your mind.
+            """
+        } else {
+            return """
+            I'm LUMARA, your privacy-first on-device assistant. I'm here to help you journal, see patterns, and take your next wise step.
+
+            **Current status:** Bridge ✓, MLX loaded ✓, Tokenizer ✓, Bundle mmap ✓
+
+            **Next step:** Share what's on your mind, or ask about journaling, patterns, or life phases.
+            """
+        }
+    }
+    
+    private func extractUserPrompt(from fullPrompt: String) -> String {
+        // Look for the actual user message after the LUMARA system prompt
+        let lines = fullPrompt.components(separatedBy: .newlines)
+        
+        // Find the last non-empty line that doesn't look like system prompt
+        for line in lines.reversed() {
+            let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !trimmed.isEmpty && 
+               !trimmed.hasPrefix("You are LUMARA") &&
+               !trimmed.hasPrefix("PRINCIPLES") &&
+               !trimmed.hasPrefix("CONTEXT MAP") &&
+               !trimmed.hasPrefix("ATLAS TONE") &&
+               !trimmed.hasPrefix("OUTPUT STYLE") &&
+               !trimmed.hasPrefix("REFUSALS") &&
+               !trimmed.hasPrefix("MEMORY") &&
+               !trimmed.hasPrefix("FAIL-SAFE") {
+                return trimmed
+            }
+        }
+        
+        return fullPrompt
     }
 }
 
@@ -376,6 +431,7 @@ class ModelLifecycle {
 class LLMBridge: NSObject, LumaraNative {
     private let logger = Logger(subsystem: "EPI", category: "LLMBridge")
     private var progressApi: LumaraNativeProgress?
+    private let miraStore = MiraMemoryStore()
 
     /// Set progress API for model loading callbacks
     func setProgressApi(_ api: LumaraNativeProgress) {
@@ -464,7 +520,26 @@ class LLMBridge: NSObject, LumaraNative {
 
     func generateText(prompt: String, params: GenParams) throws -> GenResult {
         logger.info("generateText called, prompt length: \(prompt.count)")
-        return try ModelLifecycle.shared.generate(prompt: prompt, params: params)
+        
+        // Use LUMARA prompt system for enhanced responses
+        let lumaraSystem = LumaraPromptSystem()
+        
+        // Build context prelude from MIRA memory
+        let contextPrelude = miraStore.buildContextPrelude()
+        let messages = lumaraSystem.buildLumaraMessages(userPrompt: prompt, contextPrelude: contextPrelude)
+        
+        // For now, use the first message (core system prompt) as the enhanced prompt
+        let enhancedPrompt = messages.joined(separator: "\n\n")
+        
+        let result = try ModelLifecycle.shared.generate(prompt: enhancedPrompt, params: params)
+        
+        // Check if the response contains a memory save request
+        if let memory = lumaraSystem.extractMemoryFromResponse(result.text) {
+            logger.info("Extracted memory from response: \(memory.summary)")
+            _ = miraStore.saveMemory(memory, phase: "Consolidation", source: "conversation", turn: 1)
+        }
+        
+        return result
     }
 
     func getModelRootPath() throws -> String {

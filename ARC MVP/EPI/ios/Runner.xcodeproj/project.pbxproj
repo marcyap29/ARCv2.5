@@ -17,6 +17,8 @@
 		810596B1C0D24C098C431893 /* LLMBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34615DA8179F4D23A4F06E39 /* LLMBridge.swift */; };
 		0943C7D7E64F4B5CBCE6F988 /* Bridge.pigeon.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB3677EB70444E1F82E0E2CC /* Bridge.pigeon.swift */; };
 		EADF1F88F9E44D798C3762B8 /* SafetensorsLoader.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD9A2AA9522A4A7B89913D6B /* SafetensorsLoader.swift */; };
+		89D3A75FAAA641AA8EB27E61 /* LumaraPromptSystem.swift in Sources */ = {isa = PBXBuildFile; fileRef = AD02F52095DB446494429964 /* LumaraPromptSystem.swift */; };
+		D1754AEF759146E8920F2B30 /* MiraMemoryStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4700A91B00044A52AA765055 /* MiraMemoryStore.swift */; };
 		97C146FC1CF9000F007C117D /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FA1CF9000F007C117D /* Main.storyboard */; };
 		97C146FE1CF9000F007C117D /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FD1CF9000F007C117D /* Assets.xcassets */; };
 		97C147011CF9000F007C117D /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FF1CF9000F007C117D /* LaunchScreen.storyboard */; };
@@ -60,6 +62,8 @@
 		34615DA8179F4D23A4F06E39 /* LLMBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LLMBridge.swift; sourceTree = "<group>"; };
 		AB3677EB70444E1F82E0E2CC /* Bridge.pigeon.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Bridge.pigeon.swift; sourceTree = "<group>"; };
 		DD9A2AA9522A4A7B89913D6B /* SafetensorsLoader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SafetensorsLoader.swift; sourceTree = "<group>"; };
+		AD02F52095DB446494429964 /* LumaraPromptSystem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LumaraPromptSystem.swift; sourceTree = "<group>"; };
+		4700A91B00044A52AA765055 /* MiraMemoryStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MiraMemoryStore.swift; sourceTree = "<group>"; };
 		7AFA3C8E1D35360C0083082E /* Release.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = Release.xcconfig; path = Flutter/Release.xcconfig; sourceTree = "<group>"; };
 		9740EEB21CF90195004384FC /* Debug.xcconfig */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.xcconfig; name = Debug.xcconfig; path = Flutter/Debug.xcconfig; sourceTree = "<group>"; };
 		9740EEB31CF90195004384FC /* Generated.xcconfig */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.xcconfig; name = Generated.xcconfig; path = Flutter/Generated.xcconfig; sourceTree = "<group>"; };
@@ -157,6 +161,8 @@
 		34615DA8179F4D23A4F06E39 /* LLMBridge.swift */,
 		AB3677EB70444E1F82E0E2CC /* Bridge.pigeon.swift */,
 		DD9A2AA9522A4A7B89913D6B /* SafetensorsLoader.swift */,
+		AD02F52095DB446494429964 /* LumaraPromptSystem.swift */,
+		4700A91B00044A52AA765055 /* MiraMemoryStore.swift */,
 				74858FAD1ED2DC5600515810 /* Runner-Bridging-Header.h */,
 			);
 			path = Runner;
@@ -418,6 +424,8 @@
 		810596B1C0D24C098C431893 /* LLMBridge.swift in Sources */,
 		0943C7D7E64F4B5CBCE6F988 /* Bridge.pigeon.swift in Sources */,
 		EADF1F88F9E44D798C3762B8 /* SafetensorsLoader.swift in Sources */,
+		89D3A75FAAA641AA8EB27E61 /* LumaraPromptSystem.swift in Sources */,
+		D1754AEF759146E8920F2B30 /* MiraMemoryStore.swift in Sources */,
 				1498D2341E8E89220040F4C2 /* GeneratedPluginRegistrant.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

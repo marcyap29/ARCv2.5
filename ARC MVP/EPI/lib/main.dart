@@ -5,14 +5,14 @@ import 'package:my_app/models/enums/flavor.dart';
 import 'package:my_app/app/app.dart';
 import 'package:my_app/shared/app_colors.dart';
 
-void main() {
+void main() async {
   // Set up global error handling
   _setupGlobalErrorHandling();
   
   // Automatically detect environment: debug = development, release = production
   const flavor = kDebugMode ? Flavor.development : Flavor.production;
   
-  bootstrap(
+  await bootstrap(
     builder: () => const App(),
     flavor: flavor,
   );
@@ -110,9 +110,9 @@ Widget _buildErrorWidget(FlutterErrorDetails details) {
                 const SizedBox(height: 20),
               ],
               ElevatedButton(
-                onPressed: () {
+                onPressed: () async {
                   // Try to rebuild the app through bootstrap
-                  bootstrap(
+                  await bootstrap(
                     builder: () => const App(),
                     flavor: kDebugMode ? Flavor.development : Flavor.production,
                   );
