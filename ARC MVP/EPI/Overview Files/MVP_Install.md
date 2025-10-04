@@ -10,6 +10,7 @@ This guide installs and runs the full MVP. The app uses Gemini via the LLMRegist
 ## One‑time setup
 ```bash
 cd "/Users/mymac/Software Development/EPI/ARC MVP/EPI"
+flutter clean
 flutter pub get
 flutter doctor
 ```

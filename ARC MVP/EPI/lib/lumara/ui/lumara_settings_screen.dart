@@ -215,7 +215,12 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
 
   Widget _buildProviderSelection(ThemeData theme) {
     final allProviders = _apiConfig.getAllProviders();
-    
+
+    // DEBUG: Log provider availability status
+    for (final p in allProviders) {
+      debugPrint('UI: Provider ${p.name} isAvailable=${p.isAvailable}');
+    }
+
     // Separate internal and external providers
     final internalProviders = allProviders.where((p) => p.isInternal && p.provider != LLMProvider.ruleBased).toList();
     final externalProviders = allProviders.where((p) => !p.isInternal).toList();

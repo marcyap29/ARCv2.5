@@ -934,7 +934,12 @@ class ModelDownloadService: NSObject {
         let configExists = FileManager.default.fileExists(atPath: configPath.path)
         let weightsExist = FileManager.default.fileExists(atPath: weightsPath.path)
 
-        logger.info("isModelDownloaded(\(modelId)): config=\(configExists), weights=\(weightsExist)")
+        logger.info("isModelDownloaded(\(modelId))")
+        logger.info("  - Model dir: \(modelDir)")
+        logger.info("  - Full path: \(modelPath.path)")
+        logger.info("  - config.json exists: \(configExists)")
+        logger.info("  - model.safetensors exists: \(weightsExist)")
+        logger.info("  - RESULT: \(configExists && weightsExist)")
 
         return configExists && weightsExist
     }
