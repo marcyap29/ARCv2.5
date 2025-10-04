@@ -945,8 +945,20 @@ class ModelDownloadService: NSObject {
     func deleteModel(modelId: String) throws {
         logger.info("deleteModel called for: \(modelId)")
 
-        // Use ModelDownloadService to clear the model directory and all metadata
-        try ModelDownloadService.shared.clearModelDirectory(modelId: modelId)
+        // Get the models directory path
+        let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+        let modelsDirectory = appSupport.appendingPathComponent("Models", isDirectory: true)
+        let modelDirectory = modelsDirectory.appendingPathComponent(modelId)
+        let fileManager = FileManager.default
+
+        // Remove the model directory if it exists
+        if fileManager.fileExists(atPath: modelDirectory.path) {
+            try fileManager.removeItem(at: modelDirectory)
+            logger.info("Removed model directory: \(modelId)")
+        }
+
+        // Clean up any remaining metadata in the parent directory
+        try cleanupMacOSMetadata(in: modelsDirectory)
         logger.info("Successfully deleted model and cleaned metadata for: \(modelId)")
     }
     
@@ -954,9 +966,43 @@ class ModelDownloadService: NSObject {
     func clearAllModels() throws {
         logger.info("clearAllModels called")
         
-        // Use ModelDownloadService to clear all models and metadata
-        try ModelDownloadService.shared.clearAllModels()
+        // Get the models directory path
+        let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+        let modelsDirectory = appSupport.appendingPathComponent("Models", isDirectory: true)
+        let fileManager = FileManager.default
+
+        // Remove all contents of the models directory
+        let contents = try fileManager.contentsOfDirectory(at: modelsDirectory, includingPropertiesForKeys: nil)
+        for item in contents {
+            try fileManager.removeItem(at: item)
+            logger.info("Removed: \(item.lastPathComponent)")
+        }
+
         logger.info("Successfully cleared all models and metadata")
+    }
+    
+    /// Clean up macOS metadata folders and files that might cause conflicts
+    private func cleanupMacOSMetadata(in directory: URL) throws {
+        let fileManager = FileManager.default
+        
+        // Remove _MACOSX folders recursively
+        let macosxFolders = try fileManager.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil)
+            .filter { $0.lastPathComponent.hasPrefix("__MACOSX") }
+        
+        for folder in macosxFolders {
+            try fileManager.removeItem(at: folder)
+            logger.info("Removed macOS metadata folder: \(folder.lastPathComponent)")
+        }
+        
+        // Remove .DS_Store files and ._ files recursively
+        let enumerator = fileManager.enumerator(at: directory, includingPropertiesForKeys: nil)
+        while let fileURL = enumerator?.nextObject() as? URL {
+            let fileName = fileURL.lastPathComponent
+            if fileName == ".DS_Store" || fileName.hasPrefix("._") {
+                try fileManager.removeItem(at: fileURL)
+                logger.info("Removed macOS metadata file: \(fileName)")
+            }
+        }
     }
 }
 
