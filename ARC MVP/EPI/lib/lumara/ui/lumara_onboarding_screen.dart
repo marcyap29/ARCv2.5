@@ -19,7 +19,14 @@ class LumaraOnboardingScreen extends StatelessWidget {
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
-          onPressed: () => Navigator.pop(context),
+          onPressed: () {
+            // Check if we can pop, otherwise go to root
+            if (Navigator.of(context).canPop()) {
+              Navigator.pop(context);
+            } else {
+              Navigator.of(context).popUntil((route) => route.isFirst);
+            }
+          },
           tooltip: 'Back',
         ),
         actions: [
