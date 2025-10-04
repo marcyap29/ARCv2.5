@@ -5,7 +5,34 @@ ARC is the **core journaling module of EPI (Evolving Personal Intelligence)**, b
 
 This MVP now implements **modular architecture** with RIVET (safety validation) and ECHO (expressive response layer) modules migrated to their proper locations, providing a foundation for the complete 8-module system: ARC→PRISM→ECHO→ATLAS→MIRA→AURORA→VEIL→RIVET.
 
-## 🌟 **LATEST ENHANCEMENT: Model Download Status Checking Fix** (2025-10-02) ✅
+## 🌟 **LATEST ENHANCEMENT: API Key Persistence and Navigation Fix** (2025-10-04) ✅
+
+**🎯 Major Achievement**: Resolved critical API key persistence and navigation issues affecting LUMARA settings screen and onboarding flow.
+
+**✨ API Key Persistence Fix**:
+- **Issue Resolved**: API keys now persist correctly across app restarts instead of being cleared
+- **Root Cause Fixed**: `toJson()` was saving `'[REDACTED]'` instead of actual API keys, `_loadConfigs()` never loaded from SharedPreferences, old data had corrupted "[REDACTED]" strings
+- **Solution Implemented**: Fixed saving to store actual keys, added SharedPreferences loading logic, implemented clear functionality with debug logging
+- **Provider Status Accuracy**: All providers now show correct status based on actual API key configuration instead of all showing green
+- **Debug Enhancement**: Added masked key logging (first 4 + last 4 chars) for troubleshooting without exposing sensitive data
+
+**✨ Navigation Fix**:
+- **Issue Resolved**: Back button in onboarding screen no longer leads to blank screen
+- **Root Cause Fixed**: Screen was pushed with `pushReplacement`, removing previous route from navigation stack
+- **Solution Implemented**: Changed to `push` with `rootNavigator: true` to maintain navigation stack properly
+- **UI Cleanup**: Removed redundant home buttons from onboarding and settings screens as back arrow is sufficient
+
+**📱 User Experience**:
+- **Persistent Configuration**: API keys save and load correctly, maintaining configuration across sessions
+- **Accurate Status Display**: Provider status indicators correctly reflect actual API key availability
+- **Smooth Navigation**: Back button works correctly from all screens without navigation stack issues
+- **Debug Tools**: "Clear All API Keys" button allows easy reset for testing and troubleshooting
+
+**🏆 Current Status**: LUMARA settings and navigation system now fully operational with persistent API key storage, accurate provider status display, and seamless navigation flow.
+
+---
+
+## 🌟 **PREVIOUS ENHANCEMENT: Model Download Status Checking Fix** (2025-10-02) ✅
 
 **🎯 Major Achievement**: Resolved critical model download status checking issues, implementing accurate file verification, startup availability checks, and complete model management functionality.
 

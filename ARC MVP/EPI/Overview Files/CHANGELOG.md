@@ -2,6 +2,30 @@
 
 ## [Unreleased]
 
+### 🔧 **API KEY PERSISTENCE AND NAVIGATION FIX** - October 4, 2025
+
+#### **Fixed API Key Persistence Issues** ✅ **COMPLETE**
+- **Issue**: API keys not persisting across app restarts, all providers showing green despite no keys configured
+- **Root Cause**: Multiple bugs including API key redaction in toJson(), no SharedPreferences loading, corrupted saved data with literal "[REDACTED]" strings
+- **Solution**: Fixed saving to store actual API keys, implemented proper SharedPreferences loading, added clear functionality and debug logging
+- **Files Modified**: `lib/lumara/config/api_config.dart`, `lib/lumara/ui/lumara_settings_screen.dart`
+- **Result**: API keys now persist correctly, provider status accurately reflects configuration, debug logging shows masked keys
+
+#### **Fixed Navigation Issues** ✅ **COMPLETE**
+- **Issue**: Back button in onboarding leading to blank screen, missing home navigation from settings screens
+- **Root Cause**: Navigation stack issues from using pushReplacement instead of push
+- **Solution**: Changed to push with rootNavigator: true, simplified back button behavior, removed redundant home buttons
+- **Files Modified**: `lib/lumara/ui/lumara_onboarding_screen.dart`, `lib/lumara/ui/lumara_assistant_screen.dart`, `lib/lumara/ui/lumara_settings_screen.dart`
+- **Result**: Back button navigation works correctly from all screens, clean minimal navigation without redundant buttons
+
+#### **Enhanced User Experience** ✅ **COMPLETE**
+- **Clear All API Keys Button**: Added debug functionality to remove all saved keys and start fresh
+- **Masked Key Logging**: Shows first 4 + last 4 characters for troubleshooting without exposing full keys
+- **Improved Error Handling**: Better error messages and user feedback throughout settings screens
+- **Navigation Stack Fixes**: Proper use of push vs pushReplacement to maintain navigation history
+
+---
+
 ### 🔧 **MODEL DOWNLOAD STATUS CHECKING FIX** - October 2, 2025
 
 #### **Fixed Model Status Verification** ✅ **COMPLETE**

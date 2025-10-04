@@ -2,6 +2,51 @@
 
 ## Active Issues
 
+### API Key Persistence and Navigation Issues - RESOLVED ✅ - October 4, 2025
+**Status:** ✅ **RESOLVED**
+**Priority:** High
+**Component:** LUMARA Settings & Navigation
+
+**Issue:**
+Multiple issues with LUMARA settings screen including API key persistence failures, incorrect provider status display, and navigation problems.
+
+**Error Symptoms:**
+- API keys not persisting after save - cleared on app restart
+- All providers showing green "available" status despite no API keys configured
+- Back button in onboarding screen leading to blank screen
+- Missing home navigation from settings screens
+
+**Root Cause:**
+1. **API Key Redaction Bug**: `toJson()` method was replacing actual API keys with `'[REDACTED]'` string when saving to SharedPreferences
+2. **No Load Implementation**: `_loadConfigs()` method only loaded from environment variables, never from SharedPreferences
+3. **Corrupted Saved Data**: Old saved data contained literal `"[REDACTED]"` strings (10 characters) which were detected as valid API keys
+4. **Navigation Issues**: Onboarding screen used `pushReplacement` causing back button to have no route to pop to
+
+**Solution:**
+- **Fixed API Key Saving**: Changed `toJson()` to save actual API key instead of `'[REDACTED]'` (SharedPreferences is already secure)
+- **Implemented Load Logic**: Added SharedPreferences loading to `_loadConfigs()` that reads saved keys and overrides environment defaults
+- **Added Debug Logging**: Masked key logging (first 4 + last 4 chars) for save/load operations to track what's being stored
+- **Added Clear Function**: Implemented `clearAllApiKeys()` method with UI button for debugging and fresh starts
+- **Fixed Navigation**: Changed from `pushReplacement` to `push` with `rootNavigator: true` to maintain navigation stack
+- **Added Back Button**: Simplified back button behavior to use `Navigator.pop(context)`
+- **Removed Home Buttons**: Cleaned up redundant home navigation buttons as back arrow is sufficient
+
+**Files Modified:**
+- `lib/lumara/config/api_config.dart` - Fixed saving, loading, added clear functionality, added debug logging
+- `lib/lumara/ui/lumara_settings_screen.dart` - Added "Clear All API Keys" button, simplified navigation
+- `lib/lumara/ui/lumara_onboarding_screen.dart` - Fixed navigation stack, added/removed nav buttons
+- `lib/lumara/ui/lumara_assistant_screen.dart` - Changed to use `push` instead of `pushReplacement`
+
+**Result:**
+✅ API keys now persist correctly across app restarts
+✅ Provider status accurately reflects actual API key configuration
+✅ Debug logging shows masked keys for troubleshooting (e.g., "AIza...8Qpw")
+✅ Clear All API Keys button allows easy reset for testing
+✅ Back button navigation works correctly from all screens
+✅ Clean, minimal navigation without redundant home buttons
+
+---
+
 ### Model Download Status Checking Issues - RESOLVED ✅ - October 2, 2025
 **Status:** ✅ **RESOLVED**
 **Priority:** High
@@ -242,4 +287,4 @@ Fixed 7,576+ compilation errors through systematic import path corrections.
 
 ---
 
-**Last Updated:** October 2, 2025 by Claude Sonnet 4.5
+**Last Updated:** October 4, 2025 by Claude Sonnet 4.5

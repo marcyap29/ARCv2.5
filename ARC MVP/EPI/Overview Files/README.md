@@ -4,9 +4,17 @@ A Flutter-based AI companion app that provides life-aware assistance through jou
 
 ## 🚀 Current Status
 
-**🎉 MVP OPERATIONAL** - All systems working, MLX On-Device LLM Integration complete (October 2, 2025)
+**🎉 MVP OPERATIONAL** - All systems working, MLX On-Device LLM Integration complete (October 4, 2025)
 
-### **Latest Major Achievement: Model Download Status Checking Fix** ✅ **COMPLETE**
+### **Latest Major Achievement: API Key Persistence and Navigation Fix** ✅ **COMPLETE**
+- **API Key Persistence Fixed**: Resolved critical bug where API keys weren't persisting across app restarts
+- **Provider Status Accuracy**: Fixed issue where all providers showed green despite no API keys configured
+- **Navigation Stack Fixes**: Fixed back button leading to blank screen, added proper navigation handling
+- **Enhanced Debugging**: Added masked key logging and "Clear All API Keys" button for troubleshooting
+- **Root Causes Resolved**: Fixed API key redaction bug in toJson(), added SharedPreferences loading logic, cleared corrupted data
+- **Current Status**: ✅ **FULLY OPERATIONAL** - API keys persist correctly, provider status accurate, navigation working seamlessly
+
+### **Previous Major Achievement: Model Download Status Checking Fix** ✅ **COMPLETE**
 - **Accurate Status Checking**: Fixed model status verification to check both `config.json` and `model.safetensors` files exist
 - **Startup Availability Check**: Added automatic model availability detection at app startup with UI updates
 - **Model Delete Functionality**: Implemented complete model deletion with confirmation dialogs and status refresh

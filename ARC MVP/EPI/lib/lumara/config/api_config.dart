@@ -185,16 +185,22 @@ class LumaraAPIConfig {
                 (p) => p.name == providerName,
               );
 
-              // Update API key if saved
-              final savedApiKey = configData['apiKey'] as String?;
-              if (savedApiKey != null && savedApiKey.isNotEmpty) {
+              // Update API key if saved (including empty strings to override environment)
+              if (configData.containsKey('apiKey')) {
+                final savedApiKey = configData['apiKey'] as String?;
                 final currentConfig = _configs[provider];
                 if (currentConfig != null) {
-                  _configs[provider] = currentConfig.copyWith(apiKey: savedApiKey);
-                  final maskedKey = savedApiKey.length > 8
-                      ? '${savedApiKey.substring(0, 4)}...${savedApiKey.substring(savedApiKey.length - 4)}'
-                      : '***';
-                  debugPrint('LUMARA API: Loaded saved API key for ${currentConfig.name}: $maskedKey (length: ${savedApiKey.length})');
+                  final keyToUse = savedApiKey ?? '';
+                  _configs[provider] = currentConfig.copyWith(apiKey: keyToUse);
+
+                  if (keyToUse.isNotEmpty) {
+                    final maskedKey = keyToUse.length > 8
+                        ? '${keyToUse.substring(0, 4)}...${keyToUse.substring(keyToUse.length - 4)}'
+                        : '***';
+                    debugPrint('LUMARA API: Loaded saved API key for ${currentConfig.name}: $maskedKey (length: ${keyToUse.length})');
+                  } else {
+                    debugPrint('LUMARA API: Loaded empty API key for ${currentConfig.name} (overrides environment)');
+                  }
                 }
               }
             } catch (e) {
@@ -385,9 +391,17 @@ class LumaraAPIConfig {
   /// Clear all saved API keys (for debugging)
   Future<void> clearAllApiKeys() async {
     debugPrint('LUMARA API: Clearing all saved API keys...');
-    await _prefs?.remove(_prefsKey);
 
-    // Reset configs to defaults
+    // Save empty strings for all external providers to override environment variables
+    final clearedConfigs = <String, dynamic>{};
+    for (final provider in [LLMProvider.gemini, LLMProvider.openai, LLMProvider.anthropic]) {
+      clearedConfigs[provider.name] = {'apiKey': ''}; // Empty string overrides environment
+    }
+
+    await _prefs?.setString(_prefsKey, jsonEncode(clearedConfigs));
+    debugPrint('LUMARA API: Saved empty API keys to override environment variables');
+
+    // Reset configs to defaults (which will then be overridden by empty strings)
     await _loadConfigs();
     await _detectAvailableProviders();
     debugPrint('LUMARA API: All API keys cleared');
