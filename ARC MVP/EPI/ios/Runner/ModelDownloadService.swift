@@ -203,8 +203,8 @@ extension ModelDownloadService: URLSessionDownloadDelegate {
 
             progressCallbacks[modelId]?(0.9, "Unzipping model files...")
 
-            // Unzip to Application Support
-            let destDir = modelRootURL
+            // Unzip to Application Support in model-specific directory
+            let destDir = modelRootURL.appendingPathComponent(modelId, isDirectory: true)
             try unzipFile(at: tempZip, to: destDir)
 
             progressCallbacks[modelId]?(1.0, "Download complete!")
@@ -362,4 +362,5 @@ extension ModelDownloadService: URLSessionDownloadDelegate {
             }
         }
     }
+
 }

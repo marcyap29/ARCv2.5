@@ -70,24 +70,26 @@ class ModelStore {
         let modelDir: String
         switch modelId {
         case "qwen3-1.7b-mlx-4bit":
-            modelDir = "Qwen3-1.7B-MLX-4bit"
+            modelDir = "qwen3-1.7b-mlx-4bit"  // Use the same name as modelId
+        case "phi-3.5-mini-instruct-4bit":
+            modelDir = "phi-3.5-mini-instruct-4bit"  // Use the same name as modelId
         default:
             modelDir = modelId
         }
 
         #if os(iOS)
-        // iOS: Check bundle FIRST (models bundled for device testing)
-        let relativePath = "flutter_assets/assets/models/MLX/\(modelDir)/\(file)"
-        if let bundleURL = Bundle.main.url(forResource: relativePath, withExtension: nil) {
-            logger.info("resolveModelPath: found in iOS bundle: \(bundleURL.path)")
-            return bundleURL
-        }
-
-        // iOS fallback: Check Application Support (future download-on-launch)
+        // iOS: Check Application Support FIRST (downloaded models)
         let appSupportPath = modelRootURL.appendingPathComponent(modelDir).appendingPathComponent(file)
         if FileManager.default.fileExists(atPath: appSupportPath.path) {
             logger.info("resolveModelPath: found in iOS Application Support: \(appSupportPath.path)")
             return appSupportPath
+        }
+
+        // iOS fallback: Check bundle (models bundled for device testing)
+        let relativePath = "flutter_assets/assets/models/MLX/\(modelDir)/\(file)"
+        if let bundleURL = Bundle.main.url(forResource: relativePath, withExtension: nil) {
+            logger.info("resolveModelPath: found in iOS bundle: \(bundleURL.path)")
+            return bundleURL
         }
         #else
         // macOS: Check Application Support FIRST (installed via setup script)
