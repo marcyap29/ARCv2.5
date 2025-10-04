@@ -6,31 +6,25 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import '../llm_provider.dart';
 import '../../config/api_config.dart';
+import '../bridge.pigeon.dart';
 
-/// Llama internal model provider
+/// Llama/Phi internal model provider
 class LlamaProvider extends LLMProviderBase {
-  LlamaProvider(LumaraAPIConfig apiConfig) : super(apiConfig, 'Llama (Internal)', true);
+  LlamaProvider(LumaraAPIConfig apiConfig) : super(apiConfig, 'Phi (Internal)', true);
 
   @override
   LLMProvider getProviderType() => LLMProvider.phi;
 
   @override
   Future<bool> isAvailable() async {
-    final config = getConfig();
-    if (config?.baseUrl == null) return false;
-
+    // Check if Phi model is actually downloaded via native bridge
     try {
-      // Check if local Llama server is running
-      final client = HttpClient();
-      final uri = Uri.parse('${config!.baseUrl}/health');
-      
-      final request = await client.getUrl(uri);
-      final response = await request.close();
-      
-      client.close();
-      return response.statusCode == 200;
+      final bridge = LumaraNative();
+      final isDownloaded = await bridge.isModelDownloaded('phi-3.5-mini-instruct-4bit');
+      debugPrint('PhiProvider: Model ${isDownloaded ? "IS" : "IS NOT"} downloaded');
+      return isDownloaded;
     } catch (e) {
-      debugPrint('LlamaProvider: Health check failed: $e');
+      debugPrint('PhiProvider: Error checking model availability: $e');
       return false;
     }
   }

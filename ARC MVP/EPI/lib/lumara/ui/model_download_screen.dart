@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../llm/bridge.pigeon.dart';
 import '../llm/model_progress_service.dart';
 import '../services/download_state_service.dart';
+import '../config/api_config.dart';
 
 // Model information data class
 class ModelInfo {
@@ -141,14 +142,15 @@ class _ModelDownloadScreenState extends State<ModelDownloadScreen> {
       // Delete the model via bridge
       await _bridge.deleteModel(modelId);
 
-      // Refresh status
+      // Refresh status - both local and API config
       await _checkAllModelsStatus();
+      await LumaraAPIConfig.instance.refreshModelAvailability();
 
       if (mounted) {
         // Show success message
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Model deleted successfully'),
+            content: Text('Model deleted successfully - provider status updated'),
             backgroundColor: Colors.green,
           ),
         );

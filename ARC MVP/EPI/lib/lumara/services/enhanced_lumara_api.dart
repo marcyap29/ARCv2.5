@@ -202,35 +202,11 @@ Please provide a brief, thoughtful reflection that helps me understand this bett
       'phase': phase,
     });
 
-    final tone = _getPhaseTone(phase);
-    final baseResponse = _getIntentResponse(intent);
-    
-    return '$baseResponse If you look $tone at this, what would you like to understand or decide next?';
-  }
-
-  /// Get phase-appropriate tone
-  String _getPhaseTone(String? phase) {
-    return switch (phase) {
-      'Recovery' => 'gently and with self-compassion',
-      'Consolidation' => 'with focus and clarity',
-      'Discovery' => 'with curiosity and openness',
-      'Breakthrough' => 'with excitement and possibility',
-      'Expansion' => 'with confidence and possibility',
-      'Transition' => 'with patience and adaptability',
-      _ => 'thoughtfully and with care',
-    };
-  }
-
-  /// Get intent-specific response
-  String _getIntentResponse(String intent) {
-    return switch (intent) {
-      'ideas' => 'What if you explored this from a completely different angle?',
-      'think' => 'Let\'s break this down together. What\'s really at the heart of this?',
-      'perspective' => 'I wonder what someone who loves you unconditionally would say about this.',
-      'next' => 'What would your future self want you to know about this moment?',
-      'analyze' => 'There\'s something deeper here. What patterns do you notice?',
-      _ => 'What feels most important right now?',
-    };
+    // Single clear message when no inference is available
+    return 'LUMARA needs an AI provider to respond. Please either:\n\n'
+           '• Download an on-device model (Settings → AI Provider Selection → Download On-Device Model)\n'
+           '• Configure a cloud API key (Settings → API Keys)\n\n'
+           'Once configured, LUMARA will be able to provide intelligent reflections.';
   }
 
   /// Switch to a different LLM provider

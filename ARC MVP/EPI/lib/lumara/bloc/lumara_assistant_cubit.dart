@@ -517,10 +517,13 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
       print('LUMARA Debug: [Cloud API] Failed: $cloudApiError');
     }
 
-    // No providers available - return error message
+    // No providers available - return clear guidance
     print('LUMARA Debug: All providers failed. No inference available.');
     return {
-      'content': 'I apologize, but I\'m currently unable to generate a response. Please configure an AI provider in settings to enable responses.',
+      'content': 'LUMARA needs an AI provider to respond. Please either:\n\n'
+                 '• Download an on-device model (Settings → AI Provider Selection → Download On-Device Model)\n'
+                 '• Configure a cloud API key (Settings → API Keys)\n\n'
+                 'Once configured, LUMARA will be able to provide intelligent reflections.',
       'attributionTraces': <AttributionTrace>[],
     };
   }

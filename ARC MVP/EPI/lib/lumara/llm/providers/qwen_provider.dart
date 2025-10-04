@@ -6,6 +6,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import '../llm_provider.dart';
 import '../../config/api_config.dart';
+import '../bridge.pigeon.dart';
 
 /// Qwen internal model provider
 class QwenProvider extends LLMProviderBase {
@@ -16,10 +17,16 @@ class QwenProvider extends LLMProviderBase {
 
   @override
   Future<bool> isAvailable() async {
-    // DEPRECATED: This provider is disabled in favor of native MLX bridge (LLMAdapter)
-    // No localhost health checks to avoid SocketException errors
-    debugPrint('QwenProvider: Disabled (use LLMAdapter for native on-device inference)');
-    return false;
+    // Check if Qwen model is actually downloaded via native bridge
+    try {
+      final bridge = LumaraNative();
+      final isDownloaded = await bridge.isModelDownloaded('qwen3-1.7b-mlx-4bit');
+      debugPrint('QwenProvider: Model ${isDownloaded ? "IS" : "IS NOT"} downloaded');
+      return isDownloaded;
+    } catch (e) {
+      debugPrint('QwenProvider: Error checking model availability: $e');
+      return false;
+    }
   }
 
   @override
