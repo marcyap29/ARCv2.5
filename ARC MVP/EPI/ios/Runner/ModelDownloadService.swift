@@ -311,7 +311,7 @@ extension ModelDownloadService: URLSessionDownloadDelegate {
     }
 
     /// Clear all models and metadata from the models directory
-    func clearAllModels() throws {
+    public func clearAllModels() throws {
         let modelsDirectory = modelRootURL
         let fileManager = FileManager.default
 
@@ -326,7 +326,7 @@ extension ModelDownloadService: URLSessionDownloadDelegate {
     }
 
     /// Clear a specific model directory and all its metadata
-    func clearModelDirectory(modelId: String) throws {
+    public func clearModelDirectory(modelId: String) throws {
         let modelsDirectory = modelRootURL
         let modelDirectory = modelsDirectory.appendingPathComponent(modelId)
         let fileManager = FileManager.default
@@ -341,7 +341,7 @@ extension ModelDownloadService: URLSessionDownloadDelegate {
     }
 
     /// Clean up macOS metadata folders and files that might cause conflicts
-    private func cleanupMacOSMetadata(in directory: URL) throws {
+    public func cleanupMacOSMetadata(in directory: URL) throws {
         let fileManager = FileManager.default
 
         // Remove _MACOSX folders recursively
