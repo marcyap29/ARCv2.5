@@ -70,17 +70,18 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
-          onPressed: () async {
-            // Refresh model availability before returning
-            await _apiConfig.refreshModelAvailability();
-            final bestProvider = _apiConfig.getBestProvider();
-            final isConfigured = bestProvider != null && bestProvider.provider != LLMProvider.ruleBased;
-
-            if (mounted) {
-              Navigator.pop(context, isConfigured);
-            }
-          },
+          onPressed: () => Navigator.pop(context),
+          tooltip: 'Back',
         ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.home),
+            onPressed: () {
+              Navigator.of(context).popUntil((route) => route.isFirst);
+            },
+            tooltip: 'Home',
+          ),
+        ],
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
