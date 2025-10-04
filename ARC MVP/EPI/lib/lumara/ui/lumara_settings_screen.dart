@@ -4,6 +4,7 @@
 import 'package:flutter/material.dart';
 import '../config/api_config.dart';
 import '../services/enhanced_lumara_api.dart';
+import '../services/download_state_service.dart';
 import '../../telemetry/analytics.dart';
 import 'model_download_screen.dart';
 
@@ -18,6 +19,7 @@ class LumaraSettingsScreen extends StatefulWidget {
 class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
   final LumaraAPIConfig _apiConfig = LumaraAPIConfig.instance;
   final EnhancedLumaraApi _lumaraApi = EnhancedLumaraApi(Analytics());
+  final DownloadStateService _downloadStateService = DownloadStateService.instance;
   final Map<LLMProvider, TextEditingController> _apiKeyControllers = {};
 
   LLMProvider? _selectedProvider;
@@ -27,6 +29,7 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
     super.initState();
     _initializeControllers();
     _loadCurrentSettings();
+    _downloadStateService.addListener(_onDownloadStateChanged);
   }
 
   @override
@@ -34,7 +37,16 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
     for (final controller in _apiKeyControllers.values) {
       controller.dispose();
     }
+    _downloadStateService.removeListener(_onDownloadStateChanged);
     super.dispose();
+  }
+
+  void _onDownloadStateChanged() {
+    if (mounted) {
+      setState(() {
+        // Rebuild UI when download state changes
+      });
+    }
   }
 
   void _initializeControllers() {
@@ -327,34 +339,124 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
         // Add download button for internal models section
         if (isInternal) ...[
           const SizedBox(height: 16),
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton.icon(
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const ModelDownloadScreen(),
-                  ),
-                );
-              },
-              icon: const Icon(Icons.download, size: 20),
-              label: const Text('Download On-Device Model'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: theme.colorScheme.primary,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-              ),
-            ),
-          ),
+          _buildDownloadButton(theme),
         ],
       ],
     );
   }
-  
+
+  Widget _buildDownloadButton(ThemeData theme) {
+    // Check if any model is currently downloading
+    final qwenState = _downloadStateService.getState('qwen3-1.7b-mlx-4bit');
+    final phiState = _downloadStateService.getState('phi-3.5-mini-instruct-4bit');
+
+    final isDownloading = (qwenState?.isDownloading ?? false) || (phiState?.isDownloading ?? false);
+    final downloadingState = qwenState?.isDownloading == true ? qwenState : phiState;
+
+    if (isDownloading && downloadingState != null) {
+      // Show download progress
+      return SizedBox(
+        width: double.infinity,
+        child: Card(
+          elevation: 1,
+          color: theme.colorScheme.primaryContainer.withOpacity(0.3),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor: AlwaysStoppedAnimation<Color>(theme.colorScheme.primary),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        downloadingState.statusMessage,
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                    Text(
+                      '${(downloadingState.progress * 100).toStringAsFixed(1)}%',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.primary,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+                if (downloadingState.downloadSizeText.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    downloadingState.downloadSizeText,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.secondary,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+                const SizedBox(height: 12),
+                LinearProgressIndicator(
+                  value: downloadingState.progress,
+                  minHeight: 4,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  child: TextButton(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const ModelDownloadScreen(),
+                        ),
+                      );
+                    },
+                    child: const Text('View Download Details'),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    // Show regular download button when not downloading
+    return SizedBox(
+      width: double.infinity,
+      child: ElevatedButton.icon(
+        onPressed: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const ModelDownloadScreen(),
+            ),
+          );
+        },
+        icon: const Icon(Icons.download, size: 20),
+        label: const Text('Download On-Device Model'),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: theme.colorScheme.primary,
+          foregroundColor: Colors.white,
+          padding: const EdgeInsets.symmetric(vertical: 14),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(8),
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildProviderOption(ThemeData theme, LLMProviderConfig config, bool isInternal) {
     final isAvailable = config.isAvailable;
     final isSelected = _selectedProvider == config.provider;

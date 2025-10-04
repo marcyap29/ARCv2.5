@@ -4,6 +4,7 @@
 import 'package:flutter/material.dart';
 import '../llm/bridge.pigeon.dart';
 import '../llm/model_progress_service.dart';
+import '../services/download_state_service.dart';
 
 // Model information data class
 class ModelInfo {
@@ -32,6 +33,7 @@ class ModelDownloadScreen extends StatefulWidget {
 class _ModelDownloadScreenState extends State<ModelDownloadScreen> {
   final LumaraNative _bridge = LumaraNative();
   final ModelProgressService _progressService = ModelProgressService();
+  final DownloadStateService _downloadStateService = DownloadStateService.instance;
 
   // Available models for download
   static const List<ModelInfo> _availableModels = [
@@ -51,96 +53,63 @@ class _ModelDownloadScreenState extends State<ModelDownloadScreen> {
     ),
   ];
 
-  // Track download state for each model
-  final Map<String, bool> _isDownloading = {};
-  final Map<String, bool> _isDownloaded = {};
-  final Map<String, double> _downloadProgress = {};
-  final Map<String, String> _statusMessage = {};
-  final Map<String, String?> _errorMessage = {};
-
   @override
   void initState() {
     super.initState();
     _checkAllModelsStatus();
-    _setupProgressListener();
+    _setupStateListener();
   }
 
   Future<void> _checkAllModelsStatus() async {
     for (final model in _availableModels) {
       try {
         final isDownloaded = await _bridge.isModelDownloaded(model.id);
-        if (mounted) {
-          setState(() {
-            _isDownloaded[model.id] = isDownloaded;
-            _statusMessage[model.id] = isDownloaded
-                ? 'Model ready to use'
-                : 'Model not downloaded yet';
-          });
-        }
+        _downloadStateService.updateAvailability(model.id, isDownloaded);
       } catch (e) {
         debugPrint('Error checking model status for ${model.id}: $e');
-        if (mounted) {
-          setState(() {
-            _isDownloaded[model.id] = false;
-            _statusMessage[model.id] = 'Error checking status';
-          });
-        }
+        _downloadStateService.updateAvailability(model.id, false);
       }
     }
   }
 
-  void _setupProgressListener() {
-    _progressService.progressStream.listen((progress) {
-      if (mounted) {
-        setState(() {
-          if (progress.message == 'Ready to use') {
-            _isDownloading[progress.modelId] = false;
-            _isDownloaded[progress.modelId] = true;
-            _downloadProgress[progress.modelId] = 1.0;
-            _statusMessage[progress.modelId] = 'Download complete!';
-          }
-        });
-      }
-    });
+  void _setupStateListener() {
+    // Listen to download state changes and trigger UI rebuild
+    _downloadStateService.addListener(_onDownloadStateChanged);
+  }
+
+  void _onDownloadStateChanged() {
+    if (mounted) {
+      setState(() {
+        // State rebuild triggered by DownloadStateService
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _downloadStateService.removeListener(_onDownloadStateChanged);
+    super.dispose();
   }
 
   Future<void> _startDownload(ModelInfo model) async {
     try {
-      setState(() {
-        _isDownloading[model.id] = true;
-        _errorMessage[model.id] = null;
-        _downloadProgress[model.id] = 0.0;
-        _statusMessage[model.id] = 'Starting download...';
-      });
+      // Update persistent state
+      _downloadStateService.startDownload(model.id);
 
       final success = await _bridge.downloadModel(model.id, model.downloadUrl);
 
-      if (!success && mounted) {
-        setState(() {
-          _isDownloading[model.id] = false;
-          _errorMessage[model.id] = 'Failed to start download';
-        });
+      if (!success) {
+        _downloadStateService.failDownload(model.id, 'Failed to start download');
       }
     } catch (e) {
-      if (mounted) {
-        setState(() {
-          _isDownloading[model.id] = false;
-          _errorMessage[model.id] = 'Error: $e';
-        });
-      }
+      _downloadStateService.failDownload(model.id, 'Error: $e');
     }
   }
 
   Future<void> _cancelDownload(String modelId) async {
     try {
       await _bridge.cancelModelDownload();
-      if (mounted) {
-        setState(() {
-          _isDownloading[modelId] = false;
-          _downloadProgress[modelId] = 0.0;
-          _statusMessage[modelId] = 'Download cancelled';
-        });
-      }
+      _downloadStateService.cancelDownload(modelId);
     } catch (e) {
       debugPrint('Error cancelling download: $e');
     }
@@ -339,11 +308,14 @@ class _ModelDownloadScreenState extends State<ModelDownloadScreen> {
   }
 
   Widget _buildModelCard(ModelInfo model, ThemeData theme) {
-    final isDownloaded = _isDownloaded[model.id] ?? false;
-    final isDownloading = _isDownloading[model.id] ?? false;
-    final progress = _downloadProgress[model.id] ?? 0.0;
-    final status = _statusMessage[model.id] ?? '';
-    final error = _errorMessage[model.id];
+    // Get state from persistent service
+    final state = _downloadStateService.getState(model.id);
+    final isDownloaded = state?.isDownloaded ?? false;
+    final isDownloading = state?.isDownloading ?? false;
+    final progress = state?.progress ?? 0.0;
+    final status = state?.statusMessage ?? '';
+    final error = state?.errorMessage;
+    final downloadSizeText = state?.downloadSizeText ?? '';
 
     return Card(
       elevation: 2,
@@ -416,9 +388,26 @@ class _ModelDownloadScreenState extends State<ModelDownloadScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
-                    status,
-                    style: theme.textTheme.bodySmall,
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          status,
+                          style: theme.textTheme.bodySmall,
+                        ),
+                        if (downloadSizeText.isNotEmpty) ...[
+                          const SizedBox(height: 4),
+                          Text(
+                            downloadSizeText,
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: theme.colorScheme.secondary,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
                   ),
                   Text(
                     '${(progress * 100).toStringAsFixed(1)}%',

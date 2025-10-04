@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'bridge.pigeon.dart' as pigeon;
+import '../services/download_state_service.dart';
 
 /// Service to handle model loading progress from native side
 class ModelProgressService implements pigeon.LumaraNativeProgress {
@@ -9,6 +10,7 @@ class ModelProgressService implements pigeon.LumaraNativeProgress {
   ModelProgressService._internal();
 
   final _controller = StreamController<ModelProgressUpdate>.broadcast();
+  final _downloadStateService = DownloadStateService.instance;
 
   /// Stream of progress updates
   Stream<ModelProgressUpdate> get progressStream => _controller.stream;
@@ -37,6 +39,51 @@ class ModelProgressService implements pigeon.LumaraNativeProgress {
 
     debugPrint('[DownloadProgress] $modelId: ${(progress * 100).toStringAsFixed(1)}% - $message');
     _controller.add(update);
+
+    // Parse byte information from message (format: "Downloading: X.X / Y.Y MB")
+    final bytesInfo = _parseDownloadMessage(message);
+
+    // Update persistent download state
+    if (message.contains('Ready to use')) {
+      _downloadStateService.completeDownload(modelId);
+    } else if (message.contains('failed') || message.contains('Error')) {
+      _downloadStateService.failDownload(modelId, message);
+    } else {
+      _downloadStateService.updateProgress(
+        modelId: modelId,
+        progress: progress,
+        statusMessage: message,
+        bytesDownloaded: bytesInfo?['downloaded'],
+        totalBytes: bytesInfo?['total'],
+      );
+    }
+  }
+
+  /// Parse download message to extract byte information
+  /// Message format: "Downloading: 45.3 / 900.0 MB"
+  Map<String, int>? _parseDownloadMessage(String message) {
+    try {
+      final regex = RegExp(r'(\d+\.?\d*)\s*/\s*(\d+\.?\d*)\s*(MB|GB)', caseSensitive: false);
+      final match = regex.firstMatch(message);
+
+      if (match != null) {
+        final downloaded = double.parse(match.group(1)!);
+        final total = double.parse(match.group(2)!);
+        final unit = match.group(3)!.toUpperCase();
+
+        // Convert to bytes
+        final multiplier = unit == 'GB' ? 1073741824 : 1048576; // 1GB or 1MB in bytes
+
+        return {
+          'downloaded': (downloaded * multiplier).toInt(),
+          'total': (total * multiplier).toInt(),
+        };
+      }
+    } catch (e) {
+      debugPrint('Failed to parse download message: $message - $e');
+    }
+
+    return null;
   }
 
   /// Wait for model to finish loading
