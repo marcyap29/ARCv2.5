@@ -307,6 +307,39 @@ extension ModelDownloadService: URLSessionDownloadDelegate {
         // Clean up any remaining macOS metadata folders that might have been extracted
         try cleanupMacOSMetadata(in: destinationURL)
 
+        // Handle case where ZIP contains a single root folder
+        // (e.g., ZIP has "Qwen3-1.7B-MLX-4bit/" but we want files directly in destination)
+        let contents = try FileManager.default.contentsOfDirectory(at: destinationURL, includingPropertiesForKeys: [.isDirectoryKey])
+
+        // Filter out hidden files and get only directories
+        let directories = try contents.filter { url in
+            let resourceValues = try url.resourceValues(forKeys: [.isDirectoryKey])
+            return resourceValues.isDirectory == true && !url.lastPathComponent.hasPrefix(".")
+        }
+
+        // If there's exactly one directory, move its contents up one level
+        if directories.count == 1, let singleDir = directories.first {
+            logger.info("Found single root directory in ZIP: \(singleDir.lastPathComponent), moving contents up...")
+
+            let tempDir = destinationURL.deletingLastPathComponent().appendingPathComponent("_temp_\(UUID().uuidString)")
+
+            // Move the single directory to temp location
+            try FileManager.default.moveItem(at: singleDir, to: tempDir)
+
+            // Move all contents from temp to destination
+            let innerContents = try FileManager.default.contentsOfDirectory(at: tempDir, includingPropertiesForKeys: nil)
+            for item in innerContents {
+                let dest = destinationURL.appendingPathComponent(item.lastPathComponent)
+                try? FileManager.default.removeItem(at: dest) // Remove if exists
+                try FileManager.default.moveItem(at: item, to: dest)
+            }
+
+            // Clean up temp directory
+            try? FileManager.default.removeItem(at: tempDir)
+
+            logger.info("Successfully moved contents from root directory")
+        }
+
         logger.info("Unzip successful")
     }
 
