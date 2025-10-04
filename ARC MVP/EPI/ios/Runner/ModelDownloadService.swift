@@ -14,6 +14,12 @@ class ModelDownloadService: NSObject {
     private var resumeData: [String: Data] = [:]
     private var progressCallbacks: [String: (Double, String) -> Void] = [:]
 
+    // Model directory path
+    private var modelRootURL: URL {
+        let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+        return appSupport.appendingPathComponent("Models", isDirectory: true)
+    }
+
     private override init() {
         super.init()
     }
@@ -35,6 +41,14 @@ class ModelDownloadService: NSObject {
                 NSLocalizedDescriptionKey: "Invalid download URL"
             ])))
             return
+        }
+
+        // Clean up any existing metadata before starting download
+        do {
+            let modelsDirectory = modelRootURL
+            try cleanupMacOSMetadata(in: modelsDirectory)
+        } catch {
+            logger.warning("Failed to clean up existing metadata: \(error.localizedDescription)")
         }
 
         // Store progress callback for this model
@@ -109,22 +123,20 @@ class ModelDownloadService: NSObject {
     /// Check if model is available and usable
     /// Only returns true if model files actually exist on filesystem
     func isModelDownloaded(modelId: String) -> Bool {
-        // Map model IDs to their directory names
-        let modelDirName: String
+        // Validate model ID
         switch modelId {
-        case "qwen3-1.7b-mlx-4bit":
-            modelDirName = "Qwen3-1.7B-MLX-4bit"
-        case "phi-3.5-mini-instruct-4bit":
-            modelDirName = "Phi-3.5-mini-instruct-4bit"
+        case "qwen3-1.7b-mlx-4bit", "phi-3.5-mini-instruct-4bit":
+            break // Valid model ID
         default:
             logger.warning("Unknown model ID: \(modelId)")
             return false
         }
 
-        // Use ModelStore's resolveModelPath to check if model files actually exist
-        // This properly checks both bundle and Application Support
-        let configExists = ModelStore.shared.resolveModelPath(modelId: modelId, file: "config.json") != nil
-        let modelExists = ModelStore.shared.resolveModelPath(modelId: modelId, file: "model.safetensors") != nil
+        // Check if model files actually exist
+        let configPath = modelRootURL.appendingPathComponent(modelId).appendingPathComponent("config.json")
+        let modelPath = modelRootURL.appendingPathComponent(modelId).appendingPathComponent("model.safetensors")
+        let configExists = FileManager.default.fileExists(atPath: configPath.path)
+        let modelExists = FileManager.default.fileExists(atPath: modelPath.path)
 
         let isAvailable = configExists && modelExists
 
@@ -192,7 +204,7 @@ extension ModelDownloadService: URLSessionDownloadDelegate {
             progressCallbacks[modelId]?(0.9, "Unzipping model files...")
 
             // Unzip to Application Support
-            let destDir = ModelStore.shared.modelRootURL
+            let destDir = modelRootURL
             try unzipFile(at: tempZip, to: destDir)
 
             progressCallbacks[modelId]?(1.0, "Download complete!")
@@ -278,6 +290,7 @@ extension ModelDownloadService: URLSessionDownloadDelegate {
             "-q", // Quiet mode
             "-x", "*__MACOSX*", // Exclude macOS metadata folders
             "-x", "*.DS_Store", // Exclude macOS .DS_Store files
+            "-x", "._*", // Exclude macOS resource fork files
             sourceURL.path,
             "-d", destinationURL.path
         ]
@@ -297,6 +310,36 @@ extension ModelDownloadService: URLSessionDownloadDelegate {
         logger.info("Unzip successful")
     }
 
+    /// Clear all models and metadata from the models directory
+    func clearAllModels() throws {
+        let modelsDirectory = modelRootURL
+        let fileManager = FileManager.default
+
+        // Remove all contents of the models directory
+        let contents = try fileManager.contentsOfDirectory(at: modelsDirectory, includingPropertiesForKeys: nil)
+        for item in contents {
+            try fileManager.removeItem(at: item)
+            logger.info("Removed: \(item.lastPathComponent)")
+        }
+
+        logger.info("Cleared all models from directory: \(modelsDirectory.path)")
+    }
+
+    /// Clear a specific model directory and all its metadata
+    func clearModelDirectory(modelId: String) throws {
+        let modelsDirectory = modelRootURL
+        let modelDirectory = modelsDirectory.appendingPathComponent(modelId)
+        let fileManager = FileManager.default
+
+        if fileManager.fileExists(atPath: modelDirectory.path) {
+            try fileManager.removeItem(at: modelDirectory)
+            logger.info("Removed model directory: \(modelId)")
+        }
+
+        // Also clean up any remaining metadata in the parent directory
+        try cleanupMacOSMetadata(in: modelsDirectory)
+    }
+
     /// Clean up macOS metadata folders and files that might cause conflicts
     private func cleanupMacOSMetadata(in directory: URL) throws {
         let fileManager = FileManager.default
@@ -309,12 +352,13 @@ extension ModelDownloadService: URLSessionDownloadDelegate {
             try fileManager.removeItem(at: folder)
             logger.info("Removed macOS metadata folder: \(folder.lastPathComponent)")
         }
-        // Remove .DS_Store files recursively
+        // Remove .DS_Store files and ._ files recursively
         let enumerator = fileManager.enumerator(at: directory, includingPropertiesForKeys: nil)
         while let fileURL = enumerator?.nextObject() as? URL {
-            if fileURL.lastPathComponent == ".DS_Store" {
+            let fileName = fileURL.lastPathComponent
+            if fileName == ".DS_Store" || fileName.hasPrefix("._") {
                 try fileManager.removeItem(at: fileURL)
-                logger.info("Removed .DS_Store file: \(fileURL.path)")
+                logger.info("Removed macOS metadata file: \(fileName)")
             }
         }
     }

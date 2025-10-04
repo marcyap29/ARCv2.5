@@ -945,26 +945,18 @@ class ModelDownloadService: NSObject {
     func deleteModel(modelId: String) throws {
         logger.info("deleteModel called for: \(modelId)")
 
-        // Map model ID to directory name
-        let modelDir: String
-        switch modelId {
-        case "qwen3-1.7b-mlx-4bit":
-            modelDir = "Qwen3-1.7B-MLX-4bit"
-        case "phi-3.5-mini-instruct-4bit":
-            modelDir = "Phi-3.5-mini-instruct-4bit"
-        default:
-            modelDir = modelId
-        }
-
-        let modelPath = ModelStore.shared.modelRootURL.appendingPathComponent(modelDir)
-
-        guard FileManager.default.fileExists(atPath: modelPath.path) else {
-            logger.warning("Model directory not found: \(modelPath.path)")
-            return // Not an error - already deleted
-        }
-
-        try FileManager.default.removeItem(at: modelPath)
-        logger.info("Successfully deleted model at: \(modelPath.path)")
+        // Use ModelDownloadService to clear the model directory and all metadata
+        try ModelDownloadService.shared.clearModelDirectory(modelId: modelId)
+        logger.info("Successfully deleted model and cleaned metadata for: \(modelId)")
+    }
+    
+    /// Clear all models and metadata
+    func clearAllModels() throws {
+        logger.info("clearAllModels called")
+        
+        // Use ModelDownloadService to clear all models and metadata
+        try ModelDownloadService.shared.clearAllModels()
+        logger.info("Successfully cleared all models and metadata")
     }
 }
 
