@@ -2,14 +2,19 @@
 
 ## [Unreleased]
 
-### 🔧 **MODEL DOWNLOAD EXTRACTION FIX** - October 4, 2025
+### 🔧 **ENHANCED MODEL DOWNLOAD EXTRACTION FIX** - October 4, 2025
 
-#### **Fixed _MACOSX Folder Conflict** ✅ **COMPLETE**
+#### **Enhanced _MACOSX Folder Conflict Resolution** ✅ **COMPLETE**
 - **Issue**: Model download failing with "_MACOSX" folder conflict error during ZIP extraction
-- **Root Cause**: macOS ZIP files contain hidden `_MACOSX` metadata folders that cause file conflicts during extraction
-- **Solution**: Enhanced unzip command to exclude `_MACOSX` folders and `.DS_Store` files, added cleanup method
-- **Files Modified**: `ios/Runner/ModelDownloadService.swift`
-- **Result**: Model downloads now complete successfully without macOS metadata conflicts
+- **Root Cause**: macOS ZIP files contain hidden `_MACOSX` metadata folders and `._*` resource fork files that cause file conflicts during extraction
+- **Enhanced Solution**: 
+  - Improved unzip command to exclude `*__MACOSX*`, `*.DS_Store`, and `._*` files
+  - Enhanced `cleanupMacOSMetadata()` to remove `._*` files recursively
+  - Added `clearAllModels()` and `clearModelDirectory()` methods for comprehensive cleanup
+  - Added proactive metadata cleanup before starting downloads
+  - Updated `deleteModel()` to use enhanced cleanup when models are deleted in-app
+- **Files Modified**: `ios/Runner/ModelDownloadService.swift`, `ios/Runner/LLMBridge.swift`
+- **Result**: Model downloads now complete successfully without any macOS metadata conflicts, with automatic cleanup when models are deleted
 
 ### 🚀 **PROVIDER SELECTION AND SPLASH SCREEN FIXES** - October 4, 2025
 

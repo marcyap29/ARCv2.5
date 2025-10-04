@@ -2,8 +2,8 @@
 
 ## Active Issues
 
-### Model Download _MACOSX Folder Conflict - RESOLVED ✅ - October 4, 2025
-**Status:** ✅ **RESOLVED**
+### Enhanced Model Download _MACOSX Folder Conflict - RESOLVED ✅ - October 4, 2025
+**Status:** ✅ **ENHANCED & RESOLVED**
 **Priority:** High
 **Component:** Model Download System
 
@@ -14,25 +14,33 @@ Model download failing with "_MACOSX" folder conflict error during ZIP extractio
 - Error message: "The file ".\_Qwen3-1.7B-MLX-4bit" couldn't be saved in the folder "\_\_MACOSX" because a file with the same name already exists."
 - Model download progress stops at extraction phase
 - Users unable to complete model download and activation
+- Additional conflicts with `._*` resource fork files
 
 **Root Cause:**
 - **macOS Metadata Interference**: ZIP files created on macOS contain hidden `_MACOSX` metadata folders
+- **Resource Fork Files**: Additional `._*` files created by macOS cause extraction conflicts
 - **File Conflict During Extraction**: Unzip command attempts to extract files to `_MACOSX` folders that already exist
 - **No Exclusion Logic**: Original unzip command didn't exclude macOS metadata files
+- **Incomplete Cleanup**: Existing metadata not properly removed when models deleted in-app
 
-**Solution:**
-- **Enhanced Unzip Command**: Added exclusion flags `-x "*__MACOSX*"` and `-x "*.DS_Store"` to skip problematic files
-- **Added Cleanup Method**: Created `cleanupMacOSMetadata()` to remove any remaining macOS metadata
-- **Comprehensive Cleanup**: Recursively removes `__MACOSX` folders and `.DS_Store` files after extraction
-- **Improved Logging**: Added detailed logging for cleanup operations
+**Enhanced Solution:**
+- **Comprehensive Unzip Command**: Added exclusion flags `-x "*__MACOSX*"`, `-x "*.DS_Store"`, and `-x "._*"` to skip all problematic files
+- **Enhanced Cleanup Method**: Improved `cleanupMacOSMetadata()` to remove `._*` files recursively
+- **Proactive Cleanup**: Added metadata cleanup before starting downloads to prevent conflicts
+- **Model Management**: Added `clearAllModels()` and `clearModelDirectory()` methods for comprehensive cleanup
+- **In-App Deletion**: Updated `deleteModel()` to use enhanced cleanup when models are deleted in-app
+- **Comprehensive Logging**: Added detailed logging for all cleanup operations
 
 **Files Modified:**
-- `ios/Runner/ModelDownloadService.swift` - Enhanced unzip logic and added cleanup method
+- `ios/Runner/ModelDownloadService.swift` - Enhanced unzip logic, cleanup methods, and proactive cleanup
+- `ios/Runner/LLMBridge.swift` - Updated deleteModel to use enhanced cleanup
 
 **Result:**
-- Model downloads complete successfully without macOS metadata conflicts
-- Clean extraction process with automatic cleanup of problematic files
+- Model downloads complete successfully without any macOS metadata conflicts
+- Clean extraction process with automatic cleanup of all problematic files
 - Reliable model installation on macOS systems
+- Automatic cleanup when models are deleted through the app interface
+- Prevention of future conflicts through proactive metadata removal
 
 ### Provider Selection and Splash Screen Issues - RESOLVED ✅ - October 4, 2025
 **Status:** ✅ **RESOLVED**

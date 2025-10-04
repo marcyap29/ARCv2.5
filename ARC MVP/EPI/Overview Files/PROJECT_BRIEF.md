@@ -5,22 +5,25 @@ ARC is the **core journaling module of EPI (Evolving Personal Intelligence)**, b
 
 This MVP now implements **modular architecture** with RIVET (safety validation) and ECHO (expressive response layer) modules migrated to their proper locations, providing a foundation for the complete 8-module system: ARC→PRISM→ECHO→ATLAS→MIRA→AURORA→VEIL→RIVET.
 
-## 🌟 **LATEST ENHANCEMENT: Model Download Extraction Fix** (2025-10-04) ✅
+## 🌟 **LATEST ENHANCEMENT: Enhanced Model Download Extraction Fix** (2025-10-04) ✅
 
-**🎯 Major Achievement**: Resolved critical `_MACOSX` folder conflict error that was preventing successful model downloads and extraction.
+**🎯 Major Achievement**: Enhanced and resolved critical `_MACOSX` folder conflict error with comprehensive cleanup system for model downloads and extraction.
 
-**✨ Model Download Extraction Fix**:
+**✨ Enhanced Model Download Extraction Fix**:
 - **Issue Resolved**: Fixed "_MACOSX" folder conflict error during ZIP extraction
-- **Root Cause Fixed**: macOS ZIP files contain hidden `_MACOSX` metadata folders that cause file conflicts
-- **Solution Implemented**: Enhanced unzip command with exclusion flags and automatic cleanup method
-- **User Experience**: Model downloads now complete successfully without macOS metadata interference
-- **Reliability**: Robust extraction process with comprehensive error handling
-- **Compatibility**: Full macOS compatibility for model download and installation
+- **Root Cause Fixed**: macOS ZIP files contain hidden `_MACOSX` metadata folders and `._*` resource fork files that cause file conflicts
+- **Enhanced Solution Implemented**: Comprehensive unzip command with exclusion flags, proactive cleanup, and automatic cleanup methods
+- **User Experience**: Model downloads now complete successfully without any macOS metadata interference
+- **Reliability**: Robust extraction process with comprehensive error handling and conflict prevention
+- **Compatibility**: Full macOS compatibility for model download and installation with automatic cleanup
 
-**✨ Enhanced Download System**:
-- **macOS Metadata Exclusion**: Automatically excludes `_MACOSX` folders and `.DS_Store` files during extraction
+**✨ Enhanced Download & Cleanup System**:
+- **Comprehensive macOS Metadata Exclusion**: Automatically excludes `_MACOSX` folders, `.DS_Store` files, and `._*` resource fork files during extraction
+- **Proactive Cleanup**: Removes existing metadata before starting downloads to prevent conflicts
 - **Conflict Prevention**: Prevents "file already exists" errors that block model installation
 - **Automatic Cleanup**: Removes any remaining macOS metadata after extraction
+- **Model Management**: `clearAllModels()` and `clearModelDirectory()` methods for comprehensive cleanup
+- **In-App Deletion**: Enhanced cleanup when models are deleted through the app interface
 - **Progress Tracking**: Real-time download progress with detailed status messages
 - **Multi-Model Support**: Concurrent downloads for multiple models without conflicts
 

@@ -66,19 +66,28 @@
   - Native unzip command with exclusion flags for macOS compatibility
 
   **Download & Extraction Features**:
-  - **macOS Metadata Exclusion**: Automatically excludes `_MACOSX` folders and `.DS_Store` files during extraction
+  - **Comprehensive macOS Metadata Exclusion**: Automatically excludes `_MACOSX` folders, `.DS_Store` files, and `._*` resource fork files during extraction
   - **Conflict Prevention**: Prevents file conflicts that cause "file already exists" errors
+  - **Proactive Cleanup**: Removes existing metadata before starting downloads to prevent conflicts
   - **Automatic Cleanup**: Removes any remaining macOS metadata after extraction
+  - **Model Management**: `clearAllModels()` and `clearModelDirectory()` methods for comprehensive cleanup
+  - **In-App Deletion**: Enhanced cleanup when models are deleted through the app interface
   - **Progress Tracking**: Real-time download progress with detailed status messages
   - **Error Handling**: Comprehensive error handling with user-friendly messages
   - **Multi-Model Support**: Concurrent downloads for multiple models
 
-  **Extraction Process**:
-  1. **Download**: Model ZIP file downloaded to temporary location
-  2. **Extract**: Enhanced unzip command excludes problematic macOS metadata
-  3. **Cleanup**: Automatic removal of any remaining `__MACOSX` folders and `.DS_Store` files
-  4. **Verify**: Model files verified for completeness and integrity
-  5. **Register**: Model registered in ModelStore for LUMARA usage
+  **Enhanced Extraction Process**:
+  1. **Pre-Cleanup**: Remove any existing metadata before starting download
+  2. **Download**: Model ZIP file downloaded to temporary location
+  3. **Extract**: Enhanced unzip command excludes all problematic macOS metadata (`*__MACOSX*`, `*.DS_Store`, `._*`)
+  4. **Post-Cleanup**: Automatic removal of any remaining metadata files
+  5. **Verify**: Model files verified for completeness and integrity
+  6. **Register**: Model registered in ModelStore for LUMARA usage
+
+  **Cleanup Methods**:
+  - `cleanupMacOSMetadata()`: Recursively removes `__MACOSX` folders, `.DS_Store`, and `._*` files
+  - `clearAllModels()`: Clears entire models directory and all metadata
+  - `clearModelDirectory(modelId)`: Clears specific model directory with metadata cleanup
 
   ## 🎛️ **Provider Selection Architecture** (Updated Oct 4, 2025)
 

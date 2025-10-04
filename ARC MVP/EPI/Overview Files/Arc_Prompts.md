@@ -6,18 +6,21 @@ Complete listing of all prompts used in the ARC MVP system, centralized in `lib/
 
 **On-Device LLM Integration (2025-10-02)**: Complete Pigeon bridge implementation with MLX Swift packages, safetensors parser, and Qwen3-1.7B model support for privacy-first on-device inference.
 
-## 🎉 **CURRENT STATUS: MODEL DOWNLOAD EXTRACTION FIX** ✅
+## 🎉 **CURRENT STATUS: ENHANCED MODEL DOWNLOAD EXTRACTION FIX** ✅
 
 **Date:** October 4, 2025
-**Status:** **MODEL DOWNLOAD EXTRACTION FIXED** - Resolved _MACOSX folder conflict, enhanced macOS compatibility
+**Status:** **ENHANCED MODEL DOWNLOAD EXTRACTION FIXED** - Resolved _MACOSX folder conflict with comprehensive cleanup system
 
 ### **Latest Achievements:**
-- ✅ **Model Download Extraction Fixed**: Resolved "_MACOSX" folder conflict error during ZIP extraction
-- ✅ **macOS Compatibility Enhanced**: Added exclusion flags and cleanup for macOS metadata files
-- ✅ **Download Reliability Improved**: Model downloads now complete successfully without file conflicts
-- ✅ **Automatic Cleanup**: Removes `_MACOSX` folders and `.DS_Store` files automatically
+- ✅ **Enhanced Model Download Extraction Fixed**: Resolved "_MACOSX" folder conflict error during ZIP extraction with comprehensive cleanup system
+- ✅ **Comprehensive macOS Compatibility Enhanced**: Added exclusion flags and cleanup for all macOS metadata files (`_MACOSX`, `.DS_Store`, `._*`)
+- ✅ **Download Reliability Improved**: Model downloads now complete successfully without any file conflicts
+- ✅ **Proactive Cleanup**: Removes existing metadata before downloads to prevent conflicts
+- ✅ **Automatic Cleanup**: Removes `_MACOSX` folders, `.DS_Store` files, and `._*` resource fork files automatically
+- ✅ **Model Management**: Added `clearAllModels()` and `clearModelDirectory()` methods for comprehensive cleanup
+- ✅ **In-App Deletion**: Enhanced cleanup when models are deleted through the app interface
 - ✅ **Error Prevention**: Prevents "file already exists" errors that block model installation
-- ✅ **Enhanced Unzip Command**: Added exclusion flags `-x "*__MACOSX*"` and `-x "*.DS_Store"`
+- ✅ **Enhanced Unzip Command**: Added exclusion flags `-x "*__MACOSX*"`, `-x "*.DS_Store"`, and `-x "._*"`
 
 ## 🎉 **PREVIOUS STATUS: PROVIDER SELECTION AND SPLASH SCREEN FIXES** ✅
 

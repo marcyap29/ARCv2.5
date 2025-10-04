@@ -27,10 +27,13 @@ flutter run -d DEVICE_ID --dart-define=GEMINI_API_KEY=YOUR_KEY
 flutter run -d DEVICE_ID
 ```
 
-### **Model Download Features** ✅ **NEW**
-- **macOS Compatibility**: Enhanced model download system with automatic `_MACOSX` folder exclusion
+### **Enhanced Model Download Features** ✅ **NEW**
+- **Comprehensive macOS Compatibility**: Enhanced model download system with automatic exclusion of all macOS metadata files (`_MACOSX`, `.DS_Store`, `._*`)
+- **Proactive Cleanup**: Removes existing metadata before downloads to prevent conflicts
 - **Conflict Prevention**: Prevents file conflicts that cause "file already exists" errors
-- **Automatic Cleanup**: Removes macOS metadata files (`_MACOSX`, `.DS_Store`) automatically
+- **Automatic Cleanup**: Removes all macOS metadata files (`_MACOSX`, `.DS_Store`, `._*`) automatically
+- **Model Management**: `clearAllModels()` and `clearModelDirectory()` methods for comprehensive cleanup
+- **In-App Deletion**: Enhanced cleanup when models are deleted through the app interface
 - **Reliable Extraction**: Robust ZIP extraction process with comprehensive error handling
 - **Progress Tracking**: Real-time download progress with detailed status messages
 
