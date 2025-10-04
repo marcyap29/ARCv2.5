@@ -11,8 +11,8 @@ enum LLMProvider {
   gemini,
   openai,
   anthropic,
-  phi,        // Internal Phi model
   qwen,       // Internal Qwen model
+  phi,        // Internal Phi model
   ruleBased,  // Fallback rule-based responses
 }
 

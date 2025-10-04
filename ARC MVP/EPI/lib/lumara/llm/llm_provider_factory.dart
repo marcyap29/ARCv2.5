@@ -27,10 +27,10 @@ class LLMProviderFactory {
           return OpenAIProvider(_apiConfig);
         case LLMProviderType.anthropic:
           return AnthropicProvider(_apiConfig);
-        case LLMProviderType.phi:
-          return LlamaProvider(_apiConfig); // TODO: Rename to PhiProvider
         case LLMProviderType.qwen:
           return QwenProvider(_apiConfig);
+        case LLMProviderType.phi:
+          return LlamaProvider(_apiConfig); // TODO: Rename to PhiProvider
         case LLMProviderType.ruleBased:
           return RuleBasedProvider(_apiConfig);
       }
@@ -71,8 +71,8 @@ class LLMProviderFactory {
       LLMProvider.gemini => LLMProviderType.gemini,
       LLMProvider.openai => LLMProviderType.openai,
       LLMProvider.anthropic => LLMProviderType.anthropic,
-      LLMProvider.phi => LLMProviderType.phi,
       LLMProvider.qwen => LLMProviderType.qwen,
+      LLMProvider.phi => LLMProviderType.phi,
       LLMProvider.ruleBased => LLMProviderType.ruleBased,
     };
   }
@@ -83,7 +83,7 @@ enum LLMProviderType {
   gemini,
   openai,
   anthropic,
-  phi,
   qwen,
+  phi,
   ruleBased,
 }
