@@ -20,10 +20,15 @@ class LumaraOnboardingScreen extends StatelessWidget {
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () {
+            debugPrint('LUMARA Onboarding: Back button pressed');
+            debugPrint('LUMARA Onboarding: Can pop? ${Navigator.of(context).canPop()}');
+
             // Check if we can pop, otherwise go to root
             if (Navigator.of(context).canPop()) {
+              debugPrint('LUMARA Onboarding: Popping current route');
               Navigator.pop(context);
             } else {
+              debugPrint('LUMARA Onboarding: Popping until first route');
               Navigator.of(context).popUntil((route) => route.isFirst);
             }
           },
@@ -33,6 +38,9 @@ class LumaraOnboardingScreen extends StatelessWidget {
           IconButton(
             icon: const Icon(Icons.home),
             onPressed: () {
+              debugPrint('LUMARA Onboarding: Home button pressed');
+              debugPrint('LUMARA Onboarding: Popping all routes to home');
+
               // Navigate to home by popping all routes until the first route
               Navigator.of(context).popUntil((route) => route.isFirst);
             },

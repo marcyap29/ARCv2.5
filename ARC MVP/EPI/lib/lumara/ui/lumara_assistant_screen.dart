@@ -41,8 +41,9 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
     if (bestProvider == null || bestProvider.provider == LLMProvider.ruleBased) {
       // No real AI provider configured - show onboarding
       if (mounted) {
+        debugPrint('LUMARA Assistant: No provider configured, navigating to onboarding');
         WidgetsBinding.instance.addPostFrameCallback((_) {
-          Navigator.of(context).pushReplacement(
+          Navigator.of(context, rootNavigator: true).push(
             MaterialPageRoute(
               builder: (context) => const LumaraOnboardingScreen(),
             ),
@@ -51,6 +52,7 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
       }
     } else {
       // AI provider is configured - initialize normally
+      debugPrint('LUMARA Assistant: Provider configured, initializing');
       final cubit = context.read<LumaraAssistantCubit>();
       if (cubit.state is! LumaraAssistantLoaded) {
         cubit.initializeLumara();
