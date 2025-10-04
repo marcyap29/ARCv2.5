@@ -4,8 +4,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:my_app/lumara/data/context_scope.dart';
 import 'package:my_app/lumara/data/context_provider.dart';
 import 'package:my_app/lumara/data/models/lumara_message.dart';
-import 'package:my_app/lumara/llm/rule_based_adapter.dart';
 import 'package:my_app/lumara/llm/llm_adapter.dart';
+import 'package:my_app/lumara/llm/rule_based_adapter.dart'; // For InsightKind enum
 import 'package:my_app/services/gemini_send.dart';
 import 'package:my_app/services/llm_bridge_adapter.dart';
 import '../services/enhanced_lumara_api.dart';
@@ -61,7 +61,6 @@ class LumaraAssistantError extends LumaraAssistantState {
 /// LUMARA Assistant Cubit
 class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
   final ContextProvider _contextProvider;
-  final RuleBasedAdapter _fallbackAdapter;
   final LLMAdapter _llmAdapter;
   late final ArcLLM _arcLLM;
   late final EnhancedLumaraApi _enhancedApi;
@@ -84,7 +83,6 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
   LumaraAssistantCubit({
     required ContextProvider contextProvider,
   }) : _contextProvider = contextProvider,
-       _fallbackAdapter = const RuleBasedAdapter(),
        _llmAdapter = LLMAdapter(),
        _chatRepo = ChatRepoImpl.instance,
        super(LumaraAssistantInitial()) {
@@ -119,9 +117,7 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
       final sessionId = await _getOrCreateSession();
 
       // Add welcome message and record it in memory
-      final welcomeContent = hasApiKey
-        ? "Hello! I'm LUMARA, your personal assistant. I can help you understand your patterns, explain your current phase, and provide insights about your journey. What would you like to know?"
-        : "Hello! I'm LUMARA, your personal assistant. I'm currently running in basic mode with rule-based responses. To enable full AI-powered responses, please configure your Gemini API key using the key icon in the top bar. What would you like to know?";
+      final welcomeContent = "Hello! I'm LUMARA, your personal assistant. I can help you understand your patterns, explain your current phase, and provide insights about your journey. What would you like to know?";
 
       final List<LumaraMessage> messages = [
         LumaraMessage.assistant(content: welcomeContent),
@@ -519,34 +515,14 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
       }
     } catch (cloudApiError) {
       print('LUMARA Debug: [Cloud API] Failed: $cloudApiError');
-      print('LUMARA Debug: [Priority 3] Final fallback to Rule-Based...');
     }
 
-    // PRIORITY 3: Rule-Based fallback (last resort)
-    try {
-      print('LUMARA Debug: [Rule-Based] Using fallback adapter for query: "$text"');
-      final response = await _fallbackAdapter.generateResponse(
-        task: task,
-        userQuery: text,
-        context: context,
-      );
-
-      print('LUMARA Debug: [Rule-Based] SUCCESS - Response length: ${response.length}');
-      print('LUMARA Debug: [Rule-Based] No attribution data available for rule-based responses');
-
-      return {
-        'content': response,
-        'attributionTraces': <AttributionTrace>[],
-      };
-    } catch (ruleBasedError) {
-      print('LUMARA Debug: [Rule-Based] Failed: $ruleBasedError');
-
-      // Absolute final fallback - return error message
-      return {
-        'content': 'I apologize, but I\'m currently unable to generate a response. Please try again in a moment.',
-        'attributionTraces': <AttributionTrace>[],
-      };
-    }
+    // No providers available - return error message
+    print('LUMARA Debug: All providers failed. No inference available.');
+    return {
+      'content': 'I apologize, but I\'m currently unable to generate a response. Please configure an AI provider in settings to enable responses.',
+      'attributionTraces': <AttributionTrace>[],
+    };
   }
 
   /// Map InsightKind to string for on-device model

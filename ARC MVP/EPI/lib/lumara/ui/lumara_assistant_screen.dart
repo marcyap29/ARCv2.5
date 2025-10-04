@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:gap/gap.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../bloc/lumara_assistant_cubit.dart';
 import '../data/models/lumara_message.dart';
 import '../chat/ui/chats_screen.dart';
@@ -38,10 +39,31 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
 
     final bestProvider = apiConfig.getBestProvider();
 
-    if (bestProvider == null || bestProvider.provider == LLMProvider.ruleBased) {
-      // No real AI provider configured - show onboarding
+    // Check if onboarding has been completed
+    final prefs = await SharedPreferences.getInstance();
+    final onboardingCompleted = prefs.getBool('lumara_onboarding_completed') ?? false;
+
+    // Show onboarding ONLY if:
+    // 1. First time user (onboarding not completed) OR
+    // 2. No inference available at all (no models AND no API keys)
+    final showOnboarding = !onboardingCompleted || bestProvider == null;
+
+    if (showOnboarding && bestProvider == null) {
+      // No inference available - show onboarding
       if (mounted) {
-        debugPrint('LUMARA Assistant: No provider configured, navigating to onboarding');
+        debugPrint('LUMARA Assistant: No providers available, navigating to onboarding');
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          Navigator.of(context, rootNavigator: true).push(
+            MaterialPageRoute(
+              builder: (context) => const LumaraOnboardingScreen(),
+            ),
+          );
+        });
+      }
+    } else if (!onboardingCompleted) {
+      // First time user but has some provider - show onboarding anyway
+      if (mounted) {
+        debugPrint('LUMARA Assistant: First time user, navigating to onboarding');
         WidgetsBinding.instance.addPostFrameCallback((_) {
           Navigator.of(context, rootNavigator: true).push(
             MaterialPageRoute(
@@ -51,7 +73,7 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
         });
       }
     } else {
-      // AI provider is configured - initialize normally
+      // Has provider and onboarding completed - initialize normally
       debugPrint('LUMARA Assistant: Provider configured, initializing');
       final cubit = context.read<LumaraAssistantCubit>();
       if (cubit.state is! LumaraAssistantLoaded) {

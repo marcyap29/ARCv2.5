@@ -9,7 +9,6 @@ import 'providers/openai_provider.dart';
 import 'providers/anthropic_provider.dart';
 import 'providers/llama_provider.dart';
 import 'providers/qwen_provider.dart';
-import 'providers/rule_based_provider.dart';
 
 /// Factory for creating LLM providers
 class LLMProviderFactory {
@@ -31,8 +30,6 @@ class LLMProviderFactory {
           return QwenProvider(_apiConfig);
         case LLMProviderType.phi:
           return LlamaProvider(_apiConfig); // TODO: Rename to PhiProvider
-        case LLMProviderType.ruleBased:
-          return RuleBasedProvider(_apiConfig);
       }
     } catch (e) {
       debugPrint('LLMProviderFactory: Failed to create provider $type: $e');
@@ -73,7 +70,6 @@ class LLMProviderFactory {
       LLMProvider.anthropic => LLMProviderType.anthropic,
       LLMProvider.qwen => LLMProviderType.qwen,
       LLMProvider.phi => LLMProviderType.phi,
-      LLMProvider.ruleBased => LLMProviderType.ruleBased,
     };
   }
 }
@@ -85,5 +81,4 @@ enum LLMProviderType {
   anthropic,
   qwen,
   phi,
-  ruleBased,
 }

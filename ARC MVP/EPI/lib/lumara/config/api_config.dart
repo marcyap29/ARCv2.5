@@ -13,7 +13,6 @@ enum LLMProvider {
   anthropic,
   qwen,       // Internal Qwen model
   phi,        // Internal Phi model
-  ruleBased,  // Fallback rule-based responses
 }
 
 /// API configuration for different providers
@@ -89,7 +88,7 @@ class LumaraAPIConfig {
     
     // Check all internal models
     for (final config in _configs.values) {
-      if (config.isInternal && config.provider != LLMProvider.ruleBased) {
+      if (config.isInternal) {
         try {
           final isAvailable = await _checkInternalModelAvailability(config);
           debugPrint('LUMARA API: Startup check - ${config.name}: ${isAvailable ? 'Available' : 'Not available'}');
@@ -161,14 +160,6 @@ class LumaraAPIConfig {
       isInternal: true,
     );
 
-    // Rule-based fallback
-    _configs[LLMProvider.ruleBased] = LLMProviderConfig(
-      provider: LLMProvider.ruleBased,
-      name: 'Rule-Based Responses',
-      isInternal: true,
-      isAvailable: true, // Always available
-    );
-
     // Load saved API keys from SharedPreferences (overrides environment)
     if (_prefs != null) {
       final savedConfigsJson = _prefs!.getString(_prefsKey);
@@ -238,11 +229,6 @@ class LumaraAPIConfig {
   /// Check if internal model is available
   Future<bool> _checkInternalModelAvailability(LLMProviderConfig config) async {
     try {
-      // For rule-based, always available
-      if (config.provider == LLMProvider.ruleBased) {
-        return true;
-      }
-
       // For Qwen and Phi, check if model is downloaded via native bridge
       if (config.provider == LLMProvider.qwen) {
         try {
@@ -305,14 +291,14 @@ class LumaraAPIConfig {
       _prefs?.remove('manual_provider');
     }
 
-    // Preference order: Internal models first, then external APIs, then rule-based
-    final internal = available.where((c) => c.isInternal && c.provider != LLMProvider.ruleBased).toList();
+    // Preference order: Internal models first, then external APIs
+    final internal = available.where((c) => c.isInternal).toList();
     if (internal.isNotEmpty) return internal.first;
 
     final external = available.where((c) => !c.isInternal).toList();
     if (external.isNotEmpty) return external.first;
 
-    return available.first; // Fallback to rule-based
+    return null; // No providers available
   }
 
   /// Save configurations to persistent storage

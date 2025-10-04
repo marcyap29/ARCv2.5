@@ -2,6 +2,7 @@
 // LUMARA onboarding screen for first-time setup
 
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'lumara_settings_screen.dart';
 
 /// LUMARA onboarding screen shown when no AI provider is configured
@@ -238,9 +239,10 @@ class LumaraOnboardingScreen extends StatelessWidget {
       ),
     );
 
-    // If settings were saved and configuration is complete, go back to LUMARA
-    // The assistant screen will check configuration and show main UI if ready
+    // If settings were saved and configuration is complete, mark onboarding as completed
     if (context.mounted && result == true) {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('lumara_onboarding_completed', true);
       Navigator.pop(context);
     }
   }

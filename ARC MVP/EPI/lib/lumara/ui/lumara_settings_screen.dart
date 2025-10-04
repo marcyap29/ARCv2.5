@@ -209,7 +209,7 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
     final allProviders = _apiConfig.getAllProviders();
 
     // Separate internal and external providers
-    final internalProviders = allProviders.where((p) => p.isInternal && p.provider != LLMProvider.ruleBased).toList();
+    final internalProviders = allProviders.where((p) => p.isInternal).toList();
     final externalProviders = allProviders.where((p) => !p.isInternal).toList();
     
     return Card(
@@ -660,7 +660,7 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
 
   Widget _buildApiKeysCard(ThemeData theme) {
     final externalProviders = LLMProvider.values
-        .where((p) => p != LLMProvider.ruleBased && p != LLMProvider.phi && p != LLMProvider.qwen)
+        .where((p) => p != LLMProvider.phi && p != LLMProvider.qwen)
         .toList();
     
     return Card(
@@ -819,7 +819,7 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
     // Reinitialize to check if any provider is now available
     await _apiConfig.initialize();
     final bestProvider = _apiConfig.getBestProvider();
-    final isConfigured = bestProvider != null && bestProvider.provider != LLMProvider.ruleBased;
+    final isConfigured = bestProvider != null;
 
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
