@@ -2,6 +2,38 @@
 
 ## Active Issues
 
+### Model Download _MACOSX Folder Conflict - RESOLVED ✅ - October 4, 2025
+**Status:** ✅ **RESOLVED**
+**Priority:** High
+**Component:** Model Download System
+
+**Issue:**
+Model download failing with "_MACOSX" folder conflict error during ZIP extraction, preventing successful model installation.
+
+**Error Symptoms:**
+- Error message: "The file ".\_Qwen3-1.7B-MLX-4bit" couldn't be saved in the folder "\_\_MACOSX" because a file with the same name already exists."
+- Model download progress stops at extraction phase
+- Users unable to complete model download and activation
+
+**Root Cause:**
+- **macOS Metadata Interference**: ZIP files created on macOS contain hidden `_MACOSX` metadata folders
+- **File Conflict During Extraction**: Unzip command attempts to extract files to `_MACOSX` folders that already exist
+- **No Exclusion Logic**: Original unzip command didn't exclude macOS metadata files
+
+**Solution:**
+- **Enhanced Unzip Command**: Added exclusion flags `-x "*__MACOSX*"` and `-x "*.DS_Store"` to skip problematic files
+- **Added Cleanup Method**: Created `cleanupMacOSMetadata()` to remove any remaining macOS metadata
+- **Comprehensive Cleanup**: Recursively removes `__MACOSX` folders and `.DS_Store` files after extraction
+- **Improved Logging**: Added detailed logging for cleanup operations
+
+**Files Modified:**
+- `ios/Runner/ModelDownloadService.swift` - Enhanced unzip logic and added cleanup method
+
+**Result:**
+- Model downloads complete successfully without macOS metadata conflicts
+- Clean extraction process with automatic cleanup of problematic files
+- Reliable model installation on macOS systems
+
 ### Provider Selection and Splash Screen Issues - RESOLVED ✅ - October 4, 2025
 **Status:** ✅ **RESOLVED**
 **Priority:** High

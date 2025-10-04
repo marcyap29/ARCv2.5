@@ -51,6 +51,35 @@
   - **Model Verification**: File integrity checks before loading
   - **Progress Transparency**: User can see model loading progress in UI
 
+  ## 📦 **Model Download & Extraction Architecture** (Updated Oct 4, 2025)
+
+  **Robust Model Download System with macOS Compatibility**:
+  ```
+  ModelDownloadService → URLSession → ZIP Download → Enhanced Unzip → Cleanup → ModelStore
+                        ↓              ↓              ↓              ↓
+                    Progress API   Temp Storage   Exclude _MACOSX   Remove Metadata
+  ```
+
+  **Key Components**:
+  - `ios/Runner/ModelDownloadService.swift` - Enhanced download service with macOS metadata handling
+  - `ios/Runner/ModelStore.swift` - Model registry and path resolution
+  - Native unzip command with exclusion flags for macOS compatibility
+
+  **Download & Extraction Features**:
+  - **macOS Metadata Exclusion**: Automatically excludes `_MACOSX` folders and `.DS_Store` files during extraction
+  - **Conflict Prevention**: Prevents file conflicts that cause "file already exists" errors
+  - **Automatic Cleanup**: Removes any remaining macOS metadata after extraction
+  - **Progress Tracking**: Real-time download progress with detailed status messages
+  - **Error Handling**: Comprehensive error handling with user-friendly messages
+  - **Multi-Model Support**: Concurrent downloads for multiple models
+
+  **Extraction Process**:
+  1. **Download**: Model ZIP file downloaded to temporary location
+  2. **Extract**: Enhanced unzip command excludes problematic macOS metadata
+  3. **Cleanup**: Automatic removal of any remaining `__MACOSX` folders and `.DS_Store` files
+  4. **Verify**: Model files verified for completeness and integrity
+  5. **Register**: Model registered in ModelStore for LUMARA usage
+
   ## 🎛️ **Provider Selection Architecture** (Updated Oct 4, 2025)
 
   **Unified Provider Detection & Selection System**:

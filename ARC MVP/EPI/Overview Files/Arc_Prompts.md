@@ -6,7 +6,20 @@ Complete listing of all prompts used in the ARC MVP system, centralized in `lib/
 
 **On-Device LLM Integration (2025-10-02)**: Complete Pigeon bridge implementation with MLX Swift packages, safetensors parser, and Qwen3-1.7B model support for privacy-first on-device inference.
 
-## 🎉 **CURRENT STATUS: PROVIDER SELECTION AND SPLASH SCREEN FIXES** ✅
+## 🎉 **CURRENT STATUS: MODEL DOWNLOAD EXTRACTION FIX** ✅
+
+**Date:** October 4, 2025
+**Status:** **MODEL DOWNLOAD EXTRACTION FIXED** - Resolved _MACOSX folder conflict, enhanced macOS compatibility
+
+### **Latest Achievements:**
+- ✅ **Model Download Extraction Fixed**: Resolved "_MACOSX" folder conflict error during ZIP extraction
+- ✅ **macOS Compatibility Enhanced**: Added exclusion flags and cleanup for macOS metadata files
+- ✅ **Download Reliability Improved**: Model downloads now complete successfully without file conflicts
+- ✅ **Automatic Cleanup**: Removes `_MACOSX` folders and `.DS_Store` files automatically
+- ✅ **Error Prevention**: Prevents "file already exists" errors that block model installation
+- ✅ **Enhanced Unzip Command**: Added exclusion flags `-x "*__MACOSX*"` and `-x "*.DS_Store"`
+
+## 🎉 **PREVIOUS STATUS: PROVIDER SELECTION AND SPLASH SCREEN FIXES** ✅
 
 **Date:** October 4, 2025
 **Status:** **PROVIDER SELECTION UI COMPLETE** - Manual provider selection, splash screen logic fixed, unified model detection

@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+### 🔧 **MODEL DOWNLOAD EXTRACTION FIX** - October 4, 2025
+
+#### **Fixed _MACOSX Folder Conflict** ✅ **COMPLETE**
+- **Issue**: Model download failing with "_MACOSX" folder conflict error during ZIP extraction
+- **Root Cause**: macOS ZIP files contain hidden `_MACOSX` metadata folders that cause file conflicts during extraction
+- **Solution**: Enhanced unzip command to exclude `_MACOSX` folders and `.DS_Store` files, added cleanup method
+- **Files Modified**: `ios/Runner/ModelDownloadService.swift`
+- **Result**: Model downloads now complete successfully without macOS metadata conflicts
+
 ### 🚀 **PROVIDER SELECTION AND SPLASH SCREEN FIXES** - October 4, 2025
 
 #### **Added Manual Provider Selection UI** ✅ **COMPLETE**

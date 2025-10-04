@@ -27,6 +27,13 @@ flutter run -d DEVICE_ID --dart-define=GEMINI_API_KEY=YOUR_KEY
 flutter run -d DEVICE_ID
 ```
 
+### **Model Download Features** ✅ **NEW**
+- **macOS Compatibility**: Enhanced model download system with automatic `_MACOSX` folder exclusion
+- **Conflict Prevention**: Prevents file conflicts that cause "file already exists" errors
+- **Automatic Cleanup**: Removes macOS metadata files (`_MACOSX`, `.DS_Store`) automatically
+- **Reliable Extraction**: Robust ZIP extraction process with comprehensive error handling
+- **Progress Tracking**: Real-time download progress with detailed status messages
+
 ### **Provider Selection Features** ✅ **NEW**
 - **Manual Provider Selection**: Go to LUMARA Settings → AI Provider Selection to manually choose providers
 - **Visual Provider Status**: Clear indicators showing which providers are available and selected
