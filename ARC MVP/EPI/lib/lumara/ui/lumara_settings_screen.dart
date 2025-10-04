@@ -714,23 +714,81 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
   }
 
   Widget _buildActionButtons(ThemeData theme) {
-    return Row(
+    return Column(
       children: [
-        Expanded(
-          child: OutlinedButton(
-            onPressed: _testConnection,
-            child: const Text('Test Connection'),
-          ),
+        Row(
+          children: [
+            Expanded(
+              child: OutlinedButton(
+                onPressed: _testConnection,
+                child: const Text('Test Connection'),
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: ElevatedButton(
+                onPressed: _saveSettings,
+                child: const Text('Save Settings'),
+              ),
+            ),
+          ],
         ),
-        const SizedBox(width: 16),
-        Expanded(
-          child: ElevatedButton(
-            onPressed: _saveSettings,
-            child: const Text('Save Settings'),
+        const SizedBox(height: 16),
+        SizedBox(
+          width: double.infinity,
+          child: OutlinedButton.icon(
+            onPressed: _clearAllApiKeys,
+            icon: const Icon(Icons.delete_outline, size: 18),
+            label: const Text('Clear All API Keys'),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: theme.colorScheme.error,
+              side: BorderSide(color: theme.colorScheme.error),
+            ),
           ),
         ),
       ],
     );
+  }
+
+  Future<void> _clearAllApiKeys() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Clear All API Keys'),
+        content: const Text(
+          'This will remove all saved API keys. You will need to re-enter them. Continue?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: TextButton.styleFrom(
+              foregroundColor: Theme.of(context).colorScheme.error,
+            ),
+            child: const Text('Clear All'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    await _apiConfig.clearAllApiKeys();
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('All API keys cleared'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+
+      // Reload UI
+      await _loadCurrentSettings();
+    }
   }
 
   // Removed auto-save on change - now using explicit Save button per field

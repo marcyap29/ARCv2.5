@@ -191,7 +191,10 @@ class LumaraAPIConfig {
                 final currentConfig = _configs[provider];
                 if (currentConfig != null) {
                   _configs[provider] = currentConfig.copyWith(apiKey: savedApiKey);
-                  debugPrint('LUMARA API: Loaded saved API key for ${currentConfig.name}');
+                  final maskedKey = savedApiKey.length > 8
+                      ? '${savedApiKey.substring(0, 4)}...${savedApiKey.substring(savedApiKey.length - 4)}'
+                      : '***';
+                  debugPrint('LUMARA API: Loaded saved API key for ${currentConfig.name}: $maskedKey (length: ${savedApiKey.length})');
                 }
               }
             } catch (e) {
@@ -328,8 +331,13 @@ class LumaraAPIConfig {
   Future<void> updateApiKey(LLMProvider provider, String apiKey) async {
     final config = _configs[provider];
     if (config != null) {
+      final maskedKey = apiKey.length > 8
+          ? '${apiKey.substring(0, 4)}...${apiKey.substring(apiKey.length - 4)}'
+          : '***';
+      debugPrint('LUMARA API: Saving API key for ${config.name} ($provider): $maskedKey (length: ${apiKey.length})');
       _configs[provider] = config.copyWith(apiKey: apiKey);
       await _saveConfigs();
+      debugPrint('LUMARA API: Configs saved to SharedPreferences');
       await _detectAvailableProviders();
     }
   }
@@ -372,6 +380,17 @@ class LumaraAPIConfig {
   Future<void> refreshModelAvailability() async {
     debugPrint('LUMARA API: Refreshing model availability status...');
     await _performStartupModelCheck();
+  }
+
+  /// Clear all saved API keys (for debugging)
+  Future<void> clearAllApiKeys() async {
+    debugPrint('LUMARA API: Clearing all saved API keys...');
+    await _prefs?.remove(_prefsKey);
+
+    // Reset configs to defaults
+    await _loadConfigs();
+    await _detectAvailableProviders();
+    debugPrint('LUMARA API: All API keys cleared');
   }
 }
 
