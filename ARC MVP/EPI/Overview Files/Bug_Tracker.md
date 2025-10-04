@@ -42,6 +42,58 @@ Model download failing with "_MACOSX" folder conflict error during ZIP extractio
 - Automatic cleanup when models are deleted through the app interface
 - Prevention of future conflicts through proactive metadata removal
 
+### ZIP Root Directory Extraction Issue - RESOLVED ✅ - October 4, 2025
+**Status:** ✅ **RESOLVED**
+**Priority:** High
+**Component:** Model Download System
+
+**Issue:**
+Model files not found after successful download due to ZIP containing a single root directory with different naming than expected.
+
+**Error Symptoms:**
+- Download completes successfully (100%)
+- Model shows as "downloaded" in UI
+- Model loading fails with "Model files not found in bundle for: qwen3-1.7b-mlx-4bit"
+- Files extracted to nested directory instead of expected location
+
+**Root Cause:**
+- **ZIP Structure**: ZIP file contained folder `Qwen3-1.7B-MLX-4bit/` (mixed case)
+- **Expected Location**: Code looked for files in `qwen3-1.7b-mlx-4bit/` (lowercase)
+- **Actual Location**: Files extracted to `qwen3-1.7b-mlx-4bit/Qwen3-1.7B-MLX-4bit/model.safetensors`
+- **Unzip Logic**: Original code didn't handle ZIPs with single root directories
+
+**Solution:**
+- **Automatic Directory Flattening**: Added logic to detect single root directory after unzip
+- **Content Migration**: Automatically move contents up one level to expected location
+- **Temp Directory Pattern**: Use temporary UUID directory to safely reorganize files
+- **Cleanup**: Remove empty nested directory after content migration
+
+**Technical Implementation:**
+```swift
+// After unzipping, check for single root directory
+let directories = try contents.filter { url in
+    let resourceValues = try url.resourceValues(forKeys: [.isDirectoryKey])
+    return resourceValues.isDirectory == true && !url.lastPathComponent.hasPrefix(".")
+}
+
+// If exactly one directory, move its contents up one level
+if directories.count == 1, let singleDir = directories.first {
+    // Move to temp, then migrate contents to destination
+}
+```
+
+**Files Modified:**
+- `ios/Runner/ModelDownloadService.swift:310-344` - Enhanced unzip logic with directory flattening
+
+**Result:**
+✅ Model files automatically extracted to correct location regardless of ZIP structure
+✅ Works with both flat ZIPs and ZIPs containing root directories
+✅ Case-insensitive handling of directory names
+✅ No manual intervention required after download
+✅ Future downloads will work correctly without manual fixes
+
+---
+
 ### Provider Selection and Splash Screen Issues - RESOLVED ✅ - October 4, 2025
 **Status:** ✅ **RESOLVED**
 **Priority:** High
