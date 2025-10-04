@@ -39,7 +39,7 @@ class LLMProviderConfig {
   Map<String, dynamic> toJson() => {
     'provider': provider.name,
     'name': name,
-    'apiKey': apiKey != null ? '[REDACTED]' : null,
+    'apiKey': apiKey, // Save actual key - SharedPreferences is already secure
     'baseUrl': baseUrl,
     'additionalConfig': additionalConfig,
     'isInternal': isInternal,
@@ -108,10 +108,10 @@ class LumaraAPIConfig {
 
   /// Load configurations from environment and storage
   Future<void> _loadConfigs() async {
-    // External API providers
+    // External API providers - load defaults from environment
     final geminiApiKey = const String.fromEnvironment('GEMINI_API_KEY');
     print('LUMARA Debug: Loading Gemini API key from environment: ${geminiApiKey.isNotEmpty ? 'Found' : 'Not found'}');
-    
+
     _configs[LLMProvider.gemini] = LLMProviderConfig(
       provider: LLMProvider.gemini,
       name: 'Google Gemini',
@@ -168,6 +168,41 @@ class LumaraAPIConfig {
       isInternal: true,
       isAvailable: true, // Always available
     );
+
+    // Load saved API keys from SharedPreferences (overrides environment)
+    if (_prefs != null) {
+      final savedConfigsJson = _prefs!.getString(_prefsKey);
+      if (savedConfigsJson != null) {
+        try {
+          final savedConfigs = jsonDecode(savedConfigsJson) as Map<String, dynamic>;
+          for (final entry in savedConfigs.entries) {
+            final providerName = entry.key;
+            final configData = entry.value as Map<String, dynamic>;
+
+            // Find the corresponding provider enum
+            try {
+              final provider = LLMProvider.values.firstWhere(
+                (p) => p.name == providerName,
+              );
+
+              // Update API key if saved
+              final savedApiKey = configData['apiKey'] as String?;
+              if (savedApiKey != null && savedApiKey.isNotEmpty) {
+                final currentConfig = _configs[provider];
+                if (currentConfig != null) {
+                  _configs[provider] = currentConfig.copyWith(apiKey: savedApiKey);
+                  debugPrint('LUMARA API: Loaded saved API key for ${currentConfig.name}');
+                }
+              }
+            } catch (e) {
+              debugPrint('LUMARA API: Unknown provider in saved configs: $providerName');
+            }
+          }
+        } catch (e) {
+          debugPrint('LUMARA API: Error loading saved configs: $e');
+        }
+      }
+    }
   }
 
   /// Detect which providers are available
