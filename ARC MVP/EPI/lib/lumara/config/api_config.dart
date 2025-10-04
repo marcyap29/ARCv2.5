@@ -216,7 +216,7 @@ class LumaraAPIConfig {
         try {
           final bridge = LumaraNative();
           final isDownloaded = await bridge.isModelDownloaded('phi-3.5-mini-instruct-4bit');
-          debugPrint('LUMARA API: Phi model ${isDownloaded ? 'is' : 'is NOT'} downloaded (bridge returned: $isDownloaded)');
+          debugPrint('LUMARA API: Phi model ${isDownloaded ? 'is' : 'is NOT'} downloaded');
           return isDownloaded;
         } catch (e) {
           debugPrint('LUMARA API: Error checking Phi availability: $e');

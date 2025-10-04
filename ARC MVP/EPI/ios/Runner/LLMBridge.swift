@@ -934,14 +934,10 @@ class ModelDownloadService: NSObject {
         let configExists = FileManager.default.fileExists(atPath: configPath.path)
         let weightsExist = FileManager.default.fileExists(atPath: weightsPath.path)
 
-        logger.info("isModelDownloaded(\(modelId))")
-        logger.info("  - Model dir: \(modelDir)")
-        logger.info("  - Full path: \(modelPath.path)")
-        logger.info("  - config.json exists: \(configExists)")
-        logger.info("  - model.safetensors exists: \(weightsExist)")
-        logger.info("  - RESULT: \(configExists && weightsExist)")
+        let result = configExists && weightsExist
+        logger.info("isModelDownloaded(\(modelId)): \(result)")
 
-        return configExists && weightsExist
+        return result
     }
 
     /// Delete a downloaded model
