@@ -2,6 +2,31 @@
 
 ## [Unreleased]
 
+### 🔧 **ON-DEVICE MODEL ACTIVATION AND FALLBACK RESPONSE FIX** - October 4, 2025
+
+#### **Fixed On-Device Model Activation** ✅ **COMPLETE**
+- **Issue**: Downloaded Qwen/Phi models not being used for actual inference despite showing as "available"
+- **Root Cause**: Provider availability methods were hardcoded to return false or check localhost HTTP servers instead of actual model files
+- **Solution**: Updated both Qwen and Phi providers to check actual model download status via native bridge `isModelDownloaded(modelId)`
+- **Files Modified**: `lib/lumara/llm/providers/qwen_provider.dart`, `lib/lumara/llm/providers/llama_provider.dart`
+- **Result**: Downloaded models now actually used for inference instead of being ignored
+
+#### **Removed Hardcoded Fallback Responses** ✅ **COMPLETE**
+- **Issue**: Confusing template messages like "Let's break this down together. What's really at the heart of this?" appearing instead of AI responses
+- **Root Cause**: Enhanced LUMARA API had elaborate fallback templates that gave false impression of AI working
+- **Solution**: Eliminated all conversational template responses and replaced with single clear guidance message
+- **Files Modified**: `lib/lumara/services/enhanced_lumara_api.dart`, `lib/lumara/bloc/lumara_assistant_cubit.dart`
+- **Result**: Clear, actionable guidance when no inference providers are available
+
+#### **Added Provider Status Refresh** ✅ **COMPLETE**
+- **Issue**: Provider status not updating immediately after model deletion
+- **Root Cause**: Model deletion didn't trigger provider status refresh in settings screen
+- **Solution**: Implemented `refreshModelAvailability()` call after model deletion
+- **Files Modified**: `lib/lumara/ui/model_download_screen.dart`
+- **Result**: Provider status updates immediately after model deletion
+
+---
+
 ### 🔧 **API KEY PERSISTENCE AND NAVIGATION FIX** - October 4, 2025
 
 #### **Fixed API Key Persistence Issues** ✅ **COMPLETE**

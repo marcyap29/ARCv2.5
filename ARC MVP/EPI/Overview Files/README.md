@@ -6,7 +6,15 @@ A Flutter-based AI companion app that provides life-aware assistance through jou
 
 **🎉 MVP OPERATIONAL** - All systems working, MLX On-Device LLM Integration complete (October 4, 2025)
 
-### **Latest Major Achievement: API Key Persistence and Navigation Fix** ✅ **COMPLETE**
+### **Latest Major Achievement: On-Device Model Activation and Fallback Response Fix** ✅ **COMPLETE**
+- **On-Device Model Activation Fixed**: Downloaded Qwen/Phi models now actually used for inference instead of being ignored
+- **Hardcoded Fallback Responses Removed**: Eliminated confusing template messages that appeared like AI responses
+- **Provider Status Refresh**: Provider status now updates immediately after model deletion
+- **Clear User Guidance**: Replaced confusing templates with actionable instructions for enabling AI inference
+- **Root Causes Resolved**: Fixed provider availability checking to use actual model files, removed elaborate fallback system
+- **Current Status**: ✅ **FULLY OPERATIONAL** - Downloaded models work for inference, clear guidance when no providers available
+
+### **Previous Major Achievement: API Key Persistence and Navigation Fix** ✅ **COMPLETE**
 - **API Key Persistence Fixed**: Resolved critical bug where API keys weren't persisting across app restarts
 - **Provider Status Accuracy**: Fixed issue where all providers showed green despite no API keys configured
 - **Navigation Stack Fixes**: Fixed back button leading to blank screen, added proper navigation handling

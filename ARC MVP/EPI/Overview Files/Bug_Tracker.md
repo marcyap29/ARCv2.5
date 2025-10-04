@@ -2,6 +2,47 @@
 
 ## Active Issues
 
+### On-Device Model Activation and Hardcoded Fallback Response Issues - RESOLVED ✅ - October 4, 2025
+**Status:** ✅ **RESOLVED**
+**Priority:** High
+**Component:** LUMARA Inference System
+
+**Issue:**
+Critical issues with LUMARA's inference system where downloaded internal models weren't being used for responses and hardcoded fallback messages were showing instead of clear guidance.
+
+**Error Symptoms:**
+- Downloaded Qwen/Phi models not being used for actual inference despite showing as "available"
+- Hardcoded conversational responses appearing instead of AI-generated content
+- Confusing template messages like "Let's break this down together. What's really at the heart of this?"
+- Provider status not updating immediately after model deletion
+
+**Root Cause:**
+1. **Provider Availability Bug**: `QwenProvider.isAvailable()` and `PhiProvider.isAvailable()` were hardcoded to return false or check localhost HTTP servers instead of actual model files
+2. **Hardcoded Fallback System**: Enhanced LUMARA API had elaborate fallback templates that gave false impression of AI working
+3. **No Status Refresh**: Model deletion didn't trigger provider status refresh in settings screen
+
+**Solution:**
+- **Fixed Provider Availability**: Updated both Qwen and Phi providers to check actual model download status via native bridge `isModelDownloaded(modelId)`
+- **Removed Hardcoded Fallbacks**: Eliminated all conversational template responses and replaced with single clear guidance message
+- **Added Status Refresh**: Implemented `refreshModelAvailability()` call after model deletion to update provider status immediately
+- **Clear User Guidance**: Replaced confusing templates with actionable instructions directing users to download models or configure API keys
+
+**Files Modified:**
+- `lib/lumara/llm/providers/qwen_provider.dart` - Fixed to check actual model download status via bridge
+- `lib/lumara/llm/providers/llama_provider.dart` - Fixed to check Phi model status via bridge  
+- `lib/lumara/services/enhanced_lumara_api.dart` - Removed all hardcoded fallback templates
+- `lib/lumara/bloc/lumara_assistant_cubit.dart` - Updated with clear guidance message
+- `lib/lumara/ui/model_download_screen.dart` - Added status refresh after model deletion
+
+**Result:**
+✅ Downloaded Qwen/Phi models now actually used for inference instead of being ignored
+✅ No more confusing hardcoded conversational responses that appeared like AI
+✅ Clear, actionable guidance when no inference providers are available
+✅ Provider status updates immediately after model deletion
+✅ Users can see which inference method is actually being used
+
+---
+
 ### API Key Persistence and Navigation Issues - RESOLVED ✅ - October 4, 2025
 **Status:** ✅ **RESOLVED**
 **Priority:** High

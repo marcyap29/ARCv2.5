@@ -5,7 +5,41 @@ ARC is the **core journaling module of EPI (Evolving Personal Intelligence)**, b
 
 This MVP now implements **modular architecture** with RIVET (safety validation) and ECHO (expressive response layer) modules migrated to their proper locations, providing a foundation for the complete 8-module system: ARC→PRISM→ECHO→ATLAS→MIRA→AURORA→VEIL→RIVET.
 
-## 🌟 **LATEST ENHANCEMENT: API Key Persistence and Navigation Fix** (2025-10-04) ✅
+## 🌟 **LATEST ENHANCEMENT: On-Device Model Activation and Fallback Response Fix** (2025-10-04) ✅
+
+**🎯 Major Achievement**: Resolved critical issues with LUMARA's inference system where downloaded internal models weren't being used for responses and hardcoded fallback messages were showing instead of clear guidance.
+
+**✨ On-Device Model Activation Fix**:
+- **Issue Resolved**: Downloaded Qwen/Phi models now actually used for inference instead of being ignored
+- **Root Cause Fixed**: Provider availability methods were hardcoded to return false or check localhost HTTP servers instead of actual model files
+- **Solution Implemented**: Updated both Qwen and Phi providers to check actual model download status via native bridge `isModelDownloaded(modelId)`
+- **Provider Integration**: Fixed provider availability checking to use actual model files instead of HTTP health checks
+- **Debug Enhancement**: Added proper logging to show when models are actually downloaded and available
+
+**✨ Hardcoded Fallback Response Removal**:
+- **Issue Resolved**: Eliminated confusing template messages that appeared like AI responses
+- **Root Cause Fixed**: Enhanced LUMARA API had elaborate fallback templates that gave false impression of AI working
+- **Solution Implemented**: Removed all conversational template responses and replaced with single clear guidance message
+- **User Experience**: Clear, actionable instructions directing users to download models or configure API keys
+- **Consistency**: Applied same clear guidance message across all fallback scenarios
+
+**✨ Provider Status Refresh Enhancement**:
+- **Issue Resolved**: Provider status now updates immediately after model deletion
+- **Root Cause Fixed**: Model deletion didn't trigger provider status refresh in settings screen
+- **Solution Implemented**: Added `refreshModelAvailability()` call after model deletion to update provider status immediately
+- **UI Feedback**: Settings screen now shows accurate red "unavailable" status immediately after deletion
+
+**📱 User Experience**:
+- **Actual Model Usage**: Downloaded models now work for real AI inference instead of being ignored
+- **Clear Guidance**: No more confusing template messages - users get clear instructions on how to enable AI
+- **Immediate Status Updates**: Provider status reflects actual state immediately after changes
+- **Transparent Operation**: Users can see which inference method is actually being used
+
+**🏆 Current Status**: LUMARA inference system now fully operational with downloaded models working for actual AI responses, clear guidance when no providers available, and immediate status updates.
+
+---
+
+## 🌟 **PREVIOUS ENHANCEMENT: API Key Persistence and Navigation Fix** (2025-10-04) ✅
 
 **🎯 Major Achievement**: Resolved critical API key persistence and navigation issues affecting LUMARA settings screen and onboarding flow.
 
