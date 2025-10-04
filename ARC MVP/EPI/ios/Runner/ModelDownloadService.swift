@@ -151,9 +151,7 @@ class ModelDownloadService: NSObject {
                 NSLocalizedDescriptionKey: "Unknown model ID: \(modelId)"
             ])
         }
-
         let modelDir = modelRootURL.appendingPathComponent(modelDirName)
-        
         // Check if model directory exists
         guard FileManager.default.fileExists(atPath: modelDir.path) else {
             throw NSError(domain: "ModelDownload", code: 404, userInfo: [
@@ -217,7 +215,6 @@ extension ModelDownloadService: URLSessionDownloadDelegate {
             DispatchQueue.main.async { [weak self] in
                 self?.progressCallbacks[modelId]?(0.0, "Error: \(error.localizedDescription)")
             }
-            
             // Clean up tracking for this model even on error
             downloadTasks.removeValue(forKey: modelId)
             progressCallbacks.removeValue(forKey: modelId)
@@ -259,7 +256,6 @@ extension ModelDownloadService: URLSessionDownloadDelegate {
             DispatchQueue.main.async { [weak self] in
                 self?.progressCallbacks[modelId]?(0.0, "Download failed: \(error.localizedDescription)")
             }
-            
             // Clean up tracking for this model
             downloadTasks.removeValue(forKey: modelId)
             progressCallbacks.removeValue(forKey: modelId)
@@ -280,6 +276,8 @@ extension ModelDownloadService: URLSessionDownloadDelegate {
         process.arguments = [
             "-o", // Overwrite files
             "-q", // Quiet mode
+            "-x", "*__MACOSX*", // Exclude macOS metadata folders
+            "-x", "*.DS_Store", // Exclude macOS .DS_Store files
             sourceURL.path,
             "-d", destinationURL.path
         ]
@@ -293,6 +291,31 @@ extension ModelDownloadService: URLSessionDownloadDelegate {
             ])
         }
 
+        // Clean up any remaining macOS metadata folders that might have been extracted
+        try cleanupMacOSMetadata(in: destinationURL)
+
         logger.info("Unzip successful")
+    }
+
+    /// Clean up macOS metadata folders and files that might cause conflicts
+    private func cleanupMacOSMetadata(in directory: URL) throws {
+        let fileManager = FileManager.default
+
+        // Remove _MACOSX folders recursively
+        let macosxFolders = try fileManager.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil)
+            .filter { $0.lastPathComponent.hasPrefix("__MACOSX") }
+
+        for folder in macosxFolders {
+            try fileManager.removeItem(at: folder)
+            logger.info("Removed macOS metadata folder: \(folder.lastPathComponent)")
+        }
+        // Remove .DS_Store files recursively
+        let enumerator = fileManager.enumerator(at: directory, includingPropertiesForKeys: nil)
+        while let fileURL = enumerator?.nextObject() as? URL {
+            if fileURL.lastPathComponent == ".DS_Store" {
+                try fileManager.removeItem(at: fileURL)
+                logger.info("Removed .DS_Store file: \(fileURL.path)")
+            }
+        }
     }
 }
