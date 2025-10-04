@@ -73,15 +73,6 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
           onPressed: () => Navigator.pop(context),
           tooltip: 'Back',
         ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.home),
-            onPressed: () {
-              Navigator.of(context).popUntil((route) => route.isFirst);
-            },
-            tooltip: 'Home',
-          ),
-        ],
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
