@@ -9,9 +9,10 @@ class ModelDownloadService: NSObject {
     static let shared = ModelDownloadService()
     private let logger = Logger(subsystem: "EPI", category: "ModelDownload")
 
-    private var downloadTask: URLSessionDownloadTask?
-    private var resumeData: Data?
-    private var progressCallback: ((Double, String) -> Void)?
+    // Track multiple concurrent downloads by model ID
+    private var downloadTasks: [String: URLSessionDownloadTask] = [:]
+    private var resumeData: [String: Data] = [:]
+    private var progressCallbacks: [String: (Double, String) -> Void] = [:]
 
     private override init() {
         super.init()
@@ -36,7 +37,8 @@ class ModelDownloadService: NSObject {
             return
         }
 
-        self.progressCallback = onProgress
+        // Store progress callback for this model
+        progressCallbacks[modelId] = onProgress
 
         // Create URLSession with background configuration
         let config = URLSessionConfiguration.default
@@ -45,42 +47,63 @@ class ModelDownloadService: NSObject {
         let session = URLSession(configuration: config, delegate: self, delegateQueue: nil)
 
         // Start download
-        logger.info("Starting model download from: \(urlString)")
+        logger.info("Starting model download for \(modelId) from: \(urlString)")
         onProgress(0.0, "Connecting to server...")
 
-        downloadTask = session.downloadTask(with: url)
-        downloadTask?.resume()
+        let downloadTask = session.downloadTask(with: url)
+        downloadTasks[modelId] = downloadTask
+        downloadTask.resume()
     }
 
-    /// Pause ongoing download
-    func pauseDownload() {
-        downloadTask?.cancel(byProducingResumeData: { [weak self] data in
-            self?.resumeData = data
-            self?.logger.info("Download paused, resume data saved")
+    /// Pause ongoing download for specific model
+    func pauseDownload(modelId: String) {
+        downloadTasks[modelId]?.cancel(byProducingResumeData: { [weak self] data in
+            self?.resumeData[modelId] = data
+            self?.logger.info("Download paused for \(modelId), resume data saved")
         })
     }
 
-    /// Resume paused download
-    func resumeDownload() {
-        guard let resumeData = resumeData else {
-            logger.warning("No resume data available")
+    /// Resume paused download for specific model
+    func resumeDownload(modelId: String) {
+        guard let resumeData = resumeData[modelId] else {
+            logger.warning("No resume data available for \(modelId)")
             return
         }
 
         let config = URLSessionConfiguration.default
         let session = URLSession(configuration: config, delegate: self, delegateQueue: nil)
 
-        downloadTask = session.downloadTask(withResumeData: resumeData)
-        downloadTask?.resume()
+        let downloadTask = session.downloadTask(withResumeData: resumeData)
+        downloadTasks[modelId] = downloadTask
+        downloadTask.resume()
 
-        logger.info("Download resumed")
+        logger.info("Download resumed for \(modelId)")
     }
 
-    /// Cancel download
+    /// Cancel download for specific model
+    func cancelDownload(modelId: String) {
+        downloadTasks[modelId]?.cancel()
+        downloadTasks.removeValue(forKey: modelId)
+        resumeData.removeValue(forKey: modelId)
+        progressCallbacks.removeValue(forKey: modelId)
+        logger.info("Download cancelled for \(modelId)")
+    }
+
+    /// Cancel all downloads
+    func cancelAllDownloads() {
+        for (modelId, task) in downloadTasks {
+            task.cancel()
+            logger.info("Cancelled download for \(modelId)")
+        }
+        downloadTasks.removeAll()
+        resumeData.removeAll()
+        progressCallbacks.removeAll()
+        logger.info("All downloads cancelled")
+    }
+
+    /// Simple cancel method for compatibility
     func cancelDownload() {
-        downloadTask?.cancel()
-        resumeData = nil
-        logger.info("Download cancelled")
+        cancelAllDownloads()
     }
 
     /// Check if model is available and usable
@@ -149,12 +172,18 @@ class ModelDownloadService: NSObject {
 extension ModelDownloadService: URLSessionDownloadDelegate {
 
     func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask, didFinishDownloadingTo location: URL) {
-        logger.info("Download completed, file at: \(location.path)")
+        // Find the model ID for this download task
+        guard let modelId = downloadTasks.first(where: { $0.value == downloadTask })?.key else {
+            logger.error("Could not find model ID for completed download task")
+            return
+        }
+
+        logger.info("Download completed for \(modelId), file at: \(location.path)")
 
         do {
             // Move to temporary location
             let tempDir = FileManager.default.temporaryDirectory
-            let tempZip = tempDir.appendingPathComponent("model_download.zip")
+            let tempZip = tempDir.appendingPathComponent("\(modelId)_download.zip")
 
             // Remove old temp file if exists
             try? FileManager.default.removeItem(at: tempZip)
@@ -162,32 +191,51 @@ extension ModelDownloadService: URLSessionDownloadDelegate {
             // Move downloaded file
             try FileManager.default.moveItem(at: location, to: tempZip)
 
-            progressCallback?(0.9, "Unzipping model files...")
+            progressCallbacks[modelId]?(0.9, "Unzipping model files...")
 
             // Unzip to Application Support
             let destDir = ModelStore.shared.modelRootURL
             try unzipFile(at: tempZip, to: destDir)
 
-            progressCallback?(1.0, "Download complete!")
-            logger.info("Model successfully downloaded and extracted")
+            progressCallbacks[modelId]?(1.0, "Download complete!")
+            logger.info("Model \(modelId) successfully downloaded and extracted")
 
             // Clean up
             try? FileManager.default.removeItem(at: tempZip)
 
             // Notify completion on main thread
             DispatchQueue.main.async { [weak self] in
-                self?.progressCallback?(1.0, "Ready to use")
+                self?.progressCallbacks[modelId]?(1.0, "Ready to use")
             }
 
+            // Clean up tracking for this model
+            downloadTasks.removeValue(forKey: modelId)
+            progressCallbacks.removeValue(forKey: modelId)
+
         } catch {
-            logger.error("Failed to process downloaded file: \(error.localizedDescription)")
+            logger.error("Failed to process downloaded file for \(modelId): \(error.localizedDescription)")
             DispatchQueue.main.async { [weak self] in
-                self?.progressCallback?(0.0, "Error: \(error.localizedDescription)")
+                self?.progressCallbacks[modelId]?(0.0, "Error: \(error.localizedDescription)")
             }
+            
+            // Clean up tracking for this model even on error
+            downloadTasks.removeValue(forKey: modelId)
+            progressCallbacks.removeValue(forKey: modelId)
         }
     }
 
-    func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask, didWriteData bytesWritten: Int64, totalBytesWritten: Int64, totalBytesExpectedToWrite: Int64) {
+    func urlSession(
+        _ session: URLSession,
+        downloadTask: URLSessionDownloadTask,
+        didWriteData bytesWritten: Int64,
+        totalBytesWritten: Int64,
+        totalBytesExpectedToWrite: Int64
+    ) {
+        // Find the model ID for this download task
+        guard let modelId = downloadTasks.first(where: { $0.value == downloadTask })?.key else {
+            return
+        }
+
         let progress = Double(totalBytesWritten) / Double(totalBytesExpectedToWrite)
         let mbDownloaded = Double(totalBytesWritten) / 1_048_576
         let mbTotal = Double(totalBytesExpectedToWrite) / 1_048_576
@@ -195,16 +243,26 @@ extension ModelDownloadService: URLSessionDownloadDelegate {
         let message = String(format: "Downloading: %.1f / %.1f MB", mbDownloaded, mbTotal)
 
         DispatchQueue.main.async { [weak self] in
-            self?.progressCallback?(progress, message)
+            self?.progressCallbacks[modelId]?(progress, message)
         }
     }
 
     func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
         if let error = error {
-            logger.error("Download failed: \(error.localizedDescription)")
-            DispatchQueue.main.async { [weak self] in
-                self?.progressCallback?(0.0, "Download failed: \(error.localizedDescription)")
+            // Find the model ID for this download task
+            guard let modelId = downloadTasks.first(where: { $0.value == task })?.key else {
+                logger.error("Download failed but could not find model ID: \(error.localizedDescription)")
+                return
             }
+
+            logger.error("Download failed for \(modelId): \(error.localizedDescription)")
+            DispatchQueue.main.async { [weak self] in
+                self?.progressCallbacks[modelId]?(0.0, "Download failed: \(error.localizedDescription)")
+            }
+            
+            // Clean up tracking for this model
+            downloadTasks.removeValue(forKey: modelId)
+            progressCallbacks.removeValue(forKey: modelId)
         }
     }
 

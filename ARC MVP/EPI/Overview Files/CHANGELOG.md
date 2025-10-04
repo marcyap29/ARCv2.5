@@ -2,6 +2,34 @@
 
 ## [Unreleased]
 
+### 🚀 **PROVIDER SELECTION AND SPLASH SCREEN FIXES** - October 4, 2025
+
+#### **Added Manual Provider Selection UI** ✅ **COMPLETE**
+- **Issue**: No way to manually activate downloaded on-device models like Qwen
+- **Root Cause**: Missing UI for manual provider selection, only automatic selection available
+- **Solution**: Added comprehensive provider selection interface in LUMARA Settings
+- **Features Added**:
+  - Manual provider selection with visual indicators
+  - "Automatic Selection" option to let LUMARA choose best provider
+  - Clear visual feedback with checkmarks and borders
+  - Confirmation messages when switching providers
+- **Files Modified**: `lib/lumara/ui/lumara_settings_screen.dart`, `lib/lumara/config/api_config.dart`
+- **Result**: Users can now manually select and activate downloaded models
+
+#### **Fixed Splash Screen Logic** ✅ **COMPLETE**
+- **Issue**: "Welcome to LUMARA" splash screen appearing even with downloaded models and API keys
+- **Root Cause**: Mismatch between `LumaraAPIConfig` and `LLMAdapter` model detection methods
+- **Solution**: Unified model detection logic to use same method (`isModelDownloaded`) in both systems
+- **Files Modified**: `lib/lumara/llm/llm_adapter.dart`
+- **Result**: Splash screen only appears when truly no AI providers are available
+
+#### **Enhanced Model Detection Consistency** ✅ **COMPLETE**
+- **Issue**: Different model detection systems causing inconsistent provider availability
+- **Root Cause**: `LLMAdapter` used `availableModels()` while `LumaraAPIConfig` used `isModelDownloaded()`
+- **Solution**: Updated `LLMAdapter` to use direct model ID checking matching `LumaraAPIConfig`
+- **Priority Order**: Qwen model first, then Phi model as fallback
+- **Result**: Consistent model detection across all systems
+
 ### 🔧 **ON-DEVICE MODEL ACTIVATION AND FALLBACK RESPONSE FIX** - October 4, 2025
 
 #### **Fixed On-Device Model Activation** ✅ **COMPLETE**

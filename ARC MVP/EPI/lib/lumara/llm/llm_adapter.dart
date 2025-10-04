@@ -9,7 +9,6 @@ import 'model_progress_service.dart';
 class LLMAdapter implements ModelAdapter {
   static bool _isInitialized = false;
   static String? _activeModelId;
-  static pigeon.ModelRegistry? _registry;
   static bool _available = false;
   static String _reason = 'uninitialized';
 
@@ -40,48 +39,61 @@ class LLMAdapter implements ModelAdapter {
         return false;
       }
 
-      // Get available models
+      // Check for specific model availability (same logic as LumaraAPIConfig)
       try {
-        _registry = await _nativeApi.availableModels();
-        debugPrint('[LLMAdapter] Found ${_registry!.installed.length} installed models');
-
-        if (_registry!.installed.isEmpty) {
-          _reason = 'no_models_installed';
-          _available = false;
-          _isInitialized = false;
-          return false;
+        // Check for Qwen model first (priority)
+        final qwenDownloaded = await _nativeApi.isModelDownloaded('qwen3-1.7b-mlx-4bit');
+        debugPrint('[LLMAdapter] Qwen model downloaded: $qwenDownloaded');
+        
+        if (qwenDownloaded) {
+          _activeModelId = 'qwen3-1.7b-mlx-4bit';
+          _available = true;
+          _isInitialized = true;
+          debugPrint('[LLMAdapter] Using Qwen model: $_activeModelId');
+        } else {
+          // Check for Phi model as fallback
+          final phiDownloaded = await _nativeApi.isModelDownloaded('phi-3.5-mini-instruct-4bit');
+          debugPrint('[LLMAdapter] Phi model downloaded: $phiDownloaded');
+          
+          if (phiDownloaded) {
+            _activeModelId = 'phi-3.5-mini-instruct-4bit';
+            _available = true;
+            _isInitialized = true;
+            debugPrint('[LLMAdapter] Using Phi model: $_activeModelId');
+          } else {
+            _reason = 'no_models_downloaded';
+            _available = false;
+            _isInitialized = false;
+            debugPrint('[LLMAdapter] No models downloaded');
+            return false;
+          }
         }
       } catch (e) {
-        debugPrint('[LLMAdapter] Failed to get model registry: $e');
-        _reason = 'registry_error: $e';
+        debugPrint('[LLMAdapter] Failed to check model availability: $e');
+        _reason = 'model_check_error: $e';
         _available = false;
         _isInitialized = false;
         return false;
       }
 
-      // Use active model or first available
-      final modelId = _registry!.active ?? _registry!.installed.first!.id;
-      debugPrint('[LLMAdapter] Selected model: $modelId');
-
-      // Initialize the model (async - will report progress via callback)
+      // Initialize the selected model
       try {
         debugPrint('[LLMAdapter] Starting async model initialization...');
-        final success = await _nativeApi.initModel(modelId);
+        final success = await _nativeApi.initModel(_activeModelId!);
 
         if (success) {
           // Wait for model to finish loading (progress will reach 100%)
           debugPrint('[LLMAdapter] Waiting for model to load...');
           try {
             await ModelProgressService().waitForCompletion(
-              modelId,
+              _activeModelId!,
               timeout: const Duration(minutes: 2),
             );
 
             _isInitialized = true;
-            _activeModelId = modelId;
             _available = true;
             _reason = 'ok';
-            debugPrint('[LLMAdapter] Successfully initialized model: $modelId');
+            debugPrint('[LLMAdapter] Successfully initialized model: $_activeModelId');
             return true;
           } on TimeoutException {
             debugPrint('[LLMAdapter] Model loading timeout');
@@ -127,9 +139,6 @@ class LLMAdapter implements ModelAdapter {
 
   /// Get loaded model information
   static String get loadedModel => _activeModelId ?? 'none';
-
-  /// Get model registry
-  static pigeon.ModelRegistry? get registry => _registry;
 
   /// Stop the current model and free resources
   static Future<void> dispose() async {

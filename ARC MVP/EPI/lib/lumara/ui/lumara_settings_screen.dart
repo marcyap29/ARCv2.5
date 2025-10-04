@@ -64,10 +64,10 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
       _apiKeyControllers[provider]?.text = apiKey ?? '';
     }
 
-    // Get current best provider
-    final bestProvider = _apiConfig.getBestProvider();
+    // Get current manual provider selection
+    final manualProvider = _apiConfig.getManualProvider();
     setState(() {
-      _selectedProvider = bestProvider?.provider;
+      _selectedProvider = manualProvider;
     });
   }
 
@@ -305,8 +305,14 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
         ),
         const SizedBox(height: 12),
 
-        // Provider options
+            // Provider options
         ...providers.map((config) => _buildProviderOption(theme, config, isInternal)),
+
+        // Add "Clear Selection" option if there are available providers
+        if (providers.any((p) => p.isAvailable)) ...[
+          const SizedBox(height: 8),
+          _buildClearSelectionOption(theme),
+        ],
 
         // Show message if no providers available
         if (providers.isEmpty)
@@ -451,6 +457,105 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
           padding: const EdgeInsets.symmetric(vertical: 14),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(8),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildClearSelectionOption(ThemeData theme) {
+    final isSelected = _selectedProvider == null;
+    
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      decoration: BoxDecoration(
+        border: Border.all(
+          color: isSelected 
+              ? theme.colorScheme.primary
+              : theme.colorScheme.outline.withOpacity(0.3),
+          width: isSelected ? 2 : 1,
+        ),
+        borderRadius: BorderRadius.circular(12),
+        color: isSelected 
+            ? theme.colorScheme.primary.withOpacity(0.05)
+            : null,
+      ),
+      child: InkWell(
+        onTap: () async {
+          // Clear manual provider selection to use automatic selection
+          await _apiConfig.setManualProvider(null);
+
+          // Reinitialize LUMARA API to use automatic selection
+          await _lumaraApi.initialize();
+
+          // Update UI
+          setState(() {
+            _selectedProvider = null;
+          });
+
+          // Show confirmation
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Row(
+                  children: [
+                    Icon(Icons.auto_awesome, color: Colors.white),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text('Switched to automatic provider selection'),
+                    ),
+                  ],
+                ),
+                backgroundColor: Colors.blue,
+                duration: const Duration(seconds: 2),
+                behavior: SnackBarBehavior.floating,
+              ),
+            );
+          }
+        },
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              Icon(
+                Icons.auto_awesome,
+                color: isSelected 
+                    ? theme.colorScheme.primary
+                    : theme.colorScheme.onSurfaceVariant,
+                size: 20,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Automatic Selection',
+                      style: theme.textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w600,
+                        color: isSelected 
+                            ? theme.colorScheme.primary
+                            : theme.colorScheme.onSurface,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Let LUMARA choose the best available provider',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (isSelected)
+                Icon(
+                  Icons.check_circle,
+                  color: theme.colorScheme.primary,
+                  size: 20,
+                ),
+            ],
           ),
         ),
       ),
@@ -707,6 +812,9 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
     try {
       await _apiConfig.updateApiKey(provider, controller.text.trim());
 
+      // Force refresh provider availability
+      await _apiConfig.refreshProviderAvailability();
+
       // Reinitialize LUMARA API to pick up the new key
       await _lumaraApi.initialize();
 
@@ -917,6 +1025,9 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
         await _apiConfig.updateApiKey(provider, controller.text);
       }
     }
+
+    // Force refresh provider availability after saving all keys
+    await _apiConfig.refreshProviderAvailability();
 
     // Reinitialize to check if any provider is now available
     await _apiConfig.initialize();

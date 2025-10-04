@@ -9,6 +9,7 @@ import 'package:my_app/lumara/llm/rule_based_adapter.dart'; // For InsightKind e
 import 'package:my_app/services/gemini_send.dart';
 import 'package:my_app/services/llm_bridge_adapter.dart';
 import '../services/enhanced_lumara_api.dart';
+import '../config/api_config.dart';
 import '../../mira/memory/enhanced_mira_memory_service.dart';
 import '../../mira/memory/enhanced_memory_schema.dart';
 import '../../mira/mira_service.dart';
@@ -109,9 +110,7 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
       // Start with default scope
       const scope = LumaraScope.defaultScope;
 
-      // Check if API key is configured
-      const apiKey = String.fromEnvironment('GEMINI_API_KEY');
-      final hasApiKey = apiKey.isNotEmpty;
+      // API key configuration is now handled by LumaraAPIConfig
 
       // Start or resume a conversation session
       final sessionId = await _getOrCreateSession();
@@ -190,19 +189,20 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
     ));
 
     try {
-      // Log available providers for transparency
-      const geminiKey = String.fromEnvironment('GEMINI_API_KEY');
-      final geminiAvailable = geminiKey.isNotEmpty;
+      // Get provider status from LumaraAPIConfig (the authoritative source)
+      final apiConfig = LumaraAPIConfig.instance;
+      await apiConfig.initialize();
+      final availableProviders = apiConfig.getAvailableProviders();
+      final bestProvider = apiConfig.getBestProvider();
       final onDeviceAvailable = LLMAdapter.isAvailable;
 
       print('LUMARA Debug: Provider Status Summary:');
       print('LUMARA Debug:   - On-Device (Qwen): ${onDeviceAvailable ? "AVAILABLE ✓" : "Not Available (${LLMAdapter.reason})"}');
-      print('LUMARA Debug:   - Cloud API (Gemini): ${geminiAvailable ? "AVAILABLE ✓" : "Not Available (no API key)"}');
+      print('LUMARA Debug:   - Cloud API (Gemini): ${availableProviders.any((p) => p.name == 'Google Gemini') ? "AVAILABLE ✓" : "Not Available (no API key)"}');
       print('LUMARA Debug: Security-first fallback chain: On-Device → Cloud API → Rule-Based');
 
       // Check if user has manually selected a provider
       final currentProvider = _enhancedApi.getCurrentProvider();
-      final bestProvider = _enhancedApi.getBestProvider();
       
       // If current provider is the same as the best provider, treat as automatic mode
       final isManualSelection = currentProvider?.name != bestProvider?.name;
@@ -266,8 +266,8 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
       }
 
       // PRIORITY 2: Fall back to Cloud API (streaming if available)
-      const apiKey = String.fromEnvironment('GEMINI_API_KEY');
-      final useStreaming = apiKey.isNotEmpty;
+      final geminiAvailable = availableProviders.any((p) => p.name == 'Google Gemini');
+      final useStreaming = geminiAvailable;
 
       if (useStreaming) {
         print('LUMARA Debug: [Cloud API] Using streaming (Gemini API available)');
@@ -697,7 +697,6 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
 
       // Handle error by showing error message
       if (state is LumaraAssistantLoaded) {
-        final currentMessages = (state as LumaraAssistantLoaded).messages;
         final errorMessage = LumaraMessage.assistant(
           content: "I'm sorry, I encountered an error while streaming the response. Please try again.",
         );

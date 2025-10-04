@@ -5,7 +5,33 @@ ARC is the **core journaling module of EPI (Evolving Personal Intelligence)**, b
 
 This MVP now implements **modular architecture** with RIVET (safety validation) and ECHO (expressive response layer) modules migrated to their proper locations, providing a foundation for the complete 8-module system: ARC→PRISM→ECHO→ATLAS→MIRA→AURORA→VEIL→RIVET.
 
-## 🌟 **LATEST ENHANCEMENT: On-Device Model Activation and Fallback Response Fix** (2025-10-04) ✅
+## 🌟 **LATEST ENHANCEMENT: Provider Selection and Splash Screen Fixes** (2025-10-04) ✅
+
+**🎯 Major Achievement**: Resolved critical issues with provider selection UI and splash screen logic, enabling users to manually activate downloaded models and fixing incorrect "no provider" messages.
+
+**✨ Manual Provider Selection UI**:
+- **Issue Resolved**: Added comprehensive provider selection interface in LUMARA Settings
+- **Root Cause Fixed**: Missing UI for manual provider selection, only automatic selection available
+- **Solution Implemented**: Complete provider selection system with visual indicators and confirmation messages
+- **User Experience**: Users can now manually select and activate downloaded on-device models like Qwen
+- **Visual Feedback**: Clear indicators, checkmarks, borders, and confirmation messages for provider selection
+- **Automatic Option**: Users can choose to let LUMARA automatically select best available provider
+
+**✨ Splash Screen Logic Fix**:
+- **Issue Resolved**: "Welcome to LUMARA" splash screen now only appears when truly no AI providers are available
+- **Root Cause Fixed**: Mismatch between `LumaraAPIConfig` and `LLMAdapter` model detection methods
+- **Solution Implemented**: Unified model detection logic to use same method (`isModelDownloaded`) in both systems
+- **Consistency**: Both systems now use identical detection logic for model availability
+- **User Experience**: No more false "no provider" messages when models are downloaded and API keys are configured
+
+**✨ Enhanced Model Detection Consistency**:
+- **Issue Resolved**: Consistent model detection across all systems
+- **Root Cause Fixed**: `LLMAdapter` used `availableModels()` while `LumaraAPIConfig` used `isModelDownloaded()`
+- **Solution Implemented**: Updated `LLMAdapter` to use direct model ID checking matching `LumaraAPIConfig`
+- **Priority Order**: Qwen model first, then Phi model as fallback
+- **Reliability**: Eliminated detection mismatches that caused inconsistent provider availability
+
+## 🌟 **PREVIOUS ENHANCEMENT: On-Device Model Activation and Fallback Response Fix** (2025-10-04) ✅
 
 **🎯 Major Achievement**: Resolved critical issues with LUMARA's inference system where downloaded internal models weren't being used for responses and hardcoded fallback messages were showing instead of clear guidance.
 

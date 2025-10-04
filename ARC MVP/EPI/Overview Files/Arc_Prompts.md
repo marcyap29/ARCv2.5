@@ -6,7 +6,21 @@ Complete listing of all prompts used in the ARC MVP system, centralized in `lib/
 
 **On-Device LLM Integration (2025-10-02)**: Complete Pigeon bridge implementation with MLX Swift packages, safetensors parser, and Qwen3-1.7B model support for privacy-first on-device inference.
 
-## 🎉 **CURRENT STATUS: QWEN TOKENIZER FIX** ✅
+## 🎉 **CURRENT STATUS: PROVIDER SELECTION AND SPLASH SCREEN FIXES** ✅
+
+**Date:** October 4, 2025
+**Status:** **PROVIDER SELECTION UI COMPLETE** - Manual provider selection, splash screen logic fixed, unified model detection
+
+### **Latest Achievements:**
+- ✅ **Manual Provider Selection UI**: Complete provider selection interface in LUMARA Settings
+- ✅ **Visual Provider Status**: Clear indicators, checkmarks, and confirmation messages
+- ✅ **Splash Screen Logic Fixed**: "Welcome to LUMARA" only appears when truly no providers available
+- ✅ **Model Detection Consistency**: Unified detection logic between `LumaraAPIConfig` and `LLMAdapter`
+- ✅ **User Control**: Users can manually select and activate downloaded on-device models
+- ✅ **Automatic Selection Option**: Users can choose to let LUMARA automatically select best provider
+- ✅ **Enhanced Visual Feedback**: Clear visual indicators for provider selection and status
+
+## 🎉 **PREVIOUS STATUS: QWEN TOKENIZER FIX** ✅
 
 **Date:** October 2, 2025
 **Status:** **TOKENIZER MISMATCH RESOLVED** - Qwen model now generates clean, coherent LUMARA responses

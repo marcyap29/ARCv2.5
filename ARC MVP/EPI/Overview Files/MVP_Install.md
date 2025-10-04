@@ -27,6 +27,13 @@ flutter run -d DEVICE_ID --dart-define=GEMINI_API_KEY=YOUR_KEY
 flutter run -d DEVICE_ID
 ```
 
+### **Provider Selection Features** ✅ **NEW**
+- **Manual Provider Selection**: Go to LUMARA Settings → AI Provider Selection to manually choose providers
+- **Visual Provider Status**: Clear indicators showing which providers are available and selected
+- **Automatic Selection**: Option to let LUMARA automatically choose the best available provider
+- **Model Activation**: Download models and manually activate them for on-device inference
+- **Consistent Detection**: Unified model detection across all systems
+
 ### **On-Device LLM Features** ✅ **NEW**
 - **Real Qwen3-1.7B Model**: 914MB model bundled in app, loads with progress reporting
 - **Privacy-First**: All inference happens locally, no data sent to external servers

@@ -6,7 +6,16 @@ A Flutter-based AI companion app that provides life-aware assistance through jou
 
 **🎉 MVP OPERATIONAL** - All systems working, MLX On-Device LLM Integration complete (October 4, 2025)
 
-### **Latest Major Achievement: On-Device Model Activation and Fallback Response Fix** ✅ **COMPLETE**
+### **Latest Major Achievement: Provider Selection and Splash Screen Fixes** ✅ **COMPLETE**
+- **Manual Provider Selection UI**: Added comprehensive provider selection interface in LUMARA Settings
+- **Splash Screen Logic Fixed**: "Welcome to LUMARA" now only appears when truly no AI providers available
+- **Model Detection Consistency**: Unified detection logic between `LumaraAPIConfig` and `LLMAdapter`
+- **Visual Feedback Enhancement**: Clear indicators, checkmarks, and confirmation messages for provider selection
+- **User Control**: Users can now manually select and activate downloaded on-device models like Qwen
+- **Automatic Selection Option**: Users can choose to let LUMARA automatically select best available provider
+- **Current Status**: ✅ **FULLY OPERATIONAL** - Users can manually activate models, splash screen logic accurate
+
+### **Previous Major Achievement: On-Device Model Activation and Fallback Response Fix** ✅ **COMPLETE**
 - **On-Device Model Activation Fixed**: Downloaded Qwen/Phi models now actually used for inference instead of being ignored
 - **Hardcoded Fallback Responses Removed**: Eliminated confusing template messages that appeared like AI responses
 - **Provider Status Refresh**: Provider status now updates immediately after model deletion

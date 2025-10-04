@@ -2,6 +2,42 @@
 
 ## Active Issues
 
+### Provider Selection and Splash Screen Issues - RESOLVED ✅ - October 4, 2025
+**Status:** ✅ **RESOLVED**
+**Priority:** High
+**Component:** LUMARA Settings and Provider Detection
+
+**Issue:**
+Critical issues with provider selection UI and splash screen logic preventing users from activating downloaded models and causing incorrect "no provider" messages.
+
+**Error Symptoms:**
+- No way to manually activate downloaded on-device models like Qwen
+- "Welcome to LUMARA" splash screen appearing even with downloaded models and API keys
+- Inconsistent model detection between different systems
+- Users unable to switch from Gemini to downloaded Qwen model
+
+**Root Cause:**
+1. **Missing Provider Selection UI**: No interface for manual provider selection, only automatic selection available
+2. **Model Detection Mismatch**: `LumaraAPIConfig` and `LLMAdapter` used different methods to detect model availability
+3. **Inconsistent Detection Logic**: `LLMAdapter` used `availableModels()` while `LumaraAPIConfig` used `isModelDownloaded()`
+
+**Solution:**
+- **Added Manual Provider Selection**: Comprehensive provider selection interface in LUMARA Settings with visual indicators
+- **Unified Model Detection**: Updated `LLMAdapter` to use same `isModelDownloaded()` method as `LumaraAPIConfig`
+- **Added Automatic Selection Option**: Users can choose to let LUMARA automatically select best provider
+- **Enhanced Visual Feedback**: Clear indicators, checkmarks, and confirmation messages for provider selection
+
+**Files Modified:**
+- `lib/lumara/ui/lumara_settings_screen.dart` - Added provider selection UI
+- `lib/lumara/config/api_config.dart` - Added manual provider selection methods
+- `lib/lumara/llm/llm_adapter.dart` - Unified model detection logic
+
+**Result:**
+- Users can now manually select and activate downloaded models
+- Splash screen only appears when truly no AI providers are available
+- Consistent model detection across all systems
+- Clear visual feedback for provider selection
+
 ### On-Device Model Activation and Hardcoded Fallback Response Issues - RESOLVED ✅ - October 4, 2025
 **Status:** ✅ **RESOLVED**
 **Priority:** High

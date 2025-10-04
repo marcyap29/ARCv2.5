@@ -109,64 +109,81 @@ class DownloadStateService extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Get display name for a model ID
+  String _getModelDisplayName(String modelId) {
+    switch (modelId) {
+      case 'qwen3-1.7b-mlx-4bit':
+        return 'Qwen3 1.7B MLX (4-bit)';
+      case 'phi-3.5-mini-instruct-4bit':
+        return 'Phi-3.5-mini-instruct (4-bit)';
+      default:
+        return modelId;
+    }
+  }
+
   /// Mark download as started
-  void startDownload(String modelId) {
+  void startDownload(String modelId, {String? modelName}) {
+    final displayName = modelName ?? _getModelDisplayName(modelId);
     _downloadStates[modelId] = ModelDownloadState(
       modelId: modelId,
       isDownloading: true,
       progress: 0.0,
-      statusMessage: 'Starting download...',
+      statusMessage: 'Starting download of $displayName...',
     );
     notifyListeners();
-    debugPrint('DownloadStateService: Started download for $modelId');
+    debugPrint('DownloadStateService: Started download for $modelId ($displayName)');
   }
 
   /// Mark download as completed
   void completeDownload(String modelId) {
+    final displayName = _getModelDisplayName(modelId);
     _downloadStates[modelId] = ModelDownloadState(
       modelId: modelId,
       isDownloading: false,
       isDownloaded: true,
       progress: 1.0,
-      statusMessage: 'Download complete!',
+      statusMessage: '$displayName download complete!',
     );
     notifyListeners();
-    debugPrint('DownloadStateService: Completed download for $modelId');
+    debugPrint('DownloadStateService: Completed download for $modelId ($displayName)');
   }
 
   /// Mark download as failed
   void failDownload(String modelId, String error) {
+    final displayName = _getModelDisplayName(modelId);
     final currentState = _downloadStates[modelId] ?? ModelDownloadState(modelId: modelId);
 
     _downloadStates[modelId] = currentState.copyWith(
       isDownloading: false,
       errorMessage: error,
-      statusMessage: 'Download failed',
+      statusMessage: '$displayName download failed',
     );
     notifyListeners();
-    debugPrint('DownloadStateService: Failed download for $modelId - $error');
+    debugPrint('DownloadStateService: Failed download for $modelId ($displayName) - $error');
   }
 
   /// Mark download as cancelled
   void cancelDownload(String modelId) {
+    final displayName = _getModelDisplayName(modelId);
     _downloadStates[modelId] = ModelDownloadState(
       modelId: modelId,
       isDownloading: false,
       progress: 0.0,
-      statusMessage: 'Download cancelled',
+      statusMessage: '$displayName download cancelled',
     );
     notifyListeners();
-    debugPrint('DownloadStateService: Cancelled download for $modelId');
+    debugPrint('DownloadStateService: Cancelled download for $modelId ($displayName)');
   }
 
   /// Update model availability after checking
   void updateAvailability(String modelId, bool isAvailable) {
+    final displayName = _getModelDisplayName(modelId);
     final currentState = _downloadStates[modelId] ?? ModelDownloadState(modelId: modelId);
 
     if (!currentState.isDownloading) {
       _downloadStates[modelId] = currentState.copyWith(
         isDownloaded: isAvailable,
-        statusMessage: isAvailable ? 'Model ready to use' : 'Model not downloaded yet',
+        statusMessage: isAvailable ? '$displayName ready to use' : '$displayName not downloaded yet',
       );
       notifyListeners();
     }

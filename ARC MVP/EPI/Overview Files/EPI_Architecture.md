@@ -51,6 +51,37 @@
   - **Model Verification**: File integrity checks before loading
   - **Progress Transparency**: User can see model loading progress in UI
 
+  ## 🎛️ **Provider Selection Architecture** (Updated Oct 4, 2025)
+
+  **Unified Provider Detection & Selection System**:
+  ```
+  LumaraAPIConfig (Authoritative) ←→ LumaraSettingsScreen (UI)
+           ↓                              ↓
+  LLMAdapter (Detection) ←→ LumaraAssistantCubit (Usage)
+           ↓                              ↓
+  Native Bridge (isModelDownloaded) → Model Files (Qwen/Phi)
+  ```
+
+  **Key Components**:
+  - `lib/lumara/config/api_config.dart` - Centralized provider configuration and availability detection
+  - `lib/lumara/ui/lumara_settings_screen.dart` - Provider selection UI with visual indicators
+  - `lib/lumara/llm/llm_adapter.dart` - Unified model detection using same logic as API config
+  - `lib/lumara/bloc/lumara_assistant_cubit.dart` - Provider usage and fallback logic
+
+  **Provider Selection Features**:
+  - **Manual Selection**: Users can manually choose specific providers (Qwen, Phi, Gemini)
+  - **Automatic Selection**: Option to let LUMARA choose best available provider
+  - **Visual Feedback**: Clear indicators, checkmarks, and confirmation messages
+  - **Consistent Detection**: Both `LumaraAPIConfig` and `LLMAdapter` use identical `isModelDownloaded()` logic
+  - **Priority Order**: On-Device models (Qwen → Phi) → Cloud APIs (Gemini) → Rule-Based fallback
+
+  **Model Detection Flow**:
+  1. **Startup Check**: `LumaraAPIConfig` checks all providers on app launch
+  2. **UI Display**: Settings screen shows available providers with status indicators
+  3. **User Selection**: Manual provider selection updates `_manualProvider` preference
+  4. **Usage Logic**: `LumaraAssistantCubit` respects manual selection or uses automatic fallback
+  5. **Consistent Detection**: `LLMAdapter` uses same detection method for on-device models
+
   ## 📱 Navigation & User Interface Architecture (Updated Sept 28, 2025)
 
   **Primary Navigation Structure**:

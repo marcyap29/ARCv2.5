@@ -61,6 +61,7 @@ class LumaraAPIConfig {
 
   /// Initialize the API configuration
   Future<void> initialize() async {
+    debugPrint('LUMARA API: Initializing API configuration...');
     _prefs = await SharedPreferences.getInstance();
     await _loadConfigs();
     await _detectAvailableProviders();
@@ -72,14 +73,21 @@ class LumaraAPIConfig {
         _manualProvider = LLMProvider.values.firstWhere(
           (p) => p.name == manualProviderName,
         );
+        debugPrint('LUMARA API: Manual provider set to: ${_manualProvider?.name}');
       } catch (e) {
         // Invalid provider name, clear it
+        _manualProvider = null;
         await _prefs?.remove('manual_provider');
+        debugPrint('LUMARA API: Invalid manual provider name, cleared');
       }
     }
 
     // Perform startup model availability check
     await _performStartupModelCheck();
+    
+    // Final status check
+    final bestProvider = getBestProvider();
+    debugPrint('LUMARA API: Final initialization complete - Best provider: ${bestProvider?.name ?? 'None'}');
   }
 
   /// Perform startup check for model availability
@@ -109,7 +117,7 @@ class LumaraAPIConfig {
   Future<void> _loadConfigs() async {
     // External API providers - load defaults from environment
     final geminiApiKey = const String.fromEnvironment('GEMINI_API_KEY');
-    print('LUMARA Debug: Loading Gemini API key from environment: ${geminiApiKey.isNotEmpty ? 'Found' : 'Not found'}');
+    debugPrint('LUMARA API: Loading Gemini API key from environment: ${geminiApiKey.isNotEmpty ? 'Found' : 'Not found'}');
 
     _configs[LLMProvider.gemini] = LLMProviderConfig(
       provider: LLMProvider.gemini,
@@ -207,23 +215,30 @@ class LumaraAPIConfig {
 
   /// Detect which providers are available
   Future<void> _detectAvailableProviders() async {
+    debugPrint('LUMARA API: Detecting available providers...');
     for (final config in _configs.values) {
       if (config.isInternal) {
         // For internal models, check if the local server is running
         final isAvailable = await _checkInternalModelAvailability(config);
-        print('LUMARA Debug: Internal provider ${config.name}: ${isAvailable ? 'Available' : 'Not available'}');
+        debugPrint('LUMARA API: Internal provider ${config.name}: ${isAvailable ? 'Available' : 'Not available'}');
         _configs[config.provider] = config.copyWith(
           isAvailable: isAvailable,
         );
       } else {
         // For external APIs, check if API key is available
         final hasApiKey = config.apiKey?.isNotEmpty == true;
-        print('LUMARA Debug: External provider ${config.name}: ${hasApiKey ? 'API key found' : 'No API key'}');
+        debugPrint('LUMARA API: External provider ${config.name}: ${hasApiKey ? 'API key found (length: ${config.apiKey?.length})' : 'No API key'}');
         _configs[config.provider] = config.copyWith(
           isAvailable: hasApiKey,
         );
       }
     }
+    
+    // Log final provider status
+    final availableProviders = getAvailableProviders();
+    debugPrint('LUMARA API: Available providers: ${availableProviders.map((p) => p.name).join(', ')}');
+    final bestProvider = getBestProvider();
+    debugPrint('LUMARA API: Best provider: ${bestProvider?.name ?? 'None'}');
   }
 
   /// Check if internal model is available
@@ -331,13 +346,13 @@ class LumaraAPIConfig {
       await _saveConfigs();
       debugPrint('LUMARA API: Configs saved to SharedPreferences');
       await _detectAvailableProviders();
+      
+      // Log the final status after updating
+      final updatedConfig = _configs[provider];
+      debugPrint('LUMARA API: After update - ${config.name} available: ${updatedConfig?.isAvailable}');
+    } else {
+      debugPrint('LUMARA API: ERROR - Provider $provider not found in configs');
     }
-  }
-
-  /// Set manual provider selection (overrides auto-selection)
-  Future<void> setManualProvider(LLMProvider provider) async {
-    _manualProvider = provider;
-    await _prefs?.setString('manual_provider', provider.name);
   }
 
   /// Clear manual provider selection (return to auto-selection)
@@ -372,6 +387,29 @@ class LumaraAPIConfig {
   Future<void> refreshModelAvailability() async {
     debugPrint('LUMARA API: Refreshing model availability status...');
     await _performStartupModelCheck();
+  }
+
+  /// Set manual provider selection
+  Future<void> setManualProvider(LLMProvider? provider) async {
+    _manualProvider = provider;
+    if (provider != null) {
+      await _prefs?.setString('manual_provider', provider.name);
+      debugPrint('LUMARA API: Manual provider set to: ${provider.name}');
+    } else {
+      await _prefs?.remove('manual_provider');
+      debugPrint('LUMARA API: Manual provider cleared');
+    }
+  }
+
+  /// Get current manual provider
+  LLMProvider? getManualProvider() {
+    return _manualProvider;
+  }
+
+  /// Force refresh all provider availability (useful after API key changes)
+  Future<void> refreshProviderAvailability() async {
+    debugPrint('LUMARA API: Force refreshing all provider availability...');
+    await _detectAvailableProviders();
   }
 
   /// Clear all saved API keys (for debugging)

@@ -5,6 +5,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:my_app/services/llm_bridge_adapter.dart';
+import 'package:my_app/lumara/config/api_config.dart';
 
 /// Sends a single-turn request to Gemini with an optional system instruction.
 /// Returns the concatenated text from candidates[0].content.parts[].text.
@@ -13,7 +14,12 @@ Future<String> geminiSend({
   required String user,
   bool jsonExpected = false,
 }) async {
-  const apiKey = String.fromEnvironment('GEMINI_API_KEY');
+  // Get API key from LumaraAPIConfig instead of environment variable
+  final apiConfig = LumaraAPIConfig.instance;
+  await apiConfig.initialize();
+  final geminiConfig = apiConfig.getConfig(LLMProvider.gemini);
+  final apiKey = geminiConfig?.apiKey ?? '';
+  
   print('DEBUG GEMINI: API Key available: ${apiKey.isNotEmpty}');
   print('DEBUG GEMINI: API Key length: ${apiKey.length}');
   print('DEBUG GEMINI: API Key prefix: ${apiKey.isNotEmpty ? apiKey.substring(0, apiKey.length > 10 ? 10 : apiKey.length) : 'none'}');
@@ -101,7 +107,12 @@ Stream<String> geminiSendStream({
   required String user,
   bool jsonExpected = false,
 }) async* {
-  const apiKey = String.fromEnvironment('GEMINI_API_KEY');
+  // Get API key from LumaraAPIConfig instead of environment variable
+  final apiConfig = LumaraAPIConfig.instance;
+  await apiConfig.initialize();
+  final geminiConfig = apiConfig.getConfig(LLMProvider.gemini);
+  final apiKey = geminiConfig?.apiKey ?? '';
+  
   print('DEBUG GEMINI STREAM: API Key available: ${apiKey.isNotEmpty}');
 
   if (apiKey.isEmpty) {

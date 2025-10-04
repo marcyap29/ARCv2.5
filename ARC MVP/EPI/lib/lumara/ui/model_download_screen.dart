@@ -3,7 +3,6 @@
 
 import 'package:flutter/material.dart';
 import '../llm/bridge.pigeon.dart';
-import '../llm/model_progress_service.dart';
 import '../services/download_state_service.dart';
 import '../config/api_config.dart';
 
@@ -33,7 +32,6 @@ class ModelDownloadScreen extends StatefulWidget {
 
 class _ModelDownloadScreenState extends State<ModelDownloadScreen> {
   final LumaraNative _bridge = LumaraNative();
-  final ModelProgressService _progressService = ModelProgressService();
   final DownloadStateService _downloadStateService = DownloadStateService.instance;
 
   // Available models for download
@@ -94,8 +92,8 @@ class _ModelDownloadScreenState extends State<ModelDownloadScreen> {
 
   Future<void> _startDownload(ModelInfo model) async {
     try {
-      // Update persistent state
-      _downloadStateService.startDownload(model.id);
+      // Update persistent state with model name
+      _downloadStateService.startDownload(model.id, modelName: model.name);
 
       final success = await _bridge.downloadModel(model.id, model.downloadUrl);
 
@@ -109,6 +107,7 @@ class _ModelDownloadScreenState extends State<ModelDownloadScreen> {
 
   Future<void> _cancelDownload(String modelId) async {
     try {
+      // For now, use the general cancel method since the specific model cancel isn't in the bridge yet
       await _bridge.cancelModelDownload();
       _downloadStateService.cancelDownload(modelId);
     } catch (e) {

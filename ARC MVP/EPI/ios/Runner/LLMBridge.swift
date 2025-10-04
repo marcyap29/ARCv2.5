@@ -822,6 +822,7 @@ class LLMBridge: NSObject, LumaraNative {
 
     func cancelModelDownload() throws {
         logger.info("cancelModelDownload called")
+        // Cancel all active downloads
         ModelDownloadService.shared.cancelDownload()
     }
 
