@@ -182,6 +182,11 @@ class LLMAdapter implements ModelAdapter {
 
     // Build prompt based on task type
     final prompt = _buildPrompt(task, facts, snippets, chat);
+    
+    debugPrint('🟩🟩🟩 === DART LLMAdapter.realize === 🟩🟩🟩');
+    debugPrint('📥 TASK: $task');
+    debugPrint('📥 PROMPT LENGTH: ${prompt.length} characters');
+    debugPrint('📥 PROMPT PREVIEW: ${prompt.substring(0, prompt.length > 200 ? 200 : prompt.length)}...');
 
     try {
       // Generate with native model
@@ -192,19 +197,33 @@ class LLMAdapter implements ModelAdapter {
         repeatPenalty: 1.1,
         seed: 101,
       );
+      
+      debugPrint('⚙️  GENERATION PARAMS: maxTokens=${params.maxTokens}, temp=${params.temperature}');
+      debugPrint('🚀 Calling native generateText...');
 
       final result = await _nativeApi.generateText(prompt, params);
 
+      debugPrint('✅ NATIVE GENERATION COMPLETE:');
+      debugPrint('  📤 text: "${result.text}"');
+      debugPrint('  📤 length: ${result.text.length}');
+      debugPrint('  📊 tokensIn: ${result.tokensIn}');
+      debugPrint('  📊 tokensOut: ${result.tokensOut}');
+      debugPrint('  ⏱️  latencyMs: ${result.latencyMs}');
+      debugPrint('  🏷️  provider: ${result.provider}');
       debugPrint('[LLMAdapter] Generated ${result.tokensOut} tokens in ${result.latencyMs}ms (${result.provider})');
 
       // Stream the response word by word for consistency
       final words = result.text.split(' ');
+      debugPrint('🔄 Streaming ${words.length} words to UI...');
       for (int i = 0; i < words.length; i++) {
         yield words[i] + (i < words.length - 1 ? ' ' : '');
         await Future.delayed(const Duration(milliseconds: 30));
       }
+      debugPrint('🟩🟩🟩 === DART LLMAdapter.realize COMPLETE === 🟩🟩🟩');
     } catch (e) {
-      debugPrint('[LLMAdapter] Generation error: $e');
+      debugPrint('❌ [LLMAdapter] Generation error: $e');
+      debugPrint('❌ Error type: ${e.runtimeType}');
+      debugPrint('🟩🟩🟩 === DART LLMAdapter.realize ERROR === 🟩🟩🟩');
       yield 'Error generating response: $e';
     }
   }

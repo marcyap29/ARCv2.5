@@ -482,6 +482,20 @@ class ModelLifecycle {
 
         let startTime = Date()
 
+        // === DEBUG OUTPUT ===
+        logger.info("🔷🔷🔷 === QWEN GENERATION START === 🔷🔷🔷")
+        logger.info("📥 INPUT PROMPT:")
+        logger.info("  Length: \(prompt.count) characters")
+        logger.info("  First 200 chars: \(String(prompt.prefix(200)))")
+        if prompt.count > 200 {
+            logger.info("  ... (truncated)")
+        }
+        logger.info("📊 GENERATION PARAMETERS:")
+        logger.info("  maxTokens: \(params.maxTokens)")
+        logger.info("  temperature: \(params.temperature)")
+        logger.info("  topP: \(params.topP)")
+        logger.info("  repeatPenalty: \(params.repeatPenalty)")
+
         // One-shot sanity test for tokenizer
         logger.info("=== QWEN TOKENIZER SANITY TEST ===")
         let testPrompt = """
@@ -502,7 +516,8 @@ class ModelLifecycle {
 
         // Tokenize input
         let inputTokens = tokenizer.encode(prompt)
-        logger.info("Input tokens: \(inputTokens.count)")
+        logger.info("🔢 Input tokens: \(inputTokens.count)")
+        logger.info("🔢 First 10 token IDs: \(Array(inputTokens.prefix(10)))")
 
         // Qwen-3 optimized generation parameters
         let maxNewTokens = min(Int(params.maxTokens), 96)
@@ -563,17 +578,34 @@ class ModelLifecycle {
         }
 
         // Decode output with proper cleanup
+        logger.info("🔠 DECODING GENERATED TOKENS...")
+        logger.info("🔢 Generated token count: \(generatedTokens.count)")
+        logger.info("🔢 Generated token IDs: \(generatedTokens)")
+        
         let generatedText = tokenizer.decode(generatedTokens, skipSpecialTokens: true, cleanUpTokenizationSpaces: true)
+        logger.info("📤 RAW DECODED TEXT:")
+        logger.info("  '\(generatedText)'")
+        logger.info("  Length: \(generatedText.count) characters")
         
         // Additional cleanup
         let cleanedText = cleanQwenOutput(generatedText)
+        logger.info("✨ CLEANED TEXT:")
+        logger.info("  '\(cleanedText)'")
+        logger.info("  Length: \(cleanedText.count) characters")
 
         let latencyMs = Int(Date().timeIntervalSince(startTime) * 1000)
         
-        logger.info("Generated text: '\(cleanedText)' (length: \(cleanedText.count))")
+        let finalText = cleanedText.isEmpty ? generateFallbackResponse(prompt: prompt) : cleanedText
+        
+        logger.info("🎯 FINAL OUTPUT:")
+        logger.info("  '\(finalText)'")
+        logger.info("  Length: \(finalText.count) characters")
+        logger.info("  Using fallback: \(cleanedText.isEmpty)")
+        logger.info("⏱️  Generation time: \(latencyMs)ms")
+        logger.info("🔷🔷🔷 === QWEN GENERATION END === 🔷🔷🔷")
 
         return GenResult(
-            text: cleanedText.isEmpty ? generateFallbackResponse(prompt: prompt) : cleanedText,
+            text: finalText,
             tokensIn: Int64(inputTokens.count),
             tokensOut: Int64(generatedTokens.count),
             latencyMs: Int64(latencyMs),
@@ -770,14 +802,23 @@ class LLMBridge: NSObject, LumaraNative {
     }
 
     func generateText(prompt: String, params: GenParams) throws -> GenResult {
-        logger.info("generateText called, prompt length: \(prompt.count)")
+        logger.info("🟦🟦🟦 === generateText ENTRY === 🟦🟦🟦")
+        logger.info("📥 ORIGINAL PROMPT:")
+        logger.info("  Length: \(prompt.count) characters")
+        logger.info("  Content: '\(prompt)'")
         
         // Use LUMARA prompt system for enhanced responses
         let lumaraSystem = LumaraPromptSystem()
         
         // Build context prelude from MIRA memory
         let contextPrelude = miraStore.buildContextPrelude()
+        logger.info("📚 CONTEXT PRELUDE:")
+        logger.info("  '\(contextPrelude)'")
+        
         let qwenPrompt = lumaraSystem.buildLumaraMessages(userPrompt: prompt, contextPrelude: contextPrelude)
+        logger.info("🔧 FORMATTED QWEN PROMPT:")
+        logger.info("  Length: \(qwenPrompt.count) characters")
+        logger.info("  First 300 chars: \(String(qwenPrompt.prefix(300)))")
         
         // Create Qwen-3 optimized generation parameters
         let qwenParams = GenParams(
@@ -787,15 +828,25 @@ class LLMBridge: NSObject, LumaraNative {
             repeatPenalty: 1.1,
             seed: 42
         )
+        logger.info("⚙️  Using params: maxTokens=\(qwenParams.maxTokens), temp=\(qwenParams.temperature)")
         
+        logger.info("🚀 Calling ModelLifecycle.generate...")
         let result = try ModelLifecycle.shared.generate(prompt: qwenPrompt, params: qwenParams)
+        
+        logger.info("✅ ModelLifecycle.generate returned:")
+        logger.info("  text: '\(result.text)'")
+        logger.info("  tokensIn: \(result.tokensIn)")
+        logger.info("  tokensOut: \(result.tokensOut)")
+        logger.info("  latencyMs: \(result.latencyMs)")
+        logger.info("  provider: \(result.provider)")
         
         // Check if the response contains a memory save request
         if let memory = lumaraSystem.extractMemoryFromResponse(result.text) {
-            logger.info("Extracted memory from response: \(memory.summary)")
+            logger.info("💾 Extracted memory from response: \(memory.summary)")
             _ = miraStore.saveMemory(memory, phase: "Consolidation", source: "conversation", turn: 1)
         }
         
+        logger.info("🟦🟦🟦 === generateText EXIT === 🟦🟦🟦")
         return result
     }
 

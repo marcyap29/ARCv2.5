@@ -5,7 +5,22 @@ ARC is the **core journaling module of EPI (Evolving Personal Intelligence)**, b
 
 This MVP now implements **modular architecture** with RIVET (safety validation) and ECHO (expressive response layer) modules migrated to their proper locations, providing a foundation for the complete 8-module system: ARC→PRISM→ECHO→ATLAS→MIRA→AURORA→VEIL→RIVET.
 
-## 🌟 **LATEST ENHANCEMENT: Tokenizer Format and Extraction Directory Fixes** (2025-10-05) ✅
+## 🌟 **LATEST ENHANCEMENT: Comprehensive Qwen Output Debugging** (2025-10-05) ✅
+
+**🎯 Major Achievement**: Added comprehensive debugging infrastructure to track Qwen model outputs throughout the entire inference pipeline.
+
+**✨ Multi-Level Inference Pipeline Debugging**:
+- **Issue Resolved**: Need detailed visibility into Qwen model generation process to diagnose issues
+- **Solution Implemented**: Comprehensive logging at all levels (Dart → Swift → Token Generation → Decoding)
+- **User Experience**: Detailed trace enables precise diagnosis of inference issues
+- **Reliability**: Complete visibility into prompt formatting, tokenization, generation, and output cleanup
+- **Compatibility**: Emoji-marked logs (🟦🟩🔷📥📤🔢) for easy visual tracking in Xcode console
+- **Debug Levels**: 
+  - Swift `generateText()`: Original prompt, context, formatted prompt, final result
+  - Swift `generate()`: Token encoding/decoding, raw output, cleaned output, timing
+  - Dart `realize()`: Task type, native call results, streaming progress
+
+## 🌟 **PREVIOUS ENHANCEMENT: Tokenizer Format and Extraction Directory Fixes** (2025-10-05) ✅
 
 **🎯 Major Achievement**: Resolved critical tokenizer format mismatch and duplicate extraction class issues preventing on-device model initialization and inference.
 

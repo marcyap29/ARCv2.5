@@ -83,7 +83,8 @@ class LumaraAPIConfig {
       }
     }
 
-    // Perform startup model availability check
+    // Perform quick startup model availability check (lightweight)
+    // Full model validation happens on-demand when actually needed
     await _performStartupModelCheck();
     
     // Final status check
@@ -92,36 +93,23 @@ class LumaraAPIConfig {
   }
 
   /// Perform startup check for model availability
+  /// This is a lightweight check to avoid slowing down app startup
   Future<void> _performStartupModelCheck() async {
-    debugPrint('LUMARA API: Performing comprehensive startup model availability check...');
+    debugPrint('LUMARA API: Performing quick startup model availability check...');
     
-    // Check all internal models
+    // Check all internal models with lightweight validation
     for (final config in _configs.values) {
       if (config.isInternal) {
         try {
-          final isAvailable = await _checkInternalModelAvailability(config);
+          // Quick check: just verify files exist, don't load the model
+          final isAvailable = await _quickCheckModelAvailability(config);
           debugPrint('LUMARA API: Startup check - ${config.name}: ${isAvailable ? 'Available' : 'Not available'}');
           
           // Update the configuration with the current availability status
           _configs[config.provider] = config.copyWith(isAvailable: isAvailable);
           
-          // If model is available, verify it's complete and properly extracted
-          if (isAvailable) {
-            final isComplete = await _verifyModelCompleteness(config);
-            debugPrint('LUMARA API: Model completeness check - ${config.name}: ${isComplete ? 'Complete' : 'Incomplete'}');
-            
-            // Update availability based on completeness
-            if (!isComplete) {
-              _configs[config.provider] = config.copyWith(isAvailable: false);
-              debugPrint('LUMARA API: Marking ${config.name} as unavailable due to incomplete files');
-            } else {
-              // Model is complete, update download state service to show green light
-              _updateDownloadStateForModel(config, true);
-            }
-          } else {
-            // Model not available, update download state service to show not ready
-            _updateDownloadStateForModel(config, false);
-          }
+          // Update download state service
+          _updateDownloadStateForModel(config, isAvailable);
         } catch (e) {
           debugPrint('LUMARA API: Startup check failed for ${config.name}: $e');
           _configs[config.provider] = config.copyWith(isAvailable: false);
@@ -129,7 +117,34 @@ class LumaraAPIConfig {
       }
     }
     
-    debugPrint('LUMARA API: Comprehensive startup model check completed');
+    debugPrint('LUMARA API: Quick startup model check completed');
+  }
+  
+  /// Quick lightweight check - just verifies files exist without loading model
+  Future<bool> _quickCheckModelAvailability(LLMProviderConfig config) async {
+    try {
+      final bridge = LumaraNative();
+      
+      // Get the model ID for this provider
+      String modelId;
+      switch (config.provider) {
+        case LLMProvider.qwen:
+          modelId = 'qwen3-1.7b-mlx-4bit';
+          break;
+        case LLMProvider.phi:
+          modelId = 'phi-3.5-mini-instruct-4bit';
+          break;
+        default:
+          return false;
+      }
+      
+      // Quick file existence check only - don't load or validate the model
+      final isDownloaded = await bridge.isModelDownloaded(modelId);
+      return isDownloaded;
+    } catch (e) {
+      debugPrint('LUMARA API: Quick check error for ${config.name}: $e');
+      return false;
+    }
   }
 
   /// Load configurations from environment and storage

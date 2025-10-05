@@ -2,6 +2,64 @@
 
 ## Active Issues
 
+### Need Comprehensive Qwen Output Debugging - RESOLVED ✅ - October 5, 2025
+**Status:** ✅ **RESOLVED**
+**Priority:** High
+**Component:** Qwen Inference Pipeline
+
+**Issue:**
+Need detailed visibility into Qwen model's inference pipeline to diagnose generation issues and understand what's happening at each step.
+
+**Requirements:**
+- Track prompt formatting and special token insertion
+- Monitor tokenization (encoding and decoding)
+- Log token generation process
+- Observe raw output vs cleaned output
+- Measure generation timing
+- Trace complete flow from Dart through Swift to final result
+
+**Solution:**
+Added comprehensive debugging at all levels of the inference pipeline:
+
+**Swift `generateText()` Method:**
+- Logs original prompt content and length
+- Displays context prelude from MIRA memory
+- Shows formatted Qwen prompt with special tokens
+- Reports generation parameters
+- Logs complete result before returning to Dart
+
+**Swift `ModelLifecycle.generate()` Method:**
+- Logs input prompt details with preview
+- Shows generation parameters (maxTokens, temperature, topP)
+- Displays token encoding (input token IDs)
+- Shows token generation progress
+- Logs token decoding (generated token IDs and count)
+- Displays raw decoded text
+- Shows cleaned text (after removing special tokens)
+- Reports final output text
+- Measures and logs generation timing
+
+**Dart `LLMAdapter.realize()` Method:**
+- Logs task type
+- Shows prompt length and preview
+- Displays generation parameters
+- Indicates native call execution
+- Logs complete result from native (text, tokens, latency, provider)
+- Tracks word streaming progress
+- Reports errors with detailed type information
+
+**Files Modified:**
+- `ios/Runner/LLMBridge.swift` - Enhanced generateText() and generate() methods with detailed logging
+- `lib/lumara/llm/llm_adapter.dart` - Added comprehensive debug output in realize() method
+
+**Result:**
+✅ Complete trace of inference pipeline visible in logs
+✅ Emoji markers (🟦🟩🔷📥📤🔢⏱️✅❌) for easy visual tracking
+✅ Precise diagnosis capability for any inference issues
+✅ Full visibility into prompt → tokens → generation → output flow
+
+---
+
 ### Tokenizer Special Tokens Loading Error - RESOLVED ✅ - October 5, 2025
 **Status:** ✅ **RESOLVED**
 **Priority:** Critical

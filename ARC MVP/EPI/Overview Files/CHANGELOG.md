@@ -2,6 +2,21 @@
 
 ## [Unreleased]
 
+### 🔍 **COMPREHENSIVE QWEN OUTPUT DEBUGGING** - October 5, 2025
+
+#### **Multi-Level Inference Pipeline Debugging** ✅ **COMPLETE**
+- **Issue**: Need detailed visibility into Qwen model's inference pipeline to diagnose generation issues
+- **Solution**: 
+  - Added comprehensive logging at all levels of the inference pipeline
+  - Swift `generateText()` wrapper: logs original prompt, context prelude, formatted prompt, and final result
+  - Swift `ModelLifecycle.generate()`: logs input/output tokens, raw decoded text, cleaned text, and timing
+  - Dart `LLMAdapter.realize()`: logs task type, prompt details, native call results, and streaming progress
+  - Used emoji markers (🟦🟩🔷📥📤🔢⏱️✅❌) for easy visual tracking in logs
+- **Files Modified**: 
+  - `ios/Runner/LLMBridge.swift` (generateText and generate methods)
+  - `lib/lumara/llm/llm_adapter.dart` (realize method)
+- **Result**: Complete trace of inference pipeline from Dart → Swift → Token Generation → Decoding → Cleanup → Return, enabling precise diagnosis of issues
+
 ### 🔧 **TOKENIZER FORMAT AND EXTRACTION DIRECTORY FIXES** - October 5, 2025
 
 #### **Tokenizer Special Tokens Loading Fix** ✅ **COMPLETE**
