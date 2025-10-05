@@ -2,6 +2,111 @@
 
 ## Active Issues
 
+### Tokenizer Special Tokens Loading Error - RESOLVED ✅ - October 5, 2025
+**Status:** ✅ **RESOLVED**
+**Priority:** Critical
+**Component:** Qwen Tokenizer Loading
+
+**Issue:**
+Model loading fails with "Missing <|im_start|> token" error even though the tokenizer file contains the special tokens.
+
+**Error Symptoms:**
+- Model files found successfully
+- Tokenizer loads but validation fails
+- Error: "Missing <|im_start|> token"
+- Prevents model from initializing for inference
+
+**Root Cause:**
+Swift tokenizer loading code looks for special tokens in wrong JSON structure:
+- **Code expected**: `added_tokens` (array format)
+- **File has**: `added_tokens_decoder` (dictionary with ID keys)
+
+Qwen3 tokenizer format:
+```json
+"added_tokens_decoder": {
+  "151644": {"content": "<|im_start|>", ...},
+  "151645": {"content": "<|im_end|>", ...}
+}
+```
+
+But code was looking for:
+```json
+"added_tokens": [
+  {"content": "<|im_start|>", "id": 151644}
+]
+```
+
+**Solution:**
+Updated QwenTokenizer initialization to parse `added_tokens_decoder` dictionary format:
+- Try `added_tokens_decoder` first (Qwen3 format)
+- Fallback to `added_tokens` array for compatibility
+- Properly extract token IDs from string keys
+
+**Files Modified:**
+- `ios/Runner/LLMBridge.swift` lines 216-235 - Fixed special token loading
+
+**Result:**
+✅ Tokenizer now correctly loads Qwen3 special tokens
+✅ Model validation passes
+✅ Ready for inference initialization
+
+---
+
+### Duplicate ModelDownloadService Class Causing Extraction to Wrong Directory - RESOLVED ✅ - October 5, 2025
+**Status:** ✅ **RESOLVED**
+**Priority:** Critical
+**Component:** Model Download System
+
+**Issue:**
+Models downloaded successfully but files not extracted to correct location, causing inference to fail with "model not found" errors.
+
+**Error Symptoms:**
+- ZIP file downloads successfully (100%)
+- App shows model as "correctly installed"
+- Inference fails - no model found
+- Model files missing from expected location: `~/Library/Application Support/Models/qwen3-1.7b-mlx-4bit/`
+
+**Root Cause:**
+Two conflicting `ModelDownloadService` classes existed in the codebase:
+1. **Standalone ModelDownloadService.swift** (CORRECT) - Extracts to model-specific subdirectories with proper cleanup
+2. **Duplicate in LLMBridge.swift lines 875-1122** (BROKEN) - Extracted to root `Models/` directory without subdirectory structure
+
+The duplicate class in LLMBridge.swift:
+- Extracted to `Models/` instead of `Models/qwen3-1.7b-mlx-4bit/`
+- Used ZIPFoundation instead of unzip command with exclusions
+- Lacked directory flattening logic for ZIPs with root folders
+- No macOS metadata cleanup
+
+**Solution:**
+- Removed entire duplicate `ModelDownloadService` class from LLMBridge.swift (lines 871-1122)
+- Now uses standalone ModelDownloadService.swift with correct implementation
+- Users must delete and re-download models for fix to take effect
+
+**Files Modified:**
+- `ios/Runner/LLMBridge.swift` - Removed duplicate ModelDownloadService class
+
+**User Action Required:**
+1. Delete existing model from app settings (LUMARA Settings → Model Download → Delete button)
+2. Re-download model
+3. New download will extract to correct location: `Models/qwen3-1.7b-mlx-4bit/`
+4. Model will be detected and available for inference
+
+**Technical Changes:**
+- Removed entire duplicate ModelDownloadService class from LLMBridge.swift (lines 871-1265)
+- Replaced with corrected version that extracts to model-specific subdirectory
+- Uses ZIPFoundation (iOS-compatible) instead of Process/unzip command
+- Maintains directory flattening logic for ZIPs with root folders
+- Maintains macOS metadata cleanup after extraction
+
+**Result:**
+✅ Build successful - app compiles without errors
+✅ Models now extract to correct subdirectory: `Models/qwen3-1.7b-mlx-4bit/`
+✅ Inference code can find model files at expected location
+✅ No more class conflicts or shadowing issues
+✅ Supports both flat ZIPs and ZIPs with root directories
+
+---
+
 ### Model Directory Case Sensitivity Mismatch - RESOLVED ✅ - October 5, 2025
 **Status:** ✅ **RESOLVED**
 **Priority:** High

@@ -210,11 +210,22 @@ class QwenTokenizer {
         // Get special tokens from tokenizer_config.json
         let configPath = vocabPath.deletingLastPathComponent().appendingPathComponent("tokenizer_config.json")
         var specialTokens: [String: Int] = [:]
-        
+
         if let configData = try? Data(contentsOf: configPath),
            let configJson = try? JSONSerialization.jsonObject(with: configData) as? [String: Any] {
-            if let specialTokensDict = configJson["added_tokens"] as? [[String: Any]] {
-                for tokenInfo in specialTokensDict {
+            // Try added_tokens_decoder first (Qwen3 format: dictionary with ID keys)
+            if let tokensDecoder = configJson["added_tokens_decoder"] as? [String: Any] {
+                for (idString, tokenInfo) in tokensDecoder {
+                    if let tokenDict = tokenInfo as? [String: Any],
+                       let content = tokenDict["content"] as? String,
+                       let id = Int(idString) {
+                        specialTokens[content] = id
+                    }
+                }
+            }
+            // Fallback to added_tokens (array format)
+            else if let specialTokensArray = configJson["added_tokens"] as? [[String: Any]] {
+                for tokenInfo in specialTokensArray {
                     if let content = tokenInfo["content"] as? String,
                        let id = tokenInfo["id"] as? Int {
                         specialTokens[content] = id
@@ -237,11 +248,12 @@ class QwenTokenizer {
 
     private func validateTokenizer() throws {
         // Guardrails to catch tokenizer mismatch early
-        guard vocab["<|im_start|>"] != nil else {
-            throw NSError(domain: "QwenTokenizer", code: 1, userInfo: [NSLocalizedDescriptionKey: "Missing <|im_start|> token"])
+        // Validate that special tokens were loaded (check token IDs are valid, not fallback values)
+        guard bosToken > 0 else {
+            throw NSError(domain: "QwenTokenizer", code: 1, userInfo: [NSLocalizedDescriptionKey: "Missing <|im_start|> token - bosToken not loaded"])
         }
-        guard vocab["<|im_end|>"] != nil else {
-            throw NSError(domain: "QwenTokenizer", code: 2, userInfo: [NSLocalizedDescriptionKey: "Missing <|im_end|> token"])
+        guard eosToken > 1 else {
+            throw NSError(domain: "QwenTokenizer", code: 2, userInfo: [NSLocalizedDescriptionKey: "Missing <|im_end|> token - eosToken not loaded"])
         }
         
         // Test roundtrip
@@ -868,7 +880,7 @@ class LLMBridge: NSObject, LumaraNative {
     }
 }
 
-// MARK: - Model Download Service
+// MARK: - Model Download Service (Corrected Implementation)
 
 /// Downloads ML models from remote server (Google Drive) to Application Support
 /// Provides progress tracking, pause/resume, and integrity verification
@@ -876,9 +888,16 @@ class ModelDownloadService: NSObject {
     static let shared = ModelDownloadService()
     private let logger = Logger(subsystem: "EPI", category: "ModelDownload")
 
-    private var downloadTask: URLSessionDownloadTask?
-    private var resumeData: Data?
-    private var progressCallback: ((Double, String) -> Void)?
+    // Track multiple concurrent downloads by model ID
+    private var downloadTasks: [String: URLSessionDownloadTask] = [:]
+    private var resumeData: [String: Data] = [:]
+    private var progressCallbacks: [String: (Double, String) -> Void] = [:]
+
+    // Model directory path
+    private var modelRootURL: URL {
+        let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+        return appSupport.appendingPathComponent("Models", isDirectory: true)
+    }
 
     private override init() {
         super.init()
@@ -903,7 +922,16 @@ class ModelDownloadService: NSObject {
             return
         }
 
-        self.progressCallback = onProgress
+        // Clean up any existing metadata before starting download
+        do {
+            let modelsDirectory = modelRootURL
+            try cleanupMacOSMetadata(in: modelsDirectory)
+        } catch {
+            logger.warning("Failed to clean up existing metadata: \(error.localizedDescription)")
+        }
+
+        // Store progress callback for this model
+        progressCallbacks[modelId] = onProgress
 
         // Create URLSession with background configuration
         let config = URLSessionConfiguration.default
@@ -912,99 +940,268 @@ class ModelDownloadService: NSObject {
         let session = URLSession(configuration: config, delegate: self, delegateQueue: nil)
 
         // Start download
-        logger.info("Starting model download from: \(urlString)")
+        logger.info("Starting model download for \(modelId) from: \(urlString)")
         onProgress(0.0, "Connecting to server...")
 
-        downloadTask = session.downloadTask(with: url)
-        downloadTask?.resume()
+        let downloadTask = session.downloadTask(with: url)
+        downloadTasks[modelId] = downloadTask
+        downloadTask.resume()
     }
 
-    /// Pause ongoing download
-    func pauseDownload() {
-        downloadTask?.cancel(byProducingResumeData: { [weak self] data in
-            self?.resumeData = data
-            self?.logger.info("Download paused, resume data saved")
+    /// Pause ongoing download for specific model
+    func pauseDownload(modelId: String) {
+        downloadTasks[modelId]?.cancel(byProducingResumeData: { [weak self] data in
+            self?.resumeData[modelId] = data
+            self?.logger.info("Download paused for \(modelId), resume data saved")
         })
     }
 
-    /// Resume paused download
-    func resumeDownload() {
-        guard let resumeData = resumeData else {
-            logger.warning("No resume data available")
+    /// Resume paused download for specific model
+    func resumeDownload(modelId: String) {
+        guard let resumeData = resumeData[modelId] else {
+            logger.warning("No resume data available for \(modelId)")
             return
         }
 
         let config = URLSessionConfiguration.default
         let session = URLSession(configuration: config, delegate: self, delegateQueue: nil)
 
-        downloadTask = session.downloadTask(withResumeData: resumeData)
-        downloadTask?.resume()
+        let downloadTask = session.downloadTask(withResumeData: resumeData)
+        downloadTasks[modelId] = downloadTask
+        downloadTask.resume()
 
-        logger.info("Download resumed")
+        logger.info("Download resumed for \(modelId)")
     }
 
-    /// Cancel download
+    /// Cancel download for specific model
+    func cancelDownload(modelId: String) {
+        downloadTasks[modelId]?.cancel()
+        downloadTasks.removeValue(forKey: modelId)
+        resumeData.removeValue(forKey: modelId)
+        progressCallbacks.removeValue(forKey: modelId)
+        logger.info("Download cancelled for \(modelId)")
+    }
+
+    /// Cancel all downloads
+    func cancelAllDownloads() {
+        for (modelId, task) in downloadTasks {
+            task.cancel()
+            logger.info("Cancelled download for \(modelId)")
+        }
+        downloadTasks.removeAll()
+        resumeData.removeAll()
+        progressCallbacks.removeAll()
+        logger.info("All downloads cancelled")
+    }
+
+    /// Simple cancel method for compatibility
     func cancelDownload() {
-        downloadTask?.cancel()
-        resumeData = nil
-        logger.info("Download cancelled")
+        cancelAllDownloads()
     }
 
-    /// Check if model already exists
+    /// Check if model is available and usable
+    /// Only returns true if model files actually exist on filesystem
     func isModelDownloaded(modelId: String) -> Bool {
-        // Map model ID to directory name - all lowercase for consistency
-        let modelDir: String
+        // Validate model ID
         switch modelId {
-        case "qwen3-1.7b-mlx-4bit":
-            modelDir = "qwen3-1.7b-mlx-4bit"  // Use lowercase for consistency
-        case "phi-3.5-mini-instruct-4bit":
-            modelDir = "phi-3.5-mini-instruct-4bit"  // Use lowercase for consistency
+        case "qwen3-1.7b-mlx-4bit", "phi-3.5-mini-instruct-4bit":
+            break // Valid model ID
         default:
-            modelDir = modelId.lowercased()  // Ensure all model IDs are lowercase
+            logger.warning("Unknown model ID: \(modelId)")
+            return false
         }
 
-        // Check if required files exist in Application Support
-        let modelPath = ModelStore.shared.modelRootURL.appendingPathComponent(modelDir)
-        let configPath = modelPath.appendingPathComponent("config.json")
-        let weightsPath = modelPath.appendingPathComponent("model.safetensors")
-
+        // Check if model files actually exist
+        let configPath = modelRootURL.appendingPathComponent(modelId).appendingPathComponent("config.json")
+        let modelPath = modelRootURL.appendingPathComponent(modelId).appendingPathComponent("model.safetensors")
         let configExists = FileManager.default.fileExists(atPath: configPath.path)
-        let weightsExist = FileManager.default.fileExists(atPath: weightsPath.path)
+        let modelExists = FileManager.default.fileExists(atPath: modelPath.path)
 
-        let result = configExists && weightsExist
-        logger.info("isModelDownloaded(\(modelId)): \(result)")
+        let isAvailable = configExists && modelExists
 
-        return result
+        if isAvailable {
+            logger.info("Model \(modelId) is available and usable")
+        } else {
+            logger.info("Model \(modelId) not available (config: \(configExists), model: \(modelExists))")
+        }
+
+        return isAvailable
     }
 
     /// Delete a downloaded model
     func deleteModel(modelId: String) throws {
-        logger.info("deleteModel called for: \(modelId)")
+        let modelDir = modelRootURL.appendingPathComponent(modelId)
 
-        // Get the models directory path
-        let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-        let modelsDirectory = appSupport.appendingPathComponent("Models", isDirectory: true)
-        let modelDirectory = modelsDirectory.appendingPathComponent(modelId)
-        let fileManager = FileManager.default
-
-        // Remove the model directory if it exists
-        if fileManager.fileExists(atPath: modelDirectory.path) {
-            try fileManager.removeItem(at: modelDirectory)
-            logger.info("Removed model directory: \(modelId)")
+        // Check if model directory exists
+        guard FileManager.default.fileExists(atPath: modelDir.path) else {
+            throw NSError(domain: "ModelDownload", code: 404, userInfo: [
+                NSLocalizedDescriptionKey: "Model directory not found: \(modelId)"
+            ])
         }
 
-        // Clean up any remaining metadata in the parent directory
-        try cleanupMacOSMetadata(in: modelsDirectory)
-        logger.info("Successfully deleted model and cleaned metadata for: \(modelId)")
+        // Delete the model directory
+        try FileManager.default.removeItem(at: modelDir)
+        logger.info("Successfully deleted model: \(modelId) from \(modelDir.path)")
     }
-    
-    /// Clear all models and metadata
-    func clearAllModels() throws {
-        logger.info("clearAllModels called")
-        
-        // Get the models directory path
-        let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-        let modelsDirectory = appSupport.appendingPathComponent("Models", isDirectory: true)
+}
+
+// MARK: - URLSessionDownloadDelegate
+
+extension ModelDownloadService: URLSessionDownloadDelegate {
+
+    func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask, didFinishDownloadingTo location: URL) {
+        // Find the model ID for this download task
+        guard let modelId = downloadTasks.first(where: { $0.value == downloadTask })?.key else {
+            logger.error("Could not find model ID for completed download task")
+            return
+        }
+
+        logger.info("Download completed for \(modelId), file at: \(location.path)")
+
+        do {
+            // Move to temporary location
+            let tempDir = FileManager.default.temporaryDirectory
+            let tempZip = tempDir.appendingPathComponent("\(modelId)_download.zip")
+
+            // Remove old temp file if exists
+            try? FileManager.default.removeItem(at: tempZip)
+
+            // Move downloaded file
+            try FileManager.default.moveItem(at: location, to: tempZip)
+
+            progressCallbacks[modelId]?(0.9, "Unzipping model files...")
+
+            // ⭐ KEY FIX: Unzip to model-specific subdirectory
+            let modelDir = modelId.lowercased()
+            let destDir = modelRootURL.appendingPathComponent(modelDir, isDirectory: true)
+            try unzipFile(at: tempZip, to: destDir)
+
+            progressCallbacks[modelId]?(1.0, "Download complete!")
+            logger.info("Model \(modelId) successfully downloaded and extracted")
+
+            // Clean up
+            try? FileManager.default.removeItem(at: tempZip)
+
+            // Notify completion on main thread
+            DispatchQueue.main.async { [weak self] in
+                self?.progressCallbacks[modelId]?(1.0, "Ready to use")
+            }
+
+            // Clean up tracking for this model
+            downloadTasks.removeValue(forKey: modelId)
+            progressCallbacks.removeValue(forKey: modelId)
+
+        } catch {
+            logger.error("Failed to process downloaded file for \(modelId): \(error.localizedDescription)")
+            DispatchQueue.main.async { [weak self] in
+                self?.progressCallbacks[modelId]?(0.0, "Error: \(error.localizedDescription)")
+            }
+            // Clean up tracking for this model even on error
+            downloadTasks.removeValue(forKey: modelId)
+            progressCallbacks.removeValue(forKey: modelId)
+        }
+    }
+
+    func urlSession(
+        _ session: URLSession,
+        downloadTask: URLSessionDownloadTask,
+        didWriteData bytesWritten: Int64,
+        totalBytesWritten: Int64,
+        totalBytesExpectedToWrite: Int64
+    ) {
+        // Find the model ID for this download task
+        guard let modelId = downloadTasks.first(where: { $0.value == downloadTask })?.key else {
+            return
+        }
+
+        let progress = Double(totalBytesWritten) / Double(totalBytesExpectedToWrite)
+        let mbDownloaded = Double(totalBytesWritten) / 1_048_576
+        let mbTotal = Double(totalBytesExpectedToWrite) / 1_048_576
+
+        let message = String(format: "Downloading: %.1f / %.1f MB", mbDownloaded, mbTotal)
+
+        DispatchQueue.main.async { [weak self] in
+            self?.progressCallbacks[modelId]?(progress, message)
+        }
+    }
+
+    func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
+        if let error = error {
+            // Find the model ID for this download task
+            guard let modelId = downloadTasks.first(where: { $0.value == task })?.key else {
+                logger.error("Download failed but could not find model ID: \(error.localizedDescription)")
+                return
+            }
+
+            logger.error("Download failed for \(modelId): \(error.localizedDescription)")
+            DispatchQueue.main.async { [weak self] in
+                self?.progressCallbacks[modelId]?(0.0, "Download failed: \(error.localizedDescription)")
+            }
+            // Clean up tracking for this model
+            downloadTasks.removeValue(forKey: modelId)
+            progressCallbacks.removeValue(forKey: modelId)
+        }
+    }
+
+    // MARK: - Unzip Helper
+
+    private func unzipFile(at sourceURL: URL, to destinationURL: URL) throws {
+        logger.info("Unzipping: \(sourceURL.path) -> \(destinationURL.path)")
+
+        // Remove existing destination directory if it exists to avoid conflicts
+        if FileManager.default.fileExists(atPath: destinationURL.path) {
+            try FileManager.default.removeItem(at: destinationURL)
+            logger.info("Removed existing destination directory: \(destinationURL.path)")
+        }
+
+        // Create destination directory
+        try FileManager.default.createDirectory(at: destinationURL, withIntermediateDirectories: true)
+
+        // Use ZIPFoundation to extract (iOS-compatible)
+        try FileManager.default.unzipItem(at: sourceURL, to: destinationURL)
+
+        // Clean up macOS metadata files that got extracted
+        try cleanupMacOSMetadata(in: destinationURL)
+
+        // Handle case where ZIP contains a single root folder
+        // (e.g., ZIP has "Qwen3-1.7B-MLX-4bit/" but we want files directly in destination)
+        let contents = try FileManager.default.contentsOfDirectory(at: destinationURL, includingPropertiesForKeys: [.isDirectoryKey])
+
+        // Filter out hidden files and get only directories
+        let directories = try contents.filter { url in
+            let resourceValues = try url.resourceValues(forKeys: [.isDirectoryKey])
+            return resourceValues.isDirectory == true && !url.lastPathComponent.hasPrefix(".")
+        }
+
+        // If there's exactly one directory, move its contents up one level
+        if directories.count == 1, let singleDir = directories.first {
+            logger.info("Found single root directory in ZIP: \(singleDir.lastPathComponent), moving contents up...")
+
+            let tempDir = destinationURL.deletingLastPathComponent().appendingPathComponent("_temp_\(UUID().uuidString)")
+
+            // Move the single directory to temp location
+            try FileManager.default.moveItem(at: singleDir, to: tempDir)
+
+            // Move all contents from temp to destination
+            let innerContents = try FileManager.default.contentsOfDirectory(at: tempDir, includingPropertiesForKeys: nil)
+            for item in innerContents {
+                let dest = destinationURL.appendingPathComponent(item.lastPathComponent)
+                try? FileManager.default.removeItem(at: dest) // Remove if exists
+                try FileManager.default.moveItem(at: item, to: dest)
+            }
+
+            // Clean up temp directory
+            try? FileManager.default.removeItem(at: tempDir)
+
+            logger.info("Successfully moved contents from root directory")
+        }
+
+        logger.info("Unzip successful")
+    }
+
+    /// Clear all models and metadata from the models directory
+    public func clearAllModels() throws {
+        let modelsDirectory = modelRootURL
         let fileManager = FileManager.default
 
         // Remove all contents of the models directory
@@ -1014,22 +1211,36 @@ class ModelDownloadService: NSObject {
             logger.info("Removed: \(item.lastPathComponent)")
         }
 
-        logger.info("Successfully cleared all models and metadata")
+        logger.info("Cleared all models from directory: \(modelsDirectory.path)")
     }
-    
-    /// Clean up macOS metadata folders and files that might cause conflicts
-    private func cleanupMacOSMetadata(in directory: URL) throws {
+
+    /// Clear a specific model directory and all its metadata
+    public func clearModelDirectory(modelId: String) throws {
+        let modelsDirectory = modelRootURL
+        let modelDirectory = modelsDirectory.appendingPathComponent(modelId)
         let fileManager = FileManager.default
-        
+
+        if fileManager.fileExists(atPath: modelDirectory.path) {
+            try fileManager.removeItem(at: modelDirectory)
+            logger.info("Removed model directory: \(modelId)")
+        }
+
+        // Also clean up any remaining metadata in the parent directory
+        try cleanupMacOSMetadata(in: modelsDirectory)
+    }
+
+    /// Clean up macOS metadata folders and files that might cause conflicts
+    public func cleanupMacOSMetadata(in directory: URL) throws {
+        let fileManager = FileManager.default
+
         // Remove _MACOSX folders recursively
         let macosxFolders = try fileManager.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil)
             .filter { $0.lastPathComponent.hasPrefix("__MACOSX") }
-        
+
         for folder in macosxFolders {
             try fileManager.removeItem(at: folder)
             logger.info("Removed macOS metadata folder: \(folder.lastPathComponent)")
         }
-        
         // Remove .DS_Store files and ._ files recursively
         let enumerator = fileManager.enumerator(at: directory, includingPropertiesForKeys: nil)
         while let fileURL = enumerator?.nextObject() as? URL {
@@ -1040,83 +1251,5 @@ class ModelDownloadService: NSObject {
             }
         }
     }
-}
 
-// MARK: - URLSessionDownloadDelegate
-
-extension ModelDownloadService: URLSessionDownloadDelegate {
-
-    func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask, didFinishDownloadingTo location: URL) {
-        logger.info("Download completed, file at: \(location.path)")
-
-        do {
-            // Move to temporary location
-            let tempDir = FileManager.default.temporaryDirectory
-            let tempZip = tempDir.appendingPathComponent("model_download.zip")
-
-            // Remove old temp file if exists
-            try? FileManager.default.removeItem(at: tempZip)
-
-            // Move downloaded file
-            try FileManager.default.moveItem(at: location, to: tempZip)
-
-            progressCallback?(0.9, "Unzipping model files...")
-
-            // Unzip to Application Support
-            let destDir = ModelStore.shared.modelRootURL
-            try unzipFile(at: tempZip, to: destDir)
-
-            progressCallback?(1.0, "Download complete!")
-            logger.info("Model successfully downloaded and extracted")
-
-            // Clean up
-            try? FileManager.default.removeItem(at: tempZip)
-
-            // Notify completion on main thread
-            DispatchQueue.main.async { [weak self] in
-                self?.progressCallback?(1.0, "Ready to use")
-            }
-
-        } catch {
-            logger.error("Failed to process downloaded file: \(error.localizedDescription)")
-            DispatchQueue.main.async { [weak self] in
-                self?.progressCallback?(0.0, "Error: \(error.localizedDescription)")
-            }
-        }
-    }
-
-    func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask, didWriteData bytesWritten: Int64, totalBytesWritten: Int64, totalBytesExpectedToWrite: Int64) {
-        let progress = Double(totalBytesWritten) / Double(totalBytesExpectedToWrite)
-        let mbDownloaded = Double(totalBytesWritten) / 1_048_576
-        let mbTotal = Double(totalBytesExpectedToWrite) / 1_048_576
-
-        let message = String(format: "Downloading: %.1f / %.1f MB", mbDownloaded, mbTotal)
-
-        DispatchQueue.main.async { [weak self] in
-            self?.progressCallback?(progress, message)
-        }
-    }
-
-    func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
-        if let error = error {
-            logger.error("Download failed: \(error.localizedDescription)")
-            DispatchQueue.main.async { [weak self] in
-                self?.progressCallback?(0.0, "Download failed: \(error.localizedDescription)")
-            }
-        }
-    }
-
-    // MARK: - Unzip Helper
-
-    private func unzipFile(at sourceURL: URL, to destinationURL: URL) throws {
-        logger.info("Unzipping: \(sourceURL.path) -> \(destinationURL.path)")
-
-        // Create destination directory
-        try FileManager.default.createDirectory(at: destinationURL, withIntermediateDirectories: true)
-
-        // Use ZIPFoundation to extract
-        try FileManager.default.unzipItem(at: sourceURL, to: destinationURL)
-
-        logger.info("Unzip successful")
-    }
 }

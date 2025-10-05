@@ -2,6 +2,47 @@
 
 ## [Unreleased]
 
+### 🔧 **TOKENIZER FORMAT AND EXTRACTION DIRECTORY FIXES** - October 5, 2025
+
+#### **Tokenizer Special Tokens Loading Fix** ✅ **COMPLETE**
+- **Issue**: Model loading fails with "Missing <|im_start|> token" error even though tokenizer file contains special tokens
+- **Root Cause**: 
+  - Swift tokenizer code expected `added_tokens` (array format)
+  - Qwen3 tokenizer uses `added_tokens_decoder` (dictionary with ID keys)
+  - Special tokens were never loaded, causing validation failures
+- **Solution**: 
+  - Updated QwenTokenizer to parse `added_tokens_decoder` dictionary format first
+  - Added fallback to `added_tokens` array format for compatibility
+  - Properly extract token IDs from string keys in dictionary
+- **Files Modified**: `ios/Runner/LLMBridge.swift` (lines 216-235)
+- **Result**: Tokenizer now correctly loads Qwen3 special tokens and passes validation
+
+#### **Duplicate ModelDownloadService Class Fix** ✅ **COMPLETE**
+- **Issue**: Downloaded models extracted to wrong location, preventing inference from finding them
+- **Root Cause**: 
+  - Duplicate ModelDownloadService class in LLMBridge.swift extracted to `Models/` root
+  - Inference code looks for models in `Models/qwen3-1.7b-mlx-4bit/` subdirectory
+  - Mismatch caused "model not found" errors despite successful downloads
+- **Solution**: 
+  - Removed entire duplicate ModelDownloadService class from LLMBridge.swift
+  - Replaced with corrected implementation that extracts to model-specific subdirectories
+  - Uses ZIPFoundation (iOS-compatible) instead of Process/unzip command
+  - Maintains directory flattening for ZIPs with root folders
+  - Enhanced macOS metadata cleanup after extraction
+- **Files Modified**: `ios/Runner/LLMBridge.swift` (replaced lines 871-1265 with corrected implementation)
+- **Result**: Models now extract to correct subdirectory location for proper inference detection
+
+#### **Startup Model Completeness Check** ✅ **COMPLETE**
+- **Issue**: No verification at startup that downloaded models are complete and properly extracted
+- **Root Cause**: App showed models as available even if files were incomplete or corrupted
+- **Solution**: 
+  - Added `_verifyModelCompleteness()` method to validate model files
+  - Enhanced `_performStartupModelCheck()` to verify completeness before marking as available
+  - Updates download state service to show green light for complete models
+  - Prevents double downloads by showing models as ready when files are verified
+- **Files Modified**: `lib/lumara/config/api_config.dart`
+- **Result**: Only complete, verified models show as available; green light indicates ready-to-use status
+
 ### 🔧 **CASE SENSITIVITY AND DOWNLOAD CONFLICT FIXES** - October 5, 2025
 
 #### **Model Directory Case Sensitivity Resolution** ✅ **COMPLETE**

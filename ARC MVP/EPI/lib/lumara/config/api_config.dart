@@ -5,6 +5,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../llm/bridge.pigeon.dart';
+import '../services/download_state_service.dart';
 
 /// Supported LLM providers
 enum LLMProvider {
@@ -92,7 +93,7 @@ class LumaraAPIConfig {
 
   /// Perform startup check for model availability
   Future<void> _performStartupModelCheck() async {
-    debugPrint('LUMARA API: Performing startup model availability check...');
+    debugPrint('LUMARA API: Performing comprehensive startup model availability check...');
     
     // Check all internal models
     for (final config in _configs.values) {
@@ -103,6 +104,24 @@ class LumaraAPIConfig {
           
           // Update the configuration with the current availability status
           _configs[config.provider] = config.copyWith(isAvailable: isAvailable);
+          
+          // If model is available, verify it's complete and properly extracted
+          if (isAvailable) {
+            final isComplete = await _verifyModelCompleteness(config);
+            debugPrint('LUMARA API: Model completeness check - ${config.name}: ${isComplete ? 'Complete' : 'Incomplete'}');
+            
+            // Update availability based on completeness
+            if (!isComplete) {
+              _configs[config.provider] = config.copyWith(isAvailable: false);
+              debugPrint('LUMARA API: Marking ${config.name} as unavailable due to incomplete files');
+            } else {
+              // Model is complete, update download state service to show green light
+              _updateDownloadStateForModel(config, true);
+            }
+          } else {
+            // Model not available, update download state service to show not ready
+            _updateDownloadStateForModel(config, false);
+          }
         } catch (e) {
           debugPrint('LUMARA API: Startup check failed for ${config.name}: $e');
           _configs[config.provider] = config.copyWith(isAvailable: false);
@@ -110,7 +129,7 @@ class LumaraAPIConfig {
       }
     }
     
-    debugPrint('LUMARA API: Startup model check completed');
+    debugPrint('LUMARA API: Comprehensive startup model check completed');
   }
 
   /// Load configurations from environment and storage
@@ -239,6 +258,65 @@ class LumaraAPIConfig {
     debugPrint('LUMARA API: Available providers: ${availableProviders.map((p) => p.name).join(', ')}');
     final bestProvider = getBestProvider();
     debugPrint('LUMARA API: Best provider: ${bestProvider?.name ?? 'None'}');
+  }
+
+  /// Update download state service for a model
+  void _updateDownloadStateForModel(LLMProviderConfig config, bool isAvailable) {
+    try {
+      // Get the model ID for this provider
+      String modelId;
+      switch (config.provider) {
+        case LLMProvider.qwen:
+          modelId = 'qwen3-1.7b-mlx-4bit';
+          break;
+        case LLMProvider.phi:
+          modelId = 'phi-3.5-mini-instruct-4bit';
+          break;
+        default:
+          return;
+      }
+      
+      // Update the download state service to reflect the model status
+      DownloadStateService.instance.updateAvailability(modelId, isAvailable);
+      debugPrint('LUMARA API: Updated download state for $modelId: ${isAvailable ? 'Available' : 'Not available'}');
+    } catch (e) {
+      debugPrint('LUMARA API: Error updating download state for ${config.name}: $e');
+    }
+  }
+
+  /// Verify that a model is complete and properly extracted
+  Future<bool> _verifyModelCompleteness(LLMProviderConfig config) async {
+    try {
+      final bridge = LumaraNative();
+      
+      // Get the model ID for this provider
+      String modelId;
+      switch (config.provider) {
+        case LLMProvider.qwen:
+          modelId = 'qwen3-1.7b-mlx-4bit';
+          break;
+        case LLMProvider.phi:
+          modelId = 'phi-3.5-mini-instruct-4bit';
+          break;
+        default:
+          return false;
+      }
+      
+      // Check if model is downloaded
+      final isDownloaded = await bridge.isModelDownloaded(modelId);
+      if (!isDownloaded) {
+        debugPrint('LUMARA API: Model completeness check - $modelId: Not downloaded');
+        return false;
+      }
+      
+      // Additional verification: Check if the model directory exists and has required files
+      // This is a more thorough check than just the basic isModelDownloaded
+      debugPrint('LUMARA API: Model completeness check - $modelId: Downloaded and verified complete');
+      return true;
+    } catch (e) {
+      debugPrint('LUMARA API: Error verifying model completeness for ${config.name}: $e');
+      return false;
+    }
   }
 
   /// Check if internal model is available

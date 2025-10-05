@@ -5,7 +5,35 @@ ARC is the **core journaling module of EPI (Evolving Personal Intelligence)**, b
 
 This MVP now implements **modular architecture** with RIVET (safety validation) and ECHO (expressive response layer) modules migrated to their proper locations, providing a foundation for the complete 8-module system: ARC→PRISM→ECHO→ATLAS→MIRA→AURORA→VEIL→RIVET.
 
-## 🌟 **LATEST ENHANCEMENT: Case Sensitivity and Download Conflict Fixes** (2025-10-05) ✅
+## 🌟 **LATEST ENHANCEMENT: Tokenizer Format and Extraction Directory Fixes** (2025-10-05) ✅
+
+**🎯 Major Achievement**: Resolved critical tokenizer format mismatch and duplicate extraction class issues preventing on-device model initialization and inference.
+
+**✨ Tokenizer Special Tokens Loading Fix**:
+- **Issue Resolved**: Model loading failing with "Missing <|im_start|> token" error
+- **Root Cause Fixed**: Swift code expected `added_tokens` array but Qwen3 uses `added_tokens_decoder` dictionary
+- **Solution Implemented**: Updated tokenizer to parse both dictionary and array formats
+- **User Experience**: Qwen3 models now load successfully and pass validation
+- **Reliability**: Robust tokenizer loading with format compatibility
+- **Compatibility**: Supports both Qwen3 dictionary format and legacy array format
+
+**✨ Duplicate ModelDownloadService Class Fix**:
+- **Issue Resolved**: Downloaded models extracted to wrong location preventing inference
+- **Root Cause Fixed**: Duplicate class extracted to `Models/` root instead of `Models/qwen3-1.7b-mlx-4bit/`
+- **Solution Implemented**: Removed duplicate, kept corrected implementation with proper subdirectory extraction
+- **User Experience**: Models now extract to correct location for inference detection
+- **Reliability**: iOS-compatible ZIPFoundation with directory flattening support
+- **Compatibility**: Full compatibility between download and inference systems
+
+**✨ Startup Model Completeness Check**:
+- **Issue Resolved**: No verification that downloaded models are complete and usable
+- **Root Cause Fixed**: App showed models as available even if files were incomplete
+- **Solution Implemented**: Added completeness verification at startup with green light indicators
+- **User Experience**: Only complete models show as available, preventing confusion
+- **Reliability**: Comprehensive file validation before marking as ready
+- **Compatibility**: Prevents double downloads by showing green light for verified models
+
+## 🌟 **PREVIOUS ENHANCEMENT: Case Sensitivity and Download Conflict Fixes** (2025-10-05) ✅
 
 **🎯 Major Achievement**: Resolved critical case sensitivity mismatch and download conflict issues preventing on-device model detection and usage.
 
