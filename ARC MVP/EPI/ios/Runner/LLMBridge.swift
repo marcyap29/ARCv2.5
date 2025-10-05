@@ -813,7 +813,7 @@ class LLMBridge: NSObject, LumaraNative {
         // Build context prelude from MIRA memory
         let contextPrelude = miraStore.buildContextPrelude()
         logger.info("📚 CONTEXT PRELUDE:")
-        logger.info("  '\(contextPrelude)'")
+        logger.info("  \(contextPrelude.build())")
         
         let qwenPrompt = lumaraSystem.buildLumaraMessages(userPrompt: prompt, contextPrelude: contextPrelude)
         logger.info("🔧 FORMATTED QWEN PROMPT:")
