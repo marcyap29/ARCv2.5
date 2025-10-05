@@ -2,7 +2,7 @@
 
 ## [Unreleased]
 
-### ✨ **EPI-AWARE LUMARA SYSTEM PROMPT** - October 5, 2025
+### ✨ **EPI-AWARE LUMARA SYSTEM PROMPT & QWEN STATUS** - October 5, 2025
 
 #### **Production-Ready LUMARA Lite Prompt** ✅ **COMPLETE**
 - **Enhancement**: Updated system prompt with comprehensive EPI stack awareness and structured output contracts
@@ -25,7 +25,9 @@
   - Tiny next steps, user control emphasized
   - Optimized for low-latency mobile inference
 - **Files Modified**: `ios/Runner/LumaraPromptSystem.swift`
-- **Result**: Production-ready LUMARA Lite prompt that transforms Qwen-3 into a reflective journaling assistant with gentle phase awareness and structured output capabilities
+- **Result**: LUMARA Lite prompt finalized; MLX generation still pending (current builds emit placeholder “HiHowcanIhelpyou” because transformer forward pass is stubbed)
+
+> **Note:** The MLX loader, tokenizer, and prompt scaffolding are complete. Actual transformer inference is not yet implemented in `ModelLifecycle.generate()`—it currently emits scripted tokens followed by random IDs. Until MLX inference lands, Qwen responses will appear as gibberish and the system should rely on cloud fallback.
 
 ### 🔍 **COMPREHENSIVE QWEN OUTPUT DEBUGGING** - October 5, 2025
 

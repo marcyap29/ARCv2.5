@@ -17,15 +17,18 @@ flutter doctor
 
 ## Run the full MVP
 
-### **With On-Device LLM (Recommended)**
-- **Debug (full app with MLX on-device model)**:
+### **With On-Device LLM (Experimental)**
+> **Status:** MLX model weights load successfully, but generation still uses a placeholder loop (produces "HiHowcanIhelpyou"-style gibberish). Until the MLX transformer pass is implemented, keep a cloud key configured or expect rule-based fallbacks.
+
+- **Debug (runs MLX loader + cloud fallback)**:
 ```bash
 flutter run -d DEVICE_ID --dart-define=GEMINI_API_KEY=YOUR_KEY
 ```
-- **Without API key (on-device only)**:
+- **Without API key (on-device only – will emit placeholder text)**:
 ```bash
 flutter run -d DEVICE_ID
 ```
+  Only use this path if you are actively developing the MLX forward pass.
 
 ### **Enhanced Model Download Features** ✅ **NEW**
 - **Comprehensive macOS Compatibility**: Enhanced model download system with automatic exclusion of all macOS metadata files (`_MACOSX`, `.DS_Store`, `._*`)

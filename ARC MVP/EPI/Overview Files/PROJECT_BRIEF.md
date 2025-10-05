@@ -5,20 +5,11 @@ ARC is the **core journaling module of EPI (Evolving Personal Intelligence)**, b
 
 This MVP now implements **modular architecture** with RIVET (safety validation) and ECHO (expressive response layer) modules migrated to their proper locations, providing a foundation for the complete 8-module system: ARC→PRISM→ECHO→ATLAS→MIRA→AURORA→VEIL→RIVET.
 
-## 🌟 **LATEST ENHANCEMENT: Comprehensive Qwen Output Debugging** (2025-10-05) ✅
+## 🌟 **LATEST STATUS: Qwen Output Debugging & Pending MLX Inference** (2025-10-05) ⚠️
 
-**🎯 Major Achievement**: Added comprehensive debugging infrastructure to track Qwen model outputs throughout the entire inference pipeline.
+**🎯 What’s Done**: The entire prompt/loader/tokenizer pipeline is instrumented with rich logging so we can see exactly what reaches the native bridge.
 
-**✨ Multi-Level Inference Pipeline Debugging**:
-- **Issue Resolved**: Need detailed visibility into Qwen model generation process to diagnose issues
-- **Solution Implemented**: Comprehensive logging at all levels (Dart → Swift → Token Generation → Decoding)
-- **User Experience**: Detailed trace enables precise diagnosis of inference issues
-- **Reliability**: Complete visibility into prompt formatting, tokenization, generation, and output cleanup
-- **Compatibility**: Emoji-marked logs (🟦🟩🔷📥📤🔢) for easy visual tracking in Xcode console
-- **Debug Levels**: 
-  - Swift `generateText()`: Original prompt, context, formatted prompt, final result
-  - Swift `generate()`: Token encoding/decoding, raw output, cleaned output, timing
-  - Dart `realize()`: Task type, native call results, streaming progress
+**⚠️ Still Missing**: `ModelLifecycle.generate()` uses a placeholder loop (greets, then random token IDs). Until we wire in the actual MLX transformer forward pass, on-device replies will look like “HiHowcanIhelpyou…”. Keep a cloud provider configured for real responses.
 
 ## 🌟 **PREVIOUS ENHANCEMENT: Tokenizer Format and Extraction Directory Fixes** (2025-10-05) ✅
 

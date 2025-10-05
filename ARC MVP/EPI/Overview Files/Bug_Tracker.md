@@ -2,61 +2,36 @@
 
 ## Active Issues
 
-### Need Comprehensive Qwen Output Debugging - RESOLVED ✅ - October 5, 2025
-**Status:** ✅ **RESOLVED**
-**Priority:** High
-**Component:** Qwen Inference Pipeline
+### MLX Inference Stub Still Returns Gibberish - OPEN 🔥 - October 5, 2025
+**Status:** 🔥 **OPEN**
+**Priority:** Critical
+**Component:** Qwen MLX Generation
 
 **Issue:**
-Need detailed visibility into Qwen model's inference pipeline to diagnose generation issues and understand what's happening at each step.
+The on-device Qwen pipeline loads weights and tokenizes input, but `ModelLifecycle.generate()` still uses a placeholder loop that emits scripted greetings followed by random token IDs. All responses look like “HiHowcanIhelpyou?…“ regardless of prompt.
 
-**Requirements:**
-- Track prompt formatting and special token insertion
-- Monitor tokenization (encoding and decoding)
-- Log token generation process
-- Observe raw output vs cleaned output
-- Measure generation timing
-- Trace complete flow from Dart through Swift to final result
+**Impact:**
+- On-device responses unusable (gibberish)
+- Users must keep cloud provider active for meaningful output
+- Undermines privacy-first experience promised by on-device mode
 
-**Solution:**
-Added comprehensive debugging at all levels of the inference pipeline:
+**Root Cause:**
+MLX transformer forward pass is not implemented. The current method appends canned greeting tokens then selects random IDs for remaining positions instead of calling into the Qwen model graph.
 
-**Swift `generateText()` Method:**
-- Logs original prompt content and length
-- Displays context prelude from MIRA memory
-- Shows formatted Qwen prompt with special tokens
-- Reports generation parameters
-- Logs complete result before returning to Dart
+**What we already did:**
+- ✅ Model weights load via `SafetensorsLoader`
+- ✅ Tokenizer parses special tokens and emits correct IDs
+- ✅ Logging added across Dart + Swift for full visibility
 
-**Swift `ModelLifecycle.generate()` Method:**
-- Logs input prompt details with preview
-- Shows generation parameters (maxTokens, temperature, topP)
-- Displays token encoding (input token IDs)
-- Shows token generation progress
-- Logs token decoding (generated token IDs and count)
-- Displays raw decoded text
-- Shows cleaned text (after removing special tokens)
-- Reports final output text
-- Measures and logs generation timing
+**Resolution Plan:**
+1. Wire in actual MLX Qwen3 model (refer to Hugging Face repo: [Qwen3-1.7B-MLX-4bit](https://huggingface.co/Qwen/Qwen3-1.7B-MLX-4bit/tree/main))
+2. Replace placeholder loop with real transformer forward pass
+3. Validate outputs against cloud baseline
+4. Re-enable on-device mode by default once coherent responses confirmed
 
-**Dart `LLMAdapter.realize()` Method:**
-- Logs task type
-- Shows prompt length and preview
-- Displays generation parameters
-- Indicates native call execution
-- Logs complete result from native (text, tokens, latency, provider)
-- Tracks word streaming progress
-- Reports errors with detailed type information
-
-**Files Modified:**
-- `ios/Runner/LLMBridge.swift` - Enhanced generateText() and generate() methods with detailed logging
-- `lib/lumara/llm/llm_adapter.dart` - Added comprehensive debug output in realize() method
-
-**Result:**
-✅ Complete trace of inference pipeline visible in logs
-✅ Emoji markers (🟦🟩🔷📥📤🔢⏱️✅❌) for easy visual tracking
-✅ Precise diagnosis capability for any inference issues
-✅ Full visibility into prompt → tokens → generation → output flow
+**Temporary Guidance:**
+- Configure Gemini (or other cloud provider) until MLX inference is finalized
+- Developers working on the MLX graph can run on-device-only builds knowing the output will be junk today
 
 ---
 
