@@ -2,6 +2,31 @@
 
 ## [Unreleased]
 
+### ✨ **EPI-AWARE LUMARA SYSTEM PROMPT** - October 5, 2025
+
+#### **Production-Ready LUMARA Lite Prompt** ✅ **COMPLETE**
+- **Enhancement**: Updated system prompt with comprehensive EPI stack awareness and structured output contracts
+- **Features Implemented**:
+  - **EPI Stack Integration**: Explicit awareness of ARC, ATLAS, AURORA, MIRA, and VEIL modules
+  - **SAGE Echo Structure**: Signal, Aims, Gaps, Experiments framework for reflective journaling
+  - **Arcform Candidates**: 5-10 keywords with color hints (warm/cool/neutral) and reasons
+  - **ATLAS Phase Guessing**: Soft phase inferences with confidence scores (0.0-1.0)
+  - **Neuroform Mini**: Cognitive trait constellation with growth edges
+  - **Rhythm & VEIL**: Cadence suggestions and pruning notes
+  - **Multiple Operating Modes**: Journal, Assistant, Coach, Builder
+  - **Output Contract**: Human response first (2-5 sentences), then structured JSON when applicable
+- **Safety & Privacy**:
+  - Dignity-first, privacy-by-default principles
+  - No clinical claims, supportive language only
+  - Distress handling with resource suggestions
+- **Style Optimization**:
+  - Short, steady, clear language
+  - No em dashes, no purple prose
+  - Tiny next steps, user control emphasized
+  - Optimized for low-latency mobile inference
+- **Files Modified**: `ios/Runner/LumaraPromptSystem.swift`
+- **Result**: Production-ready LUMARA Lite prompt that transforms Qwen-3 into a reflective journaling assistant with gentle phase awareness and structured output capabilities
+
 ### 🔍 **COMPREHENSIVE QWEN OUTPUT DEBUGGING** - October 5, 2025
 
 #### **Multi-Level Inference Pipeline Debugging** ✅ **COMPLETE**
