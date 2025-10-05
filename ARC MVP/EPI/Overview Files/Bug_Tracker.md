@@ -2,6 +2,66 @@
 
 ## Active Issues
 
+### Model Directory Case Sensitivity Mismatch - RESOLVED ✅ - October 5, 2025
+**Status:** ✅ **RESOLVED**
+**Priority:** High
+**Component:** Model Detection System
+
+**Issue:**
+Downloaded on-device models were not being detected during inference, causing "model not found" errors despite successful download and extraction.
+
+**Error Symptoms:**
+- Model download completed successfully
+- Model files extracted to Application Support directory
+- App reported "model not found" when attempting inference
+- `isModelDownloaded()` returned false for downloaded models
+
+**Root Cause:**
+Case sensitivity mismatch between download service and model resolution:
+- Download service used uppercase directory names: `Qwen3-1.7B-MLX-4bit`
+- Model resolution used lowercase directory names: `qwen3-1.7b-mlx-4bit`
+- This caused path resolution to fail during model detection
+
+**Solution:**
+- Updated `resolveModelPath()` to use lowercase directory names consistently
+- Updated `isModelDownloaded()` to use lowercase directory names consistently
+- Added `.lowercased()` fallback for future model IDs
+- Fixed download completion to use lowercase directory names
+
+**Files Modified:**
+- `ios/Runner/LLMBridge.swift` - Updated model path resolution logic
+- `ios/Runner/ModelDownloadService.swift` - Updated download completion logic
+
+**Result:**
+Models are now properly detected and usable for on-device inference.
+
+### Download Conflict Resolution - RESOLVED ✅ - October 5, 2025
+**Status:** ✅ **RESOLVED**
+**Priority:** High
+**Component:** Model Download System
+
+**Issue:**
+Model downloads failing with "file already exists" error during ZIP extraction, preventing successful model installation.
+
+**Error Symptoms:**
+- Download progress reached 100%
+- Unzipping phase failed with "file already exists" error
+- Error: `The file "._Qwen3-1.7B-MLX-4bit" couldn't be saved in the folder "__MACOSX" because a file with the same name already exists`
+
+**Root Cause:**
+Existing partial downloads or conflicting files in destination directory causing extraction conflicts.
+
+**Solution:**
+- Added destination directory cleanup before unzipping
+- Enhanced unzip command with comprehensive macOS metadata exclusion
+- Improved error handling for existing files
+
+**Files Modified:**
+- `ios/Runner/ModelDownloadService.swift` - Enhanced unzip logic and cleanup
+
+**Result:**
+Downloads now complete successfully without conflicts.
+
 ### Enhanced Model Download _MACOSX Folder Conflict - RESOLVED ✅ - October 4, 2025
 **Status:** ✅ **ENHANCED & RESOLVED**
 **Priority:** High

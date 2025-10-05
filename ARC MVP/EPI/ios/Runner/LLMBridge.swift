@@ -66,22 +66,44 @@ class ModelStore {
     /// iOS: Models bundled in app (for development testing)
     /// macOS: Models installed via scripts/setup_models.sh to ~/Library/Application Support/Models/
     func resolveModelPath(modelId: String, file: String) -> URL? {
-        // Map model ID to directory name
+        // Map model ID to directory name - all lowercase for consistency
         let modelDir: String
         switch modelId {
         case "qwen3-1.7b-mlx-4bit":
-            modelDir = "qwen3-1.7b-mlx-4bit"  // Use the same name as modelId
+            modelDir = "qwen3-1.7b-mlx-4bit"  // Use lowercase for consistency
         case "phi-3.5-mini-instruct-4bit":
-            modelDir = "phi-3.5-mini-instruct-4bit"  // Use the same name as modelId
+            modelDir = "phi-3.5-mini-instruct-4bit"  // Use lowercase for consistency
         default:
-            modelDir = modelId
+            modelDir = modelId.lowercased()  // Ensure all model IDs are lowercase
         }
 
         #if os(iOS)
         // iOS: Check Application Support FIRST (downloaded models)
-        let appSupportPath = modelRootURL.appendingPathComponent(modelDir).appendingPathComponent(file)
+        let appSupportPath = self.modelRootURL.appendingPathComponent(modelDir).appendingPathComponent(file)
+        print("🔍 resolveModelPath: checking iOS Application Support: \(appSupportPath.path)")
+        print("🔍 resolveModelPath: modelRootURL: \(self.modelRootURL.path)")
+        print("🔍 resolveModelPath: modelDir: \(modelDir)")
+        print("🔍 resolveModelPath: file: \(file)")
+
+        // List contents of modelRootURL for debugging
+        do {
+            let contents = try FileManager.default.contentsOfDirectory(at: self.modelRootURL, includingPropertiesForKeys: nil)
+            print("🔍 resolveModelPath: modelRootURL contents: \(contents.map { $0.lastPathComponent })")
+        } catch {
+            print("🔍 resolveModelPath: failed to list modelRootURL contents: \(error)")
+        }
+
+        // List contents of modelDir if it exists
+        let modelDirPath = self.modelRootURL.appendingPathComponent(modelDir)
+        do {
+            let contents = try FileManager.default.contentsOfDirectory(at: modelDirPath, includingPropertiesForKeys: nil)
+            print("🔍 resolveModelPath: modelDir contents: \(contents.map { $0.lastPathComponent })")
+        } catch {
+            print("🔍 resolveModelPath: modelDir does not exist or failed to list: \(error)")
+        }
+
         if FileManager.default.fileExists(atPath: appSupportPath.path) {
-            logger.info("resolveModelPath: found in iOS Application Support: \(appSupportPath.path)")
+            print("🔍 resolveModelPath: found in iOS Application Support: \(appSupportPath.path)")
             return appSupportPath
         }
 
@@ -353,9 +375,21 @@ class ModelLifecycle {
                 // Resolve bundle paths
                 self.emit(modelId: modelId, value: 10, message: "locating files")
 
-                guard let configURL = ModelStore.shared.resolveModelPath(modelId: modelId, file: "config.json"),
-                      let tokenizerURL = ModelStore.shared.resolveModelPath(modelId: modelId, file: "tokenizer.json"),
-                      let weightsURL = ModelStore.shared.resolveModelPath(modelId: modelId, file: "model.safetensors") else {
+                print("🔍 [START] About to resolve model paths for: \(modelId)")
+
+                let configURLOptional = ModelStore.shared.resolveModelPath(modelId: modelId, file: "config.json")
+                print("🔍 configURL result: \(configURLOptional?.path ?? "NIL")")
+
+                let tokenizerURLOptional = ModelStore.shared.resolveModelPath(modelId: modelId, file: "tokenizer.json")
+                print("🔍 tokenizerURL result: \(tokenizerURLOptional?.path ?? "NIL")")
+
+                let weightsURLOptional = ModelStore.shared.resolveModelPath(modelId: modelId, file: "model.safetensors")
+                print("🔍 weightsURL result: \(weightsURLOptional?.path ?? "NIL")")
+
+                guard let configURL = configURLOptional,
+                      let tokenizerURL = tokenizerURLOptional,
+                      let weightsURL = weightsURLOptional else {
+                    print("🔍 [FAIL] One or more model files not found - throwing error")
                     throw NSError(domain: "ModelLifecycle", code: 404, userInfo: [
                         NSLocalizedDescriptionKey: "Model files not found in bundle for: \(modelId)"
                     ])
@@ -918,15 +952,15 @@ class ModelDownloadService: NSObject {
 
     /// Check if model already exists
     func isModelDownloaded(modelId: String) -> Bool {
-        // Map model ID to directory name
+        // Map model ID to directory name - all lowercase for consistency
         let modelDir: String
         switch modelId {
         case "qwen3-1.7b-mlx-4bit":
-            modelDir = "Qwen3-1.7B-MLX-4bit"
+            modelDir = "qwen3-1.7b-mlx-4bit"  // Use lowercase for consistency
         case "phi-3.5-mini-instruct-4bit":
-            modelDir = "Phi-3.5-mini-instruct-4bit"
+            modelDir = "phi-3.5-mini-instruct-4bit"  // Use lowercase for consistency
         default:
-            modelDir = modelId
+            modelDir = modelId.lowercased()  // Ensure all model IDs are lowercase
         }
 
         // Check if required files exist in Application Support

@@ -5,7 +5,27 @@ ARC is the **core journaling module of EPI (Evolving Personal Intelligence)**, b
 
 This MVP now implements **modular architecture** with RIVET (safety validation) and ECHO (expressive response layer) modules migrated to their proper locations, providing a foundation for the complete 8-module system: ARC→PRISM→ECHO→ATLAS→MIRA→AURORA→VEIL→RIVET.
 
-## 🌟 **LATEST ENHANCEMENT: Enhanced Model Download Extraction Fix** (2025-10-04) ✅
+## 🌟 **LATEST ENHANCEMENT: Case Sensitivity and Download Conflict Fixes** (2025-10-05) ✅
+
+**🎯 Major Achievement**: Resolved critical case sensitivity mismatch and download conflict issues preventing on-device model detection and usage.
+
+**✨ Model Directory Case Sensitivity Resolution**:
+- **Issue Resolved**: Downloaded models not being detected due to case sensitivity mismatch
+- **Root Cause Fixed**: Download service used uppercase directory names while model resolution used lowercase
+- **Solution Implemented**: Consistent lowercase directory naming across all model operations
+- **User Experience**: Downloaded models are now properly detected and usable for inference
+- **Reliability**: Robust model detection with consistent path resolution
+- **Compatibility**: Full compatibility between download and inference systems
+
+**✨ Download Conflict Resolution**:
+- **Issue Resolved**: Download failures due to "file already exists" errors during ZIP extraction
+- **Root Cause Fixed**: Existing partial downloads causing extraction conflicts
+- **Solution Implemented**: Destination directory cleanup and enhanced unzip command
+- **User Experience**: Downloads now complete successfully without conflicts
+- **Reliability**: Robust extraction process with comprehensive error handling
+- **Compatibility**: Full macOS compatibility with enhanced metadata exclusion
+
+## 🌟 **PREVIOUS ENHANCEMENT: Enhanced Model Download Extraction Fix** (2025-10-04) ✅
 
 **🎯 Major Achievement**: Enhanced and resolved critical `_MACOSX` folder conflict error with comprehensive cleanup system for model downloads and extraction.
 

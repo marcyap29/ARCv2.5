@@ -204,7 +204,9 @@ extension ModelDownloadService: URLSessionDownloadDelegate {
             progressCallbacks[modelId]?(0.9, "Unzipping model files...")
 
             // Unzip to Application Support in model-specific directory
-            let destDir = modelRootURL.appendingPathComponent(modelId, isDirectory: true)
+            // Use lowercase directory name for consistency
+            let modelDir = modelId.lowercased()
+            let destDir = modelRootURL.appendingPathComponent(modelDir, isDirectory: true)
             try unzipFile(at: tempZip, to: destDir)
 
             progressCallbacks[modelId]?(1.0, "Download complete!")
@@ -279,18 +281,27 @@ extension ModelDownloadService: URLSessionDownloadDelegate {
     private func unzipFile(at sourceURL: URL, to destinationURL: URL) throws {
         logger.info("Unzipping: \(sourceURL.path) -> \(destinationURL.path)")
 
+        // Remove existing destination directory if it exists to avoid conflicts
+        if FileManager.default.fileExists(atPath: destinationURL.path) {
+            try FileManager.default.removeItem(at: destinationURL)
+            logger.info("Removed existing destination directory: \(destinationURL.path)")
+        }
+
         // Create destination directory
         try FileManager.default.createDirectory(at: destinationURL, withIntermediateDirectories: true)
 
-        // Use Process to call unzip command
+        // Use Process to call unzip command with enhanced macOS metadata exclusion
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/usr/bin/unzip")
         process.arguments = [
-            "-o", // Overwrite files
+            "-o", // Overwrite files without prompting
             "-q", // Quiet mode
             "-x", "*__MACOSX*", // Exclude macOS metadata folders
             "-x", "*.DS_Store", // Exclude macOS .DS_Store files
             "-x", "._*", // Exclude macOS resource fork files
+            "-x", "**/__MACOSX/**", // Exclude nested macOS metadata folders
+            "-x", "**/.DS_Store", // Exclude nested .DS_Store files
+            "-x", "**/._*", // Exclude nested resource fork files
             sourceURL.path,
             "-d", destinationURL.path
         ]

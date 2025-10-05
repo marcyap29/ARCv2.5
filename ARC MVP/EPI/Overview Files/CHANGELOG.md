@@ -2,6 +2,32 @@
 
 ## [Unreleased]
 
+### 🔧 **CASE SENSITIVITY AND DOWNLOAD CONFLICT FIXES** - October 5, 2025
+
+#### **Model Directory Case Sensitivity Resolution** ✅ **COMPLETE**
+- **Issue**: Downloaded models not being detected due to case sensitivity mismatch between download service and model resolution
+- **Root Cause**: 
+  - Download service used uppercase directory names (`Qwen3-1.7B-MLX-4bit`)
+  - Model resolution used lowercase directory names (`qwen3-1.7b-mlx-4bit`)
+  - This caused "model not found" errors during inference
+- **Solution**: 
+  - Updated `resolveModelPath()` to use lowercase directory names consistently
+  - Updated `isModelDownloaded()` to use lowercase directory names consistently
+  - Added `.lowercased()` fallback for future model IDs
+  - Fixed download completion to use lowercase directory names
+- **Files Modified**: `ios/Runner/LLMBridge.swift`, `ios/Runner/ModelDownloadService.swift`
+- **Result**: Models are now properly detected and usable for inference
+
+#### **Download Conflict Resolution** ✅ **COMPLETE**
+- **Issue**: Download failing with "file already exists" error during ZIP extraction
+- **Root Cause**: Existing partial downloads causing conflicts during re-extraction
+- **Solution**:
+  - Added destination directory cleanup before unzipping
+  - Enhanced unzip command with comprehensive macOS metadata exclusion
+  - Improved error handling for existing files
+- **Files Modified**: `ios/Runner/ModelDownloadService.swift`
+- **Result**: Downloads now complete successfully without conflicts
+
 ### 🔧 **ENHANCED MODEL DOWNLOAD EXTRACTION FIX** - October 4, 2025
 
 #### **Enhanced _MACOSX Folder Conflict Resolution** ✅ **COMPLETE**
