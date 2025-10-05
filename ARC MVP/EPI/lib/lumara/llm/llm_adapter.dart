@@ -180,13 +180,22 @@ class LLMAdapter implements ModelAdapter {
       return;
     }
 
-    // Build prompt based on task type
-    final prompt = _buildPrompt(task, facts, snippets, chat);
+    // Extract the user's actual message from chat
+    // The Swift side (LumaraPromptSystem) will handle all prompt formatting
+    String userMessage = '';
+    if (chat.isNotEmpty) {
+      // Get the last user message
+      final lastUserTurn = chat.lastWhere(
+        (turn) => turn['role'] == 'user',
+        orElse: () => {'content': ''},
+      );
+      userMessage = lastUserTurn['content'] ?? '';
+    }
     
     debugPrint('🟩🟩🟩 === DART LLMAdapter.realize === 🟩🟩🟩');
     debugPrint('📥 TASK: $task');
-    debugPrint('📥 PROMPT LENGTH: ${prompt.length} characters');
-    debugPrint('📥 PROMPT PREVIEW: ${prompt.substring(0, prompt.length > 200 ? 200 : prompt.length)}...');
+    debugPrint('📥 USER MESSAGE: "$userMessage"');
+    debugPrint('📥 USER MESSAGE LENGTH: ${userMessage.length} characters');
 
     try {
       // Generate with native model
@@ -199,9 +208,9 @@ class LLMAdapter implements ModelAdapter {
       );
       
       debugPrint('⚙️  GENERATION PARAMS: maxTokens=${params.maxTokens}, temp=${params.temperature}');
-      debugPrint('🚀 Calling native generateText...');
+      debugPrint('🚀 Calling native generateText with user message...');
 
-      final result = await _nativeApi.generateText(prompt, params);
+      final result = await _nativeApi.generateText(userMessage, params);
 
       debugPrint('✅ NATIVE GENERATION COMPLETE:');
       debugPrint('  📤 text: "${result.text}"');
@@ -228,52 +237,6 @@ class LLMAdapter implements ModelAdapter {
     }
   }
 
-  /// Build prompt from task and context
-  String _buildPrompt(
-    String task,
-    Map<String, dynamic> facts,
-    List<String> snippets,
-    List<Map<String, String>> chat,
-  ) {
-    final buffer = StringBuffer();
-
-    buffer.writeln('SYSTEM: You are LUMARA, a supportive AI companion focused on personal growth and self-reflection.');
-    buffer.writeln('Write a thoughtful, concise response (3-4 sentences).');
-    buffer.writeln();
-
-    // Add task-specific context
-    buffer.writeln('TASK: $task');
-    buffer.writeln();
-
-    // Add facts
-    if (facts.isNotEmpty) {
-      buffer.writeln('FACTS:');
-      facts.forEach((key, value) {
-        buffer.writeln('  $key: $value');
-      });
-      buffer.writeln();
-    }
-
-    // Add snippets
-    if (snippets.isNotEmpty) {
-      buffer.writeln('USER SNIPPETS:');
-      for (final snippet in snippets.take(3)) {
-        buffer.writeln('  - "$snippet"');
-      }
-      buffer.writeln();
-    }
-
-    // Add chat context for conversational tasks
-    if (chat.isNotEmpty) {
-      buffer.writeln('CONVERSATION:');
-      for (final turn in chat.take(5)) {
-        buffer.writeln('  ${turn['role']}: ${turn['content']}');
-      }
-      buffer.writeln();
-    }
-
-    buffer.writeln('RESPONSE:');
-
-    return buffer.toString();
-  }
+  // Prompt building is now handled entirely by the Swift side (LumaraPromptSystem)
+  // which uses the EPI-aware LUMARA Lite system prompt with SAGE Echo, Arcform candidates, etc.
 }
