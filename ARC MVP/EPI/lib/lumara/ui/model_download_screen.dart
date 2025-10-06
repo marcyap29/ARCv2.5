@@ -51,7 +51,7 @@ class _ModelDownloadScreenState extends State<ModelDownloadScreen> {
       description: 'High quality, 5-bit quantized, excellent reasoning',
     ),
     ModelInfo(
-      id: 'Qwen3-4B-Instruct.Q5_K_M.gguf',
+      id: 'Qwen3-4B-Instruct-2507-Q5_K_M.gguf',
       name: 'Qwen3 4B Instruct (Q5_K_M)',
       size: '~2.3 GB',
       downloadUrl: 'https://huggingface.co/unsloth/Qwen3-4B-Instruct-2507-GGUF/resolve/main/Qwen3-4B-Instruct-2507-Q5_K_M.gguf?download=true',

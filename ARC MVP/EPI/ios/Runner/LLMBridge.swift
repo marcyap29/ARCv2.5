@@ -5,7 +5,6 @@
 
 import Foundation
 import os.log
-import ZIPFoundation
 
 // MARK: - GGUF Model Management
 
@@ -131,15 +130,42 @@ class ModelLifecycle {
                 // llama.cpp handles tokenization internally
                 self.emit(modelId: modelId, value: 0.5, message: "preparing llama.cpp GGUF model")
 
+                // Log file details before calling llama_init (using NSLog for immediate output)
+                NSLog("🔍🔍🔍 [ModelPreload] ===== LLAMA INIT DEBUG =====")
+                NSLog("🔍🔍🔍 [ModelPreload] Model file path: \(ggufPath.path)")
+                NSLog("🔍🔍🔍 [ModelPreload] File exists: \(FileManager.default.fileExists(atPath: ggufPath.path))")
+
+                self.logger.info("[ModelPreload] ===== LLAMA INIT DEBUG =====")
+                self.logger.info("[ModelPreload] Model file path: \(ggufPath.path)")
+                self.logger.info("[ModelPreload] File exists: \(FileManager.default.fileExists(atPath: ggufPath.path))")
+
+                if let attrs = try? FileManager.default.attributesOfItem(atPath: ggufPath.path) {
+                    let size = attrs[.size] as? UInt64 ?? 0
+                    NSLog("🔍🔍🔍 [ModelPreload] File size: \(size / 1_000_000) MB")
+                    self.logger.info("[ModelPreload] File size: \(size / 1_000_000) MB")
+                }
+
                 // Initialize llama.cpp with the GGUF model
+                NSLog("🔍🔍🔍 [ModelPreload] Calling llama_init()...")
+                self.logger.info("[ModelPreload] Calling llama_init()...")
                 let initResult = llama_init(ggufPath.path)
+                NSLog("🔍🔍🔍 [ModelPreload] llama_init() returned: \(initResult)")
+                self.logger.info("[ModelPreload] llama_init() returned: \(initResult)")
+
                 if initResult != 1 {
+                    NSLog("❌❌❌ [ModelPreload] LLAMA INIT FAILED - returned \(initResult) instead of 1")
+                    NSLog("❌❌❌ [ModelPreload] Model path: \(ggufPath.path)")
+                    NSLog("❌❌❌ [ModelPreload] This usually means: corrupt GGUF, not enough memory, or incompatible format")
+                    self.logger.error("[ModelPreload] LLAMA INIT FAILED - returned \(initResult) instead of 1")
+                    self.logger.error("[ModelPreload] Model path: \(ggufPath.path)")
+                    self.logger.error("[ModelPreload] This usually means: corrupt GGUF, not enough memory, or incompatible format")
                     throw NSError(domain: "ModelLifecycle", code: 500, userInfo: [
-                        NSLocalizedDescriptionKey: "Failed to initialize llama.cpp with model: \(modelId)"
+                        NSLocalizedDescriptionKey: "Failed to initialize llama.cpp with model: \(modelId) (returned \(initResult))"
                     ])
                 }
 
-                self.logger.info("[ModelPreload] llama.cpp initialized successfully with model: \(modelId)")
+                NSLog("✅✅✅ [ModelPreload] llama.cpp initialized successfully with model: \(modelId)")
+                self.logger.info("[ModelPreload] ✅ llama.cpp initialized successfully with model: \(modelId)")
 
                 // Mark as loaded
                 self.isRunning = true

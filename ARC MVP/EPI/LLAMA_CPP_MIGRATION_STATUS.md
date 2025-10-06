@@ -1,6 +1,6 @@
 # Llama.cpp Migration Status Update - January 2, 2025
 
-## Current Status: 🔄 **IN PROGRESS** - Critical Issues Blocking On-Device LLM
+## Current Status: 🔧 **DEBUGGING IN PROGRESS** - Enhanced Logging Added
 
 ### **Migration Overview**
 Successfully migrated from MLX/Core ML to llama.cpp + Metal for on-device LLM inference. However, critical issues are preventing the model from loading and generating text.
@@ -10,6 +10,10 @@ Successfully migrated from MLX/Core ML to llama.cpp + Metal for on-device LLM in
 2. **App Build**: App now compiles and runs successfully on iOS simulator
 3. **Model Detection**: GGUF models are correctly detected as downloaded and available
 4. **UI Integration**: Flutter UI properly shows 3 GGUF models (Llama-3.2-3B, Phi-3.5-Mini, Qwen3-4B)
+5. **Enhanced Logging**: Added comprehensive logging to identify exact failure point in llama_init()
+6. **Simulator Detection**: Added simulator vs device detection with appropriate Metal configuration
+7. **Library Linking**: Verified all llama.cpp libraries properly linked (libllama.a, libggml.a, libggml-metal.a)
+8. **Header Paths**: Confirmed header search paths correctly configured for llama.h
 
 ### **Critical Issues Remaining** ❌
 
@@ -88,13 +92,44 @@ std::cout << "llama_wrapper: Backend initialized successfully" << std::endl;
 6. Error thrown: "Failed to initialize llama.cpp with model"
 7. Fallback to cloud API (which fails due to no API key)
 
-### **Next Steps Required**
+### **Latest Changes** 🆕
+
+#### **Enhanced Debugging (January 2, 2025)**
+1. **Comprehensive Logging Added to llama_wrapper.cpp**:
+   - Step-by-step logging for file existence check
+   - Backend initialization logging
+   - Model loading progress messages
+   - Context creation detailed logging
+   - Exception handling with detailed error messages
+
+2. **Simulator vs Device Detection**:
+   - Detects if running on simulator or physical device
+   - Adjusts Metal configuration accordingly:
+     - **Simulator**: `n_gpu_layers=0` (CPU only), `n_threads=2`
+     - **Device**: `n_gpu_layers=99` (full Metal), `n_threads=4`
+
+3. **Verified Configuration**:
+   - All libraries properly linked: libllama.a, libggml.a, libggml-metal.a, libggml-cpu.a, libggml-base.a
+   - Metal shader embedded in library (ggml-metal-embed.s.o)
+   - Header search paths correctly configured
+   - Universal binary (x86_64 + arm64) for simulator and device
+
+### **Next Steps - Testing Required** ⚡
 
 #### **Immediate Actions**
-1. **Debug llama.cpp Initialization**: Add more detailed logging to `llama_wrapper.cpp` to identify why `llama_init()` is failing
-2. **Check llama.cpp Build**: Verify that llama.cpp library is properly compiled with Metal support
-3. **Test Model File**: Validate that the GGUF file is not corrupted and is compatible with llama.cpp
-4. **Check Dependencies**: Ensure all required llama.cpp dependencies are properly linked
+1. **Run App in Simulator** to see detailed logs:
+   ```bash
+   cd "ARC MVP/EPI"
+   flutter run -d apple_ios_simulator
+   ```
+
+2. **Try to use LUMARA** with on-device model and observe console output:
+   - Look for logs starting with `llama_wrapper:`
+   - Identify exactly which step fails (file check, backend init, model load, or context creation)
+
+3. **Download a Model** if not already downloaded:
+   - Use the Model Download screen in app
+   - Download one of the 3 GGUF models (Llama, Phi, or Qwen)
 
 #### **Potential Root Causes**
 1. **Missing llama.cpp Library**: The llama.cpp static library may not be properly linked

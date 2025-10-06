@@ -136,7 +136,7 @@ class LumaraAPIConfig {
           modelId = 'Phi-3.5-mini-instruct-Q5_K_M.gguf';
           break;
         case LLMProvider.qwen3:
-          modelId = 'Qwen3-4B-Instruct.Q5_K_M.gguf';
+          modelId = 'Qwen3-4B-Instruct-2507-Q5_K_M.gguf';
           break;
         default:
           return false;
@@ -213,7 +213,7 @@ class LumaraAPIConfig {
       name: 'Qwen3 4B (Internal)',
       baseUrl: 'http://localhost:8082', // Local inference server
       additionalConfig: {
-        'modelPath': 'assets/models/gguf/Qwen3-4B-Instruct.Q5_K_M.gguf',
+        'modelPath': 'assets/models/gguf/Qwen3-4B-Instruct-2507-Q5_K_M.gguf',
         'contextLength': 2048,
         'temperature': 0.7,
         'backend': 'llama.cpp',
@@ -308,7 +308,7 @@ class LumaraAPIConfig {
           modelId = 'Phi-3.5-mini-instruct-Q5_K_M.gguf';
           break;
         case LLMProvider.qwen3:
-          modelId = 'Qwen3-4B-Instruct.Q5_K_M.gguf';
+          modelId = 'Qwen3-4B-Instruct-2507-Q5_K_M.gguf';
           break;
         default:
           return;
@@ -337,7 +337,7 @@ class LumaraAPIConfig {
           modelId = 'Phi-3.5-mini-instruct-Q5_K_M.gguf';
           break;
         case LLMProvider.qwen3:
-          modelId = 'Qwen3-4B-Instruct.Q5_K_M.gguf';
+          modelId = 'Qwen3-4B-Instruct-2507-Q5_K_M.gguf';
           break;
         default:
           return false;

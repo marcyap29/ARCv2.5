@@ -62,11 +62,11 @@ class LLMAdapter implements ModelAdapter {
             debugPrint('[LLMAdapter] Using Phi-3.5 model: $_activeModelId');
           } else {
             // Check for Qwen3-4B model as final fallback
-            final qwenDownloaded = await _nativeApi.isModelDownloaded('Qwen3-4B-Instruct.Q5_K_M.gguf');
+            final qwenDownloaded = await _nativeApi.isModelDownloaded('Qwen3-4B-Instruct-2507-Q5_K_M.gguf');
             debugPrint('[LLMAdapter] Qwen3-4B model downloaded: $qwenDownloaded');
             
             if (qwenDownloaded) {
-              _activeModelId = 'Qwen3-4B-Instruct.Q5_K_M.gguf';
+              _activeModelId = 'Qwen3-4B-Instruct-2507-Q5_K_M.gguf';
               _available = true;
               _isInitialized = true;
               debugPrint('[LLMAdapter] Using Qwen3-4B model: $_activeModelId');

@@ -28,61 +28,109 @@ static std::atomic<bool> stream_finished{false};
 extern "C" {
     // Initialize the model
     int32_t llama_init(const char* modelPath) {
+        std::cout << "========================================" << std::endl;
+        std::cout << "llama_wrapper: llama_init() CALLED" << std::endl;
+        std::cout << "========================================" << std::endl;
+
         if (!modelPath) {
-            std::cout << "llama_wrapper: Model path is null" << std::endl;
+            std::cout << "llama_wrapper: ERROR - Model path is null" << std::endl;
             return 0;
         }
-        
+
         current_model_path = std::string(modelPath);
-        std::cout << "llama_wrapper: Initializing model at: " << current_model_path << std::endl;
-        
+        std::cout << "llama_wrapper: Model path: " << current_model_path << std::endl;
+
         // Check if file exists
+        std::cout << "llama_wrapper: Checking if file exists..." << std::endl;
         std::ifstream file(modelPath);
         if (!file.good()) {
-            std::cout << "llama_wrapper: Model file does not exist or is not readable: " << current_model_path << std::endl;
+            std::cout << "llama_wrapper: ERROR - Model file does not exist or is not readable" << std::endl;
             return 0;
         }
         file.close();
-        
+        std::cout << "llama_wrapper: ✓ File exists and is readable" << std::endl;
+
         try {
             // Initialize llama.cpp backend
+            std::cout << "llama_wrapper: Calling llama_backend_init()..." << std::endl;
             llama_backend_init();
-            std::cout << "llama_wrapper: Backend initialized successfully" << std::endl;
-            
+            std::cout << "llama_wrapper: ✓ Backend initialized successfully" << std::endl;
+
             // Load model with Metal support
+            std::cout << "llama_wrapper: Getting default model params..." << std::endl;
             llama_model_params model_params = llama_model_default_params();
-            std::cout << "llama_wrapper: Loading model with Metal support..." << std::endl;
+
+            // Check if Metal is available
+            #if TARGET_IPHONE_SIMULATOR
+            std::cout << "llama_wrapper: Running on SIMULATOR - Metal may have limited support" << std::endl;
+            #else
+            std::cout << "llama_wrapper: Running on DEVICE - Full Metal support available" << std::endl;
+            #endif
+
+            std::cout << "llama_wrapper: ✓ Model params created" << std::endl;
+
+            std::cout << "llama_wrapper: Calling llama_model_load_from_file()..." << std::endl;
+            std::cout << "llama_wrapper: This may take 30-60 seconds for large models..." << std::endl;
             g_model = llama_model_load_from_file(modelPath, model_params);
-            
+
             if (!g_model) {
-                std::cout << "llama_wrapper: Failed to load model from file: " << current_model_path << std::endl;
+                std::cout << "llama_wrapper: ERROR - llama_model_load_from_file() returned nullptr" << std::endl;
+                std::cout << "llama_wrapper: This usually means:" << std::endl;
+                std::cout << "llama_wrapper:   1. GGUF file is corrupted" << std::endl;
+                std::cout << "llama_wrapper:   2. Not enough memory" << std::endl;
+                std::cout << "llama_wrapper:   3. Incompatible GGUF format" << std::endl;
+                llama_backend_free();
                 return 0;
             }
-            
-            std::cout << "llama_wrapper: Model loaded successfully" << std::endl;
-            
+
+            std::cout << "llama_wrapper: ✓ Model loaded successfully!" << std::endl;
+
             // Create context with Metal backend
+            std::cout << "llama_wrapper: Creating context with Metal backend..." << std::endl;
             llama_context_params context_params = llama_context_default_params();
             context_params.n_ctx = 2048;  // Context length
             context_params.n_batch = 512; // Batch size
+
+            #if TARGET_IPHONE_SIMULATOR
+            context_params.n_threads = 2; // Use fewer threads on simulator
+            context_params.n_gpu_layers = 0; // Disable GPU offloading on simulator
+            std::cout << "llama_wrapper: Simulator mode: n_threads=2, GPU layers=0" << std::endl;
+            #else
             context_params.n_threads = 4; // Number of threads
-            context_params.offload_kqv = true; // Offload to Metal
-            
+            context_params.n_gpu_layers = 99; // Offload all layers to Metal on device
+            std::cout << "llama_wrapper: Device mode: n_threads=4, GPU layers=99 (full Metal)" << std::endl;
+            #endif
+
+            std::cout << "llama_wrapper: Context params: n_ctx=2048, n_batch=512, n_threads=4, offload_kqv=true" << std::endl;
+            std::cout << "llama_wrapper: Calling llama_init_from_model()..." << std::endl;
             g_context = llama_init_from_model(g_model, context_params);
-            
+
             if (!g_context) {
-                std::cout << "llama_wrapper: Failed to create context" << std::endl;
+                std::cout << "llama_wrapper: ERROR - llama_init_from_model() returned nullptr" << std::endl;
+                std::cout << "llama_wrapper: This usually means:" << std::endl;
+                std::cout << "llama_wrapper:   1. Not enough memory for context" << std::endl;
+                std::cout << "llama_wrapper:   2. Invalid context parameters" << std::endl;
                 llama_model_free(g_model);
                 g_model = nullptr;
+                llama_backend_free();
                 return 0;
             }
-            
+
+            std::cout << "llama_wrapper: ✓ Context created successfully!" << std::endl;
+
             model_loaded = true;
-            std::cout << "llama_wrapper: Model loaded successfully with Metal support" << std::endl;
+            std::cout << "========================================" << std::endl;
+            std::cout << "llama_wrapper: ✓✓✓ INITIALIZATION COMPLETE ✓✓✓" << std::endl;
+            std::cout << "llama_wrapper: Model ready for inference with Metal acceleration" << std::endl;
+            std::cout << "========================================" << std::endl;
             return 1; // Success
-            
+
         } catch (const std::exception& e) {
-            std::cout << "llama_wrapper: Exception during initialization: " << e.what() << std::endl;
+            std::cout << "llama_wrapper: EXCEPTION during initialization: " << e.what() << std::endl;
+            llama_cleanup();
+            return 0;
+        } catch (...) {
+            std::cout << "llama_wrapper: UNKNOWN EXCEPTION during initialization" << std::endl;
             llama_cleanup();
             return 0;
         }

@@ -221,7 +221,7 @@ class ModelCard extends StatelessWidget {
         return 'Llama 3.2 3B Instruct (Q4_K_M)';
       case 'Phi-3.5-mini-instruct-Q5_K_M.gguf':
         return 'Phi-3.5 Mini Instruct (Q5_K_M)';
-      case 'Qwen3-4B-Instruct.Q5_K_M.gguf':
+      case 'Qwen3-4B-Instruct-2507-Q5_K_M.gguf':
         return 'Qwen3 4B Instruct (Q5_K_M)';
       // Legacy model names for backward compatibility
       case 'gemma-3-270m':
@@ -271,7 +271,7 @@ class ModelCard extends StatelessWidget {
       return 'Download (~1.9GB)';
     } else if (modelName.contains('Phi-3.5-mini-instruct-Q5_K_M.gguf')) {
       return 'Download (~2.6GB)';
-    } else if (modelName.contains('Qwen3-4B-Instruct.Q5_K_M.gguf')) {
+    } else if (modelName.contains('Qwen3-4B-Instruct-2507-Q5_K_M.gguf')) {
       return 'Download (~2.3GB)';
     }
     // Legacy model sizes for backward compatibility
