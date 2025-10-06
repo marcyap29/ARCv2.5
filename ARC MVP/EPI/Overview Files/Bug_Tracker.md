@@ -2,6 +2,43 @@
 
 ## Active Issues
 
+### Llama.cpp Model Loading and Generation Failures - IN PROGRESS 🔄 - January 2, 2025
+**Status:** 🔄 **IN PROGRESS**
+**Priority:** Critical
+**Component:** On-Device LLM Generation (llama.cpp + Metal)
+
+**Issue:**
+After migrating from MLX to llama.cpp + Metal, the model loading and generation process is failing with multiple errors preventing on-device LLM functionality.
+
+**Error Symptoms:**
+- Swift Compiler Error: "Cannot convert value of type 'Double' to expected argument type 'Int64'" at line 65 in LLMBridge.swift
+- Model Loading Error: "Failed to initialize llama.cpp with model: Llama-3.2-3b-Instruct-Q4_K_M.gguf"
+- Model Loading Timeout: "Model loading timeout" after 2 minutes
+- Generation Error: "Failed to start generation" with error code 500
+
+**Root Cause:**
+1. **Swift Type Conversion**: Progress value conversion from Double to Int64 causing compilation error
+2. **Missing llama.cpp Initialization**: Model loading process not actually calling `llama_init()` to load model into llama.cpp context
+3. **File Path Issues**: Potential issues with GGUF model file path resolution or file existence
+4. **Missing Error Handling**: Insufficient error logging in llama.cpp wrapper to diagnose initialization failures
+
+**Current Status:**
+- ✅ Fixed Swift compiler error (Double to Int64 conversion)
+- 🔄 Working on llama.cpp initialization error
+- ⏳ Need to test model generation after fixes
+
+**Files Being Modified:**
+- `ios/Runner/LLMBridge.swift` - Fixed type conversion, added llama_init() call
+- `ios/Runner/llama_wrapper.cpp` - Enhanced error logging and file existence checks
+
+**Next Steps:**
+1. Test the current fixes
+2. Debug llama.cpp initialization if still failing
+3. Verify model generation works end-to-end
+4. Update documentation with working llama.cpp integration
+
+---
+
 ### MLX Inference Stub Still Returns Gibberish - RESOLVED ✅ - January 2, 2025
 **Status:** ✅ **RESOLVED**
 **Priority:** Critical

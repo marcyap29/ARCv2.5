@@ -12,11 +12,20 @@
 
   ## 🤖 **On-Device LLM Architecture** (Updated January 2, 2025)
 
-  **llama.cpp + Metal Integration Pipeline with Real Inference**:
+  **llama.cpp + Metal Integration Pipeline - MIGRATION IN PROGRESS**:
   ```
   Flutter (LLMAdapter) → Pigeon Bridge → Swift (LlamaBridge) → llama_wrapper.cpp → llama.cpp + Metal
                       ← Token Stream ← Swift Callbacks ← Real Token Generation
   ```
+
+  **⚠️ CURRENT STATUS: CRITICAL ISSUES BLOCKING INFERENCE**
+  - ✅ Migration from MLX/Core ML to llama.cpp + Metal complete
+  - ✅ App builds and runs successfully on iOS simulator
+  - ✅ Model detection working correctly (3 GGUF models available)
+  - ❌ **CRITICAL**: Llama.cpp initialization failing (`llama_init()` returning 0)
+  - ❌ **CRITICAL**: Generation start failing ("Failed to start generation" error 500)
+  - ❌ **CRITICAL**: Model loading timeout (2-minute timeout)
+  - 🔄 **Current Workaround**: Falls back to Enhanced LUMARA API with rule-based responses
 
   **Key Components**:
   - `lib/lumara/llm/llm_adapter.dart` - Flutter adapter using Pigeon bridge with GGUF model support

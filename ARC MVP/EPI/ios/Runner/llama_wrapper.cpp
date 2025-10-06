@@ -10,6 +10,7 @@
 #include <vector>
 #include <thread>
 #include <atomic>
+#include <fstream>
 
 // Global state for the model
 static llama_model* g_model = nullptr;
@@ -35,18 +36,30 @@ extern "C" {
         current_model_path = std::string(modelPath);
         std::cout << "llama_wrapper: Initializing model at: " << current_model_path << std::endl;
         
+        // Check if file exists
+        std::ifstream file(modelPath);
+        if (!file.good()) {
+            std::cout << "llama_wrapper: Model file does not exist or is not readable: " << current_model_path << std::endl;
+            return 0;
+        }
+        file.close();
+        
         try {
             // Initialize llama.cpp backend
             llama_backend_init();
+            std::cout << "llama_wrapper: Backend initialized successfully" << std::endl;
             
             // Load model with Metal support
             llama_model_params model_params = llama_model_default_params();
+            std::cout << "llama_wrapper: Loading model with Metal support..." << std::endl;
             g_model = llama_model_load_from_file(modelPath, model_params);
             
             if (!g_model) {
-                std::cout << "llama_wrapper: Failed to load model" << std::endl;
+                std::cout << "llama_wrapper: Failed to load model from file: " << current_model_path << std::endl;
                 return 0;
             }
+            
+            std::cout << "llama_wrapper: Model loaded successfully" << std::endl;
             
             // Create context with Metal backend
             llama_context_params context_params = llama_context_default_params();

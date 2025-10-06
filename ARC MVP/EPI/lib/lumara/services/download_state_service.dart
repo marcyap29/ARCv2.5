@@ -27,9 +27,20 @@ class ModelDownloadState {
 
   /// Get human-readable download progress
   String get downloadSizeText {
-    if (bytesDownloaded == null || totalBytes == null) return '';
+    if (bytesDownloaded == null) return '';
 
     final downloadedMB = bytesDownloaded! / 1048576;
+
+    if (totalBytes == null || totalBytes == 0) {
+      // Unknown total size
+      if (downloadedMB >= 1000) {
+        final downloadedGB = downloadedMB / 1024;
+        return '${downloadedGB.toStringAsFixed(2)} GB';
+      } else {
+        return '${downloadedMB.toStringAsFixed(1)} MB';
+      }
+    }
+
     final totalMB = totalBytes! / 1048576;
 
     if (totalMB >= 1000) {

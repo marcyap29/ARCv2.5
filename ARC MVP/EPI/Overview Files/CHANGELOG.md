@@ -2,6 +2,25 @@
 
 ## [Unreleased]
 
+### 🔄 **LLAMA.CPP MIGRATION IN PROGRESS** - January 2, 2025
+
+#### **Critical Issues Blocking On-Device LLM** 🔄 **IN PROGRESS**
+- **Migration Status**: Successfully migrated from MLX/Core ML to llama.cpp + Metal
+- **App Build**: ✅ Compiles and runs successfully on iOS simulator
+- **Model Detection**: ✅ GGUF models correctly detected and available
+- **UI Integration**: ✅ Flutter UI properly displays 3 GGUF models
+- **Critical Issues**:
+  - ❌ **Llama.cpp Initialization Failure**: `llama_init()` returning 0 instead of 1
+  - ❌ **Generation Start Failure**: "Failed to start generation" error 500
+  - ❌ **Model Loading Timeout**: 2-minute timeout instead of proper error handling
+- **Current Workaround**: Falls back to Enhanced LUMARA API with rule-based responses
+- **Priority**: 🔴 **CRITICAL** - Blocking core on-device LLM functionality
+- **Files Modified**:
+  - `ios/Runner/LLMBridge.swift` - Added `llama_init()` call, fixed type conversion
+  - `ios/Runner/llama_wrapper.cpp` - Enhanced error logging, added file existence checks
+  - `ios/Runner/llama_wrapper.h` - Updated C interface declarations
+- **Next Steps**: Debug llama.cpp initialization, verify library linking, test model file integrity
+
 ### 🔗 **MODEL DOWNLOAD URLS UPDATED TO GOOGLE DRIVE** - January 2, 2025
 
 #### **Reliable Model Access with Google Drive Links** ✅ **COMPLETE**

@@ -60,16 +60,23 @@ class ModelProgressService implements pigeon.LumaraNativeProgress {
   }
 
   /// Parse download message to extract byte information
-  /// Message format: "Downloading: 45.3 / 900.0 MB"
+  /// Message format: "Downloading: 45.3 / 900.0 MB" or "Downloading: 45.3 MB" (unknown total)
   Map<String, int>? _parseDownloadMessage(String message) {
     try {
-      final regex = RegExp(r'(\d+\.?\d*)\s*/\s*(\d+\.?\d*)\s*(MB|GB)', caseSensitive: false);
-      final match = regex.firstMatch(message);
+      // Try to match format with total: "Downloading: 45.3 / 900.0 MB"
+      final regexWithTotal = RegExp(r'(\d+\.?\d*)\s*/\s*(\d+\.?\d*)\s*(MB|GB)', caseSensitive: false);
+      final matchWithTotal = regexWithTotal.firstMatch(message);
 
-      if (match != null) {
-        final downloaded = double.parse(match.group(1)!);
-        final total = double.parse(match.group(2)!);
-        final unit = match.group(3)!.toUpperCase();
+      if (matchWithTotal != null) {
+        final downloaded = double.parse(matchWithTotal.group(1)!);
+        final total = double.parse(matchWithTotal.group(2)!);
+        final unit = matchWithTotal.group(3)!.toUpperCase();
+
+        // Skip if total is negative or zero (invalid)
+        if (total <= 0) {
+          debugPrint('Invalid total size in message: $message');
+          return null;
+        }
 
         // Convert to bytes
         final multiplier = unit == 'GB' ? 1073741824 : 1048576; // 1GB or 1MB in bytes
@@ -77,6 +84,23 @@ class ModelProgressService implements pigeon.LumaraNativeProgress {
         return {
           'downloaded': (downloaded * multiplier).toInt(),
           'total': (total * multiplier).toInt(),
+        };
+      }
+
+      // Try to match format without total: "Downloading: 45.3 MB"
+      final regexWithoutTotal = RegExp(r'(\d+\.?\d*)\s*(MB|GB)', caseSensitive: false);
+      final matchWithoutTotal = regexWithoutTotal.firstMatch(message);
+
+      if (matchWithoutTotal != null) {
+        final downloaded = double.parse(matchWithoutTotal.group(1)!);
+        final unit = matchWithoutTotal.group(2)!.toUpperCase();
+
+        // Convert to bytes
+        final multiplier = unit == 'GB' ? 1073741824 : 1048576; // 1GB or 1MB in bytes
+
+        return {
+          'downloaded': (downloaded * multiplier).toInt(),
+          'total': 0, // Unknown total - use 0 to indicate unknown
         };
       }
     } catch (e) {

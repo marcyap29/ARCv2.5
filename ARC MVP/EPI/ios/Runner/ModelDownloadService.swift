@@ -123,7 +123,34 @@ class ModelDownloadService: NSObject {
     /// Check if model is available and usable
     /// Only returns true if model files actually exist on filesystem
     func isModelDownloaded(modelId: String) -> Bool {
-        // Validate model ID
+        // Check for GGUF models (new format)
+        let ggufModelIds = [
+            "Llama-3.2-3b-Instruct-Q4_K_M.gguf",
+            "Phi-3.5-mini-instruct-Q5_K_M.gguf", 
+            "Qwen3-4B-Instruct.Q5_K_M.gguf",
+            "Qwen3-4B-Instruct-2507-Q5_K_M.gguf"  // New Hugging Face filename
+        ]
+        
+        if ggufModelIds.contains(modelId) {
+            // For GGUF models, check if the .gguf file exists in the gguf_models directory
+            let documentsPath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
+            let ggufModelsPath = documentsPath.appendingPathComponent("gguf_models")
+            
+            // Check for both exact case and lowercase versions (Hugging Face uses lowercase)
+            let exactPath = ggufModelsPath.appendingPathComponent(modelId)
+            let lowercasePath = ggufModelsPath.appendingPathComponent(modelId.lowercased())
+            
+            let exactExists = FileManager.default.fileExists(atPath: exactPath.path)
+            let lowercaseExists = FileManager.default.fileExists(atPath: lowercasePath.path)
+            
+            let exists = exactExists || lowercaseExists
+            let foundPath = exactExists ? exactPath.path : lowercasePath.path
+            
+            logger.info("Checking GGUF model \(modelId): \(exists ? "found" : "not found") at \(foundPath)")
+            return exists
+        }
+        
+        // Legacy MLX model support
         switch modelId {
         case "qwen3-1.7b-mlx-4bit", "phi-3.5-mini-instruct-4bit":
             break // Valid model ID
@@ -132,7 +159,7 @@ class ModelDownloadService: NSObject {
             return false
         }
 
-        // Check if model files actually exist
+        // Check if model files actually exist (for legacy MLX models)
         let configPath = modelRootURL.appendingPathComponent(modelId).appendingPathComponent("config.json")
         let modelPath = modelRootURL.appendingPathComponent(modelId).appendingPathComponent("model.safetensors")
         let configExists = FileManager.default.fileExists(atPath: configPath.path)
@@ -207,7 +234,15 @@ extension ModelDownloadService: URLSessionDownloadDelegate {
             // Use lowercase directory name for consistency
             let modelDir = modelId.lowercased()
             let destDir = modelRootURL.appendingPathComponent(modelDir, isDirectory: true)
-            try unzipFile(at: tempZip, to: destDir)
+            
+            do {
+                try unzipFile(at: tempZip, to: destDir)
+                progressCallbacks[modelId]?(0.95, "Extraction complete, finalizing...")
+            } catch {
+                logger.error("Unzip failed: \(error.localizedDescription)")
+                progressCallbacks[modelId]?(0.0, "Extraction failed: \(error.localizedDescription)")
+                throw error
+            }
 
             progressCallbacks[modelId]?(1.0, "Download complete!")
             logger.info("Model \(modelId) successfully downloaded and extracted")
@@ -247,11 +282,31 @@ extension ModelDownloadService: URLSessionDownloadDelegate {
             return
         }
 
-        let progress = Double(totalBytesWritten) / Double(totalBytesExpectedToWrite)
-        let mbDownloaded = Double(totalBytesWritten) / 1_048_576
-        let mbTotal = Double(totalBytesExpectedToWrite) / 1_048_576
+        // Handle cases where totalBytesExpectedToWrite is unknown or negative
+        // Google Drive often returns -1 when Content-Length header is missing
+        let progress: Double
+        let message: String
 
-        let message = String(format: "Downloading: %.1f / %.1f MB", mbDownloaded, mbTotal)
+        // Check for valid total size: must be positive AND greater than or equal to bytes written
+        let hasValidTotal = totalBytesExpectedToWrite > 0 &&
+                           totalBytesExpectedToWrite != NSURLSessionTransferSizeUnknown &&
+                           totalBytesExpectedToWrite >= totalBytesWritten
+
+        if hasValidTotal {
+            // Valid total size - calculate progress (0.0 to 1.0)
+            progress = Double(totalBytesWritten) / Double(totalBytesExpectedToWrite)
+            let mbDownloaded = Double(totalBytesWritten) / 1_048_576
+            let mbTotal = Double(totalBytesExpectedToWrite) / 1_048_576
+            message = String(format: "Downloading: %.1f / %.1f MB", mbDownloaded, mbTotal)
+            logger.debug("Download progress for \(modelId): \(progress * 100)% (\(mbDownloaded) / \(mbTotal) MB)")
+        } else {
+            // Unknown or invalid total size - show indeterminate progress
+            // This happens with Google Drive direct links that don't provide Content-Length
+            progress = 0.0  // Always use 0.0 to indicate indeterminate/unknown progress
+            let mbDownloaded = Double(totalBytesWritten) / 1_048_576
+            message = String(format: "Downloading: %.1f MB (total unknown)", mbDownloaded)
+            logger.debug("Download progress for \(modelId): indeterminate (\(mbDownloaded) MB downloaded, total=\(totalBytesExpectedToWrite))")
+        }
 
         DispatchQueue.main.async { [weak self] in
             self?.progressCallbacks[modelId]?(progress, message)
@@ -307,11 +362,32 @@ extension ModelDownloadService: URLSessionDownloadDelegate {
         ]
 
         try process.run()
-        process.waitUntilExit()
-
-        guard process.terminationStatus == 0 else {
+        
+        // Add timeout to prevent hanging
+        let timeout = DispatchTime.now() + .seconds(60) // 60 second timeout
+        let semaphore = DispatchSemaphore(value: 0)
+        var terminationStatus: Int32 = -1
+        
+        DispatchQueue.global().async {
+            process.waitUntilExit()
+            terminationStatus = process.terminationStatus
+            semaphore.signal()
+        }
+        
+        let result = semaphore.wait(timeout: timeout)
+        
+        if result == .timedOut {
+            logger.error("Unzip process timed out after 60 seconds")
+            process.terminate()
+            throw NSError(domain: "ModelDownload", code: 408, userInfo: [
+                NSLocalizedDescriptionKey: "Unzip process timed out"
+            ])
+        }
+        
+        guard terminationStatus == 0 else {
+            logger.error("Unzip process failed with status: \(terminationStatus)")
             throw NSError(domain: "ModelDownload", code: 500, userInfo: [
-                NSLocalizedDescriptionKey: "Failed to unzip model files"
+                NSLocalizedDescriptionKey: "Failed to unzip model files (status: \(terminationStatus))"
             ])
         }
 
