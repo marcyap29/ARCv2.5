@@ -2,7 +2,7 @@ import Foundation
 import os.log
 
 /// LUMARA - Life-aware Unified Memory & Reflection Assistant
-/// Compact system prompt and mode handling for Qwen-3/1.7B-MLX-4bit
+/// Compact system prompt and mode handling for Qwen-3/1.7B-GGUF-4bit
 class LumaraPromptSystem {
     private let logger = Logger(subsystem: "EPI", category: "LumaraPromptSystem")
     
@@ -263,7 +263,7 @@ class LumaraPromptSystem {
             actor: MCPEnvelope.Actor(
                 role: "assistant",
                 agent: "LUMARA",
-                model: "Qwen3-1.7B-MLX-4bit"
+                model: "Qwen3-1.7B-GGUF-4bit"
             ),
             provenance: MCPEnvelope.Provenance(
                 source: source,

@@ -112,8 +112,8 @@ class DownloadStateService extends ChangeNotifier {
   /// Get display name for a model ID
   String _getModelDisplayName(String modelId) {
     switch (modelId) {
-      case 'qwen3-1.7b-mlx-4bit':
-        return 'Qwen3 1.7B MLX (4-bit)';
+      case 'Llama-3.2-3b-Instruct-Q4_K_M.gguf':
+        return 'Llama 3.2 3B Instruct (Q4_K_M)';
       case 'phi-3.5-mini-instruct-4bit':
         return 'Phi-3.5-mini-instruct (4-bit)';
       default:

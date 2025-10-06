@@ -353,7 +353,7 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
 
   Widget _buildDownloadButton(ThemeData theme) {
     // Check if any model is currently downloading
-    final qwenState = _downloadStateService.getState('qwen3-1.7b-mlx-4bit');
+    final qwenState = _downloadStateService.getState('Llama-3.2-3b-Instruct-Q4_K_M.gguf');
     final phiState = _downloadStateService.getState('phi-3.5-mini-instruct-4bit');
 
     final isDownloading = (qwenState?.isDownloading ?? false) || (phiState?.isDownloading ?? false);

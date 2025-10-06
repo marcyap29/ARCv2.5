@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
 // import 'package:record/record.dart';  // Temporarily disabled
 import 'package:path/path.dart' as path;
+import '../../../lumara/llm/bridge.pigeon.dart';
 
 /// P28: Voice Debrief Service
 /// Handles voice recording, transcription, and storage for debrief sessions
@@ -168,23 +169,17 @@ class VoiceDebriefService {
     }
   }
 
-  /// Transcribe audio file (placeholder - would integrate with speech-to-text service)
+  /// Transcribe audio file using native bridge
   Future<String?> transcribeAudio(String filePath) async {
     try {
-      // This is a placeholder implementation
-      // In a real app, you would integrate with a speech-to-text service like:
-      // - Google Cloud Speech-to-Text
-      // - Azure Cognitive Services
-      // - AWS Transcribe
-      // - On-device transcription (if available)
-      
-      await Future.delayed(const Duration(seconds: 2)); // Simulate processing time
-      
-      // For now, return a placeholder transcription
-      return 'Transcription not available in this demo. Audio file saved at: $filePath';
+      // TODO: Implement native transcription bridge method
+      // For now, return a placeholder message
+      debugPrint('Native transcription not yet implemented, using placeholder');
+      return 'Audio transcription not yet implemented. Audio file saved at: $filePath';
     } catch (e) {
       debugPrint('Error transcribing audio: $e');
-      return null;
+      // Fallback message if native transcription fails
+      return 'Audio transcription failed. Audio file saved at: $filePath';
     }
   }
 

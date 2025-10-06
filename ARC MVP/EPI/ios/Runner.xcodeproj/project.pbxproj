@@ -7,7 +7,21 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		0943C7D7E64F4B5CBCE6F988 /* Bridge.pigeon.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB3677EB70444E1F82E0E2CC /* Bridge.pigeon.swift */; };
 		1498D2341E8E89220040F4C2 /* GeneratedPluginRegistrant.m in Sources */ = {isa = PBXBuildFile; fileRef = 1498D2331E8E89220040F4C2 /* GeneratedPluginRegistrant.m */; };
+		1F3EEF6E2E93526C009BFF74 /* PrismScrubber.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1F3EEF6D2E93526C009BFF74 /* PrismScrubber.swift */; };
+		1F3EEF6F2E93526C009BFF74 /* LlamaBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1F3EEF6C2E93526C009BFF74 /* LlamaBridge.swift */; };
+		1F3EEF702E93526C009BFF74 /* llama_wrapper.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 1F3EEF6B2E93526C009BFF74 /* llama_wrapper.cpp */; };
+		1F3EEF712E93526C009BFF74 /* CapabilityRouter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1F3EEF692E93526C009BFF74 /* CapabilityRouter.swift */; };
+		1F3EEF732E9352C3009BFF74 /* libllama.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 1F3EEF722E9352C3009BFF74 /* libllama.a */; };
+		1F3EEF762E935303009BFF74 /* libggml.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 1F3EEF742E935303009BFF74 /* libggml.a */; };
+		1F3EEF772E935303009BFF74 /* libggml-cpu.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 1F3EEF752E935303009BFF74 /* libggml-cpu.a */; };
+		1F3EEF792E935332009BFF74 /* libggml-metal.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 1F3EEF782E935332009BFF74 /* libggml-metal.a */; };
+		1F3EEF7B2E93535F009BFF74 /* libggml-base.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 1F3EEF7A2E93535F009BFF74 /* libggml-base.a */; };
+		1F3EEF7D2E935395009BFF74 /* libggml-blas.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 1F3EEF7C2E935395009BFF74 /* libggml-blas.a */; };
+		1F3EEF812E9353BE009BFF74 /* Metal.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 1F3EEF7E2E9353BE009BFF74 /* Metal.framework */; };
+		1F3EEF822E9353BE009BFF74 /* Accelerate.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 1F3EEF7F2E9353BE009BFF74 /* Accelerate.framework */; };
+		1F3EEF832E9353BE009BFF74 /* MetalKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 1F3EEF802E9353BE009BFF74 /* MetalKit.framework */; };
 		1FEE5CF42E8C791B003BF317 /* Pods_Runner.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 168288B108ACD20B942626AA /* Pods_Runner.framework */; };
 		1FEE5CF52E8C791B003BF317 /* Pods_Runner.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 168288B108ACD20B942626AA /* Pods_Runner.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		331C808B294A63AB00263BE5 /* RunnerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 331C807B294A618700263BE5 /* RunnerTests.swift */; };
@@ -15,13 +29,11 @@
 		6456291718FE8F7966DED358 /* Pods_RunnerTests.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 0A2A704E2F1F5DD9CD589387 /* Pods_RunnerTests.framework */; };
 		74858FAF1ED2DC5600515810 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 74858FAE1ED2DC5600515810 /* AppDelegate.swift */; };
 		810596B1C0D24C098C431893 /* LLMBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34615DA8179F4D23A4F06E39 /* LLMBridge.swift */; };
-		0943C7D7E64F4B5CBCE6F988 /* Bridge.pigeon.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB3677EB70444E1F82E0E2CC /* Bridge.pigeon.swift */; };
-		EADF1F88F9E44D798C3762B8 /* SafetensorsLoader.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD9A2AA9522A4A7B89913D6B /* SafetensorsLoader.swift */; };
 		89D3A75FAAA641AA8EB27E61 /* LumaraPromptSystem.swift in Sources */ = {isa = PBXBuildFile; fileRef = AD02F52095DB446494429964 /* LumaraPromptSystem.swift */; };
-		D1754AEF759146E8920F2B30 /* MiraMemoryStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4700A91B00044A52AA765055 /* MiraMemoryStore.swift */; };
 		97C146FC1CF9000F007C117D /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FA1CF9000F007C117D /* Main.storyboard */; };
 		97C146FE1CF9000F007C117D /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FD1CF9000F007C117D /* Assets.xcassets */; };
 		97C147011CF9000F007C117D /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FF1CF9000F007C117D /* LaunchScreen.storyboard */; };
+		D1754AEF759146E8920F2B30 /* MiraMemoryStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4700A91B00044A52AA765055 /* MiraMemoryStore.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -53,17 +65,28 @@
 		1498D2321E8E86230040F4C2 /* GeneratedPluginRegistrant.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = GeneratedPluginRegistrant.h; sourceTree = "<group>"; };
 		1498D2331E8E89220040F4C2 /* GeneratedPluginRegistrant.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = GeneratedPluginRegistrant.m; sourceTree = "<group>"; };
 		168288B108ACD20B942626AA /* Pods_Runner.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_Runner.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		1F3EEF692E93526C009BFF74 /* CapabilityRouter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CapabilityRouter.swift; sourceTree = "<group>"; };
+		1F3EEF6A2E93526C009BFF74 /* llama_wrapper.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = llama_wrapper.h; sourceTree = "<group>"; };
+		1F3EEF6B2E93526C009BFF74 /* llama_wrapper.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = llama_wrapper.cpp; sourceTree = "<group>"; };
+		1F3EEF6C2E93526C009BFF74 /* LlamaBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LlamaBridge.swift; sourceTree = "<group>"; };
+		1F3EEF6D2E93526C009BFF74 /* PrismScrubber.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrismScrubber.swift; sourceTree = "<group>"; };
+		1F3EEF722E9352C3009BFF74 /* libllama.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libllama.a; path = "../third_party/llama.cpp/build-apple/src/libllama.a"; sourceTree = "<group>"; };
+		1F3EEF742E935303009BFF74 /* libggml.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libggml.a; path = "../third_party/llama.cpp/build-apple/ggml/src/libggml.a"; sourceTree = "<group>"; };
+		1F3EEF752E935303009BFF74 /* libggml-cpu.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = "libggml-cpu.a"; path = "../third_party/llama.cpp/build-apple/ggml/src/libggml-cpu.a"; sourceTree = "<group>"; };
+		1F3EEF782E935332009BFF74 /* libggml-metal.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = "libggml-metal.a"; path = "../third_party/llama.cpp/build-apple/ggml/src/ggml-metal/libggml-metal.a"; sourceTree = "<group>"; };
+		1F3EEF7A2E93535F009BFF74 /* libggml-base.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = "libggml-base.a"; path = "../third_party/llama.cpp/build-apple/ggml/src/libggml-base.a"; sourceTree = "<group>"; };
+		1F3EEF7C2E935395009BFF74 /* libggml-blas.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = "libggml-blas.a"; path = "../third_party/llama.cpp/build-apple/ggml/src/ggml-blas/libggml-blas.a"; sourceTree = "<group>"; };
+		1F3EEF7E2E9353BE009BFF74 /* Metal.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Metal.framework; path = System/Library/Frameworks/Metal.framework; sourceTree = SDKROOT; };
+		1F3EEF7F2E9353BE009BFF74 /* Accelerate.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Accelerate.framework; path = System/Library/Frameworks/Accelerate.framework; sourceTree = SDKROOT; };
+		1F3EEF802E9353BE009BFF74 /* MetalKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = MetalKit.framework; path = System/Library/Frameworks/MetalKit.framework; sourceTree = SDKROOT; };
 		331C807B294A618700263BE5 /* RunnerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RunnerTests.swift; sourceTree = "<group>"; };
 		331C8081294A63A400263BE5 /* RunnerTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = RunnerTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		34615DA8179F4D23A4F06E39 /* LLMBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LLMBridge.swift; sourceTree = "<group>"; };
 		3B3967151E833CAA004F5970 /* AppFrameworkInfo.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = AppFrameworkInfo.plist; path = Flutter/AppFrameworkInfo.plist; sourceTree = "<group>"; };
+		4700A91B00044A52AA765055 /* MiraMemoryStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MiraMemoryStore.swift; sourceTree = "<group>"; };
 		6D61B07FEA14693B09931D4D /* Pods-RunnerTests.profile.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-RunnerTests.profile.xcconfig"; path = "Target Support Files/Pods-RunnerTests/Pods-RunnerTests.profile.xcconfig"; sourceTree = "<group>"; };
 		74858FAD1ED2DC5600515810 /* Runner-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "Runner-Bridging-Header.h"; sourceTree = "<group>"; };
 		74858FAE1ED2DC5600515810 /* AppDelegate.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
-		34615DA8179F4D23A4F06E39 /* LLMBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LLMBridge.swift; sourceTree = "<group>"; };
-		AB3677EB70444E1F82E0E2CC /* Bridge.pigeon.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Bridge.pigeon.swift; sourceTree = "<group>"; };
-		DD9A2AA9522A4A7B89913D6B /* SafetensorsLoader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SafetensorsLoader.swift; sourceTree = "<group>"; };
-		AD02F52095DB446494429964 /* LumaraPromptSystem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LumaraPromptSystem.swift; sourceTree = "<group>"; };
-		4700A91B00044A52AA765055 /* MiraMemoryStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MiraMemoryStore.swift; sourceTree = "<group>"; };
 		7AFA3C8E1D35360C0083082E /* Release.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = Release.xcconfig; path = Flutter/Release.xcconfig; sourceTree = "<group>"; };
 		9740EEB21CF90195004384FC /* Debug.xcconfig */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.xcconfig; name = Debug.xcconfig; path = Flutter/Debug.xcconfig; sourceTree = "<group>"; };
 		9740EEB31CF90195004384FC /* Generated.xcconfig */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.xcconfig; name = Generated.xcconfig; path = Flutter/Generated.xcconfig; sourceTree = "<group>"; };
@@ -73,7 +96,9 @@
 		97C147001CF9000F007C117D /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/LaunchScreen.storyboard; sourceTree = "<group>"; };
 		97C147021CF9000F007C117D /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		99721E82AF7446F42870E05A /* Pods-RunnerTests.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-RunnerTests.release.xcconfig"; path = "Target Support Files/Pods-RunnerTests/Pods-RunnerTests.release.xcconfig"; sourceTree = "<group>"; };
+		AB3677EB70444E1F82E0E2CC /* Bridge.pigeon.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Bridge.pigeon.swift; sourceTree = "<group>"; };
 		AB99970D9FEBA9195000BE57 /* Pods-Runner.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Runner.release.xcconfig"; path = "Target Support Files/Pods-Runner/Pods-Runner.release.xcconfig"; sourceTree = "<group>"; };
+		AD02F52095DB446494429964 /* LumaraPromptSystem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LumaraPromptSystem.swift; sourceTree = "<group>"; };
 		CA6B8AF217A87269699FDB4E /* Pods-Runner.profile.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Runner.profile.xcconfig"; path = "Target Support Files/Pods-Runner/Pods-Runner.profile.xcconfig"; sourceTree = "<group>"; };
 		CCB9F8A598D731000EFECF92 /* Pods-RunnerTests.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-RunnerTests.debug.xcconfig"; path = "Target Support Files/Pods-RunnerTests/Pods-RunnerTests.debug.xcconfig"; sourceTree = "<group>"; };
 		D93B1FE37922688B4BC936FB /* Pods-Runner.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Runner.debug.xcconfig"; path = "Target Support Files/Pods-Runner/Pods-Runner.debug.xcconfig"; sourceTree = "<group>"; };
@@ -92,6 +117,15 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				1F3EEF812E9353BE009BFF74 /* Metal.framework in Frameworks */,
+				1F3EEF822E9353BE009BFF74 /* Accelerate.framework in Frameworks */,
+				1F3EEF832E9353BE009BFF74 /* MetalKit.framework in Frameworks */,
+				1F3EEF7D2E935395009BFF74 /* libggml-blas.a in Frameworks */,
+				1F3EEF7B2E93535F009BFF74 /* libggml-base.a in Frameworks */,
+				1F3EEF792E935332009BFF74 /* libggml-metal.a in Frameworks */,
+				1F3EEF762E935303009BFF74 /* libggml.a in Frameworks */,
+				1F3EEF772E935303009BFF74 /* libggml-cpu.a in Frameworks */,
+				1F3EEF732E9352C3009BFF74 /* libllama.a in Frameworks */,
 				1FEE5CF42E8C791B003BF317 /* Pods_Runner.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -110,6 +144,15 @@
 		3F9EADAED15DD017A6718F89 /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
+				1F3EEF7F2E9353BE009BFF74 /* Accelerate.framework */,
+				1F3EEF7E2E9353BE009BFF74 /* Metal.framework */,
+				1F3EEF802E9353BE009BFF74 /* MetalKit.framework */,
+				1F3EEF7C2E935395009BFF74 /* libggml-blas.a */,
+				1F3EEF7A2E93535F009BFF74 /* libggml-base.a */,
+				1F3EEF782E935332009BFF74 /* libggml-metal.a */,
+				1F3EEF742E935303009BFF74 /* libggml.a */,
+				1F3EEF752E935303009BFF74 /* libggml-cpu.a */,
+				1F3EEF722E9352C3009BFF74 /* libllama.a */,
 				168288B108ACD20B942626AA /* Pods_Runner.framework */,
 				0A2A704E2F1F5DD9CD589387 /* Pods_RunnerTests.framework */,
 			);
@@ -130,6 +173,11 @@
 		97C146E51CF9000F007C117D = {
 			isa = PBXGroup;
 			children = (
+				1F3EEF692E93526C009BFF74 /* CapabilityRouter.swift */,
+				1F3EEF6A2E93526C009BFF74 /* llama_wrapper.h */,
+				1F3EEF6B2E93526C009BFF74 /* llama_wrapper.cpp */,
+				1F3EEF6C2E93526C009BFF74 /* LlamaBridge.swift */,
+				1F3EEF6D2E93526C009BFF74 /* PrismScrubber.swift */,
 				9740EEB11CF90186004384FC /* Flutter */,
 				97C146F01CF9000F007C117D /* Runner */,
 				97C146EF1CF9000F007C117D /* Products */,
@@ -157,12 +205,11 @@
 				97C147021CF9000F007C117D /* Info.plist */,
 				1498D2321E8E86230040F4C2 /* GeneratedPluginRegistrant.h */,
 				1498D2331E8E89220040F4C2 /* GeneratedPluginRegistrant.m */,
-		74858FAE1ED2DC5600515810 /* AppDelegate.swift */,
-		34615DA8179F4D23A4F06E39 /* LLMBridge.swift */,
-		AB3677EB70444E1F82E0E2CC /* Bridge.pigeon.swift */,
-		DD9A2AA9522A4A7B89913D6B /* SafetensorsLoader.swift */,
-		AD02F52095DB446494429964 /* LumaraPromptSystem.swift */,
-		4700A91B00044A52AA765055 /* MiraMemoryStore.swift */,
+				74858FAE1ED2DC5600515810 /* AppDelegate.swift */,
+				34615DA8179F4D23A4F06E39 /* LLMBridge.swift */,
+				AB3677EB70444E1F82E0E2CC /* Bridge.pigeon.swift */,
+				AD02F52095DB446494429964 /* LumaraPromptSystem.swift */,
+				4700A91B00044A52AA765055 /* MiraMemoryStore.swift */,
 				74858FAD1ED2DC5600515810 /* Runner-Bridging-Header.h */,
 			);
 			path = Runner;
@@ -223,10 +270,6 @@
 			);
 			name = Runner;
 			packageProductDependencies = (
-				79902B7BCC864396B57AD7C4 /* MLX */,
-				47C89A3685E043B58CD5DB0B /* MLXNN */,
-				CA1CAE2F57A24948A004F748 /* MLXOptimizers */,
-				AC152142E4C8412C8F10BB4F /* MLXRandom */,
 			);
 			productName = Runner;
 			productReference = 97C146EE1CF9000F007C117D /* Runner.app */;
@@ -262,7 +305,6 @@
 			);
 			mainGroup = 97C146E51CF9000F007C117D;
 			packageReferences = (
-				4D76F29DA9794E12916AD0AD /* XCRemoteSwiftPackageReference "mlx-swift" */,
 			);
 			productRefGroup = 97C146EF1CF9000F007C117D /* Products */;
 			projectDirPath = "";
@@ -421,11 +463,14 @@
 			buildActionMask = 2147483647;
 			files = (
 				74858FAF1ED2DC5600515810 /* AppDelegate.swift in Sources */,
-		810596B1C0D24C098C431893 /* LLMBridge.swift in Sources */,
-		0943C7D7E64F4B5CBCE6F988 /* Bridge.pigeon.swift in Sources */,
-		EADF1F88F9E44D798C3762B8 /* SafetensorsLoader.swift in Sources */,
-		89D3A75FAAA641AA8EB27E61 /* LumaraPromptSystem.swift in Sources */,
-		D1754AEF759146E8920F2B30 /* MiraMemoryStore.swift in Sources */,
+				810596B1C0D24C098C431893 /* LLMBridge.swift in Sources */,
+				0943C7D7E64F4B5CBCE6F988 /* Bridge.pigeon.swift in Sources */,
+				89D3A75FAAA641AA8EB27E61 /* LumaraPromptSystem.swift in Sources */,
+				D1754AEF759146E8920F2B30 /* MiraMemoryStore.swift in Sources */,
+				1F3EEF6E2E93526C009BFF74 /* PrismScrubber.swift in Sources */,
+				1F3EEF6F2E93526C009BFF74 /* LlamaBridge.swift in Sources */,
+				1F3EEF702E93526C009BFF74 /* llama_wrapper.cpp in Sources */,
+				1F3EEF712E93526C009BFF74 /* CapabilityRouter.swift in Sources */,
 				1498D2341E8E89220040F4C2 /* GeneratedPluginRegistrant.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -519,6 +564,7 @@
 			baseConfigurationReference = 7AFA3C8E1D35360C0083082E /* Release.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++17";
 				CLANG_ENABLE_MODULES = YES;
 				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
 				DEVELOPMENT_TEAM = 87W73WQSPF;
@@ -527,6 +573,10 @@
 				"FRAMEWORK_SEARCH_PATHS[sdk=iphonesimulator*]" = (
 					"$(inherited)",
 					"$(PROJECT_DIR)/../third_party/llama.cpp/build-apple",
+				);
+				HEADER_SEARCH_PATHS = (
+					"$(PROJECT_DIR)/../third_party/llama.cpp/include",
+					"$(PROJECT_DIR)/../third_party/llama.cpp/ggml/include",
 				);
 				INFOPLIST_FILE = Runner/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = ARC;
@@ -537,7 +587,17 @@
 					"@loader_path/Frameworks",
 				);
 				LIBRARY_SEARCH_PATHS = "$(inherited)";
+				"LIBRARY_SEARCH_PATHS[sdk=iphonesimulator*]" = (
+					"$(PROJECT_DIR)/../third_party/llama.cpp/build-apple/src",
+					"$(PROJECT_DIR)/../third_party/llama.cpp/build-apple/ggml/src",
+					"$(PROJECT_DIR)/../third_party/llama.cpp/build-apple/ggml/src/ggml-metal",
+					"$(PROJECT_DIR)/../third_party/llama.cpp/build-apple/ggml/src/ggml-blas",
+				);
 				MARKETING_VERSION = .01;
+				OTHER_LDFLAGS = (
+					"-lc++",
+					"-ObjC",
+				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.epi.arcmvp;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphonesimulator iphoneos";
@@ -717,6 +777,7 @@
 			baseConfigurationReference = 9740EEB21CF90195004384FC /* Debug.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++17";
 				CLANG_ENABLE_MODULES = YES;
 				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
 				DEVELOPMENT_TEAM = 87W73WQSPF;
@@ -725,6 +786,10 @@
 				"FRAMEWORK_SEARCH_PATHS[sdk=iphonesimulator*]" = (
 					"$(inherited)",
 					"$(PROJECT_DIR)/../third_party/llama.cpp/build-apple",
+				);
+				HEADER_SEARCH_PATHS = (
+					"$(PROJECT_DIR)/../third_party/llama.cpp/include",
+					"$(PROJECT_DIR)/../third_party/llama.cpp/ggml/include",
 				);
 				INFOPLIST_FILE = Runner/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = ARC;
@@ -735,7 +800,17 @@
 					"@loader_path/Frameworks",
 				);
 				LIBRARY_SEARCH_PATHS = "$(inherited)";
+				"LIBRARY_SEARCH_PATHS[sdk=iphonesimulator*]" = (
+					"$(PROJECT_DIR)/../third_party/llama.cpp/build-apple/src",
+					"$(PROJECT_DIR)/../third_party/llama.cpp/build-apple/ggml/src",
+					"$(PROJECT_DIR)/../third_party/llama.cpp/build-apple/ggml/src/ggml-metal",
+					"$(PROJECT_DIR)/../third_party/llama.cpp/build-apple/ggml/src/ggml-blas",
+				);
 				MARKETING_VERSION = .01;
+				OTHER_LDFLAGS = (
+					"-lc++",
+					"-ObjC",
+				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.epi.arcmvp;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphonesimulator iphoneos";
@@ -751,6 +826,7 @@
 			baseConfigurationReference = 7AFA3C8E1D35360C0083082E /* Release.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++17";
 				CLANG_ENABLE_MODULES = YES;
 				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
 				DEVELOPMENT_TEAM = 87W73WQSPF;
@@ -759,6 +835,10 @@
 				"FRAMEWORK_SEARCH_PATHS[sdk=iphonesimulator*]" = (
 					"$(inherited)",
 					"$(PROJECT_DIR)/../third_party/llama.cpp/build-apple",
+				);
+				HEADER_SEARCH_PATHS = (
+					"$(PROJECT_DIR)/../third_party/llama.cpp/include",
+					"$(PROJECT_DIR)/../third_party/llama.cpp/ggml/include",
 				);
 				INFOPLIST_FILE = Runner/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = ARC;
@@ -769,7 +849,17 @@
 					"@loader_path/Frameworks",
 				);
 				LIBRARY_SEARCH_PATHS = "$(inherited)";
+				"LIBRARY_SEARCH_PATHS[sdk=iphonesimulator*]" = (
+					"$(PROJECT_DIR)/../third_party/llama.cpp/build-apple/src",
+					"$(PROJECT_DIR)/../third_party/llama.cpp/build-apple/ggml/src",
+					"$(PROJECT_DIR)/../third_party/llama.cpp/build-apple/ggml/src/ggml-metal",
+					"$(PROJECT_DIR)/../third_party/llama.cpp/build-apple/ggml/src/ggml-blas1",
+				);
 				MARKETING_VERSION = .01;
+				OTHER_LDFLAGS = (
+					"-lc++",
+					"-ObjC",
+				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.epi.arcmvp;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphonesimulator iphoneos";
@@ -815,37 +905,9 @@
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */
-		4D76F29DA9794E12916AD0AD /* XCRemoteSwiftPackageReference "mlx-swift" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/ml-explore/mlx-swift";
-			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 0.18.0;
-			};
-		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
-		79902B7BCC864396B57AD7C4 /* MLX */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 4D76F29DA9794E12916AD0AD /* XCRemoteSwiftPackageReference "mlx-swift" */;
-			productName = MLX;
-		};
-		47C89A3685E043B58CD5DB0B /* MLXNN */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 4D76F29DA9794E12916AD0AD /* XCRemoteSwiftPackageReference "mlx-swift" */;
-			productName = MLXNN;
-		};
-		CA1CAE2F57A24948A004F748 /* MLXOptimizers */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 4D76F29DA9794E12916AD0AD /* XCRemoteSwiftPackageReference "mlx-swift" */;
-			productName = MLXOptimizers;
-		};
-		AC152142E4C8412C8F10BB4F /* MLXRandom */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 4D76F29DA9794E12916AD0AD /* XCRemoteSwiftPackageReference "mlx-swift" */;
-			productName = MLXRandom;
-		};
 /* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 97C146E61CF9000F007C117D /* Project object */;

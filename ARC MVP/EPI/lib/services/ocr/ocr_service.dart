@@ -1,5 +1,6 @@
 import 'dart:io';
 import '../../telemetry/analytics.dart';
+import '../../lumara/llm/bridge.pigeon.dart';
 
 /// Abstract OCR service interface for text extraction from images
 abstract class OcrService {
@@ -72,23 +73,56 @@ class AppleVisionOcrService implements OcrService {
   Future<String> extractText(File imageFile) async {
     analytics.logScanEvent('ocr_started', data: {'source': 'file', 'platform': 'ios'});
     
-    // TODO: Implement Apple Vision framework integration
-    // This would use the native iOS Vision framework for OCR
-    
-    // For now, fall back to stub implementation
-    final stubService = StubOcrService(analytics);
-    return await stubService.extractText(imageFile);
+    try {
+      // TODO: Implement native OCR bridge method
+      // For now, use fallback to stub service
+      analytics.logScanEvent('ocr_fallback', data: {
+        'source': 'file',
+        'platform': 'ios',
+        'reason': 'native_ocr_not_implemented',
+      });
+      
+      // Fallback to stub service until native OCR is implemented
+      final stubService = StubOcrService(analytics);
+      return await stubService.extractText(imageFile);
+    } catch (e) {
+      analytics.logScanEvent('ocr_failed', data: {
+        'source': 'file',
+        'platform': 'ios',
+        'error': e.toString(),
+      });
+      
+      // Final fallback
+      return 'OCR service temporarily unavailable. Please try again later.';
+    }
   }
 
   @override
   Future<String> extractTextFromBytes(List<int> imageBytes) async {
     analytics.logScanEvent('ocr_started', data: {'source': 'bytes', 'platform': 'ios'});
     
-    // TODO: Implement Apple Vision framework integration
-    
-    // For now, fall back to stub implementation
-    final stubService = StubOcrService(analytics);
-    return await stubService.extractTextFromBytes(imageBytes);
+    try {
+      // Save bytes to temporary file and use file-based OCR
+      final tempFile = File('${Directory.systemTemp.path}/ocr_temp_${DateTime.now().millisecondsSinceEpoch}.jpg');
+      await tempFile.writeAsBytes(imageBytes);
+      
+      final result = await extractText(tempFile);
+      
+      // Clean up temp file
+      await tempFile.delete();
+      
+      return result;
+    } catch (e) {
+      analytics.logScanEvent('ocr_failed', data: {
+        'source': 'bytes',
+        'platform': 'ios',
+        'error': e.toString(),
+      });
+      
+      // Fallback to stub if native OCR fails
+      final stubService = StubOcrService(analytics);
+      return await stubService.extractTextFromBytes(imageBytes);
+    }
   }
 }
 
@@ -102,22 +136,55 @@ class GoogleMlKitOcrService implements OcrService {
   Future<String> extractText(File imageFile) async {
     analytics.logScanEvent('ocr_started', data: {'source': 'file', 'platform': 'android'});
     
-    // TODO: Implement Google ML Kit integration
-    // This would use the ML Kit Text Recognition API
-    
-    // For now, fall back to stub implementation
-    final stubService = StubOcrService(analytics);
-    return await stubService.extractText(imageFile);
+    try {
+      // TODO: Implement native OCR bridge method
+      // For now, use fallback to stub service
+      analytics.logScanEvent('ocr_fallback', data: {
+        'source': 'file',
+        'platform': 'android',
+        'reason': 'native_ocr_not_implemented',
+      });
+      
+      // Fallback to stub service until native OCR is implemented
+      final stubService = StubOcrService(analytics);
+      return await stubService.extractText(imageFile);
+    } catch (e) {
+      analytics.logScanEvent('ocr_failed', data: {
+        'source': 'file',
+        'platform': 'android',
+        'error': e.toString(),
+      });
+      
+      // Final fallback
+      return 'OCR service temporarily unavailable. Please try again later.';
+    }
   }
 
   @override
   Future<String> extractTextFromBytes(List<int> imageBytes) async {
     analytics.logScanEvent('ocr_started', data: {'source': 'bytes', 'platform': 'android'});
     
-    // TODO: Implement Google ML Kit integration
-    
-    // For now, fall back to stub implementation
-    final stubService = StubOcrService(analytics);
-    return await stubService.extractTextFromBytes(imageBytes);
+    try {
+      // Save bytes to temporary file and use file-based OCR
+      final tempFile = File('${Directory.systemTemp.path}/ocr_temp_${DateTime.now().millisecondsSinceEpoch}.jpg');
+      await tempFile.writeAsBytes(imageBytes);
+      
+      final result = await extractText(tempFile);
+      
+      // Clean up temp file
+      await tempFile.delete();
+      
+      return result;
+    } catch (e) {
+      analytics.logScanEvent('ocr_failed', data: {
+        'source': 'bytes',
+        'platform': 'android',
+        'error': e.toString(),
+      });
+      
+      // Fallback to stub if native OCR fails
+      final stubService = StubOcrService(analytics);
+      return await stubService.extractTextFromBytes(imageBytes);
+    }
   }
 }

@@ -5,7 +5,7 @@ import 'bridge.pigeon.dart' as pigeon;
 import 'model_progress_service.dart';
 
 /// On-device LLM adapter using Pigeon native bridge
-/// Supports multiple model formats: MLX (iOS), GGUF (Android via llama.cpp)
+/// Supports GGUF models via llama.cpp with Metal acceleration (iOS)
 class LLMAdapter implements ModelAdapter {
   static bool _isInitialized = false;
   static String? _activeModelId;
@@ -39,33 +39,44 @@ class LLMAdapter implements ModelAdapter {
         return false;
       }
 
-      // Check for specific model availability (same logic as LumaraAPIConfig)
+      // Check for GGUF model availability (llama.cpp + Metal)
       try {
-        // Check for Qwen model first (priority)
-        final qwenDownloaded = await _nativeApi.isModelDownloaded('qwen3-1.7b-mlx-4bit');
-        debugPrint('[LLMAdapter] Qwen model downloaded: $qwenDownloaded');
+        // Check for Llama-3.2-3B model first (priority)
+        final llamaDownloaded = await _nativeApi.isModelDownloaded('Llama-3.2-3b-Instruct-Q4_K_M.gguf');
+        debugPrint('[LLMAdapter] Llama-3.2-3B model downloaded: $llamaDownloaded');
         
-        if (qwenDownloaded) {
-          _activeModelId = 'qwen3-1.7b-mlx-4bit';
+        if (llamaDownloaded) {
+          _activeModelId = 'Llama-3.2-3b-Instruct-Q4_K_M.gguf';
           _available = true;
           _isInitialized = true;
-          debugPrint('[LLMAdapter] Using Qwen model: $_activeModelId');
+          debugPrint('[LLMAdapter] Using Llama-3.2-3B model: $_activeModelId');
         } else {
-          // Check for Phi model as fallback
-          final phiDownloaded = await _nativeApi.isModelDownloaded('phi-3.5-mini-instruct-4bit');
-          debugPrint('[LLMAdapter] Phi model downloaded: $phiDownloaded');
+          // Check for Phi-3.5 model as fallback
+          final phiDownloaded = await _nativeApi.isModelDownloaded('Phi-3.5-mini-instruct-Q5_K_M.gguf');
+          debugPrint('[LLMAdapter] Phi-3.5 model downloaded: $phiDownloaded');
           
           if (phiDownloaded) {
-            _activeModelId = 'phi-3.5-mini-instruct-4bit';
+            _activeModelId = 'Phi-3.5-mini-instruct-Q5_K_M.gguf';
             _available = true;
             _isInitialized = true;
-            debugPrint('[LLMAdapter] Using Phi model: $_activeModelId');
+            debugPrint('[LLMAdapter] Using Phi-3.5 model: $_activeModelId');
           } else {
-            _reason = 'no_models_downloaded';
-            _available = false;
-            _isInitialized = false;
-            debugPrint('[LLMAdapter] No models downloaded');
-            return false;
+            // Check for Qwen3-4B model as final fallback
+            final qwenDownloaded = await _nativeApi.isModelDownloaded('Qwen3-4B-Instruct.Q5_K_M.gguf');
+            debugPrint('[LLMAdapter] Qwen3-4B model downloaded: $qwenDownloaded');
+            
+            if (qwenDownloaded) {
+              _activeModelId = 'Qwen3-4B-Instruct.Q5_K_M.gguf';
+              _available = true;
+              _isInitialized = true;
+              debugPrint('[LLMAdapter] Using Qwen3-4B model: $_activeModelId');
+            } else {
+              _reason = 'no_gguf_models_downloaded';
+              _available = false;
+              _isInitialized = false;
+              debugPrint('[LLMAdapter] No GGUF models downloaded');
+              return false;
+            }
           }
         }
       } catch (e) {

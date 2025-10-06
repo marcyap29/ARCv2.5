@@ -87,6 +87,13 @@ class DownloadProgressDialog extends StatelessWidget {
 
   String _getDisplayName() {
     switch (modelName) {
+      case 'Llama-3.2-3b-Instruct-Q4_K_M.gguf':
+        return 'Llama 3.2 3B Instruct (Q4_K_M)';
+      case 'Phi-3.5-mini-instruct-Q5_K_M.gguf':
+        return 'Phi-3.5 Mini Instruct (Q5_K_M)';
+      case 'Qwen3-4B-Instruct.Q5_K_M.gguf':
+        return 'Qwen3 4B Instruct (Q5_K_M)';
+      // Legacy model names for backward compatibility
       case 'gemma-3-270m':
         return 'Gemma 3 (270M)';
       case 'gemma-3-1b':

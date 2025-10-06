@@ -34,21 +34,28 @@ class _ModelDownloadScreenState extends State<ModelDownloadScreen> {
   final LumaraNative _bridge = LumaraNative();
   final DownloadStateService _downloadStateService = DownloadStateService.instance;
 
-  // Available models for download
+  // Available GGUF models for download (llama.cpp + Metal)
   static const List<ModelInfo> _availableModels = [
     ModelInfo(
-      id: 'qwen3-1.7b-mlx-4bit',
-      name: 'Qwen3 1.7B MLX (4-bit)',
-      size: '~900 MB',
-      downloadUrl: 'https://drive.usercontent.google.com/download?id=12r9FgMRHz7ksmqPQd1zkwRf03NC-lOg8&export=download&confirm=t',
-      description: 'Fast and efficient for most tasks',
+      id: 'Llama-3.2-3b-Instruct-Q4_K_M.gguf',
+      name: 'Llama 3.2 3B Instruct (Q4_K_M)',
+      size: '~1.9 GB',
+      downloadUrl: 'https://huggingface.co/microsoft/Llama-3.2-3B-Instruct-GGUF/resolve/main/Llama-3.2-3B-Instruct-Q4_K_M.gguf',
+      description: 'Recommended: Fast, efficient, 4-bit quantized',
     ),
     ModelInfo(
-      id: 'phi-3.5-mini-instruct-4bit',
-      name: 'Phi-3.5-mini-instruct (4-bit)',
-      size: '~2.1 GB',
-      downloadUrl: 'https://drive.usercontent.google.com/download?id=16MqOfRVQHurRvPtD61WKU1XShad0nWZr&export=download&confirm=t',
-      description: 'More capable, better for complex reasoning',
+      id: 'Phi-3.5-mini-instruct-Q5_K_M.gguf',
+      name: 'Phi-3.5 Mini Instruct (Q5_K_M)',
+      size: '~2.6 GB',
+      downloadUrl: 'https://huggingface.co/microsoft/Phi-3.5-mini-instruct-GGUF/resolve/main/Phi-3.5-mini-instruct-Q5_K_M.gguf',
+      description: 'High quality, 5-bit quantized, excellent reasoning',
+    ),
+    ModelInfo(
+      id: 'Qwen3-4B-Instruct.Q5_K_M.gguf',
+      name: 'Qwen3 4B Instruct (Q5_K_M)',
+      size: '~2.3 GB',
+      downloadUrl: 'https://huggingface.co/Qwen/Qwen3-4B-Instruct-GGUF/resolve/main/Qwen3-4B-Instruct.Q5_K_M.gguf',
+      description: 'Multilingual, 5-bit quantized, great for diverse tasks',
     ),
   ];
 

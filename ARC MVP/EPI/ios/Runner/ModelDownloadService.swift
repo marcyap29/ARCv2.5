@@ -155,7 +155,7 @@ class ModelDownloadService: NSObject {
         let modelDirName: String
         switch modelId {
         case "qwen3-1.7b-mlx-4bit":
-            modelDirName = "Qwen3-1.7B-MLX-4bit"
+            modelDirName = "Qwen3-1.7B-GGUF-4bit"
         case "phi-3.5-mini-instruct-4bit":
             modelDirName = "Phi-3.5-mini-instruct-4bit"
         default:
@@ -319,7 +319,7 @@ extension ModelDownloadService: URLSessionDownloadDelegate {
         try cleanupMacOSMetadata(in: destinationURL)
 
         // Handle case where ZIP contains a single root folder
-        // (e.g., ZIP has "Qwen3-1.7B-MLX-4bit/" but we want files directly in destination)
+        // (e.g., ZIP has "Qwen3-1.7B-GGUF-4bit/" but we want files directly in destination)
         let contents = try FileManager.default.contentsOfDirectory(at: destinationURL, includingPropertiesForKeys: [.isDirectoryKey])
 
         // Filter out hidden files and get only directories

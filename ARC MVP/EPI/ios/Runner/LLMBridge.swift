@@ -1,15 +1,11 @@
 // LLMBridge.swift
 // Swift implementation of LumaraNative Pigeon protocol
-// Provides on-device LLM inference with MLX
+// Provides on-device LLM inference with llama.cpp + Metal
 // Updated: Async model loading from bundle with progress reporting
 
 import Foundation
 import UIKit
 import os.log
-import MLX
-import MLXNN
-import MLXOptimizers
-import MLXRandom
 import ZIPFoundation
 
 // MARK: - Model Store
@@ -107,8 +103,8 @@ class ModelStore {
             return appSupportPath
         }
 
-        // iOS fallback: Check bundle (models bundled for device testing)
-        let relativePath = "flutter_assets/assets/models/MLX/\(modelDir)/\(file)"
+        // iOS fallback: Check bundle (GGUF models bundled for device testing)
+        let relativePath = "flutter_assets/assets/models/gguf/\(file)"
         if let bundleURL = Bundle.main.url(forResource: relativePath, withExtension: nil) {
             logger.info("resolveModelPath: found in iOS bundle: \(bundleURL.path)")
             return bundleURL
@@ -122,7 +118,7 @@ class ModelStore {
         }
 
         // macOS fallback: Try bundle
-        let relativePath = "flutter_assets/assets/models/MLX/\(modelDir)/\(file)"
+        let relativePath = "flutter_assets/assets/models/gguf/\(file)"
         if let bundleURL = Bundle.main.url(forResource: relativePath, withExtension: nil) {
             logger.info("resolveModelPath: found in macOS bundle: \(bundleURL.path)")
             return bundleURL
@@ -161,7 +157,7 @@ class ModelStore {
 
 // MARK: - Model Lifecycle
 
-/// Qwen tokenizer for MLX models
+/// Qwen tokenizer for GGUF models (llama.cpp)
 class QwenTokenizer {
     private let vocab: [String: Int]
     private let reverseVocab: [Int: String]
@@ -350,7 +346,7 @@ class ModelLifecycle {
     private var isRunning = false
     private var currentModelId: String?
     private var tokenizer: QwenTokenizer?
-    private var modelWeights: [String: MLXArray]?
+    // Model weights are now handled by llama.cpp internally
     private let loadQueue = DispatchQueue(label: "com.epi.model.load", qos: .userInitiated)
 
     // Progress API reference
@@ -422,23 +418,21 @@ class ModelLifecycle {
                 self.emit(modelId: modelId, value: 30, message: "loading tokenizer")
                 self.tokenizer = try QwenTokenizer(vocabPath: tokenizerURL)
 
-                // Load weights with mmap
-                self.emit(modelId: modelId, value: 60, message: "loading weights (mmap)")
+                // llama.cpp handles model loading internally
+                self.emit(modelId: modelId, value: 60, message: "preparing llama.cpp model")
                 do {
                     let fileSize = try FileManager.default.attributesOfItem(atPath: weightsURL.path)[.size] as? UInt64 ?? 0
-                    self.logger.info("[ModelPreload] mmap=starting size=\(fileSize)")
+                    self.logger.info("[ModelPreload] model=preparing size=\(fileSize)")
 
-                    // Use memory-mapped loading for large files
-                    self.modelWeights = try SafetensorsLoader.load(from: weightsURL)
-
-                    self.logger.info("[ModelPreload] mmap=ok tensors=\(self.modelWeights?.count ?? 0)")
+                    // llama.cpp will load the GGUF model internally
+                    self.logger.info("[ModelPreload] model=ready for llama.cpp loading")
                 } catch {
                     self.logger.error("[ModelPreload] err=\(error.localizedDescription)")
                     throw error
                 }
 
-                // MLX initialization (warmup would go here)
-                self.emit(modelId: modelId, value: 90, message: "initializing MLX")
+                // llama.cpp initialization (warmup would go here)
+                self.emit(modelId: modelId, value: 90, message: "initializing llama.cpp")
 
                 // Mark as loaded
                 self.isRunning = true
@@ -464,8 +458,7 @@ class ModelLifecycle {
     func stop() throws {
         guard isRunning else { return }
 
-        // Free MLX model resources
-        modelWeights = nil
+        // Free llama.cpp model resources
         tokenizer = nil
 
         isRunning = false
@@ -529,52 +522,40 @@ class ModelLifecycle {
         var outputTokens: [Int] = inputTokens
         var generatedTokens: [Int] = []
 
-        for tokenIndex in 0..<maxNewTokens {
-            // Stub: In real MLX, we'd run forward pass through transformer
-            // For now, generate placeholder tokens with some logic
-            let nextToken: Int
+        // Use llama.cpp streaming generation
+        let result = llama_start_generation(prompt, Float(temperature), Float(topP), Int32(maxNewTokens))
+        if result != 1 {
+            logger.error("Failed to start generation: \(result)")
+            throw NSError(domain: "LLMBridge", code: 500, userInfo: [NSLocalizedDescriptionKey: "Failed to start generation"])
+        }
+        
+        var isFinished = false
+        while !isFinished {
+            let streamResult = llama_get_next_token()
             
-            if tokenIndex == 0 {
-                // First token should be a greeting
-                nextToken = tokenizer.getTokenId(for: "Hi") ?? 
-                           tokenizer.getTokenId(for: "Hello") ?? 
-                           tokenizer.getTokenId(for: "Hey") ?? 0
-            } else if tokenIndex == 1 {
-                nextToken = tokenizer.getTokenId(for: "!") ?? tokenizer.getTokenId(for: ".") ?? 0
-            } else if tokenIndex == 2 {
-                nextToken = tokenizer.getTokenId(for: "How") ?? tokenizer.getTokenId(for: "What") ?? 0
-            } else if tokenIndex == 3 {
-                nextToken = tokenizer.getTokenId(for: "can") ?? tokenizer.getTokenId(for: "would") ?? 0
-            } else if tokenIndex == 4 {
-                nextToken = tokenizer.getTokenId(for: "I") ?? tokenizer.getTokenId(for: "we") ?? 0
-            } else if tokenIndex == 5 {
-                nextToken = tokenizer.getTokenId(for: "help") ?? tokenizer.getTokenId(for: "assist") ?? 0
-            } else if tokenIndex == 6 {
-                nextToken = tokenizer.getTokenId(for: "you") ?? tokenizer.getTokenId(for: "today") ?? 0
-            } else if tokenIndex == 7 {
-                nextToken = tokenizer.getTokenId(for: "?") ?? tokenizer.getTokenId(for: ".") ?? 0
-            } else {
-                // Random token for remaining positions
-                nextToken = Int.random(in: 0..<min(1000, tokenizer.vocabCount))
+            if streamResult.error_code != 0 {
+                logger.error("Generation error: \(streamResult.error_code)")
+                break
             }
             
-            generatedTokens.append(nextToken)
-            outputTokens.append(nextToken)
-
-            // Check for stop strings
-            let currentText = tokenizer.decode(generatedTokens, skipSpecialTokens: true, cleanUpTokenizationSpaces: true)
-            for stopString in stopStrings {
-                if currentText.contains(stopString) {
-                    logger.info("Stopped at: \(stopString)")
-                    break
+            if streamResult.token != nil {
+                let tokenString = String(cString: streamResult.token!)
+                let tokenId = tokenizer.getTokenId(for: tokenString) ?? 0
+                generatedTokens.append(tokenId)
+                outputTokens.append(tokenId)
+                
+                // Check for stop strings
+                let currentText = tokenizer.decode(generatedTokens, skipSpecialTokens: true, cleanUpTokenizationSpaces: true)
+                for stopString in stopStrings {
+                    if currentText.contains(stopString) {
+                        logger.info("Stopped at: \(stopString)")
+                        isFinished = true
+                        break
+                    }
                 }
             }
             
-            // Stop at EOS
-            if nextToken == tokenizer.eosToken {
-                logger.info("Stopped at EOS token")
-                break
-            }
+            isFinished = streamResult.is_finished
         }
 
         // Decode output with proper cleanup
@@ -678,7 +659,7 @@ class ModelLifecycle {
             return """
             I'm LUMARA, your privacy-first on-device assistant. I'm here to help you journal, see patterns, and take your next wise step.
 
-            Current status: Bridge ✓, MLX loaded ✓, Tokenizer ✓, Bundle mmap ✓
+            Current status: Bridge ✓, llama.cpp loaded ✓, Tokenizer ✓, Bundle mmap ✓
 
             Next step: Share what's on your mind, or ask about journaling, patterns, or life phases.
             """
@@ -1215,7 +1196,7 @@ extension ModelDownloadService: URLSessionDownloadDelegate {
         try cleanupMacOSMetadata(in: destinationURL)
 
         // Handle case where ZIP contains a single root folder
-        // (e.g., ZIP has "Qwen3-1.7B-MLX-4bit/" but we want files directly in destination)
+        // (e.g., ZIP has "Qwen3-1.7B-GGUF-4bit/" but we want files directly in destination)
         let contents = try FileManager.default.contentsOfDirectory(at: destinationURL, includingPropertiesForKeys: [.isDirectoryKey])
 
         // Filter out hidden files and get only directories

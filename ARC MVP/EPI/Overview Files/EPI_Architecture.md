@@ -10,39 +10,37 @@
   - VEIL: Self-Pruning & Coherence
   - RIVET: Risk-Validation Evidence Tracker
 
-  ## 🤖 **On-Device LLM Architecture** (Updated Oct 2, 2025)
+  ## 🤖 **On-Device LLM Architecture** (Updated January 2, 2025)
 
-  **MLX Integration Pipeline with Async Progress**:
+  **llama.cpp + Metal Integration Pipeline with Real Inference**:
   ```
-  Flutter (LLMAdapter) → Pigeon Bridge → Swift (LLMBridge) → ModelStore → ModelLifecycle → MLX Inference
-                      ← Progress API ← Swift Callbacks ← Model Loading Progress
+  Flutter (LLMAdapter) → Pigeon Bridge → Swift (LlamaBridge) → llama_wrapper.cpp → llama.cpp + Metal
+                      ← Token Stream ← Swift Callbacks ← Real Token Generation
   ```
 
   **Key Components**:
-  - `lib/lumara/llm/llm_adapter.dart` - Flutter adapter using Pigeon bridge with progress waiting
+  - `lib/lumara/llm/llm_adapter.dart` - Flutter adapter using Pigeon bridge with GGUF model support
   - `lib/lumara/llm/model_progress_service.dart` - Progress callback handler with stream broadcasting
-  - `ios/Runner/LLMBridge.swift` - Swift implementation of Pigeon protocol with progress emission
-  - `ios/Runner/SafetensorsLoader.swift` - Safetensors format parser with memory-mapped I/O
-  - `ios/Runner/ModelStore.swift` - Model registry and bundle path management
-  - `ios/Runner/ModelLifecycle.swift` - Async model loading lifecycle with completion handlers
+  - `ios/Runner/LlamaBridge.swift` - Swift interface to llama.cpp with Metal acceleration
+  - `ios/Runner/llama_wrapper.h/.cpp` - C++ bridge exposing llama.cpp API to Swift
+  - `ios/Runner/PrismScrubber.swift` - Privacy scrubber for cloud fallback
+  - `ios/Runner/CapabilityRouter.swift` - Intelligent local vs cloud routing
   - `ios/Runner/AppDelegate.swift` - Progress API wiring for native→Flutter callbacks
 
-  **Async Model Loading**:
-  - **Non-Blocking Init**: `initModel()` returns immediately, loading happens in background
-  - **Progress Streaming**: Real-time updates (0%, 10%, 30%, 60%, 90%, 100%) via Pigeon callbacks
-  - **Bundle Loading**: Models loaded directly from `flutter_assets/assets/models/MLX/`
-  - **Memory Mapping**: Large model files (872MB) loaded with memory-mapped I/O
+  **Real Token Streaming**:
+  - **Live Generation**: `llama_start_generation()` and `llama_get_next_token()` for real inference
+  - **Metal Acceleration**: LLAMA_METAL=1 for GPU-accelerated computation
+  - **Token Streaming**: Real-time token generation with proper stop conditions
   - **Background Queue**: `DispatchQueue(label: "com.epi.model.load", qos: .userInitiated)`
 
-  **Model Management**:
-  - **Registry**: JSON-based model tracking at `~/Library/Application Support/Models/models.json`
-  - **Auto-Creation**: Registry auto-created on first launch with bundled model entry
-  - **Bundle Resolution**: `resolveModelPath()` maps model IDs to flutter_assets paths with proper file verification
-  - **Formats**: Supports MLX (iOS) and GGUF (Android) model formats
-  - **Loading**: Real-time safetensors parsing to MLXArrays with progress reporting
-  - **Status Verification**: Enhanced model status checking that verifies both `config.json` and `model.safetensors` files exist
-  - **Model Deletion**: Complete model deletion functionality with confirmation dialogs and status refresh
-  - **Startup Check**: Automatic model availability detection at app startup with UI updates
+  **GGUF Model Management**:
+  - **Model Format**: GGUF quantized models (4-bit and 5-bit quantization)
+  - **Available Models**: Llama-3.2-3B, Phi-3.5-Mini, Qwen3-4B (all GGUF format)
+  - **Bundle Loading**: Models loaded from `flutter_assets/assets/models/gguf/`
+  - **Memory Mapping**: Efficient loading of large model files (1.5-3GB range)
+  - **Status Verification**: Enhanced model status checking for GGUF files
+  - **Model Deletion**: Complete model deletion functionality with confirmation dialogs
+  - **Startup Check**: Automatic model availability detection at app startup
 
   **Privacy Architecture**:
   - **On-Device Processing**: All inference happens locally on device
