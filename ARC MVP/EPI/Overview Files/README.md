@@ -6,14 +6,22 @@ A Flutter-based AI companion app that provides life-aware assistance through jou
 
 **🎉 MVP OPERATIONAL** - All systems working, llama.cpp + Metal On-Device LLM Integration complete (January 2, 2025)
 
-### **Latest Major Achievement: Complete llama.cpp + Metal Migration** ✅ **COMPLETE**
+### **Latest Major Achievement: Google Drive Model URLs** ✅ **COMPLETE**
+- **Reliable Model Access**: Updated all model download URLs to Google Drive for consistent access
+- **Model Links**: 
+  - Llama 3.2 3B: Google Drive link for reliable downloads
+  - Phi-3.5 Mini: Google Drive link for reliable downloads  
+  - Qwen3 4B: Google Drive link for reliable downloads
+- **Folder Structure**: Verified all lowercase folder names (`assets/models/gguf/`) to prevent formatting issues
+- **Current Status**: ✅ **FULLY OPERATIONAL** - Reliable model downloads with Google Drive access
+
+### **Previous Major Achievement: Complete llama.cpp + Metal Migration** ✅ **COMPLETE**
 - **Architecture Migration**: Complete removal of MLX/Core ML dependencies in favor of llama.cpp with Metal acceleration
 - **Real On-Device Inference**: Live token generation with llama_start_generation() and llama_get_next_token()
 - **GGUF Model Support**: 3 quantized models (Llama-3.2-3B, Phi-3.5-Mini, Qwen3-4B) with Metal acceleration
 - **Cloud Fallback**: Gemini 2.5 Flash API integration for complex tasks
 - **PRISM Privacy Scrubber**: Local text sanitization before cloud routing
 - **Production Ready**: All stub implementations removed, real inference working
-- **Current Status**: ✅ **FULLY OPERATIONAL** - Production-ready on-device LLM with Metal acceleration
 
 ### **Previous Major Achievement: Enhanced Model Download Extraction Fix** ✅ **COMPLETE**
 - **Enhanced Model Download Extraction Fixed**: Resolved "_MACOSX" folder conflict error during ZIP extraction with comprehensive cleanup system

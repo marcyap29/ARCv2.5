@@ -32,9 +32,10 @@ MLX transformer forward pass is not implemented. The current method appends cann
 **Current Status:**
 - App builds and runs successfully on iOS simulator
 - Real llama.cpp integration with Metal acceleration
-- 3 GGUF models available for download
+- 3 GGUF models available for download via Google Drive links
 - Cloud fallback via Gemini 2.5 Flash API
 - All stub code removed - production ready
+- Model download URLs updated to Google Drive for reliable access
 
 ---
 

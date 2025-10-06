@@ -2,6 +2,20 @@
 
 ## [Unreleased]
 
+### 🔗 **MODEL DOWNLOAD URLS UPDATED TO GOOGLE DRIVE** - January 2, 2025
+
+#### **Reliable Model Access with Google Drive Links** ✅ **COMPLETE**
+- **URL Migration**: Updated all model download URLs from Hugging Face to Google Drive for reliable access
+- **Model Links Updated**:
+  - **Llama 3.2 3B**: `https://drive.google.com/file/d/1qOeyIFSQ4Q1WxVa0j271T8oQMnPYEqlF/view?usp=drive_link`
+  - **Phi-3.5 Mini**: `https://drive.google.com/file/d/1iwZSbDxDx78-Nfl2JB_A4P6SaQzYKfXu/view?usp=drive_link`
+  - **Qwen3 4B**: `https://drive.google.com/file/d/1SwAWnUaojbWYQbYNlZ3RacIAN7Cq2NXc/view?usp=drive_link`
+- **Folder Structure Verified**: All folder names confirmed lowercase (`assets/models/gguf/`) to avoid formatting issues
+- **Files Updated**: 
+  - `lib/lumara/ui/model_download_screen.dart` - Flutter UI download links
+  - `download_qwen_models.py` - Python download script
+- **Result**: Reliable model downloads with consistent Google Drive access
+
 ### 🚀 **COMPLETE LLAMA.CPP + METAL MIGRATION** - January 2, 2025
 
 #### **Production-Ready On-Device LLM with llama.cpp + Metal** ✅ **COMPLETE**
