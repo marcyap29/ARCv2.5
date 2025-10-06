@@ -41,7 +41,7 @@ QWEN_MODELS = [
         repo_id="Qwen/Qwen3-4B-Instruct-GGUF",
         is_default=True,
         sha256="", # Will be updated from HF
-        download_url="https://huggingface.co/Qwen/Qwen3-4B-Instruct-GGUF/resolve/main/qwen3-4b-instruct-q4_k_m.gguf"
+        download_url="https://drive.google.com/file/d/1SwAWnUaojbWYQbYNlZ3RacIAN7Cq2NXc/view?usp=drive_link"
     ),
     QwenModelManifest(
         model_id="qwen3_1p7b_instruct",
