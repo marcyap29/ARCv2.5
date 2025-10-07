@@ -657,13 +657,16 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
                   children: [
                     Row(
                       children: [
-                        Text(
-                          config.name,
-                          style: theme.textTheme.titleSmall?.copyWith(
-                            fontWeight: FontWeight.w600,
-                            color: isAvailable 
-                                ? theme.colorScheme.onSurface
-                                : theme.colorScheme.onSurface.withOpacity(0.6),
+                        Expanded(
+                          child: Text(
+                            config.name,
+                            style: theme.textTheme.titleSmall?.copyWith(
+                              fontWeight: FontWeight.w600,
+                              color: isAvailable 
+                                  ? theme.colorScheme.onSurface
+                                  : theme.colorScheme.onSurface.withOpacity(0.6),
+                            ),
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
                         const SizedBox(width: 8),

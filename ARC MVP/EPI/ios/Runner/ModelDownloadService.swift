@@ -218,37 +218,66 @@ extension ModelDownloadService: URLSessionDownloadDelegate {
         logger.info("Download completed for \(modelId), file at: \(location.path)")
 
         do {
-            // Move to temporary location
-            let tempDir = FileManager.default.temporaryDirectory
-            let tempZip = tempDir.appendingPathComponent("\(modelId)_download.zip")
-
-            // Remove old temp file if exists
-            try? FileManager.default.removeItem(at: tempZip)
-
-            // Move downloaded file
-            try FileManager.default.moveItem(at: location, to: tempZip)
-
-            progressCallbacks[modelId]?(0.9, "Unzipping model files...")
-
-            // Unzip to Application Support in model-specific directory
-            // Use lowercase directory name for consistency
-            let modelDir = modelId.lowercased()
-            let destDir = modelRootURL.appendingPathComponent(modelDir, isDirectory: true)
+            // Check if this is a GGUF model (single file, no unzipping needed)
+            let ggufModelIds = [
+                "Llama-3.2-3b-Instruct-Q4_K_M.gguf",
+                "Phi-3.5-mini-instruct-Q5_K_M.gguf", 
+                "Qwen3-4B-Instruct.Q5_K_M.gguf",
+                "Qwen3-4B-Instruct-2507-Q5_K_M.gguf"
+            ]
             
-            do {
-                try unzipFile(at: tempZip, to: destDir)
-                progressCallbacks[modelId]?(0.95, "Extraction complete, finalizing...")
-            } catch {
-                logger.error("Unzip failed: \(error.localizedDescription)")
-                progressCallbacks[modelId]?(0.0, "Extraction failed: \(error.localizedDescription)")
-                throw error
+            if ggufModelIds.contains(modelId) {
+                // Handle GGUF models - move directly to Documents/gguf_models
+                let documentsPath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
+                let ggufModelsPath = documentsPath.appendingPathComponent("gguf_models")
+                
+                // Create gguf_models directory if it doesn't exist
+                try FileManager.default.createDirectory(at: ggufModelsPath, withIntermediateDirectories: true, attributes: nil)
+                
+                let finalPath = ggufModelsPath.appendingPathComponent(modelId)
+                
+                // Remove existing file if it exists
+                try? FileManager.default.removeItem(at: finalPath)
+                
+                // Move the downloaded file to the final location
+                try FileManager.default.moveItem(at: location, to: finalPath)
+                
+                progressCallbacks[modelId]?(1.0, "Download complete!")
+                logger.info("GGUF model \(modelId) successfully downloaded to: \(finalPath.path)")
+                
+            } else {
+                // Handle regular models (zip files) - existing logic
+                let tempDir = FileManager.default.temporaryDirectory
+                let tempZip = tempDir.appendingPathComponent("\(modelId)_download.zip")
+
+                // Remove old temp file if exists
+                try? FileManager.default.removeItem(at: tempZip)
+
+                // Move downloaded file
+                try FileManager.default.moveItem(at: location, to: tempZip)
+
+                progressCallbacks[modelId]?(0.9, "Unzipping model files...")
+
+                // Unzip to Application Support in model-specific directory
+                // Use lowercase directory name for consistency
+                let modelDir = modelId.lowercased()
+                let destDir = modelRootURL.appendingPathComponent(modelDir, isDirectory: true)
+                
+                do {
+                    try unzipFile(at: tempZip, to: destDir)
+                    progressCallbacks[modelId]?(0.95, "Extraction complete, finalizing...")
+                } catch {
+                    logger.error("Unzip failed: \(error.localizedDescription)")
+                    progressCallbacks[modelId]?(0.0, "Extraction failed: \(error.localizedDescription)")
+                    throw error
+                }
+
+                progressCallbacks[modelId]?(1.0, "Download complete!")
+                logger.info("Model \(modelId) successfully downloaded and extracted")
+
+                // Clean up
+                try? FileManager.default.removeItem(at: tempZip)
             }
-
-            progressCallbacks[modelId]?(1.0, "Download complete!")
-            logger.info("Model \(modelId) successfully downloaded and extracted")
-
-            // Clean up
-            try? FileManager.default.removeItem(at: tempZip)
 
             // Notify completion on main thread
             DispatchQueue.main.async { [weak self] in
