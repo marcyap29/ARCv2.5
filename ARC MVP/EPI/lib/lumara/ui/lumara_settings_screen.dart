@@ -353,13 +353,23 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
 
   Widget _buildDownloadButton(ThemeData theme) {
     // Check if any model is currently downloading
-    final qwenState = _downloadStateService.getState('Llama-3.2-3b-Instruct-Q4_K_M.gguf');
-    final phiState = _downloadStateService.getState('phi-3.5-mini-instruct-4bit');
+    final llamaState = _downloadStateService.getState('Llama-3.2-3b-Instruct-Q4_K_M.gguf');
+    final phiState = _downloadStateService.getState('Phi-3.5-mini-instruct-Q5_K_M.gguf');
+    final qwenState = _downloadStateService.getState('Qwen3-4B-Instruct-2507-Q5_K_M.gguf');
 
-    final isDownloading = (qwenState?.isDownloading ?? false) || (phiState?.isDownloading ?? false);
-    final downloadingState = qwenState?.isDownloading == true ? qwenState : phiState;
+    final isDownloading = (llamaState?.isDownloading ?? false) || 
+                        (phiState?.isDownloading ?? false) || 
+                        (qwenState?.isDownloading ?? false);
+    final downloadingState = llamaState?.isDownloading == true ? llamaState : 
+                            phiState?.isDownloading == true ? phiState : 
+                            qwenState?.isDownloading == true ? qwenState : null;
 
-    if (isDownloading && downloadingState != null) {
+    // Don't show download progress if any model is already downloaded
+    final hasDownloadedModel = (llamaState?.isDownloaded ?? false) || 
+                              (phiState?.isDownloaded ?? false) || 
+                              (qwenState?.isDownloaded ?? false);
+
+    if (isDownloading && downloadingState != null && !hasDownloadedModel) {
       // Show download progress
       return SizedBox(
         width: double.infinity,

@@ -8,7 +8,7 @@ import 'package:my_app/prism/mcp/export/mcp_export_service.dart';
 import 'package:my_app/prism/mcp/import/mcp_import_service.dart';
 import 'package:my_app/prism/mcp/models/mcp_schemas.dart';
 import 'package:my_app/mira/mira_service.dart';
-import 'package:my_app/arc/models/journal_entry_model.dart';
+import 'package:my_app/models/journal_entry_model.dart';
 
 void main() {
   group('MCP Integration Tests', () {

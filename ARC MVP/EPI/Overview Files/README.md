@@ -8,14 +8,20 @@ A Flutter-based AI companion app that provides life-aware assistance through jou
 
 ### **Current Status: Llama.cpp Migration Debugging** 🔧 **DEBUGGING IN PROGRESS**
 - **Migration Status**: Successfully migrated from MLX/Core ML to llama.cpp + Metal
-- **App Status**: ✅ Builds and runs successfully on iOS simulator
+- **App Status**: ❌ **BLOCKED** - Library linking failure preventing iOS compilation
 - **Model Detection**: ✅ GGUF models correctly detected and available (3 models)
-- **UI Integration**: ✅ Flutter UI properly displays GGUF models
+- **UI Integration**: ✅ Flutter UI properly displays GGUF models with improved UX
 - **Enhanced Debugging**: ✅ Comprehensive logging added to identify exact failure point
-- **Critical Issues**: ❌ Llama.cpp initialization failing, preventing on-device inference
+- **Critical Issues**: 
+  - ❌ **Library Linking Failure**: `Library 'ggml-blas' not found` error
+  - ❌ **Llama.cpp Initialization**: Failing due to library linking issues
 - **Current Workaround**: Falls back to Enhanced LUMARA API with rule-based responses
 - **Priority**: 🔴 **CRITICAL** - Blocking core on-device LLM functionality
-- **Latest Progress**: Added step-by-step logging, simulator detection, and file verification
+- **Latest Progress**: 
+  - ✅ **UI Improvements**: Fixed model download cards, settings screen, progress indicators
+  - ✅ **Compilation Fixes**: Resolved type mismatches, missing imports, syntax errors
+  - ✅ **Model Name Consistency**: Fixed Qwen3 model ID mismatch across all files
+  - ❌ **Library Linking**: Persistent ggml-blas library linking failure
 
 ### **Latest Major Achievement: Google Drive Model URLs** ✅ **COMPLETE**
 - **Reliable Model Access**: Updated all model download URLs to Google Drive for consistent access

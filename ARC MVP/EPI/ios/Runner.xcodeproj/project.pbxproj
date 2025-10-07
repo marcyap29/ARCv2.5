@@ -22,6 +22,7 @@
 		1F3EEF812E9353BE009BFF74 /* Metal.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 1F3EEF7E2E9353BE009BFF74 /* Metal.framework */; };
 		1F3EEF822E9353BE009BFF74 /* Accelerate.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 1F3EEF7F2E9353BE009BFF74 /* Accelerate.framework */; };
 		1F3EEF832E9353BE009BFF74 /* MetalKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 1F3EEF802E9353BE009BFF74 /* MetalKit.framework */; };
+		1F3EEF842E9353BE009BFF74 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 1F3EEF852E9353BE009BFF74 /* Foundation.framework */; };
 		1FEE5CF42E8C791B003BF317 /* Pods_Runner.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 168288B108ACD20B942626AA /* Pods_Runner.framework */; };
 		1FEE5CF52E8C791B003BF317 /* Pods_Runner.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 168288B108ACD20B942626AA /* Pods_Runner.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		331C808B294A63AB00263BE5 /* RunnerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 331C807B294A618700263BE5 /* RunnerTests.swift */; };
@@ -79,6 +80,7 @@
 		1F3EEF7E2E9353BE009BFF74 /* Metal.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Metal.framework; path = System/Library/Frameworks/Metal.framework; sourceTree = SDKROOT; };
 		1F3EEF7F2E9353BE009BFF74 /* Accelerate.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Accelerate.framework; path = System/Library/Frameworks/Accelerate.framework; sourceTree = SDKROOT; };
 		1F3EEF802E9353BE009BFF74 /* MetalKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = MetalKit.framework; path = System/Library/Frameworks/MetalKit.framework; sourceTree = SDKROOT; };
+		1F3EEF852E9353BE009BFF74 /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = System/Library/Frameworks/Foundation.framework; sourceTree = SDKROOT; };
 		331C807B294A618700263BE5 /* RunnerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RunnerTests.swift; sourceTree = "<group>"; };
 		331C8081294A63A400263BE5 /* RunnerTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = RunnerTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		34615DA8179F4D23A4F06E39 /* LLMBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LLMBridge.swift; sourceTree = "<group>"; };
@@ -120,6 +122,7 @@
 				1F3EEF812E9353BE009BFF74 /* Metal.framework in Frameworks */,
 				1F3EEF822E9353BE009BFF74 /* Accelerate.framework in Frameworks */,
 				1F3EEF832E9353BE009BFF74 /* MetalKit.framework in Frameworks */,
+				1F3EEF842E9353BE009BFF74 /* Foundation.framework in Frameworks */,
 				1F3EEF7D2E935395009BFF74 /* libggml-blas.a in Frameworks */,
 				1F3EEF7B2E93535F009BFF74 /* libggml-base.a in Frameworks */,
 				1F3EEF792E935332009BFF74 /* libggml-metal.a in Frameworks */,
@@ -147,6 +150,7 @@
 				1F3EEF7F2E9353BE009BFF74 /* Accelerate.framework */,
 				1F3EEF7E2E9353BE009BFF74 /* Metal.framework */,
 				1F3EEF802E9353BE009BFF74 /* MetalKit.framework */,
+				1F3EEF852E9353BE009BFF74 /* Foundation.framework */,
 				1F3EEF7C2E935395009BFF74 /* libggml-blas.a */,
 				1F3EEF7A2E93535F009BFF74 /* libggml-base.a */,
 				1F3EEF782E935332009BFF74 /* libggml-metal.a */,
@@ -594,6 +598,9 @@
 				OTHER_LDFLAGS = (
 					"-lc++",
 					"-ObjC",
+					"-lpthread",
+					"-ldl",
+					"-lm",
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.epi.arcmvp;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -809,6 +816,9 @@
 				OTHER_LDFLAGS = (
 					"-lc++",
 					"-ObjC",
+					"-lpthread",
+					"-ldl",
+					"-lm",
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.epi.arcmvp;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -852,12 +862,15 @@
 					"$(PROJECT_DIR)/../third_party/llama.cpp/build-apple/src",
 					"$(PROJECT_DIR)/../third_party/llama.cpp/build-apple/ggml/src",
 					"$(PROJECT_DIR)/../third_party/llama.cpp/build-apple/ggml/src/ggml-metal",
-					"$(PROJECT_DIR)/../third_party/llama.cpp/build-apple/ggml/src/ggml-blas1",
+					"$(PROJECT_DIR)/../third_party/llama.cpp/build-apple/ggml/src/ggml-blas",
 				);
 				MARKETING_VERSION = .01;
 				OTHER_LDFLAGS = (
 					"-lc++",
 					"-ObjC",
+					"-lpthread",
+					"-ldl",
+					"-lm",
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.epi.arcmvp;
 				PRODUCT_NAME = "$(TARGET_NAME)";
