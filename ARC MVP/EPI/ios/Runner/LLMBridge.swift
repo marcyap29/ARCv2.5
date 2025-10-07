@@ -505,36 +505,21 @@ class LLMBridge: NSObject, LumaraNative {
     }
 
     func generateText(prompt: String, params: GenParams) throws -> GenResult {
-        logger.info("🟦🟦🟦 === generateText ENTRY === 🟦🟦🟦")
-        logger.info("📥 ORIGINAL PROMPT:")
+        logger.info("🟦🟦🟦 === generateText ENTRY === 🟦🟦🟩")
+        logger.info("📥 OPTIMIZED PROMPT FROM DART:")
         logger.info("  Length: \(prompt.count) characters")
-        logger.info("  Content: '\(prompt)'")
+        logger.info("  First 300 chars: \(String(prompt.prefix(300)))")
 
-        // Use LUMARA prompt system for enhanced responses
-        let lumaraSystem = LumaraPromptSystem()
+        // Use the optimized prompt directly from Dart (already includes system prompt, context, task, etc.)
+        logger.info("🔧 USING DART OPTIMIZED PROMPT:")
+        logger.info("  Length: \(prompt.count) characters")
+        logger.info("  Content preview: \(String(prompt.prefix(200)))...")
 
-        // Build context prelude from MIRA memory
-        let contextPrelude = miraStore.buildContextPrelude()
-        logger.info("📚 CONTEXT PRELUDE:")
-        logger.info("  \(contextPrelude.build())")
+        // Use the parameters sent from Dart (already optimized for the specific model)
+        logger.info("⚙️  Using Dart params: maxTokens=\(params.maxTokens), temp=\(params.temperature), topP=\(params.topP), repeatPenalty=\(params.repeatPenalty)")
 
-        let qwenPrompt = lumaraSystem.buildLumaraMessages(userPrompt: prompt, contextPrelude: contextPrelude)
-        logger.info("🔧 FORMATTED QWEN PROMPT:")
-        logger.info("  Length: \(qwenPrompt.count) characters")
-        logger.info("  First 300 chars: \(String(qwenPrompt.prefix(300)))")
-
-        // Create Qwen-3 optimized generation parameters
-        let qwenParams = GenParams(
-            maxTokens: min(params.maxTokens, 96), // Qwen-3 works well with shorter responses
-            temperature: 0.7,
-            topP: 0.9,
-            repeatPenalty: 1.1,
-            seed: 42
-        )
-        logger.info("⚙️  Using params: maxTokens=\(qwenParams.maxTokens), temp=\(qwenParams.temperature)")
-
-        logger.info("🚀 Calling ModelLifecycle.generate...")
-        let result = try ModelLifecycle.shared.generate(prompt: qwenPrompt, params: qwenParams)
+        logger.info("🚀 Calling ModelLifecycle.generate with optimized prompt...")
+        let result = try ModelLifecycle.shared.generate(prompt: prompt, params: params)
 
         logger.info("✅ ModelLifecycle.generate returned:")
         logger.info("  text: '\(result.text)'")
@@ -543,13 +528,7 @@ class LLMBridge: NSObject, LumaraNative {
         logger.info("  latencyMs: \(result.latencyMs)")
         logger.info("  provider: \(result.provider)")
 
-        // Check if the response contains a memory save request
-        if let memory = lumaraSystem.extractMemoryFromResponse(result.text) {
-            logger.info("💾 Extracted memory from response: \(memory.summary)")
-            _ = miraStore.saveMemory(memory, phase: "Consolidation", source: "conversation", turn: 1)
-        }
-
-        logger.info("🟦🟦🟦 === generateText EXIT === 🟦🟦🟦")
+        logger.info("🟦🟦🟦 === generateText EXIT === 🟦🟦🟩")
         return result
     }
 
