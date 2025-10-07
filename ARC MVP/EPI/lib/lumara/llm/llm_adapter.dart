@@ -3,6 +3,8 @@ import 'package:flutter/foundation.dart';
 import 'model_adapter.dart';
 import 'bridge.pigeon.dart' as pigeon;
 import 'model_progress_service.dart';
+import 'prompts/lumara_prompt_assembler.dart';
+import 'prompts/lumara_model_presets.dart';
 
 /// On-device LLM adapter using Pigeon native bridge
 /// Supports GGUF models via llama.cpp with Metal acceleration (iOS)
@@ -192,7 +194,6 @@ class LLMAdapter implements ModelAdapter {
     }
 
     // Extract the user's actual message from chat
-    // The Swift side (LumaraPromptSystem) will handle all prompt formatting
     String userMessage = '';
     if (chat.isNotEmpty) {
       // Get the last user message
@@ -209,19 +210,52 @@ class LLMAdapter implements ModelAdapter {
     debugPrint('📥 USER MESSAGE LENGTH: ${userMessage.length} characters');
 
     try {
-      // Generate with native model
+      // Build optimized prompt using LUMARA prompt assembler
+      final contextBuilder = LumaraPromptAssembler.createContextBuilder(
+        userName: 'Marc Yap', // TODO: Get from user profile
+        currentPhase: facts['current_phase'] ?? 'Discovery',
+        recentKeywords: snippets.take(10).toList(),
+        memorySnippets: snippets.take(8).toList(),
+        journalExcerpts: chat
+            .where((turn) => turn['role'] == 'user')
+            .map((turn) => turn['content'] ?? '')
+            .where((content) => content.isNotEmpty)
+            .take(3)
+            .toList(),
+      );
+
+      final promptAssembler = LumaraPromptAssembler(
+        contextBuilder: contextBuilder,
+        includeFewShotExamples: true,
+        includeQualityGuardrails: true,
+      );
+
+      // Assemble the complete optimized prompt
+      final optimizedPrompt = promptAssembler.assemblePrompt(
+        userMessage: userMessage,
+        useFewShot: true,
+      );
+
+      debugPrint('📝 OPTIMIZED PROMPT LENGTH: ${optimizedPrompt.length} characters');
+      debugPrint('📝 PROMPT PREVIEW: ${optimizedPrompt.substring(0, 200)}...');
+
+      // Get model-specific parameters
+      final modelName = _activeModelId ?? 'Llama-3.2-3b-Instruct-Q4_K_M.gguf';
+      final preset = LumaraModelPresets.getPreset(modelName);
+      
       final params = pigeon.GenParams(
-        maxTokens: 256,
-        temperature: 0.7,
-        topP: 0.9,
-        repeatPenalty: 1.1,
+        maxTokens: preset['max_new_tokens'] ?? 256,
+        temperature: preset['temperature'] ?? 0.7,
+        topP: preset['top_p'] ?? 0.9,
+        topK: preset['top_k'] ?? 40,
+        repeatPenalty: preset['repeat_penalty'] ?? 1.1,
         seed: 101,
       );
       
-      debugPrint('⚙️  GENERATION PARAMS: maxTokens=${params.maxTokens}, temp=${params.temperature}');
-      debugPrint('🚀 Calling native generateText with user message...');
+      debugPrint('⚙️  GENERATION PARAMS: maxTokens=${params.maxTokens}, temp=${params.temperature}, topP=${params.topP}, topK=${params.topK}');
+      debugPrint('🚀 Calling native generateText with optimized prompt...');
 
-      final result = await _nativeApi.generateText(userMessage, params);
+      final result = await _nativeApi.generateText(optimizedPrompt, params);
 
       debugPrint('✅ NATIVE GENERATION COMPLETE:');
       debugPrint('  📤 text: "${result.text}"');
