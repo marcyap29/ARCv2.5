@@ -36,6 +36,14 @@
   - `ios/Runner/CapabilityRouter.swift` - Intelligent local vs cloud routing
   - `ios/Runner/AppDelegate.swift` - Progress API wiring for native→Flutter callbacks
 
+  **Advanced Prompt Engineering System**:
+  - `lib/lumara/llm/prompts/lumara_system_prompt.dart` - Universal system prompt for 3-4B models
+  - `lib/lumara/llm/prompts/lumara_task_templates.dart` - Structured task wrappers (answer, summarize, rewrite, plan, extract, reflect, analyze)
+  - `lib/lumara/llm/prompts/lumara_context_builder.dart` - Context assembly with user profile and memory
+  - `lib/lumara/llm/prompts/lumara_prompt_assembler.dart` - Complete prompt assembly system
+  - `lib/lumara/llm/prompts/lumara_model_presets.dart` - Model-specific parameter optimization
+  - `lib/lumara/llm/testing/lumara_test_harness.dart` - A/B testing framework for model comparison
+
   **Real Token Streaming**:
   - **Live Generation**: `llama_start_generation()` and `llama_get_next_token()` for real inference
   - **Metal Acceleration**: LLAMA_METAL=1 for GPU-accelerated computation
