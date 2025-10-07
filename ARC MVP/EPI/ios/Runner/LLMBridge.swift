@@ -286,8 +286,8 @@ class ModelLifecycle {
 
         return GenResult(
             text: finalText,
-            tokensIn: Int64(prompt.count), // Approximate
-            tokensOut: Int64(generatedText.count), // Approximate
+            tokensIn: Int64(prompt.count / 4), // Rough token estimate (4 chars per token)
+            tokensOut: Int64(finalText.count / 4), // Rough token estimate (4 chars per token)
             latencyMs: Int64(latencyMs),
             provider: "llama.cpp-gguf"
         )
