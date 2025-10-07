@@ -27,6 +27,8 @@ Complete listing of all prompts used in the ARC MVP system, centralized in `lib/
 - ✅ **Model-Specific Tuning**: Custom parameters for Llama, Phi, and Qwen models
 - ✅ **Quality Guardrails**: Format validation and consistency checks
 - ✅ **A/B Testing Framework**: Comprehensive testing harness for model comparison
+- ✅ **End-to-End Integration**: Swift bridge now uses optimized Dart prompts
+- ✅ **Real AI Responses**: Fixed dummy test response issue with proper prompt flow
 
 ## 🎉 **PREVIOUS STATUS: PROVIDER SELECTION AND SPLASH SCREEN FIXES** ✅
 

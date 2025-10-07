@@ -43,6 +43,7 @@
   - `lib/lumara/llm/prompts/lumara_prompt_assembler.dart` - Complete prompt assembly system
   - `lib/lumara/llm/prompts/lumara_model_presets.dart` - Model-specific parameter optimization
   - `lib/lumara/llm/testing/lumara_test_harness.dart` - A/B testing framework for model comparison
+  - `ios/Runner/LLMBridge.swift` - Updated to use optimized Dart prompts (end-to-end integration)
 
   **Real Token Streaming**:
   - **Live Generation**: `llama_start_generation()` and `llama_get_next_token()` for real inference

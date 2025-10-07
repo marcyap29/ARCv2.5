@@ -36,6 +36,8 @@ A Flutter-based AI companion app that provides life-aware assistance through jou
 - **Model-Specific Tuning**: Custom parameters for Llama, Phi, and Qwen models
 - **Quality Guardrails**: Format validation and consistency checks
 - **A/B Testing**: Comprehensive testing framework for model comparison
+- **End-to-End Integration**: Swift bridge now uses optimized Dart prompts
+- **Real AI Responses**: Fixed dummy test response issue with proper prompt flow
 - **Expected Results**: Tighter responses, reduced hallucination, better structure
 
 ### **Latest Major Achievement: Google Drive Model URLs** ✅ **COMPLETE**
