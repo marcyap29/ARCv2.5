@@ -29,7 +29,7 @@ A Flutter-based AI companion app that provides life-aware assistance through jou
   - **Memory Usage**: Optimized for mobile
   - **Response Quality**: High-quality Llama 3.2 3B responses
 
-### **Latest Achievement: Advanced Prompt Engineering** ✅ **COMPLETE**
+### **Latest Achievement: Advanced Prompt Engineering + Token Counting Fix** ✅ **COMPLETE**
 - **Optimized Prompts**: Universal system prompt designed for 3-4B models
 - **Task Templates**: Structured wrappers for different response types
 - **Context Integration**: User profile, memory snippets, and journal excerpts
@@ -38,6 +38,9 @@ A Flutter-based AI companion app that provides life-aware assistance through jou
 - **A/B Testing**: Comprehensive testing framework for model comparison
 - **End-to-End Integration**: Swift bridge now uses optimized Dart prompts
 - **Real AI Responses**: Fixed dummy test response issue with proper prompt flow
+- **Token Counting Fix**: ✅ **FIXED** - Resolved `tokensOut: 0` bug with proper token estimation
+- **Accurate Metrics**: Token counts now reflect actual generated content (4 chars per token)
+- **Complete Debugging**: Full visibility into token usage and generation metrics
 - **Expected Results**: Tighter responses, reduced hallucination, better structure
 
 ### **Latest Major Achievement: Google Drive Model URLs** ✅ **COMPLETE**

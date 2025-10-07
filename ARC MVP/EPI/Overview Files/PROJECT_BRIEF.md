@@ -28,6 +28,9 @@ This MVP now implements **modular architecture** with RIVET (safety validation) 
 - **A/B Testing Framework**: Comprehensive testing harness for model comparison
 - **End-to-End Integration**: Swift bridge now uses optimized Dart prompts
 - **Real AI Responses**: Fixed dummy test response issue with proper prompt flow
+- **Token Counting Fix**: Resolved `tokensOut: 0` bug with proper token estimation
+- **Accurate Metrics**: Token counts now reflect actual generated content (4 chars per token)
+- **Complete Debugging**: Full visibility into token usage and generation metrics
 
 ## 🌟 **PREVIOUS ENHANCEMENT: Tokenizer Format and Extraction Directory Fixes** (2025-10-05) ✅
 

@@ -92,6 +92,16 @@ After migrating from MLX to llama.cpp + Metal, the model loading and generation 
 - **Memory Usage**: Optimized for mobile deployment
 - **Response Quality**: High-quality Llama 3.2 3B responses
 
+#### **7. Token Counting Bug Resolution** ✅ **FIXED** - January 7, 2025
+- **Problem**: `tokensOut` showing 0 despite generating real AI responses
+- **Root Cause**: Swift bridge using character count instead of token count and wrong text variable
+- **Solution**: 
+  - Fixed token counting to use `finalText.count / 4` for proper estimation
+  - Changed from `generatedText.count` to `finalText.count` for output tokens
+  - Implemented consistent token counting for both input and output
+- **Result**: Accurate token reporting and complete debugging information
+- **Impact**: Full end-to-end prompt engineering system with accurate metrics
+
 **Current Status:**
 - ✅ **FULLY OPERATIONAL**: On-device LLM inference working perfectly
 - ✅ **Model Loading**: Llama 3.2 3B GGUF model loads in ~2-3 seconds

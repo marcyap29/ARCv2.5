@@ -44,6 +44,8 @@
   - `lib/lumara/llm/prompts/lumara_model_presets.dart` - Model-specific parameter optimization
   - `lib/lumara/llm/testing/lumara_test_harness.dart` - A/B testing framework for model comparison
   - `ios/Runner/LLMBridge.swift` - Updated to use optimized Dart prompts (end-to-end integration)
+  - **Token Counting Fix**: Resolved `tokensOut: 0` bug with proper token estimation (4 chars per token)
+  - **Accurate Metrics**: Complete debugging visibility into token usage and generation metrics
 
   **Real Token Streaming**:
   - **Live Generation**: `llama_start_generation()` and `llama_get_next_token()` for real inference

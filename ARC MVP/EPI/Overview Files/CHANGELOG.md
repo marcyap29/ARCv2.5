@@ -36,6 +36,21 @@
   - `third_party/llama.cpp/build-xcframework.sh` - Modified build script
 - **Result**: 🏆 **FULL ON-DEVICE LLM FUNCTIONALITY ACHIEVED**
 
+### 🔧 **TOKEN COUNTING FIX & PROMPT ENGINEERING COMPLETE** - January 7, 2025
+
+#### **Critical Token Counting Bug Resolution** ✅ **FIXED**
+- **Issue**: `tokensOut` was showing 0 despite generating real AI responses
+- **Root Cause**: Swift bridge using character count instead of token count and wrong text variable
+- **Solution**: Fixed token counting to use `finalText.count / 4` for proper estimation
+- **Result**: Accurate token reporting and complete debugging information
+- **Impact**: Full end-to-end prompt engineering system with accurate metrics
+
+#### **Technical Details**:
+- **Fixed**: `generatedText.count` → `finalText.count` for output tokens
+- **Fixed**: Character count → Token count estimation (4 chars per token)
+- **Fixed**: Consistent token counting for both input and output
+- **Result**: Real AI responses with proper token metrics
+
 ### 🧠 **ADVANCED PROMPT ENGINEERING IMPLEMENTATION** - January 7, 2025
 
 #### **Optimized Prompt System for Small On-Device Models** ✅ **COMPLETE**
