@@ -32,6 +32,9 @@ Complete listing of all prompts used in the ARC MVP system, centralized in `lib/
 - ✅ **Token Counting Fix**: Resolved `tokensOut: 0` bug with proper token estimation
 - ✅ **Accurate Metrics**: Token counts now reflect actual generated content (4 chars per token)
 - ✅ **Complete Debugging**: Full visibility into token usage and generation metrics
+- ✅ **Hard-coded Response Fix**: Eliminated ALL hard-coded test responses from llama.cpp
+- ✅ **Real AI Generation**: Now using actual llama.cpp token generation instead of test strings
+- ✅ **End-to-End Prompt Flow**: Optimized prompts now flow correctly from Dart → Swift → llama.cpp
 
 ## 🎉 **PREVIOUS STATUS: PROVIDER SELECTION AND SPLASH SCREEN FIXES** ✅
 

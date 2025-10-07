@@ -92,7 +92,18 @@ After migrating from MLX to llama.cpp + Metal, the model loading and generation 
 - **Memory Usage**: Optimized for mobile deployment
 - **Response Quality**: High-quality Llama 3.2 3B responses
 
-#### **7. Token Counting Bug Resolution** ✅ **FIXED** - January 7, 2025
+#### **7. Hard-coded Response Elimination** ✅ **FIXED** - January 7, 2025
+- **Problem**: App returning "This is a streaming test response from llama.cpp." instead of real AI responses
+- **Root Cause**: Found the ACTUAL file being used (`ios/llama_wrapper.cpp`) had hard-coded test responses
+- **Solution**: 
+  - Replaced ALL hard-coded responses with real llama.cpp token generation
+  - Fixed both non-streaming and streaming generation functions
+  - Added proper batch processing and memory management
+  - Implemented real token sampling with greedy algorithm
+- **Result**: Real AI responses using optimized prompt engineering system
+- **Impact**: Complete end-to-end prompt flow from Dart → Swift → llama.cpp
+
+#### **8. Token Counting Bug Resolution** ✅ **FIXED** - January 7, 2025
 - **Problem**: `tokensOut` showing 0 despite generating real AI responses
 - **Root Cause**: Swift bridge using character count instead of token count and wrong text variable
 - **Solution**: 
