@@ -247,12 +247,11 @@ class LLMAdapter implements ModelAdapter {
         maxTokens: preset['max_new_tokens'] ?? 256,
         temperature: preset['temperature'] ?? 0.7,
         topP: preset['top_p'] ?? 0.9,
-        topK: preset['top_k'] ?? 40,
         repeatPenalty: preset['repeat_penalty'] ?? 1.1,
         seed: 101,
       );
       
-      debugPrint('⚙️  GENERATION PARAMS: maxTokens=${params.maxTokens}, temp=${params.temperature}, topP=${params.topP}, topK=${params.topK}');
+      debugPrint('⚙️  GENERATION PARAMS: maxTokens=${params.maxTokens}, temp=${params.temperature}, topP=${params.topP}, repeatPenalty=${params.repeatPenalty}');
       debugPrint('🚀 Calling native generateText with optimized prompt...');
 
       final result = await _nativeApi.generateText(optimizedPrompt, params);
