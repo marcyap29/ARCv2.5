@@ -25,6 +25,13 @@ static size_t current_token_index = 0;
 static std::string current_response;
 static std::atomic<bool> stream_finished{false};
 
+// Additional streaming state
+static std::string current_prompt;
+static float current_temperature = 0.7f;
+static float current_top_p = 0.9f;
+static int32_t current_max_tokens = 256;
+static llama_batch* current_batch = nullptr;
+
 extern "C" {
     // Initialize the model
     int32_t llama_init(const char* modelPath) {
@@ -151,8 +158,73 @@ extern "C" {
         std::cout << "llama_wrapper: Generating text for prompt: " << std::string(prompt).substr(0, 50) << "..." << std::endl;
         
         try {
-            // For now, return a simple response to test the integration
-            std::string response = "This is a test response from the llama.cpp model. The prompt was: " + std::string(prompt);
+            // Real llama.cpp generation
+            std::string response;
+            
+            // Set generation parameters
+            llama_batch batch = llama_batch_init(512, 0, 1);
+            
+            // Tokenize the prompt
+            std::vector<llama_token> tokens_list;
+            tokens_list = llama_tokenize(g_model, prompt, true);
+            
+            // Add tokens to batch
+            for (size_t i = 0; i < tokens_list.size(); i++) {
+                llama_batch_add(batch, tokens_list[i], i, {0}, true);
+            }
+            
+            // Mark the last token as the start of generation
+            batch.token[batch.n_tokens - 1] = true;
+            
+            // Process the batch
+            if (llama_decode(g_context, batch) != 0) {
+                std::cout << "llama_wrapper: Failed to decode prompt" << std::endl;
+                llama_batch_free(batch);
+                return nullptr;
+            }
+            
+            // Generate tokens
+            int max_tokens = 256; // Default max tokens
+            for (int i = 0; i < max_tokens; i++) {
+                llama_token new_token_id = 0;
+                
+                // Sample the next token
+                auto logits = llama_get_logits_ith(g_context, batch.n_tokens - 1);
+                auto n_vocab = llama_n_vocab(g_model);
+                
+                // Simple greedy sampling (can be improved with temperature/top_p)
+                float max_logit = logits[0];
+                for (int j = 1; j < n_vocab; j++) {
+                    if (logits[j] > max_logit) {
+                        max_logit = logits[j];
+                        new_token_id = j;
+                    }
+                }
+                
+                // Check for end of sequence
+                if (new_token_id == llama_token_eos(g_model)) {
+                    break;
+                }
+                
+                // Convert token to string
+                char token_str[256];
+                int n_chars = llama_token_to_piece(g_model, new_token_id, token_str, sizeof(token_str), false);
+                if (n_chars > 0) {
+                    response += std::string(token_str, n_chars);
+                }
+                
+                // Prepare next batch
+                llama_batch_clear(batch);
+                llama_batch_add(batch, new_token_id, batch.n_tokens, {0}, true);
+                
+                // Decode the new token
+                if (llama_decode(g_context, batch) != 0) {
+                    std::cout << "llama_wrapper: Failed to decode token" << std::endl;
+                    break;
+                }
+            }
+            
+            llama_batch_free(batch);
             
             // Return a copy that won't be deallocated
             static char* response_cstr = nullptr;
@@ -188,8 +260,32 @@ extern "C" {
             stream_finished = false;
             generation_active = true;
             
-            // For now, just simulate streaming with a simple response
-            current_response = "This is a streaming test response from llama.cpp. ";
+            // Store the prompt and parameters for streaming generation
+            current_prompt = std::string(prompt);
+            current_temperature = temperature;
+            current_top_p = topP;
+            current_max_tokens = maxTokens;
+            
+            // Initialize batch for streaming
+            current_batch = llama_batch_init(512, 0, 1);
+            
+            // Tokenize the prompt
+            current_tokens = llama_tokenize(g_model, prompt, true);
+            
+            // Add tokens to batch
+            for (size_t i = 0; i < current_tokens.size(); i++) {
+                llama_batch_add(current_batch, current_tokens[i], i, {0}, true);
+            }
+            
+            // Mark the last token as the start of generation
+            current_batch->token[current_batch->n_tokens - 1] = true;
+            
+            // Process the initial batch
+            if (llama_decode(g_context, *current_batch) != 0) {
+                std::cout << "llama_wrapper: Failed to decode prompt for streaming" << std::endl;
+                generation_active = false;
+                return 0;
+            }
             
             return 1;
             
@@ -209,34 +305,75 @@ extern "C" {
         }
         
         try {
-            // Simulate streaming by returning words one by one
-            static size_t word_index = 0;
-            static std::vector<std::string> words = {"This", " ", "is", " ", "a", " ", "streaming", " ", "test", " ", "response", " ", "from", " ", "llama.cpp", "."};
+            // Real token generation
+            if (current_batch == nullptr) {
+                result.is_finished = true;
+                return result;
+            }
             
-            if (word_index < words.size()) {
-                std::string word = words[word_index];
-                word_index++;
+            // Check if we've reached max tokens
+            if (current_token_index >= current_max_tokens) {
+                stream_finished = true;
+                generation_active = false;
+                result.is_finished = true;
+                return result;
+            }
+            
+            // Sample the next token
+            llama_token new_token_id = 0;
+            auto logits = llama_get_logits_ith(g_context, current_batch->n_tokens - 1);
+            auto n_vocab = llama_n_vocab(g_model);
+            
+            // Simple greedy sampling (can be improved with temperature/top_p)
+            float max_logit = logits[0];
+            for (int j = 1; j < n_vocab; j++) {
+                if (logits[j] > max_logit) {
+                    max_logit = logits[j];
+                    new_token_id = j;
+                }
+            }
+            
+            // Check for end of sequence
+            if (new_token_id == llama_token_eos(g_model)) {
+                stream_finished = true;
+                generation_active = false;
+                result.is_finished = true;
+                return result;
+            }
+            
+            // Convert token to string
+            char token_str[256];
+            int n_chars = llama_token_to_piece(g_model, new_token_id, token_str, sizeof(token_str), false);
+            
+            if (n_chars > 0) {
+                std::string token_string(token_str, n_chars);
+                current_response += token_string;
                 
                 // Return a copy that won't be deallocated
                 static char* token_cstr = nullptr;
                 if (token_cstr) {
                     free(token_cstr);
                 }
-                token_cstr = (char*)malloc(word.length() + 1);
-                strcpy(token_cstr, word.c_str());
+                token_cstr = (char*)malloc(token_string.length() + 1);
+                strcpy(token_cstr, token_string.c_str());
                 
                 result.token = token_cstr;
-                
-                if (word_index >= words.size()) {
-                    stream_finished = true;
-                    generation_active = false;
-                    result.is_finished = true;
-                }
-            } else {
+            }
+            
+            // Prepare next batch
+            llama_batch_clear(*current_batch);
+            llama_batch_add(*current_batch, new_token_id, current_batch->n_tokens, {0}, true);
+            
+            // Decode the new token
+            if (llama_decode(g_context, *current_batch) != 0) {
+                std::cout << "llama_wrapper: Failed to decode token during streaming" << std::endl;
                 stream_finished = true;
                 generation_active = false;
                 result.is_finished = true;
+                return result;
             }
+            
+            current_token_index++;
             
         } catch (const std::exception& e) {
             std::cout << "llama_wrapper: Exception during stream: " << e.what() << std::endl;
@@ -255,6 +392,13 @@ extern "C" {
         current_tokens.clear();
         current_token_index = 0;
         current_response.clear();
+        
+        // Clean up batch
+        if (current_batch) {
+            llama_batch_free(*current_batch);
+            delete current_batch;
+            current_batch = nullptr;
+        }
     }
     
     // Get model information

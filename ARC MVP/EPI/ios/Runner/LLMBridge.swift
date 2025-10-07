@@ -506,9 +506,20 @@ class LLMBridge: NSObject, LumaraNative {
 
     func generateText(prompt: String, params: GenParams) throws -> GenResult {
         logger.info("🟦🟦🟦 === generateText ENTRY === 🟦🟦🟩")
+        
+        // Assert prompt is not empty
+        assert(!prompt.isEmpty, "Empty prompt reached LLMBridge.generateText")
+        
         logger.info("📥 OPTIMIZED PROMPT FROM DART:")
         logger.info("  Length: \(prompt.count) characters")
         logger.info("  First 300 chars: \(String(prompt.prefix(300)))")
+        
+        // Check if prompt starts with LUMARA system prompt
+        if prompt.hasPrefix("<<SYSTEM>>") {
+            logger.info("✅ PROMPT VERIFICATION: Contains LUMARA system prompt")
+        } else {
+            logger.warning("⚠️  PROMPT VERIFICATION: Missing LUMARA system prompt prefix")
+        }
 
         // Use the optimized prompt directly from Dart (already includes system prompt, context, task, etc.)
         logger.info("🔧 USING DART OPTIMIZED PROMPT:")
