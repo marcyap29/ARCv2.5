@@ -587,12 +587,14 @@
 					"@executable_path/Frameworks",
 					"@loader_path/Frameworks",
 				);
-				LIBRARY_SEARCH_PATHS = "$(inherited)";
-				"LIBRARY_SEARCH_PATHS[sdk=iphonesimulator*]" = (
+				LIBRARY_SEARCH_PATHS = (
+					"$(inherited)",
 					"$(PROJECT_DIR)/../third_party/llama.cpp/build-apple/src",
 					"$(PROJECT_DIR)/../third_party/llama.cpp/build-apple/ggml/src",
 					"$(PROJECT_DIR)/../third_party/llama.cpp/build-apple/ggml/src/ggml-metal",
 					"$(PROJECT_DIR)/../third_party/llama.cpp/build-apple/ggml/src/ggml-blas",
+					"$(PROJECT_DIR)/../third_party/llama.cpp/build-apple/ggml/src/ggml-cpu",
+					"$(PROJECT_DIR)/../third_party/llama.cpp/build-apple/common",
 				);
 				MARKETING_VERSION = .01;
 				OTHER_LDFLAGS = (
@@ -805,12 +807,14 @@
 					"@executable_path/Frameworks",
 					"@loader_path/Frameworks",
 				);
-				LIBRARY_SEARCH_PATHS = "$(inherited)";
-				"LIBRARY_SEARCH_PATHS[sdk=iphonesimulator*]" = (
+				LIBRARY_SEARCH_PATHS = (
+					"$(inherited)",
 					"$(PROJECT_DIR)/../third_party/llama.cpp/build-apple/src",
 					"$(PROJECT_DIR)/../third_party/llama.cpp/build-apple/ggml/src",
 					"$(PROJECT_DIR)/../third_party/llama.cpp/build-apple/ggml/src/ggml-metal",
 					"$(PROJECT_DIR)/../third_party/llama.cpp/build-apple/ggml/src/ggml-blas",
+					"$(PROJECT_DIR)/../third_party/llama.cpp/build-apple/ggml/src/ggml-cpu",
+					"$(PROJECT_DIR)/../third_party/llama.cpp/build-apple/common",
 				);
 				MARKETING_VERSION = .01;
 				OTHER_LDFLAGS = (
@@ -857,12 +861,14 @@
 					"@executable_path/Frameworks",
 					"@loader_path/Frameworks",
 				);
-				LIBRARY_SEARCH_PATHS = "$(inherited)";
-				"LIBRARY_SEARCH_PATHS[sdk=iphonesimulator*]" = (
+				LIBRARY_SEARCH_PATHS = (
+					"$(inherited)",
 					"$(PROJECT_DIR)/../third_party/llama.cpp/build-apple/src",
 					"$(PROJECT_DIR)/../third_party/llama.cpp/build-apple/ggml/src",
 					"$(PROJECT_DIR)/../third_party/llama.cpp/build-apple/ggml/src/ggml-metal",
 					"$(PROJECT_DIR)/../third_party/llama.cpp/build-apple/ggml/src/ggml-blas",
+					"$(PROJECT_DIR)/../third_party/llama.cpp/build-apple/ggml/src/ggml-cpu",
+					"$(PROJECT_DIR)/../third_party/llama.cpp/build-apple/common",
 				);
 				MARKETING_VERSION = .01;
 				OTHER_LDFLAGS = (
