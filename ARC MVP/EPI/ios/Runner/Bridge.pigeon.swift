@@ -374,6 +374,10 @@ protocol LumaraNative {
   func cancelModelDownload() throws
   /// Delete a downloaded model
   func deleteModel(modelId: String) throws
+  /// Clear all corrupted downloads and GGUF models
+  func clearCorruptedDownloads() throws
+  /// Clear specific corrupted GGUF model
+  func clearCorruptedGGUFModel(modelId: String) throws
 }
 
 /// Generated setup class from Pigeon to handle messages through the `binaryMessenger`.
@@ -584,6 +588,36 @@ class LumaraNativeSetup {
       }
     } else {
       deleteModelChannel.setMessageHandler(nil)
+    }
+    /// Clear all corrupted downloads and GGUF models
+    let clearCorruptedDownloadsChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.my_app.LumaraNative.clearCorruptedDownloads\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      clearCorruptedDownloadsChannel.setMessageHandler { _, reply in
+        do {
+          try api.clearCorruptedDownloads()
+          reply(wrapResult(nil))
+        } catch {
+          reply(wrapError(error))
+        }
+      }
+    } else {
+      clearCorruptedDownloadsChannel.setMessageHandler(nil)
+    }
+    /// Clear specific corrupted GGUF model
+    let clearCorruptedGGUFModelChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.my_app.LumaraNative.clearCorruptedGGUFModel\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      clearCorruptedGGUFModelChannel.setMessageHandler { message, reply in
+        let args = message as! [Any?]
+        let modelIdArg = args[0] as! String
+        do {
+          try api.clearCorruptedGGUFModel(modelId: modelIdArg)
+          reply(wrapResult(nil))
+        } catch {
+          reply(wrapError(error))
+        }
+      }
+    } else {
+      clearCorruptedGGUFModelChannel.setMessageHandler(nil)
     }
   }
 }

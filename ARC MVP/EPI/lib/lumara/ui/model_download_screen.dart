@@ -400,10 +400,12 @@ class _ModelDownloadScreenState extends State<ModelDownloadScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          status,
-                          style: theme.textTheme.bodySmall,
-                        ),
+                        // Only show status message if not downloaded (to hide "Download complete!" message)
+                        if (!isDownloaded)
+                          Text(
+                            status,
+                            style: theme.textTheme.bodySmall,
+                          ),
                         if (downloadSizeText.isNotEmpty) ...[
                           const SizedBox(height: 4),
                           Text(
@@ -504,7 +506,7 @@ class _ModelDownloadScreenState extends State<ModelDownloadScreen> {
                           const Icon(Icons.check_circle, color: Colors.green, size: 18),
                           const SizedBox(width: 6),
                           Text(
-                            'Download Complete',
+                            'Ready to use',
                             style: theme.textTheme.bodyMedium?.copyWith(
                               color: Colors.green,
                               fontWeight: FontWeight.w500,

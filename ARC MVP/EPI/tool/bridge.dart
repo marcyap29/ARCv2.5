@@ -157,6 +157,12 @@ abstract class LumaraNative {
   /// Delete a downloaded model
   void deleteModel(String modelId);
 
+  /// Clear all corrupted downloads and GGUF models
+  void clearCorruptedDownloads();
+
+  /// Clear specific corrupted GGUF model
+  void clearCorruptedGGUFModel(String modelId);
+
   // --- Future streaming support ---
   // Stream<String> generateTextStream(String prompt, GenParams params);
 }

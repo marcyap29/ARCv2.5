@@ -346,6 +346,8 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
         if (isInternal) ...[
           const SizedBox(height: 16),
           _buildDownloadButton(theme),
+          const SizedBox(height: 12),
+          _buildCleanupButton(theme),
         ],
       ],
     );
@@ -465,6 +467,70 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
           backgroundColor: theme.colorScheme.primary,
           foregroundColor: Colors.white,
           padding: const EdgeInsets.symmetric(vertical: 14),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(8),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCleanupButton(ThemeData theme) {
+    return SizedBox(
+      width: double.infinity,
+      child: OutlinedButton.icon(
+        onPressed: () async {
+          final confirmed = await showDialog<bool>(
+            context: context,
+            builder: (context) => AlertDialog(
+              title: const Text('Clear Corrupted Downloads'),
+              content: const Text(
+                'This will delete all corrupted or incomplete model downloads and force a fresh download. Continue?'
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(false),
+                  child: const Text('Cancel'),
+                ),
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(true),
+                  child: const Text('Clear All'),
+                ),
+              ],
+            ),
+          );
+
+          if (confirmed != true) return;
+
+          try {
+            // Clear all corrupted downloads
+            await _lumaraApi.clearCorruptedDownloads();
+            
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Corrupted downloads cleared successfully'),
+                  backgroundColor: Colors.green,
+                ),
+              );
+            }
+          } catch (e) {
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Error clearing downloads: $e'),
+                  backgroundColor: Colors.red,
+                ),
+              );
+            }
+          }
+        },
+        icon: const Icon(Icons.cleaning_services, size: 20),
+        label: const Text('Clear Corrupted Downloads'),
+        style: OutlinedButton.styleFrom(
+          foregroundColor: theme.colorScheme.error,
+          side: BorderSide(color: theme.colorScheme.error),
+          padding: const EdgeInsets.symmetric(vertical: 12),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(8),
           ),
@@ -690,12 +756,13 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
                     const SizedBox(height: 4),
                     Text(
                       isInternal 
-                          ? 'Local Model - Privacy First'
+                          ? (isAvailable ? 'Available to use - Privacy First' : 'Local Model - Privacy First')
                           : 'Cloud API - External Service',
                       style: theme.textTheme.bodySmall?.copyWith(
                         color: isAvailable 
-                            ? theme.colorScheme.onSurfaceVariant
+                            ? Colors.green
                             : theme.colorScheme.onSurfaceVariant.withOpacity(0.6),
+                        fontWeight: isAvailable && isInternal ? FontWeight.w600 : FontWeight.normal,
                       ),
                     ),
                   ],
@@ -883,7 +950,7 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
 
   Widget _buildApiKeysCard(ThemeData theme) {
     final externalProviders = LLMProvider.values
-        .where((p) => p != LLMProvider.phi && p != LLMProvider.qwen)
+        .where((p) => p != LLMProvider.phi && p != LLMProvider.qwen && p != LLMProvider.qwen3)
         .toList();
     
     return Card(

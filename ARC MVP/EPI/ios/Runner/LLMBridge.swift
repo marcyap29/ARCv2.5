@@ -5,6 +5,7 @@
 
 import Foundation
 import os.log
+import CryptoKit
 
 // MARK: - GGUF Model Management
 
@@ -395,6 +396,12 @@ class LLMBridge: NSObject, LumaraNative {
     private let logger = Logger(subsystem: "EPI", category: "LLMBridge")
     private var progressApi: LumaraNativeProgress?
     private let miraStore = MiraMemoryStore()
+    
+    /// Compute SHA-256 hash of a string for prompt verification
+    private func sha256(_ s: String) -> String {
+        let data = s.data(using: .utf8)!
+        return SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
+    }
 
     /// Set progress API for model loading callbacks
     func setProgressApi(_ api: LumaraNativeProgress) {
@@ -509,6 +516,10 @@ class LLMBridge: NSObject, LumaraNative {
         
         // Assert prompt is not empty
         assert(!prompt.isEmpty, "Empty prompt reached LLMBridge.generateText")
+        
+        // Compute SHA-256 hash for prompt verification
+        let promptHash = sha256(prompt)
+        logger.info("🔐 PROMPT HASH: \(promptHash)")
         
         logger.info("📥 OPTIMIZED PROMPT FROM DART:")
         logger.info("  Length: \(prompt.count) characters")
@@ -626,234 +637,14 @@ class LLMBridge: NSObject, LumaraNative {
         logger.info("deleteModel called for: \(modelId)")
         try ModelDownloadService.shared.deleteModel(modelId: modelId)
     }
-}
-
-// MARK: - Model Download Service (GGUF Only)
-
-/// Downloads GGUF models from remote server to Documents/gguf_models
-/// Provides progress tracking, pause/resume, and integrity verification
-class ModelDownloadService: NSObject {
-    static let shared = ModelDownloadService()
-    private let logger = Logger(subsystem: "EPI", category: "ModelDownload")
-
-    // Track multiple concurrent downloads by model ID
-    private var downloadTasks: [String: URLSessionDownloadTask] = [:]
-    private var resumeData: [String: Data] = [:]
-    private var progressCallbacks: [String: (Double, String) -> Void] = [:]
-
-    private override init() {
-        super.init()
+    
+    func clearCorruptedDownloads() throws {
+        logger.info("clearCorruptedDownloads called")
+        try ModelDownloadService.shared.clearCorruptedDownloads()
     }
-
-    /// Download model from URL to Documents/gguf_models directory
-    func downloadModel(
-        from urlString: String,
-        modelId: String,
-        onProgress: @escaping (Double, String) -> Void,
-        completion: @escaping (Result<URL, Error>) -> Void
-    ) {
-        guard let url = URL(string: urlString) else {
-            completion(.failure(NSError(domain: "ModelDownload", code: 400, userInfo: [
-                NSLocalizedDescriptionKey: "Invalid download URL"
-            ])))
-            return
-        }
-
-        // Store progress callback for this model
-        progressCallbacks[modelId] = onProgress
-
-        // Create URLSession with background configuration
-        let config = URLSessionConfiguration.default
-        config.timeoutIntervalForRequest = 300 // 5 minutes
-        config.timeoutIntervalForResource = 3600 // 1 hour
-        let session = URLSession(configuration: config, delegate: self, delegateQueue: nil)
-
-        // Start download
-        logger.info("Starting model download for \(modelId) from: \(urlString)")
-        onProgress(0.0, "Connecting to server...")
-
-        let downloadTask = session.downloadTask(with: url)
-        downloadTasks[modelId] = downloadTask
-        downloadTask.resume()
-    }
-
-    /// Check if model is available and usable
-    func isModelDownloaded(modelId: String) -> Bool {
-        // Check for GGUF models (new format)
-        let ggufModelIds = [
-            "Llama-3.2-3b-Instruct-Q4_K_M.gguf",
-            "Phi-3.5-mini-instruct-Q5_K_M.gguf",
-            "Qwen3-4B-Instruct-2507-Q5_K_M.gguf",
-  // New Hugging Face filename
-        ]
-
-        if ggufModelIds.contains(modelId) {
-            // For GGUF models, check if the .gguf file exists in the gguf_models directory
-            let documentsPath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
-            let ggufModelsPath = documentsPath.appendingPathComponent("gguf_models")
-
-            // Check for both exact case and lowercase versions (Hugging Face uses lowercase)
-            let exactPath = ggufModelsPath.appendingPathComponent(modelId)
-            let lowercasePath = ggufModelsPath.appendingPathComponent(modelId.lowercased())
-
-            let exactExists = FileManager.default.fileExists(atPath: exactPath.path)
-            let lowercaseExists = FileManager.default.fileExists(atPath: lowercasePath.path)
-
-            let exists = exactExists || lowercaseExists
-            let foundPath = exactExists ? exactPath.path : lowercasePath.path
-
-            logger.info("Checking GGUF model \(modelId): \(exists ? "found" : "not found") at \(foundPath)")
-            return exists
-        }
-
-        logger.warning("Unknown model ID: \(modelId)")
-        return false
-    }
-
-    /// Delete a downloaded model
-    func deleteModel(modelId: String) throws {
-        let documentsPath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
-        let ggufModelsPath = documentsPath.appendingPathComponent("gguf_models")
-        let modelPath = ggufModelsPath.appendingPathComponent(modelId)
-
-        // Check if model file exists
-        guard FileManager.default.fileExists(atPath: modelPath.path) else {
-            throw NSError(domain: "ModelDownload", code: 404, userInfo: [
-                NSLocalizedDescriptionKey: "Model file not found: \(modelId)"
-            ])
-        }
-
-        // Delete the model file
-        try FileManager.default.removeItem(at: modelPath)
-        logger.info("Successfully deleted model: \(modelId) from \(modelPath.path)")
-    }
-
-    /// Cancel all downloads
-    func cancelDownload() {
-        for (modelId, task) in downloadTasks {
-            task.cancel()
-            logger.info("Cancelled download for \(modelId)")
-        }
-        downloadTasks.removeAll()
-        resumeData.removeAll()
-        progressCallbacks.removeAll()
-        logger.info("All downloads cancelled")
-    }
-}
-
-// MARK: - URLSessionDownloadDelegate
-
-extension ModelDownloadService: URLSessionDownloadDelegate {
-
-    func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask, didFinishDownloadingTo location: URL) {
-        // Find the model ID for this download task
-        guard let modelId = downloadTasks.first(where: { $0.value == downloadTask })?.key else {
-            logger.error("Could not find model ID for completed download task")
-            return
-        }
-
-        logger.info("Download completed for \(modelId), file at: \(location.path)")
-
-        do {
-            // Check if this is a GGUF model (direct file download from Hugging Face)
-            let ggufModelIds = [
-                "Llama-3.2-3b-Instruct-Q4_K_M.gguf",
-                "Phi-3.5-mini-instruct-Q5_K_M.gguf",
-                "Qwen3-4B-Instruct-2507-Q5_K_M.gguf",
-            ]
-
-            if ggufModelIds.contains(modelId) {
-                // Direct GGUF file download - no unzipping needed
-                let documentsPath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
-                let ggufModelsPath = documentsPath.appendingPathComponent("gguf_models")
-
-                // Ensure gguf_models directory exists
-                try FileManager.default.createDirectory(at: ggufModelsPath, withIntermediateDirectories: true)
-
-                // Move the downloaded GGUF file directly to gguf_models directory
-                let finalPath = ggufModelsPath.appendingPathComponent(modelId)
-                try FileManager.default.moveItem(at: location, to: finalPath)
-
-                progressCallbacks[modelId]?(1.0, "Download complete!")
-                logger.info("GGUF model \(modelId) successfully downloaded to \(finalPath.path)")
-            }
-
-            // Notify completion on main thread only if file was actually saved
-            DispatchQueue.main.async { [weak self] in
-                self?.progressCallbacks[modelId]?(1.0, "Ready to use")
-            }
-
-            // Clean up tracking for this model
-            downloadTasks.removeValue(forKey: modelId)
-            progressCallbacks.removeValue(forKey: modelId)
-
-        } catch {
-            logger.error("Failed to process downloaded file for \(modelId): \(error.localizedDescription)")
-            DispatchQueue.main.async { [weak self] in
-                self?.progressCallbacks[modelId]?(0.0, "Error: \(error.localizedDescription)")
-            }
-            // Clean up tracking for this model even on error
-            downloadTasks.removeValue(forKey: modelId)
-            progressCallbacks.removeValue(forKey: modelId)
-        }
-    }
-
-    func urlSession(
-        _ session: URLSession,
-        downloadTask: URLSessionDownloadTask,
-        didWriteData bytesWritten: Int64,
-        totalBytesWritten: Int64,
-        totalBytesExpectedToWrite: Int64
-    ) {
-        // Find the model ID for this download task
-        guard let modelId = downloadTasks.first(where: { $0.value == downloadTask })?.key else {
-            return
-        }
-
-        // Handle cases where totalBytesExpectedToWrite is unknown or negative
-        let progress: Double
-        let message: String
-
-        // Check for valid total size: must be positive AND greater than or equal to bytes written
-        let hasValidTotal = totalBytesExpectedToWrite > 0 &&
-                           totalBytesExpectedToWrite != NSURLSessionTransferSizeUnknown &&
-                           totalBytesExpectedToWrite >= totalBytesWritten
-
-        if hasValidTotal {
-            // Valid total size - calculate progress (0.0 to 1.0)
-            progress = Double(totalBytesWritten) / Double(totalBytesExpectedToWrite)
-            let mbDownloaded = Double(totalBytesWritten) / 1_048_576
-            let mbTotal = Double(totalBytesExpectedToWrite) / 1_048_576
-            message = String(format: "Downloading: %.1f / %.1f MB", mbDownloaded, mbTotal)
-            logger.debug("Download progress for \(modelId): \(progress * 100)% (\(mbDownloaded) / \(mbTotal) MB)")
-        } else {
-            // Unknown or invalid total size - show indeterminate progress
-            progress = 0.0  // Always use 0.0 to indicate indeterminate/unknown progress
-            let mbDownloaded = Double(totalBytesWritten) / 1_048_576
-            message = String(format: "Downloading: %.1f MB (total unknown)", mbDownloaded)
-            logger.debug("Download progress for \(modelId): indeterminate (\(mbDownloaded) MB downloaded, total=\(totalBytesExpectedToWrite))")
-        }
-
-        DispatchQueue.main.async { [weak self] in
-            self?.progressCallbacks[modelId]?(progress, message)
-        }
-    }
-
-    func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
-        if let error = error {
-            // Find the model ID for this download task
-            guard let modelId = downloadTasks.first(where: { $0.value == task })?.key else {
-                logger.error("Download failed but could not find model ID: \(error.localizedDescription)")
-                return
-            }
-
-            logger.error("Download failed for \(modelId): \(error.localizedDescription)")
-            DispatchQueue.main.async { [weak self] in
-                self?.progressCallbacks[modelId]?(0.0, "Download failed: \(error.localizedDescription)")
-            }
-            // Clean up tracking for this model
-            downloadTasks.removeValue(forKey: modelId)
-            progressCallbacks.removeValue(forKey: modelId)
-        }
+    
+    func clearCorruptedGGUFModel(modelId: String) throws {
+        logger.info("clearCorruptedGGUFModel called for: \(modelId)")
+        try ModelDownloadService.shared.clearCorruptedGGUFModel(modelId: modelId)
     }
 }

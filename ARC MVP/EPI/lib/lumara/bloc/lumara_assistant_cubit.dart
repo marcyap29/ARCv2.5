@@ -365,12 +365,18 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
       }
 
       // Use LLMAdapter for on-device generation
-      final llmResponse = await _llmAdapter.realize(
+      final responseStream = _llmAdapter.realize(
         task: _mapTaskToString(task),
         facts: _buildFactsFromContextWindow(context),
         snippets: _buildSnippetsFromContextWindow(context),
         chat: _buildChatHistoryFromContextWindow(context),
-      ).first;
+      );
+      
+      // Collect all streamed words into complete response
+      String llmResponse = '';
+      await for (final word in responseStream) {
+        llmResponse += word;
+      }
 
       print('LUMARA Debug: [On-Device] SUCCESS - Response length: ${llmResponse.length}');
 

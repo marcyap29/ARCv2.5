@@ -2,6 +2,77 @@
 
 ## Active Issues
 
+### Corrupted Downloads Cleanup & Build System Issues - RESOLVED ✅ - January 7, 2025
+**Status:** ✅ **RESOLVED**
+**Priority:** High
+**Component:** Model Download System & Build Configuration
+
+**Issue:**
+The app had compilation errors and no way to clear corrupted or incomplete model downloads, preventing users from retrying failed downloads.
+
+**Error Symptoms (RESOLVED):**
+- ✅ Swift Compiler Error: "Cannot find 'ModelDownloadService' in scope" - FIXED
+- ✅ Swift Compiler Error: "Cannot find 'Process' in scope" - FIXED
+- ✅ Xcode Project Error: "Framework 'Pods_Runner' not found" - FIXED
+- ✅ No Corrupted Downloads Cleanup: Users couldn't clear failed downloads - FIXED
+- ✅ Unnecessary Unzip Logic: GGUF files being treated as ZIP files - FIXED
+
+**Root Cause Resolution:**
+1. ✅ **Missing File References**: ModelDownloadService.swift not included in Xcode project
+2. ✅ **iOS Compatibility**: Process class not available on iOS platform
+3. ✅ **GGUF Logic Simplification**: Removed unnecessary unzip functionality
+4. ✅ **User Experience**: Added corrupted downloads cleanup functionality
+
+**Resolution Details:**
+
+#### **1. Xcode Project Integration**
+- **Problem**: ModelDownloadService.swift not included in Xcode project
+- **Root Cause**: File was created but not added to project.pbxproj
+- **Solution**: 
+  - Added file reference: `34615DA8179F4D23A4F06E3A /* ModelDownloadService.swift */`
+  - Added build file reference: `810596B1C0D24C098C431894 /* ModelDownloadService.swift in Sources */`
+  - Added to group and sources build phase
+- **Result**: ModelDownloadService.swift now compiles and links properly
+
+#### **2. iOS Compatibility Fix**
+- **Problem**: Process class not available on iOS platform
+- **Root Cause**: Code used macOS-specific Process class for unzipping
+- **Solution**: 
+  - Removed Process usage from ModelDownloadService.swift
+  - Simplified GGUF handling (no unzipping needed)
+  - Added placeholder for future unzip implementation
+- **Result**: App builds successfully on iOS devices
+
+#### **3. GGUF Model Optimization**
+- **Problem**: Unnecessary unzip logic for GGUF files (single files, not archives)
+- **Root Cause**: Legacy code from MLX model support
+- **Solution**: 
+  - Removed entire unzipFile() function
+  - Simplified download logic to directly move GGUF files
+  - Added clear error messages for unsupported formats
+- **Result**: Cleaner code, faster downloads, no unnecessary processing
+
+#### **4. Corrupted Downloads Cleanup**
+- **Problem**: No way to clear corrupted or incomplete downloads
+- **Root Cause**: Missing cleanup functionality
+- **Solution**: 
+  - Added `clearCorruptedDownloads()` method to ModelDownloadService
+  - Added `clearCorruptedGGUFModel(modelId:)` for specific models
+  - Exposed methods through LLMBridge.swift
+  - Added Pigeon interface methods
+  - Added "Clear Corrupted Downloads" button in LUMARA Settings
+- **Result**: Users can now easily clear corrupted downloads and retry
+
+**Files Modified:**
+- `ios/Runner.xcodeproj/project.pbxproj` - Added ModelDownloadService.swift references
+- `ios/Runner/ModelDownloadService.swift` - Removed Process usage, simplified GGUF handling
+- `ios/Runner/LLMBridge.swift` - Added cleanup method exposure
+- `lib/lumara/ui/lumara_settings_screen.dart` - Added cleanup button
+- `lib/lumara/services/enhanced_lumara_api.dart` - Added cleanup API methods
+- `tool/bridge.dart` - Added Pigeon interface methods
+
+**Result:** 🏆 **FULLY BUILDABLE APP WITH CORRUPTED DOWNLOADS CLEANUP**
+
 ### Llama.cpp Model Loading and Generation Failures - RESOLVED ✅ - January 7, 2025
 **Status:** ✅ **RESOLVED**
 **Priority:** Critical

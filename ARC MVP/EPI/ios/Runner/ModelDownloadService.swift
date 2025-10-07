@@ -246,37 +246,12 @@ extension ModelDownloadService: URLSessionDownloadDelegate {
                 logger.info("GGUF model \(modelId) successfully downloaded to: \(finalPath.path)")
                 
             } else {
-                // Handle regular models (zip files) - existing logic
-                let tempDir = FileManager.default.temporaryDirectory
-                let tempZip = tempDir.appendingPathComponent("\(modelId)_download.zip")
-
-                // Remove old temp file if exists
-                try? FileManager.default.removeItem(at: tempZip)
-
-                // Move downloaded file
-                try FileManager.default.moveItem(at: location, to: tempZip)
-
-                progressCallbacks[modelId]?(0.9, "Unzipping model files...")
-
-                // Unzip to Application Support in model-specific directory
-                // Use lowercase directory name for consistency
-                let modelDir = modelId.lowercased()
-                let destDir = modelRootURL.appendingPathComponent(modelDir, isDirectory: true)
-                
-                do {
-                    try unzipFile(at: tempZip, to: destDir)
-                    progressCallbacks[modelId]?(0.95, "Extraction complete, finalizing...")
-                } catch {
-                    logger.error("Unzip failed: \(error.localizedDescription)")
-                    progressCallbacks[modelId]?(0.0, "Extraction failed: \(error.localizedDescription)")
-                    throw error
-                }
-
-                progressCallbacks[modelId]?(1.0, "Download complete!")
-                logger.info("Model \(modelId) successfully downloaded and extracted")
-
-                // Clean up
-                try? FileManager.default.removeItem(at: tempZip)
+                // Only GGUF models are supported
+                logger.error("Unsupported model format: \(modelId). Only GGUF models are supported.")
+                progressCallbacks[modelId]?(0.0, "Unsupported model format. Only GGUF models are supported.")
+                throw NSError(domain: "ModelDownloadService", code: 400, userInfo: [
+                    NSLocalizedDescriptionKey: "Unsupported model format: \(modelId). Only GGUF models are supported."
+                ])
             }
 
             // Notify completion on main thread
@@ -362,101 +337,58 @@ extension ModelDownloadService: URLSessionDownloadDelegate {
 
     // MARK: - Unzip Helper
 
-    private func unzipFile(at sourceURL: URL, to destinationURL: URL) throws {
-        logger.info("Unzipping: \(sourceURL.path) -> \(destinationURL.path)")
+    // MARK: - Legacy Unzip Helper (Not used for GGUF models)
+    
+    // Note: GGUF models are single files and don't need unzipping.
+    // This function is kept for potential future use with other model formats.
+    // For GGUF models, the download logic directly moves the file to Documents/gguf_models.
 
-        // Remove existing destination directory if it exists to avoid conflicts
-        if FileManager.default.fileExists(atPath: destinationURL.path) {
-            try FileManager.default.removeItem(at: destinationURL)
-            logger.info("Removed existing destination directory: \(destinationURL.path)")
-        }
-
-        // Create destination directory
-        try FileManager.default.createDirectory(at: destinationURL, withIntermediateDirectories: true)
-
-        // Use Process to call unzip command with enhanced macOS metadata exclusion
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/usr/bin/unzip")
-        process.arguments = [
-            "-o", // Overwrite files without prompting
-            "-q", // Quiet mode
-            "-x", "*__MACOSX*", // Exclude macOS metadata folders
-            "-x", "*.DS_Store", // Exclude macOS .DS_Store files
-            "-x", "._*", // Exclude macOS resource fork files
-            "-x", "**/__MACOSX/**", // Exclude nested macOS metadata folders
-            "-x", "**/.DS_Store", // Exclude nested .DS_Store files
-            "-x", "**/._*", // Exclude nested resource fork files
-            sourceURL.path,
-            "-d", destinationURL.path
+    /// Copy bundled GGUF models from app bundle to Documents directory
+    public func copyBundledGGUFModels() throws {
+        let documentsPath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
+        let ggufModelsPath = documentsPath.appendingPathComponent("gguf_models")
+        
+        // Create gguf_models directory if it doesn't exist
+        try FileManager.default.createDirectory(at: ggufModelsPath, withIntermediateDirectories: true, attributes: nil)
+        
+        // List of bundled GGUF models to copy
+        let bundledModels = [
+            "Llama-3.2-3b-Instruct-Q4_K_M.gguf",
+            "Phi-3.5-mini-instruct-Q5_K_M.gguf",
+            "Qwen3-4B-Instruct.Q5_K_M.gguf",
+            "Qwen3-4B-Instruct-2507-Q5_K_M.gguf"
         ]
-
-        try process.run()
         
-        // Add timeout to prevent hanging
-        let timeout = DispatchTime.now() + .seconds(60) // 60 second timeout
-        let semaphore = DispatchSemaphore(value: 0)
-        var terminationStatus: Int32 = -1
-        
-        DispatchQueue.global().async {
-            process.waitUntilExit()
-            terminationStatus = process.terminationStatus
-            semaphore.signal()
-        }
-        
-        let result = semaphore.wait(timeout: timeout)
-        
-        if result == .timedOut {
-            logger.error("Unzip process timed out after 60 seconds")
-            process.terminate()
-            throw NSError(domain: "ModelDownload", code: 408, userInfo: [
-                NSLocalizedDescriptionKey: "Unzip process timed out"
-            ])
-        }
-        
-        guard terminationStatus == 0 else {
-            logger.error("Unzip process failed with status: \(terminationStatus)")
-            throw NSError(domain: "ModelDownload", code: 500, userInfo: [
-                NSLocalizedDescriptionKey: "Failed to unzip model files (status: \(terminationStatus))"
-            ])
-        }
-
-        // Clean up any remaining macOS metadata folders that might have been extracted
-        try cleanupMacOSMetadata(in: destinationURL)
-
-        // Handle case where ZIP contains a single root folder
-        // (e.g., ZIP has "Qwen3-1.7B-GGUF-4bit/" but we want files directly in destination)
-        let contents = try FileManager.default.contentsOfDirectory(at: destinationURL, includingPropertiesForKeys: [.isDirectoryKey])
-
-        // Filter out hidden files and get only directories
-        let directories = try contents.filter { url in
-            let resourceValues = try url.resourceValues(forKeys: [.isDirectoryKey])
-            return resourceValues.isDirectory == true && !url.lastPathComponent.hasPrefix(".")
-        }
-
-        // If there's exactly one directory, move its contents up one level
-        if directories.count == 1, let singleDir = directories.first {
-            logger.info("Found single root directory in ZIP: \(singleDir.lastPathComponent), moving contents up...")
-
-            let tempDir = destinationURL.deletingLastPathComponent().appendingPathComponent("_temp_\(UUID().uuidString)")
-
-            // Move the single directory to temp location
-            try FileManager.default.moveItem(at: singleDir, to: tempDir)
-
-            // Move all contents from temp to destination
-            let innerContents = try FileManager.default.contentsOfDirectory(at: tempDir, includingPropertiesForKeys: nil)
-            for item in innerContents {
-                let dest = destinationURL.appendingPathComponent(item.lastPathComponent)
-                try? FileManager.default.removeItem(at: dest) // Remove if exists
-                try FileManager.default.moveItem(at: item, to: dest)
+        for modelName in bundledModels {
+            // Check if model exists in bundle
+            guard let bundlePath = Bundle.main.path(forResource: modelName, ofType: nil, inDirectory: "models/gguf") else {
+                logger.info("Bundled model not found: \(modelName)")
+                continue
             }
-
-            // Clean up temp directory
-            try? FileManager.default.removeItem(at: tempDir)
-
-            logger.info("Successfully moved contents from root directory")
+            
+            let sourceURL = URL(fileURLWithPath: bundlePath)
+            let destURL = ggufModelsPath.appendingPathComponent(modelName)
+            
+            // Only copy if destination doesn't exist or is different size
+            if !FileManager.default.fileExists(atPath: destURL.path) {
+                try FileManager.default.copyItem(at: sourceURL, to: destURL)
+                logger.info("Copied bundled model: \(modelName)")
+            } else {
+                // Check if file sizes match (simple integrity check)
+                let sourceSize = try FileManager.default.attributesOfItem(atPath: sourceURL.path)[.size] as? Int64 ?? 0
+                let destSize = try FileManager.default.attributesOfItem(atPath: destURL.path)[.size] as? Int64 ?? 0
+                
+                if sourceSize != destSize {
+                    try FileManager.default.removeItem(at: destURL)
+                    try FileManager.default.copyItem(at: sourceURL, to: destURL)
+                    logger.info("Updated bundled model: \(modelName)")
+                } else {
+                    logger.info("Bundled model already exists: \(modelName)")
+                }
+            }
         }
-
-        logger.info("Unzip successful")
+        
+        logger.info("Bundled GGUF models copy completed")
     }
 
     /// Clear all models and metadata from the models directory
@@ -487,6 +419,69 @@ extension ModelDownloadService: URLSessionDownloadDelegate {
 
         // Also clean up any remaining metadata in the parent directory
         try cleanupMacOSMetadata(in: modelsDirectory)
+    }
+    
+    /// Clear corrupted downloads and GGUF models
+    public func clearCorruptedDownloads() throws {
+        let fileManager = FileManager.default
+        
+        // Clear GGUF models from Documents directory
+        let documentsPath = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first!
+        let ggufModelsPath = documentsPath.appendingPathComponent("gguf_models")
+        
+        if fileManager.fileExists(atPath: ggufModelsPath.path) {
+            let contents = try fileManager.contentsOfDirectory(at: ggufModelsPath, includingPropertiesForKeys: nil)
+            for item in contents {
+                try fileManager.removeItem(at: item)
+                logger.info("Removed corrupted GGUF model: \(item.lastPathComponent)")
+            }
+            logger.info("Cleared GGUF models directory: \(ggufModelsPath.path)")
+        }
+        
+        // Clear Application Support models directory
+        let modelsDirectory = modelRootURL
+        if fileManager.fileExists(atPath: modelsDirectory.path) {
+            let contents = try fileManager.contentsOfDirectory(at: modelsDirectory, includingPropertiesForKeys: nil)
+            for item in contents {
+                try fileManager.removeItem(at: item)
+                logger.info("Removed corrupted model: \(item.lastPathComponent)")
+            }
+            logger.info("Cleared models directory: \(modelsDirectory.path)")
+        }
+        
+        // Clear any temporary download files
+        let tempDir = fileManager.temporaryDirectory
+        let tempContents = try fileManager.contentsOfDirectory(at: tempDir, includingPropertiesForKeys: nil)
+        for item in tempContents {
+            if item.lastPathComponent.contains("CFNetworkDownload_") || 
+               item.lastPathComponent.contains(".part") ||
+               item.lastPathComponent.contains("gguf") {
+                try? fileManager.removeItem(at: item)
+                logger.info("Removed temp file: \(item.lastPathComponent)")
+            }
+        }
+        
+        logger.info("Cleared all corrupted downloads and models")
+    }
+    
+    /// Clear specific corrupted GGUF model
+    public func clearCorruptedGGUFModel(modelId: String) throws {
+        let fileManager = FileManager.default
+        let documentsPath = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first!
+        let ggufModelsPath = documentsPath.appendingPathComponent("gguf_models")
+        let modelPath = ggufModelsPath.appendingPathComponent(modelId)
+        
+        if fileManager.fileExists(atPath: modelPath.path) {
+            try fileManager.removeItem(at: modelPath)
+            logger.info("Removed corrupted GGUF model: \(modelId)")
+        }
+        
+        // Also check for lowercase version (Hugging Face naming)
+        let lowercasePath = ggufModelsPath.appendingPathComponent(modelId.lowercased())
+        if fileManager.fileExists(atPath: lowercasePath.path) {
+            try fileManager.removeItem(at: lowercasePath)
+            logger.info("Removed corrupted GGUF model (lowercase): \(modelId.lowercased())")
+        }
     }
 
     /// Clean up macOS metadata folders and files that might cause conflicts

@@ -1,5 +1,7 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/foundation.dart';
+import 'package:crypto/crypto.dart' as crypto;
 import 'model_adapter.dart';
 import 'bridge.pigeon.dart' as pigeon;
 import 'model_progress_service.dart';
@@ -9,6 +11,55 @@ import 'prompts/lumara_model_presets.dart';
 /// On-device LLM adapter using Pigeon native bridge
 /// Supports GGUF models via llama.cpp with Metal acceleration (iOS)
 class LLMAdapter implements ModelAdapter {
+  /// Compute SHA-256 hash of a string for prompt verification
+  static String sha256Of(String s) => crypto.sha256.convert(utf8.encode(s)).toString();
+  
+  /// Canary test to verify no test stubs are present
+  static Future<String> runCanaryTest(String testType) async {
+    if (!_isInitialized) {
+      await initialize();
+    }
+    
+    if (!_available) {
+      return "Error: LLMAdapter not available - ${_reason}";
+    }
+    
+    String testPrompt;
+    String expectedResponse;
+    
+    switch (testType) {
+      case 'echo':
+        testPrompt = "Reply with only: ACK";
+        expectedResponse = "ACK";
+        break;
+      case 'system':
+        testPrompt = "<<SYSTEM>>\nYou are LUMARA. Reply with only \"LUMARA_OK\".\n\n<<USER>>\nTest";
+        expectedResponse = "LUMARA_OK";
+        break;
+      default:
+        return "Error: Unknown test type: $testType";
+    }
+    
+    try {
+      final result = await _nativeApi.generateText(testPrompt, pigeon.GenParams(
+        maxTokens: 10,
+        temperature: 0.0,
+        topP: 1.0,
+        repeatPenalty: 1.0,
+        seed: 42,
+      ));
+      
+      final response = result.text.trim();
+      final isCorrect = response == expectedResponse;
+      
+      return "Canary Test ($testType): ${isCorrect ? 'PASS' : 'FAIL'}\n" +
+             "Expected: '$expectedResponse'\n" +
+             "Actual: '$response'\n" +
+             "Hash: ${sha256Of(testPrompt)}";
+    } catch (e) {
+      return "Canary Test ($testType): ERROR - $e";
+    }
+  }
   static bool _isInitialized = false;
   static String? _activeModelId;
   static bool _available = false;
@@ -238,6 +289,10 @@ class LLMAdapter implements ModelAdapter {
 
       debugPrint('📝 OPTIMIZED PROMPT LENGTH: ${optimizedPrompt.length} characters');
       debugPrint('📝 PROMPT PREVIEW: ${optimizedPrompt.substring(0, 200)}...');
+      
+      // Compute SHA-256 hash for prompt verification
+      final promptHash = sha256Of(optimizedPrompt);
+      debugPrint('🔐 PROMPT HASH: $promptHash');
 
       // Get model-specific parameters
       final modelName = _activeModelId ?? 'Llama-3.2-3b-Instruct-Q4_K_M.gguf';
