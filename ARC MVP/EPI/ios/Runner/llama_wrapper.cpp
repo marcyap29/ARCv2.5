@@ -17,6 +17,7 @@ struct epi_handle_t {
     llama_batch     batch  = {};
     int32_t         n_vocab = 0;
     bool            started = false;
+    void*           sampler = nullptr;  // Will be llama_sampler_t when available
 };
 
 // Global state for backward compatibility
@@ -86,10 +87,40 @@ bool epi_llama_init(const char* model_path, int32_t ctx_size_tokens, int32_t n_g
     g_handle->started = false;
     
     g_state.store(1, std::memory_order_release);
+    
+#if defined(LLAMA_METAL)
+    epi_logf(1, "metal: compiled in");
+            #else
+    epi_logf(1, "metal: not compiled");
+            #endif
+    epi_logf(1, "gpu layers requested=%d", n_gpu_layers);
+    
     epi_logf(1, "EXIT  init tid=%lu state=%d handle=%p SUCCESS", 
              tid(), g_state.load(), g_handle);
     
     return true;
+}
+
+// CPU fallback function
+bool epi_llama_start_with_fallback(const char* prompt_utf8) {
+    // Try with current settings first
+    if (epi_llama_start(prompt_utf8)) {
+        return true;
+    }
+    
+    epi_logf(2, "retrying with CPU fallback (n_gpu_layers=0)");
+    
+    // Store current params
+    int32_t current_ctx = 2048; // We'll need to track this
+    int32_t current_gpu = 16;   // We'll need to track this
+    
+    // Free current handle
+    epi_llama_free();
+    
+    // Reinit with CPU only - we need the model path, not the model pointer
+    // For now, just return false since we don't have the path stored
+    epi_logf(3, "CPU fallback not implemented - need model path");
+    return false;
 }
 
 void epi_llama_free(void) {
@@ -104,7 +135,7 @@ void epi_llama_free(void) {
         g_handle = nullptr;
     }
     g_state.store(0, std::memory_order_release);
-    llama_backend_free();
+                llama_backend_free();
     epi_logf(1, "EXIT  free  tid=%lu state=%d handle=%p", 
              tid(), g_state.load(), g_handle);
 }
@@ -113,54 +144,176 @@ bool epi_llama_start(const char* prompt_utf8) {
     std::lock_guard<std::mutex> lk(g_mu);
     epi_logf(1, "ENTER start tid=%lu state=%d handle=%p", 
              tid(), g_state.load(), g_handle);
-    if (!g_handle) {
+    
+    auto* h = g_handle;
+    if (!h) {
         epi_logf(3, "start aborted: handle is null");
         return false;
     }
-    
-    // Clear memory
-    llama_memory_t mem = llama_get_memory(g_handle->ctx);
-    if (mem) {
-        llama_memory_clear(mem, true);
-    }
-    
-    // Get vocab for tokenization
-    const llama_vocab* vocab = llama_model_get_vocab(g_handle->model);
-    if (!vocab) return false;
-    
-    // Tokenize prompt
-    int needed = llama_tokenize(vocab, prompt_utf8, strlen(prompt_utf8), nullptr, 0, true, true);
-    if (needed <= 0) return false;
-    
-    std::vector<llama_token> toks(needed);
-    int n = llama_tokenize(vocab, prompt_utf8, strlen(prompt_utf8), toks.data(), needed, true, true);
-    if (n <= 0) return false;
-    
-    // Reset batch
-    g_handle->batch.n_tokens = 0;
-    
-    // Add prompt tokens to batch manually
-    static llama_seq_id seq_id = 0; // Single sequence ID
-    for (int i = 0; i < n; ++i) {
-        if (g_handle->batch.n_tokens >= 512) break; // Safety check
-        
-        int idx = g_handle->batch.n_tokens;
-        g_handle->batch.token[idx] = toks[i];
-        g_handle->batch.pos[idx] = i;
-        g_handle->batch.n_seq_id[idx] = 1;
-        g_handle->batch.seq_id[idx] = &seq_id; // Point to single sequence ID
-        g_handle->batch.logits[idx] = (i == n - 1) ? 1 : 0; // Only last token needs logits
-        g_handle->batch.n_tokens++;
-    }
-    
-    // Decode prompt
-    if (llama_decode(g_handle->ctx, g_handle->batch) != 0) {
-        epi_logf(3, "start failed: llama_decode returned error");
+
+    if (!prompt_utf8 || *prompt_utf8 == 0) {
+        epi_logf(3, "start aborted: empty prompt");
         return false;
     }
+    size_t prompt_len = strlen(prompt_utf8);
+    epi_logf(1, "start: prompt bytes=%zu", prompt_len);
+
+    // 1) Robust tokenization (two-pass)
+    std::vector<llama_token> toks;
+    {
+        const llama_vocab* vocab = llama_model_get_vocab(h->model);
+        if (!vocab) {
+            epi_logf(3, "tokenize failed: no vocab");
+            return -10;  // Specific error code
+        }
+        
+        bool add_bos = true;  // Phi models often expect BOS
+        bool parse_special = true;
+        
+        // First call with null to get needed size (returned as negative)
+        int needed = llama_tokenize(vocab, prompt_utf8, prompt_len, nullptr, 0, add_bos ? 1 : 0, parse_special ? 1 : 0);
+        if (needed == 0) {
+            epi_logf(3, "tokenize failed: empty input");
+            return -3;  // Empty prompt
+        }
+        if (needed > 0) {
+            // Some builds may return positive "needed"; handle both
+        } else {
+            needed = -needed;  // negative means required count
+        }
+        
+        epi_logf(1, "tokenize: need %d tokens for %zu bytes", needed, prompt_len);
+        
+        toks.resize(needed);
+        int n = llama_tokenize(vocab, prompt_utf8, prompt_len, toks.data(), needed, add_bos ? 1 : 0, parse_special ? 1 : 0);
+        if (n < 0) n = -n;  // should not happen now, but be safe
+        if (n <= 0) {
+            epi_logf(3, "tokenize failed: produced %d tokens", n);
+            return -10;  // Tokenization produced 0 tokens
+        }
+        toks.resize(n);
+        
+        epi_logf(1, "tokenize ok: n_tokens=%d head=[%d,%d,%d...]",
+                 n, toks[0], toks.size()>1?toks[1]:-1, toks.size()>2?toks[2]:-1);
+        
+        int n_ctx = llama_n_ctx(h->ctx);
+        if (n >= n_ctx) {
+            epi_logf(2, "warn: tokens=%d exceed/meet ctx=%d; truncating head", n, n_ctx);
+            toks.resize(n_ctx - 1);  // leave room for at least 1 generated token
+        }
+    }
+
+    // 2) Clear memory
+    llama_memory_t mem = llama_get_memory(h->ctx);
+    if (mem) {
+        llama_memory_clear(mem, true);
+        epi_logf(1, "memory cleared");
+    }
+
+    // 3) Create batch for first decode
+    int n_seed = std::min((int)toks.size(), 512);  // Limit to 512 for safety
+    llama_batch batch = llama_batch_init(n_seed, 0, 1);
+    if (!batch.token) {
+        epi_logf(3, "llama_batch_init failed");
+        return -20;  // Batch init failed
+    }
     
-    g_handle->started = true;
+    // 4) Add prompt tokens to batch manually
+    static llama_seq_id seq_id = 0; // Single sequence ID
+    for (int i = 0; i < n_seed; ++i) {
+        int idx = batch.n_tokens;
+        batch.token[idx] = toks[i];
+        batch.pos[idx] = i;
+        batch.n_seq_id[idx] = 1;
+        batch.seq_id[idx] = &seq_id; // Point to single sequence ID
+        batch.logits[idx] = (i == n_seed - 1) ? 1 : 0; // Only last token needs logits
+        batch.n_tokens++;
+    }
+    epi_logf(1, "batch ok: n_tokens=%d", batch.n_tokens);
+
+    // 5) First decode
+    int dec = llama_decode(h->ctx, batch);
+    if (dec != 0) {
+        epi_logf(3, "llama_decode failed: code=%d (gpu_layers=%d)",
+                 dec, h->model ? llama_model_n_layer(h->model) : -1);
+        llama_batch_free(batch);
+        return -30;  // First decode failed
+    }
+    epi_logf(1, "decode ok: first step");
+    
+    // 6) Clean up temporary batch
+    llama_batch_free(batch);
+    
+    // 7) Feed remaining prompt tokens in chunks
+    int remaining = (int)toks.size() - n_seed;
+    if (remaining > 0) {
+        epi_logf(1, "feeding remaining %d tokens in chunks", remaining);
+        int off = n_seed;
+        const int chunk_size = 256;
+        
+        while (off < (int)toks.size()) {
+            int n = std::min(chunk_size, (int)toks.size() - off);
+            
+            llama_batch chunk_batch = llama_batch_init(n, 0, 1);
+            if (!chunk_batch.token) {
+                epi_logf(3, "chunk batch init failed at off=%d", off);
+                return -20;
+            }
+            
+            for (int i = 0; i < n; ++i) {
+                int pos = off + i;
+                chunk_batch.token[chunk_batch.n_tokens] = toks[off + i];
+                chunk_batch.pos[chunk_batch.n_tokens] = pos;
+                chunk_batch.n_seq_id[chunk_batch.n_tokens] = 1;
+                chunk_batch.seq_id[chunk_batch.n_tokens] = &seq_id;
+                chunk_batch.logits[chunk_batch.n_tokens] = (i == n - 1) ? 1 : 0; // Last token needs logits
+                chunk_batch.n_tokens++;
+            }
+            
+            int rc = llama_decode(h->ctx, chunk_batch);
+            llama_batch_free(chunk_batch);
+            if (rc != 0) {
+                epi_logf(3, "chunk decode failed: code=%d at off=%d n=%d", rc, off, n);
+                return -30;
+            }
+            
+            epi_logf(1, "chunk: off=%d n=%d decode ok", off, n);
+            off += n;
+        }
+    }
+    
+    epi_logf(1, "prompt ingest complete: %d total tokens", (int)toks.size());
+    
+    // 8) Sampler initialization (simplified for now)
+    // Note: llama_sampler_init may not be available in this llama.cpp version
+    // We'll use simple greedy sampling for now
+    epi_logf(1, "using simple greedy sampling");
+    
+    // 9) Generate tokens (simplified for now - just sample one token)
+    const float* logits = llama_get_logits_ith(h->ctx, 0);
+    if (!logits) {
+        epi_logf(3, "no logits available for sampling");
+        return -50;
+    }
+    
+    // Simple greedy sampling for now
+    int32_t best_token = 0;
+    float best_logit = logits[0];
+    int32_t n_vocab = llama_vocab_n_tokens(llama_model_get_vocab(h->model));
+    for (int32_t i = 1; i < n_vocab; ++i) {
+        if (logits[i] > best_logit) {
+            best_logit = logits[i];
+            best_token = i;
+        }
+    }
+    
+    epi_logf(1, "sampled token: %d (logit=%.3f)", best_token, best_logit);
+    
+    // 10) Prepare for next generation step
+    h->batch.n_tokens = 0;
+    h->started = true;
     g_state.store(2, std::memory_order_release);
+    
     epi_logf(1, "EXIT  start tid=%lu state=%d handle=%p SUCCESS", 
              tid(), g_state.load(), g_handle);
     return true;

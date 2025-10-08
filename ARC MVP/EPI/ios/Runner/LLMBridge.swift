@@ -38,6 +38,9 @@ func epi_set_temp(_ t: Float)
 @_silgen_name("epi_set_logger")
 func epi_set_logger(_ logger: (@convention(c) (Int32, UnsafePointer<CChar>?) -> Void)!)
 
+@_silgen_name("epi_llama_start_with_fallback")
+func epi_llama_start_with_fallback(_ prompt: UnsafePointer<CChar>?) -> Bool
+
 // MARK: - GGUF Model Management
 
 /// Simple GGUF model path resolver
@@ -454,6 +457,8 @@ class LLMBridge: NSObject, LumaraNative {
     private var currentModelPath: String?
     private var refCount = 0
     private var loggerInstalled = false
+    private var inFlight = false
+    private let queue = DispatchQueue(label: "epi.llama.serial")
     
     private override init() {
         super.init()
@@ -512,12 +517,49 @@ class LLMBridge: NSObject, LumaraNative {
     }
 
     func start(prompt: String, topK: Int32 = 40, topP: Float = 0.9, temp: Float = 0.8) -> Bool {
-        epi_set_top_k(topK)
-        epi_set_top_p(topP)
-        epi_set_temp(temp)
-        return prompt.withCString { cstr in
-            epi_llama_start(cstr)
+        var result = false
+        
+        queue.sync {
+            guard !self.inFlight else {
+                logger.error("Generation already in progress - ignoring duplicate call")
+                return
+            }
+            
+            self.inFlight = true
+            defer { self.inFlight = false }
+            
+            epi_set_top_k(topK)
+            epi_set_top_p(topP)
+            epi_set_temp(temp)
+            
+            result = prompt.withCString { cstr in
+                epi_llama_start_with_fallback(cstr)
+            }
+            
+            if !result {
+                logger.error("epi_llama_start_with_fallback returned false")
+            } else {
+                logger.info("epi_llama_start_with_fallback succeeded")
+            }
         }
+        
+        return result
+    }
+    
+    // Map native error codes to Flutter errors
+    private func mapNativeError(_ code: Int) -> FlutterError? {
+        guard code != 0 else { return nil }
+        let msg: String
+        switch code {
+        case -3:  msg = "Empty prompt"
+        case -10: msg = "Tokenization produced 0 tokens"
+        case -11: msg = "Token buffer too small"
+        case -20: msg = "Batch init failed"
+        case -30: msg = "First decode failed"
+        case -40: msg = "Sampler init failed"
+        default:  msg = "Unknown start error \(code)"
+        }
+        return FlutterError(code: "LLMBridge", message: msg, details: nil)
     }
 
     // Token callback trampoline

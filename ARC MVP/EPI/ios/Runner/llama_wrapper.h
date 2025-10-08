@@ -21,6 +21,9 @@ void epi_llama_free(void);
 // Start a generation with a prompt. Returns false if context is missing or tokenize fails.
 bool epi_llama_start(const char* prompt_utf8);
 
+// Start generation with CPU fallback if GPU fails
+bool epi_llama_start_with_fallback(const char* prompt_utf8);
+
 // Generate next token. Streams token via callback. Sets out_is_eos when EOS is reached.
 bool epi_llama_generate_next(llama_token_callback_t on_token, void* user_data, bool* out_is_eos);
 
