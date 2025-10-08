@@ -31,6 +31,7 @@
 		97C146FE1CF9000F007C117D /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FD1CF9000F007C117D /* Assets.xcassets */; };
 		97C147011CF9000F007C117D /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FF1CF9000F007C117D /* LaunchScreen.storyboard */; };
 		D1754AEF759146E8920F2B30 /* MiraMemoryStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4700A91B00044A52AA765055 /* MiraMemoryStore.swift */; };
+		1F3EEF6E2E93526C009BFF76 /* PigeonShims.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1F3EEF6D2E93526C009BFF75 /* PigeonShims.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -65,7 +66,7 @@
 		1F3EEF692E93526C009BFF74 /* CapabilityRouter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CapabilityRouter.swift; sourceTree = "<group>"; };
 		1F3EEF6A2E93526C009BFF74 /* llama_wrapper.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = llama_wrapper.h; sourceTree = "<group>"; };
 		1F3EEF6B2E93526C009BFF74 /* llama_wrapper.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Runner/llama_wrapper.cpp; sourceTree = "<group>"; };
-		1F3EEF6C2E93526C009BFF74 /* LlamaBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LlamaBridge.swift; sourceTree = "<group>"; };
+		1F3EEF6C2E93526C009BFF74 /* LlamaBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Runner/LlamaBridge.swift"; sourceTree = "<group>"; };
 		1F3EEF6D2E93526C009BFF74 /* PrismScrubber.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrismScrubber.swift; sourceTree = "<group>"; };
 		1F3EEF722E9352C3009BFF74 /* llama.xcframework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcframework; name = llama.xcframework; path = "Runner/Vendor/llama.xcframework"; sourceTree = "<group>"; };
 		1F3EEF7E2E9353BE009BFF74 /* Metal.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Metal.framework; path = System/Library/Frameworks/Metal.framework; sourceTree = SDKROOT; };
@@ -78,6 +79,7 @@
 		34615DA8179F4D23A4F06E3A /* ModelDownloadService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelDownloadService.swift; sourceTree = "<group>"; };
 		3B3967151E833CAA004F5970 /* AppFrameworkInfo.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = AppFrameworkInfo.plist; path = Flutter/AppFrameworkInfo.plist; sourceTree = "<group>"; };
 		4700A91B00044A52AA765055 /* MiraMemoryStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MiraMemoryStore.swift; sourceTree = "<group>"; };
+		1F3EEF6D2E93526C009BFF75 /* PigeonShims.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Shims/PigeonShims.swift"; sourceTree = "<group>"; };
 		6D61B07FEA14693B09931D4D /* Pods-RunnerTests.profile.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-RunnerTests.profile.xcconfig"; path = "Target Support Files/Pods-RunnerTests/Pods-RunnerTests.profile.xcconfig"; sourceTree = "<group>"; };
 		74858FAD1ED2DC5600515810 /* Runner-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "Runner-Bridging-Header.h"; sourceTree = "<group>"; };
 		74858FAE1ED2DC5600515810 /* AppDelegate.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
@@ -198,6 +200,7 @@
 				AD02F52095DB446494429964 /* LumaraPromptSystem.swift */,
 				4700A91B00044A52AA765055 /* MiraMemoryStore.swift */,
 				74858FAD1ED2DC5600515810 /* Runner-Bridging-Header.h */,
+				1F3EEF6D2E93526C009BFF75 /* PigeonShims.swift */,
 			);
 			path = Runner;
 			sourceTree = "<group>";
@@ -451,6 +454,7 @@
 				0943C7D7E64F4B5CBCE6F988 /* Bridge.pigeon.swift in Sources */,
 				89D3A75FAAA641AA8EB27E61 /* LumaraPromptSystem.swift in Sources */,
 				D1754AEF759146E8920F2B30 /* MiraMemoryStore.swift in Sources */,
+				1F3EEF6E2E93526C009BFF76 /* PigeonShims.swift in Sources */,
 				1F3EEF6E2E93526C009BFF74 /* PrismScrubber.swift in Sources */,
 				1F3EEF6F2E93526C009BFF74 /* LlamaBridge.swift in Sources */,
 				1F3EEF702E93526C009BFF74 /* llama_wrapper.cpp in Sources */,

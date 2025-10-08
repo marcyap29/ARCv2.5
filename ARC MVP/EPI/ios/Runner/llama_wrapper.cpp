@@ -1,159 +1,199 @@
 #include "llama_wrapper.h"
 #include "llama.h"
-
 #include <vector>
 #include <string>
-#include <mutex>
-#include <cmath>
+#include <cstring>
 #include <algorithm>
-#include <random>
+#include <cassert>
+#include <mutex>
 
-static llama_model*   g_model = nullptr;
-static llama_context* g_ctx   = nullptr;
-static std::mutex     g_mu;
-static bool           g_started = false;
+// Modern handle-based approach
+struct epi_handle_t {
+    llama_model *   model  = nullptr;
+    llama_context * ctx    = nullptr;
+    llama_batch     batch  = {};
+    int32_t         n_vocab = 0;
+    bool            started = false;
+};
 
-// simple sampler knobs
-static int32_t g_top_k = 40;
-static float   g_top_p = 0.9f;
-static float   g_temp  = 0.8f;
+// Global state for backward compatibility
+static epi_handle_t* g_handle = nullptr;
+static std::mutex g_mu;
 
-// random engine for sampling
-static std::mt19937 rng{ std::random_device{}() };
-
+// Simple greedy sampling
 static llama_token sample_from_logits(const float* logits, int32_t n_vocab) {
-    // temperature
-    std::vector<float> probs(n_vocab);
-    float invT = (g_temp > 0.0f) ? (1.0f / g_temp) : 1.0f;
-
-    float maxlog = logits[0];
-    for (int i = 1; i < n_vocab; ++i) if (logits[i] > maxlog) maxlog = logits[i];
-
-    double sum = 0.0;
-    for (int i = 0; i < n_vocab; ++i) {
-        double v = std::exp((logits[i] - maxlog) * invT);
-        probs[i] = (float)v;
-        sum += v;
+    llama_token best = 0;
+    float bestv = logits[0];
+    for (int32_t i = 1; i < n_vocab; ++i) {
+        if (logits[i] > bestv) { 
+            bestv = logits[i]; 
+            best = i; 
+        }
     }
-    for (int i = 0; i < n_vocab; ++i) probs[i] = (float)(probs[i] / sum);
-
-    // top-k
-    std::vector<int> idx(n_vocab);
-    for (int i = 0; i < n_vocab; ++i) idx[i] = i;
-    std::partial_sort(idx.begin(), idx.begin() + g_top_k, idx.end(),
-        [&](int a, int b){ return probs[a] > probs[b]; });
-    idx.resize(std::min<int>(g_top_k, n_vocab));
-
-    // renormalize top-k
-    double s2 = 0.0;
-    for (int id : idx) s2 += probs[id];
-    for (int id : idx) probs[id] = (float)(probs[id] / s2);
-
-    // top-p cumulative cut
-    std::sort(idx.begin(), idx.end(), [&](int a, int b){ return probs[a] > probs[b]; });
-    double cum = 0.0;
-    int cutoff = (int)idx.size();
-    for (int i = 0; i < (int)idx.size(); ++i) {
-        cum += probs[idx[i]];
-        if (cum >= g_top_p) { cutoff = i + 1; break; }
-    }
-    idx.resize(cutoff);
-
-    // categorical sample
-    std::uniform_real_distribution<float> dist(0.0f, 1.0f);
-    float r = dist(rng);
-    float acc = 0.0f;
-    for (int id : idx) {
-        acc += probs[id];
-        if (r <= acc) return (llama_token)id;
-    }
-    return (llama_token)idx.back();
+    return best;
 }
+
+extern "C" {
 
 bool epi_llama_init(const char* model_path, int32_t ctx_size_tokens, int32_t n_gpu_layers) {
     std::lock_guard<std::mutex> lk(g_mu);
-
-    if (g_ctx || g_model) epi_llama_free();
-
+    
+    // Clean up existing handle
+    if (g_handle) {
+        epi_llama_free();
+    }
+    
+            llama_backend_init();
+    
     llama_model_params mparams = llama_model_default_params();
-    // Offload control. Start with auto if 0, or set explicit layers
-    if (n_gpu_layers > 0) mparams.n_gpu_layers = n_gpu_layers;
-
-    g_model = llama_load_model_from_file(model_path, mparams);
-    if (!g_model) return false;
-
+    mparams.n_gpu_layers = n_gpu_layers;
+    llama_model * model = llama_load_model_from_file(model_path, mparams);
+    if (!model) return false;
+    
     llama_context_params cparams = llama_context_default_params();
     cparams.n_ctx = ctx_size_tokens;
-
-    g_ctx = llama_new_context_with_model(g_model, cparams);
-    return g_ctx != nullptr;
+    
+    llama_context * ctx = llama_new_context_with_model(model, cparams);
+    if (!ctx) {
+        llama_free_model(model);
+        return false;
+    }
+    
+    g_handle = new epi_handle_t();
+    g_handle->model = model;
+    g_handle->ctx = ctx;
+    g_handle->batch = llama_batch_init(512, 0, 1);
+    // Get vocab size from the vocab
+    const llama_vocab* vocab = llama_model_get_vocab(model);
+    g_handle->n_vocab = vocab ? llama_vocab_n_tokens(vocab) : 0;
+    g_handle->started = false;
+    
+    return true;
 }
 
 void epi_llama_free(void) {
     std::lock_guard<std::mutex> lk(g_mu);
-    if (g_ctx)   { llama_free(g_ctx);   g_ctx = nullptr; }
-    if (g_model) { llama_free_model(g_model); g_model = nullptr; }
-    g_started = false;
+    if (g_handle) {
+        llama_batch_free(g_handle->batch);
+        llama_free(g_handle->ctx);
+        llama_free_model(g_handle->model);
+        delete g_handle;
+        g_handle = nullptr;
+    }
+    llama_backend_free();
 }
 
 bool epi_llama_start(const char* prompt_utf8) {
     std::lock_guard<std::mutex> lk(g_mu);
-    if (!g_ctx || !g_model) return false;
-
-    const int add_bos = 1;
-    // first estimate token count
-    int needed = llama_tokenize(g_model, prompt_utf8, nullptr, 0, add_bos, true);
-    if (needed <= 0) return false;
-
-    std::vector<llama_token> toks(needed);
-    int n = llama_tokenize(g_model, prompt_utf8, toks.data(), needed, add_bos, true);
-    if (n <= 0) return false;
-
-    llama_batch batch = llama_batch_init(n, 0, 1);
-    for (int i = 0; i < n; ++i) {
-        llama_batch_add(batch, toks[i], i, 0, false);
+    if (!g_handle) return false;
+    
+    // Clear memory
+    llama_memory_t mem = llama_get_memory(g_handle->ctx);
+    if (mem) {
+        llama_memory_clear(mem, true);
     }
-
-    int rc = llama_decode(g_ctx, batch);
-    llama_batch_free(batch);
-
-    g_started = (rc == 0);
-    return g_started;
+    
+    // Get vocab for tokenization
+    const llama_vocab* vocab = llama_model_get_vocab(g_handle->model);
+    if (!vocab) return false;
+    
+    // Tokenize prompt
+    int needed = llama_tokenize(vocab, prompt_utf8, strlen(prompt_utf8), nullptr, 0, true, true);
+    if (needed <= 0) return false;
+    
+    std::vector<llama_token> toks(needed);
+    int n = llama_tokenize(vocab, prompt_utf8, strlen(prompt_utf8), toks.data(), needed, true, true);
+    if (n <= 0) return false;
+    
+    // Reset batch
+    g_handle->batch.n_tokens = 0;
+    
+    // Add prompt tokens to batch manually
+    static llama_seq_id seq_id = 0; // Single sequence ID
+    for (int i = 0; i < n; ++i) {
+        if (g_handle->batch.n_tokens >= 512) break; // Safety check
+        
+        int idx = g_handle->batch.n_tokens;
+        g_handle->batch.token[idx] = toks[i];
+        g_handle->batch.pos[idx] = i;
+        g_handle->batch.n_seq_id[idx] = 1;
+        g_handle->batch.seq_id[idx] = &seq_id; // Point to single sequence ID
+        g_handle->batch.logits[idx] = (i == n - 1) ? 1 : 0; // Only last token needs logits
+        g_handle->batch.n_tokens++;
+    }
+    
+    // Decode prompt
+    if (llama_decode(g_handle->ctx, g_handle->batch) != 0) return false;
+    
+    g_handle->started = true;
+    return true;
 }
 
 bool epi_llama_generate_next(llama_token_callback_t on_token, void* user_data, bool* out_is_eos) {
     std::lock_guard<std::mutex> lk(g_mu);
-    if (!g_ctx || !g_model || !g_started) return false;
-
-    const float* logits = llama_get_logits(g_ctx);
-    const int32_t n_vocab = llama_n_vocab(g_model);
-    llama_token token = sample_from_logits(logits, n_vocab);
-
+    if (!g_handle || !g_handle->started) return false;
+    
+    // Get logits for the last decoded token
+    const float* logits = llama_get_logits_ith(g_handle->ctx, 0);
+    if (!logits) return false;
+    
+    // Sample next token
+    llama_token token = sample_from_logits(logits, g_handle->n_vocab);
+    
+    // Get vocab for detokenization
+    const llama_vocab* vocab = llama_model_get_vocab(g_handle->model);
+    if (!vocab) return false;
+    
+    // Convert token to text
     char buf[512];
-    int n = llama_token_to_piece(g_model, token, buf, sizeof(buf), true, false);
+    int n = llama_detokenize(vocab, &token, 1, buf, sizeof(buf), false, false);
     if (n < 0) return false;
+    
+    // Call callback
     if (on_token) on_token(buf, user_data);
-
-    const int eos = llama_token_eos(g_model);
+    
+    // Check for EOS
+    const int eos = llama_vocab_eos(vocab);
     if (token == eos) {
         if (out_is_eos) *out_is_eos = true;
         return true;
     }
-
-    llama_batch step = llama_batch_init(1, 0, 1);
-    llama_batch_add(step, token, 0, 0, true);
-    int rc = llama_decode(g_ctx, step);
-    llama_batch_free(step);
-
+    
+    // Prepare next decode step
+    static llama_seq_id seq_id = 0; // Single sequence ID
+    g_handle->batch.n_tokens = 0;
+    g_handle->batch.token[0] = token;
+    g_handle->batch.pos[0] = g_handle->batch.n_tokens; // Use current position
+    g_handle->batch.n_seq_id[0] = 1;
+    g_handle->batch.seq_id[0] = &seq_id; // Point to single sequence ID
+    g_handle->batch.logits[0] = 1; // Request logits for this token
+    g_handle->batch.n_tokens = 1;
+    
+    // Decode next step
+    if (llama_decode(g_handle->ctx, g_handle->batch) != 0) return false;
+    
     if (out_is_eos) *out_is_eos = false;
-    return rc == 0;
+    return true;
 }
 
 void epi_llama_stop(void) {
     std::lock_guard<std::mutex> lk(g_mu);
-    g_started = false;
+    if (g_handle) {
+        g_handle->started = false;
+    }
 }
 
-void epi_set_top_k(int32_t top_k) { if (top_k > 0) g_top_k = top_k; }
-void epi_set_top_p(float top_p)   { if (top_p > 0.0f && top_p <= 1.0f) g_top_p = top_p; }
-void epi_set_temp(float temperature) { if (temperature >= 0.0f) g_temp = temperature; }
+// Simple sampler controls (not implemented in this minimal version)
+void epi_set_top_k(int32_t top_k) {
+    // TODO: Implement if needed
+}
+
+void epi_set_top_p(float top_p) {
+    // TODO: Implement if needed
+}
+
+void epi_set_temp(float temperature) {
+    // TODO: Implement if needed
+}
+
+} // extern "C"

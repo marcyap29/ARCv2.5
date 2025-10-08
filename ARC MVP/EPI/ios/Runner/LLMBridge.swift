@@ -72,72 +72,13 @@ class GGUFModelManager {
     }
 }
 
-// MARK: - Modern LLM Bridge
-
-final class LLMBridge {
-    static let shared = LLMBridge()
-    private let logger = Logger(subsystem: "EPI", category: "LLMBridge")
-    private init() {}
-
-    private var isStreaming = false
-    private var currentModelPath: String?
-    private var tokenCallback: ((String) -> Void)?
-
-    // Provide your own model path resolver
-    func initialize(modelPath: String, ctxTokens: Int32 = 2048, nGpuLayers: Int32 = 0) -> Bool {
-        currentModelPath = modelPath
-        return modelPath.withCString { cstr in
-            epi_llama_init(cstr, ctxTokens, nGpuLayers)
-        }
-    }
-
-    func start(prompt: String, topK: Int32 = 40, topP: Float = 0.9, temp: Float = 0.8) -> Bool {
-        epi_set_top_k(topK)
-        epi_set_top_p(topP)
-        epi_set_temp(temp)
-        return prompt.withCString { cstr in
-            epi_llama_start(cstr)
-        }
-    }
-
-    // Token callback trampoline
-    private static let tokenThunk: @convention(c) (UnsafePointer<CChar>?, UnsafeMutableRawPointer?) -> Void = { cstr, ctx in
-        guard let cstr = cstr else { return }
-        let piece = String(cString: cstr)
-        // Forward to Dart through your existing channel or notification
-        NotificationCenter.default.post(name: .llmToken, object: piece)
-    }
-
-    func stream(onComplete: @escaping () -> Void) {
-        guard !isStreaming else { return }
-        isStreaming = true
-        DispatchQueue.global(qos: .userInitiated).async {
-            var done = false
-            while !done {
-                var isEos: Bool = false
-                let ok = epi_llama_generate_next(LLMBridge.tokenThunk, nil, &isEos)
-                if !ok || isEos {
-                    done = true
-                }
-            }
-            self.isStreaming = false
-            onComplete()
-        }
-    }
-
-    func stop() {
-        epi_llama_stop()
-        isStreaming = false
-    }
-
-    func shutdown() {
-        epi_llama_free()
-    }
-}
+// MARK: - Modern LLM Bridge (for internal use)
 
 extension Notification.Name {
     static let llmToken = Notification.Name("llm.token")
 }
+
+// MARK: - Internal LLM Bridge (for ModelLifecycle use)
 
 // MARK: - Model Lifecycle
 
@@ -225,7 +166,7 @@ class ModelLifecycle {
                 // llama.cpp handles tokenization internally
                 self.emit(modelId: modelId, value: 0.5, message: "preparing llama.cpp GGUF model")
 
-                // Log file details before calling llama_init (using NSLog for immediate output)
+                // Log file details before calling epi_llama_init (using NSLog for immediate output)
                 NSLog("🔍🔍🔍 [ModelPreload] ===== LLAMA INIT DEBUG =====")
                 NSLog("🔍🔍🔍 [ModelPreload] Model file path: \(ggufPath.path)")
                 NSLog("🔍🔍🔍 [ModelPreload] File exists: \(FileManager.default.fileExists(atPath: ggufPath.path))")
@@ -352,10 +293,11 @@ class ModelLifecycle {
             forName: .llmToken,
             object: nil,
             queue: .main
-        ) { notification in
+        ) { [weak self] notification in
+            guard let self = self else { return }
             if let token = notification.object as? String {
                 generatedText += token
-                logger.info("Token: '\(token)'")
+                self.logger.info("Token: '\(token)'")
             }
         }
 
@@ -499,14 +441,74 @@ class ModelLifecycle {
 // MARK: - LumaraNative Implementation
 
 class LLMBridge: NSObject, LumaraNative {
+    static let shared = LLMBridge()
     private let logger = Logger(subsystem: "EPI", category: "LLMBridge")
     private var progressApi: LumaraNativeProgress?
     private let miraStore = MiraMemoryStore()
+    
+    // Internal LLM Bridge state
+    private var isStreaming = false
+    private var currentModelPath: String?
+    
+    private override init() {
+        super.init()
+    }
     
     /// Compute SHA-256 hash of a string for prompt verification
     private func sha256(_ s: String) -> String {
         let data = s.data(using: .utf8)!
         return SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
+    }
+    
+    // Internal LLM Bridge methods
+    func initialize(modelPath: String, ctxTokens: Int32 = 2048, nGpuLayers: Int32 = 0) -> Bool {
+        currentModelPath = modelPath
+        return modelPath.withCString { cstr in
+            epi_llama_init(cstr, ctxTokens, nGpuLayers)
+        }
+    }
+
+    func start(prompt: String, topK: Int32 = 40, topP: Float = 0.9, temp: Float = 0.8) -> Bool {
+        epi_set_top_k(topK)
+        epi_set_top_p(topP)
+        epi_set_temp(temp)
+        return prompt.withCString { cstr in
+            epi_llama_start(cstr)
+        }
+    }
+
+    // Token callback trampoline
+    private static let tokenThunk: @convention(c) (UnsafePointer<CChar>?, UnsafeMutableRawPointer?) -> Void = { cstr, _ in
+        guard let cstr = cstr else { return }
+        let piece = String(cString: cstr)
+        // Forward to Dart through your existing channel or notification
+        NotificationCenter.default.post(name: .llmToken, object: piece)
+    }
+
+    func stream(onComplete: @escaping () -> Void) {
+        guard !isStreaming else { return }
+        isStreaming = true
+        DispatchQueue.global(qos: .userInitiated).async {
+            var done = false
+            while !done {
+                var isEos: Bool = false
+                let ok = epi_llama_generate_next(LLMBridge.tokenThunk, nil, &isEos)
+                if !ok || isEos {
+                    done = true
+                }
+            }
+            self.isStreaming = false
+            onComplete()
+        }
+    }
+
+    func stop() {
+        epi_llama_stop()
+        isStreaming = false
+    }
+
+    func shutdown() {
+        epi_llama_free()
     }
 
     /// Set progress API for model loading callbacks

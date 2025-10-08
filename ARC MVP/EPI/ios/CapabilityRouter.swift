@@ -50,12 +50,31 @@ protocol LLMGenerating {
 
 class CapabilityRouter: ObservableObject {
     
-    // MARK: - Configuration
+    // C callback types
+    typealias CTokenCB = @convention(c) (UnsafePointer<CChar>?, UnsafeMutableRawPointer?) -> Void
     
+    // Static token callback that doesn't capture context
+    private static let tokenCallback: CTokenCB = { token, userData in
+        guard let userData = userData, let token = token else { return }
+        let me = Unmanaged<CapabilityRouter>.fromOpaque(userData).takeUnretainedValue()
+        let tokenString = String(cString: token)
+        me.handleToken(tokenString)
+    }
+    
+    // Handle token in instance method
+    private func handleToken(_ token: String) {
+        onToken?(token)
+    }
+    
+    // Swift-side hook for token handling
+    private var onToken: ((String) -> Void)?
+
+    // MARK: - Configuration
+
     @Published var cloudEnabled: Bool = false
     @Published var quietMode: Bool = false
     @Published var currentSource: GenerationSource = .local
-    
+
     private let localEngine: LocalLLMEngine
     private let cloudEngine: CloudLLMEngine?
     
@@ -97,16 +116,19 @@ class CapabilityRouter: ObservableObject {
                 
                 let fullPrompt = systemPrompt.isEmpty ? userText : "\(systemPrompt)\n\n\(userText)"
                 
-                // Use llama.cpp for local generation
-                let success = llama_start_generation(fullPrompt, config.temperature, config.topP, Int32(config.maxTokens))
+                // Use modern llama.cpp API for local generation
+                let success = epi_llama_start(fullPrompt)
                 
-                if success == 1 {
+                if success {
                     var fullText = ""
+                    var isFinished = false
                     
-                    while true {
-                        let streamResult = llama_get_next_token()
+                    while !isFinished {
+                        var isEos: Bool = false
+                        let tokenSuccess = epi_llama_generate_next(Self.tokenCallback, Unmanaged.passUnretained(self).toOpaque(), &isEos)
                         
-                        if streamResult.is_finished {
+                        if !tokenSuccess || isEos {
+                            isFinished = true
                             let finalEvent = GenerationEvent(
                                 source: .local,
                                 delta: "",
@@ -115,20 +137,6 @@ class CapabilityRouter: ObservableObject {
                             )
                             continuation.yield(finalEvent)
                             continuation.finish()
-                            break
-                        }
-                        
-                        if let token = streamResult.token {
-                            let tokenString = String(cString: token)
-                            fullText += tokenString
-                            
-                            let event = GenerationEvent(
-                                source: .local,
-                                delta: tokenString,
-                                fullText: fullText,
-                                isFinished: false
-                            )
-                            continuation.yield(event)
                         }
                         
                         // Small delay to prevent overwhelming the UI
@@ -205,7 +213,7 @@ class CapabilityRouter: ObservableObject {
     // MARK: - Control Methods
     
     func cancelCurrent() {
-        llama_cancel_generation()
+        epi_llama_stop()
         cloudEngine?.cancelCurrent()
     }
     
@@ -222,6 +230,25 @@ class CapabilityRouter: ObservableObject {
 
 class LocalLLMEngine: LLMGenerating {
     
+    // C callback types
+    typealias CTokenCB = @convention(c) (UnsafePointer<CChar>?, UnsafeMutableRawPointer?) -> Void
+    
+    // Static token callback that doesn't capture context
+    private static let tokenCallback: CTokenCB = { token, userData in
+        guard let userData = userData, let token = token else { return }
+        let me = Unmanaged<LocalLLMEngine>.fromOpaque(userData).takeUnretainedValue()
+        let tokenString = String(cString: token)
+        me.handleToken(tokenString)
+    }
+    
+    // Handle token in instance method
+    private func handleToken(_ token: String) {
+        onToken?(token)
+    }
+    
+    // Swift-side hook for token handling
+    private var onToken: ((String) -> Void)?
+    
     func generate(
         systemPrompt: String,
         userPrompt: String,
@@ -231,15 +258,18 @@ class LocalLLMEngine: LLMGenerating {
             Task {
                 let fullPrompt = systemPrompt.isEmpty ? userPrompt : "\(systemPrompt)\n\n\(userPrompt)"
                 
-                let success = llama_start_generation(fullPrompt, config.temperature, config.topP, Int32(config.maxTokens))
+                let success = epi_llama_start(fullPrompt)
                 
-                if success == 1 {
+                if success {
                     var fullText = ""
+                    var isFinished = false
                     
-                    while true {
-                        let streamResult = llama_get_next_token()
+                    while !isFinished {
+                        var isEos: Bool = false
+                        let tokenSuccess = epi_llama_generate_next(Self.tokenCallback, Unmanaged.passUnretained(self).toOpaque(), &isEos)
                         
-                        if streamResult.is_finished {
+                        if !tokenSuccess || isEos {
+                            isFinished = true
                             let finalEvent = GenerationEvent(
                                 source: .local,
                                 delta: "",
@@ -248,20 +278,6 @@ class LocalLLMEngine: LLMGenerating {
                             )
                             continuation.yield(finalEvent)
                             continuation.finish()
-                            break
-                        }
-                        
-                        if let token = streamResult.token {
-                            let tokenString = String(cString: token)
-                            fullText += tokenString
-                            
-                            let event = GenerationEvent(
-                                source: .local,
-                                delta: tokenString,
-                                fullText: fullText,
-                                isFinished: false
-                            )
-                            continuation.yield(event)
                         }
                         
                         try? await Task.sleep(nanoseconds: 10_000_000) // 10ms
@@ -281,7 +297,7 @@ class LocalLLMEngine: LLMGenerating {
     }
     
     func cancelCurrent() {
-        llama_cancel_generation()
+        epi_llama_stop()
     }
 }
 

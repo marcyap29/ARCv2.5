@@ -18,6 +18,21 @@ import Metal
 
     // Metal device for acceleration
     private var metalDevice: MTLDevice?
+    
+    // C callback types
+    typealias CTokenCB = @convention(c) (UnsafePointer<CChar>?, UnsafeMutableRawPointer?) -> Void
+    
+    // Swift-side hooks (set by caller)
+    var onToken: ((String) -> Void)?
+    var onDone: (() -> Void)?
+    
+    // Static token callback that doesn't capture context
+    private static let tokenCallback: CTokenCB = { token, userData in
+        guard let userData = userData, let token = token else { return }
+        let me = Unmanaged<LlamaBridge>.fromOpaque(userData).takeUnretainedValue()
+        let tokenString = String(cString: token)
+        me.onToken?(tokenString)
+    }
 
     // Required FlutterPlugin method
     public static func register(with registrar: FlutterPluginRegistrar) {
@@ -115,10 +130,10 @@ import Metal
 
         // Initialize llama.cpp model
         DispatchQueue.global(qos: .userInitiated).async {
-            let success = llama_init(bundlePath!)
+            let success = bundlePath!.withCString { epi_llama_init($0, 2048, 16) }
 
             DispatchQueue.main.async {
-                if success == 1 {
+                if success {
                     self.modelLoaded = true
                     self.currentModelPath = bundlePath
                     NSLog("[LlamaBridge] Model loaded successfully with Metal support")
@@ -150,13 +165,39 @@ import Metal
 
         NSLog("[LlamaBridge] Generating text for prompt: \(prompt.prefix(50))...")
 
-        DispatchQueue.global(qos: .userInitiated).async {
-            let response = llama_generate(prompt, temperature, topP, Int32(maxTokens))
-
-            DispatchQueue.main.async {
-                if let response = response {
-                    result(String(cString: response))
-                } else {
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            guard let self = self else { return }
+            
+            // Use the new streaming API with thunk pattern
+            let success = prompt.withCString { epi_llama_start($0) }
+            if success {
+                var fullText = ""
+                
+                // Set up token callback
+                self.onToken = { token in
+                    fullText += token
+                }
+                
+                // Pass an unmanaged reference to self
+                let userData = Unmanaged.passUnretained(self).toOpaque()
+                
+                // Generate tokens in a loop
+                var isEos: Bool = false
+                while !isEos {
+                    let tokenSuccess = epi_llama_generate_next(Self.tokenCallback, userData, &isEos)
+                    
+                    if !tokenSuccess {
+                        break
+                    }
+                }
+                
+                // Clean up and return result
+                self.onToken = nil
+                DispatchQueue.main.async {
+                    result(fullText)
+                }
+            } else {
+                DispatchQueue.main.async {
                     result("")
                 }
             }
@@ -183,10 +224,10 @@ import Metal
         NSLog("[LlamaBridge] Starting streaming generation")
 
         DispatchQueue.global(qos: .userInitiated).async {
-            let success = llama_start_generation(prompt, temperature, topP, Int32(maxTokens))
+            let success = prompt.withCString { epi_llama_start($0) }
 
             DispatchQueue.main.async {
-                result(success == 1)
+                result(success)
             }
         }
     }
@@ -197,15 +238,30 @@ import Metal
             return
         }
 
-        DispatchQueue.global(qos: .userInitiated).async {
-            let streamResult = llama_get_next_token()
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            guard let self = self else { return }
+            
+            var isEos: Bool = false
+            var tokenString = ""
+            
+            // Set up token callback
+            self.onToken = { token in
+                tokenString = token
+            }
+            
+            // Pass an unmanaged reference to self
+            let userData = Unmanaged.passUnretained(self).toOpaque()
+            
+            let success = epi_llama_generate_next(Self.tokenCallback, userData, &isEos)
+            
+            // Clean up
+            self.onToken = nil
 
             DispatchQueue.main.async {
-                let token = streamResult.token != nil ? String(cString: streamResult.token!) : ""
                 result([
-                    "token": token,
-                    "finished": streamResult.is_finished,
-                    "error": streamResult.error_code
+                    "token": tokenString,
+                    "finished": isEos,
+                    "error": success ? 0 : -1
                 ])
             }
         }
@@ -213,7 +269,7 @@ import Metal
 
     private func cancelGeneration(result: @escaping FlutterResult) {
         DispatchQueue.global(qos: .userInitiated).async {
-            llama_cancel_generation()
+            epi_llama_stop()
 
             DispatchQueue.main.async {
                 result(nil)
@@ -231,7 +287,7 @@ import Metal
         let ready: Bool
         switch modelType {
         case "chat":
-            ready = modelLoaded && llama_is_loaded() == 1
+            ready = modelLoaded
         default:
             ready = false
         }
@@ -241,7 +297,7 @@ import Metal
 
     private func getModelInfo(result: @escaping FlutterResult) {
         // let info = llama_get_model_info()
-        let contextLength = llama_get_context_length()
+        let contextLength = 2048 // Default context length
 
         let modelInfo: [String: Any] = [
             "info": "Model info temporarily disabled for debugging",
@@ -257,7 +313,7 @@ import Metal
         NSLog("[LlamaBridge] Disposing models and cleaning up resources")
 
         DispatchQueue.global(qos: .userInitiated).async {
-            llama_cleanup()
+            epi_llama_free()
 
             DispatchQueue.main.async {
                 self.modelLoaded = false
