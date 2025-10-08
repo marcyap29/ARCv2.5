@@ -32,6 +32,9 @@ void epi_set_top_k(int32_t top_k);
 void epi_set_top_p(float top_p);
 void epi_set_temp(float temperature);
 
+// Logger setup
+void epi_set_logger(void (*logger)(int level, const char* msg));
+
 #ifdef __cplusplus
 }
 #endif

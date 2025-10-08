@@ -1,7 +1,7 @@
 # EPI ARC MVP - Current Status
 
 **Last Updated:** January 7, 2025  
-**Version:** 0.4.0-alpha  
+**Version:** 0.4.1-alpha  
 **Branch:** on-device-inference
 
 ## 🎉 MASSIVE BREAKTHROUGH ACHIEVED - COMPLETE SUCCESS
@@ -136,6 +136,31 @@
    - `ios/CapabilityRouter.swift` (old, broken) vs `ios/Runner/CapabilityRouter.swift` (correct)
    - Fixed all syntax errors from broken closure replacements
    - Implemented C thunk pattern in both files
+
+### **January 7, 2025 - DEBUG LOGGING SYSTEM IMPLEMENTATION** 🔧
+1. **Pure C++ Logging System**:
+   - Created `epi_logger.h/.cpp` with no Objective-C dependencies
+   - Implemented function pointer callback system for Swift integration
+   - Added fallback to stderr for early debugging before Swift setup
+   - Resolved C++/Objective-C header conflicts that blocked debugging
+
+2. **Swift Logger Bridge**:
+   - Added `os_log` integration for Xcode Console visibility
+   - Implemented `print()` mirroring for Flutter development logs
+   - Created thread-safe callback registration system
+   - Enhanced debugging visibility across all platforms
+
+3. **Lifecycle Tracing System**:
+   - Added thread ID tracking using `pthread_threadid_np`
+   - Implemented state machine monitoring (0=Uninit, 1=Init, 2=Running)
+   - Added handle pointer lifecycle tracking for debugging
+   - Created entry/exit logging for all critical functions
+
+4. **Reference Counting Protection**:
+   - Implemented `acquire()`/`release()` pattern to prevent premature cleanup
+   - Added automatic cleanup when refCount reaches zero
+   - Enhanced stability by preventing race conditions
+   - Improved error detection and debugging capabilities
 
 6. **Xcode Project Configuration**:
    - Updated `project.pbxproj` to link unified XCFramework

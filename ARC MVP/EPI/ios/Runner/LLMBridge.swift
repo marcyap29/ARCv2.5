@@ -35,6 +35,9 @@ func epi_set_top_p(_ p: Float)
 @_silgen_name("epi_set_temp")
 func epi_set_temp(_ t: Float)
 
+@_silgen_name("epi_set_logger")
+func epi_set_logger(_ logger: (@convention(c) (Int32, UnsafePointer<CChar>?) -> Void)!)
+
 // MARK: - GGUF Model Management
 
 /// Simple GGUF model path resolver
@@ -227,8 +230,8 @@ class ModelLifecycle {
     func stop() throws {
         guard isRunning else { return }
 
-        // Free llama.cpp model resources
-        LLMBridge.shared.shutdown()
+        // Release llama.cpp model resources
+        LLMBridge.shared.release()
         isRunning = false
         currentModelId = nil
         logger.info("Stopped model")
@@ -449,9 +452,48 @@ class LLMBridge: NSObject, LumaraNative {
     // Internal LLM Bridge state
     private var isStreaming = false
     private var currentModelPath: String?
+    private var refCount = 0
+    private var loggerInstalled = false
     
     private override init() {
         super.init()
+        installLoggerOnce()
+    }
+    
+    // MARK: - Logger Setup
+    
+    private let swiftLogger: @convention(c) (Int32, UnsafePointer<CChar>?) -> Void = { level, cstr in
+        guard let cstr else { return }
+        let msg = String(cString: cstr)
+        // Unified logging; visible in Xcode and device Console
+        os_log("[EPI %d] %{public}@", level, msg)
+        // Also mirror to Flutter run console when attached
+        print("[EPI \(level)] \(msg)")
+    }
+    
+    private func installLoggerOnce() {
+        guard !loggerInstalled else { return }
+        epi_set_logger(swiftLogger)
+        loggerInstalled = true
+        logger.info("C++ logger installed")
+    }
+    
+    // MARK: - Reference Counting
+    
+    func acquire() {
+        if self.refCount == 0 {
+            self.installLoggerOnce()
+        }
+        self.refCount += 1
+        self.logger.info("LLMBridge acquired, refCount=\(self.refCount)")
+    }
+    
+    func release() {
+        self.refCount -= 1
+        self.logger.info("LLMBridge released, refCount=\(self.refCount)")
+        if self.refCount == 0 {
+            self.shutdown()
+        }
     }
     
     /// Compute SHA-256 hash of a string for prompt verification
@@ -462,6 +504,7 @@ class LLMBridge: NSObject, LumaraNative {
     
     // Internal LLM Bridge methods
     func initialize(modelPath: String, ctxTokens: Int32 = 2048, nGpuLayers: Int32 = 0) -> Bool {
+        acquire() // Ensure we have a reference before initializing
         currentModelPath = modelPath
         return modelPath.withCString { cstr in
             epi_llama_init(cstr, ctxTokens, nGpuLayers)
@@ -508,6 +551,7 @@ class LLMBridge: NSObject, LumaraNative {
     }
 
     func shutdown() {
+        logger.info("LLMBridge shutdown called")
         epi_llama_free()
     }
 

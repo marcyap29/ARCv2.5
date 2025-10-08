@@ -1,11 +1,14 @@
 #include "llama_wrapper.h"
 #include "llama.h"
+#include "epi_logger.h"
 #include <vector>
 #include <string>
 #include <cstring>
 #include <algorithm>
 #include <cassert>
 #include <mutex>
+#include <atomic>
+#include <thread>
 
 // Modern handle-based approach
 struct epi_handle_t {
@@ -19,6 +22,17 @@ struct epi_handle_t {
 // Global state for backward compatibility
 static epi_handle_t* g_handle = nullptr;
 static std::mutex g_mu;
+static std::atomic<int> g_state{0}; // 0=Uninit,1=Init,2=Running
+
+static inline unsigned long tid() {
+#if defined(__APPLE__)
+    uint64_t id;
+    pthread_threadid_np(nullptr, &id);
+    return (unsigned long)id;
+#else
+    return (unsigned long)std::hash<std::thread::id>{}(std::this_thread::get_id());
+#endif
+}
 
 // Simple greedy sampling
 static llama_token sample_from_logits(const float* logits, int32_t n_vocab) {
@@ -37,9 +51,12 @@ extern "C" {
 
 bool epi_llama_init(const char* model_path, int32_t ctx_size_tokens, int32_t n_gpu_layers) {
     std::lock_guard<std::mutex> lk(g_mu);
+    epi_logf(1, "ENTER init tid=%lu state=%d handle=%p path=%s ctx=%d gpu=%d", 
+             tid(), g_state.load(), g_handle, model_path, ctx_size_tokens, n_gpu_layers);
     
     // Clean up existing handle
     if (g_handle) {
+        epi_logf(1, "Cleaning up existing handle");
         epi_llama_free();
     }
     
@@ -68,11 +85,17 @@ bool epi_llama_init(const char* model_path, int32_t ctx_size_tokens, int32_t n_g
     g_handle->n_vocab = vocab ? llama_vocab_n_tokens(vocab) : 0;
     g_handle->started = false;
     
+    g_state.store(1, std::memory_order_release);
+    epi_logf(1, "EXIT  init tid=%lu state=%d handle=%p SUCCESS", 
+             tid(), g_state.load(), g_handle);
+    
     return true;
 }
 
 void epi_llama_free(void) {
     std::lock_guard<std::mutex> lk(g_mu);
+    epi_logf(1, "ENTER free  tid=%lu state=%d handle=%p", 
+             tid(), g_state.load(), g_handle);
     if (g_handle) {
         llama_batch_free(g_handle->batch);
         llama_free(g_handle->ctx);
@@ -80,12 +103,20 @@ void epi_llama_free(void) {
         delete g_handle;
         g_handle = nullptr;
     }
+    g_state.store(0, std::memory_order_release);
     llama_backend_free();
+    epi_logf(1, "EXIT  free  tid=%lu state=%d handle=%p", 
+             tid(), g_state.load(), g_handle);
 }
 
 bool epi_llama_start(const char* prompt_utf8) {
     std::lock_guard<std::mutex> lk(g_mu);
-    if (!g_handle) return false;
+    epi_logf(1, "ENTER start tid=%lu state=%d handle=%p", 
+             tid(), g_state.load(), g_handle);
+    if (!g_handle) {
+        epi_logf(3, "start aborted: handle is null");
+        return false;
+    }
     
     // Clear memory
     llama_memory_t mem = llama_get_memory(g_handle->ctx);
@@ -123,9 +154,15 @@ bool epi_llama_start(const char* prompt_utf8) {
     }
     
     // Decode prompt
-    if (llama_decode(g_handle->ctx, g_handle->batch) != 0) return false;
+    if (llama_decode(g_handle->ctx, g_handle->batch) != 0) {
+        epi_logf(3, "start failed: llama_decode returned error");
+        return false;
+    }
     
     g_handle->started = true;
+    g_state.store(2, std::memory_order_release);
+    epi_logf(1, "EXIT  start tid=%lu state=%d handle=%p SUCCESS", 
+             tid(), g_state.load(), g_handle);
     return true;
 }
 

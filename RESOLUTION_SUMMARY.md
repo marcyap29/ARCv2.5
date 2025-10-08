@@ -19,30 +19,36 @@ The issue had multiple layers:
 
 ## Solution Implemented
 
-### Step 1: Fixed Xcode Library Search Paths
-Updated `ios/Runner.xcodeproj/project.pbxproj` to remove SDK-specific path restrictions:
+### Step 1: Fixed Xcode Library Search Paths (Final Solution)
+Updated `ios/Runner.xcodeproj/project.pbxproj` to use SDK-specific library paths that point to the correct build directories:
 
-**Before:**
+**Final Configuration:**
 ```
 LIBRARY_SEARCH_PATHS = "$(inherited)";
+"LIBRARY_SEARCH_PATHS[sdk=iphoneos*]" = (
+    "$(inherited)",
+    "$(PROJECT_DIR)/../third_party/llama.cpp/build-ios-device/src/Release-iphoneos",
+    "$(PROJECT_DIR)/../third_party/llama.cpp/build-ios-device/ggml/src/Release-iphoneos",
+    "$(PROJECT_DIR)/../third_party/llama.cpp/build-ios-device/ggml/src/ggml-metal/Release-iphoneos",
+    "$(PROJECT_DIR)/../third_party/llama.cpp/build-ios-device/ggml/src/ggml-blas/Release-iphoneos",
+    "$(PROJECT_DIR)/../third_party/llama.cpp/build-ios-device/ggml/src/ggml-cpu/Release-iphoneos",
+    "$(PROJECT_DIR)/../third_party/llama.cpp/build-ios-device/common/Release-iphoneos",
+);
 "LIBRARY_SEARCH_PATHS[sdk=iphonesimulator*]" = (
-    "$(PROJECT_DIR)/../third_party/llama.cpp/build-apple/src",
-    // ... other paths only for simulator
+    "$(inherited)",
+    "$(PROJECT_DIR)/../third_party/llama.cpp/build-ios-sim/src/Release-iphonesimulator",
+    "$(PROJECT_DIR)/../third_party/llama.cpp/build-ios-sim/ggml/src/Release-iphonesimulator",
+    "$(PROJECT_DIR)/../third_party/llama.cpp/build-ios-sim/ggml/src/ggml-metal/Release-iphonesimulator",
+    "$(PROJECT_DIR)/../third_party/llama.cpp/build-ios-sim/ggml/src/ggml-blas/Release-iphonesimulator",
+    "$(PROJECT_DIR)/../third_party/llama.cpp/build-ios-sim/ggml/src/ggml-cpu/Release-iphonesimulator",
+    "$(PROJECT_DIR)/../third_party/llama.cpp/build-ios-sim/common/Release-iphonesimulator",
 );
 ```
 
-**After:**
-```
-LIBRARY_SEARCH_PATHS = (
-    "$(inherited)",
-    "$(PROJECT_DIR)/../third_party/llama.cpp/build-apple/src",
-    "$(PROJECT_DIR)/../third_party/llama.cpp/build-apple/ggml/src",
-    "$(PROJECT_DIR)/../third_party/llama.cpp/build-apple/ggml/src/ggml-metal",
-    "$(PROJECT_DIR)/../third_party/llama.cpp/build-apple/ggml/src/ggml-blas",
-    "$(PROJECT_DIR)/../third_party/llama.cpp/build-apple/ggml/src/ggml-cpu",
-    "$(PROJECT_DIR)/../third_party/llama.cpp/build-apple/common",
-);
-```
+This ensures that:
+- Simulator builds use libraries built for `iphonesimulator` SDK
+- Device builds use libraries built for `iphoneos` SDK
+- Both platforms can coexist without conflicts
 
 This change was applied to all three build configurations: Debug, Release, and Profile.
 
@@ -59,31 +65,58 @@ This script built llama.cpp libraries for:
 - iOS Device (arm64-iphoneos)
 - macOS (x86_64 + arm64)
 
-### Step 3: Created Proper build-apple Directory Structure
-Copied the iOS device libraries to the `build-apple` directory that the Xcode project expects:
+### Step 3: Configured SDK-Specific Library Paths
+Instead of copying libraries to a single `build-apple` directory, configured Xcode to use the build-specific directories:
 
-```bash
-mkdir -p build-apple/src build-apple/ggml/src build-apple/ggml/src/ggml-metal \
-         build-apple/ggml/src/ggml-blas build-apple/ggml/src/ggml-cpu build-apple/common
+- **Simulator builds** point to `build-ios-sim/*/Release-iphonesimulator/`
+- **Device builds** point to `build-ios-device/*/Release-iphoneos/`
 
-cp build-ios-device/src/Release-iphoneos/libllama.a build-apple/src/
-cp build-ios-device/ggml/src/Release-iphoneos/libggml.a build-apple/ggml/src/
-cp build-ios-device/ggml/src/Release-iphoneos/libggml-base.a build-apple/ggml/src/
-cp build-ios-device/ggml/src/Release-iphoneos/libggml-cpu.a build-apple/ggml/src/
-cp build-ios-device/ggml/src/ggml-metal/Release-iphoneos/libggml-metal.a build-apple/ggml/src/ggml-metal/
-cp build-ios-device/ggml/src/ggml-blas/Release-iphoneos/libggml-blas.a build-apple/ggml/src/ggml-blas/
-cp build-ios-device/common/Release-iphoneos/libcommon.a build-apple/common/
-```
+This approach:
+- Eliminates the need for manual library copying
+- Prevents SDK mismatch errors
+- Maintains separation between simulator and device builds
+- Follows Apple's recommended practice for multi-platform builds
 
 ## Verification
-Tested iOS compilation with Flutter build command:
 
+### Initial Device Build Test
 ```bash
 cd "ARC MVP/EPI"
 flutter build ios --debug --no-codesign
 ```
-
 **Result:** ✅ **SUCCESS** - Build completed in 17.0s
+```
+✓ Built build/ios/iphoneos/Runner.app
+```
+
+### Simulator Build Issue Discovered
+After the initial fix, simulator builds failed with the reverse error:
+```
+Building for 'iOS-simulator', but linking in object file (...libggml-blas.a) built for 'iOS'
+```
+
+### Final Solution: SDK-Specific Library Paths
+Updated Xcode project to use different library directories for simulator vs device:
+
+**Simulator builds:** Use `build-ios-sim/*/Release-iphonesimulator/`
+**Device builds:** Use `build-ios-device/*/Release-iphoneos/`
+
+### Final Verification - Both Platforms Working
+
+**Simulator Build:**
+```bash
+flutter build ios --simulator --debug
+```
+**Result:** ✅ **SUCCESS** - Build completed in 22.7s
+```
+✓ Built build/ios/iphonesimulator/Runner.app
+```
+
+**Device Build:**
+```bash
+flutter build ios --debug --no-codesign
+```
+**Result:** ✅ **SUCCESS** - Build completed in 36.7s
 ```
 ✓ Built build/ios/iphoneos/Runner.app
 ```
