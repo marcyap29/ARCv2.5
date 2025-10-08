@@ -1,10 +1,35 @@
 # EPI ARC MVP - Current Status
 
-**Last Updated:** January 7, 2025  
-**Version:** 0.4.1-alpha  
+**Last Updated:** January 8, 2025  
+**Version:** 0.4.2-alpha  
 **Branch:** on-device-inference
 
-## 🎉 COMPLETE SUCCESS ACHIEVED - CRASH-PROOF IMPLEMENTATION
+## 🔄 CURRENT ISSUE - MEMORY MANAGEMENT CRASH
+
+### **Memory Management Issue During First Decode** 🔄 **IN PROGRESS**
+
+**Status**: Model loads successfully with Metal GPU acceleration but crashes during first `llama_decode` call
+
+**What's Working:**
+- ✅ **Model Loading**: Llama 3.2 3B loads successfully with Metal acceleration (16 layers on GPU)
+- ✅ **Tokenization**: Working correctly (845 tokens for 3477 bytes)
+- ✅ **KV Cache**: Cleared successfully
+- ✅ **Metal Kernels**: Compile and load properly
+- ✅ **Compilation**: All Swift and C++ code compiles without errors
+- ✅ **Build System**: Xcode project builds successfully
+
+**Current Issue:**
+- ❌ **Memory Crash**: `malloc: *** error for object 0x101facda4: pointer being freed was not allocated`
+- ❌ **Crash Location**: During first `llama_decode` call in `start_core` function
+- ❌ **Root Cause**: Improper `llama_batch` lifecycle management
+
+**Next Steps:**
+1. Fix `llama_batch` lifecycle management in `start_core` function
+2. Ensure proper batch initialization and cleanup
+3. Test generation without crashes
+4. Verify token streaming works correctly
+
+## 🎉 PREVIOUS SUCCESS - CRASH-PROOF IMPLEMENTATION
 
 ### **On-Device LLM Fully Operational** ✅ **COMPLETE SUCCESS**
 

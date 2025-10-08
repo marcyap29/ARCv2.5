@@ -510,6 +510,10 @@ class LLMBridge: NSObject, LumaraNative {
     // Internal LLM Bridge methods
     func initialize(modelPath: String, ctxTokens: Int32 = 2048, nGpuLayers: Int32 = 0) -> Bool {
         acquire() // Ensure we have a reference before initializing
+        
+        // Install logger before any native calls
+        installLoggerOnce()
+        
         currentModelPath = modelPath
         return modelPath.withCString { cstr in
             epi_llama_init(cstr, ctxTokens, nGpuLayers)
@@ -518,6 +522,9 @@ class LLMBridge: NSObject, LumaraNative {
 
     func start(prompt: String, topK: Int32 = 40, topP: Float = 0.9, temp: Float = 0.8) -> Bool {
         var result = false
+        
+        // Ensure logger is installed
+        installLoggerOnce()
         
         queue.sync {
             guard !self.inFlight else {

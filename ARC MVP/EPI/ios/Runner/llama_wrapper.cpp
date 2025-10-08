@@ -282,14 +282,26 @@ void epi_llama_free(void) {
     std::lock_guard<std::mutex> lk(g_mu);
     epi_logf(1, "ENTER free  tid=%lu state=%d handle=%p", 
              tid(), g_state.load(), g_handle.load());
-    if (g_handle.load()) {
-        auto* h = g_handle.load();
-        llama_batch_free(h->batch);
-        llama_free(h->ctx);
-        llama_free_model(h->model);
+    
+    auto* h = g_handle.exchange(nullptr, std::memory_order_acq_rel);
+    if (h) {
+        epi_logf(1, "freeing handle components");
+        // Free batch if it has tokens
+        if (h->batch.n_tokens > 0) {
+            llama_batch_free(h->batch);
+        }
+        if (h->ctx) {
+            llama_free(h->ctx);
+        }
+        if (h->model) {
+            llama_free_model(h->model);
+        }
         delete h;
-        g_handle = nullptr;
+        epi_logf(1, "handle freed successfully");
+    } else {
+        epi_logf(1, "no handle to free");
     }
+    
     g_state.store(0, std::memory_order_release);
     llama_backend_free();
     epi_logf(1, "EXIT  free  tid=%lu state=%d handle=%p", 
@@ -322,15 +334,8 @@ bool epi_llama_start_with_fallback(const char* prompt_utf8) {
     
     epi_logf(2, "retrying with CPU fallback (n_gpu_layers=0)");
     
-    // Store current params
-    int32_t current_ctx = 2048; // We'll need to track this
-    int32_t current_gpu = 16;   // We'll need to track this
-    
-    // Free current handle
-    epi_llama_free();
-    
-    // Reinit with CPU only - we need the model path, not the model pointer
-    // For now, just return false since we don't have the path stored
+    // For now, just return false since CPU fallback is not implemented
+    // The issue is that we need the model path to reinitialize, but we don't store it
     epi_logf(3, "CPU fallback not implemented - need model path");
     return false;
 }

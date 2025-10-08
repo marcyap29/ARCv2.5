@@ -2,6 +2,51 @@
 
 ## Active Issues
 
+### Memory Management Crash During First Decode - IN PROGRESS 🔄 - January 8, 2025
+**Status:** 🔄 **IN PROGRESS**
+**Priority:** Critical
+**Component:** llama.cpp Integration & Memory Management
+
+**Issue:**
+The app successfully loads the Llama 3.2 3B model with Metal GPU acceleration (16 layers on GPU), but crashes during the first `llama_decode` call with a memory management error.
+
+**Error Symptoms:**
+- ✅ Model loads successfully with Metal acceleration
+- ✅ Tokenization works correctly (845 tokens for 3477 bytes)
+- ✅ KV cache cleared successfully
+- ✅ Metal kernels compile and load properly
+- ❌ **CRASH**: `malloc: *** error for object 0x101facda4: pointer being freed was not allocated`
+- ❌ Crash occurs during first `llama_decode` call in `start_core` function
+
+**Root Cause Analysis:**
+The crash is happening in the `start_core` function where we're improperly managing the `llama_batch` lifecycle. The issue is likely:
+
+1. **Batch Management Error**: Calling `llama_batch_free(batch)` on a local batch variable instead of the handle's batch
+2. **Double-Free Error**: Attempting to free memory that was already freed or not properly allocated
+3. **Memory Corruption**: Incorrect batch initialization or population causing memory corruption
+
+**Current Status:**
+- ✅ **Compilation Fixed**: Resolved `llama_batch` struct handling issues
+- ✅ **Model Loading**: Successfully loads with Metal GPU acceleration
+- ✅ **Tokenization**: Working correctly with proper buffer sizing
+- 🔄 **Memory Management**: Currently debugging batch lifecycle issues
+- ❌ **Generation**: Crashes during first decode operation
+
+**Next Steps:**
+1. Fix `llama_batch` lifecycle management in `start_core` function
+2. Ensure proper batch initialization and cleanup
+3. Test generation without crashes
+4. Verify token streaming works correctly
+
+**Files Being Modified:**
+- `ios/Runner/llama_wrapper.cpp` - Fix batch management in `start_core` function
+- `ios/Runner/llama_wrapper.h` - Ensure proper batch handling
+
+**Expected Resolution:**
+- Fix memory management to prevent double-free errors
+- Enable successful token generation and streaming
+- Complete end-to-end on-device LLM functionality
+
 ### llama.cpp Upgrade Success - Modern C API Integration - RESOLVED ✅ - January 7, 2025
 **Status:** ✅ **RESOLVED**
 **Priority:** High
