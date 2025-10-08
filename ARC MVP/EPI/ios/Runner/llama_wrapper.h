@@ -1,9 +1,4 @@
-// llama_wrapper.h
-// Header file for llama.cpp wrapper functions with Metal support
-
-#ifndef llama_wrapper_h
-#define llama_wrapper_h
-
+#pragma once
 #include <stdint.h>
 #include <stdbool.h>
 
@@ -11,36 +6,32 @@
 extern "C" {
 #endif
 
-// Model initialization and management
-int32_t llama_init(const char* modelPath);
-int32_t llama_is_loaded();
-void llama_cleanup();
+// Token callback: called with a UTF-8 piece whenever a token is produced
+typedef void(*llama_token_callback_t)(const char* utf8_token, void* user_data);
 
-// Text generation with streaming support
-const char* llama_generate(const char* prompt, float temperature, float topP, int32_t maxTokens);
+// Initialize model and context
+// model_path: absolute or app-bundle resolved path to .gguf
+// ctx_size_tokens: KV cache size in tokens
+// n_gpu_layers: set >0 to offload layers to GPU when supported
+bool epi_llama_init(const char* model_path, int32_t ctx_size_tokens, int32_t n_gpu_layers);
 
-// Streaming generation (new API)
-typedef struct {
-    const char* token;
-    bool is_finished;
-    int32_t error_code;
-} llama_stream_result_t;
+// Free resources
+void epi_llama_free(void);
 
-// Initialize streaming generation
-int32_t llama_start_generation(const char* prompt, float temperature, float topP, int32_t maxTokens);
+// Start a generation with a prompt. Returns false if context is missing or tokenize fails.
+bool epi_llama_start(const char* prompt_utf8);
 
-// Get next token in stream
-llama_stream_result_t llama_get_next_token();
+// Generate next token. Streams token via callback. Sets out_is_eos when EOS is reached.
+bool epi_llama_generate_next(llama_token_callback_t on_token, void* user_data, bool* out_is_eos);
 
-// Cancel current generation
-void llama_cancel_generation();
+// Stop current generation loop
+void epi_llama_stop(void);
 
-// Model information
-const char* llama_get_model_info();
-int32_t llama_get_context_length();
+// Optional simple sampler controls
+void epi_set_top_k(int32_t top_k);
+void epi_set_top_p(float top_p);
+void epi_set_temp(float temperature);
 
 #ifdef __cplusplus
 }
 #endif
-
-#endif /* llama_wrapper_h */

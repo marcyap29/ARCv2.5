@@ -13,11 +13,7 @@
 		1F3EEF6F2E93526C009BFF74 /* LlamaBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1F3EEF6C2E93526C009BFF74 /* LlamaBridge.swift */; };
 		1F3EEF702E93526C009BFF74 /* llama_wrapper.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 1F3EEF6B2E93526C009BFF74 /* llama_wrapper.cpp */; };
 		1F3EEF712E93526C009BFF74 /* CapabilityRouter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1F3EEF692E93526C009BFF74 /* CapabilityRouter.swift */; };
-		1F3EEF732E9352C3009BFF74 /* libllama.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 1F3EEF722E9352C3009BFF74 /* libllama.a */; };
-		1F3EEF762E935303009BFF74 /* libggml.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 1F3EEF742E935303009BFF74 /* libggml.a */; };
-		1F3EEF772E935303009BFF74 /* libggml-cpu.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 1F3EEF752E935303009BFF74 /* libggml-cpu.a */; };
-		1F3EEF792E935332009BFF74 /* libggml-metal.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 1F3EEF782E935332009BFF74 /* libggml-metal.a */; };
-		1F3EEF7B2E93535F009BFF74 /* libggml-base.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 1F3EEF7A2E93535F009BFF74 /* libggml-base.a */; };
+		1F3EEF732E9352C3009BFF74 /* llama.xcframework in Frameworks */ = {isa = PBXBuildFile; fileRef = 1F3EEF722E9352C3009BFF74 /* llama.xcframework */; };
 		1F3EEF812E9353BE009BFF74 /* Metal.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 1F3EEF7E2E9353BE009BFF74 /* Metal.framework */; };
 		1F3EEF822E9353BE009BFF74 /* Accelerate.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 1F3EEF7F2E9353BE009BFF74 /* Accelerate.framework */; };
 		1F3EEF832E9353BE009BFF74 /* MetalKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 1F3EEF802E9353BE009BFF74 /* MetalKit.framework */; };
@@ -68,14 +64,10 @@
 		168288B108ACD20B942626AA /* Pods_Runner.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_Runner.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		1F3EEF692E93526C009BFF74 /* CapabilityRouter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CapabilityRouter.swift; sourceTree = "<group>"; };
 		1F3EEF6A2E93526C009BFF74 /* llama_wrapper.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = llama_wrapper.h; sourceTree = "<group>"; };
-		1F3EEF6B2E93526C009BFF74 /* llama_wrapper.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = llama_wrapper.cpp; sourceTree = "<group>"; };
+		1F3EEF6B2E93526C009BFF74 /* llama_wrapper.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Runner/llama_wrapper.cpp; sourceTree = "<group>"; };
 		1F3EEF6C2E93526C009BFF74 /* LlamaBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LlamaBridge.swift; sourceTree = "<group>"; };
 		1F3EEF6D2E93526C009BFF74 /* PrismScrubber.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrismScrubber.swift; sourceTree = "<group>"; };
-		1F3EEF722E9352C3009BFF74 /* libllama.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libllama.a; path = "../third_party/llama.cpp/build-ios-sim/src/libllama.a"; sourceTree = "<group>"; };
-		1F3EEF742E935303009BFF74 /* libggml.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libggml.a; path = "../third_party/llama.cpp/build-ios-sim/ggml/src/libggml.a"; sourceTree = "<group>"; };
-		1F3EEF752E935303009BFF74 /* libggml-cpu.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = "libggml-cpu.a"; path = "../third_party/llama.cpp/build-ios-sim/ggml/src/libggml-cpu.a"; sourceTree = "<group>"; };
-		1F3EEF782E935332009BFF74 /* libggml-metal.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = "libggml-metal.a"; path = "../third_party/llama.cpp/build-ios-sim/ggml/src/ggml-metal/libggml-metal.a"; sourceTree = "<group>"; };
-		1F3EEF7A2E93535F009BFF74 /* libggml-base.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = "libggml-base.a"; path = "../third_party/llama.cpp/build-ios-sim/ggml/src/libggml-base.a"; sourceTree = "<group>"; };
+		1F3EEF722E9352C3009BFF74 /* llama.xcframework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcframework; name = llama.xcframework; path = "Runner/Vendor/llama.xcframework"; sourceTree = "<group>"; };
 		1F3EEF7E2E9353BE009BFF74 /* Metal.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Metal.framework; path = System/Library/Frameworks/Metal.framework; sourceTree = SDKROOT; };
 		1F3EEF7F2E9353BE009BFF74 /* Accelerate.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Accelerate.framework; path = System/Library/Frameworks/Accelerate.framework; sourceTree = SDKROOT; };
 		1F3EEF802E9353BE009BFF74 /* MetalKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = MetalKit.framework; path = System/Library/Frameworks/MetalKit.framework; sourceTree = SDKROOT; };
@@ -123,11 +115,7 @@
 				1F3EEF822E9353BE009BFF74 /* Accelerate.framework in Frameworks */,
 				1F3EEF832E9353BE009BFF74 /* MetalKit.framework in Frameworks */,
 				1F3EEF842E9353BE009BFF74 /* Foundation.framework in Frameworks */,
-				1F3EEF7B2E93535F009BFF74 /* libggml-base.a in Frameworks */,
-				1F3EEF792E935332009BFF74 /* libggml-metal.a in Frameworks */,
-				1F3EEF762E935303009BFF74 /* libggml.a in Frameworks */,
-				1F3EEF772E935303009BFF74 /* libggml-cpu.a in Frameworks */,
-				1F3EEF732E9352C3009BFF74 /* libllama.a in Frameworks */,
+				1F3EEF732E9352C3009BFF74 /* llama.xcframework in Frameworks */,
 				1FEE5CF42E8C791B003BF317 /* Pods_Runner.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -150,11 +138,7 @@
 				1F3EEF7E2E9353BE009BFF74 /* Metal.framework */,
 				1F3EEF802E9353BE009BFF74 /* MetalKit.framework */,
 				1F3EEF852E9353BE009BFF74 /* Foundation.framework */,
-				1F3EEF7A2E93535F009BFF74 /* libggml-base.a */,
-				1F3EEF782E935332009BFF74 /* libggml-metal.a */,
-				1F3EEF742E935303009BFF74 /* libggml.a */,
-				1F3EEF752E935303009BFF74 /* libggml-cpu.a */,
-				1F3EEF722E9352C3009BFF74 /* libllama.a */,
+				1F3EEF722E9352C3009BFF74 /* llama.xcframework */,
 				168288B108ACD20B942626AA /* Pods_Runner.framework */,
 				0A2A704E2F1F5DD9CD589387 /* Pods_RunnerTests.framework */,
 			);
@@ -588,22 +572,6 @@
 					"@loader_path/Frameworks",
 				);
 				LIBRARY_SEARCH_PATHS = "$(inherited)";
-				"LIBRARY_SEARCH_PATHS[sdk=iphoneos*]" = (
-					"$(inherited)",
-					"$(PROJECT_DIR)/../third_party/llama.cpp/build-ios-device/src",
-					"$(PROJECT_DIR)/../third_party/llama.cpp/build-ios-device/ggml/src",
-					"$(PROJECT_DIR)/../third_party/llama.cpp/build-ios-device/ggml/src/ggml-metal",
-					"$(PROJECT_DIR)/../third_party/llama.cpp/build-ios-device/ggml/src/ggml-metal/Release-iphoneos",
-					"$(PROJECT_DIR)/../third_party/llama.cpp/build-ios-device/ggml/src/ggml-cpu/Release-iphoneos",
-					"$(PROJECT_DIR)/../third_party/llama.cpp/build-ios-device/common/Release-iphoneos",
-				);
-				"LIBRARY_SEARCH_PATHS[sdk=iphonesimulator*]" = (
-					"$(inherited)",
-					"$(PROJECT_DIR)/../third_party/llama.cpp/build-ios-sim/src",
-					"$(PROJECT_DIR)/../third_party/llama.cpp/build-ios-sim/ggml/src",
-					"$(PROJECT_DIR)/../third_party/llama.cpp/build-ios-sim/ggml/src/ggml-metal",
-					"$(PROJECT_DIR)/../third_party/llama.cpp/build-ios-sim/common/Release-iphonesimulator",
-				);
 				MARKETING_VERSION = .01;
 				OTHER_LDFLAGS = (
 					"-lc++",
@@ -816,22 +784,6 @@
 					"@loader_path/Frameworks",
 				);
 				LIBRARY_SEARCH_PATHS = "$(inherited)";
-				"LIBRARY_SEARCH_PATHS[sdk=iphoneos*]" = (
-					"$(inherited)",
-					"$(PROJECT_DIR)/../third_party/llama.cpp/build-ios-device/src",
-					"$(PROJECT_DIR)/../third_party/llama.cpp/build-ios-device/ggml/src",
-					"$(PROJECT_DIR)/../third_party/llama.cpp/build-ios-device/ggml/src/ggml-metal",
-					"$(PROJECT_DIR)/../third_party/llama.cpp/build-ios-device/ggml/src/ggml-metal/Release-iphoneos",
-					"$(PROJECT_DIR)/../third_party/llama.cpp/build-ios-device/ggml/src/ggml-cpu/Release-iphoneos",
-					"$(PROJECT_DIR)/../third_party/llama.cpp/build-ios-device/common/Release-iphoneos",
-				);
-				"LIBRARY_SEARCH_PATHS[sdk=iphonesimulator*]" = (
-					"$(inherited)",
-					"$(PROJECT_DIR)/../third_party/llama.cpp/build-ios-sim/src",
-					"$(PROJECT_DIR)/../third_party/llama.cpp/build-ios-sim/ggml/src",
-					"$(PROJECT_DIR)/../third_party/llama.cpp/build-ios-sim/ggml/src/ggml-metal",
-					"$(PROJECT_DIR)/../third_party/llama.cpp/build-ios-sim/common/Release-iphonesimulator",
-				);
 				MARKETING_VERSION = .01;
 				OTHER_LDFLAGS = (
 					"-lc++",
@@ -878,22 +830,6 @@
 					"@loader_path/Frameworks",
 				);
 				LIBRARY_SEARCH_PATHS = "$(inherited)";
-				"LIBRARY_SEARCH_PATHS[sdk=iphoneos*]" = (
-					"$(inherited)",
-					"$(PROJECT_DIR)/../third_party/llama.cpp/build-ios-device/src",
-					"$(PROJECT_DIR)/../third_party/llama.cpp/build-ios-device/ggml/src",
-					"$(PROJECT_DIR)/../third_party/llama.cpp/build-ios-device/ggml/src/ggml-metal",
-					"$(PROJECT_DIR)/../third_party/llama.cpp/build-ios-device/ggml/src/ggml-metal/Release-iphoneos",
-					"$(PROJECT_DIR)/../third_party/llama.cpp/build-ios-device/ggml/src/ggml-cpu/Release-iphoneos",
-					"$(PROJECT_DIR)/../third_party/llama.cpp/build-ios-device/common/Release-iphoneos",
-				);
-				"LIBRARY_SEARCH_PATHS[sdk=iphonesimulator*]" = (
-					"$(inherited)",
-					"$(PROJECT_DIR)/../third_party/llama.cpp/build-ios-sim/src",
-					"$(PROJECT_DIR)/../third_party/llama.cpp/build-ios-sim/ggml/src",
-					"$(PROJECT_DIR)/../third_party/llama.cpp/build-ios-sim/ggml/src/ggml-metal",
-					"$(PROJECT_DIR)/../third_party/llama.cpp/build-ios-sim/common/Release-iphonesimulator",
-				);
 				MARKETING_VERSION = .01;
 				OTHER_LDFLAGS = (
 					"-lc++",

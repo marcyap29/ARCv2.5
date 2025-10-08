@@ -1,11 +1,39 @@
 // LLMBridge_GGUF.swift
 // Swift implementation of LumaraNative Pigeon protocol
 // Provides on-device LLM inference with llama.cpp + Metal + GGUF models only
-// Simplified version focusing only on GGUF format
+// Modern implementation using llama.cpp C API
 
 import Foundation
 import os.log
 import CryptoKit
+
+// MARK: - C Bridge Declarations
+
+@_silgen_name("epi_llama_init")
+func epi_llama_init(_ modelPath: UnsafePointer<CChar>, _ ctxSize: Int32, _ nGpuLayers: Int32) -> Bool
+
+@_silgen_name("epi_llama_free")
+func epi_llama_free()
+
+@_silgen_name("epi_llama_start")
+func epi_llama_start(_ prompt: UnsafePointer<CChar>) -> Bool
+
+@_silgen_name("epi_llama_generate_next")
+func epi_llama_generate_next(_ cb: (@convention(c) (UnsafePointer<CChar>?, UnsafeMutableRawPointer?) -> Void)!,
+                             _ userData: UnsafeMutableRawPointer?,
+                             _ outIsEos: UnsafeMutablePointer<Bool>?) -> Bool
+
+@_silgen_name("epi_llama_stop")
+func epi_llama_stop()
+
+@_silgen_name("epi_set_top_k")
+func epi_set_top_k(_ k: Int32)
+
+@_silgen_name("epi_set_top_p")
+func epi_set_top_p(_ p: Float)
+
+@_silgen_name("epi_set_temp")
+func epi_set_temp(_ t: Float)
 
 // MARK: - GGUF Model Management
 
@@ -44,6 +72,73 @@ class GGUFModelManager {
     }
 }
 
+// MARK: - Modern LLM Bridge
+
+final class LLMBridge {
+    static let shared = LLMBridge()
+    private let logger = Logger(subsystem: "EPI", category: "LLMBridge")
+    private init() {}
+
+    private var isStreaming = false
+    private var currentModelPath: String?
+    private var tokenCallback: ((String) -> Void)?
+
+    // Provide your own model path resolver
+    func initialize(modelPath: String, ctxTokens: Int32 = 2048, nGpuLayers: Int32 = 0) -> Bool {
+        currentModelPath = modelPath
+        return modelPath.withCString { cstr in
+            epi_llama_init(cstr, ctxTokens, nGpuLayers)
+        }
+    }
+
+    func start(prompt: String, topK: Int32 = 40, topP: Float = 0.9, temp: Float = 0.8) -> Bool {
+        epi_set_top_k(topK)
+        epi_set_top_p(topP)
+        epi_set_temp(temp)
+        return prompt.withCString { cstr in
+            epi_llama_start(cstr)
+        }
+    }
+
+    // Token callback trampoline
+    private static let tokenThunk: @convention(c) (UnsafePointer<CChar>?, UnsafeMutableRawPointer?) -> Void = { cstr, ctx in
+        guard let cstr = cstr else { return }
+        let piece = String(cString: cstr)
+        // Forward to Dart through your existing channel or notification
+        NotificationCenter.default.post(name: .llmToken, object: piece)
+    }
+
+    func stream(onComplete: @escaping () -> Void) {
+        guard !isStreaming else { return }
+        isStreaming = true
+        DispatchQueue.global(qos: .userInitiated).async {
+            var done = false
+            while !done {
+                var isEos: Bool = false
+                let ok = epi_llama_generate_next(LLMBridge.tokenThunk, nil, &isEos)
+                if !ok || isEos {
+                    done = true
+                }
+            }
+            self.isStreaming = false
+            onComplete()
+        }
+    }
+
+    func stop() {
+        epi_llama_stop()
+        isStreaming = false
+    }
+
+    func shutdown() {
+        epi_llama_free()
+    }
+}
+
+extension Notification.Name {
+    static let llmToken = Notification.Name("llm.token")
+}
+
 // MARK: - Model Lifecycle
 
 /// Manages loaded GGUF model state
@@ -53,7 +148,6 @@ class ModelLifecycle {
 
     private var isRunning = false
     private var currentModelId: String?
-    // Model weights and tokenization are handled by llama.cpp internally
     private let loadQueue = DispatchQueue(label: "com.epi.model.load", qos: .userInitiated)
 
     // Progress API reference
@@ -146,18 +240,18 @@ class ModelLifecycle {
                     self.logger.info("[ModelPreload] File size: \(size / 1_000_000) MB")
                 }
 
-                // Initialize llama.cpp with the GGUF model
-                NSLog("🔍🔍🔍 [ModelPreload] Calling llama_init()...")
-                self.logger.info("[ModelPreload] Calling llama_init()...")
-                let initResult = llama_init(ggufPath.path)
-                NSLog("🔍🔍🔍 [ModelPreload] llama_init() returned: \(initResult)")
-                self.logger.info("[ModelPreload] llama_init() returned: \(initResult)")
+                // Initialize llama.cpp with the GGUF model using modern API
+                NSLog("🔍🔍🔍 [ModelPreload] Calling epi_llama_init()...")
+                self.logger.info("[ModelPreload] Calling epi_llama_init()...")
+                let initResult = LLMBridge.shared.initialize(modelPath: ggufPath.path, ctxTokens: 2048, nGpuLayers: 16)
+                NSLog("🔍🔍🔍 [ModelPreload] epi_llama_init() returned: \(initResult)")
+                self.logger.info("[ModelPreload] epi_llama_init() returned: \(initResult)")
 
-                if initResult != 1 {
-                    NSLog("❌❌❌ [ModelPreload] LLAMA INIT FAILED - returned \(initResult) instead of 1")
+                if !initResult {
+                    NSLog("❌❌❌ [ModelPreload] LLAMA INIT FAILED - returned \(initResult)")
                     NSLog("❌❌❌ [ModelPreload] Model path: \(ggufPath.path)")
                     NSLog("❌❌❌ [ModelPreload] This usually means: corrupt GGUF, not enough memory, or incompatible format")
-                    self.logger.error("[ModelPreload] LLAMA INIT FAILED - returned \(initResult) instead of 1")
+                    self.logger.error("[ModelPreload] LLAMA INIT FAILED - returned \(initResult)")
                     self.logger.error("[ModelPreload] Model path: \(ggufPath.path)")
                     self.logger.error("[ModelPreload] This usually means: corrupt GGUF, not enough memory, or incompatible format")
                     throw NSError(domain: "ModelLifecycle", code: 500, userInfo: [
@@ -193,6 +287,7 @@ class ModelLifecycle {
         guard isRunning else { return }
 
         // Free llama.cpp model resources
+        LLMBridge.shared.shutdown()
         isRunning = false
         currentModelId = nil
         logger.info("Stopped model")
@@ -234,38 +329,49 @@ class ModelLifecycle {
         logger.info("  topP: \(params.topP)")
         logger.info("  repeatPenalty: \(params.repeatPenalty)")
 
-        // For GGUF models, use llama.cpp directly (no tokenizer needed)
-        logger.info("=== GGUF MODEL GENERATION ===")
+        // Use modern llama.cpp streaming generation
+        logger.info("=== GGUF MODEL GENERATION (Modern API) ===")
 
         // Generation parameters
         let maxNewTokens = min(Int(params.maxTokens), 96)
         let temperature = params.temperature
         let topP = params.topP
 
-        // Use llama.cpp streaming generation
-        let result = llama_start_generation(prompt, Float(temperature), Float(topP), Int32(maxNewTokens))
-        if result != 1 {
-            logger.error("Failed to start generation: \(result)")
+        // Start generation using modern API
+        let startResult = LLMBridge.shared.start(prompt: prompt, topK: 40, topP: Float(topP), temp: Float(temperature))
+        if !startResult {
+            logger.error("Failed to start generation")
             throw NSError(domain: "LLMBridge", code: 500, userInfo: [NSLocalizedDescriptionKey: "Failed to start generation"])
         }
 
         var generatedText = ""
-        var isFinished = false
+        let semaphore = DispatchSemaphore(value: 0)
 
-        while !isFinished {
-            let streamResult = llama_get_next_token()
-
-            if streamResult.error_code != 0 {
-                logger.error("Generation error: \(streamResult.error_code)")
-                break
+        // Set up token callback
+        let tokenObserver = NotificationCenter.default.addObserver(
+            forName: .llmToken,
+            object: nil,
+            queue: .main
+        ) { notification in
+            if let token = notification.object as? String {
+                generatedText += token
+                logger.info("Token: '\(token)'")
             }
+        }
 
-            if streamResult.token != nil {
-                let tokenString = String(cString: streamResult.token!)
-                generatedText += tokenString
-            }
+        // Stream generation
+        LLMBridge.shared.stream {
+            NotificationCenter.default.removeObserver(tokenObserver)
+            semaphore.signal()
+        }
 
-            isFinished = streamResult.is_finished
+        // Wait for completion (with timeout)
+        let timeout = DispatchTime.now() + .seconds(30)
+        let result = semaphore.wait(timeout: timeout)
+        
+        if result == .timedOut {
+            logger.error("Generation timed out")
+            LLMBridge.shared.stop()
         }
 
         // Clean up the generated text
