@@ -185,22 +185,32 @@ class ModelDownloadService: NSObject {
             modelDirName = "Qwen3-1.7B-GGUF-4bit"
         case "phi-3.5-mini-instruct-4bit":
             modelDirName = "Phi-3.5-mini-instruct-4bit"
+        case "Llama-3.2-3b-Instruct-Q4_K_M.gguf":
+            modelDirName = "Llama-3.2-3b-Instruct-Q4_K_M.gguf"
+        case "Phi-3.5-mini-instruct-Q5_K_M.gguf":
+            modelDirName = "Phi-3.5-mini-instruct-Q5_K_M.gguf"
+        case "Qwen3-4B-Instruct-2507-Q5_K_M.gguf":
+            modelDirName = "Qwen3-4B-Instruct-2507-Q5_K_M.gguf"
         default:
             throw NSError(domain: "ModelDownload", code: 400, userInfo: [
                 NSLocalizedDescriptionKey: "Unknown model ID: \(modelId)"
             ])
         }
-        let modelDir = modelRootURL.appendingPathComponent(modelDirName)
-        // Check if model directory exists
-        guard FileManager.default.fileExists(atPath: modelDir.path) else {
+        // For GGUF models, check Documents/gguf_models directory
+        let documentsPath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
+        let ggufModelsPath = documentsPath.appendingPathComponent("gguf_models")
+        let modelFile = ggufModelsPath.appendingPathComponent(modelId)
+        
+        // Check if model file exists
+        guard FileManager.default.fileExists(atPath: modelFile.path) else {
             throw NSError(domain: "ModelDownload", code: 404, userInfo: [
-                NSLocalizedDescriptionKey: "Model directory not found: \(modelDirName)"
+                NSLocalizedDescriptionKey: "Model file not found: \(modelId)"
             ])
         }
 
-        // Delete the model directory
-        try FileManager.default.removeItem(at: modelDir)
-        logger.info("Successfully deleted model: \(modelId) from \(modelDir.path)")
+        // Delete the model file
+        try FileManager.default.removeItem(at: modelFile)
+        logger.info("Successfully deleted model: \(modelId) from \(modelFile.path)")
     }
 }
 

@@ -379,11 +379,23 @@ class LumaraAPIConfig {
       if (config.provider == LLMProvider.phi) {
         try {
           final bridge = LumaraNative();
-          final isDownloaded = await bridge.isModelDownloaded('phi-3.5-mini-instruct-4bit');
+          final isDownloaded = await bridge.isModelDownloaded('Phi-3.5-mini-instruct-Q5_K_M.gguf');
           debugPrint('LUMARA API: Phi model ${isDownloaded ? 'is' : 'is NOT'} downloaded');
           return isDownloaded;
         } catch (e) {
           debugPrint('LUMARA API: Error checking Phi availability: $e');
+          return false;
+        }
+      }
+
+      if (config.provider == LLMProvider.qwen3) {
+        try {
+          final bridge = LumaraNative();
+          final isDownloaded = await bridge.isModelDownloaded('Qwen3-4B-Instruct-2507-Q5_K_M.gguf');
+          debugPrint('LUMARA API: Qwen3 model ${isDownloaded ? 'is' : 'is NOT'} downloaded');
+          return isDownloaded;
+        } catch (e) {
+          debugPrint('LUMARA API: Error checking Qwen3 availability: $e');
           return false;
         }
       }

@@ -1,6 +1,8 @@
 #pragma once
 #include <stdint.h>
 #include <stdbool.h>
+#include <stddef.h>
+
 
 #ifdef __cplusplus
 extern "C" {
@@ -37,6 +39,8 @@ void epi_set_temp(float temperature);
 
 // Logger setup
 void epi_set_logger(void (*logger)(int level, const char* msg));
+
+
 
 #ifdef __cplusplus
 }

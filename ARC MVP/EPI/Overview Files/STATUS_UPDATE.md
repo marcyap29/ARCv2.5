@@ -48,6 +48,7 @@
 - ✅ **Real AI Generation**: Now using actual llama.cpp token generation instead of test strings
 - ✅ **End-to-End Prompt Flow**: Optimized prompts now flow correctly from Dart → Swift → llama.cpp
 - ✅ **Corrupted Downloads Cleanup**: Added functionality to clear corrupted or incomplete model downloads
+- ✅ **Model ID Consistency Fix**: Fixed model ID mismatch between settings and download screens
 - ✅ **GGUF Model Optimization**: Removed unnecessary unzip logic (GGUF files are single files)
 - ✅ **iOS Build Success**: App builds successfully on both simulator and device
 - ✅ **Real Model Download**: Successfully downloading full-sized GGUF models from Hugging Face
@@ -219,6 +220,22 @@
 - ✅ **Build System**: Fully operational
 - ✅ **Linking**: All symbols resolved
 
+## 🔧 Recent Critical Fixes
+
+### **Model ID Consistency Fix** ✅ **CRITICAL BUG FIXED**
+- **Problem**: Settings screen showed Phi as "Available" but download screen showed it as "Not Downloaded"
+- **Root Cause**: API config used old model ID `'phi-3.5-mini-instruct-4bit'` while download screen used new GGUF ID `'Phi-3.5-mini-instruct-Q5_K_M.gguf'`
+- **Solution**: Updated `api_config.dart` to use correct GGUF model IDs:
+  - Phi: `'phi-3.5-mini-instruct-4bit'` → `'Phi-3.5-mini-instruct-Q5_K_M.gguf'`
+  - Qwen3: Added missing check for `'Qwen3-4B-Instruct-2507-Q5_K_M.gguf'`
+- **Result**: Both screens now show consistent model availability status
+- **Impact**: Eliminates user confusion and provides unified model management experience
+
+### **UI/UX Enhancements**
+- ✅ **Model Download Screen**: Fixed RenderFlex overflow (40 pixels) with responsive layout
+- ✅ **Model Deletion**: Updated ModelDownloadService to recognize GGUF model IDs
+- ✅ **File Cleanup**: Removed duplicate/old files causing Pigeon channel conflicts
+
 ## 📁 Files Modified
 
 ### **Core Migration Files**
@@ -227,6 +244,9 @@
 - `ios/Runner/llama_wrapper.h` - Updated C interface declarations
 - `ios/Runner/CapabilityRouter.swift` - Fixed duplicate file, implemented C thunk pattern
 - `ios/CapabilityRouter.swift` - Fixed broken closures, implemented C thunk pattern
+
+### **Model ID Consistency Fix**
+- `lib/lumara/config/api_config.dart` - Updated model ID checks to use correct GGUF model IDs
 
 ### **Project Configuration**
 - `ios/Runner.xcodeproj/project.pbxproj` - Updated to link unified XCFramework

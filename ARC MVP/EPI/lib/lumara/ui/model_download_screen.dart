@@ -502,14 +502,18 @@ class _ModelDownloadScreenState extends State<ModelDownloadScreen> {
                       ),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
+                        mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Icon(Icons.check_circle, color: Colors.green, size: 18),
-                          const SizedBox(width: 6),
-                          Text(
-                            'Ready to use',
-                            style: theme.textTheme.bodyMedium?.copyWith(
-                              color: Colors.green,
-                              fontWeight: FontWeight.w500,
+                          const Icon(Icons.check_circle, color: Colors.green, size: 16),
+                          const SizedBox(width: 4),
+                          Flexible(
+                            child: Text(
+                              'Ready',
+                              style: theme.textTheme.bodyMedium?.copyWith(
+                                color: Colors.green,
+                                fontWeight: FontWeight.w500,
+                                fontSize: 11,
+                              ),
                             ),
                           ),
                         ],

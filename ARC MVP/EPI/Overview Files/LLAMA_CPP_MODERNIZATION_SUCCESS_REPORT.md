@@ -48,6 +48,11 @@
 
 ### **6. Crash-Proof Implementation** ✅
 - **Robust tokenization** with two-pass buffer sizing
+
+### **7. Model ID Consistency Fix** ✅
+- **Fixed model ID mismatch** between settings and download screens
+- **Updated API config** to use correct GGUF model IDs
+- **Unified model availability checks** across all UI components
 - **Complete prompt streaming** in 256-token chunks
 - **Concurrency protection** preventing overlapping calls
 - **Memory safety** with proper batch management
