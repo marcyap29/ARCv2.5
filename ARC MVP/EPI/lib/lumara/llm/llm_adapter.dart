@@ -340,8 +340,13 @@ class LLMAdapter implements ModelAdapter {
       final modelName = _activeModelId ?? 'Llama-3.2-3b-Instruct-Q4_K_M.gguf';
       final preset = LumaraModelPresets.getPreset(modelName);
       
+      // Adaptive max tokens based on query complexity
+      final adaptiveMaxTokens = useMinimalPrompt
+          ? 64   // Simple greetings need ~10-30 tokens
+          : (preset['max_new_tokens'] ?? 256);
+
       final params = pigeon.GenParams(
-        maxTokens: preset['max_new_tokens'] ?? 256,
+        maxTokens: adaptiveMaxTokens,
         temperature: preset['temperature'] ?? 0.7,
         topP: preset['top_p'] ?? 0.9,
         repeatPenalty: preset['repeat_penalty'] ?? 1.1,
@@ -367,7 +372,7 @@ class LLMAdapter implements ModelAdapter {
       debugPrint('🔄 Streaming ${words.length} words to UI...');
       for (int i = 0; i < words.length; i++) {
         yield words[i] + (i < words.length - 1 ? ' ' : '');
-        await Future.delayed(const Duration(milliseconds: 30));
+        // No delay - instant streaming for maximum responsiveness
       }
       debugPrint('🟩🟩🟩 === DART LLMAdapter.realize COMPLETE === 🟩🟩🟩');
     } catch (e) {

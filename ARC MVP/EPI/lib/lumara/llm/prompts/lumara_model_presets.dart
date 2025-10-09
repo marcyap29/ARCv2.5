@@ -3,15 +3,15 @@
 /// Optimized inference parameters for different model types
 
 class LumaraModelPresets {
-  /// Llama 3.2 3B (Q4_K_M) preset
+  /// Llama 3.2 3B (Q4_K_M) preset - optimized for mobile
   static const Map<String, dynamic> llama32_3b = {
     'temperature': 0.7,
-    'top_p': 0.9,
+    'top_p': 0.85,  // Slightly reduced for faster sampling
     'min_p': 0.05,
     'typical_p': 1.0,
-    'top_k': 40,
+    'top_k': 30,    // Reduced from 40 for faster sampling
     'repeat_penalty': 1.1,
-    'max_new_tokens': 256,
+    'max_new_tokens': 128,  // Reduced from 256 for faster responses
     'stop_tokens': ['</s>', '```', '\n\n[END]', '\n[TASK]'],
   };
 
