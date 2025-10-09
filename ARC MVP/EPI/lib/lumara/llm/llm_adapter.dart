@@ -135,12 +135,12 @@ class LLMAdapter implements ModelAdapter {
             _isInitialized = true;
             debugPrint('[LLMAdapter] Using Phi-3.5 model: $_activeModelId');
           } else {
-            // Check for Qwen3-4B model as final fallback
-            final qwenDownloaded = await _nativeApi.isModelDownloaded('Qwen3-4B-Instruct-2507-Q5_K_M.gguf');
-            debugPrint('[LLMAdapter] Qwen3-4B model downloaded: $qwenDownloaded');
-            
-            if (qwenDownloaded) {
-              _activeModelId = 'Qwen3-4B-Instruct-2507-Q5_K_M.gguf';
+          // Check for Qwen3-4B model as final fallback
+          final qwenDownloaded = await _nativeApi.isModelDownloaded('Qwen3-4B-Instruct-2507-Q4_K_S.gguf');
+          debugPrint('[LLMAdapter] Qwen3-4B model downloaded: $qwenDownloaded');
+          
+          if (qwenDownloaded) {
+            _activeModelId = 'Qwen3-4B-Instruct-2507-Q4_K_S.gguf';
               _available = true;
               _isInitialized = true;
               debugPrint('[LLMAdapter] Using Qwen3-4B model: $_activeModelId');
@@ -224,6 +224,9 @@ class LLMAdapter implements ModelAdapter {
 
   /// Get loaded model information
   static String get loadedModel => _activeModelId ?? 'none';
+
+  /// Get active model name for external use
+  static String? get activeModelName => _activeModelId;
 
   /// Stop the current model and free resources
   static Future<void> dispose() async {

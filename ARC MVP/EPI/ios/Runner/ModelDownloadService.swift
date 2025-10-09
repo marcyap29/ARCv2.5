@@ -135,8 +135,7 @@ class ModelDownloadService: NSObject {
         let ggufModelIds = [
             "Llama-3.2-3b-Instruct-Q4_K_M.gguf",
             "Phi-3.5-mini-instruct-Q5_K_M.gguf", 
-            "Qwen3-4B-Instruct.Q5_K_M.gguf",
-            "Qwen3-4B-Instruct-2507-Q5_K_M.gguf"  // New Hugging Face filename
+            "Qwen3-4B-Instruct-2507-Q4_K_S.gguf"  // Updated Qwen3 4B model
         ]
         
         if ggufModelIds.contains(modelId) {
@@ -195,8 +194,8 @@ class ModelDownloadService: NSObject {
             modelDirName = "Llama-3.2-3b-Instruct-Q4_K_M.gguf"
         case "Phi-3.5-mini-instruct-Q5_K_M.gguf":
             modelDirName = "Phi-3.5-mini-instruct-Q5_K_M.gguf"
-        case "Qwen3-4B-Instruct-2507-Q5_K_M.gguf":
-            modelDirName = "Qwen3-4B-Instruct-2507-Q5_K_M.gguf"
+        case "Qwen3-4B-Instruct-2507-Q4_K_S.gguf":
+            modelDirName = "Qwen3-4B-Instruct-2507-Q4_K_S.gguf"
         default:
             throw NSError(domain: "ModelDownload", code: 400, userInfo: [
                 NSLocalizedDescriptionKey: "Unknown model ID: \(modelId)"
@@ -238,8 +237,7 @@ extension ModelDownloadService: URLSessionDownloadDelegate {
             let ggufModelIds = [
                 "Llama-3.2-3b-Instruct-Q4_K_M.gguf",
                 "Phi-3.5-mini-instruct-Q5_K_M.gguf", 
-                "Qwen3-4B-Instruct.Q5_K_M.gguf",
-                "Qwen3-4B-Instruct-2507-Q5_K_M.gguf"
+                "Qwen3-4B-Instruct-2507-Q4_K_S.gguf"
             ]
             
             if ggufModelIds.contains(modelId) {
@@ -372,7 +370,7 @@ extension ModelDownloadService: URLSessionDownloadDelegate {
             "Llama-3.2-3b-Instruct-Q4_K_M.gguf",
             "Phi-3.5-mini-instruct-Q5_K_M.gguf",
             "Qwen3-4B-Instruct.Q5_K_M.gguf",
-            "Qwen3-4B-Instruct-2507-Q5_K_M.gguf"
+            "Qwen3-4B-Instruct-2507-Q4_K_S.gguf"
         ]
         
         for modelName in bundledModels {

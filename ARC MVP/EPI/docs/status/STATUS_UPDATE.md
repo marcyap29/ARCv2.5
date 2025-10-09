@@ -36,6 +36,15 @@
 
 **Result**: Complex queries improved from 15-20s → 2.5-3s (**85% faster**)
 
+#### Session 3: Model Recognition & UI State Fixes (Oct 9, 2025)
+- **Fixed model format validation**: Updated iOS GGUF model ID arrays to recognize new Qwen model
+- **Resolved UI state inconsistency**: Fixed DownloadStateService to properly track new model IDs
+- **Model ID synchronization**: Updated all references from Q5_K_M to Q4_K_S across codebase
+- **UI state refresh**: Added automatic state clearing to handle model ID changes
+- **Display name consistency**: Proper human-readable names instead of raw model IDs
+
+**Result**: Model download recognition fixed, UI state synchronized across all screens
+
 ### Combined Performance Gains
 
 | Metric | Before (Oct 8) | After (Oct 9) | Improvement |
@@ -231,6 +240,13 @@ Format: Snippet + 3 bullets [END]
 - ✅ Large prompts (1000+ tokens)
 - ✅ Artificial streaming delays (30ms/word)
 - ✅ Over-generation (256 tokens default)
+
+### Model Management & UI
+- ✅ Model format validation errors ("Unsupported model format")
+- ✅ UI state inconsistency between screens
+- ✅ Model ID synchronization issues (Q5_K_M vs Q4_K_S)
+- ✅ Download state service missing model mappings
+- ✅ Cached state preventing proper model recognition
 
 ---
 

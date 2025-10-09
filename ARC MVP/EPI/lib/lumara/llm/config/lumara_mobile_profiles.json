@@ -25,9 +25,9 @@
       "notes": "Optimal for general use. Fast, balanced quality."
     },
     {
-      "id": "qwen-4b-instruct-q4_k_m",
-      "label": "Qwen 4B Instruct Q4_K_M (iPhone 16 Pro)",
-      "model_path": "models/Qwen3-4B-Instruct-2507-Q5_K_M.gguf",
+      "id": "qwen3-4b-instruct-q4_k_s",
+      "label": "Qwen3 4B Instruct Q4_K_S (iPhone 16 Pro)",
+      "model_path": "models/Qwen3-4B-Instruct-2507-Q4_K_S.gguf",
       "runtime": {
         "n_gpu_layers": -1,
         "n_ctx": 1024,
@@ -43,7 +43,7 @@
         "max_tokens": 80,
         "stop": ["[END]", "<|im_end|>", "</s>"]
       },
-      "notes": "Good for reasoning tasks. Slightly slower than Llama."
+      "notes": "Primary chat model with excellent reasoning capabilities - 4-bit quantized"
     },
     {
       "id": "phi-3.5-mini-instruct-q4_k_m",

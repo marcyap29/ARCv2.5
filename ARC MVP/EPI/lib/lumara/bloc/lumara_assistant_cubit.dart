@@ -17,6 +17,8 @@ import '../../telemetry/analytics.dart';
 import '../chat/chat_repo.dart';
 import '../chat/chat_repo_impl.dart';
 import '../chat/chat_models.dart';
+import '../chat/quickanswers_router.dart';
+import '../../mira/adapters/mira_basics_adapters.dart';
 
 /// LUMARA Assistant Cubit State
 abstract class LumaraAssistantState {}
@@ -76,6 +78,9 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
   late final ChatRepo _chatRepo;
   String? currentChatSessionId;
   
+  // Quick Answers System
+  QuickAnswersRouter? _quickAnswersRouter;
+  
   // Auto-save and compaction
   static const int _maxMessagesBeforeCompaction = 50;
   static const int _compactionThreshold = 100;
@@ -106,6 +111,9 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
       
       // Initialize Chat History System
       await _chatRepo.initialize();
+
+      // Initialize Quick Answers System
+      await _initializeQuickAnswers();
 
       // Start with default scope
       const scope = LumaraScope.defaultScope;
@@ -165,6 +173,24 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
     // Check for memory commands
     if (text.startsWith('/memory')) {
       await _handleMemoryCommand(text);
+      return;
+    }
+
+    // Check for quick answers (phase, themes, streak, etc.) - INSTANT response
+    final quickAnswer = await _tryQuickAnswer(text);
+    if (quickAnswer != null) {
+      // Add user message to UI
+      final userMessage = LumaraMessage.user(content: text);
+      final updatedMessages = [...currentState.messages, userMessage];
+      
+      // Add quick answer
+      final assistantMessage = LumaraMessage.assistant(content: quickAnswer);
+      final finalMessages = [...updatedMessages, assistantMessage];
+      
+      emit(currentState.copyWith(
+        messages: finalMessages,
+        isProcessing: false,
+      ));
       return;
     }
 
@@ -1467,5 +1493,32 @@ ${assistantMessages.take(3).map((m) => '• ${m.length > 150 ? m.substring(0, 15
       'recent_activity': 0,
       'health_score': 0.0,
     };
+  }
+
+  /// Initialize Quick Answers System
+  Future<void> _initializeQuickAnswers() async {
+    try {
+      final basicsProvider = await MiraBasicsFactory.createProvider();
+      _quickAnswersRouter = QuickAnswersRouter(
+        basicsProvider: basicsProvider,
+        llm: _llmAdapter,
+      );
+      print('LUMARA Debug: Quick Answers System initialized');
+    } catch (e) {
+      print('LUMARA Debug: Error initializing Quick Answers: $e');
+      // Continue without quick answers - not critical
+    }
+  }
+
+  /// Try to get a quick answer for basic questions
+  Future<String?> _tryQuickAnswer(String text) async {
+    if (_quickAnswersRouter == null) return null;
+    
+    try {
+      return await _quickAnswersRouter!.handleUserMessage(text);
+    } catch (e) {
+      print('LUMARA Debug: Error in quick answers: $e');
+      return null;
+    }
   }
 }

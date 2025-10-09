@@ -105,7 +105,7 @@ class LumaraTestHarness {
   static const List<String> availableModels = [
     'Llama-3.2-3b-Instruct-Q4_K_M.gguf',
     'Phi-3.5-mini-instruct-Q5_K_M.gguf',
-    'Qwen3-4B-Instruct-2507-Q5_K_M.gguf',
+    'Qwen3-4B-Instruct-2507-Q4_K_S.gguf',
   ];
 
   /// Run A/B test across all available models

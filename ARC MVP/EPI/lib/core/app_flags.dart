@@ -103,12 +103,12 @@ class ModelConfig {
 
 const Map<QwenModel, ModelConfig> modelConfigs = {
   QwenModel.qwen3_4b_instruct: ModelConfig(
-    filename: 'qwen3_4b_instruct_q4_k_m.gguf',
-    displayName: 'Qwen3 4B Instruct',
+    filename: 'Qwen3-4B-Instruct-2507-Q4_K_S.gguf',
+    displayName: 'Qwen3 4B Instruct (Q4_K_S)',
     estimatedSizeMB: 2500,
     minRamGB: 8,
-    description: 'Primary chat model with excellent reasoning capabilities',
-    isDefault: false,
+    description: 'Primary chat model with excellent reasoning capabilities - 4-bit quantized',
+    isDefault: true,
   ),
   
   QwenModel.qwen3_1p7b_instruct: ModelConfig(

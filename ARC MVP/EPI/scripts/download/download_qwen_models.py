@@ -33,15 +33,15 @@ class QwenModelManifest:
 QWEN_MODELS = [
     QwenModelManifest(
         model_id="qwen3_4b_instruct",
-        display_name="Qwen3 4B Instruct",
-        filename="qwen3_4b_instruct_q4_k_m.gguf",
+        display_name="Qwen3 4B Instruct (Q4_K_S)",
+        filename="Qwen3-4B-Instruct-2507-Q4_K_S.gguf",
         size_mb=2500,
         min_ram_gb=8,
-        description="Primary chat model with excellent reasoning capabilities",
-        repo_id="Qwen/Qwen3-4B-Instruct-GGUF",
+        description="Primary chat model with excellent reasoning capabilities - 4-bit quantized",
+        repo_id="unsloth/Qwen3-4B-Instruct-2507-GGUF",
         is_default=True,
         sha256="", # Will be updated from HF
-        download_url="https://drive.google.com/file/d/1SwAWnUaojbWYQbYNlZ3RacIAN7Cq2NXc/view?usp=drive_link"
+        download_url="https://huggingface.co/unsloth/Qwen3-4B-Instruct-2507-GGUF/resolve/main/Qwen3-4B-Instruct-2507-Q4_K_S.gguf?download=true"
     ),
     QwenModelManifest(
         model_id="qwen3_1p7b_instruct",

@@ -67,7 +67,7 @@ class ModelManagementCubit extends Cubit<ModelManagementState> {
       final availableModels = <String, String>{
         'Llama-3.2-3b-Instruct-Q4_K_M.gguf': 'Llama 3.2 3B Instruct (Q4_K_M) - Recommended: Fast, efficient, 4-bit quantized',
         'Phi-3.5-mini-instruct-Q5_K_M.gguf': 'Phi-3.5 Mini Instruct (Q5_K_M) - High quality, 5-bit quantized, excellent reasoning',
-        'Qwen3-4B-Instruct-2507-Q5_K_M.gguf': 'Qwen3 4B Instruct (Q5_K_M) - Multilingual, 5-bit quantized, great for diverse tasks',
+        'Qwen3-4B-Instruct-2507-Q4_K_S.gguf': 'Qwen3 4B Instruct (Q4_K_S) - Multilingual, 4-bit quantized, great for diverse tasks',
         'rule_based': 'Rule-based responses (no model required)',
       };
       print('LUMARA Debug: Available models: $availableModels');

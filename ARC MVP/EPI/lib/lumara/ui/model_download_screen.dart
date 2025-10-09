@@ -70,19 +70,26 @@ class _ModelDownloadScreenState extends State<ModelDownloadScreen> {
       description: 'High quality, 5-bit quantized, excellent reasoning',
     ),
     ModelInfo(
-      id: 'Qwen3-4B-Instruct-2507-Q5_K_M.gguf',
-      name: 'Qwen3 4B Instruct (Q5_K_M)',
-      size: '~2.3 GB',
-      downloadUrl: 'https://huggingface.co/unsloth/Qwen3-4B-Instruct-2507-GGUF/resolve/main/Qwen3-4B-Instruct-2507-Q5_K_M.gguf?download=true',
-      description: 'Multilingual, 5-bit quantized, great for diverse tasks',
+      id: 'Qwen3-4B-Instruct-2507-Q4_K_S.gguf',
+      name: 'Qwen3 4B Instruct (Q4_K_S)',
+      size: '~2.5 GB',
+      downloadUrl: 'https://huggingface.co/unsloth/Qwen3-4B-Instruct-2507-GGUF/resolve/main/Qwen3-4B-Instruct-2507-Q4_K_S.gguf?download=true',
+      description: 'Multilingual, 4-bit quantized, excellent reasoning capabilities',
     ),
   ];
 
   @override
   void initState() {
     super.initState();
+    _refreshModelStates();
     _checkAllModelsStatus();
     _setupStateListener();
+  }
+
+  /// Refresh model states to handle model ID changes
+  void _refreshModelStates() {
+    // Clear any cached states that might be using old model IDs
+    _downloadStateService.refreshAllStates();
   }
 
   Future<void> _checkAllModelsStatus() async {
