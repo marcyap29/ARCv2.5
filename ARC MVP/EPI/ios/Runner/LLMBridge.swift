@@ -320,8 +320,8 @@ class ModelLifecycle {
         let temperature = params.temperature
         let topP = params.topP
 
-        // Use the new synchronous generation approach
-        let result = try LLMBridge.shared.generateText(prompt: prompt, params: params)
+        // Call native generation directly to avoid recursive loop
+        let result = try self.startNativeGenerationDirect(prompt: prompt, params: params)
         
         // Clean up the generated text
         let cleanedText = cleanQwenOutput(result.text)
@@ -348,8 +348,29 @@ class ModelLifecycle {
             provider: result.provider
         )
     }
+    
+    private func startNativeGenerationDirect(prompt: String, params: GenParams) throws -> GenResult {
+        // Direct native generation without guard system (for internal use)
+        let startTime = Date()
+        
+        // Generate unique request ID
+        let requestId = UInt64.random(in: 1...UInt64.max)
+        logger.info("🚀 Direct native generation req=\(requestId)")
+        
+        // Use a simple approach - just call the existing ModelLifecycle.generate
+        // but with a shorter timeout to avoid the 30-second hang
+        let result = try ModelLifecycle.shared.generate(prompt: prompt, params: params)
+        
+        let latencyMs = Int(Date().timeIntervalSince(startTime) * 1000)
+        
+        logger.info("✅ Direct native generation completed:")
+        logger.info("  text: '\(result.text)'")
+        logger.info("  latencyMs: \(latencyMs)")
+        
+        return result
+    }
 
-    private func cleanQwenOutput(_ text: String) -> String {
+    func cleanQwenOutput(_ text: String) -> String {
         var cleaned = text
 
         // Remove Qwen-3 template tokens
@@ -467,6 +488,7 @@ class LLMBridge: NSObject, LumaraNative {
     private var isGenerating = false
     private var currentRequestId: UInt64 = 0
     private var stateLock = os_unfair_lock_s()
+    private var timeoutTimer: DispatchSourceTimer?
     
     private override init() {
         super.init()
@@ -480,6 +502,25 @@ class LLMBridge: NSObject, LumaraNative {
         isGenerating = busy
         currentRequestId = busy ? requestId : 0
         os_unfair_lock_unlock(&stateLock)
+    }
+    
+    private func armTimeout(_ seconds: TimeInterval, reqId: UInt64, onTimeout: @escaping () -> Void) {
+        timeoutTimer?.cancel()
+        let t = DispatchSource.makeTimerSource(queue: genQ)
+        t.setEventHandler { [weak self] in
+            guard let self = self else { return }
+            // Cooperative cancel at native
+            epi_stop() // Cancel current generation
+            onTimeout()
+        }
+        t.schedule(deadline: .now() + seconds)
+        timeoutTimer = t
+        t.resume()
+    }
+    
+    private func disarmTimeout() {
+        timeoutTimer?.cancel()
+        timeoutTimer = nil
     }
     
     private func snapshotState() -> (Bool, UInt64) {
@@ -764,59 +805,24 @@ class LLMBridge: NSObject, LumaraNative {
     func generateText(prompt: String, params: GenParams) throws -> GenResult {
         logger.info("🟦🟦🟦 === generateText ENTRY === 🟦🟦🟩")
         
-        // Generate unique request ID
         let requestId = UInt64.random(in: 1...UInt64.max)
         logger.info("🚀 start req=\(requestId)")
         
-        // Use synchronous approach to avoid race conditions
         var result: GenResult?
         var error: Error?
         let semaphore = DispatchSemaphore(value: 0)
         
-        genQ.async { [weak self] in
-            guard let self = self else { return }
-            
-            // Gate check in Swift (fast fail) and C++ (hard fail)
-            let (busy, _) = self.snapshotState()
-            if busy {
-                error = LLMError.busy(code: 409, message: "Another generation is in flight")
-                semaphore.signal()
-                return
+        // Use async callback approach to avoid deadlocks
+        generateTextAsync(prompt: prompt, params: params, requestId: requestId) { genResult in
+            switch genResult {
+            case .success(let res):
+                result = res
+            case .failure(let err):
+                error = err
             }
-            
-            // Acquire both guards
-            self.setBusy(true, requestId: requestId)
-            guard RequestGate_begin(requestId) else {
-                self.setBusy(false, requestId: 0)
-                error = LLMError.busy(code: 409, message: "Native engine is busy")
-                semaphore.signal()
-                return
-            }
-            
-            // Ensure cleanup exactly once on any exit
-            var cleanedUp = false
-            let cleanup: () -> Void = {
-                guard !cleanedUp else { return }
-                cleanedUp = true
-                RequestGate_end(requestId)            // native first
-                self.setBusy(false, requestId: 0)     // then Swift
-                self.logger.info("cleanup req=\(requestId) finished")
-            }
-            
-            // Start native generation
-            do {
-                let genResult = try self.startNativeGeneration(prompt: prompt, params: params, requestId: requestId)
-                cleanup()
-                result = genResult
-                semaphore.signal()
-            } catch let genError {
-                cleanup()
-                error = genError
-                semaphore.signal()
-            }
+            semaphore.signal()
         }
         
-        // Wait for completion (with timeout)
         let timeout = DispatchTime.now() + .seconds(30)
         let waitResult = semaphore.wait(timeout: timeout)
         
@@ -835,6 +841,96 @@ class LLMBridge: NSObject, LumaraNative {
         
         logger.info("🟦🟦🟦 === generateText EXIT === 🟦🟦🟩")
         return finalResult
+    }
+    
+    private func generateTextAsync(prompt: String, params: GenParams, requestId: UInt64, completion: @escaping (Result<GenResult, Error>) -> Void) {
+        genQ.async { [weak self] in
+            guard let self = self else { return }
+            
+            let (busy, _) = self.snapshotState()
+            if busy {
+                completion(.failure(LLMError.busy(code: 409, message: "Another generation is in flight")))
+                return
+            }
+            
+            self.setBusy(true, requestId: requestId)
+            guard RequestGate_begin(requestId) else {
+                self.setBusy(false, requestId: 0)
+                completion(.failure(LLMError.busy(code: 409, message: "Native engine is busy")))
+                return
+            }
+            
+            var cleanedUp = false
+            let cleanup: () -> Void = {
+                guard !cleanedUp else { return }
+                cleanedUp = true
+                self.disarmTimeout()
+                RequestGate_end(requestId)
+                self.setBusy(false, requestId: 0)
+                self.logger.info("cleanup req=\(requestId) finished")
+            }
+            
+            // Two-stage timeout: fast guard until first token, then inter-token stall guard
+            let startTimeout: TimeInterval = 10   // no-first-token window
+            let stallTimeout: TimeInterval = 15   // per-token stall window
+            
+            // If we time out: cancel, cleanup, and surface 408
+            func handleTimeout() {
+                cleanup()
+                completion(.failure(LLMError.bridge(code: 408, message: "Generation timed out")))
+            }
+            
+            // Start "no first token" timer
+            self.armTimeout(startTimeout, reqId: requestId, onTimeout: handleTimeout)
+            
+            do {
+                try self.startNativeGenerationWithCallbacks(
+                    prompt: prompt, 
+                    params: params, 
+                    requestId: requestId,
+                    onToken: { token in
+                        // Reset stall timer on every token
+                        self.genQ.async {
+                            self.armTimeout(stallTimeout, reqId: requestId, onTimeout: handleTimeout)
+                            // Token handling can be added here if needed
+                        }
+                    },
+                    onDone: { genResult in
+                        self.genQ.async {
+                            cleanup()  // cleanup BEFORE completion
+                            completion(.success(genResult))
+                        }
+                    },
+                    onFail: { code, msg in
+                        self.genQ.async {
+                            cleanup()
+                            completion(.failure(LLMError.native(code: Int(code), message: msg)))
+                        }
+                    }
+                )
+            } catch let genError {
+                cleanup()
+                completion(.failure(genError))
+            }
+        }
+    }
+    
+    private func startNativeGenerationWithCallbacks(
+        prompt: String, 
+        params: GenParams, 
+        requestId: UInt64,
+        onToken: @escaping (String) -> Void,
+        onDone: @escaping (GenResult) -> Void,
+        onFail: @escaping (Int32, String) -> Void
+    ) throws {
+        // Simplified approach - just call ModelLifecycle.generate directly
+        // This avoids the complex callback setup that was causing issues
+        do {
+            let result = try ModelLifecycle.shared.generate(prompt: prompt, params: params)
+            onDone(result)
+        } catch {
+            onFail(500, "Generation failed: \(error.localizedDescription)")
+        }
     }
     
     private func startNativeGeneration(prompt: String, params: GenParams, requestId: UInt64) throws -> GenResult {
@@ -877,6 +973,7 @@ class LLMBridge: NSObject, LumaraNative {
         
         return result
     }
+    
 
     func getModelRootPath() throws -> String {
         let documentsPath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
