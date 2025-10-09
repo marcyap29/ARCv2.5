@@ -96,6 +96,37 @@ func epi_feed(_ nPromptTokens: Int32, _ requestId: UInt64) -> Bool
 @_silgen_name("epi_stop")
 func epi_stop() -> Bool
 
+@_silgen_name("epi_set_n_predict")
+func epi_set_n_predict(_ n: Int32)
+
+@_silgen_name("epi_decode")
+func epi_decode(_ requestId: UInt64) -> Bool
+
+@_silgen_name("epi_take_token")
+func epi_take_token(_ requestId: UInt64) -> Int32
+
+@_silgen_name("epi_decode_to_text")
+func epi_decode_to_text(_ tokenId: Int32) -> UnsafePointer<CChar>
+
+@_silgen_name("epi_is_eos_token")
+func epi_is_eos_token(_ tokenId: Int32) -> Bool
+
+@_silgen_name("epi_generate_core_api")
+func epi_generate_core_api(_ prompt: UnsafePointer<CChar>, _ params: UnsafePointer<EpiGenParams>, _ requestId: UInt64) -> UnsafePointer<CChar>
+
+@_silgen_name("epi_generate_core_api_impl_new")
+func epi_generate_core_api_impl_new(
+  _ model: UnsafeMutableRawPointer!,
+  _ ctx: UnsafeMutableRawPointer!,
+  _ promptUtf8: UnsafePointer<CChar>!,
+  _ nPredict: Int32,
+  _ temp: Float, _ topK: Int32, _ topP: Float, _ minP: Float,
+  _ onText: (@convention(c) (UnsafePointer<CChar>?, UnsafeMutableRawPointer?) -> Void)!,
+  _ userData: UnsafeMutableRawPointer!,
+  _ didStop: UnsafeMutablePointer<Bool>!,
+  _ didHitEot: UnsafeMutablePointer<Bool>!
+) -> Bool
+
 @_silgen_name("RequestGate_begin")
 func RequestGate_begin(_ requestId: UInt64) -> Bool
 
@@ -970,17 +1001,9 @@ class LLMBridge: NSObject, LumaraNative {
         // Direct native generation without any recursive calls
         let startTime = Date()
         
-        // Set up callbacks - use a simpler approach without capturing context
-        var generatedText = ""
-        let tokenCallback: @convention(c) (UnsafePointer<CChar>?, UnsafeMutableRawPointer?) -> Void = { cstr, user in
-            guard let cstr = cstr else { return }
-            let token = String(cString: cstr)
-            // Store token in a global variable for now (simplified approach)
-            // In a real implementation, this would use proper callback mechanisms
-        }
-        
+        // Set up empty callbacks (we'll handle tokens in the loop)
         var cbs = EpiCallbacks(
-            onToken: tokenCallback,
+            onToken: nil,
             user: nil
         )
         
@@ -1001,21 +1024,50 @@ class LLMBridge: NSObject, LumaraNative {
             throw LLMError.native(code: 500, message: "Failed to start native generation")
         }
         
-        // Wait for completion (simplified - just wait a bit for tokens)
-        Thread.sleep(forTimeInterval: 0.1)
+        // Use the new core API for generation
+        let generatedText = prompt.withCString { cstr in
+            String(cString: epi_generate_core_api(cstr, &epiParams, requestId))
+        }
+        
+        // Clean up
+        epi_stop()
+        RequestGate_end(requestId)
+        
+        let tokensGenerated = generatedText.count / 4 // Rough estimate
+        let stopReason = "completed"
         
         // Clean up the generated text
         let cleanedText = ModelLifecycle.shared.cleanQwenOutput(generatedText)
         let latencyMs = Int(Date().timeIntervalSince(startTime) * 1000)
         
+        // Retry logic for empty generation
+        if tokensGenerated == 0 && stopReason == "limit" {
+            logger.warning("Empty generation detected, attempting retry with adjusted parameters")
+            
+            // Retry with adjusted parameters
+            var retryParams = params
+            retryParams.temperature = min(params.temperature * 1.2, 1.0) // Increase temperature slightly
+            retryParams.repeatPenalty = max(params.repeatPenalty * 0.95, 1.0) // Decrease repeat penalty slightly
+            
+            // Add a prefix to coax generation
+            let retryPrompt = "Answer concisely: " + prompt
+            
+            logger.info("Retrying with adjusted parameters: temp=\(retryParams.temperature), repeatPenalty=\(retryParams.repeatPenalty)")
+            
+            // Recursive retry (only once)
+            return try startNativeGenerationDirectNative(prompt: retryPrompt, params: retryParams, requestId: requestId)
+        }
+        
         logger.info("✅ Direct native generation completed:")
         logger.info("  text: '\(cleanedText)'")
+        logger.info("  tokensGenerated: \(tokensGenerated)")
+        logger.info("  stopReason: \(stopReason)")
         logger.info("  latencyMs: \(latencyMs)")
         
         return GenResult(
             text: cleanedText,
             tokensIn: Int64(prompt.count / 4), // Rough estimate
-            tokensOut: Int64(cleanedText.count / 4), // Rough estimate
+            tokensOut: Int64(tokensGenerated),
             latencyMs: Int64(latencyMs),
             provider: "llama.cpp-gguf"
         )

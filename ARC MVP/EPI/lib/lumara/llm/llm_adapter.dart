@@ -7,12 +7,33 @@ import 'bridge.pigeon.dart' as pigeon;
 import 'model_progress_service.dart';
 import 'prompts/lumara_prompt_assembler.dart';
 import 'prompts/lumara_model_presets.dart';
+import 'prompts/llama_chat_template.dart';
 
 /// On-device LLM adapter using Pigeon native bridge
 /// Supports GGUF models via llama.cpp with Metal acceleration (iOS)
 class LLMAdapter implements ModelAdapter {
   /// Compute SHA-256 hash of a string for prompt verification
   static String sha256Of(String s) => crypto.sha256.convert(utf8.encode(s)).toString();
+  
+  /// Format assembled prompt for Llama-3.2-Instruct using proper chat template
+  static String _formatForLlama(String assembledPrompt, String userMessage) {
+    // Extract system message from assembled prompt
+    final systemStart = assembledPrompt.indexOf('<<SYSTEM>>');
+    final contextStart = assembledPrompt.indexOf('<<CONTEXT>>');
+    
+    String systemMessage = "You are LUMARA, a personal AI assistant.";
+    
+    if (systemStart != -1 && contextStart != -1) {
+      final systemEnd = contextStart;
+      systemMessage = assembledPrompt.substring(systemStart + 10, systemEnd).trim();
+    }
+    
+    // Use Llama chat template
+    return LlamaChatTemplate.formatSimple(
+      systemMessage: systemMessage,
+      userMessage: userMessage,
+    );
+  }
   
   /// Canary test to verify no test stubs are present
   static Future<String> runCanaryTest(String testType) async {
@@ -282,10 +303,13 @@ class LLMAdapter implements ModelAdapter {
       );
 
       // Assemble the complete optimized prompt
-      final optimizedPrompt = promptAssembler.assemblePrompt(
+      final assembledPrompt = promptAssembler.assemblePrompt(
         userMessage: userMessage,
         useFewShot: true,
       );
+      
+      // Format for Llama-3.2-Instruct using proper chat template
+      final optimizedPrompt = _formatForLlama(assembledPrompt, userMessage);
 
       debugPrint('📝 OPTIMIZED PROMPT LENGTH: ${optimizedPrompt.length} characters');
       debugPrint('📝 PROMPT PREVIEW: ${optimizedPrompt.substring(0, 200)}...');

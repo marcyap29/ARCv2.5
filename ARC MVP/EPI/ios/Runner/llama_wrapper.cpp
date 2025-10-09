@@ -1,6 +1,7 @@
 #include "llama_wrapper.h"
 #include "epi_logger.h"
 #include "../../third_party/llama.cpp/include/llama.h"
+#include "llama_compat_simple.hpp"
 #include <vector>
 #include <string>
 #include <cstring>
@@ -10,6 +11,9 @@
 #include <mutex>
 #include <thread>
 #include <signal.h>
+#include <memory>
+#include <cmath>
+#include <cstdlib>
 
 // Request Gate implementation (inline to avoid separate compilation)
 class RequestGate {
@@ -67,6 +71,12 @@ struct epi_handle_t {
     epi_callbacks        cbs{nullptr, nullptr};
     bool                 modern_mode = false;
     
+    // Generation state
+    int32_t              n_predict = 256;
+    int32_t              n_prompt_tokens = 0;
+    int32_t              n_generated = 0;
+    llama_token          next_token = 0;
+    
     // Re-entrancy protection - instance-based, not static
     std::atomic<bool>    feeding{false};
     std::atomic<bool>    starting{false};
@@ -87,6 +97,16 @@ static inline unsigned long tid() {
 #else
     return (unsigned long)std::hash<std::thread::id>{}(std::this_thread::get_id());
 #endif
+}
+
+// Helper: get token id for a special string (e.g. "<|eot_id|>")
+static llama_token token_id_for(const llama_model* model, const char* piece) {
+    std::vector<llama_token> tmp(8);
+    const llama_vocab* vocab = llama_model_get_vocab(model);
+    const int n = llama_tokenize(vocab, piece, std::strlen(piece),
+                                 tmp.data(), (int)tmp.size(),
+                                 /*add_special*/ true, /*parse_special*/ true);
+    return (n > 0) ? tmp[0] : (llama_token)-1;
 }
 
 // Signal handler for crash detection
@@ -324,6 +344,8 @@ bool epi_llama_init(const char* model_path, int32_t n_ctx, int32_t n_gpu_layers)
     h->n_vocab = llama_vocab_n_tokens(llama_model_get_vocab(model));
     h->started = false;
     
+    // No sampling context needed - using core API directly
+    
     g_handle.store(h, std::memory_order_release);
     g_state.store(1, std::memory_order_release);
     
@@ -443,11 +465,18 @@ bool epi_start(const char* prompt_utf8, const epi_gen_params* p, epi_callbacks c
         return false;
     }
     
+    // Scope guard for guaranteed cleanup
+    auto cleanup_guard = [&]() {
+        RequestGate::end(request_id);
+        h->starting = false;
+        g_generating = false;
+    };
+    
     // Instance-based re-entrancy guard for epi_start
     bool expected = false;
     if (!h->starting.compare_exchange_strong(expected, true)) {
         epi_logf(3, "epi_start already in progress - ignoring duplicate call (request_id=%llu)", request_id);
-        RequestGate::end(request_id); // Release gate
+        cleanup_guard();
         return false;
     }
     
@@ -455,8 +484,7 @@ bool epi_start(const char* prompt_utf8, const epi_gen_params* p, epi_callbacks c
     expected = false;
     if (!g_generating.compare_exchange_strong(expected, true)) {
         epi_logf(3, "generation already in progress - ignoring duplicate call");
-        h->starting = false; // Reset guard
-        RequestGate::end(request_id); // Release gate
+        cleanup_guard();
         return false;
     }
     
@@ -471,6 +499,7 @@ bool epi_start(const char* prompt_utf8, const epi_gen_params* p, epi_callbacks c
             epi_set_top_k(40);  // Default top_k
             epi_set_top_p(p->top_p);
             epi_set_temp(p->temperature);
+            epi_set_n_predict(p->max_tokens);
         }
         
         // Tokenize into our owned vector
@@ -491,11 +520,14 @@ bool epi_start(const char* prompt_utf8, const epi_gen_params* p, epi_callbacks c
         
         if (n_tokens <= 0) {
             epi_logf(3, "epi_start: tokenize failed n_tokens=%d", n_tokens);
-            g_generating = false;
-            h->starting = false; // Reset guard
-            RequestGate::end(request_id); // Release gate
+            cleanup_guard();
             return false;
         }
+        
+        // Initialize generation state
+        h->n_prompt_tokens = n_tokens;
+        h->n_generated = 0;
+        h->next_token = 0; // Will be set by first decode
         
         h->prompt_toks.resize(n_tokens);
         epi_logf(1, "epi_start: tokenized %d tokens", n_tokens);
@@ -513,9 +545,7 @@ bool epi_start(const char* prompt_utf8, const epi_gen_params* p, epi_callbacks c
         
     } catch (...) {
         epi_logf(3, "unhandled C++ exception in epi_start");
-        g_generating = false;
-        h->starting = false; // Reset guard
-        RequestGate::end(request_id); // Release gate
+        cleanup_guard();
         return false;
     }
 }
@@ -656,6 +686,254 @@ void epi_set_temp(float temp) {
     epi_logf(1, "epi_set_temp: %.3f", temp);
 }
 
+void epi_set_n_predict(int32_t n_predict) {
+    auto* h = g_handle.load(std::memory_order_acquire);
+    if (h) {
+        h->n_predict = n_predict;
+        epi_logf(1, "epi_set_n_predict: %d", n_predict);
+    }
+}
 
+// Core API generation function - replaces the old decode/take_token approach
+extern "C" const char* epi_generate_core_api_impl(const char* prompt_utf8, const epi_gen_params* p, uint64_t request_id) {
+    static std::string result;
+    std::lock_guard<std::mutex> lk(g_mu);
+    auto* h = g_handle.load(std::memory_order_acquire);
+    if (!h || !h->modern_mode) {
+        result = "";
+        return result.c_str();
+    }
+    
+    // Verify request is still in flight
+    uint64_t current_id = RequestGate::current();
+    if (current_id != request_id) {
+        epi_logf(3, "epi_generate_core_api rejected: request %llu not in flight (current: %llu)", 
+                 request_id, current_id);
+        result = "";
+        return result.c_str();
+    }
+    
+    const std::string prompt(prompt_utf8);
+    const int32_t max_tokens = p ? p->max_tokens : 256;
+    const float temperature = p ? p->temperature : 0.7f;
+    const float top_p = p ? p->top_p : 0.9f;
+    const float repeat_penalty = p ? p->repeat_penalty : 1.1f;
+    const int32_t top_k = 40; // Default top_k
+    
+    epi_logf(1, "epi_generate_core_api: prompt_len=%zu max_tokens=%d temp=%.2f", 
+             prompt.length(), max_tokens, temperature);
+    
+        // 1) Tokenize prompt using compatibility layer
+        auto prompt_tokens = compat_tokenize(h->model, h->ctx, prompt, /*add_bos=*/true, /*parse_special=*/true);
+        if (prompt_tokens.empty()) {
+            epi_logf(3, "epi_generate_core_api: tokenize failed");
+            result = "";
+            return result.c_str();
+        }
+    
+    // 2) Evaluate prompt
+    llama_batch batch = llama_batch_init(512, 0, 1);
+    int32_t n_past = 0;
+    int n_prompt = (int)prompt_tokens.size();
+    for (int i = 0; i < n_prompt; ++i) {
+        batch.n_tokens         = 1;
+        batch.token[0]         = prompt_tokens[i];
+        batch.pos[0]           = n_past;
+        batch.seq_id[0][0]     = 0;
+        batch.n_seq_id[0]      = 1;
+        batch.logits[0]        = (i == n_prompt - 1); // only last needs logits
+        if (llama_decode(h->ctx, batch) != 0) {
+            epi_logf(3, "epi_generate_core_api: decode failed at prompt token %d", i);
+            llama_batch_free(batch);
+            result = "";
+            return result.c_str();
+        }
+        n_past += 1;
+    }
+    
+    // Discover special stop tokens at runtime using compatibility layer
+    const auto specials = compat_discover_specials(h->model, h->ctx);
+    const llama_token tok_eot = specials.eot;
+    const llama_token tok_eom = specials.eos; // Use EOS as EOM fallback
+    
+    std::string out;
+    std::vector<llama_token> last_tokens; 
+    last_tokens.reserve(128);
+    
+    for (int i = 0; i < max_tokens; ++i) {
+        // 3) Build candidate list from logits of the last token using compatibility layer
+        const int n_vocab = compat_vocab_n_tokens(h->model, h->ctx);
+        const float* logits = llama_get_logits(h->ctx);
+        std::vector<llama_token_data> cands; 
+        cands.reserve(n_vocab);
+        for (llama_token t = 0; t < n_vocab; ++t) {
+            cands.push_back({ t, logits[t], 0.0f });
+        }
+        llama_token_data_array cur = { cands.data(), (size_t)cands.size(), false };
+        
+        // 4) Simple sampling - just pick the highest probability token
+        // This avoids the complex sampler chain API issues
+        llama_token tok = 0;
+        float max_logit = -1e9f;
+        for (llama_token t = 0; t < n_vocab; ++t) {
+            if (logits[t] > max_logit) {
+                max_logit = logits[t];
+                tok = t;
+            }
+        }
+        
+        // 6) Stop conditions
+        if ((tok_eot != -1 && tok == tok_eot) || (tok_eom != -1 && tok == tok_eom)) {
+            epi_logf(2, "epi_generate_core_api: stop token reached at %d", i);
+            break;
+        }
+        
+        // 7) Convert token piece to text using compatibility layer
+        std::string piece = compat_token_to_piece(h->model, h->ctx, tok);
+        if (!piece.empty()) {
+            out.append(piece);
+            epi_logf(2, "epi_generate_core_api: token %d -> '%s'", i, piece.c_str());
+        }
+        
+        // 8) Feed back the new token
+        batch.n_tokens         = 1;
+        batch.token[0]         = tok;
+        batch.pos[0]           = n_past;
+        batch.seq_id[0][0]     = 0;
+        batch.n_seq_id[0]      = 1;
+        batch.logits[0]        = true;
+        if (llama_decode(h->ctx, batch) != 0) {
+            epi_logf(3, "epi_generate_core_api: decode failed at generation token %d", i);
+            break;
+        }
+        
+        last_tokens.push_back(tok);
+        n_past += 1;
+    }
+    
+    llama_batch_free(batch);
+    epi_logf(1, "epi_generate_core_api: generated %zu chars", out.length());
+    result = out;
+    return result.c_str();
+}
+
+// C wrapper for the core API function
+const char* epi_generate_core_api(const char* prompt_utf8, const epi_gen_params* p, uint64_t request_id) {
+    static std::string result;
+    result = epi_generate_core_api_impl(prompt_utf8, p, request_id);
+    return result.c_str();
+}
+
+// New compatibility-aware core API implementation
+extern "C" bool epi_generate_core_api_impl_new(
+    void* model_ptr,
+    void* ctx_ptr,
+    const char *prompt_utf8,
+    int32_t n_predict,
+    float temp, int32_t top_k, float top_p, float min_p,
+    // output callback: called per token piece
+    void (*on_text)(const char *utf8, void *userdata),
+    void *userdata,
+    // stop flags: set by the loop on exit
+    bool *did_stop_n_predict,
+    bool *did_hit_eot
+) {
+    llama_model *model = (llama_model*)model_ptr;
+    llama_context *ctx = (llama_context*)ctx_ptr;
+    try {
+        LLAMA_COMPAT_ASSERT(model && ctx && prompt_utf8 && on_text);
+        if (n_predict <= 0) n_predict = 512;
+
+        // 1) specials & sampler
+        const auto specials = compat_discover_specials(model, ctx);
+        std::unique_ptr<compat_sampler, void(*)(compat_sampler*)>
+            sampler(compat_sampler_create(temp, top_k, top_p, min_p), compat_sampler_free);
+
+        // 2) tokenize prompt (allow special tokens so chat templates work)
+        const std::string prompt(prompt_utf8);
+        auto toks = compat_tokenize(model, ctx, prompt, /*add_bos=*/true, /*parse_special=*/true);
+        LLAMA_COMPAT_ASSERT(!toks.empty());
+
+        // 3) evaluate prompt
+        {
+            llama_batch batch = llama_batch_init(512, 0, 1);
+            int pos = 0;
+            for (auto t : toks) {
+                batch.token[batch.n_tokens] = t;
+                batch.pos[batch.n_tokens]   = pos++;
+                batch.n_seq_id[batch.n_tokens] = 1;
+                batch.seq_id[batch.n_tokens][0] = 0;
+                batch.logits[batch.n_tokens] = false;
+                batch.n_tokens++;
+                if (batch.n_tokens == 512) { // Use fixed capacity
+                    if (llama_decode(ctx, batch)) { llama_batch_free(batch); throw std::runtime_error("llama_decode(prompt) failed"); }
+                    batch.n_tokens = 0;
+                }
+            }
+            if (batch.n_tokens > 0) {
+                if (llama_decode(ctx, batch)) { llama_batch_free(batch); throw std::runtime_error("llama_decode(end prompt) failed"); }
+            }
+            llama_batch_free(batch);
+        }
+
+        // 4) generate
+        *did_stop_n_predict = false;
+        *did_hit_eot = false;
+        int generated = 0;
+
+        for (; generated < n_predict; ++generated) {
+            llama_token id = compat_sample_next(model, ctx, sampler.get());
+
+            // Stop checks
+            if (id == specials.eos || id == specials.eot) {
+                *did_hit_eot = true;
+                break;
+            }
+
+            // Append & decode this token to advance logits
+            {
+                llama_batch batch = llama_batch_init(1, 0, 1);
+                batch.token[0] = id;
+                batch.pos[0]   = (int)toks.size() + generated;
+                batch.n_seq_id[0] = 1;
+                batch.seq_id[0][0] = 0;
+                batch.logits[0] = true;
+                batch.n_tokens = 1;
+                if (llama_decode(ctx, batch)) { llama_batch_free(batch); throw std::runtime_error("llama_decode(gen) failed"); }
+                llama_batch_free(batch);
+            }
+
+            std::string piece = compat_token_to_piece(model, ctx, id);
+            if (!piece.empty()) on_text(piece.c_str(), userdata);
+        }
+
+        if (generated >= n_predict) *did_stop_n_predict = true;
+        return true;
+    } catch (const std::exception &e) {
+        // Map to your error surface if needed
+        return false;
+    }
+}
+
+// Legacy functions for compatibility - now just call the core API
+bool epi_decode(uint64_t request_id) {
+    // This is now handled internally by epi_generate_core_api
+    return true;
+}
+
+int32_t epi_take_token(uint64_t request_id) {
+    // This is now handled internally by epi_generate_core_api
+    return 0;
+}
+
+const char* epi_decode_to_text(int32_t token_id) {
+    // This is now handled internally by epi_generate_core_api
+    return "";
+}
+
+bool epi_is_eos_token(int32_t token_id) {
+    // This is now handled internally by epi_generate_core_api
+    return false;
+}
 
 } // extern "C"

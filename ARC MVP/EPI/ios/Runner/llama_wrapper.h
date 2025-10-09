@@ -60,6 +60,29 @@ uint64_t RequestGate_current(void);
 void epi_set_top_k(int32_t top_k);
 void epi_set_top_p(float top_p);
 void epi_set_temp(float temperature);
+void epi_set_n_predict(int32_t n_predict);
+
+// Core API generation function
+const char* epi_generate_core_api(const char* prompt_utf8, const epi_gen_params* p, uint64_t request_id);
+
+// New compatibility-aware core API implementation
+bool epi_generate_core_api_impl_new(
+    void* model,
+    void* ctx,
+    const char *prompt_utf8,
+    int32_t n_predict,
+    float temp, int32_t top_k, float top_p, float min_p,
+    void (*on_text)(const char *utf8, void *userdata),
+    void *userdata,
+    bool *did_stop_n_predict,
+    bool *did_hit_eot
+);
+
+// Legacy functions for compatibility
+bool epi_decode(uint64_t request_id);
+int32_t epi_take_token(uint64_t request_id);
+const char* epi_decode_to_text(int32_t token_id);
+bool epi_is_eos_token(int32_t token_id);
 
 // Logger setup
 void epi_set_logger(void (*logger)(int level, const char* msg));
