@@ -286,7 +286,7 @@ class ModelLifecycle {
                 // Initialize llama.cpp with the GGUF model using modern API
                 NSLog("🔍🔍🔍 [ModelPreload] Calling epi_llama_init()...")
                 self.logger.info("[ModelPreload] Calling epi_llama_init()...")
-                let initResult = LLMBridge.shared.initialize(modelPath: ggufPath.path, ctxTokens: 2048, nGpuLayers: 16)
+                let initResult = LLMBridge.shared.initialize(modelPath: ggufPath.path, ctxTokens: 2048, nGpuLayers: 99) // 99 = all layers on GPU
                 NSLog("🔍🔍🔍 [ModelPreload] epi_llama_init() returned: \(initResult)")
                 self.logger.info("[ModelPreload] epi_llama_init() returned: \(initResult)")
 

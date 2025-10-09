@@ -5,7 +5,7 @@ final class LLMQuickSmoke {
             print("Smoke: model not found")
             return
         }
-        let okInit = LLMBridge.shared.initialize(modelPath: modelPath, ctxTokens: 1024, nGpuLayers: 16)
+        let okInit = LLMBridge.shared.initialize(modelPath: modelPath, ctxTokens: 1024, nGpuLayers: 99) // 99 = all layers on GPU
         print("Smoke init:", okInit); guard okInit else { return }
 
         let okStart = LLMBridge.shared.start(prompt: "Hello, my name is")

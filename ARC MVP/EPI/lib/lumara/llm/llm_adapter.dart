@@ -282,34 +282,52 @@ class LLMAdapter implements ModelAdapter {
     debugPrint('📥 USER MESSAGE LENGTH: ${userMessage.length} characters');
 
     try {
-      // Build optimized prompt using LUMARA prompt assembler
-      final contextBuilder = LumaraPromptAssembler.createContextBuilder(
-        userName: 'Marc Yap', // TODO: Get from user profile
-        currentPhase: facts['current_phase'] ?? 'Discovery',
-        recentKeywords: snippets.take(10).toList(),
-        memorySnippets: snippets.take(8).toList(),
-        journalExcerpts: chat
-            .where((turn) => turn['role'] == 'user')
-            .map((turn) => turn['content'] ?? '')
-            .where((content) => content.isNotEmpty)
-            .take(3)
-            .toList(),
-      );
+      // Use minimal prompt for simple chat messages (< 20 chars) to avoid slow prefill
+      // Only use full context for complex queries
+      final useMinimalPrompt = userMessage.length < 20 &&
+                               !userMessage.contains('?') &&
+                               snippets.isEmpty;
 
-      final promptAssembler = LumaraPromptAssembler(
-        contextBuilder: contextBuilder,
-        includeFewShotExamples: true,
-        includeQualityGuardrails: true,
-      );
+      String optimizedPrompt;
 
-      // Assemble the complete optimized prompt
-      final assembledPrompt = promptAssembler.assemblePrompt(
-        userMessage: userMessage,
-        useFewShot: true,
-      );
-      
-      // Format for Llama-3.2-Instruct using proper chat template
-      final optimizedPrompt = _formatForLlama(assembledPrompt, userMessage);
+      if (useMinimalPrompt) {
+        // Fast path: minimal prompt for quick responses
+        debugPrint('⚡ Using MINIMAL prompt for quick chat');
+        optimizedPrompt = LlamaChatTemplate.formatSimple(
+          systemMessage: "You are LUMARA, a helpful and friendly AI assistant. Keep your responses brief and natural.",
+          userMessage: userMessage,
+        );
+      } else {
+        // Full path: complete context for complex queries
+        debugPrint('📚 Using FULL prompt with context');
+        final contextBuilder = LumaraPromptAssembler.createContextBuilder(
+          userName: 'Marc Yap', // TODO: Get from user profile
+          currentPhase: facts['current_phase'] ?? 'Discovery',
+          recentKeywords: snippets.take(10).toList(),
+          memorySnippets: snippets.take(8).toList(),
+          journalExcerpts: chat
+              .where((turn) => turn['role'] == 'user')
+              .map((turn) => turn['content'] ?? '')
+              .where((content) => content.isNotEmpty)
+              .take(3)
+              .toList(),
+        );
+
+        final promptAssembler = LumaraPromptAssembler(
+          contextBuilder: contextBuilder,
+          includeFewShotExamples: false, // Disable few-shot for faster prefill
+          includeQualityGuardrails: false, // Disable guardrails for faster prefill
+        );
+
+        // Assemble the complete optimized prompt
+        final assembledPrompt = promptAssembler.assemblePrompt(
+          userMessage: userMessage,
+          useFewShot: false, // Disable few-shot examples
+        );
+
+        // Format for Llama-3.2-Instruct using proper chat template
+        optimizedPrompt = _formatForLlama(assembledPrompt, userMessage);
+      }
 
       debugPrint('📝 OPTIMIZED PROMPT LENGTH: ${optimizedPrompt.length} characters');
       debugPrint('📝 PROMPT PREVIEW: ${optimizedPrompt.substring(0, 200)}...');
