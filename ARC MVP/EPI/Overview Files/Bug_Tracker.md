@@ -1,9 +1,14 @@
 # Bug Tracker - EPI ARC MVP
 
-## Active Issues
+## 🎉 All Critical Issues Resolved - Production Ready
 
-### Memory Management Crash During First Decode - IN PROGRESS 🔄 - January 8, 2025
-**Status:** 🔄 **IN PROGRESS**
+**Last Updated:** January 8, 2025  
+**Status:** ✅ **PRODUCTION READY** - All critical bugs fixed
+
+## Resolved Issues
+
+### Memory Management Crash During First Decode - RESOLVED ✅ - January 8, 2025
+**Status:** ✅ **RESOLVED**
 **Priority:** Critical
 **Component:** llama.cpp Integration & Memory Management
 
@@ -19,33 +24,152 @@ The app successfully loads the Llama 3.2 3B model with Metal GPU acceleration (1
 - ❌ Crash occurs during first `llama_decode` call in `start_core` function
 
 **Root Cause Analysis:**
-The crash is happening in the `start_core` function where we're improperly managing the `llama_batch` lifecycle. The issue is likely:
+The crash was happening in the `start_core` function where we were improperly managing the `llama_batch` lifecycle. The issue was:
 
 1. **Batch Management Error**: Calling `llama_batch_free(batch)` on a local batch variable instead of the handle's batch
 2. **Double-Free Error**: Attempting to free memory that was already freed or not properly allocated
 3. **Memory Corruption**: Incorrect batch initialization or population causing memory corruption
 
-**Current Status:**
-- ✅ **Compilation Fixed**: Resolved `llama_batch` struct handling issues
-- ✅ **Model Loading**: Successfully loads with Metal GPU acceleration
-- ✅ **Tokenization**: Working correctly with proper buffer sizing
-- 🔄 **Memory Management**: Currently debugging batch lifecycle issues
-- ❌ **Generation**: Crashes during first decode operation
+**Resolution:**
+- ✅ **Fixed Batch Management**: Implemented proper RAII pattern for `llama_batch` management
+- ✅ **Added Re-entrancy Guard**: Added `std::atomic<bool> feeding{false}` guard to prevent duplicate calls
+- ✅ **Memory Safety**: Each batch allocated and freed in same scope
+- ✅ **Error Handling**: Enhanced error handling with guard reset on all exit paths
 
-**Next Steps:**
-1. Fix `llama_batch` lifecycle management in `start_core` function
-2. Ensure proper batch initialization and cleanup
-3. Test generation without crashes
-4. Verify token streaming works correctly
+**Files Modified:**
+- `ios/Runner/llama_wrapper.cpp` - Fixed batch management in `start_core` function
+- `ios/Runner/llama_wrapper.h` - Ensured proper batch handling
 
-**Files Being Modified:**
-- `ios/Runner/llama_wrapper.cpp` - Fix batch management in `start_core` function
-- `ios/Runner/llama_wrapper.h` - Ensure proper batch handling
+**Result:**
+- ✅ Memory management crash completely eliminated
+- ✅ Successful token generation and streaming
+- ✅ Complete end-to-end on-device LLM functionality
 
-**Expected Resolution:**
-- Fix memory management to prevent double-free errors
-- Enable successful token generation and streaming
-- Complete end-to-end on-device LLM functionality
+### Double Generation Calls - RESOLVED ✅ - January 8, 2025
+**Status:** ✅ **RESOLVED**
+**Priority:** Critical
+**Component:** Generation Architecture & Concurrency
+
+**Issue:**
+Two native generation starts for one prompt causing RequestGate conflicts and PlatformException 500 errors.
+
+**Error Symptoms:**
+- ❌ Multiple "=== GGUF GENERATION START ===" logs per user message
+- ❌ RequestGate conflicts: `cur=9551...` vs `req=8210... already in flight`
+- ❌ PlatformException 500 errors for busy state
+- ❌ Memory exhaustion from duplicate calls
+
+**Root Cause Analysis:**
+Semaphore-based async approach with recursive call chains causing infinite loops:
+`LLMBridge.generateText() → generateTextAsync() → startNativeGenerationWithCallbacks() → startNativeGeneration() → ModelLifecycle.generate() → LLMBridge.generateText()`
+
+**Resolution:**
+- ✅ **Single-Flight Architecture**: Replaced semaphore approach with `genQ.sync`
+- ✅ **Request ID Propagation**: Proper end-to-end request ID passing
+- ✅ **Direct Native Path**: Bypassed intermediate layers with `startNativeGenerationDirectNative()`
+- ✅ **Error Mapping**: Added 409 for `already_in_flight`, 500 for real errors
+
+**Files Modified:**
+- `ios/Runner/LLMBridge.swift` - Implemented single-flight generation
+- `ios/Runner/llama_wrapper.cpp` - Added proper request ID handling
+
+**Result:**
+- ✅ Only ONE generation call per user message
+- ✅ No more RequestGate conflicts
+- ✅ Clean error handling with meaningful codes
+
+### CoreGraphics NaN Crashes - RESOLVED ✅ - January 8, 2025
+**Status:** ✅ **RESOLVED**
+**Priority:** High
+**Component:** UI Rendering & Progress Calculations
+
+**Issue:**
+NaN values reaching CoreGraphics causing UI crashes and console spam.
+
+**Error Symptoms:**
+- ❌ CoreGraphics NaN warnings in console
+- ❌ UI rendering crashes
+- ❌ Progress bars showing invalid values
+- ❌ Divide-by-zero in progress calculations
+
+**Root Cause Analysis:**
+Uninitialized progress values and divide-by-zero in UI calculations, especially when `total == 0` initially.
+
+**Resolution:**
+- ✅ **Swift Helpers**: Added `clamp01()` and `safeCGFloat()` helpers
+- ✅ **Flutter Helpers**: Added `clamp01()` helpers in all UI components
+- ✅ **Progress Safety**: Updated `LinearProgressIndicator` to use safe values
+- ✅ **Runtime Detection**: Added NaN detection with debug warnings
+
+**Files Modified:**
+- `ios/Runner/LLMBridge.swift` - Added CoreGraphics safety helpers
+- `lib/lumara/llm/model_progress_service.dart` - Added safe progress calculation
+- `lib/lumara/ui/model_download_screen.dart` - Updated progress usage
+- `lib/lumara/ui/lumara_settings_screen.dart` - Updated progress usage
+
+**Result:**
+- ✅ No CoreGraphics NaN warnings
+- ✅ All UI components render safely
+- ✅ Progress bars work correctly
+
+### Misleading Metal Logs - RESOLVED ✅ - January 8, 2025
+**Status:** ✅ **RESOLVED**
+**Priority:** Medium
+**Component:** Logging & System Detection
+
+**Issue:**
+"metal: not compiled" messages despite Metal being active and working.
+
+**Error Symptoms:**
+- ❌ Misleading "metal: not compiled" logs
+- ❌ Confusion about actual Metal status
+- ❌ Compile-time checks instead of runtime detection
+
+**Root Cause Analysis:**
+Using compile-time macro checks instead of runtime detection of actual Metal usage.
+
+**Resolution:**
+- ✅ **Runtime Detection**: Using `llama_print_system_info()` for accurate detection
+- ✅ **Engagement Status**: Shows "metal: engaged (16 layers)" when active
+- ✅ **Compilation Status**: Shows "metal: compiled in (not engaged)" when compiled but not used
+- ✅ **Double-Init Guard**: Prevents duplicate initialization logs
+
+**Files Modified:**
+- `ios/Runner/llama_wrapper.cpp` - Implemented runtime Metal detection
+
+**Result:**
+- ✅ Accurate Metal status reporting
+- ✅ Clear distinction between compiled vs engaged
+- ✅ Single init log per run
+
+### Model Path Case Sensitivity - RESOLVED ✅ - January 8, 2025
+**Status:** ✅ **RESOLVED**
+**Priority:** Medium
+**Component:** Model Resolution & File System
+
+**Issue:**
+Model files not found due to case mismatch between expected and actual filenames.
+
+**Error Symptoms:**
+- ❌ "not found at not found" logging confusion
+- ❌ Models not detected due to case sensitivity
+- ❌ `Qwen3-4B-Instruct-2507-Q5_K_M.gguf` vs `qwen3-4b-instruct-2507-q5_k_m.gguf`
+
+**Root Cause Analysis:**
+Exact case matching in file system checks, filesystem case sensitivity variations.
+
+**Resolution:**
+- ✅ **Case-Insensitive Resolution**: Added `resolveModelPath()` function
+- ✅ **Clean Logging**: Shows "found at /path/to/file.gguf" or "not found"
+- ✅ **Directory Search**: Searches directory contents case-insensitively
+
+**Files Modified:**
+- `ios/Runner/ModelDownloadService.swift` - Added case-insensitive resolution
+
+**Result:**
+- ✅ Models found regardless of filename case
+- ✅ Clean, accurate logging
+- ✅ Reliable model detection
 
 ### llama.cpp Upgrade Success - Modern C API Integration - RESOLVED ✅ - January 7, 2025
 **Status:** ✅ **RESOLVED**

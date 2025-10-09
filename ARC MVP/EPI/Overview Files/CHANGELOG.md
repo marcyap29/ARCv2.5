@@ -2,6 +2,34 @@
 
 ## [Unreleased]
 
+### 🚀 **ROOT CAUSE FIXES COMPLETE - PRODUCTION READY** - January 8, 2025
+
+#### **Critical Issues Resolved** ✅ **PRODUCTION READY**
+- **CoreGraphics Safety**: ✅ **FIXED** - No more NaN crashes in UI rendering with clamp01() helpers
+- **Single-Flight Generation**: ✅ **IMPLEMENTED** - Only one generation call per user message
+- **Metal Logs Accuracy**: ✅ **FIXED** - Runtime detection shows "metal: engaged (16 layers)"
+- **Model Path Resolution**: ✅ **FIXED** - Case-insensitive model file detection
+- **Error Handling**: ✅ **IMPROVED** - Proper error codes (409 for busy, 500 for real errors)
+- **Infinite Loops**: ✅ **ELIMINATED** - No more recursive generation calls
+
+#### **Technical Fixes Implemented** ✅ **COMPLETE**
+- **CoreGraphics NaN Prevention**: Added Swift `clamp01()` and `safeCGFloat()` helpers
+- **Single-Flight Architecture**: Replaced semaphore approach with `genQ.sync`
+- **Request Gating**: Thread-safe concurrency control with atomic operations
+- **Memory Management**: Fixed double-free crashes with proper RAII patterns
+- **Runtime Detection**: Metal status using `llama_print_system_info()`
+- **Error Mapping**: Proper error codes and meaningful messages
+
+#### **Files Modified**:
+- `ios/Runner/LLMBridge.swift` - Added CoreGraphics safety helpers and single-flight generation
+- `ios/Runner/llama_wrapper.cpp` - Fixed memory management and runtime Metal detection
+- `ios/Runner/ModelDownloadService.swift` - Added case-insensitive model resolution
+- `lib/lumara/llm/model_progress_service.dart` - Added safe progress calculation
+- `lib/lumara/ui/model_download_screen.dart` - Updated progress usage with clamp01()
+- `lib/lumara/ui/lumara_settings_screen.dart` - Updated progress usage with clamp01()
+
+#### **Result**: 🏆 **ALL ROOT CAUSES ELIMINATED - PRODUCTION READY**
+
 ### 🚀 **LLAMA.CPP UPGRADE SUCCESS - MODERN C API INTEGRATION** - January 7, 2025
 
 #### **Complete llama.cpp Modernization** ✅ **SUCCESSFUL**
