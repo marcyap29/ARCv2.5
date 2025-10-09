@@ -843,17 +843,33 @@ class LLMBridge: NSObject, LumaraNative {
         logger.info("⚙️  Using Dart params: maxTokens=\(params.maxTokens), temp=\(params.temperature), topP=\(params.topP), repeatPenalty=\(params.repeatPenalty)")
 
         logger.info("🚀 Calling ModelLifecycle.generate with optimized prompt...")
-        let result = try ModelLifecycle.shared.generate(prompt: prompt, params: params)
-
-        logger.info("✅ ModelLifecycle.generate returned:")
-        logger.info("  text: '\(result.text)'")
-        logger.info("  tokensIn: \(result.tokensIn)")
-        logger.info("  tokensOut: \(result.tokensOut)")
-        logger.info("  latencyMs: \(result.latencyMs)")
-        logger.info("  provider: \(result.provider)")
-
-        logger.info("🟦🟦🟦 === generateText EXIT === 🟦🟦🟩")
-        return result
+        
+        do {
+            let result = try ModelLifecycle.shared.generate(prompt: prompt, params: params)
+            
+            logger.info("✅ ModelLifecycle.generate returned:")
+            logger.info("  text: '\(result.text)'")
+            logger.info("  tokensIn: \(result.tokensIn)")
+            logger.info("  tokensOut: \(result.tokensOut)")
+            logger.info("  latencyMs: \(result.latencyMs)")
+            logger.info("  provider: \(result.provider)")
+            
+            // Reset guards on successful completion
+            generationQueue.async {
+                self.isGenerating = false
+            }
+            RequestGate_end(currentRequestId)
+            
+            logger.info("🟦🟦🟦 === generateText EXIT === 🟦🟦🟩")
+            return result
+        } catch {
+            // Reset guards on error
+            generationQueue.async {
+                self.isGenerating = false
+            }
+            RequestGate_end(currentRequestId)
+            throw error
+        }
     }
 
     func getModelRootPath() throws -> String {
