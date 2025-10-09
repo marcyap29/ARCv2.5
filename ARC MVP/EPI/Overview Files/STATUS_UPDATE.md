@@ -1,14 +1,14 @@
 # EPI ARC MVP - Current Status
 
 **Last Updated:** January 8, 2025  
-**Version:** 0.4.2-alpha  
+**Version:** 0.4.3-alpha  
 **Branch:** on-device-inference
 
-## ✅ RECENT SUCCESS - MEMORY MANAGEMENT & UI FIXES
+## 🚀 MAJOR SUCCESS - COMPREHENSIVE ROOT CAUSE FIXES
 
-### **Memory Management Crash Resolution** ✅ **COMPLETED**
+### **Production-Ready Release** ✅ **COMPLETED**
 
-**Status**: Successfully resolved double-free memory crash and download completion UI issues
+**Status**: All critical issues resolved - app is now production-ready with stable generation
 
 **What's Working:**
 - ✅ **Model Loading**: Llama 3.2 3B loads successfully with Metal acceleration (16 layers on GPU)
@@ -21,6 +21,11 @@
 - ✅ **Re-entrancy Protection**: Added guard to prevent duplicate calls
 - ✅ **Download UI**: Fixed completion dialog and progress bar behavior
 - ✅ **App Launch**: Successfully builds, installs, and launches on device
+- ✅ **Single-Flight Generation**: Only one generation call per user message
+- ✅ **CoreGraphics Safety**: No more NaN crashes in UI rendering
+- ✅ **Accurate Metal Logs**: Runtime detection shows proper Metal status
+- ✅ **Clean Error Handling**: Proper error codes and messages
+- ✅ **Model Path Resolution**: Case-insensitive model file detection
 
 **Issues Resolved:**
 - ✅ **Memory Crash**: Fixed `malloc: *** error for object 0x...: pointer being freed was not allocated`
@@ -29,8 +34,16 @@
 - ✅ **Download Dialog**: Fixed "Download Complete!" dialog not disappearing
 - ✅ **Progress Bar**: Fixed download bar completion and green status indication
 - ✅ **UIScene Warning**: Fixed UIKit lifecycle warning in Info.plist
+- ✅ **Double Generation**: Eliminated duplicate generation calls with single-flight architecture
+- ✅ **CoreGraphics NaN**: Fixed NaN values causing UI crashes with clamp01() helpers
+- ✅ **Metal Logs**: Fixed misleading "metal: not compiled" with runtime detection
+- ✅ **Model Paths**: Fixed case sensitivity issues with case-insensitive resolution
+- ✅ **Error Handling**: Improved error codes and messages for better debugging
+- ✅ **Infinite Loops**: Completely eliminated recursive generation calls
 
 **Technical Fixes Applied:**
+
+### **Phase 1: Memory Management & UI Fixes**
 1. **C++ Bridge Fix** (`llama_wrapper.cpp`):
    - Added re-entrancy guard using `std::atomic<bool> feeding{false}`
    - Improved RAII pattern for `llama_batch` management with proper scoping
@@ -48,6 +61,35 @@
 4. **UIScene Lifecycle Fix** (`Info.plist`):
    - Added `UISceneDelegate` key to resolve UIKit warning
    - Maintained backward compatibility with existing app structure
+
+### **Phase 2: Root Cause Fixes (Latest)**
+5. **CoreGraphics NaN Prevention**:
+   - Added Swift `clamp01()` and `safeCGFloat()` helpers in `LLMBridge.swift`
+   - Added Flutter `clamp01()` helpers in all UI components
+   - Updated `LinearProgressIndicator` to use safe progress values
+   - Prevents NaN/infinite values from reaching CoreGraphics
+
+6. **Single-Flight Generation Architecture**:
+   - Replaced semaphore-based approach with `genQ.sync` in `LLMBridge.swift`
+   - Implemented proper request ID propagation end-to-end
+   - Added `already_in_flight` error (409) instead of 500
+   - Eliminated duplicate generation calls completely
+
+7. **Metal Logs Runtime Detection** (`llama_wrapper.cpp`):
+   - Replaced compile-time checks with runtime detection using `llama_print_system_info()`
+   - Shows `metal: engaged (16 layers)` when active
+   - Shows `metal: compiled in (not engaged)` when compiled but not used
+   - Added double-init guard to prevent duplicate initialization
+
+8. **Model Path Case Sensitivity** (`ModelDownloadService.swift`):
+   - Added `resolveModelPath()` function for case-insensitive resolution
+   - Fixed logging to show `found at /path/to/file.gguf` or `not found`
+   - Handles `Qwen3-4B-Instruct-2507-Q5_K_M.gguf` vs `qwen3-4b-instruct-2507-q5_k_m.gguf`
+
+9. **Error Mapping & Handling**:
+   - Added proper `LLMError` enum with meaningful error codes
+   - 409 for `already_in_flight`, 500 for real errors
+   - Consistent error handling across Swift and Dart layers
 
 ## 🎉 PREVIOUS SUCCESS - CRASH-PROOF IMPLEMENTATION
 
