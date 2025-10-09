@@ -11,6 +11,26 @@
 #include <thread>
 #include <signal.h>
 
+// Request Gate implementation (inline to avoid separate compilation)
+class RequestGate {
+public:
+  static bool begin(uint64_t id) {
+    uint64_t expected = 0;
+    return s_inFlight.compare_exchange_strong(expected, id);
+  }
+  static void end(uint64_t id) {
+    // only clear if the same id still in-flight
+    uint64_t cur = s_inFlight.load();
+    if (cur == id) s_inFlight.store(0);
+  }
+  static uint64_t current() { return s_inFlight.load(); }
+  static bool isBusy() { return s_inFlight.load() != 0; }
+private:
+  static std::atomic<uint64_t> s_inFlight;
+};
+
+std::atomic<uint64_t> RequestGate::s_inFlight{0};
+
 // Modern handle-based approach
 struct epi_handle_t {
     llama_model *   model  = nullptr;
@@ -25,6 +45,10 @@ struct epi_handle_t {
     std::vector<llama_token> prompt_toks;
     epi_callbacks        cbs{nullptr, nullptr};
     bool                 modern_mode = false;
+    
+    // Re-entrancy protection - instance-based, not static
+    std::atomic<bool>    feeding{false};
+    std::atomic<bool>    starting{false};
 };
 
 // Global state
@@ -360,10 +384,10 @@ bool epi_llama_start_with_fallback(const char* prompt_utf8) {
 }
 
 // Modern streaming API implementation
-bool epi_start(const char* prompt_utf8, const epi_gen_params* p, epi_callbacks cbs) {
+bool epi_start(const char* prompt_utf8, const epi_gen_params* p, epi_callbacks cbs, uint64_t request_id) {
     std::lock_guard<std::mutex> lk(g_mu);
-    epi_logf(1, "ENTER epi_start tid=%lu state=%d handle=%p", 
-             tid(), g_state.load(), g_handle.load());
+    epi_logf(1, "ENTER epi_start tid=%lu state=%d handle=%p request_id=%llu", 
+             tid(), g_state.load(), g_handle.load(), request_id);
     
     auto* h = g_handle.load(std::memory_order_acquire);
     if (!h) {
@@ -376,10 +400,27 @@ bool epi_start(const char* prompt_utf8, const epi_gen_params* p, epi_callbacks c
         return false;
     }
     
-    // Check if already generating
+    // Global request gate - prevent duplicate calls
+    if (!RequestGate::begin(request_id)) {
+        epi_logf(3, "epi_start rejected: request %llu already in flight (current: %llu)", 
+                 request_id, RequestGate::current());
+        return false;
+    }
+    
+    // Instance-based re-entrancy guard for epi_start
     bool expected = false;
+    if (!h->starting.compare_exchange_strong(expected, true)) {
+        epi_logf(3, "epi_start already in progress - ignoring duplicate call (request_id=%llu)", request_id);
+        RequestGate::end(request_id); // Release gate
+        return false;
+    }
+    
+    // Check if already generating
+    expected = false;
     if (!g_generating.compare_exchange_strong(expected, true)) {
         epi_logf(3, "generation already in progress - ignoring duplicate call");
+        h->starting = false; // Reset guard
+        RequestGate::end(request_id); // Release gate
         return false;
     }
     
@@ -415,6 +456,8 @@ bool epi_start(const char* prompt_utf8, const epi_gen_params* p, epi_callbacks c
         if (n_tokens <= 0) {
             epi_logf(3, "epi_start: tokenize failed n_tokens=%d", n_tokens);
             g_generating = false;
+            h->starting = false; // Reset guard
+            RequestGate::end(request_id); // Release gate
             return false;
         }
         
@@ -427,21 +470,24 @@ bool epi_start(const char* prompt_utf8, const epi_gen_params* p, epi_callbacks c
         epi_logf(1, "epi_start: kv cleared");
         
         g_state.store(2, std::memory_order_release);
-        epi_logf(1, "EXIT epi_start tid=%lu state=%d handle=%p", 
-                 tid(), g_state.load(), g_handle.load());
+        h->starting = false; // Reset guard on success
+        epi_logf(1, "EXIT epi_start tid=%lu state=%d handle=%p request_id=%llu", 
+                 tid(), g_state.load(), g_handle.load(), request_id);
         return true;
         
     } catch (...) {
         epi_logf(3, "unhandled C++ exception in epi_start");
         g_generating = false;
+        h->starting = false; // Reset guard
+        RequestGate::end(request_id); // Release gate
         return false;
     }
 }
 
-bool epi_feed(int n_prompt_tokens) {
+bool epi_feed(int n_prompt_tokens, uint64_t request_id) {
     std::lock_guard<std::mutex> lk(g_mu);
-    epi_logf(1, "ENTER epi_feed tid=%lu state=%d handle=%p", 
-             tid(), g_state.load(), g_handle.load());
+    epi_logf(1, "ENTER epi_feed tid=%lu state=%d handle=%p request_id=%llu", 
+             tid(), g_state.load(), g_handle.load(), request_id);
     
     auto* h = g_handle.load(std::memory_order_acquire);
     if (!h || !h->modern_mode) {
@@ -449,11 +495,17 @@ bool epi_feed(int n_prompt_tokens) {
         return false;
     }
     
-    // Re-entrancy guard - prevent duplicate calls
-    static std::atomic<bool> feeding{false};
+    // Verify this request is still in flight
+    if (RequestGate::current() != request_id) {
+        epi_logf(3, "epi_feed rejected: request %llu not in flight (current: %llu)", 
+                 request_id, RequestGate::current());
+        return false;
+    }
+    
+    // Instance-based re-entrancy guard - prevent duplicate calls
     bool expected = false;
-    if (!feeding.compare_exchange_strong(expected, true)) {
-        epi_logf(3, "epi_feed already in progress - ignoring duplicate call");
+    if (!h->feeding.compare_exchange_strong(expected, true)) {
+        epi_logf(3, "epi_feed already in progress - ignoring duplicate call (request_id=%llu)", request_id);
         return false;
     }
     
@@ -470,7 +522,8 @@ bool epi_feed(int n_prompt_tokens) {
             llama_batch batch = llama_batch_init(n, /*embd*/0, /*alloc*/1);
             if (!batch.token) {
                 epi_logf(3, "epi_feed: batch init failed (off=%d n=%d)", off, n);
-                feeding = false; // Reset guard
+                h->feeding = false; // Reset guard
+                RequestGate::end(request_id); // Release gate
                 return false;
             }
             
@@ -490,7 +543,8 @@ bool epi_feed(int n_prompt_tokens) {
                 if (rc != 0) {
                     epi_logf(3, "epi_feed: decode failed rc=%d (off=%d n=%d)", rc, off, n);
                     llama_batch_free(batch);
-                    feeding = false; // Reset guard
+                    h->feeding = false; // Reset guard
+                    RequestGate::end(request_id); // Release gate
                     return false;
                 }
                 epi_logf(1, "epi_feed: off=%d n=%d decode ok", off, n);
@@ -501,14 +555,16 @@ bool epi_feed(int n_prompt_tokens) {
             off += n;
         }
         
-        epi_logf(1, "EXIT epi_feed tid=%lu state=%d handle=%p", 
-                 tid(), g_state.load(), g_handle.load());
-        feeding = false; // Reset guard
+        epi_logf(1, "EXIT epi_feed tid=%lu state=%d handle=%p request_id=%llu", 
+                 tid(), g_state.load(), g_handle.load(), request_id);
+        h->feeding = false; // Reset guard
+        RequestGate::end(request_id); // Release gate
         return true;
         
     } catch (...) {
         epi_logf(3, "unhandled C++ exception in epi_feed");
-        feeding = false; // Reset guard
+        h->feeding = false; // Reset guard
+        RequestGate::end(request_id); // Release gate
         return false;
     }
 }

@@ -50,8 +50,8 @@ void epi_llama_stop(void);
 // - start(): callee COPIES prompt and stores cbs. Returns when ready to feed.
 // - feed():  decodes the copied prompt in internal batches; n_prompt_tokens is ignored if callee tokenized.
 // - stop():  finalizes generation and clears internal buffers.
-bool epi_start(const char* prompt_utf8, const epi_gen_params* p, epi_callbacks cbs);
-bool epi_feed(int n_prompt_tokens);
+bool epi_start(const char* prompt_utf8, const epi_gen_params* p, epi_callbacks cbs, uint64_t request_id);
+bool epi_feed(int n_prompt_tokens, uint64_t request_id);
 bool epi_stop(void);
 
 // Optional simple sampler controls

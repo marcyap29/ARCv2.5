@@ -57,10 +57,10 @@ func epi_llama_start_with_fallback(_ prompt: UnsafePointer<CChar>?) -> Bool
 
 // Modern streaming API
 @_silgen_name("epi_start")
-func epi_start(_ prompt: UnsafePointer<CChar>, _ params: UnsafePointer<EpiGenParams>, _ cbs: EpiCallbacks) -> Bool
+func epi_start(_ prompt: UnsafePointer<CChar>, _ params: UnsafePointer<EpiGenParams>, _ cbs: EpiCallbacks, _ requestId: UInt64) -> Bool
 
 @_silgen_name("epi_feed")
-func epi_feed(_ nPromptTokens: Int32) -> Bool
+func epi_feed(_ nPromptTokens: Int32, _ requestId: UInt64) -> Bool
 
 @_silgen_name("epi_stop")
 func epi_stop() -> Bool
@@ -120,6 +120,7 @@ class ModelLifecycle {
     private var isRunning = false
     private var currentModelId: String?
     private let loadQueue = DispatchQueue(label: "com.epi.model.load", qos: .userInitiated)
+    private var isGenerating = false  // ModelLifecycle-level re-entrancy guard
 
     // Progress API reference
     weak var progressApi: LumaraNativeProgress?
@@ -270,6 +271,14 @@ class ModelLifecycle {
                 NSLocalizedDescriptionKey: "No model is loaded"
             ])
         }
+        
+        // ModelLifecycle-level re-entrancy guard
+        guard !isGenerating else {
+            logger.warning("ModelLifecycle.generate already in progress - ignoring duplicate call")
+            throw NSError(domain: "ModelLifecycle", code: -1, userInfo: [NSLocalizedDescriptionKey: "Generation already in progress"])
+        }
+        isGenerating = true
+        defer { isGenerating = false }
 
         // Only support GGUF models
         let ggufModelIds = [
@@ -483,6 +492,9 @@ class LLMBridge: NSObject, LumaraNative {
     private var loggerInstalled = false
     private var inFlight = false
     private let queue = DispatchQueue(label: "epi.llama.serial")
+    private var requestCounter: UInt64 = 0
+    private var currentRequestId: UInt64 = 0
+    private var isGenerating = false  // Swift-level re-entrancy guard
     
     private override init() {
         super.init()
@@ -572,8 +584,15 @@ class LLMBridge: NSObject, LumaraNative {
                 user: Unmanaged.passUnretained(self).toOpaque()
             )
             
+            // Generate unique request ID
+            let requestId = requestCounter
+            requestCounter += 1
+            currentRequestId = requestId
+            
+            logger.info("GEN_SWIFT_ENTER reqId=\(requestId) thread=\(Thread.current)")
+            
             result = prompt.withCString { cstr in
-                epi_start(cstr, &params, cbs)
+                epi_start(cstr, &params, cbs, requestId)
             }
             
             if !result {
@@ -627,7 +646,7 @@ class LLMBridge: NSObject, LumaraNative {
         isStreaming = true
         
         // Use modern API - feed the prompt tokens with re-entrancy protection
-        let feedResult = epi_feed(0) // n_prompt_tokens is ignored in modern API
+        let feedResult = epi_feed(0, currentRequestId) // n_prompt_tokens is ignored in modern API
         if !feedResult {
             logger.error("epi_feed failed")
             isStreaming = false
@@ -763,6 +782,14 @@ class LLMBridge: NSObject, LumaraNative {
 
     func generateText(prompt: String, params: GenParams) throws -> GenResult {
         logger.info("🟦🟦🟦 === generateText ENTRY === 🟦🟦🟩")
+        
+        // Swift-level re-entrancy guard
+        guard !isGenerating else {
+            logger.warning("generateText already in progress - ignoring duplicate call")
+            throw NSError(domain: "LLMBridge", code: -1, userInfo: [NSLocalizedDescriptionKey: "Generation already in progress"])
+        }
+        isGenerating = true
+        defer { isGenerating = false }
         
         // Assert prompt is not empty
         assert(!prompt.isEmpty, "Empty prompt reached LLMBridge.generateText")
