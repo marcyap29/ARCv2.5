@@ -33,6 +33,15 @@ class ModelDownloadScreen extends StatefulWidget {
 class _ModelDownloadScreenState extends State<ModelDownloadScreen> {
   final LumaraNative _bridge = LumaraNative();
   final DownloadStateService _downloadStateService = DownloadStateService.instance;
+  
+  /// Safe progress calculation to prevent NaN and infinite values
+  double _safeProgress(double progress) {
+    if (progress.isNaN || !progress.isFinite) {
+      debugPrint('[ModelDownload] Warning: Invalid progress value $progress, using 0.0');
+      return 0.0;
+    }
+    return progress.clamp(0.0, 1.0);
+  }
 
   // Available GGUF models for download (llama.cpp + Metal)
   static const List<ModelInfo> _availableModels = [
@@ -320,7 +329,7 @@ class _ModelDownloadScreenState extends State<ModelDownloadScreen> {
     final state = _downloadStateService.getState(model.id);
     final isDownloaded = state?.isDownloaded ?? false;
     final isDownloading = state?.isDownloading ?? false;
-    final progress = state?.progress ?? 0.0;
+    final progress = _safeProgress(state?.progress ?? 0.0);
     final status = state?.statusMessage ?? '';
     final error = state?.errorMessage;
     final downloadSizeText = state?.downloadSizeText ?? '';

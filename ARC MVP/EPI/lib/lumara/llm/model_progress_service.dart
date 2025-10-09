@@ -11,6 +11,15 @@ class ModelProgressService implements pigeon.LumaraNativeProgress {
 
   final _controller = StreamController<ModelProgressUpdate>.broadcast();
   final _downloadStateService = DownloadStateService.instance;
+  
+  /// Safe progress calculation to prevent NaN and infinite values
+  double _safeProgress(double progress) {
+    if (progress.isNaN || !progress.isFinite) {
+      debugPrint('[ModelProgress] Warning: Invalid progress value $progress, using 0.0');
+      return 0.0;
+    }
+    return progress.clamp(0.0, 1.0);
+  }
 
   /// Stream of progress updates
   Stream<ModelProgressUpdate> get progressStream => _controller.stream;
@@ -30,14 +39,16 @@ class ModelProgressService implements pigeon.LumaraNativeProgress {
 
   @override
   void downloadProgress(String modelId, double progress, String message) {
+    // Safe progress calculation to prevent NaN
+    final safeProgress = _safeProgress(progress);
     final update = ModelProgressUpdate(
       modelId: modelId,
-      progress: (progress * 100).round(),
+      progress: (safeProgress * 100).round(),
       message: message,
-      isComplete: progress >= 1.0,
+      isComplete: safeProgress >= 1.0,
     );
 
-    debugPrint('[DownloadProgress] $modelId: ${(progress * 100).toStringAsFixed(1)}% - $message');
+    debugPrint('[DownloadProgress] $modelId: ${(safeProgress * 100).toStringAsFixed(1)}% - $message');
     _controller.add(update);
 
     // Parse byte information from message (format: "Downloading: X.X / Y.Y MB")

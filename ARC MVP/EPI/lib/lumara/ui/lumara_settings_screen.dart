@@ -21,6 +21,15 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
   final EnhancedLumaraApi _lumaraApi = EnhancedLumaraApi(Analytics());
   final DownloadStateService _downloadStateService = DownloadStateService.instance;
   final Map<LLMProvider, TextEditingController> _apiKeyControllers = {};
+  
+  /// Safe progress calculation to prevent NaN and infinite values
+  double _safeProgress(double progress) {
+    if (progress.isNaN || !progress.isFinite) {
+      debugPrint('[LumaraSettings] Warning: Invalid progress value $progress, using 0.0');
+      return 0.0;
+    }
+    return progress.clamp(0.0, 1.0);
+  }
 
   LLMProvider? _selectedProvider;
 
@@ -404,7 +413,7 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
                       ),
                     ),
                     Text(
-                      '${(downloadingState.progress * 100).toStringAsFixed(1)}%',
+                      '${(_safeProgress(downloadingState.progress) * 100).toStringAsFixed(1)}%',
                       style: theme.textTheme.bodySmall?.copyWith(
                         color: theme.colorScheme.primary,
                         fontWeight: FontWeight.bold,
@@ -424,7 +433,7 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
                 ],
                 const SizedBox(height: 12),
                 LinearProgressIndicator(
-                  value: downloadingState.progress,
+                  value: _safeProgress(downloadingState.progress),
                   minHeight: 4,
                   borderRadius: BorderRadius.circular(2),
                 ),

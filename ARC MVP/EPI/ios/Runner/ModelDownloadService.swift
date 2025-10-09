@@ -8,6 +8,14 @@ import os.log
 class ModelDownloadService: NSObject {
     static let shared = ModelDownloadService()
     private let logger = Logger(subsystem: "EPI", category: "ModelDownload")
+    
+    /// Resolve model path case-insensitively
+    func resolveModelPath(fileName: String, under dir: URL) -> URL? {
+        let want = fileName.lowercased()
+        let fm = FileManager.default
+        guard let files = try? fm.contentsOfDirectory(at: dir, includingPropertiesForKeys: nil) else { return nil }
+        return files.first { $0.lastPathComponent.lowercased() == want }
+    }
 
     // Track multiple concurrent downloads by model ID
     private var downloadTasks: [String: URLSessionDownloadTask] = [:]
@@ -136,15 +144,10 @@ class ModelDownloadService: NSObject {
             let documentsPath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
             let ggufModelsPath = documentsPath.appendingPathComponent("gguf_models")
             
-            // Check for both exact case and lowercase versions (Hugging Face uses lowercase)
-            let exactPath = ggufModelsPath.appendingPathComponent(modelId)
-            let lowercasePath = ggufModelsPath.appendingPathComponent(modelId.lowercased())
-            
-            let exactExists = FileManager.default.fileExists(atPath: exactPath.path)
-            let lowercaseExists = FileManager.default.fileExists(atPath: lowercasePath.path)
-            
-            let exists = exactExists || lowercaseExists
-            let foundPath = exactExists ? exactPath.path : lowercasePath.path
+            // Case-insensitive model resolution
+            let resolvedPath = resolveModelPath(fileName: modelId, under: ggufModelsPath)
+            let exists = resolvedPath != nil
+            let foundPath = resolvedPath?.path ?? "not found"
             
             logger.info("Checking GGUF model \(modelId): \(exists ? "found" : "not found") at \(foundPath)")
             return exists

@@ -280,6 +280,13 @@ bool epi_llama_init(const char* model_path, int32_t n_ctx, int32_t n_gpu_layers)
     epi_logf(1, "ENTER init tid=%lu state=%d handle=%p path=%s ctx=%d gpu=%d", 
              tid(), g_state.load(), g_handle.load(), model_path, n_ctx, n_gpu_layers);
     
+    // Guard against double initialization
+    static std::atomic<bool> s_inited{false};
+    if (s_inited.exchange(true)) {
+        epi_logf(1, "init: already initialized; skipping");
+        return true;
+    }
+    
     // Install signal handlers for crash detection
     epi_install_signals();
     
@@ -320,11 +327,10 @@ bool epi_llama_init(const char* model_path, int32_t n_ctx, int32_t n_gpu_layers)
     g_handle.store(h, std::memory_order_release);
     g_state.store(1, std::memory_order_release);
     
-#if defined(LLAMA_METAL)
-    epi_logf(1, "metal: compiled in");
-#else
-    epi_logf(1, "metal: not compiled");
-#endif
+    // Runtime metal detection - more accurate than compile-time check
+    const std::string sys = llama_print_system_info();
+    const bool metalCompiled = sys.find("metal") != std::string::npos;
+    epi_logf(1, "metal: %s", metalCompiled ? "compiled in" : "not compiled");
     epi_logf(1, "gpu layers requested=%d", n_gpu_layers);
     
     epi_logf(1, "EXIT  init tid=%lu state=%d handle=%p SUCCESS", 
