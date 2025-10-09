@@ -358,7 +358,7 @@ class ModelLifecycle {
         logger.info("🚀 Direct native generation req=\(requestId)")
         
         // Call native generation directly to avoid recursive loop
-        let result = try self.startNativeGeneration(prompt: prompt, params: params, requestId: requestId)
+        let result = try LLMBridge.shared.startNativeGenerationDirectNative(prompt: prompt, params: params, requestId: requestId)
         
         let latencyMs = Int(Date().timeIntervalSince(startTime) * 1000)
         
@@ -970,7 +970,7 @@ class LLMBridge: NSObject, LumaraNative {
         Thread.sleep(forTimeInterval: 0.1)
         
         // Clean up the generated text
-        let cleanedText = self.cleanQwenOutput(generatedText)
+        let cleanedText = ModelLifecycle.shared.cleanQwenOutput(generatedText)
         let latencyMs = Int(Date().timeIntervalSince(startTime) * 1000)
         
         logger.info("✅ Direct native generation completed:")
