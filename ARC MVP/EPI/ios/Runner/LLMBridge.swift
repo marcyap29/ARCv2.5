@@ -5,6 +5,37 @@
 
 import Foundation
 import os.log
+
+// MARK: - CoreGraphics NaN Prevention Helpers
+
+@inline(__always)
+func clamp01(_ x: Double?) -> Double? {
+    guard let x, x.isFinite else { return nil }     // nil = indeterminate progress in SwiftUI/Flutter
+    return min(max(x, 0), 1)
+}
+
+@inline(__always)
+func safeCGFloat(_ v: CGFloat, _ label: String) -> CGFloat {
+    if !v.isFinite || v.isNaN { 
+        NSLog("NaN in \(label)"); 
+        return 0 
+    }
+    return v
+}
+
+// MARK: - Error Mapping
+
+enum LLMError: LocalizedError {
+    case alreadyInFlight
+    case runtime(String)
+    
+    var errorDescription: String? {
+        switch self {
+        case .alreadyInFlight: return "already_in_flight"
+        case .runtime(let m):  return m
+        }
+    }
+}
 import CryptoKit
 
 // MARK: - C Struct Definitions
@@ -807,39 +838,42 @@ class LLMBridge: NSObject, LumaraNative {
         let requestId = UInt64.random(in: 1...UInt64.max)
         logger.info("🚀 start req=\(requestId)")
         
-        var result: GenResult?
-        var error: Error?
-        let semaphore = DispatchSemaphore(value: 0)
-        
-        // Use async callback approach to avoid deadlocks
-        generateTextAsync(prompt: prompt, params: params, requestId: requestId) { genResult in
-            switch genResult {
-            case .success(let res):
-                result = res
-            case .failure(let err):
-                error = err
+        // Single-flight generation with proper request ID propagation
+        return try generateSingleFlight(prompt: prompt, params: params, requestId: requestId)
+    }
+    
+    private func generateSingleFlight(prompt: String, params: GenParams, requestId: UInt64) throws -> GenResult {
+        return try genQ.sync { [weak self] in
+            guard let self = self else {
+                throw LLMError.bridge(code: 500, message: "LLMBridge deallocated")
             }
-            semaphore.signal()
+            
+            // Check if already in flight
+            if self.isGenerating {
+                logger.warning("Generation already in flight, rejecting request \(requestId)")
+                throw LLMError.bridge(code: 409, message: "already_in_flight")
+            }
+            
+            self.isGenerating = true
+            self.currentRequestId = requestId
+            defer { 
+                self.isGenerating = false
+                self.currentRequestId = 0
+            }
+            
+            logger.info("🚀 Direct native generation req=\(requestId)")
+            
+            // Call native generation directly to avoid recursive loop
+            let result = try self.startNativeGenerationDirectNative(prompt: prompt, params: params, requestId: requestId)
+            
+            let latencyMs = Int(Date().timeIntervalSince(Date()) * 1000)
+            
+            logger.info("✅ Direct native generation completed:")
+            logger.info("  text: '\(result.text)'")
+            logger.info("  latencyMs: \(latencyMs)")
+            
+            return result
         }
-        
-        let timeout = DispatchTime.now() + .seconds(30)
-        let waitResult = semaphore.wait(timeout: timeout)
-        
-        if waitResult == .timedOut {
-            logger.error("Generation timed out")
-            throw LLMError.bridge(code: 408, message: "Generation timed out")
-        }
-        
-        if let error = error {
-            throw error
-        }
-        
-        guard let finalResult = result else {
-            throw LLMError.bridge(code: 500, message: "No result returned")
-        }
-        
-        logger.info("🟦🟦🟦 === generateText EXIT === 🟦🟦🟩")
-        return finalResult
     }
     
     private func generateTextAsync(prompt: String, params: GenParams, requestId: UInt64, completion: @escaping (Result<GenResult, Error>) -> Void) {

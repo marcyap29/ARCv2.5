@@ -20,6 +20,16 @@ class ModelProgressService implements pigeon.LumaraNativeProgress {
     }
     return progress.clamp(0.0, 1.0);
   }
+  
+  /// Clamp progress to 0-1 range, return null for invalid values (indeterminate progress)
+  double? clamp01(num? x) {
+    if (x == null) return null;
+    final d = x.toDouble();
+    if (!d.isFinite) return null;
+    if (d < 0) return 0;
+    if (d > 1) return 1;
+    return d;
+  }
 
   /// Stream of progress updates
   Stream<ModelProgressUpdate> get progressStream => _controller.stream;

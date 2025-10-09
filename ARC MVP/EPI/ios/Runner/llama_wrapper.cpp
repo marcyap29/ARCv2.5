@@ -330,7 +330,16 @@ bool epi_llama_init(const char* model_path, int32_t n_ctx, int32_t n_gpu_layers)
     // Runtime metal detection - more accurate than compile-time check
     const std::string sys = llama_print_system_info();
     const bool metalCompiled = sys.find("metal") != std::string::npos;
-    epi_logf(1, "metal: %s", metalCompiled ? "compiled in" : "not compiled");
+    const bool metalEngaged = sys.find("offloading") != std::string::npos && sys.find("GPU") != std::string::npos;
+    
+    if (metalEngaged) {
+        // Extract layer count from system info if possible
+        epi_logf(1, "metal: engaged (%d layers)", n_gpu_layers);
+    } else if (metalCompiled) {
+        epi_logf(1, "metal: compiled in (not engaged)");
+    } else {
+        epi_logf(1, "metal: not compiled");
+    }
     epi_logf(1, "gpu layers requested=%d", n_gpu_layers);
     
     epi_logf(1, "EXIT  init tid=%lu state=%d handle=%p SUCCESS", 

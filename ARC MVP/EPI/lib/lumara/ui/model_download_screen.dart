@@ -42,6 +42,16 @@ class _ModelDownloadScreenState extends State<ModelDownloadScreen> {
     }
     return progress.clamp(0.0, 1.0);
   }
+  
+  /// Clamp progress to 0-1 range, return null for invalid values (indeterminate progress)
+  double? clamp01(num? x) {
+    if (x == null) return null;
+    final d = x.toDouble();
+    if (!d.isFinite) return null;
+    if (d < 0) return 0;
+    if (d > 1) return 1;
+    return d;
+  }
 
   // Available GGUF models for download (llama.cpp + Metal)
   static const List<ModelInfo> _availableModels = [
@@ -437,7 +447,7 @@ class _ModelDownloadScreenState extends State<ModelDownloadScreen> {
               ),
               const SizedBox(height: 8),
               LinearProgressIndicator(
-                value: progress,
+                value: clamp01(progress),
                 minHeight: 6,
                 borderRadius: BorderRadius.circular(3),
               ),

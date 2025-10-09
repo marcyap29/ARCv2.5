@@ -30,6 +30,16 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
     }
     return progress.clamp(0.0, 1.0);
   }
+  
+  /// Clamp progress to 0-1 range, return null for invalid values (indeterminate progress)
+  double? clamp01(num? x) {
+    if (x == null) return null;
+    final d = x.toDouble();
+    if (!d.isFinite) return null;
+    if (d < 0) return 0;
+    if (d > 1) return 1;
+    return d;
+  }
 
   LLMProvider? _selectedProvider;
 
@@ -433,7 +443,7 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
                 ],
                 const SizedBox(height: 12),
                 LinearProgressIndicator(
-                  value: _safeProgress(downloadingState.progress),
+                  value: clamp01(downloadingState.progress),
                   minHeight: 4,
                   borderRadius: BorderRadius.circular(2),
                 ),

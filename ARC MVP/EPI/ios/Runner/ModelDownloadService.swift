@@ -147,9 +147,12 @@ class ModelDownloadService: NSObject {
             // Case-insensitive model resolution
             let resolvedPath = resolveModelPath(fileName: modelId, under: ggufModelsPath)
             let exists = resolvedPath != nil
-            let foundPath = resolvedPath?.path ?? "not found"
             
-            logger.info("Checking GGUF model \(modelId): \(exists ? "found" : "not found") at \(foundPath)")
+            if let path = resolvedPath {
+                logger.info("Checking GGUF model \(modelId): found at \(path.path)")
+            } else {
+                logger.info("Checking GGUF model \(modelId): not found")
+            }
             return exists
         }
         
