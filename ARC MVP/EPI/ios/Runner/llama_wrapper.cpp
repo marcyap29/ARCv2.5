@@ -16,12 +16,20 @@ class RequestGate {
 public:
   static bool begin(uint64_t id) {
     uint64_t expected = 0;
-    return s_inFlight.compare_exchange_strong(expected, id);
+    const bool ok = s_inFlight.compare_exchange_strong(expected, id);
+    epi_logf(3, ok ? "RequestGate::begin ok %llu"
+                   : "RequestGate::begin busy cur=%llu req=%llu",
+             ok ? id : expected, id);
+    return ok;
   }
   static void end(uint64_t id) {
-    // only clear if the same id still in-flight
-    uint64_t cur = s_inFlight.load();
-    if (cur == id) s_inFlight.store(0);
+    const uint64_t cur = s_inFlight.load();
+    if (cur == id) {
+      s_inFlight.store(0);
+      epi_logf(3, "RequestGate::end released %llu", id);
+    } else {
+      epi_logf(1, "RequestGate::end mismatch cur=%llu req=%llu", cur, id);
+    }
   }
   static uint64_t current() { return s_inFlight.load(); }
   static bool isBusy() { return s_inFlight.load() != 0; }
@@ -31,9 +39,17 @@ private:
 
 std::atomic<uint64_t> RequestGate::s_inFlight{0};
 
-// C wrapper for Swift
+// C wrappers for Swift
+extern "C" bool RequestGate_begin(uint64_t request_id) {
+    return RequestGate::begin(request_id);
+}
+
 extern "C" void RequestGate_end(uint64_t request_id) {
     RequestGate::end(request_id);
+}
+
+extern "C" uint64_t RequestGate_current(void) {
+    return RequestGate::current();
 }
 
 // Modern handle-based approach

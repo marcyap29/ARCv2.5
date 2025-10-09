@@ -65,8 +65,14 @@ func epi_feed(_ nPromptTokens: Int32, _ requestId: UInt64) -> Bool
 @_silgen_name("epi_stop")
 func epi_stop() -> Bool
 
+@_silgen_name("RequestGate_begin")
+func RequestGate_begin(_ requestId: UInt64) -> Bool
+
 @_silgen_name("RequestGate_end")
 func RequestGate_end(_ requestId: UInt64)
+
+@_silgen_name("RequestGate_current")
+func RequestGate_current() -> UInt64
 
 // MARK: - GGUF Model Management
 
@@ -123,7 +129,7 @@ class ModelLifecycle {
     private var isRunning = false
     private var currentModelId: String?
     private let loadQueue = DispatchQueue(label: "com.epi.model.load", qos: .userInitiated)
-    private var isGenerating = false  // ModelLifecycle-level re-entrancy guard
+    // Re-entrancy guard removed - now handled by LLMBridge
 
     // Progress API reference
     weak var progressApi: LumaraNativeProgress?
@@ -275,13 +281,7 @@ class ModelLifecycle {
             ])
         }
         
-        // ModelLifecycle-level re-entrancy guard
-        guard !isGenerating else {
-            logger.warning("ModelLifecycle.generate already in progress - ignoring duplicate call")
-            throw NSError(domain: "ModelLifecycle", code: -1, userInfo: [NSLocalizedDescriptionKey: "Generation already in progress"])
-        }
-        isGenerating = true
-        defer { isGenerating = false }
+        // Re-entrancy protection now handled by LLMBridge
 
         // Only support GGUF models
         let ggufModelIds = [
@@ -343,8 +343,14 @@ class ModelLifecycle {
             }
         }
 
-        // Stream generation
-        LLMBridge.shared.stream {
+        // Generate synchronously (stream removed)
+        do {
+            let result = try LLMBridge.shared.generateText(prompt: prompt, params: params)
+            // Simulate streaming by posting the result as a token
+            NotificationCenter.default.post(name: .llmToken, object: result.text)
+            NotificationCenter.default.removeObserver(tokenObserver)
+            semaphore.signal()
+        } catch {
             NotificationCenter.default.removeObserver(tokenObserver)
             semaphore.signal()
         }
@@ -495,14 +501,41 @@ class LLMBridge: NSObject, LumaraNative {
     private var loggerInstalled = false
     private var inFlight = false
     private let queue = DispatchQueue(label: "epi.llama.serial")
-    private var requestCounter: UInt64 = 0
+    // Serial queue guarantees ordering of start → stream → finish → cleanup
+    private let genQ = DispatchQueue(label: "ai.epi.llmbridge.generation")
+    
+    // Minimal shared state with unfair lock
+    private var isGenerating = false
     private var currentRequestId: UInt64 = 0
-    private var isGenerating = false  // Swift-level re-entrancy guard
-    private let generationQueue = DispatchQueue(label: "com.epi.generation", qos: .userInitiated)
+    private var stateLock = os_unfair_lock_s()
     
     private override init() {
         super.init()
         installLoggerOnce()
+    }
+    
+    // MARK: - State Management
+    
+    private func setBusy(_ busy: Bool, requestId: UInt64 = 0) {
+        os_unfair_lock_lock(&stateLock)
+        isGenerating = busy
+        currentRequestId = busy ? requestId : 0
+        os_unfair_lock_unlock(&stateLock)
+    }
+    
+    private func snapshotState() -> (Bool, UInt64) {
+        os_unfair_lock_lock(&stateLock)
+        let s = (isGenerating, currentRequestId)
+        os_unfair_lock_unlock(&stateLock)
+        return s
+    }
+    
+    // MARK: - Error Types
+    
+    enum LLMError: Error {
+        case busy(code: Int, message: String)
+        case native(code: Int, message: String)
+        case bridge(code: Int, message: String)
     }
     
     // MARK: - Logger Setup
@@ -589,8 +622,7 @@ class LLMBridge: NSObject, LumaraNative {
             )
             
             // Generate unique request ID
-            let requestId = requestCounter
-            requestCounter += 1
+            let requestId = UInt64.random(in: 1...UInt64.max)
             currentRequestId = requestId
             
             logger.info("GEN_SWIFT_ENTER reqId=\(requestId) thread=\(Thread.current)")
@@ -645,41 +677,14 @@ class LLMBridge: NSObject, LumaraNative {
         NotificationCenter.default.post(name: .llmToken, object: piece)
     }
 
-    func stream(onComplete: @escaping () -> Void) {
-        guard !isStreaming else { return }
-        isStreaming = true
-        
-        // Use modern API - feed the prompt tokens with re-entrancy protection
-        let feedResult = epi_feed(0, currentRequestId) // n_prompt_tokens is ignored in modern API
-        if !feedResult {
-            logger.error("epi_feed failed")
-            isStreaming = false
-            generationQueue.async {
-                self.isGenerating = false  // Reset guard on failure
-            }
-            RequestGate_end(currentRequestId)  // Release request gate
-            onComplete()
-            return
-        }
-        
-        // For now, just complete immediately since we're not implementing full generation yet
-        // In a full implementation, this would continue generating tokens
-        DispatchQueue.global(qos: .userInitiated).async {
-            self.isStreaming = false
-            self.generationQueue.async {
-                self.isGenerating = false  // Reset guard on completion
-            }
-            RequestGate_end(self.currentRequestId)  // Release request gate
-            onComplete()
-        }
-    }
+    // Stream function removed - using synchronous generation approach
 
     func stop() {
         epi_stop()
         isStreaming = false
         // Reset guards on manual stop
-        generationQueue.async {
-            self.isGenerating = false
+        genQ.async {
+            self.setBusy(false, requestId: 0)
         }
         RequestGate_end(currentRequestId)
     }
@@ -800,22 +805,80 @@ class LLMBridge: NSObject, LumaraNative {
     func generateText(prompt: String, params: GenParams) throws -> GenResult {
         logger.info("🟦🟦🟦 === generateText ENTRY === 🟦🟦🟩")
         
-        // Swift-level re-entrancy guard (thread-safe)
-        var canProceed = false
-        generationQueue.sync {
-            guard !isGenerating else {
-                logger.warning("generateText already in progress - ignoring duplicate call")
+        // Generate unique request ID
+        let requestId = UInt64.random(in: 1...UInt64.max)
+        logger.info("🚀 start req=\(requestId)")
+        
+        // Use synchronous approach to avoid race conditions
+        var result: GenResult?
+        var error: Error?
+        let semaphore = DispatchSemaphore(value: 0)
+        
+        genQ.async { [weak self] in
+            guard let self = self else { return }
+            
+            // Gate check in Swift (fast fail) and C++ (hard fail)
+            let (busy, _) = self.snapshotState()
+            if busy {
+                error = LLMError.busy(code: 409, message: "Another generation is in flight")
+                semaphore.signal()
                 return
             }
-            isGenerating = true
-            canProceed = true
+            
+            // Acquire both guards
+            self.setBusy(true, requestId: requestId)
+            guard RequestGate_begin(requestId) else {
+                self.setBusy(false, requestId: 0)
+                error = LLMError.busy(code: 409, message: "Native engine is busy")
+                semaphore.signal()
+                return
+            }
+            
+            // Ensure cleanup exactly once on any exit
+            var cleanedUp = false
+            let cleanup: () -> Void = {
+                guard !cleanedUp else { return }
+                cleanedUp = true
+                RequestGate_end(requestId)            // native first
+                self.setBusy(false, requestId: 0)     // then Swift
+                self.logger.info("cleanup req=\(requestId) finished")
+            }
+            
+            // Start native generation
+            do {
+                let genResult = try self.startNativeGeneration(prompt: prompt, params: params, requestId: requestId)
+                cleanup()
+                result = genResult
+                semaphore.signal()
+            } catch let genError {
+                cleanup()
+                error = genError
+                semaphore.signal()
+            }
         }
         
-        guard canProceed else {
-            throw NSError(domain: "LLMBridge", code: -1, userInfo: [NSLocalizedDescriptionKey: "Generation already in progress"])
-        }
-        // Note: isGenerating will be reset in completion/cancel callbacks, not here
+        // Wait for completion (with timeout)
+        let timeout = DispatchTime.now() + .seconds(30)
+        let waitResult = semaphore.wait(timeout: timeout)
         
+        if waitResult == .timedOut {
+            logger.error("Generation timed out")
+            throw LLMError.bridge(code: 408, message: "Generation timed out")
+        }
+        
+        if let error = error {
+            throw error
+        }
+        
+        guard let finalResult = result else {
+            throw LLMError.bridge(code: 500, message: "No result returned")
+        }
+        
+        logger.info("🟦🟦🟦 === generateText EXIT === 🟦🟦🟩")
+        return finalResult
+    }
+    
+    private func startNativeGeneration(prompt: String, params: GenParams, requestId: UInt64) throws -> GenResult {
         // Assert prompt is not empty
         assert(!prompt.isEmpty, "Empty prompt reached LLMBridge.generateText")
         
@@ -844,32 +907,16 @@ class LLMBridge: NSObject, LumaraNative {
 
         logger.info("🚀 Calling ModelLifecycle.generate with optimized prompt...")
         
-        do {
-            let result = try ModelLifecycle.shared.generate(prompt: prompt, params: params)
-            
-            logger.info("✅ ModelLifecycle.generate returned:")
-            logger.info("  text: '\(result.text)'")
-            logger.info("  tokensIn: \(result.tokensIn)")
-            logger.info("  tokensOut: \(result.tokensOut)")
-            logger.info("  latencyMs: \(result.latencyMs)")
-            logger.info("  provider: \(result.provider)")
-            
-            // Reset guards on successful completion
-            generationQueue.async {
-                self.isGenerating = false
-            }
-            RequestGate_end(currentRequestId)
-            
-            logger.info("🟦🟦🟦 === generateText EXIT === 🟦🟦🟩")
-            return result
-        } catch {
-            // Reset guards on error
-            generationQueue.async {
-                self.isGenerating = false
-            }
-            RequestGate_end(currentRequestId)
-            throw error
-        }
+        let result = try ModelLifecycle.shared.generate(prompt: prompt, params: params)
+        
+        logger.info("✅ ModelLifecycle.generate returned:")
+        logger.info("  text: '\(result.text)'")
+        logger.info("  tokensIn: \(result.tokensIn)")
+        logger.info("  tokensOut: \(result.tokensOut)")
+        logger.info("  latencyMs: \(result.latencyMs)")
+        logger.info("  provider: \(result.provider)")
+        
+        return result
     }
 
     func getModelRootPath() throws -> String {

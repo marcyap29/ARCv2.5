@@ -54,6 +54,7 @@ bool epi_start(const char* prompt_utf8, const epi_gen_params* p, epi_callbacks c
 bool epi_feed(int n_prompt_tokens, uint64_t request_id);
 bool epi_stop(void);
 void RequestGate_end(uint64_t request_id);
+uint64_t RequestGate_current(void);
 
 // Optional simple sampler controls
 void epi_set_top_k(int32_t top_k);
