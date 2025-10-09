@@ -320,52 +320,11 @@ class ModelLifecycle {
         let temperature = params.temperature
         let topP = params.topP
 
-        // Start generation using modern API
-        let startResult = LLMBridge.shared.start(prompt: prompt, topK: 40, topP: Float(topP), temp: Float(temperature))
-        if !startResult {
-            logger.error("Failed to start generation")
-            throw NSError(domain: "LLMBridge", code: 500, userInfo: [NSLocalizedDescriptionKey: "Failed to start generation"])
-        }
-
-        var generatedText = ""
-        let semaphore = DispatchSemaphore(value: 0)
-
-        // Set up token callback
-        let tokenObserver = NotificationCenter.default.addObserver(
-            forName: .llmToken,
-            object: nil,
-            queue: .main
-        ) { [weak self] notification in
-            guard let self = self else { return }
-            if let token = notification.object as? String {
-                generatedText += token
-                self.logger.info("Token: '\(token)'")
-            }
-        }
-
-        // Generate synchronously (stream removed)
-        do {
-            let result = try LLMBridge.shared.generateText(prompt: prompt, params: params)
-            // Simulate streaming by posting the result as a token
-            NotificationCenter.default.post(name: .llmToken, object: result.text)
-            NotificationCenter.default.removeObserver(tokenObserver)
-            semaphore.signal()
-        } catch {
-            NotificationCenter.default.removeObserver(tokenObserver)
-            semaphore.signal()
-        }
-
-        // Wait for completion (with timeout)
-        let timeout = DispatchTime.now() + .seconds(30)
-        let result = semaphore.wait(timeout: timeout)
+        // Use the new synchronous generation approach
+        let result = try LLMBridge.shared.generateText(prompt: prompt, params: params)
         
-        if result == .timedOut {
-            logger.error("Generation timed out")
-            LLMBridge.shared.stop()
-        }
-
         // Clean up the generated text
-        let cleanedText = cleanQwenOutput(generatedText)
+        let cleanedText = cleanQwenOutput(result.text)
         logger.info("📤 GGUF GENERATED TEXT:")
         logger.info("  '\(cleanedText)'")
         logger.info("  Length: \(cleanedText.count) characters")
@@ -383,10 +342,10 @@ class ModelLifecycle {
 
         return GenResult(
             text: finalText,
-            tokensIn: Int64(prompt.count / 4), // Rough token estimate (4 chars per token)
-            tokensOut: Int64(finalText.count / 4), // Rough token estimate (4 chars per token)
+            tokensIn: result.tokensIn,
+            tokensOut: result.tokensOut,
             latencyMs: Int64(latencyMs),
-            provider: "llama.cpp-gguf"
+            provider: result.provider
         )
     }
 
