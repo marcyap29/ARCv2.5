@@ -65,6 +65,9 @@ func epi_feed(_ nPromptTokens: Int32, _ requestId: UInt64) -> Bool
 @_silgen_name("epi_stop")
 func epi_stop() -> Bool
 
+@_silgen_name("RequestGate_end")
+func RequestGate_end(_ requestId: UInt64)
+
 // MARK: - GGUF Model Management
 
 /// Simple GGUF model path resolver
@@ -495,6 +498,7 @@ class LLMBridge: NSObject, LumaraNative {
     private var requestCounter: UInt64 = 0
     private var currentRequestId: UInt64 = 0
     private var isGenerating = false  // Swift-level re-entrancy guard
+    private let generationQueue = DispatchQueue(label: "com.epi.generation", qos: .userInitiated)
     
     private override init() {
         super.init()
@@ -650,6 +654,10 @@ class LLMBridge: NSObject, LumaraNative {
         if !feedResult {
             logger.error("epi_feed failed")
             isStreaming = false
+            generationQueue.async {
+                self.isGenerating = false  // Reset guard on failure
+            }
+            RequestGate_end(currentRequestId)  // Release request gate
             onComplete()
             return
         }
@@ -658,6 +666,10 @@ class LLMBridge: NSObject, LumaraNative {
         // In a full implementation, this would continue generating tokens
         DispatchQueue.global(qos: .userInitiated).async {
             self.isStreaming = false
+            self.generationQueue.async {
+                self.isGenerating = false  // Reset guard on completion
+            }
+            RequestGate_end(self.currentRequestId)  // Release request gate
             onComplete()
         }
     }
@@ -665,6 +677,11 @@ class LLMBridge: NSObject, LumaraNative {
     func stop() {
         epi_stop()
         isStreaming = false
+        // Reset guards on manual stop
+        generationQueue.async {
+            self.isGenerating = false
+        }
+        RequestGate_end(currentRequestId)
     }
 
     func shutdown() {
@@ -783,13 +800,21 @@ class LLMBridge: NSObject, LumaraNative {
     func generateText(prompt: String, params: GenParams) throws -> GenResult {
         logger.info("🟦🟦🟦 === generateText ENTRY === 🟦🟦🟩")
         
-        // Swift-level re-entrancy guard
-        guard !isGenerating else {
-            logger.warning("generateText already in progress - ignoring duplicate call")
+        // Swift-level re-entrancy guard (thread-safe)
+        var canProceed = false
+        generationQueue.sync {
+            guard !isGenerating else {
+                logger.warning("generateText already in progress - ignoring duplicate call")
+                return
+            }
+            isGenerating = true
+            canProceed = true
+        }
+        
+        guard canProceed else {
             throw NSError(domain: "LLMBridge", code: -1, userInfo: [NSLocalizedDescriptionKey: "Generation already in progress"])
         }
-        isGenerating = true
-        defer { isGenerating = false }
+        // Note: isGenerating will be reset in completion/cancel callbacks, not here
         
         // Assert prompt is not empty
         assert(!prompt.isEmpty, "Empty prompt reached LLMBridge.generateText")

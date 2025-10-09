@@ -31,6 +31,11 @@ private:
 
 std::atomic<uint64_t> RequestGate::s_inFlight{0};
 
+// C wrapper for Swift
+extern "C" void RequestGate_end(uint64_t request_id) {
+    RequestGate::end(request_id);
+}
+
 // Modern handle-based approach
 struct epi_handle_t {
     llama_model *   model  = nullptr;
@@ -495,10 +500,15 @@ bool epi_feed(int n_prompt_tokens, uint64_t request_id) {
         return false;
     }
     
-    // Verify this request is still in flight
-    if (RequestGate::current() != request_id) {
+    // Verify this request is still in flight and matches
+    uint64_t current_id = RequestGate::current();
+    if (current_id == 0) {
+        epi_logf(3, "epi_feed rejected: no request in flight (request_id=%llu)", request_id);
+        return false;
+    }
+    if (current_id != request_id) {
         epi_logf(3, "epi_feed rejected: request %llu not in flight (current: %llu)", 
-                 request_id, RequestGate::current());
+                 request_id, current_id);
         return false;
     }
     
