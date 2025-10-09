@@ -72,3 +72,4 @@ class LlamaChatTemplate {
     return tokenId == 128008;
   }
 }
+

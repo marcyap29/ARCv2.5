@@ -30,14 +30,8 @@ class LumaraPromptAssembler {
     buffer.writeln(LumaraSystemPrompt.universal);
     buffer.writeln();
     
-    // 2. Few-Shot Examples (optional)
-    if (useFewShot && includeFewShotExamples) {
-      buffer.writeln('<<FEWSHOT>>');
-      buffer.writeln(LumaraSystemPrompt.fewShotExample1);
-      buffer.writeln();
-      buffer.writeln(LumaraSystemPrompt.fewShotExample2);
-      buffer.writeln();
-    }
+    // 2. Mode-specific addendums (ultra-terse or code-task)
+    // Disabled few-shot examples for mobile speed optimization
     
     // 3. Context Block
     buffer.writeln('<<CONTEXT>>');
@@ -51,11 +45,7 @@ class LumaraPromptAssembler {
     buffer.writeln(taskTemplate);
     buffer.writeln();
     
-    // 5. Quality Guardrails (optional)
-    if (includeQualityGuardrails) {
-      buffer.writeln(LumaraSystemPrompt.qualityGuardrails);
-      buffer.writeln();
-    }
+    // 5. Quality Guardrails - Disabled for mobile speed optimization
     
     // 6. User Message
     buffer.writeln('<<USER>>');

@@ -342,8 +342,8 @@ class LLMAdapter implements ModelAdapter {
       
       // Adaptive max tokens based on query complexity
       final adaptiveMaxTokens = useMinimalPrompt
-          ? 64   // Simple greetings need ~10-30 tokens
-          : (preset['max_new_tokens'] ?? 256);
+          ? 50   // Ultra-terse: simple greetings (20-50 tokens)
+          : (preset['max_new_tokens'] ?? 80);  // Standard mobile: 40-80 tokens
 
       final params = pigeon.GenParams(
         maxTokens: adaptiveMaxTokens,

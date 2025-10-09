@@ -3,36 +3,30 @@
 /// Optimized inference parameters for different model types
 
 class LumaraModelPresets {
-  /// Llama 3.2 3B (Q4_K_M) preset - optimized for mobile
+  /// Llama 3.2 3B (Q4_K_M) preset - iPhone 16 Pro optimized
+  /// Based on ChatGPT LUMARA-on-mobile recommendations
   static const Map<String, dynamic> llama32_3b = {
     'temperature': 0.7,
-    'top_p': 0.85,  // Slightly reduced for faster sampling
-    'min_p': 0.05,
-    'typical_p': 1.0,
-    'top_k': 30,    // Reduced from 40 for faster sampling
-    'repeat_penalty': 1.1,
-    'max_new_tokens': 128,  // Reduced from 256 for faster responses
-    'stop_tokens': ['</s>', '```', '\n\n[END]', '\n[TASK]'],
+    'top_p': 0.9,   // Standard nucleus sampling
+    // Disabled for speed: top_k, min_p, typical_p, penalties
+    'max_new_tokens': 80,  // Mobile-optimized default
+    'stop_tokens': ['[END]', '</s>', '<|eot_id|>'],  // [END] is primary stop
   };
 
-  /// Phi-3.5-Mini Instruct (Q4_K_M) preset
+  /// Phi-3.5-Mini Instruct (Q4_K_M) preset - iPhone 16 Pro optimized
   static const Map<String, dynamic> phi35_mini = {
-    'temperature': 0.5,
+    'temperature': 0.7,
     'top_p': 0.9,
-    'top_k': 0, // nucleus-only often helps Phi
-    'repeat_penalty': 1.08,
-    'max_new_tokens': 220,
-    'stop_tokens': ['</s>', '```', '\n\n[END]', '\n[TASK]'],
+    'max_new_tokens': 80,
+    'stop_tokens': ['[END]', '</s>'],
   };
 
-  /// Qwen-3/2.5 4B Instruct (Q5_K_M or Q4_K_M) preset
+  /// Qwen-3/2.5 4B Instruct (Q5_K_M or Q4_K_M) preset - iPhone 16 Pro optimized
   static const Map<String, dynamic> qwen3_4b = {
-    'temperature': 0.65,
-    'top_p': 0.875,
-    'top_k': 35,
-    'repeat_penalty': 1.12,
-    'max_new_tokens': 288,
-    'stop_tokens': ['<|im_end|>', '</s>', '```', '\n\n[END]', '\n[TASK]'],
+    'temperature': 0.7,
+    'top_p': 0.9,
+    'max_new_tokens': 80,
+    'stop_tokens': ['[END]', '<|im_end|>', '</s>'],
   };
 
   /// Get preset by model name

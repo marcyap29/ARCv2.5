@@ -1,0 +1,91 @@
+{
+  "description": "LUMARA mobile-optimized profiles for iPhone 16 Pro (A18 Pro GPU)",
+  "source": "ChatGPT recommendations for LUMARA-on-mobile",
+  "version": "1.0.0",
+  "profiles": [
+    {
+      "id": "llama-3.2-3b-instruct-q4_k_m",
+      "label": "Llama 3.2 3B Instruct Q4_K_M (iPhone 16 Pro)",
+      "model_path": "models/Llama-3.2-3b-Instruct-Q4_K_M.gguf",
+      "runtime": {
+        "n_gpu_layers": -1,
+        "n_ctx": 1024,
+        "n_batch": 512,
+        "n_threads": 6,
+        "kv_type": "q8_0",
+        "flash_attn": true,
+        "logits_all": false
+      },
+      "sampling": {
+        "temperature": 0.7,
+        "top_p": 0.9,
+        "max_tokens": 80,
+        "stop": ["[END]", "</s>", "<|eot_id|>"]
+      },
+      "notes": "Optimal for general use. Fast, balanced quality."
+    },
+    {
+      "id": "qwen-4b-instruct-q4_k_m",
+      "label": "Qwen 4B Instruct Q4_K_M (iPhone 16 Pro)",
+      "model_path": "models/Qwen3-4B-Instruct-2507-Q5_K_M.gguf",
+      "runtime": {
+        "n_gpu_layers": -1,
+        "n_ctx": 1024,
+        "n_batch": 512,
+        "n_threads": 6,
+        "kv_type": "q8_0",
+        "flash_attn": true,
+        "logits_all": false
+      },
+      "sampling": {
+        "temperature": 0.7,
+        "top_p": 0.9,
+        "max_tokens": 80,
+        "stop": ["[END]", "<|im_end|>", "</s>"]
+      },
+      "notes": "Good for reasoning tasks. Slightly slower than Llama."
+    },
+    {
+      "id": "phi-3.5-mini-instruct-q4_k_m",
+      "label": "Phi-3.5 Mini Instruct Q4_K_M (iPhone 16 Pro)",
+      "model_path": "models/Phi-3.5-mini-instruct-Q5_K_M.gguf",
+      "runtime": {
+        "n_gpu_layers": -1,
+        "n_ctx": 1024,
+        "n_batch": 512,
+        "n_threads": 6,
+        "kv_type": "q8_0",
+        "flash_attn": true,
+        "logits_all": false
+      },
+      "sampling": {
+        "temperature": 0.7,
+        "top_p": 0.9,
+        "max_tokens": 80,
+        "stop": ["[END]", "</s>"]
+      },
+      "notes": "Excellent for math and code. Fast and efficient."
+    }
+  ],
+  "modes": {
+    "ultra_terse": {
+      "description": "Use when the user says 'be quick' or system detects thermal throttling",
+      "sampling": {
+        "max_tokens": 50
+      },
+      "system_addendum": "You reply in 20–50 tokens, bullets preferred, no follow-ups unless required for safety. Always end with \"[END]\"."
+    },
+    "code_task": {
+      "description": "Trigger when the user asks for code, CLI, or steps",
+      "system_addendum": "For code: output a minimal working snippet, then 1–3 bullets for run/inputs/limits. No additional explanation unless asked. End with \"[END]\"."
+    }
+  },
+  "tips": [
+    "Warm-load model and reuse KV cache for system prompt",
+    "Keep phone cool - thermal throttling will reduce tokens/sec",
+    "Use n_ctx=1024 for mobile. Only increase to 2048 if needed.",
+    "Disable unnecessary samplers (top_k, min_p, penalties) for speed",
+    "Stop tokens prevent over-generation. [END] is primary.",
+    "For speculative decoding: pair with ~1B draft model for 1.5-2x speedup"
+  ]
+}
