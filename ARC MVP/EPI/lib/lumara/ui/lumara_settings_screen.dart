@@ -371,7 +371,8 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
                               (phiState?.isDownloaded ?? false) || 
                               (qwenState?.isDownloaded ?? false);
 
-    if (isDownloading && downloadingState != null && !hasDownloadedModel) {
+    // Show download progress only if actively downloading and not completed
+    if (isDownloading && downloadingState != null && !hasDownloadedModel && !downloadingState.isDownloaded) {
       // Show download progress
       return SizedBox(
         width: double.infinity,

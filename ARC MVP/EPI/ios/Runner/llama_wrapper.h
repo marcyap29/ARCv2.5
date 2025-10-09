@@ -11,6 +11,20 @@ extern "C" {
 // Token callback: called with a UTF-8 piece whenever a token is produced
 typedef void(*llama_token_callback_t)(const char* utf8_token, void* user_data);
 
+// Callback bundle for streaming
+typedef struct {
+  llama_token_callback_t on_token;
+  void*                  user;
+} epi_callbacks;
+
+// Generation parameters
+typedef struct {
+  int   max_tokens;
+  float temperature;
+  float top_p;
+  float repeat_penalty;
+} epi_gen_params;
+
 // Initialize model and context
 // model_path: absolute or app-bundle resolved path to .gguf
 // ctx_size_tokens: KV cache size in tokens
@@ -31,6 +45,14 @@ bool epi_llama_generate_next(llama_token_callback_t on_token, void* user_data, b
 
 // Stop current generation loop
 void epi_llama_stop(void);
+
+// Modern streaming API (ownership rules: callee NEVER frees caller pointers)
+// - start(): callee COPIES prompt and stores cbs. Returns when ready to feed.
+// - feed():  decodes the copied prompt in internal batches; n_prompt_tokens is ignored if callee tokenized.
+// - stop():  finalizes generation and clears internal buffers.
+bool epi_start(const char* prompt_utf8, const epi_gen_params* p, epi_callbacks cbs);
+bool epi_feed(int n_prompt_tokens);
+bool epi_stop(void);
 
 // Optional simple sampler controls
 void epi_set_top_k(int32_t top_k);

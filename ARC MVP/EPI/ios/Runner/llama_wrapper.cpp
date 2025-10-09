@@ -1,6 +1,6 @@
 #include "llama_wrapper.h"
 #include "epi_logger.h"
-#include "llama.h"
+#include "../../third_party/llama.cpp/include/llama.h"
 #include <vector>
 #include <string>
 #include <cstring>
@@ -19,11 +19,18 @@ struct epi_handle_t {
     int32_t         n_vocab = 0;
     bool            started = false;
     void*           sampler = nullptr;  // Will be llama_sampler_t when available
+    
+    // Modern API state - keep prompt and tokens alive across start/feed:
+    std::string          prompt_copy;
+    std::vector<llama_token> prompt_toks;
+    epi_callbacks        cbs{nullptr, nullptr};
+    bool                 modern_mode = false;
 };
 
 // Global state
 static std::atomic<epi_handle_t*> g_handle{nullptr};
 static std::atomic<int> g_state{0}; // 0=Uninit,1=Init,2=Running
+static std::atomic<bool> g_generating{false}; // Prevent overlapping generation
 static std::mutex g_mu;
 
 // Thread ID helper
@@ -75,12 +82,13 @@ static int feed_prompt_chunks(llama_context* ctx, const std::vector<llama_token>
         }
 
         int rc = llama_decode(ctx, batch);
-        llama_batch_free(batch);
         if (rc != 0) {
             epi_logf(3, "feed: decode failed rc=%d (off=%d n=%d)", rc, off, n);
+            llama_batch_free(batch);
             return -30;
         }
         epi_logf(1, "feed: off=%d n=%d decode ok", off, n);
+        llama_batch_free(batch);
         off += n;
     }
                 return 0;
@@ -200,11 +208,12 @@ static int start_core(epi_handle_t* h, const char* prompt_utf8) noexcept {
         batch.n_tokens = 1;
 
         rc = llama_decode(h->ctx, batch);
-        llama_batch_free(batch);
         if (rc != 0) {
             epi_logf(3, "gen: decode rc=%d at produced=%d", rc, produced);
+            llama_batch_free(batch);
             return -31;
         }
+        llama_batch_free(batch);
 
         produced++;
         // Optional: emit token to Swift via callback here
@@ -298,7 +307,7 @@ void epi_llama_free(void) {
         }
         delete h;
         epi_logf(1, "handle freed successfully");
-    } else {
+            } else {
         epi_logf(1, "no handle to free");
     }
     
@@ -313,6 +322,13 @@ bool epi_llama_start(const char* prompt_utf8) {
     epi_logf(1, "ENTER start tid=%lu state=%d handle=%p", 
              tid(), g_state.load(), g_handle.load());
     
+    // Check if already generating
+    bool expected = false;
+    if (!g_generating.compare_exchange_strong(expected, true)) {
+        epi_logf(3, "generation already in progress - ignoring duplicate call");
+        return false;
+    }
+    
     int code = -99;
     try {
         code = start_core(g_handle.load(std::memory_order_acquire), prompt_utf8);
@@ -320,6 +336,9 @@ bool epi_llama_start(const char* prompt_utf8) {
         epi_logf(3, "unhandled C++ exception in start_core");
         code = -98;
     }
+    
+    // Always reset generation flag
+    g_generating = false;
     
     bool success = (code == 0);
     epi_logf(1, "EXIT  start code=%d success=%s", code, success ? "true" : "false");
@@ -338,6 +357,183 @@ bool epi_llama_start_with_fallback(const char* prompt_utf8) {
     // The issue is that we need the model path to reinitialize, but we don't store it
     epi_logf(3, "CPU fallback not implemented - need model path");
     return false;
+}
+
+// Modern streaming API implementation
+bool epi_start(const char* prompt_utf8, const epi_gen_params* p, epi_callbacks cbs) {
+    std::lock_guard<std::mutex> lk(g_mu);
+    epi_logf(1, "ENTER epi_start tid=%lu state=%d handle=%p", 
+             tid(), g_state.load(), g_handle.load());
+    
+    auto* h = g_handle.load(std::memory_order_acquire);
+    if (!h) {
+        epi_logf(3, "epi_start aborted: handle is null");
+        return false;
+    }
+    
+    if (!prompt_utf8 || *prompt_utf8 == 0) {
+        epi_logf(3, "epi_start aborted: empty prompt");
+        return false;
+    }
+    
+    // Check if already generating
+    bool expected = false;
+    if (!g_generating.compare_exchange_strong(expected, true)) {
+        epi_logf(3, "generation already in progress - ignoring duplicate call");
+        return false;
+    }
+    
+    try {
+        // Store callbacks and copy prompt
+        h->cbs = cbs;
+        h->prompt_copy.assign(prompt_utf8);
+        h->modern_mode = true;
+        
+        // Apply generation parameters
+        if (p) {
+            epi_set_top_k(40);  // Default top_k
+            epi_set_top_p(p->top_p);
+            epi_set_temp(p->temperature);
+        }
+        
+        // Tokenize into our owned vector
+        h->prompt_toks.clear();
+        h->prompt_toks.reserve(1024);
+        
+        const llama_vocab* vocab = llama_model_get_vocab(h->model);
+        int add_bos = 1; // Phi models often expect BOS
+        int n_tokens = llama_tokenize(vocab, h->prompt_copy.c_str(), h->prompt_copy.size(), 
+                                     h->prompt_toks.data(), h->prompt_toks.capacity(), add_bos, true);
+        
+        if (n_tokens < 0) {
+            // Need more space
+            h->prompt_toks.resize(-n_tokens);
+            n_tokens = llama_tokenize(vocab, h->prompt_copy.c_str(), h->prompt_copy.size(), 
+                                     h->prompt_toks.data(), h->prompt_toks.size(), add_bos, true);
+        }
+        
+        if (n_tokens <= 0) {
+            epi_logf(3, "epi_start: tokenize failed n_tokens=%d", n_tokens);
+            g_generating = false;
+            return false;
+        }
+        
+        h->prompt_toks.resize(n_tokens);
+        epi_logf(1, "epi_start: tokenized %d tokens", n_tokens);
+        
+        // Clear KV cache
+        llama_memory_t mem = llama_get_memory(h->ctx);
+        llama_memory_clear(mem, true);
+        epi_logf(1, "epi_start: kv cleared");
+        
+        g_state.store(2, std::memory_order_release);
+        epi_logf(1, "EXIT epi_start tid=%lu state=%d handle=%p", 
+                 tid(), g_state.load(), g_handle.load());
+        return true;
+        
+    } catch (...) {
+        epi_logf(3, "unhandled C++ exception in epi_start");
+        g_generating = false;
+        return false;
+    }
+}
+
+bool epi_feed(int n_prompt_tokens) {
+    std::lock_guard<std::mutex> lk(g_mu);
+    epi_logf(1, "ENTER epi_feed tid=%lu state=%d handle=%p", 
+             tid(), g_state.load(), g_handle.load());
+    
+    auto* h = g_handle.load(std::memory_order_acquire);
+    if (!h || !h->modern_mode) {
+        epi_logf(3, "epi_feed aborted: handle is null or not in modern mode");
+        return false;
+    }
+    
+    // Re-entrancy guard - prevent duplicate calls
+    static std::atomic<bool> feeding{false};
+    bool expected = false;
+    if (!feeding.compare_exchange_strong(expected, true)) {
+        epi_logf(3, "epi_feed already in progress - ignoring duplicate call");
+        return false;
+    }
+    
+    try {
+        // Feed prompt tokens in chunks using our owned vector
+        const int chunk = 256;
+        int off = 0;
+        static llama_seq_id seq_id = 0;
+        
+        while (off < (int)h->prompt_toks.size()) {
+            const int n = std::min(chunk, (int)h->prompt_toks.size() - off);
+            
+            // Use RAII pattern for batch management
+            llama_batch batch = llama_batch_init(n, /*embd*/0, /*alloc*/1);
+            if (!batch.token) {
+                epi_logf(3, "epi_feed: batch init failed (off=%d n=%d)", off, n);
+                feeding = false; // Reset guard
+                return false;
+            }
+            
+            // Scope the batch usage
+            {
+                for (int i = 0; i < n; ++i) {
+                    int pos = off + i;
+                    batch.token[batch.n_tokens] = h->prompt_toks[off + i];
+                    batch.pos[batch.n_tokens] = pos;
+                    batch.n_seq_id[batch.n_tokens] = 1;
+                    batch.seq_id[batch.n_tokens] = &seq_id;
+                    batch.logits[batch.n_tokens] = (i == n - 1) ? 1 : 0; // Only last token needs logits
+                    batch.n_tokens++;
+                }
+                
+                int rc = llama_decode(h->ctx, batch);
+                if (rc != 0) {
+                    epi_logf(3, "epi_feed: decode failed rc=%d (off=%d n=%d)", rc, off, n);
+                    llama_batch_free(batch);
+                    feeding = false; // Reset guard
+                    return false;
+                }
+                epi_logf(1, "epi_feed: off=%d n=%d decode ok", off, n);
+            }
+            
+            // Always free the batch in the same scope where it was allocated
+            llama_batch_free(batch);
+            off += n;
+        }
+        
+        epi_logf(1, "EXIT epi_feed tid=%lu state=%d handle=%p", 
+                 tid(), g_state.load(), g_handle.load());
+        feeding = false; // Reset guard
+        return true;
+        
+    } catch (...) {
+        epi_logf(3, "unhandled C++ exception in epi_feed");
+        feeding = false; // Reset guard
+        return false;
+    }
+}
+
+bool epi_stop(void) {
+    std::lock_guard<std::mutex> lk(g_mu);
+    epi_logf(1, "ENTER epi_stop tid=%lu state=%d handle=%p", 
+             tid(), g_state.load(), g_handle.load());
+    
+    auto* h = g_handle.load(std::memory_order_acquire);
+    if (h && h->modern_mode) {
+        // Clear modern API state
+        h->prompt_copy.clear();
+        h->prompt_toks.clear();
+        h->cbs = {nullptr, nullptr};
+        h->modern_mode = false;
+    }
+    
+    // Always reset generation flag
+    g_generating = false;
+    g_state.store(1, std::memory_order_release);
+    
+    epi_logf(1, "EXIT epi_stop tid=%lu state=%d handle=%p", 
+             tid(), g_state.load(), g_handle.load());
+    return true;
 }
 
 bool epi_llama_generate_next(llama_token_callback_t on_token, void* user_data, bool* out_is_eos) {

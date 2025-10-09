@@ -391,7 +391,7 @@ class _ModelDownloadScreenState extends State<ModelDownloadScreen> {
             ),
 
             // Download Progress
-            if (isDownloading) ...[
+            if (isDownloading && !isDownloaded) ...[
               const SizedBox(height: 16),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -400,12 +400,10 @@ class _ModelDownloadScreenState extends State<ModelDownloadScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // Only show status message if not downloaded (to hide "Download complete!" message)
-                        if (!isDownloaded)
-                          Text(
-                            status,
-                            style: theme.textTheme.bodySmall,
-                          ),
+                        Text(
+                          status,
+                          style: theme.textTheme.bodySmall,
+                        ),
                         if (downloadSizeText.isNotEmpty) ...[
                           const SizedBox(height: 4),
                           Text(
@@ -433,6 +431,34 @@ class _ModelDownloadScreenState extends State<ModelDownloadScreen> {
                 value: progress,
                 minHeight: 6,
                 borderRadius: BorderRadius.circular(3),
+              ),
+            ],
+
+            // Download Complete Message
+            if (isDownloaded && !isDownloading) ...[
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.green.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.green.withOpacity(0.3)),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.check_circle, color: Colors.green, size: 16),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Download complete! Model is ready to use.',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: Colors.green,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ],
 
@@ -477,7 +503,7 @@ class _ModelDownloadScreenState extends State<ModelDownloadScreen> {
                   ),
                 ),
               )
-            else if (isDownloading)
+            else if (isDownloading && !isDownloaded)
               SizedBox(
                 width: double.infinity,
                 child: OutlinedButton.icon(

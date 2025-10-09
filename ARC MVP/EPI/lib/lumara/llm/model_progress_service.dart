@@ -44,7 +44,8 @@ class ModelProgressService implements pigeon.LumaraNativeProgress {
     final bytesInfo = _parseDownloadMessage(message);
 
     // Update persistent download state
-    if (message.contains('Ready to use')) {
+    if (message.contains('Ready to use') || progress >= 1.0) {
+      // Mark as completed when we get "Ready to use" message OR when progress reaches 100%
       _downloadStateService.completeDownload(modelId);
     } else if (message.contains('failed') || message.contains('Error')) {
       _downloadStateService.failDownload(modelId, message);
