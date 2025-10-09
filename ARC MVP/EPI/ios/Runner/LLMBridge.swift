@@ -321,7 +321,7 @@ class ModelLifecycle {
         let topP = params.topP
 
         // Call native generation directly to avoid recursive loop
-        let result = try self.startNativeGenerationDirect(prompt: prompt, params: params)
+        let result = try startNativeGenerationDirect(prompt: prompt, params: params)
         
         // Clean up the generated text
         let cleanedText = cleanQwenOutput(result.text)
@@ -357,9 +357,8 @@ class ModelLifecycle {
         let requestId = UInt64.random(in: 1...UInt64.max)
         logger.info("🚀 Direct native generation req=\(requestId)")
         
-        // Use a simple approach - just call the existing ModelLifecycle.generate
-        // but with a shorter timeout to avoid the 30-second hang
-        let result = try ModelLifecycle.shared.generate(prompt: prompt, params: params)
+        // Call native generation directly to avoid recursive loop
+        let result = try self.startNativeGeneration(prompt: prompt, params: params, requestId: requestId)
         
         let latencyMs = Int(Date().timeIntervalSince(startTime) * 1000)
         
