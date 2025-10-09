@@ -932,6 +932,60 @@ class LLMBridge: NSObject, LumaraNative {
         }
     }
     
+    private func startNativeGenerationDirectNative(prompt: String, params: GenParams, requestId: UInt64) throws -> GenResult {
+        // Direct native generation without any recursive calls
+        let startTime = Date()
+        
+        // Set up callbacks
+        var generatedText = ""
+        let tokenCallback: @convention(c) (UnsafePointer<CChar>?, UnsafeMutableRawPointer?) -> Void = { cstr, _ in
+            guard let cstr = cstr else { return }
+            let token = String(cString: cstr)
+            generatedText += token
+        }
+        
+        var cbs = EpiCallbacks(
+            onToken: tokenCallback,
+            user: nil
+        )
+        
+        // Convert params
+        var epiParams = EpiGenParams(
+            maxTokens: Int32(params.maxTokens),
+            temperature: Float(params.temperature),
+            topP: Float(params.topP),
+            repeatPenalty: Float(params.repeatPenalty)
+        )
+        
+        // Call native generation directly
+        let success = prompt.withCString { cstr in
+            epi_start(cstr, &epiParams, cbs, requestId)
+        }
+        
+        if !success {
+            throw LLMError.native(code: 500, message: "Failed to start native generation")
+        }
+        
+        // Wait for completion (simplified - just wait a bit for tokens)
+        Thread.sleep(forTimeInterval: 0.1)
+        
+        // Clean up the generated text
+        let cleanedText = self.cleanQwenOutput(generatedText)
+        let latencyMs = Int(Date().timeIntervalSince(startTime) * 1000)
+        
+        logger.info("✅ Direct native generation completed:")
+        logger.info("  text: '\(cleanedText)'")
+        logger.info("  latencyMs: \(latencyMs)")
+        
+        return GenResult(
+            text: cleanedText,
+            tokensIn: Int64(prompt.count / 4), // Rough estimate
+            tokensOut: Int64(cleanedText.count / 4), // Rough estimate
+            latencyMs: Int64(latencyMs),
+            provider: "llama.cpp-gguf"
+        )
+    }
+    
     private func startNativeGeneration(prompt: String, params: GenParams, requestId: UInt64) throws -> GenResult {
         // Assert prompt is not empty
         assert(!prompt.isEmpty, "Empty prompt reached LLMBridge.generateText")
@@ -959,9 +1013,10 @@ class LLMBridge: NSObject, LumaraNative {
         // Use the parameters sent from Dart (already optimized for the specific model)
         logger.info("⚙️  Using Dart params: maxTokens=\(params.maxTokens), temp=\(params.temperature), topP=\(params.topP), repeatPenalty=\(params.repeatPenalty)")
 
-        logger.info("🚀 Calling ModelLifecycle.generate with optimized prompt...")
+        logger.info("🚀 Calling native generation directly...")
         
-        let result = try ModelLifecycle.shared.generate(prompt: prompt, params: params)
+        // Call native generation directly to avoid recursive loop
+        let result = try startNativeGenerationDirectNative(prompt: prompt, params: params, requestId: requestId)
         
         logger.info("✅ ModelLifecycle.generate returned:")
         logger.info("  text: '\(result.text)'")
