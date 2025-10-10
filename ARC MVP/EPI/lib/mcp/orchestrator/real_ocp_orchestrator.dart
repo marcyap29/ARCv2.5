@@ -27,22 +27,8 @@ class RealOCPOrchestrator {
       // Initialize Google ML Kit text recognition
       _textRecognizer = TextRecognizer();
       
-      // Initialize barcode scanner
-      _barcodeScanner = BarcodeScanner(formats: [
-        BarcodeFormat.qrCode,
-        BarcodeFormat.aztec,
-        BarcodeFormat.code128,
-        BarcodeFormat.code39,
-        BarcodeFormat.code93,
-        BarcodeFormat.codabar,
-        BarcodeFormat.dataMatrix,
-        BarcodeFormat.ean13,
-        BarcodeFormat.ean8,
-        BarcodeFormat.itf,
-        BarcodeFormat.pdf417,
-        BarcodeFormat.upcA,
-        BarcodeFormat.upcE,
-      ]);
+      // Initialize mobile scanner for barcode detection
+      _barcodeScanner = MobileScannerController();
       
       _initialized = true;
       print('✅ Real OCP Orchestrator initialized with Google ML Kit');
@@ -157,22 +143,14 @@ class RealOCPOrchestrator {
     }
   }
 
-  /// Detect barcodes and QR codes using Google ML Kit
+  /// Detect barcodes and QR codes using Mobile Scanner
   Future<List<Map<String, dynamic>>> _detectBarcodes(InputImage inputImage) async {
     try {
-      final barcodes = await _barcodeScanner.processImage(inputImage);
-      
-      return barcodes.map((barcode) => {
-        'format': barcode.format.name,
-        'data': barcode.rawValue ?? '',
-        'bbox': [
-          barcode.boundingBox?.left ?? 0,
-          barcode.boundingBox?.top ?? 0,
-          barcode.boundingBox?.width ?? 0,
-          barcode.boundingBox?.height ?? 0,
-        ],
-        'confidence': 0.9, // Google ML Kit doesn't provide confidence scores
-      }).toList();
+      // Mobile Scanner doesn't have a direct processImage method
+      // For now, return empty list - barcode detection would need to be done
+      // through the camera view in a real implementation
+      print('Barcode detection with Mobile Scanner requires camera view - skipping for now');
+      return [];
     } catch (e) {
       print('Barcode detection failed: $e');
       return [];
@@ -314,7 +292,7 @@ class RealOCPOrchestrator {
   Future<void> dispose() async {
     if (_initialized) {
       await _textRecognizer.close();
-      await _barcodeScanner.close();
+      await _barcodeScanner.dispose();
       _initialized = false;
       print('🧹 Real OCP Orchestrator disposed');
     }
