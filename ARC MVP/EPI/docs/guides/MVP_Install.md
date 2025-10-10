@@ -17,18 +17,18 @@ flutter doctor
 
 ## Run the full MVP
 
-### **With On-Device LLM (Experimental)**
-> **Status:** MLX model weights load successfully, but generation still uses a placeholder loop (produces "HiHowcanIhelpyou"-style gibberish). Until the MLX transformer pass is implemented, keep a cloud key configured or expect rule-based fallbacks.
+### **With On-Device LLM (Migration In Progress)**
+> **Status:** llama.cpp + Metal + GGUF integration migrated from MLX but has critical issues blocking inference. App builds and runs but falls back to rule-based responses.
 
-- **Debug (runs MLX loader + cloud fallback)**:
+- **Debug (runs with llama.cpp issues + Gemini 2.5 Flash cloud fallback)**:
 ```bash
 flutter run -d DEVICE_ID --dart-define=GEMINI_API_KEY=YOUR_KEY
 ```
-- **Without API key (on-device only – will emit placeholder text)**:
+- **Without API key (on-device only - currently falls back to rule-based responses)**:
 ```bash
 flutter run -d DEVICE_ID
 ```
-  Only use this path if you are actively developing the MLX forward pass.
+  **⚠️ NOTE**: Currently falls back to Enhanced LUMARA API with rule-based responses due to llama.cpp initialization issues. On-device inference not working yet.
 
 ### **Enhanced Model Download Features** ✅ **NEW**
 - **Comprehensive macOS Compatibility**: Enhanced model download system with automatic exclusion of all macOS metadata files (`_MACOSX`, `.DS_Store`, `._*`)
