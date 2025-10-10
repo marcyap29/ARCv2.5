@@ -17,8 +17,7 @@ import '../../arc/core/journal_repository.dart';
 import '../../arc/core/widgets/keyword_analysis_view.dart';
 import '../../core/services/draft_cache_service.dart';
 import '../../data/models/media_item.dart';
-import '../../mcp/orchestrator/simple_ocp_orchestrator.dart';
-import '../../mcp/orchestrator/enhanced_ocp_services.dart';
+import '../../mcp/orchestrator/real_ocp_orchestrator.dart';
 import 'widgets/lumara_suggestion_sheet.dart';
 import 'widgets/inline_reflection_block.dart';
 
@@ -53,8 +52,7 @@ class _JournalScreenState extends State<JournalScreen> {
   final ImagePicker _imagePicker = ImagePicker();
   
   // Enhanced OCP/PRISM orchestrator
-  late final SimpleOCPOrchestrator _ocpOrchestrator;
-  late final EnhancedOcpServices _enhancedOcpServices;
+  late final RealOCPOrchestrator _ocpOrchestrator;
 
   @override
   void initState() {
@@ -65,10 +63,8 @@ class _JournalScreenState extends State<JournalScreen> {
     _ocrService = StubOcrService(_analytics); // TODO: Use platform-specific implementation
     
     // Initialize enhanced OCP services
-    _enhancedOcpServices = EnhancedOcpServices();
-    _ocpOrchestrator = SimpleOCPOrchestrator(
-      ocpServices: _enhancedOcpServices,
-    );
+    _ocpOrchestrator = RealOCPOrchestrator();
+    _ocpOrchestrator.initialize();
     
     _analytics.logJournalEvent('opened');
 
@@ -886,35 +882,34 @@ class _JournalScreenState extends State<JournalScreen> {
     }
   }
 
-  /// Process photo with enhanced OCP/PRISM orchestrator
+  /// Process photo with real OCP/PRISM orchestrator
   Future<void> _processPhotoWithEnhancedOCP(String imagePath) async {
     try {
       // Show processing indicator
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('🔍 Analyzing photo with enhanced OCR...'),
+          content: Text('🔍 Analyzing photo with real OCR...'),
           duration: Duration(seconds: 2),
         ),
       );
 
-      // Run enhanced OCP analysis
+      // Run real OCP analysis
       final result = await _ocpOrchestrator.processPhoto(
         imagePath: imagePath,
-        ocrEngine: 'paddle', // Use PaddleOCR
+        ocrEngine: 'google_mlkit', // Use Google ML Kit
         language: 'auto',
         maxProcessingMs: 1500,
       );
 
       if (result['success'] == true) {
-        final results = result['results'] as Map<String, dynamic>;
-        final formattedText = _ocpOrchestrator.getFormattedText(results);
+        final formattedText = _ocpOrchestrator.getFormattedText(result);
         
         if (formattedText.isNotEmpty) {
           _insertTextIntoEntry(formattedText);
         }
 
         // Show success message with summary
-        final summary = results['summary'] as String? ?? 'Photo analyzed';
+        final summary = result['summary'] as String? ?? 'Photo analyzed';
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('✅ $summary'),
@@ -926,7 +921,7 @@ class _JournalScreenState extends State<JournalScreen> {
       }
 
     } catch (e) {
-      debugPrint('Enhanced OCP processing failed: $e');
+      debugPrint('Real OCP processing failed: $e');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Failed to analyze photo: $e'),

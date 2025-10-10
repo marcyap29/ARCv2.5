@@ -42,8 +42,11 @@ dependencies:
   # See Bug_Tracker-3.md for details. FFmpeg is currently unused (stub implementation).
   # Re-enable when video processing features are actually implemented.
   # ffmpeg_kit_flutter_new_min_gpl: ^1.1.0
-  # google_mlkit_text_recognition: ^0.13.0
-  # google_mlkit_face_detection: ^0.11.1
+  # Real OCR and Computer Vision Libraries
+  google_mlkit_text_recognition: ^0.13.1
+  mobile_scanner: ^3.5.6
+  # google_mlkit_barcode_scanning: ^0.9.0  # Temporarily disabled due to version conflicts
+  # opencv_dart: ^1.0.0  # Temporarily disabled due to compatibility issues
   mime: ^1.0.6
   collection: ^1.18.0
   flutter_secure_storage: ^9.2.2
