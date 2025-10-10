@@ -2,6 +2,8 @@ import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:permission_handler/permission_handler.dart';
 import '../../state/journal_entry_state.dart';
 import '../../state/feature_flags.dart';
 import '../../telemetry/analytics.dart';
@@ -14,6 +16,9 @@ import '../../arc/core/journal_capture_cubit.dart';
 import '../../arc/core/journal_repository.dart';
 import '../../arc/core/widgets/keyword_analysis_view.dart';
 import '../../core/services/draft_cache_service.dart';
+import '../../data/models/media_item.dart';
+import '../../mcp/orchestrator/simple_ocp_orchestrator.dart';
+import '../../mcp/orchestrator/enhanced_ocp_services.dart';
 import 'widgets/lumara_suggestion_sheet.dart';
 import 'widgets/inline_reflection_block.dart';
 
@@ -45,6 +50,11 @@ class _JournalScreenState extends State<JournalScreen> {
   final DraftCacheService _draftCache = DraftCacheService.instance;
   String? _currentDraftId;
   Timer? _autoSaveTimer;
+  final ImagePicker _imagePicker = ImagePicker();
+  
+  // Enhanced OCP/PRISM orchestrator
+  late final SimpleOCPOrchestrator _ocpOrchestrator;
+  late final EnhancedOcpServices _enhancedOcpServices;
 
   @override
   void initState() {
@@ -53,6 +63,13 @@ class _JournalScreenState extends State<JournalScreen> {
     _enhancedLumaraApi = EnhancedLumaraApi(_analytics);
     _enhancedLumaraApi.initialize();
     _ocrService = StubOcrService(_analytics); // TODO: Use platform-specific implementation
+    
+    // Initialize enhanced OCP services
+    _enhancedOcpServices = EnhancedOcpServices();
+    _ocpOrchestrator = SimpleOCPOrchestrator(
+      ocpServices: _enhancedOcpServices,
+    );
+    
     _analytics.logJournalEvent('opened');
 
     // Initialize with draft content if provided
@@ -411,22 +428,25 @@ class _JournalScreenState extends State<JournalScreen> {
                             children: [
                               // Add photo button
                               IconButton(
-                                onPressed: () {
-                                  // TODO: Implement photo picker
-                                  _analytics.logJournalEvent('photo_button_pressed');
-                                },
+                                onPressed: _handlePhotoGallery,
                                 icon: const Icon(Icons.add_photo_alternate),
                                 tooltip: 'Add Photo',
                                 padding: const EdgeInsets.all(8),
                                 constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
                               ),
                               
-                              // Add voice button (placeholder for future)
+                              // Add camera button
                               IconButton(
-                                onPressed: () {
-                                  // TODO: Implement voice recorder
-                                  _analytics.logJournalEvent('voice_button_pressed');
-                                },
+                                onPressed: _handleCamera,
+                                icon: const Icon(Icons.camera_alt),
+                                tooltip: 'Take Photo',
+                                padding: const EdgeInsets.all(8),
+                                constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                              ),
+                              
+                              // Add voice button
+                              IconButton(
+                                onPressed: _handleMicrophone,
                                 icon: const Icon(Icons.mic),
                                 tooltip: 'Add Voice Note',
                                 padding: const EdgeInsets.all(8),
@@ -736,6 +756,229 @@ class _JournalScreenState extends State<JournalScreen> {
       debugPrint('JournalScreen: Completed draft');
     } catch (e) {
       debugPrint('JournalScreen: Failed to complete draft: $e');
+    }
+  }
+
+  // Multimodal functionality
+  Future<void> _handlePhotoGallery() async {
+    try {
+      _analytics.logJournalEvent('photo_button_pressed');
+      final List<XFile> images = await _imagePicker.pickMultiImage();
+      if (images.isNotEmpty) {
+        for (final image in images) {
+          await _processPhotoWithEnhancedOCP(image.path);
+        }
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to select photos: $e'),
+          backgroundColor: Theme.of(context).colorScheme.error,
+        ),
+      );
+    }
+  }
+
+  Future<void> _handleCamera() async {
+    try {
+      _analytics.logJournalEvent('camera_button_pressed');
+      final XFile? image = await _imagePicker.pickImage(source: ImageSource.camera);
+      if (image != null) {
+        await _processPhotoWithEnhancedOCP(image.path);
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to take photo: $e'),
+          backgroundColor: Theme.of(context).colorScheme.error,
+        ),
+      );
+    }
+  }
+
+  Future<void> _handleMicrophone() async {
+    try {
+      _analytics.logJournalEvent('voice_button_pressed');
+      
+      // Check current permission status
+      var status = await Permission.microphone.status;
+      
+      if (status.isDenied) {
+        // Request permission
+        status = await Permission.microphone.request();
+      }
+      
+      if (status.isPermanentlyDenied) {
+        // Show dialog to go to settings
+        _showPermissionDialog();
+        return;
+      }
+      
+      if (status.isGranted) {
+        // Permission granted - show recording interface
+        _showVoiceRecordingDialog();
+      } else {
+        // Permission denied
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Microphone permission is required for voice recording'),
+            duration: Duration(seconds: 3),
+          ),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to access microphone: $e'),
+          backgroundColor: Theme.of(context).colorScheme.error,
+        ),
+      );
+    }
+  }
+
+  void _showPermissionDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Microphone Permission Required'),
+        content: const Text(
+          'To record voice notes, please grant microphone permission in Settings.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              openAppSettings();
+            },
+            child: const Text('Open Settings'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showVoiceRecordingDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Voice Recording'),
+        content: const Text(
+          'Voice recording feature is coming soon! For now, you can type your thoughts.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _onMediaCaptured(MediaItem mediaItem) {
+    // Try OCR if it's an image
+    if (mediaItem.type == MediaType.image) {
+      _performOCR(File(mediaItem.uri));
+    }
+  }
+
+  /// Process photo with enhanced OCP/PRISM orchestrator
+  Future<void> _processPhotoWithEnhancedOCP(String imagePath) async {
+    try {
+      // Show processing indicator
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('🔍 Analyzing photo with enhanced OCR...'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+
+      // Run enhanced OCP analysis
+      final result = await _ocpOrchestrator.processPhoto(
+        imagePath: imagePath,
+        ocrEngine: 'paddle', // Use PaddleOCR
+        language: 'auto',
+        maxProcessingMs: 1500,
+      );
+
+      if (result['success'] == true) {
+        final results = result['results'] as Map<String, dynamic>;
+        final formattedText = _ocpOrchestrator.getFormattedText(results);
+        
+        if (formattedText.isNotEmpty) {
+          _insertTextIntoEntry(formattedText);
+        }
+
+        // Show success message with summary
+        final summary = results['summary'] as String? ?? 'Photo analyzed';
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('✅ $summary'),
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      } else {
+        throw Exception(result['error'] ?? 'Unknown error');
+      }
+
+    } catch (e) {
+      debugPrint('Enhanced OCP processing failed: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to analyze photo: $e'),
+          backgroundColor: Theme.of(context).colorScheme.error,
+        ),
+      );
+    }
+  }
+
+
+  Future<void> _performOCR(File imageFile) async {
+    try {
+      final extractedText = await _ocrService.extractText(imageFile);
+      if (extractedText != null && extractedText.isNotEmpty) {
+        // Create ScanAttachment for the attachments list
+        final scanAttachment = ScanAttachment(
+          type: 'ocr_text',
+          text: extractedText,
+          sourceImageId: DateTime.now().millisecondsSinceEpoch.toString(),
+        );
+        
+        setState(() {
+          _entryState.attachments.add(scanAttachment);
+        });
+        
+        // Insert keywords in a more user-friendly format
+        _insertTextIntoEntry('📸 Photo keywords: $extractedText');
+        
+        // Show a brief confirmation
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Keywords extracted: $extractedText'),
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      } else {
+        // Show that no text was found
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('No text found in photo'),
+            duration: Duration(seconds: 1),
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint('OCR failed: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to analyze photo: $e'),
+          backgroundColor: Theme.of(context).colorScheme.error,
+        ),
+      );
     }
   }
 }

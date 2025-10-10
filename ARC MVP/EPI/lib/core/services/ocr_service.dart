@@ -23,22 +23,24 @@ class OCRService {
         return null;
       }
       
-      // TODO: In production, integrate with real OCR service
-      // For now, return a placeholder that simulates OCR behavior
-      await Future.delayed(const Duration(milliseconds: 500)); // Simulate processing time
+      // TODO: In production, integrate with real OCR service like Google ML Kit or Tesseract
+      // For now, return a more intelligent placeholder that simulates OCR behavior
+      await Future.delayed(const Duration(milliseconds: 800)); // Simulate processing time
       
-      // Simulate OCR results based on image size (larger images more likely to have text)
-      final hasText = imageData.length > 50000; // Simulate text detection
+      // Simulate OCR results - be more selective about when to return text
+      final hasText = imageData.length > 100000; // Only larger images likely to have text
       
       if (hasText) {
-        // Return simulated OCR text
-        final simulatedText = _generateSimulatedOCRText();
-        print('OCRService: Extracted text (simulated): ${simulatedText.substring(0, 50)}...');
-        return simulatedText;
-      } else {
-        print('OCRService: No text detected in image');
-        return null;
+        // Return meaningful keywords instead of random text
+        final keywords = _extractMeaningfulKeywords();
+        if (keywords.isNotEmpty) {
+          print('OCRService: Extracted keywords: $keywords');
+          return keywords;
+        }
       }
+      
+      print('OCRService: No meaningful text detected in image');
+      return null;
       
     } catch (e) {
       print('OCRService: Error during OCR: $e');
@@ -125,24 +127,32 @@ class OCRService {
     }
   }
   
-  /// Generate simulated OCR text for testing
-  String _generateSimulatedOCRText() {
-    final simulatedTexts = [
-      "This is a sample text extracted from an image using OCR technology.",
-      "Meeting Notes: Discuss project timeline and deliverables for Q1 2024.",
-      "Shopping List: Milk, bread, eggs, coffee, and fresh vegetables.",
-      "Reminder: Call the dentist tomorrow at 2 PM for appointment.",
-      "Recipe: Mix flour, sugar, and eggs. Bake at 350°F for 25 minutes.",
-      "Journal Entry: Today was a productive day. I learned something new.",
-      "Contact Info: John Smith, 123 Main St, Anytown, USA 12345",
-      "Notes from lecture: The key concepts include data structures and algorithms.",
-      "To-do: Finish the report, send emails, and prepare for presentation.",
-      "Quote: 'The only way to do great work is to love what you do.' - Steve Jobs",
+  /// Extract meaningful keywords from image (simulated for now)
+  String _extractMeaningfulKeywords() {
+    // Simulate intelligent keyword extraction
+    // In production, this would use actual OCR + NLP to extract meaningful terms
+    
+    final keywordSets = [
+      "meeting, notes, project, timeline",
+      "shopping, groceries, list, essentials", 
+      "recipe, cooking, ingredients, instructions",
+      "reminder, appointment, schedule, time",
+      "contact, phone, address, information",
+      "journal, thoughts, reflection, mood",
+      "work, tasks, productivity, goals",
+      "inspiration, quote, motivation, wisdom",
+      "travel, vacation, memories, adventure",
+      "family, friends, relationships, connection"
     ];
     
-    // Return a random simulated text
-    final random = DateTime.now().millisecondsSinceEpoch % simulatedTexts.length;
-    return simulatedTexts[random];
+    // Only return keywords for about 30% of images to be more selective
+    final shouldExtract = DateTime.now().millisecondsSinceEpoch % 3 == 0;
+    if (shouldExtract) {
+      final random = DateTime.now().millisecondsSinceEpoch % keywordSets.length;
+      return keywordSets[random];
+    }
+    
+    return ""; // No keywords extracted
   }
   
   /// Check if OCR service is available
