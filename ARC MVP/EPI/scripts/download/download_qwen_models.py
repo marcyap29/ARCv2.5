@@ -32,28 +32,28 @@ class QwenModelManifest:
 # Official Qwen model manifest
 QWEN_MODELS = [
     QwenModelManifest(
-        model_id="qwen3_4b_instruct",
+        model_id="llama3_2_3b_instruct",
+        display_name="Llama 3.2 3B Instruct (Q4_K_M)",
+        filename="Llama-3.2-3b-Instruct-Q4_K_M.gguf",
+        size_mb=1900,
+        min_ram_gb=4,
+        description="Recommended: Fast, efficient, 4-bit quantized",
+        repo_id="hugging-quants/Llama-3.2-3B-Instruct-Q4_K_M-GGUF",
+        is_default=True,
+        sha256="",
+        download_url="https://huggingface.co/hugging-quants/Llama-3.2-3B-Instruct-Q4_K_M-GGUF/resolve/main/llama-3.2-3b-instruct-q4_k_m.gguf?download=true"
+    ),
+    QwenModelManifest(
+        model_id="qwen3_4b_instruct_2507",
         display_name="Qwen3 4B Instruct (Q4_K_S)",
         filename="Qwen3-4B-Instruct-2507-Q4_K_S.gguf",
         size_mb=2500,
-        min_ram_gb=8,
-        description="Primary chat model with excellent reasoning capabilities - 4-bit quantized",
+        min_ram_gb=6,
+        description="Multilingual, 4-bit quantized, excellent reasoning capabilities",
         repo_id="unsloth/Qwen3-4B-Instruct-2507-GGUF",
-        is_default=True,
-        sha256="", # Will be updated from HF
-        download_url="https://huggingface.co/unsloth/Qwen3-4B-Instruct-2507-GGUF/resolve/main/Qwen3-4B-Instruct-2507-Q4_K_S.gguf?download=true"
-    ),
-    QwenModelManifest(
-        model_id="qwen3_1p7b_instruct",
-        display_name="Qwen3 1.7B Instruct",
-        filename="qwen3_1p7b_instruct_q4_k_m.gguf",
-        size_mb=1100,
-        min_ram_gb=4,
-        description="Lightweight chat model for memory-constrained devices",
-        repo_id="Qwen/Qwen3-1.7B-Instruct-GGUF",
         is_default=False,
         sha256="",
-        download_url="https://huggingface.co/Qwen/Qwen3-1.7B-Instruct-GGUF/resolve/main/qwen3-1.7b-instruct-q4_k_m.gguf"
+        download_url="https://huggingface.co/unsloth/Qwen3-4B-Instruct-2507-GGUF/resolve/main/Qwen3-4B-Instruct-2507-Q4_K_S.gguf?download=true"
     ),
     QwenModelManifest(
         model_id="qwen2p5_vl_3b_instruct",

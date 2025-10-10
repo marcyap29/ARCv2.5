@@ -3,15 +3,6 @@
 /// Optimized inference parameters for different model types
 
 class LumaraModelPresets {
-  /// Llama 3.2 3B (Q4_K_M) preset - iPhone 16 Pro optimized
-  /// Based on ChatGPT LUMARA-on-mobile recommendations
-  static const Map<String, dynamic> llama32_3b = {
-    'temperature': 0.7,
-    'top_p': 0.9,   // Standard nucleus sampling
-    // Disabled for speed: top_k, min_p, typical_p, penalties
-    'max_new_tokens': 80,  // Mobile-optimized default
-    'stop_tokens': ['[END]', '</s>', '<|eot_id|>'],  // [END] is primary stop
-  };
 
   /// Phi-3.5-Mini Instruct (Q4_K_M) preset - iPhone 16 Pro optimized
   static const Map<String, dynamic> phi35_mini = {
@@ -21,24 +12,40 @@ class LumaraModelPresets {
     'stop_tokens': ['[END]', '</s>'],
   };
 
-  /// Qwen-3/2.5 4B Instruct (Q5_K_M or Q4_K_M) preset - iPhone 16 Pro optimized
-  static const Map<String, dynamic> qwen3_4b = {
-    'temperature': 0.7,
+  /// Llama 3.2 3B Instruct (Q4_K_M) preset - Recommended model
+  static const Map<String, dynamic> llama32_3b = {
+    'temperature': 0.7,   // Balanced for good quality
     'top_p': 0.9,
-    'max_new_tokens': 80,
-    'stop_tokens': ['[END]', '<|im_end|>', '</s>'],
+    'top_k': 40,
+    'max_new_tokens': 128,
+    'repeat_penalty': 1.05,
+    'stop_tokens': ['<|eot_id|>', '<|end_of_text|>', '</s>'],
+  };
+
+  /// Qwen3 4B Instruct (Q4_K_S) preset - High quality multilingual model
+  static const Map<String, dynamic> qwen3_4b_q4k_s = {
+    'temperature': 0.7,   // Good balance for reasoning
+    'top_p': 0.9,
+    'top_k': 50,
+    'max_new_tokens': 256,
+    'repeat_penalty': 1.05,
+    'stop_tokens': ['<|eot_id|>', '<|im_end|>', '<|end_of_text|>'],
   };
 
   /// Get preset by model name
   static Map<String, dynamic> getPreset(String modelName) {
     final name = modelName.toLowerCase();
     
-    if (name.contains('llama') && name.contains('3.2')) {
+    if (name.contains('llama') && name.contains('3.2') && name.contains('3b')) {
+      return Map<String, dynamic>.from(llama32_3b);
+    } else if (name.contains('qwen3') && name.contains('4b')) {
+      return Map<String, dynamic>.from(qwen3_4b_q4k_s);
+    } else if (name.contains('llama') && name.contains('3.2')) {
       return Map<String, dynamic>.from(llama32_3b);
     } else if (name.contains('phi') && name.contains('3.5')) {
       return Map<String, dynamic>.from(phi35_mini);
     } else if (name.contains('qwen')) {
-      return Map<String, dynamic>.from(qwen3_4b);
+      return Map<String, dynamic>.from(qwen3_4b_q4k_s);
     } else {
       // Default to Llama 3.2 3B settings
       return Map<String, dynamic>.from(llama32_3b);

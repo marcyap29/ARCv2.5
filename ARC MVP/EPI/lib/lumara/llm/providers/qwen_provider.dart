@@ -10,17 +10,17 @@ import '../bridge.pigeon.dart';
 
 /// Qwen internal model provider
 class QwenProvider extends LLMProviderBase {
-  QwenProvider(LumaraAPIConfig apiConfig) : super(apiConfig, 'Qwen (Internal)', true);
+  QwenProvider(LumaraAPIConfig apiConfig) : super(apiConfig, 'Qwen3 4B (Internal)', true);
 
   @override
-  LLMProvider getProviderType() => LLMProvider.qwen;
+  LLMProvider getProviderType() => LLMProvider.qwen4b;
 
   @override
   Future<bool> isAvailable() async {
     // Check if Qwen model is actually downloaded via native bridge
     try {
       final bridge = LumaraNative();
-      final isDownloaded = await bridge.isModelDownloaded('Llama-3.2-3b-Instruct-Q4_K_M.gguf');
+      final isDownloaded = await bridge.isModelDownloaded('Qwen3-4B-Instruct-2507-Q4_K_S.gguf');
       debugPrint('QwenProvider: Model ${isDownloaded ? "IS" : "IS NOT"} downloaded');
       return isDownloaded;
     } catch (e) {

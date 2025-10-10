@@ -229,7 +229,6 @@ class ModelLifecycle {
                 // Only support GGUF models
                 let ggufModelIds = [
                     "Llama-3.2-3b-Instruct-Q4_K_M.gguf",
-                    "Phi-3.5-mini-instruct-Q5_K_M.gguf",
                     "Qwen3-4B-Instruct-2507-Q4_K_S.gguf"
                 ]
 
@@ -348,8 +347,7 @@ class ModelLifecycle {
         // Only support GGUF models
         let ggufModelIds = [
             "Llama-3.2-3b-Instruct-Q4_K_M.gguf",
-            "Phi-3.5-mini-instruct-Q5_K_M.gguf",
-            "Qwen3-4B-Instruct-2507-Q4_K_S.gguf",
+            "Qwen3-4B-Instruct-2507-Q4_K_S.gguf"
         ]
 
         guard ggufModelIds.contains(currentModelId ?? "") else {
@@ -776,9 +774,8 @@ class LLMBridge: NSObject, LumaraNative {
     func availableModels() throws -> ModelRegistry {
         // Only return GGUF models that are actually available
         let ggufModelIds = [
-            "Llama-3.2-3b-Instruct-Q4_K_M.gguf",
-            "Phi-3.5-mini-instruct-Q5_K_M.gguf",
-            "Qwen3-4B-Instruct-2507-Q4_K_S.gguf",
+            "Qwen3-1.7B-Q8_0.gguf",
+            "Llama-3.2-1B-Instruct-Q4_K_M.gguf"
         ]
 
         let availableModels = ggufModelIds.compactMap { modelId -> ModelInfo? in
@@ -791,8 +788,6 @@ class LLMBridge: NSObject, LumaraNative {
             switch modelId {
             case "Llama-3.2-3b-Instruct-Q4_K_M.gguf":
                 displayName = "Llama 3.2 3B Instruct (Q4_K_M)"
-            case "Phi-3.5-mini-instruct-Q5_K_M.gguf":
-                displayName = "Phi-3.5 Mini Instruct (Q5_K_M)"
             case "Qwen3-4B-Instruct-2507-Q4_K_S.gguf":
                 displayName = "Qwen3 4B Instruct (Q4_K_S)"
             default:
@@ -833,8 +828,7 @@ class LLMBridge: NSObject, LumaraNative {
         // Only support GGUF models
         let ggufModelIds = [
             "Llama-3.2-3b-Instruct-Q4_K_M.gguf",
-            "Phi-3.5-mini-instruct-Q5_K_M.gguf",
-            "Qwen3-4B-Instruct-2507-Q4_K_S.gguf",
+            "Qwen3-4B-Instruct-2507-Q4_K_S.gguf"
         ]
 
         guard ggufModelIds.contains(modelId) else {
@@ -1135,8 +1129,7 @@ class LLMBridge: NSObject, LumaraNative {
         // Only support GGUF models
         let ggufModelIds = [
             "Llama-3.2-3b-Instruct-Q4_K_M.gguf",
-            "Phi-3.5-mini-instruct-Q5_K_M.gguf",
-            "Qwen3-4B-Instruct-2507-Q4_K_S.gguf",
+            "Qwen3-4B-Instruct-2507-Q4_K_S.gguf"
         ]
 
         guard ggufModelIds.contains(modelId) else {

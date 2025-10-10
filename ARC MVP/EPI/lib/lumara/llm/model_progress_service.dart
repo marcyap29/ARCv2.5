@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'bridge.pigeon.dart' as pigeon;
 import '../services/download_state_service.dart';
+import '../config/api_config.dart';
 
 /// Service to handle model loading progress from native side
 class ModelProgressService implements pigeon.LumaraNativeProgress {
@@ -11,6 +12,9 @@ class ModelProgressService implements pigeon.LumaraNativeProgress {
 
   final _controller = StreamController<ModelProgressUpdate>.broadcast();
   final _downloadStateService = DownloadStateService.instance;
+  
+  // Terminal state tracking to prevent duplicate progress emissions
+  final _terminalByModel = <String, bool>{};
   
   /// Safe progress calculation to prevent NaN and infinite values
   double _safeProgress(double progress) {
@@ -49,6 +53,12 @@ class ModelProgressService implements pigeon.LumaraNativeProgress {
 
   @override
   void downloadProgress(String modelId, double progress, String message) {
+    // Check if model is already in terminal state
+    if (_terminalByModel[modelId] == true) {
+      debugPrint('[DownloadProgress] Model $modelId is terminal, suppressing progress update');
+      return;
+    }
+    
     // Safe progress calculation to prevent NaN
     final safeProgress = _safeProgress(progress);
     final update = ModelProgressUpdate(
@@ -68,8 +78,14 @@ class ModelProgressService implements pigeon.LumaraNativeProgress {
     if (message.contains('Ready to use') || progress >= 1.0) {
       // Mark as completed when we get "Ready to use" message OR when progress reaches 100%
       _downloadStateService.completeDownload(modelId);
+      // Mark as terminal to prevent duplicate progress emissions
+      _terminalByModel[modelId] = true;
+      // Refresh API config to update provider availability
+      _refreshApiConfig();
     } else if (message.contains('failed') || message.contains('Error')) {
       _downloadStateService.failDownload(modelId, message);
+      // Mark as terminal on failure
+      _terminalByModel[modelId] = true;
     } else {
       _downloadStateService.updateProgress(
         modelId: modelId,
@@ -78,6 +94,17 @@ class ModelProgressService implements pigeon.LumaraNativeProgress {
         bytesDownloaded: bytesInfo?['downloaded'],
         totalBytes: bytesInfo?['total'],
       );
+    }
+  }
+
+  /// Refresh API config to update provider availability
+  Future<void> _refreshApiConfig() async {
+    try {
+      final apiConfig = LumaraAPIConfig.instance;
+      await apiConfig.refreshModelAvailability();
+      debugPrint('[ModelProgress] Refreshed API config after download completion');
+    } catch (e) {
+      debugPrint('[ModelProgress] Error refreshing API config: $e');
     }
   }
 

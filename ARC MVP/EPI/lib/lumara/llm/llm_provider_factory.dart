@@ -26,12 +26,10 @@ class LLMProviderFactory {
           return OpenAIProvider(_apiConfig);
         case LLMProviderType.anthropic:
           return AnthropicProvider(_apiConfig);
-        case LLMProviderType.qwen:
+        case LLMProviderType.qwen4b:
           return QwenProvider(_apiConfig);
-        case LLMProviderType.phi:
-          return LlamaProvider(_apiConfig); // TODO: Rename to PhiProvider
-        case LLMProviderType.qwen3:
-          return QwenProvider(_apiConfig); // Same provider as qwen since both use llama.cpp
+        case LLMProviderType.llama3b:
+          return LlamaProvider(_apiConfig);
       }
     } catch (e) {
       debugPrint('LLMProviderFactory: Failed to create provider $type: $e');
@@ -70,9 +68,8 @@ class LLMProviderFactory {
       LLMProvider.gemini => LLMProviderType.gemini,
       LLMProvider.openai => LLMProviderType.openai,
       LLMProvider.anthropic => LLMProviderType.anthropic,
-      LLMProvider.qwen => LLMProviderType.qwen,
-      LLMProvider.phi => LLMProviderType.phi,
-      LLMProvider.qwen3 => LLMProviderType.qwen3,
+      LLMProvider.qwen4b => LLMProviderType.qwen4b,
+      LLMProvider.llama3b => LLMProviderType.llama3b,
     };
   }
 }
@@ -82,7 +79,6 @@ enum LLMProviderType {
   gemini,
   openai,
   anthropic,
-  qwen,
-  phi,
-  qwen3,
+  qwen4b,
+  llama3b,
 }

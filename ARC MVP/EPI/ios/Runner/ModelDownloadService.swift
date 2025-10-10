@@ -9,13 +9,6 @@ class ModelDownloadService: NSObject {
     static let shared = ModelDownloadService()
     private let logger = Logger(subsystem: "EPI", category: "ModelDownload")
     
-    /// Resolve model path case-insensitively
-    func resolveModelPath(fileName: String, under dir: URL) -> URL? {
-        let want = fileName.lowercased()
-        let fm = FileManager.default
-        guard let files = try? fm.contentsOfDirectory(at: dir, includingPropertiesForKeys: nil) else { return nil }
-        return files.first { $0.lastPathComponent.lowercased() == want }
-    }
 
     // Track multiple concurrent downloads by model ID
     private var downloadTasks: [String: URLSessionDownloadTask] = [:]
@@ -44,7 +37,11 @@ class ModelDownloadService: NSObject {
         onProgress: @escaping (Double, String) -> Void,
         completion: @escaping (Result<URL, Error>) -> Void
     ) {
+        logger.info("Starting download for model: \(modelId)")
+        logger.info("Download URL: \(urlString)")
+        
         guard let url = URL(string: urlString) else {
+            logger.error("Invalid download URL: \(urlString)")
             completion(.failure(NSError(domain: "ModelDownload", code: 400, userInfo: [
                 NSLocalizedDescriptionKey: "Invalid download URL"
             ])))
@@ -134,8 +131,7 @@ class ModelDownloadService: NSObject {
         // Check for GGUF models (new format)
         let ggufModelIds = [
             "Llama-3.2-3b-Instruct-Q4_K_M.gguf",
-            "Phi-3.5-mini-instruct-Q5_K_M.gguf", 
-            "Qwen3-4B-Instruct-2507-Q4_K_S.gguf"  // Updated Qwen3 4B model
+            "Qwen3-4B-Instruct-2507-Q4_K_S.gguf"
         ]
         
         if ggufModelIds.contains(modelId) {
@@ -143,15 +139,17 @@ class ModelDownloadService: NSObject {
             let documentsPath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
             let ggufModelsPath = documentsPath.appendingPathComponent("gguf_models")
             
-            // Case-insensitive model resolution
-            let resolvedPath = resolveModelPath(fileName: modelId, under: ggufModelsPath)
-            let exists = resolvedPath != nil
+            // Check for both exact case and lowercase versions (Hugging Face uses lowercase)
+            let exactPath = ggufModelsPath.appendingPathComponent(modelId)
+            let lowercasePath = ggufModelsPath.appendingPathComponent(modelId.lowercased())
             
-            if let path = resolvedPath {
-                logger.info("Checking GGUF model \(modelId): found at \(path.path)")
-            } else {
-                logger.info("Checking GGUF model \(modelId): not found")
-            }
+            let exactExists = FileManager.default.fileExists(atPath: exactPath.path)
+            let lowercaseExists = FileManager.default.fileExists(atPath: lowercasePath.path)
+            
+            let exists = exactExists || lowercaseExists
+            let foundPath = exactExists ? exactPath.path : lowercasePath.path
+            
+            logger.info("Checking GGUF model \(modelId): \(exists ? "found" : "not found") at \(foundPath)")
             return exists
         }
         
@@ -192,8 +190,6 @@ class ModelDownloadService: NSObject {
             modelDirName = "Phi-3.5-mini-instruct-4bit"
         case "Llama-3.2-3b-Instruct-Q4_K_M.gguf":
             modelDirName = "Llama-3.2-3b-Instruct-Q4_K_M.gguf"
-        case "Phi-3.5-mini-instruct-Q5_K_M.gguf":
-            modelDirName = "Phi-3.5-mini-instruct-Q5_K_M.gguf"
         case "Qwen3-4B-Instruct-2507-Q4_K_S.gguf":
             modelDirName = "Qwen3-4B-Instruct-2507-Q4_K_S.gguf"
         default:
@@ -236,9 +232,12 @@ extension ModelDownloadService: URLSessionDownloadDelegate {
             // Check if this is a GGUF model (single file, no unzipping needed)
             let ggufModelIds = [
                 "Llama-3.2-3b-Instruct-Q4_K_M.gguf",
-                "Phi-3.5-mini-instruct-Q5_K_M.gguf", 
                 "Qwen3-4B-Instruct-2507-Q4_K_S.gguf"
             ]
+            
+            logger.info("Processing downloaded model: \(modelId)")
+            logger.info("Available GGUF models: \(ggufModelIds)")
+            logger.info("Model is GGUF: \(ggufModelIds.contains(modelId))")
             
             if ggufModelIds.contains(modelId) {
                 // Handle GGUF models - move directly to Documents/gguf_models
@@ -262,6 +261,9 @@ extension ModelDownloadService: URLSessionDownloadDelegate {
             } else {
                 // Only GGUF models are supported
                 logger.error("Unsupported model format: \(modelId). Only GGUF models are supported.")
+                logger.error("Model ID length: \(modelId.count)")
+                logger.error("Model ID characters: \(Array(modelId).map { String($0) })")
+                logger.error("Expected GGUF model IDs: \(ggufModelIds)")
                 progressCallbacks[modelId]?(0.0, "Unsupported model format. Only GGUF models are supported.")
                 throw NSError(domain: "ModelDownloadService", code: 400, userInfo: [
                     NSLocalizedDescriptionKey: "Unsupported model format: \(modelId). Only GGUF models are supported."
@@ -299,6 +301,7 @@ extension ModelDownloadService: URLSessionDownloadDelegate {
         guard let modelId = downloadTasks.first(where: { $0.value == downloadTask })?.key else {
             return
         }
+
 
         // Handle cases where totalBytesExpectedToWrite is unknown or negative
         // Google Drive often returns -1 when Content-Length header is missing
@@ -348,7 +351,8 @@ extension ModelDownloadService: URLSessionDownloadDelegate {
             progressCallbacks.removeValue(forKey: modelId)
         }
     }
-
+    
+    
     // MARK: - Unzip Helper
 
     // MARK: - Legacy Unzip Helper (Not used for GGUF models)
@@ -368,8 +372,6 @@ extension ModelDownloadService: URLSessionDownloadDelegate {
         // List of bundled GGUF models to copy
         let bundledModels = [
             "Llama-3.2-3b-Instruct-Q4_K_M.gguf",
-            "Phi-3.5-mini-instruct-Q5_K_M.gguf",
-            "Qwen3-4B-Instruct.Q5_K_M.gguf",
             "Qwen3-4B-Instruct-2507-Q4_K_S.gguf"
         ]
         

@@ -7,6 +7,7 @@ import '../mira_basics.dart';
 import '../../arc/core/journal_repository.dart' as arc;
 import '../../atlas/phase_detection/phase_history_repository.dart' as atlas;
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../models/journal_entry_model.dart';
 
 // ------------------------------
 // JOURNAL REPOSITORY ADAPTER
@@ -22,8 +23,20 @@ class EPIJournalRepository implements JournalRepository {
     try {
       final arcEntries = _arcRepo.getAllJournalEntries();
       return arcEntries.map((entry) => JournalEntry(
+        id: entry.id,
+        title: entry.title,
+        content: entry.content,
         createdAt: entry.createdAt,
-        phase: null, // Phase not available in SAGE annotation
+        updatedAt: entry.updatedAt,
+        tags: entry.tags,
+        mood: entry.mood,
+        audioUri: entry.audioUri,
+        media: entry.media,
+        sageAnnotation: entry.sageAnnotation,
+        keywords: entry.keywords,
+        emotion: entry.emotion,
+        emotionReason: entry.emotionReason,
+        metadata: entry.metadata,
       )).toList();
     } catch (e) {
       print('EPIJournalRepository: Error getting entries: $e');

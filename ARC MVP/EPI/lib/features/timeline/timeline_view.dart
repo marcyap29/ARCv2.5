@@ -30,6 +30,10 @@ class _TimelineViewContentState extends State<TimelineViewContent> {
     super.initState();
     _timelineCubit = context.read<TimelineCubit>();
     _scrollController.addListener(_onScroll);
+    // Refresh timeline when view is first shown to ensure latest data
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _timelineCubit.refreshEntries();
+    });
   }
 
   @override

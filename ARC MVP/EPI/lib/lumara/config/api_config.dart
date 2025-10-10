@@ -5,6 +5,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../llm/bridge.pigeon.dart';
+import '../bloc/model_management_cubit.dart';
 import '../services/download_state_service.dart';
 
 /// Supported LLM providers
@@ -12,9 +13,8 @@ enum LLMProvider {
   gemini,
   openai,
   anthropic,
-  qwen,       // Internal Llama 3.2 3B model
-  phi,        // Internal Phi 3.5 Mini model
-  qwen3,      // Internal Qwen3 4B model
+  qwen4b,     // Internal Qwen3 4B Q4_K_S model
+  llama3b,    // Internal Llama 3.2 3B model
 }
 
 /// API configuration for different providers
@@ -129,21 +129,21 @@ class LumaraAPIConfig {
       // Get the model ID for this provider
       String modelId;
       switch (config.provider) {
-        case LLMProvider.qwen:
-          modelId = 'Llama-3.2-3b-Instruct-Q4_K_M.gguf';
-          break;
-        case LLMProvider.phi:
-          modelId = 'Phi-3.5-mini-instruct-Q5_K_M.gguf';
-          break;
-        case LLMProvider.qwen3:
+        case LLMProvider.qwen4b:
           modelId = 'Qwen3-4B-Instruct-2507-Q4_K_S.gguf';
           break;
+        case LLMProvider.llama3b:
+          modelId = 'Llama-3.2-3b-Instruct-Q4_K_M.gguf';
+          break;
         default:
+          debugPrint('LUMARA API: Unknown provider type: ${config.provider}');
           return false;
       }
       
+      debugPrint('LUMARA API: Checking model availability for: $modelId');
       // Quick file existence check only - don't load or validate the model
       final isDownloaded = await bridge.isModelDownloaded(modelId);
+      debugPrint('LUMARA API: Model $modelId availability: $isDownloaded');
       return isDownloaded;
     } catch (e) {
       debugPrint('LUMARA API: Quick check error for ${config.name}: $e');
@@ -182,45 +182,33 @@ class LumaraAPIConfig {
     );
 
     // Internal LLM providers
-    _configs[LLMProvider.phi] = LLMProviderConfig(
-      provider: LLMProvider.phi,
-      name: 'Phi (Internal)',
-      baseUrl: 'http://localhost:8080', // Local inference server
-      additionalConfig: {
-        'modelId': 'phi-3.5-mini-instruct-4bit',
-        'contextLength': 4096,
-        'temperature': 0.7,
-      },
-      isInternal: true,
-    );
+        _configs[LLMProvider.qwen4b] = LLMProviderConfig(
+          provider: LLMProvider.qwen4b,
+          name: 'Qwen3 4B Q4_K_S (Internal)',
+          baseUrl: 'http://localhost:8082', // Local inference server
+          additionalConfig: {
+            'modelPath': 'assets/models/gguf/Qwen3-4B-Instruct-2507-Q4_K_S.gguf',
+            'contextLength': 4096,
+            'temperature': 0.7,
+            'backend': 'llama.cpp',
+            'metal': true,
+          },
+          isInternal: true,
+        );
 
-    _configs[LLMProvider.qwen] = LLMProviderConfig(
-      provider: LLMProvider.qwen,
-      name: 'Llama 3.2 3B (Internal)',
-      baseUrl: 'http://localhost:8081', // Local inference server
-      additionalConfig: {
-        'modelPath': 'assets/models/gguf/Llama-3.2-3b-Instruct-Q4_K_M.gguf',
-        'contextLength': 2048,
-        'temperature': 0.7,
-        'backend': 'llama.cpp',
-        'metal': true,
-      },
-      isInternal: true,
-    );
-
-    _configs[LLMProvider.qwen3] = LLMProviderConfig(
-      provider: LLMProvider.qwen3,
-      name: 'Qwen3 4B (Internal)',
-      baseUrl: 'http://localhost:8082', // Local inference server
-      additionalConfig: {
-        'modelPath': 'assets/models/gguf/Qwen3-4B-Instruct-2507-Q4_K_S.gguf',
-        'contextLength': 2048,
-        'temperature': 0.7,
-        'backend': 'llama.cpp',
-        'metal': true,
-      },
-      isInternal: true,
-    );
+        _configs[LLMProvider.llama3b] = LLMProviderConfig(
+          provider: LLMProvider.llama3b,
+          name: 'Llama 3.2 3B (Internal)',
+          baseUrl: 'http://localhost:8083', // Local inference server
+          additionalConfig: {
+            'modelPath': 'assets/models/gguf/Llama-3.2-3b-Instruct-Q4_K_M.gguf',
+            'contextLength': 4096,
+            'temperature': 0.7,
+            'backend': 'llama.cpp',
+            'metal': true,
+          },
+          isInternal: true,
+        );
 
     // Load saved API keys from SharedPreferences (overrides environment)
     if (_prefs != null) {
@@ -301,14 +289,11 @@ class LumaraAPIConfig {
       // Get the model ID for this provider
       String modelId;
       switch (config.provider) {
-        case LLMProvider.qwen:
-          modelId = 'Llama-3.2-3b-Instruct-Q4_K_M.gguf';
-          break;
-        case LLMProvider.phi:
-          modelId = 'Phi-3.5-mini-instruct-Q5_K_M.gguf';
-          break;
-        case LLMProvider.qwen3:
+        case LLMProvider.qwen4b:
           modelId = 'Qwen3-4B-Instruct-2507-Q4_K_S.gguf';
+          break;
+        case LLMProvider.llama3b:
+          modelId = 'Llama-3.2-3b-Instruct-Q4_K_M.gguf';
           break;
         default:
           return;
@@ -330,14 +315,11 @@ class LumaraAPIConfig {
       // Get the model ID for this provider
       String modelId;
       switch (config.provider) {
-        case LLMProvider.qwen:
-          modelId = 'Llama-3.2-3b-Instruct-Q4_K_M.gguf';
-          break;
-        case LLMProvider.phi:
-          modelId = 'Phi-3.5-mini-instruct-Q5_K_M.gguf';
-          break;
-        case LLMProvider.qwen3:
+        case LLMProvider.qwen4b:
           modelId = 'Qwen3-4B-Instruct-2507-Q4_K_S.gguf';
+          break;
+        case LLMProvider.llama3b:
+          modelId = 'Llama-3.2-3b-Instruct-Q4_K_M.gguf';
           break;
         default:
           return false;
@@ -363,42 +345,31 @@ class LumaraAPIConfig {
   /// Check if internal model is available
   Future<bool> _checkInternalModelAvailability(LLMProviderConfig config) async {
     try {
-      // For Qwen and Phi, check if model is downloaded via native bridge
-      if (config.provider == LLMProvider.qwen) {
-        try {
-          final bridge = LumaraNative();
-          final isDownloaded = await bridge.isModelDownloaded('Llama-3.2-3b-Instruct-Q4_K_M.gguf');
-          debugPrint('LUMARA API: Qwen model ${isDownloaded ? 'is' : 'is NOT'} downloaded');
-          return isDownloaded;
-        } catch (e) {
-          debugPrint('LUMARA API: Error checking Qwen availability: $e');
-          return false;
-        }
-      }
 
-      if (config.provider == LLMProvider.phi) {
-        try {
-          final bridge = LumaraNative();
-          final isDownloaded = await bridge.isModelDownloaded('Phi-3.5-mini-instruct-Q5_K_M.gguf');
-          debugPrint('LUMARA API: Phi model ${isDownloaded ? 'is' : 'is NOT'} downloaded');
-          return isDownloaded;
-        } catch (e) {
-          debugPrint('LUMARA API: Error checking Phi availability: $e');
-          return false;
-        }
-      }
 
-      if (config.provider == LLMProvider.qwen3) {
-        try {
-          final bridge = LumaraNative();
-          final isDownloaded = await bridge.isModelDownloaded('Qwen3-4B-Instruct-2507-Q4_K_S.gguf');
-          debugPrint('LUMARA API: Qwen3 model ${isDownloaded ? 'is' : 'is NOT'} downloaded');
-          return isDownloaded;
-        } catch (e) {
-          debugPrint('LUMARA API: Error checking Qwen3 availability: $e');
-          return false;
-        }
-      }
+          if (config.provider == LLMProvider.qwen4b) {
+            try {
+              final bridge = LumaraNative();
+              final isDownloaded = await bridge.isModelDownloaded('Qwen3-4B-Instruct-2507-Q4_K_S.gguf');
+              debugPrint('LUMARA API: Qwen3 4B model ${isDownloaded ? 'is' : 'is NOT'} downloaded');
+              return isDownloaded;
+            } catch (e) {
+              debugPrint('LUMARA API: Error checking Qwen3 4B availability: $e');
+              return false;
+            }
+          }
+
+          if (config.provider == LLMProvider.llama3b) {
+            try {
+              final bridge = LumaraNative();
+              final isDownloaded = await bridge.isModelDownloaded('Llama-3.2-3b-Instruct-Q4_K_M.gguf');
+              debugPrint('LUMARA API: Llama 3B model ${isDownloaded ? 'is' : 'is NOT'} downloaded');
+              return isDownloaded;
+            } catch (e) {
+              debugPrint('LUMARA API: Error checking Llama 3B availability: $e');
+              return false;
+            }
+          }
 
       debugPrint('LUMARA API: ${config.name} disabled (use LLMAdapter for native inference)');
       return false;

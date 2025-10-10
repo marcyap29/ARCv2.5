@@ -113,9 +113,9 @@ import Metal
         NSLog("[LlamaBridge] initModel path=\(path)")
 
         // Check if the model file exists
-        let bundlePath = Bundle.main.path(forResource: "Llama-3.2-3b-Instruct-Q4_K_M", ofType: "gguf", inDirectory: "assets/models/gguf")
+        let bundlePath = Bundle.main.path(forResource: "Qwen3-1.7B-Q8_0", ofType: "gguf", inDirectory: "assets/models/gguf")
         if bundlePath == nil {
-            NSLog("[LlamaBridge] model file not found in bundle at assets/models/gguf/Llama-3.2-3b-Instruct-Q4_K_M.gguf")
+            NSLog("[LlamaBridge] model file not found in bundle at assets/models/gguf/Qwen3-1.7B-Q8_0.gguf")
             result(["ok": false, "error": "file_not_found"]); return
         }
 

@@ -8,6 +8,7 @@ import 'model_progress_service.dart';
 import 'prompts/lumara_prompt_assembler.dart';
 import 'prompts/lumara_model_presets.dart';
 import 'prompts/llama_chat_template.dart';
+import 'prompts/chat_templates.dart';
 
 /// On-device LLM adapter using Pigeon native bridge
 /// Supports GGUF models via llama.cpp with Metal acceleration (iOS)
@@ -125,32 +126,21 @@ class LLMAdapter implements ModelAdapter {
           _isInitialized = true;
           debugPrint('[LLMAdapter] Using Llama-3.2-3B model: $_activeModelId');
         } else {
-          // Check for Phi-3.5 model as fallback
-          final phiDownloaded = await _nativeApi.isModelDownloaded('Phi-3.5-mini-instruct-Q5_K_M.gguf');
-          debugPrint('[LLMAdapter] Phi-3.5 model downloaded: $phiDownloaded');
-          
-          if (phiDownloaded) {
-            _activeModelId = 'Phi-3.5-mini-instruct-Q5_K_M.gguf';
-            _available = true;
-            _isInitialized = true;
-            debugPrint('[LLMAdapter] Using Phi-3.5 model: $_activeModelId');
-          } else {
-          // Check for Qwen3-4B model as final fallback
+          // Check for Qwen3-4B model as fallback
           final qwenDownloaded = await _nativeApi.isModelDownloaded('Qwen3-4B-Instruct-2507-Q4_K_S.gguf');
           debugPrint('[LLMAdapter] Qwen3-4B model downloaded: $qwenDownloaded');
           
           if (qwenDownloaded) {
             _activeModelId = 'Qwen3-4B-Instruct-2507-Q4_K_S.gguf';
-              _available = true;
-              _isInitialized = true;
-              debugPrint('[LLMAdapter] Using Qwen3-4B model: $_activeModelId');
-            } else {
-              _reason = 'no_gguf_models_downloaded';
-              _available = false;
-              _isInitialized = false;
-              debugPrint('[LLMAdapter] No GGUF models downloaded');
-              return false;
-            }
+            _available = true;
+            _isInitialized = true;
+            debugPrint('[LLMAdapter] Using Qwen3-4B model: $_activeModelId');
+          } else {
+            _reason = 'no_gguf_models_downloaded';
+            _available = false;
+            _isInitialized = false;
+            debugPrint('[LLMAdapter] No GGUF models downloaded');
+            return false;
           }
         }
       } catch (e) {
@@ -296,9 +286,11 @@ class LLMAdapter implements ModelAdapter {
       if (useMinimalPrompt) {
         // Fast path: minimal prompt for quick responses
         debugPrint('⚡ Using MINIMAL prompt for quick chat');
-        optimizedPrompt = LlamaChatTemplate.formatSimple(
-          systemMessage: "You are LUMARA, a helpful and friendly AI assistant. Keep your responses brief and natural.",
-          userMessage: userMessage,
+        final systemMessage = "You are LUMARA, a helpful and friendly AI assistant. Keep your responses brief and natural.";
+        optimizedPrompt = ChatTemplates.getTemplate(
+          _activeModelId ?? 'Llama-3.2-3b-Instruct-Q4_K_M.gguf',
+          systemMessage: ChatTemplates.toAscii(systemMessage),
+          userMessage: ChatTemplates.toAscii(userMessage),
         );
       } else {
         // Full path: complete context for complex queries
@@ -328,8 +320,12 @@ class LLMAdapter implements ModelAdapter {
           useFewShot: false, // Disable few-shot examples
         );
 
-        // Format for Llama-3.2-Instruct using proper chat template
-        optimizedPrompt = _formatForLlama(assembledPrompt, userMessage);
+        // Use model-specific chat template
+          optimizedPrompt = ChatTemplates.getTemplate(
+            _activeModelId ?? 'Llama-3.2-3b-Instruct-Q4_K_M.gguf',
+            systemMessage: ChatTemplates.toAscii(_extractSystemMessage(assembledPrompt)),
+            userMessage: ChatTemplates.toAscii(userMessage),
+          );
       }
 
       debugPrint('📝 OPTIMIZED PROMPT LENGTH: ${optimizedPrompt.length} characters');
@@ -343,16 +339,16 @@ class LLMAdapter implements ModelAdapter {
       final modelName = _activeModelId ?? 'Llama-3.2-3b-Instruct-Q4_K_M.gguf';
       final preset = LumaraModelPresets.getPreset(modelName);
       
-      // Adaptive max tokens based on query complexity
+      // Use optimized parameters for tiny models
       final adaptiveMaxTokens = useMinimalPrompt
-          ? 50   // Ultra-terse: simple greetings (20-50 tokens)
-          : (preset['max_new_tokens'] ?? 80);  // Standard mobile: 40-80 tokens
+          ? 32   // Ultra-terse for simple greetings
+          : (preset['max_new_tokens'] ?? 64);  // Conservative for tiny models
 
       final params = pigeon.GenParams(
         maxTokens: adaptiveMaxTokens,
-        temperature: preset['temperature'] ?? 0.7,
+        temperature: preset['temperature'] ?? 0.35,
         topP: preset['top_p'] ?? 0.9,
-        repeatPenalty: preset['repeat_penalty'] ?? 1.1,
+        repeatPenalty: preset['repeat_penalty'] ?? 1.08,
         seed: 101,
       );
       
@@ -384,6 +380,19 @@ class LLMAdapter implements ModelAdapter {
       debugPrint('🟩🟩🟩 === DART LLMAdapter.realize ERROR === 🟩🟩🟩');
       yield 'Error generating response: $e';
     }
+  }
+
+  /// Extract system message from assembled prompt
+  static String _extractSystemMessage(String assembledPrompt) {
+    final systemStart = assembledPrompt.indexOf('<<SYSTEM>>');
+    final contextStart = assembledPrompt.indexOf('<<CONTEXT>>');
+    
+    if (systemStart != -1 && contextStart != -1) {
+      final systemEnd = contextStart;
+      return assembledPrompt.substring(systemStart + 10, systemEnd).trim();
+    }
+    
+    return "You are LUMARA, a personal AI assistant.";
   }
 
   // Prompt building is now handled entirely by the Swift side (LumaraPromptSystem)

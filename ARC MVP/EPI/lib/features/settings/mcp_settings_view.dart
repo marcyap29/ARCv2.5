@@ -12,6 +12,7 @@ import 'package:archive/archive_io.dart';
 import '../../prism/mcp/export/zip_utils.dart';
 import '../../arc/core/journal_repository.dart';
 import 'mcp_settings_cubit.dart';
+import '../timeline/timeline_cubit.dart';
 
 class McpSettingsView extends StatelessWidget {
   const McpSettingsView({super.key});
@@ -57,6 +58,17 @@ class _McpSettingsViewContent extends StatelessWidget {
             );
           }
           if (state.successMessage != null) {
+            // Refresh timeline after successful MCP import
+            if (state.successMessage!.contains('MCP import completed successfully')) {
+              try {
+                final timelineCubit = context.read<TimelineCubit>();
+                timelineCubit.refreshEntries();
+                print('DEBUG: Timeline refreshed after MCP import');
+              } catch (e) {
+                print('DEBUG: Could not refresh timeline: $e');
+              }
+            }
+            
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: Text(state.successMessage!),

@@ -7,6 +7,23 @@ import 'dart:async';
 import '../../mira/mira_basics.dart';
 import '../llm/llm_adapter.dart';
 
+class _PromptPack {
+  final String prompt;
+  final double temperature;
+  final double topP;
+  final double repeatPenalty;
+  final int? maxTokens;
+  final List<String> stops;
+  _PromptPack({
+    required this.prompt,
+    required this.temperature,
+    required this.topP,
+    required this.repeatPenalty,
+    this.maxTokens,
+    this.stops = const [],
+  });
+}
+
 class QuickAnswersRouter {
   final MiraBasicsProvider basicsProvider;
   final LLMAdapter llm;
@@ -76,52 +93,39 @@ class QuickAnswersRouter {
     required String baseAnswer,
     int maxTokens = 64,
   }) async {
-    // Build a compact prompt. We provide MMCO as ground truth.
-    final system = [
-      "You are LUMARA, a helpful mobile assistant.",
-      "Treat the MMCO JSON as ground truth.",
-      "Answer briefly in a steady tone. No em dashes.",
-      "Do not claim you lack access to context provided in MMCO.",
-    ].join(" ");
+    final modelName = LLMAdapter.activeModelName?.toLowerCase() ?? "";
+
+    // Ultra-short, ASCII-only system prompt.
+    const system = "You are LUMARA. Use MMCO as ground truth. "
+        "Answer briefly, steady tone, plain ASCII. "
+        "Do not say you lack context if MMCO provides it.";
 
     final user = [
       "<MMCO>",
       _compactJson(mmco.toJson()),
       "</MMCO>",
-      "User asked: \"$userText\"",
+      'User asked: "${_ascii(userText)}"',
       "",
-      "Here is a draft answer:", 
-      baseAnswer,
+      "Draft answer:",
+      _ascii(baseAnswer),
       "",
-      "Polish the draft to be clear and concise.",
-      "Keep any concrete facts from MMCO.",
-      "Limit to 3–5 sentences.",
+      "Polish for clarity. Keep facts. Limit to 3-5 short sentences."
     ].join("\n");
 
-    // Minimal generation call using your existing adapter's thin wrapper.
-    // Replace with your actual call signature if different.
-    final prompt = _qwenChatTemplate(system: system, user: user);
+    final _PromptPack p = _selectPromptPack(modelName, system, user);
 
-    // These settings mirror your fast path
-    const temperature = 0.3;
-    const topP = 0.9;
-    const repeatPenalty = 1.1;
-
-    // Example native call you likely already have wired:
-    // return await llm.generateText(prompt, maxTokens: maxTokens, temp: temperature, topP: topP, repeatPenalty: repeatPenalty);
-    //
-    // If your adapter takes a param object, adapt accordingly:
     try {
-      // You may have llm.generateChat(params) or similar. Adjust here.
       final text = await _generateMinimal(
-        prompt: prompt,
-        maxTokens: maxTokens,
-        temperature: temperature,
-        topP: topP,
-        repeatPenalty: repeatPenalty,
+        prompt: p.prompt,
+        maxTokens: p.maxTokens ?? maxTokens,
+        temperature: p.temperature,
+        topP: p.topP,
+        repeatPenalty: p.repeatPenalty,
+        // If your adapter supports stop strings, pass p.stops.
+        // stops: p.stops,
       );
-      return text;
-    } catch (e) {
+      return _ascii(text);
+    } catch (_) {
       return null;
     }
   }
@@ -153,7 +157,67 @@ class QuickAnswersRouter {
     return response;
   }
 
-  // Qwen-style chat template. Keep it tiny and deterministic.
+
+  // Compact JSON to keep prompt short
+  String _compactJson(Map<String, dynamic> json) {
+    return json.toString(); // quick and compact for small objects
+  }
+
+  String _ascii(String s) => s
+      .replaceAll("'", "'")
+      .replaceAll(""", '"')
+      .replaceAll(""", '"')
+      .replaceAll("–", "-")
+      .replaceAll("—", "-")
+      .replaceAll(RegExp(r"[^\x00-\x7F]"), "");
+
+  // ---- prompt pack & model selection ----
+
+  _PromptPack _selectPromptPack(String modelName, String system, String user) {
+    final isQwen4B = modelName.contains("qwen3-4b") ||
+        (modelName.contains("qwen3") && modelName.contains("4b"));
+    final isLlama3B = modelName.contains("llama-3.2-3b") ||
+        (modelName.contains("llama 3.2") && modelName.contains("3b"));
+
+    // Qwen3-4B-Instruct-2507-Q4_K_S.gguf
+    if (isQwen4B) {
+      final prompt = _qwenChatTemplate(system: system, user: user);
+      return _PromptPack(
+        prompt: prompt,
+        temperature: 0.40,   // slightly warmer than 1–2B; still stable
+        topP: 0.90,
+        repeatPenalty: 1.07,
+        maxTokens: 96,
+        stops: const ["<|eot_id|>", "<|im_end|>"],
+      );
+    }
+
+    // Llama-3.2-3B-Instruct-Q4_K_M.gguf
+    if (isLlama3B) {
+      final prompt = _llamaChatTemplate(system: system, user: user);
+      return _PromptPack(
+        prompt: prompt,
+        temperature: 0.30,   // conservative to avoid drift
+        topP: 0.88,
+        repeatPenalty: 1.10,
+        maxTokens: 80,
+        stops: const ["<|eot_id|>", "<|end_of_text|>", "</s>"],
+      );
+    }
+
+    // Fallback (Qwen-style headers)
+    final prompt = _qwenChatTemplate(system: system, user: user);
+    return _PromptPack(
+      prompt: prompt,
+      temperature: 0.35,
+      topP: 0.90,
+      repeatPenalty: 1.08,
+      maxTokens: 64,
+      stops: const ["<|eot_id|>"],
+    );
+  }
+
+  // Qwen3 headers (works with llama.cpp Qwen GGUF)
   String _qwenChatTemplate({required String system, required String user}) {
     return "<|begin_of_text|><|start_header_id|>system<|end_header_id|>\n"
         "$system\n"
@@ -162,8 +226,12 @@ class QuickAnswersRouter {
         "<|eot_id|><|start_header_id|>assistant<|end_header_id|>\n";
   }
 
-  // Compact JSON to keep prompt short
-  String _compactJson(Map<String, dynamic> json) {
-    return json.toString(); // quick and compact for small objects
+  // Llama 3.2 Instruct uses the same header tokens in recent llama.cpp builds
+  String _llamaChatTemplate({required String system, required String user}) {
+    return "<|begin_of_text|><|start_header_id|>system<|end_header_id|>\n"
+        "$system\n"
+        "<|eot_id|><|start_header_id|>user<|end_header_id|>\n"
+        "$user\n"
+        "<|eot_id|><|start_header_id|>assistant<|end_header_id|>\n";
   }
 }

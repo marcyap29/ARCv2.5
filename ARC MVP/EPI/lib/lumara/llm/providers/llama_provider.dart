@@ -10,21 +10,21 @@ import '../bridge.pigeon.dart';
 
 /// Llama/Phi internal model provider
 class LlamaProvider extends LLMProviderBase {
-  LlamaProvider(LumaraAPIConfig apiConfig) : super(apiConfig, 'Phi (Internal)', true);
+  LlamaProvider(LumaraAPIConfig apiConfig) : super(apiConfig, 'Llama 3.2 3B (Internal)', true);
 
   @override
-  LLMProvider getProviderType() => LLMProvider.phi;
+  LLMProvider getProviderType() => LLMProvider.llama3b;
 
   @override
   Future<bool> isAvailable() async {
     // Check if Phi model is actually downloaded via native bridge
     try {
       final bridge = LumaraNative();
-      final isDownloaded = await bridge.isModelDownloaded('phi-3.5-mini-instruct-4bit');
-      debugPrint('PhiProvider: Model ${isDownloaded ? "IS" : "IS NOT"} downloaded');
+      final isDownloaded = await bridge.isModelDownloaded('Llama-3.2-3b-Instruct-Q4_K_M.gguf');
+      debugPrint('LlamaProvider: Model ${isDownloaded ? "IS" : "IS NOT"} downloaded');
       return isDownloaded;
     } catch (e) {
-      debugPrint('PhiProvider: Error checking model availability: $e');
+      debugPrint('LlamaProvider: Error checking model availability: $e');
       return false;
     }
   }

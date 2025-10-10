@@ -51,6 +51,8 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
     _downloadStateService.addListener(_onDownloadStateChanged);
     // Refresh model states to handle model ID changes
     _downloadStateService.refreshAllStates();
+    // Refresh API config to update provider availability
+    _refreshApiConfig();
   }
 
   @override
@@ -64,9 +66,28 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
 
   void _onDownloadStateChanged() {
     if (mounted) {
-      setState(() {
-        // Rebuild UI when download state changes
+      // Defer setState to avoid calling during build
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          setState(() {
+            // Rebuild UI when download state changes
+          });
+        }
       });
+    }
+  }
+
+  Future<void> _refreshApiConfig() async {
+    try {
+      await _apiConfig.initialize();
+      await _apiConfig.refreshModelAvailability();
+      if (mounted) {
+        setState(() {
+          // Rebuild UI with updated provider status
+        });
+      }
+    } catch (e) {
+      debugPrint('Error refreshing API config: $e');
     }
   }
 
@@ -971,9 +992,9 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
 
 
   Widget _buildApiKeysCard(ThemeData theme) {
-    final externalProviders = LLMProvider.values
-        .where((p) => p != LLMProvider.phi && p != LLMProvider.qwen && p != LLMProvider.qwen3)
-        .toList();
+        final externalProviders = LLMProvider.values
+            .where((p) => p != LLMProvider.qwen4b && p != LLMProvider.llama3b)
+            .toList();
     
     return Card(
       elevation: 2,

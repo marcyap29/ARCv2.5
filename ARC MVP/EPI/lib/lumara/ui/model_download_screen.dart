@@ -63,13 +63,6 @@ class _ModelDownloadScreenState extends State<ModelDownloadScreen> {
       description: 'Recommended: Fast, efficient, 4-bit quantized',
     ),
     ModelInfo(
-      id: 'Phi-3.5-mini-instruct-Q5_K_M.gguf',
-      name: 'Phi-3.5 Mini Instruct (Q5_K_M)',
-      size: '~2.6 GB',
-      downloadUrl: 'https://huggingface.co/bartowski/Phi-3.5-mini-instruct-GGUF/resolve/main/Phi-3.5-mini-instruct-Q5_K_M.gguf?download=true',
-      description: 'High quality, 5-bit quantized, excellent reasoning',
-    ),
-    ModelInfo(
       id: 'Qwen3-4B-Instruct-2507-Q4_K_S.gguf',
       name: 'Qwen3 4B Instruct (Q4_K_S)',
       size: '~2.5 GB',

@@ -9,6 +9,7 @@ import 'package:my_app/models/journal_entry_model.dart' as model;
 import '../../mira/mira_service.dart';
 import '../../../mira/core/schema.dart';
 import '../../../mira/core/ids.dart';
+import '../timeline/timeline_cubit.dart';
 
 /// State for MCP settings operations
 class McpSettingsState {
@@ -68,6 +69,13 @@ class McpSettingsCubit extends Cubit<McpSettingsState> {
   /// Initialize MCP services
   void _initializeServices() {
     _importService = McpImportService(journalRepo: _journalRepository);
+  }
+
+  /// Refresh timeline after data changes
+  void _refreshTimeline() {
+    // This will be called from the UI layer where we have access to TimelineCubit
+    // For now, we'll emit an event that the UI can listen to
+    print('DEBUG: MCP import completed - timeline should refresh');
   }
 
   /// Set storage profile for export
@@ -237,6 +245,9 @@ class McpSettingsCubit extends Cubit<McpSettingsState> {
       final result = await _importService!.importBundle(bundleDir, options);
 
       if (result.success) {
+        // Trigger timeline refresh after successful import
+        _refreshTimeline();
+        
         emit(state.copyWith(
           isLoading: false,
           isImporting: false,

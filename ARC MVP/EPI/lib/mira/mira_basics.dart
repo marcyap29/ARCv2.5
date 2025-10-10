@@ -12,10 +12,35 @@
 
 import 'dart:async';
 import '../lumara/llm/llm_adapter.dart' as llm;
+import '../models/journal_entry_model.dart';
 
 // ------------------------------
 // DATA SHAPES
 // ------------------------------
+
+class RecentEntrySummary {
+  final String id;
+  final String createdAt; // ISO8601
+  final String text;      // trimmed preview
+  final String? phase;
+  final List<String> tags;
+
+  RecentEntrySummary({
+    required this.id,
+    required this.createdAt,
+    required this.text,
+    this.phase,
+    this.tags = const [],
+  });
+
+  Map<String, dynamic> toJson() => {
+    "id": id,
+    "createdAt": createdAt,
+    "text": text,
+    "phase": phase,
+    "tags": tags,
+  };
+}
 
 class MMCO {
   final String currentPhase;
@@ -29,6 +54,7 @@ class MMCO {
   final String assistantStyle;     // "direct" | "suggestive"
   final String? onboardingIntent;  // nullable free text
   final ModelStatus modelStatus;
+  final List<RecentEntrySummary> recentEntries; // NEW
 
   MMCO({
     required this.currentPhase,
@@ -42,6 +68,7 @@ class MMCO {
     required this.assistantStyle,
     required this.onboardingIntent,
     required this.modelStatus,
+    required this.recentEntries, // NEW
   });
 
   Map<String, dynamic> toJson() => {
@@ -56,6 +83,7 @@ class MMCO {
         "assistantStyle": assistantStyle,
         "onboardingIntent": onboardingIntent,
         "modelStatus": modelStatus.toJson(),
+        "recentEntries": recentEntries.map((e) => e.toJson()).toList(),
       };
 }
 
@@ -76,11 +104,6 @@ abstract class JournalRepository {
   Future<List<JournalEntry>> getAll();
 }
 
-class JournalEntry {
-  final DateTime createdAt;
-  final String? phase; // optional per-entry phase annotation
-  JournalEntry({required this.createdAt, this.phase});
-}
 
 abstract class MemoryRepo {
   Future<List<String>> topKeywords({int limit = 10});
@@ -106,6 +129,31 @@ class MiraBasics {
 
   MiraBasics(this.journalRepo, this.memoryRepo, this.settings);
 
+  String _clip(String s, int n) => s.length <= n ? s : (s.substring(0, n).trimRight() + "...");
+  
+  String _ascii(String s) => s
+    .replaceAll("'", "'")
+    .replaceAll(""", '"')
+    .replaceAll(""", '"')
+    .replaceAll("–", "-")
+    .replaceAll("—", "-")
+    .replaceAll(RegExp(r"[^\x00-\x7F]"), "");
+
+  List<RecentEntrySummary> _recentEntrySummaries(List<JournalEntry> entries, {int limit = 5}) {
+    final sorted = [...entries]..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    final take = sorted.take(limit).toList();
+    return take.map((e) {
+      final preview = _ascii(_clip(e.content, 180)); // ~2 lines
+      return RecentEntrySummary(
+        id: e.id,
+        createdAt: e.createdAt.toIso8601String(),
+        text: preview,
+        phase: e.metadata?['phase'], // Get phase from metadata
+        tags: e.tags.take(5).toList(),
+      );
+    }).toList();
+  }
+
   Future<MMCO> build() async {
     final now = DateTime.now();
     final entries = await _safeGetAll();
@@ -130,6 +178,8 @@ class MiraBasics {
     final chosenKeywords =
         keywords.isNotEmpty ? keywords : await _fallbackKeywords(intent);
 
+    final recentSummaries = _recentEntrySummaries(entries, limit: 5);
+
     return MMCO(
       currentPhase: phase,
       phaseGeometry: phaseGeom,
@@ -145,6 +195,7 @@ class MiraBasics {
         onDevice: onDeviceAvailable ? "available" : "unavailable",
         name: modelName,
       ),
+      recentEntries: recentSummaries,
     );
   }
 
@@ -338,7 +389,8 @@ class QuickAnswers {
         s.contains("keyword") ||
         s.contains("streak") ||
         s.contains("recent") ||
-        s.contains("last entry");
+        s.contains("last entry") ||
+        s.contains("latest entry");
   }
 
   String answer(String q) {
@@ -352,8 +404,8 @@ class QuickAnswers {
     if (s.contains("streak")) {
       return _streak();
     }
-    if (s.contains("recent") || s.contains("last entry")) {
-      return _lastEntry();
+    if (s.contains("recent") || s.contains("last entry") || s.contains("latest entry")) {
+      return _recent();
     }
     return _help();
   }
@@ -383,14 +435,21 @@ class QuickAnswers {
         : "No active streak yet. Want a gentle daily nudge?";
   }
 
-  String _lastEntry() {
-    if (mmco.recentEntryCount == 0) {
-      return "No journal entries yet. Try a 60-second starter: \"Today I'm curious about…\".";
+  String _recent() {
+    if (mmco.recentEntries.isEmpty) {
+      return "No journal entries yet. Try a 60-second starter: \"Today I'm curious about...\"";
     }
-    return "Last entry: ${mmco.lastEntryAt}. Entries in the last 7 days: ${mmco.recentEntryCount}.";
+    // Show up to 3 for compactness; tiny models do better with less text.
+    final rows = mmco.recentEntries.take(3).map((e) {
+      final date = e.createdAt; // client can humanize later
+      final tagLine = e.tags.isEmpty ? "" : "  [${e.tags.take(3).join(', ')}]";
+      final phase = e.phase == null ? "" : " (${e.phase})";
+      return "- ${date}${phase}${tagLine}\n  ${e.text}";
+    }).join("\n");
+    return "Recent entries:\n$rows";
   }
 
-  String _help() => "You can ask: \"What phase am I in?\", \"Why spiral?\", \"Show my themes\", \"How many days in my streak?\", \"When was my last entry?\".";
+  String _help() => "You can ask: \"What phase am I in?\", \"Why spiral?\", \"Show my themes\", \"How many days in my streak?\", \"When was my last entry?\", \"Show recent entries\".";
 }
 
 // ------------------------------
