@@ -204,6 +204,89 @@
   4. **Usage Logic**: `LumaraAssistantCubit` respects manual selection or uses automatic fallback
   5. **Consistent Detection**: `LLMAdapter` uses same detection method for on-device models
 
+  ## 🎨 Constellation Arcform Visualization Architecture (Updated Oct 10, 2025)
+
+  **Complete Polar Coordinate Layout System for Journal Keywords**:
+  ```
+  Journal Entry → Keywords → Constellation Renderer → Polar Layout → Custom Painter → Animated Visualization
+                                      ↓                    ↓              ↓
+                              AtlasPhase Mapping   Geometric Masking   Star Nodes + Edges
+  ```
+
+  **Key Components**:
+  - `lib/features/arcforms/constellation/constellation_arcform_renderer.dart` - Main widget with animation controllers
+  - `lib/features/arcforms/constellation/constellation_layout_service.dart` - Polar layout engine
+  - `lib/features/arcforms/constellation/constellation_painter.dart` - CustomPainter for rendering
+  - `lib/features/arcforms/constellation/polar_masks.dart` - Geometric masking for star placement
+  - `lib/features/arcforms/constellation/graph_utils.dart` - Graph calculation utilities
+  - `lib/features/arcforms/constellation/constellation_demo.dart` - Demo and testing interface
+
+  **Constellation Visualization Features**:
+  - ✅ **Polar Coordinate Layout**: Intelligent star placement using polar coordinates with geometric masking
+  - ✅ **ATLAS Phase Mapping**: 6 phases (Discovery, Expansion, Transition, Consolidation, Recovery, Breakthrough)
+  - ✅ **Animation System**: Twinkle, fade-in, and selection pulse animations with TickerProvider
+  - ✅ **Emotion Palette**: 8-color emotional visualization system with gradient support
+  - ✅ **Interactive Nodes**: Tap to select stars with haptic feedback and visual highlighting
+  - ✅ **Edge Rendering**: Weighted connections between keywords with opacity-based visualization
+  - ✅ **Label System**: Optional keyword labels with collision detection
+  - ✅ **Reduced Motion**: Accessibility support for motion sensitivity
+
+  **Technical Implementation (Oct 10, 2025)**:
+  - **2,357 insertions**: Complete constellation visualization system
+  - **6 new files**: Modular architecture with clear separation of concerns
+  - **3 modified files**: Integration with existing arcform renderer architecture
+  - **AtlasPhase Enum**: Type-safe phase representation with display name extensions
+  - **Animation Controllers**: 3 independent controllers (twinkle, fade-in, selection pulse)
+  - **Haptic Feedback**: Light and medium impact feedback for user interactions
+  - **Gesture Detection**: Tap and double-tap handling for node selection and deselection
+
+  **Constellation Data Models**:
+  ```dart
+  class KeywordScore {
+    final String text;
+    final double score;
+    final double sentiment;
+  }
+
+  class ConstellationNode {
+    final Offset pos;          // Polar coordinate position
+    final KeywordScore data;
+    final double radius;       // Visual size
+    final Color color;         // Emotion-based coloring
+    final String id;           // Unique identifier
+  }
+
+  class ConstellationEdge {
+    final int a;               // Source node index
+    final int b;               // Target node index
+    final double weight;       // Connection strength
+  }
+  ```
+
+  **Emotion Palette Configuration**:
+  ```dart
+  const EmotionPalette.defaultPalette = EmotionPalette(
+    primaryColors: [
+      Color(0xFF4F46E5),  // Primary blue
+      Color(0xFF7C3AED),  // Purple
+      Color(0xFFD1B3FF),  // Light purple
+      Color(0xFF6BE3A0),  // Green
+      Color(0xFFF7D774),  // Yellow
+      Color(0xFFFF6B6B),  // Red
+      Color(0xFFFF8E53),  // Orange
+      Color(0xFF4ECDC4),  // Teal
+    ],
+    neutralColor: Color(0xFFD1B3FF),
+    backgroundColor: Color(0xFF0A0A0F),
+  );
+  ```
+
+  **Integration Points**:
+  - `arcform_renderer_cubit.dart`: State management for constellation data
+  - `arcform_renderer_state.dart`: Immutable state with constellation nodes/edges
+  - `arcform_renderer_view.dart`: UI integration with renderer widget
+  - `emotional_valence_service.dart`: Emotion detection for color mapping
+
   ## 📱 Navigation & User Interface Architecture (Updated Sept 28, 2025)
 
   **Primary Navigation Structure**:
@@ -236,6 +319,13 @@
   │   ├── journal_entry_service.dart     # Current journal functionality
   │   ├── entry_processor.dart           # Text input processing
   │   └── arc_state_manager.dart         # UI state management
+  ├── visualization/                     # **NEW - Constellation Arcform System (Oct 10, 2025)**
+  │   ├── constellation_arcform_renderer.dart   # Main renderer with animations
+  │   ├── constellation_layout_service.dart     # Polar coordinate layout
+  │   ├── constellation_painter.dart            # Custom painter for stars
+  │   ├── polar_masks.dart                      # Geometric masking system
+  │   ├── graph_utils.dart                      # Graph calculation utilities
+  │   └── constellation_demo.dart               # Demo/test implementation
   ├── privacy/                           # **MIGRATED FROM CURRENT MVP**
   │   ├── pii_detection_service.dart     # Move from lib/services/privacy/
   │   ├── pii_masking_service.dart       # Move from lib/services/privacy/
