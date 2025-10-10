@@ -20,7 +20,7 @@ class QwenProvider extends LLMProviderBase {
     // Check if Qwen model is actually downloaded via native bridge
     try {
       final bridge = LumaraNative();
-      final isDownloaded = await bridge.isModelDownloaded('qwen3-1.7b-mlx-4bit');
+      final isDownloaded = await bridge.isModelDownloaded('Llama-3.2-3b-Instruct-Q4_K_M.gguf');
       debugPrint('QwenProvider: Model ${isDownloaded ? "IS" : "IS NOT"} downloaded');
       return isDownloaded;
     } catch (e) {

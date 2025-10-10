@@ -69,7 +69,6 @@ PODS:
   - SwiftyGif (5.4.5)
   - url_launcher_ios (0.0.1):
     - Flutter
-  - ZIPFoundation (0.9.20)
 
 DEPENDENCIES:
   - audio_session (from `.symlinks/plugins/audio_session/ios`)
@@ -87,7 +86,6 @@ DEPENDENCIES:
   - share_plus (from `.symlinks/plugins/share_plus/ios`)
   - shared_preferences_foundation (from `.symlinks/plugins/shared_preferences_foundation/darwin`)
   - url_launcher_ios (from `.symlinks/plugins/url_launcher_ios/ios`)
-  - ZIPFoundation (~> 0.9)
 
 SPEC REPOS:
   trunk:
@@ -95,7 +93,6 @@ SPEC REPOS:
     - DKPhotoGallery
     - SDWebImage
     - SwiftyGif
-    - ZIPFoundation
 
 EXTERNAL SOURCES:
   audio_session:
@@ -149,8 +146,7 @@ SPEC CHECKSUMS:
   shared_preferences_foundation: 9e1978ff2562383bd5676f64ec4e9aa8fa06a6f7
   SwiftyGif: 706c60cf65fa2bc5ee0313beece843c8eb8194d4
   url_launcher_ios: 694010445543906933d732453a59da0a173ae33d
-  ZIPFoundation: dfd3d681c4053ff7e2f7350bc4e53b5dba3f5351
 
-PODFILE CHECKSUM: 405263128cbb4327dcc1a1e530add9ad7628fe06
+PODFILE CHECKSUM: c7d5376c0bc0ea1e829827644736dcf9388f21ce
 
 COCOAPODS: 1.16.2

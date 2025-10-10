@@ -1,12 +1,86 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/foundation.dart';
+import 'package:crypto/crypto.dart' as crypto;
 import 'model_adapter.dart';
 import 'bridge.pigeon.dart' as pigeon;
 import 'model_progress_service.dart';
+import 'prompts/lumara_prompt_assembler.dart';
+import 'prompts/lumara_model_presets.dart';
+import 'prompts/llama_chat_template.dart';
 
 /// On-device LLM adapter using Pigeon native bridge
-/// Supports multiple model formats: MLX (iOS), GGUF (Android via llama.cpp)
+/// Supports GGUF models via llama.cpp with Metal acceleration (iOS)
 class LLMAdapter implements ModelAdapter {
+  /// Compute SHA-256 hash of a string for prompt verification
+  static String sha256Of(String s) => crypto.sha256.convert(utf8.encode(s)).toString();
+  
+  /// Format assembled prompt for Llama-3.2-Instruct using proper chat template
+  static String _formatForLlama(String assembledPrompt, String userMessage) {
+    // Extract system message from assembled prompt
+    final systemStart = assembledPrompt.indexOf('<<SYSTEM>>');
+    final contextStart = assembledPrompt.indexOf('<<CONTEXT>>');
+    
+    String systemMessage = "You are LUMARA, a personal AI assistant.";
+    
+    if (systemStart != -1 && contextStart != -1) {
+      final systemEnd = contextStart;
+      systemMessage = assembledPrompt.substring(systemStart + 10, systemEnd).trim();
+    }
+    
+    // Use Llama chat template
+    return LlamaChatTemplate.formatSimple(
+      systemMessage: systemMessage,
+      userMessage: userMessage,
+    );
+  }
+  
+  /// Canary test to verify no test stubs are present
+  static Future<String> runCanaryTest(String testType) async {
+    if (!_isInitialized) {
+      await initialize();
+    }
+    
+    if (!_available) {
+      return "Error: LLMAdapter not available - ${_reason}";
+    }
+    
+    String testPrompt;
+    String expectedResponse;
+    
+    switch (testType) {
+      case 'echo':
+        testPrompt = "Reply with only: ACK";
+        expectedResponse = "ACK";
+        break;
+      case 'system':
+        testPrompt = "<<SYSTEM>>\nYou are LUMARA. Reply with only \"LUMARA_OK\".\n\n<<USER>>\nTest";
+        expectedResponse = "LUMARA_OK";
+        break;
+      default:
+        return "Error: Unknown test type: $testType";
+    }
+    
+    try {
+      final result = await _nativeApi.generateText(testPrompt, pigeon.GenParams(
+        maxTokens: 10,
+        temperature: 0.0,
+        topP: 1.0,
+        repeatPenalty: 1.0,
+        seed: 42,
+      ));
+      
+      final response = result.text.trim();
+      final isCorrect = response == expectedResponse;
+      
+      return "Canary Test ($testType): ${isCorrect ? 'PASS' : 'FAIL'}\n" +
+             "Expected: '$expectedResponse'\n" +
+             "Actual: '$response'\n" +
+             "Hash: ${sha256Of(testPrompt)}";
+    } catch (e) {
+      return "Canary Test ($testType): ERROR - $e";
+    }
+  }
   static bool _isInitialized = false;
   static String? _activeModelId;
   static bool _available = false;
@@ -39,33 +113,44 @@ class LLMAdapter implements ModelAdapter {
         return false;
       }
 
-      // Check for specific model availability (same logic as LumaraAPIConfig)
+      // Check for GGUF model availability (llama.cpp + Metal)
       try {
-        // Check for Qwen model first (priority)
-        final qwenDownloaded = await _nativeApi.isModelDownloaded('qwen3-1.7b-mlx-4bit');
-        debugPrint('[LLMAdapter] Qwen model downloaded: $qwenDownloaded');
+        // Check for Llama-3.2-3B model first (priority)
+        final llamaDownloaded = await _nativeApi.isModelDownloaded('Llama-3.2-3b-Instruct-Q4_K_M.gguf');
+        debugPrint('[LLMAdapter] Llama-3.2-3B model downloaded: $llamaDownloaded');
         
-        if (qwenDownloaded) {
-          _activeModelId = 'qwen3-1.7b-mlx-4bit';
+        if (llamaDownloaded) {
+          _activeModelId = 'Llama-3.2-3b-Instruct-Q4_K_M.gguf';
           _available = true;
           _isInitialized = true;
-          debugPrint('[LLMAdapter] Using Qwen model: $_activeModelId');
+          debugPrint('[LLMAdapter] Using Llama-3.2-3B model: $_activeModelId');
         } else {
-          // Check for Phi model as fallback
-          final phiDownloaded = await _nativeApi.isModelDownloaded('phi-3.5-mini-instruct-4bit');
-          debugPrint('[LLMAdapter] Phi model downloaded: $phiDownloaded');
+          // Check for Phi-3.5 model as fallback
+          final phiDownloaded = await _nativeApi.isModelDownloaded('Phi-3.5-mini-instruct-Q5_K_M.gguf');
+          debugPrint('[LLMAdapter] Phi-3.5 model downloaded: $phiDownloaded');
           
           if (phiDownloaded) {
-            _activeModelId = 'phi-3.5-mini-instruct-4bit';
+            _activeModelId = 'Phi-3.5-mini-instruct-Q5_K_M.gguf';
             _available = true;
             _isInitialized = true;
-            debugPrint('[LLMAdapter] Using Phi model: $_activeModelId');
+            debugPrint('[LLMAdapter] Using Phi-3.5 model: $_activeModelId');
           } else {
-            _reason = 'no_models_downloaded';
-            _available = false;
-            _isInitialized = false;
-            debugPrint('[LLMAdapter] No models downloaded');
-            return false;
+          // Check for Qwen3-4B model as final fallback
+          final qwenDownloaded = await _nativeApi.isModelDownloaded('Qwen3-4B-Instruct-2507-Q4_K_S.gguf');
+          debugPrint('[LLMAdapter] Qwen3-4B model downloaded: $qwenDownloaded');
+          
+          if (qwenDownloaded) {
+            _activeModelId = 'Qwen3-4B-Instruct-2507-Q4_K_S.gguf';
+              _available = true;
+              _isInitialized = true;
+              debugPrint('[LLMAdapter] Using Qwen3-4B model: $_activeModelId');
+            } else {
+              _reason = 'no_gguf_models_downloaded';
+              _available = false;
+              _isInitialized = false;
+              debugPrint('[LLMAdapter] No GGUF models downloaded');
+              return false;
+            }
           }
         }
       } catch (e) {
@@ -140,6 +225,9 @@ class LLMAdapter implements ModelAdapter {
   /// Get loaded model information
   static String get loadedModel => _activeModelId ?? 'none';
 
+  /// Get active model name for external use
+  static String? get activeModelName => _activeModelId;
+
   /// Stop the current model and free resources
   static Future<void> dispose() async {
     if (!_isInitialized) return;
@@ -181,7 +269,6 @@ class LLMAdapter implements ModelAdapter {
     }
 
     // Extract the user's actual message from chat
-    // The Swift side (LumaraPromptSystem) will handle all prompt formatting
     String userMessage = '';
     if (chat.isNotEmpty) {
       // Get the last user message
@@ -198,19 +285,81 @@ class LLMAdapter implements ModelAdapter {
     debugPrint('📥 USER MESSAGE LENGTH: ${userMessage.length} characters');
 
     try {
-      // Generate with native model
+      // Use minimal prompt for simple chat messages (< 20 chars) to avoid slow prefill
+      // Only use full context for complex queries
+      final useMinimalPrompt = userMessage.length < 20 &&
+                               !userMessage.contains('?') &&
+                               snippets.isEmpty;
+
+      String optimizedPrompt;
+
+      if (useMinimalPrompt) {
+        // Fast path: minimal prompt for quick responses
+        debugPrint('⚡ Using MINIMAL prompt for quick chat');
+        optimizedPrompt = LlamaChatTemplate.formatSimple(
+          systemMessage: "You are LUMARA, a helpful and friendly AI assistant. Keep your responses brief and natural.",
+          userMessage: userMessage,
+        );
+      } else {
+        // Full path: complete context for complex queries
+        debugPrint('📚 Using FULL prompt with context');
+        final contextBuilder = LumaraPromptAssembler.createContextBuilder(
+          userName: 'Marc Yap', // TODO: Get from user profile
+          currentPhase: facts['current_phase'] ?? 'Discovery',
+          recentKeywords: snippets.take(10).toList(),
+          memorySnippets: snippets.take(8).toList(),
+          journalExcerpts: chat
+              .where((turn) => turn['role'] == 'user')
+              .map((turn) => turn['content'] ?? '')
+              .where((content) => content.isNotEmpty)
+              .take(3)
+              .toList(),
+        );
+
+        final promptAssembler = LumaraPromptAssembler(
+          contextBuilder: contextBuilder,
+          includeFewShotExamples: false, // Disable few-shot for faster prefill
+          includeQualityGuardrails: false, // Disable guardrails for faster prefill
+        );
+
+        // Assemble the complete optimized prompt
+        final assembledPrompt = promptAssembler.assemblePrompt(
+          userMessage: userMessage,
+          useFewShot: false, // Disable few-shot examples
+        );
+
+        // Format for Llama-3.2-Instruct using proper chat template
+        optimizedPrompt = _formatForLlama(assembledPrompt, userMessage);
+      }
+
+      debugPrint('📝 OPTIMIZED PROMPT LENGTH: ${optimizedPrompt.length} characters');
+      debugPrint('📝 PROMPT PREVIEW: ${optimizedPrompt.substring(0, 200)}...');
+      
+      // Compute SHA-256 hash for prompt verification
+      final promptHash = sha256Of(optimizedPrompt);
+      debugPrint('🔐 PROMPT HASH: $promptHash');
+
+      // Get model-specific parameters
+      final modelName = _activeModelId ?? 'Llama-3.2-3b-Instruct-Q4_K_M.gguf';
+      final preset = LumaraModelPresets.getPreset(modelName);
+      
+      // Adaptive max tokens based on query complexity
+      final adaptiveMaxTokens = useMinimalPrompt
+          ? 50   // Ultra-terse: simple greetings (20-50 tokens)
+          : (preset['max_new_tokens'] ?? 80);  // Standard mobile: 40-80 tokens
+
       final params = pigeon.GenParams(
-        maxTokens: 256,
-        temperature: 0.7,
-        topP: 0.9,
-        repeatPenalty: 1.1,
+        maxTokens: adaptiveMaxTokens,
+        temperature: preset['temperature'] ?? 0.7,
+        topP: preset['top_p'] ?? 0.9,
+        repeatPenalty: preset['repeat_penalty'] ?? 1.1,
         seed: 101,
       );
       
-      debugPrint('⚙️  GENERATION PARAMS: maxTokens=${params.maxTokens}, temp=${params.temperature}');
-      debugPrint('🚀 Calling native generateText with user message...');
+      debugPrint('⚙️  GENERATION PARAMS: maxTokens=${params.maxTokens}, temp=${params.temperature}, topP=${params.topP}, repeatPenalty=${params.repeatPenalty}');
+      debugPrint('🚀 Calling native generateText with optimized prompt...');
 
-      final result = await _nativeApi.generateText(userMessage, params);
+      final result = await _nativeApi.generateText(optimizedPrompt, params);
 
       debugPrint('✅ NATIVE GENERATION COMPLETE:');
       debugPrint('  📤 text: "${result.text}"');
@@ -226,7 +375,7 @@ class LLMAdapter implements ModelAdapter {
       debugPrint('🔄 Streaming ${words.length} words to UI...');
       for (int i = 0; i < words.length; i++) {
         yield words[i] + (i < words.length - 1 ? ' ' : '');
-        await Future.delayed(const Duration(milliseconds: 30));
+        // No delay - instant streaming for maximum responsiveness
       }
       debugPrint('🟩🟩🟩 === DART LLMAdapter.realize COMPLETE === 🟩🟩🟩');
     } catch (e) {

@@ -21,6 +21,25 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
   final EnhancedLumaraApi _lumaraApi = EnhancedLumaraApi(Analytics());
   final DownloadStateService _downloadStateService = DownloadStateService.instance;
   final Map<LLMProvider, TextEditingController> _apiKeyControllers = {};
+  
+  /// Safe progress calculation to prevent NaN and infinite values
+  double _safeProgress(double progress) {
+    if (progress.isNaN || !progress.isFinite) {
+      debugPrint('[LumaraSettings] Warning: Invalid progress value $progress, using 0.0');
+      return 0.0;
+    }
+    return progress.clamp(0.0, 1.0);
+  }
+  
+  /// Clamp progress to 0-1 range, return null for invalid values (indeterminate progress)
+  double? clamp01(num? x) {
+    if (x == null) return null;
+    final d = x.toDouble();
+    if (!d.isFinite) return null;
+    if (d < 0) return 0;
+    if (d > 1) return 1;
+    return d;
+  }
 
   LLMProvider? _selectedProvider;
 
@@ -30,6 +49,8 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
     _initializeControllers();
     _loadCurrentSettings();
     _downloadStateService.addListener(_onDownloadStateChanged);
+    // Refresh model states to handle model ID changes
+    _downloadStateService.refreshAllStates();
   }
 
   @override
@@ -346,6 +367,8 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
         if (isInternal) ...[
           const SizedBox(height: 16),
           _buildDownloadButton(theme),
+          const SizedBox(height: 12),
+          _buildCleanupButton(theme),
         ],
       ],
     );
@@ -353,13 +376,24 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
 
   Widget _buildDownloadButton(ThemeData theme) {
     // Check if any model is currently downloading
-    final qwenState = _downloadStateService.getState('qwen3-1.7b-mlx-4bit');
-    final phiState = _downloadStateService.getState('phi-3.5-mini-instruct-4bit');
+    final llamaState = _downloadStateService.getState('Llama-3.2-3b-Instruct-Q4_K_M.gguf');
+    final phiState = _downloadStateService.getState('Phi-3.5-mini-instruct-Q5_K_M.gguf');
+    final qwenState = _downloadStateService.getState('Qwen3-4B-Instruct-2507-Q4_K_S.gguf');
 
-    final isDownloading = (qwenState?.isDownloading ?? false) || (phiState?.isDownloading ?? false);
-    final downloadingState = qwenState?.isDownloading == true ? qwenState : phiState;
+    final isDownloading = (llamaState?.isDownloading ?? false) || 
+                        (phiState?.isDownloading ?? false) || 
+                        (qwenState?.isDownloading ?? false);
+    final downloadingState = llamaState?.isDownloading == true ? llamaState : 
+                            phiState?.isDownloading == true ? phiState : 
+                            qwenState?.isDownloading == true ? qwenState : null;
 
-    if (isDownloading && downloadingState != null) {
+    // Don't show download progress if any model is already downloaded
+    final hasDownloadedModel = (llamaState?.isDownloaded ?? false) || 
+                              (phiState?.isDownloaded ?? false) || 
+                              (qwenState?.isDownloaded ?? false);
+
+    // Show download progress only if actively downloading and not completed
+    if (isDownloading && downloadingState != null && !hasDownloadedModel && !downloadingState.isDownloaded) {
       // Show download progress
       return SizedBox(
         width: double.infinity,
@@ -391,7 +425,7 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
                       ),
                     ),
                     Text(
-                      '${(downloadingState.progress * 100).toStringAsFixed(1)}%',
+                      '${(_safeProgress(downloadingState.progress) * 100).toStringAsFixed(1)}%',
                       style: theme.textTheme.bodySmall?.copyWith(
                         color: theme.colorScheme.primary,
                         fontWeight: FontWeight.bold,
@@ -411,7 +445,7 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
                 ],
                 const SizedBox(height: 12),
                 LinearProgressIndicator(
-                  value: downloadingState.progress,
+                  value: clamp01(downloadingState.progress),
                   minHeight: 4,
                   borderRadius: BorderRadius.circular(2),
                 ),
@@ -455,6 +489,70 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
           backgroundColor: theme.colorScheme.primary,
           foregroundColor: Colors.white,
           padding: const EdgeInsets.symmetric(vertical: 14),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(8),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCleanupButton(ThemeData theme) {
+    return SizedBox(
+      width: double.infinity,
+      child: OutlinedButton.icon(
+        onPressed: () async {
+          final confirmed = await showDialog<bool>(
+            context: context,
+            builder: (context) => AlertDialog(
+              title: const Text('Clear Corrupted Downloads'),
+              content: const Text(
+                'This will delete all corrupted or incomplete model downloads and force a fresh download. Continue?'
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(false),
+                  child: const Text('Cancel'),
+                ),
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(true),
+                  child: const Text('Clear All'),
+                ),
+              ],
+            ),
+          );
+
+          if (confirmed != true) return;
+
+          try {
+            // Clear all corrupted downloads
+            await _lumaraApi.clearCorruptedDownloads();
+            
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Corrupted downloads cleared successfully'),
+                  backgroundColor: Colors.green,
+                ),
+              );
+            }
+          } catch (e) {
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Error clearing downloads: $e'),
+                  backgroundColor: Colors.red,
+                ),
+              );
+            }
+          }
+        },
+        icon: const Icon(Icons.cleaning_services, size: 20),
+        label: const Text('Clear Corrupted Downloads'),
+        style: OutlinedButton.styleFrom(
+          foregroundColor: theme.colorScheme.error,
+          side: BorderSide(color: theme.colorScheme.error),
+          padding: const EdgeInsets.symmetric(vertical: 12),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(8),
           ),
@@ -647,13 +745,16 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
                   children: [
                     Row(
                       children: [
-                        Text(
-                          config.name,
-                          style: theme.textTheme.titleSmall?.copyWith(
-                            fontWeight: FontWeight.w600,
-                            color: isAvailable 
-                                ? theme.colorScheme.onSurface
-                                : theme.colorScheme.onSurface.withOpacity(0.6),
+                        Expanded(
+                          child: Text(
+                            config.name,
+                            style: theme.textTheme.titleSmall?.copyWith(
+                              fontWeight: FontWeight.w600,
+                              color: isAvailable 
+                                  ? theme.colorScheme.onSurface
+                                  : theme.colorScheme.onSurface.withOpacity(0.6),
+                            ),
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
                         const SizedBox(width: 8),
@@ -677,12 +778,13 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
                     const SizedBox(height: 4),
                     Text(
                       isInternal 
-                          ? 'Local Model - Privacy First'
+                          ? (isAvailable ? 'Available to use - Privacy First' : 'Local Model - Privacy First')
                           : 'Cloud API - External Service',
                       style: theme.textTheme.bodySmall?.copyWith(
                         color: isAvailable 
-                            ? theme.colorScheme.onSurfaceVariant
+                            ? Colors.green
                             : theme.colorScheme.onSurfaceVariant.withOpacity(0.6),
+                        fontWeight: isAvailable && isInternal ? FontWeight.w600 : FontWeight.normal,
                       ),
                     ),
                   ],
@@ -870,7 +972,7 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
 
   Widget _buildApiKeysCard(ThemeData theme) {
     final externalProviders = LLMProvider.values
-        .where((p) => p != LLMProvider.phi && p != LLMProvider.qwen)
+        .where((p) => p != LLMProvider.phi && p != LLMProvider.qwen && p != LLMProvider.qwen3)
         .toList();
     
     return Card(

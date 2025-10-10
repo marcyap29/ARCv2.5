@@ -34,9 +34,6 @@ target 'Runner' do
   # pod 'MediaPipeTasksGenAI', '~> 0.10.24'
   # pod 'MediaPipeTasksText', '~> 0.10.21'
 
-  # ZIP extraction for model downloads
-  pod 'ZIPFoundation', '~> 0.9'
-
   flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
   target 'RunnerTests' do
     inherit! :search_paths

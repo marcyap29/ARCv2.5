@@ -12,8 +12,9 @@ enum LLMProvider {
   gemini,
   openai,
   anthropic,
-  qwen,       // Internal Qwen model
-  phi,        // Internal Phi model
+  qwen,       // Internal Llama 3.2 3B model
+  phi,        // Internal Phi 3.5 Mini model
+  qwen3,      // Internal Qwen3 4B model
 }
 
 /// API configuration for different providers
@@ -129,10 +130,13 @@ class LumaraAPIConfig {
       String modelId;
       switch (config.provider) {
         case LLMProvider.qwen:
-          modelId = 'qwen3-1.7b-mlx-4bit';
+          modelId = 'Llama-3.2-3b-Instruct-Q4_K_M.gguf';
           break;
         case LLMProvider.phi:
-          modelId = 'phi-3.5-mini-instruct-4bit';
+          modelId = 'Phi-3.5-mini-instruct-Q5_K_M.gguf';
+          break;
+        case LLMProvider.qwen3:
+          modelId = 'Qwen3-4B-Instruct-2507-Q4_K_S.gguf';
           break;
         default:
           return false;
@@ -192,12 +196,28 @@ class LumaraAPIConfig {
 
     _configs[LLMProvider.qwen] = LLMProviderConfig(
       provider: LLMProvider.qwen,
-      name: 'Qwen (Internal)',
+      name: 'Llama 3.2 3B (Internal)',
       baseUrl: 'http://localhost:8081', // Local inference server
       additionalConfig: {
-        'modelPath': 'models/qwen-7b-chat.gguf',
-        'contextLength': 8192,
+        'modelPath': 'assets/models/gguf/Llama-3.2-3b-Instruct-Q4_K_M.gguf',
+        'contextLength': 2048,
         'temperature': 0.7,
+        'backend': 'llama.cpp',
+        'metal': true,
+      },
+      isInternal: true,
+    );
+
+    _configs[LLMProvider.qwen3] = LLMProviderConfig(
+      provider: LLMProvider.qwen3,
+      name: 'Qwen3 4B (Internal)',
+      baseUrl: 'http://localhost:8082', // Local inference server
+      additionalConfig: {
+        'modelPath': 'assets/models/gguf/Qwen3-4B-Instruct-2507-Q4_K_S.gguf',
+        'contextLength': 2048,
+        'temperature': 0.7,
+        'backend': 'llama.cpp',
+        'metal': true,
       },
       isInternal: true,
     );
@@ -282,10 +302,13 @@ class LumaraAPIConfig {
       String modelId;
       switch (config.provider) {
         case LLMProvider.qwen:
-          modelId = 'qwen3-1.7b-mlx-4bit';
+          modelId = 'Llama-3.2-3b-Instruct-Q4_K_M.gguf';
           break;
         case LLMProvider.phi:
-          modelId = 'phi-3.5-mini-instruct-4bit';
+          modelId = 'Phi-3.5-mini-instruct-Q5_K_M.gguf';
+          break;
+        case LLMProvider.qwen3:
+          modelId = 'Qwen3-4B-Instruct-2507-Q4_K_S.gguf';
           break;
         default:
           return;
@@ -308,10 +331,13 @@ class LumaraAPIConfig {
       String modelId;
       switch (config.provider) {
         case LLMProvider.qwen:
-          modelId = 'qwen3-1.7b-mlx-4bit';
+          modelId = 'Llama-3.2-3b-Instruct-Q4_K_M.gguf';
           break;
         case LLMProvider.phi:
-          modelId = 'phi-3.5-mini-instruct-4bit';
+          modelId = 'Phi-3.5-mini-instruct-Q5_K_M.gguf';
+          break;
+        case LLMProvider.qwen3:
+          modelId = 'Qwen3-4B-Instruct-2507-Q4_K_S.gguf';
           break;
         default:
           return false;
@@ -341,7 +367,7 @@ class LumaraAPIConfig {
       if (config.provider == LLMProvider.qwen) {
         try {
           final bridge = LumaraNative();
-          final isDownloaded = await bridge.isModelDownloaded('qwen3-1.7b-mlx-4bit');
+          final isDownloaded = await bridge.isModelDownloaded('Llama-3.2-3b-Instruct-Q4_K_M.gguf');
           debugPrint('LUMARA API: Qwen model ${isDownloaded ? 'is' : 'is NOT'} downloaded');
           return isDownloaded;
         } catch (e) {
@@ -353,11 +379,23 @@ class LumaraAPIConfig {
       if (config.provider == LLMProvider.phi) {
         try {
           final bridge = LumaraNative();
-          final isDownloaded = await bridge.isModelDownloaded('phi-3.5-mini-instruct-4bit');
+          final isDownloaded = await bridge.isModelDownloaded('Phi-3.5-mini-instruct-Q5_K_M.gguf');
           debugPrint('LUMARA API: Phi model ${isDownloaded ? 'is' : 'is NOT'} downloaded');
           return isDownloaded;
         } catch (e) {
           debugPrint('LUMARA API: Error checking Phi availability: $e');
+          return false;
+        }
+      }
+
+      if (config.provider == LLMProvider.qwen3) {
+        try {
+          final bridge = LumaraNative();
+          final isDownloaded = await bridge.isModelDownloaded('Qwen3-4B-Instruct-2507-Q4_K_S.gguf');
+          debugPrint('LUMARA API: Qwen3 model ${isDownloaded ? 'is' : 'is NOT'} downloaded');
+          return isDownloaded;
+        } catch (e) {
+          debugPrint('LUMARA API: Error checking Qwen3 availability: $e');
           return false;
         }
       }

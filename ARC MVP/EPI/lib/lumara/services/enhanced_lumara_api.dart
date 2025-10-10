@@ -6,6 +6,7 @@ import '../../telemetry/analytics.dart';
 import '../config/api_config.dart';
 import '../llm/llm_provider_factory.dart';
 import '../llm/llm_provider.dart';
+import '../llm/bridge.pigeon.dart' as pigeon;
 import '../../services/lumara/pii_scrub.dart';
 
 /// Enhanced LUMARA API with multi-provider LLM support
@@ -285,4 +286,42 @@ $entryText
   
   /// Get best provider (for automatic mode detection)
   LLMProviderBase? getBestProvider() => _providerFactory?.getBestProvider();
+  
+  /// Clear all corrupted downloads and GGUF models
+  Future<void> clearCorruptedDownloads() async {
+    try {
+      final bridge = pigeon.LumaraNative();
+      await bridge.clearCorruptedDownloads();
+      
+      _analytics.logLumaraEvent('corrupted_downloads_cleared', data: {
+        'timestamp': DateTime.now().millisecondsSinceEpoch,
+      });
+    } catch (e) {
+      _analytics.logLumaraEvent('corrupted_downloads_clear_failed', data: {
+        'error': e.toString(),
+        'timestamp': DateTime.now().millisecondsSinceEpoch,
+      });
+      rethrow;
+    }
+  }
+  
+  /// Clear specific corrupted GGUF model
+  Future<void> clearCorruptedGGUFModel(String modelId) async {
+    try {
+      final bridge = pigeon.LumaraNative();
+      await bridge.clearCorruptedGGUFModel(modelId);
+      
+      _analytics.logLumaraEvent('corrupted_gguf_model_cleared', data: {
+        'modelId': modelId,
+        'timestamp': DateTime.now().millisecondsSinceEpoch,
+      });
+    } catch (e) {
+      _analytics.logLumaraEvent('corrupted_gguf_model_clear_failed', data: {
+        'modelId': modelId,
+        'error': e.toString(),
+        'timestamp': DateTime.now().millisecondsSinceEpoch,
+      });
+      rethrow;
+    }
+  }
 }

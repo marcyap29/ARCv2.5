@@ -217,6 +217,13 @@ class ModelCard extends StatelessWidget {
 
   String _getDisplayName() {
     switch (modelName) {
+      case 'Llama-3.2-3b-Instruct-Q4_K_M.gguf':
+        return 'Llama 3.2 3B Instruct (Q4_K_M)';
+      case 'Phi-3.5-mini-instruct-Q5_K_M.gguf':
+        return 'Phi-3.5 Mini Instruct (Q5_K_M)';
+      case 'Qwen3-4B-Instruct-2507-Q4_K_S.gguf':
+        return 'Qwen3 4B Instruct (Q4_K_S)';
+      // Legacy model names for backward compatibility
       case 'gemma-3-270m':
         return 'Gemma 3 (270M)';
       case 'gemma-3-1b':
@@ -259,8 +266,16 @@ class ModelCard extends StatelessWidget {
   }
 
   String _getDownloadSize() {
-    // Approximate sizes - in a real implementation, these would come from the model metadata
-    if (modelName.contains('270m')) {
+    // GGUF model sizes - in a real implementation, these would come from the model metadata
+    if (modelName.contains('Llama-3.2-3b-Instruct-Q4_K_M.gguf')) {
+      return 'Download (~1.9GB)';
+    } else if (modelName.contains('Phi-3.5-mini-instruct-Q5_K_M.gguf')) {
+      return 'Download (~2.6GB)';
+    } else if (modelName.contains('Qwen3-4B-Instruct-2507-Q4_K_S.gguf')) {
+      return 'Download (~2.3GB)';
+    }
+    // Legacy model sizes for backward compatibility
+    else if (modelName.contains('270m')) {
       return 'Download (~200MB)';
     } else if (modelName.contains('1b') || modelName.contains('1.5b')) {
       return 'Download (~1GB)';

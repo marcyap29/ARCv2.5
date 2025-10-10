@@ -11,6 +11,25 @@ class ModelProgressService implements pigeon.LumaraNativeProgress {
 
   final _controller = StreamController<ModelProgressUpdate>.broadcast();
   final _downloadStateService = DownloadStateService.instance;
+  
+  /// Safe progress calculation to prevent NaN and infinite values
+  double _safeProgress(double progress) {
+    if (progress.isNaN || !progress.isFinite) {
+      debugPrint('[ModelProgress] Warning: Invalid progress value $progress, using 0.0');
+      return 0.0;
+    }
+    return progress.clamp(0.0, 1.0);
+  }
+  
+  /// Clamp progress to 0-1 range, return null for invalid values (indeterminate progress)
+  double? clamp01(num? x) {
+    if (x == null) return null;
+    final d = x.toDouble();
+    if (!d.isFinite) return null;
+    if (d < 0) return 0;
+    if (d > 1) return 1;
+    return d;
+  }
 
   /// Stream of progress updates
   Stream<ModelProgressUpdate> get progressStream => _controller.stream;
@@ -30,21 +49,24 @@ class ModelProgressService implements pigeon.LumaraNativeProgress {
 
   @override
   void downloadProgress(String modelId, double progress, String message) {
+    // Safe progress calculation to prevent NaN
+    final safeProgress = _safeProgress(progress);
     final update = ModelProgressUpdate(
       modelId: modelId,
-      progress: (progress * 100).round(),
+      progress: (safeProgress * 100).round(),
       message: message,
-      isComplete: progress >= 1.0,
+      isComplete: safeProgress >= 1.0,
     );
 
-    debugPrint('[DownloadProgress] $modelId: ${(progress * 100).toStringAsFixed(1)}% - $message');
+    debugPrint('[DownloadProgress] $modelId: ${(safeProgress * 100).toStringAsFixed(1)}% - $message');
     _controller.add(update);
 
     // Parse byte information from message (format: "Downloading: X.X / Y.Y MB")
     final bytesInfo = _parseDownloadMessage(message);
 
     // Update persistent download state
-    if (message.contains('Ready to use')) {
+    if (message.contains('Ready to use') || progress >= 1.0) {
+      // Mark as completed when we get "Ready to use" message OR when progress reaches 100%
       _downloadStateService.completeDownload(modelId);
     } else if (message.contains('failed') || message.contains('Error')) {
       _downloadStateService.failDownload(modelId, message);
@@ -60,16 +82,23 @@ class ModelProgressService implements pigeon.LumaraNativeProgress {
   }
 
   /// Parse download message to extract byte information
-  /// Message format: "Downloading: 45.3 / 900.0 MB"
+  /// Message format: "Downloading: 45.3 / 900.0 MB" or "Downloading: 45.3 MB" (unknown total)
   Map<String, int>? _parseDownloadMessage(String message) {
     try {
-      final regex = RegExp(r'(\d+\.?\d*)\s*/\s*(\d+\.?\d*)\s*(MB|GB)', caseSensitive: false);
-      final match = regex.firstMatch(message);
+      // Try to match format with total: "Downloading: 45.3 / 900.0 MB"
+      final regexWithTotal = RegExp(r'(\d+\.?\d*)\s*/\s*(\d+\.?\d*)\s*(MB|GB)', caseSensitive: false);
+      final matchWithTotal = regexWithTotal.firstMatch(message);
 
-      if (match != null) {
-        final downloaded = double.parse(match.group(1)!);
-        final total = double.parse(match.group(2)!);
-        final unit = match.group(3)!.toUpperCase();
+      if (matchWithTotal != null) {
+        final downloaded = double.parse(matchWithTotal.group(1)!);
+        final total = double.parse(matchWithTotal.group(2)!);
+        final unit = matchWithTotal.group(3)!.toUpperCase();
+
+        // Skip if total is negative or zero (invalid)
+        if (total <= 0) {
+          debugPrint('Invalid total size in message: $message');
+          return null;
+        }
 
         // Convert to bytes
         final multiplier = unit == 'GB' ? 1073741824 : 1048576; // 1GB or 1MB in bytes
@@ -77,6 +106,23 @@ class ModelProgressService implements pigeon.LumaraNativeProgress {
         return {
           'downloaded': (downloaded * multiplier).toInt(),
           'total': (total * multiplier).toInt(),
+        };
+      }
+
+      // Try to match format without total: "Downloading: 45.3 MB"
+      final regexWithoutTotal = RegExp(r'(\d+\.?\d*)\s*(MB|GB)', caseSensitive: false);
+      final matchWithoutTotal = regexWithoutTotal.firstMatch(message);
+
+      if (matchWithoutTotal != null) {
+        final downloaded = double.parse(matchWithoutTotal.group(1)!);
+        final unit = matchWithoutTotal.group(2)!.toUpperCase();
+
+        // Convert to bytes
+        final multiplier = unit == 'GB' ? 1073741824 : 1048576; // 1GB or 1MB in bytes
+
+        return {
+          'downloaded': (downloaded * multiplier).toInt(),
+          'total': 0, // Unknown total - use 0 to indicate unknown
         };
       }
     } catch (e) {

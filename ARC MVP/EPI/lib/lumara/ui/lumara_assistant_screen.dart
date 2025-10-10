@@ -43,10 +43,11 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
     final prefs = await SharedPreferences.getInstance();
     final onboardingCompleted = prefs.getBool('lumara_onboarding_completed') ?? false;
 
+    // TEMPORARILY DISABLE AUTOMATIC ONBOARDING TO PREVENT AUTO-DOWNLOADS
     // Show onboarding ONLY if:
     // 1. First time user (onboarding not completed) OR
     // 2. No inference available at all (no models AND no API keys)
-    final showOnboarding = !onboardingCompleted || bestProvider == null;
+    final showOnboarding = false; // DISABLED: !onboardingCompleted || bestProvider == null;
 
     if (showOnboarding && bestProvider == null) {
       // No inference available - show onboarding
@@ -79,6 +80,12 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
       if (cubit.state is! LumaraAssistantLoaded) {
         cubit.initializeLumara();
       }
+    }
+    
+    // If no providers available, show a message instead of auto-downloading
+    if (bestProvider == null) {
+      debugPrint('LUMARA Assistant: No providers available - showing fallback message');
+      // The UI will show a message about no providers being available
     }
   }
 

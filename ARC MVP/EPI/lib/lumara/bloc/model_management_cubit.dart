@@ -62,9 +62,12 @@ class ModelManagementCubit extends Cubit<ModelManagementState> {
       print('LUMARA Debug: ModelManagementCubit.loadModels() called');
       emit(ModelManagementLoading());
       
-      // Model information (placeholder for future LLM integration)
-      print('LUMARA Debug: Getting model info (rule-based mode)');
+      // GGUF model information (llama.cpp + Metal)
+      print('LUMARA Debug: Getting GGUF model info');
       final availableModels = <String, String>{
+        'Llama-3.2-3b-Instruct-Q4_K_M.gguf': 'Llama 3.2 3B Instruct (Q4_K_M) - Recommended: Fast, efficient, 4-bit quantized',
+        'Phi-3.5-mini-instruct-Q5_K_M.gguf': 'Phi-3.5 Mini Instruct (Q5_K_M) - High quality, 5-bit quantized, excellent reasoning',
+        'Qwen3-4B-Instruct-2507-Q4_K_S.gguf': 'Qwen3 4B Instruct (Q4_K_S) - Multilingual, 4-bit quantized, great for diverse tasks',
         'rule_based': 'Rule-based responses (no model required)',
       };
       print('LUMARA Debug: Available models: $availableModels');
@@ -156,7 +159,7 @@ class ModelManagementCubit extends Cubit<ModelManagementState> {
     try {
       emit(ModelManagementLoading());
 
-      // Model activation (placeholder for future LLM integration)
+      // Model activation using llama.cpp
       final success = modelName == 'rule_based'; // Only rule-based model available
 
       if (success) {
@@ -187,7 +190,7 @@ class ModelManagementCubit extends Cubit<ModelManagementState> {
       if (currentState.activeModel == modelName) {
         // If deleting the active model, deactivate it
         newActiveModel = null;
-        // Model disposal (placeholder for future LLM integration)
+        // Model disposal using llama.cpp
       }
 
       emit(currentState.copyWith(

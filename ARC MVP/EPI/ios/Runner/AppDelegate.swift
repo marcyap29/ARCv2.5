@@ -9,7 +9,7 @@ import UIKit
   ) -> Bool {
     // Register native LLM bridge using Pigeon
     let controller = window?.rootViewController as! FlutterViewController
-    let bridge = LLMBridge()
+    let bridge = LLMBridge.shared
     LumaraNativeSetup.setUp(
       binaryMessenger: controller.binaryMessenger,
       api: bridge

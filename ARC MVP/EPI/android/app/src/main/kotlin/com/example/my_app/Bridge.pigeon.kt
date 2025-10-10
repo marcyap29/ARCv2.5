@@ -347,6 +347,10 @@ interface LumaraNative {
   fun cancelModelDownload()
   /** Delete a downloaded model */
   fun deleteModel(modelId: String)
+  /** Clear all corrupted downloads and GGUF models */
+  fun clearCorruptedDownloads()
+  /** Clear specific corrupted GGUF model */
+  fun clearCorruptedGGUFModel(modelId: String)
 
   companion object {
     /** The codec used by LumaraNative. */
@@ -564,6 +568,40 @@ interface LumaraNative {
             val modelIdArg = args[0] as String
             val wrapped: List<Any?> = try {
               api.deleteModel(modelIdArg)
+              listOf(null)
+            } catch (exception: Throwable) {
+              wrapError(exception)
+            }
+            reply.reply(wrapped)
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.my_app.LumaraNative.clearCorruptedDownloads$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { _, reply ->
+            val wrapped: List<Any?> = try {
+              api.clearCorruptedDownloads()
+              listOf(null)
+            } catch (exception: Throwable) {
+              wrapError(exception)
+            }
+            reply.reply(wrapped)
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.my_app.LumaraNative.clearCorruptedGGUFModel$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val modelIdArg = args[0] as String
+            val wrapped: List<Any?> = try {
+              api.clearCorruptedGGUFModel(modelIdArg)
               listOf(null)
             } catch (exception: Throwable) {
               wrapError(exception)

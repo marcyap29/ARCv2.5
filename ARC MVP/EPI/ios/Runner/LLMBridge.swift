@@ -1,364 +1,206 @@
-// LLMBridge.swift
+// LLMBridge_GGUF.swift
 // Swift implementation of LumaraNative Pigeon protocol
-// Provides on-device LLM inference with MLX
-// Updated: Async model loading from bundle with progress reporting
+// Provides on-device LLM inference with llama.cpp + Metal + GGUF models only
+// Modern implementation using llama.cpp C API
 
 import Foundation
-import UIKit
 import os.log
-import MLX
-import MLXNN
-import MLXOptimizers
-import MLXRandom
-import ZIPFoundation
 
-// MARK: - Model Store
+// MARK: - CoreGraphics NaN Prevention Helpers
 
-/// Central model registry and storage manager
-class ModelStore {
-    static let shared = ModelStore()
-    private let logger = Logger(subsystem: "EPI", category: "ModelStore")
+@inline(__always)
+func clamp01(_ x: Double?) -> Double? {
+    guard let x, x.isFinite else { return nil }     // nil = indeterminate progress in SwiftUI/Flutter
+    return min(max(x, 0), 1)
+}
 
-    let modelRootURL: URL
-    private let registryURL: URL
-
-    private init() {
-        let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-        modelRootURL = appSupport.appendingPathComponent("Models", isDirectory: true)
-        registryURL = modelRootURL.appendingPathComponent("models.json")
-
-        try? FileManager.default.createDirectory(at: modelRootURL, withIntermediateDirectories: true)
-
-        // Auto-create registry for bundled models if it doesn't exist
-        if !FileManager.default.fileExists(atPath: registryURL.path) {
-            createDefaultRegistry()
-        }
+@inline(__always)
+func safeCGFloat(_ v: CGFloat, _ label: String) -> CGFloat {
+    if !v.isFinite || v.isNaN { 
+        NSLog("NaN in \(label)"); 
+        return 0 
     }
+    return v
+}
 
-    private func createDefaultRegistry() {
-        // Start with EMPTY registry - models added only when actually downloaded
-        let registry = Registry(
-            installed: [],
-            active: nil
-        )
-        try? writeRegistry(registry)
-        logger.info("Created empty default registry")
-    }
+// MARK: - Error Mapping
 
-    func readRegistry() -> Registry {
-        guard let data = try? Data(contentsOf: registryURL),
-              let json = try? JSONDecoder().decode(Registry.self, from: data) else {
-            return Registry(installed: [], active: nil)
+enum LLMError: LocalizedError {
+    case alreadyInFlight
+    case runtime(String)
+    
+    var errorDescription: String? {
+        switch self {
+        case .alreadyInFlight: return "already_in_flight"
+        case .runtime(let m):  return m
         }
-        return json
-    }
-
-    func writeRegistry(_ registry: Registry) throws {
-        let data = try JSONEncoder().encode(registry)
-        try data.write(to: registryURL)
-    }
-
-    func resolvePath(for entry: RegistryEntry) -> URL {
-        return modelRootURL.appendingPathComponent(entry.path)
-    }
-
-    /// Resolve model path - checks bundle first on iOS, Application Support first on macOS
-    /// iOS: Models bundled in app (for development testing)
-    /// macOS: Models installed via scripts/setup_models.sh to ~/Library/Application Support/Models/
-    func resolveModelPath(modelId: String, file: String) -> URL? {
-        // Map model ID to directory name - all lowercase for consistency
-        let modelDir: String
-        switch modelId {
-        case "qwen3-1.7b-mlx-4bit":
-            modelDir = "qwen3-1.7b-mlx-4bit"  // Use lowercase for consistency
-        case "phi-3.5-mini-instruct-4bit":
-            modelDir = "phi-3.5-mini-instruct-4bit"  // Use lowercase for consistency
-        default:
-            modelDir = modelId.lowercased()  // Ensure all model IDs are lowercase
-        }
-
-        #if os(iOS)
-        // iOS: Check Application Support FIRST (downloaded models)
-        let appSupportPath = self.modelRootURL.appendingPathComponent(modelDir).appendingPathComponent(file)
-        print("🔍 resolveModelPath: checking iOS Application Support: \(appSupportPath.path)")
-        print("🔍 resolveModelPath: modelRootURL: \(self.modelRootURL.path)")
-        print("🔍 resolveModelPath: modelDir: \(modelDir)")
-        print("🔍 resolveModelPath: file: \(file)")
-
-        // List contents of modelRootURL for debugging
-        do {
-            let contents = try FileManager.default.contentsOfDirectory(at: self.modelRootURL, includingPropertiesForKeys: nil)
-            print("🔍 resolveModelPath: modelRootURL contents: \(contents.map { $0.lastPathComponent })")
-        } catch {
-            print("🔍 resolveModelPath: failed to list modelRootURL contents: \(error)")
-        }
-
-        // List contents of modelDir if it exists
-        let modelDirPath = self.modelRootURL.appendingPathComponent(modelDir)
-        do {
-            let contents = try FileManager.default.contentsOfDirectory(at: modelDirPath, includingPropertiesForKeys: nil)
-            print("🔍 resolveModelPath: modelDir contents: \(contents.map { $0.lastPathComponent })")
-        } catch {
-            print("🔍 resolveModelPath: modelDir does not exist or failed to list: \(error)")
-        }
-
-        if FileManager.default.fileExists(atPath: appSupportPath.path) {
-            print("🔍 resolveModelPath: found in iOS Application Support: \(appSupportPath.path)")
-            return appSupportPath
-        }
-
-        // iOS fallback: Check bundle (models bundled for device testing)
-        let relativePath = "flutter_assets/assets/models/MLX/\(modelDir)/\(file)"
-        if let bundleURL = Bundle.main.url(forResource: relativePath, withExtension: nil) {
-            logger.info("resolveModelPath: found in iOS bundle: \(bundleURL.path)")
-            return bundleURL
-        }
-        #else
-        // macOS: Check Application Support FIRST (installed via setup script)
-        let appSupportPath = modelRootURL.appendingPathComponent(modelDir).appendingPathComponent(file)
-        if FileManager.default.fileExists(atPath: appSupportPath.path) {
-            logger.info("resolveModelPath: found in macOS Application Support: \(appSupportPath.path)")
-            return appSupportPath
-        }
-
-        // macOS fallback: Try bundle
-        let relativePath = "flutter_assets/assets/models/MLX/\(modelDir)/\(file)"
-        if let bundleURL = Bundle.main.url(forResource: relativePath, withExtension: nil) {
-            logger.info("resolveModelPath: found in macOS bundle: \(bundleURL.path)")
-            return bundleURL
-        }
-        #endif
-
-        logger.warning("resolveModelPath: NOT FOUND - modelId=\(modelId), file=\(file)")
-        logger.warning("resolveModelPath: iOS: check if models are bundled in flutter_assets")
-        logger.warning("resolveModelPath: macOS: run scripts/setup_models.sh to install models")
-        return nil
-    }
-
-    struct Registry: Codable {
-        var installed: [RegistryEntry]
-        var active: String?
-
-        func entry(for id: String) -> RegistryEntry? {
-            return installed.first { $0.id == id }
-        }
-    }
-
-    struct RegistryEntry: Codable {
-        let id: String
-        let name: String
-        let format: ModelFormat
-        let path: String
-        var sizeBytes: Int?
-        var checksum: String?
-    }
-
-    enum ModelFormat: String, Codable {
-        case gguf
-        case mlx
     }
 }
+import CryptoKit
+
+// MARK: - C Struct Definitions
+
+struct EpiGenParams {
+    var maxTokens: Int32
+    var temperature: Float
+    var topP: Float
+    var repeatPenalty: Float
+}
+
+struct EpiCallbacks {
+    var onToken: (@convention(c) (UnsafePointer<CChar>?, UnsafeMutableRawPointer?) -> Void)?
+    var user: UnsafeMutableRawPointer?
+}
+
+// MARK: - C Bridge Declarations
+
+@_silgen_name("epi_llama_init")
+func epi_llama_init(_ modelPath: UnsafePointer<CChar>, _ ctxSize: Int32, _ nGpuLayers: Int32) -> Bool
+
+@_silgen_name("epi_llama_free")
+func epi_llama_free()
+
+@_silgen_name("epi_llama_start")
+func epi_llama_start(_ prompt: UnsafePointer<CChar>) -> Bool
+
+@_silgen_name("epi_llama_generate_next")
+func epi_llama_generate_next(_ cb: (@convention(c) (UnsafePointer<CChar>?, UnsafeMutableRawPointer?) -> Void)!,
+                             _ userData: UnsafeMutableRawPointer?,
+                             _ outIsEos: UnsafeMutablePointer<Bool>?) -> Bool
+
+@_silgen_name("epi_llama_stop")
+func epi_llama_stop()
+
+@_silgen_name("epi_set_top_k")
+func epi_set_top_k(_ k: Int32)
+
+@_silgen_name("epi_set_top_p")
+func epi_set_top_p(_ p: Float)
+
+@_silgen_name("epi_set_temp")
+func epi_set_temp(_ t: Float)
+
+@_silgen_name("epi_set_logger")
+func epi_set_logger(_ logger: (@convention(c) (Int32, UnsafePointer<CChar>?) -> Void)!)
+
+@_silgen_name("epi_llama_start_with_fallback")
+func epi_llama_start_with_fallback(_ prompt: UnsafePointer<CChar>?) -> Bool
+
+// Modern streaming API
+@_silgen_name("epi_start")
+func epi_start(_ prompt: UnsafePointer<CChar>, _ params: UnsafePointer<EpiGenParams>, _ cbs: EpiCallbacks, _ requestId: UInt64) -> Bool
+
+@_silgen_name("epi_feed")
+func epi_feed(_ nPromptTokens: Int32, _ requestId: UInt64) -> Bool
+
+@_silgen_name("epi_stop")
+func epi_stop() -> Bool
+
+@_silgen_name("epi_set_n_predict")
+func epi_set_n_predict(_ n: Int32)
+
+@_silgen_name("epi_decode")
+func epi_decode(_ requestId: UInt64) -> Bool
+
+@_silgen_name("epi_take_token")
+func epi_take_token(_ requestId: UInt64) -> Int32
+
+@_silgen_name("epi_decode_to_text")
+func epi_decode_to_text(_ tokenId: Int32) -> UnsafePointer<CChar>
+
+@_silgen_name("epi_is_eos_token")
+func epi_is_eos_token(_ tokenId: Int32) -> Bool
+
+@_silgen_name("epi_generate_core_api")
+func epi_generate_core_api(_ prompt: UnsafePointer<CChar>, _ params: UnsafePointer<EpiGenParams>, _ requestId: UInt64) -> UnsafePointer<CChar>
+
+@_silgen_name("epi_generate_core_api_impl_new")
+func epi_generate_core_api_impl_new(
+  _ model: UnsafeMutableRawPointer!,
+  _ ctx: UnsafeMutableRawPointer!,
+  _ promptUtf8: UnsafePointer<CChar>!,
+  _ nPredict: Int32,
+  _ temp: Float, _ topK: Int32, _ topP: Float, _ minP: Float,
+  _ onText: (@convention(c) (UnsafePointer<CChar>?, UnsafeMutableRawPointer?) -> Void)!,
+  _ userData: UnsafeMutableRawPointer!,
+  _ didStop: UnsafeMutablePointer<Bool>!,
+  _ didHitEot: UnsafeMutablePointer<Bool>!
+) -> Bool
+
+@_silgen_name("RequestGate_begin")
+func RequestGate_begin(_ requestId: UInt64) -> Bool
+
+@_silgen_name("RequestGate_end")
+func RequestGate_end(_ requestId: UInt64)
+
+@_silgen_name("RequestGate_current")
+func RequestGate_current() -> UInt64
+
+// MARK: - GGUF Model Management
+
+/// Simple GGUF model path resolver
+class GGUFModelManager {
+    static let shared = GGUFModelManager()
+    private let logger = Logger(subsystem: "EPI", category: "GGUFModelManager")
+    
+    private init() {}
+    
+    /// Get the path to a GGUF model file
+    func getGGUFModelPath(modelId: String) -> URL? {
+        let documentsPath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
+        let ggufModelsPath = documentsPath.appendingPathComponent("gguf_models")
+        
+        // Check for both exact case and lowercase versions
+        let exactPath = ggufModelsPath.appendingPathComponent(modelId)
+        let lowercasePath = ggufModelsPath.appendingPathComponent(modelId.lowercased())
+        
+        let exactExists = FileManager.default.fileExists(atPath: exactPath.path)
+        let lowercaseExists = FileManager.default.fileExists(atPath: lowercasePath.path)
+        
+        if exactExists {
+            return exactPath
+        } else if lowercaseExists {
+            return lowercasePath
+        }
+        
+        logger.warning("GGUF model not found: \(modelId)")
+        return nil
+    }
+    
+    /// Check if a GGUF model is available
+    func isGGUFModelAvailable(modelId: String) -> Bool {
+        return getGGUFModelPath(modelId: modelId) != nil
+    }
+}
+
+// MARK: - Modern LLM Bridge (for internal use)
+
+extension Notification.Name {
+    static let llmToken = Notification.Name("llm.token")
+}
+
+// MARK: - Internal LLM Bridge (for ModelLifecycle use)
 
 // MARK: - Model Lifecycle
 
-/// Qwen tokenizer for MLX models
-class QwenTokenizer {
-    private let vocab: [String: Int]
-    private let reverseVocab: [Int: String]
-    private let merges: [String]
-    let bosToken: Int
-    let eosToken: Int
-    let padToken: Int
-    let unkToken: Int
-    
-    // Public accessor for vocab
-    var vocabCount: Int { vocab.count }
-    
-    func getTokenId(for text: String) -> Int? {
-        return vocab[text]
-    }
-
-    init(vocabPath: URL) throws {
-        logger.info("[ModelPreload] step=tokenizer_load path=\(vocabPath.path)")
-        let data = try Data(contentsOf: vocabPath)
-        guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
-            throw NSError(domain: "QwenTokenizer", code: 1, userInfo: [NSLocalizedDescriptionKey: "Invalid JSON format"])
-        }
-
-        // Extract vocabulary from tokenizer.json
-        if let model = json["model"] as? [String: Any],
-           let vocabDict = model["vocab"] as? [String: Int] {
-            self.vocab = vocabDict
-            var rev: [Int: String] = [:]
-            for (token, id) in vocabDict {
-                rev[id] = token
-            }
-            self.reverseVocab = rev
-        } else {
-            self.vocab = [:]
-            self.reverseVocab = [:]
-        }
-
-        // Extract merges if available
-        if let model = json["model"] as? [String: Any],
-           let mergesArray = model["merges"] as? [String] {
-            self.merges = mergesArray
-        } else {
-            self.merges = []
-        }
-
-        // Get special tokens from tokenizer_config.json
-        let configPath = vocabPath.deletingLastPathComponent().appendingPathComponent("tokenizer_config.json")
-        var specialTokens: [String: Int] = [:]
-
-        if let configData = try? Data(contentsOf: configPath),
-           let configJson = try? JSONSerialization.jsonObject(with: configData) as? [String: Any] {
-            // Try added_tokens_decoder first (Qwen3 format: dictionary with ID keys)
-            if let tokensDecoder = configJson["added_tokens_decoder"] as? [String: Any] {
-                for (idString, tokenInfo) in tokensDecoder {
-                    if let tokenDict = tokenInfo as? [String: Any],
-                       let content = tokenDict["content"] as? String,
-                       let id = Int(idString) {
-                        specialTokens[content] = id
-                    }
-                }
-            }
-            // Fallback to added_tokens (array format)
-            else if let specialTokensArray = configJson["added_tokens"] as? [[String: Any]] {
-                for tokenInfo in specialTokensArray {
-                    if let content = tokenInfo["content"] as? String,
-                       let id = tokenInfo["id"] as? Int {
-                        specialTokens[content] = id
-                    }
-                }
-            }
-        }
-
-        // Set special tokens with fallbacks
-        self.bosToken = specialTokens["<|im_start|>"] ?? self.vocab["<|im_start|>"] ?? 0
-        self.eosToken = specialTokens["<|im_end|>"] ?? self.vocab["<|im_end|>"] ?? 1
-        self.padToken = specialTokens["<|pad|>"] ?? self.vocab["<|pad|>"] ?? 0
-        self.unkToken = specialTokens["<|unk|>"] ?? self.vocab["<|unk|>"] ?? 0
-
-        logger.info("[ModelPreload] tokenizer=ok vocab_size=\(self.vocab.count) merges=\(self.merges.count)")
-        
-        // Validate tokenizer
-        try validateTokenizer()
-    }
-
-    private func validateTokenizer() throws {
-        // Guardrails to catch tokenizer mismatch early
-        // Validate that special tokens were loaded (check token IDs are valid, not fallback values)
-        guard bosToken > 0 else {
-            throw NSError(domain: "QwenTokenizer", code: 1, userInfo: [NSLocalizedDescriptionKey: "Missing <|im_start|> token - bosToken not loaded"])
-        }
-        guard eosToken > 1 else {
-            throw NSError(domain: "QwenTokenizer", code: 2, userInfo: [NSLocalizedDescriptionKey: "Missing <|im_end|> token - eosToken not loaded"])
-        }
-        
-        // Test roundtrip
-        let testText = " Hello"
-        let encoded = encode(testText)
-        let decoded = decode(encoded, skipSpecialTokens: true, cleanUpTokenizationSpaces: true)
-        
-        if decoded.contains("Ġ") || decoded.contains("▁") {
-            logger.error("[QwenTokenizer] Tokenizer mismatch detected - contains GPT-2/RoBERTa markers")
-            throw NSError(domain: "QwenTokenizer", code: 3, userInfo: [NSLocalizedDescriptionKey: "Tokenizer mismatch - refusing to generate"])
-        }
-        
-        logger.info("[QwenTokenizer] Validation passed - roundtrip test successful")
-    }
-
-    func encode(_ text: String) -> [Int] {
-        // Simple BPE-like tokenization (simplified for now)
-        var tokens: [Int] = []
-        var remaining = text
-        
-        while !remaining.isEmpty {
-            var found = false
-            
-            // Try to find longest match in vocabulary
-            for length in stride(from: min(remaining.count, 20), through: 1, by: -1) {
-                let prefix = String(remaining.prefix(length))
-                if let tokenId = vocab[prefix] {
-                    tokens.append(tokenId)
-                    remaining = String(remaining.dropFirst(length))
-                    found = true
-                    break
-                }
-            }
-            
-            if !found {
-                // Handle unknown characters
-                if let unkId = vocab["<|unk|>"] {
-                    tokens.append(unkId)
-                } else {
-                    tokens.append(unkToken)
-                }
-                remaining = String(remaining.dropFirst())
-            }
-        }
-        
-        return tokens
-    }
-
-    func decode(_ tokens: [Int], skipSpecialTokens: Bool = false, cleanUpTokenizationSpaces: Bool = true) -> String {
-        var result = ""
-        
-        for token in tokens {
-            guard let tokenText = reverseVocab[token] else { continue }
-            
-            if skipSpecialTokens && (token == bosToken || token == eosToken || token == padToken) {
-                continue
-            }
-            
-            result += tokenText
-        }
-        
-        if cleanUpTokenizationSpaces {
-            result = cleanTokenizationSpaces(result)
-        }
-        
-        return result
-    }
-    
-    private func cleanTokenizationSpaces(_ text: String) -> String {
-        var cleaned = text
-        
-        // Remove GPT-2/RoBERTa space markers
-        cleaned = cleaned.replacingOccurrences(of: "Ġ", with: " ")
-        cleaned = cleaned.replacingOccurrences(of: "▁", with: " ")
-        
-        // Clean up multiple spaces
-        cleaned = cleaned.replacingOccurrences(of: "  +", with: " ", options: .regularExpression)
-        
-        // Remove template tokens if they appear in output
-        cleaned = cleaned.replacingOccurrences(of: "<|im_start|>", with: "")
-        cleaned = cleaned.replacingOccurrences(of: "<|im_end|>", with: "")
-        
-        return cleaned.trimmingCharacters(in: .whitespacesAndNewlines)
-    }
-
-    private let logger = Logger(subsystem: "EPI", category: "QwenTokenizer")
-}
-
-/// Manages loaded model state
+/// Manages loaded GGUF model state
 class ModelLifecycle {
     static let shared = ModelLifecycle()
     private let logger = Logger(subsystem: "EPI", category: "ModelLifecycle")
 
     private var isRunning = false
     private var currentModelId: String?
-    private var tokenizer: QwenTokenizer?
-    private var modelWeights: [String: MLXArray]?
     private let loadQueue = DispatchQueue(label: "com.epi.model.load", qos: .userInitiated)
+    // Re-entrancy guard removed - now handled by LLMBridge
 
     // Progress API reference
     weak var progressApi: LumaraNativeProgress?
 
-    private func emit(modelId: String, value: Int64, message: String) {
+    private func emit(modelId: String, value: Double, message: String) {
         DispatchQueue.main.async { [weak self] in
-            self?.progressApi?.modelProgress(modelId: modelId, value: value, message: message, completion: { _ in })
+            // Convert Double to Int64 for Pigeon bridge (multiply by 100 for percentage)
+            let intValue = Int64(value * 100.0)
+            self?.progressApi?.modelProgress(modelId: modelId, value: intValue, message: message, completion: { _ in })
         }
         logger.info("[ModelPreload] progress=\(value) msg=\(message)")
     }
@@ -366,7 +208,7 @@ class ModelLifecycle {
     func start(modelId: String, completion: @escaping (Result<Void, Error>) -> Void) {
         // Fast path: already loaded
         if isRunning && currentModelId == modelId {
-            emit(modelId: modelId, value: 100, message: "already loaded")
+            emit(modelId: modelId, value: 1.0, message: "already loaded")
             completion(.success(()))
             return
         }
@@ -377,75 +219,98 @@ class ModelLifecycle {
         }
 
         // Start async loading
-        emit(modelId: modelId, value: 0, message: "starting")
+        emit(modelId: modelId, value: 0.0, message: "starting")
         logger.info("[ModelPreload] step=start modelId=\(modelId)")
 
         loadQueue.async { [weak self] in
             guard let self = self else { return }
 
             do {
-                // Resolve bundle paths
-                self.emit(modelId: modelId, value: 10, message: "locating files")
+                // Only support GGUF models
+                let ggufModelIds = [
+                    "Llama-3.2-3b-Instruct-Q4_K_M.gguf",
+                    "Phi-3.5-mini-instruct-Q5_K_M.gguf",
+                    "Qwen3-4B-Instruct-2507-Q4_K_S.gguf"
+                ]
 
-                print("🔍 [START] About to resolve model paths for: \(modelId)")
-
-                let configURLOptional = ModelStore.shared.resolveModelPath(modelId: modelId, file: "config.json")
-                print("🔍 configURL result: \(configURLOptional?.path ?? "NIL")")
-
-                let tokenizerURLOptional = ModelStore.shared.resolveModelPath(modelId: modelId, file: "tokenizer.json")
-                print("🔍 tokenizerURL result: \(tokenizerURLOptional?.path ?? "NIL")")
-
-                let weightsURLOptional = ModelStore.shared.resolveModelPath(modelId: modelId, file: "model.safetensors")
-                print("🔍 weightsURL result: \(weightsURLOptional?.path ?? "NIL")")
-
-                guard let configURL = configURLOptional,
-                      let tokenizerURL = tokenizerURLOptional,
-                      let weightsURL = weightsURLOptional else {
-                    print("🔍 [FAIL] One or more model files not found - throwing error")
-                    throw NSError(domain: "ModelLifecycle", code: 404, userInfo: [
-                        NSLocalizedDescriptionKey: "Model files not found in bundle for: \(modelId)"
+                guard ggufModelIds.contains(modelId) else {
+                    throw NSError(domain: "ModelLifecycle", code: 400, userInfo: [
+                        NSLocalizedDescriptionKey: "Unsupported model format. Only GGUF models are supported: \(modelId)"
                     ])
                 }
 
-                self.logger.info("[ModelPreload] path=\(weightsURL.path)")
+                // Handle GGUF model loading
+                self.emit(modelId: modelId, value: 0.1, message: "locating GGUF file")
 
-                // Verify files exist
-                guard FileManager.default.fileExists(atPath: configURL.path),
-                      FileManager.default.fileExists(atPath: tokenizerURL.path),
-                      FileManager.default.fileExists(atPath: weightsURL.path) else {
+                // For GGUF models, check if the .gguf file exists in the gguf_models directory
+                let documentsPath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
+                let ggufModelsPath = documentsPath.appendingPathComponent("gguf_models")
+
+                // Check for both exact case and lowercase versions
+                let exactPath = ggufModelsPath.appendingPathComponent(modelId)
+                let lowercasePath = ggufModelsPath.appendingPathComponent(modelId.lowercased())
+
+                let exactExists = FileManager.default.fileExists(atPath: exactPath.path)
+                let lowercaseExists = FileManager.default.fileExists(atPath: lowercasePath.path)
+
+                let ggufPath = exactExists ? exactPath : lowercasePath
+                let exists = exactExists || lowercaseExists
+
+                guard exists else {
                     throw NSError(domain: "ModelLifecycle", code: 404, userInfo: [
-                        NSLocalizedDescriptionKey: "Missing model files in bundle"
+                        NSLocalizedDescriptionKey: "GGUF model file not found: \(modelId)"
                     ])
                 }
 
-                // Load tokenizer
-                self.emit(modelId: modelId, value: 30, message: "loading tokenizer")
-                self.tokenizer = try QwenTokenizer(vocabPath: tokenizerURL)
+                self.logger.info("[ModelPreload] GGUF model found at: \(ggufPath.path)")
 
-                // Load weights with mmap
-                self.emit(modelId: modelId, value: 60, message: "loading weights (mmap)")
-                do {
-                    let fileSize = try FileManager.default.attributesOfItem(atPath: weightsURL.path)[.size] as? UInt64 ?? 0
-                    self.logger.info("[ModelPreload] mmap=starting size=\(fileSize)")
+                // For GGUF models, we don't need a separate tokenizer
+                // llama.cpp handles tokenization internally
+                self.emit(modelId: modelId, value: 0.5, message: "preparing llama.cpp GGUF model")
 
-                    // Use memory-mapped loading for large files
-                    self.modelWeights = try SafetensorsLoader.load(from: weightsURL)
+                // Log file details before calling epi_llama_init (using NSLog for immediate output)
+                NSLog("🔍🔍🔍 [ModelPreload] ===== LLAMA INIT DEBUG =====")
+                NSLog("🔍🔍🔍 [ModelPreload] Model file path: \(ggufPath.path)")
+                NSLog("🔍🔍🔍 [ModelPreload] File exists: \(FileManager.default.fileExists(atPath: ggufPath.path))")
 
-                    self.logger.info("[ModelPreload] mmap=ok tensors=\(self.modelWeights?.count ?? 0)")
-                } catch {
-                    self.logger.error("[ModelPreload] err=\(error.localizedDescription)")
-                    throw error
+                self.logger.info("[ModelPreload] ===== LLAMA INIT DEBUG =====")
+                self.logger.info("[ModelPreload] Model file path: \(ggufPath.path)")
+                self.logger.info("[ModelPreload] File exists: \(FileManager.default.fileExists(atPath: ggufPath.path))")
+
+                if let attrs = try? FileManager.default.attributesOfItem(atPath: ggufPath.path) {
+                    let size = attrs[.size] as? UInt64 ?? 0
+                    NSLog("🔍🔍🔍 [ModelPreload] File size: \(size / 1_000_000) MB")
+                    self.logger.info("[ModelPreload] File size: \(size / 1_000_000) MB")
                 }
 
-                // MLX initialization (warmup would go here)
-                self.emit(modelId: modelId, value: 90, message: "initializing MLX")
+                // Initialize llama.cpp with the GGUF model using modern API
+                NSLog("🔍🔍🔍 [ModelPreload] Calling epi_llama_init()...")
+                self.logger.info("[ModelPreload] Calling epi_llama_init()...")
+                let initResult = LLMBridge.shared.initialize(modelPath: ggufPath.path, ctxTokens: 1024, nGpuLayers: 99) // Reduced context for faster mobile inference
+                NSLog("🔍🔍🔍 [ModelPreload] epi_llama_init() returned: \(initResult)")
+                self.logger.info("[ModelPreload] epi_llama_init() returned: \(initResult)")
+
+                if !initResult {
+                    NSLog("❌❌❌ [ModelPreload] LLAMA INIT FAILED - returned \(initResult)")
+                    NSLog("❌❌❌ [ModelPreload] Model path: \(ggufPath.path)")
+                    NSLog("❌❌❌ [ModelPreload] This usually means: corrupt GGUF, not enough memory, or incompatible format")
+                    self.logger.error("[ModelPreload] LLAMA INIT FAILED - returned \(initResult)")
+                    self.logger.error("[ModelPreload] Model path: \(ggufPath.path)")
+                    self.logger.error("[ModelPreload] This usually means: corrupt GGUF, not enough memory, or incompatible format")
+                    throw NSError(domain: "ModelLifecycle", code: 500, userInfo: [
+                        NSLocalizedDescriptionKey: "Failed to initialize llama.cpp with model: \(modelId) (returned \(initResult))"
+                    ])
+                }
+
+                NSLog("✅✅✅ [ModelPreload] llama.cpp initialized successfully with model: \(modelId)")
+                self.logger.info("[ModelPreload] ✅ llama.cpp initialized successfully with model: \(modelId)")
 
                 // Mark as loaded
                 self.isRunning = true
                 self.currentModelId = modelId
 
-                self.emit(modelId: modelId, value: 100, message: "ready")
-                self.logger.info("[ModelPreload] ok modelId=\(modelId)")
+                self.emit(modelId: modelId, value: 1.0, message: "ready")
+                self.logger.info("[ModelPreload] GGUF model ready: \(modelId)")
 
                 DispatchQueue.main.async {
                     completion(.success(()))
@@ -453,7 +318,7 @@ class ModelLifecycle {
 
             } catch {
                 self.logger.error("[ModelPreload] err=\(error.localizedDescription)")
-                self.emit(modelId: modelId, value: 0, message: "failed: \(error.localizedDescription)")
+                self.emit(modelId: modelId, value: 0.0, message: "failed: \(error.localizedDescription)")
                 DispatchQueue.main.async {
                     completion(.failure(error))
                 }
@@ -464,26 +329,39 @@ class ModelLifecycle {
     func stop() throws {
         guard isRunning else { return }
 
-        // Free MLX model resources
-        modelWeights = nil
-        tokenizer = nil
-
+        // Release llama.cpp model resources
+        LLMBridge.shared.release()
         isRunning = false
         currentModelId = nil
         logger.info("Stopped model")
     }
 
     func generate(prompt: String, params: GenParams) throws -> GenResult {
-        guard isRunning, let tokenizer = tokenizer else {
+        guard isRunning else {
             throw NSError(domain: "ModelLifecycle", code: 400, userInfo: [
                 NSLocalizedDescriptionKey: "No model is loaded"
+            ])
+        }
+        
+        // Re-entrancy protection now handled by LLMBridge
+
+        // Only support GGUF models
+        let ggufModelIds = [
+            "Llama-3.2-3b-Instruct-Q4_K_M.gguf",
+            "Phi-3.5-mini-instruct-Q5_K_M.gguf",
+            "Qwen3-4B-Instruct-2507-Q4_K_S.gguf",
+        ]
+
+        guard ggufModelIds.contains(currentModelId ?? "") else {
+            throw NSError(domain: "ModelLifecycle", code: 400, userInfo: [
+                NSLocalizedDescriptionKey: "Unsupported model format. Only GGUF models are supported: \(currentModelId ?? "unknown")"
             ])
         }
 
         let startTime = Date()
 
         // === DEBUG OUTPUT ===
-        logger.info("🔷🔷🔷 === QWEN GENERATION START === 🔷🔷🔷")
+        logger.info("🔷🔷🔷 === GGUF GENERATION START === 🔷🔷🔷")
         logger.info("📥 INPUT PROMPT:")
         logger.info("  Length: \(prompt.count) characters")
         logger.info("  First 200 chars: \(String(prompt.prefix(200)))")
@@ -496,130 +374,70 @@ class ModelLifecycle {
         logger.info("  topP: \(params.topP)")
         logger.info("  repeatPenalty: \(params.repeatPenalty)")
 
-        // One-shot sanity test for tokenizer
-        logger.info("=== QWEN TOKENIZER SANITY TEST ===")
-        let testPrompt = """
-        <|im_start|>system
-        You are LUMARA, a concise, friendly assistant. Greet and ask how to help.
-        <|im_end|>
-        <|im_start|>user
-        Hello
-        <|im_end|>
-        <|im_start|>assistant
-        """
-        
-        let testTokens = tokenizer.encode(testPrompt)
-        logger.info("ENC ids first 20: \(Array(testTokens.prefix(20)))")
-        let roundtrip = tokenizer.decode(testTokens, skipSpecialTokens: true, cleanUpTokenizationSpaces: true)
-        logger.info("ROUNDTRIP: \(roundtrip)")
-        logger.info("=== END SANITY TEST ===")
+        // Use modern llama.cpp streaming generation
+        logger.info("=== GGUF MODEL GENERATION (Modern API) ===")
 
-        // Tokenize input
-        let inputTokens = tokenizer.encode(prompt)
-        logger.info("🔢 Input tokens: \(inputTokens.count)")
-        logger.info("🔢 First 10 token IDs: \(Array(inputTokens.prefix(10)))")
-
-        // Qwen-3 optimized generation parameters
+        // Generation parameters
         let maxNewTokens = min(Int(params.maxTokens), 96)
         let temperature = params.temperature
         let topP = params.topP
-        let stopStrings = ["<|im_end|>"]
 
-        // Simple generation loop (simplified - real impl would use transformer layers)
-        var outputTokens: [Int] = inputTokens
-        var generatedTokens: [Int] = []
-
-        for tokenIndex in 0..<maxNewTokens {
-            // Stub: In real MLX, we'd run forward pass through transformer
-            // For now, generate placeholder tokens with some logic
-            let nextToken: Int
-            
-            if tokenIndex == 0 {
-                // First token should be a greeting
-                nextToken = tokenizer.getTokenId(for: "Hi") ?? 
-                           tokenizer.getTokenId(for: "Hello") ?? 
-                           tokenizer.getTokenId(for: "Hey") ?? 0
-            } else if tokenIndex == 1 {
-                nextToken = tokenizer.getTokenId(for: "!") ?? tokenizer.getTokenId(for: ".") ?? 0
-            } else if tokenIndex == 2 {
-                nextToken = tokenizer.getTokenId(for: "How") ?? tokenizer.getTokenId(for: "What") ?? 0
-            } else if tokenIndex == 3 {
-                nextToken = tokenizer.getTokenId(for: "can") ?? tokenizer.getTokenId(for: "would") ?? 0
-            } else if tokenIndex == 4 {
-                nextToken = tokenizer.getTokenId(for: "I") ?? tokenizer.getTokenId(for: "we") ?? 0
-            } else if tokenIndex == 5 {
-                nextToken = tokenizer.getTokenId(for: "help") ?? tokenizer.getTokenId(for: "assist") ?? 0
-            } else if tokenIndex == 6 {
-                nextToken = tokenizer.getTokenId(for: "you") ?? tokenizer.getTokenId(for: "today") ?? 0
-            } else if tokenIndex == 7 {
-                nextToken = tokenizer.getTokenId(for: "?") ?? tokenizer.getTokenId(for: ".") ?? 0
-            } else {
-                // Random token for remaining positions
-                nextToken = Int.random(in: 0..<min(1000, tokenizer.vocabCount))
-            }
-            
-            generatedTokens.append(nextToken)
-            outputTokens.append(nextToken)
-
-            // Check for stop strings
-            let currentText = tokenizer.decode(generatedTokens, skipSpecialTokens: true, cleanUpTokenizationSpaces: true)
-            for stopString in stopStrings {
-                if currentText.contains(stopString) {
-                    logger.info("Stopped at: \(stopString)")
-                    break
-                }
-            }
-            
-            // Stop at EOS
-            if nextToken == tokenizer.eosToken {
-                logger.info("Stopped at EOS token")
-                break
-            }
-        }
-
-        // Decode output with proper cleanup
-        logger.info("🔠 DECODING GENERATED TOKENS...")
-        logger.info("🔢 Generated token count: \(generatedTokens.count)")
-        logger.info("🔢 Generated token IDs: \(generatedTokens)")
+        // Call native generation directly to avoid recursive loop
+        let result = try startNativeGenerationDirect(prompt: prompt, params: params)
         
-        let generatedText = tokenizer.decode(generatedTokens, skipSpecialTokens: true, cleanUpTokenizationSpaces: true)
-        logger.info("📤 RAW DECODED TEXT:")
-        logger.info("  '\(generatedText)'")
-        logger.info("  Length: \(generatedText.count) characters")
-        
-        // Additional cleanup
-        let cleanedText = cleanQwenOutput(generatedText)
-        logger.info("✨ CLEANED TEXT:")
+        // Clean up the generated text
+        let cleanedText = cleanQwenOutput(result.text)
+        logger.info("📤 GGUF GENERATED TEXT:")
         logger.info("  '\(cleanedText)'")
         logger.info("  Length: \(cleanedText.count) characters")
 
         let latencyMs = Int(Date().timeIntervalSince(startTime) * 1000)
-        
+
         let finalText = cleanedText.isEmpty ? generateFallbackResponse(prompt: prompt) : cleanedText
-        
+
         logger.info("🎯 FINAL OUTPUT:")
         logger.info("  '\(finalText)'")
         logger.info("  Length: \(finalText.count) characters")
         logger.info("  Using fallback: \(cleanedText.isEmpty)")
         logger.info("⏱️  Generation time: \(latencyMs)ms")
-        logger.info("🔷🔷🔷 === QWEN GENERATION END === 🔷🔷🔷")
+        logger.info("🔷🔷🔷 === GGUF GENERATION END === 🔷🔷🔷")
 
         return GenResult(
             text: finalText,
-            tokensIn: Int64(inputTokens.count),
-            tokensOut: Int64(generatedTokens.count),
+            tokensIn: result.tokensIn,
+            tokensOut: result.tokensOut,
             latencyMs: Int64(latencyMs),
-            provider: "mlx-experimental"
+            provider: result.provider
         )
     }
     
-    private func cleanQwenOutput(_ text: String) -> String {
-        var cleaned = text
+    private func startNativeGenerationDirect(prompt: String, params: GenParams) throws -> GenResult {
+        // Direct native generation without guard system (for internal use)
+        let startTime = Date()
         
+        // Generate unique request ID
+        let requestId = UInt64.random(in: 1...UInt64.max)
+        logger.info("🚀 Direct native generation req=\(requestId)")
+        
+        // Call native generation directly to avoid recursive loop
+        let result = try LLMBridge.shared.startNativeGenerationDirectNative(prompt: prompt, params: params, requestId: requestId)
+        
+        let latencyMs = Int(Date().timeIntervalSince(startTime) * 1000)
+        
+        logger.info("✅ Direct native generation completed:")
+        logger.info("  text: '\(result.text)'")
+        logger.info("  latencyMs: \(latencyMs)")
+        
+        return result
+    }
+
+    func cleanQwenOutput(_ text: String) -> String {
+        var cleaned = text
+
         // Remove Qwen-3 template tokens
         cleaned = cleaned.replacingOccurrences(of: "<|im_start|>", with: "")
         cleaned = cleaned.replacingOccurrences(of: "<|im_end|>", with: "")
-        
+
         // Remove everything after stop strings
         let stopStrings = ["<|im_end|>", "<|endoftext|>"]
         for stopString in stopStrings {
@@ -627,10 +445,10 @@ class ModelLifecycle {
                 cleaned = String(cleaned[..<range.lowerBound])
             }
         }
-        
+
         // Trim whitespace
         cleaned = cleaned.trimmingCharacters(in: .whitespacesAndNewlines)
-        
+
         return cleaned
     }
 
@@ -639,7 +457,7 @@ class ModelLifecycle {
     private func generateFallbackResponse(prompt: String) -> String {
         // Extract the actual user prompt (remove LUMARA system prompt if present)
         let userPrompt = extractUserPrompt(from: prompt)
-        
+
         // Generate LUMARA-style response based on prompt content
         if userPrompt.lowercased().contains("hello") || userPrompt.lowercased().contains("hi") {
             return "Hi! How can I help today?"
@@ -678,21 +496,21 @@ class ModelLifecycle {
             return """
             I'm LUMARA, your privacy-first on-device assistant. I'm here to help you journal, see patterns, and take your next wise step.
 
-            Current status: Bridge ✓, MLX loaded ✓, Tokenizer ✓, Bundle mmap ✓
+            Current status: Bridge ✓, llama.cpp loaded ✓, GGUF model ✓
 
             Next step: Share what's on your mind, or ask about journaling, patterns, or life phases.
             """
         }
     }
-    
+
     private func extractUserPrompt(from fullPrompt: String) -> String {
         // Look for the actual user message after the LUMARA system prompt
         let lines = fullPrompt.components(separatedBy: .newlines)
-        
+
         // Find the last non-empty line that doesn't look like system prompt
         for line in lines.reversed() {
             let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
-            if !trimmed.isEmpty && 
+            if !trimmed.isEmpty &&
                !trimmed.hasPrefix("You are LUMARA") &&
                !trimmed.hasPrefix("PRINCIPLES") &&
                !trimmed.hasPrefix("CONTEXT MAP") &&
@@ -704,7 +522,7 @@ class ModelLifecycle {
                 return trimmed
             }
         }
-        
+
         return fullPrompt
     }
 }
@@ -712,9 +530,230 @@ class ModelLifecycle {
 // MARK: - LumaraNative Implementation
 
 class LLMBridge: NSObject, LumaraNative {
+    static let shared = LLMBridge()
     private let logger = Logger(subsystem: "EPI", category: "LLMBridge")
     private var progressApi: LumaraNativeProgress?
     private let miraStore = MiraMemoryStore()
+    
+    // Internal LLM Bridge state
+    private var isStreaming = false
+    private var currentModelPath: String?
+    private var refCount = 0
+    private var loggerInstalled = false
+    private var inFlight = false
+    private let queue = DispatchQueue(label: "epi.llama.serial")
+    // Serial queue guarantees ordering of start → stream → finish → cleanup
+    private let genQ = DispatchQueue(label: "ai.epi.llmbridge.generation")
+    
+    // Minimal shared state with unfair lock
+    private var isGenerating = false
+    private var currentRequestId: UInt64 = 0
+    private var stateLock = os_unfair_lock_s()
+    private var timeoutTimer: DispatchSourceTimer?
+    
+    private override init() {
+        super.init()
+        installLoggerOnce()
+    }
+    
+    // MARK: - State Management
+    
+    private func setBusy(_ busy: Bool, requestId: UInt64 = 0) {
+        os_unfair_lock_lock(&stateLock)
+        isGenerating = busy
+        currentRequestId = busy ? requestId : 0
+        os_unfair_lock_unlock(&stateLock)
+    }
+    
+    private func armTimeout(_ seconds: TimeInterval, reqId: UInt64, onTimeout: @escaping () -> Void) {
+        timeoutTimer?.cancel()
+        let t = DispatchSource.makeTimerSource(queue: genQ)
+        t.setEventHandler { [weak self] in
+            guard let self = self else { return }
+            // Cooperative cancel at native
+            epi_stop() // Cancel current generation
+            onTimeout()
+        }
+        t.schedule(deadline: .now() + seconds)
+        timeoutTimer = t
+        t.resume()
+    }
+    
+    private func disarmTimeout() {
+        timeoutTimer?.cancel()
+        timeoutTimer = nil
+    }
+    
+    private func snapshotState() -> (Bool, UInt64) {
+        os_unfair_lock_lock(&stateLock)
+        let s = (isGenerating, currentRequestId)
+        os_unfair_lock_unlock(&stateLock)
+        return s
+    }
+    
+    // MARK: - Error Types
+    
+    enum LLMError: Error {
+        case busy(code: Int, message: String)
+        case native(code: Int, message: String)
+        case bridge(code: Int, message: String)
+    }
+    
+    // MARK: - Logger Setup
+    
+    private let swiftLogger: @convention(c) (Int32, UnsafePointer<CChar>?) -> Void = { level, cstr in
+        guard let cstr else { return }
+        let msg = String(cString: cstr)
+        // Unified logging; visible in Xcode and device Console
+        os_log("[EPI %d] %{public}@", level, msg)
+        // Also mirror to Flutter run console when attached
+        print("[EPI \(level)] \(msg)")
+    }
+    
+    private func installLoggerOnce() {
+        guard !loggerInstalled else { return }
+        epi_set_logger(swiftLogger)
+        loggerInstalled = true
+        logger.info("C++ logger installed")
+    }
+    
+    // MARK: - Reference Counting
+    
+    func acquire() {
+        if self.refCount == 0 {
+            self.installLoggerOnce()
+        }
+        self.refCount += 1
+        self.logger.info("LLMBridge acquired, refCount=\(self.refCount)")
+    }
+    
+    func release() {
+        self.refCount -= 1
+        self.logger.info("LLMBridge released, refCount=\(self.refCount)")
+        if self.refCount == 0 {
+            self.shutdown()
+        }
+    }
+    
+    /// Compute SHA-256 hash of a string for prompt verification
+    private func sha256(_ s: String) -> String {
+        let data = s.data(using: .utf8)!
+        return SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
+    }
+    
+    // Internal LLM Bridge methods
+    func initialize(modelPath: String, ctxTokens: Int32 = 2048, nGpuLayers: Int32 = 0) -> Bool {
+        acquire() // Ensure we have a reference before initializing
+        
+        // Install logger before any native calls
+        installLoggerOnce()
+        
+        currentModelPath = modelPath
+        return modelPath.withCString { cstr in
+            epi_llama_init(cstr, ctxTokens, nGpuLayers)
+        }
+    }
+
+    func start(prompt: String, topK: Int32 = 40, topP: Float = 0.9, temp: Float = 0.8) -> Bool {
+        var result = false
+        
+        // Ensure logger is installed
+        installLoggerOnce()
+        
+        queue.sync {
+            guard !self.inFlight else {
+                logger.error("Generation already in progress - ignoring duplicate call")
+                return
+            }
+            
+            self.inFlight = true
+            defer { self.inFlight = false }
+            
+            // Use modern API with proper memory management
+            var params = EpiGenParams(
+                maxTokens: 256,
+                temperature: temp,
+                topP: topP,
+                repeatPenalty: 1.1
+            )
+            
+            var cbs = EpiCallbacks(
+                onToken: tokenCallback,
+                user: Unmanaged.passUnretained(self).toOpaque()
+            )
+            
+            // Generate unique request ID
+            let requestId = UInt64.random(in: 1...UInt64.max)
+            currentRequestId = requestId
+            
+            logger.info("GEN_SWIFT_ENTER reqId=\(requestId) thread=\(Thread.current)")
+            
+            result = prompt.withCString { cstr in
+                epi_start(cstr, &params, cbs, requestId)
+            }
+            
+            if !result {
+                logger.error("epi_start returned false")
+            } else {
+                logger.info("epi_start succeeded")
+            }
+        }
+        
+        return result
+    }
+    
+    // Token callback for modern API
+    private let tokenCallback: @convention(c) (UnsafePointer<CChar>?, UnsafeMutableRawPointer?) -> Void = { token, userData in
+        guard let token = token, let userData = userData else { return }
+        let bridge = Unmanaged<LLMBridge>.fromOpaque(userData).takeUnretainedValue()
+        
+        let tokenString = String(cString: token)
+        bridge.logger.info("Token: '\(tokenString)'")
+        
+        // Post token notification
+        NotificationCenter.default.post(name: .llmToken, object: tokenString)
+    }
+    
+    // Map native error codes to Flutter errors
+    private func mapNativeError(_ code: Int) -> FlutterError? {
+        guard code != 0 else { return nil }
+        let msg: String
+        switch code {
+        case -3:  msg = "Empty prompt"
+        case -10: msg = "Tokenization produced 0 tokens"
+        case -11: msg = "Token buffer too small"
+        case -20: msg = "Batch init failed"
+        case -30: msg = "First decode failed"
+        case -40: msg = "Sampler init failed"
+        default:  msg = "Unknown start error \(code)"
+        }
+        return FlutterError(code: "LLMBridge", message: msg, details: nil)
+    }
+
+    // Token callback trampoline
+    private static let tokenThunk: @convention(c) (UnsafePointer<CChar>?, UnsafeMutableRawPointer?) -> Void = { cstr, _ in
+        guard let cstr = cstr else { return }
+        let piece = String(cString: cstr)
+        // Forward to Dart through your existing channel or notification
+        NotificationCenter.default.post(name: .llmToken, object: piece)
+    }
+
+    // Stream function removed - using synchronous generation approach
+
+    func stop() {
+        epi_stop()
+        isStreaming = false
+        // Reset guards on manual stop
+        genQ.async {
+            self.setBusy(false, requestId: 0)
+        }
+        RequestGate_end(currentRequestId)
+    }
+
+    func shutdown() {
+        logger.info("LLMBridge shutdown called")
+        epi_llama_free()
+    }
 
     /// Set progress API for model loading callbacks
     func setProgressApi(_ api: LumaraNativeProgress) {
@@ -728,27 +767,49 @@ class LLMBridge: NSObject, LumaraNative {
 
         return SelfTestResult(
             ok: true,
-            message: "LLMBridge operational (bundle loading enabled)",
+            message: "LLMBridge operational (GGUF models only)",
             platform: "iOS",
-            version: "1.0.0-pigeon-async"
+            version: "1.0.0-gguf-only"
         )
     }
 
     func availableModels() throws -> ModelRegistry {
-        let registry = ModelStore.shared.readRegistry()
+        // Only return GGUF models that are actually available
+        let ggufModelIds = [
+            "Llama-3.2-3b-Instruct-Q4_K_M.gguf",
+            "Phi-3.5-mini-instruct-Q5_K_M.gguf",
+            "Qwen3-4B-Instruct-2507-Q4_K_S.gguf",
+        ]
 
-        let models = registry.installed.map { entry in
-            ModelInfo(
-                id: entry.id,
-                name: entry.name,
-                format: entry.format.rawValue,
-                path: entry.path,
-                sizeBytes: entry.sizeBytes != nil ? Int64(entry.sizeBytes!) : nil,
-                checksum: entry.checksum
+        let availableModels = ggufModelIds.compactMap { modelId -> ModelInfo? in
+            guard GGUFModelManager.shared.isGGUFModelAvailable(modelId: modelId) else {
+                return nil
+            }
+
+            // Get model display name
+            let displayName: String
+            switch modelId {
+            case "Llama-3.2-3b-Instruct-Q4_K_M.gguf":
+                displayName = "Llama 3.2 3B Instruct (Q4_K_M)"
+            case "Phi-3.5-mini-instruct-Q5_K_M.gguf":
+                displayName = "Phi-3.5 Mini Instruct (Q5_K_M)"
+            case "Qwen3-4B-Instruct-2507-Q4_K_S.gguf":
+                displayName = "Qwen3 4B Instruct (Q4_K_S)"
+            default:
+                displayName = modelId
+            }
+
+            return ModelInfo(
+                id: modelId,
+                name: displayName,
+                format: "gguf",
+                path: GGUFModelManager.shared.getGGUFModelPath(modelId: modelId)?.path ?? "",
+                sizeBytes: nil,
+                checksum: nil
             )
         }
 
-        return ModelRegistry(installed: models, active: registry.active)
+        return ModelRegistry(installed: availableModels, active: nil)
     }
 
     func initModel(modelId: String) throws -> Bool {
@@ -769,30 +830,31 @@ class LLMBridge: NSObject, LumaraNative {
     }
 
     func getModelStatus(modelId: String) throws -> ModelStatus {
-        // Check bundle files instead of Application Support
-        var missing: [String] = []
+        // Only support GGUF models
+        let ggufModelIds = [
+            "Llama-3.2-3b-Instruct-Q4_K_M.gguf",
+            "Phi-3.5-mini-instruct-Q5_K_M.gguf",
+            "Qwen3-4B-Instruct-2507-Q4_K_S.gguf",
+        ]
 
-        let configURL = ModelStore.shared.resolveModelPath(modelId: modelId, file: "config.json")
-        let tokenizerURL = ModelStore.shared.resolveModelPath(modelId: modelId, file: "tokenizer.json")
-        let weightsURL = ModelStore.shared.resolveModelPath(modelId: modelId, file: "model.safetensors")
-
-        if configURL == nil || !FileManager.default.fileExists(atPath: configURL!.path) {
-            missing.append("config.json")
-        }
-        if tokenizerURL == nil || !FileManager.default.fileExists(atPath: tokenizerURL!.path) {
-            missing.append("tokenizer.json")
-        }
-        if weightsURL == nil || !FileManager.default.fileExists(atPath: weightsURL!.path) {
-            missing.append("model.safetensors")
+        guard ggufModelIds.contains(modelId) else {
+            return ModelStatus(
+                folder: "unsupported",
+                loaded: false,
+                missing: ["Unsupported model format"],
+                format: "unsupported"
+            )
         }
 
-        let folder = weightsURL?.deletingLastPathComponent().path ?? "bundle"
+        // Check if GGUF model file exists
+        let modelPath = GGUFModelManager.shared.getGGUFModelPath(modelId: modelId)
+        let isAvailable = modelPath != nil
 
         return ModelStatus(
-            folder: folder,
-            loaded: missing.isEmpty,
-            missing: missing,
-            format: "mlx"
+            folder: modelPath?.deletingLastPathComponent().path ?? "gguf_models",
+            loaded: isAvailable,
+            missing: isAvailable ? [] : ["GGUF model file not found"],
+            format: "gguf"
         )
     }
 
@@ -802,36 +864,246 @@ class LLMBridge: NSObject, LumaraNative {
     }
 
     func generateText(prompt: String, params: GenParams) throws -> GenResult {
-        logger.info("🟦🟦🟦 === generateText ENTRY === 🟦🟦🟦")
-        logger.info("📥 ORIGINAL PROMPT:")
-        logger.info("  Length: \(prompt.count) characters")
-        logger.info("  Content: '\(prompt)'")
+        logger.info("🟦🟦🟦 === generateText ENTRY === 🟦🟦🟩")
         
-        // Use LUMARA prompt system for enhanced responses
-        let lumaraSystem = LumaraPromptSystem()
+        let requestId = UInt64.random(in: 1...UInt64.max)
+        logger.info("🚀 start req=\(requestId)")
         
-        // Build context prelude from MIRA memory
-        let contextPrelude = miraStore.buildContextPrelude()
-        logger.info("📚 CONTEXT PRELUDE:")
-        logger.info("  \(contextPrelude.build())")
+        // Single-flight generation with proper request ID propagation
+        return try generateSingleFlight(prompt: prompt, params: params, requestId: requestId)
+    }
+    
+    private func generateSingleFlight(prompt: String, params: GenParams, requestId: UInt64) throws -> GenResult {
+        return try genQ.sync { [weak self] in
+            guard let self = self else {
+                throw LLMError.bridge(code: 500, message: "LLMBridge deallocated")
+            }
+            
+            // Check if already in flight
+            if self.isGenerating {
+                logger.warning("Generation already in flight, rejecting request \(requestId)")
+                throw LLMError.bridge(code: 409, message: "already_in_flight")
+            }
+            
+            self.isGenerating = true
+            self.currentRequestId = requestId
+            defer { 
+                self.isGenerating = false
+                self.currentRequestId = 0
+            }
+            
+            logger.info("🚀 Direct native generation req=\(requestId)")
+            
+            // Call native generation directly to avoid recursive loop
+            let result = try self.startNativeGenerationDirectNative(prompt: prompt, params: params, requestId: requestId)
+            
+            let latencyMs = Int(Date().timeIntervalSince(Date()) * 1000)
+            
+            logger.info("✅ Direct native generation completed:")
+            logger.info("  text: '\(result.text)'")
+            logger.info("  latencyMs: \(latencyMs)")
+            
+            return result
+        }
+    }
+    
+    private func generateTextAsync(prompt: String, params: GenParams, requestId: UInt64, completion: @escaping (Result<GenResult, Error>) -> Void) {
+        genQ.async { [weak self] in
+            guard let self = self else { return }
+            
+            let (busy, _) = self.snapshotState()
+            if busy {
+                completion(.failure(LLMError.busy(code: 409, message: "Another generation is in flight")))
+                return
+            }
+            
+            self.setBusy(true, requestId: requestId)
+            guard RequestGate_begin(requestId) else {
+                self.setBusy(false, requestId: 0)
+                completion(.failure(LLMError.busy(code: 409, message: "Native engine is busy")))
+                return
+            }
+            
+            var cleanedUp = false
+            let cleanup: () -> Void = {
+                guard !cleanedUp else { return }
+                cleanedUp = true
+                self.disarmTimeout()
+                RequestGate_end(requestId)
+                self.setBusy(false, requestId: 0)
+                self.logger.info("cleanup req=\(requestId) finished")
+            }
+            
+            // Two-stage timeout: fast guard until first token, then inter-token stall guard
+            let startTimeout: TimeInterval = 10   // no-first-token window
+            let stallTimeout: TimeInterval = 15   // per-token stall window
+            
+            // If we time out: cancel, cleanup, and surface 408
+            func handleTimeout() {
+                cleanup()
+                completion(.failure(LLMError.bridge(code: 408, message: "Generation timed out")))
+            }
+            
+            // Start "no first token" timer
+            self.armTimeout(startTimeout, reqId: requestId, onTimeout: handleTimeout)
+            
+            do {
+                try self.startNativeGenerationWithCallbacks(
+                    prompt: prompt, 
+                    params: params, 
+                    requestId: requestId,
+                    onToken: { token in
+                        // Reset stall timer on every token
+                        self.genQ.async {
+                            self.armTimeout(stallTimeout, reqId: requestId, onTimeout: handleTimeout)
+                            // Token handling can be added here if needed
+                        }
+                    },
+                    onDone: { genResult in
+                        self.genQ.async {
+                            cleanup()  // cleanup BEFORE completion
+                            completion(.success(genResult))
+                        }
+                    },
+                    onFail: { code, msg in
+                        self.genQ.async {
+                            cleanup()
+                            completion(.failure(LLMError.native(code: Int(code), message: msg)))
+                        }
+                    }
+                )
+            } catch let genError {
+                cleanup()
+                completion(.failure(genError))
+            }
+        }
+    }
+    
+    private func startNativeGenerationWithCallbacks(
+        prompt: String, 
+        params: GenParams, 
+        requestId: UInt64,
+        onToken: @escaping (String) -> Void,
+        onDone: @escaping (GenResult) -> Void,
+        onFail: @escaping (Int32, String) -> Void
+    ) throws {
+        // Simplified approach - just call ModelLifecycle.generate directly
+        // This avoids the complex callback setup that was causing issues
+        do {
+            let result = try ModelLifecycle.shared.generate(prompt: prompt, params: params)
+            onDone(result)
+        } catch {
+            onFail(500, "Generation failed: \(error.localizedDescription)")
+        }
+    }
+    
+    func startNativeGenerationDirectNative(prompt: String, params: GenParams, requestId: UInt64) throws -> GenResult {
+        // Direct native generation without any recursive calls
+        let startTime = Date()
         
-        let qwenPrompt = lumaraSystem.buildLumaraMessages(userPrompt: prompt, contextPrelude: contextPrelude)
-        logger.info("🔧 FORMATTED QWEN PROMPT:")
-        logger.info("  Length: \(qwenPrompt.count) characters")
-        logger.info("  First 300 chars: \(String(qwenPrompt.prefix(300)))")
-        
-        // Create Qwen-3 optimized generation parameters
-        let qwenParams = GenParams(
-            maxTokens: min(params.maxTokens, 96), // Qwen-3 works well with shorter responses
-            temperature: 0.7,
-            topP: 0.9,
-            repeatPenalty: 1.1,
-            seed: 42
+        // Set up empty callbacks (we'll handle tokens in the loop)
+        var cbs = EpiCallbacks(
+            onToken: nil,
+            user: nil
         )
-        logger.info("⚙️  Using params: maxTokens=\(qwenParams.maxTokens), temp=\(qwenParams.temperature)")
         
-        logger.info("🚀 Calling ModelLifecycle.generate...")
-        let result = try ModelLifecycle.shared.generate(prompt: qwenPrompt, params: qwenParams)
+        // Convert params
+        var epiParams = EpiGenParams(
+            maxTokens: Int32(params.maxTokens),
+            temperature: Float(params.temperature),
+            topP: Float(params.topP),
+            repeatPenalty: Float(params.repeatPenalty)
+        )
+        
+        // Call native generation directly
+        let success = prompt.withCString { cstr in
+            epi_start(cstr, &epiParams, cbs, requestId)
+        }
+        
+        if !success {
+            throw LLMError.native(code: 500, message: "Failed to start native generation")
+        }
+        
+        // Use the new core API for generation
+        let generatedText = prompt.withCString { cstr in
+            String(cString: epi_generate_core_api(cstr, &epiParams, requestId))
+        }
+        
+        // Clean up
+        epi_stop()
+        RequestGate_end(requestId)
+        
+        let tokensGenerated = generatedText.count / 4 // Rough estimate
+        let stopReason = "completed"
+        
+        // Clean up the generated text
+        let cleanedText = ModelLifecycle.shared.cleanQwenOutput(generatedText)
+        let latencyMs = Int(Date().timeIntervalSince(startTime) * 1000)
+        
+        // Retry logic for empty generation
+        if tokensGenerated == 0 && stopReason == "limit" {
+            logger.warning("Empty generation detected, attempting retry with adjusted parameters")
+            
+            // Retry with adjusted parameters
+            var retryParams = params
+            retryParams.temperature = min(params.temperature * 1.2, 1.0) // Increase temperature slightly
+            retryParams.repeatPenalty = max(params.repeatPenalty * 0.95, 1.0) // Decrease repeat penalty slightly
+            
+            // Add a prefix to coax generation
+            let retryPrompt = "Answer concisely: " + prompt
+            
+            logger.info("Retrying with adjusted parameters: temp=\(retryParams.temperature), repeatPenalty=\(retryParams.repeatPenalty)")
+            
+            // Recursive retry (only once)
+            return try startNativeGenerationDirectNative(prompt: retryPrompt, params: retryParams, requestId: requestId)
+        }
+        
+        logger.info("✅ Direct native generation completed:")
+        logger.info("  text: '\(cleanedText)'")
+        logger.info("  tokensGenerated: \(tokensGenerated)")
+        logger.info("  stopReason: \(stopReason)")
+        logger.info("  latencyMs: \(latencyMs)")
+        
+        return GenResult(
+            text: cleanedText,
+            tokensIn: Int64(prompt.count / 4), // Rough estimate
+            tokensOut: Int64(tokensGenerated),
+            latencyMs: Int64(latencyMs),
+            provider: "llama.cpp-gguf"
+        )
+    }
+    
+    private func startNativeGeneration(prompt: String, params: GenParams, requestId: UInt64) throws -> GenResult {
+        // Assert prompt is not empty
+        assert(!prompt.isEmpty, "Empty prompt reached LLMBridge.generateText")
+        
+        // Compute SHA-256 hash for prompt verification
+        let promptHash = sha256(prompt)
+        logger.info("🔐 PROMPT HASH: \(promptHash)")
+        
+        logger.info("📥 OPTIMIZED PROMPT FROM DART:")
+        logger.info("  Length: \(prompt.count) characters")
+        logger.info("  First 300 chars: \(String(prompt.prefix(300)))")
+        
+        // Check if prompt starts with LUMARA system prompt
+        if prompt.hasPrefix("<<SYSTEM>>") {
+            logger.info("✅ PROMPT VERIFICATION: Contains LUMARA system prompt")
+        } else {
+            logger.warning("⚠️  PROMPT VERIFICATION: Missing LUMARA system prompt prefix")
+        }
+
+        // Use the optimized prompt directly from Dart (already includes system prompt, context, task, etc.)
+        logger.info("🔧 USING DART OPTIMIZED PROMPT:")
+        logger.info("  Length: \(prompt.count) characters")
+        logger.info("  Content preview: \(String(prompt.prefix(200)))...")
+
+        // Use the parameters sent from Dart (already optimized for the specific model)
+        logger.info("⚙️  Using Dart params: maxTokens=\(params.maxTokens), temp=\(params.temperature), topP=\(params.topP), repeatPenalty=\(params.repeatPenalty)")
+
+        logger.info("🚀 Calling native generation directly...")
+        
+        // Call native generation directly to avoid recursive loop
+        let result = try startNativeGenerationDirectNative(prompt: prompt, params: params, requestId: requestId)
         
         logger.info("✅ ModelLifecycle.generate returned:")
         logger.info("  text: '\(result.text)'")
@@ -840,46 +1112,44 @@ class LLMBridge: NSObject, LumaraNative {
         logger.info("  latencyMs: \(result.latencyMs)")
         logger.info("  provider: \(result.provider)")
         
-        // Check if the response contains a memory save request
-        if let memory = lumaraSystem.extractMemoryFromResponse(result.text) {
-            logger.info("💾 Extracted memory from response: \(memory.summary)")
-            _ = miraStore.saveMemory(memory, phase: "Consolidation", source: "conversation", turn: 1)
-        }
-        
-        logger.info("🟦🟦🟦 === generateText EXIT === 🟦🟦🟦")
         return result
     }
+    
 
     func getModelRootPath() throws -> String {
-        return ModelStore.shared.modelRootURL.path
+        let documentsPath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
+        return documentsPath.appendingPathComponent("gguf_models").path
     }
 
     func getActiveModelPath(modelId: String) throws -> String {
-        if let bundlePath = ModelStore.shared.resolveModelPath(modelId: modelId, file: "config.json") {
-            return bundlePath.deletingLastPathComponent().path
-        }
-
-        let registry = ModelStore.shared.readRegistry()
-        guard let entry = registry.entry(for: modelId) else {
+        guard let modelPath = GGUFModelManager.shared.getGGUFModelPath(modelId: modelId) else {
             throw NSError(domain: "LLMBridge", code: 404, userInfo: [
-                NSLocalizedDescriptionKey: "Model '\(modelId)' not found"
+                NSLocalizedDescriptionKey: "GGUF model '\(modelId)' not found"
             ])
         }
 
-        return ModelStore.shared.resolvePath(for: entry).path
+        return modelPath.path
     }
 
     func setActiveModel(modelId: String) throws {
-        var registry = ModelStore.shared.readRegistry()
+        // Only support GGUF models
+        let ggufModelIds = [
+            "Llama-3.2-3b-Instruct-Q4_K_M.gguf",
+            "Phi-3.5-mini-instruct-Q5_K_M.gguf",
+            "Qwen3-4B-Instruct-2507-Q4_K_S.gguf",
+        ]
 
-        guard registry.entry(for: modelId) != nil else {
-            throw NSError(domain: "LLMBridge", code: 404, userInfo: [
-                NSLocalizedDescriptionKey: "Model '\(modelId)' not found"
+        guard ggufModelIds.contains(modelId) else {
+            throw NSError(domain: "LLMBridge", code: 400, userInfo: [
+                NSLocalizedDescriptionKey: "Unsupported model format. Only GGUF models are supported: \(modelId)"
             ])
         }
 
-        registry.active = modelId
-        try ModelStore.shared.writeRegistry(registry)
+        guard GGUFModelManager.shared.isGGUFModelAvailable(modelId: modelId) else {
+            throw NSError(domain: "LLMBridge", code: 404, userInfo: [
+                NSLocalizedDescriptionKey: "GGUF model '\(modelId)' not found"
+            ])
+        }
 
         logger.info("Set active model to: \(modelId)")
     }
@@ -929,378 +1199,14 @@ class LLMBridge: NSObject, LumaraNative {
         logger.info("deleteModel called for: \(modelId)")
         try ModelDownloadService.shared.deleteModel(modelId: modelId)
     }
-}
-
-// MARK: - Model Download Service (Corrected Implementation)
-
-/// Downloads ML models from remote server (Google Drive) to Application Support
-/// Provides progress tracking, pause/resume, and integrity verification
-class ModelDownloadService: NSObject {
-    static let shared = ModelDownloadService()
-    private let logger = Logger(subsystem: "EPI", category: "ModelDownload")
-
-    // Track multiple concurrent downloads by model ID
-    private var downloadTasks: [String: URLSessionDownloadTask] = [:]
-    private var resumeData: [String: Data] = [:]
-    private var progressCallbacks: [String: (Double, String) -> Void] = [:]
-
-    // Model directory path
-    private var modelRootURL: URL {
-        let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-        return appSupport.appendingPathComponent("Models", isDirectory: true)
+    
+    func clearCorruptedDownloads() throws {
+        logger.info("clearCorruptedDownloads called")
+        try ModelDownloadService.shared.clearCorruptedDownloads()
     }
-
-    private override init() {
-        super.init()
+    
+    func clearCorruptedGGUFModel(modelId: String) throws {
+        logger.info("clearCorruptedGGUFModel called for: \(modelId)")
+        try ModelDownloadService.shared.clearCorruptedGGUFModel(modelId: modelId)
     }
-
-    /// Download model from URL to Application Support directory
-    /// - Parameters:
-    ///   - urlString: Direct download URL (e.g., Google Drive direct link)
-    ///   - modelId: Model identifier (e.g., "qwen3-1.7b-mlx-4bit")
-    ///   - onProgress: Progress callback (0.0-1.0, status message)
-    ///   - completion: Completion handler with result
-    func downloadModel(
-        from urlString: String,
-        modelId: String,
-        onProgress: @escaping (Double, String) -> Void,
-        completion: @escaping (Result<URL, Error>) -> Void
-    ) {
-        guard let url = URL(string: urlString) else {
-            completion(.failure(NSError(domain: "ModelDownload", code: 400, userInfo: [
-                NSLocalizedDescriptionKey: "Invalid download URL"
-            ])))
-            return
-        }
-
-        // Clean up any existing metadata before starting download
-        do {
-            let modelsDirectory = modelRootURL
-            try cleanupMacOSMetadata(in: modelsDirectory)
-        } catch {
-            logger.warning("Failed to clean up existing metadata: \(error.localizedDescription)")
-        }
-
-        // Store progress callback for this model
-        progressCallbacks[modelId] = onProgress
-
-        // Create URLSession with background configuration
-        let config = URLSessionConfiguration.default
-        config.timeoutIntervalForRequest = 300 // 5 minutes
-        config.timeoutIntervalForResource = 3600 // 1 hour
-        let session = URLSession(configuration: config, delegate: self, delegateQueue: nil)
-
-        // Start download
-        logger.info("Starting model download for \(modelId) from: \(urlString)")
-        onProgress(0.0, "Connecting to server...")
-
-        let downloadTask = session.downloadTask(with: url)
-        downloadTasks[modelId] = downloadTask
-        downloadTask.resume()
-    }
-
-    /// Pause ongoing download for specific model
-    func pauseDownload(modelId: String) {
-        downloadTasks[modelId]?.cancel(byProducingResumeData: { [weak self] data in
-            self?.resumeData[modelId] = data
-            self?.logger.info("Download paused for \(modelId), resume data saved")
-        })
-    }
-
-    /// Resume paused download for specific model
-    func resumeDownload(modelId: String) {
-        guard let resumeData = resumeData[modelId] else {
-            logger.warning("No resume data available for \(modelId)")
-            return
-        }
-
-        let config = URLSessionConfiguration.default
-        let session = URLSession(configuration: config, delegate: self, delegateQueue: nil)
-
-        let downloadTask = session.downloadTask(withResumeData: resumeData)
-        downloadTasks[modelId] = downloadTask
-        downloadTask.resume()
-
-        logger.info("Download resumed for \(modelId)")
-    }
-
-    /// Cancel download for specific model
-    func cancelDownload(modelId: String) {
-        downloadTasks[modelId]?.cancel()
-        downloadTasks.removeValue(forKey: modelId)
-        resumeData.removeValue(forKey: modelId)
-        progressCallbacks.removeValue(forKey: modelId)
-        logger.info("Download cancelled for \(modelId)")
-    }
-
-    /// Cancel all downloads
-    func cancelAllDownloads() {
-        for (modelId, task) in downloadTasks {
-            task.cancel()
-            logger.info("Cancelled download for \(modelId)")
-        }
-        downloadTasks.removeAll()
-        resumeData.removeAll()
-        progressCallbacks.removeAll()
-        logger.info("All downloads cancelled")
-    }
-
-    /// Simple cancel method for compatibility
-    func cancelDownload() {
-        cancelAllDownloads()
-    }
-
-    /// Check if model is available and usable
-    /// Only returns true if model files actually exist on filesystem
-    func isModelDownloaded(modelId: String) -> Bool {
-        // Validate model ID
-        switch modelId {
-        case "qwen3-1.7b-mlx-4bit", "phi-3.5-mini-instruct-4bit":
-            break // Valid model ID
-        default:
-            logger.warning("Unknown model ID: \(modelId)")
-            return false
-        }
-
-        // Check if model files actually exist
-        let configPath = modelRootURL.appendingPathComponent(modelId).appendingPathComponent("config.json")
-        let modelPath = modelRootURL.appendingPathComponent(modelId).appendingPathComponent("model.safetensors")
-        let configExists = FileManager.default.fileExists(atPath: configPath.path)
-        let modelExists = FileManager.default.fileExists(atPath: modelPath.path)
-
-        let isAvailable = configExists && modelExists
-
-        if isAvailable {
-            logger.info("Model \(modelId) is available and usable")
-        } else {
-            logger.info("Model \(modelId) not available (config: \(configExists), model: \(modelExists))")
-        }
-
-        return isAvailable
-    }
-
-    /// Delete a downloaded model
-    func deleteModel(modelId: String) throws {
-        let modelDir = modelRootURL.appendingPathComponent(modelId)
-
-        // Check if model directory exists
-        guard FileManager.default.fileExists(atPath: modelDir.path) else {
-            throw NSError(domain: "ModelDownload", code: 404, userInfo: [
-                NSLocalizedDescriptionKey: "Model directory not found: \(modelId)"
-            ])
-        }
-
-        // Delete the model directory
-        try FileManager.default.removeItem(at: modelDir)
-        logger.info("Successfully deleted model: \(modelId) from \(modelDir.path)")
-    }
-}
-
-// MARK: - URLSessionDownloadDelegate
-
-extension ModelDownloadService: URLSessionDownloadDelegate {
-
-    func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask, didFinishDownloadingTo location: URL) {
-        // Find the model ID for this download task
-        guard let modelId = downloadTasks.first(where: { $0.value == downloadTask })?.key else {
-            logger.error("Could not find model ID for completed download task")
-            return
-        }
-
-        logger.info("Download completed for \(modelId), file at: \(location.path)")
-
-        do {
-            // Move to temporary location
-            let tempDir = FileManager.default.temporaryDirectory
-            let tempZip = tempDir.appendingPathComponent("\(modelId)_download.zip")
-
-            // Remove old temp file if exists
-            try? FileManager.default.removeItem(at: tempZip)
-
-            // Move downloaded file
-            try FileManager.default.moveItem(at: location, to: tempZip)
-
-            progressCallbacks[modelId]?(0.9, "Unzipping model files...")
-
-            // ⭐ KEY FIX: Unzip to model-specific subdirectory
-            let modelDir = modelId.lowercased()
-            let destDir = modelRootURL.appendingPathComponent(modelDir, isDirectory: true)
-            try unzipFile(at: tempZip, to: destDir)
-
-            progressCallbacks[modelId]?(1.0, "Download complete!")
-            logger.info("Model \(modelId) successfully downloaded and extracted")
-
-            // Clean up
-            try? FileManager.default.removeItem(at: tempZip)
-
-            // Notify completion on main thread
-            DispatchQueue.main.async { [weak self] in
-                self?.progressCallbacks[modelId]?(1.0, "Ready to use")
-            }
-
-            // Clean up tracking for this model
-            downloadTasks.removeValue(forKey: modelId)
-            progressCallbacks.removeValue(forKey: modelId)
-
-        } catch {
-            logger.error("Failed to process downloaded file for \(modelId): \(error.localizedDescription)")
-            DispatchQueue.main.async { [weak self] in
-                self?.progressCallbacks[modelId]?(0.0, "Error: \(error.localizedDescription)")
-            }
-            // Clean up tracking for this model even on error
-            downloadTasks.removeValue(forKey: modelId)
-            progressCallbacks.removeValue(forKey: modelId)
-        }
-    }
-
-    func urlSession(
-        _ session: URLSession,
-        downloadTask: URLSessionDownloadTask,
-        didWriteData bytesWritten: Int64,
-        totalBytesWritten: Int64,
-        totalBytesExpectedToWrite: Int64
-    ) {
-        // Find the model ID for this download task
-        guard let modelId = downloadTasks.first(where: { $0.value == downloadTask })?.key else {
-            return
-        }
-
-        let progress = Double(totalBytesWritten) / Double(totalBytesExpectedToWrite)
-        let mbDownloaded = Double(totalBytesWritten) / 1_048_576
-        let mbTotal = Double(totalBytesExpectedToWrite) / 1_048_576
-
-        let message = String(format: "Downloading: %.1f / %.1f MB", mbDownloaded, mbTotal)
-
-        DispatchQueue.main.async { [weak self] in
-            self?.progressCallbacks[modelId]?(progress, message)
-        }
-    }
-
-    func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
-        if let error = error {
-            // Find the model ID for this download task
-            guard let modelId = downloadTasks.first(where: { $0.value == task })?.key else {
-                logger.error("Download failed but could not find model ID: \(error.localizedDescription)")
-                return
-            }
-
-            logger.error("Download failed for \(modelId): \(error.localizedDescription)")
-            DispatchQueue.main.async { [weak self] in
-                self?.progressCallbacks[modelId]?(0.0, "Download failed: \(error.localizedDescription)")
-            }
-            // Clean up tracking for this model
-            downloadTasks.removeValue(forKey: modelId)
-            progressCallbacks.removeValue(forKey: modelId)
-        }
-    }
-
-    // MARK: - Unzip Helper
-
-    private func unzipFile(at sourceURL: URL, to destinationURL: URL) throws {
-        logger.info("Unzipping: \(sourceURL.path) -> \(destinationURL.path)")
-
-        // Remove existing destination directory if it exists to avoid conflicts
-        if FileManager.default.fileExists(atPath: destinationURL.path) {
-            try FileManager.default.removeItem(at: destinationURL)
-            logger.info("Removed existing destination directory: \(destinationURL.path)")
-        }
-
-        // Create destination directory
-        try FileManager.default.createDirectory(at: destinationURL, withIntermediateDirectories: true)
-
-        // Use ZIPFoundation to extract (iOS-compatible)
-        try FileManager.default.unzipItem(at: sourceURL, to: destinationURL)
-
-        // Clean up macOS metadata files that got extracted
-        try cleanupMacOSMetadata(in: destinationURL)
-
-        // Handle case where ZIP contains a single root folder
-        // (e.g., ZIP has "Qwen3-1.7B-MLX-4bit/" but we want files directly in destination)
-        let contents = try FileManager.default.contentsOfDirectory(at: destinationURL, includingPropertiesForKeys: [.isDirectoryKey])
-
-        // Filter out hidden files and get only directories
-        let directories = try contents.filter { url in
-            let resourceValues = try url.resourceValues(forKeys: [.isDirectoryKey])
-            return resourceValues.isDirectory == true && !url.lastPathComponent.hasPrefix(".")
-        }
-
-        // If there's exactly one directory, move its contents up one level
-        if directories.count == 1, let singleDir = directories.first {
-            logger.info("Found single root directory in ZIP: \(singleDir.lastPathComponent), moving contents up...")
-
-            let tempDir = destinationURL.deletingLastPathComponent().appendingPathComponent("_temp_\(UUID().uuidString)")
-
-            // Move the single directory to temp location
-            try FileManager.default.moveItem(at: singleDir, to: tempDir)
-
-            // Move all contents from temp to destination
-            let innerContents = try FileManager.default.contentsOfDirectory(at: tempDir, includingPropertiesForKeys: nil)
-            for item in innerContents {
-                let dest = destinationURL.appendingPathComponent(item.lastPathComponent)
-                try? FileManager.default.removeItem(at: dest) // Remove if exists
-                try FileManager.default.moveItem(at: item, to: dest)
-            }
-
-            // Clean up temp directory
-            try? FileManager.default.removeItem(at: tempDir)
-
-            logger.info("Successfully moved contents from root directory")
-        }
-
-        logger.info("Unzip successful")
-    }
-
-    /// Clear all models and metadata from the models directory
-    public func clearAllModels() throws {
-        let modelsDirectory = modelRootURL
-        let fileManager = FileManager.default
-
-        // Remove all contents of the models directory
-        let contents = try fileManager.contentsOfDirectory(at: modelsDirectory, includingPropertiesForKeys: nil)
-        for item in contents {
-            try fileManager.removeItem(at: item)
-            logger.info("Removed: \(item.lastPathComponent)")
-        }
-
-        logger.info("Cleared all models from directory: \(modelsDirectory.path)")
-    }
-
-    /// Clear a specific model directory and all its metadata
-    public func clearModelDirectory(modelId: String) throws {
-        let modelsDirectory = modelRootURL
-        let modelDirectory = modelsDirectory.appendingPathComponent(modelId)
-        let fileManager = FileManager.default
-
-        if fileManager.fileExists(atPath: modelDirectory.path) {
-            try fileManager.removeItem(at: modelDirectory)
-            logger.info("Removed model directory: \(modelId)")
-        }
-
-        // Also clean up any remaining metadata in the parent directory
-        try cleanupMacOSMetadata(in: modelsDirectory)
-    }
-
-    /// Clean up macOS metadata folders and files that might cause conflicts
-    public func cleanupMacOSMetadata(in directory: URL) throws {
-        let fileManager = FileManager.default
-
-        // Remove _MACOSX folders recursively
-        let macosxFolders = try fileManager.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil)
-            .filter { $0.lastPathComponent.hasPrefix("__MACOSX") }
-
-        for folder in macosxFolders {
-            try fileManager.removeItem(at: folder)
-            logger.info("Removed macOS metadata folder: \(folder.lastPathComponent)")
-        }
-        // Remove .DS_Store files and ._ files recursively
-        let enumerator = fileManager.enumerator(at: directory, includingPropertiesForKeys: nil)
-        while let fileURL = enumerator?.nextObject() as? URL {
-            let fileName = fileURL.lastPathComponent
-            if fileName == ".DS_Store" || fileName.hasPrefix("._") {
-                try fileManager.removeItem(at: fileURL)
-                logger.info("Removed macOS metadata file: \(fileName)")
-            }
-        }
-    }
-
 }

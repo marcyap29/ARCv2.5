@@ -30,6 +30,8 @@ class LLMProviderFactory {
           return QwenProvider(_apiConfig);
         case LLMProviderType.phi:
           return LlamaProvider(_apiConfig); // TODO: Rename to PhiProvider
+        case LLMProviderType.qwen3:
+          return QwenProvider(_apiConfig); // Same provider as qwen since both use llama.cpp
       }
     } catch (e) {
       debugPrint('LLMProviderFactory: Failed to create provider $type: $e');
@@ -70,6 +72,7 @@ class LLMProviderFactory {
       LLMProvider.anthropic => LLMProviderType.anthropic,
       LLMProvider.qwen => LLMProviderType.qwen,
       LLMProvider.phi => LLMProviderType.phi,
+      LLMProvider.qwen3 => LLMProviderType.qwen3,
     };
   }
 }
@@ -81,4 +84,5 @@ enum LLMProviderType {
   anthropic,
   qwen,
   phi,
+  qwen3,
 }

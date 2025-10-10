@@ -33,30 +33,63 @@ class ModelDownloadScreen extends StatefulWidget {
 class _ModelDownloadScreenState extends State<ModelDownloadScreen> {
   final LumaraNative _bridge = LumaraNative();
   final DownloadStateService _downloadStateService = DownloadStateService.instance;
+  
+  /// Safe progress calculation to prevent NaN and infinite values
+  double _safeProgress(double progress) {
+    if (progress.isNaN || !progress.isFinite) {
+      debugPrint('[ModelDownload] Warning: Invalid progress value $progress, using 0.0');
+      return 0.0;
+    }
+    return progress.clamp(0.0, 1.0);
+  }
+  
+  /// Clamp progress to 0-1 range, return null for invalid values (indeterminate progress)
+  double? clamp01(num? x) {
+    if (x == null) return null;
+    final d = x.toDouble();
+    if (!d.isFinite) return null;
+    if (d < 0) return 0;
+    if (d > 1) return 1;
+    return d;
+  }
 
-  // Available models for download
+  // Available GGUF models for download (llama.cpp + Metal)
   static const List<ModelInfo> _availableModels = [
     ModelInfo(
-      id: 'qwen3-1.7b-mlx-4bit',
-      name: 'Qwen3 1.7B MLX (4-bit)',
-      size: '~900 MB',
-      downloadUrl: 'https://drive.usercontent.google.com/download?id=12r9FgMRHz7ksmqPQd1zkwRf03NC-lOg8&export=download&confirm=t',
-      description: 'Fast and efficient for most tasks',
+      id: 'Llama-3.2-3b-Instruct-Q4_K_M.gguf',
+      name: 'Llama 3.2 3B Instruct (Q4_K_M)',
+      size: '~1.9 GB',
+      downloadUrl: 'https://huggingface.co/hugging-quants/Llama-3.2-3B-Instruct-Q4_K_M-GGUF/resolve/main/llama-3.2-3b-instruct-q4_k_m.gguf?download=true',
+      description: 'Recommended: Fast, efficient, 4-bit quantized',
     ),
     ModelInfo(
-      id: 'phi-3.5-mini-instruct-4bit',
-      name: 'Phi-3.5-mini-instruct (4-bit)',
-      size: '~2.1 GB',
-      downloadUrl: 'https://drive.usercontent.google.com/download?id=16MqOfRVQHurRvPtD61WKU1XShad0nWZr&export=download&confirm=t',
-      description: 'More capable, better for complex reasoning',
+      id: 'Phi-3.5-mini-instruct-Q5_K_M.gguf',
+      name: 'Phi-3.5 Mini Instruct (Q5_K_M)',
+      size: '~2.6 GB',
+      downloadUrl: 'https://huggingface.co/bartowski/Phi-3.5-mini-instruct-GGUF/resolve/main/Phi-3.5-mini-instruct-Q5_K_M.gguf?download=true',
+      description: 'High quality, 5-bit quantized, excellent reasoning',
+    ),
+    ModelInfo(
+      id: 'Qwen3-4B-Instruct-2507-Q4_K_S.gguf',
+      name: 'Qwen3 4B Instruct (Q4_K_S)',
+      size: '~2.5 GB',
+      downloadUrl: 'https://huggingface.co/unsloth/Qwen3-4B-Instruct-2507-GGUF/resolve/main/Qwen3-4B-Instruct-2507-Q4_K_S.gguf?download=true',
+      description: 'Multilingual, 4-bit quantized, excellent reasoning capabilities',
     ),
   ];
 
   @override
   void initState() {
     super.initState();
+    _refreshModelStates();
     _checkAllModelsStatus();
     _setupStateListener();
+  }
+
+  /// Refresh model states to handle model ID changes
+  void _refreshModelStates() {
+    // Clear any cached states that might be using old model IDs
+    _downloadStateService.refreshAllStates();
   }
 
   Future<void> _checkAllModelsStatus() async {
@@ -313,7 +346,7 @@ class _ModelDownloadScreenState extends State<ModelDownloadScreen> {
     final state = _downloadStateService.getState(model.id);
     final isDownloaded = state?.isDownloaded ?? false;
     final isDownloading = state?.isDownloading ?? false;
-    final progress = state?.progress ?? 0.0;
+    final progress = _safeProgress(state?.progress ?? 0.0);
     final status = state?.statusMessage ?? '';
     final error = state?.errorMessage;
     final downloadSizeText = state?.downloadSizeText ?? '';
@@ -384,7 +417,7 @@ class _ModelDownloadScreenState extends State<ModelDownloadScreen> {
             ),
 
             // Download Progress
-            if (isDownloading) ...[
+            if (isDownloading && !isDownloaded) ...[
               const SizedBox(height: 16),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -421,9 +454,37 @@ class _ModelDownloadScreenState extends State<ModelDownloadScreen> {
               ),
               const SizedBox(height: 8),
               LinearProgressIndicator(
-                value: progress,
+                value: clamp01(progress),
                 minHeight: 6,
                 borderRadius: BorderRadius.circular(3),
+              ),
+            ],
+
+            // Download Complete Message
+            if (isDownloaded && !isDownloading) ...[
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.green.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.green.withOpacity(0.3)),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.check_circle, color: Colors.green, size: 16),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Download complete! Model is ready to use.',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: Colors.green,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ],
 
@@ -468,7 +529,7 @@ class _ModelDownloadScreenState extends State<ModelDownloadScreen> {
                   ),
                 ),
               )
-            else if (isDownloading)
+            else if (isDownloading && !isDownloaded)
               SizedBox(
                 width: double.infinity,
                 child: OutlinedButton.icon(
@@ -484,13 +545,40 @@ class _ModelDownloadScreenState extends State<ModelDownloadScreen> {
               Row(
                 children: [
                   Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: () => _deleteModel(model.id),
-                      icon: const Icon(Icons.delete, size: 20),
-                      label: const Text('Delete'),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: Colors.red,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      decoration: BoxDecoration(
+                        color: Colors.green.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.green.withOpacity(0.3)),
                       ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.check_circle, color: Colors.green, size: 16),
+                          const SizedBox(width: 4),
+                          Flexible(
+                            child: Text(
+                              'Ready',
+                              style: theme.textTheme.bodyMedium?.copyWith(
+                                color: Colors.green,
+                                fontWeight: FontWeight.w500,
+                                fontSize: 11,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  OutlinedButton.icon(
+                    onPressed: () => _deleteModel(model.id),
+                    icon: const Icon(Icons.delete, size: 20),
+                    label: const Text('Delete'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.red,
                     ),
                   ),
                   const SizedBox(width: 12),

@@ -27,9 +27,20 @@ class ModelDownloadState {
 
   /// Get human-readable download progress
   String get downloadSizeText {
-    if (bytesDownloaded == null || totalBytes == null) return '';
+    if (bytesDownloaded == null) return '';
 
     final downloadedMB = bytesDownloaded! / 1048576;
+
+    if (totalBytes == null || totalBytes == 0) {
+      // Unknown total size
+      if (downloadedMB >= 1000) {
+        final downloadedGB = downloadedMB / 1024;
+        return '${downloadedGB.toStringAsFixed(2)} GB';
+      } else {
+        return '${downloadedMB.toStringAsFixed(1)} MB';
+      }
+    }
+
     final totalMB = totalBytes! / 1048576;
 
     if (totalMB >= 1000) {
@@ -112,8 +123,12 @@ class DownloadStateService extends ChangeNotifier {
   /// Get display name for a model ID
   String _getModelDisplayName(String modelId) {
     switch (modelId) {
-      case 'qwen3-1.7b-mlx-4bit':
-        return 'Qwen3 1.7B MLX (4-bit)';
+      case 'Llama-3.2-3b-Instruct-Q4_K_M.gguf':
+        return 'Llama 3.2 3B Instruct (Q4_K_M)';
+      case 'Phi-3.5-mini-instruct-Q5_K_M.gguf':
+        return 'Phi-3.5 Mini Instruct (Q5_K_M)';
+      case 'Qwen3-4B-Instruct-2507-Q4_K_S.gguf':
+        return 'Qwen3 4B Instruct (Q4_K_S)';
       case 'phi-3.5-mini-instruct-4bit':
         return 'Phi-3.5-mini-instruct (4-bit)';
       default:
@@ -193,5 +208,19 @@ class DownloadStateService extends ChangeNotifier {
   void clearAll() {
     _downloadStates.clear();
     notifyListeners();
+  }
+
+  /// Clear state for a specific model ID (useful when model ID changes)
+  void clearModelState(String modelId) {
+    _downloadStates.remove(modelId);
+    notifyListeners();
+    debugPrint('DownloadStateService: Cleared state for $modelId');
+  }
+
+  /// Force refresh all model states (useful after model ID changes)
+  void refreshAllStates() {
+    _downloadStates.clear();
+    notifyListeners();
+    debugPrint('DownloadStateService: Refreshed all model states');
   }
 }
