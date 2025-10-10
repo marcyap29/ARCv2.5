@@ -15,6 +15,11 @@ Core project documentation and briefs
 - **ChatGPT_Mobile_Optimizations.md** - Mobile optimization documentation
 - **Model_Recognition_Fixes.md** - Model detection fixes
 - **Speed_Optimization_Guide.md** - Performance optimization guide
+- **MCP_Multimodal_Expansion_Status.md** - Multimodal MCP expansion plan
+  - Chat message model enhancements
+  - MCP export/import for multimodal content
+  - llama.cpp multimodal integration
+  - UI/UX enhancements for media attachments
 
 ### 🏗️ [Architecture](./architecture/)
 System architecture and design documentation
@@ -23,8 +28,17 @@ System architecture and design documentation
   - ATLAS (Phase Detection), MIRA (Narrative Intelligence), AURORA (Circadian)
   - VEIL (Self-Pruning), RIVET (Risk Validation)
   - On-Device LLM Architecture (llama.cpp + Metal)
-  - Constellation Arcform Visualization System
   - Navigation & UI Architecture
+- **MIRA_Basics.md** - Instant phase & themes answers without LLM
+  - Quick Answers System (sub-second responses)
+  - Phase Detection & Geometry Mapping
+  - Streak Tracking & Recent Entry Summaries
+  - MMCO (Minimal MIRA Context Object)
+- **Constellation_Arcform_Renderer.md** - Polar coordinate visualization system
+  - Phase-Specific Layouts (spiral, flower, weave, glow core, fractal, branch)
+  - k-NN Edge Weaving Algorithm
+  - 3-Controller Animation System
+  - 8-Color Emotion Palette
 
 ### 🐛 [Bug Tracker](./bugtracker/)
 Bug tracking and resolution documentation
@@ -49,6 +63,11 @@ Version history and change documentation
 User and developer guides
 - **Arc_Prompts.md** - ARC journaling prompts and templates
 - **MVP_Install.md** - Installation and setup guide
+- **Model_Download_System.md** - On-device AI model management
+  - Python CLI Download Manager
+  - Flutter Download State Service
+  - Resumable Downloads & Checksum Verification
+  - Model Manifest & Metadata
 
 ### 📄 [Reports](./reports/)
 Success reports and technical achievements
@@ -79,7 +98,10 @@ Archived documentation and historical records
 **Production Ready** - October 10, 2025
 
 ### Latest Achievements
+- ✅ MIRA Basics (Instant phase/themes without LLM)
 - ✅ Constellation Arcform Renderer (Polar Coordinate System)
+- ✅ Model Download System (Resumable downloads with verification)
+- ✅ Multimodal MCP Expansion (In Progress on `multimodal` branch)
 - ✅ Branch Consolidation (52 commits merged, 88% repo cleanup)
 - ✅ On-Device LLM (llama.cpp + Metal)
 - ✅ All Critical Issues Resolved
@@ -89,8 +111,10 @@ Archived documentation and historical records
 ### Key Features
 - Complete 8-module architecture (ARC→PRISM→ECHO→ATLAS→MIRA→AURORA→VEIL→RIVET)
 - On-device AI inference with llama.cpp + Metal acceleration
+- MIRA Basics: Quick answers without LLM (300x faster)
+- Constellation visualization with 6 phase-specific layouts
+- Model download system with resumable downloads
 - Privacy-first design with local processing
-- Constellation visualization system
 - MCP Memory System for conversation persistence
 - Advanced prompt engineering system
 
@@ -115,17 +139,33 @@ Archived documentation and historical records
 
 ## 🔧 Technical Documentation
 
+### MIRA Basics System
+- **Quick Answers**: [MIRA_Basics.md](./architecture/MIRA_Basics.md)
+- **MMCO Building**: Minimal MIRA Context Object construction
+- **Phase Detection**: Automatic phase determination from history
+- **Streak Tracking**: Daily journaling streak computation
+- **Performance**: 300-500x faster than LLM for common queries
+
 ### On-Device LLM System
 - **llama.cpp Integration**: [EPI_Architecture.md](./architecture/EPI_Architecture.md#on-device-llm-architecture)
+- **Model Download**: [Model_Download_System.md](./guides/Model_Download_System.md)
 - **Metal Acceleration**: Lines 13-51 in EPI_Architecture.md
 - **Model Management**: Lines 138-175 in EPI_Architecture.md
 - **Provider Selection**: Lines 176-206 in EPI_Architecture.md
 
 ### Constellation Visualization
-- **Polar Layout System**: Lines 207-289 in EPI_Architecture.md
+- **Complete System**: [Constellation_Arcform_Renderer.md](./architecture/Constellation_Arcform_Renderer.md)
+- **Polar Layout Algorithm**: Phase-specific coordinate generation
+- **k-NN Edge Weaving**: Graph-based connection system
 - **Animation System**: Three independent controllers (twinkle, fade-in, selection pulse)
-- **ATLAS Phase Integration**: 6 phases with geometric mapping
+- **ATLAS Phase Integration**: 6 phases with geometric mapping (spiral, flower, weave, glow core, fractal, branch)
 - **Emotion Palette**: 8-color emotional visualization system
+
+### Multimodal MCP System
+- **Expansion Plan**: [MCP_Multimodal_Expansion_Status.md](./project/MCP_Multimodal_Expansion_Status.md)
+- **Chat Message Enhancement**: Adding multimodal attachments support
+- **MCP Export/Import**: Handling images, audio, video in bundles
+- **llama.cpp Integration**: Multimodal model support
 
 ### Privacy Architecture
 - **On-Device Processing**: All inference happens locally
