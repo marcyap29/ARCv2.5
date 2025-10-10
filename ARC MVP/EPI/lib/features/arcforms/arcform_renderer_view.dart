@@ -7,6 +7,7 @@ import 'package:my_app/features/arcforms/arcform_renderer_state.dart';
 import 'package:my_app/features/arcforms/widgets/simple_3d_arcform.dart';
 import 'package:my_app/features/arcforms/arcform_mvp_implementation.dart';
 import 'package:my_app/features/arcforms/services/emotional_valence_service.dart';
+import 'package:my_app/features/arcforms/constellation/constellation_arcform_renderer.dart';
 import 'package:my_app/services/user_phase_service.dart';
 import 'package:my_app/services/arcform_export_service.dart';
 import 'package:my_app/shared/app_colors.dart';
@@ -32,7 +33,6 @@ class ArcformRendererViewContent extends StatefulWidget {
 }
 
 class _ArcformRendererViewContentState extends State<ArcformRendererViewContent> {
-  final bool _is3DMode = true; // Default to 3D mode to show off the new feature
   final GlobalKey _arcformRepaintBoundaryKey = GlobalKey();
   
   // New state for phase selection UI
@@ -81,7 +81,95 @@ class _ArcformRendererViewContentState extends State<ArcformRendererViewContent>
     }
   }
 
-  Widget _buildPhaseIndicatorWithChangeButton(BuildContext context, String currentPhase, GeometryPattern geometry) {
+  AtlasPhase _convertToAtlasPhase(GeometryPattern geometry) {
+    switch (geometry) {
+      case GeometryPattern.spiral:
+        return AtlasPhase.discovery;
+      case GeometryPattern.flower:
+        return AtlasPhase.expansion;
+      case GeometryPattern.branch:
+        return AtlasPhase.transition;
+      case GeometryPattern.weave:
+        return AtlasPhase.consolidation;
+      case GeometryPattern.glowCore:
+        return AtlasPhase.recovery;
+      case GeometryPattern.fractal:
+        return AtlasPhase.breakthrough;
+    }
+  }
+
+  List<KeywordScore> _convertNodesToKeywords(List<Node> nodes) {
+    final emotionalService = EmotionalValenceService();
+    return nodes.map((node) {
+      final sentiment = emotionalService.getEmotionalValence(node.label);
+      return KeywordScore(
+        text: node.label,
+        score: node.size / 20.0, // Normalize size to 0-1 range
+        sentiment: sentiment,
+      );
+    }).toList();
+  }
+
+  Widget _buildConstellationArcformCard(BuildContext context, String currentPhase, GeometryPattern geometry) {
+    final description = UserPhaseService.getPhaseDescription(currentPhase);
+    final phaseColor = _getPhaseColor(geometry);
+    
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.black.withOpacity(0.8),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: phaseColor.withOpacity(0.3),
+          width: 1,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(
+                Icons.stars,
+                color: Color(0xFFD1B3FF),
+                size: 18,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                'Constellation Arcform',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const Spacer(),
+              IconButton(
+                onPressed: () => _exportArcform(context, context.read<ArcformRendererCubit>().state as ArcformRendererLoaded),
+                icon: const Icon(
+                  Icons.share,
+                  color: Color(0xFFD1B3FF),
+                  size: 20,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            description,
+            style: const TextStyle(
+              color: Colors.white70,
+              fontSize: 12,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPhaseIndicatorWithChangeButton(BuildContext context, String currentPhase, GeometryPattern geometry, ArcformRendererMode rendererMode) {
     print('DEBUG: _buildPhaseIndicatorWithChangeButton - currentPhase: $currentPhase, geometry: $geometry');
     final description = UserPhaseService.getPhaseDescription(currentPhase);
     final phaseColor = _getPhaseColor(geometry);
@@ -110,25 +198,70 @@ class _ArcformRendererViewContentState extends State<ArcformRendererViewContent>
         children: [
           Row(
             children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: phaseColor,
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Text(
-                  'CURRENT PHASE',
-                  style: captionStyle(context).copyWith(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 10,
+              Flexible(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: phaseColor,
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Text(
+                    'CURRENT PHASE',
+                    style: captionStyle(context).copyWith(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 10,
+                    ),
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
               ),
-              const Spacer(),
+              const SizedBox(width: 8),
+              // Renderer mode toggle button
+              Flexible(
+                child: GestureDetector(
+                  onTap: () => _toggleRendererMode(),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: kcSurfaceAltColor,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: phaseColor.withOpacity(0.3),
+                        width: 1,
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.stars,
+                          color: phaseColor,
+                          size: 14,
+                        ),
+                        const SizedBox(width: 4),
+                        Flexible(
+                          child: Text(
+                            rendererMode == ArcformRendererMode.constellation ? 'Constellation' : 'Molecule 3D',
+                            style: captionStyle(context).copyWith(
+                              color: phaseColor,
+                              fontSize: 10,
+                              fontWeight: FontWeight.w500,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
               // Phase change button
               GestureDetector(
-                onTap: () => _showGeometrySelectorDialog(),
+                onTap: () => rendererMode == ArcformRendererMode.constellation 
+                    ? _showConstellationPhaseSelector(context)
+                    : _showGeometrySelectorDialog(),
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
@@ -294,12 +427,290 @@ class _ArcformRendererViewContentState extends State<ArcformRendererViewContent>
     );
   }
 
+  void _toggleRendererMode() {
+    final cubit = context.read<ArcformRendererCubit>();
+    final currentState = cubit.state;
+    
+    if (currentState is ArcformRendererLoaded) {
+      final newMode = currentState.rendererMode == ArcformRendererMode.constellation
+          ? ArcformRendererMode.molecule3d
+          : ArcformRendererMode.constellation;
+      
+      cubit.changeRendererMode(newMode);
+      
+      // Show feedback
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Switched to ${newMode == ArcformRendererMode.constellation ? 'Constellation' : 'Molecule 3D'} mode'),
+          backgroundColor: kcPrimaryColor,
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    }
+  }
+
   void _showGeometrySelectorDialog() {
     setState(() {
       _showGeometrySelector = true;
       _previewPhase = null;
       _previewGeometry = null;
     });
+  }
+
+  void _showConstellationPhaseSelector(BuildContext context) {
+    final cubit = context.read<ArcformRendererCubit>();
+    
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        backgroundColor: Colors.transparent,
+        child: Container(
+          width: double.infinity,
+          margin: const EdgeInsets.symmetric(horizontal: 20),
+          decoration: BoxDecoration(
+            color: const Color(0xFF0A0A0F),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: const Color(0xFFD1B3FF).withOpacity(0.3),
+              width: 1,
+            ),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Header
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFD1B3FF).withOpacity(0.1),
+                  borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+                ),
+                child: Column(
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons.stars,
+                          color: Color(0xFFD1B3FF),
+                          size: 24,
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            'Constellation Arcform',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        GestureDetector(
+                          onTap: () => Navigator.pop(context),
+                          child: Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: Colors.grey[800],
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: const Icon(
+                              Icons.close,
+                              color: Colors.white,
+                              size: 20,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      'Choose a phase to preview its geometry:',
+                      style: TextStyle(
+                        color: Colors.white70,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              
+              // Phase options - wrapped in Flexible to prevent overflow
+              Flexible(
+                child: SingleChildScrollView(
+                  child: Padding(
+                    padding: const EdgeInsets.all(20),
+                    child: Column(
+                      children: [
+                        _buildPhaseOption(context, cubit, AtlasPhase.discovery, 'Discovery'),
+                        _buildPhaseOption(context, cubit, AtlasPhase.expansion, 'Expansion'),
+                        _buildPhaseOption(context, cubit, AtlasPhase.transition, 'Transition'),
+                        _buildPhaseOption(context, cubit, AtlasPhase.consolidation, 'Consolidation'),
+                        _buildPhaseOption(context, cubit, AtlasPhase.recovery, 'Recovery'),
+                        _buildPhaseOption(context, cubit, AtlasPhase.breakthrough, 'Breakthrough'),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPhaseOption(BuildContext context, ArcformRendererCubit cubit, AtlasPhase phase, String displayName) {
+    final phaseColor = _getAtlasPhaseColor(phase);
+    final currentState = cubit.state;
+    final isSelected = currentState is ArcformRendererLoaded && 
+        _convertToAtlasPhase(currentState.selectedGeometry) == phase;
+    
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () {
+            Navigator.pop(context);
+            _changeConstellationPhase(context, cubit, phase);
+          },
+          borderRadius: BorderRadius.circular(12),
+          child: Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: isSelected ? phaseColor.withOpacity(0.2) : Colors.transparent,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: isSelected ? phaseColor : Colors.grey[700]!,
+                width: isSelected ? 2 : 1,
+              ),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  _getAtlasPhaseIcon(phase),
+                  color: phaseColor,
+                  size: 24,
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Text(
+                    displayName,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+                if (isSelected)
+                  Icon(
+                    Icons.check_circle,
+                    color: phaseColor,
+                    size: 20,
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _changeConstellationPhase(BuildContext context, ArcformRendererCubit cubit, AtlasPhase phase) {
+    try {
+      final geometryPattern = _convertAtlasPhaseToGeometryPattern(phase);
+      final phaseName = _getAtlasPhaseName(phase);
+      
+      cubit.changePhaseAndGeometry(phaseName, geometryPattern);
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Switched to ${phase.displayName} constellation'),
+          backgroundColor: kcPrimaryColor,
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    } catch (e) {
+      print('ERROR: Failed to change constellation phase: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error changing phase: $e'),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 3),
+        ),
+      );
+    }
+  }
+
+  GeometryPattern _convertAtlasPhaseToGeometryPattern(AtlasPhase phase) {
+    switch (phase) {
+      case AtlasPhase.discovery:
+        return GeometryPattern.spiral;
+      case AtlasPhase.expansion:
+        return GeometryPattern.flower;
+      case AtlasPhase.transition:
+        return GeometryPattern.branch;
+      case AtlasPhase.consolidation:
+        return GeometryPattern.weave;
+      case AtlasPhase.recovery:
+        return GeometryPattern.glowCore;
+      case AtlasPhase.breakthrough:
+        return GeometryPattern.fractal;
+    }
+  }
+
+  String _getAtlasPhaseName(AtlasPhase phase) {
+    switch (phase) {
+      case AtlasPhase.discovery:
+        return 'Discovery';
+      case AtlasPhase.expansion:
+        return 'Expansion';
+      case AtlasPhase.transition:
+        return 'Transition';
+      case AtlasPhase.consolidation:
+        return 'Consolidation';
+      case AtlasPhase.recovery:
+        return 'Recovery';
+      case AtlasPhase.breakthrough:
+        return 'Breakthrough';
+    }
+  }
+
+  Color _getAtlasPhaseColor(AtlasPhase phase) {
+    switch (phase) {
+      case AtlasPhase.discovery:
+        return const Color(0xFF4F46E5); // Blue
+      case AtlasPhase.expansion:
+        return const Color(0xFF7C3AED); // Purple
+      case AtlasPhase.transition:
+        return const Color(0xFF059669); // Green
+      case AtlasPhase.consolidation:
+        return const Color(0xFFD97706); // Orange
+      case AtlasPhase.recovery:
+        return const Color(0xFFDC2626); // Red
+      case AtlasPhase.breakthrough:
+        return const Color(0xFF7C2D12); // Brown
+    }
+  }
+
+  IconData _getAtlasPhaseIcon(AtlasPhase phase) {
+    switch (phase) {
+      case AtlasPhase.discovery:
+        return Icons.explore;
+      case AtlasPhase.expansion:
+        return Icons.local_florist;
+      case AtlasPhase.transition:
+        return Icons.account_tree;
+      case AtlasPhase.consolidation:
+        return Icons.grid_view;
+      case AtlasPhase.recovery:
+        return Icons.healing;
+      case AtlasPhase.breakthrough:
+        return Icons.auto_fix_high;
+    }
   }
 
   void _hideGeometrySelectorDialog() {
@@ -435,15 +846,33 @@ class _ArcformRendererViewContentState extends State<ArcformRendererViewContent>
                 Column(
                   children: [
                     // Phase indicator header with change button
-                    _buildPhaseIndicatorWithChangeButton(context, state.currentPhase, state.selectedGeometry),
+                    _buildPhaseIndicatorWithChangeButton(context, state.currentPhase, state.selectedGeometry, state.rendererMode),
+                    // Constellation Arcform card (moved higher to avoid blocking constellation)
+                    if (state.rendererMode == ArcformRendererMode.constellation)
+                      _buildConstellationArcformCard(context, state.currentPhase, state.selectedGeometry),
                     // Main Arcform layout - switch between 2D and 3D
                     Expanded(
                       child: Container(
                         padding: const EdgeInsets.only(top: 4, bottom: 70), // Reduced top padding to move interface higher and bottom padding for navigation bar
                         child: RepaintBoundary(
                           key: _arcformRepaintBoundaryKey,
-                          child: _is3DMode
-                              ? Simple3DArcform(
+                          child: state.rendererMode == ArcformRendererMode.constellation
+                              ? ConstellationArcformRenderer(
+                                  phase: _convertToAtlasPhase(state.selectedGeometry),
+                                  keywords: _convertNodesToKeywords(state.nodes),
+                                  palette: EmotionPalette.defaultPalette,
+                                  seed: 42,
+                                  onNodeTapped: (nodeId) {
+                                    // Find the node by ID and show dialog
+                                    final node = state.nodes.firstWhere(
+                                      (n) => n.id == nodeId,
+                                      orElse: () => state.nodes.first,
+                                    );
+                                    _showKeywordDialog(context, node.label);
+                                  },
+                                  onExport: () => _exportArcform(context, state),
+                                )
+                              : Simple3DArcform(
                                   nodes: state.nodes,
                                   edges: state.edges,
                                   onNodeMoved: (nodeId, x, y) {
@@ -473,9 +902,6 @@ class _ArcformRendererViewContentState extends State<ArcformRendererViewContent>
                                   onResetView: () {
                                     // This will be handled by the Simple3DArcform widget
                                   },
-                                )
-                              : Container(
-                                  child: const Text('ArcformLayout not available'),
                                 ),
                         ),
                       ),

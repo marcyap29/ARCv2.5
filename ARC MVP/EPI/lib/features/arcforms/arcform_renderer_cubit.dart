@@ -49,6 +49,7 @@ class ArcformRendererCubit extends Cubit<ArcformRendererState> {
         edges: const [],
         selectedGeometry: geometry,
         currentPhase: currentPhase,
+        rendererMode: ArcformRendererMode.constellation,
       ));
 
       // Update with actual phase and geometry
@@ -659,6 +660,14 @@ class ArcformRendererCubit extends Cubit<ArcformRendererState> {
         currentPhase: newPhase,
       ));
       print('DEBUG: Changed phase to $newPhase with geometry $geometry');
+    }
+  }
+
+  /// Change the renderer mode
+  void changeRendererMode(ArcformRendererMode mode) {
+    final currentState = state;
+    if (currentState is ArcformRendererLoaded) {
+      emit(currentState.copyWith(rendererMode: mode));
     }
   }
 

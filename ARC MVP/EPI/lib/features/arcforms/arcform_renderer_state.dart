@@ -20,28 +20,32 @@ class ArcformRendererLoaded extends ArcformRendererState {
   final List<Edge> edges;
   final GeometryPattern selectedGeometry;
   final String currentPhase;
+  final ArcformRendererMode rendererMode;
 
   const ArcformRendererLoaded({
     required this.nodes,
     required this.edges,
     required this.selectedGeometry,
     required this.currentPhase,
+    this.rendererMode = ArcformRendererMode.constellation,
   });
 
   @override
-  List<Object> get props => [nodes, edges, selectedGeometry, currentPhase];
+  List<Object> get props => [nodes, edges, selectedGeometry, currentPhase, rendererMode];
 
   ArcformRendererLoaded copyWith({
     List<Node>? nodes,
     List<Edge>? edges,
     GeometryPattern? selectedGeometry,
     String? currentPhase,
+    ArcformRendererMode? rendererMode,
   }) {
     return ArcformRendererLoaded(
       nodes: nodes ?? this.nodes,
       edges: edges ?? this.edges,
       selectedGeometry: selectedGeometry ?? this.selectedGeometry,
       currentPhase: currentPhase ?? this.currentPhase,
+      rendererMode: rendererMode ?? this.rendererMode,
     );
   }
 }
@@ -88,6 +92,11 @@ enum GeometryPattern {
   weave,
   glowCore,
   fractal,
+}
+
+enum ArcformRendererMode {
+  constellation,
+  molecule3d,
 }
 
 extension GeometryPatternExtension on GeometryPattern {
