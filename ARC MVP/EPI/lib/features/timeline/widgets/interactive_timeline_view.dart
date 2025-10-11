@@ -7,6 +7,7 @@ import 'package:my_app/features/timeline/timeline_cubit.dart';
 import 'package:my_app/features/timeline/timeline_state.dart';
 import 'package:my_app/features/timeline/timeline_entry_model.dart';
 import 'package:my_app/data/models/media_item.dart';
+import 'package:my_app/features/journal/widgets/journal_edit_view.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'package:my_app/features/arcforms/arcform_renderer_state.dart';
@@ -915,62 +916,118 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
       runSpacing: 8,
       children: media.map((item) {
         if (item.type == MediaType.image) {
-          return GestureDetector(
-            onTap: () => _openImageInGallery(item.uri),
-            onLongPress: item.analysisData != null 
-                ? () => _showAnalysisDetails(item.analysisData!)
-                : null,
-            child: Container(
-              width: 60,
-              height: 60,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(
-                  color: kcPrimaryColor.withOpacity(0.3),
-                  width: 1,
-                ),
-              ),
-              child: Stack(
-                children: [
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(7),
-                    child: Image.file(
-                      File(item.uri),
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) {
-                        return Container(
-                          color: Colors.grey[300],
-                          child: const Icon(
-                            Icons.image,
-                            color: Colors.grey,
+          return FutureBuilder<bool>(
+            future: _checkImageExists(item.uri),
+            builder: (context, snapshot) {
+              final imageExists = snapshot.data ?? false;
+              
+              if (!imageExists) {
+                // Show broken image indicator
+                return GestureDetector(
+                  onTap: () => _showBrokenImageDialog(item),
+                  child: Container(
+                    width: 60,
+                    height: 60,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: Colors.red.withOpacity(0.5),
+                        width: 2,
+                      ),
+                      color: Colors.red.withOpacity(0.1),
+                    ),
+                    child: Stack(
+                      children: [
+                        const Center(
+                          child: Icon(
+                            Icons.broken_image,
+                            color: Colors.red,
                             size: 24,
                           ),
-                        );
-                      },
+                        ),
+                        // Broken image indicator
+                        Positioned(
+                          top: 4,
+                          right: 4,
+                          child: Container(
+                            width: 16,
+                            height: 16,
+                            decoration: BoxDecoration(
+                              color: Colors.red,
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: const Icon(
+                              Icons.warning,
+                              color: Colors.white,
+                              size: 10,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                  // Analysis indicator
-                  if (item.analysisData != null)
-                    Positioned(
-                      top: 4,
-                      right: 4,
-                      child: Container(
-                        width: 16,
-                        height: 16,
-                        decoration: BoxDecoration(
-                          color: kcPrimaryColor,
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: const Icon(
-                          Icons.analytics,
-                          color: Colors.white,
-                          size: 10,
+                );
+              }
+              
+              // Image exists, show normal thumbnail
+              return GestureDetector(
+                onTap: () => _openImageInGallery(item.uri),
+                onLongPress: item.analysisData != null 
+                    ? () => _showAnalysisDetails(item.analysisData!)
+                    : null,
+                child: Container(
+                  width: 60,
+                  height: 60,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: kcPrimaryColor.withOpacity(0.3),
+                      width: 1,
+                    ),
+                  ),
+                  child: Stack(
+                    children: [
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(7),
+                        child: Image.file(
+                          File(item.uri),
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) {
+                            return Container(
+                              color: Colors.grey[300],
+                              child: const Icon(
+                                Icons.image,
+                                color: Colors.grey,
+                                size: 24,
+                              ),
+                            );
+                          },
                         ),
                       ),
-                    ),
-                ],
-              ),
-            ),
+                      // Analysis indicator
+                      if (item.analysisData != null)
+                        Positioned(
+                          top: 4,
+                          right: 4,
+                          child: Container(
+                            width: 16,
+                            height: 16,
+                            decoration: BoxDecoration(
+                              color: kcPrimaryColor,
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: const Icon(
+                              Icons.analytics,
+                              color: Colors.white,
+                              size: 10,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              );
+            },
           );
         } else if (item.type == MediaType.audio) {
           return Container(
@@ -1141,6 +1198,43 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
     showDialog(
       context: context,
       builder: (context) => AnalysisDetailsDialog(analysisResult: analysisData),
+    );
+  }
+
+  Future<bool> _checkImageExists(String imagePath) async {
+    try {
+      final file = File(imagePath);
+      return await file.exists();
+    } catch (e) {
+      return false;
+    }
+  }
+
+  void _showBrokenImageDialog(MediaItem mediaItem) {
+    showDialog(
+      context: context,
+      builder: (context) => BrokenImageDialog(
+        mediaItem: mediaItem,
+        onRelinkImage: () => _navigateToEditEntry(mediaItem),
+      ),
+    );
+  }
+
+  void _navigateToEditEntry(MediaItem mediaItem) {
+    // Find the entry that contains this media item
+    final entry = _entries.firstWhere(
+      (e) => e.media.any((m) => m.id == mediaItem.id),
+      orElse: () => _entries.first,
+    );
+    
+    // Navigate to edit entry screen
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => JournalEditView(
+          entry: entry,
+          entryIndex: _entries.indexOf(entry),
+        ),
+      ),
     );
   }
 }
@@ -1471,6 +1565,145 @@ class AnalysisDetailsDialog extends StatelessWidget {
       const SnackBar(
         content: Text('Analysis JSON copied to clipboard'),
         duration: Duration(seconds: 2),
+      ),
+    );
+  }
+}
+
+class BrokenImageDialog extends StatelessWidget {
+  final MediaItem mediaItem;
+  final VoidCallback onRelinkImage;
+
+  const BrokenImageDialog({
+    super.key,
+    required this.mediaItem,
+    required this.onRelinkImage,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      child: Container(
+        width: MediaQuery.of(context).size.width * 0.85,
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Warning icon
+            Container(
+              width: 64,
+              height: 64,
+              decoration: BoxDecoration(
+                color: Colors.red.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(32),
+              ),
+              child: const Icon(
+                Icons.broken_image,
+                color: Colors.red,
+                size: 32,
+              ),
+            ),
+            
+            const SizedBox(height: 20),
+            
+            // Title
+            Text(
+              'Broken Image Link',
+              style: heading2Style(context).copyWith(
+                color: Colors.red,
+                fontWeight: FontWeight.bold,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            
+            const SizedBox(height: 12),
+            
+            // Message
+            Text(
+              'The image\'s link appears to be broken, please insert the image again into the entry to relink it.',
+              style: bodyStyle(context).copyWith(
+                color: kcSecondaryTextColor,
+                height: 1.4,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            
+            const SizedBox(height: 16),
+            
+            // Image info
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.grey[100],
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.grey[300]!),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Image Details:',
+                    style: bodyStyle(context).copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'ID: ${mediaItem.id}',
+                    style: bodyStyle(context).copyWith(
+                      fontSize: 12,
+                      color: kcSecondaryTextColor,
+                    ),
+                  ),
+                  Text(
+                    'Path: ${mediaItem.uri.split('/').last}',
+                    style: bodyStyle(context).copyWith(
+                      fontSize: 12,
+                      color: kcSecondaryTextColor,
+                    ),
+                  ),
+                  if (mediaItem.ocrText != null && mediaItem.ocrText!.isNotEmpty)
+                    Text(
+                      'OCR Text: ${mediaItem.ocrText!.length > 50 ? '${mediaItem.ocrText!.substring(0, 50)}...' : mediaItem.ocrText!}',
+                      style: bodyStyle(context).copyWith(
+                        fontSize: 12,
+                        color: kcSecondaryTextColor,
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            
+            const SizedBox(height: 24),
+            
+            // Action buttons
+            Row(
+              children: [
+                Expanded(
+                  child: TextButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    child: const Text('Cancel'),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: () {
+                      Navigator.of(context).pop();
+                      onRelinkImage();
+                    },
+                    icon: const Icon(Icons.add_photo_alternate, size: 18),
+                    label: const Text('Re-insert Image'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: kcPrimaryColor,
+                      foregroundColor: Colors.white,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }

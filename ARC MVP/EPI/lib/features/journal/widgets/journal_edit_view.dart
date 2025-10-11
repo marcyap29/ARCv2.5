@@ -974,130 +974,204 @@ class _JournalEditViewState extends State<JournalEditView> {
     final features = analysis['features'] as Map? ?? {};
     final keypoints = features['kp'] as int? ?? 0;
     
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: kcSurfaceColor,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: kcSecondaryTextColor.withOpacity(0.2),
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(
-                Icons.photo_camera,
-                size: 16,
-                color: kcPrimaryColor,
+    return FutureBuilder<bool>(
+      future: _checkImageExists(attachment.imagePath),
+      builder: (context, snapshot) {
+        final imageExists = snapshot.data ?? false;
+        
+        if (!imageExists) {
+          // Show broken image card
+          return Container(
+            margin: const EdgeInsets.only(bottom: 8),
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.red.withOpacity(0.05),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                color: Colors.red.withOpacity(0.3),
+                width: 2,
               ),
-              const SizedBox(width: 8),
-              Text(
-                'Photo Analysis',
-                style: bodyStyle(context).copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const Spacer(),
-              Icon(
-                Icons.open_in_new,
-                size: 14,
-                color: kcPrimaryColor.withOpacity(0.7),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          
-          // Photo thumbnail - Clickable
-          Row(
-            children: [
-              CachedThumbnail(
-                imagePath: attachment.imagePath,
-                width: 60,
-                height: 60,
-                borderRadius: BorderRadius.circular(6),
-                onTap: () => _openPhotoInGallery(attachment.imagePath),
-                showTapIndicator: true,
-                placeholder: Container(
-                  width: 60,
-                  height: 60,
-                  decoration: BoxDecoration(
-                    color: Colors.grey[300],
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: const Center(
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  ),
-                ),
-                errorWidget: Container(
-                  width: 60,
-                  height: 60,
-                  decoration: BoxDecoration(
-                    color: Colors.grey[300],
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: const Center(
-                    child: Icon(Icons.image, color: Colors.grey),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 12),
-              
-              // Analysis details
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
                   children: [
+                    Icon(
+                      Icons.broken_image,
+                      size: 16,
+                      color: Colors.red,
+                    ),
+                    const SizedBox(width: 8),
                     Text(
-                      summary,
+                      'Broken Image Link',
                       style: bodyStyle(context).copyWith(
-                        fontWeight: FontWeight.w500,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.red,
                       ),
                     ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'Features: $keypoints keypoints',
-                      style: bodyStyle(context).copyWith(
-                        color: kcSecondaryTextColor,
-                        fontSize: 12,
+                    const Spacer(),
+                    IconButton(
+                      onPressed: () => _showBrokenImageDialog(attachment),
+                      icon: const Icon(
+                        Icons.warning,
+                        size: 16,
+                        color: Colors.red,
                       ),
                     ),
                   ],
                 ),
-              ),
-            ],
+                const SizedBox(height: 8),
+                Text(
+                  'The image\'s link appears to be broken, please insert the image again into the entry to relink it.',
+                  style: bodyStyle(context).copyWith(
+                    color: Colors.red[700],
+                    fontSize: 12,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                ElevatedButton.icon(
+                  onPressed: () => _showBrokenImageDialog(attachment),
+                  icon: const Icon(Icons.add_photo_alternate, size: 16),
+                  label: const Text('Re-insert Image'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.red,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  ),
+                ),
+              ],
+            ),
+          );
+        }
+        
+        // Image exists, show normal photo attachment
+        return Container(
+          margin: const EdgeInsets.only(bottom: 8),
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: kcSurfaceColor,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(
+              color: kcSecondaryTextColor.withOpacity(0.2),
+            ),
           ),
-          
-          const SizedBox(height: 8),
-          
-          // Analysis details and JSON viewer
-          Row(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                'Tap thumbnail to view photo',
-                style: bodyStyle(context).copyWith(
-                  color: kcPrimaryColor,
-                  fontStyle: FontStyle.italic,
-                  fontSize: 12,
-                ),
+              Row(
+                children: [
+                  Icon(
+                    Icons.photo_camera,
+                    size: 16,
+                    color: kcPrimaryColor,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Photo Analysis',
+                    style: bodyStyle(context).copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const Spacer(),
+                  Icon(
+                    Icons.open_in_new,
+                    size: 14,
+                    color: kcPrimaryColor.withOpacity(0.7),
+                  ),
+                ],
               ),
-              const Spacer(),
-              TextButton.icon(
-                onPressed: () => _showAnalysisDetails(attachment.analysisResult),
-                icon: const Icon(Icons.code, size: 16),
-                label: const Text('View Analysis'),
-                style: TextButton.styleFrom(
-                  foregroundColor: kcPrimaryColor,
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                ),
+              const SizedBox(height: 12),
+              
+              // Photo thumbnail - Clickable
+              Row(
+                children: [
+                  CachedThumbnail(
+                    imagePath: attachment.imagePath,
+                    width: 60,
+                    height: 60,
+                    borderRadius: BorderRadius.circular(6),
+                    onTap: () => _openPhotoInGallery(attachment.imagePath),
+                    showTapIndicator: true,
+                    placeholder: Container(
+                      width: 60,
+                      height: 60,
+                      decoration: BoxDecoration(
+                        color: Colors.grey[300],
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: const Center(
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                    ),
+                    errorWidget: Container(
+                      width: 60,
+                      height: 60,
+                      decoration: BoxDecoration(
+                        color: Colors.grey[300],
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: const Center(
+                        child: Icon(Icons.image, color: Colors.grey),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  
+                  // Analysis details
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          summary,
+                          style: bodyStyle(context).copyWith(
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Features: $keypoints keypoints',
+                          style: bodyStyle(context).copyWith(
+                            color: kcSecondaryTextColor,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              
+              const SizedBox(height: 8),
+              
+              // Analysis details and JSON viewer
+              Row(
+                children: [
+                  Text(
+                    'Tap thumbnail to view photo',
+                    style: bodyStyle(context).copyWith(
+                      color: kcPrimaryColor,
+                      fontStyle: FontStyle.italic,
+                      fontSize: 12,
+                    ),
+                  ),
+                  const Spacer(),
+                  TextButton.icon(
+                    onPressed: () => _showAnalysisDetails(attachment.analysisResult),
+                    icon: const Icon(Icons.code, size: 16),
+                    label: const Text('View Analysis'),
+                    style: TextButton.styleFrom(
+                      foregroundColor: kcPrimaryColor,
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 
@@ -1260,6 +1334,32 @@ class _JournalEditViewState extends State<JournalEditView> {
       builder: (context) => AnalysisDetailsDialog(analysisResult: analysisResult),
     );
   }
+
+  Future<bool> _checkImageExists(String imagePath) async {
+    try {
+      final file = File(imagePath);
+      return await file.exists();
+    } catch (e) {
+      return false;
+    }
+  }
+
+  void _showBrokenImageDialog(PhotoAttachment attachment) {
+    showDialog(
+      context: context,
+      builder: (context) => BrokenImageDialog(
+        mediaItem: MediaItem(
+          id: 'photo_${attachment.timestamp}',
+          uri: attachment.imagePath,
+          type: MediaType.image,
+          createdAt: DateTime.fromMillisecondsSinceEpoch(attachment.timestamp),
+          ocrText: attachment.analysisResult['ocr']?['fullText'] as String?,
+          analysisData: attachment.analysisResult,
+        ),
+        onRelinkImage: () => _handlePhotoGallery(),
+      ),
+    );
+  }
 }
 
 class AnalysisDetailsDialog extends StatelessWidget {
@@ -1358,6 +1458,145 @@ class AnalysisDetailsDialog extends StatelessWidget {
       const SnackBar(
         content: Text('Analysis JSON copied to clipboard'),
         duration: Duration(seconds: 2),
+      ),
+    );
+  }
+}
+
+class BrokenImageDialog extends StatelessWidget {
+  final MediaItem mediaItem;
+  final VoidCallback onRelinkImage;
+
+  const BrokenImageDialog({
+    super.key,
+    required this.mediaItem,
+    required this.onRelinkImage,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      child: Container(
+        width: MediaQuery.of(context).size.width * 0.85,
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Warning icon
+            Container(
+              width: 64,
+              height: 64,
+              decoration: BoxDecoration(
+                color: Colors.red.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(32),
+              ),
+              child: const Icon(
+                Icons.broken_image,
+                color: Colors.red,
+                size: 32,
+              ),
+            ),
+            
+            const SizedBox(height: 20),
+            
+            // Title
+            Text(
+              'Broken Image Link',
+              style: heading2Style(context).copyWith(
+                color: Colors.red,
+                fontWeight: FontWeight.bold,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            
+            const SizedBox(height: 12),
+            
+            // Message
+            Text(
+              'The image\'s link appears to be broken, please insert the image again into the entry to relink it.',
+              style: bodyStyle(context).copyWith(
+                color: kcSecondaryTextColor,
+                height: 1.4,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            
+            const SizedBox(height: 16),
+            
+            // Image info
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.grey[100],
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.grey[300]!),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Image Details:',
+                    style: bodyStyle(context).copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'ID: ${mediaItem.id}',
+                    style: bodyStyle(context).copyWith(
+                      fontSize: 12,
+                      color: kcSecondaryTextColor,
+                    ),
+                  ),
+                  Text(
+                    'Path: ${mediaItem.uri.split('/').last}',
+                    style: bodyStyle(context).copyWith(
+                      fontSize: 12,
+                      color: kcSecondaryTextColor,
+                    ),
+                  ),
+                  if (mediaItem.ocrText != null && mediaItem.ocrText!.isNotEmpty)
+                    Text(
+                      'OCR Text: ${mediaItem.ocrText!.length > 50 ? '${mediaItem.ocrText!.substring(0, 50)}...' : mediaItem.ocrText!}',
+                      style: bodyStyle(context).copyWith(
+                        fontSize: 12,
+                        color: kcSecondaryTextColor,
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            
+            const SizedBox(height: 24),
+            
+            // Action buttons
+            Row(
+              children: [
+                Expanded(
+                  child: TextButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    child: const Text('Cancel'),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: () {
+                      Navigator.of(context).pop();
+                      onRelinkImage();
+                    },
+                    icon: const Icon(Icons.add_photo_alternate, size: 18),
+                    label: const Text('Re-insert Image'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: kcPrimaryColor,
+                      foregroundColor: Colors.white,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
