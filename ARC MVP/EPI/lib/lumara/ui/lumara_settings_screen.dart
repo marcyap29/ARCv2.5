@@ -99,6 +99,42 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
       }
     }
   }
+
+  /// Cancel downloading a model
+  Future<void> _cancelDownload(LLMProviderConfig config) async {
+    final modelInfo = _getModelInfo(config);
+    if (modelInfo == null) return;
+
+    try {
+      debugPrint('LUMARA Settings: Cancelling download for ${modelInfo['name']}');
+      
+      // Cancel the native download
+      await _bridge.cancelModelDownload();
+      
+      // Update download state
+      _downloadStateService.cancelDownload(modelInfo['id']);
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Download cancelled: ${modelInfo['name']}'),
+            backgroundColor: Colors.orange,
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint('LUMARA Settings: Cancel error: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to cancel download: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
   
   /// Clamp progress to 0-1 range, return null for invalid values (indeterminate progress)
   double? clamp01(num? x) {
@@ -837,6 +873,19 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
                       style: ElevatedButton.styleFrom(
                         backgroundColor: theme.colorScheme.primary,
                         foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        minimumSize: Size.zero,
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                    )
+                  else if (isInternal && isDownloading)
+                    OutlinedButton.icon(
+                      onPressed: () => _cancelDownload(config),
+                      icon: const Icon(Icons.cancel, size: 16),
+                      label: const Text('Cancel'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: theme.colorScheme.error,
+                        side: BorderSide(color: theme.colorScheme.error),
                         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                         minimumSize: Size.zero,
                         tapTargetSize: MaterialTapTargetSize.shrinkWrap,
