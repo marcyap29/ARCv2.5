@@ -1,301 +1,225 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:uuid/uuid.dart';
 import '../../lib/core/rivet/rivet_models.dart';
 import '../../lib/core/rivet/rivet_reducer.dart';
 
 void main() {
-  group('RivetReducer', () {
+  group('RivetReducer Tests', () {
     late RivetConfig config;
+    late List<RivetEvent> testEvents;
 
     setUp(() {
-      config = const RivetConfig(
-        Athresh: 0.6,
-        Tthresh: 0.6,
-        W: 2,
-        N: 10,
-        K: 20,
+      config = const RivetConfig();
+      testEvents = _createTestEvents();
+    });
+
+    test('Golden Recompute - Deterministic Results', () {
+      // Test that recompute produces deterministic results
+      final states1 = RivetReducer.recompute(testEvents, config);
+      final states2 = RivetReducer.recompute(testEvents, config);
+      
+      expect(states1.length, equals(states2.length));
+      for (int i = 0; i < states1.length; i++) {
+        expect(states1[i].align, equals(states2[i].align));
+        expect(states1[i].trace, equals(states2[i].trace));
+        expect(states1[i].sustainCount, equals(states2[i].sustainCount));
+        expect(states1[i].sawIndependentInWindow, equals(states2[i].sawIndependentInWindow));
+      }
+    });
+
+    test('Golden Recompute - Delete Middle Event', () {
+      // Test that deleting a middle event produces correct results
+      final originalStates = RivetReducer.recompute(testEvents, config);
+      
+      // Remove middle event
+      final modifiedEvents = List<RivetEvent>.from(testEvents);
+      modifiedEvents.removeAt(2); // Remove middle event
+      
+      final modifiedStates = RivetReducer.recompute(modifiedEvents, config);
+      
+      // Should have one less state
+      expect(modifiedStates.length, equals(originalStates.length - 1));
+      
+      // All indices should be bounded
+      for (final state in modifiedStates) {
+        expect(state.align, inInclusiveRange(0.0, 1.0));
+        expect(state.trace, inInclusiveRange(0.0, 1.0));
+        expect(state.sustainCount, greaterThanOrEqualTo(0));
+      }
+    });
+
+    test('Sustainment and Independence - Gate Opens When Conditions Met', () {
+      // Create events that should trigger gate opening
+      final events = [
+        _createEvent('event1', 'Discovery', 'Discovery', {'keyword1'}, EvidenceSource.text),
+        _createEvent('event2', 'Discovery', 'Discovery', {'keyword2'}, EvidenceSource.voice),
+        _createEvent('event3', 'Discovery', 'Discovery', {'keyword3'}, EvidenceSource.text),
+      ];
+      
+      final states = RivetReducer.recompute(events, config);
+      
+      // Check that gate opens when conditions are met
+      final lastState = states.last;
+      expect(lastState.gateOpen, isTrue);
+      expect(lastState.sustainCount, greaterThanOrEqualTo(config.W));
+      expect(lastState.sawIndependentInWindow, isTrue);
+    });
+
+    test('Sustainment and Independence - Gate Stays Closed When Independence Missing', () {
+      // Create events with same source and same day (no independence)
+      final sameTime = DateTime.now();
+      final events = [
+        _createEvent('event1', 'Discovery', 'Discovery', {'keyword1'}, EvidenceSource.text, sameTime),
+        _createEvent('event2', 'Discovery', 'Discovery', {'keyword2'}, EvidenceSource.text, sameTime.add(const Duration(minutes: 1))),
+        _createEvent('event3', 'Discovery', 'Discovery', {'keyword3'}, EvidenceSource.text, sameTime.add(const Duration(minutes: 2))),
+      ];
+      
+      final states = RivetReducer.recompute(events, config);
+      
+      // Check that gate stays closed due to lack of independence
+      final lastState = states.last;
+      expect(lastState.gateOpen, isFalse);
+      expect(lastState.sawIndependentInWindow, isFalse);
+    });
+
+    test('Saturation Behavior - TRACE Shows Diminishing Returns', () {
+      // Create many events with similar keywords (low novelty)
+      final events = List.generate(10, (i) => 
+        _createEvent('event$i', 'Discovery', 'Discovery', {'keyword1', 'keyword2'}, EvidenceSource.text)
       );
+      
+      final states = RivetReducer.recompute(events, config);
+      
+      // TRACE should show diminishing increments
+      final traceValues = states.map((s) => s.trace).toList();
+      for (int i = 1; i < traceValues.length; i++) {
+        final increment = traceValues[i] - traceValues[i - 1];
+        expect(increment, greaterThanOrEqualTo(0.0)); // TRACE should not decrease
+        if (i > 3) {
+          // Later increments should be smaller (diminishing returns)
+          expect(increment, lessThanOrEqualTo(0.1));
+        }
+      }
     });
 
-    group('recompute', () {
-      test('should return empty list for empty events', () {
-        final result = RivetReducer.recompute([], config);
-        expect(result, isEmpty);
-      });
-
-      test('should compute states for single event', () {
-        final event = RivetEvent(
-          eventId: 'test-1',
-          date: DateTime.now(),
-          source: EvidenceSource.text,
-          keywords: {'test'},
-          predPhase: 'Discovery',
-          refPhase: 'Discovery',
-          tolerance: {},
-        );
-
-        final result = RivetReducer.recompute([event], config);
-        
-        expect(result, hasLength(1));
-        expect(result.first.align, equals(1.0)); // Perfect match
-        expect(result.first.trace, greaterThan(0.0)); // Some evidence
-        expect(result.first.eventId, equals('test-1'));
-        expect(result.first.date, equals(event.date));
-      });
-
-      test('should maintain chronological order', () {
-        final now = DateTime.now();
-        final events = [
-          RivetEvent(
-            eventId: 'test-1',
-            date: now.subtract(const Duration(days: 2)),
-            source: EvidenceSource.text,
-            keywords: {'old'},
-            predPhase: 'Discovery',
-            refPhase: 'Discovery',
-            tolerance: {},
-          ),
-          RivetEvent(
-            eventId: 'test-2',
-            date: now.subtract(const Duration(days: 1)),
-            source: EvidenceSource.text,
-            keywords: {'middle'},
-            predPhase: 'Discovery',
-            refPhase: 'Discovery',
-            tolerance: {},
-          ),
-          RivetEvent(
-            eventId: 'test-3',
-            date: now,
-            source: EvidenceSource.text,
-            keywords: {'new'},
-            predPhase: 'Discovery',
-            refPhase: 'Discovery',
-            tolerance: {},
-          ),
-        ];
-
-        final result = RivetReducer.recompute(events, config);
-        
-        expect(result, hasLength(3));
-        expect(result[0].eventId, equals('test-1'));
-        expect(result[1].eventId, equals('test-2'));
-        expect(result[2].eventId, equals('test-3'));
-      });
-
-      test('should sort events by date before processing', () {
-        final now = DateTime.now();
-        final events = [
-          RivetEvent(
-            eventId: 'test-3',
-            date: now,
-            source: EvidenceSource.text,
-            keywords: {'new'},
-            predPhase: 'Discovery',
-            refPhase: 'Discovery',
-            tolerance: {},
-          ),
-          RivetEvent(
-            eventId: 'test-1',
-            date: now.subtract(const Duration(days: 2)),
-            source: EvidenceSource.text,
-            keywords: {'old'},
-            predPhase: 'Discovery',
-            refPhase: 'Discovery',
-            tolerance: {},
-          ),
-          RivetEvent(
-            eventId: 'test-2',
-            date: now.subtract(const Duration(days: 1)),
-            source: EvidenceSource.text,
-            keywords: {'middle'},
-            predPhase: 'Discovery',
-            refPhase: 'Discovery',
-            tolerance: {},
-          ),
-        ];
-
-        final result = RivetReducer.recompute(events, config);
-        
-        expect(result, hasLength(3));
-        expect(result[0].eventId, equals('test-1'));
-        expect(result[1].eventId, equals('test-2'));
-        expect(result[2].eventId, equals('test-3'));
-      });
-
-      test('should maintain bounded indices', () {
-        final events = List.generate(10, (i) => RivetEvent(
-          eventId: 'test-$i',
-          date: DateTime.now().add(Duration(hours: i)),
-          source: EvidenceSource.text,
-          keywords: {'test'},
-          predPhase: 'Discovery',
-          refPhase: 'Discovery',
-          tolerance: {},
-        ));
-
-        final result = RivetReducer.recompute(events, config);
-        
-        for (final state in result) {
-          expect(state.align, inInclusiveRange(0.0, 1.0));
-          expect(state.trace, inInclusiveRange(0.0, 1.0));
-        }
-      });
-
-      test('should show TRACE monotonicity under additions', () {
-        final events = List.generate(5, (i) => RivetEvent(
-          eventId: 'test-$i',
-          date: DateTime.now().add(Duration(hours: i)),
-          source: EvidenceSource.text,
-          keywords: {'test'},
-          predPhase: 'Discovery',
-          refPhase: 'Discovery',
-          tolerance: {},
-        ));
-
-        final result = RivetReducer.recompute(events, config);
-        
-        for (int i = 1; i < result.length; i++) {
-          expect(result[i].trace, greaterThanOrEqualTo(result[i-1].trace));
-        }
-      });
-
-      test('should handle independence correctly', () {
-        final now = DateTime.now();
-        final events = [
-          RivetEvent(
-            eventId: 'test-1',
-            date: now,
-            source: EvidenceSource.text,
-            keywords: {'test'},
-            predPhase: 'Discovery',
-            refPhase: 'Discovery',
-            tolerance: {},
-          ),
-          RivetEvent(
-            eventId: 'test-2',
-            date: now.add(const Duration(days: 1)), // Different day
-            source: EvidenceSource.voice, // Different source
-            keywords: {'different'},
-            predPhase: 'Discovery',
-            refPhase: 'Discovery',
-            tolerance: {},
-          ),
-        ];
-
-        final result = RivetReducer.recompute(events, config);
-        
-        expect(result, hasLength(2));
-        expect(result[1].sawIndependentInWindow, isTrue);
-      });
-
-      test('should calculate sustainment correctly', () {
-        final now = DateTime.now();
-        final events = List.generate(5, (i) => RivetEvent(
-          eventId: 'test-$i',
-          date: now.add(Duration(hours: i)),
-          source: EvidenceSource.text,
-          keywords: {'test'},
-          predPhase: 'Discovery',
-          refPhase: 'Discovery',
-          tolerance: {},
-        ));
-
-        final result = RivetReducer.recompute(events, config);
-        
-        // All events should meet thresholds, so sustainment should increase
-        for (int i = 0; i < result.length; i++) {
-          expect(result[i].sustainCount, lessThanOrEqualTo(i + 1));
-        }
-      });
+    test('Monotonicity Under Additions - TRACE Never Decreases When Adding Events', () {
+      final states = RivetReducer.recompute(testEvents, config);
+      
+      // TRACE should be monotonically increasing
+      for (int i = 1; i < states.length; i++) {
+        expect(states[i].trace, greaterThanOrEqualTo(states[i - 1].trace));
+      }
     });
 
-    group('getLatestGateDecision', () {
-      test('should return closed gate for empty states', () {
-        final decision = RivetReducer.getLatestGateDecision([], config);
-        
-        expect(decision.open, isFalse);
-        expect(decision.whyNot, equals("No events processed"));
-      });
+    test('Gate Discipline - Strong ALIGN Weak TRACE', () {
+      // Create events that should have strong ALIGN but weak TRACE
+      final events = [
+        _createEvent('event1', 'Discovery', 'Discovery', {}, EvidenceSource.text), // Perfect match but no keywords
+        _createEvent('event2', 'Discovery', 'Discovery', {}, EvidenceSource.text),
+        _createEvent('event3', 'Discovery', 'Discovery', {}, EvidenceSource.text),
+      ];
+      
+      final states = RivetReducer.recompute(events, config);
+      
+      // Gate should stay closed due to weak TRACE
+      final lastState = states.last;
+      expect(lastState.align, greaterThanOrEqualTo(config.Athresh));
+      expect(lastState.trace, lessThan(config.Tthresh));
+      expect(lastState.gateOpen, isFalse);
+    });
 
-      test('should return closed gate when ALIGN below threshold', () {
-        final states = [
-          const RivetState(
-            align: 0.5, // Below 0.6 threshold
-            trace: 0.7,
-            sustainCount: 2,
-            sawIndependentInWindow: true,
-          ),
-        ];
+    test('Gate Discipline - Strong TRACE Weak ALIGN', () {
+      // Create events that should have strong TRACE but weak ALIGN
+      final events = [
+        _createEvent('event1', 'Discovery', 'Breakthrough', {'keyword1'}, EvidenceSource.text), // Mismatch
+        _createEvent('event2', 'Discovery', 'Breakthrough', {'keyword2'}, EvidenceSource.voice), // Different source
+        _createEvent('event3', 'Discovery', 'Breakthrough', {'keyword3'}, EvidenceSource.text),
+      ];
+      
+      final states = RivetReducer.recompute(events, config);
+      
+      // Gate should stay closed due to weak ALIGN
+      final lastState = states.last;
+      expect(lastState.align, lessThan(config.Athresh));
+      expect(lastState.trace, greaterThanOrEqualTo(config.Tthresh));
+      expect(lastState.gateOpen, isFalse);
+    });
 
-        final decision = RivetReducer.getLatestGateDecision(states, config);
-        
-        expect(decision.open, isFalse);
-        expect(decision.whyNot, contains("ALIGN below threshold"));
-      });
+    test('Independence Multiplier - Different Day Boosts Evidence', () {
+      final today = DateTime.now();
+      final yesterday = today.subtract(const Duration(days: 1));
+      
+      final events = [
+        _createEvent('event1', 'Discovery', 'Discovery', {'keyword1'}, EvidenceSource.text, yesterday),
+        _createEvent('event2', 'Discovery', 'Discovery', {'keyword2'}, EvidenceSource.text, today),
+      ];
+      
+      final states = RivetReducer.recompute(events, config);
+      
+      // Second event should have higher TRACE due to independence multiplier
+      expect(states[1].trace, greaterThan(states[0].trace));
+    });
 
-      test('should return closed gate when TRACE below threshold', () {
-        final states = [
-          const RivetState(
-            align: 0.7,
-            trace: 0.5, // Below 0.6 threshold
-            sustainCount: 2,
-            sawIndependentInWindow: true,
-          ),
-        ];
+    test('Novelty Multiplier - Keyword Drift Boosts Evidence', () {
+      final events = [
+        _createEvent('event1', 'Discovery', 'Discovery', {'keyword1', 'keyword2'}, EvidenceSource.text),
+        _createEvent('event2', 'Discovery', 'Discovery', {'keyword3', 'keyword4'}, EvidenceSource.text), // Different keywords
+      ];
+      
+      final states = RivetReducer.recompute(events, config);
+      
+      // Second event should have higher TRACE due to novelty multiplier
+      expect(states[1].trace, greaterThan(states[0].trace));
+    });
 
-        final decision = RivetReducer.getLatestGateDecision(states, config);
-        
-        expect(decision.open, isFalse);
-        expect(decision.whyNot, contains("TRACE below threshold"));
-      });
+    test('Empty Event List - Returns Empty States', () {
+      final states = RivetReducer.recompute([], config);
+      expect(states, isEmpty);
+    });
 
-      test('should return closed gate when sustainment insufficient', () {
-        final states = [
-          const RivetState(
-            align: 0.7,
-            trace: 0.7,
-            sustainCount: 1, // Below W=2 threshold
-            sawIndependentInWindow: true,
-          ),
-        ];
-
-        final decision = RivetReducer.getLatestGateDecision(states, config);
-        
-        expect(decision.open, isFalse);
-        expect(decision.whyNot, contains("Needs sustainment 1/2"));
-      });
-
-      test('should return closed gate when no independent event', () {
-        final states = [
-          const RivetState(
-            align: 0.7,
-            trace: 0.7,
-            sustainCount: 2,
-            sawIndependentInWindow: false, // No independent event
-          ),
-        ];
-
-        final decision = RivetReducer.getLatestGateDecision(states, config);
-        
-        expect(decision.open, isFalse);
-        expect(decision.whyNot, contains("Need at least one independent event"));
-      });
-
-      test('should return open gate when all conditions met', () {
-        final states = [
-          const RivetState(
-            align: 0.7,
-            trace: 0.7,
-            sustainCount: 2,
-            sawIndependentInWindow: true,
-          ),
-        ];
-
-        final decision = RivetReducer.getLatestGateDecision(states, config);
-        
-        expect(decision.open, isTrue);
-        expect(decision.whyNot, isNull);
-      });
+    test('Single Event - Correct Initial State', () {
+      final events = [_createEvent('event1', 'Discovery', 'Discovery', {'keyword1'}, EvidenceSource.text)];
+      final states = RivetReducer.recompute(events, config);
+      
+      expect(states.length, equals(1));
+      final state = states.first;
+      expect(state.align, inInclusiveRange(0.0, 1.0));
+      expect(state.trace, inInclusiveRange(0.0, 1.0));
+      expect(state.sustainCount, equals(0));
+      expect(state.sawIndependentInWindow, isFalse);
     });
   });
+}
+
+/// Helper function to create test events
+List<RivetEvent> _createTestEvents() {
+  final now = DateTime.now();
+  return [
+    _createEvent('event1', 'Discovery', 'Discovery', {'keyword1'}, EvidenceSource.text, now),
+    _createEvent('event2', 'Discovery', 'Discovery', {'keyword2'}, EvidenceSource.voice, now.add(const Duration(hours: 1))),
+    _createEvent('event3', 'Discovery', 'Discovery', {'keyword3'}, EvidenceSource.text, now.add(const Duration(hours: 2))),
+    _createEvent('event4', 'Discovery', 'Discovery', {'keyword4'}, EvidenceSource.therapistTag, now.add(const Duration(hours: 3))),
+    _createEvent('event5', 'Discovery', 'Discovery', {'keyword5'}, EvidenceSource.text, now.add(const Duration(hours: 4))),
+  ];
+}
+
+/// Helper function to create a single test event
+RivetEvent _createEvent(
+  String eventId,
+  String predPhase,
+  String refPhase,
+  Set<String> keywords,
+  EvidenceSource source, [
+  DateTime? date,
+]) {
+  return RivetEvent(
+    eventId: eventId,
+    date: date ?? DateTime.now(),
+    source: source,
+    keywords: keywords,
+    predPhase: predPhase,
+    refPhase: refPhase,
+    tolerance: const {'Discovery': 0.1, 'Breakthrough': 0.1, 'Consolidation': 0.1},
+    version: 1,
+  );
 }

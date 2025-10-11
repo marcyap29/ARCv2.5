@@ -7,18 +7,29 @@ This directory contains comprehensive documentation for the EPI (Evolving Person
 
 ## 🆕 Latest Updates (January 8, 2025)
 
-**RIVET Deterministic Recompute + Undo-on-Delete System**
+**RIVET Deterministic Recompute System**
 
-Major RIVET system enhancement with deterministic recompute pipeline and undo-on-delete functionality:
-- **Deterministic Recompute** - Pure function pipeline for reliable state calculation
-- **Undo-on-Delete** - Complete event deletion with full state recomputation
-- **Event Editing** - Event modification with deterministic state updates
-- **Mathematical Integrity** - Preserves ALIGN EMA and TRACE saturation formulas exactly
-- **Event History Management** - Complete event log for deterministic replay
-- **Performance Optimization** - O(n) recompute with optional checkpoint support
-- **Safety & Error Handling** - Comprehensive error handling and graceful degradation
-- **Journal Integration** - DeleteEntry() and editEntry() methods in JournalCaptureCubit
-- **Comprehensive Testing** - Unit tests covering all major scenarios
+Major enhancement implementing true undo-on-delete behavior with deterministic recompute pipeline:
+- **Deterministic Recompute** - Complete rewrite using pure reducer pattern for mathematical correctness
+- **Undo-on-Delete** - True rollback capability for any event deletion with O(n) performance
+- **Undo-on-Edit** - Complete state reconstruction for event modifications
+- **Enhanced Models** - RivetEvent with eventId/version, RivetState with gate tracking
+- **Event Log Storage** - Complete history persistence with checkpoint optimization
+- **Enhanced Telemetry** - Recompute metrics, operation tracking, clear explanations
+- **Comprehensive Testing** - 12 unit tests covering all scenarios
+- **Mathematical Correctness** - All ALIGN/TRACE formulas preserved exactly
+- **Bounded Indices** - All values stay in [0,1] range
+- **Monotonicity** - TRACE only increases when adding events
+- **Independence Tracking** - Different day/source boosts evidence weight
+- **Novelty Detection** - Keyword drift increases evidence weight
+- **Sustainment Gating** - Triple criterion (thresholds + sustainment + independence)
+- **Transparency** - Clear "why not" explanations for debugging
+- **Safety** - Graceful degradation if recompute fails
+- **Performance** - O(n) recompute with optional checkpoints
+- **User Experience** - True undo capability for journal entries
+- **Data Integrity** - Complete state reconstruction ensures correctness
+- **Debugging** - Enhanced telemetry provides clear insights
+- **Maintainability** - Pure functions make testing and debugging easier
 
 ---
 

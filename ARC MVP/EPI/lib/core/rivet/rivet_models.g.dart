@@ -6,55 +6,6 @@ part of 'rivet_models.dart';
 // TypeAdapterGenerator
 // **************************************************************************
 
-class EvidenceSourceAdapter extends TypeAdapter<EvidenceSource> {
-  @override
-  final int typeId = 10;
-
-  @override
-  EvidenceSource read(BinaryReader reader) {
-    switch (reader.readByte()) {
-      case 0:
-        return EvidenceSource.text;
-      case 1:
-        return EvidenceSource.voice;
-      case 2:
-        return EvidenceSource.therapistTag;
-      case 3:
-        return EvidenceSource.other;
-      default:
-        return EvidenceSource.other;
-    }
-  }
-
-  @override
-  void write(BinaryWriter writer, EvidenceSource obj) {
-    switch (obj) {
-      case EvidenceSource.text:
-        writer.writeByte(0);
-        break;
-      case EvidenceSource.voice:
-        writer.writeByte(1);
-        break;
-      case EvidenceSource.therapistTag:
-        writer.writeByte(2);
-        break;
-      case EvidenceSource.other:
-        writer.writeByte(3);
-        break;
-    }
-  }
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is EvidenceSourceAdapter &&
-          runtimeType == other.runtimeType &&
-          typeId == other.typeId;
-
-  @override
-  int get hashCode => typeId.hashCode;
-}
-
 class RivetEventAdapter extends TypeAdapter<RivetEvent> {
   @override
   final int typeId = 11;
@@ -100,14 +51,14 @@ class RivetEventAdapter extends TypeAdapter<RivetEvent> {
   }
 
   @override
+  int get hashCode => typeId.hashCode;
+
+  @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       other is RivetEventAdapter &&
           runtimeType == other.runtimeType &&
           typeId == other.typeId;
-
-  @override
-  int get hashCode => typeId.hashCode;
 }
 
 class RivetStateAdapter extends TypeAdapter<RivetState> {
@@ -127,13 +78,14 @@ class RivetStateAdapter extends TypeAdapter<RivetState> {
       sawIndependentInWindow: fields[3] as bool,
       eventId: fields[4] as String?,
       date: fields[5] as DateTime?,
+      gateOpen: fields[6] as bool,
     );
   }
 
   @override
   void write(BinaryWriter writer, RivetState obj) {
     writer
-      ..writeByte(6)
+      ..writeByte(7)
       ..writeByte(0)
       ..write(obj.align)
       ..writeByte(1)
@@ -145,8 +97,13 @@ class RivetStateAdapter extends TypeAdapter<RivetState> {
       ..writeByte(4)
       ..write(obj.eventId)
       ..writeByte(5)
-      ..write(obj.date);
+      ..write(obj.date)
+      ..writeByte(6)
+      ..write(obj.gateOpen);
   }
+
+  @override
+  int get hashCode => typeId.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -154,9 +111,6 @@ class RivetStateAdapter extends TypeAdapter<RivetState> {
       other is RivetStateAdapter &&
           runtimeType == other.runtimeType &&
           typeId == other.typeId;
-
-  @override
-  int get hashCode => typeId.hashCode;
 }
 
 class RivetSnapshotAdapter extends TypeAdapter<RivetSnapshot> {
@@ -170,12 +124,12 @@ class RivetSnapshotAdapter extends TypeAdapter<RivetSnapshot> {
       for (int i = 0; i < numOfFields; i++) reader.readByte(): reader.read(),
     };
     return RivetSnapshot(
-      eventId: fields[0] as String,
-      date: fields[1] as DateTime,
-      align: fields[2] as double,
-      trace: fields[3] as double,
-      sumEvidenceSoFar: fields[4] as double,
-      eventCount: fields[5] as int,
+      checkpointId: fields[0] as String,
+      timestamp: fields[1] as DateTime,
+      eventCount: fields[2] as int,
+      align: fields[3] as double,
+      trace: fields[4] as double,
+      sumEvidenceSoFar: fields[5] as double,
     );
   }
 
@@ -184,18 +138,21 @@ class RivetSnapshotAdapter extends TypeAdapter<RivetSnapshot> {
     writer
       ..writeByte(6)
       ..writeByte(0)
-      ..write(obj.eventId)
+      ..write(obj.checkpointId)
       ..writeByte(1)
-      ..write(obj.date)
+      ..write(obj.timestamp)
       ..writeByte(2)
-      ..write(obj.align)
+      ..write(obj.eventCount)
       ..writeByte(3)
-      ..write(obj.trace)
+      ..write(obj.align)
       ..writeByte(4)
-      ..write(obj.sumEvidenceSoFar)
+      ..write(obj.trace)
       ..writeByte(5)
-      ..write(obj.eventCount);
+      ..write(obj.sumEvidenceSoFar);
   }
+
+  @override
+  int get hashCode => typeId.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -203,7 +160,53 @@ class RivetSnapshotAdapter extends TypeAdapter<RivetSnapshot> {
       other is RivetSnapshotAdapter &&
           runtimeType == other.runtimeType &&
           typeId == other.typeId;
+}
+
+class EvidenceSourceAdapter extends TypeAdapter<EvidenceSource> {
+  @override
+  final int typeId = 10;
+
+  @override
+  EvidenceSource read(BinaryReader reader) {
+    switch (reader.readByte()) {
+      case 0:
+        return EvidenceSource.text;
+      case 1:
+        return EvidenceSource.voice;
+      case 2:
+        return EvidenceSource.therapistTag;
+      case 3:
+        return EvidenceSource.other;
+      default:
+        return EvidenceSource.text;
+    }
+  }
+
+  @override
+  void write(BinaryWriter writer, EvidenceSource obj) {
+    switch (obj) {
+      case EvidenceSource.text:
+        writer.writeByte(0);
+        break;
+      case EvidenceSource.voice:
+        writer.writeByte(1);
+        break;
+      case EvidenceSource.therapistTag:
+        writer.writeByte(2);
+        break;
+      case EvidenceSource.other:
+        writer.writeByte(3);
+        break;
+    }
+  }
 
   @override
   int get hashCode => typeId.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is EvidenceSourceAdapter &&
+          runtimeType == other.runtimeType &&
+          typeId == other.typeId;
 }

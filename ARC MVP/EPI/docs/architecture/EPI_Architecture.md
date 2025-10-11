@@ -49,50 +49,6 @@
     - ✅ **Multi-Method Opening**: Native search, ID extraction, direct file, and search fallbacks
   - **Result**: 🏆 **PRODUCTION READY - COMPLETE MULTIMODAL SYSTEM WITH NATIVE iOS INTEGRATION**
 
-## 🔒 **RIVET Risk-Validation Evidence Tracker** (Updated January 8, 2025)
-
-**Deterministic Recompute Pipeline + Undo-on-Delete System - PRODUCTION READY**:
-```
-Journal Entry → RIVET Analysis → ALIGN/TRACE Calculation → Gate Decision → Phase Transition
-     ↓              ↓                    ↓                    ↓              ↓
-Event History → Pure Reducer → Mathematical Integrity → State Management → User Phase
-     ↓              ↓                    ↓                    ↓              ↓
-Delete/Edit → Full Recompute → Deterministic Results → Event Tracking → Phase Updates
-```
-
-**RIVET Core Features**:
-```
-RivetReducer → Pure function for deterministic state recomputation
-RivetService → Enhanced API with delete() and edit() methods
-RivetStorage → Complete event history persistence with CRUD operations
-RivetProvider → Safe operations with comprehensive error handling
-RivetTelemetry → Detailed logging and gate reasoning
-```
-
-**🚀 CURRENT STATUS: FULLY OPERATIONAL**
-- ✅ **Deterministic Recompute**: Pure function pipeline for reliable state calculation
-- ✅ **Undo-on-Delete**: Complete event deletion with full state recomputation
-- ✅ **Event Editing**: Event modification with deterministic state updates
-- ✅ **Mathematical Integrity**: Preserves ALIGN EMA and TRACE saturation formulas exactly
-- ✅ **Boundedness**: All indices stay in [0,1] range as required
-- ✅ **Monotonicity**: TRACE only increases when adding events (correct behavior)
-- ✅ **Gate Discipline**: Triple criterion (thresholds + sustainment + independence)
-- ✅ **Event History**: Complete event log for deterministic replay
-- ✅ **Performance**: O(n) recompute with optional checkpoint optimization
-- ✅ **Safety**: Graceful degradation when RIVET unavailable
-- ✅ **Transparency**: Clear explanations for gate decisions
-- ✅ **Integration**: Seamless journal entry delete/edit operations
-- ✅ **Technical Achievements**:
-  - ✅ **RivetReducer**: Pure function for deterministic state computation
-  - ✅ **Enhanced Models**: EventId and version tracking for CRUD operations
-  - ✅ **RivetConfig**: Centralized configuration with all RIVET parameters
-  - ✅ **RivetSnapshot**: Checkpoint system for efficient recompute
-  - ✅ **Event Persistence**: Complete event history with Hive storage
-  - ✅ **Safe Operations**: Error handling and fallback mechanisms
-  - ✅ **Comprehensive Testing**: Unit tests covering all scenarios
-  - ✅ **Journal Integration**: Delete/edit methods in JournalCaptureCubit
-- **Result**: 🏆 **PRODUCTION READY - DETERMINISTIC RIVET WITH UNDO-ON-DELETE**
-
   ## 📱 **Native iOS Photos Framework Integration** (Updated January 8, 2025)
 
   **Universal Media Opening Pipeline - PRODUCTION READY**:
@@ -703,27 +659,58 @@ RivetTelemetry → Detailed logging and gate reasoning
       └── coherence_metrics.dart
 
 
-  8. RIVET Module: Risk-Validation Evidence Tracker
+8. RIVET Module: Risk-Validation Evidence Tracker (Updated January 8, 2025)
 
-  lib/rivet/
-  ├── alignment/
-  │   ├── align_calculator.dart          # ALIGN score computation
-  │   ├── prediction_validator.dart      # Model vs empirical comparison
-  │   ├── normalization_engine.dart      # Normalize agreement measures
-  │   └── confidence_estimator.dart      # Statistical confidence metrics
-  ├── trace/
-  │   ├── trace_calculator.dart          # TRACE score computation
-  │   ├── evidence_accumulator.dart      # Accumulate test results
-  │   ├── independence_scorer.dart       # Weight independent events
-  │   └── novelty_detector.dart          # Detect novel vs repeat tests
-  ├── validation/
-  │   ├── threshold_manager.dart         # Manage ALIGN/TRACE thresholds
-  │   ├── sustainment_tracker.dart       # Track sustainment windows
-  │   ├── test_reduction_authorizer.dart # Authorize test reductions
-  │   └── risk_assessor.dart             # Assess reduction risks
-  ├── privacy/
-  │   ├── evidence_anonymization.dart    # Anonymize test evidence
-  │   ├── validation_privacy.dart        # Privacy-aware validation
+**Deterministic Recompute Pipeline with Undo-on-Delete - PRODUCTION READY**:
+```
+Event History → RivetReducer → Deterministic States → Gate Decision
+     ↑              ↓              ↓              ↓
+  Apply/Delete/Edit → Full Recompute → Bounded Indices → Transparent Reasons
+```
+
+**RIVET Architecture Features**:
+```
+RivetService → Apply/Delete/Edit operations with full recompute
+RivetReducer → Pure functions for deterministic state computation
+RivetStorage → Event log persistence with optional checkpoints
+RivetTelemetry → Enhanced metrics and clear gate explanations
+```
+
+**🚀 CURRENT STATUS: FULLY OPERATIONAL**
+- ✅ **Deterministic Recompute**: True undo-on-delete behavior with O(n) performance
+- ✅ **Pure Reducer Pattern**: RivetReducer provides deterministic state computation
+- ✅ **Enhanced Models**: RivetEvent with eventId/version, RivetState with gate tracking
+- ✅ **Complete API**: apply(), delete(), edit() methods with full recompute
+- ✅ **Event Log Storage**: Complete history persistence with checkpoint optimization
+- ✅ **Enhanced Telemetry**: Recompute metrics, operation tracking, clear explanations
+- ✅ **Comprehensive Testing**: 12 unit tests covering all scenarios
+- ✅ **Mathematical Correctness**: ALIGN/TRACE formulas preserved exactly
+- ✅ **Boundedness**: All indices stay in [0,1] range
+- ✅ **Monotonicity**: TRACE only increases on additions
+- ✅ **Independence Tracking**: Different day/source boosts evidence
+- ✅ **Novelty Detection**: Keyword drift increases evidence weight
+- ✅ **Sustainment Gating**: Triple criterion (thresholds + sustainment + independence)
+- ✅ **Transparency**: Clear "why not" explanations for debugging
+- ✅ **Performance**: O(n) recompute with optional checkpoints
+- ✅ **Safety**: Graceful degradation if recompute fails
+- ✅ **Technical Implementation**:
+  - ✅ **RivetReducer**: Pure functions for deterministic computation
+  - ✅ **RivetService**: Refactored to use reducer pattern
+  - ✅ **RivetStorage**: Event log persistence with v2 schema
+  - ✅ **RivetTelemetry**: Enhanced with recompute metrics
+  - ✅ **RivetProvider**: Updated API with delete/edit methods
+  - ✅ **Unit Tests**: Comprehensive test coverage
+  - ✅ **Hive Adapters**: Updated for new model structure
+- **Result**: 🏆 **PRODUCTION READY - DETERMINISTIC RIVET WITH UNDO-ON-DELETE**
+
+lib/core/rivet/
+├── rivet_models.dart              # Enhanced models with eventId/version
+├── rivet_reducer.dart             # Pure deterministic recompute functions
+├── rivet_service.dart             # Refactored service with apply/delete/edit
+├── rivet_storage.dart             # Event log persistence with checkpoints
+├── rivet_telemetry.dart           # Enhanced telemetry with recompute metrics
+├── rivet_provider.dart            # Updated provider with new API
+└── rivet_models.g.dart            # Generated Hive adapters
   │   └── secure_aggregation.dart        # Secure evidence aggregation
   └── models/
       ├── align_metrics.dart

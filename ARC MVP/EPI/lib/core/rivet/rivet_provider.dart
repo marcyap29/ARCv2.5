@@ -29,13 +29,14 @@ class RivetProvider {
     try {
       _storage = RivetBox();
       
-      // Load existing state and event history for user
-      final state = await _storage!.load(userId);
-      final events = await _storage!.loadAllEvents(userId);
+      // Create service
+      _service = RivetService();
       
-      // Create service with loaded state and event history
-      _service = RivetService(initial: state);
-      _service!.setEventHistory(events);
+      // Load existing event history for user
+      final events = await _storage!.loadEventHistory(userId);
+      
+      // Load events into service
+      await _service!.loadFromHistory(events);
       
       _initialized = true;
       _initError = null;
@@ -92,14 +93,11 @@ class RivetProvider {
     }
 
     try {
-      // Apply event and get decision
-      final decision = _service!.apply(event);
+      // Apply event to service (this handles recompute internally)
+      final decision = await _service!.apply(event);
       
-      // Save updated state
-      await _storage!.save(userId, decision.stateAfter);
-      
-      // Save event for history
-      await _storage!.saveEvent(userId, event);
+      // Save updated event history
+      await _storage!.saveEventHistory(userId, _service!.eventHistory);
       
       stopwatch.stop();
       
@@ -109,6 +107,15 @@ class RivetProvider {
         rivetEvent: event,
         decision: decision,
         processingTime: stopwatch.elapsed,
+      );
+      
+      // Log recompute telemetry
+      RivetTelemetry().logRecompute(
+        userId: userId,
+        operation: 'apply',
+        eventCount: _service!.eventHistory.length,
+        recomputeTime: stopwatch.elapsed,
+        finalDecision: decision,
       );
       
       return decision;
@@ -122,7 +129,7 @@ class RivetProvider {
     }
   }
 
-  /// Safely delete an event and recompute state
+  /// Safely delete an event and recompute
   Future<RivetGateDecision?> safeDelete(String eventId, String userId) async {
     final stopwatch = Stopwatch()..start();
     
@@ -134,24 +141,22 @@ class RivetProvider {
     }
 
     try {
-      // Delete event and get decision
-      final decision = _service!.delete(eventId);
+      // Delete event from service (this handles recompute internally)
+      final decision = await _service!.delete(eventId);
       
-      // Save updated state
-      await _storage!.save(userId, decision.stateAfter);
-      
-      // Remove event from storage
-      await _storage!.removeEvent(userId, eventId);
+      // Save updated event history
+      await _storage!.saveEventHistory(userId, _service!.eventHistory);
       
       stopwatch.stop();
       
-      // Log telemetry
+      // Log recompute telemetry
       RivetTelemetry().logRecompute(
         userId: userId,
         operation: 'delete',
+        eventCount: _service!.eventHistory.length,
+        recomputeTime: stopwatch.elapsed,
+        finalDecision: decision,
         eventId: eventId,
-        decision: decision,
-        processingTime: stopwatch.elapsed,
       );
       
       return decision;
@@ -165,7 +170,7 @@ class RivetProvider {
     }
   }
 
-  /// Safely edit an event and recompute state
+  /// Safely edit an event and recompute
   Future<RivetGateDecision?> safeEdit(RivetEvent updatedEvent, String userId) async {
     final stopwatch = Stopwatch()..start();
     
@@ -177,24 +182,22 @@ class RivetProvider {
     }
 
     try {
-      // Edit event and get decision
-      final decision = _service!.edit(updatedEvent);
+      // Edit event in service (this handles recompute internally)
+      final decision = await _service!.edit(updatedEvent);
       
-      // Save updated state
-      await _storage!.save(userId, decision.stateAfter);
-      
-      // Update event in storage
-      await _storage!.updateEvent(userId, updatedEvent);
+      // Save updated event history
+      await _storage!.saveEventHistory(userId, _service!.eventHistory);
       
       stopwatch.stop();
       
-      // Log telemetry
+      // Log recompute telemetry
       RivetTelemetry().logRecompute(
         userId: userId,
         operation: 'edit',
+        eventCount: _service!.eventHistory.length,
+        recomputeTime: stopwatch.elapsed,
+        finalDecision: decision,
         eventId: updatedEvent.eventId,
-        decision: decision,
-        processingTime: stopwatch.elapsed,
       );
       
       return decision;
@@ -215,7 +218,7 @@ class RivetProvider {
     }
 
     try {
-      return await _storage!.load(userId);
+      return _service!.currentState;
     } catch (e) {
       if (kDebugMode) {
         print('ERROR: Failed to get RIVET state: $e');

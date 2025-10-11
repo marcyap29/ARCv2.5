@@ -2,52 +2,42 @@ import 'dart:math' as math;
 import 'rivet_models.dart';
 
 /// Pure reducer for RIVET state computation
-/// Provides deterministic recompute functionality for delete/edit operations
+/// Provides deterministic recompute pipeline for undo-on-delete behavior
 class RivetReducer {
-  /// Recompute RIVET states from a complete event history
-  /// This is the core pure function that ensures deterministic results
+  /// Recompute RIVET state from a complete event history
+  /// This is the core deterministic function that enables undo-on-delete
   static List<RivetState> recompute(
     List<RivetEvent> events, 
     RivetConfig config,
   ) {
-    if (events.isEmpty) {
-      return [];
-    }
-
-    // Sort events by date to ensure chronological order
+    // Sort events by date to ensure deterministic processing
     final sortedEvents = [...events]..sort((a, b) => a.date.compareTo(b.date));
     
     // Initialize state variables
-    double align = 0.0;
-    double trace = 0.0;
-    double sumEvidenceSoFar = 0.0;
-    int sustainCount = 0;
-    final window = <RivetEvent>[];
+    double align = 0.0;                 // bounded [0,1]
+    double trace = 0.0;                 // bounded [0,1]
+    double sumEvidenceSoFar = 0.0;      // cumulative evidence for TRACE
+    int sustainCount = 0;               // consecutive threshold meetings
+    final window = <RivetEvent>[];      // rolling window for independence
     bool sawIndependentInWindow = false;
     final states = <RivetState>[];
 
-    for (int i = 0; i < sortedEvents.length; i++) {
-      final event = sortedEvents[i];
-      
-      // Calculate ALIGN score using EMA smoothing
+    for (final event in sortedEvents) {
+      // Calculate ALIGN score (EMA smoothing)
       final sampleAlign = _calculateSampleAlign(event, config);
       final beta = 2.0 / (config.N + 1.0);
       align = (1.0 - beta) * align + beta * sampleAlign;
-      
-      // Ensure ALIGN stays bounded in [0,1]
-      align = align.clamp(0.0, 1.0);
+      align = align.clamp(0.0, 1.0); // Ensure boundedness
 
-      // Calculate TRACE score using saturator
+      // Calculate TRACE increment (saturating accumulator)
       final evidenceIncrement = _calculateEvidenceIncrement(
         event, 
-        i > 0 ? sortedEvents[i - 1] : null,
+        window.isNotEmpty ? window.last : null,
         config,
       );
       sumEvidenceSoFar += evidenceIncrement;
       trace = 1.0 - math.exp(-sumEvidenceSoFar / config.K);
-      
-      // Ensure TRACE stays bounded in [0,1]
-      trace = trace.clamp(0.0, 1.0);
+      trace = trace.clamp(0.0, 1.0); // Ensure boundedness
 
       // Maintain rolling window for sustainment/independence
       window.add(event);
@@ -55,12 +45,17 @@ class RivetReducer {
         window.removeAt(0);
       }
       
-      // Check for independence in current window
-      sawIndependentInWindow = window.any((e) => _isIndependent(e, window));
+      // Check independence in current window
+      sawIndependentInWindow = _checkIndependenceInWindow(window);
 
       // Update sustainment counter
       final meetsThresholds = (align >= config.Athresh) && (trace >= config.Tthresh);
       sustainCount = meetsThresholds ? (sustainCount + 1).clamp(0, config.W) : 0;
+
+      // Determine gate status
+      final gateOpen = meetsThresholds && 
+                      sustainCount >= config.W && 
+                      sawIndependentInWindow;
 
       // Create state for this event
       final state = RivetState(
@@ -70,24 +65,26 @@ class RivetReducer {
         sawIndependentInWindow: sawIndependentInWindow,
         eventId: event.eventId,
         date: event.date,
+        gateOpen: gateOpen,
       );
-      
+
       states.add(state);
     }
 
     return states;
   }
 
-  /// Calculate sample ALIGN score for a single event
+  /// Calculate sample ALIGN score for an event
   /// For categorical phases: s_i = (pred==ref)?1:0
   static double _calculateSampleAlign(RivetEvent event, RivetConfig config) {
     // Categorical matching - could be enhanced with tolerance map later
     return (event.predPhase == event.refPhase) ? 1.0 : 0.0;
   }
 
-  /// Calculate evidence increment for TRACE calculation
+  /// Calculate evidence increment for TRACE
+  /// Includes independence and novelty multipliers
   static double _calculateEvidenceIncrement(
-    RivetEvent event, 
+    RivetEvent event,
     RivetEvent? lastEvent,
     RivetConfig config,
   ) {
@@ -99,10 +96,8 @@ class RivetReducer {
   }
 
   /// Calculate independence multiplier based on different day or source
-  static double _calculateIndependenceMultiplier(
-    RivetEvent event, 
-    RivetEvent? lastEvent,
-  ) {
+  /// Boosts evidence weight when events come from independent contexts
+  static double _calculateIndependenceMultiplier(RivetEvent event, RivetEvent? lastEvent) {
     if (lastEvent == null) return 1.2;
     
     final differentDay = event.date.difference(lastEvent.date).inDays >= 1;
@@ -112,10 +107,8 @@ class RivetReducer {
   }
 
   /// Calculate novelty multiplier via Jaccard distance over keywords
-  static double _calculateNoveltyMultiplier(
-    RivetEvent event, 
-    RivetEvent? lastEvent,
-  ) {
+  /// Rewards keyword drift as additional evidence variety
+  static double _calculateNoveltyMultiplier(RivetEvent event, RivetEvent? lastEvent) {
     if (lastEvent == null) return 1.1;
     
     final currentKeywords = event.keywords;
@@ -134,16 +127,16 @@ class RivetReducer {
     return 1.0 + 0.5 * drift; // Range: 1.0 to 1.5
   }
 
-  /// Check if an event is independent within its window
-  static bool _isIndependent(RivetEvent event, List<RivetEvent> window) {
-    if (window.length <= 1) return true;
+  /// Check if any event in the window is independent
+  static bool _checkIndependenceInWindow(List<RivetEvent> window) {
+    if (window.isEmpty) return false;
     
-    final otherEvents = window.where((e) => e.eventId != event.eventId).toList();
-    if (otherEvents.isEmpty) return true;
-    
-    for (final other in otherEvents) {
-      final differentDay = event.date.difference(other.date).inDays >= 1;
-      final differentSource = event.source != other.source;
+    for (int i = 1; i < window.length; i++) {
+      final current = window[i];
+      final previous = window[i - 1];
+      
+      final differentDay = current.date.difference(previous.date).inDays >= 1;
+      final differentSource = current.source != previous.source;
       
       if (differentDay || differentSource) {
         return true;
@@ -153,71 +146,31 @@ class RivetReducer {
     return false;
   }
 
-  /// Create a checkpoint snapshot for efficient recompute
-  static RivetSnapshot createSnapshot(
-    String eventId,
-    DateTime date,
-    double align,
-    double trace,
-    double sumEvidenceSoFar,
-    int eventCount,
-  ) {
-    return RivetSnapshot(
-      eventId: eventId,
-      date: date,
-      align: align,
-      trace: trace,
-      sumEvidenceSoFar: sumEvidenceSoFar,
-      eventCount: eventCount,
-    );
-  }
-
-  /// Get the latest gate decision from a state sequence
-  static RivetGateDecision getLatestGateDecision(
-    List<RivetState> states,
+  /// Generate gate decision with transparency
+  static RivetGateDecision generateGateDecision(
+    RivetState state,
     RivetConfig config,
   ) {
-    if (states.isEmpty) {
-      return RivetGateDecision(
-        open: false,
-        stateAfter: const RivetState(
-          align: 0,
-          trace: 0,
-          sustainCount: 0,
-          sawIndependentInWindow: false,
-        ),
-        whyNot: "No events processed",
-      );
-    }
+    final meetsThresholds = (state.align >= config.Athresh) && (state.trace >= config.Tthresh);
+    final gateOpen = meetsThresholds && 
+                    state.sustainCount >= config.W && 
+                    state.sawIndependentInWindow;
 
-    final latestState = states.last;
-    final gateOpen = _evaluateGate(latestState, config);
-    
     String? whyNot;
     if (!gateOpen) {
-      if (latestState.align < config.Athresh) {
-        whyNot = "ALIGN below threshold (${(latestState.align * 100).toStringAsFixed(1)}% < ${(config.Athresh * 100).toStringAsFixed(1)}%)";
-      } else if (latestState.trace < config.Tthresh) {
-        whyNot = "TRACE below threshold (${(latestState.trace * 100).toStringAsFixed(1)}% < ${(config.Tthresh * 100).toStringAsFixed(1)}%)";
-      } else if (latestState.sustainCount < config.W) {
-        whyNot = "Needs sustainment ${latestState.sustainCount}/${config.W}";
-      } else if (!latestState.sawIndependentInWindow) {
+      if (!meetsThresholds) {
+        whyNot = "Needs ALIGN≥${config.Athresh.toStringAsFixed(1)} and TRACE≥${config.Tthresh.toStringAsFixed(1)} together";
+      } else if (!state.sawIndependentInWindow) {
         whyNot = "Need at least one independent event in window";
+      } else {
+        whyNot = "Needs sustainment ${state.sustainCount}/${config.W}";
       }
     }
 
     return RivetGateDecision(
       open: gateOpen,
-      stateAfter: latestState,
+      stateAfter: state,
       whyNot: whyNot,
     );
-  }
-
-  /// Evaluate gate condition for a state
-  static bool _evaluateGate(RivetState state, RivetConfig config) {
-    return (state.align >= config.Athresh) &&
-           (state.trace >= config.Tthresh) &&
-           (state.sustainCount >= config.W) &&
-           state.sawIndependentInWindow;
   }
 }

@@ -1,5 +1,6 @@
 import 'package:equatable/equatable.dart';
 import 'package:hive/hive.dart';
+import 'package:uuid/uuid.dart';
 
 part 'rivet_models.g.dart';
 
@@ -20,7 +21,7 @@ enum EvidenceSource {
 @HiveType(typeId: 11)
 class RivetEvent extends Equatable {
   @HiveField(0)
-  final String eventId; // unique identifier for delete/edit operations
+  final String eventId; // stable identifier for delete/edit operations
   
   @HiveField(1)
   final DateTime date;
@@ -94,7 +95,7 @@ class RivetEvent extends Equatable {
 
   factory RivetEvent.fromJson(Map<String, dynamic> json) {
     return RivetEvent(
-      eventId: json['eventId'] as String? ?? '',
+      eventId: json['eventId'] as String? ?? const Uuid().v4(),
       date: DateTime.parse(json['date'] as String),
       source: EvidenceSource.values.firstWhere(
         (e) => e.toString() == json['source'],
@@ -125,10 +126,13 @@ class RivetState extends Equatable {
   final bool sawIndependentInWindow; // independence flag for current window
   
   @HiveField(4)
-  final String? eventId; // associated event ID for tracking
+  final String? eventId; // associated event ID for this state
   
   @HiveField(5)
   final DateTime? date; // timestamp of this state
+  
+  @HiveField(6)
+  final bool gateOpen; // current gate status
 
   const RivetState({
     required this.align,
@@ -137,10 +141,11 @@ class RivetState extends Equatable {
     required this.sawIndependentInWindow,
     this.eventId,
     this.date,
+    this.gateOpen = false,
   });
 
   @override
-  List<Object?> get props => [align, trace, sustainCount, sawIndependentInWindow, eventId, date];
+  List<Object?> get props => [align, trace, sustainCount, sawIndependentInWindow, eventId, date, gateOpen];
 
   RivetState copyWith({
     double? align,
@@ -149,6 +154,7 @@ class RivetState extends Equatable {
     bool? sawIndependentInWindow,
     String? eventId,
     DateTime? date,
+    bool? gateOpen,
   }) {
     return RivetState(
       align: align ?? this.align,
@@ -157,6 +163,7 @@ class RivetState extends Equatable {
       sawIndependentInWindow: sawIndependentInWindow ?? this.sawIndependentInWindow,
       eventId: eventId ?? this.eventId,
       date: date ?? this.date,
+      gateOpen: gateOpen ?? this.gateOpen,
     );
   }
 
@@ -168,6 +175,7 @@ class RivetState extends Equatable {
       'sawIndependentInWindow': sawIndependentInWindow,
       'eventId': eventId,
       'date': date?.toIso8601String(),
+      'gateOpen': gateOpen,
     };
   }
 
@@ -179,6 +187,7 @@ class RivetState extends Equatable {
       sawIndependentInWindow: json['sawIndependentInWindow'] as bool,
       eventId: json['eventId'] as String?,
       date: json['date'] != null ? DateTime.parse(json['date'] as String) : null,
+      gateOpen: json['gateOpen'] as bool? ?? false,
     );
   }
 }
@@ -200,58 +209,58 @@ class RivetConfig {
   });
 }
 
-/// Checkpoint snapshot for efficient recompute
+/// RIVET snapshot for checkpointing (optional optimization)
 @HiveType(typeId: 13)
 class RivetSnapshot extends Equatable {
   @HiveField(0)
-  final String eventId; // last event in this snapshot
+  final String checkpointId;
   
   @HiveField(1)
-  final DateTime date; // timestamp of snapshot
+  final DateTime timestamp;
   
   @HiveField(2)
-  final double align; // cumulative ALIGN value
+  final int eventCount;
   
   @HiveField(3)
-  final double trace; // cumulative TRACE value
+  final double align;
   
   @HiveField(4)
-  final double sumEvidenceSoFar; // cumulative evidence mass for TRACE
+  final double trace;
   
   @HiveField(5)
-  final int eventCount; // number of events in this snapshot
+  final double sumEvidenceSoFar;
 
   const RivetSnapshot({
-    required this.eventId,
-    required this.date,
+    required this.checkpointId,
+    required this.timestamp,
+    required this.eventCount,
     required this.align,
     required this.trace,
     required this.sumEvidenceSoFar,
-    required this.eventCount,
   });
 
   @override
-  List<Object?> get props => [eventId, date, align, trace, sumEvidenceSoFar, eventCount];
+  List<Object?> get props => [checkpointId, timestamp, eventCount, align, trace, sumEvidenceSoFar];
 
   Map<String, dynamic> toJson() {
     return {
-      'eventId': eventId,
-      'date': date.toIso8601String(),
+      'checkpointId': checkpointId,
+      'timestamp': timestamp.toIso8601String(),
+      'eventCount': eventCount,
       'align': align,
       'trace': trace,
       'sumEvidenceSoFar': sumEvidenceSoFar,
-      'eventCount': eventCount,
     };
   }
 
   factory RivetSnapshot.fromJson(Map<String, dynamic> json) {
     return RivetSnapshot(
-      eventId: json['eventId'] as String,
-      date: DateTime.parse(json['date'] as String),
+      checkpointId: json['checkpointId'] as String,
+      timestamp: DateTime.parse(json['timestamp'] as String),
+      eventCount: json['eventCount'] as int,
       align: (json['align'] as num).toDouble(),
       trace: (json['trace'] as num).toDouble(),
       sumEvidenceSoFar: (json['sumEvidenceSoFar'] as num).toDouble(),
-      eventCount: json['eventCount'] as int,
     );
   }
 }

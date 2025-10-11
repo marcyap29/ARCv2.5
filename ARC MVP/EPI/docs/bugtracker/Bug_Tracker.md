@@ -27,23 +27,28 @@ All major bugs from the main branch merge have been resolved. The system is stab
 - ✅ **NEW: ECHO Integration + Dignified Text**
 - ✅ **NEW: Phase-Aware Analysis (6 Core Phases)**
 - ✅ **NEW: RIVET Deterministic Recompute System**
-- ✅ **NEW: RIVET Undo-on-Delete Functionality**
-- ✅ **NEW: RIVET Event Editing with State Updates**
+- ✅ **NEW: True Undo-on-Delete Behavior**
+- ✅ **NEW: Enhanced RIVET Models with eventId/version**
+- ✅ **NEW: Pure Reducer Pattern Implementation**
+- ✅ **NEW: Event Log Storage with Checkpoints**
+- ✅ **NEW: Enhanced RIVET Telemetry**
 
 ### Recently Resolved Issues (January 8, 2025)
 
-#### RIVET System Enhancements
-- ✅ **Deterministic Recompute**: Implemented pure function pipeline for reliable state calculation
-- ✅ **Undo-on-Delete**: Added complete event deletion with full state recomputation
-- ✅ **Event Editing**: Added event modification with deterministic state updates
-- ✅ **Mathematical Integrity**: Preserved ALIGN EMA and TRACE saturation formulas exactly
-- ✅ **Event History Management**: Added complete event log for deterministic replay
-- ✅ **Performance Optimization**: Implemented O(n) recompute with optional checkpoint support
-- ✅ **Safety & Error Handling**: Added comprehensive error handling and graceful degradation
-- ✅ **Journal Integration**: Added deleteEntry() and editEntry() methods to JournalCaptureCubit
-- ✅ **Comprehensive Testing**: Added unit tests covering all major scenarios
+#### RIVET Deterministic Recompute System ✅ **RESOLVED**
+- **Issue**: RIVET lacked true undo-on-delete behavior and used fragile in-place updates
+- **Root Cause**: EMA math and TRACE saturation couldn't be safely "undone" with subtraction
+- **Solution**: Implemented deterministic recompute pipeline using pure reducer pattern
+- **Technical Fixes**:
+  - ✅ **RivetReducer**: Pure functions for deterministic state computation
+  - ✅ **Enhanced Models**: Added eventId/version to RivetEvent, gate tracking to RivetState
+  - ✅ **Refactored Service**: Complete rewrite with apply(), delete(), edit() methods
+  - ✅ **Event Log Storage**: Complete history persistence with checkpoint optimization
+  - ✅ **Enhanced Telemetry**: Recompute metrics, operation tracking, clear explanations
+  - ✅ **Comprehensive Testing**: 12 unit tests covering all scenarios
+- **Result**: True undo-on-delete behavior with O(n) performance and mathematical correctness
 
-#### Previous Issues
+#### Previous Issues (January 8, 2025)
 - ✅ **OCR Keywords Display**: Fixed photo analysis to show extracted keywords and MCP format
 - ✅ **Photo Thumbnails**: Added visual thumbnails with clickable functionality
 - ✅ **Photo Opening**: Fixed photo links to actually open in iOS Photos app
