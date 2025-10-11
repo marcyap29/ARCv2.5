@@ -23,6 +23,7 @@ import '../../core/services/draft_cache_service.dart';
 import '../../data/models/media_item.dart';
 import '../../mcp/orchestrator/ios_vision_orchestrator.dart';
 import 'widgets/lumara_suggestion_sheet.dart';
+import 'widgets/enhanced_lumara_suggestion_sheet.dart' as enhanced;
 import 'widgets/inline_reflection_block.dart';
 
 /// Main journal screen with integrated LUMARA companion and OCR scanning
@@ -64,6 +65,10 @@ class _JournalScreenState extends State<JournalScreen> {
   // Manual keyword entry
   final TextEditingController _keywordController = TextEditingController();
   List<String> _manualKeywords = [];
+  
+  // UI state management
+  bool _showKeywordsDiscovered = false;
+  bool _showLumaraBox = false;
 
   @override
   void initState() {
@@ -117,16 +122,32 @@ class _JournalScreenState extends State<JournalScreen> {
   void _onLumaraFabTapped() {
     _analytics.logLumaraEvent('fab_tapped');
     
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: false,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
-      builder: (context) => LumaraSuggestionSheet(
-        onSelect: _onLumaraIntentSelected,
-      ),
-    );
+    if (_showLumaraBox) {
+      // Hide the Lumara box
+      _dismissLumaraBox();
+    } else {
+      // Show enhanced LUMARA suggestion sheet with cloud API analysis
+      showModalBottomSheet(
+        context: context,
+        isScrollControlled: false,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+        ),
+        builder: (context) => enhanced.EnhancedLumaraSuggestionSheet(
+          onSelect: _onLumaraIntentSelected,
+          entryText: _entryState.text,
+          phase: _entryState.phase,
+        ),
+      ).then((_) {
+        // Dismiss the Lumara box when the modal is closed
+        _dismissLumaraBox();
+      });
+      
+      // Show the Lumara box
+      setState(() {
+        _showLumaraBox = true;
+      });
+    }
   }
 
   Future<void> _onLumaraIntentSelected(LumaraIntent intent) async {
@@ -380,12 +401,22 @@ class _JournalScreenState extends State<JournalScreen> {
             children: [
               // Text input area
               Expanded(
-                child: SingleChildScrollView(
-                  controller: _scrollController,
-                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 120), // Bottom padding for FAB and nav
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
+                child: GestureDetector(
+                  onTap: () {
+                    // Dismiss both boxes when clicking on the journal page
+                    if (_showKeywordsDiscovered || _showLumaraBox) {
+                      setState(() {
+                        _showKeywordsDiscovered = false;
+                        _showLumaraBox = false;
+                      });
+                    }
+                  },
+                  child: SingleChildScrollView(
+                    controller: _scrollController,
+                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 120), // Bottom padding for FAB and nav
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
                       // Main text field
                       TextField(
                         controller: _textController,
@@ -416,17 +447,18 @@ class _JournalScreenState extends State<JournalScreen> {
                         );
                       }),
                       
-                      // Keywords Discovered section
-                      KeywordsDiscoveredWidget(
-                        text: _entryState.text,
-                        manualKeywords: _manualKeywords,
-                        onKeywordsChanged: (keywords) {
-                          setState(() {
-                            _manualKeywords = keywords;
-                          });
-                        },
-                        onAddKeywords: _showKeywordDialog,
-                      ),
+                      // Keywords Discovered section (conditional visibility)
+                      if (_showKeywordsDiscovered)
+                        KeywordsDiscoveredWidget(
+                          text: _entryState.text,
+                          manualKeywords: _manualKeywords,
+                          onKeywordsChanged: (keywords) {
+                            setState(() {
+                              _manualKeywords = keywords;
+                            });
+                          },
+                          onAddKeywords: _showKeywordDialog,
+                        ),
                       
                       // Attachments (scan and photo)
                       ..._entryState.attachments.asMap().entries.map((entry) {
@@ -495,13 +527,18 @@ class _JournalScreenState extends State<JournalScreen> {
                                 constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
                               ),
                               
-                              // Add keyword button
+                              // Keyword toggle button
                               IconButton(
-                                onPressed: _showKeywordDialog,
-                                icon: const Icon(Icons.label),
-                                tooltip: 'Add Keywords',
+                                onPressed: _toggleKeywordsDiscovered,
+                                icon: Icon(_showKeywordsDiscovered ? Icons.label_off : Icons.label),
+                                tooltip: _showKeywordsDiscovered ? 'Hide Keywords' : 'Show Keywords',
                                 padding: const EdgeInsets.all(8),
                                 constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                                style: IconButton.styleFrom(
+                                  backgroundColor: _showKeywordsDiscovered 
+                                    ? theme.colorScheme.primary.withOpacity(0.2)
+                                    : null,
+                                ),
                               ),
                               
                               // Scan page button removed - was bumping into lumara icon
@@ -514,18 +551,23 @@ class _JournalScreenState extends State<JournalScreen> {
                           Expanded(
                             flex: 1,
                             child: Center(
-                              child: IconButton(
-                                onPressed: _onLumaraFabTapped,
-                                icon: const Icon(Icons.psychology),
-                                tooltip: 'Reflect with LUMARA',
-                                style: IconButton.styleFrom(
-                                  foregroundColor: theme.colorScheme.primary,
-                                  backgroundColor: theme.colorScheme.primary.withOpacity(0.1),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(8),
-                                    side: BorderSide(
-                                      color: theme.colorScheme.primary.withOpacity(0.3),
-                                      width: 1,
+                              child: Padding(
+                                padding: const EdgeInsets.only(left: 16), // Add spacing from keyword icon
+                                child: IconButton(
+                                  onPressed: _onLumaraFabTapped,
+                                  icon: const Icon(Icons.psychology),
+                                  tooltip: 'Reflect with LUMARA',
+                                  style: IconButton.styleFrom(
+                                    foregroundColor: theme.colorScheme.primary,
+                                    backgroundColor: _showLumaraBox 
+                                      ? theme.colorScheme.primary.withOpacity(0.2)
+                                      : theme.colorScheme.primary.withOpacity(0.1),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(8),
+                                      side: BorderSide(
+                                        color: theme.colorScheme.primary.withOpacity(0.3),
+                                        width: 1,
+                                      ),
                                     ),
                                   ),
                                 ),
@@ -558,7 +600,6 @@ class _JournalScreenState extends State<JournalScreen> {
           ),
           
         ],
-        ),
       ),
     );
   }
@@ -980,6 +1021,49 @@ class _JournalScreenState extends State<JournalScreen> {
     setState(() {
       _manualKeywords.remove(keyword);
     });
+  }
+
+  void _toggleKeywordsDiscovered() {
+    setState(() {
+      _showKeywordsDiscovered = !_showKeywordsDiscovered;
+    });
+  }
+
+  void _toggleLumaraBox() {
+    setState(() {
+      _showLumaraBox = !_showLumaraBox;
+    });
+  }
+
+  void _dismissLumaraBox() {
+    setState(() {
+      _showLumaraBox = false;
+    });
+  }
+
+  void _insertAISuggestion(String suggestion) {
+    // Insert AI suggestion text with special formatting
+    final currentText = _textController.text;
+    final cursorPosition = _textController.selection.baseOffset;
+    
+    // Create formatted suggestion text
+    final formattedSuggestion = '\n\n💡 AI Suggestion: $suggestion\n';
+    
+    // Insert at cursor position
+    final newText = currentText.substring(0, cursorPosition) + 
+                   formattedSuggestion + 
+                   currentText.substring(cursorPosition);
+    
+    _textController.text = newText;
+    _textController.selection = TextSelection.collapsed(
+      offset: cursorPosition + formattedSuggestion.length,
+    );
+    
+    // Update entry state
+    _onTextChanged(newText);
+    
+    // Dismiss the Lumara box
+    _dismissLumaraBox();
   }
 
 
