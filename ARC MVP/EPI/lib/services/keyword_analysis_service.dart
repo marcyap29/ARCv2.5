@@ -16,6 +16,26 @@ class KeywordAnalysisService {
       'airport', 'station', 'bus', 'train', 'subway', 'metro', 'highway', 'road', 'street',
       'hotel', 'resort', 'vacation', 'trip', 'travel', 'journey', 'adventure', 'destination'
     ],
+    'Time': [
+      'early', 'late', 'morning', 'afternoon', 'evening', 'night', 'midnight', 'dawn', 'dusk',
+      'am', 'pm', 'o\'clock', 'hour', 'minute', 'second', 'today', 'yesterday', 'tomorrow',
+      'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday',
+      'january', 'february', 'march', 'april', 'may', 'june', 'july', 'august', 'september', 'october', 'november', 'december',
+      'spring', 'summer', 'fall', 'autumn', 'winter', 'season', 'weekend', 'weekday',
+      'breakfast', 'lunch', 'dinner', 'snack', 'brunch', 'midnight', 'noon', 'midday',
+      'rush hour', 'peak time', 'off hours', 'business hours', 'after hours',
+      'timely', 'punctual', 'tardy', 'delayed', 'on time', 'ahead of time', 'behind schedule'
+    ],
+    'Energy Levels': [
+      'full of energy', 'drained', 'exhausted', 'hyped', 'energetic', 'lively', 'vibrant', 'alive',
+      'tired', 'weary', 'fatigued', 'sleepy', 'drowsy', 'lethargic', 'sluggish', 'slow',
+      'pumped', 'stoked', 'psyched', 'buzzed', 'wired', 'jacked', 'fired up', 'ready to go',
+      'burned out', 'worn out', 'spent', 'depleted', 'empty', 'low energy', 'no energy',
+      'recharged', 'refreshed', 'revitalized', 'rejuvenated', 'restored', 'renewed',
+      'adrenaline', 'rush', 'boost', 'surge', 'spike', 'crash', 'dip', 'slump',
+      'motivated', 'unmotivated', 'driven', 'ambitious', 'determined', 'focused',
+      'unfocused', 'scattered', 'distracted', 'zoned out', 'spaced out', 'out of it'
+    ],
     'Emotions': [
       'happy', 'sad', 'angry', 'excited', 'nervous', 'anxious', 'worried', 'scared', 'afraid',
       'confident', 'proud', 'ashamed', 'embarrassed', 'guilty', 'jealous', 'envious',

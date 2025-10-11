@@ -22,6 +22,7 @@ class KeywordsDiscoveredWidget extends StatefulWidget {
 class _KeywordsDiscoveredWidgetState extends State<KeywordsDiscoveredWidget> {
   final KeywordAnalysisService _keywordService = KeywordAnalysisService();
   late Map<String, List<String>> _categorizedKeywords;
+  final TextEditingController _keywordController = TextEditingController();
 
   @override
   void initState() {
@@ -95,6 +96,9 @@ class _KeywordsDiscoveredWidgetState extends State<KeywordsDiscoveredWidget> {
             const SizedBox(height: 12),
           ],
           
+          // Manual keyword input section
+          _buildManualKeywordInput(theme),
+          
           // Show manual keywords if any
           if (widget.manualKeywords.isNotEmpty) ...[
             _buildManualKeywordsSection(theme),
@@ -113,6 +117,8 @@ class _KeywordsDiscoveredWidgetState extends State<KeywordsDiscoveredWidget> {
   Widget _buildCategorySection(String category, List<String> keywords, ThemeData theme) {
     final categoryColors = {
       'Places': Colors.blue,
+      'Time': Colors.indigo,
+      'Energy Levels': Colors.amber,
       'Emotions': Colors.red,
       'Feelings': Colors.purple,
       'States of Being': Colors.green,
@@ -122,6 +128,8 @@ class _KeywordsDiscoveredWidgetState extends State<KeywordsDiscoveredWidget> {
     
     final categoryIcons = {
       'Places': Icons.location_on,
+      'Time': Icons.access_time,
+      'Energy Levels': Icons.battery_charging_full,
       'Emotions': Icons.mood,
       'Feelings': Icons.favorite,
       'States of Being': Icons.self_improvement,
@@ -291,5 +299,104 @@ class _KeywordsDiscoveredWidgetState extends State<KeywordsDiscoveredWidget> {
     final updatedKeywords = List<String>.from(widget.manualKeywords);
     updatedKeywords.remove(keyword);
     widget.onKeywordsChanged(updatedKeywords);
+  }
+
+  Widget _buildManualKeywordInput(ThemeData theme) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.add_circle_outline,
+                size: 16,
+                color: theme.colorScheme.primary,
+              ),
+              const SizedBox(width: 6),
+              Text(
+                'Add Keywords',
+                style: theme.textTheme.labelMedium?.copyWith(
+                  fontWeight: FontWeight.w600,
+                  color: theme.colorScheme.primary,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: _keywordController,
+                  decoration: InputDecoration(
+                    hintText: 'Type keywords separated by commas',
+                    hintStyle: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.outline.withOpacity(0.7),
+                    ),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: BorderSide(
+                        color: theme.colorScheme.outline.withOpacity(0.3),
+                      ),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: BorderSide(
+                        color: theme.colorScheme.outline.withOpacity(0.3),
+                      ),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: BorderSide(
+                        color: theme.colorScheme.primary,
+                        width: 2,
+                      ),
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
+                    isDense: true,
+                  ),
+                  style: theme.textTheme.bodySmall,
+                  onSubmitted: (value) => _addKeywords(),
+                ),
+              ),
+              const SizedBox(width: 8),
+              IconButton(
+                onPressed: _addKeywords,
+                icon: const Icon(Icons.add),
+                tooltip: 'Add Keywords',
+                padding: const EdgeInsets.all(8),
+                constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                style: IconButton.styleFrom(
+                  backgroundColor: theme.colorScheme.primary.withOpacity(0.1),
+                  foregroundColor: theme.colorScheme.primary,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _addKeywords() {
+    final text = _keywordController.text.trim();
+    if (text.isNotEmpty) {
+      final keywords = text.split(',').map((k) => k.trim()).where((k) => k.isNotEmpty).toList();
+      final updatedKeywords = List<String>.from(widget.manualKeywords);
+      updatedKeywords.addAll(keywords);
+      widget.onKeywordsChanged(updatedKeywords.toSet().toList()); // Remove duplicates
+      _keywordController.clear();
+    }
+  }
+
+  @override
+  void dispose() {
+    _keywordController.dispose();
+    super.dispose();
   }
 }
