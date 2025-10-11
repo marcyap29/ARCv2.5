@@ -48,21 +48,22 @@ class _EnhancedLumaraSuggestionSheetState extends State<EnhancedLumaraSuggestion
     });
 
     try {
-      // Simulate cloud API analysis for now
-      await Future.delayed(const Duration(seconds: 1));
+      // Get real cloud API analysis using Gemini
+      final analysis = await _lumaraApi.generateCloudAnalysis(
+        entryText: widget.entryText!,
+        phase: widget.phase ?? 'Discovery',
+      );
       
-      // Generate mock AI suggestions
-      final mockAnalysis = "Based on your journal entry, I can see themes of reflection and personal growth. The text shows thoughtful consideration of your current situation.";
-      final mockSuggestions = [
-        "Consider what specific actions you could take to move forward",
-        "What would you tell a friend in this situation?",
-        "What patterns do you notice in your thinking?",
-        "How might this challenge be an opportunity for growth?"
-      ];
+      // Generate real AI suggestions based on analysis
+      final suggestions = await _lumaraApi.generateAISuggestions(
+        entryText: widget.entryText!,
+        analysis: analysis,
+        phase: widget.phase ?? 'Discovery',
+      );
 
       setState(() {
-        _cloudAnalysis = mockAnalysis;
-        _aiSuggestions = mockSuggestions;
+        _cloudAnalysis = analysis;
+        _aiSuggestions = suggestions;
         _isLoading = false;
       });
     } catch (e) {
@@ -291,11 +292,8 @@ class _EnhancedLumaraSuggestionSheetState extends State<EnhancedLumaraSuggestion
   }
 
   void _insertSuggestionIntoEntry(String suggestion) {
-    // This would typically communicate back to the parent widget
-    // to insert the suggestion into the text field
-    Navigator.of(context).maybePop();
-    // The parent widget should handle the actual text insertion
-    // This is a placeholder for the integration
+    // Navigate back and pass the suggestion to the parent
+    Navigator.of(context).pop(suggestion);
   }
 }
 

@@ -10,6 +10,7 @@ import '../../state/feature_flags.dart';
 import '../widgets/cached_thumbnail.dart';
 import '../../services/thumbnail_cache_service.dart';
 import '../widgets/keywords_discovered_widget.dart';
+import '../widgets/ai_styled_text_field.dart';
 import '../../telemetry/analytics.dart';
 import '../../services/lumara/lumara_inline_api.dart';
 import '../../lumara/services/enhanced_lumara_api.dart';
@@ -138,9 +139,14 @@ class _JournalScreenState extends State<JournalScreen> {
           entryText: _entryState.text,
           phase: _entryState.phase,
         ),
-      ).then((_) {
-        // Dismiss the Lumara box when the modal is closed
-        _dismissLumaraBox();
+      ).then((result) {
+        // Handle AI suggestion if returned
+        if (result is String) {
+          _insertAISuggestion(result);
+        } else {
+          // Dismiss the Lumara box when the modal is closed
+          _dismissLumaraBox();
+        }
       });
       
       // Show the Lumara box
@@ -417,19 +423,8 @@ class _JournalScreenState extends State<JournalScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                      // Main text field
-                      TextField(
-                        controller: _textController,
-                        onChanged: _onTextChanged,
-                        maxLines: null,
-                        style: theme.textTheme.bodyLarge,
-                        decoration: const InputDecoration(
-                          hintText: 'What\'s on your mind right now?',
-                          border: InputBorder.none,
-                          contentPadding: EdgeInsets.zero,
-                        ),
-                        textInputAction: TextInputAction.newline,
-                      ),
+                      // Main text field with AI suggestion support
+                      _buildAITextField(theme),
                       const SizedBox(height: 16),
                       
                       // Inline reflection blocks
@@ -1041,13 +1036,24 @@ class _JournalScreenState extends State<JournalScreen> {
     });
   }
 
+  Widget _buildAITextField(ThemeData theme) {
+    return AIStyledTextField(
+      controller: _textController,
+      onChanged: _onTextChanged,
+      maxLines: null,
+      style: theme.textTheme.bodyLarge,
+      hintText: 'What\'s on your mind right now?',
+      textInputAction: TextInputAction.newline,
+    );
+  }
+
   void _insertAISuggestion(String suggestion) {
-    // Insert AI suggestion text with special formatting
+    // Insert AI suggestion text with special formatting (like Rosebud)
     final currentText = _textController.text;
     final cursorPosition = _textController.selection.baseOffset;
     
-    // Create formatted suggestion text
-    final formattedSuggestion = '\n\n💡 AI Suggestion: $suggestion\n';
+    // Create formatted suggestion text with special markers for styling
+    final formattedSuggestion = '\n\n[AI_SUGGESTION_START]$suggestion[AI_SUGGESTION_END]\n';
     
     // Insert at cursor position
     final newText = currentText.substring(0, cursorPosition) + 

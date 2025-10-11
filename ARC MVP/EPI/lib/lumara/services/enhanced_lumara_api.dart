@@ -132,6 +132,111 @@ class EnhancedLumaraApi {
     };
   }
 
+  /// Generate cloud API analysis of journal entry
+  Future<String> generateCloudAnalysis({
+    required String entryText,
+    required String phase,
+  }) async {
+    if (_currentProvider == null) {
+      throw StateError('No LLM provider available');
+    }
+
+    final isAvailable = await _currentProvider!.isAvailable();
+    if (!isAvailable) {
+      throw StateError('Current provider is not available');
+    }
+
+    final context = {
+      'entryText': entryText,
+      'phase': phase,
+      'timestamp': DateTime.now().toIso8601String(),
+      'systemPrompt': _getCloudAnalysisSystemPrompt(phase),
+      'userPrompt': 'Analyze this journal entry and provide insights about themes, emotions, and patterns:\n\n$entryText',
+    };
+
+    return await _currentProvider!.generateResponse(context);
+  }
+
+  /// Generate AI suggestions based on analysis
+  Future<List<String>> generateAISuggestions({
+    required String entryText,
+    required String analysis,
+    required String phase,
+  }) async {
+    if (_currentProvider == null) {
+      throw StateError('No LLM provider available');
+    }
+
+    final isAvailable = await _currentProvider!.isAvailable();
+    if (!isAvailable) {
+      throw StateError('Current provider is not available');
+    }
+
+    final context = {
+      'entryText': entryText,
+      'analysis': analysis,
+      'phase': phase,
+      'timestamp': DateTime.now().toIso8601String(),
+      'systemPrompt': _getAISuggestionsSystemPrompt(phase),
+      'userPrompt': 'Based on this journal entry and analysis, generate 4-6 specific, actionable suggestions for reflection:\n\nEntry: $entryText\n\nAnalysis: $analysis',
+    };
+
+    final response = await _currentProvider!.generateResponse(context);
+    
+    // Parse the response into individual suggestions
+    final suggestions = response
+        .split('\n')
+        .where((line) => line.trim().isNotEmpty)
+        .map((line) => line.replaceAll(RegExp(r'^\d+\.\s*'), '').trim())
+        .where((suggestion) => suggestion.isNotEmpty)
+        .take(6)
+        .toList();
+
+    return suggestions;
+  }
+
+  /// Get system prompt for cloud analysis
+  String _getCloudAnalysisSystemPrompt(String phase) {
+    return '''
+You are LUMARA's cloud analysis engine. Analyze journal entries to identify themes, emotions, patterns, and insights.
+
+# Your Role
+- Provide deep, insightful analysis of journal entries
+- Identify emotional themes, behavioral patterns, and growth opportunities
+- Be compassionate and non-judgmental in your analysis
+- Focus on understanding the user's inner world and experiences
+
+# Current Context
+- User's Life Phase: $phase
+- Analysis should be 2-3 sentences, focused and insightful
+- Avoid generic advice, be specific to the content
+
+# Output Format
+Provide a concise analysis that captures the essence of what the user is experiencing and feeling.
+''';
+  }
+
+  /// Get system prompt for AI suggestions
+  String _getAISuggestionsSystemPrompt(String phase) {
+    return '''
+You are LUMARA's suggestion engine. Generate thoughtful, actionable suggestions for journal reflection.
+
+# Your Role
+- Create specific, personalized suggestions based on journal content
+- Focus on questions that promote deeper self-reflection
+- Make suggestions relevant to the user's current life phase
+- Encourage growth, understanding, and self-compassion
+
+# Current Context
+- User's Life Phase: $phase
+- Generate 4-6 specific suggestions
+- Each suggestion should be a complete, actionable question or prompt
+
+# Output Format
+Provide each suggestion on a new line, numbered 1-6. Make them specific and thought-provoking.
+''';
+  }
+
   /// Get system prompt based on phase
   String _getSystemPrompt(String? phase) {
     final basePrompt = '''
