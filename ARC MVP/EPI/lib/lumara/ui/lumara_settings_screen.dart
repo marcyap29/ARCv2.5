@@ -6,6 +6,7 @@ import '../config/api_config.dart';
 import '../services/enhanced_lumara_api.dart';
 import '../services/download_state_service.dart';
 import '../../telemetry/analytics.dart';
+import '../llm/bridge.pigeon.dart';
 import 'model_download_screen.dart';
 
 /// LUMARA settings screen for API key management and provider selection
@@ -20,6 +21,7 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
   final LumaraAPIConfig _apiConfig = LumaraAPIConfig.instance;
   final EnhancedLumaraApi _lumaraApi = EnhancedLumaraApi(Analytics());
   final DownloadStateService _downloadStateService = DownloadStateService.instance;
+  final LumaraNative _bridge = LumaraNative();
   final Map<LLMProvider, TextEditingController> _apiKeyControllers = {};
   
   /// Safe progress calculation to prevent NaN and infinite values
@@ -29,6 +31,69 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
       return 0.0;
     }
     return progress.clamp(0.0, 1.0);
+  }
+
+  /// Get model info for a provider
+  Map<String, dynamic>? _getModelInfo(LLMProviderConfig config) {
+    if (!config.isInternal) return null;
+    
+    switch (config.provider) {
+      case LLMProvider.llama3b:
+        return {
+          'id': 'Llama-3.2-3b-Instruct-Q4_K_M.gguf',
+          'name': 'Llama 3.2 3B Instruct (Q4_K_M)',
+          'size': '~1.9 GB',
+          'url': 'https://huggingface.co/hugging-quants/Llama-3.2-3B-Instruct-Q4_K_M-GGUF/resolve/main/llama-3.2-3b-instruct-q4_k_m.gguf?download=true',
+        };
+      case LLMProvider.qwen4b:
+        return {
+          'id': 'Qwen3-4B-Instruct-2507-Q4_K_S.gguf',
+          'name': 'Qwen3 4B Instruct (Q4_K_S)',
+          'size': '~2.5 GB',
+          'url': 'https://huggingface.co/unsloth/Qwen3-4B-Instruct-2507-GGUF/resolve/main/Qwen3-4B-Instruct-2507-Q4_K_S.gguf?download=true',
+        };
+      default:
+        return null;
+    }
+  }
+
+  /// Start downloading a model
+  Future<void> _startDownload(LLMProviderConfig config) async {
+    final modelInfo = _getModelInfo(config);
+    if (modelInfo == null) return;
+
+    try {
+      debugPrint('LUMARA Settings: Starting download for ${modelInfo['name']}');
+      
+      // Update download state
+      _downloadStateService.startDownload(modelInfo['id'], modelName: modelInfo['name']);
+      
+      // Start the actual download
+      final success = await _bridge.downloadModel(modelInfo['id'], modelInfo['url']);
+      
+      if (!success) {
+        _downloadStateService.failDownload(modelInfo['id'], 'Download failed');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Failed to download ${modelInfo['name']}'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      debugPrint('LUMARA Settings: Download error: $e');
+      _downloadStateService.failDownload(modelInfo!['id'], e.toString());
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Download error: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
   
   /// Clamp progress to 0-1 range, return null for invalid values (indeterminate progress)
@@ -386,139 +451,15 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
             ),
           ),
 
-        // Add download button for internal models section
+        // Add cleanup button for internal models section
         if (isInternal) ...[
           const SizedBox(height: 16),
-          _buildDownloadButton(theme),
-          const SizedBox(height: 12),
           _buildCleanupButton(theme),
         ],
       ],
     );
   }
 
-  Widget _buildDownloadButton(ThemeData theme) {
-    // Check if any model is currently downloading
-    final llamaState = _downloadStateService.getState('Llama-3.2-3b-Instruct-Q4_K_M.gguf');
-    final phiState = _downloadStateService.getState('Phi-3.5-mini-instruct-Q5_K_M.gguf');
-    final qwenState = _downloadStateService.getState('Qwen3-4B-Instruct-2507-Q4_K_S.gguf');
-
-    final isDownloading = (llamaState?.isDownloading ?? false) || 
-                        (phiState?.isDownloading ?? false) || 
-                        (qwenState?.isDownloading ?? false);
-    final downloadingState = llamaState?.isDownloading == true ? llamaState : 
-                            phiState?.isDownloading == true ? phiState : 
-                            qwenState?.isDownloading == true ? qwenState : null;
-
-    // Don't show download progress if any model is already downloaded
-    final hasDownloadedModel = (llamaState?.isDownloaded ?? false) || 
-                              (phiState?.isDownloaded ?? false) || 
-                              (qwenState?.isDownloaded ?? false);
-
-    // Show download progress only if actively downloading and not completed
-    if (isDownloading && downloadingState != null && !hasDownloadedModel && !downloadingState.isDownloaded) {
-      // Show download progress
-      return SizedBox(
-        width: double.infinity,
-        child: Card(
-          elevation: 1,
-          color: theme.colorScheme.primaryContainer.withOpacity(0.3),
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        valueColor: AlwaysStoppedAnimation<Color>(theme.colorScheme.primary),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        downloadingState.statusMessage,
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                    Text(
-                      '${(_safeProgress(downloadingState.progress) * 100).toStringAsFixed(1)}%',
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.primary,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ],
-                ),
-                if (downloadingState.downloadSizeText.isNotEmpty) ...[
-                  const SizedBox(height: 8),
-                  Text(
-                    downloadingState.downloadSizeText,
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.secondary,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
-                const SizedBox(height: 12),
-                LinearProgressIndicator(
-                  value: clamp01(downloadingState.progress),
-                  minHeight: 4,
-                  borderRadius: BorderRadius.circular(2),
-                ),
-                const SizedBox(height: 12),
-                SizedBox(
-                  width: double.infinity,
-                  child: TextButton(
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const ModelDownloadScreen(),
-                        ),
-                      );
-                    },
-                    child: const Text('View Download Details'),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      );
-    }
-
-    // Show regular download button when not downloading
-    return SizedBox(
-      width: double.infinity,
-      child: ElevatedButton.icon(
-        onPressed: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => const ModelDownloadScreen(),
-            ),
-          );
-        },
-        icon: const Icon(Icons.download, size: 20),
-        label: const Text('Download On-Device Model'),
-        style: ElevatedButton.styleFrom(
-          backgroundColor: theme.colorScheme.primary,
-          foregroundColor: Colors.white,
-          padding: const EdgeInsets.symmetric(vertical: 14),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(8),
-          ),
-        ),
-      ),
-    );
-  }
 
   Widget _buildCleanupButton(ThemeData theme) {
     return SizedBox(
@@ -686,6 +627,18 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
   Widget _buildProviderOption(ThemeData theme, LLMProviderConfig config, bool isInternal) {
     final isAvailable = config.isAvailable;
     final isSelected = _selectedProvider == config.provider;
+    final modelInfo = _getModelInfo(config);
+    
+    // Get download state for internal models
+    ModelDownloadState? downloadState;
+    if (isInternal && modelInfo != null) {
+      downloadState = _downloadStateService.getState(modelInfo['id']);
+    }
+    
+    final isDownloading = downloadState?.isDownloading ?? false;
+    final isDownloaded = downloadState?.isDownloaded ?? false;
+    final progress = downloadState?.progress ?? 0.0;
+    final statusMessage = downloadState?.statusMessage ?? '';
     
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
@@ -741,92 +694,196 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
         borderRadius: BorderRadius.circular(12),
         child: Padding(
           padding: const EdgeInsets.all(12),
-          child: Row(
+          child: Column(
             children: [
-              // Status indicator (green/red light)
-              Container(
-                width: 12,
-                height: 12,
-                decoration: BoxDecoration(
-                  color: isAvailable ? Colors.green : Colors.red,
-                  shape: BoxShape.circle,
-                  boxShadow: [
-                    BoxShadow(
-                      color: (isAvailable ? Colors.green : Colors.red).withOpacity(0.3),
-                      blurRadius: 4,
-                      spreadRadius: 1,
+              Row(
+                children: [
+                  // Status indicator (green/red/blue light)
+                  Container(
+                    width: 12,
+                    height: 12,
+                    decoration: BoxDecoration(
+                      color: isDownloading 
+                          ? Colors.blue
+                          : isAvailable 
+                              ? Colors.green 
+                              : Colors.red,
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: (isDownloading 
+                              ? Colors.blue
+                              : isAvailable 
+                                  ? Colors.green 
+                                  : Colors.red).withOpacity(0.3),
+                          blurRadius: 4,
+                          spreadRadius: 1,
+                        ),
+                      ],
                     ),
-                  ],
-                ),
+                  ),
+                  const SizedBox(width: 12),
+                  
+                  // Provider info
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                config.name,
+                                style: theme.textTheme.titleSmall?.copyWith(
+                                  fontWeight: FontWeight.w600,
+                                  color: isAvailable 
+                                      ? theme.colorScheme.onSurface
+                                      : theme.colorScheme.onSurface.withOpacity(0.6),
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            if (isInternal)
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: theme.colorScheme.primary.withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Text(
+                                  'SECURE',
+                                  style: theme.textTheme.labelSmall?.copyWith(
+                                    color: theme.colorScheme.primary,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          isInternal 
+                              ? (isAvailable 
+                                  ? 'Available to use - Privacy First' 
+                                  : isDownloading
+                                      ? 'Downloading...'
+                                      : 'Local Model - Privacy First')
+                              : 'Cloud API - External Service',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: isDownloading
+                                ? Colors.blue
+                                : isAvailable 
+                                    ? Colors.green
+                                    : theme.colorScheme.onSurfaceVariant.withOpacity(0.6),
+                            fontWeight: isAvailable && isInternal ? FontWeight.w600 : FontWeight.normal,
+                          ),
+                        ),
+                        if (isInternal && modelInfo != null) ...[
+                          const SizedBox(height: 4),
+                          Text(
+                            'Size: ${modelInfo['size']}',
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: theme.colorScheme.onSurfaceVariant.withOpacity(0.7),
+                              fontSize: 11,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                  
+                  // Action button
+                  if (isInternal && !isAvailable && !isDownloading)
+                    ElevatedButton.icon(
+                      onPressed: () => _startDownload(config),
+                      icon: const Icon(Icons.download, size: 16),
+                      label: const Text('Download'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: theme.colorScheme.primary,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        minimumSize: Size.zero,
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                    )
+                  else if (isSelected)
+                    Icon(
+                      Icons.check_circle,
+                      color: theme.colorScheme.primary,
+                      size: 20,
+                    )
+                  else if (!isAvailable && !isDownloading)
+                    Icon(
+                      Icons.block,
+                      color: theme.colorScheme.error,
+                      size: 20,
+                    ),
+                ],
               ),
-              const SizedBox(width: 12),
               
-              // Provider info
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+              // Download progress
+              if (isDownloading) ...[
+                const SizedBox(height: 12),
+                Column(
                   children: [
                     Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Expanded(
                           child: Text(
-                            config.name,
-                            style: theme.textTheme.titleSmall?.copyWith(
-                              fontWeight: FontWeight.w600,
-                              color: isAvailable 
-                                  ? theme.colorScheme.onSurface
-                                  : theme.colorScheme.onSurface.withOpacity(0.6),
+                            statusMessage,
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: theme.colorScheme.onSurfaceVariant,
                             ),
-                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
-                        const SizedBox(width: 8),
-                        if (isInternal)
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: theme.colorScheme.primary.withOpacity(0.1),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Text(
-                              'SECURE',
-                              style: theme.textTheme.labelSmall?.copyWith(
-                                color: theme.colorScheme.primary,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
+                        Text(
+                          '${(progress * 100).toStringAsFixed(1)}%',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.colorScheme.primary,
+                            fontWeight: FontWeight.bold,
                           ),
+                        ),
                       ],
                     ),
-                    const SizedBox(height: 4),
-                    Text(
-                      isInternal 
-                          ? (isAvailable ? 'Available to use - Privacy First' : 'Local Model - Privacy First')
-                          : 'Cloud API - External Service',
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: isAvailable 
-                            ? Colors.green
-                            : theme.colorScheme.onSurfaceVariant.withOpacity(0.6),
-                        fontWeight: isAvailable && isInternal ? FontWeight.w600 : FontWeight.normal,
-                      ),
+                    const SizedBox(height: 8),
+                    LinearProgressIndicator(
+                      value: _safeProgress(progress),
+                      minHeight: 6,
+                      borderRadius: BorderRadius.circular(3),
                     ),
                   ],
                 ),
-              ),
+              ],
               
-              // Selection indicator
-              if (isSelected)
-                Icon(
-                  Icons.check_circle,
-                  color: theme.colorScheme.primary,
-                  size: 20,
-                )
-              else if (!isAvailable)
-                Icon(
-                  Icons.block,
-                  color: theme.colorScheme.error,
-                  size: 20,
+              // Download complete message
+              if (isDownloaded && !isDownloading) ...[
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.green.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(color: Colors.green.withOpacity(0.3)),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.check_circle, color: Colors.green, size: 16),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Download complete! Ready to use.',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: Colors.green,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
+              ],
             ],
           ),
         ),
