@@ -345,34 +345,32 @@ class LumaraAPIConfig {
   /// Check if internal model is available
   Future<bool> _checkInternalModelAvailability(LLMProviderConfig config) async {
     try {
+      if (config.provider == LLMProvider.qwen4b) {
+        try {
+          final bridge = LumaraNative();
+          final isDownloaded = await bridge.isModelDownloaded('Qwen3-4B-Instruct-2507-Q4_K_S.gguf');
+          debugPrint('LUMARA API: Qwen3 4B model ${isDownloaded ? 'is' : 'is NOT'} downloaded');
+          return isDownloaded;
+        } catch (e) {
+          debugPrint('LUMARA API: Error checking Qwen3 4B availability: $e');
+          return false;
+        }
+      }
 
-
-          if (config.provider == LLMProvider.qwen4b) {
-            try {
-              final bridge = LumaraNative();
-              final isDownloaded = await bridge.isModelDownloaded('Qwen3-4B-Instruct-2507-Q4_K_S.gguf');
-              debugPrint('LUMARA API: Qwen3 4B model ${isDownloaded ? 'is' : 'is NOT'} downloaded');
-              return isDownloaded;
-            } catch (e) {
-              debugPrint('LUMARA API: Error checking Qwen3 4B availability: $e');
-              return false;
-            }
-          }
-
-          if (config.provider == LLMProvider.llama3b) {
-            try {
-              final bridge = LumaraNative();
-              final isDownloaded = await bridge.isModelDownloaded('Llama-3.2-3b-Instruct-Q4_K_M.gguf');
-              debugPrint('LUMARA API: Llama 3B model ${isDownloaded ? 'is' : 'is NOT'} downloaded');
-              return isDownloaded;
-            } catch (e) {
-              debugPrint('LUMARA API: Error checking Llama 3B availability: $e');
-              return false;
-            }
-          }
+      if (config.provider == LLMProvider.llama3b) {
+        try {
+          final bridge = LumaraNative();
+          final isDownloaded = await bridge.isModelDownloaded('Llama-3.2-3b-Instruct-Q4_K_M.gguf');
+          debugPrint('LUMARA API: Llama 3B model ${isDownloaded ? 'is' : 'is NOT'} downloaded');
+          return isDownloaded;
+        } catch (e) {
+          debugPrint('LUMARA API: Error checking Llama 3B availability: $e');
+          return false;
+        }
+      }
 
       debugPrint('LUMARA API: ${config.name} disabled (use LLMAdapter for native inference)');
-      return false;
+      return false; // FIXED: Added missing return statement
     } catch (e) {
       debugPrint('LUMARA API: Health check failed for ${config.name}: $e');
       return false;

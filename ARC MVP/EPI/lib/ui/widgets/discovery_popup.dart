@@ -332,18 +332,18 @@ class _DiscoveryPopupState extends State<DiscoveryPopup>
         return 'Breakthrough';
       case UserPhase.consolidation:
         return 'Consolidation';
-      case UserPhase.exhaustion:
-        return 'Exhaustion';
-      case UserPhase.grief:
-        return 'Grief';
-      case UserPhase.celebration:
-        return 'Celebration';
+      // case UserPhase.exhaustion: // COMMENTED OUT - not in enum
+      //   return 'Exhaustion';
+      // case UserPhase.grief: // COMMENTED OUT - not in enum
+      //   return 'Grief';
+      // case UserPhase.celebration: // COMMENTED OUT - not in enum
+      //   return 'Celebration';
       case UserPhase.reflection:
         return 'Reflection';
       case UserPhase.planning:
         return 'Planning';
-      case UserPhase.uncertainty:
-        return 'Uncertainty';
+      // case UserPhase.uncertainty: // COMMENTED OUT - not in enum
+      //   return 'Uncertainty';
     }
   }
 }

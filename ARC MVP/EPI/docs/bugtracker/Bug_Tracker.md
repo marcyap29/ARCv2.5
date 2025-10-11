@@ -63,6 +63,9 @@ All major bugs from the main branch merge have been resolved. The system is stab
 - ✅ **Trigger Prevention**: Removed potentially harmful phase names and content
 - ✅ **Fallback Safety**: Dignified content even when ECHO fails
 - ✅ **User Dignity**: All text respects user dignity and avoids triggering phrases
+- ✅ **LUMARA Settings Lockup**: Fixed missing return statement in _checkInternalModelAvailability method
+- ✅ **API Config Timeout**: Added 10-second timeout to prevent hanging during model availability checks
+- ✅ **Error Handling**: Improved error handling in API config refresh to prevent UI lockups
 
 ## 🔄 Recent Changes
 

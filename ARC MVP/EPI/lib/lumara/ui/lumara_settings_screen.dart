@@ -228,7 +228,14 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
     try {
       debugPrint('LUMARA Settings: Refreshing API config...');
       // Only refresh model availability, skip full initialization
-      await _apiConfig.refreshModelAvailability();
+      // Add timeout to prevent hanging
+      await _apiConfig.refreshModelAvailability().timeout(
+        const Duration(seconds: 10),
+        onTimeout: () {
+          debugPrint('LUMARA Settings: API config refresh timed out');
+          throw TimeoutException('API config refresh timed out', const Duration(seconds: 10));
+        },
+      );
       debugPrint('LUMARA Settings: API config refreshed successfully');
       if (mounted) {
         setState(() {
@@ -237,6 +244,7 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
       }
     } catch (e) {
       debugPrint('Error refreshing API config: $e');
+      // Don't call setState if there was an error to avoid further issues
     }
   }
 
