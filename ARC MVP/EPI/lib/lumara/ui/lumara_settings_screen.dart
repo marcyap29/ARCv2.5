@@ -1,6 +1,7 @@
 // lib/lumara/ui/lumara_settings_screen.dart
 // LUMARA settings and API key management screen
 
+import 'dart:async';
 import 'package:flutter/material.dart';
 import '../config/api_config.dart';
 import '../services/enhanced_lumara_api.dart';
@@ -23,6 +24,9 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
   final DownloadStateService _downloadStateService = DownloadStateService.instance;
   final LumaraNative _bridge = LumaraNative();
   final Map<LLMProvider, TextEditingController> _apiKeyControllers = {};
+  
+  // Debouncing timer to prevent too frequent API refreshes
+  Timer? _refreshDebounceTimer;
   
   /// Safe progress calculation to prevent NaN and infinite values
   double _safeProgress(double progress) {
@@ -126,17 +130,48 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
       controller.dispose();
     }
     _downloadStateService.removeListener(_onDownloadStateChanged);
+    _refreshDebounceTimer?.cancel();
     super.dispose();
   }
 
   void _onDownloadStateChanged() {
-    debugPrint('LUMARA Settings: Download state changed, refreshing API config...');
+    debugPrint('LUMARA Settings: Download state changed, checking if refresh needed...');
     if (mounted) {
       // Defer setState to avoid calling during build
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) {
-          // Refresh API config to update provider availability
-          _refreshApiConfig();
+          // Only refresh API config if a download completed or failed
+          // Don't refresh on every progress update to avoid performance issues
+          _checkIfRefreshNeeded();
+        }
+      });
+    }
+  }
+
+  void _checkIfRefreshNeeded() {
+    // Check if any model just completed downloading
+    final llamaState = _downloadStateService.getState('Llama-3.2-3b-Instruct-Q4_K_M.gguf');
+    final qwenState = _downloadStateService.getState('Qwen3-4B-Instruct-2507-Q4_K_S.gguf');
+    
+    final llamaJustCompleted = llamaState?.isDownloaded == true && 
+                              (llamaState?.statusMessage?.contains('download complete') ?? false);
+    final qwenJustCompleted = qwenState?.isDownloaded == true && 
+                              (qwenState?.statusMessage?.contains('download complete') ?? false);
+    
+    if (llamaJustCompleted || qwenJustCompleted) {
+      debugPrint('LUMARA Settings: Download completed, refreshing API config...');
+      _refreshApiConfig();
+    } else {
+      // Just update the UI without expensive API refresh
+      debugPrint('LUMARA Settings: Progress update, refreshing UI only...');
+      
+      // Debounce UI updates to prevent too frequent rebuilds
+      _refreshDebounceTimer?.cancel();
+      _refreshDebounceTimer = Timer(const Duration(milliseconds: 100), () {
+        if (mounted) {
+          setState(() {
+            // Rebuild UI with updated progress
+          });
         }
       });
     }
@@ -145,7 +180,7 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
   Future<void> _refreshApiConfig() async {
     try {
       debugPrint('LUMARA Settings: Refreshing API config...');
-      await _apiConfig.initialize();
+      // Only refresh model availability, skip full initialization
       await _apiConfig.refreshModelAvailability();
       debugPrint('LUMARA Settings: API config refreshed successfully');
       if (mounted) {

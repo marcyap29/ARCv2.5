@@ -65,9 +65,7 @@ flutter run -d DEVICE_ID --dart-define=GEMINI_API_KEY=YOUR_KEY
 flutter clean 
 flutter pub get
 flutter devices
--Choose Device
--Build and Install:
-flutter build ios --release --dart-define=GEMINI_API_KEY=YOUR_KEY
+flutter build ios --release
 flutter install -d YOUR_DEVICE_ID
 
 ```
@@ -210,5 +208,3 @@ flutter run --dart-define=GEMINI_API_KEY=$GEMINI_API_KEY --route=/llm-demo
 - `lib/llm/*`: LLMClient, GeminiClient (streaming), RuleBasedClient, LLMRegistry
 - Startup selection via `LLMRegistry.initialize()` in `lib/main.dart` with `GEMINI_API_KEY`
 - Tests in `test/llm/*` with a fake HTTP client for JSONL parsing
-
-
