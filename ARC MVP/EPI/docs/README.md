@@ -7,6 +7,18 @@ This directory contains comprehensive documentation for the EPI (Evolving Person
 
 ## 🆕 Latest Updates (January 8, 2025)
 
+**LUMARA Settings Lockup Fix**
+
+Critical UI stability fix for LUMARA settings screen:
+- **Root Cause Fixed** - Missing return statement in `_checkInternalModelAvailability` method
+- **Timeout Protection** - Added 10-second timeout to prevent hanging during API config refresh
+- **Error Handling** - Improved error handling to prevent UI lockups
+- **UI Stability** - LUMARA settings screen no longer locks up when Llama is downloaded
+- **Model Availability** - Proper checking of downloaded models
+- **User Experience** - Smooth navigation in LUMARA settings
+
+---
+
 **ECHO Integration + Dignified Text System**
 
 Production-ready ECHO module integration with dignified text generation and user dignity protection:
