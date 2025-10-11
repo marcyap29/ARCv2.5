@@ -1134,27 +1134,19 @@ class _JournalEditViewState extends State<JournalEditView> {
   void _openPhotoInGallery(String imagePath) async {
     try {
       if (Platform.isIOS) {
-        // For iOS, try to open the Photos app directly
-        // This will open the Photos app, though it may not navigate to the specific photo
-        final photosUri = Uri.parse('photos-redirect://');
-        if (await canLaunchUrl(photosUri)) {
-          await launchUrl(photosUri, mode: LaunchMode.externalApplication);
-        } else {
-          // Fallback: try to open the file directly
-          final file = File(imagePath);
-          if (await file.exists()) {
-            final uri = Uri.file(imagePath);
-            if (await canLaunchUrl(uri)) {
-              await launchUrl(uri, mode: LaunchMode.externalApplication);
-            } else {
-              _showPhotoInfo(imagePath);
-            }
+        // Try multiple approaches to open the specific photo
+        final success = await _tryOpenSpecificPhoto(imagePath);
+        if (!success) {
+          // Fallback: try to open the Photos app directly
+          final photosUri = Uri.parse('photos-redirect://');
+          if (await canLaunchUrl(photosUri)) {
+            await launchUrl(photosUri, mode: LaunchMode.externalApplication);
           } else {
-            throw Exception('Photo file not found');
+            _showPhotoInfo(imagePath);
           }
         }
       } else {
-        // For Android, try to open the file directly
+        // Android: try to open the file directly
         final uri = Uri.file(imagePath);
         if (await canLaunchUrl(uri)) {
           await launchUrl(uri, mode: LaunchMode.externalApplication);
@@ -1170,6 +1162,78 @@ class _JournalEditViewState extends State<JournalEditView> {
         ),
       );
     }
+  }
+
+  Future<bool> _tryOpenSpecificPhoto(String imagePath) async {
+    try {
+      final file = File(imagePath);
+      if (!await file.exists()) {
+        return false;
+      }
+
+      // Method 1: Try to use native iOS Photos framework to find and open the specific photo
+      if (Platform.isIOS) {
+        try {
+          const platform = MethodChannel('com.epi.arcmvp/photos');
+          final result = await platform.invokeMethod('getPhotoIdentifierAndOpen', imagePath);
+          if (result == true) {
+            return true;
+          }
+        } catch (e) {
+          print('Native Photos method failed: $e');
+        }
+      }
+
+      // Method 2: Try to extract photo identifier from path and use photos:// scheme
+      final fileName = imagePath.split('/').last;
+      final photoId = _extractPhotoIdFromFileName(fileName);
+      
+      if (photoId != null) {
+        final photosUri = Uri.parse('photos://$photoId');
+        if (await canLaunchUrl(photosUri)) {
+          await launchUrl(photosUri, mode: LaunchMode.externalApplication);
+          return true;
+        }
+      }
+
+      // Method 3: Try to open with file:// scheme (might work for some photos)
+      final fileUri = Uri.file(imagePath);
+      if (await canLaunchUrl(fileUri)) {
+        await launchUrl(fileUri, mode: LaunchMode.externalApplication);
+        return true;
+      }
+
+      // Method 4: Try to use the Photos app with a search query
+      final searchUri = Uri.parse('photos-redirect://search?query=${Uri.encodeComponent(fileName)}');
+      if (await canLaunchUrl(searchUri)) {
+        await launchUrl(searchUri, mode: LaunchMode.externalApplication);
+        return true;
+      }
+
+      return false;
+    } catch (e) {
+      print('Error trying to open specific photo: $e');
+      return false;
+    }
+  }
+
+  String? _extractPhotoIdFromFileName(String fileName) {
+    // Try to extract a photo identifier from the filename
+    // iOS Photos often use UUIDs or specific naming patterns
+    final uuidPattern = RegExp(r'[0-9A-F]{8}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{12}', caseSensitive: false);
+    final match = uuidPattern.firstMatch(fileName);
+    if (match != null) {
+      return match.group(0);
+    }
+
+    // Try to extract from common iOS photo naming patterns
+    final iosPattern = RegExp(r'IMG_(\d{4})');
+    final iosMatch = iosPattern.firstMatch(fileName);
+    if (iosMatch != null) {
+      return iosMatch.group(0);
+    }
+
+    return null;
   }
 
   void _showPhotoInfo(String imagePath) {
