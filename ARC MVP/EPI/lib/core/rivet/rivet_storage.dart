@@ -108,6 +108,81 @@ class RivetBox {
     }
   }
 
+  /// Load all RIVET events for a user (for recompute)
+  Future<List<RivetEvent>> loadAllEvents(String userId) async {
+    try {
+      if (!Hive.isBoxOpen(eventsBoxName)) {
+        await Hive.openBox(eventsBoxName);
+      }
+      
+      final box = Hive.box(eventsBoxName);
+      final userEvents = (box.get(userId, defaultValue: <Map<String, dynamic>>[]) as List).cast<Map<String, dynamic>>();
+      
+      final events = userEvents
+          .cast<Map<String, dynamic>>()
+          .map((data) => RivetEvent.fromJson(data))
+          .toList();
+      
+      // Return events in chronological order for recompute
+      events.sort((a, b) => a.date.compareTo(b.date));
+      
+      return events;
+    } catch (e) {
+      print('ERROR: Failed to load all RIVET events for user $userId: $e');
+      return [];
+    }
+  }
+
+  /// Remove a specific event by ID
+  Future<void> removeEvent(String userId, String eventId) async {
+    try {
+      if (!Hive.isBoxOpen(eventsBoxName)) {
+        await Hive.openBox(eventsBoxName);
+      }
+      
+      final box = Hive.box(eventsBoxName);
+      final userEvents = (box.get(userId, defaultValue: <Map<String, dynamic>>[]) as List).cast<Map<String, dynamic>>();
+      
+      // Remove event with matching ID
+      userEvents.removeWhere((eventData) => eventData['eventId'] == eventId);
+      
+      await box.put(userId, userEvents);
+      
+      print('DEBUG: Removed RIVET event $eventId for user $userId');
+    } catch (e) {
+      print('ERROR: Failed to remove RIVET event $eventId for user $userId: $e');
+      rethrow;
+    }
+  }
+
+  /// Update a specific event by ID
+  Future<void> updateEvent(String userId, RivetEvent updatedEvent) async {
+    try {
+      if (!Hive.isBoxOpen(eventsBoxName)) {
+        await Hive.openBox(eventsBoxName);
+      }
+      
+      final box = Hive.box(eventsBoxName);
+      final userEvents = (box.get(userId, defaultValue: <Map<String, dynamic>>[]) as List).cast<Map<String, dynamic>>();
+      
+      // Find and replace event with matching ID
+      final index = userEvents.indexWhere((eventData) => eventData['eventId'] == updatedEvent.eventId);
+      if (index != -1) {
+        userEvents[index] = updatedEvent.toJson();
+      } else {
+        // If not found, add as new event
+        userEvents.add(updatedEvent.toJson());
+      }
+      
+      await box.put(userId, userEvents);
+      
+      print('DEBUG: Updated RIVET event ${updatedEvent.eventId} for user $userId');
+    } catch (e) {
+      print('ERROR: Failed to update RIVET event ${updatedEvent.eventId} for user $userId: $e');
+      rethrow;
+    }
+  }
+
   /// Get the most recent RIVET event for continuity checking
   Future<RivetEvent?> getLastEvent(String userId) async {
     try {

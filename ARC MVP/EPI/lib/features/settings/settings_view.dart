@@ -6,6 +6,7 @@ import 'music_control_section.dart';
 import 'first_responder_settings_section.dart';
 import 'coach_mode_settings_section.dart';
 import 'mcp_settings_view.dart';
+import 'mcp_validation_view.dart';
 import 'privacy_settings_view.dart';
 import 'memory_mode_settings_view.dart';
 import 'memory_snapshot_management_view.dart';
@@ -151,7 +152,7 @@ class SettingsView extends StatelessWidget {
                   onTap: () {
                     Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (context) => const McpSettingsView()),
+                      MaterialPageRoute(builder: (context) => const McpValidationView()),
                     );
                   },
                 ),

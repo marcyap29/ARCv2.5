@@ -26,8 +26,24 @@ All major bugs from the main branch merge have been resolved. The system is stab
 - ✅ **NEW: AI Text Styling (Rosebud-Style)**
 - ✅ **NEW: ECHO Integration + Dignified Text**
 - ✅ **NEW: Phase-Aware Analysis (6 Core Phases)**
+- ✅ **NEW: RIVET Deterministic Recompute System**
+- ✅ **NEW: RIVET Undo-on-Delete Functionality**
+- ✅ **NEW: RIVET Event Editing with State Updates**
 
 ### Recently Resolved Issues (January 8, 2025)
+
+#### RIVET System Enhancements
+- ✅ **Deterministic Recompute**: Implemented pure function pipeline for reliable state calculation
+- ✅ **Undo-on-Delete**: Added complete event deletion with full state recomputation
+- ✅ **Event Editing**: Added event modification with deterministic state updates
+- ✅ **Mathematical Integrity**: Preserved ALIGN EMA and TRACE saturation formulas exactly
+- ✅ **Event History Management**: Added complete event log for deterministic replay
+- ✅ **Performance Optimization**: Implemented O(n) recompute with optional checkpoint support
+- ✅ **Safety & Error Handling**: Added comprehensive error handling and graceful degradation
+- ✅ **Journal Integration**: Added deleteEntry() and editEntry() methods to JournalCaptureCubit
+- ✅ **Comprehensive Testing**: Added unit tests covering all major scenarios
+
+#### Previous Issues
 - ✅ **OCR Keywords Display**: Fixed photo analysis to show extracted keywords and MCP format
 - ✅ **Photo Thumbnails**: Added visual thumbnails with clickable functionality
 - ✅ **Photo Opening**: Fixed photo links to actually open in iOS Photos app

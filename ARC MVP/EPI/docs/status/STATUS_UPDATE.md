@@ -6,7 +6,60 @@
 
 ---
 
-## 🌟 LATEST: LUMARA SETTINGS LOCKUP FIX (Jan 8, 2025)
+## 🌟 LATEST: RIVET DETERMINISTIC RECOMPUTE + UNDO-ON-DELETE (Jan 8, 2025)
+
+### **RIVET System Enhancement** ✅ **COMPLETED**
+
+**Status**: Implemented deterministic recompute pipeline with undo-on-delete functionality
+
+#### Major Features Implemented
+- **Deterministic Recompute**: Pure function pipeline for reliable state calculation
+- **Undo-on-Delete**: Complete event deletion with full state recomputation  
+- **Event Editing**: Event modification with deterministic state updates
+- **Mathematical Integrity**: Preserves ALIGN EMA and TRACE saturation formulas exactly
+- **Event History Management**: Complete event log for deterministic replay
+- **Performance Optimization**: O(n) recompute with optional checkpoint support
+
+#### Technical Implementation
+- **RivetReducer**: Pure function for deterministic state computation
+- **Enhanced Models**: EventId and version tracking for CRUD operations
+- **RivetConfig**: Centralized configuration with all RIVET parameters (A*=0.6, T*=0.6, W=2, N=10, K=20)
+- **RivetSnapshot**: Checkpoint system for efficient recompute operations
+- **Event Persistence**: Complete event history with Hive storage
+- **Safe Operations**: Comprehensive error handling and fallback mechanisms
+- **Journal Integration**: Delete/edit methods in JournalCaptureCubit
+
+#### Files Added/Enhanced (8 files)
+- `lib/core/rivet/rivet_reducer.dart` - Pure function for deterministic recompute
+- `lib/core/rivet/rivet_models.dart` - Enhanced with eventId, version, and RivetConfig
+- `lib/core/rivet/rivet_service.dart` - Added delete() and edit() methods
+- `lib/core/rivet/rivet_storage.dart` - Enhanced with event CRUD operations
+- `lib/core/rivet/rivet_provider.dart` - Added safe delete/edit operations
+- `lib/core/rivet/rivet_telemetry.dart` - Enhanced with recompute logging
+- `lib/features/journal/journal_capture_cubit.dart` - Added deleteEntry() and editEntry() methods
+- `test/rivet/` - Comprehensive unit tests for all scenarios
+
+#### Technical Achievements
+- **Mathematical Correctness**: Preserves all RIVET formulas exactly
+- **Boundedness**: All indices stay in [0,1] range as required
+- **Monotonicity**: TRACE only increases when adding events (correct behavior)
+- **Gate Discipline**: Triple criterion (thresholds + sustainment + independence)
+- **Safety**: Graceful degradation when RIVET unavailable
+- **Transparency**: Clear explanations for gate decisions
+- **Performance**: O(n) recompute with optional checkpoint optimization
+- **Testing**: Comprehensive unit tests covering all scenarios
+
+#### Build Results
+- **Compilation**: ✅ All RIVET files compile successfully
+- **Linting**: ✅ Only minor style warnings (no errors)
+- **Testing**: ✅ Unit tests cover all major scenarios
+- **Integration**: ✅ Seamless integration with journal system
+
+- **Result**: 🏆 **PRODUCTION READY - DETERMINISTIC RIVET WITH UNDO-ON-DELETE**
+
+---
+
+## 🌟 PREVIOUS: LUMARA SETTINGS LOCKUP FIX (Jan 8, 2025)
 
 ### **Critical UI Stability Fix** ✅ **COMPLETED**
 

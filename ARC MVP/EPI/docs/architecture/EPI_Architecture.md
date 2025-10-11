@@ -49,6 +49,50 @@
     - ✅ **Multi-Method Opening**: Native search, ID extraction, direct file, and search fallbacks
   - **Result**: 🏆 **PRODUCTION READY - COMPLETE MULTIMODAL SYSTEM WITH NATIVE iOS INTEGRATION**
 
+## 🔒 **RIVET Risk-Validation Evidence Tracker** (Updated January 8, 2025)
+
+**Deterministic Recompute Pipeline + Undo-on-Delete System - PRODUCTION READY**:
+```
+Journal Entry → RIVET Analysis → ALIGN/TRACE Calculation → Gate Decision → Phase Transition
+     ↓              ↓                    ↓                    ↓              ↓
+Event History → Pure Reducer → Mathematical Integrity → State Management → User Phase
+     ↓              ↓                    ↓                    ↓              ↓
+Delete/Edit → Full Recompute → Deterministic Results → Event Tracking → Phase Updates
+```
+
+**RIVET Core Features**:
+```
+RivetReducer → Pure function for deterministic state recomputation
+RivetService → Enhanced API with delete() and edit() methods
+RivetStorage → Complete event history persistence with CRUD operations
+RivetProvider → Safe operations with comprehensive error handling
+RivetTelemetry → Detailed logging and gate reasoning
+```
+
+**🚀 CURRENT STATUS: FULLY OPERATIONAL**
+- ✅ **Deterministic Recompute**: Pure function pipeline for reliable state calculation
+- ✅ **Undo-on-Delete**: Complete event deletion with full state recomputation
+- ✅ **Event Editing**: Event modification with deterministic state updates
+- ✅ **Mathematical Integrity**: Preserves ALIGN EMA and TRACE saturation formulas exactly
+- ✅ **Boundedness**: All indices stay in [0,1] range as required
+- ✅ **Monotonicity**: TRACE only increases when adding events (correct behavior)
+- ✅ **Gate Discipline**: Triple criterion (thresholds + sustainment + independence)
+- ✅ **Event History**: Complete event log for deterministic replay
+- ✅ **Performance**: O(n) recompute with optional checkpoint optimization
+- ✅ **Safety**: Graceful degradation when RIVET unavailable
+- ✅ **Transparency**: Clear explanations for gate decisions
+- ✅ **Integration**: Seamless journal entry delete/edit operations
+- ✅ **Technical Achievements**:
+  - ✅ **RivetReducer**: Pure function for deterministic state computation
+  - ✅ **Enhanced Models**: EventId and version tracking for CRUD operations
+  - ✅ **RivetConfig**: Centralized configuration with all RIVET parameters
+  - ✅ **RivetSnapshot**: Checkpoint system for efficient recompute
+  - ✅ **Event Persistence**: Complete event history with Hive storage
+  - ✅ **Safe Operations**: Error handling and fallback mechanisms
+  - ✅ **Comprehensive Testing**: Unit tests covering all scenarios
+  - ✅ **Journal Integration**: Delete/edit methods in JournalCaptureCubit
+- **Result**: 🏆 **PRODUCTION READY - DETERMINISTIC RIVET WITH UNDO-ON-DELETE**
+
   ## 📱 **Native iOS Photos Framework Integration** (Updated January 8, 2025)
 
   **Universal Media Opening Pipeline - PRODUCTION READY**:

@@ -70,6 +70,32 @@ class RivetTelemetry {
     }
   }
 
+  /// Log RIVET recompute operations (delete/edit)
+  void logRecompute({
+    required String userId,
+    required String operation,
+    required String eventId,
+    required RivetGateDecision decision,
+    required Duration processingTime,
+  }) {
+    if (kDebugMode) {
+      final align = (decision.stateAfter.align * 100).round();
+      final trace = (decision.stateAfter.trace * 100).round();
+      final gateStatus = decision.open ? "OPEN" : "CLOSED";
+      
+      print('RIVET RECOMPUTE: $operation event $eventId | '
+            'ALIGN=$align% TRACE=$trace% | '
+            'Gate=$gateStatus | '
+            '${processingTime.inMilliseconds}ms | '
+            'Sustain=${decision.stateAfter.sustainCount} | '
+            'Independent=${decision.stateAfter.sawIndependentInWindow}');
+
+      if (!decision.open && decision.whyNot != null) {
+        print('RIVET REASON: ${decision.whyNot}');
+      }
+    }
+  }
+
   /// Get telemetry summary for debugging
   Map<String, dynamic> getTelemetrySummary() {
     if (_events.isEmpty) {

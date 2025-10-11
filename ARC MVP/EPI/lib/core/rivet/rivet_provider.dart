@@ -29,11 +29,13 @@ class RivetProvider {
     try {
       _storage = RivetBox();
       
-      // Load existing state for user
+      // Load existing state and event history for user
       final state = await _storage!.load(userId);
+      final events = await _storage!.loadAllEvents(userId);
       
-      // Create service with loaded state
+      // Create service with loaded state and event history
       _service = RivetService(initial: state);
+      _service!.setEventHistory(events);
       
       _initialized = true;
       _initError = null;
@@ -48,7 +50,7 @@ class RivetProvider {
       );
       
       if (kDebugMode) {
-        print('DEBUG: RIVET provider initialized for user $userId');
+        print('DEBUG: RIVET provider initialized for user $userId with ${events.length} events');
       }
     } catch (e) {
       stopwatch.stop();
@@ -90,11 +92,8 @@ class RivetProvider {
     }
 
     try {
-      // Get last event for continuity
-      final lastEvent = await _storage!.getLastEvent(userId);
-      
-      // Perform gating decision
-      final decision = _service!.ingest(event, lastEvent: lastEvent);
+      // Apply event and get decision
+      final decision = _service!.apply(event);
       
       // Save updated state
       await _storage!.save(userId, decision.stateAfter);
@@ -118,6 +117,92 @@ class RivetProvider {
       
       if (kDebugMode) {
         print('ERROR: RIVET gating failed: $e');
+      }
+      return null;
+    }
+  }
+
+  /// Safely delete an event and recompute state
+  Future<RivetGateDecision?> safeDelete(String eventId, String userId) async {
+    final stopwatch = Stopwatch()..start();
+    
+    if (!isAvailable) {
+      if (kDebugMode) {
+        print('DEBUG: RIVET unavailable, skipping delete');
+      }
+      return null;
+    }
+
+    try {
+      // Delete event and get decision
+      final decision = _service!.delete(eventId);
+      
+      // Save updated state
+      await _storage!.save(userId, decision.stateAfter);
+      
+      // Remove event from storage
+      await _storage!.removeEvent(userId, eventId);
+      
+      stopwatch.stop();
+      
+      // Log telemetry
+      RivetTelemetry().logRecompute(
+        userId: userId,
+        operation: 'delete',
+        eventId: eventId,
+        decision: decision,
+        processingTime: stopwatch.elapsed,
+      );
+      
+      return decision;
+    } catch (e) {
+      stopwatch.stop();
+      
+      if (kDebugMode) {
+        print('ERROR: RIVET delete failed: $e');
+      }
+      return null;
+    }
+  }
+
+  /// Safely edit an event and recompute state
+  Future<RivetGateDecision?> safeEdit(RivetEvent updatedEvent, String userId) async {
+    final stopwatch = Stopwatch()..start();
+    
+    if (!isAvailable) {
+      if (kDebugMode) {
+        print('DEBUG: RIVET unavailable, skipping edit');
+      }
+      return null;
+    }
+
+    try {
+      // Edit event and get decision
+      final decision = _service!.edit(updatedEvent);
+      
+      // Save updated state
+      await _storage!.save(userId, decision.stateAfter);
+      
+      // Update event in storage
+      await _storage!.updateEvent(userId, updatedEvent);
+      
+      stopwatch.stop();
+      
+      // Log telemetry
+      RivetTelemetry().logRecompute(
+        userId: userId,
+        operation: 'edit',
+        eventId: updatedEvent.eventId,
+        decision: decision,
+        processingTime: stopwatch.elapsed,
+      );
+      
+      return decision;
+    } catch (e) {
+      stopwatch.stop();
+      
+      if (kDebugMode) {
+        print('ERROR: RIVET edit failed: $e');
       }
       return null;
     }

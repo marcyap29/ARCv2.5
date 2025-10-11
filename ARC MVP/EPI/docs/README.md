@@ -7,6 +7,21 @@ This directory contains comprehensive documentation for the EPI (Evolving Person
 
 ## 🆕 Latest Updates (January 8, 2025)
 
+**RIVET Deterministic Recompute + Undo-on-Delete System**
+
+Major RIVET system enhancement with deterministic recompute pipeline and undo-on-delete functionality:
+- **Deterministic Recompute** - Pure function pipeline for reliable state calculation
+- **Undo-on-Delete** - Complete event deletion with full state recomputation
+- **Event Editing** - Event modification with deterministic state updates
+- **Mathematical Integrity** - Preserves ALIGN EMA and TRACE saturation formulas exactly
+- **Event History Management** - Complete event log for deterministic replay
+- **Performance Optimization** - O(n) recompute with optional checkpoint support
+- **Safety & Error Handling** - Comprehensive error handling and graceful degradation
+- **Journal Integration** - DeleteEntry() and editEntry() methods in JournalCaptureCubit
+- **Comprehensive Testing** - Unit tests covering all major scenarios
+
+---
+
 **LUMARA Settings Lockup Fix**
 
 Critical UI stability fix for LUMARA settings screen:

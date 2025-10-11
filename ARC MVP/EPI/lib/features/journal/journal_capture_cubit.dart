@@ -478,11 +478,12 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
         print('DEBUG: RIVET provider initialized: ${rivetProvider.isAvailable}');
       }
       
-      // Create RIVET event
+      // Create RIVET event with unique eventId
       final rivetEvent = RivetEvent(
+        eventId: entry.id, // Use journal entry ID as RIVET event ID
         date: DateTime.now(),
         source: EvidenceSource.text,
-            keywords: entry.keywords,
+        keywords: entry.keywords,
         predPhase: recommendedPhase, // What PhaseRecommender thinks
         refPhase: currentPhase, // What user currently has
         tolerance: const {}, // Stub for categorical phases
@@ -518,6 +519,82 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
       
     } catch (e) {
       print('ERROR: RIVET analysis failed: $e');
+    }
+  }
+
+  /// Delete a journal entry and update RIVET state
+  Future<void> deleteEntry(String entryId) async {
+    try {
+      // Delete from journal repository
+      await _journalRepository.deleteJournalEntry(entryId);
+      
+      // Update RIVET state by deleting the corresponding event
+      final rivetProvider = RivetProvider();
+      const userId = 'default_user'; // TODO: Use actual user ID
+      
+      if (rivetProvider.isAvailable) {
+        final decision = await rivetProvider.safeDelete(entryId, userId);
+        print('DEBUG: RIVET delete - open: ${decision?.open}, whyNot: ${decision?.whyNot}');
+        
+        if (decision != null && decision.open) {
+          // RIVET gate opened after deletion - check if phase change is needed
+          final currentPhase = await UserPhaseService.getCurrentPhase();
+          // Note: In a real implementation, you might want to check if a different phase
+          // is now recommended based on the remaining events
+          print('DEBUG: RIVET gate opened after deletion - current phase: $currentPhase');
+        }
+      }
+      
+      emit(JournalCaptureSaved()); // Or a specific delete success state
+    } catch (e) {
+      emit(JournalCaptureError('Failed to delete entry: ${e.toString()}'));
+    }
+  }
+
+  /// Edit a journal entry and update RIVET state
+  Future<void> editEntry(JournalEntry updatedEntry) async {
+    try {
+      // Update in journal repository
+      await _journalRepository.updateJournalEntry(updatedEntry);
+      
+      // Update RIVET state by editing the corresponding event
+      final rivetProvider = RivetProvider();
+      const userId = 'default_user'; // TODO: Use actual user ID
+      
+      if (rivetProvider.isAvailable) {
+        // Get current and recommended phases for the updated entry
+        final currentPhase = await UserPhaseService.getCurrentPhase();
+        final recommendedPhase = PhaseRecommender.recommend(
+          emotion: updatedEntry.emotion ?? '',
+          reason: updatedEntry.emotionReason ?? '',
+          text: updatedEntry.content,
+          selectedKeywords: updatedEntry.keywords,
+        );
+        
+        // Create updated RIVET event
+        final updatedRivetEvent = RivetEvent(
+          eventId: updatedEntry.id,
+          date: updatedEntry.updatedAt,
+          source: EvidenceSource.text,
+          keywords: updatedEntry.keywords,
+          predPhase: recommendedPhase,
+          refPhase: currentPhase,
+          tolerance: const {},
+        );
+        
+        final decision = await rivetProvider.safeEdit(updatedRivetEvent, userId);
+        print('DEBUG: RIVET edit - open: ${decision?.open}, whyNot: ${decision?.whyNot}');
+        
+        if (decision != null && decision.open && recommendedPhase != currentPhase) {
+          // RIVET gate opened after edit - update phase if needed
+          await _updateUserPhase(recommendedPhase, 'RIVET algorithm approved change after edit');
+          print('SUCCESS: Phase updated by RIVET after edit: $currentPhase → $recommendedPhase');
+        }
+      }
+      
+      emit(JournalCaptureSaved()); // Or a specific edit success state
+    } catch (e) {
+      emit(JournalCaptureError('Failed to edit entry: ${e.toString()}'));
     }
   }
 
