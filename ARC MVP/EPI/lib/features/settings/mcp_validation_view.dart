@@ -1,11 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:file_picker/file_picker.dart';
-import 'dart:io';
 import '../../shared/app_colors.dart';
 import '../../shared/text_style.dart';
 import 'mcp_validation_cubit.dart';
-import '../../prism/mcp/bundle_doctor/mcp_models.dart';
 
 class McpValidationView extends StatelessWidget {
   const McpValidationView({super.key});
@@ -117,7 +115,7 @@ class _McpValidationViewContentState extends State<_McpValidationViewContent> {
                   color: kcSurfaceAltColor,
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(
-                    color: Colors.white.withOpacity(0.1),
+                    color: Colors.white.withValues(alpha: 0.1),
                   ),
                 ),
                 child: Row(
@@ -226,7 +224,7 @@ class _McpValidationViewContentState extends State<_McpValidationViewContent> {
                         _autoRepair = value;
                       });
                     },
-              activeColor: kcAccentColor,
+              activeTrackColor: kcAccentColor,
               contentPadding: EdgeInsets.zero,
             ),
           ],
@@ -385,10 +383,10 @@ class _McpValidationViewContentState extends State<_McpValidationViewContent> {
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: Colors.green.withOpacity(0.1),
+                  color: Colors.green.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(
-                    color: Colors.green.withOpacity(0.3),
+                    color: Colors.green.withValues(alpha: 0.3),
                   ),
                 ),
                 child: Row(
