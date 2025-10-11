@@ -149,6 +149,38 @@
     - ✅ **Marker System**: Uses [AI_SUGGESTION_START/END] markers for styling
   - **Result**: 🏆 **PRODUCTION READY - GEMINI API INTEGRATION**
 
+  ## 🎭 **ECHO Integration + Dignified Text System** (Updated January 8, 2025)
+
+  **Phase-Aware Dignified Text Generation with ECHO Module - PRODUCTION READY**:
+  ```
+  Journal Text → Phase Detection → ECHO Module → Dignified Text → User Interface
+                ← 6 Core Phases ← Gentle Language ← Fallback Safety ← Respectful UX
+  ```
+
+  **ECHO Integration Features**:
+  ```
+  DignifiedTextService → ECHO module integration for all user-facing text
+  Phase-Aware Analysis → Gentle, supportive analysis based on user phase
+  Discovery Content → Dignified popup content using ECHO
+  Fallback Safety → Gentle fallbacks that maintain user dignity
+  ```
+
+  **🚀 CURRENT STATUS: FULLY OPERATIONAL**
+  - ✅ **ECHO Module Integration**: All user-facing text uses ECHO for dignified generation
+  - ✅ **6 Core Phases**: Reduced from 10 to 6 non-triggering phases (recovery, discovery, breakthrough, consolidation, reflection, planning)
+  - ✅ **Dignified Language**: All text respects user dignity and avoids triggering phrases
+  - ✅ **Phase-Appropriate Content**: Content adapts to user's current life phase
+  - ✅ **Fallback Safety**: Even error states use gentle, dignified language
+  - ✅ **Trigger Prevention**: Removed potentially harmful phase names and content
+  - ✅ **Technical Implementation**:
+    - ✅ **DignifiedTextService**: Service for generating dignified text using ECHO
+    - ✅ **Phase-Aware Analysis**: Uses ECHO for dignified system prompts
+    - ✅ **Discovery Content**: ECHO-generated popup content with fallbacks
+    - ✅ **Gentle Fallbacks**: Dignified content even when ECHO fails
+    - ✅ **Context Integration**: Uses LumaraScope for proper ECHO context
+    - ✅ **Error Handling**: Comprehensive error handling with dignified responses
+  - **Result**: 🏆 **PRODUCTION READY - ECHO INTEGRATION + DIGNIFIED TEXT**
+
   ## 🤖 **On-Device LLM Architecture** (Updated January 8, 2025)
 
   **llama.cpp + Metal Integration Pipeline - PRODUCTION READY**:

@@ -24,6 +24,8 @@ All major bugs from the main branch merge have been resolved. The system is stab
 - ✅ **NEW: Keywords Discovered Section**
 - ✅ **NEW: Gemini API Integration**
 - ✅ **NEW: AI Text Styling (Rosebud-Style)**
+- ✅ **NEW: ECHO Integration + Dignified Text**
+- ✅ **NEW: Phase-Aware Analysis (6 Core Phases)**
 
 ### Recently Resolved Issues (January 8, 2025)
 - ✅ **OCR Keywords Display**: Fixed photo analysis to show extracted keywords and MCP format
@@ -53,6 +55,14 @@ All major bugs from the main branch merge have been resolved. The system is stab
 - ✅ **AIStyledTextField Widget**: Custom text field with RichText display and transparent overlay
 - ✅ **System Prompts**: Specialized prompts for analysis vs suggestions
 - ✅ **Response Parsing**: Smart parsing of AI responses into structured suggestions
+- ✅ **ECHO Module Integration**: All user-facing text uses ECHO for dignified generation
+- ✅ **6 Core Phases**: Reduced from 10 to 6 non-triggering phases for user safety
+- ✅ **DignifiedTextService**: Service for generating dignified text using ECHO module
+- ✅ **Phase-Aware Analysis**: Uses ECHO for dignified system prompts and suggestions
+- ✅ **Discovery Content**: ECHO-generated popup content with gentle fallbacks
+- ✅ **Trigger Prevention**: Removed potentially harmful phase names and content
+- ✅ **Fallback Safety**: Dignified content even when ECHO fails
+- ✅ **User Dignity**: All text respects user dignity and avoids triggering phrases
 
 ## 🔄 Recent Changes
 

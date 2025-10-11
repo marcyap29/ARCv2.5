@@ -11,7 +11,9 @@ import '../widgets/cached_thumbnail.dart';
 import '../../services/thumbnail_cache_service.dart';
 import '../widgets/keywords_discovered_widget.dart';
 import '../widgets/ai_styled_text_field.dart';
+import '../widgets/discovery_popup.dart';
 import '../../telemetry/analytics.dart';
+import '../../services/periodic_discovery_service.dart';
 import '../../services/lumara/lumara_inline_api.dart';
 import '../../lumara/services/enhanced_lumara_api.dart';
 import '../../services/ocr/ocr_service.dart';
@@ -70,6 +72,10 @@ class _JournalScreenState extends State<JournalScreen> {
   // UI state management
   bool _showKeywordsDiscovered = false;
   bool _showLumaraBox = false;
+  
+  // Periodic discovery service
+  final PeriodicDiscoveryService _discoveryService = PeriodicDiscoveryService();
+  bool _showDiscoveryPopup = false;
 
   @override
   void initState() {
@@ -96,6 +102,9 @@ class _JournalScreenState extends State<JournalScreen> {
 
     // Initialize draft cache and create new draft
     _initializeDraftCache();
+    
+    // Check for periodic discovery
+    _checkForDiscovery();
   }
 
   @override
@@ -1051,25 +1060,88 @@ class _JournalScreenState extends State<JournalScreen> {
     // Insert AI suggestion text with special formatting (like Rosebud)
     final currentText = _textController.text;
     final cursorPosition = _textController.selection.baseOffset;
-    
+
     // Create formatted suggestion text with special markers for styling
     final formattedSuggestion = '\n\n[AI_SUGGESTION_START]$suggestion[AI_SUGGESTION_END]\n';
-    
+
     // Insert at cursor position
-    final newText = currentText.substring(0, cursorPosition) + 
-                   formattedSuggestion + 
+    final newText = currentText.substring(0, cursorPosition) +
+                   formattedSuggestion +
                    currentText.substring(cursorPosition);
-    
+
     _textController.text = newText;
     _textController.selection = TextSelection.collapsed(
       offset: cursorPosition + formattedSuggestion.length,
     );
-    
+
     // Update entry state
     _onTextChanged(newText);
-    
+
     // Dismiss the Lumara box
     _dismissLumaraBox();
+    
+    // Increment activation count for periodic discovery
+    _discoveryService.incrementActivationCount();
+  }
+
+  /// Check for periodic discovery popup
+  Future<void> _checkForDiscovery() async {
+    try {
+      final shouldShow = await _discoveryService.shouldShowDiscovery();
+      if (shouldShow && mounted) {
+        // Get recent entries for analysis
+        final recentEntries = await _getRecentEntries();
+        
+        // Generate discovery suggestion
+        final suggestion = await _discoveryService.generateDiscoverySuggestion(
+          recentEntries: recentEntries,
+          currentPhase: _entryState.phase,
+        );
+        
+        if (mounted) {
+          setState(() {
+            _showDiscoveryPopup = true;
+          });
+          
+          // Show discovery popup
+          _showDiscoveryDialog(suggestion);
+        }
+      }
+    } catch (e) {
+      _analytics.log('discovery_check_error', {'error': e.toString()});
+    }
+  }
+
+  /// Get recent journal entries for discovery analysis
+  Future<List<String>> _getRecentEntries() async {
+    try {
+      // Get recent entries from journal repository
+      final entries = await _journalRepository.getRecentEntries(limit: 5);
+      return entries.map((entry) => entry.text).toList();
+    } catch (e) {
+      _analytics.log('recent_entries_error', {'error': e.toString()});
+      return [];
+    }
+  }
+
+  /// Show discovery popup dialog
+  void _showDiscoveryDialog(DiscoverySuggestion suggestion) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => DiscoveryPopup(
+        suggestion: suggestion,
+        onDismiss: () {
+          setState(() {
+            _showDiscoveryPopup = false;
+          });
+          Navigator.of(context).pop();
+        },
+        onAcceptSuggestion: (suggestion) {
+          _insertAISuggestion(suggestion);
+        },
+      ),
+    );
   }
 
 

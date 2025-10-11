@@ -7,17 +7,17 @@ This directory contains comprehensive documentation for the EPI (Evolving Person
 
 ## 🆕 Latest Updates (January 8, 2025)
 
-**Gemini API Integration + AI Text Styling (Rosebud-Style)**
+**ECHO Integration + Dignified Text System**
 
-Production-ready cloud API integration with real-time analysis and visual text styling:
-- **Real Gemini API Integration** - Actual cloud API calls with comprehensive error handling
-- **Cloud Analysis Engine** - Real-time analysis of journal themes, emotions, and patterns using Gemini
-- **AI Suggestion Generation** - Dynamic creation of personalized reflection prompts
-- **Rosebud-Style Text Styling** - AI suggestions appear in blue with background highlighting
-- **Clickable AI Integration** - Users can tap AI suggestions to integrate them into journal
-- **Visual Text Distinction** - Clear separation between user text (white) and AI suggestions (blue)
-- **AIStyledTextField Widget** - Custom text field with RichText display and transparent overlay
-- **System Prompts** - Specialized prompts for analysis vs suggestions
+Production-ready ECHO module integration with dignified text generation and user dignity protection:
+- **ECHO Module Integration** - All user-facing text uses ECHO for dignified generation
+- **6 Core Phases** - Reduced from 10 to 6 non-triggering phases for user safety
+- **DignifiedTextService** - Service for generating dignified text using ECHO module
+- **Phase-Aware Analysis** - Uses ECHO for dignified system prompts and suggestions
+- **Discovery Content** - ECHO-generated popup content with gentle fallbacks
+- **Trigger Prevention** - Removed potentially harmful phase names and content
+- **Fallback Safety** - Dignified content even when ECHO fails
+- **User Dignity** - All text respects user dignity and avoids triggering phrases
 
 **Previous: Native iOS Photos Framework Integration + Universal Media Opening System**
 

@@ -8,6 +8,7 @@ import '../llm/llm_provider_factory.dart';
 import '../llm/llm_provider.dart';
 import '../llm/bridge.pigeon.dart' as pigeon;
 import '../../services/lumara/pii_scrub.dart';
+import '../../services/phase_aware_analysis_service.dart';
 
 /// Enhanced LUMARA API with multi-provider LLM support
 class EnhancedLumaraApi {
@@ -132,7 +133,7 @@ class EnhancedLumaraApi {
     };
   }
 
-  /// Generate cloud API analysis of journal entry
+  /// Generate cloud API analysis of journal entry with phase-aware analysis
   Future<String> generateCloudAnalysis({
     required String entryText,
     required String phase,
@@ -146,18 +147,30 @@ class EnhancedLumaraApi {
       throw StateError('Current provider is not available');
     }
 
+    // Analyze user phase from journal content
+    final phaseService = PhaseAwareAnalysisService();
+    final phaseContext = await phaseService.analyzePhase(entryText);
+    
+    // Get phase-specific system prompt using ECHO
+    final systemPrompt = await phaseService.getPhaseSpecificSystemPrompt(phaseContext);
+
     final context = {
       'entryText': entryText,
       'phase': phase,
+      'detectedPhase': phaseContext.primaryPhase.name,
+      'phaseConfidence': phaseContext.confidence,
+      'emotionalState': phaseContext.emotionalState,
+      'physicalState': phaseContext.physicalState,
+      'socialState': phaseContext.socialState,
       'timestamp': DateTime.now().toIso8601String(),
-      'systemPrompt': _getCloudAnalysisSystemPrompt(phase),
+      'systemPrompt': systemPrompt,
       'userPrompt': 'Analyze this journal entry and provide insights about themes, emotions, and patterns:\n\n$entryText',
     };
 
     return await _currentProvider!.generateResponse(context);
   }
 
-  /// Generate AI suggestions based on analysis
+  /// Generate AI suggestions based on analysis with phase-aware suggestions
   Future<List<String>> generateAISuggestions({
     required String entryText,
     required String analysis,
@@ -172,17 +185,27 @@ class EnhancedLumaraApi {
       throw StateError('Current provider is not available');
     }
 
+    // Analyze user phase from journal content
+    final phaseService = PhaseAwareAnalysisService();
+    final phaseContext = await phaseService.analyzePhase(entryText);
+    
+    // Get phase-specific suggestions using ECHO
+    final phaseSpecificSuggestions = await phaseService.getPhaseSpecificSuggestions(phaseContext);
+
     final context = {
       'entryText': entryText,
       'analysis': analysis,
       'phase': phase,
+      'detectedPhase': phaseContext.primaryPhase.name,
+      'phaseConfidence': phaseContext.confidence,
+      'phaseSpecificSuggestions': phaseSpecificSuggestions,
       'timestamp': DateTime.now().toIso8601String(),
       'systemPrompt': _getAISuggestionsSystemPrompt(phase),
-      'userPrompt': 'Based on this journal entry and analysis, generate 4-6 specific, actionable suggestions for reflection:\n\nEntry: $entryText\n\nAnalysis: $analysis',
+      'userPrompt': 'Based on this journal entry and analysis, generate 4-6 specific, actionable suggestions for reflection. Consider the user\'s detected phase (${phaseContext.primaryPhase.name}) and emotional state:\n\nEntry: $entryText\n\nAnalysis: $analysis\n\nPhase-specific suggestions to consider: ${phaseSpecificSuggestions.join(', ')}',
     };
 
     final response = await _currentProvider!.generateResponse(context);
-    
+
     // Parse the response into individual suggestions
     final suggestions = response
         .split('\n')
@@ -195,26 +218,6 @@ class EnhancedLumaraApi {
     return suggestions;
   }
 
-  /// Get system prompt for cloud analysis
-  String _getCloudAnalysisSystemPrompt(String phase) {
-    return '''
-You are LUMARA's cloud analysis engine. Analyze journal entries to identify themes, emotions, patterns, and insights.
-
-# Your Role
-- Provide deep, insightful analysis of journal entries
-- Identify emotional themes, behavioral patterns, and growth opportunities
-- Be compassionate and non-judgmental in your analysis
-- Focus on understanding the user's inner world and experiences
-
-# Current Context
-- User's Life Phase: $phase
-- Analysis should be 2-3 sentences, focused and insightful
-- Avoid generic advice, be specific to the content
-
-# Output Format
-Provide a concise analysis that captures the essence of what the user is experiencing and feeling.
-''';
-  }
 
   /// Get system prompt for AI suggestions
   String _getAISuggestionsSystemPrompt(String phase) {
