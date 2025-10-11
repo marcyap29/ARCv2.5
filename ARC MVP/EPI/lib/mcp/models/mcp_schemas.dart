@@ -740,13 +740,13 @@ class McpManifest {
 
   factory McpManifest.fromJson(Map<String, dynamic> json) {
     return McpManifest(
-      bundleId: json['bundle_id'] as String,
-      version: json['version'] as String,
-      createdAt: DateTime.parse(json['created_at'] as String),
-      storageProfile: json['storage_profile'] as String,
-      counts: McpCounts.fromJson(json['counts'] as Map<String, dynamic>),
-      checksums: McpChecksums.fromJson(json['checksums'] as Map<String, dynamic>),
-      encoderRegistry: (json['encoder_registry'] as List<dynamic>)
+      bundleId: json['bundle_id'] as String? ?? '',
+      version: json['version'] as String? ?? '',
+      createdAt: DateTime.parse(json['created_at'] as String? ?? DateTime.now().toIso8601String()),
+      storageProfile: json['storage_profile'] as String? ?? '',
+      counts: McpCounts.fromJson(json['counts'] as Map<String, dynamic>? ?? {}),
+      checksums: McpChecksums.fromJson(json['checksums'] as Map<String, dynamic>? ?? {}),
+      encoderRegistry: (json['encoder_registry'] as List<dynamic>? ?? [])
           .map((e) => McpEncoderRegistry.fromJson(e as Map<String, dynamic>))
           .toList(),
       casRemotes: List<String>.from(json['cas_remotes'] ?? []),
@@ -801,10 +801,10 @@ class McpCounts {
 
   factory McpCounts.fromJson(Map<String, dynamic> json) {
     return McpCounts(
-      nodes: json['nodes'] as int,
-      edges: json['edges'] as int,
-      pointers: json['pointers'] as int,
-      embeddings: json['embeddings'] as int,
+      nodes: json['nodes'] as int? ?? 0,
+      edges: json['edges'] as int? ?? 0,
+      pointers: json['pointers'] as int? ?? 0,
+      embeddings: json['embeddings'] as int? ?? 0,
       entries: json['entries'] != null ? Map<String, int>.from(json['entries']) : null,
     );
   }
@@ -865,10 +865,10 @@ class McpChecksums {
 
   factory McpChecksums.fromJson(Map<String, dynamic> json) {
     return McpChecksums(
-      nodesJsonl: json['nodes_jsonl'] as String,
-      edgesJsonl: json['edges_jsonl'] as String,
-      pointersJsonl: json['pointers_jsonl'] as String,
-      embeddingsJsonl: json['embeddings_jsonl'] as String,
+      nodesJsonl: json['nodes_jsonl'] as String? ?? '',
+      edgesJsonl: json['edges_jsonl'] as String? ?? '',
+      pointersJsonl: json['pointers_jsonl'] as String? ?? '',
+      embeddingsJsonl: json['embeddings_jsonl'] as String? ?? '',
       vectorsParquet: json['vectors_parquet'] as String?,
       length: json['length'] as int?,
     );
@@ -897,9 +897,9 @@ class McpEncoderRegistry {
 
   factory McpEncoderRegistry.fromJson(Map<String, dynamic> json) {
     return McpEncoderRegistry(
-      modelId: json['model_id'] as String,
-      embeddingVersion: json['embedding_version'] as String,
-      dim: json['dim'] as int,
+      modelId: json['model_id'] as String? ?? '',
+      embeddingVersion: json['embedding_version'] as String? ?? '',
+      dim: json['dim'] as int? ?? 0,
     );
   }
 }

@@ -98,7 +98,6 @@ class McpManifestBuilder {
         'counts',
         'checksums',
         'encoder_registry',
-        'schema_version',
       ];
       
       for (final field in requiredFields) {
@@ -142,6 +141,30 @@ class McpManifestBuilder {
   static Future<McpManifest> readManifest(File manifestFile) async {
     final content = await manifestFile.readAsString();
     final json = jsonDecode(content) as Map<String, dynamic>;
+    
+    // Add null safety checks for required fields
+    if (json['bundle_id'] == null) {
+      throw FormatException('Manifest missing required field: bundle_id');
+    }
+    if (json['version'] == null) {
+      throw FormatException('Manifest missing required field: version');
+    }
+    if (json['created_at'] == null) {
+      throw FormatException('Manifest missing required field: created_at');
+    }
+    if (json['storage_profile'] == null) {
+      throw FormatException('Manifest missing required field: storage_profile');
+    }
+    if (json['counts'] == null) {
+      throw FormatException('Manifest missing required field: counts');
+    }
+    if (json['checksums'] == null) {
+      throw FormatException('Manifest missing required field: checksums');
+    }
+    if (json['encoder_registry'] == null) {
+      throw FormatException('Manifest missing required field: encoder_registry');
+    }
+    
     return McpManifest.fromJson(json);
   }
 

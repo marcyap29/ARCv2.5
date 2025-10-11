@@ -1,6 +1,7 @@
 import 'package:equatable/equatable.dart';
 import 'package:hive/hive.dart';
 import 'ulid.dart';
+import 'content_parts.dart';
 
 part 'chat_models.g.dart';
 
@@ -34,6 +35,9 @@ class ChatSession extends Equatable {
   @HiveField(8)
   final int messageCount;
 
+  @HiveField(9)
+  final String retention; // "auto-archive-30d" | "pinned" | "manual"
+
   const ChatSession({
     required this.id,
     required this.subject,
@@ -44,6 +48,7 @@ class ChatSession extends Equatable {
     this.archivedAt,
     this.tags = const [],
     this.messageCount = 0,
+    this.retention = "auto-archive-30d",
   });
 
   /// Create a new chat session with generated ID
@@ -92,6 +97,7 @@ class ChatSession extends Equatable {
     DateTime? archivedAt,
     List<String>? tags,
     int? messageCount,
+    String? retention,
   }) {
     return ChatSession(
       id: id,
@@ -103,6 +109,7 @@ class ChatSession extends Equatable {
       archivedAt: archivedAt ?? this.archivedAt,
       tags: tags ?? this.tags,
       messageCount: messageCount ?? this.messageCount,
+      retention: retention ?? this.retention,
     );
   }
 
@@ -117,6 +124,7 @@ class ChatSession extends Equatable {
         archivedAt,
         tags,
         messageCount,
+        retention,
       ];
 }
 
@@ -124,7 +132,7 @@ class ChatSession extends Equatable {
 @HiveType(typeId: 71)
 class ChatMessage extends Equatable {
   @HiveField(0)
-  final String id; // ULID
+  final String id; // ULID with msg: prefix
 
   @HiveField(1)
   final String sessionId; // ULID
@@ -133,39 +141,99 @@ class ChatMessage extends Equatable {
   final String role; // 'user' | 'assistant' | 'system'
 
   @HiveField(3)
-  final String content; // redacted text if privacy rule applied
+  final List<ContentPart> contentParts; // multimodal content
 
   @HiveField(4)
-  final DateTime createdAt;
+  final DateTime createdAt; // ISO 8601 UTC
 
   @HiveField(5)
   final String? originalTextHash; // for audit if content was redacted
+
+  @HiveField(6)
+  final Map<String, dynamic>? provenance; // device, appVersion, etc.
 
   const ChatMessage({
     required this.id,
     required this.sessionId,
     required this.role,
-    required this.content,
+    required this.contentParts,
     required this.createdAt,
     this.originalTextHash,
+    this.provenance,
   });
 
   /// Create a new chat message with generated ID
   factory ChatMessage.create({
     required String sessionId,
     required String role,
+    required List<ContentPart> contentParts,
+    String? originalTextHash,
+    Map<String, dynamic>? provenance,
+  }) {
+    return ChatMessage(
+      id: 'msg:${ULID.generate()}',
+      sessionId: sessionId,
+      role: role,
+      contentParts: contentParts,
+      createdAt: DateTime.now().toUtc(),
+      originalTextHash: originalTextHash,
+      provenance: provenance,
+    );
+  }
+
+  /// Create a text-only message (legacy compatibility)
+  factory ChatMessage.createText({
+    required String sessionId,
+    required String role,
+    required String text,
+    String? originalTextHash,
+    Map<String, dynamic>? provenance,
+  }) {
+    return ChatMessage.create(
+      sessionId: sessionId,
+      role: role,
+      contentParts: ContentPartUtils.fromLegacyContent(text),
+      originalTextHash: originalTextHash,
+      provenance: provenance,
+    );
+  }
+
+  /// Legacy constructor for backward compatibility
+  factory ChatMessage.createLegacy({
+    required String id,
+    required String sessionId,
+    required String role,
     required String content,
+    required DateTime createdAt,
     String? originalTextHash,
   }) {
     return ChatMessage(
-      id: ULID.generate(),
+      id: id,
       sessionId: sessionId,
       role: role,
-      content: content,
-      createdAt: DateTime.now(),
+      contentParts: ContentPartUtils.fromLegacyContent(content),
+      createdAt: createdAt,
       originalTextHash: originalTextHash,
     );
   }
+
+  /// Get text content from content parts
+  String get textContent => ContentPartUtils.extractText(contentParts);
+
+  /// Legacy compatibility: Get content as string (for backward compatibility)
+  String get content => textContent;
+
+  /// Check if message has media
+  bool get hasMedia => ContentPartUtils.hasMedia(contentParts);
+
+  /// Check if message has PRISM analysis
+  bool get hasPrismAnalysis => ContentPartUtils.hasPrismAnalysis(contentParts);
+
+  /// Get all media pointers
+  List<MediaPointer> get mediaPointers => ContentPartUtils.getMediaPointers(contentParts);
+
+  /// Get all PRISM summaries
+  List<PrismSummary> get prismSummaries => ContentPartUtils.getPrismSummaries(contentParts);
 
   /// Validate message role
   static bool isValidRole(String role) {
@@ -177,9 +245,10 @@ class ChatMessage extends Equatable {
         id,
         sessionId,
         role,
-        content,
+        contentParts,
         createdAt,
         originalTextHash,
+        provenance,
       ];
 }
 

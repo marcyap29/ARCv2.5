@@ -1371,7 +1371,7 @@ Your exported MCP bundle can be imported into any MCP-compatible system, ensurin
       final summary = await _createConversationSummary(oldMessages);
       
       // Create a summary message
-      final summaryMessage = ChatMessage(
+      final summaryMessage = ChatMessage.createLegacy(
         id: 'summary_${DateTime.now().millisecondsSinceEpoch}',
         sessionId: currentChatSessionId!,
         role: 'system',

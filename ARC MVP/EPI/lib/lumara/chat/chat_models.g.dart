@@ -26,13 +26,14 @@ class ChatSessionAdapter extends TypeAdapter<ChatSession> {
       archivedAt: fields[6] as DateTime?,
       tags: (fields[7] as List).cast<String>(),
       messageCount: fields[8] as int,
+      retention: fields[9] as String,
     );
   }
 
   @override
   void write(BinaryWriter writer, ChatSession obj) {
     writer
-      ..writeByte(9)
+      ..writeByte(10)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -50,7 +51,9 @@ class ChatSessionAdapter extends TypeAdapter<ChatSession> {
       ..writeByte(7)
       ..write(obj.tags)
       ..writeByte(8)
-      ..write(obj.messageCount);
+      ..write(obj.messageCount)
+      ..writeByte(9)
+      ..write(obj.retention);
   }
 
   @override
@@ -78,16 +81,17 @@ class ChatMessageAdapter extends TypeAdapter<ChatMessage> {
       id: fields[0] as String,
       sessionId: fields[1] as String,
       role: fields[2] as String,
-      content: fields[3] as String,
+      contentParts: (fields[3] as List).cast<ContentPart>(),
       createdAt: fields[4] as DateTime,
       originalTextHash: fields[5] as String?,
+      provenance: (fields[6] as Map?)?.cast<String, dynamic>(),
     );
   }
 
   @override
   void write(BinaryWriter writer, ChatMessage obj) {
     writer
-      ..writeByte(6)
+      ..writeByte(7)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -95,11 +99,13 @@ class ChatMessageAdapter extends TypeAdapter<ChatMessage> {
       ..writeByte(2)
       ..write(obj.role)
       ..writeByte(3)
-      ..write(obj.content)
+      ..write(obj.contentParts)
       ..writeByte(4)
       ..write(obj.createdAt)
       ..writeByte(5)
-      ..write(obj.originalTextHash);
+      ..write(obj.originalTextHash)
+      ..writeByte(6)
+      ..write(obj.provenance);
   }
 
   @override

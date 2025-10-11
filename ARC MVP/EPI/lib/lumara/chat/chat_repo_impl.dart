@@ -91,10 +91,10 @@ class ChatRepoImpl implements ChatRepo {
     }
 
     // Create and store message
-    final message = ChatMessage.create(
+    final message = ChatMessage.createText(
       sessionId: sessionId,
       role: role,
-      content: content,
+      text: content,
     );
 
     await _messagesBox!.put(message.id, message);

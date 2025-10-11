@@ -8,6 +8,7 @@ import 'dart:io';
 import '../models/mcp_schemas.dart';
 import '../export/ndjson_writer.dart';
 import '../export/manifest_builder.dart';
+import '../export/zip_utils.dart';
 
 class McpValidator {
   /// Validate a single node record
@@ -273,6 +274,49 @@ class McpValidator {
       isValid: errors.isEmpty,
       errors: errors,
     );
+  }
+
+  /// Validate a zip file containing an MCP bundle
+  static Future<ValidationResult> validateZipBundle(File zipFile) async {
+    final errors = <String>[];
+
+    try {
+      // Check if zip file exists and is readable
+      if (!await zipFile.exists()) {
+        return ValidationResult(isValid: false, errors: ['ZIP file does not exist']);
+      }
+
+      // Check if zip contains valid MCP bundle
+      final isValidBundle = await ZipUtils.isValidMcpBundle(zipFile);
+      if (!isValidBundle) {
+        return ValidationResult(
+          isValid: false, 
+          errors: ['ZIP file does not contain a valid MCP bundle (missing required files)']
+        );
+      }
+
+      // Extract zip to temporary directory for validation
+      final tempDir = await ZipUtils.extractZip(zipFile);
+      
+      try {
+        // Validate the extracted bundle
+        final result = await validateBundle(tempDir);
+        
+        // Clean up temporary directory
+        await tempDir.delete(recursive: true);
+        
+        return result;
+      } catch (e) {
+        // Clean up temporary directory on error
+        try {
+          await tempDir.delete(recursive: true);
+        } catch (_) {}
+        rethrow;
+      }
+    } catch (e) {
+      errors.add('Error validating ZIP file: $e');
+      return ValidationResult(isValid: false, errors: errors);
+    }
   }
 
   /// Validate SAGE narrative mapping

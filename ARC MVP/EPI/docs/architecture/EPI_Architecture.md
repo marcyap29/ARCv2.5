@@ -567,6 +567,50 @@
       ├── dignity_metrics.dart
       └── voice_configuration.dart
 
+  ## 🔧 **MCP Bundle Health Analyzer** (Updated January 11, 2025)
+
+  **MCP Bundle Validation & Repair System - PRODUCTION READY**:
+  ```
+  MCP Bundle Health UI → ZipUtils → McpValidator → McpBundleRepairService
+                      ← Batch Analysis ← Validation Results ← Auto-Repair
+  ```
+
+  **🚀 CURRENT STATUS: FULLY OPERATIONAL**
+  - ✅ **Multi-ZIP File Support**: Select and analyze multiple MCP bundle ZIP files simultaneously
+  - ✅ **Comprehensive Validation**: Manifest, schema, checksums, and data integrity checks
+  - ✅ **Batch Analysis**: Process multiple bundles with progress indicators and summary statistics
+  - ✅ **Auto-Repair System**: Automatic detection and repair of common MCP bundle issues
+  - ✅ **Responsive UI**: LayoutBuilder-based responsive design preventing overflow errors
+  - ✅ **Detailed Reporting**: Individual file reports with specific error messages and suggestions
+  - ✅ **Manifest Fix Tools**: Specialized tools for fixing manifest.json issues
+  - ✅ **Null Safety**: Robust error handling with null safety checks throughout
+  - ✅ **Zip File Support**: Direct ZIP file analysis without requiring extraction
+  - ✅ **Progress Feedback**: Real-time progress updates during batch operations
+  - ✅ **Error Recovery**: Graceful handling of corrupted or invalid bundles
+  - ✅ **Technical Achievements**:
+    - ✅ **ZipUtils Class**: Complete ZIP file handling with extraction and validation
+    - ✅ **McpValidator**: Comprehensive validation with zip file support
+    - ✅ **McpBundleRepairService**: Automatic repair with zip file support
+    - ✅ **Responsive Layout**: LayoutBuilder preventing RenderFlex overflow errors
+    - ✅ **Batch Operations**: Multiple file selection and processing
+    - ✅ **Null Safety Fixes**: Fixed all null type casting errors in JSON parsing
+    - ✅ **Manifest Validation**: Robust manifest.json parsing with error recovery
+    - ✅ **Checksum Verification**: Reliable checksum validation with fallback handling
+  - **Result**: 🏆 **PRODUCTION READY - COMPLETE MCP BUNDLE HEALTH MANAGEMENT SYSTEM**
+
+  lib/features/settings/
+  ├── mcp_bundle_health_view.dart           # Main UI with batch analysis and responsive layout
+  └── lib/mcp/
+      ├── export/
+      │   ├── zip_utils.dart                # ZIP file creation, extraction, and validation
+      │   ├── manifest_builder.dart         # Manifest creation and reading with null safety
+      │   └── ndjson_writer.dart            # NDJSON file validation
+      ├── validation/
+      │   ├── mcp_validator.dart            # Comprehensive validation with zip support
+      │   └── mcp_bundle_repair_service.dart # Auto-repair system with zip support
+      └── models/
+          └── mcp_schemas.dart              # MCP data models with null safety fixes
+
   4. ATLAS Module: Phase Detection & Analysis
 
   lib/atlas/

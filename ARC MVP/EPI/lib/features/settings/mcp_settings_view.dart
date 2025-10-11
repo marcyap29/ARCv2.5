@@ -13,6 +13,7 @@ import '../../prism/mcp/export/zip_utils.dart';
 import '../../arc/core/journal_repository.dart';
 import 'mcp_settings_cubit.dart';
 import '../timeline/timeline_cubit.dart';
+import 'mcp_bundle_health_view.dart';
 
 class McpSettingsView extends StatelessWidget {
   const McpSettingsView({super.key});
@@ -113,6 +114,18 @@ class _McpSettingsViewContent extends StatelessWidget {
                       const SizedBox(height: 16),
                       _buildProgressIndicator(context, state),
                     ],
+                  ],
+                ),
+                
+                const SizedBox(height: 32),
+                
+                // MCP Bundle Health Section
+                _buildSection(
+                  context: context,
+                  title: 'Bundle Health Checker',
+                  subtitle: 'Validate and repair MCP bundles for integrity and compliance',
+                  children: [
+                    _buildHealthCheckerButton(context),
                   ],
                 ),
                 
@@ -608,5 +621,31 @@ class _McpSettingsViewContent extends StatelessWidget {
     }
 
     print('✅ Extraction completed');
+  }
+
+  Widget _buildHealthCheckerButton(BuildContext context) {
+    return SizedBox(
+      width: double.infinity,
+      child: ElevatedButton.icon(
+        onPressed: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const McpBundleHealthView(),
+            ),
+          );
+        },
+        icon: const Icon(Icons.health_and_safety),
+        label: const Text('Open Bundle Health Checker'),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: kcPrimaryColor,
+          foregroundColor: Colors.white,
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(8),
+          ),
+        ),
+      ),
+    );
   }
 }
