@@ -1374,6 +1374,112 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
     }
   }
 
+  Future<bool> _tryOpenSpecificVideo(String videoPath) async {
+    try {
+      final file = File(videoPath);
+      if (!await file.exists()) {
+        return false;
+      }
+
+      // Method 1: Try to use native iOS Photos framework to find and open the specific video
+      if (Platform.isIOS) {
+        try {
+          const platform = MethodChannel('com.epi.arcmvp/photos');
+          final result = await platform.invokeMethod('getVideoIdentifierAndOpen', videoPath);
+          if (result == true) {
+            return true;
+          }
+        } catch (e) {
+          print('Native Videos method failed: $e');
+        }
+      }
+
+      // Method 2: Try to extract video identifier from path and use photos:// scheme
+      final fileName = videoPath.split('/').last;
+      final videoId = _extractPhotoIdFromFileName(fileName);
+      
+      if (videoId != null) {
+        final photosUri = Uri.parse('photos://$videoId');
+        if (await canLaunchUrl(photosUri)) {
+          await launchUrl(photosUri, mode: LaunchMode.externalApplication);
+          return true;
+        }
+      }
+
+      // Method 3: Try to open with file:// scheme
+      final fileUri = Uri.file(videoPath);
+      if (await canLaunchUrl(fileUri)) {
+        await launchUrl(fileUri, mode: LaunchMode.externalApplication);
+        return true;
+      }
+
+      // Method 4: Try to use the Photos app with a search query
+      final searchUri = Uri.parse('photos-redirect://search?query=${Uri.encodeComponent(fileName)}');
+      if (await canLaunchUrl(searchUri)) {
+        await launchUrl(searchUri, mode: LaunchMode.externalApplication);
+        return true;
+      }
+
+      return false;
+    } catch (e) {
+      print('Error trying to open specific video: $e');
+      return false;
+    }
+  }
+
+  Future<bool> _tryOpenSpecificMedia(String mediaPath) async {
+    try {
+      final file = File(mediaPath);
+      if (!await file.exists()) {
+        return false;
+      }
+
+      // Method 1: Try to use native iOS Photos framework to find and open the specific media
+      if (Platform.isIOS) {
+        try {
+          const platform = MethodChannel('com.epi.arcmvp/photos');
+          final result = await platform.invokeMethod('getMediaIdentifierAndOpen', mediaPath);
+          if (result == true) {
+            return true;
+          }
+        } catch (e) {
+          print('Native Media method failed: $e');
+        }
+      }
+
+      // Method 2: Try to extract media identifier from path and use photos:// scheme
+      final fileName = mediaPath.split('/').last;
+      final mediaId = _extractPhotoIdFromFileName(fileName);
+      
+      if (mediaId != null) {
+        final photosUri = Uri.parse('photos://$mediaId');
+        if (await canLaunchUrl(photosUri)) {
+          await launchUrl(photosUri, mode: LaunchMode.externalApplication);
+          return true;
+        }
+      }
+
+      // Method 3: Try to open with file:// scheme
+      final fileUri = Uri.file(mediaPath);
+      if (await canLaunchUrl(fileUri)) {
+        await launchUrl(fileUri, mode: LaunchMode.externalApplication);
+        return true;
+      }
+
+      // Method 4: Try to use the Photos app with a search query
+      final searchUri = Uri.parse('photos-redirect://search?query=${Uri.encodeComponent(fileName)}');
+      if (await canLaunchUrl(searchUri)) {
+        await launchUrl(searchUri, mode: LaunchMode.externalApplication);
+        return true;
+      }
+
+      return false;
+    } catch (e) {
+      print('Error trying to open specific media: $e');
+      return false;
+    }
+  }
+
   String? _extractPhotoIdFromFileName(String fileName) {
     // Try to extract a photo identifier from the filename
     // iOS Photos often use UUIDs or specific naming patterns
@@ -1405,6 +1511,44 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
             final photosUri = Uri.parse('photos-redirect://');
             if (await canLaunchUrl(photosUri)) {
               await launchUrl(photosUri, mode: LaunchMode.externalApplication);
+            }
+          },
+        ),
+      ),
+    );
+  }
+
+  void _showVideoInfo(String videoPath) {
+    final fileName = videoPath.split('/').last;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Video: $fileName'),
+        duration: const Duration(seconds: 3),
+        action: SnackBarAction(
+          label: 'Open Photos',
+          onPressed: () async {
+            final photosUri = Uri.parse('photos-redirect://');
+            if (await canLaunchUrl(photosUri)) {
+              await launchUrl(photosUri, mode: LaunchMode.externalApplication);
+            }
+          },
+        ),
+      ),
+    );
+  }
+
+  void _showAudioInfo(String audioPath) {
+    final fileName = audioPath.split('/').last;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Audio: $fileName'),
+        duration: const Duration(seconds: 3),
+        action: SnackBarAction(
+          label: 'Open Files',
+          onPressed: () async {
+            final fileUri = Uri.file(audioPath);
+            if (await canLaunchUrl(fileUri)) {
+              await launchUrl(fileUri, mode: LaunchMode.externalApplication);
             }
           },
         ),
@@ -1477,16 +1621,26 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
 
   void _playAudio(String audioPath) async {
     try {
-      final uri = Uri.file(audioPath);
-      if (await canLaunchUrl(uri)) {
-        await launchUrl(uri, mode: LaunchMode.externalApplication);
+      if (Platform.isIOS) {
+        // Try native iOS Photos framework first (for audio files in Photos library)
+        final success = await _tryOpenSpecificMedia(audioPath);
+        if (!success) {
+          // Fallback: try to open the audio directly
+          final uri = Uri.file(audioPath);
+          if (await canLaunchUrl(uri)) {
+            await launchUrl(uri, mode: LaunchMode.externalApplication);
+          } else {
+            _showAudioInfo(audioPath);
+          }
+        }
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Cannot play audio: ${audioPath.split('/').last}'),
-            backgroundColor: kcDangerColor,
-          ),
-        );
+        // Android: try to open the file directly
+        final uri = Uri.file(audioPath);
+        if (await canLaunchUrl(uri)) {
+          await launchUrl(uri, mode: LaunchMode.externalApplication);
+        } else {
+          _showAudioInfo(audioPath);
+        }
       }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -1500,16 +1654,26 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
 
   void _playVideo(String videoPath) async {
     try {
-      final uri = Uri.file(videoPath);
-      if (await canLaunchUrl(uri)) {
-        await launchUrl(uri, mode: LaunchMode.externalApplication);
+      if (Platform.isIOS) {
+        // Try native iOS Photos framework first
+        final success = await _tryOpenSpecificVideo(videoPath);
+        if (!success) {
+          // Fallback: try to open the video directly
+          final uri = Uri.file(videoPath);
+          if (await canLaunchUrl(uri)) {
+            await launchUrl(uri, mode: LaunchMode.externalApplication);
+          } else {
+            _showVideoInfo(videoPath);
+          }
+        }
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Cannot play video: ${videoPath.split('/').last}'),
-            backgroundColor: kcDangerColor,
-          ),
-        );
+        // Android: try to open the file directly
+        final uri = Uri.file(videoPath);
+        if (await canLaunchUrl(uri)) {
+          await launchUrl(uri, mode: LaunchMode.externalApplication);
+        } else {
+          _showVideoInfo(videoPath);
+        }
       }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
