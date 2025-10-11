@@ -17,6 +17,9 @@ All major bugs from the main branch merge have been resolved. The system is stab
 - ✅ **NEW: iOS Vision Framework Integration**
 - ✅ **NEW: Thumbnail Caching System**
 - ✅ **NEW: Clickable Photo Thumbnails**
+- ✅ **NEW: Native iOS Photos Framework Integration**
+- ✅ **NEW: Universal Media Opening System**
+- ✅ **NEW: Broken Link Recovery System**
 
 ### Recently Resolved Issues (January 8, 2025)
 - ✅ **OCR Keywords Display**: Fixed photo analysis to show extracted keywords and MCP format
@@ -27,6 +30,11 @@ All major bugs from the main branch merge have been resolved. The system is stab
 - ✅ **Manual Keywords**: Added ability to manually add keywords to journal entries
 - ✅ **Timeline Editor Integration**: Added multimodal functionality to timeline editor
 - ✅ **Thumbnail Caching**: Implemented efficient thumbnail caching with automatic cleanup
+- ✅ **Video/Audio Opening**: Extended native iOS Photos framework to videos and audio files
+- ✅ **Broken Media Links**: Implemented comprehensive broken link detection and recovery
+- ✅ **Universal Media Support**: Added support for photos, videos, and audio with native iOS integration
+- ✅ **Smart Media Detection**: Automatic media type detection and appropriate handling
+- ✅ **Multi-Method Fallbacks**: 4 different approaches ensure media can always be opened
 
 ## 🔄 Recent Changes
 
