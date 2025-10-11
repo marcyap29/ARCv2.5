@@ -20,6 +20,8 @@ All major bugs from the main branch merge have been resolved. The system is stab
 - ✅ **NEW: Native iOS Photos Framework Integration**
 - ✅ **NEW: Universal Media Opening System**
 - ✅ **NEW: Broken Link Recovery System**
+- ✅ **NEW: Intelligent Keyword Categorization System**
+- ✅ **NEW: Keywords Discovered Section**
 
 ### Recently Resolved Issues (January 8, 2025)
 - ✅ **OCR Keywords Display**: Fixed photo analysis to show extracted keywords and MCP format
@@ -35,6 +37,11 @@ All major bugs from the main branch merge have been resolved. The system is stab
 - ✅ **Universal Media Support**: Added support for photos, videos, and audio with native iOS integration
 - ✅ **Smart Media Detection**: Automatic media type detection and appropriate handling
 - ✅ **Multi-Method Fallbacks**: 4 different approaches ensure media can always be opened
+- ✅ **6-Category Keyword System**: Implemented intelligent keyword categorization (Places, Emotions, Feelings, States of Being, Adjectives, Slang)
+- ✅ **Keywords Discovered Section**: Enhanced journal interface with real-time keyword analysis
+- ✅ **Visual Keyword Categorization**: Color-coded categories with unique icons for easy identification
+- ✅ **Manual Keyword Addition**: Users can add custom keywords directly from the Keywords Discovered section
+- ✅ **Real-time Keyword Analysis**: Automatic keyword extraction as users type in journal entries
 
 ## 🔄 Recent Changes
 

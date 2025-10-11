@@ -7,7 +7,19 @@ This directory contains comprehensive documentation for the EPI (Evolving Person
 
 ## 🆕 Latest Updates (January 8, 2025)
 
-**Native iOS Photos Framework Integration + Universal Media Opening System**
+**Intelligent Keyword Categorization System + Keywords Discovered Section**
+
+Production-ready intelligent keyword categorization with 6 specific categories:
+- **6-Category Keyword System** - Places, Emotions, Feelings, States of Being, Adjectives, Slang
+- **Keywords Discovered Section** - Enhanced journal interface with real-time keyword analysis
+- **Visual Categorization** - Each category has unique colors and icons for easy identification
+- **Manual Keyword Addition** - Users can add custom keywords directly from the Keywords Discovered section
+- **Real-time Analysis** - Automatic keyword extraction as users type in journal entries
+- **Smart Suggestions** - Context-aware keyword recommendations based on text content
+- **KeywordAnalysisService** - Singleton service for intelligent keyword categorization
+- **KeywordsDiscoveredWidget** - Reusable widget for keyword display and management
+
+**Previous: Native iOS Photos Framework Integration + Universal Media Opening System**
 
 Production-ready native iOS Photos framework integration for all media types:
 - **Native iOS Photos Integration** - Direct media opening in iOS Photos app for all media types
