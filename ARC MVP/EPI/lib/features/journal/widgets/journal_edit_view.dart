@@ -9,7 +9,6 @@ import 'package:my_app/arc/core/journal_repository.dart';
 import 'package:my_app/shared/app_colors.dart';
 import 'package:my_app/shared/text_style.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:permission_handler/permission_handler.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:my_app/data/models/media_item.dart';
 import '../../../mcp/orchestrator/ios_vision_orchestrator.dart';
@@ -1344,6 +1343,15 @@ class _JournalEditViewState extends State<JournalEditView> {
     }
   }
 
+  Future<bool> _checkMediaExists(String mediaPath) async {
+    try {
+      final file = File(mediaPath);
+      return await file.exists();
+    } catch (e) {
+      return false;
+    }
+  }
+
   void _showBrokenImageDialog(PhotoAttachment attachment) {
     showDialog(
       context: context,
@@ -1359,6 +1367,132 @@ class _JournalEditViewState extends State<JournalEditView> {
         onRelinkImage: () => _handlePhotoGallery(),
       ),
     );
+  }
+
+  void _showBrokenMediaDialog(MediaItem mediaItem) {
+    showDialog(
+      context: context,
+      builder: (context) => BrokenMediaDialog(
+        mediaItem: mediaItem,
+        onRelinkMedia: () => _handleMediaReinsertion(mediaItem.type),
+      ),
+    );
+  }
+
+  void _handleMediaReinsertion(MediaType mediaType) {
+    switch (mediaType) {
+      case MediaType.image:
+        _handlePhotoGallery();
+        break;
+      case MediaType.video:
+        _handleVideoGallery();
+        break;
+      case MediaType.audio:
+        _handleAudioRecording();
+        break;
+      case MediaType.file:
+        _handleFilePicker();
+        break;
+    }
+  }
+
+  void _handleVideoGallery() async {
+    // TODO: Implement video gallery picker
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Video gallery picker not yet implemented'),
+        backgroundColor: kcDangerColor,
+      ),
+    );
+  }
+
+  void _handleAudioRecording() async {
+    // TODO: Implement audio recording
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Audio recording not yet implemented'),
+        backgroundColor: kcDangerColor,
+      ),
+    );
+  }
+
+  void _handleFilePicker() async {
+    // TODO: Implement file picker
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('File picker not yet implemented'),
+        backgroundColor: kcDangerColor,
+      ),
+    );
+  }
+
+  void _playAudio(String audioPath) async {
+    try {
+      final uri = Uri.file(audioPath);
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Cannot play audio: ${audioPath.split('/').last}'),
+            backgroundColor: kcDangerColor,
+          ),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to play audio: $e'),
+          backgroundColor: kcDangerColor,
+        ),
+      );
+    }
+  }
+
+  void _playVideo(String videoPath) async {
+    try {
+      final uri = Uri.file(videoPath);
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Cannot play video: ${videoPath.split('/').last}'),
+            backgroundColor: kcDangerColor,
+          ),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to play video: $e'),
+          backgroundColor: kcDangerColor,
+        ),
+      );
+    }
+  }
+
+  void _openFile(String filePath) async {
+    try {
+      final uri = Uri.file(filePath);
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Cannot open file: ${filePath.split('/').last}'),
+            backgroundColor: kcDangerColor,
+          ),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to open file: $e'),
+          backgroundColor: kcDangerColor,
+        ),
+      );
+    }
   }
 }
 
@@ -1852,5 +1986,200 @@ class _PhaseEditDialogState extends State<_PhaseEditDialog> {
       default:
         return kcSecondaryTextColor;
     }
+  }
+}
+
+class BrokenMediaDialog extends StatelessWidget {
+  final MediaItem mediaItem;
+  final VoidCallback onRelinkMedia;
+
+  const BrokenMediaDialog({
+    super.key,
+    required this.mediaItem,
+    required this.onRelinkMedia,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final mediaTypeName = _getMediaTypeName(mediaItem.type);
+    final mediaIcon = _getMediaTypeIcon(mediaItem.type);
+    
+    return Dialog(
+      child: Container(
+        width: MediaQuery.of(context).size.width * 0.85,
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Warning icon
+            Container(
+              width: 64,
+              height: 64,
+              decoration: BoxDecoration(
+                color: Colors.red.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(32),
+              ),
+              child: Icon(
+                mediaIcon,
+                color: Colors.red,
+                size: 32,
+              ),
+            ),
+            
+            const SizedBox(height: 20),
+            
+            // Title
+            Text(
+              'Broken $mediaTypeName Link',
+              style: heading2Style(context).copyWith(
+                color: Colors.red,
+                fontWeight: FontWeight.bold,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            
+            const SizedBox(height: 12),
+            
+            // Message
+            Text(
+              'The $mediaTypeName\'s link appears to be broken, please insert the $mediaTypeName again into the entry to relink it.',
+              style: bodyStyle(context).copyWith(
+                color: kcSecondaryTextColor,
+                height: 1.4,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            
+            const SizedBox(height: 16),
+            
+            // Media info
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.grey[100],
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.grey[300]!),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '$mediaTypeName Details:',
+                    style: bodyStyle(context).copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'ID: ${mediaItem.id}',
+                    style: bodyStyle(context).copyWith(
+                      fontSize: 12,
+                      color: kcSecondaryTextColor,
+                    ),
+                  ),
+                  Text(
+                    'Path: ${mediaItem.uri.split('/').last}',
+                    style: bodyStyle(context).copyWith(
+                      fontSize: 12,
+                      color: kcSecondaryTextColor,
+                    ),
+                  ),
+                  if (mediaItem.duration != null)
+                    Text(
+                      'Duration: ${_formatDuration(mediaItem.duration!)}',
+                      style: bodyStyle(context).copyWith(
+                        fontSize: 12,
+                        color: kcSecondaryTextColor,
+                      ),
+                    ),
+                  if (mediaItem.transcript != null && mediaItem.transcript!.isNotEmpty)
+                    Text(
+                      'Transcript: ${mediaItem.transcript!.length > 50 ? '${mediaItem.transcript!.substring(0, 50)}...' : mediaItem.transcript!}',
+                      style: bodyStyle(context).copyWith(
+                        fontSize: 12,
+                        color: kcSecondaryTextColor,
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            
+            const SizedBox(height: 24),
+            
+            // Action buttons
+            Row(
+              children: [
+                Expanded(
+                  child: TextButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    child: const Text('Cancel'),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: () {
+                      Navigator.of(context).pop();
+                      onRelinkMedia();
+                    },
+                    icon: Icon(_getAddMediaIcon(mediaItem.type), size: 18),
+                    label: Text('Re-insert $mediaTypeName'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: kcPrimaryColor,
+                      foregroundColor: Colors.white,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _getMediaTypeName(MediaType type) {
+    switch (type) {
+      case MediaType.image:
+        return 'Image';
+      case MediaType.video:
+        return 'Video';
+      case MediaType.audio:
+        return 'Audio';
+      case MediaType.file:
+        return 'File';
+    }
+  }
+
+  IconData _getMediaTypeIcon(MediaType type) {
+    switch (type) {
+      case MediaType.image:
+        return Icons.broken_image;
+      case MediaType.video:
+        return Icons.videocam_off;
+      case MediaType.audio:
+        return Icons.audiotrack;
+      case MediaType.file:
+        return Icons.insert_drive_file;
+    }
+  }
+
+  IconData _getAddMediaIcon(MediaType type) {
+    switch (type) {
+      case MediaType.image:
+        return Icons.add_photo_alternate;
+      case MediaType.video:
+        return Icons.videocam;
+      case MediaType.audio:
+        return Icons.mic;
+      case MediaType.file:
+        return Icons.attach_file;
+    }
+  }
+
+  String _formatDuration(Duration duration) {
+    final minutes = duration.inMinutes;
+    final seconds = duration.inSeconds % 60;
+    return '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
   }
 }
