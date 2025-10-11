@@ -103,6 +103,7 @@ class _ModelDownloadScreenState extends State<ModelDownloadScreen> {
   }
 
   void _onDownloadStateChanged() {
+    debugPrint('Model Download Screen: Download state changed, rebuilding UI...');
     if (mounted) {
       setState(() {
         // State rebuild triggered by DownloadStateService

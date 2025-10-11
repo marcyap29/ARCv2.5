@@ -152,6 +152,7 @@ class DownloadStateService extends ChangeNotifier {
   /// Mark download as completed
   void completeDownload(String modelId) {
     final displayName = _getModelDisplayName(modelId);
+    debugPrint('DownloadStateService: Completing download for $modelId ($displayName)');
     _downloadStates[modelId] = ModelDownloadState(
       modelId: modelId,
       isDownloading: false,
@@ -159,6 +160,7 @@ class DownloadStateService extends ChangeNotifier {
       progress: 1.0,
       statusMessage: '$displayName download complete!',
     );
+    debugPrint('DownloadStateService: Notifying listeners of download completion...');
     notifyListeners();
     debugPrint('DownloadStateService: Completed download for $modelId ($displayName)');
   }

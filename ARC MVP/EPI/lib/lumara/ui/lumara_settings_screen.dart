@@ -65,13 +65,13 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
   }
 
   void _onDownloadStateChanged() {
+    debugPrint('LUMARA Settings: Download state changed, refreshing API config...');
     if (mounted) {
       // Defer setState to avoid calling during build
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) {
-          setState(() {
-            // Rebuild UI when download state changes
-          });
+          // Refresh API config to update provider availability
+          _refreshApiConfig();
         }
       });
     }
@@ -79,8 +79,10 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
 
   Future<void> _refreshApiConfig() async {
     try {
+      debugPrint('LUMARA Settings: Refreshing API config...');
       await _apiConfig.initialize();
       await _apiConfig.refreshModelAvailability();
+      debugPrint('LUMARA Settings: API config refreshed successfully');
       if (mounted) {
         setState(() {
           // Rebuild UI with updated provider status
