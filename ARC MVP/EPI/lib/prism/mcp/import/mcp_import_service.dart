@@ -888,7 +888,7 @@ class McpImportService {
       final rivetEvent = RivetEvent(
         date: entry.createdAt,
         source: EvidenceSource.text,
-        keywords: entry.keywords.toSet(),
+            keywords: entry.keywords,
         predPhase: recommendedPhase,
         refPhase: currentPhase,
         tolerance: const {}, // Stub for categorical phases

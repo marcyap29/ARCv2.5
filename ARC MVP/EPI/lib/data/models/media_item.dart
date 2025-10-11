@@ -23,6 +23,7 @@ class MediaItem {
   final DateTime createdAt;
   final String? transcript;
   final String? ocrText;
+  final Map<String, dynamic>? analysisData; // Full analysis JSON from iOS Vision
 
   const MediaItem({
     required this.id,
@@ -33,6 +34,7 @@ class MediaItem {
     required this.createdAt,
     this.transcript,
     this.ocrText,
+    this.analysisData,
   });
 
   factory MediaItem.fromJson(Map<String, dynamic> json) => _$MediaItemFromJson(json);
@@ -47,6 +49,7 @@ class MediaItem {
     DateTime? createdAt,
     String? transcript,
     String? ocrText,
+    Map<String, dynamic>? analysisData,
   }) {
     return MediaItem(
       id: id ?? this.id,
@@ -57,6 +60,7 @@ class MediaItem {
       createdAt: createdAt ?? this.createdAt,
       transcript: transcript ?? this.transcript,
       ocrText: ocrText ?? this.ocrText,
+      analysisData: analysisData ?? this.analysisData,
     );
   }
 

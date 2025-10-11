@@ -58,8 +58,8 @@ class RivetService {
     
     if (a.isEmpty && b.isEmpty) return 1.0;
     
-    final intersection = a.intersection(b).length.toDouble();
-    final union = a.union(b).length.toDouble();
+    final intersection = a.where((item) => b.contains(item)).length.toDouble();
+    final union = {...a, ...b}.length.toDouble();
     
     if (union == 0) return 1.0;
     

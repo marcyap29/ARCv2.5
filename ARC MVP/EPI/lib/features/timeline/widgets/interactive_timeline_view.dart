@@ -1,5 +1,7 @@
+import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:my_app/features/timeline/timeline_cubit.dart';
 import 'package:my_app/features/timeline/timeline_state.dart';
@@ -865,7 +867,7 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
           final rivetEvent = RivetEvent(
             date: entry.createdAt,
             source: EvidenceSource.text,
-            keywords: entry.keywords.toSet(),
+                keywords: entry.keywords,
             predPhase: recommendedPhase,
             refPhase: currentPhase,
             tolerance: const {},
@@ -915,6 +917,9 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
         if (item.type == MediaType.image) {
           return GestureDetector(
             onTap: () => _openImageInGallery(item.uri),
+            onLongPress: item.analysisData != null 
+                ? () => _showAnalysisDetails(item.analysisData!)
+                : null,
             child: Container(
               width: 60,
               height: 60,
@@ -925,22 +930,45 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
                   width: 1,
                 ),
               ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(7),
-                child: Image.file(
-                  File(item.uri),
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) {
-                    return Container(
-                      color: Colors.grey[300],
-                      child: const Icon(
-                        Icons.image,
-                        color: Colors.grey,
-                        size: 24,
+              child: Stack(
+                children: [
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(7),
+                    child: Image.file(
+                      File(item.uri),
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) {
+                        return Container(
+                          color: Colors.grey[300],
+                          child: const Icon(
+                            Icons.image,
+                            color: Colors.grey,
+                            size: 24,
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                  // Analysis indicator
+                  if (item.analysisData != null)
+                    Positioned(
+                      top: 4,
+                      right: 4,
+                      child: Container(
+                        width: 16,
+                        height: 16,
+                        decoration: BoxDecoration(
+                          color: kcPrimaryColor,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Icon(
+                          Icons.analytics,
+                          color: Colors.white,
+                          size: 10,
+                        ),
                       ),
-                    );
-                  },
-                ),
+                    ),
+                ],
               ),
             ),
           );
@@ -1020,6 +1048,13 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
         ),
       );
     }
+  }
+
+  void _showAnalysisDetails(Map<String, dynamic> analysisData) {
+    showDialog(
+      context: context,
+      builder: (context) => AnalysisDetailsDialog(analysisResult: analysisData),
+    );
   }
 }
 
@@ -1250,5 +1285,106 @@ class TimelineLinePainter extends CustomPainter {
     return oldDelegate is TimelineLinePainter &&
         (oldDelegate.currentIndex != currentIndex ||
          oldDelegate.totalEntries != totalEntries);
+  }
+}
+
+class AnalysisDetailsDialog extends StatelessWidget {
+  final Map<String, dynamic> analysisResult;
+
+  const AnalysisDetailsDialog({
+    super.key,
+    required this.analysisResult,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      child: Container(
+        width: MediaQuery.of(context).size.width * 0.9,
+        height: MediaQuery.of(context).size.height * 0.8,
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  Icons.analytics,
+                  color: kcPrimaryColor,
+                  size: 24,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  'iOS Vision Analysis Details',
+                  style: heading2Style(context),
+                ),
+                const Spacer(),
+                IconButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  icon: const Icon(Icons.close),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Expanded(
+              child: SingleChildScrollView(
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.grey[100],
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.grey[300]!),
+                  ),
+                  child: SelectableText(
+                    _formatJson(analysisResult),
+                    style: const TextStyle(
+                      fontFamily: 'monospace',
+                      fontSize: 12,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: const Text('Close'),
+                ),
+                const SizedBox(width: 8),
+                ElevatedButton.icon(
+                  onPressed: () => _copyToClipboard(context),
+                  icon: const Icon(Icons.copy, size: 16),
+                  label: const Text('Copy JSON'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: kcPrimaryColor,
+                    foregroundColor: Colors.white,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _formatJson(Map<String, dynamic> json) {
+    const encoder = JsonEncoder.withIndent('  ');
+    return encoder.convert(json);
+  }
+
+  void _copyToClipboard(BuildContext context) {
+    final jsonString = _formatJson(analysisResult);
+    Clipboard.setData(ClipboardData(text: jsonString));
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Analysis JSON copied to clipboard'),
+        duration: Duration(seconds: 2),
+      ),
+    );
   }
 }

@@ -215,7 +215,7 @@ class EnableEmbedPopupCommand extends OrchestratorCommand {
     'type': type.name,
     'pointerRef': pointerRef,
     'behavior': behavior,
-    'with': withData,
+    'withData': withData,
   };
   
   @override

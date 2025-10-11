@@ -26,7 +26,7 @@ class RivetEvent extends Equatable {
   final EvidenceSource source;
   
   @HiveField(2)
-  final Set<String> keywords; // selected by user
+  final List<String> keywords; // selected by user
   
   @HiveField(3)
   final String predPhase; // from PhaseRecommender
@@ -52,7 +52,7 @@ class RivetEvent extends Equatable {
   RivetEvent copyWith({
     DateTime? date,
     EvidenceSource? source,
-    Set<String>? keywords,
+    List<String>? keywords,
     String? predPhase,
     String? refPhase,
     Map<String, double>? tolerance,
@@ -85,7 +85,7 @@ class RivetEvent extends Equatable {
         (e) => e.toString() == json['source'],
         orElse: () => EvidenceSource.other,
       ),
-      keywords: (json['keywords'] as List<dynamic>).cast<String>().toSet(),
+          keywords: (json['keywords'] as List<dynamic>).cast<String>(),
       predPhase: json['predPhase'] as String,
       refPhase: json['refPhase'] as String,
       tolerance: Map<String, double>.from(json['tolerance'] as Map),

@@ -263,7 +263,7 @@ class OCPPrismOrchestrator {
           'type': 'ENABLE_EMBED_POPUP',
           'pointerRef': pointer.id,
           'behavior': 'openPopup',
-          'with': 'extractedData',
+          'withData': 'extractedData',
         },
       ],
     };
