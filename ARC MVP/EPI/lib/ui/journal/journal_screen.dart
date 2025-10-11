@@ -9,6 +9,7 @@ import '../../state/journal_entry_state.dart';
 import '../../state/feature_flags.dart';
 import '../widgets/cached_thumbnail.dart';
 import '../../services/thumbnail_cache_service.dart';
+import '../widgets/keywords_discovered_widget.dart';
 import '../../telemetry/analytics.dart';
 import '../../services/lumara/lumara_inline_api.dart';
 import '../../lumara/services/enhanced_lumara_api.dart';
@@ -415,8 +416,17 @@ class _JournalScreenState extends State<JournalScreen> {
                         );
                       }),
                       
-                      // Manual keywords
-                      if (_manualKeywords.isNotEmpty) _buildManualKeywords(),
+                      // Keywords Discovered section
+                      KeywordsDiscoveredWidget(
+                        text: _entryState.text,
+                        manualKeywords: _manualKeywords,
+                        onKeywordsChanged: (keywords) {
+                          setState(() {
+                            _manualKeywords = keywords;
+                          });
+                        },
+                        onAddKeywords: _showKeywordDialog,
+                      ),
                       
                       // Attachments (scan and photo)
                       ..._entryState.attachments.asMap().entries.map((entry) {
@@ -972,49 +982,6 @@ class _JournalScreenState extends State<JournalScreen> {
     });
   }
 
-  Widget _buildManualKeywords() {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surfaceContainerHighest.withOpacity(0.3),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: Theme.of(context).colorScheme.outline.withOpacity(0.2),
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(
-                Icons.label,
-                size: 16,
-                color: Theme.of(context).colorScheme.primary,
-              ),
-              const SizedBox(width: 8),
-              Text(
-                'Manual Keywords',
-                style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Wrap(
-            spacing: 8,
-            runSpacing: 4,
-            children: _manualKeywords.map((keyword) => Chip(
-              label: Text(keyword),
-              onDeleted: () => _removeKeyword(keyword),
-            )).toList(),
-          ),
-        ],
-      ),
-    );
-  }
 
   Future<void> _onRegenerateReflection(int index) async {
     final block = _entryState.blocks[index];
