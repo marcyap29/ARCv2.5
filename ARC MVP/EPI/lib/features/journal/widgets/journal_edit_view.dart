@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:my_app/features/timeline/timeline_entry_model.dart';
@@ -5,6 +6,13 @@ import 'package:my_app/features/timeline/timeline_cubit.dart';
 import 'package:my_app/arc/core/journal_repository.dart';
 import 'package:my_app/shared/app_colors.dart';
 import 'package:my_app/shared/text_style.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'package:url_launcher/url_launcher.dart';
+import '../../../mcp/orchestrator/ios_vision_orchestrator.dart';
+import '../../../state/journal_entry_state.dart';
+import '../../../ui/widgets/cached_thumbnail.dart';
+import '../../../services/thumbnail_cache_service.dart';
 
 class JournalEditView extends StatefulWidget {
   final TimelineEntry entry;
@@ -28,12 +36,25 @@ class _JournalEditViewState extends State<JournalEditView> {
   late String _currentPhase;
   late String _currentGeometry;
   late DateTime _selectedDateTime;
+  
+  // Multimodal functionality
+  final ImagePicker _imagePicker = ImagePicker();
+  late final IOSVisionOrchestrator _ocpOrchestrator;
+  final List<dynamic> _attachments = []; // Can contain ScanAttachment or PhotoAttachment
+  
+  // Thumbnail cache service
+  final ThumbnailCacheService _thumbnailCache = ThumbnailCacheService();
 
   @override
   void initState() {
     super.initState();
     _textController = TextEditingController(text: widget.entry.preview);
     _focusNode = FocusNode();
+    
+    // Initialize multimodal functionality
+    _ocpOrchestrator = IOSVisionOrchestrator();
+    _ocpOrchestrator.initialize();
+    _thumbnailCache.initialize();
     
     // Get the actual journal entry to access metadata and timestamp
     final journalRepository = JournalRepository();
@@ -61,6 +82,10 @@ class _JournalEditViewState extends State<JournalEditView> {
   void dispose() {
     _textController.dispose();
     _focusNode.dispose();
+    
+    // Clean up thumbnails when timeline editor is closed
+    _thumbnailCache.clearAllThumbnails();
+    
     super.dispose();
   }
 
@@ -113,6 +138,57 @@ class _JournalEditViewState extends State<JournalEditView> {
               
               const SizedBox(height: 24),
 
+              // Multimodal toolbar
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: kcSurfaceColor,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: kcSecondaryTextColor.withOpacity(0.3),
+                  ),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    // Photo gallery button
+                    IconButton(
+                      onPressed: _handlePhotoGallery,
+                      icon: const Icon(Icons.add_photo_alternate),
+                      tooltip: 'Add Photo from Gallery',
+                      style: IconButton.styleFrom(
+                        foregroundColor: kcPrimaryColor,
+                        backgroundColor: kcPrimaryColor.withOpacity(0.1),
+                      ),
+                    ),
+                    
+                    // Camera button
+                    IconButton(
+                      onPressed: _handleCamera,
+                      icon: const Icon(Icons.camera_alt),
+                      tooltip: 'Take Photo',
+                      style: IconButton.styleFrom(
+                        foregroundColor: kcPrimaryColor,
+                        backgroundColor: kcPrimaryColor.withOpacity(0.1),
+                      ),
+                    ),
+                    
+                    // Microphone button
+                    IconButton(
+                      onPressed: _handleMicrophone,
+                      icon: const Icon(Icons.mic),
+                      tooltip: 'Add Voice Note',
+                      style: IconButton.styleFrom(
+                        foregroundColor: kcPrimaryColor,
+                        backgroundColor: kcPrimaryColor.withOpacity(0.1),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              
+              const SizedBox(height: 16),
+
               // Text editor
               Container(
                 height: 200, // Fixed height to prevent overflow
@@ -143,6 +219,13 @@ class _JournalEditViewState extends State<JournalEditView> {
                   cursorRadius: const Radius.circular(2),
                 ),
               ),
+              
+              // Photo attachments display
+              if (_attachments.isNotEmpty) ...[
+                const SizedBox(height: 16),
+                _buildAttachmentsSection(),
+                const SizedBox(height: 16),
+              ],
               
               const SizedBox(height: 24),
             ],
@@ -718,6 +801,322 @@ class _JournalEditViewState extends State<JournalEditView> {
           );
         });
       }
+    }
+  }
+
+  Future<void> _handlePhotoGallery() async {
+    try {
+      final XFile? image = await _imagePicker.pickImage(source: ImageSource.gallery);
+      if (image != null) {
+        await _processPhotoWithOCP(image.path);
+      }
+    } catch (e) {
+      _showErrorSnackBar('Failed to pick photo: $e');
+    }
+  }
+
+  Future<void> _handleCamera() async {
+    try {
+      final XFile? image = await _imagePicker.pickImage(source: ImageSource.camera);
+      if (image != null) {
+        await _processPhotoWithOCP(image.path);
+      }
+    } catch (e) {
+      _showErrorSnackBar('Failed to take photo: $e');
+    }
+  }
+
+  Future<void> _handleMicrophone() async {
+    // Show placeholder for voice recording
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Voice recording feature coming soon!'),
+        duration: Duration(seconds: 2),
+      ),
+    );
+  }
+
+  Future<void> _processPhotoWithOCP(String imagePath) async {
+    try {
+      // Show processing indicator
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('🔍 Analyzing photo with iOS Vision AI...'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+
+      // Run OCP analysis
+      final result = await _ocpOrchestrator.processPhoto(
+        imagePath: imagePath,
+        ocrEngine: 'ios_vision',
+        language: 'auto',
+        maxProcessingMs: 1500,
+      );
+
+      if (result['success'] == true) {
+        // Create photo attachment
+        final photoAttachment = PhotoAttachment(
+          type: 'photo_analysis',
+          imagePath: imagePath,
+          analysisResult: result,
+          timestamp: DateTime.now().millisecondsSinceEpoch,
+        );
+        
+        setState(() {
+          _attachments.add(photoAttachment);
+        });
+
+        // Insert analysis summary
+        final summary = result['summary'] as String? ?? 'Photo analyzed';
+        final ocrText = result['ocr']?['fullText'] as String? ?? '';
+        
+        if (ocrText.isNotEmpty) {
+          _insertTextIntoEntry('📸 **Photo Analysis**\n$summary\n\n**Text Found:**\n$ocrText');
+        } else {
+          _insertTextIntoEntry('📸 **Photo Analysis**\n$summary');
+        }
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('✅ $summary'),
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      } else {
+        throw Exception(result['error'] ?? 'Unknown error');
+      }
+    } catch (e) {
+      _showErrorSnackBar('Failed to analyze photo: $e');
+    }
+  }
+
+  void _insertTextIntoEntry(String text) {
+    final currentText = _textController.text;
+    final cursorPosition = _textController.selection.baseOffset;
+    
+    final newText = '${currentText.substring(0, cursorPosition)}\n\n$text${currentText.substring(cursorPosition)}';
+    
+    _textController.text = newText;
+    _textController.selection = TextSelection.collapsed(
+      offset: cursorPosition + text.length + 2,
+    );
+  }
+
+  void _showErrorSnackBar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: kcDangerColor,
+      ),
+    );
+  }
+
+  Widget _buildAttachmentsSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Photo Attachments',
+          style: heading1Style(context).copyWith(fontSize: 16),
+        ),
+        const SizedBox(height: 8),
+        ..._attachments.asMap().entries.map((entry) {
+          final index = entry.key;
+          final attachment = entry.value;
+          
+          if (attachment is PhotoAttachment) {
+            return _buildPhotoAttachment(attachment, index);
+          } else if (attachment is ScanAttachment) {
+            return _buildScanAttachment(attachment, index);
+          }
+          return const SizedBox.shrink();
+        }).toList(),
+      ],
+    );
+  }
+
+  Widget _buildPhotoAttachment(PhotoAttachment attachment, int index) {
+    final analysis = attachment.analysisResult;
+    final summary = analysis['summary'] as String? ?? 'Photo analyzed';
+    final features = analysis['features'] as Map? ?? {};
+    final keypoints = features['kp'] as int? ?? 0;
+    
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: kcSurfaceColor,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: kcSecondaryTextColor.withOpacity(0.2),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.photo_camera,
+                size: 16,
+                color: kcPrimaryColor,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                'Photo Analysis',
+                style: bodyStyle(context).copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const Spacer(),
+              Icon(
+                Icons.open_in_new,
+                size: 14,
+                color: kcPrimaryColor.withOpacity(0.7),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          
+          // Photo thumbnail - Clickable
+          Row(
+            children: [
+              CachedThumbnail(
+                imagePath: attachment.imagePath,
+                width: 60,
+                height: 60,
+                borderRadius: BorderRadius.circular(6),
+                onTap: () => _openPhotoInGallery(attachment.imagePath),
+                showTapIndicator: true,
+                placeholder: Container(
+                  width: 60,
+                  height: 60,
+                  decoration: BoxDecoration(
+                    color: Colors.grey[300],
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: const Center(
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                ),
+                errorWidget: Container(
+                  width: 60,
+                  height: 60,
+                  decoration: BoxDecoration(
+                    color: Colors.grey[300],
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: const Center(
+                    child: Icon(Icons.image, color: Colors.grey),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              
+              // Analysis details
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      summary,
+                      style: bodyStyle(context).copyWith(
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Features: $keypoints keypoints',
+                      style: bodyStyle(context).copyWith(
+                        color: kcSecondaryTextColor,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          
+          const SizedBox(height: 8),
+          Text(
+            'Tap thumbnail to view photo',
+            style: bodyStyle(context).copyWith(
+              color: kcPrimaryColor,
+              fontStyle: FontStyle.italic,
+              fontSize: 12,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildScanAttachment(ScanAttachment attachment, int index) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: kcSurfaceColor,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: kcSecondaryTextColor.withOpacity(0.2),
+        ),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            Icons.document_scanner,
+            size: 16,
+            color: kcPrimaryColor,
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              'Scan: ${attachment.text}',
+              style: bodyStyle(context),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _openPhotoInGallery(String imagePath) async {
+    try {
+      if (Platform.isIOS) {
+        final file = File(imagePath);
+        if (await file.exists()) {
+          final uri = Uri.file(imagePath);
+          if (await canLaunchUrl(uri)) {
+            await launchUrl(uri, mode: LaunchMode.externalApplication);
+          } else {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Photo available: ${imagePath.split('/').last}'),
+                duration: const Duration(seconds: 2),
+              ),
+            );
+          }
+        } else {
+          throw Exception('Photo file not found');
+        }
+      } else {
+        final uri = Uri.file(imagePath);
+        if (await canLaunchUrl(uri)) {
+          await launchUrl(uri, mode: LaunchMode.externalApplication);
+        } else {
+          throw Exception('Cannot open photo');
+        }
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to open photo: $e'),
+          backgroundColor: kcDangerColor,
+        ),
+      );
     }
   }
 }

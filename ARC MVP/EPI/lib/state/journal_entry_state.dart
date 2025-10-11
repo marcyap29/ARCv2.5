@@ -36,7 +36,7 @@ class JournalEntryState {
   String text = '';
   String? phase; // Discovery, Recovery, Breakthrough, Consolidation
   final List<InlineBlock> blocks = [];
-  final List<ScanAttachment> attachments = [];
+  final List<dynamic> attachments = []; // Can contain ScanAttachment or PhotoAttachment
 
   /// Whether to show LUMARA nudge animation
   bool get showLumaraNudge => text.trim().length >= 30;
@@ -101,5 +101,34 @@ class ScanAttachment {
     text: json['text'] as String,
     sourceImageId: json['sourceImageId'] as String,
     thumbnailPath: json['thumbnailPath'] as String?,
+  );
+}
+
+/// Photo attachment with analysis results
+class PhotoAttachment {
+  final String type; // 'photo_analysis'
+  final String imagePath;
+  final Map<String, dynamic> analysisResult;
+  final int timestamp;
+
+  PhotoAttachment({
+    required this.type,
+    required this.imagePath,
+    required this.analysisResult,
+    required this.timestamp,
+  });
+
+  Map<String, dynamic> toJson() => {
+    'type': type,
+    'imagePath': imagePath,
+    'analysisResult': analysisResult,
+    'timestamp': timestamp,
+  };
+
+  factory PhotoAttachment.fromJson(Map<String, dynamic> json) => PhotoAttachment(
+    type: json['type'] as String,
+    imagePath: json['imagePath'] as String,
+    analysisResult: json['analysisResult'] as Map<String, dynamic>,
+    timestamp: json['timestamp'] as int,
   );
 }

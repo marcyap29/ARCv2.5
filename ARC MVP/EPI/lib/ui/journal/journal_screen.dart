@@ -4,8 +4,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../state/journal_entry_state.dart';
 import '../../state/feature_flags.dart';
+import '../widgets/cached_thumbnail.dart';
+import '../../services/thumbnail_cache_service.dart';
 import '../../telemetry/analytics.dart';
 import '../../services/lumara/lumara_inline_api.dart';
 import '../../lumara/services/enhanced_lumara_api.dart';
@@ -17,7 +20,7 @@ import '../../arc/core/journal_repository.dart';
 import '../../arc/core/widgets/keyword_analysis_view.dart';
 import '../../core/services/draft_cache_service.dart';
 import '../../data/models/media_item.dart';
-import '../../mcp/orchestrator/real_ocp_orchestrator.dart';
+import '../../mcp/orchestrator/ios_vision_orchestrator.dart';
 import 'widgets/lumara_suggestion_sheet.dart';
 import 'widgets/inline_reflection_block.dart';
 
@@ -52,7 +55,14 @@ class _JournalScreenState extends State<JournalScreen> {
   final ImagePicker _imagePicker = ImagePicker();
   
   // Enhanced OCP/PRISM orchestrator
-  late final RealOCPOrchestrator _ocpOrchestrator;
+  late final IOSVisionOrchestrator _ocpOrchestrator;
+  
+  // Thumbnail cache service
+  final ThumbnailCacheService _thumbnailCache = ThumbnailCacheService();
+  
+  // Manual keyword entry
+  final TextEditingController _keywordController = TextEditingController();
+  List<String> _manualKeywords = [];
 
   @override
   void initState() {
@@ -63,8 +73,11 @@ class _JournalScreenState extends State<JournalScreen> {
     _ocrService = StubOcrService(_analytics); // TODO: Use platform-specific implementation
     
     // Initialize enhanced OCP services
-    _ocpOrchestrator = RealOCPOrchestrator();
+    _ocpOrchestrator = IOSVisionOrchestrator();
     _ocpOrchestrator.initialize();
+    
+    // Initialize thumbnail cache
+    _thumbnailCache.initialize();
     
     _analytics.logJournalEvent('opened');
 
@@ -83,6 +96,11 @@ class _JournalScreenState extends State<JournalScreen> {
     _autoSaveTimer?.cancel();
     _textController.dispose();
     _scrollController.dispose();
+    _keywordController.dispose();
+    
+    // Clean up thumbnails when journal screen is closed
+    _thumbnailCache.clearAllThumbnails();
+    
     super.dispose();
   }
 
@@ -312,6 +330,7 @@ class _JournalScreenState extends State<JournalScreen> {
             mood: widget.selectedEmotion ?? 'Other',
             initialEmotion: widget.selectedEmotion,
             initialReason: widget.selectedReason,
+            manualKeywords: _manualKeywords,
           ),
         ),
       ),
@@ -322,6 +341,11 @@ class _JournalScreenState extends State<JournalScreen> {
         _completeDraft();
         // Clear the session cache since entry was saved
         JournalSessionCache.clearSession();
+        // Clear the text field and reset state
+        _textController.clear();
+        setState(() {
+          _entryState.clear();
+        });
         // Navigate back to the previous screen
         Navigator.of(context).pop();
       }
@@ -391,8 +415,20 @@ class _JournalScreenState extends State<JournalScreen> {
                         );
                       }),
                       
-                      // Scan attachments
-                      ..._entryState.attachments.map((attachment) => _buildScanAttachment(attachment)),
+                      // Manual keywords
+                      if (_manualKeywords.isNotEmpty) _buildManualKeywords(),
+                      
+                      // Attachments (scan and photo)
+                      ..._entryState.attachments.asMap().entries.map((entry) {
+                        final index = entry.key;
+                        final attachment = entry.value;
+                        if (attachment is PhotoAttachment) {
+                          return _buildPhotoAttachment(attachment, index);
+                        } else if (attachment is ScanAttachment) {
+                          return _buildScanAttachment(attachment);
+                        }
+                        return const SizedBox.shrink();
+                      }),
                     ],
                   ),
                 ),
@@ -449,15 +485,16 @@ class _JournalScreenState extends State<JournalScreen> {
                                 constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
                               ),
                               
-                              // Scan page button (only if enabled)
-                              if (FeatureFlags.scanPage)
-                                IconButton(
-                                  onPressed: _onScanPage,
-                                  icon: const Icon(Icons.document_scanner),
-                                  tooltip: 'Scan Page',
-                                  padding: const EdgeInsets.all(8),
-                                  constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-                                ),
+                              // Add keyword button
+                              IconButton(
+                                onPressed: _showKeywordDialog,
+                                icon: const Icon(Icons.label),
+                                tooltip: 'Add Keywords',
+                                padding: const EdgeInsets.all(8),
+                                constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                              ),
+                              
+                              // Scan page button removed - was bumping into lumara icon
                             ],
                           ),
                         ),
@@ -569,6 +606,410 @@ class _JournalScreenState extends State<JournalScreen> {
                 child: const Text('Remove'),
               ),
             ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPhotoAttachment(PhotoAttachment attachment, int index) {
+    final analysis = attachment.analysisResult;
+    final summary = analysis['summary'] as String? ?? 'Photo analyzed';
+    final ocrText = analysis['ocr']?['fullText'] as String? ?? '';
+    final objects = analysis['objects'] as List? ?? [];
+    final faces = analysis['faces'] as List? ?? [];
+    final labels = analysis['labels'] as List? ?? [];
+    final features = analysis['features'] as Map? ?? {};
+    final keypoints = features['kp'] as int? ?? 0;
+    
+    // Extract keywords from analysis
+    final keywords = <String>[];
+    if (ocrText.isNotEmpty) {
+      keywords.addAll(ocrText.split(' ').where((word) => word.length > 3).take(5));
+    }
+    if (objects.isNotEmpty) {
+      keywords.addAll(objects.take(3).map((obj) => obj['label']?.toString() ?? ''));
+    }
+    if (labels.isNotEmpty) {
+      keywords.addAll(labels.take(3).map((label) => label['label']?.toString() ?? ''));
+    }
+    
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surfaceContainerHighest.withOpacity(0.3),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: Theme.of(context).colorScheme.outline.withOpacity(0.2),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.photo_camera,
+                size: 16,
+                color: Theme.of(context).colorScheme.primary,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                'Photo Analysis',
+                style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const Spacer(),
+              Icon(
+                Icons.open_in_new,
+                size: 14,
+                color: Theme.of(context).colorScheme.primary.withOpacity(0.7),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          
+          // Photo thumbnail
+          Row(
+            children: [
+              // Cached Thumbnail - Clickable
+              CachedThumbnail(
+                imagePath: attachment.imagePath,
+                width: 80,
+                height: 80,
+                borderRadius: BorderRadius.circular(8),
+                onTap: () => _openPhotoInGallery(attachment.imagePath),
+                showTapIndicator: true,
+                placeholder: Container(
+                  width: 80,
+                  height: 80,
+                  decoration: BoxDecoration(
+                    color: Colors.grey[300],
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Center(
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                ),
+                errorWidget: Container(
+                  width: 80,
+                  height: 80,
+                  decoration: BoxDecoration(
+                    color: Colors.grey[300],
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Center(
+                    child: Icon(Icons.image, color: Colors.grey),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              
+              // Analysis details
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Show summary
+                    Text(
+                      summary,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    
+                    const SizedBox(height: 8),
+                    
+                    // Keypoints with clickable details
+                    InkWell(
+                      onTap: () => _showKeypointsDetails(analysis),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: Theme.of(context).colorScheme.primary.withOpacity(0.3),
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.visibility,
+                              size: 12,
+                              color: Theme.of(context).colorScheme.primary,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              'Features: $keypoints keypoints',
+                              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                color: Theme.of(context).colorScheme.primary,
+                                fontSize: 10,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                            Icon(
+                              Icons.info_outline,
+                              size: 10,
+                              color: Theme.of(context).colorScheme.primary,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          
+          const SizedBox(height: 12),
+          
+          // Show keywords if available
+          if (keywords.isNotEmpty) ...[
+            Wrap(
+              spacing: 4,
+              runSpacing: 4,
+              children: keywords.take(8).map((keyword) => Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.secondary.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: Theme.of(context).colorScheme.secondary.withOpacity(0.3),
+                  ),
+                ),
+                child: Text(
+                  keyword,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Theme.of(context).colorScheme.secondary,
+                    fontSize: 10,
+                  ),
+                ),
+              )).toList(),
+            ),
+            const SizedBox(height: 8),
+          ],
+          
+          // Show MCP format indicator
+          Row(
+            children: [
+              Icon(
+                Icons.data_object,
+                size: 12,
+                color: Theme.of(context).colorScheme.secondary,
+              ),
+              const SizedBox(width: 4),
+              Text(
+                'MCP Format: ${analysis['mcp_format'] ?? 'Standard'}',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: Theme.of(context).colorScheme.secondary,
+                  fontSize: 10,
+                ),
+              ),
+            ],
+          ),
+          
+          const SizedBox(height: 8),
+          InkWell(
+            onTap: () => _openPhotoInGallery(attachment.imagePath),
+            child: Text(
+              'Tap to view photo in gallery',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: Theme.of(context).colorScheme.primary,
+                fontStyle: FontStyle.italic,
+                decoration: TextDecoration.underline,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _openPhotoInGallery(String imagePath) async {
+    try {
+      print('DEBUG: Attempting to open photo: $imagePath');
+      
+      if (Platform.isIOS) {
+        // For iOS, try to open in Photos app using file URL
+        final file = File(imagePath);
+        if (await file.exists()) {
+          print('DEBUG: Photo file exists, attempting to launch');
+          
+          // Try different approaches to open the photo
+          final uri = Uri.file(imagePath);
+          
+          // First try: Direct file URL
+          if (await canLaunchUrl(uri)) {
+            print('DEBUG: Can launch file URL, launching...');
+            await launchUrl(uri, mode: LaunchMode.externalApplication);
+            return;
+          }
+          
+          // Second try: Use photos:// scheme if available
+          final photosUri = Uri.parse('photos-redirect://$imagePath');
+          if (await canLaunchUrl(photosUri)) {
+            print('DEBUG: Can launch photos scheme, launching...');
+            await launchUrl(photosUri, mode: LaunchMode.externalApplication);
+            return;
+          }
+          
+          // Third try: Copy to Photos and open
+          await _copyToPhotosAndOpen(imagePath);
+        } else {
+          throw Exception('Photo file not found at: $imagePath');
+        }
+      } else {
+        // For Android, open with default gallery app
+        final uri = Uri.file(imagePath);
+        if (await canLaunchUrl(uri)) {
+          await launchUrl(uri, mode: LaunchMode.externalApplication);
+        } else {
+          throw Exception('Cannot open photo');
+        }
+      }
+    } catch (e) {
+      print('DEBUG: Error opening photo: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to open photo: $e'),
+          backgroundColor: Theme.of(context).colorScheme.error,
+        ),
+      );
+    }
+  }
+
+  Future<void> _copyToPhotosAndOpen(String imagePath) async {
+    try {
+      // This is a simplified approach - in a real app you'd use platform channels
+      // to properly save to Photos and get the asset URL
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Photo available: ${imagePath.split('/').last}\nTap to view in Photos app'),
+          duration: const Duration(seconds: 3),
+          action: SnackBarAction(
+            label: 'Open Photos',
+            onPressed: () async {
+              // Try to open Photos app directly
+              final photosUri = Uri.parse('photos://');
+              if (await canLaunchUrl(photosUri)) {
+                await launchUrl(photosUri, mode: LaunchMode.externalApplication);
+              }
+            },
+          ),
+        ),
+      );
+    } catch (e) {
+      throw Exception('Failed to save to Photos: $e');
+    }
+  }
+
+  void _showKeywordDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Add Keywords'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: _keywordController,
+              decoration: const InputDecoration(
+                hintText: 'Enter keywords separated by commas',
+                border: OutlineInputBorder(),
+              ),
+              onSubmitted: (value) => _addKeywords(),
+            ),
+            const SizedBox(height: 16),
+            if (_manualKeywords.isNotEmpty) ...[
+              const Text('Current keywords:', style: TextStyle(fontWeight: FontWeight.bold)),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                runSpacing: 4,
+                children: _manualKeywords.map((keyword) => Chip(
+                  label: Text(keyword),
+                  onDeleted: () => _removeKeyword(keyword),
+                )).toList(),
+              ),
+            ],
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: _addKeywords,
+            child: const Text('Add'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _addKeywords() {
+    final text = _keywordController.text.trim();
+    if (text.isNotEmpty) {
+      final keywords = text.split(',').map((k) => k.trim()).where((k) => k.isNotEmpty).toList();
+      setState(() {
+        _manualKeywords.addAll(keywords);
+        _manualKeywords = _manualKeywords.toSet().toList(); // Remove duplicates
+      });
+      _keywordController.clear();
+    }
+  }
+
+  void _removeKeyword(String keyword) {
+    setState(() {
+      _manualKeywords.remove(keyword);
+    });
+  }
+
+  Widget _buildManualKeywords() {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surfaceContainerHighest.withOpacity(0.3),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: Theme.of(context).colorScheme.outline.withOpacity(0.2),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.label,
+                size: 16,
+                color: Theme.of(context).colorScheme.primary,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                'Manual Keywords',
+                style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 4,
+            children: _manualKeywords.map((keyword) => Chip(
+              label: Text(keyword),
+              onDeleted: () => _removeKeyword(keyword),
+            )).toList(),
           ),
         ],
       ),
@@ -798,31 +1239,44 @@ class _JournalScreenState extends State<JournalScreen> {
       
       // Check current permission status
       var status = await Permission.microphone.status;
+      print('DEBUG: Microphone permission status: $status');
       
       if (status.isDenied) {
         // Request permission
+        print('DEBUG: Requesting microphone permission...');
         status = await Permission.microphone.request();
+        print('DEBUG: Permission request result: $status');
+        
+        // If still denied after request, show explanation
+        if (status.isDenied) {
+          _showPermissionExplanationDialog();
+          return;
+        }
       }
       
       if (status.isPermanentlyDenied) {
         // Show dialog to go to settings
+        print('DEBUG: Permission permanently denied, showing settings dialog');
         _showPermissionDialog();
         return;
       }
       
       if (status.isGranted) {
         // Permission granted - show recording interface
+        print('DEBUG: Permission granted, showing recording dialog');
         _showVoiceRecordingDialog();
       } else {
         // Permission denied
+        print('DEBUG: Permission denied, showing error message');
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Microphone permission is required for voice recording'),
-            duration: Duration(seconds: 3),
+          SnackBar(
+            content: Text('Microphone permission is required for voice recording. Current status: $status'),
+            duration: const Duration(seconds: 3),
           ),
         );
       }
     } catch (e) {
+      print('DEBUG: Microphone error: $e');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Failed to access microphone: $e'),
@@ -832,13 +1286,46 @@ class _JournalScreenState extends State<JournalScreen> {
     }
   }
 
+  void _showPermissionExplanationDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Microphone Permission'),
+        content: const Text(
+          'ARC needs microphone access to record voice notes.\n\n'
+          'If you don\'t see ARC in your microphone settings, please:\n\n'
+          '1. Close and reopen the app\n'
+          '2. Try the microphone button again\n'
+          '3. Check Settings > Privacy & Security > Microphone\n\n'
+          'The app needs to be restarted for permissions to register properly.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('OK'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              openAppSettings();
+            },
+            child: const Text('Open Settings'),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _showPermissionDialog() {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Microphone Permission Required'),
         content: const Text(
-          'To record voice notes, please grant microphone permission in Settings.',
+          'To record voice notes, please grant microphone permission in Settings.\n\n'
+          '1. Go to Settings > Privacy & Security > Microphone\n'
+          '2. Find "ARC" in the list\n'
+          '3. Toggle the switch to enable microphone access',
         ),
         actions: [
           TextButton(
@@ -875,6 +1362,74 @@ class _JournalScreenState extends State<JournalScreen> {
     );
   }
 
+  void _showKeypointsDetails(Map<String, dynamic> analysis) {
+    final features = analysis['features'] as Map? ?? {};
+    final keypoints = features['kp'] as int? ?? 0;
+    final method = features['method'] as String? ?? 'ORB';
+    final hashes = features['hashes'] as Map? ?? {};
+    final phash = hashes['phash'] as String? ?? 'N/A';
+    final orbPatch = hashes['orbPatch'] as String? ?? 'N/A';
+    
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Feature Analysis Details'),
+        content: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _buildDetailRow('Keypoints Detected', keypoints.toString()),
+              _buildDetailRow('Detection Method', method),
+              _buildDetailRow('Perceptual Hash', phash.length > 20 ? '${phash.substring(0, 20)}...' : phash),
+              _buildDetailRow('ORB Patch Hash', orbPatch.length > 20 ? '${orbPatch.substring(0, 20)}...' : orbPatch),
+              const SizedBox(height: 16),
+              const Text(
+                'Keypoints represent distinctive visual features in the image that can be used for:',
+                style: TextStyle(fontWeight: FontWeight.w500),
+              ),
+              const SizedBox(height: 8),
+              const Text('• Object recognition and matching'),
+              const Text('• Image similarity comparison'),
+              const Text('• Visual search and retrieval'),
+              const Text('• Duplicate detection'),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDetailRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 120,
+            child: Text(
+              '$label:',
+              style: const TextStyle(fontWeight: FontWeight.w500),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              style: const TextStyle(fontFamily: 'monospace'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _onMediaCaptured(MediaItem mediaItem) {
     // Try OCR if it's an image
     if (mediaItem.type == MediaType.image) {
@@ -888,7 +1443,7 @@ class _JournalScreenState extends State<JournalScreen> {
       // Show processing indicator
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('🔍 Analyzing photo with real OCR...'),
+          content: Text('🔍 Analyzing photo with iOS Vision AI...'),
           duration: Duration(seconds: 2),
         ),
       );
@@ -896,20 +1451,44 @@ class _JournalScreenState extends State<JournalScreen> {
       // Run real OCP analysis
       final result = await _ocpOrchestrator.processPhoto(
         imagePath: imagePath,
-        ocrEngine: 'google_mlkit', // Use Google ML Kit
+        ocrEngine: 'ios_vision', // Use iOS Vision framework
         language: 'auto',
         maxProcessingMs: 1500,
       );
 
       if (result['success'] == true) {
-        final formattedText = _ocpOrchestrator.getFormattedText(result);
+        // Create photo attachment with analysis results
+        final photoAttachment = PhotoAttachment(
+          type: 'photo_analysis',
+          imagePath: imagePath,
+          analysisResult: result,
+          timestamp: DateTime.now().millisecondsSinceEpoch,
+        );
         
-        if (formattedText.isNotEmpty) {
-          _insertTextIntoEntry(formattedText);
-        }
+        setState(() {
+          _entryState.attachments.add(photoAttachment);
+        });
+
+        // Insert analysis summary with clickable link
+        final summary = result['summary'] as String? ?? 'Photo analyzed';
+        final ocrText = result['ocr']?['fullText'] as String? ?? '';
+        final objects = result['objects'] as List<Map<String, dynamic>>? ?? [];
+        final faces = result['faces'] as List<Map<String, dynamic>>? ?? [];
+        final labels = result['labels'] as List<Map<String, dynamic>>? ?? [];
+        
+        // Create rich analysis text
+        final analysisText = _createPhotoAnalysisText(
+          summary: summary,
+          ocrText: ocrText,
+          objects: objects,
+          faces: faces,
+          labels: labels,
+          attachmentIndex: _entryState.attachments.length - 1,
+        );
+        
+        _insertTextIntoEntry(analysisText);
 
         // Show success message with summary
-        final summary = result['summary'] as String? ?? 'Photo analyzed';
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('✅ $summary'),
@@ -931,6 +1510,54 @@ class _JournalScreenState extends State<JournalScreen> {
     }
   }
 
+
+  /// Create rich photo analysis text with clickable links
+  String _createPhotoAnalysisText({
+    required String summary,
+    required String ocrText,
+    required List<Map<String, dynamic>> objects,
+    required List<Map<String, dynamic>> faces,
+    required List<Map<String, dynamic>> labels,
+    required int attachmentIndex,
+  }) {
+    final buffer = StringBuffer();
+    buffer.writeln('📸 **Photo Analysis**');
+    buffer.writeln('*Click to view photo*');
+    buffer.writeln();
+    
+    if (ocrText.isNotEmpty) {
+      buffer.writeln('**📝 Text Found:**');
+      buffer.writeln(ocrText);
+      buffer.writeln();
+    }
+    
+    if (objects.isNotEmpty) {
+      buffer.writeln('**🎯 Objects Detected:**');
+      for (final obj in objects.take(5)) {
+        final label = obj['label'] as String? ?? 'Unknown';
+        final confidence = obj['confidence'] as double? ?? 0.0;
+        buffer.writeln('• $label (${(confidence * 100).toStringAsFixed(0)}%)');
+      }
+      buffer.writeln();
+    }
+    
+    if (faces.isNotEmpty) {
+      buffer.writeln('**👤 Faces:** ${faces.length} detected');
+      buffer.writeln();
+    }
+    
+    if (labels.isNotEmpty) {
+      buffer.writeln('**🏷️ Scene:**');
+      for (final label in labels.take(3)) {
+        final labelText = label['label'] as String? ?? 'Unknown';
+        final confidence = label['confidence'] as double? ?? 0.0;
+        buffer.writeln('• $labelText (${(confidence * 100).toStringAsFixed(0)}%)');
+      }
+      buffer.writeln();
+    }
+    
+    return buffer.toString();
+  }
 
   Future<void> _performOCR(File imageFile) async {
     try {

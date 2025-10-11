@@ -13,6 +13,7 @@ class KeywordAnalysisView extends StatefulWidget {
   final String mood;
   final String? initialEmotion;
   final String? initialReason;
+  final List<String>? manualKeywords;
   
   const KeywordAnalysisView({
     super.key,
@@ -20,6 +21,7 @@ class KeywordAnalysisView extends StatefulWidget {
     required this.mood,
     this.initialEmotion,
     this.initialReason,
+    this.manualKeywords,
   });
 
   @override
@@ -63,12 +65,21 @@ class _KeywordAnalysisViewState extends State<KeywordAnalysisView>
   void _onSaveEntry() async {
     final keywordState = context.read<KeywordExtractionCubit>().state;
     if (keywordState is KeywordExtractionLoaded) {
+      // Combine extracted keywords with manual keywords
+      final allKeywords = <String>[];
+      allKeywords.addAll(keywordState.selectedKeywords);
+      if (widget.manualKeywords != null) {
+        allKeywords.addAll(widget.manualKeywords!);
+      }
+      // Remove duplicates
+      final uniqueKeywords = allKeywords.toSet().toList();
+      
       // Save entry directly without showing phase dialog
       // Phase detection is now handled by Phase Quiz or RIVET system
       context.read<JournalCaptureCubit>().saveEntryWithKeywords(
         content: widget.content,
         mood: widget.mood,
-        selectedKeywords: keywordState.selectedKeywords,
+        selectedKeywords: uniqueKeywords,
         emotion: widget.initialEmotion,
         emotionReason: widget.initialReason,
         context: context,

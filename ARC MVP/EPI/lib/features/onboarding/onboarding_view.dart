@@ -252,7 +252,7 @@ class _OnboardingPage2 extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Text(
-            'How are you feeling right now?',
+            'How are you feeling today?',
             style: heading1Style(context).copyWith(
               color: Colors.white,
             ),
@@ -269,11 +269,8 @@ class _OnboardingPage2 extends StatelessWidget {
           const SizedBox(height: 40),
           const _MoodChipsGrid(
             options: [
-              'Calm',
-              'Hopeful',
-              'Stressed',
-              'Tired',
-              'Grateful',
+              'happy', 'sad', 'anxious', 'calm', 'excited', 
+              'grateful', 'confused', 'hopeful', 'stressed', 'tired'
             ],
             type: OnboardingOptionType.feeling,
           ),
