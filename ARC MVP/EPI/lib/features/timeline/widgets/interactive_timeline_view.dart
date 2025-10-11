@@ -1,8 +1,11 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:my_app/features/timeline/timeline_cubit.dart';
 import 'package:my_app/features/timeline/timeline_state.dart';
 import 'package:my_app/features/timeline/timeline_entry_model.dart';
+import 'package:my_app/data/models/media_item.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import 'package:my_app/features/arcforms/arcform_renderer_state.dart';
 import 'package:my_app/arc/core/journal_repository.dart';
@@ -434,15 +437,25 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
                 color: kcPrimaryColor.withOpacity(0.2),
               ),
             ),
-            child: Text(
-              entry.preview,
-              style: bodyStyle(context).copyWith(
-                fontSize: 14,
-                height: 1.4,
-              ),
-              maxLines: 3,
-              overflow: TextOverflow.ellipsis,
-              textAlign: TextAlign.center,
+            child: Column(
+              children: [
+                Text(
+                  entry.preview,
+                  style: bodyStyle(context).copyWith(
+                    fontSize: 14,
+                    height: 1.4,
+                  ),
+                  maxLines: 3,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                ),
+                
+                // Display media attachments if any
+                if (entry.media.isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  _buildMediaAttachments(entry.media),
+                ],
+              ],
             ),
           ),
         ],
@@ -891,6 +904,121 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
       print('DEBUG: RIVET state recalculated from ${remainingEntries.length} remaining entries');
     } catch (e) {
       print('ERROR: Failed to recalculate RIVET state: $e');
+    }
+  }
+
+  Widget _buildMediaAttachments(List<MediaItem> media) {
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: media.map((item) {
+        if (item.type == MediaType.image) {
+          return GestureDetector(
+            onTap: () => _openImageInGallery(item.uri),
+            child: Container(
+              width: 60,
+              height: 60,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: kcPrimaryColor.withOpacity(0.3),
+                  width: 1,
+                ),
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(7),
+                child: Image.file(
+                  File(item.uri),
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) {
+                    return Container(
+                      color: Colors.grey[300],
+                      child: const Icon(
+                        Icons.image,
+                        color: Colors.grey,
+                        size: 24,
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ),
+          );
+        } else if (item.type == MediaType.audio) {
+          return Container(
+            width: 60,
+            height: 60,
+            decoration: BoxDecoration(
+              color: kcPrimaryColor.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                color: kcPrimaryColor.withOpacity(0.3),
+                width: 1,
+              ),
+            ),
+            child: const Icon(
+              Icons.audiotrack,
+              color: kcPrimaryColor,
+              size: 24,
+            ),
+          );
+        } else {
+          return Container(
+            width: 60,
+            height: 60,
+            decoration: BoxDecoration(
+              color: Colors.grey.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                color: Colors.grey.withOpacity(0.3),
+                width: 1,
+              ),
+            ),
+            child: const Icon(
+              Icons.attach_file,
+              color: Colors.grey,
+              size: 24,
+            ),
+          );
+        }
+      }).toList(),
+    );
+  }
+
+  void _openImageInGallery(String imagePath) async {
+    try {
+      if (Platform.isIOS) {
+        final file = File(imagePath);
+        if (await file.exists()) {
+          final uri = Uri.file(imagePath);
+          if (await canLaunchUrl(uri)) {
+            await launchUrl(uri, mode: LaunchMode.externalApplication);
+          } else {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Photo available: ${imagePath.split('/').last}'),
+                duration: const Duration(seconds: 2),
+              ),
+            );
+          }
+        } else {
+          throw Exception('Photo file not found');
+        }
+      } else {
+        final uri = Uri.file(imagePath);
+        if (await canLaunchUrl(uri)) {
+          await launchUrl(uri, mode: LaunchMode.externalApplication);
+        } else {
+          throw Exception('Cannot open photo');
+        }
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to open photo: $e'),
+          backgroundColor: kcDangerColor,
+        ),
+      );
     }
   }
 }

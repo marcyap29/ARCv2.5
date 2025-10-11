@@ -28,6 +28,9 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
   // Debouncing timer to prevent too frequent API refreshes
   Timer? _refreshDebounceTimer;
   
+  // Track previous download states to detect completion
+  Map<String, double> _previousProgress = {};
+  
   /// Safe progress calculation to prevent NaN and infinite values
   double _safeProgress(double progress) {
     if (progress.isNaN || !progress.isFinite) {
@@ -189,13 +192,21 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
     final llamaState = _downloadStateService.getState('Llama-3.2-3b-Instruct-Q4_K_M.gguf');
     final qwenState = _downloadStateService.getState('Qwen3-4B-Instruct-2507-Q4_K_S.gguf');
     
-    final llamaJustCompleted = llamaState?.isDownloaded == true && 
-                              (llamaState?.statusMessage?.contains('download complete') ?? false);
-    final qwenJustCompleted = qwenState?.isDownloaded == true && 
-                              (qwenState?.statusMessage?.contains('download complete') ?? false);
+    // Check for completion by detecting when progress reaches 100%
+    final llamaProgress = llamaState?.progress ?? 0.0;
+    final qwenProgress = qwenState?.progress ?? 0.0;
+    
+    final llamaJustCompleted = (llamaState?.isDownloaded == true) || 
+                              (llamaProgress == 1.0 && (_previousProgress['llama'] ?? 0.0) < 1.0);
+    final qwenJustCompleted = (qwenState?.isDownloaded == true) || 
+                              (qwenProgress == 1.0 && (_previousProgress['qwen'] ?? 0.0) < 1.0);
+    
+    // Update previous progress values
+    _previousProgress['llama'] = llamaProgress;
+    _previousProgress['qwen'] = qwenProgress;
     
     if (llamaJustCompleted || qwenJustCompleted) {
-      debugPrint('LUMARA Settings: Download completed, refreshing API config...');
+      debugPrint('LUMARA Settings: Download completed (${llamaJustCompleted ? 'Llama' : 'Qwen'}), refreshing API config...');
       _refreshApiConfig();
     } else {
       // Just update the UI without expensive API refresh

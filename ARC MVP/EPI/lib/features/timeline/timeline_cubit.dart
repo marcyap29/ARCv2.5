@@ -262,6 +262,7 @@ class TimelineCubit extends Cubit<TimelineState> {
         keywords: _extractKeywords(entry),
         phase: phase,
         geometry: geometry,
+        media: entry.media, // Include media attachments
       );
     }).toList();
   }

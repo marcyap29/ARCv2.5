@@ -9,6 +9,7 @@ import 'package:my_app/shared/text_style.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:my_app/data/models/media_item.dart';
 import '../../../mcp/orchestrator/ios_vision_orchestrator.dart';
 import '../../../state/journal_entry_state.dart';
 import '../../../ui/widgets/cached_thumbnail.dart';
@@ -681,10 +682,37 @@ class _JournalEditViewState extends State<JournalEditView> {
       updatedMetadata['updated_by_user'] = true;
       updatedMetadata['last_modified'] = DateTime.now().toIso8601String();
 
-        // Update the journal entry with new text, metadata, and timestamp
+        // Convert attachments to MediaItem objects
+        final mediaItems = _attachments.map((attachment) {
+          if (attachment is PhotoAttachment) {
+            return MediaItem(
+              id: 'photo_${attachment.timestamp}',
+              uri: attachment.imagePath,
+              type: MediaType.image,
+              sizeBytes: null, // Could be calculated if needed
+              createdAt: DateTime.fromMillisecondsSinceEpoch(attachment.timestamp),
+              ocrText: attachment.analysisResult['ocr']?['fullText'] as String?,
+              transcript: null,
+            );
+          } else if (attachment is ScanAttachment) {
+            return MediaItem(
+              id: 'scan_${attachment.sourceImageId}',
+              uri: attachment.sourceImageId,
+              type: MediaType.image,
+              sizeBytes: null,
+              createdAt: DateTime.now(),
+              ocrText: attachment.text,
+              transcript: null,
+            );
+          }
+          return null;
+        }).where((item) => item != null).cast<MediaItem>().toList();
+
+        // Update the journal entry with new text, metadata, media, and timestamp
         final updatedEntry = existingEntry.copyWith(
           content: _textController.text.trim(),
           metadata: updatedMetadata,
+          media: mediaItems,
           createdAt: _selectedDateTime,
           updatedAt: DateTime.now(),
         );
@@ -1086,28 +1114,32 @@ class _JournalEditViewState extends State<JournalEditView> {
   void _openPhotoInGallery(String imagePath) async {
     try {
       if (Platform.isIOS) {
-        final file = File(imagePath);
-        if (await file.exists()) {
-          final uri = Uri.file(imagePath);
-          if (await canLaunchUrl(uri)) {
-            await launchUrl(uri, mode: LaunchMode.externalApplication);
-          } else {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('Photo available: ${imagePath.split('/').last}'),
-                duration: const Duration(seconds: 2),
-              ),
-            );
-          }
+        // For iOS, try to open the Photos app directly
+        // This will open the Photos app, though it may not navigate to the specific photo
+        final photosUri = Uri.parse('photos-redirect://');
+        if (await canLaunchUrl(photosUri)) {
+          await launchUrl(photosUri, mode: LaunchMode.externalApplication);
         } else {
-          throw Exception('Photo file not found');
+          // Fallback: try to open the file directly
+          final file = File(imagePath);
+          if (await file.exists()) {
+            final uri = Uri.file(imagePath);
+            if (await canLaunchUrl(uri)) {
+              await launchUrl(uri, mode: LaunchMode.externalApplication);
+            } else {
+              _showPhotoInfo(imagePath);
+            }
+          } else {
+            throw Exception('Photo file not found');
+          }
         }
       } else {
+        // For Android, try to open the file directly
         final uri = Uri.file(imagePath);
         if (await canLaunchUrl(uri)) {
           await launchUrl(uri, mode: LaunchMode.externalApplication);
         } else {
-          throw Exception('Cannot open photo');
+          _showPhotoInfo(imagePath);
         }
       }
     } catch (e) {
@@ -1118,6 +1150,24 @@ class _JournalEditViewState extends State<JournalEditView> {
         ),
       );
     }
+  }
+
+  void _showPhotoInfo(String imagePath) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Photo saved: ${imagePath.split('/').last}'),
+        duration: const Duration(seconds: 2),
+        action: SnackBarAction(
+          label: 'Open Photos',
+          onPressed: () async {
+            final photosUri = Uri.parse('photos-redirect://');
+            if (await canLaunchUrl(photosUri)) {
+              await launchUrl(photosUri, mode: LaunchMode.externalApplication);
+            }
+          },
+        ),
+      ),
+    );
   }
 }
 
