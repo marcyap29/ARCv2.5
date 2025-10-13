@@ -19,6 +19,13 @@ class RivetConfig {
   final int minPhaseDwellDays;
   final double minPhaseDelta;
 
+  // Temporal analysis settings
+  final bool enableTemporalAnalysis;
+  final int temporalLookbackDays;
+  final double recencyBoostFactor;
+  final double overuseThreshold;         // If keyword used too often, reduce score
+  final double underrepresentedBoost;    // Boost rarely used but relevant keywords
+
   const RivetConfig({
     this.maxCandidates = 20,
     this.preselectTop = 15,
@@ -31,9 +38,42 @@ class RivetConfig {
     this.maxNewPerDay = 2,
     this.minPhaseDwellDays = 3,
     this.minPhaseDelta = 0.12,
+    this.enableTemporalAnalysis = true,
+    this.temporalLookbackDays = 30,
+    this.recencyBoostFactor = 1.2,
+    this.overuseThreshold = 0.4,          // Used in >40% of recent entries
+    this.underrepresentedBoost = 1.15,    // Boost underused keywords
   });
 
   static const RivetConfig defaultConfig = RivetConfig();
+}
+
+/// Historical keyword usage data for temporal analysis
+class KeywordHistory {
+  final String keyword;
+  final int usageCount;
+  final DateTime? lastUsed;
+  final List<DateTime> usageDates;
+  final double avgAmplitude;
+
+  const KeywordHistory({
+    required this.keyword,
+    required this.usageCount,
+    this.lastUsed,
+    required this.usageDates,
+    required this.avgAmplitude,
+  });
+
+  double get usageFrequency => usageDates.isEmpty ? 0.0 : usageCount / usageDates.length;
+
+  Map<String, dynamic> toJson() => {
+    'keyword': keyword,
+    'usage_count': usageCount,
+    'last_used': lastUsed?.toIso8601String(),
+    'usage_dates': usageDates.map((d) => d.toIso8601String()).toList(),
+    'avg_amplitude': avgAmplitude,
+    'usage_frequency': usageFrequency,
+  };
 }
 
 /// Represents emotion detection for a keyword
@@ -149,106 +189,299 @@ class EnhancedKeywordExtractor {
 
   /// Expanded curated keywords with semantic categories
   static const List<String> curatedKeywords = [
-    // Core Emotions
-    'grateful', 'anxious', 'hopeful', 'stressed', 'excited', 'calm', 'frustrated', 'peaceful',
-    'overwhelmed', 'confident', 'uncertain', 'joyful', 'worried', 'relaxed', 'energized',
-    'proud', 'ashamed', 'angry', 'content', 'sad', 'happy', 'fearful', 'optimistic',
-    'bright', 'steady', 'focused', 'alive', 'coherent',
-    
+    // Positive Emotions
+    'grateful', 'hopeful', 'excited', 'calm', 'peaceful', 'confident', 'joyful', 'relaxed',
+    'energized', 'proud', 'happy', 'optimistic', 'bright', 'steady', 'focused', 'alive',
+    'coherent', 'content', 'satisfied', 'fulfilled', 'blessed', 'thankful', 'serene',
+    'delighted', 'elated', 'cheerful', 'uplifted', 'inspired', 'motivated', 'empowered',
+    'loving', 'loved', 'appreciated', 'valued', 'understood', 'supported', 'safe',
+    'secure', 'stable', 'grounded', 'centered', 'balanced', 'harmonious',
+
+    // Negative Emotions - Anxiety & Fear
+    'anxious', 'stressed', 'overwhelmed', 'worried', 'fearful', 'scared', 'terrified',
+    'panicked', 'nervous', 'tense', 'uneasy', 'restless', 'on edge', 'paranoid',
+    'threatened', 'insecure', 'vulnerable', 'exposed', 'unsafe', 'helpless', 'powerless',
+    'trapped', 'suffocated', 'claustrophobic', 'apprehensive', 'dreadful', 'alarmed',
+
+    // Negative Emotions - Sadness & Depression
+    'sad', 'depressed', 'heartbroken', 'devastated', 'grief', 'grieving', 'mourning',
+    'lonely', 'empty', 'hollow', 'numb', 'hopeless', 'despair', 'despairing', 'defeated',
+    'broken', 'shattered', 'crushed', 'miserable', 'sorrowful', 'melancholy', 'gloomy',
+    'dark', 'heavy', 'burdened', 'drained', 'exhausted', 'depleted', 'lifeless',
+    'disconnected', 'isolated', 'alone', 'abandoned', 'rejected', 'unwanted', 'unloved',
+
+    // Negative Emotions - Anger & Frustration
+    'angry', 'frustrated', 'irritated', 'annoyed', 'furious', 'enraged', 'mad', 'livid',
+    'bitter', 'resentful', 'hostile', 'aggressive', 'vengeful', 'spiteful', 'hateful',
+    'disgusted', 'repulsed', 'contemptuous', 'indignant', 'outraged', 'infuriated',
+    'agitated', 'exasperated', 'provoked', 'triggered', 'offended', 'hurt',
+
+    // Negative Emotions - Shame & Guilt
+    'ashamed', 'guilty', 'embarrassed', 'humiliated', 'mortified', 'degraded',
+    'inadequate', 'unworthy', 'worthless', 'incompetent', 'failure', 'defective',
+    'flawed', 'damaged', 'tainted', 'dirty', 'regretful', 'remorseful', 'apologetic',
+
+    // Negative Emotions - Confusion & Doubt
+    'uncertain', 'confused', 'lost', 'disoriented', 'bewildered', 'perplexed',
+    'doubtful', 'skeptical', 'suspicious', 'distrustful', 'questioning', 'conflicted',
+    'ambivalent', 'indecisive', 'torn', 'unclear', 'foggy', 'hazy',
+
+    // Negative Emotions - Disappointment & Regret
+    'disappointed', 'let down', 'discouraged', 'disillusioned', 'dismayed', 'deflated',
+    'regretful', 'remorse', 'hindsight', 'wishing', 'if only', 'shouldve', 'missed opportunity',
+
     // Life Domains
     'work', 'family', 'relationship', 'health', 'creativity', 'spirituality', 'money', 'career',
     'friendship', 'home', 'travel', 'learning', 'goals', 'dreams', 'purpose', 'community',
     'leadership', 'service', 'parenting', 'partnership', 'independence', 'belonging',
-    
+    'job', 'school', 'finance', 'body', 'mind', 'soul', 'self', 'identity',
+
     // Growth & Transformation
     'growth', 'healing', 'breakthrough', 'challenge', 'transition', 'discovery', 'insight',
     'transformation', 'progress', 'setback', 'opportunity', 'balance', 'clarity', 'wisdom',
     'reflection', 'meditation', 'mindfulness', 'awareness', 'patterns', 'habits', 'change',
     'acceptance', 'forgiveness', 'compassion', 'resilience', 'courage', 'vulnerability',
     'momentum', 'threshold', 'crossing', 'barrier', 'speed', 'path', 'steps',
-    
+    'recovery', 'repair', 'rebuild', 'restart', 'renewal', 'rebirth', 'release', 'surrender',
+
+    // Struggles & Challenges
+    'struggle', 'difficulty', 'obstacle', 'problem', 'issue', 'crisis', 'emergency',
+    'conflict', 'tension', 'strain', 'burden', 'weight', 'load', 'responsibility',
+    'pressure', 'stress', 'demand', 'expectation', 'obligation', 'duty', 'hardship',
+    'suffering', 'pain', 'hurt', 'wound', 'trauma', 'damage', 'loss', 'failure',
+
     // Technical & Development
     'mvp', 'prototype', 'system', 'integration', 'detection', 'recommendations', 'connect',
     'language', 'version', 'design', 'choices', 'visuals', 'stabilize', 'ship', 'experience',
     'arcform', 'phase', 'questionnaire', 'atlas', 'aurora', 'veil', 'mira',
-    
+
     // Temporal & Process
     'beginning', 'ending', 'continuation', 'pause', 'acceleration', 'slowing', 'rhythm',
     'timing', 'season', 'cycle', 'milestone', 'anniversary', 'deadline', 'pressure',
     'first', 'time', 'today', 'loop', 'close', 'input', 'output', 'end', 'intent',
-    
+
     // Relational & Social
     'connection', 'isolation', 'communication', 'conflict', 'harmony', 'support', 'trust',
-    'betrayal', 'intimacy', 'distance', 'collaboration', 'competition', 'mentorship'
+    'betrayal', 'intimacy', 'distance', 'collaboration', 'competition', 'mentorship',
+    'argument', 'fight', 'disagreement', 'misunderstanding', 'breakup', 'separation',
+    'divorce', 'reunion', 'reconciliation', 'boundary', 'boundaries', 'space', 'closeness'
   ];
 
   /// Phase-keyword mapping for semantic matching
   static const Map<String, List<String>> phaseKeywordMap = {
     'Discovery': [
+      // Mostly positive with some natural uncertainty
       'curious', 'exploring', 'learning', 'wondering', 'questioning', 'beginning',
-      'new', 'fresh', 'potential', 'possibility', 'adventure', 'creativity', 'innovation'
+      'new', 'fresh', 'potential', 'possibility', 'adventure', 'creativity', 'innovation',
+      'excited', 'hopeful', 'inspired', 'motivated', 'discovering', 'finding',
+      // Natural uncertainty in exploration (not negative, just neutral/exploratory)
+      'uncertain', 'questioning', 'unclear', 'curious', 'exploring options'
     ],
     'Expansion': [
+      // Positive
       'growing', 'expanding', 'reaching', 'stretching', 'building', 'developing',
-      'flourishing', 'thriving', 'abundant', 'generous', 'confident', 'optimistic'
+      'flourishing', 'thriving', 'abundant', 'generous', 'confident', 'optimistic',
+      'empowered', 'energized', 'proud', 'successful', 'achieving', 'momentum',
+      // Negative/Mixed
+      'pressure', 'stressed', 'overwhelmed', 'burden', 'responsibility', 'expectation',
+      'demanding', 'exhausted', 'overextended', 'strained', 'stretched thin'
     ],
     'Transition': [
+      // Positive
       'changing', 'shifting', 'moving', 'transitioning', 'evolving', 'adapting',
-      'uncertain', 'between', 'liminal', 'threshold', 'crossing', 'bridge'
+      'transforming', 'between', 'liminal', 'threshold', 'crossing', 'bridge',
+      // Negative/Mixed
+      'uncertain', 'confused', 'lost', 'disoriented', 'unstable', 'shaky',
+      'anxious', 'worried', 'fearful', 'scared', 'insecure', 'vulnerable',
+      'torn', 'conflicted', 'ambivalent', 'indecisive', 'hesitant', 'stuck',
+      'letting go', 'release', 'ending', 'loss', 'grief', 'mourning'
     ],
     'Consolidation': [
+      // Positive
       'integrating', 'organizing', 'stabilizing', 'grounding', 'centering', 'anchoring',
-      'weaving', 'connecting', 'synthesizing', 'harmonizing', 'routine', 'structure'
+      'weaving', 'connecting', 'synthesizing', 'harmonizing', 'routine', 'structure',
+      'balanced', 'steady', 'secure', 'stable', 'coherent', 'settled',
+      // Negative/Mixed
+      'tired', 'drained', 'depleted', 'exhausted', 'weary', 'heavy',
+      'slowly improving', 'rebuilding', 'repairing', 'mending', 'recovering',
+      'restoring order', 'picking up pieces', 'getting back', 'finding footing'
     ],
     'Recovery': [
+      // Positive
       'healing', 'resting', 'restoring', 'recovering', 'gentle', 'nurturing',
-      'calm', 'peaceful', 'soothing', 'quiet', 'stillness', 'retreat', 'sanctuary'
+      'calm', 'peaceful', 'soothing', 'quiet', 'stillness', 'retreat', 'sanctuary',
+      'renewal', 'rebirth', 'regeneration', 'restoration',
+      // Negative/Mixed (in recovery process)
+      'wounded', 'hurt', 'pain', 'suffering', 'trauma', 'traumatized',
+      'broken', 'damaged', 'injured', 'scarred', 'tender', 'fragile',
+      'vulnerable', 'weak', 'depleted', 'exhausted', 'drained', 'empty',
+      'grief', 'grieving', 'mourning', 'loss', 'sad', 'heartbroken',
+      'slowly healing', 'mending', 'getting better', 'improving', 'on the mend'
+    ],
+    'Crucible': [
+      // The intense pressure before breakthrough - struggle, determination
+      'frustrated', 'stuck', 'blocked', 'struggling', 'trying', 'fighting',
+      'desperate', 'determined', 'pushed', 'breaking point', 'enough',
+      'cant take anymore', 'had enough', 'pushing through', 'intense',
+      'pressure', 'challenge', 'testing', 'trials', 'at my limit', 'edge',
+      'pushing boundaries', 'resistance', 'wrestling', 'grappling'
     ],
     'Breakthrough': [
+      // Positive - the actual breakthrough moment and after
       'breakthrough', 'clarity', 'insight', 'realization', 'epiphany', 'understanding',
-      'liberation', 'freedom', 'transcendence', 'awakening', 'illumination', 'revelation'
+      'liberation', 'freedom', 'transcendence', 'awakening', 'illumination', 'revelation',
+      'aha moment', 'finally', 'suddenly', 'click', 'makes sense', 'understand',
+      'released', 'freed', 'unburdened', 'lighter', 'relief', 'enlightened',
+      'transformed', 'clear', 'seeing', 'breakthrough moment', 'got it', 'eureka',
+      'weight lifted', 'new perspective', 'shift', 'opened', 'unlocked'
     ],
   };
 
   /// Emotion keyword mapping for amplitude detection
   static const Map<String, double> emotionAmplitudeMap = {
-    // High amplitude emotions
+    // Highest amplitude emotions (0.90-1.0)
     'ecstatic': 0.95, 'devastated': 0.95, 'furious': 0.95, 'terrified': 0.95,
-    'overjoyed': 0.90, 'heartbroken': 0.90, 'enraged': 0.90, 'panicked': 0.90,
-    
-    // Medium-high amplitude
-    'excited': 0.80, 'anxious': 0.80, 'angry': 0.75, 'sad': 0.75,
-    'joyful': 0.70, 'worried': 0.70, 'frustrated': 0.65, 'hopeful': 0.65,
-    
-    // Medium amplitude
-    'happy': 0.60, 'nervous': 0.60, 'disappointed': 0.55, 'grateful': 0.55,
-    'confident': 0.50, 'uncertain': 0.50, 'proud': 0.50, 'ashamed': 0.50,
-    
-    // Lower amplitude
-    'content': 0.40, 'calm': 0.35, 'peaceful': 0.35, 'relaxed': 0.30,
-    'neutral': 0.15, 'stable': 0.20, 'steady': 0.20,
+    'overjoyed': 0.95, 'heartbroken': 0.95, 'enraged': 0.95, 'panicked': 0.95,
+    'shattered': 0.92, 'crushed': 0.92, 'livid': 0.92, 'hopeless': 0.92,
+    'despair': 0.90, 'despairing': 0.90, 'hateful': 0.90, 'traumatized': 0.90,
+
+    // Very high amplitude emotions (0.80-0.89)
+    'overwhelmed': 0.85, 'miserable': 0.85, 'outraged': 0.85, 'grief': 0.85,
+    'grieving': 0.85, 'broken': 0.85, 'elated': 0.85, 'infuriated': 0.85,
+    'excited': 0.80, 'anxious': 0.80, 'depressed': 0.80, 'bitter': 0.80,
+    'resentful': 0.80, 'humiliated': 0.80, 'mortified': 0.80, 'disgusted': 0.80,
+
+    // High amplitude emotions (0.70-0.79)
+    'angry': 0.75, 'sad': 0.75, 'ashamed': 0.75, 'guilty': 0.75,
+    'joyful': 0.75, 'inspired': 0.75, 'empowered': 0.75, 'loving': 0.75,
+    'worried': 0.72, 'scared': 0.72, 'lonely': 0.72, 'abandoned': 0.72,
+    'rejected': 0.72, 'worthless': 0.72, 'defeated': 0.72, 'trapped': 0.72,
+    'hopeful': 0.70, 'frustrated': 0.70, 'stressed': 0.70, 'fearful': 0.70,
+
+    // Medium-high amplitude (0.60-0.69)
+    'happy': 0.65, 'nervous': 0.65, 'upset': 0.65, 'hurt': 0.65,
+    'disappointed': 0.62, 'grateful': 0.62, 'irritated': 0.62, 'annoyed': 0.62,
+    'embarrassed': 0.62, 'empty': 0.62, 'numb': 0.62, 'isolated': 0.62,
+    'insecure': 0.60, 'helpless': 0.60, 'powerless': 0.60, 'drained': 0.60,
+    'exhausted': 0.60, 'confused': 0.60, 'lost': 0.60, 'alone': 0.60,
+
+    // Medium amplitude (0.50-0.59)
+    'confident': 0.55, 'proud': 0.55, 'content': 0.55, 'satisfied': 0.55,
+    'peaceful': 0.55, 'blessed': 0.55, 'appreciated': 0.55, 'loved': 0.55,
+    'uncertain': 0.52, 'uneasy': 0.52, 'tense': 0.52, 'restless': 0.52,
+    'regretful': 0.52, 'remorseful': 0.52, 'conflicted': 0.52, 'torn': 0.52,
+    'heavy': 0.50, 'burdened': 0.50, 'dark': 0.50, 'gloomy': 0.50,
+
+    // Lower-medium amplitude (0.40-0.49)
+    'calm': 0.45, 'relaxed': 0.45, 'serene': 0.45, 'grounded': 0.45,
+    'disconnected': 0.42, 'doubtful': 0.42, 'skeptical': 0.42, 'indecisive': 0.42,
+    'discouraged': 0.42, 'deflated': 0.42, 'unfulfilled': 0.40, 'hollow': 0.40,
+
+    // Low amplitude (0.30-0.39)
+    'neutral': 0.35, 'stable': 0.35, 'steady': 0.35, 'balanced': 0.35,
+    'centered': 0.35, 'unclear': 0.32, 'foggy': 0.32, 'hazy': 0.32,
+
+    // Very low amplitude (0.20-0.29)
+    'coherent': 0.25, 'focused': 0.25, 'curious': 0.25, 'wondering': 0.25,
+
+    // Minimal amplitude (0.10-0.19)
+    'aware': 0.15, 'mindful': 0.15, 'observing': 0.15, 'noticing': 0.15,
   };
 
-  /// Extract enhanced keywords with RIVET gating
+  /// Extract enhanced keywords with RIVET gating and temporal analysis
   static KeywordExtractionResponse extractKeywords({
     required String entryText,
     required String currentPhase,
     RivetConfig config = _defaultConfig,
+    Map<String, KeywordHistory>? keywordHistory,  // Optional historical data
   }) {
     // Step 1: Generate raw candidates
     final rawCandidates = _generateCandidates(entryText);
-    
+
     // Step 2: Score candidates with existing equation (AS-IS)
     final scoredCandidates = _scoreCandidates(rawCandidates, entryText, currentPhase);
-    
+
+    // Step 2.5: Apply temporal adjustments if enabled and history provided
+    if (config.enableTemporalAnalysis && keywordHistory != null) {
+      _applyTemporalAdjustments(scoredCandidates, keywordHistory, config);
+    }
+
     // Step 3: Apply RIVET gating
     final gatedCandidates = _applyRivetGating(scoredCandidates, config);
-    
+
     // Step 4: Rank and truncate
     final rankedCandidates = _rankAndTruncate(gatedCandidates, config);
-    
+
     // Step 5: Generate response
     return _generateResponse(rankedCandidates, currentPhase, config);
+  }
+
+  /// Apply temporal adjustments to candidate scores
+  static void _applyTemporalAdjustments(
+    List<Map<String, dynamic>> candidates,
+    Map<String, KeywordHistory> history,
+    RivetConfig config,
+  ) {
+    final now = DateTime.now();
+    final lookbackCutoff = now.subtract(Duration(days: config.temporalLookbackDays));
+
+    for (final candidate in candidates) {
+      final keyword = candidate['keyword'] as String;
+      final currentScore = candidate['score'] as double;
+      final historyData = history[keyword.toLowerCase()];
+
+      if (historyData == null) {
+        // New keyword - apply underrepresented boost
+        candidate['score'] = currentScore * config.underrepresentedBoost;
+        candidate['temporal_adjustment'] = 'NEW_KEYWORD_BOOST';
+        continue;
+      }
+
+      // Calculate usage frequency in lookback window
+      final recentUsages = historyData.usageDates
+          .where((date) => date.isAfter(lookbackCutoff))
+          .length;
+
+      final totalRecentEntries = history.values
+          .expand((h) => h.usageDates)
+          .where((date) => date.isAfter(lookbackCutoff))
+          .toSet()
+          .length;
+
+      final usageRate = totalRecentEntries == 0 ? 0.0 : recentUsages / totalRecentEntries;
+
+      // Apply adjustments based on usage patterns
+      double adjustment = 1.0;
+      String adjustmentReason = 'NONE';
+
+      // Overused keywords get penalized
+      if (usageRate > config.overuseThreshold) {
+        adjustment = 0.85; // 15% penalty
+        adjustmentReason = 'OVERUSE_PENALTY';
+      }
+      // Underused but relevant keywords get boosted
+      else if (usageRate < 0.10 && currentScore > 0.3) {
+        adjustment = config.underrepresentedBoost;
+        adjustmentReason = 'UNDERREPRESENTED_BOOST';
+      }
+      // Keywords used recently but not overused maintain score
+      else if (historyData.lastUsed != null &&
+          historyData.lastUsed!.isAfter(now.subtract(const Duration(days: 7)))) {
+        adjustment = 1.0;
+        adjustmentReason = 'RECENT_USAGE_NEUTRAL';
+      }
+      // Long-dormant keywords get slight boost for diversity
+      else if (historyData.lastUsed != null &&
+          historyData.lastUsed!.isBefore(now.subtract(const Duration(days: 21)))) {
+        adjustment = 1.10;
+        adjustmentReason = 'DORMANT_DIVERSITY_BOOST';
+      }
+
+      candidate['score'] = (currentScore * adjustment).clamp(0.0, 1.0);
+      candidate['temporal_adjustment'] = adjustmentReason;
+      candidate['usage_rate'] = usageRate;
+      candidate['recent_usages'] = recentUsages;
+    }
   }
 
   /// Generate raw keyword candidates from text
