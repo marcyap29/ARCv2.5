@@ -22,6 +22,15 @@ import Photos
 
     NSLog("[AppDelegate] LLMBridge registered via Pigeon with progress API ✅")
     
+    // Register Vision API using Pigeon
+    let visionApi = VisionApi()
+    VisionApiSetup.setUp(
+      binaryMessenger: controller.binaryMessenger,
+      api: visionApi
+    )
+    
+    NSLog("[AppDelegate] VisionApi registered via Pigeon ✅")
+    
         // Register Photos method channel
         let photosChannel = FlutterMethodChannel(name: "com.epi.arcmvp/photos", binaryMessenger: controller.binaryMessenger)
         photosChannel.setMethodCallHandler { [weak self] (call, result) in
