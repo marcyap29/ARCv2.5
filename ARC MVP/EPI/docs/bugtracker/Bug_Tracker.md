@@ -1,7 +1,7 @@
 # Bug Tracker - Current Status
 
-**Last Updated:** January 8, 2025
-**Branch:** star-phases
+**Last Updated:** January 12, 2025
+**Branch:** timeline
 **Status:** Production Ready ✅
 
 ## 📊 Current Status
@@ -32,8 +32,51 @@ All major bugs from the main branch merge have been resolved. The system is stab
 - ✅ **NEW: Pure Reducer Pattern Implementation**
 - ✅ **NEW: Event Log Storage with Checkpoints**
 - ✅ **NEW: Enhanced RIVET Telemetry**
+- ✅ **NEW: Timeline Editor Elimination & Full Journal Integration**
+- ✅ **NEW: Media Persistence & Photo Analysis System**
+- ✅ **NEW: Real-time Keyword Analysis Integration**
+- ✅ **NEW: Auto-capitalization for Text Fields**
+- ✅ **NEW: Date/Time/Location/Phase Editing Controls**
 
-### Recently Resolved Issues (January 8, 2025)
+### Recently Resolved Issues (January 12, 2025)
+
+#### Timeline Integration & Media Persistence ✅ **RESOLVED**
+- **Issue**: Timeline editor was limited and photos weren't persisting when saved to timeline
+- **Root Cause**: Timeline used limited editor instead of full journal screen, and media conversion wasn't properly implemented
+- **Solution**: Eliminated timeline editor and integrated full journal screen with media persistence
+- **Technical Fixes**:
+  - ✅ **Timeline Navigation**: Modified `interactive_timeline_view.dart` to navigate directly to `JournalScreen` when tapping entries
+  - ✅ **Media Conversion**: Created `MediaConversionUtils` to convert `PhotoAttachment`/`ScanAttachment` to `MediaItem`
+  - ✅ **Journal Integration**: Updated `JournalCaptureCubit` to include `media` parameter in all save methods
+  - ✅ **Photo Analysis**: Implemented inline photo insertion with `[PHOTO:id]` placeholders
+  - ✅ **Real-time Keywords**: Integrated `KeywordAnalysisService` for real-time keyword analysis as user types
+  - ✅ **Auto-capitalization**: Added `TextCapitalization.sentences` for main text and `TextCapitalization.words` for location/keywords
+  - ✅ **Editing Controls**: Added date/time/location/phase editing controls for existing entries
+- **Files Modified**:
+  - `lib/features/timeline/widgets/interactive_timeline_view.dart` - Timeline navigation changes
+  - `lib/ui/journal/journal_screen.dart` - Full journal integration with media persistence
+  - `lib/ui/journal/media_conversion_utils.dart` - New utility for media conversion
+  - `lib/arc/core/journal_capture_cubit.dart` - Media parameter integration
+  - `lib/arc/core/widgets/keyword_analysis_view.dart` - Real-time keyword integration
+- **Result**: Timeline entries now open in full journal editor with complete media persistence and analysis
+
+#### Vision API Integration Issues ⚠️ **PARTIALLY RESOLVED**
+- **Issue**: Full iOS Vision integration needed for detailed photo analysis blocks
+- **Root Cause**: Vision API files have compilation issues and circular dependencies
+- **Current Status**: App works with basic photo analysis (50 keypoints, basic features) but lacks detailed analysis
+- **Technical Issues**:
+  - ❌ **Compilation Errors**: Vision API files have circular dependencies and missing class definitions
+  - ❌ **Class Conflicts**: `PigeonError` and `VisionApi` conflicts with `Bridge.pigeon.swift`
+  - ❌ **Missing Definitions**: `VisionPigeonError` and `VisionApiProtocol` not properly defined
+- **Workaround**: App builds and runs successfully with basic photo analysis
+- **Next Steps**: Need proper Pigeon regeneration or alternative Vision integration approach
+- **Files Affected**:
+  - `ios/Runner/VisionApi.swift` - Has compilation issues
+  - `ios/Runner/VisionOcrApi.swift` - Has compilation issues
+  - `ios/Runner/AppDelegate.swift` - Vision API registration commented out
+- **Result**: App stable with basic photo analysis, but detailed "Photo Analysis" blocks not available
+
+### Previously Resolved Issues (January 8, 2025)
 
 #### UI/UX Critical Fixes ✅ **RESOLVED**
 - **Issue**: Multiple critical UI/UX issues affecting core journal functionality
