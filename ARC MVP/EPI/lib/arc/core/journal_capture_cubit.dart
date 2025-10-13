@@ -18,6 +18,8 @@ import 'package:my_app/atlas/phase_detection/phase_history_repository.dart';
 import 'package:my_app/atlas/phase_detection/phase_change_notifier.dart';
 import 'package:my_app/core/sync/sync_service.dart';
 import 'package:my_app/core/sync/sync_models.dart';
+import 'package:my_app/ui/journal/media_conversion_utils.dart';
+import 'package:my_app/data/models/media_item.dart';
 import 'package:uuid/uuid.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:path_provider/path_provider.dart';
@@ -222,6 +224,7 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
     required String content, 
     required String mood, 
     List<String>? selectedKeywords,
+    List<MediaItem>? media,
   }) async {
     try {
       // Use selected keywords if provided, otherwise extract from content
@@ -240,6 +243,7 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
         mood: mood,
         audioUri: _audioPath,
         keywords: keywords, // Now populated with extracted keywords
+        media: media ?? [], // Include media items
       );
 
       // Save the entry first
@@ -284,6 +288,7 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
     String? emotion,
     String? emotionReason,
     List<String>? selectedKeywords,
+    List<MediaItem>? media,
   }) async {
     try {
       // Use selected keywords if provided, otherwise extract from content
@@ -304,6 +309,7 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
         keywords: keywords,
         emotion: emotion,
         emotionReason: emotionReason,
+        media: media ?? [], // Include media items
       );
 
       // Save the entry first
@@ -329,6 +335,7 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
     String? emotion,
     String? emotionReason,
     BuildContext? context,
+    List<MediaItem>? media,
   }) async {
     try {
       final now = DateTime.now();
