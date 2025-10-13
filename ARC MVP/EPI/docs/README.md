@@ -7,6 +7,18 @@ This directory contains comprehensive documentation for the EPI (Evolving Person
 
 ## 🆕 Latest Updates (January 12, 2025)
 
+**Media Persistence & Inline Photo System**
+
+Complete media handling system with chronological photo flow:
+- **Photo Data Preservation** - Photos with full iOS Vision analysis now persist when saving journal entries
+- **Timeline Integration** - Photos display as clickable thumbnails when viewing from timeline
+- **Inline Photo Insertion** - Photos insert at cursor position instead of bottom for chronological storytelling
+- **Placeholder System** - `[PHOTO:id]` placeholders link text to actual photos with visual thumbnails
+- **Auto-Capitalization** - First letters of sentences automatically capitalized for better writing experience
+- **Enhanced UX** - Date/time/location editor moved to top, photos flow naturally with text
+
+*For detailed technical information, see [Changelog - Media Persistence & Inline Photo System](../changelog/CHANGELOG.md#media-persistence--inline-photo-system---january-12-2025)*
+
 **Timeline Editor Elimination - Full Journal Integration**
 
 Eliminated the limited timeline editor and integrated full journal functionality:
