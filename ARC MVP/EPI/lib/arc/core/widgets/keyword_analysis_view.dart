@@ -15,6 +15,8 @@ class KeywordAnalysisView extends StatefulWidget {
   final String? initialEmotion;
   final String? initialReason;
   final List<String>? manualKeywords;
+  final Map<String, List<String>>? discoveredKeywords; // Real-time discovered keywords
+  final List<String>? selectedKeywords; // Pre-selected keywords
   final JournalEntry? existingEntry; // For editing existing entries
   final DateTime? selectedDate;
   final TimeOfDay? selectedTime;
@@ -28,6 +30,8 @@ class KeywordAnalysisView extends StatefulWidget {
     this.initialEmotion,
     this.initialReason,
     this.manualKeywords,
+    this.discoveredKeywords,
+    this.selectedKeywords,
     this.existingEntry,
     this.selectedDate,
     this.selectedTime,
@@ -43,6 +47,7 @@ class _KeywordAnalysisViewState extends State<KeywordAnalysisView>
     with SingleTickerProviderStateMixin {
   late AnimationController _progressController;
   late Animation<double> _progressAnimation;
+  final TextEditingController _keywordController = TextEditingController();
 
   @override
   void initState() {
@@ -70,66 +75,71 @@ class _KeywordAnalysisViewState extends State<KeywordAnalysisView>
   @override
   void dispose() {
     _progressController.dispose();
+    _keywordController.dispose();
     super.dispose();
   }
 
   void _onSaveEntry() async {
-    final keywordState = context.read<KeywordExtractionCubit>().state;
-    if (keywordState is KeywordExtractionLoaded) {
-      // Combine extracted keywords with manual keywords
-      final allKeywords = <String>[];
-      allKeywords.addAll(keywordState.selectedKeywords);
-      if (widget.manualKeywords != null) {
-        allKeywords.addAll(widget.manualKeywords!);
-      }
-      // Remove duplicates
-      final uniqueKeywords = allKeywords.toSet().toList();
+    // Use discovered keywords instead of old extraction method
+    final allKeywords = <String>[];
+    
+    // Add discovered keywords (pre-selected from real-time analysis)
+    if (widget.selectedKeywords != null) {
+      allKeywords.addAll(widget.selectedKeywords!);
+    }
+    
+    // Add manual keywords
+    if (widget.manualKeywords != null) {
+      allKeywords.addAll(widget.manualKeywords!);
+    }
+    
+    // Remove duplicates
+    final uniqueKeywords = allKeywords.toSet().toList();
+    
+    if (widget.existingEntry != null) {
+      // Update existing entry
+      context.read<JournalCaptureCubit>().updateEntryWithKeywords(
+        existingEntry: widget.existingEntry!,
+        content: widget.content,
+        mood: widget.mood,
+        selectedKeywords: uniqueKeywords,
+        emotion: widget.initialEmotion,
+        emotionReason: widget.initialReason,
+        selectedDate: widget.selectedDate,
+        selectedTime: widget.selectedTime,
+        selectedLocation: widget.selectedLocation,
+        selectedPhase: widget.selectedPhase,
+        context: context,
+      );
+    } else {
+      // Save new entry
+      context.read<JournalCaptureCubit>().saveEntryWithKeywords(
+        content: widget.content,
+        mood: widget.mood,
+        selectedKeywords: uniqueKeywords,
+        emotion: widget.initialEmotion,
+        emotionReason: widget.initialReason,
+        context: context,
+      );
+    }
+    
+    // Show simple success message
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(widget.existingEntry != null ? 'Entry updated successfully' : 'Entry saved successfully'),
+          backgroundColor: kcSuccessColor,
+        ),
+      );
       
-      if (widget.existingEntry != null) {
-        // Update existing entry
-        context.read<JournalCaptureCubit>().updateEntryWithKeywords(
-          existingEntry: widget.existingEntry!,
-          content: widget.content,
-          mood: widget.mood,
-          selectedKeywords: uniqueKeywords,
-          emotion: widget.initialEmotion,
-          emotionReason: widget.initialReason,
-          selectedDate: widget.selectedDate,
-          selectedTime: widget.selectedTime,
-          selectedLocation: widget.selectedLocation,
-          selectedPhase: widget.selectedPhase,
-          context: context,
-        );
-      } else {
-        // Save new entry
-        context.read<JournalCaptureCubit>().saveEntryWithKeywords(
-          content: widget.content,
-          mood: widget.mood,
-          selectedKeywords: uniqueKeywords,
-          emotion: widget.initialEmotion,
-          emotionReason: widget.initialReason,
-          context: context,
-        );
-      }
+      // Refresh timeline and navigate back to home
+      context.read<TimelineCubit>().refreshEntries();
       
-      // Show simple success message
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(widget.existingEntry != null ? 'Entry updated successfully' : 'Entry saved successfully'),
-            backgroundColor: kcSuccessColor,
-          ),
-        );
-        
-        // Refresh timeline and navigate back to home
-        context.read<TimelineCubit>().refreshEntries();
-        
-        // Navigate back to home screen (removing all journal creation screens)
-        Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute(builder: (context) => const HomeView()),
-          (route) => false,
-        );
-      }
+      // Navigate back to home screen (removing all journal creation screens)
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (context) => const HomeView()),
+        (route) => false,
+      );
     }
   }
 
@@ -138,51 +148,27 @@ class _KeywordAnalysisViewState extends State<KeywordAnalysisView>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: kcBackgroundColor,
+      appBar: AppBar(
         backgroundColor: kcBackgroundColor,
-        appBar: AppBar(
-          backgroundColor: kcBackgroundColor,
-          title: Text('ARC Analysis', style: heading1Style(context)),
-          actions: [
-          BlocBuilder<KeywordExtractionCubit, KeywordExtractionState>(
-            builder: (context, state) {
-              if (state is KeywordExtractionLoaded && 
-                  state.selectedKeywords.isNotEmpty) {
-                return Padding(
-                  padding: const EdgeInsets.only(right: 16.0),
-                  child: ElevatedButton(
-                    onPressed: _onSaveEntry,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: kcPrimaryColor,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8.0),
-                      ),
-                    ),
-                    child: Text('Save Entry', style: buttonStyle(context)),
-                  ),
-                );
-              }
-              return const SizedBox.shrink();
-            },
+        title: Text('Keywords Discovered', style: heading1Style(context)),
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 16.0),
+            child: ElevatedButton(
+              onPressed: _onSaveEntry,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: kcPrimaryColor,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8.0),
+                ),
+              ),
+              child: Text('Save Entry', style: buttonStyle(context)),
+            ),
           ),
         ],
       ),
-      body: BlocBuilder<KeywordExtractionCubit, KeywordExtractionState>(
-        builder: (context, state) {
-          if (state is KeywordExtractionLoading || state is KeywordExtractionInitial) {
-            return _buildAnalysisProgress();
-          }
-
-          if (state is KeywordExtractionLoaded) {
-            return _buildKeywordSelection(state);
-          }
-
-          if (state is KeywordExtractionError) {
-            return _buildErrorState(state.message);
-          }
-
-          return const Center(child: CircularProgressIndicator());
-        },
-      ),
+      body: _buildKeywordAnalysis(context),
     );
   }
 
@@ -470,5 +456,290 @@ class _KeywordAnalysisViewState extends State<KeywordAnalysisView>
         ),
       ),
     );
+  }
+
+  Widget _buildKeywordAnalysis(BuildContext context) {
+    final theme = Theme.of(context);
+    
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Content preview
+          Container(
+            padding: const EdgeInsets.all(16.0),
+            decoration: BoxDecoration(
+              color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.3),
+              borderRadius: BorderRadius.circular(12.0),
+              border: Border.all(
+                color: theme.colorScheme.outline.withOpacity(0.2),
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Entry Content:', 
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                    color: theme.colorScheme.primary,
+                  ),
+                ),
+                const SizedBox(height: 8.0),
+                Text(
+                  widget.content,
+                  style: theme.textTheme.bodyMedium,
+                ),
+              ],
+            ),
+          ),
+          
+          const SizedBox(height: 24.0),
+          
+          // Discovered keywords
+          if (widget.discoveredKeywords != null && widget.discoveredKeywords!.isNotEmpty) ...[
+            Row(
+              children: [
+                Icon(
+                  Icons.auto_awesome,
+                  size: 20,
+                  color: theme.colorScheme.primary,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  'Discovered Keywords:', 
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                    color: theme.colorScheme.primary,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12.0),
+            ...widget.discoveredKeywords!.entries.map((entry) {
+              return _buildKeywordCategory(entry.key, entry.value, context, theme);
+            }),
+            const SizedBox(height: 24.0),
+          ],
+          
+          // Manual keyword input
+          _buildManualKeywordInput(context, theme),
+          
+          const SizedBox(height: 24.0),
+          
+          // Selected keywords summary
+          if (widget.selectedKeywords != null && widget.selectedKeywords!.isNotEmpty) ...[
+            Row(
+              children: [
+                Icon(
+                  Icons.check_circle,
+                  size: 20,
+                  color: theme.colorScheme.primary,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  'Selected Keywords:', 
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                    color: theme.colorScheme.primary,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12.0),
+            Wrap(
+              spacing: 8.0,
+              runSpacing: 8.0,
+              children: widget.selectedKeywords!.map((keyword) {
+                return Chip(
+                  label: Text(
+                    keyword,
+                    style: TextStyle(
+                      color: theme.colorScheme.primary,
+                      fontSize: 12,
+                    ),
+                  ),
+                  backgroundColor: theme.colorScheme.primary.withOpacity(0.1),
+                  side: BorderSide(
+                    color: theme.colorScheme.primary.withOpacity(0.3),
+                  ),
+                );
+              }).toList(),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildKeywordCategory(String category, List<String> keywords, BuildContext context, ThemeData theme) {
+    // Category colors matching the original KeywordsDiscoveredWidget
+    final categoryColors = {
+      'Places': theme.colorScheme.primary,
+      'Time': theme.colorScheme.secondary,
+      'Energy Levels': theme.colorScheme.tertiary,
+      'Emotions': Colors.pink,
+      'Feelings': Colors.purple,
+      'Activities': Colors.orange,
+      'Objects': Colors.brown,
+      'People': Colors.blue,
+      'Health': Colors.green,
+      'Work': Colors.indigo,
+      'Relationships': Colors.red,
+      'Personal': Colors.teal,
+    };
+    
+    final color = categoryColors[category] ?? theme.colorScheme.secondary;
+    
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16.0),
+      padding: const EdgeInsets.all(12.0),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.5),
+        borderRadius: BorderRadius.circular(12.0),
+        border: Border.all(
+          color: theme.colorScheme.outline.withOpacity(0.1),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            category,
+            style: theme.textTheme.titleSmall?.copyWith(
+              fontWeight: FontWeight.w600,
+              color: color,
+            ),
+          ),
+          const SizedBox(height: 8.0),
+          Wrap(
+            spacing: 8.0,
+            runSpacing: 8.0,
+            children: keywords.map((keyword) {
+              final isSelected = widget.selectedKeywords?.contains(keyword) ?? false;
+              return FilterChip(
+                label: Text(
+                  keyword,
+                  style: TextStyle(
+                    color: isSelected ? Colors.white : color,
+                    fontSize: 12,
+                  ),
+                ),
+                selected: isSelected,
+                onSelected: (selected) {
+                  setState(() {
+                    if (selected) {
+                      widget.selectedKeywords?.add(keyword);
+                    } else {
+                      widget.selectedKeywords?.remove(keyword);
+                    }
+                  });
+                },
+                selectedColor: color.withOpacity(0.3),
+                checkmarkColor: Colors.white,
+                backgroundColor: color.withOpacity(0.1),
+                side: BorderSide(
+                  color: color.withOpacity(0.3),
+                ),
+              );
+            }).toList(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildManualKeywordInput(BuildContext context, ThemeData theme) {
+    return Container(
+      padding: const EdgeInsets.all(16.0),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.3),
+        borderRadius: BorderRadius.circular(12.0),
+        border: Border.all(
+          color: theme.colorScheme.outline.withOpacity(0.2),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.add_circle_outline,
+                size: 20,
+                color: theme.colorScheme.primary,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                'Add Manual Keywords:', 
+                style: theme.textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.w600,
+                  color: theme.colorScheme.primary,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12.0),
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: _keywordController,
+                  decoration: InputDecoration(
+                    hintText: 'Enter keywords separated by commas',
+                    hintStyle: TextStyle(
+                      color: theme.colorScheme.outline.withOpacity(0.7),
+                    ),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8.0),
+                      borderSide: BorderSide(
+                        color: theme.colorScheme.outline.withOpacity(0.5),
+                      ),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8.0),
+                      borderSide: BorderSide(
+                        color: theme.colorScheme.outline.withOpacity(0.5),
+                      ),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8.0),
+                      borderSide: BorderSide(
+                        color: theme.colorScheme.primary,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12.0),
+              ElevatedButton(
+                onPressed: _addManualKeywords,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: theme.colorScheme.primary,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8.0),
+                  ),
+                ),
+                child: const Text('Add'),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _addManualKeywords() {
+    final text = _keywordController.text.trim();
+    if (text.isNotEmpty) {
+      final keywords = text.split(',').map((k) => k.trim()).where((k) => k.isNotEmpty).toList();
+      setState(() {
+        widget.selectedKeywords?.addAll(keywords);
+        widget.manualKeywords?.addAll(keywords);
+      });
+      _keywordController.clear();
+    }
   }
 }

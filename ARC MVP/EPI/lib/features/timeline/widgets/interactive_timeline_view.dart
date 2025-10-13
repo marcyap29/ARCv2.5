@@ -356,7 +356,7 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
       // Fetch the full journal entry for editing
       try {
         final journalRepository = context.read<JournalRepository>();
-        final fullEntry = await journalRepository.getJournalEntry(entry.id);
+        final fullEntry = journalRepository.getJournalEntryById(entry.id);
         
         if (fullEntry != null) {
           // Navigate to journal screen with full entry for editing

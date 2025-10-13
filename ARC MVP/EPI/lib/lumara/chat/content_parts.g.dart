@@ -51,6 +51,7 @@ class MediaContentPartAdapter extends TypeAdapter<MediaContentPart> {
       for (int i = 0; i < numOfFields; i++) reader.readByte(): reader.read(),
     };
     return MediaContentPart(
+      mime: fields[0] as String,
       pointer: fields[1] as MediaPointer,
       alt: fields[2] as String?,
       durationMs: fields[3] as int?,

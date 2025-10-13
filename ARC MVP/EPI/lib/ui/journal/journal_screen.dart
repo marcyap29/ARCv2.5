@@ -25,6 +25,7 @@ import '../../core/services/draft_cache_service.dart';
 import '../../data/models/media_item.dart';
 import '../../models/journal_entry_model.dart';
 import '../../mcp/orchestrator/ios_vision_orchestrator.dart';
+import '../../services/keyword_analysis_service.dart';
 import 'widgets/lumara_suggestion_sheet.dart';
 import 'widgets/inline_reflection_block.dart';
 import 'widgets/full_screen_photo_viewer.dart';
@@ -71,6 +72,11 @@ class _JournalScreenState extends State<JournalScreen> {
   // Manual keyword entry
   final TextEditingController _keywordController = TextEditingController();
   List<String> _manualKeywords = [];
+  
+  // Real-time keyword discovery
+  final KeywordAnalysisService _keywordService = KeywordAnalysisService();
+  Map<String, List<String>> _discoveredKeywords = {};
+  List<String> _selectedKeywords = [];
   
   // UI state management
   bool _showKeywordsDiscovered = false;
@@ -145,6 +151,20 @@ class _JournalScreenState extends State<JournalScreen> {
     
     // Update draft cache
     _updateDraftContent(text);
+    
+    // Perform real-time keyword analysis
+    _analyzeKeywordsInRealTime(text);
+  }
+  
+  void _analyzeKeywordsInRealTime(String text) {
+    if (text.trim().isNotEmpty) {
+      final discoveredKeywords = _keywordService.analyzeKeywords(text);
+      setState(() {
+        _discoveredKeywords = discoveredKeywords;
+        // Auto-select all discovered keywords
+        _selectedKeywords = discoveredKeywords.values.expand((keywords) => keywords).toList();
+      });
+    }
   }
 
   void _onLumaraFabTapped() {
@@ -342,6 +362,8 @@ class _JournalScreenState extends State<JournalScreen> {
             initialEmotion: widget.selectedEmotion,
             initialReason: widget.selectedReason,
             manualKeywords: _manualKeywords,
+            discoveredKeywords: _discoveredKeywords,
+            selectedKeywords: _selectedKeywords,
             existingEntry: widget.existingEntry,
             selectedDate: _selectedDate,
             selectedTime: _selectedTime,
