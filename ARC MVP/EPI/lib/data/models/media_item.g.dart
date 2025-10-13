@@ -18,6 +18,7 @@ MediaItem _$MediaItemFromJson(Map<String, dynamic> json) => MediaItem(
       transcript: json['transcript'] as String?,
       ocrText: json['ocrText'] as String?,
       analysisData: json['analysisData'] as Map<String, dynamic>?,
+      altText: json['altText'] as String?,
     );
 
 Map<String, dynamic> _$MediaItemToJson(MediaItem instance) => <String, dynamic>{
@@ -30,6 +31,7 @@ Map<String, dynamic> _$MediaItemToJson(MediaItem instance) => <String, dynamic>{
       'transcript': instance.transcript,
       'ocrText': instance.ocrText,
       'analysisData': instance.analysisData,
+      'altText': instance.altText,
     };
 
 const _$MediaTypeEnumMap = {

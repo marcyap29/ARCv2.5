@@ -24,9 +24,7 @@ class TextContentPartAdapter extends TypeAdapter<TextContentPart> {
   @override
   void write(BinaryWriter writer, TextContentPart obj) {
     writer
-      ..writeByte(2)
-      ..writeByte(0)
-      ..write(obj.mime)
+      ..writeByte(1)
       ..writeByte(1)
       ..write(obj.text);
   }
@@ -53,7 +51,7 @@ class MediaContentPartAdapter extends TypeAdapter<MediaContentPart> {
       for (int i = 0; i < numOfFields; i++) reader.readByte(): reader.read(),
     };
     return MediaContentPart(
-      mime: fields[0] as String,
+      mime: fields[0] as String? ?? 'application/octet-stream',
       pointer: fields[1] as MediaPointer,
       alt: fields[2] as String?,
       durationMs: fields[3] as int?,
@@ -103,9 +101,7 @@ class PrismContentPartAdapter extends TypeAdapter<PrismContentPart> {
   @override
   void write(BinaryWriter writer, PrismContentPart obj) {
     writer
-      ..writeByte(2)
-      ..writeByte(0)
-      ..write(obj.mime)
+      ..writeByte(1)
       ..writeByte(1)
       ..write(obj.summary);
   }
@@ -134,7 +130,7 @@ class MediaPointerAdapter extends TypeAdapter<MediaPointer> {
     return MediaPointer(
       uri: fields[0] as String,
       role: fields[1] as String?,
-      metadata: Map<String, dynamic>.from(fields[2] as Map),
+      metadata: (fields[2] as Map).cast<String, dynamic>(),
     );
   }
 
@@ -177,7 +173,7 @@ class PrismSummaryAdapter extends TypeAdapter<PrismSummary> {
       objects: (fields[2] as List?)?.cast<String>(),
       emotion: fields[3] as EmotionData?,
       symbols: (fields[4] as List?)?.cast<String>(),
-      metadata: Map<String, dynamic>.from(fields[5] as Map),
+      metadata: (fields[5] as Map).cast<String, dynamic>(),
     );
   }
 
@@ -224,7 +220,7 @@ class EmotionDataAdapter extends TypeAdapter<EmotionData> {
       valence: fields[0] as double,
       arousal: fields[1] as double,
       dominantEmotion: fields[2] as String?,
-      metadata: Map<String, dynamic>.from(fields[3] as Map),
+      metadata: (fields[3] as Map).cast<String, dynamic>(),
     );
   }
 

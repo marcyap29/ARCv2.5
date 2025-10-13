@@ -43,7 +43,8 @@ Intervention is recommended only when both signals exceed thresholds through a s
 Mental health professionals and users of journaling systems face two critical questions:
 - *When is emotional distress severe enough to warrant immediate intervention?*
 - *When can patterns be safely monitored without escalation?*
-
+Look at work email and schedule
+9/28/25
 Traditional mental health monitoring privileges symptom checklists (presence/absence) over **trend analysis** (deterioration patterns and accumulating evidence). This bias leads to either:
 - **Over-alerting** (alarm fatigue, ignored warnings)
 - **Under-alerting** (missed crises, delayed intervention)

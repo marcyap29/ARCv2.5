@@ -7,7 +7,7 @@ import 'package:my_app/features/timeline/timeline_cubit.dart';
 import 'package:my_app/features/timeline/timeline_state.dart';
 import 'package:my_app/features/timeline/timeline_entry_model.dart';
 import 'package:my_app/data/models/media_item.dart';
-import 'package:my_app/features/journal/widgets/journal_edit_view.dart';
+import 'package:my_app/ui/journal/journal_screen.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'package:my_app/features/arcforms/arcform_renderer_state.dart';
@@ -353,13 +353,15 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
         }
       });
     } else {
-      // Navigate to entry editing view
-      Navigator.of(context).pushNamed(
-        '/journal-edit',
-        arguments: {
-          'entry': entry,
-          'entryIndex': index,
-        },
+      // Navigate directly to the full journal screen with the entry content
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (context) => JournalScreen(
+            initialContent: entry.preview,
+            selectedEmotion: entry.phase, // Use phase as emotion context
+            selectedReason: entry.geometry, // Use geometry as reason context
+          ),
+        ),
       );
     }
   }
@@ -875,7 +877,7 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
           );
           
           // Process through RIVET service
-          final decision = rivetService.ingest(rivetEvent, lastEvent: lastEvent);
+          rivetService.ingest(rivetEvent, lastEvent: lastEvent);
           lastEvent = rivetEvent;
           
           print('DEBUG: Processed entry ${entry.id} - ALIGN: ${(rivetService.state.align * 100).toInt()}%, TRACE: ${(rivetService.state.trace * 100).toInt()}%');
@@ -1598,12 +1600,13 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
       orElse: () => _entries.first,
     );
     
-    // Navigate to edit entry screen
+    // Navigate directly to the full journal screen with the entry content
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (context) => JournalEditView(
-          entry: entry,
-          entryIndex: _entries.indexOf(entry),
+        builder: (context) => JournalScreen(
+          initialContent: entry.preview,
+          selectedEmotion: entry.phase, // Use phase as emotion context
+          selectedReason: entry.geometry, // Use geometry as reason context
         ),
       ),
     );
