@@ -686,6 +686,7 @@ class _KeywordAnalysisViewState extends State<KeywordAnalysisView>
               Expanded(
                 child: TextField(
                   controller: _keywordController,
+                  textCapitalization: TextCapitalization.words,
                   decoration: InputDecoration(
                     hintText: 'Enter keywords separated by commas',
                     hintStyle: TextStyle(

@@ -1110,6 +1110,7 @@ class _JournalScreenState extends State<JournalScreen> {
       controller: _textController,
       onChanged: _onTextChanged,
       maxLines: null,
+      textCapitalization: TextCapitalization.sentences,
       style: theme.textTheme.bodyLarge?.copyWith(
         color: Colors.white,
         fontSize: 16,
@@ -1961,6 +1962,7 @@ class _JournalScreenState extends State<JournalScreen> {
               Expanded(
                 child: TextField(
                   controller: TextEditingController(text: _selectedLocation ?? ''),
+                  textCapitalization: TextCapitalization.words,
                   decoration: InputDecoration(
                     labelText: 'Location',
                     hintText: 'Where were you?',
