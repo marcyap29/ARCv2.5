@@ -15,6 +15,8 @@
 		1F3EEF702E93526C009BFF74 /* llama_wrapper.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 1F3EEF6B2E93526C009BFF74 /* llama_wrapper.cpp */; };
 		1F3EEF712E93526C009BFF74 /* CapabilityRouter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1F3EEF692E93526C009BFF74 /* CapabilityRouter.swift */; };
 		1F3EEF712E93526C009BFF75 /* epi_logger.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 1F3EEF6C2E93526C009BFF75 /* epi_logger.cpp */; };
+		1F3EEF712E93526C009BFF77 /* VisionApi.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1F3EEF6C2E93526C009BFF77 /* VisionApi.swift */; };
+		1F3EEF712E93526C009BFF78 /* VisionOcrApi.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1F3EEF6C2E93526C009BFF78 /* VisionOcrApi.swift */; };
 		1F3EEF732E9352C3009BFF74 /* llama.xcframework in Frameworks */ = {isa = PBXBuildFile; fileRef = 1F3EEF722E9352C3009BFF74 /* llama.xcframework */; };
 		1F3EEF812E9353BE009BFF74 /* Metal.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 1F3EEF7E2E9353BE009BFF74 /* Metal.framework */; };
 		1F3EEF822E9353BE009BFF74 /* Accelerate.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 1F3EEF7F2E9353BE009BFF74 /* Accelerate.framework */; };
@@ -81,6 +83,8 @@
 		1F3EEF6B2E93526C009BFF74 /* llama_wrapper.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Runner/llama_wrapper.cpp; sourceTree = "<group>"; };
 		1F3EEF6C2E93526C009BFF74 /* LlamaBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Runner/LlamaBridge.swift; sourceTree = "<group>"; };
 		1F3EEF6C2E93526C009BFF75 /* epi_logger.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Runner/epi_logger.cpp; sourceTree = "<group>"; };
+		1F3EEF6C2E93526C009BFF77 /* VisionApi.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Runner/VisionApi.swift; sourceTree = "<group>"; };
+		1F3EEF6C2E93526C009BFF78 /* VisionOcrApi.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Runner/VisionOcrApi.swift; sourceTree = "<group>"; };
 		1F3EEF6D2E93526C009BFF74 /* PrismScrubber.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrismScrubber.swift; sourceTree = "<group>"; };
 		1F3EEF6D2E93526C009BFF75 /* PigeonShims.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Shims/PigeonShims.swift; sourceTree = "<group>"; };
 		1F3EEF6D2E93526C009BFF76 /* epi_logger.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = Runner/epi_logger.h; sourceTree = "<group>"; };
@@ -231,6 +235,8 @@
 				34615DA8179F4D23A4F06E39 /* LLMBridge.swift */,
 				34615DA8179F4D23A4F06E3A /* ModelDownloadService.swift */,
 				AB3677EB70444E1F82E0E2CC /* Bridge.pigeon.swift */,
+				1F3EEF6C2E93526C009BFF77 /* VisionApi.swift */,
+				1F3EEF6C2E93526C009BFF78 /* VisionOcrApi.swift */,
 				AD02F52095DB446494429964 /* LumaraPromptSystem.swift */,
 				4700A91B00044A52AA765055 /* MiraMemoryStore.swift */,
 				74858FAD1ED2DC5600515810 /* Runner-Bridging-Header.h */,
@@ -496,6 +502,8 @@
 				1F3EEF702E93526C009BFF74 /* llama_wrapper.cpp in Sources */,
 				1F3EEF712E93526C009BFF75 /* epi_logger.cpp in Sources */,
 				1F3EEF712E93526C009BFF74 /* CapabilityRouter.swift in Sources */,
+				1F3EEF712E93526C009BFF77 /* VisionApi.swift in Sources */,
+				1F3EEF712E93526C009BFF78 /* VisionOcrApi.swift in Sources */,
 				1498D2341E8E89220040F4C2 /* GeneratedPluginRegistrant.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
