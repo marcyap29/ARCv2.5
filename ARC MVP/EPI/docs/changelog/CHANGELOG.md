@@ -2,6 +2,40 @@
 
 ## [Unreleased]
 
+### 🔄 **SYSTEM REVERSION - STABLE JOURNAL EDITOR** - January 12, 2025
+
+#### **Reverted to Stable State** ✅ **PRODUCTION READY**
+- **Inline Photo System Removed**: ✅ **REVERTED** - Removed complex inline photo rendering system
+- **Large Photo Boxes Restored**: ✅ **RESTORED** - Photos display as large, detailed boxes at bottom of entries
+- **Cursor Functionality Restored**: ✅ **FIXED** - Text editing with visible cursor and proper text selection
+- **Spacing Issues Resolved**: ✅ **FIXED** - Eliminated excessive spacing and layout problems
+
+#### **Current System Features** ✅ **STABLE**
+- **Date/Time/Location Editor**: ✅ **AT TOP** - Editing controls positioned at top of entry when editing
+- **Large Photo Display**: ✅ **AT BOTTOM** - Photos show as detailed boxes with full analysis below text
+- **Text Editing**: ✅ **FULLY FUNCTIONAL** - Normal TextField with visible cursor and text selection
+- **Photo Analysis**: ✅ **COMPLETE** - Full iOS Vision analysis with clickable thumbnails
+- **Timeline Integration**: ✅ **WORKING** - Photos persist and display correctly from timeline
+
+#### **Technical Implementation** ✅ **STABLE**
+- **Standard TextField**: Uses normal Flutter TextField for reliable text editing
+- **Photo Attachment System**: Photos display as separate widgets below text field
+- **Media Persistence**: Photos with analysis data persist when saving entries
+- **Timeline Navigation**: Direct navigation to full JournalScreen from timeline
+
+#### **User Experience** ✅ **OPTIMIZED**
+- **Clean Text Editing**: Normal cursor behavior and text selection
+- **Detailed Photo Display**: Large photo boxes with full analysis information
+- **Top Editing Controls**: Date, time, location, and phase editing at top
+- **Reliable Functionality**: Stable, predictable behavior across all features
+
+#### **Files Reverted**:
+- Removed: `lib/ui/journal/widgets/inline_text_editor.dart` - Complex inline system
+- Restored: Standard TextField in `lib/ui/journal/journal_screen.dart`
+- Maintained: All media persistence and timeline integration features
+
+#### **Result**: 🏆 **STABLE JOURNAL EDITOR WITH LARGE PHOTO BOXES**
+
 ### 📸 **MEDIA PERSISTENCE & INLINE PHOTO SYSTEM** - January 12, 2025
 
 #### **Media Persistence System** ✅ **PRODUCTION READY**
