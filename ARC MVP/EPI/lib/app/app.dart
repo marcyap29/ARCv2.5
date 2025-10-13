@@ -4,7 +4,6 @@ import 'package:provider/provider.dart';
 
 import 'package:my_app/shared/app_colors.dart';
 import 'package:my_app/features/startup/startup_view.dart';
-import 'package:my_app/features/journal/widgets/journal_edit_view.dart';
 
 // Global repo + cubit
 import 'package:my_app/arc/core/journal_repository.dart';
@@ -132,13 +131,6 @@ class _AppState extends State<App> {
           themeMode: ThemeMode.dark,
           home: const StartupView(),
           routes: {
-            '/journal-edit': (context) {
-              final args = ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>;
-              return JournalEditView(
-                entry: args['entry'],
-                entryIndex: args['entryIndex'],
-              );
-            },
           },
         ),
       ),
