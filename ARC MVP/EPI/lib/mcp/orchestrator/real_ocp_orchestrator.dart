@@ -183,7 +183,7 @@ class RealOCPOrchestrator {
         'kp': estimatedKeypoints,
         'hashes': {
           'phash': phash,
-          'orbPatch': phash.substring(0, 12), // Use phash as fallback
+          'orbPatch': phash.length >= 12 ? phash.substring(0, 12) : phash, // Use phash as fallback
         },
         'processingTime': 0, // Will be set by caller
         'params': {
@@ -214,7 +214,8 @@ class RealOCPOrchestrator {
       final hash = sha256.convert(imageBytes);
       return hash.toString().substring(0, 16); // First 16 chars
     } catch (e) {
-      return 'hash_error';
+      // Return a 16-character fallback hash to prevent RangeError
+      return 'hash_error_12345';
     }
   }
 
@@ -222,9 +223,9 @@ class RealOCPOrchestrator {
   String _generateORBPatch(String phash) {
     try {
       // Use perceptual hash as fallback for ORB patch
-      return phash.substring(0, 12);
+      return phash.length >= 12 ? phash.substring(0, 12) : phash;
     } catch (e) {
-      return 'patch_error';
+      return 'patch_error_12';
     }
   }
 
