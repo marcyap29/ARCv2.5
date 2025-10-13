@@ -7,6 +7,17 @@ This directory contains comprehensive documentation for the EPI (Evolving Person
 
 ## 🆕 Latest Updates (January 12, 2025)
 
+**Timeline Editor Elimination - Full Journal Integration**
+
+Eliminated the limited timeline editor and integrated full journal functionality:
+- **Limited Editor Removal** - Removed restricted `JournalEditView` from timeline navigation
+- **Full Journal Access** - Timeline entries now navigate directly to complete `JournalScreen`
+- **Feature Consistency** - Same capabilities whether creating new entries or editing existing ones
+- **Code Simplification** - Eliminated duplicate journal editor implementations (3,362+ lines removed)
+- **Enhanced UX** - Users get complete journaling experience with LUMARA integration and multimodal support
+
+*For detailed technical information, see [Changelog - Timeline Editor Elimination](../changelog/CHANGELOG.md#timeline-editor-elimination---full-journal-integration---january-12-2025)*
+
 **LUMARA Cloud API Enhancement - Reflective Intelligence Core**
 
 Enhanced the cloud API (Gemini) with the comprehensive LUMARA Reflective Intelligence Core system prompt:
