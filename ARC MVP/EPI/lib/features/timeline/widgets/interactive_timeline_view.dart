@@ -342,7 +342,7 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
     );
   }
 
-  void _onEntryTapped(TimelineEntry entry, int index) {
+  void _onEntryTapped(TimelineEntry entry, int index) async {
     if (_isSelectionMode) {
       // Toggle selection
       setState(() {
@@ -353,16 +353,47 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
         }
       });
     } else {
-      // Navigate directly to the full journal screen with the entry content
-      Navigator.of(context).push(
-        MaterialPageRoute(
-          builder: (context) => JournalScreen(
-            initialContent: entry.preview,
-            selectedEmotion: entry.phase, // Use phase as emotion context
-            selectedReason: entry.geometry, // Use geometry as reason context
+      // Fetch the full journal entry for editing
+      try {
+        final journalRepository = context.read<JournalRepository>();
+        final fullEntry = await journalRepository.getJournalEntry(entry.id);
+        
+        if (fullEntry != null) {
+          // Navigate to journal screen with full entry for editing
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (context) => JournalScreen(
+                existingEntry: fullEntry,
+                initialContent: fullEntry.content,
+                selectedEmotion: fullEntry.emotion,
+                selectedReason: fullEntry.emotionReason,
+              ),
+            ),
+          );
+        } else {
+          // Fallback to preview mode if entry not found
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (context) => JournalScreen(
+                initialContent: entry.preview,
+                selectedEmotion: entry.phase,
+                selectedReason: entry.geometry,
+              ),
+            ),
+          );
+        }
+      } catch (e) {
+        // Fallback to preview mode on error
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (context) => JournalScreen(
+              initialContent: entry.preview,
+              selectedEmotion: entry.phase,
+              selectedReason: entry.geometry,
+            ),
           ),
-        ),
-      );
+        );
+      }
     }
   }
 

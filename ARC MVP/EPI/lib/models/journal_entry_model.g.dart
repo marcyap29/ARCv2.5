@@ -31,13 +31,16 @@ class JournalEntryAdapter extends TypeAdapter<JournalEntry> {
       emotion: fields[10] as String?,
       emotionReason: fields[11] as String?,
       metadata: (fields[13] as Map?)?.cast<String, dynamic>(),
+      location: fields[14] as String?,
+      phase: fields[15] as String?,
+      isEdited: fields[16] as bool,
     );
   }
 
   @override
   void write(BinaryWriter writer, JournalEntry obj) {
     writer
-      ..writeByte(14)
+      ..writeByte(17)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -65,7 +68,13 @@ class JournalEntryAdapter extends TypeAdapter<JournalEntry> {
       ..writeByte(11)
       ..write(obj.emotionReason)
       ..writeByte(13)
-      ..write(obj.metadata);
+      ..write(obj.metadata)
+      ..writeByte(14)
+      ..write(obj.location)
+      ..writeByte(15)
+      ..write(obj.phase)
+      ..writeByte(16)
+      ..write(obj.isEdited);
   }
 
   @override

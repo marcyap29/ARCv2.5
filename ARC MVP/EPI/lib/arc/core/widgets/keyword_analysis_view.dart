@@ -5,6 +5,7 @@ import 'package:my_app/arc/core/keyword_extraction_state.dart';
 import 'package:my_app/arc/core/journal_capture_cubit.dart';
 import 'package:my_app/features/timeline/timeline_cubit.dart';
 import 'package:my_app/features/home/home_view.dart';
+import 'package:my_app/models/journal_entry_model.dart';
 import 'package:my_app/shared/app_colors.dart';
 import 'package:my_app/shared/text_style.dart';
 
@@ -14,6 +15,11 @@ class KeywordAnalysisView extends StatefulWidget {
   final String? initialEmotion;
   final String? initialReason;
   final List<String>? manualKeywords;
+  final JournalEntry? existingEntry; // For editing existing entries
+  final DateTime? selectedDate;
+  final TimeOfDay? selectedTime;
+  final String? selectedLocation;
+  final String? selectedPhase;
   
   const KeywordAnalysisView({
     super.key,
@@ -22,6 +28,11 @@ class KeywordAnalysisView extends StatefulWidget {
     this.initialEmotion,
     this.initialReason,
     this.manualKeywords,
+    this.existingEntry,
+    this.selectedDate,
+    this.selectedTime,
+    this.selectedLocation,
+    this.selectedPhase,
   });
 
   @override
@@ -74,22 +85,38 @@ class _KeywordAnalysisViewState extends State<KeywordAnalysisView>
       // Remove duplicates
       final uniqueKeywords = allKeywords.toSet().toList();
       
-      // Save entry directly without showing phase dialog
-      // Phase detection is now handled by Phase Quiz or RIVET system
-      context.read<JournalCaptureCubit>().saveEntryWithKeywords(
-        content: widget.content,
-        mood: widget.mood,
-        selectedKeywords: uniqueKeywords,
-        emotion: widget.initialEmotion,
-        emotionReason: widget.initialReason,
-        context: context,
-      );
+      if (widget.existingEntry != null) {
+        // Update existing entry
+        context.read<JournalCaptureCubit>().updateEntryWithKeywords(
+          existingEntry: widget.existingEntry!,
+          content: widget.content,
+          mood: widget.mood,
+          selectedKeywords: uniqueKeywords,
+          emotion: widget.initialEmotion,
+          emotionReason: widget.initialReason,
+          selectedDate: widget.selectedDate,
+          selectedTime: widget.selectedTime,
+          selectedLocation: widget.selectedLocation,
+          selectedPhase: widget.selectedPhase,
+          context: context,
+        );
+      } else {
+        // Save new entry
+        context.read<JournalCaptureCubit>().saveEntryWithKeywords(
+          content: widget.content,
+          mood: widget.mood,
+          selectedKeywords: uniqueKeywords,
+          emotion: widget.initialEmotion,
+          emotionReason: widget.initialReason,
+          context: context,
+        );
+      }
       
       // Show simple success message
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Entry saved successfully'),
+          SnackBar(
+            content: Text(widget.existingEntry != null ? 'Entry updated successfully' : 'Entry saved successfully'),
             backgroundColor: kcSuccessColor,
           ),
         );

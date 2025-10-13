@@ -453,6 +453,76 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
     }
   }
 
+  /// Update existing entry with new data
+  void updateEntryWithKeywords({
+    required JournalEntry existingEntry,
+    required String content,
+    required String mood,
+    required List<String> selectedKeywords,
+    String? emotion,
+    String? emotionReason,
+    DateTime? selectedDate,
+    TimeOfDay? selectedTime,
+    String? selectedLocation,
+    String? selectedPhase,
+    BuildContext? context,
+  }) async {
+    try {
+      // Combine date and time if provided
+      DateTime? newCreatedAt = existingEntry.createdAt;
+      if (selectedDate != null && selectedTime != null) {
+        newCreatedAt = DateTime(
+          selectedDate.year,
+          selectedDate.month,
+          selectedDate.day,
+          selectedTime.hour,
+          selectedTime.minute,
+        );
+      } else if (selectedDate != null) {
+        newCreatedAt = DateTime(
+          selectedDate.year,
+          selectedDate.month,
+          selectedDate.day,
+          existingEntry.createdAt.hour,
+          existingEntry.createdAt.minute,
+        );
+      }
+
+      // Create updated entry
+      final updatedEntry = existingEntry.copyWith(
+        content: content,
+        mood: mood,
+        keywords: selectedKeywords,
+        emotion: emotion,
+        emotionReason: emotionReason,
+        createdAt: newCreatedAt,
+        updatedAt: DateTime.now(),
+        location: selectedLocation,
+        phase: selectedPhase,
+        isEdited: true,
+      );
+
+      // Update the entry
+      await _journalRepository.updateJournalEntry(updatedEntry);
+
+      // Emit saved state
+      emit(JournalCaptureSaved());
+
+      // Process SAGE annotation in background
+      _processSAGEAnnotation(updatedEntry);
+
+      // Create Arcform with current user phase
+      _createArcformWithCurrentUserPhase(updatedEntry, emotion, emotionReason);
+
+      // Phase stability analysis
+      _performPhaseStabilityAnalysis(updatedEntry, emotion, emotionReason, context);
+      
+      // RIVET analysis
+      _performRivetAnalysis(updatedEntry, emotion, emotionReason);
+    } catch (e) {
+      emit(JournalCaptureError('Failed to update entry: ${e.toString()}'));
+    }
+  }
 
   void _processSAGEAnnotation(JournalEntry entry) async {
     try {

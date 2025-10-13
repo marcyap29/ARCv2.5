@@ -51,7 +51,6 @@ class MediaContentPartAdapter extends TypeAdapter<MediaContentPart> {
       for (int i = 0; i < numOfFields; i++) reader.readByte(): reader.read(),
     };
     return MediaContentPart(
-      mime: fields[0] as String? ?? 'application/octet-stream',
       pointer: fields[1] as MediaPointer,
       alt: fields[2] as String?,
       durationMs: fields[3] as int?,
@@ -61,9 +60,7 @@ class MediaContentPartAdapter extends TypeAdapter<MediaContentPart> {
   @override
   void write(BinaryWriter writer, MediaContentPart obj) {
     writer
-      ..writeByte(4)
-      ..writeByte(0)
-      ..write(obj.mime)
+      ..writeByte(3)
       ..writeByte(1)
       ..write(obj.pointer)
       ..writeByte(2)

@@ -49,6 +49,15 @@ class JournalEntry extends Equatable {
   @HiveField(13)
   final Map<String, dynamic>? metadata;
 
+  @HiveField(14)
+  final String? location; // Location where entry was created/edited
+
+  @HiveField(15)
+  final String? phase; // Current phase of the entry
+
+  @HiveField(16)
+  final bool isEdited; // Whether this entry has been edited from original
+
   const JournalEntry({
     required this.id,
     required this.title,
@@ -64,6 +73,9 @@ class JournalEntry extends Equatable {
     this.emotion,
     this.emotionReason,
     this.metadata,
+    this.location,
+    this.phase,
+    this.isEdited = false,
   });
 
   JournalEntry copyWith({
@@ -81,6 +93,9 @@ class JournalEntry extends Equatable {
     String? emotion,
     String? emotionReason,
     Map<String, dynamic>? metadata,
+    String? location,
+    String? phase,
+    bool? isEdited,
   }) {
     return JournalEntry(
       id: id ?? this.id,
@@ -97,6 +112,9 @@ class JournalEntry extends Equatable {
       emotion: emotion ?? this.emotion,
       emotionReason: emotionReason ?? this.emotionReason,
       metadata: metadata ?? this.metadata,
+      location: location ?? this.location,
+      phase: phase ?? this.phase,
+      isEdited: isEdited ?? this.isEdited,
     );
   }
 
@@ -116,6 +134,9 @@ class JournalEntry extends Equatable {
         emotion,
         emotionReason,
         metadata,
+        location,
+        phase,
+        isEdited,
       ];
 
   Map<String, dynamic> toJson() {
@@ -134,6 +155,9 @@ class JournalEntry extends Equatable {
       'emotion': emotion,
       'emotionReason': emotionReason,
       'metadata': metadata,
+      'location': location,
+      'phase': phase,
+      'isEdited': isEdited,
     };
   }
 
@@ -158,6 +182,9 @@ class JournalEntry extends Equatable {
       emotion: json['emotion'] as String?,
       emotionReason: json['emotionReason'] as String?,
       metadata: json['metadata'] as Map<String, dynamic>?,
+      location: json['location'] as String?,
+      phase: json['phase'] as String?,
+      isEdited: json['isEdited'] as bool? ?? false,
     );
   }
 }

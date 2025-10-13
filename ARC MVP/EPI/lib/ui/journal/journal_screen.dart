@@ -23,6 +23,7 @@ import '../../arc/core/journal_repository.dart';
 import '../../arc/core/widgets/keyword_analysis_view.dart';
 import '../../core/services/draft_cache_service.dart';
 import '../../data/models/media_item.dart';
+import '../../models/journal_entry_model.dart';
 import '../../mcp/orchestrator/ios_vision_orchestrator.dart';
 import 'widgets/lumara_suggestion_sheet.dart';
 import 'widgets/inline_reflection_block.dart';
@@ -34,12 +35,14 @@ class JournalScreen extends StatefulWidget {
   final String? selectedEmotion;
   final String? selectedReason;
   final String? initialContent;
+  final JournalEntry? existingEntry; // For editing existing entries
   
   const JournalScreen({
     super.key,
     this.selectedEmotion,
     this.selectedReason,
     this.initialContent,
+    this.existingEntry,
   });
 
   @override
@@ -76,6 +79,13 @@ class _JournalScreenState extends State<JournalScreen> {
   // Periodic discovery service
   final PeriodicDiscoveryService _discoveryService = PeriodicDiscoveryService();
   bool _showDiscoveryPopup = false;
+  
+  // Editing state for existing entries
+  bool get _isEditing => widget.existingEntry != null;
+  DateTime? _selectedDate;
+  TimeOfDay? _selectedTime;
+  String? _selectedLocation;
+  String? _selectedPhase;
 
   @override
   void initState() {
@@ -94,8 +104,16 @@ class _JournalScreenState extends State<JournalScreen> {
     
     _analytics.logJournalEvent('opened');
 
-    // Initialize with draft content if provided
-    if (widget.initialContent != null) {
+    // Initialize with existing entry or draft content
+    if (_isEditing && widget.existingEntry != null) {
+      final entry = widget.existingEntry!;
+      _textController.text = entry.content;
+      _entryState.text = entry.content;
+      _selectedDate = entry.createdAt;
+      _selectedTime = TimeOfDay.fromDateTime(entry.createdAt);
+      _selectedLocation = entry.location;
+      _selectedPhase = entry.phase;
+    } else if (widget.initialContent != null) {
       _textController.text = widget.initialContent!;
       _entryState.text = widget.initialContent!;
     }
@@ -324,6 +342,11 @@ class _JournalScreenState extends State<JournalScreen> {
             initialEmotion: widget.selectedEmotion,
             initialReason: widget.selectedReason,
             manualKeywords: _manualKeywords,
+            existingEntry: widget.existingEntry,
+            selectedDate: _selectedDate,
+            selectedTime: _selectedTime,
+            selectedLocation: _selectedLocation,
+            selectedPhase: _selectedPhase,
           ),
         ),
       ),
@@ -352,7 +375,7 @@ class _JournalScreenState extends State<JournalScreen> {
     return Scaffold(
       backgroundColor: theme.colorScheme.surface,
       appBar: AppBar(
-        title: const Text('Write what is true right now'),
+        title: Text(_isEditing ? 'Edit Entry' : 'Write what is true right now'),
         backgroundColor: Colors.transparent,
         elevation: 0,
         actions: [
@@ -396,6 +419,12 @@ class _JournalScreenState extends State<JournalScreen> {
                       // Main text field with AI suggestion support
                       _buildAITextField(theme),
                       const SizedBox(height: 16),
+                      
+                      // Editing controls for existing entries
+                      if (_isEditing) ...[
+                        _buildEditingControls(theme),
+                        const SizedBox(height: 16),
+                      ],
                       
                       // Inline reflection blocks
                       ..._entryState.blocks.asMap().entries.map((entry) {
@@ -1771,7 +1800,7 @@ class _JournalScreenState extends State<JournalScreen> {
   Future<void> _performOCR(File imageFile) async {
     try {
       final extractedText = await _ocrService.extractText(imageFile);
-      if (extractedText != null && extractedText.isNotEmpty) {
+      if (extractedText.isNotEmpty) {
         // Create ScanAttachment for the attachments list
         final scanAttachment = ScanAttachment(
           type: 'ocr_text',
@@ -1810,6 +1839,180 @@ class _JournalScreenState extends State<JournalScreen> {
           backgroundColor: Theme.of(context).colorScheme.error,
         ),
       );
+    }
+  }
+
+  /// Build editing controls for existing entries
+  Widget _buildEditingControls(ThemeData theme) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.3),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: theme.colorScheme.outline.withOpacity(0.2),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.edit,
+                size: 16,
+                color: theme.colorScheme.primary,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                'Edit Entry Details',
+                style: theme.textTheme.labelMedium?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          
+          // Date and Time Row
+          Row(
+            children: [
+              // Date picker
+              Expanded(
+                child: InkWell(
+                  onTap: _selectDate,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                    decoration: BoxDecoration(
+                      border: Border.all(color: theme.colorScheme.outline.withOpacity(0.3)),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.calendar_today, size: 16, color: theme.colorScheme.primary),
+                        const SizedBox(width: 8),
+                        Text(
+                          _selectedDate != null 
+                            ? '${_selectedDate!.month}/${_selectedDate!.day}/${_selectedDate!.year}'
+                            : 'Select Date',
+                          style: theme.textTheme.bodyMedium,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              // Time picker
+              Expanded(
+                child: InkWell(
+                  onTap: _selectTime,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                    decoration: BoxDecoration(
+                      border: Border.all(color: theme.colorScheme.outline.withOpacity(0.3)),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.access_time, size: 16, color: theme.colorScheme.primary),
+                        const SizedBox(width: 8),
+                        Text(
+                          _selectedTime != null 
+                            ? _selectedTime!.format(context)
+                            : 'Select Time',
+                          style: theme.textTheme.bodyMedium,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          
+          // Location and Phase Row
+          Row(
+            children: [
+              // Location input
+              Expanded(
+                child: TextField(
+                  controller: TextEditingController(text: _selectedLocation ?? ''),
+                  decoration: InputDecoration(
+                    labelText: 'Location',
+                    hintText: 'Where were you?',
+                    prefixIcon: const Icon(Icons.location_on, size: 16),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                  ),
+                  onChanged: (value) => _selectedLocation = value,
+                ),
+              ),
+              const SizedBox(width: 12),
+              // Phase selector
+              Expanded(
+                child: DropdownButtonFormField<String>(
+                  value: _selectedPhase,
+                  decoration: InputDecoration(
+                    labelText: 'Phase',
+                    prefixIcon: const Icon(Icons.psychology, size: 16),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                  ),
+                  items: const [
+                    DropdownMenuItem(value: 'Discovery', child: Text('Discovery')),
+                    DropdownMenuItem(value: 'Recovery', child: Text('Recovery')),
+                    DropdownMenuItem(value: 'Breakthrough', child: Text('Breakthrough')),
+                    DropdownMenuItem(value: 'Consolidation', child: Text('Consolidation')),
+                  ],
+                  onChanged: (value) => setState(() => _selectedPhase = value),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Select date for the entry
+  Future<void> _selectDate() async {
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: _selectedDate ?? DateTime.now(),
+      firstDate: DateTime(2020),
+      lastDate: DateTime.now().add(const Duration(days: 365)),
+    );
+    if (picked != null) {
+      setState(() {
+        _selectedDate = picked;
+        // Update time if not set
+        if (_selectedTime == null) {
+          _selectedTime = TimeOfDay.now();
+        }
+      });
+    }
+  }
+
+  /// Select time for the entry
+  Future<void> _selectTime() async {
+    final TimeOfDay? picked = await showTimePicker(
+      context: context,
+      initialTime: _selectedTime ?? TimeOfDay.now(),
+    );
+    if (picked != null) {
+      setState(() {
+        _selectedTime = picked;
+        // Update date if not set
+        if (_selectedDate == null) {
+          _selectedDate = DateTime.now();
+        }
+      });
     }
   }
 }
