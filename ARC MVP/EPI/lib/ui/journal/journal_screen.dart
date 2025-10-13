@@ -375,7 +375,7 @@ class _JournalScreenState extends State<JournalScreen> {
     return Scaffold(
       backgroundColor: theme.colorScheme.surface,
       appBar: AppBar(
-        title: Text(_isEditing ? 'Edit Entry' : 'Write what is true right now'),
+        title: Text(_isEditing ? 'Edit Entry' : 'What\'s on your mind?'),
         backgroundColor: Colors.transparent,
         elevation: 0,
         actions: [
