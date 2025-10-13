@@ -28,6 +28,7 @@ import '../../mcp/orchestrator/ios_vision_orchestrator.dart';
 import 'widgets/lumara_suggestion_sheet.dart';
 import 'widgets/enhanced_lumara_suggestion_sheet.dart' as enhanced;
 import 'widgets/inline_reflection_block.dart';
+import 'drafts_screen.dart';
 
 /// Main journal screen with integrated LUMARA companion and OCR scanning
 class JournalScreen extends StatefulWidget {
@@ -402,6 +403,11 @@ class _JournalScreenState extends State<JournalScreen> {
         elevation: 0,
         actions: [
           IconButton(
+            onPressed: () => _navigateToDrafts(),
+            icon: const Icon(Icons.drafts),
+            tooltip: 'Drafts',
+          ),
+          IconButton(
             onPressed: () => Navigator.of(context).pop(),
             icon: const Icon(Icons.home),
             tooltip: 'Home',
@@ -502,53 +508,59 @@ class _JournalScreenState extends State<JournalScreen> {
                         // Left side: Media buttons (compact)
                         Expanded(
                           flex: 2,
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.start,
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              // Add photo button
-                              IconButton(
-                                onPressed: _handlePhotoGallery,
-                                icon: const Icon(Icons.add_photo_alternate),
-                                tooltip: 'Add Photo',
-                                padding: const EdgeInsets.all(8),
-                                constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-                              ),
-                              
-                              // Add camera button
-                              IconButton(
-                                onPressed: _handleCamera,
-                                icon: const Icon(Icons.camera_alt),
-                                tooltip: 'Take Photo',
-                                padding: const EdgeInsets.all(8),
-                                constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-                              ),
-                              
-                              // Add voice button
-                              IconButton(
-                                onPressed: _handleMicrophone,
-                                icon: const Icon(Icons.mic),
-                                tooltip: 'Add Voice Note',
-                                padding: const EdgeInsets.all(8),
-                                constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-                              ),
-                              
-                              // Keyword toggle button
-                              IconButton(
-                                onPressed: _toggleKeywordsDiscovered,
-                                icon: Icon(_showKeywordsDiscovered ? Icons.label_off : Icons.label),
-                                tooltip: _showKeywordsDiscovered ? 'Hide Keywords' : 'Show Keywords',
-                                padding: const EdgeInsets.all(8),
-                                constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-                                style: IconButton.styleFrom(
-                                  backgroundColor: _showKeywordsDiscovered 
-                                    ? theme.colorScheme.primary.withOpacity(0.2)
-                                    : null,
+                          child: SingleChildScrollView(
+                            scrollDirection: Axis.horizontal,
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.start,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                // Add photo button
+                                IconButton(
+                                  onPressed: _handlePhotoGallery,
+                                  icon: const Icon(Icons.add_photo_alternate, size: 20),
+                                  tooltip: 'Add Photo',
+                                  padding: const EdgeInsets.all(6),
+                                  constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
                                 ),
-                              ),
-                              
-                              // Scan page button removed - was bumping into lumara icon
-                            ],
+                                
+                                // Add camera button
+                                IconButton(
+                                  onPressed: _handleCamera,
+                                  icon: const Icon(Icons.camera_alt, size: 20),
+                                  tooltip: 'Take Photo',
+                                  padding: const EdgeInsets.all(6),
+                                  constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                                ),
+                                
+                                // Add voice button
+                                IconButton(
+                                  onPressed: _handleMicrophone,
+                                  icon: const Icon(Icons.mic, size: 20),
+                                  tooltip: 'Add Voice Note',
+                                  padding: const EdgeInsets.all(6),
+                                  constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                                ),
+                                
+                                // Keyword toggle button
+                                IconButton(
+                                  onPressed: _toggleKeywordsDiscovered,
+                                  icon: Icon(
+                                    _showKeywordsDiscovered ? Icons.label_off : Icons.label,
+                                    size: 20,
+                                  ),
+                                  tooltip: _showKeywordsDiscovered ? 'Hide Keywords' : 'Show Keywords',
+                                  padding: const EdgeInsets.all(6),
+                                  constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                                  style: IconButton.styleFrom(
+                                    backgroundColor: _showKeywordsDiscovered 
+                                      ? theme.colorScheme.primary.withOpacity(0.2)
+                                      : null,
+                                  ),
+                                ),
+                                
+                                // Scan page button removed - was bumping into lumara icon
+                              ],
+                            ),
                           ),
                         ),
                         
@@ -590,9 +602,13 @@ class _JournalScreenState extends State<JournalScreen> {
                               ElevatedButton(
                                 onPressed: _entryState.text.isNotEmpty ? _onContinue : null,
                                 style: ElevatedButton.styleFrom(
-                                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                  minimumSize: const Size(0, 32),
                                 ),
-                                child: const Text('Continue'),
+                                child: const Text(
+                                  'Continue',
+                                  style: TextStyle(fontSize: 14),
+                                ),
                               ),
                             ],
                           ),
@@ -1286,19 +1302,39 @@ class _JournalScreenState extends State<JournalScreen> {
     }
   }
 
-  /// Initialize draft cache and create new draft
+  /// Initialize draft cache and create new draft or restore existing one
   Future<void> _initializeDraftCache() async {
     try {
       await _draftCache.initialize();
       
-      // Create new draft with emotion and reason if available
-      _currentDraftId = await _draftCache.createDraft(
-        initialEmotion: widget.selectedEmotion,
-        initialReason: widget.selectedReason,
-        initialContent: _entryState.text,
-      );
-      
-      debugPrint('JournalScreen: Created draft $_currentDraftId');
+      // If we have initial content, we might be opening an existing draft
+      if (widget.initialContent != null && widget.initialContent!.isNotEmpty) {
+        // Check if there's a recoverable draft that matches our content
+        final recoverableDraft = await _draftCache.getRecoverableDraft();
+        if (recoverableDraft != null && 
+            recoverableDraft.content == widget.initialContent) {
+          // Restore the existing draft
+          await _draftCache.restoreDraft(recoverableDraft);
+          _currentDraftId = recoverableDraft.id;
+          debugPrint('JournalScreen: Restored existing draft $_currentDraftId');
+        } else {
+          // Create new draft with the provided content
+          _currentDraftId = await _draftCache.createDraft(
+            initialEmotion: widget.selectedEmotion,
+            initialReason: widget.selectedReason,
+            initialContent: _entryState.text,
+          );
+          debugPrint('JournalScreen: Created new draft with content $_currentDraftId');
+        }
+      } else {
+        // Create new draft with emotion and reason if available
+        _currentDraftId = await _draftCache.createDraft(
+          initialEmotion: widget.selectedEmotion,
+          initialReason: widget.selectedReason,
+          initialContent: _entryState.text,
+        );
+        debugPrint('JournalScreen: Created new draft $_currentDraftId');
+      }
     } catch (e) {
       debugPrint('JournalScreen: Failed to initialize draft cache: $e');
     }
@@ -1316,6 +1352,28 @@ class _JournalScreenState extends State<JournalScreen> {
       _draftCache.updateDraftContent(content);
       debugPrint('JournalScreen: Auto-saved draft content');
     });
+  }
+
+  /// Navigate to drafts screen
+  Future<void> _navigateToDrafts() async {
+    try {
+      // Save current draft before navigating
+      if (_currentDraftId != null) {
+        await _draftCache.saveCurrentDraftImmediately();
+      }
+
+      // Navigate to drafts screen
+      await Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (context) => const DraftsScreen(),
+        ),
+      );
+
+      // If a draft was opened, the drafts screen will handle navigation
+      // to the journal screen with the draft content
+    } catch (e) {
+      debugPrint('JournalScreen: Error navigating to drafts: $e');
+    }
   }
 
   /// Complete the current draft when entry is saved

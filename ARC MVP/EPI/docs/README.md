@@ -1,11 +1,28 @@
 # EPI Documentation
 
-**Last Updated:** January 8, 2025
+**Last Updated:** January 12, 2025
 **Status:** Production Ready ✅
 
 This directory contains comprehensive documentation for the EPI (Evolving Personal Intelligence) project - an 8-module intelligent journaling system built with Flutter.
 
-## 🆕 Latest Updates (January 8, 2025)
+## 🆕 Latest Updates (January 12, 2025)
+
+**Drafts Feature Implementation**
+
+Comprehensive draft management system for journal entries:
+- **Auto-Save Functionality** - Continuous auto-save every 2 seconds while typing
+- **App Lifecycle Integration** - Drafts saved on app pause, close, or crash
+- **Multi-Select Operations** - Select and delete multiple drafts at once
+- **Draft Management UI** - Dedicated screen for managing all saved drafts
+- **Seamless Integration** - Drafts button in journal screen for easy access
+- **Draft Recovery** - Automatic recovery of drafts on app restart
+- **Content Overwriting** - Same draft continuously updated with new content
+- **Rich Metadata** - Draft preview with date, attachments, and emotions
+- **Navigation Flow** - Click any draft to open in journal format
+- **Auto-Cleanup** - Old drafts automatically cleaned up (7-day retention)
+- **Crash Protection** - Drafts persist through app crashes and force-quits
+
+---
 
 **RIVET Deterministic Recompute System**
 

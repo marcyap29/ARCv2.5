@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:hive/hive.dart';
 import 'package:my_app/main/bootstrap.dart';
+import 'draft_cache_service.dart';
 
 /// Manages app-level lifecycle events and recovery mechanisms
 class AppLifecycleManager with WidgetsBindingObserver {
@@ -11,6 +12,7 @@ class AppLifecycleManager with WidgetsBindingObserver {
   bool _isInitialized = false;
   DateTime? _lastPauseTime;
   DateTime? _lastResumeTime;
+  final DraftCacheService _draftCache = DraftCacheService.instance;
   
   /// Initialize the lifecycle manager
   void initialize() {
@@ -76,6 +78,9 @@ class AppLifecycleManager with WidgetsBindingObserver {
   void _handleAppPaused() {
     _lastPauseTime = DateTime.now();
     logger.d('App paused at: $_lastPauseTime');
+    
+    // Save current draft immediately when app is paused
+    _saveCurrentDraft();
   }
 
   void _handleAppInactive() {
@@ -84,6 +89,9 @@ class AppLifecycleManager with WidgetsBindingObserver {
 
   void _handleAppDetached() {
     logger.d('App detached from engine');
+    
+    // Save current draft when app is detached (force quit scenario)
+    _saveCurrentDraft();
   }
 
   void _handleAppHidden() {
@@ -209,6 +217,16 @@ class AppLifecycleManager with WidgetsBindingObserver {
   Future<void> _reinitializeOtherServices() async {
     // Placeholder for reinitializing other services like Audio, RIVET, etc.
     logger.d('Other services reinitialization placeholder');
+  }
+
+  /// Save current draft immediately for app lifecycle events
+  Future<void> _saveCurrentDraft() async {
+    try {
+      await _draftCache.saveCurrentDraftImmediately();
+      logger.d('AppLifecycleManager: Saved current draft on app lifecycle event');
+    } catch (e) {
+      logger.e('AppLifecycleManager: Failed to save current draft: $e');
+    }
   }
 
   Future<void> _checkHiveHealth() async {

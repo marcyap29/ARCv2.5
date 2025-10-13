@@ -301,6 +301,70 @@ class DraftCacheService {
     debugPrint('DraftCacheService: Completed and cleared current draft');
   }
 
+  /// Save current draft immediately (for app close/reset/crash scenarios)
+  Future<void> saveCurrentDraftImmediately() async {
+    if (_currentDraft == null) return;
+    
+    try {
+      await _saveDraft(_currentDraft!);
+      debugPrint('DraftCacheService: Saved current draft immediately');
+    } catch (e) {
+      debugPrint('DraftCacheService: Error saving draft immediately - $e');
+    }
+  }
+
+  /// Get all saved drafts (including current and history)
+  Future<List<JournalDraft>> getAllDrafts() async {
+    await _ensureInitialized();
+    
+    final List<JournalDraft> allDrafts = [];
+    
+    // Add current draft if it exists and has content
+    if (_currentDraft != null && _currentDraft!.hasContent) {
+      allDrafts.add(_currentDraft!);
+    }
+    
+    // Add history drafts
+    final historyDrafts = await getDraftHistory();
+    allDrafts.addAll(historyDrafts);
+    
+    // Sort by last modified (most recent first)
+    allDrafts.sort((a, b) => b.lastModified.compareTo(a.lastModified));
+    
+    return allDrafts;
+  }
+
+  /// Delete specific drafts by IDs
+  Future<void> deleteDrafts(List<String> draftIds) async {
+    await _ensureInitialized();
+    
+    try {
+      // Remove from current draft if it's in the list
+      if (_currentDraft != null && draftIds.contains(_currentDraft!.id)) {
+        await _clearCurrentDraft();
+        _currentDraft = null;
+      }
+      
+      // Remove from history
+      final historyDrafts = await getDraftHistory();
+      final remainingDrafts = historyDrafts
+          .where((draft) => !draftIds.contains(draft.id))
+          .toList();
+      
+      await _box?.put(_draftHistoryKey,
+          remainingDrafts.map((d) => d.toJson()).toList());
+      
+      debugPrint('DraftCacheService: Deleted ${draftIds.length} drafts');
+    } catch (e) {
+      debugPrint('DraftCacheService: Error deleting drafts - $e');
+    }
+  }
+
+  /// Delete a single draft by ID
+  Future<void> deleteDraft(String draftId) async {
+    await deleteDrafts([draftId]);
+  }
+
   /// Discard the current draft
   Future<void> discardDraft() async {
     await _clearCurrentDraft();
