@@ -7,17 +7,18 @@ This directory contains comprehensive documentation for the EPI (Evolving Person
 
 ## 🆕 Latest Updates (January 12, 2025)
 
-**System Reversion - Stable Journal Editor**
+**Media Persistence & Inline Photo System**
 
-Reverted to stable journal editor with large photo boxes for optimal user experience:
-- **Large Photo Display** - Photos display as detailed boxes at bottom of entries with full analysis
-- **Date/Time/Location Editor** - Editing controls positioned at top of entry when editing existing entries
-- **Stable Text Editing** - Normal TextField with visible cursor and reliable text selection
-- **Photo Analysis** - Complete iOS Vision analysis with clickable thumbnails and detailed information
-- **Timeline Integration** - Photos persist and display correctly when viewing from timeline
-- **Clean Layout** - Eliminated spacing issues and complex inline systems for predictable behavior
+Complete media handling system with chronological photo flow:
+- **Media Persistence** - Photos with analysis data now persist when saving journal entries
+- **Hyperlink Text Retention** - `*Click to view photo*` and `📸 **Photo Analysis**` text preserved in content
+- **Inline Photo Insertion** - Photos insert at cursor position instead of bottom for natural storytelling
+- **Chronological Flow** - Photos appear exactly where placed in text with compact thumbnails
+- **Clickable Thumbnails** - Tap thumbnails to open full photo viewer with complete analysis
+- **UI/UX Improvements** - Date/time/location editor moved to top, auto-capitalization added
+- **Media Conversion System** - `MediaConversionUtils` converts between attachment types and `MediaItem`
 
-*For detailed technical information, see [Changelog - System Reversion](../changelog/CHANGELOG.md#system-reversion---stable-journal-editor---january-12-2025)*
+*For detailed technical information, see [Changelog - Media Persistence & Inline Photo System](../changelog/CHANGELOG.md#media-persistence--inline-photo-system---january-12-2025)*
 
 **Timeline Editor Elimination - Full Journal Integration**
 
