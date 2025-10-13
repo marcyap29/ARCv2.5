@@ -2,13 +2,13 @@ import Foundation
 import Vision
 import UIKit
 
-@objc class VisionApi: NSObject, VisionApi {
+@objc class VisionApi: NSObject, VisionApiProtocol {
     
     // MARK: - Text Recognition
     func extractText(imagePath: String) throws -> VisionOcrResult {
         guard let image = UIImage(contentsOfFile: imagePath),
               let cgImage = image.cgImage else {
-            throw PigeonError(code: "IMAGE_LOAD_ERROR", message: "Failed to load image", details: nil)
+            throw VisionPigeonError(code: "IMAGE_LOAD_ERROR", message: "Failed to load image", details: nil)
         }
         
         var result: VisionOcrResult?
@@ -21,7 +21,7 @@ import UIKit
             }
             
             guard let observations = request.results as? [VNRecognizedTextObservation] else {
-                error = PigeonError(code: "NO_TEXT_OBSERVATIONS", message: "No text observations found", details: nil)
+                error = VisionPigeonError(code: "NO_TEXT_OBSERVATIONS", message: "No text observations found", details: nil)
                 return
             }
             
@@ -57,7 +57,7 @@ import UIKit
         do {
             try handler.perform([request])
         } catch {
-            throw error ?? PigeonError(code: "VISION_ERROR", message: error?.localizedDescription, details: nil)
+            throw error ?? VisionPigeonError(code: "VISION_ERROR", message: error?.localizedDescription, details: nil)
         }
         
         if let error = error {
@@ -71,7 +71,7 @@ import UIKit
     func detectObjects(imagePath: String) throws -> VisionObjectResult {
         guard let image = UIImage(contentsOfFile: imagePath),
               let cgImage = image.cgImage else {
-            throw PigeonError(code: "IMAGE_LOAD_ERROR", message: "Failed to load image", details: nil)
+            throw VisionPigeonError(code: "IMAGE_LOAD_ERROR", message: "Failed to load image", details: nil)
         }
         
         var result: VisionObjectResult?
@@ -84,7 +84,7 @@ import UIKit
             }
             
             guard let observations = request.results as? [VNRecognizedObjectObservation] else {
-                error = PigeonError(code: "NO_OBJECT_OBSERVATIONS", message: "No object observations found", details: nil)
+                error = VisionPigeonError(code: "NO_OBJECT_OBSERVATIONS", message: "No object observations found", details: nil)
                 return
             }
             
@@ -115,7 +115,7 @@ import UIKit
         do {
             try handler.perform([request])
         } catch {
-            throw error ?? PigeonError(code: "VISION_ERROR", message: error?.localizedDescription, details: nil)
+            throw error ?? VisionPigeonError(code: "VISION_ERROR", message: error?.localizedDescription, details: nil)
         }
         
         if let error = error {
@@ -129,7 +129,7 @@ import UIKit
     func detectFaces(imagePath: String) throws -> VisionFaceResult {
         guard let image = UIImage(contentsOfFile: imagePath),
               let cgImage = image.cgImage else {
-            throw PigeonError(code: "IMAGE_LOAD_ERROR", message: "Failed to load image", details: nil)
+            throw VisionPigeonError(code: "IMAGE_LOAD_ERROR", message: "Failed to load image", details: nil)
         }
         
         var result: VisionFaceResult?
@@ -142,7 +142,7 @@ import UIKit
             }
             
             guard let observations = request.results as? [VNFaceObservation] else {
-                error = PigeonError(code: "NO_FACE_OBSERVATIONS", message: "No face observations found", details: nil)
+                error = VisionPigeonError(code: "NO_FACE_OBSERVATIONS", message: "No face observations found", details: nil)
                 return
             }
             
@@ -201,7 +201,7 @@ import UIKit
         do {
             try handler.perform([request])
         } catch {
-            throw error ?? PigeonError(code: "VISION_ERROR", message: error?.localizedDescription, details: nil)
+            throw error ?? VisionPigeonError(code: "VISION_ERROR", message: error?.localizedDescription, details: nil)
         }
         
         if let error = error {
@@ -215,7 +215,7 @@ import UIKit
     func classifyImage(imagePath: String) throws -> VisionClassificationResult {
         guard let image = UIImage(contentsOfFile: imagePath),
               let cgImage = image.cgImage else {
-            throw PigeonError(code: "IMAGE_LOAD_ERROR", message: "Failed to load image", details: nil)
+            throw VisionPigeonError(code: "IMAGE_LOAD_ERROR", message: "Failed to load image", details: nil)
         }
         
         var result: VisionClassificationResult?
@@ -228,7 +228,7 @@ import UIKit
             }
             
             guard let observations = request.results as? [VNClassificationObservation] else {
-                error = PigeonError(code: "NO_CLASSIFICATION_OBSERVATIONS", message: "No classification observations found", details: nil)
+                error = VisionPigeonError(code: "NO_CLASSIFICATION_OBSERVATIONS", message: "No classification observations found", details: nil)
                 return
             }
             
@@ -250,7 +250,7 @@ import UIKit
         do {
             try handler.perform([request])
         } catch {
-            throw error ?? PigeonError(code: "VISION_ERROR", message: error?.localizedDescription, details: nil)
+            throw error ?? VisionPigeonError(code: "VISION_ERROR", message: error?.localizedDescription, details: nil)
         }
         
         if let error = error {

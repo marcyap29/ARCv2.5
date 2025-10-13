@@ -12,7 +12,7 @@ import Foundation
 #endif
 
 /// Error class for passing custom error details to Dart side.
-final class PigeonError: Error {
+final class VisionVisionPigeonError: Error {
   let code: String
   let message: String?
   let details: Any?
@@ -25,7 +25,7 @@ final class PigeonError: Error {
 
   var localizedDescription: String {
     return
-      "PigeonError(code: \(code), message: \(message ?? "<nil>"), details: \(details ?? "<nil>")"
+      "VisionPigeonError(code: \(code), message: \(message ?? "<nil>"), details: \(details ?? "<nil>")"
       }
 }
 
@@ -34,7 +34,7 @@ private func wrapResult(_ result: Any?) -> [Any?] {
 }
 
 private func wrapError(_ error: Any) -> [Any?] {
-  if let pigeonError = error as? PigeonError {
+  if let pigeonError = error as? VisionPigeonError {
     return [
       pigeonError.code,
       pigeonError.message,
@@ -410,7 +410,7 @@ struct VisionPoint {
   }
 }
 
-private class VisionApiPigeonCodecReader: FlutterStandardReader {
+private class VisionApiProtocolPigeonCodecReader: FlutterStandardReader {
   override func readValue(ofType type: UInt8) -> Any? {
     switch type {
     case 129:
@@ -441,7 +441,7 @@ private class VisionApiPigeonCodecReader: FlutterStandardReader {
   }
 }
 
-private class VisionApiPigeonCodecWriter: FlutterStandardWriter {
+private class VisionApiProtocolPigeonCodecWriter: FlutterStandardWriter {
   override func writeValue(_ value: Any) {
     if let value = value as? VisionOcrResult {
       super.writeByte(129)
@@ -482,24 +482,24 @@ private class VisionApiPigeonCodecWriter: FlutterStandardWriter {
   }
 }
 
-private class VisionApiPigeonCodecReaderWriter: FlutterStandardReaderWriter {
+private class VisionApiProtocolPigeonCodecReaderWriter: FlutterStandardReaderWriter {
   override func reader(with data: Data) -> FlutterStandardReader {
-    return VisionApiPigeonCodecReader(data: data)
+    return VisionApiProtocolPigeonCodecReader(data: data)
   }
 
   override func writer(with data: NSMutableData) -> FlutterStandardWriter {
-    return VisionApiPigeonCodecWriter(data: data)
+    return VisionApiProtocolPigeonCodecWriter(data: data)
   }
 }
 
-class VisionApiPigeonCodec: FlutterStandardMessageCodec, @unchecked Sendable {
-  static let shared = VisionApiPigeonCodec(readerWriter: VisionApiPigeonCodecReaderWriter())
+class VisionApiProtocolPigeonCodec: FlutterStandardMessageCodec, @unchecked Sendable {
+  static let shared = VisionApiProtocolPigeonCodec(readerWriter: VisionApiProtocolPigeonCodecReaderWriter())
 }
 
 /// Pigeon API for comprehensive iOS Vision framework
 ///
 /// Generated protocol from Pigeon that represents a handler of messages from Flutter.
-protocol VisionApi {
+protocol VisionApiProtocolProtocol {
   /// Extract text from image using iOS Vision framework
   func extractText(imagePath: String) throws -> VisionOcrResult
   /// Detect objects in image using iOS Vision framework
@@ -511,13 +511,13 @@ protocol VisionApi {
 }
 
 /// Generated setup class from Pigeon to handle messages through the `binaryMessenger`.
-class VisionApiSetup {
-  static var codec: FlutterStandardMessageCodec { VisionApiPigeonCodec.shared }
-  /// Sets up an instance of `VisionApi` to handle messages through the `binaryMessenger`.
-  static func setUp(binaryMessenger: FlutterBinaryMessenger, api: VisionApi?, messageChannelSuffix: String = "") {
+class VisionApiProtocolSetup {
+  static var codec: FlutterStandardMessageCodec { VisionApiProtocolPigeonCodec.shared }
+  /// Sets up an instance of `VisionApiProtocol` to handle messages through the `binaryMessenger`.
+  static func setUp(binaryMessenger: FlutterBinaryMessenger, api: VisionApiProtocol?, messageChannelSuffix: String = "") {
     let channelSuffix = messageChannelSuffix.count > 0 ? ".\(messageChannelSuffix)" : ""
     /// Extract text from image using iOS Vision framework
-    let extractTextChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.my_app.VisionApi.extractText\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    let extractTextChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.my_app.VisionApiProtocol.extractText\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
     if let api = api {
       extractTextChannel.setMessageHandler { message, reply in
         let args = message as! [Any?]
@@ -533,7 +533,7 @@ class VisionApiSetup {
       extractTextChannel.setMessageHandler(nil)
     }
     /// Detect objects in image using iOS Vision framework
-    let detectObjectsChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.my_app.VisionApi.detectObjects\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    let detectObjectsChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.my_app.VisionApiProtocol.detectObjects\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
     if let api = api {
       detectObjectsChannel.setMessageHandler { message, reply in
         let args = message as! [Any?]
@@ -549,7 +549,7 @@ class VisionApiSetup {
       detectObjectsChannel.setMessageHandler(nil)
     }
     /// Detect faces in image using iOS Vision framework
-    let detectFacesChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.my_app.VisionApi.detectFaces\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    let detectFacesChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.my_app.VisionApiProtocol.detectFaces\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
     if let api = api {
       detectFacesChannel.setMessageHandler { message, reply in
         let args = message as! [Any?]
@@ -565,7 +565,7 @@ class VisionApiSetup {
       detectFacesChannel.setMessageHandler(nil)
     }
     /// Classify image content using iOS Vision framework
-    let classifyImageChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.my_app.VisionApi.classifyImage\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    let classifyImageChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.my_app.VisionApiProtocol.classifyImage\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
     if let api = api {
       classifyImageChannel.setMessageHandler { message, reply in
         let args = message as! [Any?]

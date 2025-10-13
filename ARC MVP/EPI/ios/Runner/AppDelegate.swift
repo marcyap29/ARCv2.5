@@ -22,7 +22,7 @@ import Photos
 
     NSLog("[AppDelegate] LLMBridge registered via Pigeon with progress API ✅")
     
-    // TODO: Vision API conflicts with Bridge.pigeon.swift - need to resolve
+    // TODO: Vision API needs proper integration - currently has compilation issues
     // let visionApi = VisionApi()
     // VisionApiSetup.setUp(
     //   binaryMessenger: controller.binaryMessenger,
