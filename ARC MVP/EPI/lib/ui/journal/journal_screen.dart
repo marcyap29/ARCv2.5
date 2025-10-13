@@ -339,6 +339,168 @@ class _JournalScreenState extends State<JournalScreen> {
     _onTextChanged(newText);
   }
 
+  /// Insert photo placeholder at cursor position
+  void _insertPhotoPlaceholder(PhotoAttachment attachment) {
+    final currentText = _textController.text;
+    final cursorPosition = _textController.selection.baseOffset;
+    
+    // Create a unique placeholder with ID
+    final placeholderId = 'photo_${attachment.timestamp}';
+    final placeholderText = '\n\n[PHOTO:$placeholderId]\n\n';
+    
+    final newText = '${currentText.substring(0, cursorPosition)}$placeholderText${currentText.substring(cursorPosition)}';
+    
+    _textController.text = newText;
+    _textController.selection = TextSelection.collapsed(
+      offset: cursorPosition + placeholderText.length,
+    );
+    
+    _onTextChanged(newText);
+  }
+
+  /// Parse text content and extract photo placeholders
+  List<Map<String, dynamic>> _parsePhotoPlaceholders(String text) {
+    final placeholders = <Map<String, dynamic>>[];
+    final regex = RegExp(r'\[PHOTO:([^\]]+)\]');
+    final matches = regex.allMatches(text);
+    
+    for (final match in matches) {
+      final placeholderId = match.group(1)!;
+      final startIndex = match.start;
+      final endIndex = match.end;
+      
+      // Find the corresponding PhotoAttachment
+      final photoAttachment = _entryState.attachments
+          .whereType<PhotoAttachment>()
+          .where((attachment) => 'photo_${attachment.timestamp}' == placeholderId)
+          .firstOrNull;
+      
+      if (photoAttachment != null) {
+        placeholders.add({
+          'id': placeholderId,
+          'startIndex': startIndex,
+          'endIndex': endIndex,
+          'attachment': photoAttachment,
+        });
+      }
+    }
+    
+    return placeholders;
+  }
+
+  /// Build inline photo display that shows photos in text order
+  Widget _buildInlinePhotoDisplay() {
+    final placeholders = _parsePhotoPlaceholders(_entryState.text);
+    
+    if (placeholders.isEmpty) {
+      return const SizedBox.shrink();
+    }
+    
+    return Container(
+      margin: const EdgeInsets.only(top: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Photos in this entry:',
+            style: Theme.of(context).textTheme.titleSmall?.copyWith(
+              fontWeight: FontWeight.w600,
+              color: Theme.of(context).colorScheme.primary,
+            ),
+          ),
+          const SizedBox(height: 8),
+          ...placeholders.map((placeholder) {
+            final attachment = placeholder['attachment'] as PhotoAttachment;
+            return _buildInlinePhotoThumbnail(attachment);
+          }),
+        ],
+      ),
+    );
+  }
+
+  /// Build a compact photo thumbnail for inline display
+  Widget _buildInlinePhotoThumbnail(PhotoAttachment attachment) {
+    final analysis = attachment.analysisResult;
+    final summary = analysis['summary'] as String? ?? 'Photo analyzed';
+    
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      child: InkWell(
+        onTap: () => _openPhotoInGallery(attachment.imagePath),
+        child: Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: Theme.of(context).colorScheme.surfaceContainerHighest.withOpacity(0.3),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(
+              color: Theme.of(context).colorScheme.outline.withOpacity(0.2),
+            ),
+          ),
+          child: Row(
+            children: [
+              // Photo thumbnail
+              Container(
+                width: 60,
+                height: 60,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(8),
+                  color: Theme.of(context).colorScheme.surface,
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: Image.file(
+                    File(attachment.imagePath),
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) {
+                      return Container(
+                        color: Theme.of(context).colorScheme.surface,
+                        child: Icon(
+                          Icons.photo,
+                          color: Theme.of(context).colorScheme.primary,
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              // Photo info
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '📸 Photo',
+                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w600,
+                        color: Theme.of(context).colorScheme.primary,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      summary,
+                      style: Theme.of(context).textTheme.bodySmall,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Tap to view full photo',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: Theme.of(context).colorScheme.primary,
+                        fontStyle: FontStyle.italic,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   void _onContinue() {
     _analytics.logJournalEvent('continue_pressed', data: {
       'text_length': _entryState.text.length,
@@ -443,15 +605,18 @@ class _JournalScreenState extends State<JournalScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                      // Main text field with AI suggestion support
-                      _buildAITextField(theme),
-                      const SizedBox(height: 16),
-                      
-                      // Editing controls for existing entries
+                      // Editing controls for existing entries (moved to top)
                       if (_isEditing) ...[
                         _buildEditingControls(theme),
                         const SizedBox(height: 16),
                       ],
+                      
+                      // Main text field with AI suggestion support
+                      _buildAITextField(theme),
+                      const SizedBox(height: 16),
+                      
+                      // Inline photo display (shows photos in text order)
+                      _buildInlinePhotoDisplay(),
                       
                       // Inline reflection blocks
                       ..._entryState.blocks.asMap().entries.map((entry) {
@@ -1742,17 +1907,8 @@ class _JournalScreenState extends State<JournalScreen> {
         final faces = result['faces'] as List<Map<String, dynamic>>? ?? [];
         final labels = result['labels'] as List<Map<String, dynamic>>? ?? [];
         
-        // Create rich analysis text
-        final analysisText = _createPhotoAnalysisText(
-          summary: summary,
-          ocrText: ocrText,
-          objects: objects,
-          faces: faces,
-          labels: labels,
-          attachmentIndex: _entryState.attachments.length - 1,
-        );
-        
-        _insertTextIntoEntry(analysisText);
+        // Insert photo placeholder at cursor position instead of analysis text
+        _insertPhotoPlaceholder(photoAttachment);
 
         // Show success message with summary
         ScaffoldMessenger.of(context).showSnackBar(
