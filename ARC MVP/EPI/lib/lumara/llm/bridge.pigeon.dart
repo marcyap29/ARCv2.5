@@ -257,6 +257,259 @@ class GenResult {
   }
 }
 
+/// Vision API result for OCR text extraction
+class VisionOcrResult {
+  VisionOcrResult({
+    required this.text,
+    required this.confidence,
+    required this.blocks,
+  });
+
+  String text;
+
+  double confidence;
+
+  List<VisionTextBlock> blocks;
+
+  Object encode() {
+    return <Object?>[
+      text,
+      confidence,
+      blocks,
+    ];
+  }
+
+  static VisionOcrResult decode(Object result) {
+    result as List<Object?>;
+    return VisionOcrResult(
+      text: result[0]! as String,
+      confidence: result[1]! as double,
+      blocks: (result[2] as List<Object?>?)!.cast<VisionTextBlock>(),
+    );
+  }
+}
+
+/// Vision API text block for OCR results
+class VisionTextBlock {
+  VisionTextBlock({
+    required this.text,
+    required this.confidence,
+    required this.boundingBox,
+  });
+
+  String text;
+
+  double confidence;
+
+  VisionRect boundingBox;
+
+  Object encode() {
+    return <Object?>[
+      text,
+      confidence,
+      boundingBox,
+    ];
+  }
+
+  static VisionTextBlock decode(Object result) {
+    result as List<Object?>;
+    return VisionTextBlock(
+      text: result[0]! as String,
+      confidence: result[1]! as double,
+      boundingBox: result[2]! as VisionRect,
+    );
+  }
+}
+
+/// Vision API rectangle for bounding boxes
+class VisionRect {
+  VisionRect({
+    required this.x,
+    required this.y,
+    required this.width,
+    required this.height,
+  });
+
+  double x;
+
+  double y;
+
+  double width;
+
+  double height;
+
+  Object encode() {
+    return <Object?>[
+      x,
+      y,
+      width,
+      height,
+    ];
+  }
+
+  static VisionRect decode(Object result) {
+    result as List<Object?>;
+    return VisionRect(
+      x: result[0]! as double,
+      y: result[1]! as double,
+      width: result[2]! as double,
+      height: result[3]! as double,
+    );
+  }
+}
+
+/// Vision API result for object detection
+class VisionObjectResult {
+  VisionObjectResult({
+    required this.objects,
+  });
+
+  List<VisionDetectedObject> objects;
+
+  Object encode() {
+    return <Object?>[
+      objects,
+    ];
+  }
+
+  static VisionObjectResult decode(Object result) {
+    result as List<Object?>;
+    return VisionObjectResult(
+      objects: (result[0] as List<Object?>?)!.cast<VisionDetectedObject>(),
+    );
+  }
+}
+
+/// Vision API detected object
+class VisionDetectedObject {
+  VisionDetectedObject({
+    required this.label,
+    required this.confidence,
+    required this.boundingBox,
+  });
+
+  String label;
+
+  double confidence;
+
+  VisionRect boundingBox;
+
+  Object encode() {
+    return <Object?>[
+      label,
+      confidence,
+      boundingBox,
+    ];
+  }
+
+  static VisionDetectedObject decode(Object result) {
+    result as List<Object?>;
+    return VisionDetectedObject(
+      label: result[0]! as String,
+      confidence: result[1]! as double,
+      boundingBox: result[2]! as VisionRect,
+    );
+  }
+}
+
+/// Vision API result for face detection
+class VisionFaceResult {
+  VisionFaceResult({
+    required this.faces,
+  });
+
+  List<VisionDetectedFace> faces;
+
+  Object encode() {
+    return <Object?>[
+      faces,
+    ];
+  }
+
+  static VisionFaceResult decode(Object result) {
+    result as List<Object?>;
+    return VisionFaceResult(
+      faces: (result[0] as List<Object?>?)!.cast<VisionDetectedFace>(),
+    );
+  }
+}
+
+/// Vision API detected face
+class VisionDetectedFace {
+  VisionDetectedFace({
+    required this.confidence,
+    required this.boundingBox,
+  });
+
+  double confidence;
+
+  VisionRect boundingBox;
+
+  Object encode() {
+    return <Object?>[
+      confidence,
+      boundingBox,
+    ];
+  }
+
+  static VisionDetectedFace decode(Object result) {
+    result as List<Object?>;
+    return VisionDetectedFace(
+      confidence: result[0]! as double,
+      boundingBox: result[1]! as VisionRect,
+    );
+  }
+}
+
+/// Vision API result for image classification
+class VisionClassificationResult {
+  VisionClassificationResult({
+    required this.classifications,
+  });
+
+  List<VisionClassification> classifications;
+
+  Object encode() {
+    return <Object?>[
+      classifications,
+    ];
+  }
+
+  static VisionClassificationResult decode(Object result) {
+    result as List<Object?>;
+    return VisionClassificationResult(
+      classifications: (result[0] as List<Object?>?)!.cast<VisionClassification>(),
+    );
+  }
+}
+
+/// Vision API image classification
+class VisionClassification {
+  VisionClassification({
+    required this.identifier,
+    required this.confidence,
+  });
+
+  String identifier;
+
+  double confidence;
+
+  Object encode() {
+    return <Object?>[
+      identifier,
+      confidence,
+    ];
+  }
+
+  static VisionClassification decode(Object result) {
+    result as List<Object?>;
+    return VisionClassification(
+      identifier: result[0]! as String,
+      confidence: result[1]! as double,
+    );
+  }
+}
+
 
 class _PigeonCodec extends StandardMessageCodec {
   const _PigeonCodec();
@@ -283,6 +536,33 @@ class _PigeonCodec extends StandardMessageCodec {
     }    else if (value is GenResult) {
       buffer.putUint8(134);
       writeValue(buffer, value.encode());
+    }    else if (value is VisionOcrResult) {
+      buffer.putUint8(135);
+      writeValue(buffer, value.encode());
+    }    else if (value is VisionTextBlock) {
+      buffer.putUint8(136);
+      writeValue(buffer, value.encode());
+    }    else if (value is VisionRect) {
+      buffer.putUint8(137);
+      writeValue(buffer, value.encode());
+    }    else if (value is VisionObjectResult) {
+      buffer.putUint8(138);
+      writeValue(buffer, value.encode());
+    }    else if (value is VisionDetectedObject) {
+      buffer.putUint8(139);
+      writeValue(buffer, value.encode());
+    }    else if (value is VisionFaceResult) {
+      buffer.putUint8(140);
+      writeValue(buffer, value.encode());
+    }    else if (value is VisionDetectedFace) {
+      buffer.putUint8(141);
+      writeValue(buffer, value.encode());
+    }    else if (value is VisionClassificationResult) {
+      buffer.putUint8(142);
+      writeValue(buffer, value.encode());
+    }    else if (value is VisionClassification) {
+      buffer.putUint8(143);
+      writeValue(buffer, value.encode());
     } else {
       super.writeValue(buffer, value);
     }
@@ -303,6 +583,24 @@ class _PigeonCodec extends StandardMessageCodec {
         return GenParams.decode(readValue(buffer)!);
       case 134: 
         return GenResult.decode(readValue(buffer)!);
+      case 135: 
+        return VisionOcrResult.decode(readValue(buffer)!);
+      case 136: 
+        return VisionTextBlock.decode(readValue(buffer)!);
+      case 137: 
+        return VisionRect.decode(readValue(buffer)!);
+      case 138: 
+        return VisionObjectResult.decode(readValue(buffer)!);
+      case 139: 
+        return VisionDetectedObject.decode(readValue(buffer)!);
+      case 140: 
+        return VisionFaceResult.decode(readValue(buffer)!);
+      case 141: 
+        return VisionDetectedFace.decode(readValue(buffer)!);
+      case 142: 
+        return VisionClassificationResult.decode(readValue(buffer)!);
+      case 143: 
+        return VisionClassification.decode(readValue(buffer)!);
       default:
         return super.readValueOfType(type, buffer);
     }
@@ -795,6 +1093,133 @@ abstract class LumaraNativeProgress {
           }
         });
       }
+    }
+  }
+}
+
+/// Native Vision API interface - implemented on iOS (Swift) and Android (Kotlin)
+class VisionApi {
+  /// Constructor for [VisionApi].  The [binaryMessenger] named argument is
+  /// available for dependency injection.  If it is left null, the default
+  /// BinaryMessenger will be used which routes to the host platform.
+  VisionApi({BinaryMessenger? binaryMessenger, String messageChannelSuffix = ''})
+      : pigeonVar_binaryMessenger = binaryMessenger,
+        pigeonVar_messageChannelSuffix = messageChannelSuffix.isNotEmpty ? '.$messageChannelSuffix' : '';
+  final BinaryMessenger? pigeonVar_binaryMessenger;
+
+  static const MessageCodec<Object?> pigeonChannelCodec = _PigeonCodec();
+
+  final String pigeonVar_messageChannelSuffix;
+
+  /// Extract text from image using iOS Vision framework
+  Future<VisionOcrResult> extractText(String imagePath) async {
+    final String pigeonVar_channelName = 'dev.flutter.pigeon.my_app.VisionApi.extractText$pigeonVar_messageChannelSuffix';
+    final BasicMessageChannel<Object?> pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final List<Object?>? pigeonVar_replyList =
+        await pigeonVar_channel.send(<Object?>[imagePath]) as List<Object?>?;
+    if (pigeonVar_replyList == null) {
+      throw _createConnectionError(pigeonVar_channelName);
+    } else if (pigeonVar_replyList.length > 1) {
+      throw PlatformException(
+        code: pigeonVar_replyList[0]! as String,
+        message: pigeonVar_replyList[1] as String?,
+        details: pigeonVar_replyList[2],
+      );
+    } else if (pigeonVar_replyList[0] == null) {
+      throw PlatformException(
+        code: 'null-error',
+        message: 'Host platform returned null value for non-null return value.',
+      );
+    } else {
+      return (pigeonVar_replyList[0] as VisionOcrResult?)!;
+    }
+  }
+
+  /// Detect objects in image using iOS Vision framework
+  Future<VisionObjectResult> detectObjects(String imagePath) async {
+    final String pigeonVar_channelName = 'dev.flutter.pigeon.my_app.VisionApi.detectObjects$pigeonVar_messageChannelSuffix';
+    final BasicMessageChannel<Object?> pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final List<Object?>? pigeonVar_replyList =
+        await pigeonVar_channel.send(<Object?>[imagePath]) as List<Object?>?;
+    if (pigeonVar_replyList == null) {
+      throw _createConnectionError(pigeonVar_channelName);
+    } else if (pigeonVar_replyList.length > 1) {
+      throw PlatformException(
+        code: pigeonVar_replyList[0]! as String,
+        message: pigeonVar_replyList[1] as String?,
+        details: pigeonVar_replyList[2],
+      );
+    } else if (pigeonVar_replyList[0] == null) {
+      throw PlatformException(
+        code: 'null-error',
+        message: 'Host platform returned null value for non-null return value.',
+      );
+    } else {
+      return (pigeonVar_replyList[0] as VisionObjectResult?)!;
+    }
+  }
+
+  /// Detect faces in image using iOS Vision framework
+  Future<VisionFaceResult> detectFaces(String imagePath) async {
+    final String pigeonVar_channelName = 'dev.flutter.pigeon.my_app.VisionApi.detectFaces$pigeonVar_messageChannelSuffix';
+    final BasicMessageChannel<Object?> pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final List<Object?>? pigeonVar_replyList =
+        await pigeonVar_channel.send(<Object?>[imagePath]) as List<Object?>?;
+    if (pigeonVar_replyList == null) {
+      throw _createConnectionError(pigeonVar_channelName);
+    } else if (pigeonVar_replyList.length > 1) {
+      throw PlatformException(
+        code: pigeonVar_replyList[0]! as String,
+        message: pigeonVar_replyList[1] as String?,
+        details: pigeonVar_replyList[2],
+      );
+    } else if (pigeonVar_replyList[0] == null) {
+      throw PlatformException(
+        code: 'null-error',
+        message: 'Host platform returned null value for non-null return value.',
+      );
+    } else {
+      return (pigeonVar_replyList[0] as VisionFaceResult?)!;
+    }
+  }
+
+  /// Classify image using iOS Vision framework
+  Future<VisionClassificationResult> classifyImage(String imagePath) async {
+    final String pigeonVar_channelName = 'dev.flutter.pigeon.my_app.VisionApi.classifyImage$pigeonVar_messageChannelSuffix';
+    final BasicMessageChannel<Object?> pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final List<Object?>? pigeonVar_replyList =
+        await pigeonVar_channel.send(<Object?>[imagePath]) as List<Object?>?;
+    if (pigeonVar_replyList == null) {
+      throw _createConnectionError(pigeonVar_channelName);
+    } else if (pigeonVar_replyList.length > 1) {
+      throw PlatformException(
+        code: pigeonVar_replyList[0]! as String,
+        message: pigeonVar_replyList[1] as String?,
+        details: pigeonVar_replyList[2],
+      );
+    } else if (pigeonVar_replyList[0] == null) {
+      throw PlatformException(
+        code: 'null-error',
+        message: 'Host platform returned null value for non-null return value.',
+      );
+    } else {
+      return (pigeonVar_replyList[0] as VisionClassificationResult?)!;
     }
   }
 }

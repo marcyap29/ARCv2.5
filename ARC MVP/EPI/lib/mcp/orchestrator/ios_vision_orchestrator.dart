@@ -2,7 +2,7 @@ import 'dart:io';
 import 'dart:typed_data';
 import 'package:image/image.dart' as img;
 import 'package:crypto/crypto.dart';
-import 'vision_api.g.dart';
+import 'package:my_app/lumara/llm/bridge.pigeon.dart';
 
 /// iOS Vision Framework Orchestrator - Pure on-device computer vision
 class IOSVisionOrchestrator {
@@ -113,17 +113,6 @@ class IOSVisionOrchestrator {
     try {
       final result = await _visionApi.extractText(imagePath);
       
-      if (!result.success) {
-        return {
-          'fullText': '',
-          'blocks': [],
-          'confidence': 0.0,
-          'engine': 'ios_vision',
-          'language': 'auto',
-          'error': result.error,
-        };
-      }
-
       // Parse text into blocks
       final blocks = _parseTextIntoBlocks(result.text);
       
@@ -151,11 +140,6 @@ class IOSVisionOrchestrator {
   Future<List<Map<String, dynamic>>> _detectObjectsWithIOSVision(String imagePath) async {
     try {
       final result = await _visionApi.detectObjects(imagePath);
-      
-      if (!result.success) {
-        print('iOS Vision object detection failed: ${result.error}');
-        return [];
-      }
 
       return result.objects.map((object) => {
         'label': object.label,
@@ -177,11 +161,6 @@ class IOSVisionOrchestrator {
   Future<List<Map<String, dynamic>>> _detectFacesWithIOSVision(String imagePath) async {
     try {
       final result = await _visionApi.detectFaces(imagePath);
-      
-      if (!result.success) {
-        print('iOS Vision face detection failed: ${result.error}');
-        return [];
-      }
 
       return result.faces.map((face) => {
         'bbox': [
@@ -190,19 +169,7 @@ class IOSVisionOrchestrator {
           face.boundingBox.width,
           face.boundingBox.height,
         ],
-        'landmarks': face.landmarks.map((landmark) => {
-          'type': landmark.type,
-          'position': [landmark.x, landmark.y],
-        }).toList(),
-        'contours': face.contours.map((contour) => {
-          'type': contour.type,
-          'points': contour.points.map((point) => [point.x, point.y]).toList(),
-        }).toList(),
-        'headEulerAngleY': face.headEulerAngleY,
-        'headEulerAngleZ': face.headEulerAngleZ,
-        'smilingProbability': face.smilingProbability,
-        'leftEyeOpenProbability': face.leftEyeOpenProbability,
-        'rightEyeOpenProbability': face.rightEyeOpenProbability,
+        'confidence': face.confidence,
       }).toList();
     } catch (e) {
       print('iOS Vision face detection failed: $e');
@@ -214,15 +181,10 @@ class IOSVisionOrchestrator {
   Future<List<Map<String, dynamic>>> _classifyImageWithIOSVision(String imagePath) async {
     try {
       final result = await _visionApi.classifyImage(imagePath);
-      
-      if (!result.success) {
-        print('iOS Vision image classification failed: ${result.error}');
-        return [];
-      }
 
-      return result.labels.map((label) => {
-        'label': label.label,
-        'confidence': label.confidence,
+      return result.classifications.map((classification) => {
+        'label': classification.identifier,
+        'confidence': classification.confidence,
       }).toList();
     } catch (e) {
       print('iOS Vision image classification failed: $e');

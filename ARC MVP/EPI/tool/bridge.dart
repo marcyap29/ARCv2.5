@@ -183,3 +183,122 @@ abstract class LumaraNativeProgress {
   /// - message: Status message (e.g., "Downloading: 50.2 / 900 MB")
   void downloadProgress(String modelId, double progress, String message);
 }
+
+/// Vision API result for OCR text extraction
+class VisionOcrResult {
+  final String text;
+  final double confidence;
+  final List<VisionTextBlock> blocks;
+
+  VisionOcrResult({
+    required this.text,
+    required this.confidence,
+    required this.blocks,
+  });
+}
+
+/// Vision API text block for OCR results
+class VisionTextBlock {
+  final String text;
+  final double confidence;
+  final VisionRect boundingBox;
+
+  VisionTextBlock({
+    required this.text,
+    required this.confidence,
+    required this.boundingBox,
+  });
+}
+
+/// Vision API rectangle for bounding boxes
+class VisionRect {
+  final double x;
+  final double y;
+  final double width;
+  final double height;
+
+  VisionRect({
+    required this.x,
+    required this.y,
+    required this.width,
+    required this.height,
+  });
+}
+
+/// Vision API result for object detection
+class VisionObjectResult {
+  final List<VisionDetectedObject> objects;
+
+  VisionObjectResult({
+    required this.objects,
+  });
+}
+
+/// Vision API detected object
+class VisionDetectedObject {
+  final String label;
+  final double confidence;
+  final VisionRect boundingBox;
+
+  VisionDetectedObject({
+    required this.label,
+    required this.confidence,
+    required this.boundingBox,
+  });
+}
+
+/// Vision API result for face detection
+class VisionFaceResult {
+  final List<VisionDetectedFace> faces;
+
+  VisionFaceResult({
+    required this.faces,
+  });
+}
+
+/// Vision API detected face
+class VisionDetectedFace {
+  final double confidence;
+  final VisionRect boundingBox;
+
+  VisionDetectedFace({
+    required this.confidence,
+    required this.boundingBox,
+  });
+}
+
+/// Vision API result for image classification
+class VisionClassificationResult {
+  final List<VisionClassification> classifications;
+
+  VisionClassificationResult({
+    required this.classifications,
+  });
+}
+
+/// Vision API image classification
+class VisionClassification {
+  final String identifier;
+  final double confidence;
+
+  VisionClassification({
+    required this.identifier,
+    required this.confidence,
+  });
+}
+
+/// Native Vision API interface - implemented on iOS (Swift) and Android (Kotlin)
+@HostApi()
+abstract class VisionApi {
+  /// Extract text from image using iOS Vision framework
+  VisionOcrResult extractText(String imagePath);
+
+  /// Detect objects in image using iOS Vision framework
+  VisionObjectResult detectObjects(String imagePath);
+
+  /// Detect faces in image using iOS Vision framework
+  VisionFaceResult detectFaces(String imagePath);
+
+  /// Classify image using iOS Vision framework
+  VisionClassificationResult classifyImage(String imagePath);
+}

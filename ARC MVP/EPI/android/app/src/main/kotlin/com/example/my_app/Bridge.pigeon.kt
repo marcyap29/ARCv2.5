@@ -239,6 +239,237 @@ data class GenResult (
     )
   }
 }
+
+/**
+ * Vision API result for OCR text extraction
+ *
+ * Generated class from Pigeon that represents data sent in messages.
+ */
+data class VisionOcrResult (
+  val text: String,
+  val confidence: Double,
+  val blocks: List<VisionTextBlock>
+)
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): VisionOcrResult {
+      val text = pigeonVar_list[0] as String
+      val confidence = pigeonVar_list[1] as Double
+      val blocks = pigeonVar_list[2] as List<VisionTextBlock>
+      return VisionOcrResult(text, confidence, blocks)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      text,
+      confidence,
+      blocks,
+    )
+  }
+}
+
+/**
+ * Vision API text block for OCR results
+ *
+ * Generated class from Pigeon that represents data sent in messages.
+ */
+data class VisionTextBlock (
+  val text: String,
+  val confidence: Double,
+  val boundingBox: VisionRect
+)
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): VisionTextBlock {
+      val text = pigeonVar_list[0] as String
+      val confidence = pigeonVar_list[1] as Double
+      val boundingBox = pigeonVar_list[2] as VisionRect
+      return VisionTextBlock(text, confidence, boundingBox)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      text,
+      confidence,
+      boundingBox,
+    )
+  }
+}
+
+/**
+ * Vision API rectangle for bounding boxes
+ *
+ * Generated class from Pigeon that represents data sent in messages.
+ */
+data class VisionRect (
+  val x: Double,
+  val y: Double,
+  val width: Double,
+  val height: Double
+)
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): VisionRect {
+      val x = pigeonVar_list[0] as Double
+      val y = pigeonVar_list[1] as Double
+      val width = pigeonVar_list[2] as Double
+      val height = pigeonVar_list[3] as Double
+      return VisionRect(x, y, width, height)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      x,
+      y,
+      width,
+      height,
+    )
+  }
+}
+
+/**
+ * Vision API result for object detection
+ *
+ * Generated class from Pigeon that represents data sent in messages.
+ */
+data class VisionObjectResult (
+  val objects: List<VisionDetectedObject>
+)
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): VisionObjectResult {
+      val objects = pigeonVar_list[0] as List<VisionDetectedObject>
+      return VisionObjectResult(objects)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      objects,
+    )
+  }
+}
+
+/**
+ * Vision API detected object
+ *
+ * Generated class from Pigeon that represents data sent in messages.
+ */
+data class VisionDetectedObject (
+  val label: String,
+  val confidence: Double,
+  val boundingBox: VisionRect
+)
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): VisionDetectedObject {
+      val label = pigeonVar_list[0] as String
+      val confidence = pigeonVar_list[1] as Double
+      val boundingBox = pigeonVar_list[2] as VisionRect
+      return VisionDetectedObject(label, confidence, boundingBox)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      label,
+      confidence,
+      boundingBox,
+    )
+  }
+}
+
+/**
+ * Vision API result for face detection
+ *
+ * Generated class from Pigeon that represents data sent in messages.
+ */
+data class VisionFaceResult (
+  val faces: List<VisionDetectedFace>
+)
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): VisionFaceResult {
+      val faces = pigeonVar_list[0] as List<VisionDetectedFace>
+      return VisionFaceResult(faces)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      faces,
+    )
+  }
+}
+
+/**
+ * Vision API detected face
+ *
+ * Generated class from Pigeon that represents data sent in messages.
+ */
+data class VisionDetectedFace (
+  val confidence: Double,
+  val boundingBox: VisionRect
+)
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): VisionDetectedFace {
+      val confidence = pigeonVar_list[0] as Double
+      val boundingBox = pigeonVar_list[1] as VisionRect
+      return VisionDetectedFace(confidence, boundingBox)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      confidence,
+      boundingBox,
+    )
+  }
+}
+
+/**
+ * Vision API result for image classification
+ *
+ * Generated class from Pigeon that represents data sent in messages.
+ */
+data class VisionClassificationResult (
+  val classifications: List<VisionClassification>
+)
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): VisionClassificationResult {
+      val classifications = pigeonVar_list[0] as List<VisionClassification>
+      return VisionClassificationResult(classifications)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      classifications,
+    )
+  }
+}
+
+/**
+ * Vision API image classification
+ *
+ * Generated class from Pigeon that represents data sent in messages.
+ */
+data class VisionClassification (
+  val identifier: String,
+  val confidence: Double
+)
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): VisionClassification {
+      val identifier = pigeonVar_list[0] as String
+      val confidence = pigeonVar_list[1] as Double
+      return VisionClassification(identifier, confidence)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      identifier,
+      confidence,
+    )
+  }
+}
 private open class BridgePigeonCodec : StandardMessageCodec() {
   override fun readValueOfType(type: Byte, buffer: ByteBuffer): Any? {
     return when (type) {
@@ -272,6 +503,51 @@ private open class BridgePigeonCodec : StandardMessageCodec() {
           GenResult.fromList(it)
         }
       }
+      135.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          VisionOcrResult.fromList(it)
+        }
+      }
+      136.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          VisionTextBlock.fromList(it)
+        }
+      }
+      137.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          VisionRect.fromList(it)
+        }
+      }
+      138.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          VisionObjectResult.fromList(it)
+        }
+      }
+      139.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          VisionDetectedObject.fromList(it)
+        }
+      }
+      140.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          VisionFaceResult.fromList(it)
+        }
+      }
+      141.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          VisionDetectedFace.fromList(it)
+        }
+      }
+      142.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          VisionClassificationResult.fromList(it)
+        }
+      }
+      143.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          VisionClassification.fromList(it)
+        }
+      }
       else -> super.readValueOfType(type, buffer)
     }
   }
@@ -299,6 +575,42 @@ private open class BridgePigeonCodec : StandardMessageCodec() {
       }
       is GenResult -> {
         stream.write(134)
+        writeValue(stream, value.toList())
+      }
+      is VisionOcrResult -> {
+        stream.write(135)
+        writeValue(stream, value.toList())
+      }
+      is VisionTextBlock -> {
+        stream.write(136)
+        writeValue(stream, value.toList())
+      }
+      is VisionRect -> {
+        stream.write(137)
+        writeValue(stream, value.toList())
+      }
+      is VisionObjectResult -> {
+        stream.write(138)
+        writeValue(stream, value.toList())
+      }
+      is VisionDetectedObject -> {
+        stream.write(139)
+        writeValue(stream, value.toList())
+      }
+      is VisionFaceResult -> {
+        stream.write(140)
+        writeValue(stream, value.toList())
+      }
+      is VisionDetectedFace -> {
+        stream.write(141)
+        writeValue(stream, value.toList())
+      }
+      is VisionClassificationResult -> {
+        stream.write(142)
+        writeValue(stream, value.toList())
+      }
+      is VisionClassification -> {
+        stream.write(143)
         writeValue(stream, value.toList())
       }
       else -> super.writeValue(stream, value)
@@ -672,6 +984,101 @@ class LumaraNativeProgress(private val binaryMessenger: BinaryMessenger, private
       } else {
         callback(Result.failure(createConnectionError(channelName)))
       } 
+    }
+  }
+}
+/**
+ * Native Vision API interface - implemented on iOS (Swift) and Android (Kotlin)
+ *
+ * Generated interface from Pigeon that represents a handler of messages from Flutter.
+ */
+interface VisionApi {
+  /** Extract text from image using iOS Vision framework */
+  fun extractText(imagePath: String): VisionOcrResult
+  /** Detect objects in image using iOS Vision framework */
+  fun detectObjects(imagePath: String): VisionObjectResult
+  /** Detect faces in image using iOS Vision framework */
+  fun detectFaces(imagePath: String): VisionFaceResult
+  /** Classify image using iOS Vision framework */
+  fun classifyImage(imagePath: String): VisionClassificationResult
+
+  companion object {
+    /** The codec used by VisionApi. */
+    val codec: MessageCodec<Any?> by lazy {
+      BridgePigeonCodec()
+    }
+    /** Sets up an instance of `VisionApi` to handle messages through the `binaryMessenger`. */
+    @JvmOverloads
+    fun setUp(binaryMessenger: BinaryMessenger, api: VisionApi?, messageChannelSuffix: String = "") {
+      val separatedMessageChannelSuffix = if (messageChannelSuffix.isNotEmpty()) ".$messageChannelSuffix" else ""
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.my_app.VisionApi.extractText$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val imagePathArg = args[0] as String
+            val wrapped: List<Any?> = try {
+              listOf(api.extractText(imagePathArg))
+            } catch (exception: Throwable) {
+              wrapError(exception)
+            }
+            reply.reply(wrapped)
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.my_app.VisionApi.detectObjects$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val imagePathArg = args[0] as String
+            val wrapped: List<Any?> = try {
+              listOf(api.detectObjects(imagePathArg))
+            } catch (exception: Throwable) {
+              wrapError(exception)
+            }
+            reply.reply(wrapped)
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.my_app.VisionApi.detectFaces$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val imagePathArg = args[0] as String
+            val wrapped: List<Any?> = try {
+              listOf(api.detectFaces(imagePathArg))
+            } catch (exception: Throwable) {
+              wrapError(exception)
+            }
+            reply.reply(wrapped)
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.my_app.VisionApi.classifyImage$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val imagePathArg = args[0] as String
+            val wrapped: List<Any?> = try {
+              listOf(api.classifyImage(imagePathArg))
+            } catch (exception: Throwable) {
+              wrapError(exception)
+            }
+            reply.reply(wrapped)
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
     }
   }
 }

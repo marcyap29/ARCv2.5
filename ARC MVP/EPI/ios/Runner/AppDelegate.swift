@@ -22,14 +22,14 @@ import Photos
 
     NSLog("[AppDelegate] LLMBridge registered via Pigeon with progress API ✅")
     
-    // TODO: Vision API needs proper integration - currently has compilation issues
-    // let visionApi = VisionApi()
-    // VisionApiSetup.setUp(
-    //   binaryMessenger: controller.binaryMessenger,
-    //   api: visionApi
-    // )
+    // Register Vision API using Pigeon
+    let visionApi = VisionApiImpl()
+    VisionApiSetup.setUp(
+      binaryMessenger: controller.binaryMessenger,
+      api: visionApi
+    )
     
-    // NSLog("[AppDelegate] VisionApi registered via Pigeon ✅")
+    NSLog("[AppDelegate] VisionApi registered via Pigeon ✅")
     
         // Register Photos method channel
         let photosChannel = FlutterMethodChannel(name: "com.epi.arcmvp/photos", binaryMessenger: controller.binaryMessenger)

@@ -280,6 +280,248 @@ struct GenResult {
   }
 }
 
+/// Vision API result for OCR text extraction
+///
+/// Generated class from Pigeon that represents data sent in messages.
+struct VisionOcrResult {
+  var text: String
+  var confidence: Double
+  var blocks: [VisionTextBlock]
+
+
+  // swift-format-ignore: AlwaysUseLowerCamelCase
+  static func fromList(_ pigeonVar_list: [Any?]) -> VisionOcrResult? {
+    let text = pigeonVar_list[0] as! String
+    let confidence = pigeonVar_list[1] as! Double
+    let blocks = pigeonVar_list[2] as! [VisionTextBlock]
+
+    return VisionOcrResult(
+      text: text,
+      confidence: confidence,
+      blocks: blocks
+    )
+  }
+  func toList() -> [Any?] {
+    return [
+      text,
+      confidence,
+      blocks,
+    ]
+  }
+}
+
+/// Vision API text block for OCR results
+///
+/// Generated class from Pigeon that represents data sent in messages.
+struct VisionTextBlock {
+  var text: String
+  var confidence: Double
+  var boundingBox: VisionRect
+
+
+  // swift-format-ignore: AlwaysUseLowerCamelCase
+  static func fromList(_ pigeonVar_list: [Any?]) -> VisionTextBlock? {
+    let text = pigeonVar_list[0] as! String
+    let confidence = pigeonVar_list[1] as! Double
+    let boundingBox = pigeonVar_list[2] as! VisionRect
+
+    return VisionTextBlock(
+      text: text,
+      confidence: confidence,
+      boundingBox: boundingBox
+    )
+  }
+  func toList() -> [Any?] {
+    return [
+      text,
+      confidence,
+      boundingBox,
+    ]
+  }
+}
+
+/// Vision API rectangle for bounding boxes
+///
+/// Generated class from Pigeon that represents data sent in messages.
+struct VisionRect {
+  var x: Double
+  var y: Double
+  var width: Double
+  var height: Double
+
+
+  // swift-format-ignore: AlwaysUseLowerCamelCase
+  static func fromList(_ pigeonVar_list: [Any?]) -> VisionRect? {
+    let x = pigeonVar_list[0] as! Double
+    let y = pigeonVar_list[1] as! Double
+    let width = pigeonVar_list[2] as! Double
+    let height = pigeonVar_list[3] as! Double
+
+    return VisionRect(
+      x: x,
+      y: y,
+      width: width,
+      height: height
+    )
+  }
+  func toList() -> [Any?] {
+    return [
+      x,
+      y,
+      width,
+      height,
+    ]
+  }
+}
+
+/// Vision API result for object detection
+///
+/// Generated class from Pigeon that represents data sent in messages.
+struct VisionObjectResult {
+  var objects: [VisionDetectedObject]
+
+
+  // swift-format-ignore: AlwaysUseLowerCamelCase
+  static func fromList(_ pigeonVar_list: [Any?]) -> VisionObjectResult? {
+    let objects = pigeonVar_list[0] as! [VisionDetectedObject]
+
+    return VisionObjectResult(
+      objects: objects
+    )
+  }
+  func toList() -> [Any?] {
+    return [
+      objects
+    ]
+  }
+}
+
+/// Vision API detected object
+///
+/// Generated class from Pigeon that represents data sent in messages.
+struct VisionDetectedObject {
+  var label: String
+  var confidence: Double
+  var boundingBox: VisionRect
+
+
+  // swift-format-ignore: AlwaysUseLowerCamelCase
+  static func fromList(_ pigeonVar_list: [Any?]) -> VisionDetectedObject? {
+    let label = pigeonVar_list[0] as! String
+    let confidence = pigeonVar_list[1] as! Double
+    let boundingBox = pigeonVar_list[2] as! VisionRect
+
+    return VisionDetectedObject(
+      label: label,
+      confidence: confidence,
+      boundingBox: boundingBox
+    )
+  }
+  func toList() -> [Any?] {
+    return [
+      label,
+      confidence,
+      boundingBox,
+    ]
+  }
+}
+
+/// Vision API result for face detection
+///
+/// Generated class from Pigeon that represents data sent in messages.
+struct VisionFaceResult {
+  var faces: [VisionDetectedFace]
+
+
+  // swift-format-ignore: AlwaysUseLowerCamelCase
+  static func fromList(_ pigeonVar_list: [Any?]) -> VisionFaceResult? {
+    let faces = pigeonVar_list[0] as! [VisionDetectedFace]
+
+    return VisionFaceResult(
+      faces: faces
+    )
+  }
+  func toList() -> [Any?] {
+    return [
+      faces
+    ]
+  }
+}
+
+/// Vision API detected face
+///
+/// Generated class from Pigeon that represents data sent in messages.
+struct VisionDetectedFace {
+  var confidence: Double
+  var boundingBox: VisionRect
+
+
+  // swift-format-ignore: AlwaysUseLowerCamelCase
+  static func fromList(_ pigeonVar_list: [Any?]) -> VisionDetectedFace? {
+    let confidence = pigeonVar_list[0] as! Double
+    let boundingBox = pigeonVar_list[1] as! VisionRect
+
+    return VisionDetectedFace(
+      confidence: confidence,
+      boundingBox: boundingBox
+    )
+  }
+  func toList() -> [Any?] {
+    return [
+      confidence,
+      boundingBox,
+    ]
+  }
+}
+
+/// Vision API result for image classification
+///
+/// Generated class from Pigeon that represents data sent in messages.
+struct VisionClassificationResult {
+  var classifications: [VisionClassification]
+
+
+  // swift-format-ignore: AlwaysUseLowerCamelCase
+  static func fromList(_ pigeonVar_list: [Any?]) -> VisionClassificationResult? {
+    let classifications = pigeonVar_list[0] as! [VisionClassification]
+
+    return VisionClassificationResult(
+      classifications: classifications
+    )
+  }
+  func toList() -> [Any?] {
+    return [
+      classifications
+    ]
+  }
+}
+
+/// Vision API image classification
+///
+/// Generated class from Pigeon that represents data sent in messages.
+struct VisionClassification {
+  var identifier: String
+  var confidence: Double
+
+
+  // swift-format-ignore: AlwaysUseLowerCamelCase
+  static func fromList(_ pigeonVar_list: [Any?]) -> VisionClassification? {
+    let identifier = pigeonVar_list[0] as! String
+    let confidence = pigeonVar_list[1] as! Double
+
+    return VisionClassification(
+      identifier: identifier,
+      confidence: confidence
+    )
+  }
+  func toList() -> [Any?] {
+    return [
+      identifier,
+      confidence,
+    ]
+  }
+}
+
 private class BridgePigeonCodecReader: FlutterStandardReader {
   override func readValue(ofType type: UInt8) -> Any? {
     switch type {
@@ -295,6 +537,24 @@ private class BridgePigeonCodecReader: FlutterStandardReader {
       return GenParams.fromList(self.readValue() as! [Any?])
     case 134:
       return GenResult.fromList(self.readValue() as! [Any?])
+    case 135:
+      return VisionOcrResult.fromList(self.readValue() as! [Any?])
+    case 136:
+      return VisionTextBlock.fromList(self.readValue() as! [Any?])
+    case 137:
+      return VisionRect.fromList(self.readValue() as! [Any?])
+    case 138:
+      return VisionObjectResult.fromList(self.readValue() as! [Any?])
+    case 139:
+      return VisionDetectedObject.fromList(self.readValue() as! [Any?])
+    case 140:
+      return VisionFaceResult.fromList(self.readValue() as! [Any?])
+    case 141:
+      return VisionDetectedFace.fromList(self.readValue() as! [Any?])
+    case 142:
+      return VisionClassificationResult.fromList(self.readValue() as! [Any?])
+    case 143:
+      return VisionClassification.fromList(self.readValue() as! [Any?])
     default:
       return super.readValue(ofType: type)
     }
@@ -320,6 +580,33 @@ private class BridgePigeonCodecWriter: FlutterStandardWriter {
       super.writeValue(value.toList())
     } else if let value = value as? GenResult {
       super.writeByte(134)
+      super.writeValue(value.toList())
+    } else if let value = value as? VisionOcrResult {
+      super.writeByte(135)
+      super.writeValue(value.toList())
+    } else if let value = value as? VisionTextBlock {
+      super.writeByte(136)
+      super.writeValue(value.toList())
+    } else if let value = value as? VisionRect {
+      super.writeByte(137)
+      super.writeValue(value.toList())
+    } else if let value = value as? VisionObjectResult {
+      super.writeByte(138)
+      super.writeValue(value.toList())
+    } else if let value = value as? VisionDetectedObject {
+      super.writeByte(139)
+      super.writeValue(value.toList())
+    } else if let value = value as? VisionFaceResult {
+      super.writeByte(140)
+      super.writeValue(value.toList())
+    } else if let value = value as? VisionDetectedFace {
+      super.writeByte(141)
+      super.writeValue(value.toList())
+    } else if let value = value as? VisionClassificationResult {
+      super.writeByte(142)
+      super.writeValue(value.toList())
+    } else if let value = value as? VisionClassification {
+      super.writeByte(143)
       super.writeValue(value.toList())
     } else {
       super.writeValue(value)
@@ -689,6 +976,92 @@ class LumaraNativeProgress: LumaraNativeProgressProtocol {
       } else {
         completion(.success(Void()))
       }
+    }
+  }
+}
+/// Native Vision API interface - implemented on iOS (Swift) and Android (Kotlin)
+///
+/// Generated protocol from Pigeon that represents a handler of messages from Flutter.
+protocol VisionApi {
+  /// Extract text from image using iOS Vision framework
+  func extractText(imagePath: String) throws -> VisionOcrResult
+  /// Detect objects in image using iOS Vision framework
+  func detectObjects(imagePath: String) throws -> VisionObjectResult
+  /// Detect faces in image using iOS Vision framework
+  func detectFaces(imagePath: String) throws -> VisionFaceResult
+  /// Classify image using iOS Vision framework
+  func classifyImage(imagePath: String) throws -> VisionClassificationResult
+}
+
+/// Generated setup class from Pigeon to handle messages through the `binaryMessenger`.
+class VisionApiSetup {
+  static var codec: FlutterStandardMessageCodec { BridgePigeonCodec.shared }
+  /// Sets up an instance of `VisionApi` to handle messages through the `binaryMessenger`.
+  static func setUp(binaryMessenger: FlutterBinaryMessenger, api: VisionApi?, messageChannelSuffix: String = "") {
+    let channelSuffix = messageChannelSuffix.count > 0 ? ".\(messageChannelSuffix)" : ""
+    /// Extract text from image using iOS Vision framework
+    let extractTextChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.my_app.VisionApi.extractText\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      extractTextChannel.setMessageHandler { message, reply in
+        let args = message as! [Any?]
+        let imagePathArg = args[0] as! String
+        do {
+          let result = try api.extractText(imagePath: imagePathArg)
+          reply(wrapResult(result))
+        } catch {
+          reply(wrapError(error))
+        }
+      }
+    } else {
+      extractTextChannel.setMessageHandler(nil)
+    }
+    /// Detect objects in image using iOS Vision framework
+    let detectObjectsChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.my_app.VisionApi.detectObjects\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      detectObjectsChannel.setMessageHandler { message, reply in
+        let args = message as! [Any?]
+        let imagePathArg = args[0] as! String
+        do {
+          let result = try api.detectObjects(imagePath: imagePathArg)
+          reply(wrapResult(result))
+        } catch {
+          reply(wrapError(error))
+        }
+      }
+    } else {
+      detectObjectsChannel.setMessageHandler(nil)
+    }
+    /// Detect faces in image using iOS Vision framework
+    let detectFacesChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.my_app.VisionApi.detectFaces\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      detectFacesChannel.setMessageHandler { message, reply in
+        let args = message as! [Any?]
+        let imagePathArg = args[0] as! String
+        do {
+          let result = try api.detectFaces(imagePath: imagePathArg)
+          reply(wrapResult(result))
+        } catch {
+          reply(wrapError(error))
+        }
+      }
+    } else {
+      detectFacesChannel.setMessageHandler(nil)
+    }
+    /// Classify image using iOS Vision framework
+    let classifyImageChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.my_app.VisionApi.classifyImage\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      classifyImageChannel.setMessageHandler { message, reply in
+        let args = message as! [Any?]
+        let imagePathArg = args[0] as! String
+        do {
+          let result = try api.classifyImage(imagePath: imagePathArg)
+          reply(wrapResult(result))
+        } catch {
+          reply(wrapError(error))
+        }
+      }
+    } else {
+      classifyImageChannel.setMessageHandler(nil)
     }
   }
 }
