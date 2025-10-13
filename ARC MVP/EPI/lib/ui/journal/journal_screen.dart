@@ -646,13 +646,11 @@ class _JournalScreenState extends State<JournalScreen> {
                           onAddKeywords: _showKeywordDialog,
                         ),
                       
-                      // Attachments (scan and photo)
+                      // Attachments (scan only - photos are shown inline)
                       ..._entryState.attachments.asMap().entries.map((entry) {
                         final index = entry.key;
                         final attachment = entry.value;
-                        if (attachment is PhotoAttachment) {
-                          return _buildPhotoAttachment(attachment, index);
-                        } else if (attachment is ScanAttachment) {
+                        if (attachment is ScanAttachment) {
                           return _buildScanAttachment(attachment);
                         }
                         return const SizedBox.shrink();
