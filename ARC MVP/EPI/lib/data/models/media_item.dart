@@ -24,6 +24,7 @@ class MediaItem {
   final String? transcript;
   final String? ocrText;
   final Map<String, dynamic>? analysisData; // Full analysis JSON from iOS Vision
+  final String? altText; // Descriptive text for accessibility and fallback (like HTML alt attribute)
 
   const MediaItem({
     required this.id,
@@ -35,6 +36,7 @@ class MediaItem {
     this.transcript,
     this.ocrText,
     this.analysisData,
+    this.altText,
   });
 
   factory MediaItem.fromJson(Map<String, dynamic> json) => _$MediaItemFromJson(json);
@@ -50,6 +52,7 @@ class MediaItem {
     String? transcript,
     String? ocrText,
     Map<String, dynamic>? analysisData,
+    String? altText,
   }) {
     return MediaItem(
       id: id ?? this.id,
@@ -61,6 +64,7 @@ class MediaItem {
       transcript: transcript ?? this.transcript,
       ocrText: ocrText ?? this.ocrText,
       analysisData: analysisData ?? this.analysisData,
+      altText: altText ?? this.altText,
     );
   }
 

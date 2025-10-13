@@ -35,6 +35,61 @@ All major bugs from the main branch merge have been resolved. The system is stab
 
 ### Recently Resolved Issues (January 8, 2025)
 
+#### UI/UX Critical Fixes ✅ **RESOLVED**
+- **Issue**: Multiple critical UI/UX issues affecting core journal functionality
+- **Root Cause**: Recent changes broke several working features
+- **Solution**: Restored functionality based on git history analysis
+- **Technical Fixes**:
+  - ✅ **Text Cursor Alignment**: Fixed cursor misalignment in journal text input field
+    - Replaced `AIStyledTextField` with proper `TextField` with cursor styling
+    - Added `cursorColor: Colors.white`, `cursorWidth: 2.0`, `cursorHeight: 20.0`
+    - Ensured consistent `height: 1.5` for text and hint styles
+  - ✅ **Gemini API JSON Formatting**: Fixed "Invalid argument (string): Contains invalid characters" error
+    - Restored missing `'role': 'system'` in systemInstruction JSON structure
+    - Fixed JSON formatting for Gemini API compatibility
+  - ✅ **Delete Buttons for Downloaded Models**: Restored missing delete functionality in LUMARA settings
+    - Added delete button for `isInternal && isDownloaded && isAvailable` models
+    - Implemented `_deleteModel()` method with confirmation dialog
+    - Uses native bridge `deleteModel()` method with proper state updates
+  - ✅ **LUMARA Insight Integration**: Fixed text insertion and cursor management
+    - Proper cursor position validation to prevent RangeError
+    - Safe cursor positioning with bounds checking
+    - Correct text insertion at cursor location
+  - ✅ **Keywords Discovered Functionality**: Verified working implementation
+    - `KeywordsDiscoveredWidget` properly integrated
+    - Real-time keyword analysis as user types
+    - Manual keyword addition and management
+- **Result**: All core journal functionality restored with proper UI/UX behavior
+- **Detailed Documentation**: See [UI_UX_FIXES_JAN_2025.md](./UI_UX_FIXES_JAN_2025.md) for comprehensive technical details
+
+#### LUMARA Integration Formatting Fix ✅ **RESOLVED** (January 12, 2025)
+- **Issue**: LUMARA reflections not inserting properly into journal entries due to Gemini API JSON formatting errors
+- **Root Cause**: Missing `'role': 'system'` field in systemInstruction JSON structure causing "Invalid argument (string): Contains invalid characters" error
+- **Solution**: Restored working Gemini API implementation from commit `09a4070` and simplified text insertion method from commit `0f7a87a`
+- **Technical Fixes**:
+  - ✅ **Gemini API JSON Fix**: Restored correct JSON structure with `'role': 'system'` field in systemInstruction
+  - ✅ **LUMARA Text Insertion**: Reverted to simple text insertion method from working commit
+  - ✅ **Cursor Management**: Proper cursor positioning after text insertion
+  - ✅ **Error Prevention**: Bounds checking and safe text insertion
+- **Files Modified**:
+  - `lib/lumara/llm/providers/gemini_provider.dart` - Restored working JSON structure from commit `09a4070`
+  - `lib/ui/journal/journal_screen.dart` - Simplified text insertion method from commit `0f7a87a`
+- **Result**: LUMARA reflections now insert cleanly into journal entries without formatting errors
+
+#### LUMARA Settings Refresh Loop Fix ✅ **RESOLVED** (January 12, 2025)
+- **Issue**: Terminal spam and UI blocking due to excessive API refresh calls during model downloads
+- **Root Cause**: Download progress updates triggering infinite API refresh loops and excessive debug logging
+- **Solution**: Applied fixes from git commit `b80c439` to prevent infinite refresh loops and reduce log spam
+- **Technical Fixes**:
+  - ✅ **Completion Tracking**: Added `_processedCompletions` Set to prevent processing same completion multiple times
+  - ✅ **Refresh Cooldown**: Implemented 5-second cooldown between API refreshes to prevent rapid successive calls
+  - ✅ **Reduced Timeout**: Shortened API refresh timeout from 10s to 2s for faster failure detection
+  - ✅ **Increased Debounce**: Extended UI update debounce from 100ms to 500ms to reduce rebuild frequency
+  - ✅ **Throttled Logging**: Reduced debug log frequency to prevent terminal spam during downloads
+- **Files Modified**:
+  - `lib/lumara/ui/lumara_settings_screen.dart` - Added completion tracking and cooldown mechanisms
+- **Result**: Clean terminal output, no UI blocking, and efficient download progress handling
+
 #### RIVET Deterministic Recompute System ✅ **RESOLVED**
 - **Issue**: RIVET lacked true undo-on-delete behavior and used fragile in-place updates
 - **Root Cause**: EMA math and TRACE saturation couldn't be safely "undone" with subtraction
@@ -122,6 +177,32 @@ None critical at this time. All development blockers have been cleared.
 ---
 
 **Note:** Historical bug tracking data archived in `Bug_Tracker Files/Bug_Tracker-8.md`
+
+## LUMARA Cloud API Prompt Enhancement
+
+**Issue**: Cloud API (Gemini) was using a simplified system prompt instead of the comprehensive LUMARA Reflective Intelligence Core prompt.
+
+**Root Cause**: The Gemini provider was using a basic hardcoded prompt instead of the full EPI framework-aware system prompt.
+
+**Solution**: Updated Gemini provider to use the new LUMARA Reflective Intelligence Core system prompt with full EPI framework integration:
+- Added comprehensive EPI systems context (ARC, PRISM, ATLAS, MIRA, AURORA, VEIL)
+- Implemented core principles for narrative dignity and developmental orientation
+- Enhanced output style guidelines for integrative reflection
+- Created reusable prompt template in `prompt_templates.dart`
+
+**Files Modified**:
+- `lib/lumara/llm/providers/gemini_provider.dart`
+- `lib/lumara/llm/prompt_templates.dart`
+
+**Technical Details**:
+- Added `lumaraReflectiveCore` prompt template
+- Updated Gemini provider to use `PromptTemplates.lumaraReflectiveCore`
+- Maintained backward compatibility with legacy `systemPrompt`
+- Preserved user prompt cleaning for JSON compatibility
+
+**Status**: ✅ **RESOLVED** - Cloud API now uses comprehensive LUMARA Reflective Intelligence Core prompt
+
+---
 
 For architecture details, see [EPI_Architecture.md](../architecture/EPI_Architecture.md)
 For project overview, see [PROJECT_BRIEF.md](../project/PROJECT_BRIEF.md)

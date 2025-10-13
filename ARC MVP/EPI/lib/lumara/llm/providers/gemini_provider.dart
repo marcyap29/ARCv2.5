@@ -6,6 +6,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import '../llm_provider.dart';
 import '../../config/api_config.dart';
+import '../prompt_templates.dart';
 
 /// Gemini API provider
 class GeminiProvider extends LLMProviderBase {
@@ -35,19 +36,29 @@ class GeminiProvider extends LLMProviderBase {
       'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=$apiKey',
     );
 
+    // Use the LUMARA Reflective Intelligence Core system prompt
+    final lumaraSystemPrompt = PromptTemplates.lumaraReflectiveCore;
+    
+    // Clean the user prompt to remove special characters that cause JSON parsing issues
+    final cleanUserPrompt = userPrompt
+        .replaceAll('•', '-')  // Replace bullet points with dashes
+        .replaceAll('\n\n\n', '\n\n')  // Remove excessive newlines
+        .replaceAll(RegExp(r'[^\x00-\x7F]'), '')  // Remove non-ASCII characters
+        .trim();
+    
     final body = {
-      if (systemPrompt.trim().isNotEmpty)
+      if (lumaraSystemPrompt.trim().isNotEmpty)
         'systemInstruction': {
           'role': 'system',
           'parts': [
-            {'text': systemPrompt}
+            {'text': lumaraSystemPrompt}
           ]
         },
       'contents': [
         {
           'role': 'user',
           'parts': [
-            {'text': userPrompt}
+            {'text': cleanUserPrompt}
           ]
         }
       ],

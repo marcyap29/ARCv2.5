@@ -4,13 +4,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:permission_handler/permission_handler.dart';
-import 'package:url_launcher/url_launcher.dart';
 import '../../state/journal_entry_state.dart';
 import '../../state/feature_flags.dart';
 import '../widgets/cached_thumbnail.dart';
 import '../../services/thumbnail_cache_service.dart';
+import '../../services/media_alt_text_generator.dart';
 import '../widgets/keywords_discovered_widget.dart';
-import '../widgets/ai_styled_text_field.dart';
 import '../widgets/discovery_popup.dart';
 import '../../telemetry/analytics.dart';
 import '../../services/periodic_discovery_service.dart';
@@ -26,8 +25,8 @@ import '../../core/services/draft_cache_service.dart';
 import '../../data/models/media_item.dart';
 import '../../mcp/orchestrator/ios_vision_orchestrator.dart';
 import 'widgets/lumara_suggestion_sheet.dart';
-import 'widgets/enhanced_lumara_suggestion_sheet.dart' as enhanced;
 import 'widgets/inline_reflection_block.dart';
+import 'widgets/full_screen_photo_viewer.dart';
 import 'drafts_screen.dart';
 
 /// Main journal screen with integrated LUMARA companion and OCR scanning
@@ -133,86 +132,40 @@ class _JournalScreenState extends State<JournalScreen> {
   void _onLumaraFabTapped() {
     _analytics.logLumaraEvent('fab_tapped');
     
-    if (_showLumaraBox) {
-      // Hide the Lumara box
-      _dismissLumaraBox();
-    } else {
-      // Show enhanced LUMARA suggestion sheet with cloud API analysis
-      showModalBottomSheet(
-        context: context,
-        isScrollControlled: false,
-        shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-        ),
-        builder: (context) => enhanced.EnhancedLumaraSuggestionSheet(
-          // onSelect: (intent) => _onLumaraIntentSelected(intent), // COMMENTED OUT - type mismatch
-          onSelect: (intent) {}, // Temporary empty function
-          entryText: _entryState.text,
-          phase: _entryState.phase,
-        ),
-      ).then((result) {
-        // Handle AI suggestion if returned
-        if (result is String) {
-          _insertAISuggestion(result);
-        } else {
-          // Dismiss the Lumara box when the modal is closed
-          _dismissLumaraBox();
-        }
-      });
-      
-      // Show the Lumara box
-      setState(() {
-        _showLumaraBox = true;
-      });
-    }
+    // Directly generate a reflection using LUMARA
+    _generateLumaraReflection();
   }
 
-  Future<void> _onLumaraIntentSelected(LumaraIntent intent) async {
-    _analytics.logLumaraEvent('suggestion_selected', data: {
-      'intent': intent.name,
-    });
-
+  Future<void> _generateLumaraReflection() async {
     try {
-      // Use enhanced LUMARA API with full LLM support
+      // Check if there's text to reflect on
+      if (_entryState.text.trim().isEmpty) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Please write something first before asking LUMARA to reflect'),
+              backgroundColor: Theme.of(context).colorScheme.primary,
+            ),
+          );
+        }
+        return;
+      }
+
+      _analytics.logLumaraEvent('reflection_generated');
+      
+      // Use enhanced LUMARA API to generate a reflection
       final reflection = await _enhancedLumaraApi.generatePromptedReflection(
         entryText: _entryState.text,
-        intent: intent.name,
+        intent: 'reflect', // Simple reflection intent
         phase: _entryState.phase,
       );
 
-      final block = InlineBlock(
-        type: 'inline_reflection',
-        intent: intent.name,
-        content: reflection,
-        timestamp: DateTime.now().millisecondsSinceEpoch,
-        phase: _entryState.phase,
-      );
-
-      setState(() {
-        _entryState.addReflection(block);
-      });
-
-      _analytics.logLumaraEvent('inline_reflection_inserted', data: {
-        'intent': intent.name,
-        'phase': _entryState.phase,
-      });
-
-      // Scroll to show the new reflection
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (_scrollController.hasClients) {
-          try {
-            _scrollController.animateTo(
-              _scrollController.position.maxScrollExtent,
-              duration: const Duration(milliseconds: 300),
-              curve: Curves.easeOut,
-            );
-          } catch (e) {
-            // Handle scroll animation errors gracefully
-          }
-        }
-      });
+      // Insert the reflection directly into the text
+      _insertAISuggestion(reflection);
+      
     } catch (e) {
       _analytics.log('lumara_error', {'error': e.toString()});
+      
       // Show error to user
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -224,6 +177,7 @@ class _JournalScreenState extends State<JournalScreen> {
       }
     }
   }
+
 
   Future<void> _onScanPage() async {
     if (!FeatureFlags.scanPage) return;
@@ -502,96 +456,75 @@ class _JournalScreenState extends State<JournalScreen> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    // Primary action row - flexible layout
+                    // Primary action row - optimized layout
                     Row(
                       children: [
                         // Left side: Media buttons (compact)
                         Expanded(
-                          flex: 2,
-                          child: SingleChildScrollView(
-                            scrollDirection: Axis.horizontal,
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.start,
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                // Add photo button
-                                IconButton(
-                                  onPressed: _handlePhotoGallery,
-                                  icon: const Icon(Icons.add_photo_alternate, size: 20),
-                                  tooltip: 'Add Photo',
-                                  padding: const EdgeInsets.all(6),
-                                  constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                          flex: 3,
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.start,
+                            children: [
+                              // Add photo button
+                              IconButton(
+                                onPressed: _handlePhotoGallery,
+                                icon: const Icon(Icons.add_photo_alternate, size: 18),
+                                tooltip: 'Add Photo',
+                                padding: const EdgeInsets.all(4),
+                                constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
+                              ),
+                              
+                              // Add camera button
+                              IconButton(
+                                onPressed: _handleCamera,
+                                icon: const Icon(Icons.camera_alt, size: 18),
+                                tooltip: 'Take Photo',
+                                padding: const EdgeInsets.all(4),
+                                constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
+                              ),
+                              
+                              // Add voice button
+                              IconButton(
+                                onPressed: _handleMicrophone,
+                                icon: const Icon(Icons.mic, size: 18),
+                                tooltip: 'Add Voice Note',
+                                padding: const EdgeInsets.all(4),
+                                constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
+                              ),
+                              
+                              // Keyword toggle button
+                              IconButton(
+                                onPressed: _toggleKeywordsDiscovered,
+                                icon: Icon(
+                                  _showKeywordsDiscovered ? Icons.label_off : Icons.label,
+                                  size: 18,
                                 ),
-                                
-                                // Add camera button
-                                IconButton(
-                                  onPressed: _handleCamera,
-                                  icon: const Icon(Icons.camera_alt, size: 20),
-                                  tooltip: 'Take Photo',
-                                  padding: const EdgeInsets.all(6),
-                                  constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                                tooltip: _showKeywordsDiscovered ? 'Hide Keywords' : 'Show Keywords',
+                                padding: const EdgeInsets.all(4),
+                                constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
+                                style: IconButton.styleFrom(
+                                  backgroundColor: _showKeywordsDiscovered 
+                                    ? theme.colorScheme.primary.withOpacity(0.2)
+                                    : null,
                                 ),
-                                
-                                // Add voice button
-                                IconButton(
-                                  onPressed: _handleMicrophone,
-                                  icon: const Icon(Icons.mic, size: 20),
-                                  tooltip: 'Add Voice Note',
-                                  padding: const EdgeInsets.all(6),
-                                  constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
-                                ),
-                                
-                                // Keyword toggle button
-                                IconButton(
-                                  onPressed: _toggleKeywordsDiscovered,
-                                  icon: Icon(
-                                    _showKeywordsDiscovered ? Icons.label_off : Icons.label,
-                                    size: 20,
-                                  ),
-                                  tooltip: _showKeywordsDiscovered ? 'Hide Keywords' : 'Show Keywords',
-                                  padding: const EdgeInsets.all(6),
-                                  constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
-                                  style: IconButton.styleFrom(
-                                    backgroundColor: _showKeywordsDiscovered 
-                                      ? theme.colorScheme.primary.withOpacity(0.2)
-                                      : null,
-                                  ),
-                                ),
-                                
-                                // Scan page button removed - was bumping into lumara icon
-                              ],
-                            ),
+                              ),
+                            ],
                           ),
                         ),
                         
-                        // Center: LUMARA button (only show if text exists)
-                        if (_entryState.text.isNotEmpty)
-                          Expanded(
-                            flex: 1,
-                            child: Center(
-                              child: Padding(
-                                padding: const EdgeInsets.only(left: 16), // Add spacing from keyword icon
-                                child: IconButton(
-                                  onPressed: _onLumaraFabTapped,
-                                  icon: const Icon(Icons.psychology),
-                                  tooltip: 'Reflect with LUMARA',
-                                  style: IconButton.styleFrom(
-                                    foregroundColor: theme.colorScheme.primary,
-                                    backgroundColor: _showLumaraBox 
-                                      ? theme.colorScheme.primary.withOpacity(0.2)
-                                      : theme.colorScheme.primary.withOpacity(0.1),
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(8),
-                                      side: BorderSide(
-                                        color: theme.colorScheme.primary.withOpacity(0.3),
-                                        width: 1,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
+                        // Center: LUMARA button (compact)
+                        IconButton(
+                          onPressed: _onLumaraFabTapped,
+                          icon: const Icon(Icons.psychology, size: 18),
+                          tooltip: 'Reflect with LUMARA',
+                          padding: const EdgeInsets.all(4),
+                          constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
+                          style: IconButton.styleFrom(
+                            backgroundColor: _showLumaraBox 
+                              ? theme.colorScheme.primary.withOpacity(0.2)
+                              : null,
                           ),
+                        ),
                         
                         // Right side: Continue button (flexible)
                         Expanded(
@@ -602,12 +535,12 @@ class _JournalScreenState extends State<JournalScreen> {
                               ElevatedButton(
                                 onPressed: _entryState.text.isNotEmpty ? _onContinue : null,
                                 style: ElevatedButton.styleFrom(
-                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                                  minimumSize: const Size(0, 32),
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                  minimumSize: const Size(0, 28),
                                 ),
                                 child: const Text(
                                   'Continue',
-                                  style: TextStyle(fontSize: 14),
+                                  style: TextStyle(fontSize: 12),
                                 ),
                               ),
                             ],
@@ -695,7 +628,10 @@ class _JournalScreenState extends State<JournalScreen> {
     final labels = analysis['labels'] as List? ?? [];
     final features = analysis['features'] as Map? ?? {};
     final keypoints = features['kp'] as int? ?? 0;
-    
+
+    // Check if photo file exists
+    final photoExists = File(attachment.imagePath).existsSync();
+
     // Extract keywords from analysis
     final keywords = <String>[];
     if (ocrText.isNotEmpty) {
@@ -744,102 +680,152 @@ class _JournalScreenState extends State<JournalScreen> {
             ],
           ),
           const SizedBox(height: 12),
-          
-          // Photo thumbnail
-          Row(
-            children: [
-              // Cached Thumbnail - Clickable
-              CachedThumbnail(
-                imagePath: attachment.imagePath,
-                width: 80,
-                height: 80,
-                borderRadius: BorderRadius.circular(8),
-                onTap: () => _openPhotoInGallery(attachment.imagePath),
-                showTapIndicator: true,
-                placeholder: Container(
+
+          // Photo thumbnail or alt text fallback (conditional rendering)
+          if (photoExists)
+            // Show photo thumbnail when file exists
+            Row(
+              children: [
+                // Cached Thumbnail - Clickable
+                CachedThumbnail(
+                  imagePath: attachment.imagePath,
                   width: 80,
                   height: 80,
-                  decoration: BoxDecoration(
-                    color: Colors.grey[300],
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: const Center(
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  ),
-                ),
-                errorWidget: Container(
-                  width: 80,
-                  height: 80,
-                  decoration: BoxDecoration(
-                    color: Colors.grey[300],
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: const Center(
-                    child: Icon(Icons.image, color: Colors.grey),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 12),
-              
-              // Analysis details
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Show summary
-                    Text(
-                      summary,
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        fontWeight: FontWeight.w500,
-                      ),
+                  borderRadius: BorderRadius.circular(8),
+                  onTap: () => _openPhotoInGallery(attachment.imagePath),
+                  showTapIndicator: true,
+                  placeholder: Container(
+                    width: 80,
+                    height: 80,
+                    decoration: BoxDecoration(
+                      color: Colors.grey[300],
+                      borderRadius: BorderRadius.circular(8),
                     ),
-                    
-                    const SizedBox(height: 8),
-                    
-                    // Keypoints with clickable details
-                    InkWell(
-                      onTap: () => _showKeypointsDetails(analysis),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: Theme.of(context).colorScheme.primary.withOpacity(0.3),
+                    child: const Center(
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                  ),
+                  errorWidget: Container(
+                    width: 80,
+                    height: 80,
+                    decoration: BoxDecoration(
+                      color: Colors.grey[300],
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Center(
+                      child: Icon(Icons.image, color: Colors.grey),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+
+                // Analysis details
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Show summary
+                      Text(
+                        summary,
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+
+                      const SizedBox(height: 8),
+
+                      // Keypoints with clickable details
+                      InkWell(
+                        onTap: () => _showKeypointsDetails(analysis),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: Theme.of(context).colorScheme.primary.withOpacity(0.3),
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.visibility,
+                                size: 12,
+                                color: Theme.of(context).colorScheme.primary,
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                'Features: $keypoints keypoints',
+                                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                  color: Theme.of(context).colorScheme.primary,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              const SizedBox(width: 4),
+                              Icon(
+                                Icons.info_outline,
+                                size: 10,
+                                color: Theme.of(context).colorScheme.primary,
+                              ),
+                            ],
                           ),
                         ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              Icons.visibility,
-                              size: 12,
-                              color: Theme.of(context).colorScheme.primary,
-                            ),
-                            const SizedBox(width: 4),
-                            Text(
-                              'Features: $keypoints keypoints',
-                              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                color: Theme.of(context).colorScheme.primary,
-                                fontSize: 10,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                            const SizedBox(width: 4),
-                            Icon(
-                              Icons.info_outline,
-                              size: 10,
-                              color: Theme.of(context).colorScheme.primary,
-                            ),
-                          ],
-                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
+                ),
+              ],
+            )
+          else
+            // Show alt text fallback when photo is missing
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.surfaceContainerHighest.withOpacity(0.5),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: Theme.of(context).colorScheme.outline.withOpacity(0.3),
+                  style: BorderStyle.solid,
+                  width: 1,
                 ),
               ),
-            ],
-          ),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.broken_image_outlined,
+                    size: 40,
+                    color: Colors.grey[600],
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Photo no longer available',
+                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            fontWeight: FontWeight.w600,
+                            color: Colors.grey[700],
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          MediaAltTextGenerator.generateMissingPhotoText(attachment.altText),
+                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: Colors.grey[600],
+                            fontSize: 12,
+                          ),
+                          maxLines: 3,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
           
           const SizedBox(height: 12),
           
@@ -907,79 +893,88 @@ class _JournalScreenState extends State<JournalScreen> {
 
   void _openPhotoInGallery(String imagePath) async {
     try {
-      print('DEBUG: Attempting to open photo: $imagePath');
-      
-      if (Platform.isIOS) {
-        // For iOS, try to open in Photos app using file URL
-        final file = File(imagePath);
-        if (await file.exists()) {
-          print('DEBUG: Photo file exists, attempting to launch');
-          
-          // Try different approaches to open the photo
-          final uri = Uri.file(imagePath);
-          
-          // First try: Direct file URL
-          if (await canLaunchUrl(uri)) {
-            print('DEBUG: Can launch file URL, launching...');
-            await launchUrl(uri, mode: LaunchMode.externalApplication);
-            return;
-          }
-          
-          // Second try: Use photos:// scheme if available
-          final photosUri = Uri.parse('photos-redirect://$imagePath');
-          if (await canLaunchUrl(photosUri)) {
-            print('DEBUG: Can launch photos scheme, launching...');
-            await launchUrl(photosUri, mode: LaunchMode.externalApplication);
-            return;
-          }
-          
-          // Third try: Copy to Photos and open
-          await _copyToPhotosAndOpen(imagePath);
-        } else {
-          throw Exception('Photo file not found at: $imagePath');
-        }
-      } else {
-        // For Android, open with default gallery app
-        final uri = Uri.file(imagePath);
-        if (await canLaunchUrl(uri)) {
-          await launchUrl(uri, mode: LaunchMode.externalApplication);
-        } else {
-          throw Exception('Cannot open photo');
-        }
-      }
-    } catch (e) {
-      print('DEBUG: Error opening photo: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Failed to open photo: $e'),
-          backgroundColor: Theme.of(context).colorScheme.error,
-        ),
-      );
-    }
-  }
-
-  Future<void> _copyToPhotosAndOpen(String imagePath) async {
-    try {
-      // This is a simplified approach - in a real app you'd use platform channels
-      // to properly save to Photos and get the asset URL
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Photo available: ${imagePath.split('/').last}\nTap to view in Photos app'),
-          duration: const Duration(seconds: 3),
-          action: SnackBarAction(
-            label: 'Open Photos',
-            onPressed: () async {
-              // Try to open Photos app directly
-              final photosUri = Uri.parse('photos://');
-              if (await canLaunchUrl(photosUri)) {
-                await launchUrl(photosUri, mode: LaunchMode.externalApplication);
-              }
-            },
+      // Open full-screen photo viewer in-app
+      await Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (context) => FullScreenPhotoViewer(
+            imagePath: imagePath,
+            analysisText: _getPhotoAnalysisText(imagePath),
           ),
         ),
       );
     } catch (e) {
-      throw Exception('Failed to save to Photos: $e');
+      debugPrint('Error opening photo viewer: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to open photo: $e'),
+            backgroundColor: Theme.of(context).colorScheme.error,
+          ),
+        );
+      }
+    }
+  }
+
+  /// Get analysis text for a photo attachment
+  String? _getPhotoAnalysisText(String imagePath) {
+    try {
+      // Find the matching PhotoAttachment from entry state
+      final photoAttachment = _entryState.attachments
+          .whereType<PhotoAttachment>()
+          .firstWhere(
+            (attachment) => attachment.imagePath == imagePath,
+            orElse: () => throw StateError('Photo not found'),
+          );
+
+      final analysis = photoAttachment.analysisResult;
+      final summary = analysis['summary'] as String? ?? '';
+      final ocrText = analysis['ocr']?['fullText'] as String? ?? '';
+      final objects = analysis['objects'] as List? ?? [];
+      final faces = analysis['faces'] as List? ?? [];
+      final labels = analysis['labels'] as List? ?? [];
+
+      // Build analysis text
+      final buffer = StringBuffer();
+
+      if (summary.isNotEmpty) {
+        buffer.writeln(summary);
+        buffer.writeln();
+      }
+
+      if (ocrText.isNotEmpty) {
+        buffer.writeln('Text Found:');
+        buffer.writeln(ocrText);
+        buffer.writeln();
+      }
+
+      if (objects.isNotEmpty) {
+        buffer.writeln('Objects Detected:');
+        for (final obj in objects.take(5)) {
+          final label = obj['label'] as String? ?? 'Unknown';
+          final confidence = obj['confidence'] as double? ?? 0.0;
+          buffer.writeln('• $label (${(confidence * 100).toStringAsFixed(0)}%)');
+        }
+        buffer.writeln();
+      }
+
+      if (faces.isNotEmpty) {
+        buffer.writeln('Faces: ${faces.length} detected');
+        buffer.writeln();
+      }
+
+      if (labels.isNotEmpty) {
+        buffer.writeln('Scene:');
+        for (final label in labels.take(3)) {
+          final labelText = label['label'] as String? ?? 'Unknown';
+          final confidence = label['confidence'] as double? ?? 0.0;
+          buffer.writeln('• $labelText (${(confidence * 100).toStringAsFixed(0)}%)');
+        }
+      }
+
+      return buffer.toString().trim();
+    } catch (e) {
+      debugPrint('Error getting photo analysis text: $e');
+      return null;
     }
   }
 
@@ -1052,11 +1047,6 @@ class _JournalScreenState extends State<JournalScreen> {
     });
   }
 
-  void _toggleLumaraBox() {
-    setState(() {
-      _showLumaraBox = !_showLumaraBox;
-    });
-  }
 
   void _dismissLumaraBox() {
     setState(() {
@@ -1065,37 +1055,59 @@ class _JournalScreenState extends State<JournalScreen> {
   }
 
   Widget _buildAITextField(ThemeData theme) {
-    return AIStyledTextField(
+    return TextField(
       controller: _textController,
       onChanged: _onTextChanged,
       maxLines: null,
-      style: theme.textTheme.bodyLarge,
-      hintText: 'What\'s on your mind right now?',
+      style: theme.textTheme.bodyLarge?.copyWith(
+        color: Colors.white,
+        fontSize: 16,
+        height: 1.5,
+      ),
+      cursorColor: Colors.white,
+      cursorWidth: 2.0,
+      cursorHeight: 20.0,
+      decoration: InputDecoration(
+        hintText: 'What\'s on your mind right now?',
+        hintStyle: theme.textTheme.bodyLarge?.copyWith(
+          color: Colors.white.withOpacity(0.5),
+          fontSize: 16,
+          height: 1.5,
+        ),
+        border: InputBorder.none,
+        contentPadding: EdgeInsets.zero,
+        focusedBorder: InputBorder.none,
+        enabledBorder: InputBorder.none,
+      ),
       textInputAction: TextInputAction.newline,
     );
   }
 
   void _insertAISuggestion(String suggestion) {
-    // Insert AI suggestion text with special formatting (like Rosebud)
+    // Insert AI suggestion text directly into the journal entry
     final currentText = _textController.text;
     final cursorPosition = _textController.selection.baseOffset;
-
-    // Create formatted suggestion text with special markers for styling
-    final formattedSuggestion = '\n\n[AI_SUGGESTION_START]$suggestion[AI_SUGGESTION_END]\n';
-
-    // Insert at cursor position
-    final newText = currentText.substring(0, cursorPosition) +
-                   formattedSuggestion +
-                   currentText.substring(cursorPosition);
-
+    
+    // Insert reflection at cursor position or end of text
+    final insertPosition = cursorPosition >= 0 ? cursorPosition : currentText.length;
+    final newText = '${currentText.substring(0, insertPosition)}\n\n$suggestion\n\n${currentText.substring(insertPosition)}';
+    
+    // Update text controller and state
     _textController.text = newText;
     _textController.selection = TextSelection.collapsed(
-      offset: cursorPosition + formattedSuggestion.length,
+      offset: insertPosition + suggestion.length + 4, // Position after inserted text
     );
-
+    
     // Update entry state
-    _onTextChanged(newText);
-
+    setState(() {
+      _entryState.text = newText;
+    });
+    
+    // Auto-save the updated content
+    _updateDraftContent(newText);
+    
+    _analytics.logLumaraEvent('inline_reflection_inserted', data: {'intent': 'reflect'});
+    
     // Dismiss the Lumara box
     _dismissLumaraBox();
     
@@ -1268,7 +1280,9 @@ class _JournalScreenState extends State<JournalScreen> {
       final cursorPosition = _textController.selection.baseOffset;
       
       // Insert reflection at cursor position or end of text
-      final insertPosition = cursorPosition >= 0 ? cursorPosition : currentText.length;
+      final insertPosition = (cursorPosition >= 0 && cursorPosition <= currentText.length) 
+          ? cursorPosition 
+          : currentText.length;
       final newText = '${currentText.substring(0, insertPosition)}\n\n$reflection\n\n${currentText.substring(insertPosition)}';
       
       // Update text controller and state
@@ -1648,14 +1662,18 @@ class _JournalScreenState extends State<JournalScreen> {
       );
 
       if (result['success'] == true) {
-        // Create photo attachment with analysis results
+        // Generate alt text from analysis for graceful fallback
+        final altText = MediaAltTextGenerator.generateFromAnalysis(result);
+
+        // Create photo attachment with analysis results and alt text
         final photoAttachment = PhotoAttachment(
           type: 'photo_analysis',
           imagePath: imagePath,
           analysisResult: result,
           timestamp: DateTime.now().millisecondsSinceEpoch,
+          altText: altText,
         );
-        
+
         setState(() {
           _entryState.attachments.add(photoAttachment);
         });

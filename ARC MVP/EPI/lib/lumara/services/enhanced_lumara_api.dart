@@ -312,10 +312,7 @@ Please provide a brief, thoughtful reflection that helps me understand this bett
     });
 
     // Single clear message when no inference is available
-    return 'LUMARA needs an AI provider to respond. Please either:\n\n'
-           '• Download an on-device model (Settings → AI Provider Selection → Download On-Device Model)\n'
-           '• Configure a cloud API key (Settings → API Keys)\n\n'
-           'Once configured, LUMARA will be able to provide intelligent reflections.';
+    return 'LUMARA needs an AI provider to respond. Please either download an on-device model or configure a cloud API key in Settings. Once configured, LUMARA will be able to provide intelligent reflections.';
   }
 
   /// Switch to a different LLM provider

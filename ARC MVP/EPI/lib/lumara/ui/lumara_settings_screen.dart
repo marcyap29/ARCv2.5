@@ -8,7 +8,6 @@ import '../services/enhanced_lumara_api.dart';
 import '../services/download_state_service.dart';
 import '../../telemetry/analytics.dart';
 import '../llm/bridge.pigeon.dart';
-import 'model_download_screen.dart';
 
 /// LUMARA settings screen for API key management and provider selection
 class LumaraSettingsScreen extends StatefulWidget {
@@ -30,6 +29,15 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
   
   // Track previous download states to detect completion
   Map<String, double> _previousProgress = {};
+  
+  // Track which models have already been processed to prevent infinite loops
+  Set<String> _processedCompletions = {};
+  
+  // Flag to prevent multiple simultaneous API refreshes
+  bool _isRefreshing = false;
+  
+  // Timestamp of last refresh to prevent rapid successive refreshes
+  DateTime? _lastRefreshTime;
   
   /// Safe progress calculation to prevent NaN and infinite values
   double _safeProgress(double progress) {
@@ -91,7 +99,7 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
       }
     } catch (e) {
       debugPrint('LUMARA Settings: Download error: $e');
-      _downloadStateService.failDownload(modelInfo!['id'], e.toString());
+      _downloadStateService.failDownload(modelInfo['id'], e.toString());
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -138,6 +146,72 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
       }
     }
   }
+
+  /// Delete a downloaded model
+  Future<void> _deleteModel(LLMProviderConfig config) async {
+    final modelInfo = _getModelInfo(config);
+    if (modelInfo == null) return;
+
+    // Show confirmation dialog
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Delete ${modelInfo['name']}?'),
+        content: Text(
+          'This will permanently delete the downloaded model file (${modelInfo['size']}). '
+          'You can download it again later if needed.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: TextButton.styleFrom(
+              foregroundColor: Theme.of(context).colorScheme.error,
+            ),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    try {
+      debugPrint('LUMARA Settings: Deleting model ${modelInfo['name']}');
+      
+      // Delete the model file using the native bridge
+      await _bridge.deleteModel(modelInfo['id']);
+      
+      // Update download state
+      _downloadStateService.updateAvailability(modelInfo['id'], false);
+      
+      // Refresh API config to update provider availability
+      await _refreshApiConfig();
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('${modelInfo['name']} deleted successfully'),
+            backgroundColor: Colors.green,
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint('LUMARA Settings: Delete error: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to delete model: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
   
   /// Clamp progress to 0-1 range, return null for invalid values (indeterminate progress)
   double? clamp01(num? x) {
@@ -159,8 +233,13 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
     _downloadStateService.addListener(_onDownloadStateChanged);
     // Refresh model states to handle model ID changes
     _downloadStateService.refreshAllStates();
-    // Refresh API config to update provider availability
-    _refreshApiConfig();
+    // Only refresh API config if we haven't already loaded settings
+    // This prevents double-refreshing on startup
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        _refreshApiConfig();
+      }
+    });
   }
 
   @override
@@ -174,7 +253,10 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
   }
 
   void _onDownloadStateChanged() {
-    debugPrint('LUMARA Settings: Download state changed, checking if refresh needed...');
+    // Only log occasionally to avoid spam during downloads
+    if (DateTime.now().millisecondsSinceEpoch % 5000 < 100) {
+      debugPrint('LUMARA Settings: Download state changed, checking if refresh needed...');
+    }
     if (mounted) {
       // Defer setState to avoid calling during build
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -196,25 +278,40 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
     final llamaProgress = llamaState?.progress ?? 0.0;
     final qwenProgress = qwenState?.progress ?? 0.0;
     
-    final llamaJustCompleted = (llamaState?.isDownloaded == true) || 
-                              (llamaProgress == 1.0 && (_previousProgress['llama'] ?? 0.0) < 1.0);
-    final qwenJustCompleted = (qwenState?.isDownloaded == true) || 
-                              (qwenProgress == 1.0 && (_previousProgress['qwen'] ?? 0.0) < 1.0);
+    // Only consider it "just completed" if:
+    // 1. It was downloading before (progress < 1.0) AND now it's completed (progress == 1.0)
+    // 2. OR it's marked as downloaded and wasn't downloaded before
+    final llamaWasDownloading = (_previousProgress['llama'] ?? 0.0) < 1.0;
+    final qwenWasDownloading = (_previousProgress['qwen'] ?? 0.0) < 1.0;
+    
+    final llamaJustCompleted = (llamaState?.isDownloaded == true && llamaWasDownloading) || 
+                              (llamaProgress == 1.0 && llamaWasDownloading);
+    final qwenJustCompleted = (qwenState?.isDownloaded == true && qwenWasDownloading) || 
+                              (qwenProgress == 1.0 && qwenWasDownloading);
     
     // Update previous progress values
     _previousProgress['llama'] = llamaProgress;
     _previousProgress['qwen'] = qwenProgress;
     
-    if (llamaJustCompleted || qwenJustCompleted) {
-      debugPrint('LUMARA Settings: Download completed (${llamaJustCompleted ? 'Llama' : 'Qwen'}), refreshing API config...');
+    // Only refresh API config if we haven't already processed this completion
+    if (llamaJustCompleted && !_processedCompletions.contains('llama')) {
+      _processedCompletions.add('llama');
+      debugPrint('LUMARA Settings: Download completed (Llama), refreshing API config...');
+      _refreshApiConfig();
+    } else if (qwenJustCompleted && !_processedCompletions.contains('qwen')) {
+      _processedCompletions.add('qwen');
+      debugPrint('LUMARA Settings: Download completed (Qwen), refreshing API config...');
       _refreshApiConfig();
     } else {
       // Just update the UI without expensive API refresh
-      debugPrint('LUMARA Settings: Progress update, refreshing UI only...');
+      // Only log progress updates occasionally to avoid spam
+      if (DateTime.now().millisecondsSinceEpoch % 10000 < 100) {
+        debugPrint('LUMARA Settings: Progress update, refreshing UI only...');
+      }
       
       // Debounce UI updates to prevent too frequent rebuilds
       _refreshDebounceTimer?.cancel();
-      _refreshDebounceTimer = Timer(const Duration(milliseconds: 100), () {
+      _refreshDebounceTimer = Timer(const Duration(milliseconds: 500), () {
         if (mounted) {
           setState(() {
             // Rebuild UI with updated progress
@@ -225,15 +322,31 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
   }
 
   Future<void> _refreshApiConfig() async {
+    // Prevent multiple simultaneous refreshes
+    if (_isRefreshing) {
+      debugPrint('LUMARA Settings: Refresh already in progress, skipping...');
+      return;
+    }
+    
+    // Prevent rapid successive refreshes (cooldown of 2 seconds)
+    final now = DateTime.now();
+    if (_lastRefreshTime != null && now.difference(_lastRefreshTime!).inSeconds < 2) {
+      debugPrint('LUMARA Settings: Refresh cooldown active, skipping...');
+      return;
+    }
+    
+    _isRefreshing = true;
+    _lastRefreshTime = now;
+    
     try {
       debugPrint('LUMARA Settings: Refreshing API config...');
       // Only refresh model availability, skip full initialization
       // Add timeout to prevent hanging
       await _apiConfig.refreshModelAvailability().timeout(
-        const Duration(seconds: 10),
+        const Duration(seconds: 5),
         onTimeout: () {
           debugPrint('LUMARA Settings: API config refresh timed out');
-          throw TimeoutException('API config refresh timed out', const Duration(seconds: 10));
+          throw TimeoutException('API config refresh timed out', const Duration(seconds: 5));
         },
       );
       debugPrint('LUMARA Settings: API config refreshed successfully');
@@ -245,6 +358,8 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
     } catch (e) {
       debugPrint('Error refreshing API config: $e');
       // Don't call setState if there was an error to avoid further issues
+    } finally {
+      _isRefreshing = false;
     }
   }
 
@@ -443,6 +558,11 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
             ),
             const SizedBox(height: 16),
             
+            // Automatic Selection Toggle
+            _buildAutomaticSelectionToggle(theme),
+            
+            const SizedBox(height: 24),
+            
             // Internal Models Section
             _buildProviderCategory(
               theme: theme,
@@ -506,12 +626,6 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
 
             // Provider options
         ...providers.map((config) => _buildProviderOption(theme, config, isInternal)),
-
-        // Add "Clear Selection" option if there are available providers
-        if (providers.any((p) => p.isAvailable)) ...[
-          const SizedBox(height: 8),
-          _buildClearSelectionOption(theme),
-        ],
 
         // Show message if no providers available
         if (providers.isEmpty)
@@ -615,101 +729,83 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
     );
   }
 
-  Widget _buildClearSelectionOption(ThemeData theme) {
-    final isSelected = _selectedProvider == null;
+  Widget _buildAutomaticSelectionToggle(ThemeData theme) {
+    final isAutomatic = _selectedProvider == null;
     
     return Container(
-      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceVariant.withOpacity(0.3),
+        borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: isSelected 
-              ? theme.colorScheme.primary
-              : theme.colorScheme.outline.withOpacity(0.3),
-          width: isSelected ? 2 : 1,
+          color: theme.colorScheme.outline.withOpacity(0.2),
         ),
-        borderRadius: BorderRadius.circular(12),
-        color: isSelected 
-            ? theme.colorScheme.primary.withOpacity(0.05)
-            : null,
       ),
-      child: InkWell(
-        onTap: () async {
-          // Clear manual provider selection to use automatic selection
-          await _apiConfig.setManualProvider(null);
-
-          // Reinitialize LUMARA API to use automatic selection
-          await _lumaraApi.initialize();
-
-          // Update UI
-          setState(() {
-            _selectedProvider = null;
-          });
-
-          // Show confirmation
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Row(
-                  children: [
-                    Icon(Icons.auto_awesome, color: Colors.white),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text('Switched to automatic provider selection'),
-                    ),
-                  ],
-                ),
-                backgroundColor: Colors.blue,
-                duration: const Duration(seconds: 2),
-                behavior: SnackBarBehavior.floating,
-              ),
-            );
-          }
-        },
-        borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Row(
-            children: [
-              Icon(
-                Icons.auto_awesome,
-                color: isSelected 
-                    ? theme.colorScheme.primary
-                    : theme.colorScheme.onSurfaceVariant,
-                size: 20,
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Automatic Selection',
-                      style: theme.textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.w600,
-                        color: isSelected 
-                            ? theme.colorScheme.primary
-                            : theme.colorScheme.onSurface,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      'Let LUMARA choose the best available provider',
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              if (isSelected)
-                Icon(
-                  Icons.check_circle,
-                  color: theme.colorScheme.primary,
-                  size: 20,
-                ),
-            ],
+      child: Row(
+        children: [
+          Icon(
+            Icons.auto_awesome,
+            color: isAutomatic ? theme.colorScheme.primary : theme.colorScheme.onSurfaceVariant,
+            size: 20,
           ),
-        ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Automatic Selection',
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w600,
+                    color: theme.colorScheme.onSurface,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  'Let LUMARA choose the best available provider',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Switch(
+            value: isAutomatic,
+            onChanged: (value) async {
+              if (value) {
+                // Enable automatic selection
+                await _apiConfig.setManualProvider(null);
+                await _lumaraApi.initialize();
+                setState(() {
+                  _selectedProvider = null;
+                });
+                
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Switched to automatic provider selection'),
+                      backgroundColor: Colors.blue,
+                      duration: const Duration(seconds: 2),
+                    ),
+                  );
+                }
+              } else {
+                // Disable automatic selection - user needs to select a specific provider
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Select a specific provider below to disable automatic selection'),
+                      backgroundColor: Colors.orange,
+                      duration: const Duration(seconds: 3),
+                    ),
+                  );
+                }
+              }
+            },
+            activeColor: theme.colorScheme.primary,
+          ),
+        ],
       ),
     );
   }
@@ -883,7 +979,7 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
                     ),
                   ),
                   
-                  // Action button
+                  // Action buttons
                   if (isInternal && !isAvailable && !isDownloading)
                     ElevatedButton.icon(
                       onPressed: () => _startDownload(config),
@@ -909,6 +1005,30 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
                         minimumSize: Size.zero,
                         tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                       ),
+                    )
+                  else if (isInternal && isDownloaded && isAvailable)
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (isSelected)
+                          Icon(
+                            Icons.check_circle,
+                            color: theme.colorScheme.primary,
+                            size: 20,
+                          ),
+                        if (isSelected) const SizedBox(width: 8),
+                        IconButton(
+                          onPressed: () => _deleteModel(config),
+                          icon: const Icon(Icons.delete_outline, size: 18),
+                          tooltip: 'Delete Model',
+                          style: IconButton.styleFrom(
+                            foregroundColor: theme.colorScheme.error,
+                            padding: const EdgeInsets.all(4),
+                            minimumSize: const Size(32, 32),
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          ),
+                        ),
+                      ],
                     )
                   else if (isSelected)
                     Icon(

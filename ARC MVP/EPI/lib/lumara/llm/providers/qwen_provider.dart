@@ -7,6 +7,8 @@ import 'package:flutter/foundation.dart';
 import '../llm_provider.dart';
 import '../../config/api_config.dart';
 import '../bridge.pigeon.dart';
+import '../prompts/prompt_profile_manager.dart';
+import '../ondevice_prompt_service.dart';
 
 /// Qwen internal model provider
 class QwenProvider extends LLMProviderBase {
@@ -31,51 +33,45 @@ class QwenProvider extends LLMProviderBase {
 
   @override
   Future<String> generateResponse(Map<String, dynamic> context) async {
-    final config = getConfig();
-    if (config?.baseUrl == null) {
-      throw StateError('Qwen server URL not configured');
-    }
-
     final systemPrompt = context['systemPrompt'] as String;
     final userPrompt = context['userPrompt'] as String;
-    final additionalConfig = config!.additionalConfig ?? {};
-
-    final uri = Uri.parse('${config.baseUrl}/generate');
     
-    final body = {
-      'prompt': _formatPrompt(systemPrompt, userPrompt),
-      'max_tokens': 500,
-      'temperature': additionalConfig['temperature'] ?? 0.7,
-      'top_p': 0.8,
-      'top_k': 40,
-      'repetition_penalty': 1.1,
-      'stop': ['<|im_end|>', '<|endoftext|>'],
-    };
-
-    final client = HttpClient();
+    // Use on-device specific prompt formatting
+    final formattedPrompt = OnDevicePromptService.formatOnDevicePrompt(systemPrompt, userPrompt);
+    
     try {
-      final request = await client.postUrl(uri);
-      request.headers.set('Content-Type', 'application/json');
-      request.write(jsonEncode(body));
-
-      final response = await request.close();
-      final responseBody = await response.transform(utf8.decoder).join();
-
-      if (response.statusCode == 200) {
-        final data = jsonDecode(responseBody);
-        final text = data['response'] as String?;
-        
-        if (text != null && text.isNotEmpty) {
-          return _cleanResponse(text);
-        }
+      // Use native bridge to generate response
+      final bridge = LumaraNative();
+      
+      // First, ensure the model is initialized
+      final modelId = 'Qwen3-4B-Instruct-2507-Q4_K_S.gguf';
+      final initialized = await bridge.initModel(modelId);
+      
+      if (!initialized) {
+        debugPrint('QwenProvider: Failed to initialize model');
+        throw StateError('Failed to initialize Qwen model');
       }
-
-      throw HttpException('Qwen API error: ${response.statusCode} - $responseBody');
+      
+      // Use the generateText method with appropriate parameters for short responses
+      final params = GenParams(
+        maxTokens: 50, // Reduced for 5-10 word responses
+        temperature: 0.7,
+        topP: 0.8,
+        repeatPenalty: 1.1,
+        seed: 42, // Fixed seed for reproducible results
+      );
+      
+      final result = await bridge.generateText(formattedPrompt, params);
+      
+      if (result.text.isNotEmpty) {
+        // Use on-device specific response cleaning
+        return OnDevicePromptService.cleanOnDeviceResponse(result.text);
+      }
+      
+      throw StateError('Empty response from Qwen model');
     } catch (e) {
       debugPrint('QwenProvider: Error generating response: $e');
       rethrow;
-    } finally {
-      client.close();
     }
   }
 

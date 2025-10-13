@@ -23,8 +23,6 @@ class RichTextField extends StatefulWidget {
 
 class _RichTextFieldState extends State<RichTextField> {
   late TextEditingController _controller;
-  late TextSpan _textSpan;
-  late TextSelection _selection;
   final FocusNode _focusNode = FocusNode();
 
   @override
@@ -32,7 +30,6 @@ class _RichTextFieldState extends State<RichTextField> {
     super.initState();
     _controller = widget.controller;
     _controller.addListener(_onTextChanged);
-    _updateTextSpan();
   }
 
   @override
@@ -43,48 +40,7 @@ class _RichTextFieldState extends State<RichTextField> {
   }
 
   void _onTextChanged() {
-    setState(() {
-      _updateTextSpan();
-    });
     widget.onChanged(_controller.text);
-  }
-
-  void _updateTextSpan() {
-    final text = _controller.text;
-    final spans = <TextSpan>[];
-    
-    // Split text by AI suggestion markers
-    final parts = text.split(RegExp(r'\[AI_SUGGESTION_START\](.*?)\[AI_SUGGESTION_END\]'));
-    
-    for (int i = 0; i < parts.length; i++) {
-      if (i % 2 == 0) {
-        // Regular text
-        if (parts[i].isNotEmpty) {
-          spans.add(TextSpan(
-            text: parts[i],
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 16,
-            ),
-          ));
-        }
-      } else {
-        // AI suggestion text
-        if (parts[i].isNotEmpty) {
-          spans.add(TextSpan(
-            text: parts[i],
-            style: const TextStyle(
-              color: Colors.blue,
-              fontSize: 16,
-              fontWeight: FontWeight.w500,
-              backgroundColor: Colors.blue.withOpacity(0.1),
-            ),
-          ));
-        }
-      }
-    }
-
-    _textSpan = TextSpan(children: spans);
   }
 
   @override
@@ -100,41 +56,29 @@ class _RichTextFieldState extends State<RichTextField> {
           color: Colors.transparent,
           borderRadius: BorderRadius.circular(8),
         ),
-        child: Stack(
-          children: [
-            // Rich text display
-            SingleChildScrollView(
-              child: Padding(
-                padding: const EdgeInsets.all(0),
-                child: RichText(
-                  text: _textSpan,
-                ),
-              ),
+        child: TextField(
+          controller: _controller,
+          focusNode: _focusNode,
+          maxLines: widget.maxLines,
+          textInputAction: widget.textInputAction,
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 16,
+            height: 1.4, // Ensure consistent line height
+          ),
+          decoration: InputDecoration(
+            hintText: widget.hintText,
+            hintStyle: TextStyle(
+              color: theme.colorScheme.onSurface.withOpacity(0.6),
+              fontSize: 16,
+              height: 1.4, // Match the text style height
             ),
-            // Invisible text field for input
-            TextField(
-              controller: _controller,
-              focusNode: _focusNode,
-              maxLines: widget.maxLines,
-              textInputAction: widget.textInputAction,
-              style: const TextStyle(
-                color: Colors.transparent,
-                fontSize: 16,
-              ),
-              decoration: InputDecoration(
-                hintText: widget.hintText,
-                hintStyle: TextStyle(
-                  color: theme.colorScheme.onSurface.withOpacity(0.6),
-                  fontSize: 16,
-                ),
-                border: InputBorder.none,
-                contentPadding: EdgeInsets.zero,
-              ),
-              onChanged: (value) {
-                // This will be handled by the controller listener
-              },
-            ),
-          ],
+            border: InputBorder.none,
+            contentPadding: EdgeInsets.zero,
+          ),
+          onChanged: (value) {
+            // This will be handled by the controller listener
+          },
         ),
       ),
     );

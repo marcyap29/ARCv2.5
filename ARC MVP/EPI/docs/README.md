@@ -7,6 +7,30 @@ This directory contains comprehensive documentation for the EPI (Evolving Person
 
 ## 🆕 Latest Updates (January 12, 2025)
 
+**LUMARA Cloud API Enhancement - Reflective Intelligence Core**
+
+Enhanced the cloud API (Gemini) with the comprehensive LUMARA Reflective Intelligence Core system prompt:
+- **EPI Framework Integration** - Full integration with all 8 EPI systems (ARC, PRISM, ATLAS, MIRA, AURORA, VEIL)
+- **Developmental Orientation** - Focus on trajectories and growth patterns rather than judgments
+- **Narrative Dignity** - Core principles for preserving user agency and psychological safety
+- **Integrative Reflection** - Enhanced output style for coherent, compassionate insights
+- **Reusable Templates** - Created modular prompt system for cloud APIs
+
+*For detailed technical information, see [Bug Tracker - LUMARA Cloud API Enhancement](../bugtracker/Bug_Tracker.md#lumara-cloud-api-prompt-enhancement)*
+
+**UI/UX Critical Fixes**
+
+Resolved multiple critical UI/UX issues affecting core journal functionality:
+- **Text Cursor Alignment** - Fixed cursor misalignment in journal text input field with proper styling
+- **Gemini API Integration** - Fixed JSON formatting errors preventing cloud API usage
+- **Model Management** - Restored delete buttons for downloaded models in LUMARA settings
+- **LUMARA Integration** - Fixed text insertion and cursor management for AI insights
+- **Keywords System** - Verified and maintained working Keywords Discovered functionality
+- **Provider Selection** - Fixed automatic provider selection and error handling
+- **Error Prevention** - Added proper validation to prevent RangeError and other crashes
+
+*For detailed technical information, see [UI_UX_FIXES_JAN_2025.md](../bugtracker/UI_UX_FIXES_JAN_2025.md)*
+
 **Drafts Feature Implementation**
 
 Comprehensive draft management system for journal entries:

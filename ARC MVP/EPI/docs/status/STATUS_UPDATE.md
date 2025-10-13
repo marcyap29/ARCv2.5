@@ -1,12 +1,54 @@
 # EPI ARC MVP - Current Status
 
-**Last Updated:** January 8, 2025
-**Version:** 0.6.0-alpha
+**Last Updated:** January 12, 2025
+**Version:** 0.6.1-alpha
 **Branch:** star-phases
 
 ---
 
-## 🌟 LATEST: RIVET DETERMINISTIC RECOMPUTE SYSTEM (Jan 8, 2025)
+## 🌟 LATEST: UI/UX CRITICAL FIXES - JOURNAL FUNCTIONALITY RESTORED (Jan 12, 2025)
+
+### **Core Journal Functionality Restored** ✅ **COMPLETED**
+
+**Status**: Resolved multiple critical UI/UX issues affecting core journal functionality
+
+#### Major Fixes
+- **Text Cursor Alignment**: Fixed cursor misalignment in journal text input field
+- **Gemini API Integration**: Resolved JSON formatting errors preventing cloud API usage
+- **Model Management**: Restored delete buttons for downloaded models in LUMARA settings
+- **LUMARA Integration**: Fixed text insertion and cursor management for AI insights
+- **Keywords System**: Verified Keywords Discovered functionality working correctly
+- **Provider Selection**: Fixed automatic provider selection and error handling
+
+#### Technical Implementation
+- **TextField Implementation**: Replaced AIStyledTextField with proper TextField with cursor styling
+- **Gemini JSON Structure**: Restored missing 'role': 'system' in systemInstruction JSON
+- **Delete Functionality**: Implemented _deleteModel() method with confirmation dialog
+- **Cursor Management**: Added proper cursor position validation to prevent RangeError
+- **Error Prevention**: Added bounds checking for safe text insertion
+
+#### Files Modified (3 files)
+- `lib/ui/journal/journal_screen.dart` - Fixed text field implementation and cursor styling
+- `lib/lumara/llm/providers/gemini_provider.dart` - Fixed JSON formatting for Gemini API
+- `lib/lumara/ui/lumara_settings_screen.dart` - Restored delete functionality for models
+
+#### Technical Achievements
+- **Cursor Visibility**: White cursor with proper sizing (2.0 width, 20.0 height)
+- **API Compatibility**: Correct JSON structure for Gemini API integration
+- **User Control**: Model deletion with confirmation dialogs
+- **Error Prevention**: Bounds checking prevents crashes and RangeError
+- **Text Integration**: Safe text insertion at cursor position
+- **Real-time Analysis**: Keywords system working with live text analysis
+
+#### Documentation Updates
+- **Bug Tracker**: Updated with detailed technical fixes
+- **Changelog**: Added comprehensive changelog entry
+- **Status Reports**: Created detailed UI/UX fixes documentation
+- **Technical Details**: Complete implementation documentation with code examples
+
+---
+
+## 🌟 PREVIOUS: RIVET DETERMINISTIC RECOMPUTE SYSTEM (Jan 8, 2025)
 
 ### **True Undo-on-Delete Behavior** ✅ **COMPLETED**
 

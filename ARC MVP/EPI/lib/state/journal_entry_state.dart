@@ -110,12 +110,14 @@ class PhotoAttachment {
   final String imagePath;
   final Map<String, dynamic> analysisResult;
   final int timestamp;
+  final String? altText; // Descriptive text for accessibility and fallback (like HTML alt attribute)
 
   PhotoAttachment({
     required this.type,
     required this.imagePath,
     required this.analysisResult,
     required this.timestamp,
+    this.altText,
   });
 
   Map<String, dynamic> toJson() => {
@@ -123,6 +125,7 @@ class PhotoAttachment {
     'imagePath': imagePath,
     'analysisResult': analysisResult,
     'timestamp': timestamp,
+    'altText': altText,
   };
 
   factory PhotoAttachment.fromJson(Map<String, dynamic> json) => PhotoAttachment(
@@ -130,5 +133,6 @@ class PhotoAttachment {
     imagePath: json['imagePath'] as String,
     analysisResult: json['analysisResult'] as Map<String, dynamic>,
     timestamp: json['timestamp'] as int,
+    altText: json['altText'] as String?,
   );
 }

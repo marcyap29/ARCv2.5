@@ -1,9 +1,53 @@
 // lib/lumara/llm/ondevice_prompt_service.dart
 // Dedicated prompt service for on-device LLMs with strict word limits
 
+import 'dart:convert';
 import 'package:flutter/foundation.dart';
+import 'prompts/prompt_profile_manager.dart';
 
 class OnDevicePromptService {
+  static final PromptProfileManager _profileManager = PromptProfileManager.instance;
+
+  /// Initialize the prompt profile manager
+  static Future<void> initialize() async {
+    await _profileManager.initialize();
+  }
+
+  /// Create a system prompt using the new profile system
+  static String createSystemPrompt(String modelId, {
+    bool isOffline = false,
+    bool isFastMode = false,
+    bool isPhaseFocus = false,
+    bool isLowLatency = false,
+  }) {
+    final context = PromptContext(
+      isOffline: isOffline,
+      isFastMode: isFastMode,
+      isPhaseFocus: isPhaseFocus,
+      isLowLatency: isLowLatency,
+    );
+    
+    return _profileManager.getSystemPrompt(modelId, context);
+  }
+
+  /// Get generation settings for a model
+  static GenerationSettings? getGenerationSettings(String modelId) {
+    return _profileManager.getGenerationSettings(modelId);
+  }
+
+  /// Create a user prompt for journal reflection with JSON output
+  static String createJournalReflectionPrompt(String text, String phase) {
+    return '''User journal entry: "$text"
+Current phase: $phase
+Analyze the intent, emotion, and phase alignment. Provide insight that supports growth.''';
+  }
+
+  /// Create a user prompt for phase inference
+  static String createPhaseInferencePrompt(String text) {
+    return '''User reflection: "$text"
+Analyze the emotional tone, motivation, and direction of change to determine the most likely ATLAS phase.''';
+  }
+
   /// Create a concise prompt for on-device LLMs (5-10 words, 1-2 sentences)
   static String createJournalPrompt(String text, String phase) {
     // Get phase-specific style hint
@@ -122,20 +166,52 @@ ${phaseStyle.isNotEmpty ? 'Phase: $phase\nGuidance: $phaseStyle\n' : ''}${themeC
     return prompts[index];
   }
 
-  /// Format prompt specifically for on-device models (Llama, Qwen)
-  static String formatOnDevicePrompt(String systemPrompt, String userPrompt) {
-    // Optimized system prompt for on-device LLMs
-    const optimizedSystemPrompt = '''You are LUMARA, a reflective journaling assistant.
-Read the journal entry carefully and respond specifically to what the person wrote.
-Respond with empathy and clarity in no more than two short sentences.
-Keep responses concise (5-10 meaningful words total).
-Make your response directly relevant to their specific content and themes.
-Avoid generic questions - respond to their actual words and experiences.
-Use calm, emotionally balanced tone that acknowledges their specific situation.''';
+  /// Format prompt specifically for on-device models using profile system
+  static String formatOnDevicePrompt(String modelId, String userPrompt, {
+    bool isOffline = false,
+    bool isFastMode = false,
+    bool isPhaseFocus = false,
+    bool isLowLatency = false,
+  }) {
+    final systemPrompt = createSystemPrompt(
+      modelId,
+      isOffline: isOffline,
+      isFastMode: isFastMode,
+      isPhaseFocus: isPhaseFocus,
+      isLowLatency: isLowLatency,
+    );
 
-    return '''$optimizedSystemPrompt
+    return '''$systemPrompt
 
 $userPrompt''';
+  }
+
+  /// Legacy method for backward compatibility
+  static String formatOnDevicePromptLegacy(String systemPrompt, String userPrompt) {
+    return '''$systemPrompt
+
+$userPrompt''';
+  }
+
+  /// Parse JSON response from the new prompt system
+  static Map<String, dynamic>? parseJsonResponse(String response) {
+    try {
+      // Clean the response first
+      final cleaned = cleanOnDeviceResponse(response);
+      
+      // Try to find JSON in the response
+      final jsonMatch = RegExp(r'\{[^}]*\}').firstMatch(cleaned);
+      if (jsonMatch != null) {
+        final jsonString = jsonMatch.group(0)!;
+        return jsonDecode(jsonString) as Map<String, dynamic>;
+      }
+      
+      // If no JSON found, return null
+      return null;
+    } catch (e) {
+      debugPrint('OnDevicePromptService: Failed to parse JSON response: $e');
+      return null;
+    }
   }
 
   /// Clean and truncate response from on-device models
@@ -171,36 +247,6 @@ $userPrompt''';
     return cleaned;
   }
 
-  /// Find similar entries for context (simplified for on-device)
-  static List<String> _findSimilarEntries(String currentText) {
-    try {
-      // Extract key themes from current text
-      final themes = _extractThemes(currentText);
-      if (themes.isEmpty) return [];
-      
-      // Return example similar themes based on keywords
-      final similarThemes = <String>[];
-      
-      for (final theme in themes) {
-        if (theme.toLowerCase().contains('happiness') || theme.toLowerCase().contains('joy')) {
-          similarThemes.add('previous joy moments');
-        } else if (theme.toLowerCase().contains('sadness') || theme.toLowerCase().contains('difficult')) {
-          similarThemes.add('past challenges');
-        } else if (theme.toLowerCase().contains('work') || theme.toLowerCase().contains('career')) {
-          similarThemes.add('work reflections');
-        } else if (theme.toLowerCase().contains('relationship') || theme.toLowerCase().contains('family')) {
-          similarThemes.add('relationship insights');
-        } else if (theme.toLowerCase().contains('goal') || theme.toLowerCase().contains('future')) {
-          similarThemes.add('future planning');
-        }
-      }
-      
-      return similarThemes.take(3).toList();
-    } catch (e) {
-      debugPrint('OnDevicePromptService: Error finding similar entries: $e');
-      return [];
-    }
-  }
 
   /// Extract themes from text (simplified for on-device)
   static List<String> _extractThemes(String text) {

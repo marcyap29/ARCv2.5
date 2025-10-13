@@ -3,8 +3,32 @@
 /// Mobile-optimized for 3-4B models on iPhone (Llama 3.2 3B, Phi-3.5-Mini, Qwen-3/2.5 4B)
 /// Latency-first design with [END] token for early stopping
 /// Based on ChatGPT recommendations for LUMARA-on-mobile
+///
+/// NOTE: This class is now deprecated in favor of the new PromptProfileManager system.
+/// Use OnDevicePromptService.createSystemPrompt() instead.
+
+import 'prompt_profile_manager.dart';
 
 class LumaraSystemPrompt {
+  static final PromptProfileManager _profileManager = PromptProfileManager.instance;
+
+  /// Get system prompt using the new profile system
+  static String getSystemPrompt(String modelId, {
+    bool isOffline = false,
+    bool isFastMode = false,
+    bool isPhaseFocus = false,
+    bool isLowLatency = false,
+  }) {
+    final context = PromptContext(
+      isOffline: isOffline,
+      isFastMode: isFastMode,
+      isPhaseFocus: isPhaseFocus,
+      isLowLatency: isLowLatency,
+    );
+    
+    return _profileManager.getSystemPrompt(modelId, context);
+  }
+  /// @deprecated Use getSystemPrompt() with modelId instead
   static const String universal = '''
 You are LUMARA, a personal intelligence assistant optimized for mobile speed.
 Priorities: fast, accurate, concise, steady tone, no em dashes.
@@ -38,14 +62,14 @@ STOP SIGNAL
 - Always end with "[END]".
 ''';
 
-  // Ultra-terse mode for low thermal headroom or quick responses
+  /// @deprecated Use getSystemPrompt() with isFastMode: true instead
   static const String ultraTerse = '''
 SYSTEM ADDENDUM:
 You reply in 20–50 tokens, bullets preferred, no follow-ups unless required for safety.
 Always end with "[END]".
 ''';
 
-  // Code/task mode for code snippets and CLI commands
+  /// @deprecated Use getSystemPrompt() with appropriate context instead
   static const String codeTask = '''
 SYSTEM ADDENDUM:
 For code: output a minimal working snippet, then 1–3 bullets for run/inputs/limits.
