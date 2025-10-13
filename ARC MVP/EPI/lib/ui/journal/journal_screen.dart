@@ -615,9 +615,6 @@ class _JournalScreenState extends State<JournalScreen> {
                       _buildAITextField(theme),
                       const SizedBox(height: 16),
                       
-                      // Inline photo display (shows photos in text order)
-                      _buildInlinePhotoDisplay(),
-                      
                       // Inline reflection blocks
                       ..._entryState.blocks.asMap().entries.map((entry) {
                         final index = entry.key;
@@ -646,11 +643,13 @@ class _JournalScreenState extends State<JournalScreen> {
                           onAddKeywords: _showKeywordDialog,
                         ),
                       
-                      // Attachments (scan only - photos are shown inline)
+                      // Attachments (scan and photo analysis)
                       ..._entryState.attachments.asMap().entries.map((entry) {
                         final index = entry.key;
                         final attachment = entry.value;
-                        if (attachment is ScanAttachment) {
+                        if (attachment is PhotoAttachment) {
+                          return _buildPhotoAttachment(attachment, index);
+                        } else if (attachment is ScanAttachment) {
                           return _buildScanAttachment(attachment);
                         }
                         return const SizedBox.shrink();
