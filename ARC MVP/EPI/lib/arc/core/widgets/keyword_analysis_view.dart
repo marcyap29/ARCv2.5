@@ -6,6 +6,7 @@ import 'package:my_app/arc/core/journal_capture_cubit.dart';
 import 'package:my_app/features/timeline/timeline_cubit.dart';
 import 'package:my_app/features/home/home_view.dart';
 import 'package:my_app/models/journal_entry_model.dart';
+import 'package:my_app/data/models/media_item.dart';
 import 'package:my_app/shared/app_colors.dart';
 import 'package:my_app/shared/text_style.dart';
 
@@ -22,6 +23,7 @@ class KeywordAnalysisView extends StatefulWidget {
   final TimeOfDay? selectedTime;
   final String? selectedLocation;
   final String? selectedPhase;
+  final List<MediaItem>? mediaItems; // Media items from journal screen
   
   const KeywordAnalysisView({
     super.key,
@@ -37,6 +39,7 @@ class KeywordAnalysisView extends StatefulWidget {
     this.selectedTime,
     this.selectedLocation,
     this.selectedPhase,
+    this.mediaItems,
   });
 
   @override
@@ -110,6 +113,7 @@ class _KeywordAnalysisViewState extends State<KeywordAnalysisView>
         selectedLocation: widget.selectedLocation,
         selectedPhase: widget.selectedPhase,
         context: context,
+        media: widget.mediaItems, // Pass media items
       );
     } else {
       // Save new entry
@@ -120,6 +124,7 @@ class _KeywordAnalysisViewState extends State<KeywordAnalysisView>
         emotion: widget.initialEmotion,
         emotionReason: widget.initialReason,
         context: context,
+        media: widget.mediaItems, // Pass media items
       );
     }
     

@@ -18,7 +18,6 @@ import 'package:my_app/atlas/phase_detection/phase_history_repository.dart';
 import 'package:my_app/atlas/phase_detection/phase_change_notifier.dart';
 import 'package:my_app/core/sync/sync_service.dart';
 import 'package:my_app/core/sync/sync_models.dart';
-import 'package:my_app/ui/journal/media_conversion_utils.dart';
 import 'package:my_app/data/models/media_item.dart';
 import 'package:uuid/uuid.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -351,6 +350,7 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
         keywords: selectedKeywords,
         emotion: emotion,
         emotionReason: emotionReason,
+        media: media ?? [], // Include media items
       );
 
       // Save the entry first
@@ -383,6 +383,7 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
     required ArcformGeometry overrideGeometry,
     String? emotion,
     String? emotionReason,
+    List<MediaItem>? media,
   }) async {
     try {
       final now = DateTime.now();
@@ -398,6 +399,7 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
         keywords: selectedKeywords,
         emotion: emotion,
         emotionReason: emotionReason,
+        media: media ?? [], // Include media items
       );
 
       // Save the entry first
@@ -426,6 +428,7 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
     String? emotion,
     String? emotionReason,
     String? gateReason,
+    List<MediaItem>? media,
   }) async {
     try {
       final now = DateTime.now();
@@ -441,6 +444,7 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
         keywords: selectedKeywords,
         emotion: emotion,
         emotionReason: emotionReason,
+        media: media ?? [], // Include media items
       );
 
       // Save the entry first
@@ -473,6 +477,7 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
     String? selectedLocation,
     String? selectedPhase,
     BuildContext? context,
+    List<MediaItem>? media,
   }) async {
     try {
       // Combine date and time if provided
@@ -507,6 +512,7 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
         location: selectedLocation,
         phase: selectedPhase,
         isEdited: true,
+        media: media ?? existingEntry.media, // Update media items or keep existing
       );
 
       // Update the entry

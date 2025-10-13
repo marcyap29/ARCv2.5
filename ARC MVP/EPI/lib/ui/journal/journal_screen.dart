@@ -26,6 +26,7 @@ import '../../data/models/media_item.dart';
 import '../../models/journal_entry_model.dart';
 import '../../mcp/orchestrator/ios_vision_orchestrator.dart';
 import '../../services/keyword_analysis_service.dart';
+import 'media_conversion_utils.dart';
 import 'widgets/lumara_suggestion_sheet.dart';
 import 'widgets/inline_reflection_block.dart';
 import 'widgets/full_screen_photo_viewer.dart';
@@ -344,6 +345,9 @@ class _JournalScreenState extends State<JournalScreen> {
       'reflection_count': _entryState.blocks.length,
     });
     
+    // Convert attachments to MediaItems
+    final mediaItems = MediaConversionUtils.attachmentsToMediaItems(_entryState.attachments);
+    
     // Navigate to keyword analysis
     Navigator.of(context).push<Map<String, dynamic>>(
       MaterialPageRoute(
@@ -369,6 +373,7 @@ class _JournalScreenState extends State<JournalScreen> {
             selectedTime: _selectedTime,
             selectedLocation: _selectedLocation,
             selectedPhase: _selectedPhase,
+            mediaItems: mediaItems, // Pass converted media items
           ),
         ),
       ),
