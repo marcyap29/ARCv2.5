@@ -2057,10 +2057,11 @@ class _JournalScreenState extends State<JournalScreen> {
           const SizedBox(height: 16),
           
           // Date and Time Row
-          Row(
-            children: [
-              // Date picker
-              Expanded(
+          Flexible(
+            child: Row(
+              children: [
+                // Date picker
+                Expanded(
                 child: InkWell(
                   onTap: _selectDate,
                   child: Container(
@@ -2073,11 +2074,14 @@ class _JournalScreenState extends State<JournalScreen> {
                       children: [
                         Icon(Icons.calendar_today, size: 16, color: theme.colorScheme.primary),
                         const SizedBox(width: 8),
-                        Text(
-                          _selectedDate != null 
-                            ? '${_selectedDate!.month}/${_selectedDate!.day}/${_selectedDate!.year}'
-                            : 'Select Date',
-                          style: theme.textTheme.bodyMedium,
+                        Expanded(
+                          child: Text(
+                            _selectedDate != null 
+                              ? '${_selectedDate!.month}/${_selectedDate!.day}/${_selectedDate!.year}'
+                              : 'Select Date',
+                            style: theme.textTheme.bodyMedium,
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ),
                       ],
                     ),
@@ -2099,11 +2103,14 @@ class _JournalScreenState extends State<JournalScreen> {
                       children: [
                         Icon(Icons.access_time, size: 16, color: theme.colorScheme.primary),
                         const SizedBox(width: 8),
-                        Text(
-                          _selectedTime != null 
-                            ? _selectedTime!.format(context)
-                            : 'Select Time',
-                          style: theme.textTheme.bodyMedium,
+                        Expanded(
+                          child: Text(
+                            _selectedTime != null 
+                              ? _selectedTime!.format(context)
+                              : 'Select Time',
+                            style: theme.textTheme.bodyMedium,
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ),
                       ],
                     ),
@@ -2111,14 +2118,16 @@ class _JournalScreenState extends State<JournalScreen> {
                 ),
               ),
             ],
+            ),
           ),
           const SizedBox(height: 12),
           
           // Location and Phase Row
-          Row(
-            children: [
-              // Location input
-              Expanded(
+          Flexible(
+            child: Row(
+              children: [
+                // Location input
+                Expanded(
                 child: TextField(
                   controller: TextEditingController(text: _selectedLocation ?? ''),
                   textCapitalization: TextCapitalization.words,
@@ -2157,6 +2166,7 @@ class _JournalScreenState extends State<JournalScreen> {
                 ),
               ),
             ],
+            ),
           ),
         ],
       ),
