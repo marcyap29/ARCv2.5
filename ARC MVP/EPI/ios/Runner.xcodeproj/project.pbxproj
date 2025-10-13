@@ -83,8 +83,8 @@
 		1F3EEF6B2E93526C009BFF74 /* llama_wrapper.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Runner/llama_wrapper.cpp; sourceTree = "<group>"; };
 		1F3EEF6C2E93526C009BFF74 /* LlamaBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Runner/LlamaBridge.swift; sourceTree = "<group>"; };
 		1F3EEF6C2E93526C009BFF75 /* epi_logger.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Runner/epi_logger.cpp; sourceTree = "<group>"; };
-		1F3EEF6C2E93526C009BFF77 /* VisionApi.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Runner/VisionApi.swift; sourceTree = "<group>"; };
-		1F3EEF6C2E93526C009BFF78 /* VisionOcrApi.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Runner/VisionOcrApi.swift; sourceTree = "<group>"; };
+		1F3EEF6C2E93526C009BFF77 /* VisionApi.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VisionApi.swift; sourceTree = "<group>"; };
+		1F3EEF6C2E93526C009BFF78 /* VisionOcrApi.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VisionOcrApi.swift; sourceTree = "<group>"; };
 		1F3EEF6D2E93526C009BFF74 /* PrismScrubber.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrismScrubber.swift; sourceTree = "<group>"; };
 		1F3EEF6D2E93526C009BFF75 /* PigeonShims.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Shims/PigeonShims.swift; sourceTree = "<group>"; };
 		1F3EEF6D2E93526C009BFF76 /* epi_logger.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = Runner/epi_logger.h; sourceTree = "<group>"; };
