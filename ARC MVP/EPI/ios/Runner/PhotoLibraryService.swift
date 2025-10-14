@@ -4,17 +4,6 @@ import UIKit
 
 @objc class PhotoLibraryService: NSObject {
     
-    // MARK: - Method Channel
-    private static let channelName = "photo_library_service"
-    private static var methodChannel: FlutterMethodChannel?
-    
-    @objc static func register(with registrar: FlutterPluginRegistrar) {
-        let channel = FlutterMethodChannel(name: channelName, binaryMessenger: registrar.messenger())
-        let instance = PhotoLibraryService()
-        registrar.addMethodCallDelegate(instance, channel: channel)
-        methodChannel = channel
-    }
-    
     // MARK: - Method Call Handler
     func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
         switch call.method {
