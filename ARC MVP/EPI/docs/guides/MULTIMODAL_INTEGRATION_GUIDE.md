@@ -1,6 +1,6 @@
 # Multimodal Integration Guide
 
-**Last Updated:** January 8, 2025
+**Last Updated:** January 12, 2025
 **Status:** Production Ready ✅
 
 ## Overview
@@ -31,6 +31,9 @@ CachedThumbnail Widget → ThumbnailCacheService → Memory Cache + File Cache
 - **Keypoints Analysis**: Extract visual feature points
 - **Thumbnail Caching**: Efficient memory and file-based caching
 - **Clickable Thumbnails**: Direct photo opening in iOS Photos app
+- **Inline Photo Insertion**: Photos insert at cursor position in journal entries
+- **Chronological Display**: Photos appear in order of insertion for natural storytelling
+- **Continuous Editing**: TextField remains editable after photo insertion
 
 ### Privacy & Performance
 - **On-Device Processing**: All analysis happens locally
@@ -38,6 +41,27 @@ CachedThumbnail Widget → ThumbnailCacheService → Memory Cache + File Cache
 - **Automatic Cleanup**: Thumbnails are cleaned up when not needed
 - **Lazy Loading**: Resources loaded only when required
 - **Memory Management**: Efficient caching prevents memory bloat
+
+## 🆕 Latest Improvements (January 12, 2025)
+
+### Thumbnail Generation Fixes
+- **Fixed Save Errors**: Resolved "The file '001_thumb_80.jpg' doesn't exist" error
+- **Directory Creation**: Added proper temporary directory creation before saving thumbnails
+- **Alpha Channel Conversion**: Fixed opaque image conversion to avoid iOS warnings
+- **Debug Logging**: Enhanced logging for thumbnail generation troubleshooting
+
+### Layout and UX Enhancements
+- **Text Doubling Fix**: Eliminated duplicate text display in journal entries
+- **Photo Selection Controls**: Repositioned to top of content area for better accessibility
+- **TextField Persistence**: TextField remains editable after photo insertion
+- **Streamlined Display**: Photos show below TextField in chronological order
+- **Seamless Integration**: Users can add photos and continue typing without interruption
+
+### Technical Implementation
+- **PhotoLibraryService.swift**: Enhanced with directory creation and comprehensive debug logging
+- **journal_screen.dart**: Simplified layout logic for better user experience
+- **Error Recovery**: Graceful fallback when photo library operations fail
+- **Performance**: Optimized photo display and thumbnail generation
 
 ## 🔧 Implementation
 
