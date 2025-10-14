@@ -30,18 +30,21 @@ import 'widgets/lumara_suggestion_sheet.dart';
 import 'widgets/inline_reflection_block.dart';
 import 'widgets/full_screen_photo_viewer.dart';
 import 'drafts_screen.dart';
+import '../../models/journal_entry_model.dart';
 
 /// Main journal screen with integrated LUMARA companion and OCR scanning
 class JournalScreen extends StatefulWidget {
   final String? selectedEmotion;
   final String? selectedReason;
   final String? initialContent;
+  final JournalEntry? existingEntry; // For loading existing entries with media
   
   const JournalScreen({
     super.key,
     this.selectedEmotion,
     this.selectedReason,
     this.initialContent,
+    this.existingEntry,
   });
 
   @override
@@ -104,6 +107,19 @@ class _JournalScreenState extends State<JournalScreen> {
     if (widget.initialContent != null) {
       _textController.text = widget.initialContent!;
       _entryState.text = widget.initialContent!;
+    }
+
+    // Load existing entry with media if provided
+    if (widget.existingEntry != null) {
+      _textController.text = widget.existingEntry!.content;
+      _entryState.text = widget.existingEntry!.content;
+      
+      // Convert MediaItems back to attachments
+      if (widget.existingEntry!.media.isNotEmpty) {
+        final attachments = MediaConversionUtils.mediaItemsToAttachments(widget.existingEntry!.media);
+        _entryState.attachments.addAll(attachments);
+        print('DEBUG: Loaded ${attachments.length} attachments from existing entry');
+      }
     }
 
     // Initialize draft cache and create new draft
@@ -449,6 +465,7 @@ class _JournalScreenState extends State<JournalScreen> {
             initialEmotion: widget.selectedEmotion,
             initialReason: widget.selectedReason,
             manualKeywords: _manualKeywords,
+            mediaItems: MediaConversionUtils.attachmentsToMediaItems(_entryState.attachments),
           ),
         ),
       ),

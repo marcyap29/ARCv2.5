@@ -49,6 +49,44 @@ class MediaConversionUtils {
     return mediaItem.analysisData != null && mediaItem.analysisData!.isNotEmpty;
   }
 
+  /// Convert MediaItem back to PhotoAttachment
+  static PhotoAttachment mediaItemToPhotoAttachment(MediaItem mediaItem) {
+    return PhotoAttachment(
+      type: 'photo_analysis',
+      imagePath: mediaItem.uri,
+      analysisResult: mediaItem.analysisData ?? {},
+      timestamp: mediaItem.createdAt.millisecondsSinceEpoch,
+      altText: mediaItem.altText,
+      // Note: insertionPosition is lost in conversion, will be null
+      // This is acceptable as photos will display in chronological order by timestamp
+    );
+  }
+
+  /// Convert MediaItem back to ScanAttachment
+  static ScanAttachment mediaItemToScanAttachment(MediaItem mediaItem) {
+    return ScanAttachment(
+      type: 'ocr_text',
+      text: mediaItem.ocrText ?? '',
+      sourceImageId: mediaItem.id,
+      thumbnailPath: mediaItem.uri,
+    );
+  }
+
+  /// Convert list of MediaItems back to attachments
+  static List<dynamic> mediaItemsToAttachments(List<MediaItem> mediaItems) {
+    final attachments = <dynamic>[];
+    
+    for (final mediaItem in mediaItems) {
+      if (isPhotoMediaItem(mediaItem)) {
+        attachments.add(mediaItemToPhotoAttachment(mediaItem));
+      } else if (mediaItem.ocrText != null && mediaItem.ocrText!.isNotEmpty) {
+        attachments.add(mediaItemToScanAttachment(mediaItem));
+      }
+    }
+    
+    return attachments;
+  }
+
   /// Check if a MediaItem represents scanned text
   static bool isScanMediaItem(MediaItem mediaItem) {
     return mediaItem.ocrText != null && mediaItem.ocrText!.isNotEmpty && 
