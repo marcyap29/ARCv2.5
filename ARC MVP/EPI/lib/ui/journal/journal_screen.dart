@@ -778,14 +778,14 @@ class _JournalScreenState extends State<JournalScreen> {
               onPressed: () => Navigator.of(context).pop(),
               child: const Text('Cancel'),
             ),
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-                // Open app settings
-                PhotoLibraryService.openAppSettings();
-              },
-              child: const Text('Open Settings'),
-            ),
+                  TextButton(
+                    onPressed: () {
+                      Navigator.of(context).pop();
+                      // Open app settings
+                      PhotoLibraryService.openSettings();
+                    },
+                    child: const Text('Open Settings'),
+                  ),
           ],
         );
       },

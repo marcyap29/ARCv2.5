@@ -70,9 +70,17 @@ class PhotoLibraryService {
   }
   
   /// Open app settings for manual permission granting
-  static Future<bool> openAppSettings() async {
+  static Future<bool> openSettings() async {
     try {
-      return await Permission.photosAddOnly.request().isGranted;
+      print('PhotoLibraryService: Opening iOS Settings app...');
+      // Use the global openAppSettings function from permission_handler package
+      final opened = await openAppSettings();
+      if (opened) {
+        print('PhotoLibraryService: Successfully opened iOS Settings');
+      } else {
+        print('PhotoLibraryService: Failed to open iOS Settings');
+      }
+      return opened;
     } catch (e) {
       print('PhotoLibraryService: Error opening settings: $e');
       return false;
