@@ -1564,18 +1564,13 @@ class _JournalScreenState extends State<JournalScreen> {
         // Request photo library permissions first
         final hasPermissions = await PhotoLibraryService.requestPermissions();
         if (!hasPermissions) {
-          // Check if permissions are permanently denied
-          final isPermanentlyDenied = await PhotoLibraryService.arePermissionsPermanentlyDenied();
-          
-          if (isPermanentlyDenied) {
-            // Show dialog to open settings
-            if (mounted) {
-              _showPermissionDeniedDialog();
-            }
-            return;
-          } else {
-            throw Exception('Photo library permissions not granted. Please try again.');
+          // Always show dialog when permissions are not granted
+          // This handles both temporary denial and permanent denial cases
+          print('DEBUG: Permission not granted, showing settings dialog');
+          if (mounted) {
+            _showPermissionDeniedDialog();
           }
+          return;
         }
         
         // Save photo to device photo library for persistent storage
