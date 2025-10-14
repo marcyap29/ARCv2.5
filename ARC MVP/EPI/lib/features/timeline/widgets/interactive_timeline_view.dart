@@ -212,6 +212,13 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
               textAlign: TextAlign.center,
             ),
           ),
+          // Refresh button
+          IconButton(
+            onPressed: _refreshTimeline,
+            icon: const Icon(Icons.refresh),
+            color: kcPrimaryColor,
+            tooltip: 'Refresh timeline',
+          ),
           // Selection mode button
           IconButton(
             onPressed: _enterSelectionMode,
@@ -225,21 +232,24 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
   }
 
   Widget _buildInteractiveTimeline() {
-    return Stack(
-      children: [
-        // Horizontal timeline line
-        _buildTimelineLine(),
-        
-        // PageView with entries
-        PageView.builder(
-          controller: _pageController,
-          onPageChanged: _onPageChanged,
-          itemCount: _entries.length,
-          itemBuilder: (context, index) {
-            return _buildTimelineEntry(index);
-          },
-        ),
-      ],
+    return RefreshIndicator(
+      onRefresh: _refreshTimeline,
+      child: Stack(
+        children: [
+          // Horizontal timeline line
+          _buildTimelineLine(),
+          
+          // PageView with entries
+          PageView.builder(
+            controller: _pageController,
+            onPageChanged: _onPageChanged,
+            itemCount: _entries.length,
+            itemBuilder: (context, index) {
+              return _buildTimelineEntry(index);
+            },
+          ),
+        ],
+      ),
     );
   }
 
@@ -686,6 +696,13 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
     setState(() {
       _selectedEntryIds.clear();
     });
+  }
+
+  Future<void> _refreshTimeline() async {
+    print('DEBUG: Refreshing timeline...');
+    final timelineCubit = context.read<TimelineCubit>();
+    await timelineCubit.refreshEntries();
+    print('DEBUG: Timeline refresh completed');
   }
 
   Future<void> _deleteSelectedEntries() async {

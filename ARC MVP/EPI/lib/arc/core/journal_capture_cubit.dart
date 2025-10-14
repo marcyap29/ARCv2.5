@@ -337,6 +337,14 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
     List<MediaItem>? media,
   }) async {
     try {
+      print('DEBUG: JournalCaptureCubit.saveEntryWithKeywords - Media count: ${media?.length ?? 0}');
+      if (media != null && media.isNotEmpty) {
+        for (int i = 0; i < media.length; i++) {
+          final mediaItem = media[i];
+          print('DEBUG: Media $i - Type: ${mediaItem.type}, URI: ${mediaItem.uri}, AnalysisData: ${mediaItem.analysisData?.keys}');
+        }
+      }
+      
       final now = DateTime.now();
       final entry = JournalEntry(
         id: const Uuid().v4(),
@@ -352,6 +360,8 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
         emotionReason: emotionReason,
         media: media ?? [], // Include media items
       );
+      
+      print('DEBUG: JournalEntry created with ${entry.media.length} media items');
 
       // Save the entry first
       await _journalRepository.createJournalEntry(entry);
@@ -480,6 +490,15 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
     List<MediaItem>? media,
   }) async {
     try {
+      print('DEBUG: JournalCaptureCubit.updateEntryWithKeywords - Existing media count: ${existingEntry.media.length}');
+      print('DEBUG: JournalCaptureCubit.updateEntryWithKeywords - New media count: ${media?.length ?? 0}');
+      if (media != null && media.isNotEmpty) {
+        for (int i = 0; i < media.length; i++) {
+          final mediaItem = media[i];
+          print('DEBUG: New Media $i - Type: ${mediaItem.type}, URI: ${mediaItem.uri}, AnalysisData: ${mediaItem.analysisData?.keys}');
+        }
+      }
+      
       // Combine date and time if provided
       DateTime? newCreatedAt = existingEntry.createdAt;
       if (selectedDate != null && selectedTime != null) {
@@ -514,6 +533,8 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
         isEdited: true,
         media: media ?? existingEntry.media, // Update media items or keep existing
       );
+      
+      print('DEBUG: Updated JournalEntry created with ${updatedEntry.media.length} media items');
 
       // Update the entry
       await _journalRepository.updateJournalEntry(updatedEntry);

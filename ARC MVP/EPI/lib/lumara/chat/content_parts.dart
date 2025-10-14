@@ -57,6 +57,9 @@ class TextContentPart extends ContentPart {
 /// Media content part (images, audio, video)
 @HiveType(typeId: 82)
 class MediaContentPart extends ContentPart {
+  @HiveField(0)
+  final String mime;
+  
   @HiveField(1)
   final MediaPointer pointer;
   
@@ -67,7 +70,7 @@ class MediaContentPart extends ContentPart {
   final int? durationMs;
   
   const MediaContentPart({
-    required String mime,
+    required this.mime,
     required this.pointer,
     this.alt,
     this.durationMs,

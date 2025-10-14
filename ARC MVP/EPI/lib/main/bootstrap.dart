@@ -15,6 +15,7 @@ import 'package:my_app/models/user_profile_model.dart';
 import 'package:my_app/models/journal_entry_model.dart';
 import 'package:my_app/models/arcform_snapshot_model.dart';
 import 'package:my_app/arc/core/sage_annotation_model.dart';
+import 'package:my_app/data/models/media_item.dart';
 import 'package:my_app/rivet/validation/rivet_storage.dart';
 import 'package:my_app/services/analytics_service.dart';
 import 'package:my_app/data/hive/insight_snapshot.dart';
@@ -176,6 +177,15 @@ class _BootstrapErrorWidgetState extends State<BootstrapErrorWidget> {
 void _registerHiveAdapters() {
   try {
     // Check if adapters are already registered to avoid conflicts
+    // Register MediaItem adapters FIRST since JournalEntry depends on them
+    if (!Hive.isAdapterRegistered(10)) {
+      Hive.registerAdapter(MediaTypeAdapter());
+    }
+    if (!Hive.isAdapterRegistered(11)) {
+      Hive.registerAdapter(MediaItemAdapter());
+    }
+    
+    // Register other adapters
     if (!Hive.isAdapterRegistered(0)) {
       Hive.registerAdapter(UserProfileAdapter());
     }

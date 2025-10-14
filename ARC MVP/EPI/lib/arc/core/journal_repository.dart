@@ -33,16 +33,44 @@ class JournalRepository {
 
   // Create
   Future<void> createJournalEntry(JournalEntry entry) async {
-    final box = await _ensureBox();
-    await box.put(entry.id, entry);
+    print('🔍 JournalRepository: Creating journal entry with ID: ${entry.id}');
+    print('🔍 JournalRepository: Entry content: ${entry.content}');
+    print('🔍 JournalRepository: Entry media count: ${entry.media.length}');
+    try {
+      final box = await _ensureBox();
+      await box.put(entry.id, entry);
+      print('🔍 JournalRepository: Successfully saved entry ${entry.id} to database');
+      
+      // Verify the entry was saved
+      final savedEntry = box.get(entry.id);
+      if (savedEntry != null) {
+        print('🔍 JournalRepository: Verification - Entry ${entry.id} found in database');
+        print('🔍 JournalRepository: Verification - Saved entry media count: ${savedEntry.media.length}');
+      } else {
+        print('🔍 JournalRepository: ERROR - Entry ${entry.id} not found in database after save');
+      }
+    } catch (e) {
+      print('🔍 JournalRepository: ERROR saving entry ${entry.id}: $e');
+      rethrow;
+    }
   }
 
   // Read
   List<JournalEntry> getAllJournalEntries() {
     try {
+      print('🔍 JournalRepository: getAllJournalEntries called');
       if (Hive.isBoxOpen(_boxName)) {
-        final entries = Hive.box<JournalEntry>(_boxName).values.toList();
+        final box = Hive.box<JournalEntry>(_boxName);
+        print('🔍 JournalRepository: Box $_boxName is open, retrieving entries...');
+        final entries = box.values.toList();
         print('🔍 JournalRepository: Retrieved ${entries.length} journal entries from open box');
+        
+        // Debug: Print details of each entry
+        for (int i = 0; i < entries.length; i++) {
+          final entry = entries[i];
+          print('🔍 JournalRepository: Entry $i - ID: ${entry.id}, Content: ${entry.content.substring(0, entry.content.length > 50 ? 50 : entry.content.length)}..., Media: ${entry.media.length}');
+        }
+        
         return entries;
       } else {
         print('🔍 JournalRepository: WARNING - Box $_boxName is not open, cannot retrieve entries');

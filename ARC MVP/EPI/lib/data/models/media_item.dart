@@ -1,29 +1,55 @@
 import 'package:json_annotation/json_annotation.dart';
+import 'package:hive/hive.dart';
 
 part 'media_item.g.dart';
 
+@HiveType(typeId: 10)
 enum MediaType {
+  @HiveField(0)
   @JsonValue('audio')
   audio,
+  @HiveField(1)
   @JsonValue('image')
   image,
+  @HiveField(2)
   @JsonValue('video')
   video,
+  @HiveField(3)
   @JsonValue('file')
   file,
 }
 
+@HiveType(typeId: 11)
 @JsonSerializable()
 class MediaItem {
+  @HiveField(0)
   final String id;
+  
+  @HiveField(1)
   final String uri;
+  
+  @HiveField(2)
   final MediaType type;
+  
+  @HiveField(3)
   final Duration? duration;
+  
+  @HiveField(4)
   final int? sizeBytes;
+  
+  @HiveField(5)
   final DateTime createdAt;
+  
+  @HiveField(6)
   final String? transcript;
+  
+  @HiveField(7)
   final String? ocrText;
+  
+  @HiveField(8)
   final Map<String, dynamic>? analysisData; // Full analysis JSON from iOS Vision
+  
+  @HiveField(9)
   final String? altText; // Descriptive text for accessibility and fallback (like HTML alt attribute)
 
   const MediaItem({

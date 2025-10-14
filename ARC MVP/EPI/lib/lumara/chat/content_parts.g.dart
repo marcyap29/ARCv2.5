@@ -61,7 +61,9 @@ class MediaContentPartAdapter extends TypeAdapter<MediaContentPart> {
   @override
   void write(BinaryWriter writer, MediaContentPart obj) {
     writer
-      ..writeByte(3)
+      ..writeByte(4)
+      ..writeByte(0)
+      ..write(obj.mime)
       ..writeByte(1)
       ..write(obj.pointer)
       ..writeByte(2)

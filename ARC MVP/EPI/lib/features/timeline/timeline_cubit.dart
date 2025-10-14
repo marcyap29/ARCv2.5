@@ -250,6 +250,12 @@ class TimelineCubit extends Cubit<TimelineState> {
       }
 
       print('DEBUG: Entry ${entry.id} - Final phase: $phase, Media count: ${entry.media.length}');
+      if (entry.media.isNotEmpty) {
+        for (int i = 0; i < entry.media.length; i++) {
+          final media = entry.media[i];
+          print('DEBUG: Timeline Media $i - Type: ${media.type}, URI: ${media.uri}, AnalysisData: ${media.analysisData?.keys}');
+        }
+      }
 
       return TimelineEntry(
         id: entry.id,

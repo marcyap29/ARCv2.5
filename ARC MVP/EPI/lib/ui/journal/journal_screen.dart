@@ -21,6 +21,7 @@ import '../../arc/core/keyword_extraction_cubit.dart';
 import '../../arc/core/journal_capture_cubit.dart';
 import '../../arc/core/journal_repository.dart';
 import '../../arc/core/widgets/keyword_analysis_view.dart';
+import '../../features/timeline/timeline_cubit.dart';
 import '../../core/services/draft_cache_service.dart';
 import '../../core/services/photo_library_service.dart';
 import '../../data/models/media_item.dart';
@@ -472,6 +473,10 @@ class _JournalScreenState extends State<JournalScreen> {
               final mediaItems = MediaConversionUtils.attachmentsToMediaItems(_entryState.attachments);
               print('DEBUG: Saving entry with ${mediaItems.length} media items');
               print('DEBUG: Attachments count: ${_entryState.attachments.length}');
+              for (int i = 0; i < mediaItems.length; i++) {
+                final media = mediaItems[i];
+                print('DEBUG: Media $i - Type: ${media.type}, URI: ${media.uri}, AnalysisData: ${media.analysisData?.keys}');
+              }
               return mediaItems;
             })(),
           ),
@@ -489,6 +494,10 @@ class _JournalScreenState extends State<JournalScreen> {
         setState(() {
           _entryState.clear();
         });
+        
+        // Refresh the timeline to show the new entry
+        _refreshTimelineAfterSave();
+        
         // Navigate back to the previous screen
         Navigator.of(context).pop();
       }
@@ -1614,6 +1623,18 @@ class _JournalScreenState extends State<JournalScreen> {
       debugPrint('JournalScreen: Completed draft');
     } catch (e) {
       debugPrint('JournalScreen: Failed to complete draft: $e');
+    }
+  }
+
+  /// Refresh timeline after saving an entry
+  Future<void> _refreshTimelineAfterSave() async {
+    try {
+      // Get the timeline cubit from the context
+      final timelineCubit = context.read<TimelineCubit>();
+      await timelineCubit.refreshEntries();
+      print('DEBUG: Timeline refreshed after saving entry');
+    } catch (e) {
+      print('DEBUG: Failed to refresh timeline after save: $e');
     }
   }
 
