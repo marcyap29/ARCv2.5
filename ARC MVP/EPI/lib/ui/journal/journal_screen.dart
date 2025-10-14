@@ -518,12 +518,38 @@ class _JournalScreenState extends State<JournalScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                      // Main text field with AI suggestion support
-                      _buildAITextField(theme),
-                      const SizedBox(height: 16),
+                        // Photo selection controls (show at top when there are photos)
+                        if (_entryState.attachments.any((attachment) => attachment is PhotoAttachment)) ...[
+                          _buildPhotoSelectionControls(),
+                          const SizedBox(height: 16),
+                        ],
 
-                      // Interleaved content: text segments, photos, and reflections in chronological order
-                      ..._buildInterleavedContent(theme),
+                        // Check if we have photos with insertion positions
+                        if (_hasInlinePhotos()) ...[
+                          // Show interleaved content only (photos inline with text)
+                          ..._buildInterleavedContent(theme),
+                        ] else ...[
+                          // Show normal TextField when no inline photos
+                          _buildAITextField(theme),
+                          const SizedBox(height: 16),
+                        ],
+
+                        // Always show reflection blocks (they're handled in _buildInterleavedContent when no inline photos)
+                        if (!_hasInlinePhotos()) ...[
+                          ..._entryState.blocks.asMap().entries.map((entry) {
+                            final index = entry.key;
+                            final block = entry.value;
+                            return InlineReflectionBlock(
+                              content: block.content,
+                              intent: block.intent,
+                              phase: block.phase,
+                              onRegenerate: () => _onRegenerateReflection(index),
+                              onSoften: () => _onSoftenReflection(index),
+                              onMoreDepth: () => _onMoreDepthReflection(index),
+                              onContinueWithLumara: _onContinueWithLumara,
+                            );
+                          }),
+                        ],
 
                       // Keywords Discovered section (conditional visibility)
                       if (_showKeywordsDiscovered)
@@ -538,12 +564,6 @@ class _JournalScreenState extends State<JournalScreen> {
                           onAddKeywords: _showKeywordDialog,
                         ),
 
-                      // Photo selection controls (only show if there are photo attachments)
-                      if (_entryState.attachments.any((attachment) => attachment is PhotoAttachment)) ...[
-                        const SizedBox(height: 16),
-                        _buildPhotoSelectionControls(),
-                        const SizedBox(height: 8),
-                      ],
 
                       // Scan attachments (OCR text) - shown separately
                       ..._entryState.attachments.where((a) => a is ScanAttachment).map((attachment) {
@@ -671,6 +691,13 @@ class _JournalScreenState extends State<JournalScreen> {
         ),
       ),
     );
+  }
+
+  /// Check if there are any photos with inline insertion positions
+  bool _hasInlinePhotos() {
+    return _entryState.attachments
+        .whereType<PhotoAttachment>()
+        .any((photo) => photo.insertionPosition != null);
   }
 
   /// Build interleaved content showing photos at their insertion positions within text
@@ -1936,26 +1963,24 @@ class _JournalScreenState extends State<JournalScreen> {
       if (result['success'] == true) {
         print('DEBUG: Photo analysis successful');
 
-        // Only save NEW photos to Photo Library (not existing ones from gallery)
-        // Photos from camera will have a temp path, photos from gallery might already be in library
+        // Save photo to Photo Library with duplicate detection
+        // The duplicate detection will check if this photo already exists in the library
+        // and return the existing photo ID instead of saving a duplicate
         String photoReference = imagePath;
 
-        // Check if this is a temporary file (camera capture) vs existing file (gallery selection)
-        // Temporary files are typically in /var/mobile/Containers/Data/Application/.../tmp/
-        final isTempFile = imagePath.contains('/tmp/') || imagePath.contains('image_picker');
+        print('DEBUG: Attempting to save photo to iOS Photo Library (with duplicate detection)...');
+        final photoLibraryId = await PhotoLibraryService.savePhotoToLibrary(
+          imagePath,
+          checkDuplicates: true, // Enable duplicate detection
+        );
 
-        if (isTempFile) {
-          print('DEBUG: Temporary file detected, saving to iOS Photo Library...');
-          final photoLibraryId = await PhotoLibraryService.savePhotoToLibrary(imagePath);
-
-          if (photoLibraryId == null) {
-            throw Exception('Failed to save photo to photo library');
-          }
-
-          print('DEBUG: Photo saved to library with ID: $photoLibraryId');
-          photoReference = photoLibraryId;
+        if (photoLibraryId == null) {
+          // If saving failed, fall back to using the original file path
+          print('DEBUG: Photo library save failed, using original file path as fallback');
+          photoReference = imagePath;
         } else {
-          print('DEBUG: Using existing photo path (not saving duplicate): $imagePath');
+          print('DEBUG: Photo saved/found in library with ID: $photoLibraryId');
+          photoReference = photoLibraryId;
         }
 
         // Generate alt text from analysis
