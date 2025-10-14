@@ -207,7 +207,6 @@ class IOSVisionOrchestrator {
       
       // Generate perceptual hash
       final phash = _generatePerceptualHash(imageBytes);
-      print('DEBUG: Generated phash: $phash (length: ${phash.length})');
       
       // Calculate image complexity
       final complexity = _calculateImageComplexity(image);
@@ -307,15 +306,8 @@ class IOSVisionOrchestrator {
   String _generatePerceptualHash(Uint8List imageBytes) {
     try {
       final hash = sha256.convert(imageBytes);
-      final hashString = hash.toString();
-      print('DEBUG: Generated hash length: ${hashString.length}');
-      if (hashString.length < 16) {
-        print('WARNING: Hash is shorter than 16 characters: $hashString');
-        return 'hash_error_12345';
-      }
-      return hashString.substring(0, 16);
+      return hash.toString().substring(0, 16);
     } catch (e) {
-      print('ERROR: Failed to generate hash: $e');
       // Return a 16-character fallback hash to prevent RangeError
       return 'hash_error_12345';
     }
