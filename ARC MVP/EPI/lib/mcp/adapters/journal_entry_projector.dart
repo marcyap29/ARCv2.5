@@ -151,13 +151,25 @@ class McpEntryProjector {
     final timestamp = entry.createdAt.toUtc().toIso8601String();
     final sage = entry.sageAnnotation;
 
+    // Convert media items to a simple format for export
+    final mediaData = entry.media.map((media) => {
+      'id': media.id,
+      'uri': media.uri,
+      'type': media.type.name,
+      'created_at': media.createdAt.toUtc().toIso8601String(),
+      if (media.altText != null) 'alt_text': media.altText,
+      if (media.ocrText != null) 'ocr_text': media.ocrText,
+      if (media.analysisData != null) 'analysis_data': media.analysisData,
+    }).toList();
+
     return {
       'id': 'je_${entry.id}',
       'type': 'journal_entry',
       'timestamp': timestamp,
       'phase_hint': entry.mood, // Using mood as phase hint
-      'content': entry.content, // Include the actual journal entry content
+      'content': entry.content, // Include the actual journal entry content (with photo placeholders)
       'title': entry.title, // Include the title
+      'media': mediaData, // Include media items for photo placeholder reconstruction
       'narrative': {
         'situation': sage?.situation ?? '',
         'action': sage?.action ?? '',

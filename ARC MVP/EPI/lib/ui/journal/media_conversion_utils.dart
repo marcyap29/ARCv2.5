@@ -6,7 +6,7 @@ class MediaConversionUtils {
   /// Convert PhotoAttachment to MediaItem
   static MediaItem photoAttachmentToMediaItem(PhotoAttachment attachment) {
     return MediaItem(
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      id: attachment.photoId ?? DateTime.now().millisecondsSinceEpoch.toString(), // Use photoId if available for placeholder matching
       uri: attachment.imagePath,
       type: MediaType.image,
       createdAt: DateTime.fromMillisecondsSinceEpoch(attachment.timestamp),
@@ -57,6 +57,7 @@ class MediaConversionUtils {
       analysisResult: mediaItem.analysisData ?? {},
       timestamp: mediaItem.createdAt.millisecondsSinceEpoch,
       altText: mediaItem.altText,
+      photoId: mediaItem.id, // Preserve the photoId for placeholder matching
       // Note: insertionPosition is lost in conversion, will be null
       // This is acceptable as photos will display in chronological order by timestamp
     );

@@ -1837,16 +1837,8 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
 
   /// Extract photo ID from media item
   String? _extractPhotoIdFromMedia(MediaItem media) {
-    // Try to extract photo ID from URI or use a hash of the URI
-    final uri = media.uri;
-    if (uri.contains('photo_')) {
-      final match = RegExp(r'photo_(\d+)').firstMatch(uri);
-      if (match != null) {
-        return 'photo_${match.group(1)}';
-      }
-    }
-    // Fallback: use a hash of the URI
-    return 'photo_${uri.hashCode}';
+    // Use the media item ID directly - this is the photoId we need
+    return media.id;
   }
 
   /// Handle photo link tap

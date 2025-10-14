@@ -1049,15 +1049,35 @@ class McpImportService {
   /// Extract media items from photo placeholders in content
   List<MediaItem> _extractMediaFromPlaceholders(String content, McpNode node) {
     final mediaItems = <MediaItem>[];
-    
-    // Find all photo placeholders in the content
+
+    // First, try to get media directly from node metadata (preferred method)
+    if (node.metadata != null && node.metadata!.containsKey('media')) {
+      final mediaData = node.metadata!['media'] as List?;
+      if (mediaData != null && mediaData.isNotEmpty) {
+        print('🔄 DEBUG: Found ${mediaData.length} media items in node metadata');
+        for (final mediaJson in mediaData) {
+          if (mediaJson is Map<String, dynamic>) {
+            try {
+              final mediaItem = _parseMediaItemFromJson(mediaJson, node);
+              mediaItems.add(mediaItem);
+              print('🔄 DEBUG: Reconstructed media item: ${mediaItem.id}');
+            } catch (e) {
+              print('⚠️ DEBUG: Failed to parse media item: $e');
+            }
+          }
+        }
+        return mediaItems;
+      }
+    }
+
+    // Fallback: Find photo placeholders in content and try to match with metadata
     final photoPlaceholderRegex = RegExp(r'\[PHOTO:([^\]]+)\]');
     final matches = photoPlaceholderRegex.allMatches(content);
-    
+
     for (final match in matches) {
       final photoId = match.group(1)!;
-      
-      // Try to find corresponding media in node pointers
+
+      // Try to find corresponding media in node metadata
       final mediaItem = _findMediaForPhotoId(photoId, node);
       if (mediaItem != null) {
         mediaItems.add(mediaItem);
@@ -1066,16 +1086,61 @@ class McpImportService {
         print('⚠️ DEBUG: Could not find media for photo ID: $photoId');
       }
     }
-    
+
     return mediaItems;
+  }
+
+  /// Parse MediaItem from JSON export format
+  MediaItem _parseMediaItemFromJson(Map<String, dynamic> json, McpNode node) {
+    return MediaItem(
+      id: json['id'] as String,
+      uri: json['uri'] as String,
+      type: _parseMediaType(json['type'] as String?),
+      createdAt: json['created_at'] != null
+          ? DateTime.parse(json['created_at'] as String)
+          : node.timestamp,
+      altText: json['alt_text'] as String?,
+      ocrText: json['ocr_text'] as String?,
+      analysisData: json['analysis_data'] as Map<String, dynamic>?,
+    );
+  }
+
+  /// Parse MediaType from string
+  MediaType _parseMediaType(String? typeString) {
+    switch (typeString?.toLowerCase()) {
+      case 'image':
+        return MediaType.image;
+      case 'audio':
+        return MediaType.audio;
+      case 'video':
+        return MediaType.video;
+      case 'file':
+        return MediaType.file;
+      default:
+        return MediaType.image; // Default to image
+    }
   }
 
   /// Find media item for a photo ID from node metadata
   MediaItem? _findMediaForPhotoId(String photoId, McpNode node) {
-    // For now, create a placeholder media item based on the photo ID
-    // In a full implementation, this would look up the actual media from the MCP bundle
+    // Try to find media in node metadata by matching photo ID
+    if (node.metadata != null && node.metadata!.containsKey('media')) {
+      final mediaData = node.metadata!['media'] as List?;
+      if (mediaData != null) {
+        for (final mediaJson in mediaData) {
+          if (mediaJson is Map<String, dynamic>) {
+            final mediaId = mediaJson['id'] as String?;
+            if (mediaId == photoId) {
+              return _parseMediaItemFromJson(mediaJson, node);
+            }
+          }
+        }
+      }
+    }
+
+    // Fallback: create a placeholder media item if not found
     return MediaItem(
-      id: 'imported_$photoId',
+      id: photoId,
       uri: 'placeholder://$photoId', // Placeholder URI
       type: MediaType.image, // Default to image
       createdAt: node.timestamp,
