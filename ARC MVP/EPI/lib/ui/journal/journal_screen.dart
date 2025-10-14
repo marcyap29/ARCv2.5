@@ -344,9 +344,8 @@ class _JournalScreenState extends State<JournalScreen> {
     final currentText = _textController.text;
     final cursorPosition = _textController.selection.baseOffset;
     
-    // Create a unique placeholder with ID
-    final placeholderId = 'photo_${attachment.timestamp}';
-    final placeholderText = '\n\n[PHOTO:$placeholderId]\n\n';
+    // Create placeholder text for photo
+    const placeholderText = '\n\n📸 [Photo Analysis]\n\n';
     
     final newText = '${currentText.substring(0, cursorPosition)}$placeholderText${currentText.substring(cursorPosition)}';
     
@@ -361,21 +360,19 @@ class _JournalScreenState extends State<JournalScreen> {
   /// Parse text content and extract photo placeholders
   List<Map<String, dynamic>> _parsePhotoPlaceholders(String text) {
     final placeholders = <Map<String, dynamic>>[];
-    final regex = RegExp(r'\[PHOTO:([^\]]+)\]');
+    final regex = RegExp(r'📸 \[Photo Analysis\]');
     final matches = regex.allMatches(text);
     
     for (final match in matches) {
-      final placeholderId = match.group(1)!;
       final startIndex = match.start;
       final endIndex = match.end;
       
-      // Find the corresponding PhotoAttachment
-      final photoAttachment = _entryState.attachments
-          .whereType<PhotoAttachment>()
-          .where((attachment) => 'photo_${attachment.timestamp}' == placeholderId)
-          .firstOrNull;
-      
-      if (photoAttachment != null) {
+      // Find the most recent photo attachment (since we don't have IDs in the new format)
+      final photoAttachments = _entryState.attachments.whereType<PhotoAttachment>().toList();
+      if (photoAttachments.isNotEmpty) {
+        final photoAttachment = photoAttachments.last; // Use the most recent photo
+        final placeholderId = 'photo_${photoAttachment.timestamp}';
+        
         placeholders.add({
           'id': placeholderId,
           'startIndex': startIndex,
@@ -411,15 +408,15 @@ class _JournalScreenState extends State<JournalScreen> {
           const SizedBox(height: 8),
           ...placeholders.map((placeholder) {
             final attachment = placeholder['attachment'] as PhotoAttachment;
-            return _buildInlinePhotoThumbnail(attachment);
+            return _buildUnifiedPhotoDisplay(attachment);
           }),
         ],
       ),
     );
   }
 
-  /// Build a compact photo thumbnail for inline display
-  Widget _buildInlinePhotoThumbnail(PhotoAttachment attachment) {
+  /// Build a unified photo display with identifier and thumbnail on same line
+  Widget _buildUnifiedPhotoDisplay(PhotoAttachment attachment) {
     final analysis = attachment.analysisResult;
     final summary = analysis['summary'] as String? ?? 'Photo analyzed';
     
@@ -438,16 +435,25 @@ class _JournalScreenState extends State<JournalScreen> {
           ),
           child: Row(
             children: [
+              // Photo identifier text
+              Text(
+                '📸 [Photo Analysis]',
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  fontWeight: FontWeight.w500,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+              ),
+              const SizedBox(width: 12),
               // Photo thumbnail
               Container(
-                width: 60,
-                height: 60,
+                width: 40,
+                height: 40,
                 decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(6),
                   color: Theme.of(context).colorScheme.surface,
                 ),
                 child: ClipRRect(
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(6),
                   child: Image.file(
                     File(attachment.imagePath),
                     fit: BoxFit.cover,
@@ -457,42 +463,30 @@ class _JournalScreenState extends State<JournalScreen> {
                         child: Icon(
                           Icons.photo,
                           color: Theme.of(context).colorScheme.primary,
+                          size: 20,
                         ),
                       );
                     },
                   ),
                 ),
               ),
-              const SizedBox(width: 12),
-              // Photo info
+              const SizedBox(width: 8),
+              // Analysis summary (compact)
               Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      '📸 Photo',
-                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.w600,
-                        color: Theme.of(context).colorScheme.primary,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      summary,
-                      style: Theme.of(context).textTheme.bodySmall,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'Tap to view full photo',
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: Theme.of(context).colorScheme.primary,
-                        fontStyle: FontStyle.italic,
-                      ),
-                    ),
-                  ],
+                child: Text(
+                  summary,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
+              ),
+              // Click indicator
+              Icon(
+                Icons.open_in_new,
+                size: 16,
+                color: Theme.of(context).colorScheme.primary,
               ),
             ],
           ),
