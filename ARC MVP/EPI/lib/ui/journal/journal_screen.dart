@@ -633,6 +633,68 @@ class _JournalScreenState extends State<JournalScreen> {
     );
   }
 
+  Widget _buildPhotoThumbnail(String imagePath) {
+    // Check if this is a photo library ID (starts with "ph://") or a file path
+    final isPhotoLibraryId = imagePath.startsWith('ph://');
+    
+    if (isPhotoLibraryId) {
+      // Load thumbnail from photo library
+      return FutureBuilder<String?>(
+        future: PhotoLibraryService.getPhotoThumbnail(imagePath, size: 80),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return Container(
+              color: Theme.of(context).colorScheme.surfaceContainerHighest,
+              child: const Center(
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+            );
+          }
+          
+          if (snapshot.hasData && snapshot.data != null) {
+            return Image.file(
+              File(snapshot.data!),
+              fit: BoxFit.cover,
+              errorBuilder: (context, error, stackTrace) {
+                return Container(
+                  color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                  child: Icon(
+                    Icons.photo,
+                    color: Theme.of(context).colorScheme.onSurface.withOpacity(0.5),
+                  ),
+                );
+              },
+            );
+          }
+          
+          // Fallback for photo library errors
+          return Container(
+            color: Theme.of(context).colorScheme.surfaceContainerHighest,
+            child: Icon(
+              Icons.photo,
+              color: Theme.of(context).colorScheme.onSurface.withOpacity(0.5),
+            ),
+          );
+        },
+      );
+    } else {
+      // Load from file path (temporary files)
+      return Image.file(
+        File(imagePath),
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) {
+          return Container(
+            color: Theme.of(context).colorScheme.surfaceContainerHighest,
+            child: Icon(
+              Icons.photo,
+              color: Theme.of(context).colorScheme.onSurface.withOpacity(0.5),
+            ),
+          );
+        },
+      );
+    }
+  }
+
   Widget _buildPhotoAttachment(PhotoAttachment attachment, int index) {
     final analysis = attachment.analysisResult;
     final summary = analysis['summary'] as String? ?? 'Photo analyzed';
@@ -712,19 +774,7 @@ class _JournalScreenState extends State<JournalScreen> {
                 ),
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(8),
-                  child: Image.file(
-                    File(attachment.imagePath),
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) {
-                      return Container(
-                        color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                        child: Icon(
-                          Icons.photo,
-                          color: Theme.of(context).colorScheme.onSurface.withOpacity(0.5),
-                        ),
-                      );
-                    },
-                  ),
+                  child: _buildPhotoThumbnail(attachment.imagePath),
                 ),
               ),
               const SizedBox(width: 12),
@@ -1605,13 +1655,23 @@ class _JournalScreenState extends State<JournalScreen> {
       if (result['success'] == true) {
         print('DEBUG: Photo analysis successful');
         
+        // Save photo to iOS Photo Library for persistent storage
+        print('DEBUG: Saving photo to iOS Photo Library...');
+        final photoLibraryId = await PhotoLibraryService.savePhotoToLibrary(imagePath);
+        
+        if (photoLibraryId == null) {
+          throw Exception('Failed to save photo to photo library');
+        }
+        
+        print('DEBUG: Photo saved to library with ID: $photoLibraryId');
+        
         // Generate alt text from analysis
         final altText = MediaAltTextGenerator.generateFromAnalysis(result);
 
-        // Create photo attachment with original path (simplified for now)
+        // Create photo attachment with photo library ID for persistent storage
         final photoAttachment = PhotoAttachment(
           type: 'photo_analysis',
-          imagePath: imagePath, // Use original path for now
+          imagePath: photoLibraryId, // Use photo library ID for persistence
           analysisResult: result,
           timestamp: DateTime.now().millisecondsSinceEpoch,
           altText: altText,
