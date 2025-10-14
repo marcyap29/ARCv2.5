@@ -23,10 +23,7 @@ import '../../arc/core/journal_repository.dart';
 import '../../arc/core/widgets/keyword_analysis_view.dart';
 import '../../core/services/draft_cache_service.dart';
 import '../../data/models/media_item.dart';
-import '../../models/journal_entry_model.dart';
 import '../../mcp/orchestrator/ios_vision_orchestrator.dart';
-import '../../services/keyword_analysis_service.dart';
-import 'media_conversion_utils.dart';
 import 'widgets/lumara_suggestion_sheet.dart';
 import 'widgets/inline_reflection_block.dart';
 import 'widgets/full_screen_photo_viewer.dart';
@@ -37,14 +34,12 @@ class JournalScreen extends StatefulWidget {
   final String? selectedEmotion;
   final String? selectedReason;
   final String? initialContent;
-  final JournalEntry? existingEntry; // For editing existing entries
   
   const JournalScreen({
     super.key,
     this.selectedEmotion,
     this.selectedReason,
     this.initialContent,
-    this.existingEntry,
   });
 
   @override
@@ -74,11 +69,6 @@ class _JournalScreenState extends State<JournalScreen> {
   final TextEditingController _keywordController = TextEditingController();
   List<String> _manualKeywords = [];
   
-  // Real-time keyword discovery
-  final KeywordAnalysisService _keywordService = KeywordAnalysisService();
-  Map<String, List<String>> _discoveredKeywords = {};
-  List<String> _selectedKeywords = [];
-  
   // UI state management
   bool _showKeywordsDiscovered = false;
   bool _showLumaraBox = false;
@@ -86,13 +76,6 @@ class _JournalScreenState extends State<JournalScreen> {
   // Periodic discovery service
   final PeriodicDiscoveryService _discoveryService = PeriodicDiscoveryService();
   bool _showDiscoveryPopup = false;
-  
-  // Editing state for existing entries
-  bool get _isEditing => widget.existingEntry != null;
-  DateTime? _selectedDate;
-  TimeOfDay? _selectedTime;
-  String? _selectedLocation;
-  String? _selectedPhase;
 
   @override
   void initState() {
@@ -111,16 +94,8 @@ class _JournalScreenState extends State<JournalScreen> {
     
     _analytics.logJournalEvent('opened');
 
-    // Initialize with existing entry or draft content
-    if (_isEditing && widget.existingEntry != null) {
-      final entry = widget.existingEntry!;
-      _textController.text = entry.content;
-      _entryState.text = entry.content;
-      _selectedDate = entry.createdAt;
-      _selectedTime = TimeOfDay.fromDateTime(entry.createdAt);
-      _selectedLocation = entry.location;
-      _selectedPhase = entry.phase;
-    } else if (widget.initialContent != null) {
+    // Initialize with draft content if provided
+    if (widget.initialContent != null) {
       _textController.text = widget.initialContent!;
       _entryState.text = widget.initialContent!;
     }
@@ -152,20 +127,6 @@ class _JournalScreenState extends State<JournalScreen> {
     
     // Update draft cache
     _updateDraftContent(text);
-    
-    // Perform real-time keyword analysis
-    _analyzeKeywordsInRealTime(text);
-  }
-  
-  void _analyzeKeywordsInRealTime(String text) {
-    if (text.trim().isNotEmpty) {
-      final discoveredKeywords = _keywordService.analyzeKeywords(text);
-      setState(() {
-        _discoveredKeywords = discoveredKeywords;
-        // Auto-select all discovered keywords
-        _selectedKeywords = discoveredKeywords.values.expand((keywords) => keywords).toList();
-      });
-    }
   }
 
   void _onLumaraFabTapped() {
@@ -339,185 +300,11 @@ class _JournalScreenState extends State<JournalScreen> {
     _onTextChanged(newText);
   }
 
-  /// Insert photo placeholder at cursor position
-  void _insertPhotoPlaceholder(PhotoAttachment attachment) {
-    final currentText = _textController.text;
-    final cursorPosition = _textController.selection.baseOffset;
-    
-    // Create placeholder text for photo
-    const placeholderText = '\n\n📸 [Photo Analysis]\n\n';
-    
-    final newText = '${currentText.substring(0, cursorPosition)}$placeholderText${currentText.substring(cursorPosition)}';
-    
-    _textController.text = newText;
-    _textController.selection = TextSelection.collapsed(
-      offset: cursorPosition + placeholderText.length,
-    );
-    
-    _onTextChanged(newText);
-  }
-
-  /// Parse text content and extract photo placeholders
-  List<Map<String, dynamic>> _parsePhotoPlaceholders(String text) {
-    final placeholders = <Map<String, dynamic>>[];
-    final regex = RegExp(r'📸 \[Photo Analysis\]');
-    final matches = regex.allMatches(text);
-    
-    for (final match in matches) {
-      final startIndex = match.start;
-      final endIndex = match.end;
-      
-      // Find the most recent photo attachment (since we don't have IDs in the new format)
-      final photoAttachments = _entryState.attachments.whereType<PhotoAttachment>().toList();
-      if (photoAttachments.isNotEmpty) {
-        final photoAttachment = photoAttachments.last; // Use the most recent photo
-        final placeholderId = 'photo_${photoAttachment.timestamp}';
-        
-        placeholders.add({
-          'id': placeholderId,
-          'startIndex': startIndex,
-          'endIndex': endIndex,
-          'attachment': photoAttachment,
-        });
-      }
-    }
-    
-    return placeholders;
-  }
-
-  /// Build inline photo display that shows photos in text order
-  Widget _buildInlinePhotoDisplay() {
-    final placeholders = _parsePhotoPlaceholders(_entryState.text);
-    
-    if (placeholders.isEmpty) {
-      return const SizedBox.shrink();
-    }
-    
-    return Container(
-      margin: const EdgeInsets.only(top: 16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Photos in this entry:',
-            style: Theme.of(context).textTheme.titleSmall?.copyWith(
-              fontWeight: FontWeight.w600,
-              color: Theme.of(context).colorScheme.primary,
-            ),
-          ),
-          const SizedBox(height: 8),
-          ...placeholders.map((placeholder) {
-            final attachment = placeholder['attachment'] as PhotoAttachment;
-            return _buildUnifiedPhotoDisplay(attachment);
-          }),
-        ],
-      ),
-    );
-  }
-
-  /// Build a unified photo display with identifier and thumbnail on same line
-  Widget _buildUnifiedPhotoDisplay(PhotoAttachment attachment) {
-    final analysis = attachment.analysisResult;
-    final summary = analysis['summary'] as String? ?? 'Photo analyzed';
-    
-    // Debug: Check if image file exists
-    final imageFile = File(attachment.imagePath);
-    final fileExists = imageFile.existsSync();
-    print('DEBUG: Photo thumbnail - Path: ${attachment.imagePath}, Exists: $fileExists');
-    
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      child: InkWell(
-        onTap: () => _openPhotoInGallery(attachment.imagePath),
-        child: Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: Theme.of(context).colorScheme.surfaceContainerHighest.withOpacity(0.3),
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(
-              color: Theme.of(context).colorScheme.outline.withOpacity(0.2),
-            ),
-          ),
-          child: Row(
-            children: [
-              // Photo identifier text
-              Text(
-                '📸 [Photo Analysis]',
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  fontWeight: FontWeight.w500,
-                  color: Theme.of(context).colorScheme.primary,
-                ),
-              ),
-              const SizedBox(width: 12),
-              // Photo thumbnail
-              Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(6),
-                  color: Theme.of(context).colorScheme.surface,
-                ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(6),
-                  child: fileExists 
-                    ? Image.file(
-                        imageFile,
-                        fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) {
-                          print('DEBUG: Image.file error: $error');
-                          return Container(
-                            color: Theme.of(context).colorScheme.surface,
-                            child: Icon(
-                              Icons.photo,
-                              color: Theme.of(context).colorScheme.primary,
-                              size: 20,
-                            ),
-                          );
-                        },
-                      )
-                    : Container(
-                        color: Theme.of(context).colorScheme.surface,
-                        child: Icon(
-                          Icons.photo,
-                          color: Theme.of(context).colorScheme.primary,
-                          size: 20,
-                        ),
-                      ),
-                ),
-              ),
-              const SizedBox(width: 8),
-              // Analysis summary (compact)
-              Expanded(
-                child: Text(
-                  summary,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-              // Click indicator
-              Icon(
-                Icons.open_in_new,
-                size: 16,
-                color: Theme.of(context).colorScheme.primary,
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
   void _onContinue() {
     _analytics.logJournalEvent('continue_pressed', data: {
       'text_length': _entryState.text.length,
       'reflection_count': _entryState.blocks.length,
     });
-    
-    // Convert attachments to MediaItems
-    final mediaItems = MediaConversionUtils.attachmentsToMediaItems(_entryState.attachments);
     
     // Navigate to keyword analysis
     Navigator.of(context).push<Map<String, dynamic>>(
@@ -537,14 +324,6 @@ class _JournalScreenState extends State<JournalScreen> {
             initialEmotion: widget.selectedEmotion,
             initialReason: widget.selectedReason,
             manualKeywords: _manualKeywords,
-            discoveredKeywords: _discoveredKeywords,
-            selectedKeywords: _selectedKeywords,
-            existingEntry: widget.existingEntry,
-            selectedDate: _selectedDate,
-            selectedTime: _selectedTime,
-            selectedLocation: _selectedLocation,
-            selectedPhase: _selectedPhase,
-            mediaItems: mediaItems, // Pass converted media items
           ),
         ),
       ),
@@ -573,7 +352,7 @@ class _JournalScreenState extends State<JournalScreen> {
     return Scaffold(
       backgroundColor: theme.colorScheme.surface,
       appBar: AppBar(
-        title: Text(_isEditing ? 'Edit Entry' : 'What\'s on your mind?'),
+        title: const Text('Write what is true right now'),
         backgroundColor: Colors.transparent,
         elevation: 0,
         actions: [
@@ -614,18 +393,9 @@ class _JournalScreenState extends State<JournalScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                      // Editing controls for existing entries (moved to top)
-                      if (_isEditing) ...[
-                        _buildEditingControls(theme),
-                        const SizedBox(height: 16),
-                      ],
-                      
                       // Main text field with AI suggestion support
                       _buildAITextField(theme),
                       const SizedBox(height: 16),
-                      
-                      // Inline photo display (shows photos in text order)
-                      _buildInlinePhotoDisplay(),
                       
                       // Inline reflection blocks
                       ..._entryState.blocks.asMap().entries.map((entry) {
@@ -655,11 +425,13 @@ class _JournalScreenState extends State<JournalScreen> {
                           onAddKeywords: _showKeywordDialog,
                         ),
                       
-                      // Attachments (scan only - photos are shown inline)
+                      // Attachments (scan and photo)
                       ..._entryState.attachments.asMap().entries.map((entry) {
                         final index = entry.key;
                         final attachment = entry.value;
-                        if (attachment is ScanAttachment) {
+                        if (attachment is PhotoAttachment) {
+                          return _buildPhotoAttachment(attachment, index);
+                        } else if (attachment is ScanAttachment) {
                           return _buildScanAttachment(attachment);
                         }
                         return const SizedBox.shrink();
@@ -1287,7 +1059,6 @@ class _JournalScreenState extends State<JournalScreen> {
       controller: _textController,
       onChanged: _onTextChanged,
       maxLines: null,
-      textCapitalization: TextCapitalization.sentences,
       style: theme.textTheme.bodyLarge?.copyWith(
         color: Colors.white,
         fontSize: 16,
@@ -1914,8 +1685,17 @@ class _JournalScreenState extends State<JournalScreen> {
         final faces = result['faces'] as List<Map<String, dynamic>>? ?? [];
         final labels = result['labels'] as List<Map<String, dynamic>>? ?? [];
         
-        // Insert photo placeholder at cursor position instead of analysis text
-        _insertPhotoPlaceholder(photoAttachment);
+        // Create rich analysis text
+        final analysisText = _createPhotoAnalysisText(
+          summary: summary,
+          ocrText: ocrText,
+          objects: objects,
+          faces: faces,
+          labels: labels,
+          attachmentIndex: _entryState.attachments.length - 1,
+        );
+        
+        _insertTextIntoEntry(analysisText);
 
         // Show success message with summary
         ScaffoldMessenger.of(context).showSnackBar(
@@ -1991,7 +1771,7 @@ class _JournalScreenState extends State<JournalScreen> {
   Future<void> _performOCR(File imageFile) async {
     try {
       final extractedText = await _ocrService.extractText(imageFile);
-      if (extractedText.isNotEmpty) {
+      if (extractedText != null && extractedText.isNotEmpty) {
         // Create ScanAttachment for the attachments list
         final scanAttachment = ScanAttachment(
           type: 'ocr_text',
@@ -2030,191 +1810,6 @@ class _JournalScreenState extends State<JournalScreen> {
           backgroundColor: Theme.of(context).colorScheme.error,
         ),
       );
-    }
-  }
-
-  /// Build editing controls for existing entries
-  Widget _buildEditingControls(ThemeData theme) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.3),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: theme.colorScheme.outline.withOpacity(0.2),
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(
-                Icons.edit,
-                size: 16,
-                color: theme.colorScheme.primary,
-              ),
-              const SizedBox(width: 8),
-              Text(
-                'Edit Entry Details',
-                style: theme.textTheme.labelMedium?.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          
-          // Date and Time Row
-          Flexible(
-            child: Row(
-              children: [
-                // Date picker
-                Expanded(
-                child: InkWell(
-                  onTap: _selectDate,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-                    decoration: BoxDecoration(
-                      border: Border.all(color: theme.colorScheme.outline.withOpacity(0.3)),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(Icons.calendar_today, size: 16, color: theme.colorScheme.primary),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            _selectedDate != null 
-                              ? '${_selectedDate!.month}/${_selectedDate!.day}/${_selectedDate!.year}'
-                              : 'Select Date',
-                            style: theme.textTheme.bodyMedium,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 12),
-              // Time picker
-              Expanded(
-                child: InkWell(
-                  onTap: _selectTime,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-                    decoration: BoxDecoration(
-                      border: Border.all(color: theme.colorScheme.outline.withOpacity(0.3)),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(Icons.access_time, size: 16, color: theme.colorScheme.primary),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            _selectedTime != null 
-                              ? _selectedTime!.format(context)
-                              : 'Select Time',
-                            style: theme.textTheme.bodyMedium,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ],
-            ),
-          ),
-          const SizedBox(height: 12),
-          
-          // Location and Phase Row
-          Flexible(
-            child: Row(
-              children: [
-                // Location input
-                Expanded(
-                child: TextField(
-                  controller: TextEditingController(text: _selectedLocation ?? ''),
-                  textCapitalization: TextCapitalization.words,
-                  decoration: InputDecoration(
-                    labelText: 'Location',
-                    hintText: 'Where were you?',
-                    prefixIcon: const Icon(Icons.location_on, size: 16),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    contentPadding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-                  ),
-                  onChanged: (value) => _selectedLocation = value,
-                ),
-              ),
-              const SizedBox(width: 12),
-              // Phase selector
-              Expanded(
-                child: DropdownButtonFormField<String>(
-                  value: _selectedPhase,
-                  decoration: InputDecoration(
-                    labelText: 'Phase',
-                    prefixIcon: const Icon(Icons.psychology, size: 16),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    contentPadding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-                  ),
-                  items: const [
-                    DropdownMenuItem(value: 'Discovery', child: Text('Discovery')),
-                    DropdownMenuItem(value: 'Recovery', child: Text('Recovery')),
-                    DropdownMenuItem(value: 'Breakthrough', child: Text('Breakthrough')),
-                    DropdownMenuItem(value: 'Consolidation', child: Text('Consolidation')),
-                  ],
-                  onChanged: (value) => setState(() => _selectedPhase = value),
-                ),
-              ),
-            ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  /// Select date for the entry
-  Future<void> _selectDate() async {
-    final DateTime? picked = await showDatePicker(
-      context: context,
-      initialDate: _selectedDate ?? DateTime.now(),
-      firstDate: DateTime(2020),
-      lastDate: DateTime.now().add(const Duration(days: 365)),
-    );
-    if (picked != null) {
-      setState(() {
-        _selectedDate = picked;
-        // Update time if not set
-        if (_selectedTime == null) {
-          _selectedTime = TimeOfDay.now();
-        }
-      });
-    }
-  }
-
-  /// Select time for the entry
-  Future<void> _selectTime() async {
-    final TimeOfDay? picked = await showTimePicker(
-      context: context,
-      initialTime: _selectedTime ?? TimeOfDay.now(),
-    );
-    if (picked != null) {
-      setState(() {
-        _selectedTime = picked;
-        // Update date if not set
-        if (_selectedDate == null) {
-          _selectedDate = DateTime.now();
-        }
-      });
     }
   }
 }

@@ -363,7 +363,6 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
           Navigator.of(context).push(
             MaterialPageRoute(
               builder: (context) => JournalScreen(
-                existingEntry: fullEntry,
                 initialContent: fullEntry.content,
                 selectedEmotion: fullEntry.emotion,
                 selectedReason: fullEntry.emotionReason,
