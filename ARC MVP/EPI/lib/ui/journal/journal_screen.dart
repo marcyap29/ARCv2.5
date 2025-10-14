@@ -1304,80 +1304,49 @@ class _JournalScreenState extends State<JournalScreen> {
   Future<void> _handlePhotoGallery() async {
     try {
       _analytics.logJournalEvent('photo_button_pressed');
+      print('DEBUG: Opening photo picker directly');
       
-      // First, explicitly request photo library permission
-      print('DEBUG: Requesting photo library permission explicitly');
-      final hasPermissions = await PhotoLibraryService.requestPermissions();
-      
-      if (!hasPermissions) {
-        print('DEBUG: Permission not granted, showing settings dialog');
-        if (mounted) {
-          _showPermissionDeniedDialog();
-        }
-        return;
-      }
-      
-      print('DEBUG: Permission granted, opening photo picker');
       final List<XFile> images = await _imagePicker.pickMultiImage();
       if (images.isNotEmpty) {
+        print('DEBUG: Selected ${images.length} images');
         for (final image in images) {
+          print('DEBUG: Processing image: ${image.path}');
           await _processPhotoWithEnhancedOCP(image.path);
         }
+      } else {
+        print('DEBUG: No images selected');
       }
     } catch (e) {
-      // If permission is denied, show our custom dialog
-      if (e.toString().contains('permission') || e.toString().contains('denied')) {
-        print('DEBUG: Photo permission denied, showing settings dialog');
-        if (mounted) {
-          _showPermissionDeniedDialog();
-        }
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to select photos: $e'),
-            backgroundColor: Theme.of(context).colorScheme.error,
-          ),
-        );
-      }
+      print('DEBUG: Photo picker error: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to select photos: $e'),
+          backgroundColor: Theme.of(context).colorScheme.error,
+        ),
+      );
     }
   }
 
   Future<void> _handleCamera() async {
     try {
       _analytics.logJournalEvent('camera_button_pressed');
+      print('DEBUG: Opening camera directly');
       
-      // First, explicitly request photo library permission (needed for saving photos)
-      print('DEBUG: Requesting photo library permission for camera');
-      final hasPermissions = await PhotoLibraryService.requestPermissions();
-      
-      if (!hasPermissions) {
-        print('DEBUG: Permission not granted, showing settings dialog');
-        if (mounted) {
-          _showPermissionDeniedDialog();
-        }
-        return;
-      }
-      
-      print('DEBUG: Permission granted, opening camera');
       final XFile? image = await _imagePicker.pickImage(source: ImageSource.camera);
       if (image != null) {
+        print('DEBUG: Camera captured image: ${image.path}');
         await _processPhotoWithEnhancedOCP(image.path);
+      } else {
+        print('DEBUG: No image captured from camera');
       }
     } catch (e) {
-      // If permission is denied, show our custom dialog
-      if (e.toString().contains('permission') || e.toString().contains('denied')) {
-        print('DEBUG: Camera permission denied, showing settings dialog');
-        if (mounted) {
-          _showPermissionDeniedDialog();
-        }
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to take photo: $e'),
-            backgroundColor: Theme.of(context).colorScheme.error,
-          ),
-        );
-      }
+      print('DEBUG: Camera error: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to take photo: $e'),
+          backgroundColor: Theme.of(context).colorScheme.error,
+        ),
+      );
     }
   }
 
@@ -1605,34 +1574,15 @@ class _JournalScreenState extends State<JournalScreen> {
       );
 
       if (result['success'] == true) {
-        // Request photo library permissions first
-        final hasPermissions = await PhotoLibraryService.requestPermissions();
-        if (!hasPermissions) {
-          // Always show dialog when permissions are not granted
-          // This handles both temporary denial and permanent denial cases
-          print('DEBUG: Permission not granted, showing settings dialog');
-          if (mounted) {
-            _showPermissionDeniedDialog();
-          }
-          return;
-        }
+        print('DEBUG: Photo analysis successful');
         
-        // Save photo to device photo library for persistent storage
-        final photoLibraryId = await PhotoLibraryService.savePhotoToLibrary(imagePath);
-        
-        if (photoLibraryId == null) {
-          throw Exception('Failed to save photo to photo library');
-        }
-        
-        print('PhotoLibraryService: Photo saved with ID: $photoLibraryId');
-
-        // Generate alt text from analysis for graceful fallback
+        // Generate alt text from analysis
         final altText = MediaAltTextGenerator.generateFromAnalysis(result);
 
-        // Create photo attachment with photo library ID instead of temporary path
+        // Create photo attachment with original path (simplified for now)
         final photoAttachment = PhotoAttachment(
           type: 'photo_analysis',
-          imagePath: photoLibraryId, // Now using photo library ID instead of temp path
+          imagePath: imagePath, // Use original path for now
           analysisResult: result,
           timestamp: DateTime.now().millisecondsSinceEpoch,
           altText: altText,
