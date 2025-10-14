@@ -112,6 +112,7 @@ class PhotoAttachment {
   final int timestamp;
   final String? altText; // Descriptive text for accessibility and fallback (like HTML alt attribute)
   final int? insertionPosition; // Character position in text where photo was added (for inline display)
+  final String? photoId; // Unique ID for text placeholder reference
 
   PhotoAttachment({
     required this.type,
@@ -120,6 +121,7 @@ class PhotoAttachment {
     required this.timestamp,
     this.altText,
     this.insertionPosition,
+    this.photoId,
   });
 
   Map<String, dynamic> toJson() => {
@@ -129,6 +131,7 @@ class PhotoAttachment {
     'timestamp': timestamp,
     'altText': altText,
     'insertionPosition': insertionPosition,
+    'photoId': photoId,
   };
 
   factory PhotoAttachment.fromJson(Map<String, dynamic> json) => PhotoAttachment(
@@ -138,6 +141,7 @@ class PhotoAttachment {
     timestamp: json['timestamp'] as int,
     altText: json['altText'] as String?,
     insertionPosition: json['insertionPosition'] as int?,
+    photoId: json['photoId'] as String?,
   );
 
   /// Create a copy with updated fields
@@ -148,6 +152,7 @@ class PhotoAttachment {
     int? timestamp,
     String? altText,
     int? insertionPosition,
+    String? photoId,
   }) {
     return PhotoAttachment(
       type: type ?? this.type,
@@ -156,6 +161,7 @@ class PhotoAttachment {
       timestamp: timestamp ?? this.timestamp,
       altText: altText ?? this.altText,
       insertionPosition: insertionPosition ?? this.insertionPosition,
+      photoId: photoId ?? this.photoId,
     );
   }
 }

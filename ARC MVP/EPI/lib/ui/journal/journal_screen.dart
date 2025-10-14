@@ -1963,6 +1963,9 @@ class _JournalScreenState extends State<JournalScreen> {
 
         print('DEBUG: Photo insertion position: $insertionPosition in text of length ${_textController.text.length}');
 
+        // Generate unique photo ID for placeholder
+        final photoId = 'photo_${DateTime.now().millisecondsSinceEpoch}';
+        
         // Create photo attachment with insertion position
         final photoAttachment = PhotoAttachment(
           type: 'photo_analysis',
@@ -1971,10 +1974,28 @@ class _JournalScreenState extends State<JournalScreen> {
           timestamp: DateTime.now().millisecondsSinceEpoch,
           altText: altText,
           insertionPosition: insertionPosition,
+          photoId: photoId, // Add photoId for placeholder reference
         );
 
         setState(() {
           _entryState.attachments.add(photoAttachment);
+        });
+
+        // Create text placeholder for the photo
+        final photoPlaceholder = '[PHOTO:$photoId]';
+        
+        // Insert photo placeholder into text at cursor position
+        final currentText = _textController.text;
+        final newText = '${currentText.substring(0, insertionPosition)}$photoPlaceholder${currentText.substring(insertionPosition)}';
+        
+        // Update text controller and entry state
+        _textController.text = newText;
+        _textController.selection = TextSelection.collapsed(
+          offset: insertionPosition + photoPlaceholder.length,
+        );
+        
+        setState(() {
+          _entryState.text = newText;
         });
 
         // Insert analysis summary with clickable link
@@ -1984,7 +2005,8 @@ class _JournalScreenState extends State<JournalScreen> {
         final faces = result['faces'] as List<Map<String, dynamic>>? ?? [];
         final labels = result['labels'] as List<Map<String, dynamic>>? ?? [];
         
-        // Photo analysis is now displayed in the attachment box, no need for text insertion
+        // Auto-save the updated content with photo placeholder
+        _updateDraftContent(newText);
 
         // Show success message with summary
         ScaffoldMessenger.of(context).showSnackBar(

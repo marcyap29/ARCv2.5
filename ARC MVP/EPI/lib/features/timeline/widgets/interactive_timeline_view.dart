@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:my_app/features/timeline/timeline_cubit.dart';
@@ -485,16 +486,7 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
             ),
             child: Column(
               children: [
-                Text(
-                  entry.preview,
-                  style: bodyStyle(context).copyWith(
-                    fontSize: 14,
-                    height: 1.4,
-                  ),
-                  maxLines: 3,
-                  overflow: TextOverflow.ellipsis,
-                  textAlign: TextAlign.center,
-                ),
+                _buildTextWithPhotoLinks(entry.preview, entry.media),
                 
                 // Display media attachments if any
                 if (entry.media.isNotEmpty) ...[
@@ -1758,6 +1750,154 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
       );
     }
   }
+
+  /// Build text with photo placeholders converted to clickable links
+  Widget _buildTextWithPhotoLinks(String text, List<MediaItem> mediaItems) {
+    // Create a map of photo IDs to media items for quick lookup
+    final mediaMap = <String, MediaItem>{};
+    for (final media in mediaItems) {
+      // Extract photo ID from media URI or use a generated one
+      final photoId = _extractPhotoIdFromMedia(media);
+      if (photoId != null) {
+        mediaMap[photoId] = media;
+      }
+    }
+
+    // Parse text for photo placeholders [PHOTO:id]
+    final photoPlaceholderRegex = RegExp(r'\[PHOTO:([^\]]+)\]');
+    final matches = photoPlaceholderRegex.allMatches(text);
+    
+    if (matches.isEmpty) {
+      // No photo placeholders, return regular text
+      return Text(
+        text,
+        style: bodyStyle(context).copyWith(
+          fontSize: 14,
+          height: 1.4,
+        ),
+        maxLines: 3,
+        overflow: TextOverflow.ellipsis,
+        textAlign: TextAlign.center,
+      );
+    }
+
+    // Build rich text with clickable photo links
+    final textSpans = <TextSpan>[];
+    int lastIndex = 0;
+
+    for (final match in matches) {
+      // Add text before the placeholder
+      if (match.start > lastIndex) {
+        textSpans.add(TextSpan(
+          text: text.substring(lastIndex, match.start),
+          style: bodyStyle(context).copyWith(
+            fontSize: 14,
+            height: 1.4,
+          ),
+        ));
+      }
+
+      // Add clickable photo link
+      final photoId = match.group(1)!;
+      final mediaItem = mediaMap[photoId];
+      
+      textSpans.add(TextSpan(
+        text: '[📷 Photo]',
+        style: bodyStyle(context).copyWith(
+          fontSize: 14,
+          height: 1.4,
+          color: kcPrimaryColor,
+          decoration: TextDecoration.underline,
+        ),
+        recognizer: TapGestureRecognizer()
+          ..onTap = () => _onPhotoLinkTapped(mediaItem, photoId),
+      ));
+
+      lastIndex = match.end;
+    }
+
+    // Add remaining text
+    if (lastIndex < text.length) {
+      textSpans.add(TextSpan(
+        text: text.substring(lastIndex),
+        style: bodyStyle(context).copyWith(
+          fontSize: 14,
+          height: 1.4,
+        ),
+      ));
+    }
+
+    return RichText(
+      text: TextSpan(children: textSpans),
+      maxLines: 3,
+      overflow: TextOverflow.ellipsis,
+      textAlign: TextAlign.center,
+    );
+  }
+
+  /// Extract photo ID from media item
+  String? _extractPhotoIdFromMedia(MediaItem media) {
+    // Try to extract photo ID from URI or use a hash of the URI
+    final uri = media.uri;
+    if (uri.contains('photo_')) {
+      final match = RegExp(r'photo_(\d+)').firstMatch(uri);
+      if (match != null) {
+        return 'photo_${match.group(1)}';
+      }
+    }
+    // Fallback: use a hash of the URI
+    return 'photo_${uri.hashCode}';
+  }
+
+  /// Handle photo link tap
+  void _onPhotoLinkTapped(MediaItem? mediaItem, String photoId) {
+    if (mediaItem != null) {
+      // Navigate to photo view or show photo details
+      _showPhotoDetails(mediaItem);
+    } else {
+      // Show error message
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Photo not found: $photoId'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  /// Show photo details in a dialog or bottom sheet
+  void _showPhotoDetails(MediaItem mediaItem) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Photo Details'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (mediaItem.uri.isNotEmpty)
+              Image.network(
+                mediaItem.uri,
+                width: 200,
+                height: 200,
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) => 
+                  const Icon(Icons.broken_image, size: 100),
+              ),
+            const SizedBox(height: 16),
+            Text('Type: ${mediaItem.type.name}'),
+            if (mediaItem.altText != null)
+              Text('Description: ${mediaItem.altText}'),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class BrokenMediaDialog extends StatelessWidget {
@@ -2423,4 +2563,5 @@ class BrokenImageDialog extends StatelessWidget {
       ),
     );
   }
+
 }

@@ -10,6 +10,7 @@ import 'package:my_app/prism/mcp/models/mcp_schemas.dart';
 import 'package:my_app/lumara/chat/chat_repo.dart';
 import 'package:my_app/lumara/chat/chat_models.dart';
 import 'package:my_app/models/journal_entry_model.dart';
+import 'package:my_app/data/models/media_item.dart';
 import 'package:my_app/arc/core/journal_repository.dart';
 import 'package:my_app/rivet/validation/rivet_provider.dart';
 import 'package:my_app/rivet/models/rivet_models.dart';
@@ -780,6 +781,13 @@ class McpImportService {
       print('✅ DEBUG: Successfully extracted content: ${content.length} chars, title: $title');
       print('🔄 DEBUG: Node keywords: ${node.keywords}');
       
+      // Process photo placeholders in content and reconstruct media items
+      final processedContent = await _processPhotoPlaceholders(content, node);
+      final mediaItems = _extractMediaFromPlaceholders(content, node);
+      
+      print('🔄 DEBUG: Processed content length: ${processedContent.length} chars');
+      print('🔄 DEBUG: Extracted ${mediaItems.length} media items from placeholders');
+      
       // Extract emotions from node
       String mood = 'Neutral';
       String? emotion;
@@ -807,9 +815,10 @@ class McpImportService {
       return JournalEntry(
         id: _extractOriginalId(node.id),
         title: title,
-        content: content,
+        content: processedContent,
         createdAt: node.timestamp,
         updatedAt: node.timestamp,
+        media: mediaItems,
         tags: node.keywords,
         keywords: node.keywords, // Use node keywords for insights
         mood: mood,
@@ -1029,4 +1038,54 @@ class McpImportService {
     return pointer.id.isNotEmpty &&
            (pointer.descriptor.isNotEmpty ?? false);
   }
+
+  /// Process photo placeholders in content and reconstruct media items
+  Future<String> _processPhotoPlaceholders(String content, McpNode node) async {
+    // For now, just return the content as-is
+    // The placeholders will be processed by the timeline display
+    return content;
+  }
+
+  /// Extract media items from photo placeholders in content
+  List<MediaItem> _extractMediaFromPlaceholders(String content, McpNode node) {
+    final mediaItems = <MediaItem>[];
+    
+    // Find all photo placeholders in the content
+    final photoPlaceholderRegex = RegExp(r'\[PHOTO:([^\]]+)\]');
+    final matches = photoPlaceholderRegex.allMatches(content);
+    
+    for (final match in matches) {
+      final photoId = match.group(1)!;
+      
+      // Try to find corresponding media in node pointers
+      final mediaItem = _findMediaForPhotoId(photoId, node);
+      if (mediaItem != null) {
+        mediaItems.add(mediaItem);
+        print('🔄 DEBUG: Reconstructed media item for photo ID: $photoId');
+      } else {
+        print('⚠️ DEBUG: Could not find media for photo ID: $photoId');
+      }
+    }
+    
+    return mediaItems;
+  }
+
+  /// Find media item for a photo ID from node metadata
+  MediaItem? _findMediaForPhotoId(String photoId, McpNode node) {
+    // For now, create a placeholder media item based on the photo ID
+    // In a full implementation, this would look up the actual media from the MCP bundle
+    return MediaItem(
+      id: 'imported_$photoId',
+      uri: 'placeholder://$photoId', // Placeholder URI
+      type: MediaType.image, // Default to image
+      createdAt: node.timestamp,
+      altText: 'Imported photo: $photoId',
+      analysisData: {
+        'photo_id': photoId,
+        'imported': true,
+        'placeholder': true,
+      },
+    );
+  }
+
 }
