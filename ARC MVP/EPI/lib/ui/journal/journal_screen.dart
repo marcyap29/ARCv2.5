@@ -682,13 +682,13 @@ class _JournalScreenState extends State<JournalScreen> {
           ),
           const SizedBox(height: 12),
 
-          // Compact photo display with all info inside the box
+          // Comprehensive photo display with ALL info inside the box
           if (photoExists)
             // Show photo thumbnail when file exists
             InkWell(
               onTap: () => _openPhotoInGallery(attachment.imagePath),
               child: Container(
-                padding: const EdgeInsets.all(12),
+                padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
                   color: Theme.of(context).colorScheme.surfaceContainerHighest.withOpacity(0.3),
                   borderRadius: BorderRadius.circular(12),
@@ -696,130 +696,252 @@ class _JournalScreenState extends State<JournalScreen> {
                     color: Theme.of(context).colorScheme.outline.withOpacity(0.2),
                   ),
                 ),
-                child: Row(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Photo thumbnail
-                    CachedThumbnail(
-                      imagePath: attachment.imagePath,
-                      width: 60,
-                      height: 60,
-                      borderRadius: BorderRadius.circular(8),
-                      onTap: () => _openPhotoInGallery(attachment.imagePath),
-                      showTapIndicator: false, // Disable since parent handles tap
-                      placeholder: Container(
-                        width: 60,
-                        height: 60,
-                        decoration: BoxDecoration(
-                          color: Colors.grey[300],
+                    // Header with photo and title
+                    Row(
+                      children: [
+                        // Photo thumbnail
+                        CachedThumbnail(
+                          imagePath: attachment.imagePath,
+                          width: 80,
+                          height: 80,
                           borderRadius: BorderRadius.circular(8),
+                          onTap: () => _openPhotoInGallery(attachment.imagePath),
+                          showTapIndicator: false, // Disable since parent handles tap
+                          placeholder: Container(
+                            width: 80,
+                            height: 80,
+                            decoration: BoxDecoration(
+                              color: Colors.grey[300],
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: const Center(
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            ),
+                          ),
+                          errorWidget: Container(
+                            width: 80,
+                            height: 80,
+                            decoration: BoxDecoration(
+                              color: Colors.grey[300],
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: const Center(
+                              child: Icon(Icons.image, color: Colors.grey),
+                            ),
+                          ),
                         ),
-                        child: const Center(
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        ),
-                      ),
-                      errorWidget: Container(
-                        width: 60,
-                        height: 60,
-                        decoration: BoxDecoration(
-                          color: Colors.grey[300],
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: const Center(
-                          child: Icon(Icons.image, color: Colors.grey),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
+                        const SizedBox(width: 16),
 
-                    // Compact analysis info
-                    Expanded(
+                        // Title and tap indicator
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Photo Analysis',
+                                style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                                  fontWeight: FontWeight.w600,
+                                  color: Theme.of(context).colorScheme.primary,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Row(
+                                children: [
+                                  Icon(
+                                    Icons.open_in_new,
+                                    size: 14,
+                                    color: Theme.of(context).colorScheme.primary.withOpacity(0.7),
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    'Tap to view full photo',
+                                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                      color: Theme.of(context).colorScheme.primary.withOpacity(0.7),
+                                      fontStyle: FontStyle.italic,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    
+                    const SizedBox(height: 16),
+                    
+                    // Summary section
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).colorScheme.surface.withOpacity(0.5),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // Summary (compact)
+                          Text(
+                            'Analysis Summary',
+                            style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                              fontWeight: FontWeight.w600,
+                              color: Theme.of(context).colorScheme.onSurface,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
                           Text(
                             summary,
-                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              fontWeight: FontWeight.w500,
+                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                              color: Theme.of(context).colorScheme.onSurface,
                             ),
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
                           ),
-                          const SizedBox(height: 6),
+                        ],
+                      ),
+                    ),
+                    
+                    const SizedBox(height: 12),
+                    
+                    // Technical details section
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).colorScheme.surface.withOpacity(0.5),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Technical Details',
+                            style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                              fontWeight: FontWeight.w600,
+                              color: Theme.of(context).colorScheme.onSurface,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
                           
-                          // Keypoints and keywords in one line
+                          // Keypoints and MCP format
                           Row(
                             children: [
-                              // Keypoints
+                              // Keypoints (clickable for details)
                               InkWell(
                                 onTap: () => _showKeypointsDetails(analysis),
                                 child: Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                                   decoration: BoxDecoration(
                                     color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
                                     borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(
+                                      color: Theme.of(context).colorScheme.primary.withOpacity(0.3),
+                                    ),
                                   ),
                                   child: Row(
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
                                       Icon(
                                         Icons.visibility,
-                                        size: 10,
+                                        size: 12,
                                         color: Theme.of(context).colorScheme.primary,
                                       ),
-                                      const SizedBox(width: 2),
+                                      const SizedBox(width: 4),
                                       Text(
-                                        '$keypoints',
+                                        'Features: $keypoints keypoints',
                                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
                                           color: Theme.of(context).colorScheme.primary,
-                                          fontSize: 9,
                                           fontWeight: FontWeight.w600,
                                         ),
+                                      ),
+                                      const SizedBox(width: 4),
+                                      Icon(
+                                        Icons.info_outline,
+                                        size: 10,
+                                        color: Theme.of(context).colorScheme.primary,
                                       ),
                                     ],
                                   ),
                                 ),
                               ),
-                              const SizedBox(width: 8),
+                              const SizedBox(width: 12),
                               
-                              // Keywords (first 3)
-                              if (keywords.isNotEmpty) ...[
-                                ...keywords.take(3).map((keyword) => Container(
-                                  margin: const EdgeInsets.only(right: 4),
-                                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-                                  decoration: BoxDecoration(
-                                    color: Theme.of(context).colorScheme.secondary.withOpacity(0.1),
-                                    borderRadius: BorderRadius.circular(6),
-                                  ),
-                                  child: Text(
-                                    keyword,
-                                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              // MCP format
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: Theme.of(context).colorScheme.secondary.withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      Icons.data_object,
+                                      size: 12,
                                       color: Theme.of(context).colorScheme.secondary,
-                                      fontSize: 8,
                                     ),
-                                  ),
-                                )),
-                                if (keywords.length > 3)
-                                  Text(
-                                    '+${keywords.length - 3}',
-                                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                      color: Theme.of(context).colorScheme.secondary,
-                                      fontSize: 8,
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      'MCP: ${analysis['mcp_format'] ?? 'Standard'}',
+                                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                        color: Theme.of(context).colorScheme.secondary,
+                                        fontWeight: FontWeight.w600,
+                                      ),
                                     ),
-                                  ),
-                              ],
+                                  ],
+                                ),
+                              ),
                             ],
                           ),
                         ],
                       ),
                     ),
                     
-                    // Tap indicator
-                    Icon(
-                      Icons.open_in_new,
-                      size: 14,
-                      color: Theme.of(context).colorScheme.primary.withOpacity(0.7),
-                    ),
+                    // Keywords section (if available)
+                    if (keywords.isNotEmpty) ...[
+                      const SizedBox(height: 12),
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).colorScheme.surface.withOpacity(0.5),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Detected Keywords',
+                              style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                                fontWeight: FontWeight.w600,
+                                color: Theme.of(context).colorScheme.onSurface,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Wrap(
+                              spacing: 6,
+                              runSpacing: 6,
+                              children: keywords.map((keyword) => Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: Theme.of(context).colorScheme.secondary.withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                    color: Theme.of(context).colorScheme.secondary.withOpacity(0.3),
+                                  ),
+                                ),
+                                child: Text(
+                                  keyword,
+                                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                    color: Theme.of(context).colorScheme.secondary,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              )).toList(),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -872,26 +994,6 @@ class _JournalScreenState extends State<JournalScreen> {
                 ],
               ),
             ),
-          
-          // Compact info footer (only essential details)
-          Row(
-            children: [
-              // MCP format indicator (compact)
-              Icon(
-                Icons.data_object,
-                size: 10,
-                color: Theme.of(context).colorScheme.secondary.withOpacity(0.7),
-              ),
-              const SizedBox(width: 4),
-              Text(
-                'MCP: ${analysis['mcp_format'] ?? 'Standard'}',
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: Theme.of(context).colorScheme.secondary,
-                  fontSize: 10,
-                ),
-              ),
-            ],
-          ),
         ],
       ),
     );
