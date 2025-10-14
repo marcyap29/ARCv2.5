@@ -35,8 +35,8 @@ import UIKit
             return
         }
         
-        // Request photo library permission
-        PHPhotoLibrary.requestAuthorization { status in
+        // Request photo library permission using iOS 14+ API
+        PHPhotoLibrary.requestAuthorization(for: .readWrite) { status in
             DispatchQueue.main.async {
                 guard status == .authorized || status == .limited else {
                     result(FlutterError(code: "PERMISSION_DENIED", message: "Photo library permission denied", details: nil))
@@ -76,13 +76,20 @@ import UIKit
             result(FlutterError(code: "INVALID_ARGUMENTS", message: "Missing photoId", details: nil))
             return
         }
-        
+
+        // Check photo library permission status
+        let authStatus = PHPhotoLibrary.authorizationStatus(for: .readWrite)
+        guard authStatus == .authorized || authStatus == .limited else {
+            result(FlutterError(code: "PERMISSION_DENIED", message: "Photo library permission not granted", details: nil))
+            return
+        }
+
         // Extract local identifier from photo ID
         let localIdentifier = photoId.replacingOccurrences(of: "ph://", with: "")
-        
+
         let fetchOptions = PHFetchOptions()
         let assets = PHAsset.fetchAssets(withLocalIdentifiers: [localIdentifier], options: fetchOptions)
-        
+
         guard let asset = assets.firstObject else {
             result(FlutterError(code: "PHOTO_NOT_FOUND", message: "Photo not found in library", details: nil))
             return
@@ -142,35 +149,42 @@ import UIKit
             result(FlutterError(code: "INVALID_ARGUMENTS", message: "Missing photoId or size", details: nil))
             return
         }
-        
+
+        // Check photo library permission status
+        let authStatus = PHPhotoLibrary.authorizationStatus(for: .readWrite)
+        guard authStatus == .authorized || authStatus == .limited else {
+            result(FlutterError(code: "PERMISSION_DENIED", message: "Photo library permission not granted", details: nil))
+            return
+        }
+
         let localIdentifier = photoId.replacingOccurrences(of: "ph://", with: "")
         let fetchOptions = PHFetchOptions()
         let assets = PHAsset.fetchAssets(withLocalIdentifiers: [localIdentifier], options: fetchOptions)
-        
+
         guard let asset = assets.firstObject else {
             result(FlutterError(code: "PHOTO_NOT_FOUND", message: "Photo not found in library", details: nil))
             return
         }
-        
+
         let imageManager = PHImageManager.default()
         let requestOptions = PHImageRequestOptions()
         requestOptions.isSynchronous = false
         requestOptions.deliveryMode = .fastFormat
         requestOptions.isNetworkAccessAllowed = true
-        
+
         let targetSize = CGSize(width: size, height: size)
-        
+
         imageManager.requestImage(for: asset, targetSize: targetSize, contentMode: .aspectFill, options: requestOptions) { image, info in
             guard let image = image else {
                 result(FlutterError(code: "THUMBNAIL_FAILED", message: "Could not generate thumbnail", details: nil))
                 return
             }
-            
+
             // Save thumbnail to temporary directory
             let tempDir = NSTemporaryDirectory()
             let fileName = "\(localIdentifier)_thumb_\(size).jpg"
             let tempPath = (tempDir as NSString).appendingPathComponent(fileName)
-            
+
             if let imageData = image.jpegData(compressionQuality: 0.8) {
                 do {
                     try imageData.write(to: URL(fileURLWithPath: tempPath))

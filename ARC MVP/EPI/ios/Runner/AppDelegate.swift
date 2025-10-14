@@ -80,10 +80,10 @@ import Photos
     // Extract filename from path
     let fileName = URL(fileURLWithPath: imagePath).lastPathComponent
     
-    // Request photo library access
-    PHPhotoLibrary.requestAuthorization { status in
+    // Request photo library access using iOS 14+ API
+    PHPhotoLibrary.requestAuthorization(for: .readWrite) { status in
       DispatchQueue.main.async {
-        guard status == .authorized else {
+        guard status == .authorized || status == .limited else {
           completion(false)
           return
         }
@@ -131,10 +131,10 @@ import Photos
     // Extract filename from path
     let fileName = URL(fileURLWithPath: videoPath).lastPathComponent
     
-    // Request photo library access
-    PHPhotoLibrary.requestAuthorization { status in
+    // Request photo library access using iOS 14+ API
+    PHPhotoLibrary.requestAuthorization(for: .readWrite) { status in
       DispatchQueue.main.async {
-        guard status == .authorized else {
+        guard status == .authorized || status == .limited else {
           completion(false)
           return
         }
@@ -183,10 +183,10 @@ import Photos
     let fileName = URL(fileURLWithPath: mediaPath).lastPathComponent
     let fileExtension = URL(fileURLWithPath: mediaPath).pathExtension.lowercased()
     
-    // Request photo library access
-    PHPhotoLibrary.requestAuthorization { status in
+    // Request photo library access using iOS 14+ API
+    PHPhotoLibrary.requestAuthorization(for: .readWrite) { status in
       DispatchQueue.main.async {
-        guard status == .authorized else {
+        guard status == .authorized || status == .limited else {
           completion(false)
           return
         }

@@ -13,43 +13,37 @@ class PhotoLibraryService {
   
   /// Request photo library permissions
   /// Returns true if permissions are granted, false otherwise
+  ///
+  /// Note: On iOS 14+, the actual permission prompt is handled by the native
+  /// PhotoLibrary framework using PHPhotoLibrary.requestAuthorization(for: .readWrite)
+  /// This ensures proper registration in iOS Settings → Photos
   static Future<bool> requestPermissions() async {
     try {
       print('PhotoLibraryService: Starting permission request process...');
-      
-      // Check current status first
-      final readStatus = await Permission.photos.status;
-      final addStatus = await Permission.photosAddOnly.status;
-      
-      print('PhotoLibraryService: Current status - Read: $readStatus, Add: $addStatus');
-      
-      // Request add permission first (this is what we need for saving photos)
-      if (!addStatus.isGranted) {
-        print('PhotoLibraryService: Requesting add permission...');
-        final addResult = await Permission.photosAddOnly.request();
-        print('PhotoLibraryService: Add permission result: $addResult');
-        
-        if (!addResult.isGranted) {
-          print('PhotoLibraryService: Add permission denied');
-          return false;
-        }
+
+      // Check current status
+      final status = await Permission.photos.status;
+      print('PhotoLibraryService: Current status - Photos: $status');
+
+      // If already granted or limited, we're good
+      if (status.isGranted || status.isLimited) {
+        print('PhotoLibraryService: Permission already granted');
+        return true;
       }
-      
-      // Request read permission (for loading photos later)
-      if (!readStatus.isGranted) {
-        print('PhotoLibraryService: Requesting read permission...');
-        final readResult = await Permission.photos.request();
-        print('PhotoLibraryService: Read permission result: $readResult');
+
+      // If permanently denied, user needs to go to Settings
+      if (status.isPermanentlyDenied) {
+        print('PhotoLibraryService: Permission permanently denied - user must enable in Settings');
+        return false;
       }
-      
-      // Check final status
-      final finalReadStatus = await Permission.photos.status;
-      final finalAddStatus = await Permission.photosAddOnly.status;
-      
-      print('PhotoLibraryService: Final status - Read: $finalReadStatus, Add: $finalAddStatus');
-      
-      // We only need add permission for saving photos
-      return finalAddStatus.isGranted;
+
+      // Request permission
+      // Note: This uses the iOS 14+ API internally via permission_handler
+      print('PhotoLibraryService: Requesting photos permission...');
+      final result = await Permission.photos.request();
+      print('PhotoLibraryService: Photos permission result: $result');
+
+      return result.isGranted || result.isLimited;
     } catch (e) {
       print('PhotoLibraryService: Error requesting permissions: $e');
       return false;
@@ -59,10 +53,8 @@ class PhotoLibraryService {
   /// Check if permissions are permanently denied and need manual settings access
   static Future<bool> arePermissionsPermanentlyDenied() async {
     try {
-      final readStatus = await Permission.photos.status;
-      final addStatus = await Permission.photosAddOnly.status;
-      
-      return readStatus.isPermanentlyDenied || addStatus.isPermanentlyDenied;
+      final status = await Permission.photos.status;
+      return status.isPermanentlyDenied;
     } catch (e) {
       print('PhotoLibraryService: Error checking permanent denial: $e');
       return false;
@@ -88,25 +80,20 @@ class PhotoLibraryService {
   }
   
   /// Save a photo to the device photo library
-  /// 
+  ///
   /// [imagePath] - Path to the image file to save
   /// Returns the photo library identifier (e.g., "ph://12345678-1234-1234-1234-123456789012")
+  ///
+  /// Note: Permissions are handled by the native iOS layer using
+  /// PHPhotoLibrary.requestAuthorization(for: .readWrite)
   static Future<String?> savePhotoToLibrary(String imagePath) async {
     try {
-      // Check if we have photo library add permission (iOS 14+)
-      final permission = await Permission.photosAddOnly.status;
-      if (!permission.isGranted) {
-        final result = await Permission.photosAddOnly.request();
-        if (!result.isGranted) {
-          throw Exception('Photo library add permission denied');
-        }
-      }
-      
       // Save photo to library using native iOS method
+      // The native layer will request permissions if needed
       final result = await _channel.invokeMethod('savePhotoToLibrary', {
         'imagePath': imagePath,
       });
-      
+
       if (result is String && result.isNotEmpty) {
         print('PhotoLibraryService: Photo saved to library with ID: $result');
         return result;

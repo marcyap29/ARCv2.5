@@ -67,6 +67,10 @@ class _JournalScreenState extends State<JournalScreen> {
   // Thumbnail cache service
   final ThumbnailCacheService _thumbnailCache = ThumbnailCacheService();
   
+  // Photo selection state
+  bool _isPhotoSelectionMode = false;
+  final Set<int> _selectedPhotoIndices = <int>{};
+  
   // Manual keyword entry
   final TextEditingController _keywordController = TextEditingController();
   List<String> _manualKeywords = [];
@@ -314,6 +318,113 @@ class _JournalScreenState extends State<JournalScreen> {
     _onTextChanged(newText);
   }
 
+  void _togglePhotoSelectionMode() {
+    setState(() {
+      _isPhotoSelectionMode = !_isPhotoSelectionMode;
+      if (!_isPhotoSelectionMode) {
+        _selectedPhotoIndices.clear();
+      }
+    });
+  }
+
+  void _togglePhotoSelection(int index) {
+    setState(() {
+      if (_selectedPhotoIndices.contains(index)) {
+        _selectedPhotoIndices.remove(index);
+      } else {
+        _selectedPhotoIndices.add(index);
+      }
+    });
+  }
+
+  void _deleteSelectedPhotos() {
+    if (_selectedPhotoIndices.isEmpty) return;
+
+    // Sort indices in descending order to avoid index shifting issues
+    final sortedIndices = _selectedPhotoIndices.toList()..sort((a, b) => b.compareTo(a));
+    
+    setState(() {
+      for (final index in sortedIndices) {
+        if (index < _entryState.attachments.length) {
+          _entryState.attachments.removeAt(index);
+        }
+      }
+      _selectedPhotoIndices.clear();
+      _isPhotoSelectionMode = false;
+    });
+
+    // Show confirmation
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Deleted ${sortedIndices.length} photo(s)'),
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
+
+  Widget _buildPhotoSelectionControls() {
+    final photoCount = _entryState.attachments.where((attachment) => attachment is PhotoAttachment).length;
+    
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surfaceContainerHighest.withOpacity(0.5),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: Theme.of(context).colorScheme.outline.withOpacity(0.2),
+        ),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            Icons.photo_library,
+            size: 16,
+            color: Theme.of(context).colorScheme.primary,
+          ),
+          const SizedBox(width: 8),
+          Text(
+            '$photoCount photo(s)',
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          const Spacer(),
+          if (_isPhotoSelectionMode) ...[
+            if (_selectedPhotoIndices.isNotEmpty) ...[
+              Text(
+                '${_selectedPhotoIndices.length} selected',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+              ),
+              const SizedBox(width: 8),
+              IconButton(
+                onPressed: _deleteSelectedPhotos,
+                icon: const Icon(Icons.delete),
+                iconSize: 18,
+                color: Theme.of(context).colorScheme.error,
+                tooltip: 'Delete selected photos',
+              ),
+            ],
+            IconButton(
+              onPressed: _togglePhotoSelectionMode,
+              icon: const Icon(Icons.close),
+              iconSize: 18,
+              tooltip: 'Cancel selection',
+            ),
+          ] else ...[
+            IconButton(
+              onPressed: _togglePhotoSelectionMode,
+              icon: const Icon(Icons.checklist),
+              iconSize: 18,
+              tooltip: 'Select photos',
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
   void _onContinue() {
     _analytics.logJournalEvent('continue_pressed', data: {
       'text_length': _entryState.text.length,
@@ -438,6 +549,13 @@ class _JournalScreenState extends State<JournalScreen> {
                           },
                           onAddKeywords: _showKeywordDialog,
                         ),
+                      
+                      // Photo selection controls (only show if there are photo attachments)
+                      if (_entryState.attachments.any((attachment) => attachment is PhotoAttachment)) ...[
+                        const SizedBox(height: 16),
+                        _buildPhotoSelectionControls(),
+                        const SizedBox(height: 8),
+                      ],
                       
                       // Attachments (scan and photo)
                       ..._entryState.attachments.asMap().entries.map((entry) {
@@ -709,6 +827,9 @@ class _JournalScreenState extends State<JournalScreen> {
     final isPhotoLibraryId = attachment.imagePath.startsWith('ph://');
     print('DEBUG: Photo attachment - ID: ${attachment.imagePath}, IsPhotoLibrary: $isPhotoLibraryId');
 
+    // Check if this photo is selected
+    final isSelected = _selectedPhotoIndices.contains(index);
+
     // Extract keywords from analysis
     final keywords = <String>[];
     if (ocrText.isNotEmpty) {
@@ -721,87 +842,102 @@ class _JournalScreenState extends State<JournalScreen> {
       keywords.addAll(labels.take(3).map((label) => label['label']?.toString() ?? ''));
     }
     
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surfaceContainerHighest.withOpacity(0.3),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: Theme.of(context).colorScheme.outline.withOpacity(0.2),
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(
-                Icons.photo_camera,
-                size: 16,
-                color: Theme.of(context).colorScheme.primary,
-              ),
-              const SizedBox(width: 8),
-              Text(
-                'Photo Analysis',
-                style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const Spacer(),
-              Icon(
-                Icons.open_in_new,
-                size: 14,
-                color: Theme.of(context).colorScheme.primary.withOpacity(0.7),
-              ),
-            ],
+    return GestureDetector(
+      onTap: _isPhotoSelectionMode ? () => _togglePhotoSelection(index) : null,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 8),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.surfaceContainerHighest.withOpacity(0.3),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: isSelected 
+                ? Theme.of(context).colorScheme.primary
+                : Theme.of(context).colorScheme.outline.withOpacity(0.2),
+            width: isSelected ? 2 : 1,
           ),
-          const SizedBox(height: 12),
-
-          // Photo thumbnail and analysis
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Photo thumbnail
-              Container(
-                width: 80,
-                height: 80,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(
-                    color: Theme.of(context).colorScheme.outline.withOpacity(0.3),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  Icons.photo_camera,
+                  size: 16,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  'Photo Analysis',
+                  style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(8),
-                  child: _buildPhotoThumbnail(attachment.imagePath),
-                ),
-              ),
-              const SizedBox(width: 12),
-              // Analysis details
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      summary,
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        fontWeight: FontWeight.w500,
-                      ),
+                const Spacer(),
+                if (_isPhotoSelectionMode)
+                  Icon(
+                    isSelected ? Icons.check_circle : Icons.radio_button_unchecked,
+                    size: 20,
+                    color: isSelected 
+                        ? Theme.of(context).colorScheme.primary
+                        : Theme.of(context).colorScheme.onSurface.withOpacity(0.5),
+                  )
+                else
+                  Icon(
+                    Icons.open_in_new,
+                    size: 14,
+                    color: Theme.of(context).colorScheme.primary.withOpacity(0.7),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 12),
+
+            // Photo thumbnail and analysis
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Photo thumbnail
+                Container(
+                  width: 80,
+                  height: 80,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: Theme.of(context).colorScheme.outline.withOpacity(0.3),
                     ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'Keypoints: $keypoints',
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
-                      ),
-                    ),
-                  ],
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: _buildPhotoThumbnail(attachment.imagePath),
+                  ),
                 ),
-              ),
-            ],
-          ),
-        ],
+                const SizedBox(width: 12),
+                // Analysis details
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        summary,
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Keypoints: $keypoints',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -1383,8 +1519,17 @@ class _JournalScreenState extends State<JournalScreen> {
   Future<void> _handlePhotoGallery() async {
     try {
       _analytics.logJournalEvent('photo_button_pressed');
-      print('DEBUG: Opening photo picker directly');
+      print('DEBUG: Requesting photo library permissions...');
       
+      // Request permissions first
+      final hasPermissions = await PhotoLibraryService.requestPermissions();
+      if (!hasPermissions) {
+        print('DEBUG: Photo library permissions denied');
+        _showPermissionDeniedDialog();
+        return;
+      }
+      
+      print('DEBUG: Photo library permissions granted, opening photo picker');
       final List<XFile> images = await _imagePicker.pickMultiImage();
       if (images.isNotEmpty) {
         print('DEBUG: Selected ${images.length} images');
@@ -1409,8 +1554,17 @@ class _JournalScreenState extends State<JournalScreen> {
   Future<void> _handleCamera() async {
     try {
       _analytics.logJournalEvent('camera_button_pressed');
-      print('DEBUG: Opening camera directly');
+      print('DEBUG: Requesting photo library permissions...');
       
+      // Request permissions first
+      final hasPermissions = await PhotoLibraryService.requestPermissions();
+      if (!hasPermissions) {
+        print('DEBUG: Photo library permissions denied');
+        _showPermissionDeniedDialog();
+        return;
+      }
+      
+      print('DEBUG: Photo library permissions granted, opening camera');
       final XFile? image = await _imagePicker.pickImage(source: ImageSource.camera);
       if (image != null) {
         print('DEBUG: Camera captured image: ${image.path}');
@@ -1654,24 +1808,36 @@ class _JournalScreenState extends State<JournalScreen> {
 
       if (result['success'] == true) {
         print('DEBUG: Photo analysis successful');
-        
-        // Save photo to iOS Photo Library for persistent storage
-        print('DEBUG: Saving photo to iOS Photo Library...');
-        final photoLibraryId = await PhotoLibraryService.savePhotoToLibrary(imagePath);
-        
-        if (photoLibraryId == null) {
-          throw Exception('Failed to save photo to photo library');
+
+        // Only save NEW photos to Photo Library (not existing ones from gallery)
+        // Photos from camera will have a temp path, photos from gallery might already be in library
+        String photoReference = imagePath;
+
+        // Check if this is a temporary file (camera capture) vs existing file (gallery selection)
+        // Temporary files are typically in /var/mobile/Containers/Data/Application/.../tmp/
+        final isTempFile = imagePath.contains('/tmp/') || imagePath.contains('image_picker');
+
+        if (isTempFile) {
+          print('DEBUG: Temporary file detected, saving to iOS Photo Library...');
+          final photoLibraryId = await PhotoLibraryService.savePhotoToLibrary(imagePath);
+
+          if (photoLibraryId == null) {
+            throw Exception('Failed to save photo to photo library');
+          }
+
+          print('DEBUG: Photo saved to library with ID: $photoLibraryId');
+          photoReference = photoLibraryId;
+        } else {
+          print('DEBUG: Using existing photo path (not saving duplicate): $imagePath');
         }
-        
-        print('DEBUG: Photo saved to library with ID: $photoLibraryId');
-        
+
         // Generate alt text from analysis
         final altText = MediaAltTextGenerator.generateFromAnalysis(result);
 
-        // Create photo attachment with photo library ID for persistent storage
+        // Create photo attachment
         final photoAttachment = PhotoAttachment(
           type: 'photo_analysis',
-          imagePath: photoLibraryId, // Use photo library ID for persistence
+          imagePath: photoReference, // Use photo library ID or original path
           analysisResult: result,
           timestamp: DateTime.now().millisecondsSinceEpoch,
           altText: altText,
