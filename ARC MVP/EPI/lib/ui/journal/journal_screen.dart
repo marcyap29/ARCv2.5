@@ -822,8 +822,10 @@ class _JournalScreenState extends State<JournalScreen> {
                           ),
                           const SizedBox(height: 8),
                           
-                          // Keypoints and MCP format
-                          Row(
+                          // Keypoints and MCP format (flexible layout)
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
                             children: [
                               // Keypoints (clickable for details)
                               InkWell(
@@ -846,11 +848,14 @@ class _JournalScreenState extends State<JournalScreen> {
                                         color: Theme.of(context).colorScheme.primary,
                                       ),
                                       const SizedBox(width: 4),
-                                      Text(
-                                        'Features: $keypoints keypoints',
-                                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                          color: Theme.of(context).colorScheme.primary,
-                                          fontWeight: FontWeight.w600,
+                                      Flexible(
+                                        child: Text(
+                                          'Features: $keypoints keypoints',
+                                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                            color: Theme.of(context).colorScheme.primary,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                          overflow: TextOverflow.ellipsis,
                                         ),
                                       ),
                                       const SizedBox(width: 4),
@@ -863,7 +868,6 @@ class _JournalScreenState extends State<JournalScreen> {
                                   ),
                                 ),
                               ),
-                              const SizedBox(width: 12),
                               
                               // MCP format
                               Container(
@@ -881,11 +885,14 @@ class _JournalScreenState extends State<JournalScreen> {
                                       color: Theme.of(context).colorScheme.secondary,
                                     ),
                                     const SizedBox(width: 4),
-                                    Text(
-                                      'MCP: ${analysis['mcp_format'] ?? 'Standard'}',
-                                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                        color: Theme.of(context).colorScheme.secondary,
-                                        fontWeight: FontWeight.w600,
+                                    Flexible(
+                                      child: Text(
+                                        'MCP: ${analysis['mcp_format'] ?? 'Standard'}',
+                                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                          color: Theme.of(context).colorScheme.secondary,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                        overflow: TextOverflow.ellipsis,
                                       ),
                                     ),
                                   ],
