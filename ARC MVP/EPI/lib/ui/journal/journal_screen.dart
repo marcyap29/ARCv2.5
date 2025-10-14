@@ -1800,17 +1800,10 @@ class _JournalScreenState extends State<JournalScreen> {
         final faces = result['faces'] as List<Map<String, dynamic>>? ?? [];
         final labels = result['labels'] as List<Map<String, dynamic>>? ?? [];
         
-        // Create rich analysis text
-        final analysisText = _createPhotoAnalysisText(
-          summary: summary,
-          ocrText: ocrText,
-          objects: objects,
-          faces: faces,
-          labels: labels,
-          attachmentIndex: _entryState.attachments.length - 1,
-        );
+        // Create simple text placeholder for journal entry
+        final cleanTextReference = '\n\n📸 [Photo Analysis: $summary]\n\n';
         
-        _insertTextIntoEntry(analysisText);
+        _insertTextIntoEntry(cleanTextReference);
 
         // Show success message with summary
         ScaffoldMessenger.of(context).showSnackBar(
@@ -1835,53 +1828,6 @@ class _JournalScreenState extends State<JournalScreen> {
   }
 
 
-  /// Create rich photo analysis text with clickable links
-  String _createPhotoAnalysisText({
-    required String summary,
-    required String ocrText,
-    required List<Map<String, dynamic>> objects,
-    required List<Map<String, dynamic>> faces,
-    required List<Map<String, dynamic>> labels,
-    required int attachmentIndex,
-  }) {
-    final buffer = StringBuffer();
-    buffer.writeln('📸 **Photo Analysis**');
-    buffer.writeln('*Click to view photo*');
-    buffer.writeln();
-    
-    if (ocrText.isNotEmpty) {
-      buffer.writeln('**📝 Text Found:**');
-      buffer.writeln(ocrText);
-      buffer.writeln();
-    }
-    
-    if (objects.isNotEmpty) {
-      buffer.writeln('**🎯 Objects Detected:**');
-      for (final obj in objects.take(5)) {
-        final label = obj['label'] as String? ?? 'Unknown';
-        final confidence = obj['confidence'] as double? ?? 0.0;
-        buffer.writeln('• $label (${(confidence * 100).toStringAsFixed(0)}%)');
-      }
-      buffer.writeln();
-    }
-    
-    if (faces.isNotEmpty) {
-      buffer.writeln('**👤 Faces:** ${faces.length} detected');
-      buffer.writeln();
-    }
-    
-    if (labels.isNotEmpty) {
-      buffer.writeln('**🏷️ Scene:**');
-      for (final label in labels.take(3)) {
-        final labelText = label['label'] as String? ?? 'Unknown';
-        final confidence = label['confidence'] as double? ?? 0.0;
-        buffer.writeln('• $labelText (${(confidence * 100).toStringAsFixed(0)}%)');
-      }
-      buffer.writeln();
-    }
-    
-    return buffer.toString();
-  }
 
   Future<void> _performOCR(File imageFile) async {
     try {
