@@ -1498,8 +1498,8 @@ class _JournalScreenState extends State<JournalScreen> {
             children: [
               _buildDetailRow('Keypoints Detected', keypoints.toString()),
               _buildDetailRow('Detection Method', method),
-              _buildDetailRow('Perceptual Hash', phash.length > 20 ? '${phash.substring(0, 20)}...' : phash),
-              _buildDetailRow('ORB Patch Hash', orbPatch.length > 20 ? '${orbPatch.substring(0, 20)}...' : orbPatch),
+              _buildDetailRow('Perceptual Hash', phash.isNotEmpty && phash.length > 20 ? '${phash.substring(0, 20)}...' : phash),
+              _buildDetailRow('ORB Patch Hash', orbPatch.isNotEmpty && orbPatch.length > 20 ? '${orbPatch.substring(0, 20)}...' : orbPatch),
               const SizedBox(height: 16),
               const Text(
                 'Keypoints represent distinctive visual features in the image that can be used for:',
