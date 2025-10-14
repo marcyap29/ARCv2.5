@@ -1531,6 +1531,12 @@ class _JournalScreenState extends State<JournalScreen> {
       );
 
       if (result['success'] == true) {
+        // Request photo library permissions first
+        final hasPermissions = await PhotoLibraryService.requestPermissions();
+        if (!hasPermissions) {
+          throw Exception('Photo library permissions not granted');
+        }
+        
         // Save photo to device photo library for persistent storage
         final photoLibraryId = await PhotoLibraryService.savePhotoToLibrary(imagePath);
         

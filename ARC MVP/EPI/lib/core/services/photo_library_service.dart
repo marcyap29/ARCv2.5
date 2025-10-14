@@ -11,18 +11,38 @@ import 'package:permission_handler/permission_handler.dart';
 class PhotoLibraryService {
   static const MethodChannel _channel = MethodChannel('photo_library_service');
   
+  /// Request photo library permissions
+  /// Returns true if permissions are granted, false otherwise
+  static Future<bool> requestPermissions() async {
+    try {
+      // Request both read and add permissions
+      final readPermission = await Permission.photos.request();
+      final addPermission = await Permission.photosAddOnly.request();
+      
+      final hasReadPermission = readPermission.isGranted;
+      final hasAddPermission = addPermission.isGranted;
+      
+      print('PhotoLibraryService: Read permission: $hasReadPermission, Add permission: $hasAddPermission');
+      
+      return hasReadPermission && hasAddPermission;
+    } catch (e) {
+      print('PhotoLibraryService: Error requesting permissions: $e');
+      return false;
+    }
+  }
+  
   /// Save a photo to the device photo library
   /// 
   /// [imagePath] - Path to the image file to save
   /// Returns the photo library identifier (e.g., "ph://12345678-1234-1234-1234-123456789012")
   static Future<String?> savePhotoToLibrary(String imagePath) async {
     try {
-      // Check if we have photo library permission
-      final permission = await Permission.photos.status;
+      // Check if we have photo library add permission (iOS 14+)
+      final permission = await Permission.photosAddOnly.status;
       if (!permission.isGranted) {
-        final result = await Permission.photos.request();
+        final result = await Permission.photosAddOnly.request();
         if (!result.isGranted) {
-          throw Exception('Photo library permission denied');
+          throw Exception('Photo library add permission denied');
         }
       }
       
@@ -49,10 +69,10 @@ class PhotoLibraryService {
   /// Returns the local file path where the photo can be accessed
   static Future<String?> loadPhotoFromLibrary(String photoId) async {
     try {
-      // Check if we have photo library permission
+      // Check if we have photo library read permission
       final permission = await Permission.photos.status;
       if (!permission.isGranted) {
-        throw Exception('Photo library permission not granted');
+        throw Exception('Photo library read permission not granted');
       }
       
       // Load photo from library using native iOS method
