@@ -524,32 +524,12 @@ class _JournalScreenState extends State<JournalScreen> {
                           const SizedBox(height: 16),
                         ],
 
-                        // Check if we have photos with insertion positions
-                        if (_hasInlinePhotos()) ...[
-                          // Show interleaved content only (photos inline with text)
-                          ..._buildInterleavedContent(theme),
-                        ] else ...[
-                          // Show normal TextField when no inline photos
-                          _buildAITextField(theme),
-                          const SizedBox(height: 16),
-                        ],
+                        // Always show the TextField for editing
+                        _buildAITextField(theme),
+                        const SizedBox(height: 16),
 
-                        // Always show reflection blocks (they're handled in _buildInterleavedContent when no inline photos)
-                        if (!_hasInlinePhotos()) ...[
-                          ..._entryState.blocks.asMap().entries.map((entry) {
-                            final index = entry.key;
-                            final block = entry.value;
-                            return InlineReflectionBlock(
-                              content: block.content,
-                              intent: block.intent,
-                              phase: block.phase,
-                              onRegenerate: () => _onRegenerateReflection(index),
-                              onSoften: () => _onSoftenReflection(index),
-                              onMoreDepth: () => _onMoreDepthReflection(index),
-                              onContinueWithLumara: _onContinueWithLumara,
-                            );
-                          }),
-                        ],
+                        // Show inline photos and reflections
+                        ..._buildInterleavedContent(theme),
 
                       // Keywords Discovered section (conditional visibility)
                       if (_showKeywordsDiscovered)
@@ -700,7 +680,7 @@ class _JournalScreenState extends State<JournalScreen> {
         .any((photo) => photo.insertionPosition != null);
   }
 
-  /// Build interleaved content showing photos at their insertion positions within text
+  /// Build content showing photos and reflections (without duplicating text)
   List<Widget> _buildInterleavedContent(ThemeData theme) {
     final widgets = <Widget>[];
 
@@ -711,88 +691,18 @@ class _JournalScreenState extends State<JournalScreen> {
         .toList()
       ..sort((a, b) => a.insertionPosition!.compareTo(b.insertionPosition!));
 
-    if (photoAttachments.isEmpty) {
-      // No inline photos, just show reflection blocks
-      widgets.addAll(_entryState.blocks.asMap().entries.map((entry) {
-        final index = entry.key;
-        final block = entry.value;
-        return InlineReflectionBlock(
-          content: block.content,
-          intent: block.intent,
-          phase: block.phase,
-          onRegenerate: () => _onRegenerateReflection(index),
-          onSoften: () => _onSoftenReflection(index),
-          onMoreDepth: () => _onMoreDepthReflection(index),
-          onContinueWithLumara: _onContinueWithLumara,
-        );
-      }));
-      return widgets;
-    }
-
-    // Build interleaved layout with photos at their positions
-    print('DEBUG: Building interleaved content with ${photoAttachments.length} photos');
-
-    int lastPosition = 0;
-    final text = _textController.text;
-
+    // Show photos in chronological order (without text segments since TextField handles text)
     for (int i = 0; i < photoAttachments.length; i++) {
       final photo = photoAttachments[i];
-      final position = photo.insertionPosition!;
-
-      // Clamp position to valid text range
-      final safePosition = position.clamp(0, text.length);
-
-      print('DEBUG: Photo $i at position $safePosition (requested $position)');
-
-      // Add text segment before this photo (if any)
-      if (safePosition > lastPosition && lastPosition < text.length) {
-        final textSegment = text.substring(lastPosition, safePosition.clamp(lastPosition, text.length));
-        if (textSegment.trim().isNotEmpty) {
-          widgets.add(
-            Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: Text(
-                textSegment,
-                style: theme.textTheme.bodyLarge?.copyWith(
-                  color: Colors.white.withOpacity(0.9),
-                  fontSize: 16,
-                  height: 1.5,
-                ),
-              ),
-            ),
-          );
-        }
-      }
-
-      // Add photo at this position
       final photoIndex = _entryState.attachments.indexOf(photo);
+      
+      print('DEBUG: Showing photo $i at insertion position ${photo.insertionPosition}');
+      
       widgets.add(_buildPhotoAttachment(photo, photoIndex));
       widgets.add(const SizedBox(height: 8));
-
-      lastPosition = safePosition;
     }
 
-    // Add remaining text after last photo
-    if (lastPosition < text.length) {
-      final remainingText = text.substring(lastPosition);
-      if (remainingText.trim().isNotEmpty) {
-        widgets.add(
-          Padding(
-            padding: const EdgeInsets.only(bottom: 8),
-            child: Text(
-              remainingText,
-              style: theme.textTheme.bodyLarge?.copyWith(
-                color: Colors.white.withOpacity(0.9),
-                fontSize: 16,
-                height: 1.5,
-              ),
-            ),
-          ),
-        );
-      }
-    }
-
-    // Add inline reflection blocks at the end
+    // Add inline reflection blocks
     widgets.addAll(_entryState.blocks.asMap().entries.map((entry) {
       final index = entry.key;
       final block = entry.value;
