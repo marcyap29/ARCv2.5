@@ -31,6 +31,10 @@ import Photos
     
     NSLog("[AppDelegate] VisionApi registered via Pigeon ✅")
     
+    // Register PhotoLibraryService
+    PhotoLibraryService.register(with: self)
+    NSLog("[AppDelegate] PhotoLibraryService registered ✅")
+    
         // Register Photos method channel
         let photosChannel = FlutterMethodChannel(name: "com.epi.arcmvp/photos", binaryMessenger: controller.binaryMessenger)
         photosChannel.setMethodCallHandler { [weak self] (call, result) in

@@ -22,6 +22,7 @@ import '../../arc/core/journal_capture_cubit.dart';
 import '../../arc/core/journal_repository.dart';
 import '../../arc/core/widgets/keyword_analysis_view.dart';
 import '../../core/services/draft_cache_service.dart';
+import '../../core/services/photo_library_service.dart';
 import '../../data/models/media_item.dart';
 import '../../mcp/orchestrator/ios_vision_orchestrator.dart';
 import 'widgets/lumara_suggestion_sheet.dart';
@@ -629,9 +630,9 @@ class _JournalScreenState extends State<JournalScreen> {
     final features = analysis['features'] as Map? ?? {};
     final keypoints = features['kp'] as int? ?? 0;
 
-    // Check if photo file exists
-    final photoExists = File(attachment.imagePath).existsSync();
-    print('DEBUG: Photo thumbnail - Path: ${attachment.imagePath}, Exists: $photoExists');
+    // Check if this is a photo library ID (starts with "ph://") or a file path
+    final isPhotoLibraryId = attachment.imagePath.startsWith('ph://');
+    print('DEBUG: Photo attachment - ID: ${attachment.imagePath}, IsPhotoLibrary: $isPhotoLibraryId');
 
     // Extract keywords from analysis
     final keywords = <String>[];
@@ -683,39 +684,76 @@ class _JournalScreenState extends State<JournalScreen> {
           const SizedBox(height: 12),
 
           // Comprehensive photo display with ALL info inside the box
-          if (photoExists)
-            // Show photo thumbnail when file exists
-            InkWell(
-              onTap: () => _openPhotoInGallery(attachment.imagePath),
-              child: Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.surfaceContainerHighest.withOpacity(0.3),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: Theme.of(context).colorScheme.outline.withOpacity(0.2),
+          // Use FutureBuilder to load photo from photo library or file system
+          FutureBuilder<String?>(
+            future: isPhotoLibraryId 
+              ? PhotoLibraryService.getPhotoThumbnail(attachment.imagePath, size: 200)
+              : Future.value(attachment.imagePath),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.surfaceContainerHighest.withOpacity(0.3),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: Theme.of(context).colorScheme.outline.withOpacity(0.2),
+                    ),
                   ),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Header with photo and title
-                    Row(
-                      children: [
-                        // Photo thumbnail
-                        CachedThumbnail(
-                          imagePath: attachment.imagePath,
-                          width: 80,
-                          height: 80,
-                          borderRadius: BorderRadius.circular(8),
-                          onTap: () => _openPhotoInGallery(attachment.imagePath),
-                          showTapIndicator: false, // Disable since parent handles tap
-                          placeholder: Container(
+                  child: const Center(
+                    child: CircularProgressIndicator(),
+                  ),
+                );
+              }
+              
+              final photoPath = snapshot.data;
+              if (photoPath == null || photoPath.isEmpty) {
+                return Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.surfaceContainerHighest.withOpacity(0.3),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: Theme.of(context).colorScheme.outline.withOpacity(0.2),
+                    ),
+                  ),
+                  child: const Center(
+                    child: Text('Photo not available'),
+                  ),
+                );
+              }
+              
+              return InkWell(
+                onTap: () => _openPhotoInGallery(attachment.imagePath),
+                child: Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.surfaceContainerHighest.withOpacity(0.3),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: Theme.of(context).colorScheme.outline.withOpacity(0.2),
+                    ),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Header with photo and title
+                      Row(
+                        children: [
+                          // Photo thumbnail
+                          CachedThumbnail(
+                            imagePath: photoPath,
                             width: 80,
                             height: 80,
-                            decoration: BoxDecoration(
-                              color: Colors.grey[300],
-                              borderRadius: BorderRadius.circular(8),
+                            borderRadius: BorderRadius.circular(8),
+                            onTap: () => _openPhotoInGallery(attachment.imagePath),
+                            showTapIndicator: false, // Disable since parent handles tap
+                            placeholder: Container(
+                              width: 80,
+                              height: 80,
+                              decoration: BoxDecoration(
+                                color: Colors.grey[300],
+                                borderRadius: BorderRadius.circular(8),
                             ),
                             child: const Center(
                               child: CircularProgressIndicator(strokeWidth: 2),
@@ -952,8 +990,8 @@ class _JournalScreenState extends State<JournalScreen> {
                   ],
                 ),
               ),
-            )
-          else
+            );
+          } else {
             // Show alt text fallback when photo is missing
             Container(
               padding: const EdgeInsets.all(12),
@@ -1001,6 +1039,11 @@ class _JournalScreenState extends State<JournalScreen> {
                 ],
               ),
             ),
+          ],
+        ),
+      );
+            },
+          ),
         ],
       ),
     );
@@ -1008,11 +1051,22 @@ class _JournalScreenState extends State<JournalScreen> {
 
   void _openPhotoInGallery(String imagePath) async {
     try {
+      String actualImagePath = imagePath;
+      
+      // If this is a photo library ID, load the full resolution image
+      if (imagePath.startsWith('ph://')) {
+        final fullImagePath = await PhotoLibraryService.loadPhotoFromLibrary(imagePath);
+        if (fullImagePath == null) {
+          throw Exception('Failed to load photo from photo library');
+        }
+        actualImagePath = fullImagePath;
+      }
+      
       // Open full-screen photo viewer in-app
       await Navigator.of(context).push(
         MaterialPageRoute(
           builder: (context) => FullScreenPhotoViewer(
-            imagePath: imagePath,
+            imagePath: actualImagePath,
             analysisText: _getPhotoAnalysisText(imagePath),
           ),
         ),
@@ -1799,13 +1853,22 @@ class _JournalScreenState extends State<JournalScreen> {
       );
 
       if (result['success'] == true) {
+        // Save photo to device photo library for persistent storage
+        final photoLibraryId = await PhotoLibraryService.savePhotoToLibrary(imagePath);
+        
+        if (photoLibraryId == null) {
+          throw Exception('Failed to save photo to photo library');
+        }
+        
+        print('PhotoLibraryService: Photo saved with ID: $photoLibraryId');
+
         // Generate alt text from analysis for graceful fallback
         final altText = MediaAltTextGenerator.generateFromAnalysis(result);
 
-        // Create photo attachment with analysis results and alt text
+        // Create photo attachment with photo library ID instead of temporary path
         final photoAttachment = PhotoAttachment(
           type: 'photo_analysis',
-          imagePath: imagePath,
+          imagePath: photoLibraryId, // Now using photo library ID instead of temp path
           analysisResult: result,
           timestamp: DateTime.now().millisecondsSinceEpoch,
           altText: altText,
