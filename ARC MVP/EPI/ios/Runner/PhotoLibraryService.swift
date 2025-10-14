@@ -322,15 +322,28 @@ import CommonCrypto
             let tempDir = NSTemporaryDirectory()
             let fileName = "\(localIdentifier)_thumb_\(size).jpg"
             let tempPath = (tempDir as NSString).appendingPathComponent(fileName)
+            
+            print("DEBUG: Creating thumbnail at path: \(tempPath)")
+            print("DEBUG: Image size: \(imageSize), scale: \(imageScale)")
+            print("DEBUG: Opaque image created: \(opaqueImage != nil)")
 
             if let imageData = opaqueImage.jpegData(compressionQuality: 0.8) {
+                print("DEBUG: JPEG data created, size: \(imageData.count) bytes")
                 do {
-                    try imageData.write(to: URL(fileURLWithPath: tempPath))
+                    // Ensure the directory exists
+                    let tempURL = URL(fileURLWithPath: tempPath)
+                    let directory = tempURL.deletingLastPathComponent()
+                    try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true, attributes: nil)
+                    
+                    try imageData.write(to: tempURL)
+                    print("DEBUG: Thumbnail saved successfully to: \(tempPath)")
                     result(tempPath)
                 } catch {
+                    print("DEBUG: Failed to save thumbnail: \(error.localizedDescription)")
                     result(FlutterError(code: "SAVE_FAILED", message: "Could not save thumbnail: \(error.localizedDescription)", details: nil))
                 }
             } else {
+                print("DEBUG: Failed to create JPEG data from opaque image")
                 result(FlutterError(code: "CONVERSION_FAILED", message: "Could not convert thumbnail to JPEG", details: nil))
             }
         }
