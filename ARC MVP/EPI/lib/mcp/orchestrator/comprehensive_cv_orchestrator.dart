@@ -304,7 +304,7 @@ class ComprehensiveCVOrchestrator {
         'kp': estimatedKeypoints,
         'hashes': {
           'phash': phash,
-          'orbPatch': phash.substring(0, 12),
+          'orbPatch': phash.length >= 12 ? phash.substring(0, 12) : phash,
         },
         'processingTime': 0,
         'params': {
@@ -394,7 +394,8 @@ class ComprehensiveCVOrchestrator {
       final hash = sha256.convert(imageBytes);
       return hash.toString().substring(0, 16);
     } catch (e) {
-      return 'hash_error';
+      // Return a 16-character fallback hash to prevent RangeError
+      return 'hash_error_12345';
     }
   }
 
