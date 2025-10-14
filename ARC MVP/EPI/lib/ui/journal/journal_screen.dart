@@ -420,6 +420,11 @@ class _JournalScreenState extends State<JournalScreen> {
     final analysis = attachment.analysisResult;
     final summary = analysis['summary'] as String? ?? 'Photo analyzed';
     
+    // Debug: Check if image file exists
+    final imageFile = File(attachment.imagePath);
+    final fileExists = imageFile.existsSync();
+    print('DEBUG: Photo thumbnail - Path: ${attachment.imagePath}, Exists: $fileExists');
+    
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       child: InkWell(
@@ -454,20 +459,30 @@ class _JournalScreenState extends State<JournalScreen> {
                 ),
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(6),
-                  child: Image.file(
-                    File(attachment.imagePath),
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) {
-                      return Container(
+                  child: fileExists 
+                    ? Image.file(
+                        imageFile,
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) {
+                          print('DEBUG: Image.file error: $error');
+                          return Container(
+                            color: Theme.of(context).colorScheme.surface,
+                            child: Icon(
+                              Icons.photo,
+                              color: Theme.of(context).colorScheme.primary,
+                              size: 20,
+                            ),
+                          );
+                        },
+                      )
+                    : Container(
                         color: Theme.of(context).colorScheme.surface,
                         child: Icon(
                           Icons.photo,
                           color: Theme.of(context).colorScheme.primary,
                           size: 20,
                         ),
-                      );
-                    },
-                  ),
+                      ),
                 ),
               ),
               const SizedBox(width: 8),
