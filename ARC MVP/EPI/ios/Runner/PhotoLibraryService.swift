@@ -298,17 +298,37 @@ import CommonCrypto
                 return
             }
 
+            // Convert to image without alpha channel to avoid iOS warning
+            // Create a new context without alpha
+            let imageSize = image.size
+            let imageScale = image.scale
+
+            UIGraphicsBeginImageContextWithOptions(imageSize, true, imageScale) // true = opaque
+            defer { UIGraphicsEndImageContext() }
+
+            // Draw white background first (for images with transparency)
+            UIColor.white.setFill()
+            UIRectFill(CGRect(origin: .zero, size: imageSize))
+
+            // Draw the image on top
+            image.draw(at: .zero)
+
+            guard let opaqueImage = UIGraphicsGetImageFromCurrentImageContext() else {
+                result(FlutterError(code: "CONVERSION_FAILED", message: "Could not create opaque image", details: nil))
+                return
+            }
+
             // Save thumbnail to temporary directory
             let tempDir = NSTemporaryDirectory()
             let fileName = "\(localIdentifier)_thumb_\(size).jpg"
             let tempPath = (tempDir as NSString).appendingPathComponent(fileName)
 
-            if let imageData = image.jpegData(compressionQuality: 0.8) {
+            if let imageData = opaqueImage.jpegData(compressionQuality: 0.8) {
                 do {
                     try imageData.write(to: URL(fileURLWithPath: tempPath))
                     result(tempPath)
                 } catch {
-                    result(FlutterError(code: "SAVE_FAILED", message: "Could not save thumbnail", details: nil))
+                    result(FlutterError(code: "SAVE_FAILED", message: "Could not save thumbnail: \(error.localizedDescription)", details: nil))
                 }
             } else {
                 result(FlutterError(code: "CONVERSION_FAILED", message: "Could not convert thumbnail to JPEG", details: nil))
