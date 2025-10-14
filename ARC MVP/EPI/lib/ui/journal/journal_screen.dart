@@ -1305,18 +1305,7 @@ class _JournalScreenState extends State<JournalScreen> {
     try {
       _analytics.logJournalEvent('photo_button_pressed');
       
-      // Request photo library permissions first
-      print('DEBUG: Requesting photo library permissions before opening picker');
-      final hasPermissions = await PhotoLibraryService.requestPermissions();
-      if (!hasPermissions) {
-        print('DEBUG: Permission not granted, showing settings dialog');
-        if (mounted) {
-          _showPermissionDeniedDialog();
-        }
-        return;
-      }
-      
-      print('DEBUG: Permissions granted, opening photo picker');
+      print('DEBUG: Opening photo picker to trigger permission request');
       final List<XFile> images = await _imagePicker.pickMultiImage();
       if (images.isNotEmpty) {
         for (final image in images) {
@@ -1324,12 +1313,20 @@ class _JournalScreenState extends State<JournalScreen> {
         }
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Failed to select photos: $e'),
-          backgroundColor: Theme.of(context).colorScheme.error,
-        ),
-      );
+      // If permission is denied, show our custom dialog
+      if (e.toString().contains('permission') || e.toString().contains('denied')) {
+        print('DEBUG: Photo permission denied, showing settings dialog');
+        if (mounted) {
+          _showPermissionDeniedDialog();
+        }
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to select photos: $e'),
+            backgroundColor: Theme.of(context).colorScheme.error,
+          ),
+        );
+      }
     }
   }
 
@@ -1337,29 +1334,26 @@ class _JournalScreenState extends State<JournalScreen> {
     try {
       _analytics.logJournalEvent('camera_button_pressed');
       
-      // Request photo library permissions first (needed for saving photos)
-      print('DEBUG: Requesting photo library permissions before camera');
-      final hasPermissions = await PhotoLibraryService.requestPermissions();
-      if (!hasPermissions) {
-        print('DEBUG: Permission not granted, showing settings dialog');
-        if (mounted) {
-          _showPermissionDeniedDialog();
-        }
-        return;
-      }
-      
-      print('DEBUG: Permissions granted, opening camera');
+      print('DEBUG: Opening camera to trigger permission request');
       final XFile? image = await _imagePicker.pickImage(source: ImageSource.camera);
       if (image != null) {
         await _processPhotoWithEnhancedOCP(image.path);
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Failed to take photo: $e'),
-          backgroundColor: Theme.of(context).colorScheme.error,
-        ),
-      );
+      // If permission is denied, show our custom dialog
+      if (e.toString().contains('permission') || e.toString().contains('denied')) {
+        print('DEBUG: Camera permission denied, showing settings dialog');
+        if (mounted) {
+          _showPermissionDeniedDialog();
+        }
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to take photo: $e'),
+            backgroundColor: Theme.of(context).colorScheme.error,
+          ),
+        );
+      }
     }
   }
 
