@@ -682,102 +682,147 @@ class _JournalScreenState extends State<JournalScreen> {
           ),
           const SizedBox(height: 12),
 
-          // Photo thumbnail or alt text fallback (conditional rendering)
+          // Compact photo display with all info inside the box
           if (photoExists)
             // Show photo thumbnail when file exists
-            Row(
-              children: [
-                // Cached Thumbnail - Clickable
-                CachedThumbnail(
-                  imagePath: attachment.imagePath,
-                  width: 80,
-                  height: 80,
-                  borderRadius: BorderRadius.circular(8),
-                  onTap: () => _openPhotoInGallery(attachment.imagePath),
-                  showTapIndicator: true,
-                  placeholder: Container(
-                    width: 80,
-                    height: 80,
-                    decoration: BoxDecoration(
-                      color: Colors.grey[300],
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: const Center(
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    ),
-                  ),
-                  errorWidget: Container(
-                    width: 80,
-                    height: 80,
-                    decoration: BoxDecoration(
-                      color: Colors.grey[300],
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: const Center(
-                      child: Icon(Icons.image, color: Colors.grey),
-                    ),
+            InkWell(
+              onTap: () => _openPhotoInGallery(attachment.imagePath),
+              child: Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.surfaceContainerHighest.withOpacity(0.3),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: Theme.of(context).colorScheme.outline.withOpacity(0.2),
                   ),
                 ),
-                const SizedBox(width: 12),
-
-                // Analysis details
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Show summary
-                      Text(
-                        summary,
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          fontWeight: FontWeight.w500,
+                child: Row(
+                  children: [
+                    // Photo thumbnail
+                    CachedThumbnail(
+                      imagePath: attachment.imagePath,
+                      width: 60,
+                      height: 60,
+                      borderRadius: BorderRadius.circular(8),
+                      onTap: () => _openPhotoInGallery(attachment.imagePath),
+                      showTapIndicator: false, // Disable since parent handles tap
+                      placeholder: Container(
+                        width: 60,
+                        height: 60,
+                        decoration: BoxDecoration(
+                          color: Colors.grey[300],
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Center(
+                          child: CircularProgressIndicator(strokeWidth: 2),
                         ),
                       ),
+                      errorWidget: Container(
+                        width: 60,
+                        height: 60,
+                        decoration: BoxDecoration(
+                          color: Colors.grey[300],
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Center(
+                          child: Icon(Icons.image, color: Colors.grey),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
 
-                      const SizedBox(height: 8),
-
-                      // Keypoints with clickable details
-                      InkWell(
-                        onTap: () => _showKeypointsDetails(analysis),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                              color: Theme.of(context).colorScheme.primary.withOpacity(0.3),
+                    // Compact analysis info
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Summary (compact)
+                          Text(
+                            summary,
+                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              fontWeight: FontWeight.w500,
                             ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
                           ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
+                          const SizedBox(height: 6),
+                          
+                          // Keypoints and keywords in one line
+                          Row(
                             children: [
-                              Icon(
-                                Icons.visibility,
-                                size: 12,
-                                color: Theme.of(context).colorScheme.primary,
-                              ),
-                              const SizedBox(width: 4),
-                              Text(
-                                'Features: $keypoints keypoints',
-                                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                  color: Theme.of(context).colorScheme.primary,
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w600,
+                              // Keypoints
+                              InkWell(
+                                onTap: () => _showKeypointsDetails(analysis),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(
+                                        Icons.visibility,
+                                        size: 10,
+                                        color: Theme.of(context).colorScheme.primary,
+                                      ),
+                                      const SizedBox(width: 2),
+                                      Text(
+                                        '$keypoints',
+                                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                          color: Theme.of(context).colorScheme.primary,
+                                          fontSize: 9,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
                                 ),
                               ),
-                              const SizedBox(width: 4),
-                              Icon(
-                                Icons.info_outline,
-                                size: 10,
-                                color: Theme.of(context).colorScheme.primary,
-                              ),
+                              const SizedBox(width: 8),
+                              
+                              // Keywords (first 3)
+                              if (keywords.isNotEmpty) ...[
+                                ...keywords.take(3).map((keyword) => Container(
+                                  margin: const EdgeInsets.only(right: 4),
+                                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                                  decoration: BoxDecoration(
+                                    color: Theme.of(context).colorScheme.secondary.withOpacity(0.1),
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: Text(
+                                    keyword,
+                                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                      color: Theme.of(context).colorScheme.secondary,
+                                      fontSize: 8,
+                                    ),
+                                  ),
+                                )),
+                                if (keywords.length > 3)
+                                  Text(
+                                    '+${keywords.length - 3}',
+                                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                      color: Theme.of(context).colorScheme.secondary,
+                                      fontSize: 8,
+                                    ),
+                                  ),
+                              ],
                             ],
                           ),
-                        ),
+                        ],
                       ),
-                    ],
-                  ),
+                    ),
+                    
+                    // Tap indicator
+                    Icon(
+                      Icons.open_in_new,
+                      size: 14,
+                      color: Theme.of(context).colorScheme.primary.withOpacity(0.7),
+                    ),
+                  ],
                 ),
-              ],
+              ),
             )
           else
             // Show alt text fallback when photo is missing
@@ -828,64 +873,24 @@ class _JournalScreenState extends State<JournalScreen> {
               ),
             ),
           
-          const SizedBox(height: 12),
-          
-          // Show keywords if available
-          if (keywords.isNotEmpty) ...[
-            Wrap(
-              spacing: 4,
-              runSpacing: 4,
-              children: keywords.take(8).map((keyword) => Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.secondary.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: Theme.of(context).colorScheme.secondary.withOpacity(0.3),
-                  ),
-                ),
-                child: Text(
-                  keyword,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Theme.of(context).colorScheme.secondary,
-                    fontSize: 10,
-                  ),
-                ),
-              )).toList(),
-            ),
-            const SizedBox(height: 8),
-          ],
-          
-          // Show MCP format indicator
+          // Compact info footer (only essential details)
           Row(
             children: [
+              // MCP format indicator (compact)
               Icon(
                 Icons.data_object,
-                size: 12,
-                color: Theme.of(context).colorScheme.secondary,
+                size: 10,
+                color: Theme.of(context).colorScheme.secondary.withOpacity(0.7),
               ),
               const SizedBox(width: 4),
               Text(
-                'MCP Format: ${analysis['mcp_format'] ?? 'Standard'}',
+                'MCP: ${analysis['mcp_format'] ?? 'Standard'}',
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
                   color: Theme.of(context).colorScheme.secondary,
                   fontSize: 10,
                 ),
               ),
             ],
-          ),
-          
-          const SizedBox(height: 8),
-          InkWell(
-            onTap: () => _openPhotoInGallery(attachment.imagePath),
-            child: Text(
-              'Tap to view photo in gallery',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: Theme.of(context).colorScheme.primary,
-                fontStyle: FontStyle.italic,
-                decoration: TextDecoration.underline,
-              ),
-            ),
           ),
         ],
       ),
