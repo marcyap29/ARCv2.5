@@ -292,6 +292,18 @@ class _JournalScreenState extends State<JournalScreen> {
     final currentText = _textController.text;
     final cursorPosition = _textController.selection.baseOffset;
     
+    // Handle invalid cursor position (e.g., -1)
+    if (cursorPosition < 0 || cursorPosition > currentText.length) {
+      // Default to end of text if cursor position is invalid
+      final newText = currentText + '\n\n$text';
+      _textController.text = newText;
+      _textController.selection = TextSelection.collapsed(
+        offset: currentText.length + text.length + 2,
+      );
+      _onTextChanged(newText);
+      return;
+    }
+    
     final newText = '${currentText.substring(0, cursorPosition)}\n\n$text${currentText.substring(cursorPosition)}';
     
     _textController.text = newText;
