@@ -521,22 +521,10 @@ class _JournalScreenState extends State<JournalScreen> {
                       // Main text field with AI suggestion support
                       _buildAITextField(theme),
                       const SizedBox(height: 16),
-                      
-                      // Inline reflection blocks
-                      ..._entryState.blocks.asMap().entries.map((entry) {
-                        final index = entry.key;
-                        final block = entry.value;
-                        return InlineReflectionBlock(
-                          content: block.content,
-                          intent: block.intent,
-                          phase: block.phase,
-                          onRegenerate: () => _onRegenerateReflection(index),
-                          onSoften: () => _onSoftenReflection(index),
-                          onMoreDepth: () => _onMoreDepthReflection(index),
-                          onContinueWithLumara: _onContinueWithLumara,
-                        );
-                      }),
-                      
+
+                      // Interleaved content: text segments, photos, and reflections in chronological order
+                      ..._buildInterleavedContent(theme),
+
                       // Keywords Discovered section (conditional visibility)
                       if (_showKeywordsDiscovered)
                         KeywordsDiscoveredWidget(
@@ -549,24 +537,17 @@ class _JournalScreenState extends State<JournalScreen> {
                           },
                           onAddKeywords: _showKeywordDialog,
                         ),
-                      
+
                       // Photo selection controls (only show if there are photo attachments)
                       if (_entryState.attachments.any((attachment) => attachment is PhotoAttachment)) ...[
                         const SizedBox(height: 16),
                         _buildPhotoSelectionControls(),
                         const SizedBox(height: 8),
                       ],
-                      
-                      // Attachments (scan and photo)
-                      ..._entryState.attachments.asMap().entries.map((entry) {
-                        final index = entry.key;
-                        final attachment = entry.value;
-                        if (attachment is PhotoAttachment) {
-                          return _buildPhotoAttachment(attachment, index);
-                        } else if (attachment is ScanAttachment) {
-                          return _buildScanAttachment(attachment);
-                        }
-                        return const SizedBox.shrink();
+
+                      // Scan attachments (OCR text) - shown separately
+                      ..._entryState.attachments.where((a) => a is ScanAttachment).map((attachment) {
+                        return _buildScanAttachment(attachment as ScanAttachment);
                       }),
                     ],
                   ),
@@ -690,6 +671,116 @@ class _JournalScreenState extends State<JournalScreen> {
         ),
       ),
     );
+  }
+
+  /// Build interleaved content showing photos at their insertion positions within text
+  List<Widget> _buildInterleavedContent(ThemeData theme) {
+    final widgets = <Widget>[];
+
+    // Get all photo attachments sorted by insertion position
+    final photoAttachments = _entryState.attachments
+        .whereType<PhotoAttachment>()
+        .where((photo) => photo.insertionPosition != null)
+        .toList()
+      ..sort((a, b) => a.insertionPosition!.compareTo(b.insertionPosition!));
+
+    if (photoAttachments.isEmpty) {
+      // No inline photos, just show reflection blocks
+      widgets.addAll(_entryState.blocks.asMap().entries.map((entry) {
+        final index = entry.key;
+        final block = entry.value;
+        return InlineReflectionBlock(
+          content: block.content,
+          intent: block.intent,
+          phase: block.phase,
+          onRegenerate: () => _onRegenerateReflection(index),
+          onSoften: () => _onSoftenReflection(index),
+          onMoreDepth: () => _onMoreDepthReflection(index),
+          onContinueWithLumara: _onContinueWithLumara,
+        );
+      }));
+      return widgets;
+    }
+
+    // Build interleaved layout with photos at their positions
+    print('DEBUG: Building interleaved content with ${photoAttachments.length} photos');
+
+    int lastPosition = 0;
+    final text = _textController.text;
+
+    for (int i = 0; i < photoAttachments.length; i++) {
+      final photo = photoAttachments[i];
+      final position = photo.insertionPosition!;
+
+      // Clamp position to valid text range
+      final safePosition = position.clamp(0, text.length);
+
+      print('DEBUG: Photo $i at position $safePosition (requested $position)');
+
+      // Add text segment before this photo (if any)
+      if (safePosition > lastPosition && lastPosition < text.length) {
+        final textSegment = text.substring(lastPosition, safePosition.clamp(lastPosition, text.length));
+        if (textSegment.trim().isNotEmpty) {
+          widgets.add(
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Text(
+                textSegment,
+                style: theme.textTheme.bodyLarge?.copyWith(
+                  color: Colors.white.withOpacity(0.9),
+                  fontSize: 16,
+                  height: 1.5,
+                ),
+              ),
+            ),
+          );
+        }
+      }
+
+      // Add photo at this position
+      final photoIndex = _entryState.attachments.indexOf(photo);
+      widgets.add(_buildPhotoAttachment(photo, photoIndex));
+      widgets.add(const SizedBox(height: 8));
+
+      lastPosition = safePosition;
+    }
+
+    // Add remaining text after last photo
+    if (lastPosition < text.length) {
+      final remainingText = text.substring(lastPosition);
+      if (remainingText.trim().isNotEmpty) {
+        widgets.add(
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Text(
+              remainingText,
+              style: theme.textTheme.bodyLarge?.copyWith(
+                color: Colors.white.withOpacity(0.9),
+                fontSize: 16,
+                height: 1.5,
+              ),
+            ),
+          ),
+        );
+      }
+    }
+
+    // Add inline reflection blocks at the end
+    widgets.addAll(_entryState.blocks.asMap().entries.map((entry) {
+      final index = entry.key;
+      final block = entry.value;
+      return InlineReflectionBlock(
+        content: block.content,
+        intent: block.intent,
+        phase: block.phase,
+        onRegenerate: () => _onRegenerateReflection(index),
+        onSoften: () => _onSoftenReflection(index),
+        onMoreDepth: () => _onMoreDepthReflection(index),
+        onContinueWithLumara: _onContinueWithLumara,
+      );
+    }));
+
+    return widgets;
   }
 
   Widget _buildScanAttachment(ScanAttachment attachment) {
@@ -1870,13 +1961,22 @@ class _JournalScreenState extends State<JournalScreen> {
         // Generate alt text from analysis
         final altText = MediaAltTextGenerator.generateFromAnalysis(result);
 
-        // Create photo attachment
+        // Capture current cursor position for inline display
+        final cursorPosition = _textController.selection.baseOffset;
+        final insertionPosition = (cursorPosition >= 0 && cursorPosition <= _textController.text.length)
+            ? cursorPosition
+            : _textController.text.length;
+
+        print('DEBUG: Photo insertion position: $insertionPosition in text of length ${_textController.text.length}');
+
+        // Create photo attachment with insertion position
         final photoAttachment = PhotoAttachment(
           type: 'photo_analysis',
           imagePath: photoReference, // Use photo library ID or original path
           analysisResult: result,
           timestamp: DateTime.now().millisecondsSinceEpoch,
           altText: altText,
+          insertionPosition: insertionPosition,
         );
 
         setState(() {
