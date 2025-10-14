@@ -543,22 +543,25 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
       // For now, we'll simulate the processing with a delay
       await Future.delayed(const Duration(seconds: 2));
 
-      // Generate simulated SAGE annotation
-      const annotation = SAGEAnnotation(
-        situation:
-            "User described a situation involving work challenges and personal reflection",
-        action:
-            "User took time to write in their journal and reflect on their experiences",
-        growth:
-            "User is developing self-awareness and emotional processing skills",
-        essence:
-            "The core of this entry is about personal growth through self-reflection",
-        confidence: 0.85,
-      );
+      // Check if cubit is still active before proceeding
+      if (!isClosed) {
+        // Generate simulated SAGE annotation
+        const annotation = SAGEAnnotation(
+          situation:
+              "User described a situation involving work challenges and personal reflection",
+          action:
+              "User took time to write in their journal and reflect on their experiences",
+          growth:
+              "User is developing self-awareness and emotional processing skills",
+          essence:
+              "The core of this entry is about personal growth through self-reflection",
+          confidence: 0.85,
+        );
 
-      // Update the entry with the annotation
-      final updatedEntry = entry.copyWith(sageAnnotation: annotation);
-      await _journalRepository.updateJournalEntry(updatedEntry);
+        // Update the entry with the annotation
+        final updatedEntry = entry.copyWith(sageAnnotation: annotation);
+        await _journalRepository.updateJournalEntry(updatedEntry);
+      }
     } catch (e) {
       // Silently fail if SAGE processing fails - it's not critical
       print('SAGE annotation failed: $e');
@@ -1156,16 +1159,22 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
     try {
       if (_audioPath != null) {
         _isPlaying = true;
-        emit(JournalCapturePlaying());
+        if (!isClosed) {
+          emit(JournalCapturePlaying());
+        }
         // In a real implementation, you would play the actual audio file
         // For now, we'll simulate playback
         await Future.delayed(const Duration(seconds: 3));
         _isPlaying = false;
-        emit(JournalCapturePlaybackStopped());
+        if (!isClosed) {
+          emit(JournalCapturePlaybackStopped());
+        }
       }
     } catch (e) {
       _isPlaying = false;
-      emit(JournalCaptureError('Failed to play recording: ${e.toString()}'));
+      if (!isClosed) {
+        emit(JournalCaptureError('Failed to play recording: ${e.toString()}'));
+      }
     }
   }
 
@@ -1182,23 +1191,32 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
   Future<void> transcribeAudio() async {
     try {
       if (_audioPath == null) {
-        emit(const JournalCaptureError('No audio recording found'));
+        if (!isClosed) {
+          emit(const JournalCaptureError('No audio recording found'));
+        }
         return;
       }
 
-      emit(JournalCaptureTranscribing());
+      if (!isClosed) {
+        emit(JournalCaptureTranscribing());
+      }
 
       // In a real implementation, you would call an actual transcription service
       // For this example, we'll simulate transcription with a delay
       await Future.delayed(const Duration(seconds: 2));
 
-      // Simulated transcription result
-      _transcription =
-          "This is a simulated transcription of your voice journal entry. In a real implementation, this would be the actual transcription from a service like OpenAI's Whisper API.";
+      // Check if cubit is still active before proceeding
+      if (!isClosed) {
+        // Simulated transcription result
+        _transcription =
+            "This is a simulated transcription of your voice journal entry. In a real implementation, this would be the actual transcription from a service like OpenAI's Whisper API.";
 
-      emit(JournalCaptureTranscribed(transcription: _transcription!));
+        emit(JournalCaptureTranscribed(transcription: _transcription!));
+      }
     } catch (e) {
-      emit(JournalCaptureError('Failed to transcribe audio: ${e.toString()}'));
+      if (!isClosed) {
+        emit(JournalCaptureError('Failed to transcribe audio: ${e.toString()}'));
+      }
     }
   }
 
