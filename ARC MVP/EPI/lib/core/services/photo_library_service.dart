@@ -15,18 +15,66 @@ class PhotoLibraryService {
   /// Returns true if permissions are granted, false otherwise
   static Future<bool> requestPermissions() async {
     try {
-      // Request both read and add permissions
-      final readPermission = await Permission.photos.request();
-      final addPermission = await Permission.photosAddOnly.request();
+      print('PhotoLibraryService: Starting permission request process...');
       
-      final hasReadPermission = readPermission.isGranted;
-      final hasAddPermission = addPermission.isGranted;
+      // Check current status first
+      final readStatus = await Permission.photos.status;
+      final addStatus = await Permission.photosAddOnly.status;
       
-      print('PhotoLibraryService: Read permission: $hasReadPermission, Add permission: $hasAddPermission');
+      print('PhotoLibraryService: Current status - Read: $readStatus, Add: $addStatus');
       
-      return hasReadPermission && hasAddPermission;
+      // Request add permission first (this is what we need for saving photos)
+      if (!addStatus.isGranted) {
+        print('PhotoLibraryService: Requesting add permission...');
+        final addResult = await Permission.photosAddOnly.request();
+        print('PhotoLibraryService: Add permission result: $addResult');
+        
+        if (!addResult.isGranted) {
+          print('PhotoLibraryService: Add permission denied');
+          return false;
+        }
+      }
+      
+      // Request read permission (for loading photos later)
+      if (!readStatus.isGranted) {
+        print('PhotoLibraryService: Requesting read permission...');
+        final readResult = await Permission.photos.request();
+        print('PhotoLibraryService: Read permission result: $readResult');
+      }
+      
+      // Check final status
+      final finalReadStatus = await Permission.photos.status;
+      final finalAddStatus = await Permission.photosAddOnly.status;
+      
+      print('PhotoLibraryService: Final status - Read: $finalReadStatus, Add: $finalAddStatus');
+      
+      // We only need add permission for saving photos
+      return finalAddStatus.isGranted;
     } catch (e) {
       print('PhotoLibraryService: Error requesting permissions: $e');
+      return false;
+    }
+  }
+  
+  /// Check if permissions are permanently denied and need manual settings access
+  static Future<bool> arePermissionsPermanentlyDenied() async {
+    try {
+      final readStatus = await Permission.photos.status;
+      final addStatus = await Permission.photosAddOnly.status;
+      
+      return readStatus.isPermanentlyDenied || addStatus.isPermanentlyDenied;
+    } catch (e) {
+      print('PhotoLibraryService: Error checking permanent denial: $e');
+      return false;
+    }
+  }
+  
+  /// Open app settings for manual permission granting
+  static Future<bool> openAppSettings() async {
+    try {
+      return await Permission.photosAddOnly.request().isGranted;
+    } catch (e) {
+      print('PhotoLibraryService: Error opening settings: $e');
       return false;
     }
   }

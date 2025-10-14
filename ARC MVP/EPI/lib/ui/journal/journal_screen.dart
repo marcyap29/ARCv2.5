@@ -762,6 +762,36 @@ class _JournalScreenState extends State<JournalScreen> {
     }
   }
 
+  /// Show dialog when photo library permissions are permanently denied
+  void _showPermissionDeniedDialog() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Photo Library Access Required'),
+          content: const Text(
+            'This app needs access to your photo library to save photos. '
+            'Please go to Settings > Privacy & Security > Photos and allow access for this app.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                // Open app settings
+                PhotoLibraryService.openAppSettings();
+              },
+              child: const Text('Open Settings'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   /// Get analysis text for a photo attachment
   String? _getPhotoAnalysisText(String imagePath) {
     try {
@@ -1534,7 +1564,18 @@ class _JournalScreenState extends State<JournalScreen> {
         // Request photo library permissions first
         final hasPermissions = await PhotoLibraryService.requestPermissions();
         if (!hasPermissions) {
-          throw Exception('Photo library permissions not granted');
+          // Check if permissions are permanently denied
+          final isPermanentlyDenied = await PhotoLibraryService.arePermissionsPermanentlyDenied();
+          
+          if (isPermanentlyDenied) {
+            // Show dialog to open settings
+            if (mounted) {
+              _showPermissionDeniedDialog();
+            }
+            return;
+          } else {
+            throw Exception('Photo library permissions not granted. Please try again.');
+          }
         }
         
         // Save photo to device photo library for persistent storage
