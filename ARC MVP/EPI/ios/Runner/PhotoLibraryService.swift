@@ -1,9 +1,10 @@
 import Foundation
 import Photos
 import UIKit
+import CommonCrypto
 
 @objc class PhotoLibraryService: NSObject {
-    
+
     // MARK: - Method Call Handler
     func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
         switch call.method {
@@ -17,9 +18,126 @@ import UIKit
             getPhotoThumbnail(call: call, result: result)
         case "deletePhotoFromLibrary":
             deletePhotoFromLibrary(call: call, result: result)
+        case "findDuplicatePhoto":
+            findDuplicatePhoto(call: call, result: result)
         default:
             result(FlutterMethodNotImplemented)
         }
+    }
+
+    // MARK: - Perceptual Hash Generation
+    private func generatePerceptualHash(for image: UIImage) -> String? {
+        // Resize image to 8x8 for perceptual hashing
+        let size = CGSize(width: 8, height: 8)
+        UIGraphicsBeginImageContextWithOptions(size, true, 1.0)
+        defer { UIGraphicsEndImageContext() }
+
+        image.draw(in: CGRect(origin: .zero, size: size))
+        guard let resizedImage = UIGraphicsGetImageFromCurrentImageContext(),
+              let cgImage = resizedImage.cgImage else {
+            return nil
+        }
+
+        // Convert to grayscale and get pixel data
+        let width = cgImage.width
+        let height = cgImage.height
+        let bytesPerPixel = 1
+        let bytesPerRow = bytesPerPixel * width
+        let bitsPerComponent = 8
+
+        var pixelData = [UInt8](repeating: 0, count: width * height)
+
+        let colorSpace = CGColorSpaceCreateDeviceGray()
+        guard let context = CGContext(
+            data: &pixelData,
+            width: width,
+            height: height,
+            bitsPerComponent: bitsPerComponent,
+            bytesPerRow: bytesPerRow,
+            space: colorSpace,
+            bitmapInfo: CGImageAlphaInfo.none.rawValue
+        ) else {
+            return nil
+        }
+
+        context.draw(cgImage, in: CGRect(x: 0, y: 0, width: width, height: height))
+
+        // Calculate average pixel value
+        let sum = pixelData.reduce(0, { $0 + Int($1) })
+        let average = sum / pixelData.count
+
+        // Generate hash based on pixels above/below average
+        var hash: UInt64 = 0
+        for (index, pixel) in pixelData.enumerated() {
+            if pixel > average {
+                hash |= (1 << index)
+            }
+        }
+
+        // Convert to hex string
+        return String(format: "%016llx", hash)
+    }
+
+    // MARK: - Find Duplicate Photo
+    private func findDuplicatePhoto(call: FlutterMethodCall, result: @escaping FlutterResult) {
+        guard let args = call.arguments as? [String: Any],
+              let imagePath = args["imagePath"] as? String else {
+            result(FlutterError(code: "INVALID_ARGUMENTS", message: "Missing imagePath", details: nil))
+            return
+        }
+
+        guard let image = UIImage(contentsOfFile: imagePath),
+              let targetHash = generatePerceptualHash(for: image) else {
+            result(FlutterError(code: "HASH_FAILED", message: "Could not generate perceptual hash", details: nil))
+            return
+        }
+
+        // Check photo library permission status
+        let authStatus = PHPhotoLibrary.authorizationStatus(for: .readWrite)
+        guard authStatus == .authorized || authStatus == .limited else {
+            // No permission - can't check for duplicates, return nil (treat as not found)
+            result(nil)
+            return
+        }
+
+        // Fetch all photos from library
+        let fetchOptions = PHFetchOptions()
+        fetchOptions.sortDescriptors = [NSSortDescriptor(key: "creationDate", ascending: false)]
+        fetchOptions.fetchLimit = 100 // Only check recent 100 photos for performance
+
+        let allPhotos = PHAsset.fetchAssets(with: .image, options: fetchOptions)
+
+        // Check each photo for matching hash
+        var foundMatch: String? = nil
+        let imageManager = PHImageManager.default()
+        let requestOptions = PHImageRequestOptions()
+        requestOptions.isSynchronous = true
+        requestOptions.deliveryMode = .fastFormat
+        requestOptions.isNetworkAccessAllowed = false
+
+        let targetSize = CGSize(width: 8, height: 8)
+
+        allPhotos.enumerateObjects { (asset, index, stop) in
+            imageManager.requestImage(
+                for: asset,
+                targetSize: targetSize,
+                contentMode: .aspectFill,
+                options: requestOptions
+            ) { (thumbnailImage, info) in
+                guard let thumbnailImage = thumbnailImage,
+                      let photoHash = self.generatePerceptualHash(for: thumbnailImage) else {
+                    return
+                }
+
+                // Compare hashes (exact match for now, could use Hamming distance for similarity)
+                if photoHash == targetHash {
+                    foundMatch = "ph://\(asset.localIdentifier)"
+                    stop.pointee = true
+                }
+            }
+        }
+
+        result(foundMatch)
     }
     
     // MARK: - Save Photo to Library

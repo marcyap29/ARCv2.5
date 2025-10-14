@@ -79,15 +79,52 @@ class PhotoLibraryService {
     }
   }
   
-  /// Save a photo to the device photo library
+  /// Find if a duplicate photo already exists in the library using perceptual hashing
+  ///
+  /// [imagePath] - Path to the image file to check
+  /// Returns the photo library identifier if a duplicate is found, null otherwise
+  static Future<String?> findDuplicatePhoto(String imagePath) async {
+    try {
+      print('PhotoLibraryService: Checking for duplicate photo...');
+      final result = await _channel.invokeMethod('findDuplicatePhoto', {
+        'imagePath': imagePath,
+      });
+
+      if (result is String && result.isNotEmpty) {
+        print('PhotoLibraryService: Found duplicate photo with ID: $result');
+        return result;
+      } else {
+        print('PhotoLibraryService: No duplicate photo found');
+        return null;
+      }
+    } catch (e) {
+      print('PhotoLibraryService: Error checking for duplicate: $e');
+      return null;
+    }
+  }
+
+  /// Save a photo to the device photo library with duplicate detection
   ///
   /// [imagePath] - Path to the image file to save
+  /// [checkDuplicates] - Whether to check for duplicates before saving (default: true)
   /// Returns the photo library identifier (e.g., "ph://12345678-1234-1234-1234-123456789012")
   ///
   /// Note: Permissions are handled by the native iOS layer using
   /// PHPhotoLibrary.requestAuthorization(for: .readWrite)
-  static Future<String?> savePhotoToLibrary(String imagePath) async {
+  static Future<String?> savePhotoToLibrary(
+    String imagePath, {
+    bool checkDuplicates = true,
+  }) async {
     try {
+      // Check for duplicates first if enabled
+      if (checkDuplicates) {
+        final duplicateId = await findDuplicatePhoto(imagePath);
+        if (duplicateId != null) {
+          print('PhotoLibraryService: Using existing photo instead of saving duplicate');
+          return duplicateId;
+        }
+      }
+
       // Save photo to library using native iOS method
       // The native layer will request permissions if needed
       final result = await _channel.invokeMethod('savePhotoToLibrary', {
