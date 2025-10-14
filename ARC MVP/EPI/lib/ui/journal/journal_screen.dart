@@ -754,12 +754,15 @@ class _JournalScreenState extends State<JournalScreen> {
   Widget _buildPhotoThumbnail(String imagePath) {
     // Check if this is a photo library ID (starts with "ph://") or a file path
     final isPhotoLibraryId = imagePath.startsWith('ph://');
-    
+    print('DEBUG _buildPhotoThumbnail: imagePath=$imagePath, isPhotoLibraryId=$isPhotoLibraryId');
+
     if (isPhotoLibraryId) {
       // Load thumbnail from photo library
       return FutureBuilder<String?>(
         future: PhotoLibraryService.getPhotoThumbnail(imagePath, size: 80),
         builder: (context, snapshot) {
+          print('DEBUG FutureBuilder: connectionState=${snapshot.connectionState}, hasData=${snapshot.hasData}, data=${snapshot.data}, error=${snapshot.error}');
+
           if (snapshot.connectionState == ConnectionState.waiting) {
             return Container(
               color: Theme.of(context).colorScheme.surfaceContainerHighest,
@@ -768,12 +771,40 @@ class _JournalScreenState extends State<JournalScreen> {
               ),
             );
           }
-          
+
+          if (snapshot.hasError) {
+            print('DEBUG: Thumbnail loading error: ${snapshot.error}');
+            return Container(
+              color: Theme.of(context).colorScheme.surfaceContainerHighest,
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.error_outline,
+                    color: Theme.of(context).colorScheme.error,
+                    size: 32,
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Error loading thumbnail',
+                    style: TextStyle(
+                      fontSize: 10,
+                      color: Theme.of(context).colorScheme.error,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
+            );
+          }
+
           if (snapshot.hasData && snapshot.data != null) {
+            print('DEBUG: Loading image from: ${snapshot.data}');
             return Image.file(
               File(snapshot.data!),
               fit: BoxFit.cover,
               errorBuilder: (context, error, stackTrace) {
+                print('DEBUG: Image.file error: $error');
                 return Container(
                   color: Theme.of(context).colorScheme.surfaceContainerHighest,
                   child: Icon(
@@ -784,8 +815,9 @@ class _JournalScreenState extends State<JournalScreen> {
               },
             );
           }
-          
+
           // Fallback for photo library errors
+          print('DEBUG: No data received from getPhotoThumbnail');
           return Container(
             color: Theme.of(context).colorScheme.surfaceContainerHighest,
             child: Icon(
@@ -797,10 +829,12 @@ class _JournalScreenState extends State<JournalScreen> {
       );
     } else {
       // Load from file path (temporary files)
+      print('DEBUG: Loading image directly from file: $imagePath');
       return Image.file(
         File(imagePath),
         fit: BoxFit.cover,
         errorBuilder: (context, error, stackTrace) {
+          print('DEBUG: File image loading error: $error');
           return Container(
             color: Theme.of(context).colorScheme.surfaceContainerHighest,
             child: Icon(
@@ -843,7 +877,9 @@ class _JournalScreenState extends State<JournalScreen> {
     }
     
     return GestureDetector(
-      onTap: _isPhotoSelectionMode ? () => _togglePhotoSelection(index) : null,
+      onTap: _isPhotoSelectionMode
+          ? () => _togglePhotoSelection(index)
+          : () => _openPhotoInGallery(attachment.imagePath),
       child: Container(
         margin: const EdgeInsets.only(bottom: 8),
         padding: const EdgeInsets.all(12),
