@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:my_app/features/home/home_view.dart';
 import 'package:my_app/features/onboarding/onboarding_view.dart';
+import 'package:my_app/features/onboarding/phase_celebration_view.dart';
 import 'package:my_app/shared/app_colors.dart';
 import 'package:my_app/shared/text_style.dart';
 import 'package:my_app/core/services/audio_service.dart';
+import 'package:hive/hive.dart';
+import 'package:my_app/models/user_profile_model.dart';
 
 class PhaseQuizPromptView extends StatefulWidget {
   const PhaseQuizPromptView({super.key});
@@ -59,6 +61,72 @@ class _PhaseQuizPromptViewState extends State<PhaseQuizPromptView> {
   void dispose() {
     // Don't dispose audio service here as it might be used by other screens
     super.dispose();
+  }
+
+  /// Skip quiz and set default phase to Discovery
+  void _skipQuizAndSetDefaultPhase() async {
+    try {
+      print('DEBUG: User skipped quiz, setting default phase to Discovery');
+      
+      // Create or update user profile with default phase
+      Box<UserProfile> userBox;
+      if (Hive.isBoxOpen('user_profile')) {
+        userBox = Hive.box<UserProfile>('user_profile');
+      } else {
+        userBox = await Hive.openBox<UserProfile>('user_profile');
+      }
+      
+      UserProfile? userProfile = userBox.get('profile');
+      
+      // Create new profile if none exists
+      userProfile ??= UserProfile(
+        id: 'default',
+        name: 'User',
+        email: '',
+        createdAt: DateTime.now(),
+        preferences: const {},
+      );
+      
+      // Update profile with default phase and mark onboarding as completed
+      final updatedProfile = userProfile.copyWith(
+        onboardingCurrentSeason: 'Discovery',
+        onboardingCompleted: true,
+        currentPhase: 'Discovery',
+        lastPhaseChangeAt: DateTime.now(),
+      );
+      
+      await userBox.put('profile', updatedProfile);
+      print('DEBUG: Default phase (Discovery) set for user who skipped quiz');
+      
+      // Show Discovery phase celebration
+      if (mounted) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (context) => const PhaseCelebrationView(
+              discoveredPhase: 'Discovery',
+              phaseDescription: 'Exploring new ground; curiosity leads you.',
+              phaseEmoji: '🌱',
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      print('DEBUG: Error setting default phase: $e');
+      // Still show celebration even if there's an error
+      if (mounted) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (context) => const PhaseCelebrationView(
+              discoveredPhase: 'Discovery',
+              phaseDescription: 'Exploring new ground; curiosity leads you.',
+              phaseEmoji: '🌱',
+            ),
+          ),
+        );
+      }
+    }
   }
 
   @override
@@ -155,12 +223,7 @@ class _PhaseQuizPromptViewState extends State<PhaseQuizPromptView> {
                   width: double.infinity,
                   child: TextButton(
                     onPressed: () {
-                      Navigator.pushReplacement(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const HomeView(),
-                        ),
-                      );
+                      _skipQuizAndSetDefaultPhase();
                     },
                     style: TextButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 16),

@@ -16,6 +16,7 @@ import 'package:my_app/models/user_profile_model.dart';
 import 'package:my_app/atlas/phase_detection/phase_tracker.dart';
 import 'package:my_app/atlas/phase_detection/phase_history_repository.dart';
 import 'package:my_app/atlas/phase_detection/phase_change_notifier.dart';
+import 'package:my_app/features/onboarding/phase_celebration_view.dart';
 import 'package:my_app/core/sync/sync_service.dart';
 import 'package:my_app/core/sync/sync_models.dart';
 import 'package:uuid/uuid.dart';
@@ -567,14 +568,9 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
         print('INFO: PhaseTracker approved phase change: ${result.previousPhase} → ${result.newPhase}');
         await _updateUserPhaseWithStability(result.newPhase!, result.reason);
         
-        // Show phase change notification if context is available
+        // Show phase celebration if context is available
         if (context != null) {
-          PhaseChangeNotifier.showPhaseChangeNotification(
-            context,
-            fromPhase: result.previousPhase ?? 'Unknown',
-            toPhase: result.newPhase!,
-            reason: result.reason,
-          );
+          _showPhaseCelebration(context, result.newPhase!);
         }
       } else {
         // No phase change - maintain current phase
@@ -602,6 +598,45 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
            reason.contains('hysteresis') || 
            reason.contains('threshold') ||
            reason.contains('optimal');
+  }
+
+  /// Show phase celebration when Atlas/Rivet/Sentinel changes phase
+  void _showPhaseCelebration(BuildContext context, String phase) {
+    final phaseDescription = UserPhaseService.getPhaseDescription(phase);
+    String phaseEmoji;
+    
+    switch (phase.toLowerCase()) {
+      case 'discovery':
+        phaseEmoji = '🌱';
+        break;
+      case 'expansion':
+        phaseEmoji = '🌸';
+        break;
+      case 'transition':
+        phaseEmoji = '🌿';
+        break;
+      case 'consolidation':
+        phaseEmoji = '🧵';
+        break;
+      case 'recovery':
+        phaseEmoji = '✨';
+        break;
+      case 'breakthrough':
+        phaseEmoji = '💥';
+        break;
+      default:
+        phaseEmoji = '🌱';
+    }
+    
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => PhaseCelebrationView(
+          discoveredPhase: phase,
+          phaseDescription: phaseDescription,
+          phaseEmoji: phaseEmoji,
+        ),
+      ),
+    );
   }
 
   /// Update user phase with phase stability tracking

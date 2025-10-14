@@ -58,8 +58,9 @@ class UserPhaseService {
         }
       }
       
-      // Default fallback
-      print('DEBUG: No phase found, defaulting to Discovery');
+      // NEW RULE: Auto-default to Discovery if no phase is found
+      // This handles cases where user skipped quiz or system couldn't determine phase
+      print('DEBUG: No phase found, auto-defaulting to Discovery');
       return 'Discovery';
       
     } catch (e) {

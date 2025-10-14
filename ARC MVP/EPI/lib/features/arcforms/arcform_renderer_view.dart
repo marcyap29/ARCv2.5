@@ -8,6 +8,7 @@ import 'package:my_app/features/arcforms/widgets/simple_3d_arcform.dart';
 import 'package:my_app/features/arcforms/arcform_mvp_implementation.dart';
 import 'package:my_app/features/arcforms/services/emotional_valence_service.dart';
 import 'package:my_app/features/arcforms/constellation/constellation_arcform_renderer.dart';
+import 'package:my_app/features/onboarding/phase_celebration_view.dart';
 import 'package:my_app/services/user_phase_service.dart';
 import 'package:my_app/services/arcform_export_service.dart';
 import 'package:my_app/shared/app_colors.dart';
@@ -624,15 +625,13 @@ class _ArcformRendererViewContentState extends State<ArcformRendererViewContent>
       final geometryPattern = _convertAtlasPhaseToGeometryPattern(phase);
       final phaseName = _getAtlasPhaseName(phase);
       
+      // Update user profile
+      _updateUserPhase(phaseName);
+      
       cubit.changePhaseAndGeometry(phaseName, geometryPattern);
       
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Switched to ${phase.displayName} constellation'),
-          backgroundColor: kcPrimaryColor,
-          duration: const Duration(seconds: 2),
-        ),
-      );
+      // Show phase celebration
+      _showPhaseCelebration(phaseName);
     } catch (e) {
       print('ERROR: Failed to change constellation phase: $e');
       ScaffoldMessenger.of(context).showSnackBar(
@@ -747,14 +746,8 @@ class _ArcformRendererViewContentState extends State<ArcformRendererViewContent>
       // Hide the dialog
       _hideGeometrySelectorDialog();
       
-      // Show success message
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Phase changed to $savedPhase'),
-          backgroundColor: kcPrimaryColor,
-          duration: const Duration(seconds: 2),
-        ),
-      );
+      // Show phase celebration
+      _showPhaseCelebration(savedPhase);
     }
   }
 
@@ -777,6 +770,45 @@ class _ArcformRendererViewContentState extends State<ArcformRendererViewContent>
     } catch (e) {
       print('DEBUG: Error updating user phase: $e');
     }
+  }
+
+  /// Show phase celebration when user changes phase
+  void _showPhaseCelebration(String phase) {
+    final phaseDescription = UserPhaseService.getPhaseDescription(phase);
+    String phaseEmoji;
+    
+    switch (phase.toLowerCase()) {
+      case 'discovery':
+        phaseEmoji = '🌱';
+        break;
+      case 'expansion':
+        phaseEmoji = '🌸';
+        break;
+      case 'transition':
+        phaseEmoji = '🌿';
+        break;
+      case 'consolidation':
+        phaseEmoji = '🧵';
+        break;
+      case 'recovery':
+        phaseEmoji = '✨';
+        break;
+      case 'breakthrough':
+        phaseEmoji = '💥';
+        break;
+      default:
+        phaseEmoji = '🌱';
+    }
+    
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => PhaseCelebrationView(
+          discoveredPhase: phase,
+          phaseDescription: phaseDescription,
+          phaseEmoji: phaseEmoji,
+        ),
+      ),
+    );
   }
 
   GeometryPattern _phaseToGeometryPattern(String phase) {

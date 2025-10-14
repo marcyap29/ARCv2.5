@@ -42,22 +42,20 @@ class _StartupViewState extends State<StartupView> {
       print('DEBUG: Onboarding completed: ${userProfile?.onboardingCompleted}');
       print('DEBUG: Current season: ${userProfile?.onboardingCurrentSeason}');
 
-      // Check if user has a phase (onboardingCurrentSeason)
-      final hasPhase = userProfile?.onboardingCurrentSeason != null && 
-                      userProfile!.onboardingCurrentSeason!.isNotEmpty;
-
-      if (hasPhase) {
-        print('DEBUG: User has a phase (${userProfile.onboardingCurrentSeason}), navigating to main menu');
-        // User has a phase, go directly to main menu (Phase tab as starting screen)
-        _navigateToHome();
-      } else {
-        print('DEBUG: User does not have a phase, navigating to phase quiz');
-        // User doesn't have a phase, take them straight to phase quiz
+      // NEW RULES: Only show quiz to completely new users (no profile or no onboarding completed)
+      final isNewUser = userProfile == null || !userProfile.onboardingCompleted;
+      
+      if (isNewUser) {
+        print('DEBUG: New user detected, showing phase quiz');
         _navigateToPhaseQuiz();
+      } else {
+        print('DEBUG: Existing user, navigating to main menu');
+        // Existing user - go directly to main menu
+        _navigateToHome();
       }
     } catch (e) {
       print('DEBUG: Error in _checkOnboardingStatus: $e');
-      // If there's an error accessing the profile, go to phase quiz
+      // If there's an error accessing the profile, treat as new user
       _navigateToPhaseQuiz();
     }
   }
