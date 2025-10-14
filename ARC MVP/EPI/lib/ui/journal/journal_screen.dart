@@ -119,6 +119,9 @@ class _JournalScreenState extends State<JournalScreen> {
         final attachments = MediaConversionUtils.mediaItemsToAttachments(widget.existingEntry!.media);
         _entryState.attachments.addAll(attachments);
         print('DEBUG: Loaded ${attachments.length} attachments from existing entry');
+        print('DEBUG: Entry ID: ${widget.existingEntry!.id}');
+        print('DEBUG: Entry content length: ${widget.existingEntry!.content.length}');
+        print('DEBUG: Entry media count: ${widget.existingEntry!.media.length}');
       }
     }
 
@@ -465,7 +468,12 @@ class _JournalScreenState extends State<JournalScreen> {
             initialEmotion: widget.selectedEmotion,
             initialReason: widget.selectedReason,
             manualKeywords: _manualKeywords,
-            mediaItems: MediaConversionUtils.attachmentsToMediaItems(_entryState.attachments),
+            mediaItems: (() {
+              final mediaItems = MediaConversionUtils.attachmentsToMediaItems(_entryState.attachments);
+              print('DEBUG: Saving entry with ${mediaItems.length} media items');
+              print('DEBUG: Attachments count: ${_entryState.attachments.length}');
+              return mediaItems;
+            })(),
           ),
         ),
       ),
@@ -701,12 +709,24 @@ class _JournalScreenState extends State<JournalScreen> {
   List<Widget> _buildInterleavedContent(ThemeData theme) {
     final widgets = <Widget>[];
 
-    // Get all photo attachments sorted by insertion position
+    // Get all photo attachments - show all photos when loading existing entries
     final photoAttachments = _entryState.attachments
         .whereType<PhotoAttachment>()
-        .where((photo) => photo.insertionPosition != null)
-        .toList()
-      ..sort((a, b) => a.insertionPosition!.compareTo(b.insertionPosition!));
+        .toList();
+
+    // Sort by insertion position if available, otherwise by timestamp
+    photoAttachments.sort((a, b) {
+      if (a.insertionPosition != null && b.insertionPosition != null) {
+        return a.insertionPosition!.compareTo(b.insertionPosition!);
+      } else if (a.insertionPosition != null) {
+        return -1; // a has position, b doesn't - a comes first
+      } else if (b.insertionPosition != null) {
+        return 1; // b has position, a doesn't - b comes first
+      } else {
+        // Neither has position, sort by timestamp
+        return a.timestamp.compareTo(b.timestamp);
+      }
+    });
 
     // Show photos in chronological order (without text segments since TextField handles text)
     for (int i = 0; i < photoAttachments.length; i++) {
