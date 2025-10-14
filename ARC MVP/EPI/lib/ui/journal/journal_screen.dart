@@ -631,6 +631,7 @@ class _JournalScreenState extends State<JournalScreen> {
 
     // Check if photo file exists
     final photoExists = File(attachment.imagePath).existsSync();
+    print('DEBUG: Photo thumbnail - Path: ${attachment.imagePath}, Exists: $photoExists');
 
     // Extract keywords from analysis
     final keywords = <String>[];
