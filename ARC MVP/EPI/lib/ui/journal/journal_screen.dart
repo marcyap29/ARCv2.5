@@ -925,6 +925,7 @@ class _JournalScreenState extends State<JournalScreen> {
       onTap: _isPhotoSelectionMode
           ? () => _togglePhotoSelection(index)
           : () => _openPhotoInGallery(attachment.imagePath),
+      behavior: HitTestBehavior.opaque, // Ensure this gesture detector captures taps
       child: Container(
         margin: const EdgeInsets.only(bottom: 8),
         padding: const EdgeInsets.all(12),

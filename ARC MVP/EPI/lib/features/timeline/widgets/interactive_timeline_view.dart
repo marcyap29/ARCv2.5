@@ -366,6 +366,7 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
                 initialContent: fullEntry.content,
                 selectedEmotion: fullEntry.emotion,
                 selectedReason: fullEntry.emotionReason,
+                existingEntry: fullEntry, // Pass the full entry with media
               ),
             ),
           );

@@ -249,7 +249,7 @@ class TimelineCubit extends Cubit<TimelineState> {
         print('DEBUG: Entry ${entry.id} - No phase found, using default: $phase');
       }
 
-      print('DEBUG: Entry ${entry.id} - Final phase: $phase');
+      print('DEBUG: Entry ${entry.id} - Final phase: $phase, Media count: ${entry.media.length}');
 
       return TimelineEntry(
         id: entry.id,
