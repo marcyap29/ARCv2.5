@@ -211,6 +211,7 @@ class IOSVisionOrchestrator {
       // Calculate image complexity
       final complexity = _calculateImageComplexity(image);
       final estimatedKeypoints = (complexity * 200).round().clamp(50, 800);
+      print('DEBUG: Image complexity: $complexity, Estimated keypoints: $estimatedKeypoints');
 
       return {
         'success': true,
@@ -299,7 +300,7 @@ class IOSVisionOrchestrator {
     }
     
     variance /= sampleCount;
-    return (variance / 10000).clamp(0.0, 1.0);
+    return (variance / 1000).clamp(0.0, 1.0); // Reduced divisor from 10000 to 1000
   }
 
   /// Generate perceptual hash
