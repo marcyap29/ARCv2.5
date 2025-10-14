@@ -1305,7 +1305,19 @@ class _JournalScreenState extends State<JournalScreen> {
     try {
       _analytics.logJournalEvent('photo_button_pressed');
       
-      print('DEBUG: Opening photo picker to trigger permission request');
+      // First, explicitly request photo library permission
+      print('DEBUG: Requesting photo library permission explicitly');
+      final hasPermissions = await PhotoLibraryService.requestPermissions();
+      
+      if (!hasPermissions) {
+        print('DEBUG: Permission not granted, showing settings dialog');
+        if (mounted) {
+          _showPermissionDeniedDialog();
+        }
+        return;
+      }
+      
+      print('DEBUG: Permission granted, opening photo picker');
       final List<XFile> images = await _imagePicker.pickMultiImage();
       if (images.isNotEmpty) {
         for (final image in images) {
@@ -1334,7 +1346,19 @@ class _JournalScreenState extends State<JournalScreen> {
     try {
       _analytics.logJournalEvent('camera_button_pressed');
       
-      print('DEBUG: Opening camera to trigger permission request');
+      // First, explicitly request photo library permission (needed for saving photos)
+      print('DEBUG: Requesting photo library permission for camera');
+      final hasPermissions = await PhotoLibraryService.requestPermissions();
+      
+      if (!hasPermissions) {
+        print('DEBUG: Permission not granted, showing settings dialog');
+        if (mounted) {
+          _showPermissionDeniedDialog();
+        }
+        return;
+      }
+      
+      print('DEBUG: Permission granted, opening camera');
       final XFile? image = await _imagePicker.pickImage(source: ImageSource.camera);
       if (image != null) {
         await _processPhotoWithEnhancedOCP(image.path);
