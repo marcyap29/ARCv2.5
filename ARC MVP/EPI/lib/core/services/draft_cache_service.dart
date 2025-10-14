@@ -220,6 +220,19 @@ class DraftCacheService {
     // Auto-save will handle persistence
   }
 
+  /// Update the current draft content and media items
+  Future<void> updateDraftContentAndMedia(String content, List<MediaItem> mediaItems) async {
+    if (_currentDraft == null) return;
+
+    _currentDraft = _currentDraft!.copyWith(
+      content: content,
+      mediaItems: mediaItems,
+      lastModified: DateTime.now(),
+    );
+
+    // Auto-save will handle persistence
+  }
+
   /// Add media item to the current draft
   Future<void> addMediaToDraft(MediaItem mediaItem) async {
     if (_currentDraft == null) return;

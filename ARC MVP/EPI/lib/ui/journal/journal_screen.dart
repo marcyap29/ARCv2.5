@@ -1445,6 +1445,26 @@ class _JournalScreenState extends State<JournalScreen> {
           // Restore the existing draft
           await _draftCache.restoreDraft(recoverableDraft);
           _currentDraftId = recoverableDraft.id;
+          
+          // Restore media items from draft
+          if (recoverableDraft.mediaItems.isNotEmpty) {
+            // Convert MediaItems back to attachments
+            for (final mediaItem in recoverableDraft.mediaItems) {
+              if (mediaItem.type == MediaType.image) {
+                // Create PhotoAttachment from MediaItem
+                final photoAttachment = PhotoAttachment(
+                  type: 'photo_analysis',
+                  imagePath: mediaItem.uri,
+                  analysisResult: mediaItem.analysisData ?? {},
+                  timestamp: mediaItem.createdAt.millisecondsSinceEpoch,
+                  altText: mediaItem.altText,
+                );
+                _entryState.addAttachment(photoAttachment);
+              }
+            }
+            debugPrint('JournalScreen: Restored ${recoverableDraft.mediaItems.length} media items from draft');
+          }
+          
           debugPrint('JournalScreen: Restored existing draft $_currentDraftId');
         } else {
           // Create new draft with the provided content
@@ -1478,8 +1498,10 @@ class _JournalScreenState extends State<JournalScreen> {
     
     // Start new timer for auto-save
     _autoSaveTimer = Timer(const Duration(seconds: 2), () {
-      _draftCache.updateDraftContent(content);
-      debugPrint('JournalScreen: Auto-saved draft content');
+      // Convert attachments to MediaItems for persistence
+      final mediaItems = MediaConversionUtils.attachmentsToMediaItems(_entryState.attachments);
+      _draftCache.updateDraftContentAndMedia(content, mediaItems);
+      debugPrint('JournalScreen: Auto-saved draft content and media');
     });
   }
 
