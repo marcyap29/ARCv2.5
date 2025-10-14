@@ -7,12 +7,14 @@ import 'package:my_app/features/timeline/timeline_cubit.dart';
 import 'package:my_app/features/home/home_view.dart';
 import 'package:my_app/shared/app_colors.dart';
 import 'package:my_app/shared/text_style.dart';
+import 'package:my_app/data/models/media_item.dart';
 
 class KeywordAnalysisView extends StatefulWidget {
   final String content;
   final String mood;
   final String? initialEmotion;
   final String? initialReason;
+  final List<MediaItem>? mediaItems;
   
   const KeywordAnalysisView({
     super.key,
@@ -20,6 +22,7 @@ class KeywordAnalysisView extends StatefulWidget {
     required this.mood,
     this.initialEmotion,
     this.initialReason,
+    this.mediaItems,
   });
 
   @override
@@ -72,6 +75,7 @@ class _KeywordAnalysisViewState extends State<KeywordAnalysisView>
         emotion: widget.initialEmotion,
         emotionReason: widget.initialReason,
         context: context,
+        media: widget.mediaItems,
       );
       
       // Show simple success message
