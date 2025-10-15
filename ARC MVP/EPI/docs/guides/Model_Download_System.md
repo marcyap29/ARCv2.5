@@ -72,16 +72,23 @@ Model Download System
    - Description: Multilingual, excellent reasoning capabilities
    - Repo: `unsloth/Qwen3-4B-Instruct-2507-GGUF`
 
+3. **Google Gemma 3n E2B Instruct (Q6_K_L)**
+   - Size: 4340 MB
+   - Min RAM: 6 GB
+   - Quantization: Q6_K_L (Q8_0 for embed and output weights)
+   - Description: Very high quality, near perfect, recommended
+   - Repo: `bartowski/google_gemma-3n-E2B-it-GGUF`
+
 #### Vision-Language Models (Image + Text)
 
-3. **Qwen2.5-VL 3B Instruct** - DEFAULT
+4. **Qwen2.5-VL 3B Instruct** - DEFAULT
    - Size: 2000 MB
    - Min RAM: 6 GB
    - Quantization: Q5_K_M
    - Description: Vision-language model for image understanding
    - Repo: `bartowski/Qwen2.5-VL-3B-Instruct-GGUF`
 
-4. **Qwen2-VL 2B Instruct**
+5. **Qwen2-VL 2B Instruct**
    - Size: 1600 MB
    - Min RAM: 4 GB
    - Quantization: Q6_K_L
@@ -90,7 +97,7 @@ Model Download System
 
 #### Embedding Models (Semantic Search)
 
-5. **Qwen3 Embedding 0.6B** - DEFAULT
+6. **Qwen3 Embedding 0.6B** - DEFAULT
    - Size: 400 MB
    - Min RAM: 2 GB
    - Quantization: INT4

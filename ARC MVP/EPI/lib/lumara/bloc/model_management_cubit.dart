@@ -67,6 +67,7 @@ class ModelManagementCubit extends Cubit<ModelManagementState> {
   final availableModels = <String, String>{
     'Llama-3.2-3b-Instruct-Q4_K_M.gguf': 'Llama 3.2 3B Instruct (Q4_K_M) - Recommended: Fast, efficient, 4-bit quantized',
     'Qwen3-4B-Instruct-2507-Q4_K_S.gguf': 'Qwen3 4B Instruct (Q4_K_S) - Multilingual, 4-bit quantized, excellent reasoning capabilities',
+    'google_gemma-3n-E2B-it-Q6_K_L.gguf': 'Google Gemma 3n E2B Instruct (Q6_K_L) - Uses Q8_0 for embed and output weights. Very high quality, near perfect, recommended.',
     'rule_based': 'Rule-based responses (no model required)',
   };
       print('LUMARA Debug: Available models: $availableModels');
@@ -74,7 +75,6 @@ class ModelManagementCubit extends Cubit<ModelManagementState> {
       // Currently using rule-based adapter only
       const isAiEnabled = false;
       const currentModel = 'rule_based';
-      const adapterType = 'rule_based';
       
       // For now, we don't have actual downloaded models - they need to be manually installed
       final downloadedModels = <String>[];

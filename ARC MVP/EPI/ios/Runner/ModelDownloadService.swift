@@ -131,7 +131,8 @@ class ModelDownloadService: NSObject {
         // Check for GGUF models (new format)
         let ggufModelIds = [
             "Llama-3.2-3b-Instruct-Q4_K_M.gguf",
-            "Qwen3-4B-Instruct-2507-Q4_K_S.gguf"
+            "Qwen3-4B-Instruct-2507-Q4_K_S.gguf",
+            "google_gemma-3n-E2B-it-Q6_K_L.gguf"
         ]
         
         if ggufModelIds.contains(modelId) {

@@ -5,7 +5,6 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../llm/bridge.pigeon.dart';
-import '../bloc/model_management_cubit.dart';
 import '../services/download_state_service.dart';
 
 /// Supported LLM providers
@@ -15,6 +14,7 @@ enum LLMProvider {
   anthropic,
   qwen4b,     // Internal Qwen3 4B Q4_K_S model
   llama3b,    // Internal Llama 3.2 3B model
+  gemma3n,    // Internal Google Gemma 3n E2B model
 }
 
 /// API configuration for different providers
@@ -135,6 +135,9 @@ class LumaraAPIConfig {
         case LLMProvider.llama3b:
           modelId = 'Llama-3.2-3b-Instruct-Q4_K_M.gguf';
           break;
+        case LLMProvider.gemma3n:
+          modelId = 'google_gemma-3n-E2B-it-Q6_K_L.gguf';
+          break;
         default:
           debugPrint('LUMARA API: Unknown provider type: ${config.provider}');
           return false;
@@ -202,6 +205,20 @@ class LumaraAPIConfig {
           baseUrl: 'http://localhost:8083', // Local inference server
           additionalConfig: {
             'modelPath': 'assets/models/gguf/Llama-3.2-3b-Instruct-Q4_K_M.gguf',
+            'contextLength': 4096,
+            'temperature': 0.7,
+            'backend': 'llama.cpp',
+            'metal': true,
+          },
+          isInternal: true,
+        );
+
+        _configs[LLMProvider.gemma3n] = LLMProviderConfig(
+          provider: LLMProvider.gemma3n,
+          name: 'Google Gemma 3n E2B (Internal)',
+          baseUrl: 'http://localhost:8084', // Local inference server
+          additionalConfig: {
+            'modelPath': 'assets/models/gguf/google_gemma-3n-E2B-it-Q6_K_L.gguf',
             'contextLength': 4096,
             'temperature': 0.7,
             'backend': 'llama.cpp',
@@ -295,6 +312,9 @@ class LumaraAPIConfig {
         case LLMProvider.llama3b:
           modelId = 'Llama-3.2-3b-Instruct-Q4_K_M.gguf';
           break;
+        case LLMProvider.gemma3n:
+          modelId = 'google_gemma-3n-E2B-it-Q6_K_L.gguf';
+          break;
         default:
           return;
       }
@@ -320,6 +340,9 @@ class LumaraAPIConfig {
           break;
         case LLMProvider.llama3b:
           modelId = 'Llama-3.2-3b-Instruct-Q4_K_M.gguf';
+          break;
+        case LLMProvider.gemma3n:
+          modelId = 'google_gemma-3n-E2B-it-Q6_K_L.gguf';
           break;
         default:
           return false;
@@ -365,6 +388,18 @@ class LumaraAPIConfig {
           return isDownloaded;
         } catch (e) {
           debugPrint('LUMARA API: Error checking Llama 3B availability: $e');
+          return false;
+        }
+      }
+
+      if (config.provider == LLMProvider.gemma3n) {
+        try {
+          final bridge = LumaraNative();
+          final isDownloaded = await bridge.isModelDownloaded('google_gemma-3n-E2B-it-Q6_K_L.gguf');
+          debugPrint('LUMARA API: Google Gemma 3n E2B model ${isDownloaded ? 'is' : 'is NOT'} downloaded');
+          return isDownloaded;
+        } catch (e) {
+          debugPrint('LUMARA API: Error checking Google Gemma 3n E2B availability: $e');
           return false;
         }
       }

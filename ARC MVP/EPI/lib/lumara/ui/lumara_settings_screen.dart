@@ -67,6 +67,13 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
           'size': '~2.5 GB',
           'url': 'https://huggingface.co/unsloth/Qwen3-4B-Instruct-2507-GGUF/resolve/main/Qwen3-4B-Instruct-2507-Q4_K_S.gguf?download=true',
         };
+      case LLMProvider.gemma3n:
+        return {
+          'id': 'google_gemma-3n-E2B-it-Q6_K_L.gguf',
+          'name': 'Google Gemma 3n E2B Instruct (Q6_K_L)',
+          'size': '~4.3 GB',
+          'url': 'https://huggingface.co/bartowski/google_gemma-3n-E2B-it-GGUF/resolve/main/google_gemma-3n-E2B-it-Q6_K_L.gguf?download=true',
+        };
       default:
         return null;
     }

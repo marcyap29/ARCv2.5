@@ -229,7 +229,8 @@ class ModelLifecycle {
                 // Only support GGUF models
                 let ggufModelIds = [
                     "Llama-3.2-3b-Instruct-Q4_K_M.gguf",
-                    "Qwen3-4B-Instruct-2507-Q4_K_S.gguf"
+                    "Qwen3-4B-Instruct-2507-Q4_K_S.gguf",
+                    "google_gemma-3n-E2B-it-Q4_K_L.gguf"
                 ]
 
                 guard ggufModelIds.contains(modelId) else {
@@ -347,7 +348,8 @@ class ModelLifecycle {
         // Only support GGUF models
         let ggufModelIds = [
             "Llama-3.2-3b-Instruct-Q4_K_M.gguf",
-            "Qwen3-4B-Instruct-2507-Q4_K_S.gguf"
+            "Qwen3-4B-Instruct-2507-Q4_K_S.gguf",
+            "google_gemma-3n-E2B-it-Q6_K_L.gguf"
         ]
 
         guard ggufModelIds.contains(currentModelId ?? "") else {
@@ -828,7 +830,8 @@ class LLMBridge: NSObject, LumaraNative {
         // Only support GGUF models
         let ggufModelIds = [
             "Llama-3.2-3b-Instruct-Q4_K_M.gguf",
-            "Qwen3-4B-Instruct-2507-Q4_K_S.gguf"
+            "Qwen3-4B-Instruct-2507-Q4_K_S.gguf",
+            "google_gemma-3n-E2B-it-Q6_K_L.gguf"
         ]
 
         guard ggufModelIds.contains(modelId) else {
@@ -1129,7 +1132,8 @@ class LLMBridge: NSObject, LumaraNative {
         // Only support GGUF models
         let ggufModelIds = [
             "Llama-3.2-3b-Instruct-Q4_K_M.gguf",
-            "Qwen3-4B-Instruct-2507-Q4_K_S.gguf"
+            "Qwen3-4B-Instruct-2507-Q4_K_S.gguf",
+            "google_gemma-3n-E2B-it-Q6_K_L.gguf"
         ]
 
         guard ggufModelIds.contains(modelId) else {
