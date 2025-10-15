@@ -103,19 +103,26 @@ class McpBundleWriter {
         continue;
       }
       if (kind == 'node') {
-        try {
-          final node = MiraNode(
-            id: rec['id'] as String,
-            type: NodeType.values[(rec['type'] as num).toInt()],
-            schemaVersion: (rec['schemaVersion'] as num).toInt(),
-            data: Map<String, dynamic>.from(rec['data'] ?? const <String, dynamic>{}),
-            createdAt: DateTime.parse(rec['createdAt'] as String).toUtc(),
-            updatedAt: DateTime.parse(rec['updatedAt'] as String).toUtc(),
-          );
-          outRec = MiraToMcpAdapter.nodeToMcp(node);
-        } catch (_) {
-          // Fallback to original record if mapping fails
+        // Skip MiraToMcpAdapter processing for journal entry nodes that were already processed by McpEntryProjector
+        final nodeId = rec['id'] as String?;
+        if (nodeId != null && nodeId.startsWith('je_')) {
+          // This is a journal entry node from McpEntryProjector, keep it as-is
           outRec = rec;
+        } else {
+          try {
+            final node = MiraNode(
+              id: rec['id'] as String,
+              type: NodeType.values[(rec['type'] as num).toInt()],
+              schemaVersion: (rec['schemaVersion'] as num).toInt(),
+              data: Map<String, dynamic>.from(rec['data'] ?? const <String, dynamic>{}),
+              createdAt: DateTime.parse(rec['createdAt'] as String).toUtc(),
+              updatedAt: DateTime.parse(rec['updatedAt'] as String).toUtc(),
+            );
+            outRec = MiraToMcpAdapter.nodeToMcp(node);
+          } catch (_) {
+            // Fallback to original record if mapping fails
+            outRec = rec;
+          }
         }
       } else if (kind == 'edge') {
         try {
