@@ -54,6 +54,14 @@ flutter run -d DEVICE_ID
 - **Progress UI**: Real-time loading progress (0% → 100%) during model initialization
 - **Metal Acceleration**: Native iOS Metal support for optimal performance
 
+### **Journal Features** ✅ **NEW**
+- **Automatic Text Clearing**: Journal text field automatically clears after saving entry to timeline
+- **Draft Management**: Auto-save drafts with 2-second delay, manual draft management
+- **Keyword Analysis**: Real-time keyword extraction and manual keyword addition
+- **Media Integration**: Photo capture, OCR scanning, and media attachment support
+- **Phase Integration**: Automatic phase detection and celebration on phase changes
+- **Timeline Integration**: Seamless entry saving with immediate timeline refresh
+
 ### **Legacy API-Only Mode**
 - **Debug (API only, no on-device model)**:
 ```bash
