@@ -9,7 +9,7 @@ import 'package:my_app/models/journal_entry_model.dart' as model;
 import '../../mira/mira_service.dart';
 import '../../../mira/core/schema.dart';
 import '../../../mira/core/ids.dart';
-import '../timeline/timeline_cubit.dart';
+import '../../data/models/media_item.dart';
 
 /// State for MCP settings operations
 class McpSettingsState {
@@ -377,8 +377,21 @@ class McpSettingsCubit extends Cubit<McpSettingsState> {
   MiraNode _convertToMiraNode(model.JournalEntry entry) {
     // Extract SAGE narrative from sageAnnotation field
     final sageAnnotation = entry.sageAnnotation;
+    
+    // DEBUG: Log media items for troubleshooting
+    print('🔍 MCP Settings: Converting entry ${entry.id} with ${entry.media.length} media items');
+    if (entry.media.isNotEmpty) {
+      for (int i = 0; i < entry.media.length; i++) {
+        final media = entry.media[i];
+        print('🔍 Media $i: id=${media.id}, uri=${media.uri}, type=${media.type.name}');
+        print('🔍 Media $i details: duration=${media.duration?.inSeconds}s, size=${media.sizeBytes} bytes');
+        print('🔍 Media $i analysis: ${media.analysisData?.keys}');
+      }
+    } else {
+      print('🔍 MCP Settings: Entry ${entry.id} has NO media items');
+    }
 
-    return MiraNode.entry(
+    final miraNode = MiraNode.entry(
       id: deterministicEntryId(entry.content, entry.createdAt),
       narrative: entry.content,
       keywords: entry.keywords,
@@ -402,9 +415,40 @@ class McpSettingsCubit extends Cubit<McpSettingsState> {
         },
         'original_entry_id': entry.id,
         'sage_confidence': sageAnnotation?.confidence,
+        // Add media items with comprehensive metadata for all media types
+        'media': entry.media.map((m) => {
+          'id': m.id,
+          'uri': m.uri,
+          'type': m.type.name,
+          'created_at': m.createdAt.toIso8601String(),
+          'alt_text': m.altText,
+          'ocr_text': m.ocrText,
+          'transcript': m.transcript,
+          'duration': m.duration?.inSeconds,
+          'size_bytes': m.sizeBytes,
+          'analysis_data': m.analysisData,
+          // Future-proofing: Additional metadata based on media type
+          'media_metadata': _getMediaTypeMetadata(m),
+        }).toList(),
         ...?entry.metadata,
       },
     );
+
+    // DEBUG: Log MIRA node metadata to verify media inclusion
+    print('🔍 MCP Settings: MIRA node created for entry ${entry.id}');
+    print('🔍 MIRA node metadata keys: ${miraNode.metadata.keys}');
+    if (miraNode.metadata.containsKey('media')) {
+      final mediaArray = miraNode.metadata['media'] as List;
+      print('🔍 MIRA node has ${mediaArray.length} media items in metadata');
+      for (int i = 0; i < mediaArray.length; i++) {
+        final media = mediaArray[i] as Map<String, dynamic>;
+        print('🔍 MIRA Media $i: ${media['type']} - ${media['uri']}');
+      }
+    } else {
+      print('❌ MIRA node MISSING media field in metadata!');
+    }
+
+    return miraNode;
   }
 
   /// Convert storage profile enum to string
@@ -419,5 +463,119 @@ class McpSettingsCubit extends Cubit<McpSettingsState> {
       case McpStorageProfile.hiFidelity:
         return 'hi_fidelity';
     }
+  }
+
+  /// Get media-type-specific metadata for future-proofing
+  Map<String, dynamic> _getMediaTypeMetadata(MediaItem media) {
+    final baseMetadata = <String, dynamic>{
+      'format': _getFileFormat(media.uri),
+      'has_analysis': media.analysisData != null,
+    };
+
+    switch (media.type) {
+      case MediaType.image:
+        return {
+          ...baseMetadata,
+          'storage_location': 'photo_gallery',
+          'accessibility': media.altText != null,
+          'ocr_available': media.ocrText != null,
+        };
+
+      case MediaType.video:
+        final duration = media.duration?.inSeconds ?? 0;
+        final screenshotInterval = _getVideoScreenshotInterval(duration);
+        return {
+          ...baseMetadata,
+          'storage_location': 'photo_gallery',
+          'duration_seconds': duration,
+          'screenshot_strategy': {
+            'interval_seconds': screenshotInterval,
+            'estimated_screenshots': duration > 0 ? (duration / screenshotInterval).ceil() : 0,
+          },
+          'transcription_available': media.transcript != null,
+        };
+
+      case MediaType.audio:
+        return {
+          ...baseMetadata,
+          'storage_location': 'files_folder',
+          'duration_seconds': media.duration?.inSeconds,
+          'transcription_available': media.transcript != null,
+          'transcript_length': media.transcript?.length ?? 0,
+        };
+
+      case MediaType.file:
+        final format = _getFileFormat(media.uri).toLowerCase();
+        if (format == 'pdf') {
+          return {
+            ...baseMetadata,
+            'storage_location': 'files_folder',
+            'document_type': 'pdf',
+            'ocr_available': media.ocrText != null,
+            'text_extraction': media.ocrText != null,
+          };
+        } else if (['doc', 'docx'].contains(format)) {
+          return {
+            ...baseMetadata,
+            'storage_location': 'files_folder',
+            'document_type': 'word',
+            'text_extraction': media.ocrText != null,
+            'word_count': _getWordCount(media.ocrText),
+          };
+        } else {
+          return {
+            ...baseMetadata,
+            'storage_location': 'files_folder',
+            'document_type': 'generic',
+          };
+        }
+    }
+  }
+
+  /// Get file format from URI
+  String _getFileFormat(String uri) {
+    final extension = uri.split('.').last.toLowerCase();
+    switch (extension) {
+      case 'jpg':
+      case 'jpeg':
+        return 'jpeg';
+      case 'png':
+        return 'png';
+      case 'gif':
+        return 'gif';
+      case 'mp4':
+        return 'mp4';
+      case 'mov':
+        return 'mov';
+      case 'mp3':
+        return 'mp3';
+      case 'wav':
+        return 'wav';
+      case 'm4a':
+        return 'm4a';
+      case 'pdf':
+        return 'pdf';
+      case 'doc':
+        return 'doc';
+      case 'docx':
+        return 'docx';
+      default:
+        return extension;
+    }
+  }
+
+  /// Get video screenshot interval based on duration
+  int _getVideoScreenshotInterval(int durationSeconds) {
+    if (durationSeconds <= 30) return 5;
+    if (durationSeconds <= 60) return 10;
+    if (durationSeconds <= 120) return 20;
+    if (durationSeconds <= 300) return 30;
+    return 60;
+  }
+
+  /// Get word count from text
+  int _getWordCount(String? text) {
+    if (text == null || text.isEmpty) return 0;
+    return text.split(RegExp(r'\s+')).where((word) => word.isNotEmpty).length;
   }
 }

@@ -402,6 +402,82 @@ class MiraService {
     // Register Hive adapters for MIRA types if not already registered
     // JSON persistence only; no Hive type adapters needed in this implementation
   }
+
+  /// Delete a MIRA node and all associated edges
+  Future<void> deleteNode(String nodeId) async {
+    _ensureInitialized();
+    
+    if (!_flags.miraEnabled) {
+      print('⚠️ MIRA deletion disabled by feature flags');
+      return;
+    }
+
+    try {
+      print('🔍 MIRA: Deleting node $nodeId and associated edges');
+      await _repo.removeNode(nodeId);
+      print('✅ MIRA: Successfully deleted node $nodeId');
+    } catch (e) {
+      print('❌ MIRA: Error deleting node $nodeId: $e');
+      rethrow;
+    }
+  }
+
+  /// Delete edges where node is source or target
+  Future<void> deleteEdgesForNode(String nodeId) async {
+    _ensureInitialized();
+    
+    if (!_flags.miraEnabled) {
+      print('⚠️ MIRA deletion disabled by feature flags');
+      return;
+    }
+
+    try {
+      // Get all edges where this node is source or target
+      final edgesFrom = await _repo.edgesFrom(nodeId);
+      final edgesTo = await _repo.edgesTo(nodeId);
+      
+      final allEdges = [...edgesFrom, ...edgesTo];
+      print('🔍 MIRA: Found ${allEdges.length} edges to delete for node $nodeId');
+      
+      for (final edge in allEdges) {
+        await _repo.removeEdge(edge.id);
+      }
+      
+      print('✅ MIRA: Successfully deleted ${allEdges.length} edges for node $nodeId');
+    } catch (e) {
+      print('❌ MIRA: Error deleting edges for node $nodeId: $e');
+      rethrow;
+    }
+  }
+
+  /// Clean up orphaned keyword nodes (if no other entries reference them)
+  Future<void> cleanupOrphanedKeywords(List<String> keywords) async {
+    _ensureInitialized();
+    
+    if (!_flags.miraEnabled) {
+      print('⚠️ MIRA cleanup disabled by feature flags');
+      return;
+    }
+
+    try {
+      for (final keyword in keywords) {
+        final keywordNodeId = 'kw_${keyword.toLowerCase().replaceAll(' ', '-')}';
+        
+        // Check if any other entries reference this keyword
+        final edgesToKeyword = await _repo.edgesTo(keywordNodeId);
+        
+        if (edgesToKeyword.isEmpty) {
+          print('🔍 MIRA: Deleting orphaned keyword node: $keywordNodeId');
+          await _repo.removeNode(keywordNodeId);
+        } else {
+          print('🔍 MIRA: Keyword $keywordNodeId still referenced by ${edgesToKeyword.length} entries');
+        }
+      }
+    } catch (e) {
+      print('❌ MIRA: Error cleaning up orphaned keywords: $e');
+      rethrow;
+    }
+  }
 }
 
 /// Convenience extensions for easier MIRA integration

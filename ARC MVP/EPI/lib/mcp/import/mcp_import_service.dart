@@ -1050,23 +1050,61 @@ class McpImportService {
   List<MediaItem> _extractMediaFromPlaceholders(String content, McpNode node) {
     final mediaItems = <MediaItem>[];
 
+    print('🔍 MCP Import: Extracting media from placeholders for node ${node.id}');
+    print('🔍 Content length: ${content.length} chars');
+    print('🔍 Content preview: ${content.length > 100 ? content.substring(0, 100) + '...' : content}');
+
     // First, try to get media directly from node metadata (preferred method)
     if (node.metadata != null && node.metadata!.containsKey('media')) {
       final mediaData = node.metadata!['media'] as List?;
       if (mediaData != null && mediaData.isNotEmpty) {
         print('🔄 DEBUG: Found ${mediaData.length} media items in node metadata');
-        for (final mediaJson in mediaData) {
+        for (int i = 0; i < mediaData.length; i++) {
+          final mediaJson = mediaData[i];
           if (mediaJson is Map<String, dynamic>) {
             try {
+              print('🔍 Media $i JSON: $mediaJson');
               final mediaItem = _parseMediaItemFromJson(mediaJson, node);
               mediaItems.add(mediaItem);
-              print('🔄 DEBUG: Reconstructed media item: ${mediaItem.id}');
+              print('🔄 DEBUG: Reconstructed media item: ${mediaItem.id} -> ${mediaItem.uri}');
             } catch (e) {
-              print('⚠️ DEBUG: Failed to parse media item: $e');
+              print('⚠️ DEBUG: Failed to parse media item $i: $e');
             }
           }
         }
+        print('🔍 MCP Import: Successfully extracted ${mediaItems.length} media items from metadata');
         return mediaItems;
+      } else {
+        print('🔍 MCP Import: Media array is empty in node metadata');
+      }
+    } else {
+      print('🔍 MCP Import: No media field found in node metadata');
+      print('🔍 Available metadata keys: ${node.metadata?.keys.toList()}');
+    }
+
+    // Also check for media in journal_entry metadata (legacy support)
+    if (node.metadata != null && node.metadata!.containsKey('journal_entry')) {
+      final journalMeta = node.metadata!['journal_entry'] as Map<String, dynamic>?;
+      if (journalMeta != null && journalMeta.containsKey('media')) {
+        final mediaData = journalMeta['media'] as List?;
+        if (mediaData != null && mediaData.isNotEmpty) {
+          print('🔄 DEBUG: Found ${mediaData.length} media items in journal_entry metadata');
+          for (int i = 0; i < mediaData.length; i++) {
+            final mediaJson = mediaData[i];
+            if (mediaJson is Map<String, dynamic>) {
+              try {
+                print('🔍 Journal Media $i JSON: $mediaJson');
+                final mediaItem = _parseMediaItemFromJson(mediaJson, node);
+                mediaItems.add(mediaItem);
+                print('🔄 DEBUG: Reconstructed journal media item: ${mediaItem.id} -> ${mediaItem.uri}');
+              } catch (e) {
+                print('⚠️ DEBUG: Failed to parse journal media item $i: $e');
+              }
+            }
+          }
+          print('🔍 MCP Import: Successfully extracted ${mediaItems.length} media items from journal_entry metadata');
+          return mediaItems;
+        }
       }
     }
 
@@ -1092,13 +1130,20 @@ class McpImportService {
 
   /// Parse MediaItem from JSON export format
   MediaItem _parseMediaItemFromJson(Map<String, dynamic> json, McpNode node) {
+    print('🔍 MCP Import: Parsing media item: ${json['id']} (${json['type']})');
+    
     return MediaItem(
       id: json['id'] as String,
       uri: json['uri'] as String,
       type: _parseMediaType(json['type'] as String?),
+      duration: json['duration'] != null 
+        ? Duration(seconds: json['duration'] as int) 
+        : null,
+      sizeBytes: json['size_bytes'] as int?,
       createdAt: json['created_at'] != null
           ? DateTime.parse(json['created_at'] as String)
           : node.timestamp,
+      transcript: json['transcript'] as String?,
       altText: json['alt_text'] as String?,
       ocrText: json['ocr_text'] as String?,
       analysisData: json['analysis_data'] as Map<String, dynamic>?,

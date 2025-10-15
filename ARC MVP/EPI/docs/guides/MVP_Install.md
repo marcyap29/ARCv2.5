@@ -58,7 +58,13 @@ flutter run -d DEVICE_ID
 - **Automatic Text Clearing**: Journal text field automatically clears after saving entry to timeline
 - **Draft Management**: Auto-save drafts with 2-second delay, manual draft management
 - **Keyword Analysis**: Real-time keyword extraction and manual keyword addition
-- **Media Integration**: Photo capture, OCR scanning, and media attachment support
+- **Comprehensive Media Integration**: 
+  - **Images**: Photo gallery storage with OCR scanning and accessibility support
+  - **Videos**: Photo gallery storage with adaptive screenshot extraction (5-60s intervals based on duration)
+  - **Audio**: Files folder storage with transcription support
+  - **PDFs**: Files folder storage with OCR text extraction per page
+  - **Word Docs**: Files folder storage with text extraction and word count
+  - **MCP Export/Import**: Complete media metadata preservation across export/import cycles
 - **Phase Integration**: Automatic phase detection and celebration on phase changes
 - **Timeline Integration**: Seamless entry saving with immediate timeline refresh
 
@@ -74,7 +80,7 @@ flutter clean
 flutter pub get
 flutter devices
 flutter build ios --release
-flutter install -d YOUR_DEVICE_ID
+flutter instTall -d YOUR_DEVICE_ID
 
 ```
 

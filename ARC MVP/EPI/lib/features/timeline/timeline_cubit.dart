@@ -4,6 +4,7 @@ import 'package:my_app/features/timeline/timeline_entry_model.dart';
 import 'package:my_app/arc/core/journal_repository.dart';
 import 'package:my_app/models/journal_entry_model.dart';
 import 'package:my_app/models/arcform_snapshot_model.dart';
+import 'package:my_app/data/models/media_item.dart';
 import 'package:hive/hive.dart';
 
 class TimelineCubit extends Cubit<TimelineState> {
@@ -250,9 +251,18 @@ class TimelineCubit extends Cubit<TimelineState> {
       }
 
       print('DEBUG: Entry ${entry.id} - Final phase: $phase, Media count: ${entry.media.length}');
-      if (entry.media.isNotEmpty) {
-        for (int i = 0; i < entry.media.length; i++) {
-          final media = entry.media[i];
+      
+      // Check if entry has photo placeholders but no media items (legacy entry)
+      List<MediaItem> finalMedia = entry.media;
+      if (entry.media.isEmpty && entry.content.contains('[PHOTO:')) {
+        print('DEBUG: Entry ${entry.id} has photo placeholders but no media items - attempting reconstruction');
+        finalMedia = _reconstructMediaFromPlaceholders(entry.content);
+        print('DEBUG: Reconstructed ${finalMedia.length} media items from placeholders');
+      }
+      
+      if (finalMedia.isNotEmpty) {
+        for (int i = 0; i < finalMedia.length; i++) {
+          final media = finalMedia[i];
           print('DEBUG: Timeline Media $i - Type: ${media.type}, URI: ${media.uri}, AnalysisData: ${media.analysisData?.keys}');
         }
       }
@@ -268,7 +278,7 @@ class TimelineCubit extends Cubit<TimelineState> {
         keywords: _extractKeywords(entry),
         phase: phase,
         geometry: geometry,
-        media: entry.media, // Include media attachments
+        media: finalMedia, // Use reconstructed media if available
       );
     }).toList();
   }
@@ -291,6 +301,36 @@ class TimelineCubit extends Cubit<TimelineState> {
     
     // Final fallback: extract simple keywords from content
     return _extractImportantWords(entry.content);
+  }
+
+  /// Reconstruct media items from photo placeholders in content
+  List<MediaItem> _reconstructMediaFromPlaceholders(String content) {
+    final mediaItems = <MediaItem>[];
+    final photoPlaceholderRegex = RegExp(r'\[PHOTO:([^\]]+)\]');
+    final matches = photoPlaceholderRegex.allMatches(content);
+    
+    for (final match in matches) {
+      final photoId = match.group(1)!;
+      print('DEBUG: Reconstructing media for placeholder: [PHOTO:$photoId]');
+      
+      // Create a placeholder media item
+      final mediaItem = MediaItem(
+        id: photoId,
+        uri: 'placeholder://$photoId', // Placeholder URI
+        type: MediaType.image, // Default to image
+        createdAt: DateTime.now(),
+        altText: 'Imported photo: $photoId',
+        analysisData: {
+          'photo_id': photoId,
+          'imported': true,
+          'placeholder': true,
+        },
+      );
+      
+      mediaItems.add(mediaItem);
+    }
+    
+    return mediaItems;
   }
 
   List<String> _extractImportantWords(String text) {

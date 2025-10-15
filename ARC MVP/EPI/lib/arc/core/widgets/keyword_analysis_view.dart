@@ -4,7 +4,6 @@ import 'package:my_app/arc/core/keyword_extraction_cubit.dart';
 import 'package:my_app/arc/core/keyword_extraction_state.dart';
 import 'package:my_app/arc/core/journal_capture_cubit.dart';
 import 'package:my_app/features/timeline/timeline_cubit.dart';
-import 'package:my_app/features/home/home_view.dart';
 import 'package:my_app/models/journal_entry_model.dart';
 import 'package:my_app/data/models/media_item.dart';
 import 'package:my_app/shared/app_colors.dart';
@@ -99,6 +98,12 @@ class _KeywordAnalysisViewState extends State<KeywordAnalysisView>
     // Remove duplicates
     final uniqueKeywords = allKeywords.toSet().toList();
     
+    // DEBUG: Log keyword saving for confirmation
+    print('🔍 KeywordAnalysisView: Saving entry with ${uniqueKeywords.length} total keywords');
+    print('🔍 - Discovered keywords: ${widget.selectedKeywords?.length ?? 0}');
+    print('🔍 - Manual keywords: ${widget.manualKeywords?.length ?? 0}');
+    print('🔍 - Final unique keywords: $uniqueKeywords');
+    
     if (widget.existingEntry != null) {
       // Update existing entry
       context.read<JournalCaptureCubit>().updateEntryWithKeywords(
@@ -128,12 +133,17 @@ class _KeywordAnalysisViewState extends State<KeywordAnalysisView>
       );
     }
     
-    // Show simple success message
+    // Show success message with keyword count
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(widget.existingEntry != null ? 'Entry updated successfully' : 'Entry saved successfully'),
+          content: Text(
+            widget.existingEntry != null 
+              ? 'Entry updated successfully with ${uniqueKeywords.length} keywords'
+              : 'Entry saved successfully with ${uniqueKeywords.length} keywords'
+          ),
           backgroundColor: kcSuccessColor,
+          duration: const Duration(seconds: 3),
         ),
       );
       
@@ -530,6 +540,11 @@ class _KeywordAnalysisViewState extends State<KeywordAnalysisView>
           
           const SizedBox(height: 24.0),
           
+          // Keywords summary (shows what will be saved)
+          _buildKeywordsSummary(context, theme),
+          
+          const SizedBox(height: 24.0),
+          
           // Selected keywords summary
           if (widget.selectedKeywords != null && widget.selectedKeywords!.isNotEmpty) ...[
             Row(
@@ -744,5 +759,72 @@ class _KeywordAnalysisViewState extends State<KeywordAnalysisView>
       });
       _keywordController.clear();
     }
+  }
+
+  /// Build keywords summary showing what will be saved
+  Widget _buildKeywordsSummary(BuildContext context, ThemeData theme) {
+    final allKeywords = <String>[];
+    
+    // Add discovered keywords
+    if (widget.selectedKeywords != null) {
+      allKeywords.addAll(widget.selectedKeywords!);
+    }
+    
+    // Add manual keywords
+    if (widget.manualKeywords != null) {
+      allKeywords.addAll(widget.manualKeywords!);
+    }
+    
+    final uniqueKeywords = allKeywords.toSet().toList();
+    
+    if (uniqueKeywords.isEmpty) {
+      return const SizedBox.shrink();
+    }
+    
+    return Container(
+      padding: const EdgeInsets.all(16.0),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.primaryContainer.withOpacity(0.3),
+        borderRadius: BorderRadius.circular(12.0),
+        border: Border.all(
+          color: theme.colorScheme.primary.withOpacity(0.3),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.check_circle_outline,
+                size: 20,
+                color: theme.colorScheme.primary,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                'Keywords to be saved (${uniqueKeywords.length})',
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w600,
+                  color: theme.colorScheme.primary,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12.0),
+          Wrap(
+            spacing: 8.0,
+            runSpacing: 4.0,
+            children: uniqueKeywords.map((keyword) => Chip(
+              label: Text(keyword),
+              backgroundColor: theme.colorScheme.primary,
+              labelStyle: TextStyle(
+                color: theme.colorScheme.onPrimary,
+                fontSize: 12,
+              ),
+            )).toList(),
+          ),
+        ],
+      ),
+    );
   }
 }

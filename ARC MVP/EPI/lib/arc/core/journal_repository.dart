@@ -3,6 +3,8 @@ import 'package:hive/hive.dart';
 import 'package:my_app/models/journal_entry_model.dart';
 import 'package:my_app/features/timeline/timeline_state.dart';
 import 'package:my_app/arc/core/sage_annotation_model.dart';
+import '../../mira/mira_service.dart';
+import '../../mira/core/ids.dart';
 
 /// Self-initializing repository with consistent box name.
 /// No external init() needed.
@@ -156,8 +158,35 @@ class JournalRepository {
 
   // Delete
   Future<void> deleteJournalEntry(String id) async {
+    // Get the entry before deleting to clean up MIRA data
+    final entry = await getJournalEntryById(id);
+    
+    // Delete from journal repository
     final box = await _ensureBox();
     await box.delete(id);
+    
+    // Clean up MIRA nodes and edges if entry existed
+    if (entry != null) {
+      try {
+        final miraService = MiraService.instance;
+        final miraNodeId = deterministicEntryId(entry.content, entry.createdAt);
+        
+        print('🔍 Journal: Cleaning up MIRA data for entry $id (MIRA node: $miraNodeId)');
+        
+        // Delete the entry node and its edges
+        await miraService.deleteNode(miraNodeId);
+        
+        // Clean up orphaned keyword nodes
+        if (entry.keywords.isNotEmpty) {
+          await miraService.cleanupOrphanedKeywords(entry.keywords);
+        }
+        
+        print('✅ Journal: Successfully cleaned up MIRA data for entry $id');
+      } catch (e) {
+        print('❌ Journal: Error cleaning up MIRA data for entry $id: $e');
+        // Don't rethrow - journal entry is already deleted
+      }
+    }
   }
 
   Future<void> deleteAllEntries() async {

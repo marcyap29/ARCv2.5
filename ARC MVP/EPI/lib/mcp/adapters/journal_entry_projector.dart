@@ -162,7 +162,17 @@ class McpEntryProjector {
       if (media.analysisData != null) 'analysis_data': media.analysisData,
     }).toList();
 
-    return {
+    // DEBUG: Log media data for troubleshooting
+    print('🔍 McpEntryProjector: Entry ${entry.id} has ${entry.media.length} media items');
+    if (entry.media.isNotEmpty) {
+      for (int i = 0; i < entry.media.length; i++) {
+        final media = entry.media[i];
+        print('🔍 Media $i: id=${media.id}, uri=${media.uri}, type=${media.type.name}');
+      }
+      print('🔍 Media data array: $mediaData');
+    }
+
+    final nodeData = {
       'id': 'je_${entry.id}',
       'type': 'journal_entry',
       'timestamp': timestamp,
@@ -185,6 +195,14 @@ class McpEntryProjector {
       'pointer_ref': pointerId,
       'schema_version': 'node.v1',
     };
+
+    // DEBUG: Log final node data structure
+    print('🔍 McpEntryProjector: Final node data for ${entry.id}:');
+    print('🔍 - Has media field: ${nodeData.containsKey('media')}');
+    print('🔍 - Media array length: ${(nodeData['media'] as List).length}');
+    print('🔍 - Content: ${entry.content}');
+    
+    return nodeData;
   }
 
   /// Create MCP edge records for journal entry relationships

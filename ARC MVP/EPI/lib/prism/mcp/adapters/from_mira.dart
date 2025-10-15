@@ -172,6 +172,18 @@ class MiraToMcpAdapter {
     metadata['created_via'] = 'mira_semantic_layer';
     metadata['export_timestamp'] = DateTime.now().toUtc().toIso8601String();
 
+    // DEBUG: Log media preservation
+    if (metadata.containsKey('media')) {
+      final mediaArray = metadata['media'] as List;
+      print('🔍 MiraToMcpAdapter: Preserving ${mediaArray.length} media items in MCP export');
+      for (int i = 0; i < mediaArray.length; i++) {
+        final media = mediaArray[i] as Map<String, dynamic>;
+        print('🔍 MCP Media $i: ${media['type']} - ${media['uri']}');
+      }
+    } else {
+      print('🔍 MiraToMcpAdapter: No media array found in MIRA node metadata');
+    }
+
     return metadata;
   }
 
