@@ -1,9 +1,7 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'dart:io';
-import 'dart:convert';
 import '../../prism/mcp/import/mcp_import_service.dart';
 import '../../prism/mcp/models/mcp_schemas.dart';
-import '../../prism/mcp/export/mcp_export_service.dart';
 import '../../arc/core/journal_repository.dart';
 import 'package:my_app/models/journal_entry_model.dart' as model;
 import '../../mira/mira_service.dart';
@@ -26,7 +24,7 @@ class McpSettingsState {
     this.isLoading = false,
     this.error,
     this.successMessage,
-    this.selectedProfile = McpStorageProfile.balanced,
+    this.selectedProfile = McpStorageProfile.hiFidelity,
     this.isExporting = false,
     this.isImporting = false,
     this.progress = 0.0,
@@ -66,10 +64,6 @@ class McpSettingsCubit extends Cubit<McpSettingsState> {
   }) : _journalRepository = journalRepository,
        super(const McpSettingsState());
 
-  /// Initialize MCP services
-  void _initializeServices() {
-    _importService = McpImportService(journalRepo: _journalRepository);
-  }
 
   /// Refresh timeline after data changes
   void _refreshTimeline() {
@@ -78,11 +72,6 @@ class McpSettingsCubit extends Cubit<McpSettingsState> {
     print('DEBUG: MCP import completed - timeline should refresh');
   }
 
-  /// Set storage profile for export
-  void setStorageProfile(McpStorageProfile profile) {
-    emit(state.copyWith(selectedProfile: profile));
-    _initializeServices();
-  }
 
   /// Export journal data to MCP format using MIRA system
   Future<Directory?> exportToMcp({
@@ -146,7 +135,7 @@ class McpSettingsCubit extends Cubit<McpSettingsState> {
       print('🔍 Starting MCP export to: ${outputDir.path}');
       final resultDir = await miraService.exportToMcp(
         outputDir: outputDir,
-        storageProfile: _getStorageProfileString(state.selectedProfile),
+        storageProfile: _getStorageProfileString(McpStorageProfile.hiFidelity),
         includeEvents: false,
       );
       print('🔍 MCP export completed, result dir: ${resultDir.path}');
@@ -156,35 +145,6 @@ class McpSettingsCubit extends Cubit<McpSettingsState> {
         progress: 1.0,
       ));
 
-      // Read the actual counts from the generated files
-      final manifestFile = File('${resultDir.path}/manifest.json');
-      Map<String, dynamic> manifest = {};
-      if (await manifestFile.exists()) {
-        final manifestContent = await manifestFile.readAsString();
-        manifest = jsonDecode(manifestContent);
-      }
-
-      final counts = manifest['counts'] as Map<String, dynamic>? ?? {};
-      
-      // Create result object
-      final result = McpExportResult(
-        success: true,
-        bundleId: manifest['bundle_id']?.toString() ?? 'epi_export_${DateTime.now().millisecondsSinceEpoch}',
-        outputDir: resultDir,
-        manifestFile: manifestFile,
-        ndjsonFiles: {
-          'nodes': File('${resultDir.path}/nodes.jsonl'),
-          'edges': File('${resultDir.path}/edges.jsonl'),
-          'pointers': File('${resultDir.path}/pointers.jsonl'),
-          'embeddings': File('${resultDir.path}/embeddings.jsonl'),
-        },
-        counts: McpCounts(
-          nodes: counts['nodes'] ?? 0,
-          edges: counts['edges'] ?? 0,
-          pointers: counts['pointers'] ?? 0,
-          embeddings: counts['embeddings'] ?? 0,
-        ),
-      );
 
       // Always end loading states; optionally emit a success snackbar
       if (emitSuccessMessage) {

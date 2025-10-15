@@ -91,8 +91,6 @@ class _McpSettingsViewContent extends StatelessWidget {
                   title: 'Export to MCP Format',
                   subtitle: 'Export your journal data to MCP Memory Bundle format for AI ecosystem interoperability',
                   children: [
-                    _buildStorageProfileSelector(context, state),
-                    const SizedBox(height: 16),
                     _buildExportButton(context, state),
                     if (state.isExporting) ...[
                       const SizedBox(height: 16),
@@ -171,50 +169,6 @@ class _McpSettingsViewContent extends StatelessWidget {
     );
   }
 
-  Widget _buildStorageProfileSelector(BuildContext context, McpSettingsState state) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Storage Profile',
-          style: bodyStyle(context).copyWith(
-            color: Colors.white,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        const SizedBox(height: 8),
-        DropdownButtonFormField<McpStorageProfile>(
-          initialValue: state.selectedProfile,
-          decoration: InputDecoration(
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-            ),
-            filled: true,
-            fillColor: kcSurfaceAltColor,
-          ),
-          isExpanded: true,
-          dropdownColor: kcSurfaceAltColor,
-          style: bodyStyle(context).copyWith(color: Colors.white),
-          items: McpStorageProfile.values.map((profile) {
-            return DropdownMenuItem(
-              value: profile,
-              child: Text(
-                _getProfileDescription(profile),
-                overflow: TextOverflow.ellipsis,
-                maxLines: 1,
-                softWrap: false,
-              ),
-            );
-          }).toList(),
-          onChanged: (profile) {
-            if (profile != null) {
-              context.read<McpSettingsCubit>().setStorageProfile(profile);
-            }
-          },
-        ),
-      ],
-    );
-  }
 
   Widget _buildExportButton(BuildContext context, McpSettingsState state) {
     return SizedBox(
@@ -330,18 +284,6 @@ class _McpSettingsViewContent extends StatelessWidget {
     );
   }
 
-  String _getProfileDescription(McpStorageProfile profile) {
-    switch (profile) {
-      case McpStorageProfile.minimal:
-        return 'Minimal - Basic data only (fastest)';
-      case McpStorageProfile.spaceSaver:
-        return 'Space Saver - Compressed data (smaller size)';
-      case McpStorageProfile.balanced:
-        return 'Balanced - Good balance of size and detail';
-      case McpStorageProfile.hiFidelity:
-        return 'High Fidelity - Complete data with all details';
-    }
-  }
 
   Future<void> _exportToMcp(BuildContext context) async {
     try {
