@@ -233,6 +233,15 @@ class McpExportService {
             'created_at': entry.createdAt.toIso8601String(),
             'updated_at': entry.updatedAt.toIso8601String(),
             'keywords': entry.keywords,
+            'media': entry.media.map((m) => {
+              'id': m.id,
+              'uri': m.uri,
+              'type': m.type.name,
+              'created_at': m.createdAt.toIso8601String(),
+              'alt_text': m.altText,
+              'ocr_text': m.ocrText,
+              'analysis_data': m.analysisData,
+            }).toList(),
           },
           'export_info': {
             'exported_at': DateTime.now().toIso8601String(),

@@ -34,6 +34,7 @@ import 'package:my_app/lumara/data/context_scope.dart';
 import 'package:my_app/core/app_flags.dart';
 import 'package:flutter/foundation.dart';
 import 'package:my_app/services/journal_session_cache.dart';
+import 'package:my_app/core/services/photo_library_service.dart';
 import 'dart:math' as math;
 
 // Debug flag for showing RIVET engineering labels
@@ -105,6 +106,11 @@ class _HomeViewState extends State<HomeView> {
       _lumaraCubit!.initializeLumara();
     }
 
+    // Check photo permissions and refresh timeline if granted
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkPhotoPermissionsAndRefresh();
+    });
+
     _pages = [
       const ArcformRendererView(), // Phase (index 0)
       const TimelineView(), // Timeline (index 1)
@@ -122,6 +128,23 @@ class _HomeViewState extends State<HomeView> {
     
     // Initialize ethereal music (P22)
     _initializeEtherealMusic();
+  }
+
+  /// Check photo permissions and refresh timeline if granted
+  Future<void> _checkPhotoPermissionsAndRefresh() async {
+    try {
+      print('DEBUG: Checking photo permissions...');
+      final hasPermissions = await PhotoLibraryService.requestPermissions();
+      if (hasPermissions) {
+        print('DEBUG: Photo permissions granted, refreshing timeline...');
+        // Refresh timeline to reload photo references
+        context.read<TimelineCubit>().refreshEntries();
+      } else {
+        print('DEBUG: Photo permissions not granted');
+      }
+    } catch (e) {
+      print('ERROR: Failed to check photo permissions: $e');
+    }
   }
 
   Future<void> _initializeEtherealMusic() async {
@@ -385,6 +408,7 @@ class _InsightsPageState extends State<_InsightsPage> with WidgetsBindingObserve
       // Continue without insight cards if initialization fails
     }
   }
+
 
 
   Widget _buildInsightsSection() {
