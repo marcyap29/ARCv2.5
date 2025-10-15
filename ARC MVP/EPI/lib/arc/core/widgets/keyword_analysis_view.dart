@@ -137,14 +137,11 @@ class _KeywordAnalysisViewState extends State<KeywordAnalysisView>
         ),
       );
       
-      // Refresh timeline and navigate back to home
+      // Refresh timeline
       context.read<TimelineCubit>().refreshEntries();
       
-      // Navigate back to home screen (removing all journal creation screens)
-      Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (context) => const HomeView()),
-        (route) => false,
-      );
+      // Return result to previous screen instead of navigating directly to home
+      Navigator.of(context).pop({'save': true});
     }
   }
 
