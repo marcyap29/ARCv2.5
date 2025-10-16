@@ -6,13 +6,14 @@ import 'package:crypto/crypto.dart';
 import '../../../mira/core/schema.dart';
 import '../../../mira/core/mira_repo.dart';
 import '../../../mira/core/ids.dart';
+import '../../../core/services/photo_library_service.dart';
 
 class MiraToMcpAdapter {
   static const String _defaultEncoderId = 'gemini_1_5_flash';
   static const String _defaultVersion = '1.0.0';
 
   /// Convert MiraNode to MCP node record
-  static Map<String, dynamic> nodeToMcp(MiraNode node, {String? encoderId}) {
+  static Future<Map<String, dynamic>> nodeToMcp(MiraNode node, {String? encoderId}) async {
     return _sortKeys({
       'id': node.id,
       'kind': 'node',
@@ -20,7 +21,7 @@ class MiraToMcpAdapter {
       'timestamp': node.timestamp.toUtc().toIso8601String(),
       'schema_version': 'node.v1',
       'content': _nodeContentToMcp(node),
-      'metadata': _nodeMetadataToMcp(node),
+      'metadata': await _nodeMetadataToMcp(node),
       'encoder_id': encoderId ?? _defaultEncoderId,
     });
   }
@@ -161,7 +162,7 @@ class MiraToMcpAdapter {
   }
 
   /// Convert MIRA metadata to MCP metadata structure
-  static Map<String, dynamic> _nodeMetadataToMcp(MiraNode node) {
+  static Future<Map<String, dynamic>> _nodeMetadataToMcp(MiraNode node) async {
     final metadata = Map<String, dynamic>.from(node.metadata);
 
     // Add MIRA-specific metadata
@@ -172,13 +173,31 @@ class MiraToMcpAdapter {
     metadata['created_via'] = 'mira_semantic_layer';
     metadata['export_timestamp'] = DateTime.now().toUtc().toIso8601String();
 
-    // DEBUG: Log media preservation
+    // DEBUG: Log media preservation and add photo metadata
     if (metadata.containsKey('media')) {
       final mediaArray = metadata['media'] as List;
       print('🔍 MiraToMcpAdapter: Preserving ${mediaArray.length} media items in MCP export');
+      
+      // Process each media item to add photo metadata
       for (int i = 0; i < mediaArray.length; i++) {
-        final media = mediaArray[i] as Map<String, dynamic>;
+        final media = Map<String, dynamic>.from(mediaArray[i] as Map<dynamic, dynamic>);
         print('🔍 MCP Media $i: ${media['type']} - ${media['uri']}');
+        
+        // Add photo metadata for ph:// URIs
+        if (media['uri'] is String && (media['uri'] as String).startsWith('ph://')) {
+          try {
+            print('🔍 MiraToMcpAdapter: Getting photo metadata for ${media['id']} from ${media['uri']}');
+            final photoMetadata = await PhotoLibraryService.getPhotoMetadata(media['uri'] as String);
+            if (photoMetadata != null) {
+              media['photo_metadata'] = photoMetadata.toJson();
+              print('✅ MiraToMcpAdapter: Stored photo metadata for ${media['id']}: ${photoMetadata.description}');
+            } else {
+              print('⚠️ MiraToMcpAdapter: Could not get photo metadata for ${media['uri']}');
+            }
+          } catch (e) {
+            print('⚠️ MiraToMcpAdapter: Error getting photo metadata for ${media['uri']}: $e');
+          }
+        }
       }
     } else {
       print('🔍 MiraToMcpAdapter: No media array found in MIRA node metadata');
@@ -233,8 +252,8 @@ class MiraToMcpAdapter {
 /// Helper functions for converting MIRA concepts to MCP
 extension MiraNodeExtensions on MiraNode {
   /// Convert this node to MCP format
-  Map<String, dynamic> toMcp({String? encoderId}) {
-    return MiraToMcpAdapter.nodeToMcp(this, encoderId: encoderId);
+  Future<Map<String, dynamic>> toMcp({String? encoderId}) async {
+    return await MiraToMcpAdapter.nodeToMcp(this, encoderId: encoderId);
   }
 
   /// Generate MCP pointer record for this node's content
@@ -287,7 +306,7 @@ class McpEntryProjector {
       }
 
       // 2) Node (journal_entry) with optional pointer_ref
-      final node = MiraToMcpAdapter.nodeToMcp(entry);
+      final node = await MiraToMcpAdapter.nodeToMcp(entry);
       node['kind'] = 'node';  // Add missing kind field
       node['type'] = 'journal_entry';
       if (pointer != null && pointer['id'] is String) {

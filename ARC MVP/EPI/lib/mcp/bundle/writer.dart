@@ -118,7 +118,7 @@ class McpBundleWriter {
               createdAt: DateTime.parse(rec['createdAt'] as String).toUtc(),
               updatedAt: DateTime.parse(rec['updatedAt'] as String).toUtc(),
             );
-            outRec = MiraToMcpAdapter.nodeToMcp(node);
+            outRec = await MiraToMcpAdapter.nodeToMcp(node);
           } catch (_) {
             // Fallback to original record if mapping fails
             outRec = rec;

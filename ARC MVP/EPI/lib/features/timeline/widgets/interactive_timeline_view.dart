@@ -125,16 +125,8 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
   Widget build(BuildContext context) {
     return BlocListener<TimelineCubit, TimelineState>(
       listener: (context, state) {
-        if (state is TimelineEmpty) {
-          // Automatically navigate to phase quiz when all entries are deleted
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (mounted) {
-              Navigator.of(context).pushReplacement(
-                MaterialPageRoute(builder: (context) => const PhaseQuizPromptView()),
-              );
-            }
-          });
-        }
+        // Removed automatic phase quiz trigger when timeline is empty
+        // Users can now manually change their phase in the timeline or phase tab
       },
       child: BlocBuilder<TimelineCubit, TimelineState>(
         builder: (context, state) {
@@ -255,19 +247,34 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
               textAlign: TextAlign.center,
             ),
           ),
-          // Refresh button
-          IconButton(
-            onPressed: _refreshTimeline,
-            icon: const Icon(Icons.refresh),
-            color: kcPrimaryColor,
-            tooltip: 'Refresh timeline',
-          ),
-          // Selection mode button
-          IconButton(
-            onPressed: _enterSelectionMode,
-            icon: const Icon(Icons.checklist),
-            color: kcPrimaryColor,
-            tooltip: 'Select multiple entries',
+          // Button group with flexible spacing
+          Flexible(
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Refresh button
+                IconButton(
+                  onPressed: _refreshTimeline,
+                  icon: const Icon(Icons.refresh),
+                  color: kcPrimaryColor,
+                  tooltip: 'Refresh timeline',
+                ),
+                // Phase change button
+                IconButton(
+                  onPressed: _showPhaseChangeDialog,
+                  icon: const Icon(Icons.auto_awesome),
+                  color: kcPrimaryColor,
+                  tooltip: 'Change phase',
+                ),
+                // Selection mode button
+                IconButton(
+                  onPressed: _enterSelectionMode,
+                  icon: const Icon(Icons.checklist),
+                  color: kcPrimaryColor,
+                  tooltip: 'Select multiple entries',
+                ),
+              ],
+            ),
           ),
         ],
       ),
@@ -2024,6 +2031,59 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
             child: const Text('Close'),
           ),
         ],
+      ),
+    );
+  }
+
+  /// Show phase change dialog
+  void _showPhaseChangeDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(
+          'Change Phase',
+          style: heading2Style(context),
+        ),
+        content: Text(
+          'Select your current phase of life. This will affect your arcform patterns and insights.',
+          style: bodyStyle(context),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              // Navigate to phase tab for phase change
+              // This will allow the user to change their phase using the existing phase change UI
+              _navigateToPhaseTab();
+            },
+            child: Text('Change Phase'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Navigate to phase tab for phase change
+  void _navigateToPhaseTab() {
+    // This will be handled by the parent widget (HomeView) to switch to the phase tab
+    // The phase tab already has the phase change functionality
+    // We can emit an event or use a callback to notify the parent
+    print('DEBUG: Navigate to phase tab for phase change');
+    // For now, we'll just show a message that they should go to the phase tab
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Go to the Phase tab to change your phase'),
+        action: SnackBarAction(
+          label: 'Go to Phase',
+          onPressed: () {
+            // This would need to be implemented by the parent widget
+            print('DEBUG: User wants to go to phase tab');
+          },
+        ),
       ),
     );
   }

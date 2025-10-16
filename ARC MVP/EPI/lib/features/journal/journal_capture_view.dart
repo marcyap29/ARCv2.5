@@ -16,6 +16,7 @@ import 'package:my_app/arc/core/media/media_preview_dialog.dart';
 import 'package:my_app/arc/core/media/ocr_text_insert_dialog.dart';
 import 'package:my_app/core/services/media_store.dart';
 import 'package:my_app/core/services/ocr_service.dart';
+import 'package:my_app/core/services/photo_library_service.dart';
 import 'package:my_app/mode/first_responder/fr_mode_suggestion_service.dart';
 import 'package:image_picker/image_picker.dart';
 
@@ -146,13 +147,26 @@ class _JournalCaptureViewState extends State<JournalCaptureView> {
       final List<XFile> images = await _imagePicker.pickMultiImage();
       if (images.isNotEmpty) {
         for (final image in images) {
-        final mediaItem = MediaItem(
-          id: DateTime.now().millisecondsSinceEpoch.toString(),
-          uri: image.path,
-          type: MediaType.image,
-          createdAt: DateTime.now(),
-        );
-          _onMediaCaptured(mediaItem);
+          // Save photo to iOS photo library to get ph:// identifier
+          final photoId = await PhotoLibraryService.savePhotoToLibrary(image.path);
+          if (photoId != null) {
+            final mediaItem = MediaItem(
+              id: 'photo_${DateTime.now().millisecondsSinceEpoch}',
+              uri: photoId, // Use ph:// identifier instead of file path
+              type: MediaType.image,
+              createdAt: DateTime.now(),
+            );
+            _onMediaCaptured(mediaItem);
+          } else {
+            // Fallback to file path if photo library save fails
+            final mediaItem = MediaItem(
+              id: 'photo_${DateTime.now().millisecondsSinceEpoch}',
+              uri: image.path,
+              type: MediaType.image,
+              createdAt: DateTime.now(),
+            );
+            _onMediaCaptured(mediaItem);
+          }
         }
       }
     } catch (e) {
@@ -172,13 +186,26 @@ class _JournalCaptureViewState extends State<JournalCaptureView> {
         imageQuality: 85,
       );
       if (image != null) {
-        final mediaItem = MediaItem(
-          id: DateTime.now().millisecondsSinceEpoch.toString(),
-          uri: image.path,
-          type: MediaType.image,
-          createdAt: DateTime.now(),
-        );
-        _onMediaCaptured(mediaItem);
+        // Save photo to iOS photo library to get ph:// identifier
+        final photoId = await PhotoLibraryService.savePhotoToLibrary(image.path);
+        if (photoId != null) {
+          final mediaItem = MediaItem(
+            id: 'photo_${DateTime.now().millisecondsSinceEpoch}',
+            uri: photoId, // Use ph:// identifier instead of file path
+            type: MediaType.image,
+            createdAt: DateTime.now(),
+          );
+          _onMediaCaptured(mediaItem);
+        } else {
+          // Fallback to file path if photo library save fails
+          final mediaItem = MediaItem(
+            id: 'photo_${DateTime.now().millisecondsSinceEpoch}',
+            uri: image.path,
+            type: MediaType.image,
+            createdAt: DateTime.now(),
+          );
+          _onMediaCaptured(mediaItem);
+        }
       }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(

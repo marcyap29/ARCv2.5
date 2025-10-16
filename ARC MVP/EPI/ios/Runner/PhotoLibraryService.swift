@@ -20,9 +20,22 @@ import CommonCrypto
             deletePhotoFromLibrary(call: call, result: result)
         case "findDuplicatePhoto":
             findDuplicatePhoto(call: call, result: result)
+        case "getPhotoMetadata":
+            getPhotoMetadata(call: call, result: result)
+        case "findPhotoByMetadata":
+            findPhotoByMetadata(call: call, result: result)
+        case "findPhotoByPerceptualHash":
+            findPhotoByPerceptualHash(call: call, result: result)
+        case "relinkByMetadata":
+            relinkByMetadata(call: call, result: result)
         default:
             result(FlutterMethodNotImplemented)
         }
+    }
+
+    // MARK: - Helper Functions
+    private func stripPhScheme(_ photoId: String) -> String {
+        return photoId.hasPrefix("ph://") ? String(photoId.dropFirst(5)) : photoId
     }
 
     // MARK: - Perceptual Hash Generation
@@ -113,7 +126,7 @@ import CommonCrypto
         let requestOptions = PHImageRequestOptions()
         requestOptions.isSynchronous = true
         requestOptions.deliveryMode = .fastFormat
-        requestOptions.isNetworkAccessAllowed = false
+        requestOptions.isNetworkAccessAllowed = true
 
         let targetSize = CGSize(width: 8, height: 8)
 
@@ -162,24 +175,20 @@ import CommonCrypto
                 }
                 
                 // Save image to photo library
+                var placeholder: PHObjectPlaceholder?
                 PHPhotoLibrary.shared().performChanges({
                     let creationRequest = PHAssetCreationRequest.forAsset()
                     creationRequest.addResource(with: .photo, fileURL: URL(fileURLWithPath: imagePath), options: nil)
+                    placeholder = creationRequest.placeholderForCreatedAsset
                 }) { success, error in
-                    if success {
-                        // Get the created asset's local identifier
-                        let fetchOptions = PHFetchOptions()
-                        fetchOptions.sortDescriptors = [NSSortDescriptor(key: "creationDate", ascending: false)]
-                        fetchOptions.fetchLimit = 1
-                        
-                        let assets = PHAsset.fetchAssets(with: .image, options: fetchOptions)
-                        if let asset = assets.firstObject {
-                            let photoId = "ph://\(asset.localIdentifier)"
+                    if success, let placeholder = placeholder {
+                        // Use the placeholder's local identifier immediately
+                        let photoId = "ph://\(placeholder.localIdentifier)"
+                        print("✅ PhotoLibraryService: Successfully saved photo with localIdentifier: \(placeholder.localIdentifier)")
+                        print("✅ PhotoLibraryService: Returning photoId: \(photoId)")
                             result(photoId)
-                        } else {
-                            result(FlutterError(code: "SAVE_FAILED", message: "Could not retrieve saved photo", details: nil))
-                        }
                     } else {
+                        print("❌ PhotoLibraryService: Failed to save photo - error: \(error?.localizedDescription ?? "Unknown error")")
                         result(FlutterError(code: "SAVE_FAILED", message: error?.localizedDescription ?? "Unknown error", details: nil))
                     }
                 }
@@ -203,7 +212,7 @@ import CommonCrypto
         }
 
         // Extract local identifier from photo ID
-        let localIdentifier = photoId.replacingOccurrences(of: "ph://", with: "")
+        let localIdentifier = stripPhScheme(photoId)
 
         let fetchOptions = PHFetchOptions()
         let assets = PHAsset.fetchAssets(withLocalIdentifiers: [localIdentifier], options: fetchOptions)
@@ -252,7 +261,7 @@ import CommonCrypto
             return
         }
         
-        let localIdentifier = photoId.replacingOccurrences(of: "ph://", with: "")
+        let localIdentifier = stripPhScheme(photoId)
         let fetchOptions = PHFetchOptions()
         let assets = PHAsset.fetchAssets(withLocalIdentifiers: [localIdentifier], options: fetchOptions)
         
@@ -275,7 +284,7 @@ import CommonCrypto
             return
         }
 
-        let localIdentifier = photoId.replacingOccurrences(of: "ph://", with: "")
+        let localIdentifier = stripPhScheme(photoId)
         let fetchOptions = PHFetchOptions()
         let assets = PHAsset.fetchAssets(withLocalIdentifiers: [localIdentifier], options: fetchOptions)
 
@@ -357,7 +366,7 @@ import CommonCrypto
             return
         }
         
-        let localIdentifier = photoId.replacingOccurrences(of: "ph://", with: "")
+        let localIdentifier = stripPhScheme(photoId)
         let fetchOptions = PHFetchOptions()
         let assets = PHAsset.fetchAssets(withLocalIdentifiers: [localIdentifier], options: fetchOptions)
         
@@ -373,5 +382,220 @@ import CommonCrypto
                 result(success)
             }
         }
+    }
+    
+    // MARK: - Get Photo Metadata
+    private func getPhotoMetadata(call: FlutterMethodCall, result: @escaping FlutterResult) {
+        guard let args = call.arguments as? [String: Any],
+              let photoId = args["photoId"] as? String else {
+            result(FlutterError(code: "INVALID_ARGUMENTS", message: "Missing photoId", details: nil))
+            return
+        }
+        
+        print("🔍 PhotoLibraryService: getPhotoMetadata called for photoId: \(photoId)")
+        
+        // Check photo library permission status
+        let authStatus = PHPhotoLibrary.authorizationStatus(for: .readWrite)
+        guard authStatus == .authorized || authStatus == .limited else {
+            print("❌ PhotoLibraryService: Permission denied - status: \(authStatus.rawValue)")
+            result(FlutterError(code: "PERMISSION_DENIED", message: "Photo library permission not granted", details: nil))
+            return
+        }
+        
+        let localIdentifier = stripPhScheme(photoId)
+        print("🔍 PhotoLibraryService: Looking for localIdentifier: \(localIdentifier)")
+        
+        let fetchOptions = PHFetchOptions()
+        let assets = PHAsset.fetchAssets(withLocalIdentifiers: [localIdentifier], options: fetchOptions)
+        
+        print("🔍 PhotoLibraryService: Found \(assets.count) assets with localIdentifier: \(localIdentifier)")
+        
+        guard let asset = assets.firstObject else {
+            print("❌ PhotoLibraryService: No asset found for localIdentifier: \(localIdentifier)")
+            result(FlutterError(code: "PHOTO_NOT_FOUND", message: "Photo not found in library", details: nil))
+            return
+        }
+        
+        print("✅ PhotoLibraryService: Found asset with localIdentifier: \(asset.localIdentifier)")
+        
+        // Extract metadata from PHAsset using PHAssetResource
+        var metadata: [String: Any] = [:]
+        metadata["local_identifier"] = asset.localIdentifier
+        metadata["creation_date"] = asset.creationDate?.iso8601String
+        metadata["modification_date"] = asset.modificationDate?.iso8601String
+        metadata["pixel_width"] = asset.pixelWidth
+        metadata["pixel_height"] = asset.pixelHeight
+
+        let resources = PHAssetResource.assetResources(for: asset)
+        let primary = resources.first
+        metadata["filename"] = primary?.originalFilename
+        metadata["uniform_type_identifier"] = primary?.uniformTypeIdentifier
+
+        // Optional: approximate byte size via streaming later if needed; keep nil here.
+        metadata["file_size"] = nil
+
+        // Generate small perceptual hash (dHash) on a tiny rendition; allow iCloud fetch
+        let imageManager = PHImageManager.default()
+        let requestOptions = PHImageRequestOptions()
+        requestOptions.isSynchronous = true
+        requestOptions.deliveryMode = .fastFormat
+        requestOptions.isNetworkAccessAllowed = true
+
+        let targetSize = CGSize(width: 8, height: 8)
+        imageManager.requestImage(for: asset,
+                                  targetSize: targetSize,
+                                  contentMode: .aspectFill,
+                                  options: requestOptions) { image, _ in
+            if let image = image, let hash = self.generatePerceptualHash(for: image) {
+                metadata["perceptual_hash"] = hash
+            }
+            result(metadata)
+        }
+    }
+    
+    // MARK: - Find Photo by Metadata
+    private func findPhotoByMetadata(call: FlutterMethodCall, result: @escaping FlutterResult) {
+        guard let args = call.arguments as? [String: Any],
+              let metadata = args["metadata"] as? [String: Any] else {
+            result(FlutterError(code: "INVALID_ARGUMENTS", message: "Missing metadata", details: nil))
+            return
+        }
+
+        // Use the robust relink helper and return with ph:// prefix
+        relinkByMetadata(call: call) { localId in
+            result(localId != nil ? "ph://\(localId!)" : nil)
+        }
+    }
+    
+    // MARK: - Find Photo by Perceptual Hash
+    private func findPhotoByPerceptualHash(call: FlutterMethodCall, result: @escaping FlutterResult) {
+        guard let args = call.arguments as? [String: Any],
+              let hash = args["hash"] as? String else {
+            result(FlutterError(code: "INVALID_ARGUMENTS", message: "Missing hash", details: nil))
+            return
+        }
+        
+        // Check photo library permission status
+        let authStatus = PHPhotoLibrary.authorizationStatus(for: .readWrite)
+        guard authStatus == .authorized || authStatus == .limited else {
+            result(FlutterError(code: "PERMISSION_DENIED", message: "Photo library permission not granted", details: nil))
+            return
+        }
+        
+        // Fetch all photos from library
+        let fetchOptions = PHFetchOptions()
+        fetchOptions.sortDescriptors = [NSSortDescriptor(key: "creationDate", ascending: false)]
+        fetchOptions.fetchLimit = 100 // Only check recent 100 photos for performance
+        
+        let allPhotos = PHAsset.fetchAssets(with: .image, options: fetchOptions)
+        let imageManager = PHImageManager.default()
+        let requestOptions = PHImageRequestOptions()
+        requestOptions.isSynchronous = true
+        requestOptions.deliveryMode = .fastFormat
+        requestOptions.isNetworkAccessAllowed = true
+        
+        let targetSize = CGSize(width: 8, height: 8)
+        
+        // Search for matching hash
+        var foundMatch: String? = nil
+        
+        allPhotos.enumerateObjects { (asset, index, stop) in
+            imageManager.requestImage(for: asset, targetSize: targetSize, contentMode: .aspectFill, options: requestOptions) { image, info in
+                if let image = image,
+                   let assetHash = self.generatePerceptualHash(for: image),
+                   assetHash == hash {
+                    foundMatch = "ph://\(asset.localIdentifier)"
+                    stop.pointee = true
+                }
+            }
+        }
+        
+        result(foundMatch)
+    }
+
+    // MARK: - Relink by Metadata (portable)
+    private func relinkByMetadata(call: FlutterMethodCall, result: @escaping FlutterResult) {
+        guard let args = call.arguments as? [String: Any],
+              let meta = args["metadata"] as? [String: Any] else {
+            result(FlutterError(code: "INVALID_ARGUMENTS", message: "Missing metadata", details: nil))
+            return
+        }
+
+        // Check photo library permission status
+        let authStatus = PHPhotoLibrary.authorizationStatus(for: .readWrite)
+        guard authStatus == .authorized || authStatus == .limited else {
+            result(FlutterError(code: "PERMISSION_DENIED", message: "Photo library permission not granted", details: nil))
+            return
+        }
+
+        // Parse inputs
+        let creationIso = meta["creation_date"] as? String
+        let targetWidth  = meta["pixel_width"]  as? Int
+        let targetHeight = meta["pixel_height"] as? Int
+        let filename     = meta["filename"]     as? String
+        let targetHash   = meta["perceptual_hash"] as? String
+
+        let fetchOpts = PHFetchOptions()
+        // Date window: ±3 minutes around creationDate if provided
+        if let creationIsoString = creationIso, let date = ISO8601DateFormatter().date(from: creationIsoString) {
+            let fromDate = date.addingTimeInterval(-180)
+            let toDate   = date.addingTimeInterval( 180)
+            fetchOpts.predicate = NSPredicate(format: "creationDate >= %@ AND creationDate <= %@", fromDate as NSDate, toDate as NSDate)
+        }
+        fetchOpts.sortDescriptors = [NSSortDescriptor(key: "creationDate", ascending: false)]
+        fetchOpts.fetchLimit = 200
+
+        let results = PHAsset.fetchAssets(with: .image, options: fetchOpts)
+        if results.count == 0 { result(nil); return }
+
+        // Pass 1: dimension filter
+        var candidates: [PHAsset] = []
+        results.enumerateObjects { asset, _, _ in
+            if let targetWidth = targetWidth, let targetHeight = targetHeight {
+                if asset.pixelWidth == targetWidth && asset.pixelHeight == targetHeight {
+                    candidates.append(asset)
+                }
+            } else {
+                candidates.append(asset)
+            }
+        }
+        if candidates.isEmpty { result(nil); return }
+
+        // Pass 2: filename refinement
+        if let name = filename {
+            let exact = candidates.first(where: { PHAssetResource.assetResources(for: $0).first?.originalFilename == name })
+            if let hit = exact {
+                result(hit.localIdentifier); return
+            }
+        }
+
+        // Pass 3: perceptual hash (if present)
+        if let target = targetHash {
+            let opts = PHImageRequestOptions()
+            opts.isSynchronous = true
+            opts.deliveryMode = .fastFormat
+            opts.isNetworkAccessAllowed = true
+            let targetSize = CGSize(width: 8, height: 8)
+            for asset in candidates {
+                var matched = false
+                PHImageManager.default().requestImage(for: asset, targetSize: targetSize, contentMode: .aspectFill, options: opts) { img, _ in
+                    if let img = img, let hash = self.generatePerceptualHash(for: img), hash == target {
+                        matched = true
+                    }
+                }
+                if matched { result(asset.localIdentifier); return }
+            }
+        }
+
+        // Last resort: best candidate by recency
+        result(candidates.first?.localIdentifier)
+    }
+}
+
+// MARK: - Date Extension for ISO8601
+extension Date {
+    var iso8601String: String {
+        let formatter = ISO8601DateFormatter()
+        return formatter.string(from: self)
     }
 }

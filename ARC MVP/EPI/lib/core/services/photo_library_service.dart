@@ -1,5 +1,6 @@
 import 'package:flutter/services.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:my_app/data/models/photo_metadata.dart';
 
 /// Service for managing photos in the iOS Photo Library
 /// 
@@ -252,6 +253,93 @@ class PhotoLibraryService {
     } catch (e) {
       print('PhotoLibraryService: Error checking photo library availability: $e');
       return false;
+    }
+  }
+  
+  /// Get rich metadata for a photo in the library
+  /// 
+  /// [photoId] - Photo library identifier
+  /// Returns PhotoMetadata object with all available metadata
+  static Future<PhotoMetadata?> getPhotoMetadata(String photoId) async {
+    try {
+      final permission = await Permission.photos.status;
+      if (!permission.isGranted && !permission.isLimited) {
+        print('PhotoLibraryService: Photo library permission not granted');
+        return null;
+      }
+      
+      final result = await _channel.invokeMethod('getPhotoMetadata', {
+        'photoId': photoId,
+      });
+      
+      if (result is Map<String, dynamic>) {
+        print('PhotoLibraryService: Retrieved metadata for photo: $photoId');
+        return PhotoMetadata.fromJson(result);
+      } else {
+        print('PhotoLibraryService: No metadata found for photo: $photoId');
+        return null;
+      }
+    } catch (e) {
+      print('PhotoLibraryService: Error getting photo metadata: $e');
+      return null;
+    }
+  }
+  
+  /// Find a photo in the library using metadata search
+  /// 
+  /// [metadata] - PhotoMetadata object to search for
+  /// Returns the photo library identifier if found, null otherwise
+  static Future<String?> findPhotoByMetadata(PhotoMetadata metadata) async {
+    try {
+      final permission = await Permission.photos.status;
+      if (!permission.isGranted && !permission.isLimited) {
+        print('PhotoLibraryService: Photo library permission not granted');
+        return null;
+      }
+      
+      final result = await _channel.invokeMethod('findPhotoByMetadata', {
+        'metadata': metadata.toJson(),
+      });
+      
+      if (result is String && result.isNotEmpty) {
+        print('PhotoLibraryService: Found photo by metadata: $result');
+        return result;
+      } else {
+        print('PhotoLibraryService: No photo found matching metadata');
+        return null;
+      }
+    } catch (e) {
+      print('PhotoLibraryService: Error finding photo by metadata: $e');
+      return null;
+    }
+  }
+  
+  /// Find a photo in the library using perceptual hash
+  /// 
+  /// [hash] - Perceptual hash string to search for
+  /// Returns the photo library identifier if found, null otherwise
+  static Future<String?> findPhotoByPerceptualHash(String hash) async {
+    try {
+      final permission = await Permission.photos.status;
+      if (!permission.isGranted && !permission.isLimited) {
+        print('PhotoLibraryService: Photo library permission not granted');
+        return null;
+      }
+      
+      final result = await _channel.invokeMethod('findPhotoByPerceptualHash', {
+        'hash': hash,
+      });
+      
+      if (result is String && result.isNotEmpty) {
+        print('PhotoLibraryService: Found photo by perceptual hash: $result');
+        return result;
+      } else {
+        print('PhotoLibraryService: No photo found matching perceptual hash');
+        return null;
+      }
+    } catch (e) {
+      print('PhotoLibraryService: Error finding photo by perceptual hash: $e');
+      return null;
     }
   }
 }

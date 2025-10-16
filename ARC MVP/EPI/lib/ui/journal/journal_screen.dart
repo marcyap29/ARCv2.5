@@ -1011,16 +1011,17 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
   Widget _buildPhotoThumbnail(String imagePath) {
     // Check if this is a photo library ID (starts with "ph://") or a file path
     final isPhotoLibraryId = imagePath.startsWith('ph://');
-    print('DEBUG _buildPhotoThumbnail: imagePath=$imagePath, isPhotoLibraryId=$isPhotoLibraryId');
+    print('🔍 DEBUG _buildPhotoThumbnail: imagePath=$imagePath, isPhotoLibraryId=$isPhotoLibraryId');
 
     if (isPhotoLibraryId) {
       // Load thumbnail from photo library
       return FutureBuilder<String?>(
         future: PhotoLibraryService.getPhotoThumbnail(imagePath, size: 80),
         builder: (context, snapshot) {
-          print('DEBUG FutureBuilder: connectionState=${snapshot.connectionState}, hasData=${snapshot.hasData}, data=${snapshot.data}, error=${snapshot.error}');
+          print('🔍 DEBUG FutureBuilder: connectionState=${snapshot.connectionState}, hasData=${snapshot.hasData}, data=${snapshot.data}, error=${snapshot.error}');
 
           if (snapshot.connectionState == ConnectionState.waiting) {
+            print('🔍 DEBUG: Loading thumbnail for $imagePath...');
             return Container(
               color: Theme.of(context).colorScheme.surfaceContainerHighest,
               child: const Center(
@@ -1030,6 +1031,7 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
           }
 
           if (snapshot.hasError || (snapshot.connectionState == ConnectionState.done && snapshot.data == null)) {
+            print('🔍 DEBUG: Thumbnail loading failed for $imagePath - error: ${snapshot.error}, data: ${snapshot.data}');
             // Photo library reference is broken or inaccessible
             final errorMessage = snapshot.hasError 
                 ? 'Photo unavailable'
@@ -1075,12 +1077,12 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
           }
 
           if (snapshot.hasData && snapshot.data != null) {
-            print('DEBUG: Loading image from: ${snapshot.data}');
+            print('✅ DEBUG: Successfully loaded thumbnail from: ${snapshot.data}');
             return Image.file(
               File(snapshot.data!),
               fit: BoxFit.cover,
               errorBuilder: (context, error, stackTrace) {
-                print('DEBUG: Image.file error: $error');
+                print('🚫 DEBUG: Image.file error for ${snapshot.data}: $error');
                 return Container(
                   color: Theme.of(context).colorScheme.surfaceContainerHighest,
                   child: Icon(
@@ -1093,29 +1095,53 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
           }
 
           // Fallback for photo library errors
-          print('DEBUG: No data received from getPhotoThumbnail');
+          print('🚫 DEBUG: No data received from getPhotoThumbnail for $imagePath');
           return Container(
             color: Theme.of(context).colorScheme.surfaceContainerHighest,
-            child: Icon(
-              Icons.photo,
-              color: Theme.of(context).colorScheme.onSurface.withOpacity(0.5),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.photo,
+                  color: Theme.of(context).colorScheme.onSurface.withOpacity(0.5),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Photo unavailable',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurface.withOpacity(0.5),
+                  ),
+                ),
+              ],
             ),
           );
         },
       );
     } else {
       // Load from file path (temporary files)
-      print('DEBUG: Loading image directly from file: $imagePath');
+      print('🔍 DEBUG: Loading image directly from file: $imagePath');
       return Image.file(
         File(imagePath),
         fit: BoxFit.cover,
         errorBuilder: (context, error, stackTrace) {
-          print('DEBUG: File image loading error: $error');
+          print('🚫 DEBUG: File image loading error for $imagePath: $error');
           return Container(
             color: Theme.of(context).colorScheme.surfaceContainerHighest,
-            child: Icon(
-              Icons.photo,
-              color: Theme.of(context).colorScheme.onSurface.withOpacity(0.5),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.photo,
+                  color: Theme.of(context).colorScheme.onSurface.withOpacity(0.5),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'File not found',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurface.withOpacity(0.5),
+                  ),
+                ),
+              ],
             ),
           );
         },

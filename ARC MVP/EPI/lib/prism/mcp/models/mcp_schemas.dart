@@ -119,9 +119,10 @@ class McpNode {
     
     return McpNode(
       id: json['id'] as String,
-      type: json['type'] as String,
+      type: json['type'] is String ? json['type'] as String : (json['type'] as int).toString(),
       timestamp: DateTime.parse(json['timestamp'] as String),
-      schemaVersion: json['schema_version'] as String? ?? 'node.v1',
+      schemaVersion: json['schema_version'] as String? ?? 
+                    (json['schemaVersion'] is int ? (json['schemaVersion'] as int).toString() : 'node.v1'),
       pointerRef: json['pointer_ref'] as String?,
       contentSummary: json['content_summary'] as String?,
       phaseHint: json['phase_hint'] as String?,

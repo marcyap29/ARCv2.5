@@ -258,6 +258,10 @@ class TimelineCubit extends Cubit<TimelineState> {
         print('DEBUG: Entry ${entry.id} has photo placeholders but no media items - attempting reconstruction');
         finalMedia = _reconstructMediaFromPlaceholders(entry.content);
         print('DEBUG: Reconstructed ${finalMedia.length} media items from placeholders');
+      } else if (entry.media.isNotEmpty) {
+        print('DEBUG: Entry ${entry.id} has ${entry.media.length} media items - using actual media');
+        // Use the actual media items from the entry (these should have reconnected ph:// URIs)
+        finalMedia = entry.media;
       }
       
       if (finalMedia.isNotEmpty) {
@@ -313,17 +317,19 @@ class TimelineCubit extends Cubit<TimelineState> {
       final photoId = match.group(1)!;
       print('DEBUG: Reconstructing media for placeholder: [PHOTO:$photoId]');
       
-      // Create a placeholder media item
+      // Try to find the original ph:// URI for this photo ID
+      // This is a fallback for legacy entries that don't have media items
       final mediaItem = MediaItem(
         id: photoId,
-        uri: 'placeholder://$photoId', // Placeholder URI
+        uri: 'placeholder://$photoId', // Placeholder URI (will show as unavailable)
         type: MediaType.image, // Default to image
         createdAt: DateTime.now(),
-        altText: 'Imported photo: $photoId',
+        altText: 'Photo unavailable - tap to remove',
         analysisData: {
           'photo_id': photoId,
           'imported': true,
           'placeholder': true,
+          'unavailable': true,
         },
       );
       

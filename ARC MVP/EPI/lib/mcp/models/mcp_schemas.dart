@@ -106,6 +106,17 @@ class McpNode {
   }
 
   factory McpNode.fromJson(Map<String, dynamic> json) {
+    // Capture root-level media field if present and merge it into metadata
+    Map<String, dynamic>? metadata = json['metadata'] != null
+        ? Map<String, dynamic>.from(json['metadata'])
+        : null;
+
+    // If there's a root-level media field, add it to metadata
+    if (json.containsKey('media')) {
+      metadata ??= {};
+      metadata['media'] = json['media'];
+    }
+
     return McpNode(
       id: json['id'] as String,
       type: json['type'] as String,
@@ -116,7 +127,7 @@ class McpNode {
       phaseHint: json['phase_hint'] as String?,
       keywords: _extractKeywordsFromJson(json),
       embeddingRef: json['embedding_ref'] as String?,
-      narrative: json['narrative'] != null 
+      narrative: json['narrative'] != null
           ? McpNarrative.fromJson(json['narrative'] as Map<String, dynamic>)
           : null,
       emotions: Map<String, double>.from(json['emotions'] ?? {}),
@@ -136,7 +147,7 @@ class McpNode {
       privacyLevel: json['privacy_level'] as String?,
       phase: json['phase'] as String?,
       sourceHash: json['source_hash'] as String?,
-      metadata: json['metadata'] != null ? Map<String, dynamic>.from(json['metadata']) : null,
+      metadata: metadata,
     );
   }
 }

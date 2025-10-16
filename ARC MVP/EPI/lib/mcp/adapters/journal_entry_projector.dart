@@ -9,6 +9,7 @@ import '../../arc/core/journal_repository.dart';
 import 'package:my_app/models/journal_entry_model.dart';
 import '../../../mira/core/ids.dart';
 import '../../core/services/photo_library_service.dart';
+import '../../data/models/media_item.dart';
 
 class McpEntryProjector {
   /// Project all journal entries to MCP format, emitting to the provided sinks
@@ -171,30 +172,21 @@ class McpEntryProjector {
       if (media.duration != null) mediaMap['duration'] = media.duration!.inSeconds;
       if (media.sizeBytes != null) mediaMap['size_bytes'] = media.sizeBytes!;
       
-      // For ph:// URIs, store the actual photo data for persistence
-      if (media.uri.startsWith('ph://')) {
-        try {
-          print('🔍 McpEntryProjector: Loading photo data for ${media.id} from ${media.uri}');
-          final photoData = await PhotoLibraryService.loadPhotoFromLibrary(media.uri);
-          if (photoData != null) {
-            // Read the photo file and encode as base64
-            final file = File(photoData);
-            if (await file.exists()) {
-              final bytes = await file.readAsBytes();
-              final base64Data = base64Encode(bytes);
-              mediaMap['photo_data'] = base64Data;
-              mediaMap['photo_format'] = 'jpeg'; // Assume JPEG for now
-              print('✅ McpEntryProjector: Stored photo data for ${media.id} (${bytes.length} bytes)');
-            } else {
-              print('⚠️ McpEntryProjector: Photo file not found: $photoData');
-            }
-          } else {
-            print('⚠️ McpEntryProjector: Could not load photo data for ${media.uri}');
-          }
-        } catch (e) {
-          print('⚠️ McpEntryProjector: Error loading photo data for ${media.uri}: $e');
-        }
-      }
+           // For ph:// URIs, store rich metadata for reconnection
+           if (media.uri.startsWith('ph://')) {
+             try {
+               print('🔍 McpEntryProjector: Getting photo metadata for ${media.id} from ${media.uri}');
+               final metadata = await PhotoLibraryService.getPhotoMetadata(media.uri);
+               if (metadata != null) {
+                 mediaMap['photo_metadata'] = metadata.toJson();
+                 print('✅ McpEntryProjector: Stored photo metadata for ${media.id}: ${metadata.description}');
+               } else {
+                 print('⚠️ McpEntryProjector: Could not get photo metadata for ${media.uri}');
+               }
+             } catch (e) {
+               print('⚠️ McpEntryProjector: Error getting photo metadata for ${media.uri}: $e');
+             }
+           }
       
       // Validate URI scheme
       final uri = media.uri;
@@ -210,12 +202,16 @@ class McpEntryProjector {
       mediaData.add(mediaMap);
     }
     
+    // Extract photo metadata for placeholders in content
+    final photoMetadata = await _extractPhotoMetadataFromContent(entry.content, entry.media);
+    
     // Log media export by type
     final mediaByType = <String, int>{};
     for (final media in entry.media) {
       mediaByType[media.type.name] = (mediaByType[media.type.name] ?? 0) + 1;
     }
     print('🔍 McpEntryProjector: Exporting ${entry.media.length} media items: $mediaByType');
+    print('🔍 McpEntryProjector: Found ${photoMetadata.length} photo placeholders in content');
 
     // DEBUG: Log media data for troubleshooting
     print('🔍 McpEntryProjector: Entry ${entry.id} has ${entry.media.length} media items');
@@ -249,6 +245,16 @@ class McpEntryProjector {
       },
       'pointer_ref': pointerId,
       'schema_version': 'node.v1',
+      'metadata': {
+        'photos': photoMetadata, // Photo metadata for reconnection
+        'timeline': {
+          'date': entry.createdAt.toUtc().toIso8601String(),
+          'time': '${entry.createdAt.hour.toString().padLeft(2, '0')}:${entry.createdAt.minute.toString().padLeft(2, '0')}',
+          'location': entry.location,
+          'phase': entry.phase,
+          'is_edited': entry.isEdited,
+        },
+      },
     };
 
     // Enhanced debug logging
@@ -371,6 +377,72 @@ class McpEntryProjector {
     });
 
     return sorted;
+  }
+
+  /// Extract photo metadata from content placeholders
+  static Future<List<Map<String, dynamic>>> _extractPhotoMetadataFromContent(
+    String content,
+    List<MediaItem> mediaItems,
+  ) async {
+    final photoMetadata = <Map<String, dynamic>>[];
+    final photoPlaceholderRegex = RegExp(r'\[PHOTO:([^\]]+)\]');
+    final matches = photoPlaceholderRegex.allMatches(content);
+
+    for (final match in matches) {
+      final placeholderId = match.group(1)!;
+      print('🔍 McpEntryProjector: Found photo placeholder: $placeholderId');
+
+      // Try to find the corresponding MediaItem
+      MediaItem? matchingMedia;
+      for (final media in mediaItems) {
+        if (media.id == placeholderId) {
+          matchingMedia = media;
+          break;
+        }
+      }
+
+      Map<String, dynamic> metadata = <String, dynamic>{
+        'placeholder_id': placeholderId,
+        'local_identifier': null,
+        'creation_date': null,
+        'pixel_width': null,
+        'pixel_height': null,
+        'filename': null,
+        'uniform_type_identifier': null,
+        'perceptual_hash': null,
+      };
+
+      // If we found a matching MediaItem with ph:// URI, get its metadata
+      if (matchingMedia != null && matchingMedia.uri.startsWith('ph://')) {
+        try {
+          print('🔍 McpEntryProjector: Getting metadata for ${matchingMedia.uri}');
+          final photoMetadataObj = await PhotoLibraryService.getPhotoMetadata(matchingMedia.uri);
+          if (photoMetadataObj != null) {
+            metadata = {
+              'placeholder_id': placeholderId,
+              'local_identifier': photoMetadataObj.localIdentifier,
+              'creation_date': photoMetadataObj.creationDate,
+              'pixel_width': photoMetadataObj.pixelWidth,
+              'pixel_height': photoMetadataObj.pixelHeight,
+              'filename': photoMetadataObj.filename,
+              'uniform_type_identifier': null, // Not available in PhotoMetadata
+              'perceptual_hash': photoMetadataObj.perceptualHash,
+            };
+            print('✅ McpEntryProjector: Got metadata for $placeholderId: ${photoMetadataObj.description}');
+          } else {
+            print('⚠️ McpEntryProjector: Could not get metadata for ${matchingMedia.uri}');
+          }
+        } catch (e) {
+          print('⚠️ McpEntryProjector: Error getting metadata for ${matchingMedia.uri}: $e');
+        }
+      } else {
+        print('🔍 McpEntryProjector: No matching MediaItem found for $placeholderId or not ph:// URI');
+      }
+
+      photoMetadata.add(metadata);
+    }
+
+    return photoMetadata;
   }
 }
 

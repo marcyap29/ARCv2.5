@@ -42,11 +42,12 @@ class _StartupViewState extends State<StartupView> {
       print('DEBUG: Onboarding completed: ${userProfile?.onboardingCompleted}');
       print('DEBUG: Current season: ${userProfile?.onboardingCurrentSeason}');
 
-      // NEW RULES: Only show quiz to completely new users (no profile or no onboarding completed)
-      final isNewUser = userProfile == null || !userProfile.onboardingCompleted;
+      // NEW RULES: Only show quiz to completely new users (no profile exists at all)
+      // This ensures the quiz only appears on fresh installs, not when users delete all entries
+      final isNewUser = userProfile == null;
       
       if (isNewUser) {
-        print('DEBUG: New user detected, showing phase quiz');
+        print('DEBUG: New user detected (no profile), showing phase quiz');
         _navigateToPhaseQuiz();
       } else {
         print('DEBUG: Existing user, navigating to main menu');
