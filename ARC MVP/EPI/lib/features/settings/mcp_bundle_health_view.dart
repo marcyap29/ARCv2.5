@@ -1255,6 +1255,73 @@ class _McpBundleHealthViewState extends State<McpBundleHealthView> {
   bool _cleanupDuplicates = true;
   bool _cleanupDuplicateEdges = true;
 
+  /// Show dialog to choose save location for cleaned file
+  Future<String?> _showSaveDialog(String suggestedFileName) async {
+    // Show info dialog first
+    final shouldProceed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Save Cleaned File', style: heading3Style(context)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Choose where to save the cleaned MCP bundle:',
+              style: bodyStyle(context),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Suggested filename:',
+              style: captionStyle(context).copyWith(color: kcTextSecondaryColor),
+            ),
+            const SizedBox(height: 4),
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: kcSurfaceColor,
+                borderRadius: BorderRadius.circular(4),
+                border: Border.all(color: kcBorderColor),
+              ),
+              child: Text(
+                suggestedFileName,
+                style: bodyStyle(context).copyWith(fontFamily: 'monospace'),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'The file will be saved using the system file picker.',
+              style: captionStyle(context).copyWith(color: kcTextSecondaryColor),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Choose Location'),
+          ),
+        ],
+      ),
+    );
+
+    if (shouldProceed == true) {
+      // Use file picker to get save location
+      final result = await FilePicker.platform.saveFile(
+        dialogTitle: 'Save Cleaned MCP Bundle',
+        fileName: suggestedFileName,
+        type: FileType.custom,
+        allowedExtensions: ['zip'],
+      );
+      return result;
+    }
+    
+    return null;
+  }
+
   void _showCleanupDialog() {
     showDialog(
       context: context,
@@ -1350,17 +1417,34 @@ class _McpBundleHealthViewState extends State<McpBundleHealthView> {
             cleanupOptions,
           );
           
-          // Repackage the cleaned bundle with timestamp
+          // Show dialog to choose save location for cleaned bundle
           final now = DateTime.now();
           final dateStr = '${now.year}${now.month.toString().padLeft(2, '0')}${now.day.toString().padLeft(2, '0')}';
           final timeStr = '${now.hour.toString().padLeft(2, '0')}${now.minute.toString().padLeft(2, '0')}${now.second.toString().padLeft(2, '0')}';
           final originalName = zipFile.path.split('/').last.replaceAll('.zip', '');
-          await ZipUtils.zipDirectory(tempDir, zipFileName: '${originalName}_cleaned_${dateStr}_${timeStr}.zip');
+          final suggestedFileName = '${originalName}_cleaned_${dateStr}_${timeStr}.zip';
           
-          successCount++;
-          totalOrphansRemoved += cleanupResult.orphanNodesRemoved + cleanupResult.orphanKeywordsRemoved;
-          totalDuplicatesRemoved += cleanupResult.duplicateEntriesRemoved + cleanupResult.duplicatePointersRemoved;
-          totalSizeReduction += cleanupResult.sizeReductionBytes;
+          // Show save dialog
+          final saveResult = await _showSaveDialog(suggestedFileName);
+          if (saveResult != null) {
+            await ZipUtils.zipDirectory(tempDir, zipFileName: saveResult);
+            successCount++;
+            totalOrphansRemoved += cleanupResult.orphanNodesRemoved + cleanupResult.orphanKeywordsRemoved;
+            totalDuplicatesRemoved += cleanupResult.duplicateEntriesRemoved + cleanupResult.duplicatePointersRemoved;
+            totalSizeReduction += cleanupResult.sizeReductionBytes;
+          } else {
+            // User cancelled save dialog, skip this file
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Skipped cleaning ${zipFile.path.split('/').last} - no save location selected'),
+                  backgroundColor: kcWarningColor,
+                  duration: const Duration(seconds: 2),
+                ),
+              );
+            }
+            continue; // Skip to next file
+          }
           
           // Update progress
           if (mounted) {
@@ -1389,7 +1473,7 @@ class _McpBundleHealthViewState extends State<McpBundleHealthView> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              'Cleanup completed: $successCount/${_selectedBundlePaths.length} files cleaned. '
+              'Cleanup completed: $successCount/${_selectedBundlePaths.length} files cleaned and saved to chosen locations. '
               'Removed $totalOrphansRemoved orphans, $totalDuplicatesRemoved duplicates, '
               '${(totalSizeReduction / 1024).toStringAsFixed(1)}KB saved',
             ),
