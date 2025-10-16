@@ -2,6 +2,25 @@
 
 ## [Unreleased]
 
+### 🔧 **MCP EXPORT QUALITY SIMPLIFICATION** - January 12, 2025
+
+#### **Export Quality Streamlining** ✅ **COMPLETE**
+- **Removed Quality Dropdown**: ✅ **REMOVED** - Eliminated confusing export quality selection dropdown from MCP settings
+- **High Fidelity Default**: ✅ **IMPLEMENTED** - Set MCP export to always use high fidelity (maximum capability)
+- **Simplified UI**: ✅ **CLEANED** - Streamlined MCP export interface for better user experience
+- **Code Cleanup**: ✅ **OPTIMIZED** - Removed unused methods, variables, and imports
+
+#### **Technical Implementation** ✅ **COMPLETE**
+- **UI Simplification**: Removed `_buildStorageProfileSelector()` and `_getProfileDescription()` methods
+- **Default Configuration**: Updated `McpSettingsState` to default to `McpStorageProfile.hiFidelity`
+- **Export Logic**: Modified export method to always use high fidelity instead of user selection
+- **Code Cleanup**: Removed unused imports, methods, and variables to eliminate linter warnings
+
+#### **Files Modified**:
+- `lib/features/settings/mcp_settings_view.dart` - Removed quality dropdown UI
+- `lib/features/settings/mcp_settings_cubit.dart` - Set high fidelity default and cleaned up code
+- `docs/guides/MVP_Install.md` - Updated documentation to reflect high fidelity export
+
 ### 📸 **PHOTO PERSISTENCE SYSTEM FIXES** - January 12, 2025
 
 #### **Complete Photo Persistence Resolution** ✅ **PRODUCTION READY**
