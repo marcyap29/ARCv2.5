@@ -142,7 +142,7 @@ class DownloadStateService extends ChangeNotifier {
     _downloadStates[modelId] = ModelDownloadState(
       modelId: modelId,
       isDownloading: true,
-      progress: 0.0,
+      progress: 0.02, // Show 2% progress immediately for better UX
       statusMessage: 'Starting download of $displayName...',
     );
     notifyListeners();

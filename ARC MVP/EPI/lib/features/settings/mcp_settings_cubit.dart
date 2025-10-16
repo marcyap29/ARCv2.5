@@ -207,15 +207,15 @@ class McpSettingsCubit extends Cubit<McpSettingsState> {
       if (result.success) {
         // Trigger timeline refresh after successful import
         _refreshTimeline();
-        
-        emit(state.copyWith(
+
+      emit(state.copyWith(
           isLoading: false,
           isImporting: false,
           successMessage: 'MCP import completed successfully!\n'
               'Imported: ${result.counts['nodes'] ?? 0} nodes, '
               '${result.counts['edges'] ?? 0} edges\n'
               'Processing time: ${result.processingTime.inMilliseconds}ms',
-          progress: 1.0,
+        progress: 1.0,
           currentOperation: null,
         ));
       } else {
@@ -231,9 +231,9 @@ class McpSettingsCubit extends Cubit<McpSettingsState> {
           detailedError += '\n\nWarnings:\n${result.warnings.take(2).join('\n')}';
         }
 
-        emit(state.copyWith(
-          isLoading: false,
-          isImporting: false,
+      emit(state.copyWith(
+        isLoading: false,
+        isImporting: false,
           error: detailedError,
           progress: 0.0,
           currentOperation: null,
@@ -258,7 +258,7 @@ class McpSettingsCubit extends Cubit<McpSettingsState> {
         errorMessage = 'Import failed: Bundle contains corrupted data.\n\n'
             'The manifest.json file is not valid JSON. Please re-export your data.';
       }
-
+      
       emit(state.copyWith(
         isLoading: false,
         isImporting: false,

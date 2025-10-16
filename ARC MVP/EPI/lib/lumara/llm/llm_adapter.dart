@@ -126,7 +126,7 @@ class LLMAdapter implements ModelAdapter {
           _isInitialized = true;
           debugPrint('[LLMAdapter] Using Llama-3.2-3B model: $_activeModelId');
         } else {
-          // Check for Qwen3-4B model as fallback
+          // Check for Qwen3-4B model as second priority
           final qwenDownloaded = await _nativeApi.isModelDownloaded('Qwen3-4B-Instruct-2507-Q4_K_S.gguf');
           debugPrint('[LLMAdapter] Qwen3-4B model downloaded: $qwenDownloaded');
           

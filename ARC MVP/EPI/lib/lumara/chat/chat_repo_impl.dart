@@ -2,6 +2,7 @@ import 'package:hive/hive.dart';
 import 'chat_models.dart';
 import 'chat_repo.dart';
 import 'chat_archive_policy.dart';
+import 'content_parts.dart';
 
 /// Hive implementation of ChatRepo
 class ChatRepoImpl implements ChatRepo {
@@ -33,6 +34,9 @@ class ChatRepoImpl implements ChatRepo {
       }
       if (!Hive.isAdapterRegistered(71)) {
         Hive.registerAdapter(ChatMessageAdapter());
+      }
+      if (!Hive.isAdapterRegistered(81)) {
+        Hive.registerAdapter(TextContentPartAdapter());
       }
 
       // Open boxes

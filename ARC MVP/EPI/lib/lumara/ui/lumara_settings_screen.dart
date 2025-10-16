@@ -662,15 +662,165 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
             ),
           ),
 
-        // Add cleanup button for internal models section
+        // Add cleanup buttons for internal models section
         if (isInternal) ...[
           const SizedBox(height: 16),
+          _buildDeleteModelButton(theme),
+          const SizedBox(height: 12),
           _buildCleanupButton(theme),
         ],
       ],
     );
   }
 
+
+  Widget _buildDeleteModelButton(ThemeData theme) {
+    return SizedBox(
+      width: double.infinity,
+      child: OutlinedButton.icon(
+        onPressed: () async {
+          // Show model selection dialog
+          final selectedModel = await _showModelSelectionDialog();
+          if (selectedModel == null) return;
+
+          // Show confirmation dialog
+          final confirmed = await showDialog<bool>(
+            context: context,
+            builder: (context) => AlertDialog(
+              title: const Text('Delete Model'),
+              content: Text(
+                'Are you sure you want to delete "${selectedModel['name']}"? This action cannot be undone and will free up ${selectedModel['size']} of storage space.'
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(false),
+                  child: const Text('Cancel'),
+                ),
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(true),
+                  child: const Text('Delete'),
+                ),
+              ],
+            ),
+          );
+
+          if (confirmed != true) return;
+
+          try {
+            // Delete the specific model
+            final modelId = selectedModel['id'] as String;
+            await _bridge.deleteModel(modelId);
+            
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('${selectedModel['name']} deleted successfully'),
+                  backgroundColor: Colors.green,
+                ),
+              );
+            }
+          } catch (e) {
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Error deleting model: $e'),
+                  backgroundColor: Colors.red,
+                ),
+              );
+            }
+          }
+        },
+        icon: const Icon(Icons.delete_outline, size: 20),
+        label: const Text('Delete Model'),
+        style: OutlinedButton.styleFrom(
+          foregroundColor: theme.colorScheme.error,
+          side: BorderSide(color: theme.colorScheme.error),
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(8),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<Map<String, dynamic>?> _showModelSelectionDialog() async {
+    // Get list of downloaded models
+    final downloadedModels = <Map<String, dynamic>>[];
+    
+    // Check each internal model
+    final internalModels = [
+      {
+        'id': 'Llama-3.2-3b-Instruct-Q4_K_M.gguf',
+        'name': 'Llama 3.2 3B Instruct',
+        'size': '~1.9 GB',
+      },
+      {
+        'id': 'Qwen3-4B-Instruct-2507-Q4_K_S.gguf',
+        'name': 'Qwen3 4B Instruct',
+        'size': '~2.5 GB',
+      },
+      {
+        'id': 'google_gemma-3n-E2B-it-Q6_K_L.gguf',
+        'name': 'Google Gemma 3n E2B',
+        'size': '~4.3 GB',
+      },
+    ];
+
+    for (final model in internalModels) {
+      try {
+        final modelId = model['id'] as String;
+        final isDownloaded = await _bridge.isModelDownloaded(modelId);
+        if (isDownloaded) {
+          downloadedModels.add(model);
+        }
+      } catch (e) {
+        // Skip models that can't be checked
+        continue;
+      }
+    }
+
+    if (downloadedModels.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('No downloaded models found to delete'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      }
+      return null;
+    }
+
+    return showDialog<Map<String, dynamic>>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Select Model to Delete'),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: ListView.builder(
+            shrinkWrap: true,
+            itemCount: downloadedModels.length,
+            itemBuilder: (context, index) {
+              final model = downloadedModels[index];
+              return ListTile(
+                leading: const Icon(Icons.psychology, color: Colors.blue),
+                title: Text(model['name']),
+                subtitle: Text('Size: ${model['size']}'),
+                onTap: () => Navigator.of(context).pop(model),
+              );
+            },
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancel'),
+          ),
+        ],
+      ),
+    );
+  }
 
   Widget _buildCleanupButton(ThemeData theme) {
     return SizedBox(
@@ -1282,7 +1432,7 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
 
   Widget _buildApiKeysCard(ThemeData theme) {
         final externalProviders = LLMProvider.values
-            .where((p) => p != LLMProvider.qwen4b && p != LLMProvider.llama3b)
+            .where((p) => p != LLMProvider.qwen4b && p != LLMProvider.llama3b && p != LLMProvider.gemma3n)
             .toList();
     
     return Card(

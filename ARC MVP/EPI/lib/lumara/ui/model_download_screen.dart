@@ -69,6 +69,13 @@ class _ModelDownloadScreenState extends State<ModelDownloadScreen> {
       downloadUrl: 'https://huggingface.co/unsloth/Qwen3-4B-Instruct-2507-GGUF/resolve/main/Qwen3-4B-Instruct-2507-Q4_K_S.gguf?download=true',
       description: 'Multilingual, 4-bit quantized, excellent reasoning capabilities',
     ),
+    ModelInfo(
+      id: 'google_gemma-3n-E2B-it-Q6_K_L.gguf',
+      name: 'Google Gemma 3n E2B Instruct (Q6_K_L)',
+      size: '~4.3 GB',
+      downloadUrl: 'https://huggingface.co/bartowski/google_gemma-3n-E2B-it-GGUF/resolve/main/google_gemma-3n-E2B-it-Q6_K_L.gguf?download=true',
+      description: 'Google\'s Gemma 3n E2B, 6-bit quantized, excellent for reasoning tasks',
+    ),
   ];
 
   @override

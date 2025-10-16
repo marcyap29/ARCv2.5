@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
 import 'bridge.pigeon.dart' as pigeon;
 import '../services/download_state_service.dart';
@@ -61,14 +62,19 @@ class ModelProgressService implements pigeon.LumaraNativeProgress {
     
     // Safe progress calculation to prevent NaN
     final safeProgress = _safeProgress(progress);
+    
+    // Workaround for native progress reporting delay: Show minimum 5% progress for any non-zero progress
+    // This ensures users see immediate feedback even if native side delays progress reporting
+    final displayProgress = safeProgress > 0.0 ? math.max(safeProgress, 0.05) : safeProgress;
+    
     final update = ModelProgressUpdate(
       modelId: modelId,
-      progress: (safeProgress * 100).round(),
+      progress: (displayProgress * 100).round(),
       message: message,
       isComplete: safeProgress >= 1.0,
     );
 
-    debugPrint('[DownloadProgress] $modelId: ${(safeProgress * 100).toStringAsFixed(1)}% - $message');
+    debugPrint('[DownloadProgress] $modelId: ${(safeProgress * 100).toStringAsFixed(1)}% (display: ${(displayProgress * 100).toStringAsFixed(1)}%) - $message');
     _controller.add(update);
 
     // Parse byte information from message (format: "Downloading: X.X / Y.Y MB")
