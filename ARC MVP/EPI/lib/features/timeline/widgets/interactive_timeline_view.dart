@@ -1014,6 +1014,57 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
       runSpacing: 8,
       children: media.map((item) {
         if (item.type == MediaType.image) {
+          // Check if this is a photo library reference
+          final isPhotoLibraryUri = item.uri.startsWith('ph://');
+          
+          if (isPhotoLibraryUri) {
+            // For photo library URIs, show a descriptive indicator
+            return GestureDetector(
+              onTap: () => _showBrokenImageDialog(item),
+              child: Container(
+                width: 60,
+                height: 60,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: Colors.orange.withOpacity(0.5),
+                    width: 2,
+                  ),
+                  color: Colors.orange.withOpacity(0.1),
+                ),
+                child: Stack(
+                  children: [
+                    const Center(
+                      child: Icon(
+                        Icons.photo_library_outlined,
+                        color: Colors.orange,
+                        size: 24,
+                      ),
+                    ),
+                    // Photo library indicator
+                    Positioned(
+                      top: 4,
+                      right: 4,
+                      child: Container(
+                        width: 16,
+                        height: 16,
+                        decoration: BoxDecoration(
+                          color: Colors.orange,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Icon(
+                          Icons.warning,
+                          color: Colors.white,
+                          size: 10,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }
+          
           return FutureBuilder<bool>(
             future: _checkImageExists(item.uri),
             builder: (context, snapshot) {
@@ -2516,6 +2567,13 @@ class BrokenImageDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isPhotoLibraryUri = mediaItem.uri.startsWith('ph://');
+    final iconColor = isPhotoLibraryUri ? Colors.orange : Colors.red;
+    final title = isPhotoLibraryUri ? 'Photo Library Reference' : 'Broken Image Link';
+    final message = isPhotoLibraryUri
+        ? 'This photo is from your photo library and may no longer be accessible. The original photo may have been deleted or moved. You can remove this reference or re-add the photo from your library.'
+        : 'The image\'s link appears to be broken, please insert the image again into the entry to relink it.';
+    
     return Dialog(
       child: Container(
         width: MediaQuery.of(context).size.width * 0.85,
@@ -2528,12 +2586,12 @@ class BrokenImageDialog extends StatelessWidget {
               width: 64,
               height: 64,
               decoration: BoxDecoration(
-                color: Colors.red.withOpacity(0.1),
+                color: iconColor.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(32),
               ),
-              child: const Icon(
-                Icons.broken_image,
-                color: Colors.red,
+              child: Icon(
+                isPhotoLibraryUri ? Icons.photo_library_outlined : Icons.broken_image,
+                color: iconColor,
                 size: 32,
               ),
             ),
@@ -2542,9 +2600,9 @@ class BrokenImageDialog extends StatelessWidget {
             
             // Title
             Text(
-              'Broken Image Link',
+              title,
               style: heading2Style(context).copyWith(
-                color: Colors.red,
+                color: iconColor,
                 fontWeight: FontWeight.bold,
               ),
               textAlign: TextAlign.center,
@@ -2554,7 +2612,7 @@ class BrokenImageDialog extends StatelessWidget {
             
             // Message
             Text(
-              'The image\'s link appears to be broken, please insert the image again into the entry to relink it.',
+              message,
               style: bodyStyle(context).copyWith(
                 color: kcSecondaryTextColor,
                 height: 1.4,

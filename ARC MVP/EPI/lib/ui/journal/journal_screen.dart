@@ -425,6 +425,91 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
     );
   }
 
+  /// Show options for handling broken photo references
+  void _showBrokenPhotoOptions(String imagePath) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Photo Unavailable'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'This photo is no longer accessible. It may have been deleted from your photo library or the reference is no longer valid.',
+              style: TextStyle(fontSize: 14),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Photo reference: ${imagePath.length > 40 ? '${imagePath.substring(0, 40)}...' : imagePath}',
+              style: TextStyle(
+                fontSize: 11,
+                color: Colors.grey[600],
+                fontFamily: 'monospace',
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              _removeBrokenPhotoReference(imagePath);
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Theme.of(context).colorScheme.error,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Remove Photo'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Remove a broken photo reference from the entry
+  void _removeBrokenPhotoReference(String imagePath) {
+    // Find the attachment with this image path
+    final attachmentIndex = _entryState.attachments.indexWhere(
+      (attachment) => attachment is PhotoAttachment && attachment.imagePath == imagePath,
+    );
+
+    if (attachmentIndex != -1) {
+      final attachment = _entryState.attachments[attachmentIndex] as PhotoAttachment;
+      final photoId = attachment.photoId;
+
+      setState(() {
+        _entryState.attachments.removeAt(attachmentIndex);
+      });
+
+      // Remove photo placeholder from content if it exists
+      if (photoId != null) {
+        final placeholder = '[PHOTO:$photoId]';
+        String updatedContent = _textController.text;
+        updatedContent = updatedContent.replaceAll(placeholder, '');
+        
+        _textController.text = updatedContent;
+        _entryState.text = updatedContent;
+        
+        print('🗑️ Removed broken photo reference: $imagePath');
+        print('🗑️ Removed placeholder: $placeholder');
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Removed broken photo reference'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+    } else {
+      print('⚠️ Could not find attachment with path: $imagePath');
+    }
+  }
+
   Widget _buildPhotoSelectionControls() {
     final photoCount = _entryState.attachments.where((attachment) => attachment is PhotoAttachment).length;
     
@@ -944,28 +1029,47 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
             );
           }
 
-          if (snapshot.hasError) {
-            print('DEBUG: Thumbnail loading error: ${snapshot.error}');
-            return Container(
-              color: Theme.of(context).colorScheme.surfaceContainerHighest,
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.error_outline,
-                    color: Theme.of(context).colorScheme.error,
-                    size: 32,
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Error loading thumbnail',
-                    style: TextStyle(
-                      fontSize: 10,
+          if (snapshot.hasError || (snapshot.connectionState == ConnectionState.done && snapshot.data == null)) {
+            // Photo library reference is broken or inaccessible
+            final errorMessage = snapshot.hasError 
+                ? 'Photo unavailable'
+                : 'Photo not found';
+            print('🚫 Photo library access failed for $imagePath: ${snapshot.error}');
+            print('📋 This photo may have been deleted from the device photo library');
+            
+            return GestureDetector(
+              onTap: () => _showBrokenPhotoOptions(imagePath),
+              child: Container(
+                color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.broken_image_outlined,
                       color: Theme.of(context).colorScheme.error,
+                      size: 32,
                     ),
-                    textAlign: TextAlign.center,
-                  ),
-                ],
+                    const SizedBox(height: 4),
+                    Text(
+                      errorMessage,
+                      style: TextStyle(
+                        fontSize: 9,
+                        color: Theme.of(context).colorScheme.error,
+                        fontWeight: FontWeight.w500,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Tap to remove',
+                      style: TextStyle(
+                        fontSize: 8,
+                        color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
+                ),
               ),
             );
           }
