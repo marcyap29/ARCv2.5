@@ -231,9 +231,11 @@ flutter run --dart-define=GEMINI_API_KEY=$GEMINI_API_KEY --route=/llm-demo
 - **Orphan Detection**: Automatically identifies orphan nodes and unused keywords
 - **Duplicate Detection**: Finds duplicate entries, pointers, and edges in MCP bundles
 - **One-Click Cleanup**: Remove orphans and duplicates with configurable options
+- **Custom Save Locations**: Choose where to save cleaned files using native file picker
 - **Size Optimization**: Clean bundles can reduce file size by 30%+ by removing duplicates
 - **Batch Processing**: Analyze and clean multiple MCP files simultaneously
 - **Progress Tracking**: Real-time feedback during analysis and cleanup operations
+- **Skip Options**: Cancel individual file cleaning if needed
 
 ## What's in this MVP
 - `lib/llm/*`: LLMClient, GeminiClient (streaming), RuleBasedClient, LLMRegistry

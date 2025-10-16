@@ -13,9 +13,11 @@
 
 #### **One-Click Cleanup** ✅ **IMPLEMENTED**
 - **Configurable Options**: Select what to clean (orphans, duplicates, edges) with checkboxes
+- **Custom Save Locations**: Choose where to save cleaned files using native file picker dialog
 - **Safe Cleanup**: Preserves oldest entries by timestamp, maintains data integrity
 - **Batch Processing**: Clean multiple MCP files simultaneously
 - **Progress Tracking**: Real-time feedback during analysis and cleanup operations
+- **Skip Options**: Cancel individual file cleaning if needed
 - **Size Optimization**: Achieved 34.7% size reduction in test files (78KB → 51KB)
 
 #### **Enhanced MCP File Management** ✅ **NEW**
@@ -29,6 +31,12 @@
 - **Enhanced Health View**: Updated `mcp_bundle_health_view.dart` with cleanup UI and functionality
 - **Python Cleanup Script**: Standalone script for cleaning existing MCP files
 - **Flexible UI**: Fixed RenderFlex overflow issues with responsive design
+
+#### **Save Location Dialog** ✅ **NEW** - January 16, 2025
+- **User-Controlled Save**: Native file picker dialog for choosing cleaned file locations
+- **Suggested Filenames**: Shows timestamped filename with `_cleaned` suffix
+- **Skip Functionality**: Cancel individual file cleaning with user feedback
+- **Cross-Platform**: Works on both iOS and Android with native file dialogs
 
 ### 🚀 **VEIL-EDGE PHASE-REACTIVE RESTORATIVE LAYER** - January 15, 2025
 
