@@ -1054,59 +1054,32 @@ class McpImportService {
     print('🔍 Content length: ${content.length} chars');
     print('🔍 Content preview: ${content.length > 100 ? content.substring(0, 100) + '...' : content}');
 
-    // First, try to get media directly from the MCP node (preferred method for McpEntryProjector exports)
-    if (node.data != null && node.data!.containsKey('media')) {
-      final mediaData = node.data!['media'] as List?;
-      if (mediaData != null && mediaData.isNotEmpty) {
-        print('🔄 DEBUG: Found ${mediaData.length} media items in MCP node data');
-        for (int i = 0; i < mediaData.length; i++) {
-          final mediaJson = mediaData[i];
-          if (mediaJson is Map<String, dynamic>) {
-            try {
-              print('🔍 MCP Media $i JSON: $mediaJson');
-              final mediaItem = _parseMediaItemFromJson(mediaJson, node);
-              mediaItems.add(mediaItem);
-              print('🔄 DEBUG: Reconstructed MCP media item: ${mediaItem.id} -> ${mediaItem.uri}');
-            } catch (e) {
-              print('⚠️ DEBUG: Failed to parse MCP media item $i: $e');
-            }
-          }
-        }
-        print('🔍 MCP Import: Successfully extracted ${mediaItems.length} media items from MCP node data');
-        return mediaItems;
-      } else {
-        print('🔍 MCP Import: Media array is empty in MCP node data');
-      }
-    } else {
-      print('🔍 MCP Import: No media field found in MCP node data');
-      print('🔍 Available MCP node data keys: ${node.data?.keys.toList()}');
-    }
-
-    // Second, try to get media directly from node metadata (legacy method)
+    // FIRST: Try to get media from root level (matches current export format)
+    // The journal_entry_projector.dart exports media at root level, now captured in metadata
     if (node.metadata != null && node.metadata!.containsKey('media')) {
       final mediaData = node.metadata!['media'] as List?;
       if (mediaData != null && mediaData.isNotEmpty) {
-        print('🔄 DEBUG: Found ${mediaData.length} media items in node metadata');
+        print('🔄 DEBUG: Found ${mediaData.length} media items at root level (captured in metadata)');
         for (int i = 0; i < mediaData.length; i++) {
           final mediaJson = mediaData[i];
           if (mediaJson is Map<String, dynamic>) {
             try {
-              print('🔍 Media $i JSON: $mediaJson');
+              print('🔍 Root Media $i JSON: $mediaJson');
               final mediaItem = _parseMediaItemFromJson(mediaJson, node);
               mediaItems.add(mediaItem);
-              print('🔄 DEBUG: Reconstructed media item: ${mediaItem.id} -> ${mediaItem.uri}');
+              print('🔄 DEBUG: Reconstructed root media item: ${mediaItem.id} -> ${mediaItem.uri}');
             } catch (e) {
-              print('⚠️ DEBUG: Failed to parse media item $i: $e');
+              print('⚠️ DEBUG: Failed to parse root media item $i: $e');
             }
           }
         }
-        print('🔍 MCP Import: Successfully extracted ${mediaItems.length} media items from metadata');
+        print('🔍 MCP Import: Successfully extracted ${mediaItems.length} media items from root level');
         return mediaItems;
       } else {
-        print('🔍 MCP Import: Media array is empty in node metadata');
+        print('🔍 MCP Import: Media array is empty at root level');
       }
     } else {
-      print('🔍 MCP Import: No media field found in node metadata');
+      print('🔍 MCP Import: No media field found at root level');
       print('🔍 Available metadata keys: ${node.metadata?.keys.toList()}');
     }
 

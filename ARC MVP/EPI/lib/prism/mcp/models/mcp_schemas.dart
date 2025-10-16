@@ -106,6 +106,17 @@ class McpNode {
   }
 
   factory McpNode.fromJson(Map<String, dynamic> json) {
+    // Capture root-level 'media' field for journal entries (exported by journal_entry_projector.dart)
+    Map<String, dynamic>? enhancedMetadata = json['metadata'] != null 
+        ? Map<String, dynamic>.from(json['metadata']) 
+        : <String, dynamic>{};
+    
+    // If this is a journal entry with root-level media, preserve it in metadata
+    if (json['type'] == 'journal_entry' && json.containsKey('media')) {
+      enhancedMetadata['media'] = json['media'];
+      print('🔍 McpNode: Captured root-level media for journal entry ${json['id']}');
+    }
+    
     return McpNode(
       id: json['id'] as String,
       type: json['type'] as String,
@@ -136,7 +147,7 @@ class McpNode {
       privacyLevel: json['privacy_level'] as String?,
       phase: json['phase'] as String?,
       sourceHash: json['source_hash'] as String?,
-      metadata: json['metadata'] != null ? Map<String, dynamic>.from(json['metadata']) : null,
+      metadata: enhancedMetadata.isNotEmpty ? enhancedMetadata : null,
     );
   }
 }
