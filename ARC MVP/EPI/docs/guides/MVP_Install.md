@@ -219,7 +219,13 @@ flutter run --dart-define=GEMINI_API_KEY=$GEMINI_API_KEY --route=/llm-demo
 - If Send does nothing, confirm logs show status 200 and text chunks; otherwise check the key
 - iOS: enable Developer Mode, trust the device in Xcode
 
-## What’s in this MVP
+## MCP Export/Import (Files app)
+- **Export**: Always uses high fidelity (maximum capability) - no quality selection needed
+- **Media Preservation**: Photos, videos, audio, and documents maintain original URIs including `ph://` references
+- **Import**: Automatically detects and reconstructs media items from exported MCP bundles
+- **Compatibility**: Supports both new root-level media format and legacy metadata format
+
+## What's in this MVP
 - `lib/llm/*`: LLMClient, GeminiClient (streaming), RuleBasedClient, LLMRegistry
 - Startup selection via `LLMRegistry.initialize()` in `lib/main.dart` with `GEMINI_API_KEY`
 - Tests in `test/llm/*` with a fake HTTP client for JSONL parsing

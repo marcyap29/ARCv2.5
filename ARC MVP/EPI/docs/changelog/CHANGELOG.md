@@ -2,6 +2,25 @@
 
 ## [Unreleased]
 
+### 🔧 **MCP MEDIA IMPORT FIX** - January 12, 2025
+
+#### **Media URI Preservation** ✅ **COMPLETE**
+- **Root-Level Media Export**: ✅ **IMPLEMENTED** - Media data now exported at root level of MCP nodes
+- **Import Structure Matching**: ✅ **FIXED** - Import process now correctly reads root-level media data
+- **ph:// URI Preservation**: ✅ **CONFIRMED** - Photo library URIs (ph://) properly preserved through export/import cycle
+- **Backward Compatibility**: ✅ **MAINTAINED** - Legacy metadata locations still supported for existing exports
+
+#### **Technical Implementation** ✅ **COMPLETE**
+- **Export Structure**: Modified `journal_entry_projector.dart` to place media at root level (`nodeData['media']`)
+- **Import Capture**: Updated `McpNode.fromJson` to capture root-level media in metadata during parsing
+- **Import Processing**: Enhanced `_extractMediaFromPlaceholders` to check root-level media first
+- **Debug Logging**: Added comprehensive logging throughout the pipeline for troubleshooting
+
+#### **Files Modified**:
+- `lib/mcp/adapters/journal_entry_projector.dart` - Root-level media export
+- `lib/prism/mcp/models/mcp_schemas.dart` - Root-level media capture during parsing
+- `lib/mcp/import/mcp_import_service.dart` - Root-level media processing during import
+
 ### 🔧 **MCP EXPORT QUALITY SIMPLIFICATION** - January 12, 2025
 
 #### **Export Quality Streamlining** ✅ **COMPLETE**
