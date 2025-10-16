@@ -16,6 +16,7 @@ import 'package:my_app/rivet/validation/rivet_provider.dart';
 import 'package:my_app/rivet/models/rivet_models.dart';
 import 'package:my_app/services/user_phase_service.dart';
 import 'package:my_app/features/arcforms/phase_recommender.dart';
+import 'package:my_app/core/services/photo_library_service.dart';
 
 /// Result of an MCP import operation
 class McpImportResult {
@@ -802,7 +803,7 @@ class McpImportService {
       
       // Process photo placeholders in content and reconstruct media items
       final processedContent = await _processPhotoPlaceholders(content, node);
-      final mediaItems = _extractMediaFromPlaceholders(content, node);
+      final mediaItems = await _extractMediaFromPlaceholders(content, node);
       
       print('🔄 DEBUG: Processed content length: ${processedContent.length} chars');
       print('🔄 DEBUG: Extracted ${mediaItems.length} media items from placeholders');
@@ -1066,7 +1067,7 @@ class McpImportService {
   }
 
   /// Extract media items from photo placeholders in content
-  List<MediaItem> _extractMediaFromPlaceholders(String content, McpNode node) {
+  Future<List<MediaItem>> _extractMediaFromPlaceholders(String content, McpNode node) async {
     final mediaItems = <MediaItem>[];
 
     print('🔍 MCP Import: Extracting media from placeholders for node ${node.id}');
@@ -1097,7 +1098,7 @@ class McpImportService {
                 print('♻️ Reusing cached media: ${cachedMediaItem.id} -> $uri');
               } else {
                 // Create new media item and cache it
-                final mediaItem = _parseMediaItemFromJson(mediaJson, node);
+                final mediaItem = await _parseMediaItemFromJson(mediaJson, node);
                 _mediaCache[uri] = mediaItem;
                 mediaItems.add(mediaItem);
                 newMediaCount++;
@@ -1151,7 +1152,7 @@ class McpImportService {
                   print('♻️ Reusing cached journal media: ${cachedMediaItem.id} -> $uri');
                 } else {
                   // Create new media item and cache it
-                  final mediaItem = _parseMediaItemFromJson(mediaJson, node);
+                  final mediaItem = await _parseMediaItemFromJson(mediaJson, node);
                   _mediaCache[uri] = mediaItem;
                   mediaItems.add(mediaItem);
                   newMediaCount++;
@@ -1176,7 +1177,7 @@ class McpImportService {
       final photoId = match.group(1)!;
 
       // Try to find corresponding media in node metadata
-      final mediaItem = _findMediaForPhotoId(photoId, node);
+      final mediaItem = await _findMediaForPhotoId(photoId, node);
       if (mediaItem != null) {
         mediaItems.add(mediaItem);
         print('🔄 DEBUG: Reconstructed media item for photo ID: $photoId');
@@ -1189,13 +1190,59 @@ class McpImportService {
   }
 
   /// Parse MediaItem from JSON export format
-  MediaItem _parseMediaItemFromJson(Map<String, dynamic> json, McpNode node) {
+  Future<MediaItem> _parseMediaItemFromJson(Map<String, dynamic> json, McpNode node) async {
     print('🔍 MCP Import: Parsing media item: ${json['id']} (${json['type']})');
     print('🔍 MCP Import: Media URI: ${json['uri']}');
     
+    String finalUri = json['uri'] as String;
+    
+    // If this is a ph:// URI and we have stored photo data, recreate the photo
+    if (finalUri.startsWith('ph://') && json.containsKey('photo_data')) {
+      try {
+        print('🔄 MCP Import: Recreating photo from stored data for ${json['id']}');
+        final photoData = json['photo_data'] as String;
+        final photoFormat = json['photo_format'] as String? ?? 'jpeg';
+        
+        // Decode base64 data
+        final bytes = base64Decode(photoData);
+        
+        // Save to temporary file
+        final tempDir = Directory.systemTemp;
+        final tempFile = File('${tempDir.path}/imported_${json['id']}.$photoFormat');
+        await tempFile.writeAsBytes(bytes);
+        
+        print('💾 MCP Import: Saved photo data to temp file: ${tempFile.path}');
+        
+        // Save to photo library and get new ph:// reference
+        final newPhotoId = await PhotoLibraryService.savePhotoToLibrary(
+          tempFile.path,
+          checkDuplicates: true, // Check for duplicates
+        );
+        
+        if (newPhotoId != null) {
+          finalUri = newPhotoId;
+          print('✅ MCP Import: Recreated photo in library with new ID: $newPhotoId');
+        } else {
+          print('⚠️ MCP Import: Failed to recreate photo in library, using temp file');
+          finalUri = tempFile.path;
+        }
+        
+        // Clean up temp file
+        try {
+          await tempFile.delete();
+        } catch (e) {
+          print('⚠️ MCP Import: Could not delete temp file: $e');
+        }
+        
+      } catch (e) {
+        print('⚠️ MCP Import: Error recreating photo from stored data: $e');
+        // Fall back to original URI
+      }
+    }
+    
     final mediaItem = MediaItem(
       id: json['id'] as String,
-      uri: json['uri'] as String, // ph:// should be here
+      uri: finalUri, // Updated URI (new ph:// or temp file)
       type: _parseMediaType(json['type'] as String?),
       duration: json['duration'] != null 
         ? Duration(seconds: json['duration'] as int) 
@@ -1231,7 +1278,7 @@ class McpImportService {
   }
 
   /// Find media item for a photo ID from node metadata
-  MediaItem? _findMediaForPhotoId(String photoId, McpNode node) {
+  Future<MediaItem?> _findMediaForPhotoId(String photoId, McpNode node) async {
     // Try to find media in node metadata by matching photo ID
     if (node.metadata != null && node.metadata!.containsKey('media')) {
       final mediaData = node.metadata!['media'] as List?;
@@ -1240,7 +1287,7 @@ class McpImportService {
           if (mediaJson is Map<String, dynamic>) {
             final mediaId = mediaJson['id'] as String?;
             if (mediaId == photoId) {
-              return _parseMediaItemFromJson(mediaJson, node);
+              return await _parseMediaItemFromJson(mediaJson, node);
             }
           }
         }

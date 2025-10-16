@@ -8,6 +8,7 @@ import 'package:crypto/crypto.dart';
 import '../../arc/core/journal_repository.dart';
 import 'package:my_app/models/journal_entry_model.dart';
 import '../../../mira/core/ids.dart';
+import '../../core/services/photo_library_service.dart';
 
 class McpEntryProjector {
   /// Project all journal entries to MCP format, emitting to the provided sinks
@@ -37,7 +38,7 @@ class McpEntryProjector {
       pointerCount++;
 
       // Generate node for the journal entry
-      final nodeData = _createJournalNode(entry, pointerId);
+      final nodeData = await _createJournalNode(entry, pointerId);
       _writeJsonLine(nodesSink, nodeData);
       nodeCount++;
 
@@ -147,15 +148,17 @@ class McpEntryProjector {
   }
 
   /// Create MCP node record for journal entry
-  static Map<String, dynamic> _createJournalNode(JournalEntry entry, String pointerId) {
+  static Future<Map<String, dynamic>> _createJournalNode(JournalEntry entry, String pointerId) async {
     final timestamp = entry.createdAt.toUtc().toIso8601String();
     final sage = entry.sageAnnotation;
 
-    // Convert media items with type-specific validation
-    final mediaData = entry.media.map((media) {
+    // Convert media items with actual photo data for persistence
+    final mediaData = <Map<String, dynamic>>[];
+    
+    for (final media in entry.media) {
       final mediaMap = <String, dynamic>{
         'id': media.id,
-        'uri': media.uri, // Must include ph://, file://, or other URI schemes
+        'uri': media.uri, // Original URI for reference
         'type': media.type.name, // image, video, audio, file
         'created_at': media.createdAt.toUtc().toIso8601String(),
       };
@@ -168,6 +171,31 @@ class McpEntryProjector {
       if (media.duration != null) mediaMap['duration'] = media.duration!.inSeconds;
       if (media.sizeBytes != null) mediaMap['size_bytes'] = media.sizeBytes!;
       
+      // For ph:// URIs, store the actual photo data for persistence
+      if (media.uri.startsWith('ph://')) {
+        try {
+          print('🔍 McpEntryProjector: Loading photo data for ${media.id} from ${media.uri}');
+          final photoData = await PhotoLibraryService.loadPhotoFromLibrary(media.uri);
+          if (photoData != null) {
+            // Read the photo file and encode as base64
+            final file = File(photoData);
+            if (await file.exists()) {
+              final bytes = await file.readAsBytes();
+              final base64Data = base64Encode(bytes);
+              mediaMap['photo_data'] = base64Data;
+              mediaMap['photo_format'] = 'jpeg'; // Assume JPEG for now
+              print('✅ McpEntryProjector: Stored photo data for ${media.id} (${bytes.length} bytes)');
+            } else {
+              print('⚠️ McpEntryProjector: Photo file not found: $photoData');
+            }
+          } else {
+            print('⚠️ McpEntryProjector: Could not load photo data for ${media.uri}');
+          }
+        } catch (e) {
+          print('⚠️ McpEntryProjector: Error loading photo data for ${media.uri}: $e');
+        }
+      }
+      
       // Validate URI scheme
       final uri = media.uri;
       final hasValidScheme = uri.startsWith('ph://') || 
@@ -179,8 +207,8 @@ class McpEntryProjector {
         print('⚠️ WARNING: Media ${media.id} has unusual URI scheme: $uri');
       }
       
-      return mediaMap;
-    }).toList();
+      mediaData.add(mediaMap);
+    }
     
     // Log media export by type
     final mediaByType = <String, int>{};
