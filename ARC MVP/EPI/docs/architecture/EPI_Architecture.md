@@ -740,22 +740,53 @@
       ├── silence_orchestrator.dart      # Strategic system silence
       └── restoration_engine.dart        # System healing processes
 
-  7. VEIL Module: Self-Pruning & Coherence (Future)
+7. VEIL Module: Self-Pruning & Coherence (Future)
+8. VEIL-EDGE Module: Phase-Reactive Restorative Layer (Production Ready ✅)
 
-  lib/veil/
-  ├── pruning/
-  │   ├── memory_pruner.dart             # Remove outdated memories
-  │   ├── model_weight_adjuster.dart     # LoRA-style adjustments
-  │   ├── coherence_maintainer.dart      # Preserve system coherence
-  │   └── entropy_reducer.dart           # Reduce system complexity
-  ├── restoration/
-  │   ├── nightly_processor.dart         # Sleep-cycle operations
-  │   ├── duplication_manager.dart       # Safe state duplication
-  │   ├── reintegration_engine.dart      # Merge pruned updates
-  │   └── healing_algorithms.dart        # Self-repair mechanisms
-  ├── privacy/                           # **FUTURE PRIVACY EVOLUTION**
-  │   ├── privacy_weight_adjustment.dart # Adjust privacy models
-  │   ├── forgotten_data_pruner.dart     # Right to be forgotten
+**VEIL-EDGE Implementation** (January 15, 2025):
+```
+lib/lumara/veil_edge/
+├── models/
+│   └── veil_edge_models.dart          # Core data models (AtlasState, SentinelState, RivetState)
+├── core/
+│   ├── veil_edge_router.dart          # Phase group routing logic
+│   └── rivet_policy_engine.dart       # RIVET policy implementation
+├── registry/
+│   └── prompt_registry.dart           # Prompt families and templates (v0.1)
+├── services/
+│   └── veil_edge_service.dart         # Main orchestration service
+├── integration/
+│   └── lumara_veil_edge_integration.dart  # LUMARA chat integration
+└── veil_edge.dart                     # Barrel export file
+```
+
+**VEIL-EDGE Features**:
+- **Phase Group Routing**: D-B, T-D, R-T, C-R with intelligent selection
+- **ATLAS → RIVET → SENTINEL Pipeline**: Confidence, alignment, and safety routing
+- **Hysteresis & Cooldown**: 48-hour cooldown prevents phase thrashing
+- **SENTINEL Safety Modifiers**: Watch mode (safe variants), Alert mode (Safeguard+Mirror only)
+- **RIVET Policy Engine**: Alignment tracking, phase change validation
+- **Prompt Registry v0.1**: Complete phase families with system prompts
+- **LUMARA Integration**: Seamless chat system integration
+- **Privacy-First**: Echo-filtered inference only, no raw journal data
+- **Edge Compatible**: Designed for iPhone-class devices
+- **API Contract**: Complete REST API with /route, /log, /registry endpoints
+
+**Future VEIL Implementation**:
+lib/veil/
+├── pruning/
+│   ├── memory_pruner.dart             # Remove outdated memories
+│   ├── model_weight_adjuster.dart     # LoRA-style adjustments
+│   ├── coherence_maintainer.dart      # Preserve system coherence
+│   └── entropy_reducer.dart           # Reduce system complexity
+├── restoration/
+│   ├── nightly_processor.dart         # Sleep-cycle operations
+│   ├── duplication_manager.dart       # Safe state duplication
+│   ├── reintegration_engine.dart      # Merge pruned updates
+│   └── healing_algorithms.dart        # Self-repair mechanisms
+├── privacy/                           # **FUTURE PRIVACY EVOLUTION**
+│   ├── privacy_weight_adjustment.dart # Adjust privacy models
+│   ├── forgotten_data_pruner.dart     # Right to be forgotten
   │   └── coherent_anonymization.dart    # Maintain utility while anonymizing
   └── models/
       ├── pruning_strategy.dart

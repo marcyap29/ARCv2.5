@@ -1,11 +1,27 @@
 # EPI Documentation
 
-**Last Updated:** January 12, 2025
+**Last Updated:** January 15, 2025
 **Status:** Production Ready ✅
 
 This directory contains comprehensive documentation for the EPI (Evolving Personal Intelligence) project - an 8-module intelligent journaling system built with Flutter.
 
-## 🆕 Latest Updates (January 12, 2025)
+## 🆕 Latest Updates (January 15, 2025)
+
+**VEIL-EDGE Phase-Reactive Restorative Layer**
+
+Complete implementation of VEIL-EDGE - a fast, cloud-orchestrated variant of VEIL that maintains restorative rhythm without on-device fine-tuning:
+- **Phase Group Routing** - D-B (Discovery↔Breakthrough), T-D (Transition↔Discovery), R-T (Recovery↔Transition), C-R (Consolidation↔Recovery)
+- **ATLAS → RIVET → SENTINEL Pipeline** - Intelligent routing through confidence, alignment, and safety states
+- **Hysteresis & Cooldown Logic** - 48-hour cooldown and stability requirements prevent phase thrashing
+- **SENTINEL Safety Modifiers** - Watch mode (safe variants, 10min cap), Alert mode (Safeguard+Mirror only)
+- **RIVET Policy Engine** - Alignment tracking, phase change validation, stability analysis
+- **Prompt Registry v0.1** - Complete phase families with system prompts, styles, and block templates
+- **LUMARA Integration** - Seamless chat system integration with VEIL-EDGE routing
+- **Privacy-First Design** - Echo-filtered inference only, no raw journal data leaves device
+- **Edge Device Compatible** - Designed for iPhone-class and other computationally constrained environments
+- **API Contract** - Complete REST API with /route, /log, /registry endpoints
+
+*For detailed technical information, see [VEIL-EDGE Architecture Documentation](./architecture/VEIL_EDGE_Architecture.md)*
 
 **Media Persistence & Inline Photo System**
 
