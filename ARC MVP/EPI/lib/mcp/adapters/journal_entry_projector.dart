@@ -151,16 +151,43 @@ class McpEntryProjector {
     final timestamp = entry.createdAt.toUtc().toIso8601String();
     final sage = entry.sageAnnotation;
 
-    // Convert media items to a simple format for export
-    final mediaData = entry.media.map((media) => {
-      'id': media.id,
-      'uri': media.uri,
-      'type': media.type.name,
-      'created_at': media.createdAt.toUtc().toIso8601String(),
-      if (media.altText != null) 'alt_text': media.altText,
-      if (media.ocrText != null) 'ocr_text': media.ocrText,
-      if (media.analysisData != null) 'analysis_data': media.analysisData,
+    // Convert media items with type-specific validation
+    final mediaData = entry.media.map((media) {
+      final mediaMap = <String, dynamic>{
+        'id': media.id,
+        'uri': media.uri, // Must include ph://, file://, or other URI schemes
+        'type': media.type.name, // image, video, audio, file
+        'created_at': media.createdAt.toUtc().toIso8601String(),
+      };
+      
+      // Add type-specific fields
+      if (media.altText != null) mediaMap['alt_text'] = media.altText!;
+      if (media.ocrText != null) mediaMap['ocr_text'] = media.ocrText!;
+      if (media.analysisData != null) mediaMap['analysis_data'] = media.analysisData!;
+      if (media.transcript != null) mediaMap['transcript'] = media.transcript!;
+      if (media.duration != null) mediaMap['duration'] = media.duration!.inSeconds;
+      if (media.sizeBytes != null) mediaMap['size_bytes'] = media.sizeBytes!;
+      
+      // Validate URI scheme
+      final uri = media.uri;
+      final hasValidScheme = uri.startsWith('ph://') || 
+                            uri.startsWith('file://') || 
+                            uri.startsWith('content://') ||
+                            uri.startsWith('/');
+      
+      if (!hasValidScheme) {
+        print('⚠️ WARNING: Media ${media.id} has unusual URI scheme: $uri');
+      }
+      
+      return mediaMap;
     }).toList();
+    
+    // Log media export by type
+    final mediaByType = <String, int>{};
+    for (final media in entry.media) {
+      mediaByType[media.type.name] = (mediaByType[media.type.name] ?? 0) + 1;
+    }
+    print('🔍 McpEntryProjector: Exporting ${entry.media.length} media items: $mediaByType');
 
     // DEBUG: Log media data for troubleshooting
     print('🔍 McpEntryProjector: Entry ${entry.id} has ${entry.media.length} media items');
@@ -196,10 +223,15 @@ class McpEntryProjector {
       'schema_version': 'node.v1',
     };
 
-    // DEBUG: Log final node data structure
+    // Enhanced debug logging
     print('🔍 McpEntryProjector: Final node data for ${entry.id}:');
     print('🔍 - Has media field: ${nodeData.containsKey('media')}');
     print('🔍 - Media array length: ${(nodeData['media'] as List).length}');
+    if ((nodeData['media'] as List).isNotEmpty) {
+      final firstMedia = (nodeData['media'] as List)[0] as Map<String, dynamic>;
+      print('🔍 - First media URI: ${firstMedia['uri']}');
+      print('🔍 - First media type: ${firstMedia['type']}');
+    }
     print('🔍 - Content: ${entry.content}');
     
     return nodeData;

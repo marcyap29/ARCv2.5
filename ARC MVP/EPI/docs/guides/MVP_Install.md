@@ -224,6 +224,16 @@ flutter run --dart-define=GEMINI_API_KEY=$GEMINI_API_KEY --route=/llm-demo
 - **Media Preservation**: Photos, videos, audio, and documents maintain original URIs including `ph://` references
 - **Import**: Automatically detects and reconstructs media items from exported MCP bundles
 - **Compatibility**: Supports both new root-level media format and legacy metadata format
+- **Timestamped Files**: MCP exports include readable date/time in filename format: `mcp_YYYYMMDD_HHMMSS.zip`
+
+## MCP Bundle Health & Cleanup ✅ **NEW**
+- **Health Analysis**: Go to Settings → MCP Bundle Health to analyze MCP files for issues
+- **Orphan Detection**: Automatically identifies orphan nodes and unused keywords
+- **Duplicate Detection**: Finds duplicate entries, pointers, and edges in MCP bundles
+- **One-Click Cleanup**: Remove orphans and duplicates with configurable options
+- **Size Optimization**: Clean bundles can reduce file size by 30%+ by removing duplicates
+- **Batch Processing**: Analyze and clean multiple MCP files simultaneously
+- **Progress Tracking**: Real-time feedback during analysis and cleanup operations
 
 ## What's in this MVP
 - `lib/llm/*`: LLMClient, GeminiClient (streaming), RuleBasedClient, LLMRegistry

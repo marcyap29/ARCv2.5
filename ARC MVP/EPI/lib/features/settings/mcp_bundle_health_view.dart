@@ -5,6 +5,7 @@ import 'package:my_app/mcp/validation/mcp_validator.dart';
 import 'package:my_app/mcp/export/manifest_builder.dart';
 import 'package:my_app/mcp/validation/mcp_bundle_repair_service.dart';
 import 'package:my_app/mcp/export/zip_utils.dart';
+import 'package:my_app/mcp/validation/mcp_orphan_detector.dart';
 import 'package:my_app/shared/app_colors.dart';
 import 'package:my_app/shared/text_style.dart';
 
@@ -477,14 +478,16 @@ class _McpBundleHealthViewState extends State<McpBundleHealthView> {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SizedBox(
-            width: 120,
+          Flexible(
+            flex: 2,
             child: Text(
               '$label:',
               style: captionStyle(context).copyWith(color: kcTextSecondaryColor),
             ),
           ),
-          Expanded(
+          const SizedBox(width: 8),
+          Flexible(
+            flex: 3,
             child: Text(
               value,
               style: bodyStyle(context),
@@ -714,6 +717,8 @@ class _McpBundleHealthViewState extends State<McpBundleHealthView> {
         _healthReports.any((r) => r.errors.isNotEmpty || r.warnings.isNotEmpty);
     final hasManifestIssues = _healthReports.any((r) => 
         r.errors.any((e) => e.title.contains('Manifest')));
+    final canCleanup = _healthReports.isNotEmpty && 
+        _healthReports.any((r) => r.orphanNodeCount > 0 || r.duplicateEntryCount > 0);
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -756,6 +761,21 @@ class _McpBundleHealthViewState extends State<McpBundleHealthView> {
                     label: const Text('Fix Manifest'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: kcSuccessColor,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                  ),
+                ),
+              ],
+              if (canCleanup) ...[
+                const SizedBox(width: 8),
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: _isRepairing ? null : _showCleanupDialog,
+                    icon: const Icon(Icons.cleaning_services),
+                    label: const Text('Clean Orphans & Duplicates'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: kcPrimaryColor,
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(vertical: 12),
                     ),
@@ -807,6 +827,22 @@ class _McpBundleHealthViewState extends State<McpBundleHealthView> {
                     label: const Text('Fix Manifest Issues'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: kcSuccessColor,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                  ),
+                ),
+              ],
+              if (canCleanup) ...[
+                const SizedBox(height: 8),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: _isRepairing ? null : _showCleanupDialog,
+                    icon: const Icon(Icons.cleaning_services),
+                    label: const Text('Clean Orphans & Duplicates'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: kcPrimaryColor,
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(vertical: 12),
                     ),
@@ -1214,6 +1250,171 @@ class _McpBundleHealthViewState extends State<McpBundleHealthView> {
     }
   }
 
+  // Cleanup dialog and methods
+  bool _cleanupOrphans = true;
+  bool _cleanupDuplicates = true;
+  bool _cleanupDuplicateEdges = true;
+
+  void _showCleanupDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          title: Text('Clean Bundle', style: heading3Style(context)),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Select what to clean from your MCP bundles:',
+                style: bodyStyle(context),
+              ),
+              const SizedBox(height: 16),
+              if (_healthReports.any((r) => r.orphanNodeCount > 0))
+                CheckboxListTile(
+                  title: Text('Remove orphan nodes (${_healthReports.fold(0, (sum, r) => sum + r.orphanNodeCount)} total)'),
+                  subtitle: const Text('Nodes without corresponding pointers'),
+                  value: _cleanupOrphans,
+                  onChanged: (v) => setState(() => _cleanupOrphans = v!),
+                ),
+              if (_healthReports.any((r) => r.duplicateEntryCount > 0))
+                CheckboxListTile(
+                  title: Text('Remove duplicate entries (${_healthReports.fold(0, (sum, r) => sum + r.duplicateEntryCount)} groups)'),
+                  subtitle: const Text('Keeps oldest entry by timestamp'),
+                  value: _cleanupDuplicates,
+                  onChanged: (v) => setState(() => _cleanupDuplicates = v!),
+                ),
+              if (_healthReports.any((r) => r.duplicateEdgeCount > 0))
+                CheckboxListTile(
+                  title: Text('Remove duplicate edges (${_healthReports.fold(0, (sum, r) => sum + r.duplicateEdgeCount)} total)'),
+                  subtitle: const Text('Edges with identical source, target, and relation'),
+                  value: _cleanupDuplicateEdges,
+                  onChanged: (v) => setState(() => _cleanupDuplicateEdges = v!),
+                ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(context);
+                _performCleanup();
+              },
+              child: const Text('Clean Now'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _performCleanup() async {
+    if (_selectedBundlePaths.isEmpty) return;
+
+    setState(() {
+      _isRepairing = true;
+    });
+
+    try {
+      int successCount = 0;
+      int totalOrphansRemoved = 0;
+      int totalDuplicatesRemoved = 0;
+      int totalSizeReduction = 0;
+
+      for (int i = 0; i < _selectedBundlePaths.length; i++) {
+        final zipFile = File(_selectedBundlePaths[i]);
+        
+        // Extract to temporary directory
+        final tempDir = await ZipUtils.extractZip(zipFile);
+        
+        try {
+          // Analyze bundle
+          final orphanAnalysis = await OrphanDetector.analyzeBundle(tempDir);
+          
+          // Create cleanup options
+          final cleanupOptions = CleanupOptions(
+            removeOrphanNodes: _cleanupOrphans,
+            removeOrphanKeywords: _cleanupOrphans,
+            removeDuplicateEntries: _cleanupDuplicates,
+            removeDuplicatePointers: _cleanupDuplicates,
+            removeDuplicateEdges: _cleanupDuplicateEdges,
+          );
+          
+          // Perform cleanup
+          final cleanupResult = await OrphanDetector.cleanOrphansAndDuplicates(
+            tempDir,
+            orphanAnalysis,
+            cleanupOptions,
+          );
+          
+          // Repackage the cleaned bundle with timestamp
+          final now = DateTime.now();
+          final dateStr = '${now.year}${now.month.toString().padLeft(2, '0')}${now.day.toString().padLeft(2, '0')}';
+          final timeStr = '${now.hour.toString().padLeft(2, '0')}${now.minute.toString().padLeft(2, '0')}${now.second.toString().padLeft(2, '0')}';
+          final originalName = zipFile.path.split('/').last.replaceAll('.zip', '');
+          await ZipUtils.zipDirectory(tempDir, zipFileName: '${originalName}_cleaned_${dateStr}_${timeStr}.zip');
+          
+          successCount++;
+          totalOrphansRemoved += cleanupResult.orphanNodesRemoved + cleanupResult.orphanKeywordsRemoved;
+          totalDuplicatesRemoved += cleanupResult.duplicateEntriesRemoved + cleanupResult.duplicatePointersRemoved;
+          totalSizeReduction += cleanupResult.sizeReductionBytes;
+          
+          // Update progress
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Cleaned ${i + 1}/${_selectedBundlePaths.length} files...'),
+                duration: const Duration(seconds: 1),
+              ),
+            );
+          }
+          
+        } finally {
+          // Clean up temporary directory
+          try {
+            await tempDir.delete(recursive: true);
+          } catch (e) {
+            // Ignore cleanup errors
+          }
+        }
+      }
+      
+      // Re-analyze bundles to show updated results
+      await _analyzeBundles();
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Cleanup completed: $successCount/${_selectedBundlePaths.length} files cleaned. '
+              'Removed $totalOrphansRemoved orphans, $totalDuplicatesRemoved duplicates, '
+              '${(totalSizeReduction / 1024).toStringAsFixed(1)}KB saved',
+            ),
+            backgroundColor: kcSuccessColor,
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      }
+      
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Cleanup failed: $e'),
+            backgroundColor: kcDangerColor,
+          ),
+        );
+      }
+    } finally {
+      setState(() {
+        _isRepairing = false;
+      });
+    }
+  }
+
   Future<BundleHealthReport> _performHealthCheck(File zipFile) async {
     final report = BundleHealthReport(
       bundleId: 'unknown',
@@ -1382,6 +1583,78 @@ class _McpBundleHealthViewState extends State<McpBundleHealthView> {
         // Check data integrity
         report.dataIntegrityValid = report.manifestValid && report.schemaValid;
 
+        // Run orphan/duplicate detection
+        try {
+          final orphanAnalysis = await OrphanDetector.analyzeBundle(tempDir);
+          
+          // Update report with orphan/duplicate data
+          report.orphanNodeCount = orphanAnalysis.orphanNodeCount;
+          report.orphanKeywordCount = orphanAnalysis.orphanKeywordCount;
+          report.duplicateEntryCount = orphanAnalysis.duplicateEntryCount;
+          report.duplicatePointerCount = orphanAnalysis.duplicatePointerCount;
+          report.duplicateEdgeCount = orphanAnalysis.duplicateEdgeCount;
+          
+          // Add orphan details
+          report.orphanDetails = [
+            ...orphanAnalysis.orphanNodes.take(5),
+            if (orphanAnalysis.orphanNodes.length > 5) '... and ${orphanAnalysis.orphanNodes.length - 5} more',
+          ];
+          
+          // Add duplicate details
+          report.duplicateDetails = orphanAnalysis.duplicateEntries
+              .take(3)
+              .map((group) => '${group.entries.length} entries: ${group.contentPreview.substring(0, 30)}...')
+              .toList();
+
+          // Add warnings for orphans and duplicates
+          if (orphanAnalysis.orphanNodes.isNotEmpty) {
+            report.warnings.add(HealthIssue(
+              title: 'Orphan Nodes',
+              description: '${orphanAnalysis.orphanNodes.length} nodes without corresponding pointers',
+              suggestion: 'These nodes may be leftover from deleted entries and can be safely removed',
+            ));
+          }
+
+          if (orphanAnalysis.orphanKeywords.isNotEmpty) {
+            report.warnings.add(HealthIssue(
+              title: 'Orphan Keywords',
+              description: '${orphanAnalysis.orphanKeywords.length} keywords not used by any journal entries',
+              suggestion: 'These keywords can be safely removed to reduce bundle size',
+            ));
+          }
+
+          if (orphanAnalysis.duplicateEntries.isNotEmpty) {
+            report.warnings.add(HealthIssue(
+              title: 'Duplicate Entries',
+              description: '${orphanAnalysis.duplicateEntries.length} groups of duplicate content found',
+              suggestion: 'Duplicate entries can be removed to reduce bundle size',
+            ));
+          }
+
+          if (orphanAnalysis.duplicatePointers.isNotEmpty) {
+            report.warnings.add(HealthIssue(
+              title: 'Duplicate Pointers',
+              description: '${orphanAnalysis.duplicatePointers.length} duplicate pointer IDs found',
+              suggestion: 'Duplicate pointers should be removed for data integrity',
+            ));
+          }
+
+          if (orphanAnalysis.duplicateEdges.isNotEmpty) {
+            report.warnings.add(HealthIssue(
+              title: 'Duplicate Edges',
+              description: '${orphanAnalysis.duplicateEdges.length} duplicate edge signatures found',
+              suggestion: 'Duplicate edges can be removed to reduce bundle size',
+            ));
+          }
+
+        } catch (e) {
+          report.warnings.add(HealthIssue(
+            title: 'Orphan Detection Failed',
+            description: 'Failed to analyze bundle for orphan nodes and duplicates: $e',
+            suggestion: 'Bundle may be corrupted or in an unexpected format',
+          ));
+        }
+
       } finally {
         // Clean up temporary directory
         try {
@@ -1423,6 +1696,15 @@ class BundleHealthReport {
   bool dataIntegrityValid;
   List<HealthIssue> errors;
   List<HealthIssue> warnings;
+  
+  // Orphan and duplicate detection fields
+  int orphanNodeCount;
+  int orphanKeywordCount;
+  int duplicateEntryCount;
+  int duplicatePointerCount;
+  int duplicateEdgeCount;
+  List<String> orphanDetails;
+  List<String> duplicateDetails;
 
   BundleHealthReport({
     required this.bundleId,
@@ -1436,6 +1718,13 @@ class BundleHealthReport {
     required this.dataIntegrityValid,
     required this.errors,
     required this.warnings,
+    this.orphanNodeCount = 0,
+    this.orphanKeywordCount = 0,
+    this.duplicateEntryCount = 0,
+    this.duplicatePointerCount = 0,
+    this.duplicateEdgeCount = 0,
+    this.orphanDetails = const [],
+    this.duplicateDetails = const [],
   });
 }
 

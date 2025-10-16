@@ -202,7 +202,7 @@ class DraftCacheService {
     );
 
     await _saveDraft(_currentDraft!);
-    _startAutoSave();
+    // _startAutoSave(); // Disabled: No more automatic saving every few seconds
 
     debugPrint('DraftCacheService: Created new draft $draftId');
     return draftId;
@@ -296,7 +296,7 @@ class DraftCacheService {
   Future<void> restoreDraft(JournalDraft draft) async {
     _currentDraft = draft.copyWith(lastModified: DateTime.now());
     await _saveDraft(_currentDraft!);
-    _startAutoSave();
+    // _startAutoSave(); // Disabled: No more automatic saving every few seconds
     debugPrint('DraftCacheService: Restored draft ${draft.id}');
   }
 

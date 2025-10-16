@@ -1,5 +1,7 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'dart:io';
+import 'dart:convert';
+import 'package:path/path.dart' as path;
 import '../../prism/mcp/import/mcp_import_service.dart';
 import '../../prism/mcp/models/mcp_schemas.dart';
 import '../../arc/core/journal_repository.dart';
@@ -139,6 +141,9 @@ class McpSettingsCubit extends Cubit<McpSettingsState> {
         includeEvents: false,
       );
       print('🔍 MCP export completed, result dir: ${resultDir.path}');
+
+      // After export, verify the nodes.jsonl file contains media
+      await _verifyExportMedia(resultDir);
 
       emit(state.copyWith(
         currentOperation: 'Export completed',
@@ -537,5 +542,39 @@ class McpSettingsCubit extends Cubit<McpSettingsState> {
   int _getWordCount(String? text) {
     if (text == null || text.isEmpty) return 0;
     return text.split(RegExp(r'\s+')).where((word) => word.isNotEmpty).length;
+  }
+
+  /// Verify that the exported nodes.jsonl file contains media data
+  Future<void> _verifyExportMedia(Directory exportDir) async {
+    try {
+      final nodesFile = File(path.join(exportDir.path, 'nodes.jsonl'));
+      if (await nodesFile.exists()) {
+        final lines = await nodesFile.readAsLines();
+        int entriesWithMedia = 0;
+        int totalMediaItems = 0;
+        
+        for (final line in lines) {
+          final node = jsonDecode(line);
+          if (node['type'] == 'journal_entry' && node.containsKey('media')) {
+            entriesWithMedia++;
+            final media = node['media'] as List;
+            totalMediaItems += media.length;
+            
+            // Check first media item for ph:// URI
+            if (media.isNotEmpty) {
+              final firstMedia = media[0] as Map<String, dynamic>;
+              print('🔍 Export Verification: Entry ${node['id']} has ${media.length} media items');
+              print('🔍   First media URI: ${firstMedia['uri']}');
+            }
+          }
+        }
+        
+        print('✅ Export Verification: $entriesWithMedia entries with $totalMediaItems total media items');
+      } else {
+        print('⚠️ Export verification failed: nodes.jsonl file not found');
+      }
+    } catch (e) {
+      print('⚠️ Export verification failed: $e');
+    }
   }
 }

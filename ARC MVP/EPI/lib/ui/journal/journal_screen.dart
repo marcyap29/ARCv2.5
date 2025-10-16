@@ -52,7 +52,7 @@ class JournalScreen extends StatefulWidget {
   State<JournalScreen> createState() => _JournalScreenState();
 }
 
-class _JournalScreenState extends State<JournalScreen> {
+class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserver {
   final TextEditingController _textController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   JournalEntryState _entryState = JournalEntryState();
@@ -103,6 +103,9 @@ class _JournalScreenState extends State<JournalScreen> {
     _thumbnailCache.initialize();
     
     _analytics.logJournalEvent('opened');
+    
+    // Add lifecycle observer for app state changes
+    WidgetsBinding.instance.addObserver(this);
 
     // Initialize with draft content if provided
     if (widget.initialContent != null) {
@@ -135,6 +138,9 @@ class _JournalScreenState extends State<JournalScreen> {
 
   @override
   void dispose() {
+    // Remove lifecycle observer
+    WidgetsBinding.instance.removeObserver(this);
+    
     _autoSaveTimer?.cancel();
     _textController.dispose();
     _scrollController.dispose();
@@ -144,6 +150,20 @@ class _JournalScreenState extends State<JournalScreen> {
     _thumbnailCache.clearAllThumbnails();
     
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    
+    // Auto-save draft when app is backgrounded or closed
+    if (state == AppLifecycleState.paused || state == AppLifecycleState.inactive || state == AppLifecycleState.detached) {
+      final hasContent = _entryState.text.trim().isNotEmpty || _entryState.attachments.isNotEmpty;
+      if (hasContent && _currentDraftId != null) {
+        _draftCache.saveCurrentDraftImmediately();
+        print('📝 Auto-saved draft due to app lifecycle change: $state');
+      }
+    }
   }
 
   void _onTextChanged(String text) {
@@ -363,15 +383,38 @@ class _JournalScreenState extends State<JournalScreen> {
     // Sort indices in descending order to avoid index shifting issues
     final sortedIndices = _selectedPhotoIndices.toList()..sort((a, b) => b.compareTo(a));
     
+    // Collect photo IDs to remove from content
+    final photoIdsToRemove = <String>[];
+    
     setState(() {
       for (final index in sortedIndices) {
         if (index < _entryState.attachments.length) {
+          final attachment = _entryState.attachments[index];
+          if (attachment is PhotoAttachment && attachment.photoId != null) {
+            photoIdsToRemove.add(attachment.photoId!);
+          }
           _entryState.attachments.removeAt(index);
         }
       }
       _selectedPhotoIndices.clear();
       _isPhotoSelectionMode = false;
     });
+
+    // Remove photo placeholders from content
+    if (photoIdsToRemove.isNotEmpty) {
+      String updatedContent = _textController.text;
+      for (final photoId in photoIdsToRemove) {
+        final placeholder = '[PHOTO:$photoId]';
+        updatedContent = updatedContent.replaceAll(placeholder, '');
+        print('🗑️ Removed photo placeholder: $placeholder');
+      }
+      
+      // Update text controller and entry state
+      _textController.text = updatedContent;
+      _entryState.text = updatedContent;
+      
+      print('🗑️ Updated content after photo deletion: ${updatedContent.length} chars');
+    }
 
     // Show confirmation
     ScaffoldMessenger.of(context).showSnackBar(
@@ -508,7 +551,9 @@ class _JournalScreenState extends State<JournalScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return Scaffold(
+    return WillPopScope(
+      onWillPop: _onBackPressed,
+      child: Scaffold(
       backgroundColor: theme.colorScheme.surface,
       appBar: AppBar(
         title: const Text('Write what is true right now'),
@@ -521,7 +566,12 @@ class _JournalScreenState extends State<JournalScreen> {
             tooltip: 'Drafts',
           ),
           IconButton(
-            onPressed: () => Navigator.of(context).pop(),
+            onPressed: () async {
+              final shouldPop = await _onBackPressed();
+              if (shouldPop && mounted) {
+                Navigator.of(context).pop();
+              }
+            },
             icon: const Icon(Icons.home),
             tooltip: 'Home',
           ),
@@ -704,7 +754,55 @@ class _JournalScreenState extends State<JournalScreen> {
         ],
         ),
       ),
+    ),
     );
+  }
+
+  /// Handle back button press - show save/discard dialog
+  Future<bool> _onBackPressed() async {
+    // Check if there's any content to save
+    final hasContent = _entryState.text.trim().isNotEmpty || _entryState.attachments.isNotEmpty;
+    
+    if (!hasContent) {
+      // No content, allow navigation
+      return true;
+    }
+    
+    // Show save/discard dialog
+    final result = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Save Draft?'),
+        content: const Text('Would you like to save your work as a draft?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop('discard'),
+            child: const Text('Discard'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop('cancel'),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(context).pop('save'),
+            child: const Text('Save Draft'),
+          ),
+        ],
+      ),
+    );
+    
+    if (result == 'save') {
+      // Save draft
+      await _draftCache.saveCurrentDraftImmediately();
+      return true;
+    } else if (result == 'discard') {
+      // Discard draft
+      await _draftCache.discardDraft();
+      return true;
+    } else {
+      // Cancel navigation
+      return false;
+    }
   }
 
   /// Check if there are any photos with inline insertion positions

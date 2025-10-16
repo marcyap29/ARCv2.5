@@ -18,10 +18,12 @@ import 'package:my_app/shared/text_style.dart';
 import 'package:my_app/features/startup/phase_quiz_prompt_view.dart';
 import 'package:my_app/rivet/validation/rivet_provider.dart';
 import 'package:my_app/rivet/models/rivet_models.dart';
+import 'package:my_app/core/services/draft_cache_service.dart';
 import 'package:my_app/rivet/validation/rivet_service.dart';
 import 'package:hive/hive.dart';
 import 'package:my_app/services/user_phase_service.dart';
 import 'package:my_app/features/arcforms/phase_recommender.dart';
+import 'package:my_app/mira/mira_service.dart';
 import 'dart:math' as math;
 
 class InteractiveTimelineView extends StatefulWidget {
@@ -77,6 +79,46 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
     setState(() {
       _currentIndex = index;
     });
+  }
+
+  /// Clean up MIRA nodes and edges when a journal entry is deleted
+  Future<void> _cleanupMiraDataForEntry(String entryId) async {
+    try {
+      final miraService = MiraService.instance;
+      final miraRepo = miraService.repo;
+      
+      // Generate the MIRA node ID for this entry
+      final miraNodeId = 'je_$entryId';
+      
+      print('🧹 Cleaning up MIRA data for entry $entryId (node: $miraNodeId)');
+      
+      // Delete all edges where this node is source or target
+      final allEdges = await miraRepo.exportAll()
+          .where((record) => record['kind'] == 'edge')
+          .map((record) => record)
+          .toList();
+      
+      for (final edgeRecord in allEdges) {
+        final src = edgeRecord['src'] as String?;
+        final dst = edgeRecord['dst'] as String?;
+        final edgeId = edgeRecord['id'] as String?;
+        
+        if (edgeId != null && (src == miraNodeId || dst == miraNodeId)) {
+          await miraRepo.removeEdge(edgeId);
+          print('🧹 Deleted edge $edgeId');
+        }
+      }
+      
+      // Delete the entry node itself
+      await miraRepo.removeNode(miraNodeId);
+      print('🧹 Deleted node $miraNodeId');
+      
+      // Note: Keyword nodes are kept for other entries that may reference them
+      // They will be cleaned up by a separate orphan cleanup process if needed
+      
+    } catch (e) {
+      print('⚠️ Error cleaning up MIRA data for entry $entryId: $e');
+    }
   }
 
   @override
@@ -759,6 +801,9 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
           print('DEBUG: Deleting entry: $entryId');
           await journalRepository.deleteJournalEntry(entryId);
           
+          // NEW: Clean up MIRA nodes and edges for this entry
+          await _cleanupMiraDataForEntry(entryId);
+          
           // Verify deletion
           final deletedEntry = journalRepository.getJournalEntryById(entryId);
           if (deletedEntry == null) {
@@ -778,6 +823,17 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
         
         // Store the count before clearing selection
         final deletedCount = _selectedEntryIds.length;
+        
+        // If all entries were deleted, clear the draft cache to prevent old content from being restored
+        if (allEntriesDeleted) {
+          try {
+            final draftCache = DraftCacheService.instance;
+            await draftCache.clearAllDrafts();
+            print('🧹 Cleared all drafts after deleting all entries');
+          } catch (e) {
+            print('⚠️ Error clearing drafts after deletion: $e');
+          }
+        }
         
         // Recalculate RIVET state after deletion
         await _recalculateRivetState();
@@ -2585,5 +2641,4 @@ class BrokenImageDialog extends StatelessWidget {
       ),
     );
   }
-
 }

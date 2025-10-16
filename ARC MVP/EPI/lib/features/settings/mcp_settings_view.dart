@@ -306,8 +306,11 @@ class _McpSettingsViewContent extends StatelessWidget {
       // On success: zip the folder and open share sheet so user chooses destination in Files
       if (result != null) {
         final bundleDir = result;
-        // Generate a simple bundle ID based on timestamp
-        final bundleId = 'mcp_${DateTime.now().millisecondsSinceEpoch}';
+        // Generate a bundle ID with readable date and time
+        final now = DateTime.now();
+        final dateStr = '${now.year}${now.month.toString().padLeft(2, '0')}${now.day.toString().padLeft(2, '0')}';
+        final timeStr = '${now.hour.toString().padLeft(2, '0')}${now.minute.toString().padLeft(2, '0')}${now.second.toString().padLeft(2, '0')}';
+        final bundleId = 'mcp_${dateStr}_${timeStr}';
 
         // Create ZIP of the export directory
         final zipFile = await ZipUtils.zipDirectory(

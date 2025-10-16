@@ -77,6 +77,9 @@ class McpImportService {
   final CasResolver? _casResolver;
   final ChatRepo? _chatRepo;
   final JournalRepository? _journalRepo;
+  
+  // Media deduplication cache - maps URI to MediaItem to prevent duplicates
+  final Map<String, MediaItem> _mediaCache = {};
 
   McpImportService({
     ManifestReader? manifestReader,
@@ -94,6 +97,12 @@ class McpImportService {
         _chatRepo = chatRepo,
         _journalRepo = journalRepo;
 
+  /// Clear the media cache (call before starting a new import)
+  void clearMediaCache() {
+    _mediaCache.clear();
+    print('🧹 Cleared media cache for new import');
+  }
+
   /// Import an MCP bundle from the specified directory
   Future<McpImportResult> importBundle(
     Directory bundleDir,
@@ -103,6 +112,9 @@ class McpImportService {
     final warnings = <String>[];
     final errors = <String>[];
     final counts = <String, int>{};
+    
+    // Clear media cache for this import to prevent duplicates
+    clearMediaCache();
 
     try {
       // Step 1: Read and validate manifest
@@ -192,6 +204,13 @@ class McpImportService {
       }
 
       stopwatch.stop();
+
+      // Log media deduplication summary
+      print('📊 Media Deduplication Summary:');
+      print('   Total unique media items cached: ${_mediaCache.length}');
+      for (final entry in _mediaCache.entries) {
+        print('   - ${entry.value.type.name}: ${entry.key}');
+      }
 
       final success = errors.length <= options.maxErrors;
       return McpImportResult(
@@ -1051,36 +1070,60 @@ class McpImportService {
     final mediaItems = <MediaItem>[];
 
     print('🔍 MCP Import: Extracting media from placeholders for node ${node.id}');
-    print('🔍 Content length: ${content.length} chars');
-    print('🔍 Content preview: ${content.length > 100 ? content.substring(0, 100) + '...' : content}');
-
-    // FIRST: Try to get media from root level (matches current export format)
-    // The journal_entry_projector.dart exports media at root level, now captured in metadata
+    
+    // Try to get media from root level (captured in metadata)
     if (node.metadata != null && node.metadata!.containsKey('media')) {
       final mediaData = node.metadata!['media'] as List?;
       if (mediaData != null && mediaData.isNotEmpty) {
-        print('🔄 DEBUG: Found ${mediaData.length} media items at root level (captured in metadata)');
+        print('🔄 Found ${mediaData.length} media items at root level');
+        
+        // Group by type for validation
+        final mediaByType = <String, int>{};
+        int newMediaCount = 0;
+        int reusedMediaCount = 0;
+        
         for (int i = 0; i < mediaData.length; i++) {
           final mediaJson = mediaData[i];
           if (mediaJson is Map<String, dynamic>) {
             try {
-              print('🔍 Root Media $i JSON: $mediaJson');
-              final mediaItem = _parseMediaItemFromJson(mediaJson, node);
-              mediaItems.add(mediaItem);
-              print('🔄 DEBUG: Reconstructed root media item: ${mediaItem.id} -> ${mediaItem.uri}');
+              print('🔍 Media $i JSON: $mediaJson');
+              final uri = mediaJson['uri'] as String;
+              
+              // Check if we already have this media item (deduplication)
+              if (_mediaCache.containsKey(uri)) {
+                final cachedMediaItem = _mediaCache[uri]!;
+                mediaItems.add(cachedMediaItem);
+                reusedMediaCount++;
+                print('♻️ Reusing cached media: ${cachedMediaItem.id} -> $uri');
+              } else {
+                // Create new media item and cache it
+                final mediaItem = _parseMediaItemFromJson(mediaJson, node);
+                _mediaCache[uri] = mediaItem;
+                mediaItems.add(mediaItem);
+                newMediaCount++;
+                
+                // Track by type
+                mediaByType[mediaItem.type.name] = (mediaByType[mediaItem.type.name] ?? 0) + 1;
+                
+                // Validate URI preservation
+                final originalUri = mediaJson['uri'] as String;
+                if (mediaItem.uri != originalUri) {
+                  print('⚠️ WARNING: URI mismatch for media ${mediaItem.id}');
+                  print('⚠️   Expected: $originalUri');
+                  print('⚠️   Got: ${mediaItem.uri}');
+                }
+                
+                print('✅ Created new ${mediaItem.type.name}: ${mediaItem.id} -> ${mediaItem.uri}');
+              }
             } catch (e) {
-              print('⚠️ DEBUG: Failed to parse root media item $i: $e');
+              print('⚠️ Failed to parse media item $i: $e');
             }
           }
         }
-        print('🔍 MCP Import: Successfully extracted ${mediaItems.length} media items from root level');
+        
+        print('🔍 MCP Import: Successfully extracted ${mediaItems.length} media items (${newMediaCount} new, ${reusedMediaCount} reused) by type: $mediaByType');
         return mediaItems;
-      } else {
-        print('🔍 MCP Import: Media array is empty at root level');
       }
-    } else {
-      print('🔍 MCP Import: No media field found at root level');
-      print('🔍 Available metadata keys: ${node.metadata?.keys.toList()}');
     }
 
     // Also check for media in journal_entry metadata (legacy support)
@@ -1090,20 +1133,36 @@ class McpImportService {
         final mediaData = journalMeta['media'] as List?;
         if (mediaData != null && mediaData.isNotEmpty) {
           print('🔄 DEBUG: Found ${mediaData.length} media items in journal_entry metadata');
+          int newMediaCount = 0;
+          int reusedMediaCount = 0;
+          
           for (int i = 0; i < mediaData.length; i++) {
             final mediaJson = mediaData[i];
             if (mediaJson is Map<String, dynamic>) {
               try {
                 print('🔍 Journal Media $i JSON: $mediaJson');
-                final mediaItem = _parseMediaItemFromJson(mediaJson, node);
-                mediaItems.add(mediaItem);
-                print('🔄 DEBUG: Reconstructed journal media item: ${mediaItem.id} -> ${mediaItem.uri}');
+                final uri = mediaJson['uri'] as String;
+                
+                // Check if we already have this media item (deduplication)
+                if (_mediaCache.containsKey(uri)) {
+                  final cachedMediaItem = _mediaCache[uri]!;
+                  mediaItems.add(cachedMediaItem);
+                  reusedMediaCount++;
+                  print('♻️ Reusing cached journal media: ${cachedMediaItem.id} -> $uri');
+                } else {
+                  // Create new media item and cache it
+                  final mediaItem = _parseMediaItemFromJson(mediaJson, node);
+                  _mediaCache[uri] = mediaItem;
+                  mediaItems.add(mediaItem);
+                  newMediaCount++;
+                  print('✅ Created new journal media: ${mediaItem.id} -> ${mediaItem.uri}');
+                }
               } catch (e) {
                 print('⚠️ DEBUG: Failed to parse journal media item $i: $e');
               }
             }
           }
-          print('🔍 MCP Import: Successfully extracted ${mediaItems.length} media items from journal_entry metadata');
+          print('🔍 MCP Import: Successfully extracted ${mediaItems.length} media items (${newMediaCount} new, ${reusedMediaCount} reused) from journal_entry metadata');
           return mediaItems;
         }
       }
@@ -1132,10 +1191,11 @@ class McpImportService {
   /// Parse MediaItem from JSON export format
   MediaItem _parseMediaItemFromJson(Map<String, dynamic> json, McpNode node) {
     print('🔍 MCP Import: Parsing media item: ${json['id']} (${json['type']})');
+    print('🔍 MCP Import: Media URI: ${json['uri']}');
     
-    return MediaItem(
+    final mediaItem = MediaItem(
       id: json['id'] as String,
-      uri: json['uri'] as String,
+      uri: json['uri'] as String, // ph:// should be here
       type: _parseMediaType(json['type'] as String?),
       duration: json['duration'] != null 
         ? Duration(seconds: json['duration'] as int) 
@@ -1149,6 +1209,9 @@ class McpImportService {
       ocrText: json['ocr_text'] as String?,
       analysisData: json['analysis_data'] as Map<String, dynamic>?,
     );
+    
+    print('🔍 MCP Import: Created MediaItem with URI: ${mediaItem.uri}');
+    return mediaItem;
   }
 
   /// Parse MediaType from string
