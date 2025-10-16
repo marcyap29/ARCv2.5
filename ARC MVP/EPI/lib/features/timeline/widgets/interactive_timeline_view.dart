@@ -413,6 +413,10 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
         }
       });
     } else {
+      // Trigger lazy photo relinking before opening entry
+      final timelineCubit = context.read<TimelineCubit>();
+      await timelineCubit.onEntryOpened(entry.id);
+      
       // Fetch the full journal entry for editing
       try {
         final journalRepository = context.read<JournalRepository>();

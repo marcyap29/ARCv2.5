@@ -5,6 +5,7 @@ import 'package:my_app/arc/core/journal_repository.dart';
 import 'package:my_app/models/journal_entry_model.dart';
 import 'package:my_app/models/arcform_snapshot_model.dart';
 import 'package:my_app/data/models/media_item.dart';
+import 'package:my_app/core/services/lazy_photo_relink_service.dart';
 import 'package:hive/hive.dart';
 
 class TimelineCubit extends Cubit<TimelineState> {
@@ -47,6 +48,45 @@ class TimelineCubit extends Cubit<TimelineState> {
       return true;
     }
     return false;
+  }
+
+  /// Handle entry opened event - triggers lazy photo relinking
+  Future<void> onEntryOpened(String entryId) async {
+    try {
+      final entry = await _journalRepository.getEntry(entryId);
+      if (entry == null) {
+        print('Relink skip entry=$entryId reason=not_found');
+        return;
+      }
+
+      // Attempt relinking
+      final success = await LazyPhotoRelinkService.attemptRelink(entry);
+      
+      if (success) {
+        // Update the entry in the repository
+        final resolved = await LazyPhotoRelinkService.reconstructMediaFromText(
+          text: entry.content ?? '',
+          nodeMetadata: (entry.metadata as Map<String, dynamic>?) ?? const {},
+        );
+        
+        final merged = LazyPhotoRelinkService.mergeMedia(entry.media, resolved);
+        final updated = entry.copyWith(media: merged);
+        
+        await _journalRepository.saveEntry(updated);
+        
+        // Update metadata with last relink attempt
+        final nowMs = DateTime.now().millisecondsSinceEpoch;
+        final updatedMetadata = Map<String, dynamic>.from(entry.metadata);
+        updatedMetadata['last_relink_attempt'] = nowMs;
+        final finalEntry = updated.copyWith(metadata: updatedMetadata);
+        await _journalRepository.saveEntry(finalEntry);
+        
+        // Refresh timeline to show updated media
+        await refreshEntries();
+      }
+    } catch (e) {
+      print('Relink error entry=$entryId: $e');
+    }
   }
 
   /// Update an entry's phase and geometry

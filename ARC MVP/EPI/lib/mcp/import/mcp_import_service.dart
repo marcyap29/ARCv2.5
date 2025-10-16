@@ -732,32 +732,46 @@ class McpImportService {
     return parts.isNotEmpty ? parts.join('\n') : null;
   }
 
+  /// Extract content with comprehensive fallback: content.narrative → content.text → metadata.content
+  String? _extractContentWithFallback(McpNode node) {
+    // Try content.narrative first
+    if (node.narrative != null) {
+      final narrativeText = _extractNarrativeText(node.narrative);
+      if (narrativeText != null && narrativeText.isNotEmpty) {
+        return narrativeText.trim();
+      }
+    }
+
+    // Try content.text
+    if (node.contentSummary != null && node.contentSummary!.isNotEmpty) {
+      return node.contentSummary!.trim();
+    }
+
+    // Fallback to metadata.content
+    if (node.metadata != null) {
+      final metaContent = node.metadata!['content'] as String?;
+      if (metaContent != null && metaContent.isNotEmpty) {
+        return metaContent.trim();
+      }
+    }
+
+    return null;
+  }
+
   /// Convert MCP Node to JournalEntry
   Future<JournalEntry?> _convertMcpNodeToJournalEntry(McpNode node) async {
     try {
       print('🔄 DEBUG: Converting node ${node.id} to journal entry');
 
-      // Extract content from the node - check multiple possible locations
-      String content = '';
+      // Extract content with comprehensive fallback
+      final content = _extractContentWithFallback(node);
+      if (content == null || content.isEmpty) {
+        print('❌ DEBUG: Skipping journal entry ${node.id} - no content after fallbacks');
+        return null;
+      }
+      print('✅ DEBUG: Got content for ${node.id}: ${content.length} chars');
+
       String title = 'Imported Entry';
-
-      // Try to get content from the node's content field or metadata
-      if (node.contentSummary != null && node.contentSummary!.isNotEmpty) {
-        content = node.contentSummary!;
-        print('🔄 DEBUG: Got content from contentSummary: ${content.length} chars');
-      } else if (node.narrative != null) {
-        content = _extractNarrativeText(node.narrative) ?? '';
-        print('🔄 DEBUG: Got content from narrative: ${content.length} chars');
-      }
-
-      // Early fallback to metadata.content if content is still missing
-      if (content.isEmpty && node.metadata != null) {
-        final metaContent = node.metadata!['content'] as String?;
-        if (metaContent != null && metaContent.isNotEmpty) {
-          content = metaContent;
-          print('🔄 DEBUG: Got content from metadata.content: ${content.length} chars');
-        }
-      }
 
       // Check if there's content or title in metadata
       if (node.metadata != null) {
