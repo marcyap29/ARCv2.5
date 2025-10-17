@@ -39,9 +39,8 @@ import Photos
     }
     NSLog("[AppDelegate] PhotoLibraryService registered via MethodChannel ✅")
     
-    // Register PhotoLibraryBridge for lazy photo relinking
-    PhotoLibraryBridge.register(with: self)
-    NSLog("[AppDelegate] PhotoLibraryBridge registered ✅")
+    // Note: PhotoLibraryBridge registration removed - using existing PhotoLibraryService
+    NSLog("[AppDelegate] Using existing PhotoLibraryService for photo operations ✅")
     
         // Register Photos method channel
         let photosChannel = FlutterMethodChannel(name: "com.epi.arcmvp/photos", binaryMessenger: controller.binaryMessenger)

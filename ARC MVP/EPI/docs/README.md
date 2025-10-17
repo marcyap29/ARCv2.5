@@ -1,11 +1,25 @@
 # EPI Documentation
 
-**Last Updated:** January 15, 2025
+**Last Updated:** January 16, 2025
 **Status:** Production Ready ✅
 
 This directory contains comprehensive documentation for the EPI (Evolving Personal Intelligence) project - an 8-module intelligent journaling system built with Flutter.
 
-## 🆕 Latest Updates (January 15, 2025)
+## 🆕 Latest Updates (January 16, 2025)
+
+**📸 Lazy Photo Relinking System**
+
+Complete implementation of intelligent photo persistence with on-demand relinking:
+- **Lazy Relinking** - Photos are only relinked when users open entries, not during import or timeline loads
+- **Comprehensive Content Fallback** - Importer now uses content.narrative → content.text → metadata.content fallback chain
+- **iOS Native Bridge** - New PhotoLibraryBridge with photoExistsInLibrary and findPhotoByMetadata methods
+- **Timestamp-Based Recovery** - Extracts creation dates from placeholder IDs for intelligent photo matching
+- **Cross-Device Support** - Photos can be recovered across devices using metadata matching
+- **Performance Optimized** - Only relinks photos when needed, improving app performance
+- **Cooldown Protection** - 5-minute cooldown prevents excessive relinking attempts
+- **Graceful Fallback** - Shows "Photo unavailable" placeholders when photos cannot be relinked
+
+*For detailed technical information, see [Changelog - Lazy Photo Relinking System](../changelog/CHANGELOG.md#lazy-photo-relinking-system---january-16-2025)*
 
 **VEIL-EDGE Phase-Reactive Restorative Layer**
 

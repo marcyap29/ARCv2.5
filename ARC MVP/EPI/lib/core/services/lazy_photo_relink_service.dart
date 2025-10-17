@@ -1,10 +1,11 @@
 import 'package:flutter/services.dart';
 import 'package:my_app/data/models/media_item.dart';
 import 'package:my_app/models/journal_entry_model.dart';
+import 'package:my_app/core/services/photo_library_service.dart';
+import 'package:my_app/data/models/photo_metadata.dart';
 
 /// Service for lazy photo relinking that only runs when an entry is opened
 class LazyPhotoRelinkService {
-  static const MethodChannel _photosChannel = MethodChannel('photo_library');
   static final RegExp _photoTokenRe = RegExp(r'\[PHOTO:(photo_\d{13,})\]');
   
   // Guards to prevent duplicate relinking
@@ -59,11 +60,8 @@ class LazyPhotoRelinkService {
     final localId = (found['local_identifier'] as String?)?.trim();
     if (localId?.isNotEmpty == true) {
       try {
-        final exists = await _photosChannel.invokeMethod<bool>(
-          'photoExistsInLibrary',
-          {'photoId': 'ph://$localId'},
-        );
-        if (exists == true) {
+        final exists = await PhotoLibraryService.photoExistsInLibrary('ph://$localId');
+        if (exists) {
           print('Relink result $placeholderId → ph://$localId (local ID)');
           return 'ph://$localId';
         }
@@ -74,10 +72,8 @@ class LazyPhotoRelinkService {
 
     // Try metadata search
     try {
-      final resolved = await _photosChannel.invokeMethod<String>(
-        'findPhotoByMetadata',
-        {'metadata': found},
-      );
+      final photoMetadata = PhotoMetadata.fromJson(found);
+      final resolved = await PhotoLibraryService.findPhotoByMetadata(photoMetadata);
       if (resolved != null && resolved.startsWith('ph://')) {
         print('Relink result $placeholderId → $resolved (metadata search)');
         return resolved;

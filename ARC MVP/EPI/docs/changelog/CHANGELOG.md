@@ -2,6 +2,35 @@
 
 ## [Unreleased]
 
+### 📸 **LAZY PHOTO RELINKING SYSTEM** - January 16, 2025
+
+#### **Intelligent Photo Persistence** ✅ **PRODUCTION READY**
+- **Lazy Relinking**: Photos are only relinked when users open entries, not during import or timeline loads
+- **Comprehensive Content Fallback**: Importer now uses content.narrative → content.text → metadata.content fallback chain
+- **iOS Native Bridge**: New PhotoLibraryBridge with photoExistsInLibrary and findPhotoByMetadata methods
+- **Timestamp-Based Recovery**: Extracts creation dates from placeholder IDs for intelligent photo matching
+- **Cooldown Protection**: 5-minute cooldown prevents excessive relinking attempts
+- **In-Flight Guards**: Prevents duplicate relinking operations for the same entry
+
+#### **Enhanced MCP Import/Export** ✅ **IMPROVED**
+- **No More Skipped Entries**: Importer no longer logs "Skipping journal entry... no content found" when metadata.content exists
+- **Real Photo Metadata**: Export now populates actual photo metadata from MediaItems instead of empty placeholders
+- **Robust Content Extraction**: Early fallback to metadata.content ensures LUMARA entries are properly imported
+- **Cross-Device Compatibility**: Photos can be relinked across devices using metadata matching
+
+#### **User Experience Improvements** ✅ **NEW**
+- **On-Demand Relinking**: Photos are relinked only when needed, improving app performance
+- **Clear Logging**: Detailed logs show relink attempts and results for debugging
+- **Seamless Integration**: Works transparently with existing timeline and journal functionality
+- **Error Handling**: Graceful fallback to placeholders when photos cannot be relinked
+
+#### **Technical Implementation** ✅ **COMPLETE**
+- **LazyPhotoRelinkService**: `lib/core/services/lazy_photo_relink_service.dart` with comprehensive relinking logic
+- **iOS PhotoLibraryBridge**: `ios/Runner/PhotoLibraryBridge.swift` for native photo library access
+- **Timeline Integration**: Updated TimelineCubit and InteractiveTimelineView for entry-opened events
+- **Comprehensive Testing**: Full unit test coverage for all relinking functionality
+- **Method Channel**: `photo_library` channel for iOS photo library communication
+
 ### 🧹 **MCP BUNDLE HEALTH & CLEANUP SYSTEM** - January 16, 2025
 
 #### **Orphan & Duplicate Detection** ✅ **PRODUCTION READY**

@@ -53,7 +53,7 @@ class TimelineCubit extends Cubit<TimelineState> {
   /// Handle entry opened event - triggers lazy photo relinking
   Future<void> onEntryOpened(String entryId) async {
     try {
-      final entry = await _journalRepository.getEntry(entryId);
+      final entry = _journalRepository.getJournalEntryById(entryId);
       if (entry == null) {
         print('Relink skip entry=$entryId reason=not_found');
         return;
@@ -72,14 +72,14 @@ class TimelineCubit extends Cubit<TimelineState> {
         final merged = LazyPhotoRelinkService.mergeMedia(entry.media, resolved);
         final updated = entry.copyWith(media: merged);
         
-        await _journalRepository.saveEntry(updated);
+        await _journalRepository.updateJournalEntry(updated);
         
         // Update metadata with last relink attempt
         final nowMs = DateTime.now().millisecondsSinceEpoch;
-        final updatedMetadata = Map<String, dynamic>.from(entry.metadata);
+        final updatedMetadata = Map<String, dynamic>.from(entry.metadata ?? {});
         updatedMetadata['last_relink_attempt'] = nowMs;
         final finalEntry = updated.copyWith(metadata: updatedMetadata);
-        await _journalRepository.saveEntry(finalEntry);
+        await _journalRepository.updateJournalEntry(finalEntry);
         
         // Refresh timeline to show updated media
         await refreshEntries();

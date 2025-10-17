@@ -10,6 +10,38 @@
   - VEIL: Self-Pruning & Coherence
   - RIVET: Risk-Validation Evidence Tracker
 
+  ## 📸 **Lazy Photo Relinking Architecture** (Updated January 16, 2025)
+
+  **Intelligent Photo Persistence with On-Demand Relinking - PRODUCTION READY**:
+  ```
+  User Opens Entry → TimelineCubit.onEntryOpened() → LazyPhotoRelinkService.attemptRelink()
+                    ← iOS PhotoLibraryBridge ← MethodChannel('photo_library') ← Photo Matching
+  ```
+
+  **Content Extraction Fallback Chain**:
+  ```
+  MCP Import → content.narrative → content.text → metadata.content → Journal Entry
+  ```
+
+  **🚀 CURRENT STATUS: FULLY OPERATIONAL**
+  - ✅ **Lazy Relinking**: Photos are only relinked when users open entries, not during import or timeline loads
+  - ✅ **Comprehensive Content Fallback**: Importer now uses content.narrative → content.text → metadata.content fallback chain
+  - ✅ **iOS Native Bridge**: New PhotoLibraryBridge with photoExistsInLibrary and findPhotoByMetadata methods
+  - ✅ **Timestamp-Based Recovery**: Extracts creation dates from placeholder IDs for intelligent photo matching
+  - ✅ **Cross-Device Support**: Photos can be recovered across devices using metadata matching
+  - ✅ **Performance Optimized**: Only relinks photos when needed, improving app performance
+  - ✅ **Cooldown Protection**: 5-minute cooldown prevents excessive relinking attempts
+  - ✅ **In-Flight Guards**: Prevents duplicate relinking operations for the same entry
+  - ✅ **Graceful Fallback**: Shows "Photo unavailable" placeholders when photos cannot be relinked
+  - ✅ **Clear Logging**: Detailed logs show relink attempts and results for debugging
+  - ✅ **Seamless Integration**: Works transparently with existing timeline and journal functionality
+  - ✅ **Technical Achievements**:
+    - ✅ **LazyPhotoRelinkService**: Comprehensive relinking logic with cooldown and guards
+    - ✅ **iOS PhotoLibraryBridge**: Native photo library access with metadata matching
+    - ✅ **Timeline Integration**: Updated TimelineCubit and InteractiveTimelineView for entry-opened events
+    - ✅ **Method Channel**: `photo_library` channel for iOS photo library communication
+    - ✅ **Comprehensive Testing**: Full unit test coverage for all relinking functionality
+
   ## 📸 **Multimodal Processing Architecture** (Updated January 8, 2025)
 
   **iOS Vision Framework + Thumbnail Caching Pipeline - PRODUCTION READY**:

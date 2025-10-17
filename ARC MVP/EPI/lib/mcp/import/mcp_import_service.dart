@@ -764,7 +764,7 @@ class McpImportService {
       print('🔄 DEBUG: Converting node ${node.id} to journal entry');
 
       // Extract content with comprehensive fallback
-      final content = _extractContentWithFallback(node);
+      String? content = _extractContentWithFallback(node);
       if (content == null || content.isEmpty) {
         print('❌ DEBUG: Skipping journal entry ${node.id} - no content after fallbacks');
         return null;
