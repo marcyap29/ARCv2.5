@@ -36,7 +36,8 @@ Map<String, dynamic> normalizeStringMap(Object? raw) {
 }
 
 /// Safe JSON decoding with error handling
-Map<String, dynamic>? safeJsonDecode(String jsonString) {
+Map<String, dynamic>? safeJsonDecode(String? jsonString) {
+  if (jsonString == null) return null;
   try {
     return jsonDecode(jsonString) as Map<String, dynamic>?;
   } catch (e) {

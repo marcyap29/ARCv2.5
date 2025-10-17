@@ -86,14 +86,14 @@ class LazyPhotoRelinkService {
     try {
       final creationDate = _asString(found, 'creation_date');
       if (creationDate != null) {
-        final photoMetadata = PhotoMetadata(
-          localIdentifier: localId,
-          creationDate: creationDate,
-          originalFilename: _asString(found, 'original_filename'),
-          fileSize: (found['file_size'] is int) ? found['file_size'] as int : null,
-          pixelWidth: (found['pixel_width'] is int) ? found['pixel_width'] as int : null,
-          pixelHeight: (found['pixel_height'] is int) ? found['pixel_height'] as int : null,
-        );
+               final photoMetadata = PhotoMetadata(
+                 localIdentifier: localId ?? '',
+                 creationDate: creationDate != null ? DateTime.tryParse(creationDate) : null,
+                 filename: _asString(found, 'original_filename'),
+                 fileSize: (found['file_size'] is int) ? found['file_size'] as int : null,
+                 pixelWidth: (found['pixel_width'] is int) ? found['pixel_width'] as int : null,
+                 pixelHeight: (found['pixel_height'] is int) ? found['pixel_height'] as int : null,
+               );
         final resolved = await PhotoLibraryService.findPhotoByMetadata(photoMetadata);
         if (resolved != null && resolved.startsWith('ph://')) {
           print('Relink result $placeholderId → $resolved (metadata search)');
@@ -152,6 +152,13 @@ class LazyPhotoRelinkService {
 
   /// Check if relinking should be attempted (cooldown + guards)
   static bool shouldAttemptRelink(JournalEntry entry) {
+    // Only relink if needed
+    final needsRelink = hasPlaceholders(entry.content) && !hasRealMedia(entry);
+    if (!needsRelink) {
+      print('Relink skip entry=${entry.id} reason=not_needed');
+      return false;
+    }
+
     // Check if already in flight
     if (_relinkInFlight.contains(entry.id)) {
       print('Relink skip entry=${entry.id} reason=in_flight');

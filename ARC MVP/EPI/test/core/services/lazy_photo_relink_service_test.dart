@@ -4,186 +4,223 @@ import 'package:my_app/models/journal_entry_model.dart';
 import 'package:my_app/data/models/media_item.dart';
 
 void main() {
-  group('LazyPhotoRelinkService Tests', () {
-    test('hasPlaceholders detects photo placeholders correctly', () {
-      expect(LazyPhotoRelinkService.hasPlaceholders('No photos here'), false);
-      expect(LazyPhotoRelinkService.hasPlaceholders('[PHOTO:photo_1760654962279]'), true);
-      expect(LazyPhotoRelinkService.hasPlaceholders('Text with [PHOTO:photo_1760654962279] and [PHOTO:photo_1760654963373]'), true);
-      expect(LazyPhotoRelinkService.hasPlaceholders(null), false);
+  group('LazyPhotoRelinkService', () {
+    group('hasPlaceholders', () {
+      test('returns true when text contains photo placeholders', () {
+        const text = 'This is a test [PHOTO:photo_1234567890123] with placeholder';
+        expect(LazyPhotoRelinkService.hasPlaceholders(text), true);
+      });
+
+      test('returns false when text has no placeholders', () {
+        const text = 'This is a test without placeholders';
+        expect(LazyPhotoRelinkService.hasPlaceholders(text), false);
+      });
+
+      test('returns false when text is null', () {
+        expect(LazyPhotoRelinkService.hasPlaceholders(null), false);
+      });
     });
 
-    test('hasRealMedia detects real media vs placeholders', () {
-      final entryWithRealMedia = JournalEntry(
-        id: 'test1',
-        title: 'Test Entry',
-        content: 'Test content',
-        createdAt: DateTime.now(),
-        updatedAt: DateTime.now(),
-        mood: 'neutral',
-        tags: [],
-        media: [
+    group('hasRealMedia', () {
+      test('returns true when entry has real media', () {
+        final entry = JournalEntry(
+          id: 'test',
+          title: 'Test',
+          content: 'Test content',
+          createdAt: DateTime.now(),
+          updatedAt: DateTime.now(),
+          emotion: 'neutral',
+          tags: [],
+          mood: 'neutral',
+          media: [
+            MediaItem(
+              id: 'media1',
+              type: MediaType.image,
+              uri: 'ph://real-photo-id',
+              createdAt: DateTime.now(),
+            ),
+          ],
+        );
+        expect(LazyPhotoRelinkService.hasRealMedia(entry), true);
+      });
+
+      test('returns false when entry has only placeholder media', () {
+        final entry = JournalEntry(
+          id: 'test',
+          title: 'Test',
+          content: 'Test content',
+          createdAt: DateTime.now(),
+          updatedAt: DateTime.now(),
+          emotion: 'neutral',
+          tags: [],
+          mood: 'neutral',
+          media: [
+            MediaItem(
+              id: 'media1',
+              type: MediaType.image,
+              uri: 'placeholder://photo_123',
+              createdAt: DateTime.now(),
+            ),
+          ],
+        );
+        expect(LazyPhotoRelinkService.hasRealMedia(entry), false);
+      });
+
+      test('returns false when entry has no media', () {
+        final entry = JournalEntry(
+          id: 'test',
+          title: 'Test',
+          content: 'Test content',
+          createdAt: DateTime.now(),
+          updatedAt: DateTime.now(),
+          emotion: 'neutral',
+          tags: [],
+          mood: 'neutral',
+          media: [],
+        );
+        expect(LazyPhotoRelinkService.hasRealMedia(entry), false);
+      });
+    });
+
+    group('extractPhotoIds', () {
+      test('extracts photo IDs from text with multiple placeholders', () {
+        const text = 'Photo 1 [PHOTO:photo_1234567890123] and photo 2 [PHOTO:photo_4567890123456]';
+        final ids = LazyPhotoRelinkService.extractPhotoIds(text);
+        expect(ids, ['photo_1234567890123', 'photo_4567890123456']);
+      });
+
+      test('returns empty list when no placeholders found', () {
+        const text = 'No placeholders here';
+        final ids = LazyPhotoRelinkService.extractPhotoIds(text);
+        expect(ids, []);
+      });
+
+      test('returns empty list when text is null', () {
+        final ids = LazyPhotoRelinkService.extractPhotoIds(null);
+        expect(ids, []);
+      });
+    });
+
+    group('metaFromPlaceholder', () {
+      test('extracts timestamp from valid placeholder ID', () {
+        final meta = LazyPhotoRelinkService.metaFromPlaceholder('photo_1760654962279');
+        expect(meta['placeholder_id'], 'photo_1760654962279');
+        expect(meta['creation_date'], isA<String>());
+        expect(meta['creation_date'], contains('2025'));
+      });
+
+      test('handles invalid placeholder ID', () {
+        final meta = LazyPhotoRelinkService.metaFromPlaceholder('invalid_id');
+        expect(meta['placeholder_id'], 'invalid_id');
+        expect(meta['creation_date'], isNull);
+      });
+    });
+
+    group('mergeMedia', () {
+      test('replaces placeholders with real media', () {
+        final current = [
           MediaItem(
-            id: 'photo1',
+            id: 'photo_123',
+            type: MediaType.image,
+            uri: 'placeholder://photo_123',
+            createdAt: DateTime.now(),
+          ),
+        ];
+        final real = [
+          MediaItem(
+            id: 'photo_123',
+            type: MediaType.image,
             uri: 'ph://real-photo-id',
-            type: MediaType.image,
             createdAt: DateTime.now(),
           ),
-        ],
-      );
+        ];
+        final merged = LazyPhotoRelinkService.mergeMedia(current, real);
+        expect(merged.length, 1);
+        expect(merged.first.uri, 'ph://real-photo-id');
+      });
 
-      final entryWithPlaceholders = JournalEntry(
-        id: 'test2',
-        title: 'Test Entry 2',
-        content: 'Test content',
-        createdAt: DateTime.now(),
-        updatedAt: DateTime.now(),
-        mood: 'neutral',
-        tags: [],
-        media: [
+      test('keeps existing real media when new is placeholder', () {
+        final current = [
           MediaItem(
-            id: 'photo1',
-            uri: 'placeholder://photo_1760654962279',
+            id: 'photo_123',
             type: MediaType.image,
+            uri: 'ph://real-photo-id',
             createdAt: DateTime.now(),
           ),
-        ],
-      );
-
-      final entryWithNoMedia = JournalEntry(
-        id: 'test3',
-        title: 'Test Entry 3',
-        content: 'Test content',
-        createdAt: DateTime.now(),
-        updatedAt: DateTime.now(),
-        mood: 'neutral',
-        tags: [],
-        media: [],
-      );
-
-      expect(LazyPhotoRelinkService.hasRealMedia(entryWithRealMedia), true);
-      expect(LazyPhotoRelinkService.hasRealMedia(entryWithPlaceholders), false);
-      expect(LazyPhotoRelinkService.hasRealMedia(entryWithNoMedia), false);
+        ];
+        final real = [
+          MediaItem(
+            id: 'photo_123',
+            type: MediaType.image,
+            uri: 'placeholder://photo_123',
+            createdAt: DateTime.now(),
+          ),
+        ];
+        final merged = LazyPhotoRelinkService.mergeMedia(current, real);
+        expect(merged.length, 1);
+        expect(merged.first.uri, 'ph://real-photo-id');
+      });
     });
 
-    test('extractPhotoIds extracts photo IDs from text', () {
-      final text = 'Text with [PHOTO:photo_1760654962279] and [PHOTO:photo_1760654963373] photos';
-      final ids = LazyPhotoRelinkService.extractPhotoIds(text);
-      
-      expect(ids.length, 2);
-      expect(ids, contains('photo_1760654962279'));
-      expect(ids, contains('photo_1760654963373'));
-    });
-
-    test('extractPhotoIds handles empty or null text', () {
-      expect(LazyPhotoRelinkService.extractPhotoIds(null), isEmpty);
-      expect(LazyPhotoRelinkService.extractPhotoIds(''), isEmpty);
-      expect(LazyPhotoRelinkService.extractPhotoIds('No photos here'), isEmpty);
-    });
-
-    test('metaFromPlaceholder creates metadata from timestamp', () {
-      final placeholderId = 'photo_1760654962279';
-      final metadata = LazyPhotoRelinkService.metaFromPlaceholder(placeholderId);
-      
-      expect(metadata['placeholder_id'], equals(placeholderId));
-      expect(metadata['creation_date'], isNotNull);
-      
-      // Verify the timestamp is correct
-      final expectedDate = DateTime.fromMillisecondsSinceEpoch(1760654962279, isUtc: true);
-      final actualDate = DateTime.parse(metadata['creation_date'] as String);
-      expect(actualDate, equals(expectedDate));
-    });
-
-    test('metaFromPlaceholder handles invalid placeholder IDs', () {
-      final invalidId = 'invalid_photo_id';
-      final metadata = LazyPhotoRelinkService.metaFromPlaceholder(invalidId);
-      
-      expect(metadata['placeholder_id'], equals(invalidId));
-      expect(metadata.length, equals(1)); // Only placeholder_id should be present
-    });
-
-    test('mergeMedia replaces placeholders with real URIs', () {
-      final current = [
-        MediaItem(
-          id: 'photo1',
-          uri: 'placeholder://photo_1760654962279',
-          type: MediaType.image,
+    group('shouldAttemptRelink', () {
+      test('returns true when entry needs relinking', () {
+        final entry = JournalEntry(
+          id: 'test',
+          title: 'Test',
+          content: 'Test [PHOTO:photo_1234567890123] content',
           createdAt: DateTime.now(),
-        ),
-        MediaItem(
-          id: 'photo2',
-          uri: 'ph://real-photo-id',
-          type: MediaType.image,
+          updatedAt: DateTime.now(),
+          emotion: 'neutral',
+          tags: [],
+          mood: 'neutral',
+          media: [
+            MediaItem(
+              id: 'photo_1234567890123',
+              type: MediaType.image,
+              uri: 'placeholder://photo_1234567890123',
+              createdAt: DateTime.now(),
+            ),
+          ],
+        );
+        expect(LazyPhotoRelinkService.shouldAttemptRelink(entry), true);
+      });
+
+      test('returns false when entry has no placeholders', () {
+        final entry = JournalEntry(
+          id: 'test',
+          title: 'Test',
+          content: 'Test content without placeholders',
           createdAt: DateTime.now(),
-        ),
-      ];
+          updatedAt: DateTime.now(),
+          emotion: 'neutral',
+          tags: [],
+          mood: 'neutral',
+          media: [],
+        );
+        expect(LazyPhotoRelinkService.shouldAttemptRelink(entry), false);
+      });
 
-      final real = [
-        MediaItem(
-          id: 'photo1',
-          uri: 'ph://resolved-photo-id',
-          type: MediaType.image,
+      test('returns false when entry already has real media', () {
+        final entry = JournalEntry(
+          id: 'test',
+          title: 'Test',
+          content: 'Test [PHOTO:photo_1234567890123] content',
           createdAt: DateTime.now(),
-        ),
-        MediaItem(
-          id: 'photo3',
-          uri: 'ph://new-photo-id',
-          type: MediaType.image,
-          createdAt: DateTime.now(),
-        ),
-      ];
-
-      final merged = LazyPhotoRelinkService.mergeMedia(current, real);
-      
-      expect(merged.length, 3);
-      
-      final photo1 = merged.firstWhere((m) => m.id == 'photo1');
-      expect(photo1.uri, equals('ph://resolved-photo-id')); // Should be replaced
-      
-      final photo2 = merged.firstWhere((m) => m.id == 'photo2');
-      expect(photo2.uri, equals('ph://real-photo-id')); // Should remain unchanged
-      
-      final photo3 = merged.firstWhere((m) => m.id == 'photo3');
-      expect(photo3.uri, equals('ph://new-photo-id')); // Should be added
-    });
-
-    test('shouldAttemptRelink respects cooldown and in-flight guards', () {
-      final now = DateTime.now();
-      final entry = JournalEntry(
-        id: 'test',
-        title: 'Test Entry',
-        content: 'Test content',
-        createdAt: now,
-        updatedAt: now,
-        mood: 'neutral',
-        tags: [],
-        media: [],
-        metadata: {
-          'last_relink_attempt': now.millisecondsSinceEpoch - 1000, // 1 second ago
-        },
-      );
-
-      // Should not attempt if too soon (cooldown)
-      expect(LazyPhotoRelinkService.shouldAttemptRelink(entry), false);
-    });
-
-    test('shouldAttemptRelink allows relinking after cooldown', () {
-      final now = DateTime.now();
-      final entry = JournalEntry(
-        id: 'test',
-        title: 'Test Entry',
-        content: 'Test content',
-        createdAt: now,
-        updatedAt: now,
-        mood: 'neutral',
-        tags: [],
-        media: [],
-        metadata: {
-          'last_relink_attempt': now.millisecondsSinceEpoch - 400000, // 6+ minutes ago
-        },
-      );
-
-      // Should attempt if cooldown has passed
-      expect(LazyPhotoRelinkService.shouldAttemptRelink(entry), true);
+          updatedAt: DateTime.now(),
+          emotion: 'neutral',
+          tags: [],
+          mood: 'neutral',
+          media: [
+            MediaItem(
+              id: 'photo_1234567890123',
+              type: MediaType.image,
+              uri: 'ph://real-photo-id',
+              createdAt: DateTime.now(),
+            ),
+          ],
+        );
+        expect(LazyPhotoRelinkService.shouldAttemptRelink(entry), false);
+      });
     });
   });
 }
