@@ -129,12 +129,6 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
         // Users can now manually change their phase in the timeline or phase tab
       },
       child: BlocBuilder<TimelineCubit, TimelineState>(
-        buildWhen: (prev, curr) {
-          if (prev is TimelineLoaded && curr is TimelineLoaded) {
-            return prev.hashForUi != curr.hashForUi;
-          }
-          return true; // Always rebuild for non-TimelineLoaded states
-        },
         builder: (context, state) {
           print('DEBUG: BlocBuilder received state: ${state.runtimeType}');
         if (state is TimelineLoaded) {
@@ -419,10 +413,6 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
         }
       });
     } else {
-      // Trigger lazy photo relinking before opening entry
-      final timelineCubit = context.read<TimelineCubit>();
-      await timelineCubit.onEntryOpened(entry.id);
-      
       // Fetch the full journal entry for editing
       try {
         final journalRepository = context.read<JournalRepository>();
@@ -1877,7 +1867,9 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
 
   /// Build text with photo placeholders converted to clickable links
   Widget _buildTextWithPhotoLinks(String text, List<MediaItem> mediaItems) {
-    // Debug logs removed to prevent rebuild spam
+    print('🔍 Timeline: Building text with photo links');
+    print('🔍 Timeline: Text length: ${text.length} chars');
+    print('🔍 Timeline: Available media items: ${mediaItems.length}');
     
     // Create a map of photo IDs to media items for quick lookup
     final mediaMap = <String, MediaItem>{};
@@ -1886,15 +1878,33 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
       final photoId = _extractPhotoIdFromMedia(media);
       if (photoId != null) {
         mediaMap[photoId] = media;
+        print('🔍 Timeline: Mapped photo ID $photoId -> ${media.uri}');
+      } else {
+        print('🔍 Timeline: Could not extract photo ID from media: ${media.id}');
       }
     }
+    
+    print('🔍 Timeline: Media map contains ${mediaMap.length} entries: ${mediaMap.keys.toList()}');
 
     // Parse text for photo placeholders [PHOTO:id]
     final photoPlaceholderRegex = RegExp(r'\[PHOTO:([^\]]+)\]');
     final matches = photoPlaceholderRegex.allMatches(text);
     
+    print('🔍 Timeline: Found ${matches.length} photo placeholders in text');
+    for (final match in matches) {
+      final photoId = match.group(1)!;
+      print('🔍 Timeline: Photo placeholder: [PHOTO:$photoId]');
+      print('🔍 Timeline: Looking for media with ID: $photoId');
+      if (mediaMap.containsKey(photoId)) {
+        print('🔍 Timeline: ✅ Found matching media for $photoId');
+      } else {
+        print('🔍 Timeline: ❌ No matching media found for $photoId');
+      }
+    }
+    
     if (matches.isEmpty) {
       // No photo placeholders, return regular text
+      print('🔍 Timeline: No photo placeholders found, returning regular text');
       return Text(
         text,
         style: bodyStyle(context).copyWith(
@@ -1964,19 +1974,23 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
   /// Extract photo ID from media item
   String? _extractPhotoIdFromMedia(MediaItem media) {
     // Use the media item ID directly - this is the photoId we need
+    print('🔍 Timeline: Extracting photo ID from media: ${media.id} -> ${media.uri}');
     return media.id;
   }
 
   /// Handle photo link tap
   void _onPhotoLinkTapped(MediaItem? mediaItem, String photoId) {
     if (mediaItem != null) {
+      print('🔍 Timeline: Photo link tapped for $photoId -> ${mediaItem.uri}');
       // Check if this is a photo library URI
       if (mediaItem.uri.startsWith('ph://')) {
+        print('🔍 Timeline: Photo library URI detected, checking accessibility...');
         // TODO: Add photo library accessibility check
       }
       // Navigate to photo view or show photo details
       _showPhotoDetails(mediaItem);
     } else {
+      print('🔍 Timeline: Photo not found for ID: $photoId');
       // Show error message
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(

@@ -513,7 +513,7 @@ import CommonCrypto
         result(foundMatch)
     }
 
-    // MARK: - Relink by Metadata (portable) - FIXED VERSION
+    // MARK: - Relink by Metadata (portable)
     private func relinkByMetadata(call: FlutterMethodCall, result: @escaping FlutterResult) {
         guard let args = call.arguments as? [String: Any],
               let meta = args["metadata"] as? [String: Any] else {
@@ -528,92 +528,67 @@ import CommonCrypto
             return
         }
 
-        // Parse inputs with better error handling
+        // Parse inputs
         let creationIso = meta["creation_date"] as? String
         let targetWidth  = meta["pixel_width"]  as? Int
         let targetHeight = meta["pixel_height"] as? Int
         let filename     = meta["filename"]     as? String
         let targetHash   = meta["perceptual_hash"] as? String
-        let timestampMs  = meta["timestampMs"] as? Int
 
-        print("🔍 PhotoLibraryService: Searching for photo with:")
-        print("  - creationIso: \(creationIso ?? "nil")")
-        print("  - filename: \(filename ?? "nil")")
-        print("  - dimensions: \(targetWidth ?? 0)x\(targetHeight ?? 0)")
-        print("  - timestampMs: \(timestampMs ?? 0)")
-
-        let fetchOptions = PHFetchOptions()
-        fetchOptions.sortDescriptors = [NSSortDescriptor(key: "creationDate", ascending: false)]
-
-        var predicateParts: [String] = []
-        var predicateArgs: [Any] = []
-
-        // Build precise date filter (±1 second instead of ±3 minutes)
-        if let iso = creationIso, let date = ISO8601DateFormatter().date(from: iso) {
-            let lower = date.addingTimeInterval(-1.0)
-            let upper = date.addingTimeInterval(1.0)
-            predicateParts.append("(creationDate >= %@) AND (creationDate <= %@)")
-            predicateArgs.append(lower as NSDate)
-            predicateArgs.append(upper as NSDate)
-        } else if let ts = timestampMs {
-            let date = Date(timeIntervalSince1970: TimeInterval(ts) / 1000.0)
-            let lower = date.addingTimeInterval(-1.0)
-            let upper = date.addingTimeInterval(1.0)
-            predicateParts.append("(creationDate >= %@) AND (creationDate <= %@)")
-            predicateArgs.append(lower as NSDate)
-            predicateArgs.append(upper as NSDate)
+        let fetchOpts = PHFetchOptions()
+        // Date window: ±3 minutes around creationDate if provided
+        if let creationIsoString = creationIso, let date = ISO8601DateFormatter().date(from: creationIsoString) {
+            let fromDate = date.addingTimeInterval(-180)
+            let toDate   = date.addingTimeInterval( 180)
+            fetchOpts.predicate = NSPredicate(format: "creationDate >= %@ AND creationDate <= %@", fromDate as NSDate, toDate as NSDate)
         }
+        fetchOpts.sortDescriptors = [NSSortDescriptor(key: "creationDate", ascending: false)]
+        fetchOpts.fetchLimit = 200
 
-        // Add filename filter if available
-        if let filename = filename, !filename.isEmpty {
-            predicateParts.append("filename == %@")
-            predicateArgs.append(filename)
+        let results = PHAsset.fetchAssets(with: .image, options: fetchOpts)
+        if results.count == 0 { result(nil); return }
+
+        // Pass 1: dimension filter
+        var candidates: [PHAsset] = []
+        results.enumerateObjects { asset, _, _ in
+            if let targetWidth = targetWidth, let targetHeight = targetHeight {
+                if asset.pixelWidth == targetWidth && asset.pixelHeight == targetHeight {
+                    candidates.append(asset)
+                }
+            } else {
+                candidates.append(asset)
+            }
         }
+        if candidates.isEmpty { result(nil); return }
 
-        // Apply predicate if we have any filters
-        if !predicateParts.isEmpty {
-            fetchOptions.predicate = NSPredicate(format: predicateParts.joined(separator: " AND "), argumentArray: predicateArgs)
-        }
-
-        let fetch = PHAsset.fetchAssets(with: .image, options: fetchOptions)
-        print("🔍 PhotoLibraryService: Found \(fetch.count) assets matching criteria")
-
-        guard let asset = fetch.firstObject else {
-            print("⚠️ PhotoLibraryService: No matching asset found for filename=\(filename ?? "nil") creationIso=\(creationIso ?? "nil") ts=\(timestampMs ?? 0)")
-            result(nil)
-            return
-        }
-
-        // Additional validation: check dimensions if provided
-        if let targetWidth = targetWidth, let targetHeight = targetHeight {
-            if asset.pixelWidth != targetWidth || asset.pixelHeight != targetHeight {
-                print("⚠️ PhotoLibraryService: Asset dimensions don't match: \(asset.pixelWidth)x\(asset.pixelHeight) vs \(targetWidth)x\(targetHeight)")
-                result(nil)
-                return
+        // Pass 2: filename refinement
+        if let name = filename {
+            let exact = candidates.first(where: { PHAssetResource.assetResources(for: $0).first?.originalFilename == name })
+            if let hit = exact {
+                result(hit.localIdentifier); return
             }
         }
 
-        // Additional validation: check filename if provided
-        if let filename = filename, !filename.isEmpty {
-            let resources = PHAssetResource.assetResources(for: asset)
-            let actualFilename = resources.first?.originalFilename
-            if actualFilename != filename {
-                print("⚠️ PhotoLibraryService: Filename doesn't match: '\(actualFilename ?? "nil")' vs '\(filename)'")
-                result(nil)
-                return
+        // Pass 3: perceptual hash (if present)
+        if let target = targetHash {
+            let opts = PHImageRequestOptions()
+            opts.isSynchronous = true
+            opts.deliveryMode = .fastFormat
+            opts.isNetworkAccessAllowed = true
+            let targetSize = CGSize(width: 8, height: 8)
+            for asset in candidates {
+                var matched = false
+                PHImageManager.default().requestImage(for: asset, targetSize: targetSize, contentMode: .aspectFill, options: opts) { img, _ in
+                    if let img = img, let hash = self.generatePerceptualHash(for: img), hash == target {
+                        matched = true
+                    }
+                }
+                if matched { result(asset.localIdentifier); return }
             }
         }
 
-        print("✅ PhotoLibraryService: Found matching asset: \(asset.localIdentifier)")
-        logCandidateMatch(asset, filename)
-        result(asset.localIdentifier)
-    }
-
-    // MARK: - Debug Helper
-    private func logCandidateMatch(_ asset: PHAsset, _ filename: String?) {
-        let formatter = ISO8601DateFormatter()
-        let dateStr = asset.creationDate.map { formatter.string(from: $0) } ?? "unknown"
-        print("📸 PhotoLibraryService: Matched asset id=\(asset.localIdentifier), filename=\(filename ?? "nil"), creationDate=\(dateStr), dimensions=\(asset.pixelWidth)x\(asset.pixelHeight)")
+        // Last resort: best candidate by recency
+        result(candidates.first?.localIdentifier)
     }
 }
 

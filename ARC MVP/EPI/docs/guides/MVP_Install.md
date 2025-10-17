@@ -2,15 +2,6 @@ ate# EPI MVP Install Guide (Main MVP – Gemini API)
 
 This guide installs and runs the full MVP. The app uses Gemini via the LLMRegistry. If no key is provided (or the API fails), it falls back to the rule‑based client.
 
-## 🛡️ Production-Ready Stability (January 16, 2025)
-The app now includes comprehensive hardening improvements:
-- **Null Safety**: All null cast errors eliminated with safe JSON utilities
-- **Hive Stability**: ArcformPhaseSnapshot adapter with proper JSON string storage
-- **Timeline Performance**: RenderFlex overflow eliminated, rebuild spam reduced
-- **Model Registry**: "Unknown model ID" errors eliminated with validation system
-- **Comprehensive Testing**: 100+ test cases covering all critical functionality
-- **Build System**: All naming conflicts and syntax errors resolved
-
 ## Prerequisites
 - Flutter 3.35+ (stable)
 - Xcode (iOS) and/or Android SDK
@@ -144,14 +135,6 @@ flutter run -d DEVICE_ID --dart-define=GEMINI_API_KEY=$GEMINI_API_KEY
 - **Import**: Settings → MCP Export & Import → Import from MCP. Pick the `.zip` from Files; the app extracts it and imports automatically. If the ZIP has a top‑level folder, the app detects the bundle root.
 - **Quality**: Always exports at high fidelity for maximum data preservation and AI ecosystem compatibility.
 
-### 📸 **Lazy Photo Relinking** ✅ **NEW**
-- **Smart Photo Recovery**: Photos are automatically relinked when you open journal entries, not during import
-- **Cross-Device Support**: Photos can be recovered across devices using metadata matching
-- **Performance Optimized**: Only relinks photos when needed, improving app performance
-- **Intelligent Matching**: Uses creation dates, dimensions, and perceptual hashing for accurate photo recovery
-- **Graceful Fallback**: Shows "Photo unavailable" placeholders when photos cannot be relinked
-- **Cooldown Protection**: 5-minute cooldown prevents excessive relinking attempts
-
 ## What’s in this MVP
 - `lib/llm/*`: LLMClient, GeminiClient (streaming), RuleBasedClient, LLMRegistry
 - Startup selection via `LLMRegistry.initialize()` in `lib/main.dart` with `GEMINI_API_KEY`
@@ -176,7 +159,7 @@ flutter doctor
 ## Run the full MVP
 - Debug (full app):
 ```bash
-0flutter run -d DEVICE_ID --dart-define=GEMINI_API_KEY=YOUR_KEY
+flutter run -d DEVICE_ID --dart-define=GEMINI_API_KEY=YOUR_KEY
 ```
 
 - Profile (recommended for perf testing):

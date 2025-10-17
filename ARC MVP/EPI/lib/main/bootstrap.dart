@@ -14,7 +14,6 @@ import 'package:my_app/utils/flavors.dart';
 import 'package:my_app/models/user_profile_model.dart';
 import 'package:my_app/models/journal_entry_model.dart';
 import 'package:my_app/models/arcform_snapshot_model.dart';
-import 'package:my_app/data/models/arcform_snapshot.dart';
 import 'package:my_app/arc/core/sage_annotation_model.dart';
 import 'package:my_app/data/models/media_item.dart';
 import 'package:my_app/rivet/validation/rivet_storage.dart';
@@ -194,7 +193,7 @@ void _registerHiveAdapters() {
       Hive.registerAdapter(JournalEntryAdapter());
     }
     if (!Hive.isAdapterRegistered(2)) {
-      Hive.registerAdapter(ArcformPhaseSnapshotAdapter());
+      Hive.registerAdapter(ArcformSnapshotAdapter());
     }
     if (!Hive.isAdapterRegistered(3)) {
       Hive.registerAdapter(SAGEAnnotationAdapter());
@@ -405,7 +404,7 @@ Future<void> _openHiveBoxes() async {
   final typedBoxes = <String, Type>{
     Boxes.userProfile: UserProfile,
     Boxes.journalEntries: JournalEntry,
-    Boxes.arcformSnapshots: ArcformPhaseSnapshot,
+    Boxes.arcformSnapshots: ArcformSnapshot,
     Boxes.insights: dynamic, // InsightSnapshot if it exists
     Boxes.coachDropletTemplates: dynamic,
     Boxes.coachDropletResponses: dynamic,
@@ -452,8 +451,8 @@ Future<void> _openTypedBox(String boxName, Type boxType) async {
       await Hive.openBox<UserProfile>(boxName);
     } else if (boxType == JournalEntry) {
       await Hive.openBox<JournalEntry>(boxName);
-    } else if (boxType == ArcformPhaseSnapshot) {
-      await Hive.openBox<ArcformPhaseSnapshot>(boxName);
+    } else if (boxType == ArcformSnapshot) {
+      await Hive.openBox<ArcformSnapshot>(boxName);
     } else {
       await Hive.openBox(boxName); // Generic box
     }

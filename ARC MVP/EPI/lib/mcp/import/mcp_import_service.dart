@@ -19,17 +19,6 @@ import 'package:my_app/features/arcforms/phase_recommender.dart';
 import 'package:my_app/core/services/photo_library_service.dart';
 import 'package:my_app/data/models/photo_metadata.dart';
 
-/// Normalize media extraction to single 'media' key
-List<Map<String, dynamic>> _extractMedia(Map<String, dynamic> meta) {
-  final dynamic a = meta['media'] ?? meta['mediaItems'] ?? meta['attachments'];
-  if (a is List) {
-    return a.whereType<Map>()
-            .map((m) => Map<String, dynamic>.from(m))
-            .toList();
-  }
-  return const [];
-}
-
 /// Result of an MCP import operation
 class McpImportResult {
   final bool success;
@@ -743,46 +732,32 @@ class McpImportService {
     return parts.isNotEmpty ? parts.join('\n') : null;
   }
 
-  /// Extract content with comprehensive fallback: content.narrative → content.text → metadata.content
-  String? _extractContentWithFallback(McpNode node) {
-    // Try content.narrative first
-    if (node.narrative != null) {
-      final narrativeText = _extractNarrativeText(node.narrative);
-      if (narrativeText != null && narrativeText.isNotEmpty) {
-        return narrativeText.trim();
-      }
-    }
-
-    // Try content.text
-    if (node.contentSummary != null && node.contentSummary!.isNotEmpty) {
-      return node.contentSummary!.trim();
-    }
-
-    // Fallback to metadata.content
-    if (node.metadata != null) {
-      final metaContent = node.metadata!['content'] as String?;
-      if (metaContent != null && metaContent.isNotEmpty) {
-        return metaContent.trim();
-      }
-    }
-
-    return null;
-  }
-
   /// Convert MCP Node to JournalEntry
   Future<JournalEntry?> _convertMcpNodeToJournalEntry(McpNode node) async {
     try {
       print('🔄 DEBUG: Converting node ${node.id} to journal entry');
 
-      // Extract content with comprehensive fallback
-      String? content = _extractContentWithFallback(node);
-      if (content == null || content.isEmpty) {
-        print('❌ DEBUG: Skipping journal entry ${node.id} - no content after fallbacks');
-        return null;
-      }
-      print('✅ DEBUG: Got content for ${node.id}: ${content.length} chars');
-
+      // Extract content from the node - check multiple possible locations
+      String content = '';
       String title = 'Imported Entry';
+
+      // Try to get content from the node's content field or metadata
+      if (node.contentSummary != null && node.contentSummary!.isNotEmpty) {
+        content = node.contentSummary!;
+        print('🔄 DEBUG: Got content from contentSummary: ${content.length} chars');
+      } else if (node.narrative != null) {
+        content = _extractNarrativeText(node.narrative) ?? '';
+        print('🔄 DEBUG: Got content from narrative: ${content.length} chars');
+      }
+
+      // Early fallback to metadata.content if content is still missing
+      if (content.isEmpty && node.metadata != null) {
+        final metaContent = node.metadata!['content'] as String?;
+        if (metaContent != null && metaContent.isNotEmpty) {
+          content = metaContent;
+          print('🔄 DEBUG: Got content from metadata.content: ${content.length} chars');
+        }
+      }
 
       // Check if there's content or title in metadata
       if (node.metadata != null) {
@@ -1109,9 +1084,9 @@ class McpImportService {
     print('🔍 MCP Import: Extracting media from placeholders for node ${node.id}');
     
     // Try to get media from root level (captured in metadata)
-    if (node.metadata != null) {
-      final mediaData = _extractMedia(node.metadata!);
-      if (mediaData.isNotEmpty) {
+    if (node.metadata != null && node.metadata!.containsKey('media')) {
+      final mediaData = node.metadata!['media'] as List?;
+      if (mediaData != null && mediaData.isNotEmpty) {
         print('🔄 Found ${mediaData.length} media items at root level');
         
         // Group by type for validation
@@ -1166,9 +1141,9 @@ class McpImportService {
     // Also check for media in journal_entry metadata (legacy support)
     if (node.metadata != null && node.metadata!.containsKey('journal_entry')) {
       final journalMeta = node.metadata!['journal_entry'] as Map<String, dynamic>?;
-      if (journalMeta != null) {
-        final mediaData = _extractMedia(journalMeta);
-        if (mediaData.isNotEmpty) {
+      if (journalMeta != null && journalMeta.containsKey('media')) {
+        final mediaData = journalMeta['media'] as List?;
+        if (mediaData != null && mediaData.isNotEmpty) {
           print('🔄 DEBUG: Found ${mediaData.length} media items in journal_entry metadata');
           int newMediaCount = 0;
           int reusedMediaCount = 0;

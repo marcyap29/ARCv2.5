@@ -4,89 +4,37 @@
 
 ### 🔧 **MCP FILE REPAIR & CHAT/JOURNAL SEPARATION** - January 17, 2025
 
-#### **Architectural Issue Detection & Repair** ✅ **PRODUCTION READY**
-- **Chat/Journal Separation**: Automatically detects when LUMARA chat messages are incorrectly classified as journal entries
-- **Smart Detection**: Uses multiple detection strategies (metadata, content patterns, LUMARA assistant messages)
-- **One-Click Repair**: "Fix Chat/Journal Separation" button appears when issues are detected
-- **Batch Processing**: Repair multiple MCP files simultaneously with progress tracking
-- **Automatic Saving**: Repaired files saved with timestamped names (e.g., `original_repaired_1760692259044.zip`)
+#### **Architectural Issue Detection** ✅ **PRODUCTION READY**
+- **Chat/Journal Separation Analysis**: Automatically detects when LUMARA chat messages are incorrectly classified as journal entries
+- **Smart Detection Logic**: Uses multiple detection strategies (metadata, content patterns, LUMARA assistant messages)
+- **Real-time Analysis**: Integrated into MCP Bundle Health Checker for seamless detection
+- **Visual Indicators**: Clear warnings and statistics showing chat vs journal node counts
 
-#### **Enhanced MCP Bundle Health Checker** ✅ **INTEGRATED**
-- **New Repair Type**: Added `chatJournalSeparation` to repair type enum
-- **Health Analysis**: Chat/journal separation analysis integrated into existing health check process
-- **Visual Indicators**: Summary shows chat and journal node counts with warning highlights
-- **Smart UI**: Repair button only appears when architectural issues are detected
-- **Comprehensive Stats**: Enhanced summary display with chat nodes, journal nodes, and corruption status
+#### **One-Click Repair System** ✅ **IMPLEMENTED**
+- **Automatic Repair**: "Fix Chat/Journal Separation" button appears when issues are detected
+- **Batch Processing**: Repair multiple MCP files simultaneously
+- **Node Type Correction**: Changes misclassified `journal_entry` nodes to `chat_message` type
+- **Metadata Enhancement**: Adds `node_type` and `repaired` flags to all nodes
+- **Verification**: Re-analyzes files after repair to confirm success
 
-#### **Unit-Testable Functions** ✅ **COMPLETE**
-- **ChatJournalDetector**: Pure functions for identifying chat vs journal content
-- **McpFileRepair**: Service for analyzing and repairing MCP files
-- **CLI Tool**: Command-line interface for testing repair functionality
-- **Full Test Coverage**: All functions have comprehensive unit tests
-
-#### **Technical Implementation** ✅ **COMPLETE**
-- **Detection Logic**: `lib/mcp/utils/chat_journal_detector.dart` with multiple detection strategies
-- **Repair Service**: `lib/mcp/utils/mcp_file_repair.dart` with robust MCP file parsing and repair
-- **CLI Tool**: `bin/mcp_repair_tool.dart` for command-line repair operations
-- **Health Integration**: Updated `mcp_bundle_health_view.dart` with repair functionality
-- **Test Suite**: Complete unit tests for all new functionality
-
-### 🛡️ **COMPREHENSIVE APP HARDENING & STABILITY** - January 16, 2025
-
-#### **Production-Ready Stability Improvements** ✅ **COMPLETE**
-- **Null Safety & Type Casting**: Fixed all null cast errors with comprehensive safe JSON utilities and type conversion helpers
-- **Hive Database Stability**: Added ArcformPhaseSnapshot adapter with proper JSON string storage for geometry data
-- **RIVET Map Normalization**: Fixed Map type casting issues with safe conversion utilities and proper type handling
-- **Timeline Performance**: Eliminated RenderFlex overflow errors and reduced rebuild spam with buildWhen guards and stable hashing
-- **Model Registry**: Created comprehensive model validation system to eliminate "Unknown model ID" errors
-- **MCP Media Extraction**: Unified media key handling across MIRA/MCP systems with consistent extraction patterns
-- **Photo Persistence**: Enhanced photo relinking with localIdentifier storage and robust metadata matching
-- **Build System**: Resolved all naming conflicts and syntax errors for clean, successful builds
-
-#### **Comprehensive Testing Suite** ✅ **100+ TEST CASES**
-- **Unit Tests**: Safe JSON utilities, lazy photo relink service, ArcformSnapshot model, RIVET storage
-- **Widget Tests**: Timeline overflow prevention, rebuild control, UI stability
-- **Integration Tests**: Complete photo relink flow, MCP import/export cycle, error recovery
-- **Error Handling**: Null safety, type conversion, graceful fallbacks, corrupted data recovery
-- **Performance Tests**: Timeline rebuild optimization, memory management, UI responsiveness
-
-#### **Technical Implementation Details**
-- **Safe JSON Utils**: `safeString()`, `safeInt()`, `safeBool()`, `normalizeStringMap()` with null safety
-- **ArcformPhaseSnapshot**: Hive typeId 17, JSON string geometry storage, proper serialization
-- **RIVET Storage**: `_asStringMapOrNull()` helper for safe Map type conversion
-- **Timeline Optimization**: `buildWhen` guards, stable hashing, reduced rebuild frequency
-- **Model Registry**: `isValidModelId()`, `getProviderForModel()` with comprehensive validation
-- **Media Extraction**: Unified `_extractMedia()` helper with consistent key handling
-- **Photo Relinking**: Enhanced metadata extraction, localIdentifier persistence, iOS bridge integration
-
-### 📸 **LAZY PHOTO RELINKING SYSTEM** - January 16, 2025
-
-#### **Intelligent Photo Persistence** ✅ **PRODUCTION READY**
-- **Lazy Relinking**: Photos are only relinked when users open entries, not during import or timeline loads
-- **Comprehensive Content Fallback**: Importer now uses content.narrative → content.text → metadata.content fallback chain
-- **iOS Native Bridge**: New PhotoLibraryBridge with photoExistsInLibrary and findPhotoByMetadata methods
-- **Timestamp-Based Recovery**: Extracts creation dates from placeholder IDs for intelligent photo matching
-- **Cooldown Protection**: 5-minute cooldown prevents excessive relinking attempts
-- **In-Flight Guards**: Prevents duplicate relinking operations for the same entry
-
-#### **Enhanced MCP Import/Export** ✅ **IMPROVED**
-- **No More Skipped Entries**: Importer no longer logs "Skipping journal entry... no content found" when metadata.content exists
-- **Real Photo Metadata**: Export now populates actual photo metadata from MediaItems instead of empty placeholders
-- **Robust Content Extraction**: Early fallback to metadata.content ensures LUMARA entries are properly imported
-- **Cross-Device Compatibility**: Photos can be relinked across devices using metadata matching
-
-#### **User Experience Improvements** ✅ **NEW**
-- **On-Demand Relinking**: Photos are relinked only when needed, improving app performance
-- **Clear Logging**: Detailed logs show relink attempts and results for debugging
-- **Seamless Integration**: Works transparently with existing timeline and journal functionality
-- **Error Handling**: Graceful fallback to placeholders when photos cannot be relinked
+#### **Enhanced MCP Bundle Health** ✅ **NEW**
+- **Chat/Journal Statistics**: Summary shows chat nodes and journal nodes counts
+- **Architectural Warnings**: Clear indicators when chat/journal separation issues exist
+- **Repair Integration**: Seamless integration with existing health checker UI
+- **Progress Feedback**: Real-time updates during repair operations
 
 #### **Technical Implementation** ✅ **COMPLETE**
-- **LazyPhotoRelinkService**: `lib/core/services/lazy_photo_relink_service.dart` with comprehensive relinking logic
-- **iOS PhotoLibraryBridge**: `ios/Runner/PhotoLibraryBridge.swift` for native photo library access
-- **Timeline Integration**: Updated TimelineCubit and InteractiveTimelineView for entry-opened events
-- **Comprehensive Testing**: Full unit test coverage for all relinking functionality
-- **Method Channel**: `photo_library` channel for iOS photo library communication
+- **ChatJournalDetector**: `lib/mcp/utils/chat_journal_detector.dart` with detection and separation logic
+- **McpFileRepair**: `lib/mcp/utils/mcp_file_repair.dart` with file analysis and repair functionality
+- **CLI Repair Tool**: `bin/mcp_repair_tool.dart` for command-line repair operations
+- **Health View Integration**: Updated `mcp_bundle_health_view.dart` with repair capabilities
+- **Unit Tests**: Comprehensive test coverage for all repair functions
+
+#### **File Management** ✅ **NEW**
+- **Automatic Saving**: Repaired files saved with `_repaired_timestamp.zip` suffix
+- **Original Preservation**: Original files remain unchanged
+- **Same Directory**: Repaired files saved to same directory as originals
+- **Timestamped Names**: Prevents overwriting and provides clear identification
 
 ### 🧹 **MCP BUNDLE HEALTH & CLEANUP SYSTEM** - January 16, 2025
 
