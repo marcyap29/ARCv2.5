@@ -21,9 +21,20 @@ This directory now follows the comprehensive EPI (Evolving Personal Intelligence
 ### 3. ATLAS Module (`lib/atlas/`)
 **Phase Detection & RIVET** - Adaptive Transition and Life-stage Advancement System
 - `phase_detection/` - Life stage analysis and transition detection
-- `rivet/` - Risk-Validation Evidence Tracker
+- `rivet/` - Risk-Validation Evidence Tracker with unified reflective analysis
 - `privacy/` - Risk-adaptive privacy protection
 - `models/` - Life phase and risk profile models
+
+### 3.1. RIVET Extensions (`lib/rivet/`)
+**Unified Reflective Analysis** - Extended evidence processing for all reflective inputs
+- `validation/` - RIVET models and services with source weighting
+- `models/` - Extended EvidenceSource enum and ReflectiveEntryData model
+- `services/` - Draft and chat analysis services
+
+### 3.2. SENTINEL Extensions (`lib/prism/extractors/`)
+**Enhanced Risk Detection** - Source-aware pattern detection and risk assessment
+- `sentinel_risk_detector.dart` - Weighted analysis methods for all reflective sources
+- `enhanced_keyword_extractor.dart` - Keyword extraction with source weighting
 
 ### 4. MIRA Module (`lib/mira/`)
 **Narrative Intelligence** - Memory graph and story building
@@ -46,7 +57,13 @@ This directory now follows the comprehensive EPI (Evolving Personal Intelligence
 - `privacy/` - Privacy weight adjustment
 - `models/` - Pruning and coherence models
 
-### 7. Privacy Core (`lib/privacy_core/`)
+### 7. Unified Reflective Analysis (`lib/core/`)
+**Cross-Module Services** - Unified analysis across all reflective inputs
+- `models/` - ReflectiveEntryData unified model for journal entries, drafts, and chats
+- `services/` - DraftAnalysisService, ChatAnalysisService, UnifiedReflectiveAnalysisService
+- `integration/` - Cross-module integration and data flow
+
+### 8. Privacy Core (`lib/privacy_core/`)
 **Shared Foundation** - Common privacy interfaces and utilities
 - `interfaces/` - PII detection, masking, and guardrail interfaces
 - `models/` - Privacy data models

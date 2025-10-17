@@ -6,7 +6,23 @@
 
 ## 📚 Documentation Index
 
-### 🔥 Latest Updates (January 8, 2025)
+### 🔥 Latest Updates (January 17, 2025)
+
+**RIVET & SENTINEL Extensions - Unified Reflective Analysis**
+
+Complete implementation of unified reflective analysis system extending RIVET and SENTINEL to process all reflective inputs:
+1. **Extended Evidence Sources** - RIVET now processes `draft` and `lumaraChat` evidence sources alongside journal entries
+2. **ReflectiveEntryData Model** - New unified data model supporting journal entries, drafts, and chat conversations
+3. **Source Weighting System** - Different confidence weights for different input types (journal=1.0, draft=0.6, chat=0.8)
+4. **Draft Analysis Service** - Specialized processing for draft journal entries with phase inference and confidence scoring
+5. **Chat Analysis Service** - Specialized processing for LUMARA conversations with context keywords and conversation quality
+6. **Unified Analysis Service** - Comprehensive analysis across all reflective sources with combined recommendations
+7. **Enhanced SENTINEL Analysis** - Source-aware pattern detection with weighted clustering, persistent distress, and escalation detection
+8. **Backward Compatibility** - Existing journal-only workflows remain unchanged
+
+**Result:** **Complete unified reflective intelligence system** with **source-aware analysis** + **early pattern detection**
+
+### Previous Updates (January 8, 2025)
 
 **Complete Multimodal Processing System + Thumbnail Caching**
 

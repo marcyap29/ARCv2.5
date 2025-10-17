@@ -959,24 +959,36 @@ lib/veil/
       └── coherence_metrics.dart
 
 
-8. RIVET Module: Risk-Validation Evidence Tracker (Updated January 8, 2025)
+8. RIVET Module: Risk-Validation Evidence Tracker (Updated January 17, 2025)
 
-**Deterministic Recompute Pipeline with Undo-on-Delete - PRODUCTION READY**:
+**Unified Reflective Analysis Pipeline - PRODUCTION READY**:
 ```
-Event History → RivetReducer → Deterministic States → Gate Decision
-     ↑              ↓              ↓              ↓
-  Apply/Delete/Edit → Full Recompute → Bounded Indices → Transparent Reasons
+All Reflective Inputs → Source Weighting → RIVET/SENTINEL → Unified Intelligence
+     ↑                      ↓              ↓              ↓
+Journal/Drafts/Chats → Confidence Scoring → Pattern Detection → Recommendations
 ```
 
 **RIVET Architecture Features**:
 ```
-RivetService → Apply/Delete/Edit operations with full recompute
+RivetService → Apply/Delete/Edit operations with full recompute + source weighting
 RivetReducer → Pure functions for deterministic state computation
 RivetStorage → Event log persistence with optional checkpoints
 RivetTelemetry → Enhanced metrics and clear gate explanations
+ReflectiveEntryData → Unified model for journal entries, drafts, and chat conversations
+Source Weighting → Different confidence levels (journal=1.0, draft=0.6, chat=0.8)
 ```
 
 **🚀 CURRENT STATUS: FULLY OPERATIONAL**
+- ✅ **Unified Reflective Analysis**: RIVET now processes journal entries, drafts, and LUMARA chats
+- ✅ **Extended Evidence Sources**: Added `draft` and `lumaraChat` to EvidenceSource enum
+- ✅ **Source Weighting System**: Different confidence weights prevent data contamination
+- ✅ **ReflectiveEntryData Model**: Unified data model supporting all reflective inputs
+- ✅ **Draft Analysis Service**: Specialized processing for draft journal entries
+- ✅ **Chat Analysis Service**: Specialized processing for LUMARA conversations
+- ✅ **Unified Analysis Service**: Comprehensive analysis across all reflective sources
+- ✅ **Phase Inference**: Automatic phase detection from content and context
+- ✅ **Confidence Scoring**: Dynamic confidence calculation based on content quality
+- ✅ **Backward Compatibility**: Existing journal-only workflows remain unchanged
 - ✅ **Deterministic Recompute**: True undo-on-delete behavior with O(n) performance
 - ✅ **Pure Reducer Pattern**: RivetReducer provides deterministic state computation
 - ✅ **Enhanced Models**: RivetEvent with eventId/version, RivetState with gate tracking
@@ -990,11 +1002,94 @@ RivetTelemetry → Enhanced metrics and clear gate explanations
 - ✅ **Independence Tracking**: Different day/source boosts evidence
 - ✅ **Novelty Detection**: Keyword drift increases evidence weight
 - ✅ **Sustainment Gating**: Triple criterion (thresholds + sustainment + independence)
+
+**New Unified Reflective Analysis Architecture (January 17, 2025)**:
+```
+lib/core/
+├── models/
+│   └── reflective_entry_data.dart          # Unified model for all reflective inputs
+├── services/
+│   ├── draft_analysis_service.dart         # Draft entry processing
+│   ├── chat_analysis_service.dart          # LUMARA chat processing
+│   └── unified_reflective_analysis_service.dart  # Combined analysis
+lib/rivet/validation/
+├── rivet_models.dart                       # Extended with new evidence sources
+└── rivet_service.dart                      # Enhanced with source weighting
+lib/prism/extractors/
+└── sentinel_risk_detector.dart             # Weighted analysis methods
+```
+
+**Key Technical Achievements**:
+- ✅ **Extended EvidenceSource Enum**: Added `draft` and `lumaraChat` sources
+- ✅ **ReflectiveEntryData Superclass**: Unified model with source weighting and confidence
+- ✅ **Source Weighting Integration**: Applied throughout RIVET and SENTINEL analysis
+- ✅ **Specialized Analysis Services**: Dedicated services for different input types
+- ✅ **Phase Inference Algorithms**: Automatic phase detection from content patterns
+- ✅ **Confidence Scoring**: Dynamic confidence based on content quality and recency
+- ✅ **Unified Recommendations**: Combined insights from all reflective sources
+- ✅ **Enhanced SENTINEL Analysis**: Source-aware pattern detection and weighting
+- ✅ **Backward Compatibility**: Existing journal-only methods preserved
 - ✅ **Transparency**: Clear "why not" explanations for debugging
 - ✅ **Performance**: O(n) recompute with optional checkpoints
 - ✅ **Safety**: Graceful degradation if recompute fails
-- ✅ **Technical Implementation**:
-  - ✅ **RivetReducer**: Pure functions for deterministic computation
+
+9. SENTINEL Module: Severity Evaluation and Negative Trend Identification (Updated January 17, 2025)
+
+**Unified Risk Detection Pipeline - PRODUCTION READY**:
+```
+All Reflective Inputs → Source Weighting → Pattern Detection → Risk Assessment
+     ↑                      ↓              ↓              ↓
+Journal/Drafts/Chats → Confidence Scoring → Clustering Analysis → Recommendations
+```
+
+**SENTINEL Architecture Features**:
+```
+SentinelRiskDetector → Weighted pattern detection across all reflective sources
+ReflectiveEntryData → Unified input model with source weighting
+Source-Aware Analysis → Different confidence levels for different input types
+Weighted Pattern Detection → Clustering, persistent distress, escalating patterns
+Unified Recommendations → Combined insights from all reflective sources
+```
+
+**🚀 CURRENT STATUS: FULLY OPERATIONAL**
+- ✅ **Unified Reflective Analysis**: SENTINEL now analyzes journal entries, drafts, and LUMARA chats
+- ✅ **Source Weighting Integration**: Different confidence weights applied throughout analysis
+- ✅ **Weighted Pattern Detection**: Source-aware clustering, persistent distress, and escalation detection
+- ✅ **Enhanced Metrics**: Source breakdown, confidence metrics, and data quality indicators
+- ✅ **Unified Recommendations**: Combined recommendations from all reflective sources
+- ✅ **Backward Compatibility**: Existing `analyzeJournalRisk` method preserved
+- ✅ **Risk Level Classifications**: Minimal, Low, Moderate, Elevated, High, Severe
+- ✅ **Temporal Analysis**: Day, 3-day, week, month time windows
+- ✅ **Pattern Detection**: Clustering, persistent distress, escalating patterns
+- ✅ **Phase-Based Adjustments**: Different risk multipliers for different life phases
+- ✅ **Comprehensive Testing**: Full test coverage for all analysis methods
+- ✅ **Mathematical Correctness**: Risk scoring formulas preserved with source weighting
+- ✅ **Source Breakdown**: Detailed analysis of data sources and confidence metrics
+- ✅ **Enhanced Reporting**: Detailed summaries with source-specific insights
+
+**SENTINEL Analysis Methods (January 17, 2025)**:
+```
+lib/prism/extractors/
+└── sentinel_risk_detector.dart
+    ├── analyzeRisk()                    # Main unified analysis method
+    ├── analyzeJournalRisk()             # Backward-compatible journal-only method
+    ├── _calculateMetricsWithWeighting() # Source-weighted metrics calculation
+    ├── _detectPatternsWithWeighting()   # Source-aware pattern detection
+    ├── _detectClustersWithWeighting()   # Weighted clustering analysis
+    ├── _detectPersistentDistressWithWeighting() # Weighted persistent distress
+    ├── _detectEscalatingPatternsWithWeighting() # Weighted escalation detection
+    └── _generateSummaryWithSources()    # Source-aware summary generation
+```
+
+**Key Technical Achievements**:
+- ✅ **Extended Analysis Scope**: Now processes all reflective input types
+- ✅ **Source Weighting System**: Prevents data contamination between source types
+- ✅ **Weighted Pattern Detection**: All analysis methods now support source weighting
+- ✅ **Enhanced Metrics**: Source breakdown, confidence metrics, data quality indicators
+- ✅ **Unified Recommendations**: Combined insights from all reflective sources
+- ✅ **Backward Compatibility**: Existing journal-only workflows preserved
+- ✅ **Mathematical Correctness**: Risk scoring formulas enhanced with source weighting
+- ✅ **Comprehensive Testing**: Full test coverage for all new methods
   - ✅ **RivetService**: Refactored to use reducer pattern
   - ✅ **RivetStorage**: Event log persistence with v2 schema
   - ✅ **RivetTelemetry**: Enhanced with recompute metrics

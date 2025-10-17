@@ -5,9 +5,25 @@
 
 This directory contains comprehensive documentation for the EPI (Evolving Personal Intelligence) project - an 8-module intelligent journaling system built with Flutter.
 
-## 🆕 Latest Updates (January 16, 2025)
+## 🆕 Latest Updates (January 17, 2025)
 
-**🛡️ Comprehensive App Hardening & Stability**
+**🔄 RIVET & SENTINEL Extensions - Unified Reflective Analysis**
+
+Complete implementation of unified reflective analysis system extending RIVET and SENTINEL to process all reflective inputs:
+- **Extended Evidence Sources** - RIVET now processes `draft` and `lumaraChat` evidence sources alongside journal entries
+- **ReflectiveEntryData Model** - New unified data model supporting journal entries, drafts, and chat conversations
+- **Source Weighting System** - Different confidence weights for different input types (journal=1.0, draft=0.6, chat=0.8)
+- **Draft Analysis Service** - Specialized processing for draft journal entries with phase inference and confidence scoring
+- **Chat Analysis Service** - Specialized processing for LUMARA conversations with context keywords and conversation quality
+- **Unified Analysis Service** - Comprehensive analysis across all reflective sources with combined recommendations
+- **Enhanced SENTINEL Analysis** - Source-aware pattern detection with weighted clustering, persistent distress, and escalation detection
+- **Backward Compatibility** - Existing journal-only workflows remain unchanged
+- **Phase Inference** - Automatic phase detection from content patterns and context
+- **Confidence Scoring** - Dynamic confidence calculation based on content quality and recency
+
+*For detailed technical information, see [Changelog - RIVET & SENTINEL Extensions](../changelog/CHANGELOG.md#rivet--sentinel-extensions---january-17-2025)*
+
+**🛡️ Comprehensive App Hardening & Stability (January 16, 2025)**
 
 Complete implementation of production-ready stability improvements:
 - **Null Safety & Type Casting** - Fixed all null cast errors with safe JSON utilities and type conversion helpers
