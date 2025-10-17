@@ -12,7 +12,41 @@ This document summarizes all features and integrations implemented in the multim
 
 ## ✅ Implemented Features
 
-### 1. **Multimodal Integration**
+### 1. **MCP File Repair & Chat/Journal Separation** - January 17, 2025
+
+#### Core Repair Services
+- **ChatJournalDetector** (`lib/mcp/utils/chat_journal_detector.dart`)
+  - Pure, unit-testable functions for identifying chat vs journal content
+  - Multiple detection strategies: metadata, content patterns, LUMARA assistant messages
+  - Separation functions for both `McpNode` and `JournalEntry` objects
+
+- **McpFileRepair** (`lib/mcp/utils/mcp_file_repair.dart`)
+  - Robust MCP file parsing with error handling
+  - Automatic chat/journal separation and repair
+  - File analysis and corruption detection
+  - Timestamped output file generation
+
+#### CLI Tool
+- **MCP Repair Tool** (`bin/mcp_repair_tool.dart`)
+  - Command-line interface for analyzing and repairing MCP files
+  - `analyze` command: Detailed file structure analysis
+  - `repair` command: Automatic repair with before/after comparison
+  - Successfully tested with reference MCP files
+
+#### Health Checker Integration
+- **Enhanced MCP Bundle Health View** (`lib/features/settings/mcp_bundle_health_view.dart`)
+  - Integrated chat/journal separation analysis into existing health check
+  - New "Fix Chat/Journal Separation" button (appears when issues detected)
+  - Enhanced summary statistics with chat and journal node counts
+  - Batch repair functionality with progress tracking
+
+#### Test Coverage
+- **Unit Tests** (`test/mcp/utils/`)
+  - Complete test coverage for `ChatJournalDetector`
+  - Comprehensive tests for `McpFileRepair` functionality
+  - All tests passing with 100% coverage
+
+### 2. **Multimodal Integration**
 
 #### Core Multimodal Services
 - **OCR Service Enhancement** (`lib/core/services/ocr_service.dart`)

@@ -1,11 +1,15 @@
 import 'package:flutter/material.dart';
 import 'dart:io';
+import 'dart:convert';
 import 'package:file_picker/file_picker.dart';
 import 'package:my_app/mcp/validation/mcp_validator.dart';
 import 'package:my_app/mcp/export/manifest_builder.dart';
 import 'package:my_app/mcp/validation/mcp_bundle_repair_service.dart';
 import 'package:my_app/mcp/export/zip_utils.dart';
 import 'package:my_app/mcp/validation/mcp_orphan_detector.dart';
+import 'package:my_app/mcp/utils/chat_journal_detector.dart';
+import 'package:my_app/mcp/utils/mcp_file_repair.dart';
+import 'package:my_app/prism/mcp/models/mcp_schemas.dart';
 import 'package:my_app/shared/app_colors.dart';
 import 'package:my_app/shared/text_style.dart';
 
@@ -363,6 +367,8 @@ class _McpBundleHealthViewState extends State<McpBundleHealthView> {
     final validFiles = _healthReports.where((r) => r.errors.isEmpty).length;
     final totalErrors = _healthReports.fold(0, (sum, r) => sum + r.errors.length);
     final totalWarnings = _healthReports.fold(0, (sum, r) => sum + r.warnings.length);
+    final totalChatNodes = _healthReports.fold(0, (sum, r) => sum + r.chatNodeCount);
+    final totalJournalNodes = _healthReports.fold(0, (sum, r) => sum + r.journalNodeCount);
     
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -385,6 +391,14 @@ class _McpBundleHealthViewState extends State<McpBundleHealthView> {
               const SizedBox(width: 8),
               Expanded(
                 child: _buildStatCard('Warnings', totalWarnings.toString(), Icons.warning),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _buildStatCard('Chat Nodes', totalChatNodes.toString(), Icons.chat),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _buildStatCard('Journal Nodes', totalJournalNodes.toString(), Icons.book),
               ),
             ],
           );
@@ -412,6 +426,18 @@ class _McpBundleHealthViewState extends State<McpBundleHealthView> {
                   const SizedBox(width: 8),
                   Expanded(
                     child: _buildStatCard('Warnings', totalWarnings.toString(), Icons.warning),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Expanded(
+                    child: _buildStatCard('Chat Nodes', totalChatNodes.toString(), Icons.chat),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: _buildStatCard('Journal Nodes', totalJournalNodes.toString(), Icons.book),
                   ),
                 ],
               ),
@@ -719,6 +745,8 @@ class _McpBundleHealthViewState extends State<McpBundleHealthView> {
         r.errors.any((e) => e.title.contains('Manifest')));
     final canCleanup = _healthReports.isNotEmpty && 
         _healthReports.any((r) => r.orphanNodeCount > 0 || r.duplicateEntryCount > 0);
+    final hasChatJournalIssues = _healthReports.isNotEmpty && 
+        _healthReports.any((r) => r.hasChatJournalCorruption);
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -776,6 +804,21 @@ class _McpBundleHealthViewState extends State<McpBundleHealthView> {
                     label: const Text('Clean Orphans & Duplicates'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: kcPrimaryColor,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                  ),
+                ),
+              ],
+              if (hasChatJournalIssues) ...[
+                const SizedBox(width: 8),
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: _isRepairing ? null : _repairChatJournalSeparation,
+                    icon: const Icon(Icons.architecture),
+                    label: const Text('Fix Chat/Journal Separation'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: kcWarningColor,
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(vertical: 12),
                     ),
@@ -843,6 +886,22 @@ class _McpBundleHealthViewState extends State<McpBundleHealthView> {
                     label: const Text('Clean Orphans & Duplicates'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: kcPrimaryColor,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                  ),
+                ),
+              ],
+              if (hasChatJournalIssues) ...[
+                const SizedBox(height: 8),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: _isRepairing ? null : _repairChatJournalSeparation,
+                    icon: const Icon(Icons.architecture),
+                    label: const Text('Fix Chat/Journal Separation'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: kcWarningColor,
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(vertical: 12),
                     ),
@@ -1632,6 +1691,9 @@ class _McpBundleHealthViewState extends State<McpBundleHealthView> {
           report.duplicatePointerCount = orphanAnalysis.duplicatePointerCount;
           report.duplicateEdgeCount = orphanAnalysis.duplicateEdgeCount;
           
+          // Run chat/journal separation analysis
+          await _analyzeChatJournalSeparation(tempDir, report);
+          
           // Add orphan details
           report.orphanDetails = [
             ...orphanAnalysis.orphanNodes.take(5),
@@ -1712,6 +1774,161 @@ class _McpBundleHealthViewState extends State<McpBundleHealthView> {
 
     return report;
   }
+
+  /// Analyze chat/journal separation in the bundle
+  Future<void> _analyzeChatJournalSeparation(Directory tempDir, BundleHealthReport report) async {
+    try {
+      // Read nodes.jsonl file
+      final nodesFile = File('${tempDir.path}/nodes.jsonl');
+      if (!await nodesFile.exists()) {
+        return;
+      }
+
+      final nodesContent = await nodesFile.readAsString();
+      final nodeLines = nodesContent.trim().split('\n').where((line) => line.isNotEmpty);
+      
+      int chatCount = 0;
+      int journalCount = 0;
+      final chatJournalDetails = <String>[];
+
+      for (final line in nodeLines) {
+        try {
+          final nodeData = jsonDecode(line) as Map<String, dynamic>;
+          final node = McpNode.fromJson(nodeData);
+          
+          if (node.type == 'journal_entry') {
+            if (ChatJournalDetector.isChatMessageNode(node)) {
+              chatCount++;
+              chatJournalDetails.add('Chat message misclassified as journal: ${node.id}');
+            } else {
+              journalCount++;
+            }
+          } else if (node.type == 'chat_message') {
+            chatCount++;
+          }
+        } catch (e) {
+          // Skip malformed nodes
+          continue;
+        }
+      }
+
+      // Update report
+      report.chatNodeCount = chatCount;
+      report.journalNodeCount = journalCount;
+      report.hasChatJournalCorruption = chatJournalDetails.isNotEmpty;
+      report.chatJournalDetails = chatJournalDetails.take(5).toList();
+
+      // Add warnings for chat/journal corruption
+      if (chatJournalDetails.isNotEmpty) {
+        report.warnings.add(HealthIssue(
+          title: 'Chat/Journal Separation Issue',
+          description: '${chatJournalDetails.length} chat messages are incorrectly classified as journal entries',
+          suggestion: 'Use the "Fix Chat/Journal Separation" button to repair this architectural issue',
+        ));
+      }
+
+    } catch (e) {
+      report.warnings.add(HealthIssue(
+        title: 'Chat/Journal Analysis Failed',
+        description: 'Failed to analyze chat/journal separation: $e',
+        suggestion: 'Bundle may be corrupted or in an unexpected format',
+      ));
+    }
+  }
+
+  /// Repair chat/journal separation issues
+  Future<void> _repairChatJournalSeparation() async {
+    if (_selectedBundlePaths.isEmpty) return;
+
+    setState(() {
+      _isRepairing = true;
+    });
+
+    try {
+      int successCount = 0;
+      final allRepairs = <BundleRepair>[];
+      final allErrors = <String>[];
+
+      for (int i = 0; i < _selectedBundlePaths.length; i++) {
+        final zipFile = File(_selectedBundlePaths[i]);
+        
+        try {
+          // Use our MCP File Repair service
+          final repairedPath = await McpFileRepair.repairMcpFile(zipFile.path);
+          
+          // Verify the repair worked
+          final analysis = await McpFileRepair.analyzeMcpFile(repairedPath);
+          
+          if (!analysis.hasCorruption) {
+            successCount++;
+            allRepairs.add(BundleRepair(
+              type: RepairType.chatJournalSeparation,
+              description: 'Fixed chat/journal separation: ${zipFile.path.split('/').last}',
+              severity: RepairSeverity.high,
+            ));
+            
+            // Show success message for this file
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('✅ Fixed chat/journal separation in ${zipFile.path.split('/').last}'),
+                  backgroundColor: kcSuccessColor,
+                  duration: const Duration(seconds: 2),
+                ),
+              );
+            }
+          } else {
+            allErrors.add('Failed to repair ${zipFile.path.split('/').last}: Still has corruption');
+          }
+          
+        } catch (e) {
+          allErrors.add('Failed to repair ${zipFile.path.split('/').last}: $e');
+        }
+        
+        // Update progress
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Repaired ${i + 1}/${_selectedBundlePaths.length} files...'),
+              duration: const Duration(seconds: 1),
+            ),
+          );
+        }
+      }
+      
+      // Show repair summary
+      if (allRepairs.isNotEmpty) {
+        _showRepairSummary(allRepairs);
+      }
+      
+      // Re-analyze after repair
+      await _analyzeBundles();
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Chat/Journal repair completed: $successCount/${_selectedBundlePaths.length} files repaired'),
+            backgroundColor: successCount > 0 ? kcSuccessColor : kcDangerColor,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+      
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Chat/Journal repair failed: $e'),
+            backgroundColor: kcDangerColor,
+          ),
+        );
+      }
+    } finally {
+      setState(() {
+        _isRepairing = false;
+      });
+    }
+  }
 }
 
 // Data models
@@ -1743,6 +1960,12 @@ class BundleHealthReport {
   int duplicateEdgeCount;
   List<String> orphanDetails;
   List<String> duplicateDetails;
+  
+  // Chat/Journal separation fields
+  int chatNodeCount;
+  int journalNodeCount;
+  bool hasChatJournalCorruption;
+  List<String> chatJournalDetails;
 
   BundleHealthReport({
     required this.bundleId,
@@ -1763,6 +1986,10 @@ class BundleHealthReport {
     this.duplicateEdgeCount = 0,
     this.orphanDetails = const [],
     this.duplicateDetails = const [],
+    this.chatNodeCount = 0,
+    this.journalNodeCount = 0,
+    this.hasChatJournalCorruption = false,
+    this.chatJournalDetails = const [],
   });
 }
 

@@ -536,6 +536,7 @@ enum RepairType {
   invalidRecord,
   checksumMismatch,
   dataIntegrity,
+  chatJournalSeparation,
 }
 
 /// Severity levels for repairs

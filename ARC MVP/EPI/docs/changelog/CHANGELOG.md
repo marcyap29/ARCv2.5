@@ -2,6 +2,35 @@
 
 ## [Unreleased]
 
+### 🔧 **MCP FILE REPAIR & CHAT/JOURNAL SEPARATION** - January 17, 2025
+
+#### **Architectural Issue Detection & Repair** ✅ **PRODUCTION READY**
+- **Chat/Journal Separation**: Automatically detects when LUMARA chat messages are incorrectly classified as journal entries
+- **Smart Detection**: Uses multiple detection strategies (metadata, content patterns, LUMARA assistant messages)
+- **One-Click Repair**: "Fix Chat/Journal Separation" button appears when issues are detected
+- **Batch Processing**: Repair multiple MCP files simultaneously with progress tracking
+- **Automatic Saving**: Repaired files saved with timestamped names (e.g., `original_repaired_1760692259044.zip`)
+
+#### **Enhanced MCP Bundle Health Checker** ✅ **INTEGRATED**
+- **New Repair Type**: Added `chatJournalSeparation` to repair type enum
+- **Health Analysis**: Chat/journal separation analysis integrated into existing health check process
+- **Visual Indicators**: Summary shows chat and journal node counts with warning highlights
+- **Smart UI**: Repair button only appears when architectural issues are detected
+- **Comprehensive Stats**: Enhanced summary display with chat nodes, journal nodes, and corruption status
+
+#### **Unit-Testable Functions** ✅ **COMPLETE**
+- **ChatJournalDetector**: Pure functions for identifying chat vs journal content
+- **McpFileRepair**: Service for analyzing and repairing MCP files
+- **CLI Tool**: Command-line interface for testing repair functionality
+- **Full Test Coverage**: All functions have comprehensive unit tests
+
+#### **Technical Implementation** ✅ **COMPLETE**
+- **Detection Logic**: `lib/mcp/utils/chat_journal_detector.dart` with multiple detection strategies
+- **Repair Service**: `lib/mcp/utils/mcp_file_repair.dart` with robust MCP file parsing and repair
+- **CLI Tool**: `bin/mcp_repair_tool.dart` for command-line repair operations
+- **Health Integration**: Updated `mcp_bundle_health_view.dart` with repair functionality
+- **Test Suite**: Complete unit tests for all new functionality
+
 ### 🛡️ **COMPREHENSIVE APP HARDENING & STABILITY** - January 16, 2025
 
 #### **Production-Ready Stability Improvements** ✅ **COMPLETE**
