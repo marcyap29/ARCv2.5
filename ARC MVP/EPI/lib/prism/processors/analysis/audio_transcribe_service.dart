@@ -247,11 +247,8 @@ class NativeTranscribeService implements AudioTranscribeService {
           final endTime = ((i + 1) / sentences.length) * audioInfo.duration;
           
           segments.add(TranscriptSegment(
+            ts: [startTime, endTime],
             text: sentence,
-            startTime: startTime,
-            endTime: endTime,
-            confidence: 0.9, // High confidence for native transcription
-            speaker: enableDiarization ? 'speaker_1' : null,
           ));
         }
       }
@@ -267,7 +264,7 @@ class NativeTranscribeService implements AudioTranscribeService {
           ));
         }
       }
-    } else {
+      } else {
       // Create segments based on time windows
       const segmentDuration = 30.0; // seconds
       final numSegments = (audioInfo.duration / segmentDuration).ceil();
@@ -281,6 +278,7 @@ class NativeTranscribeService implements AudioTranscribeService {
           ts: [startTime.toDouble(), endTime.toDouble()],
           text: transcript,
         ));
+      }
       }
     }
 

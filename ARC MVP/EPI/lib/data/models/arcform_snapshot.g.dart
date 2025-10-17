@@ -6,17 +6,17 @@ part of 'arcform_snapshot.dart';
 // TypeAdapterGenerator
 // **************************************************************************
 
-class ArcformSnapshotAdapter extends TypeAdapter<ArcformSnapshot> {
+class ArcformPhaseSnapshotAdapter extends TypeAdapter<ArcformPhaseSnapshot> {
   @override
   final int typeId = 17;
 
   @override
-  ArcformSnapshot read(BinaryReader reader) {
+  ArcformPhaseSnapshot read(BinaryReader reader) {
     final numOfFields = reader.readByte();
     final fields = <int, dynamic>{
       for (int i = 0; i < numOfFields; i++) reader.readByte(): reader.read(),
     };
-    return ArcformSnapshot(
+    return ArcformPhaseSnapshot(
       phase: fields[0] as String,
       geometryJson: fields[1] as String,
       timestamp: fields[2] as DateTime,
@@ -25,7 +25,7 @@ class ArcformSnapshotAdapter extends TypeAdapter<ArcformSnapshot> {
   }
 
   @override
-  void write(BinaryWriter writer, ArcformSnapshot obj) {
+  void write(BinaryWriter writer, ArcformPhaseSnapshot obj) {
     writer
       ..writeByte(4)
       ..writeByte(0)
@@ -44,7 +44,7 @@ class ArcformSnapshotAdapter extends TypeAdapter<ArcformSnapshot> {
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      other is ArcformSnapshotAdapter &&
+      other is ArcformPhaseSnapshotAdapter &&
           runtimeType == other.runtimeType &&
           typeId == other.typeId;
 }

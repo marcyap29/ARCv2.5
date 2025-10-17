@@ -4,7 +4,7 @@ import 'package:hive/hive.dart';
 part 'arcform_snapshot.g.dart';
 
 @HiveType(typeId: 17)
-class ArcformSnapshot extends HiveObject {
+class ArcformPhaseSnapshot extends HiveObject {
   @HiveField(0)
   final String phase;
   
@@ -17,15 +17,15 @@ class ArcformSnapshot extends HiveObject {
   @HiveField(3)
   final String? description;
 
-  ArcformSnapshot({
+  ArcformPhaseSnapshot({
     required this.phase,
     required this.geometryJson,
     required this.timestamp,
     this.description,
   });
 
-  factory ArcformSnapshot.fromMap(Map<String, dynamic> map) {
-    return ArcformSnapshot(
+  factory ArcformPhaseSnapshot.fromMap(Map<String, dynamic> map) {
+    return ArcformPhaseSnapshot(
       phase: map['phase'] as String? ?? 'unknown',
       geometryJson: map['geometry'] is String 
           ? map['geometry'] as String 
@@ -54,8 +54,8 @@ class ArcformSnapshot extends HiveObject {
   }
 
   // Helper to update geometry
-  ArcformSnapshot copyWithGeometry(Map<String, dynamic> newGeometry) {
-    return ArcformSnapshot(
+  ArcformPhaseSnapshot copyWithGeometry(Map<String, dynamic> newGeometry) {
+    return ArcformPhaseSnapshot(
       phase: phase,
       geometryJson: jsonEncode(newGeometry),
       timestamp: timestamp,

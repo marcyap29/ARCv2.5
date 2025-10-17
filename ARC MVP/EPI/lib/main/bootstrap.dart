@@ -194,7 +194,7 @@ void _registerHiveAdapters() {
       Hive.registerAdapter(JournalEntryAdapter());
     }
     if (!Hive.isAdapterRegistered(2)) {
-      Hive.registerAdapter(ArcformSnapshotAdapter());
+      Hive.registerAdapter(ArcformPhaseSnapshotAdapter());
     }
     if (!Hive.isAdapterRegistered(3)) {
       Hive.registerAdapter(SAGEAnnotationAdapter());
@@ -405,7 +405,7 @@ Future<void> _openHiveBoxes() async {
   final typedBoxes = <String, Type>{
     Boxes.userProfile: UserProfile,
     Boxes.journalEntries: JournalEntry,
-    Boxes.arcformSnapshots: ArcformSnapshot,
+    Boxes.arcformSnapshots: ArcformPhaseSnapshot,
     Boxes.insights: dynamic, // InsightSnapshot if it exists
     Boxes.coachDropletTemplates: dynamic,
     Boxes.coachDropletResponses: dynamic,
@@ -452,8 +452,8 @@ Future<void> _openTypedBox(String boxName, Type boxType) async {
       await Hive.openBox<UserProfile>(boxName);
     } else if (boxType == JournalEntry) {
       await Hive.openBox<JournalEntry>(boxName);
-    } else if (boxType == ArcformSnapshot) {
-      await Hive.openBox<ArcformSnapshot>(boxName);
+    } else if (boxType == ArcformPhaseSnapshot) {
+      await Hive.openBox<ArcformPhaseSnapshot>(boxName);
     } else {
       await Hive.openBox(boxName); // Generic box
     }
