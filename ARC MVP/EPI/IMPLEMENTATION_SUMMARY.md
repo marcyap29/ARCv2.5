@@ -12,7 +12,39 @@ This document summarizes all features and integrations implemented in the multim
 
 ## ✅ Implemented Features
 
-### 1. **Journal Editor Enhancements** 🆕
+### 1. **RIVET & SENTINEL Extensions** 🆕
+
+#### Unified Reflective Analysis
+- **Extended Evidence Sources**: RIVET now processes `draft` and `lumaraChat` evidence sources alongside journal entries
+- **ReflectiveEntryData Model**: New unified data model supporting journal entries, drafts, and chat conversations
+- **Source Weighting System**: Different confidence weights for different input types (journal=1.0, draft=0.6, chat=0.8)
+- **Unified Analysis Service**: Single service for analyzing all reflective inputs through RIVET and SENTINEL
+
+#### Draft Entry Analysis
+- **DraftAnalysisService**: Specialized service for processing draft journal entries
+- **Phase Inference**: Automatic phase detection from draft content and keywords
+- **Confidence Scoring**: Dynamic confidence calculation based on content quality and recency
+- **Keyword Extraction**: Enhanced keyword extraction from draft content using existing extractors
+
+#### LUMARA Chat Analysis
+- **ChatAnalysisService**: Specialized service for processing LUMARA conversations
+- **Context Keywords**: Automatic generation of chat-specific context keywords
+- **Conversation Quality**: Analysis of conversation balance and quality metrics
+- **Phase Inference**: Phase detection from chat conversation patterns and context
+
+#### Enhanced SENTINEL Analysis
+- **Weighted Pattern Detection**: Source-aware clustering, persistent distress, and escalating pattern detection
+- **Source Breakdown**: Detailed analysis of data sources and confidence metrics in reports
+- **Unified Recommendations**: Combined recommendations from all reflective sources
+- **Backward Compatibility**: Maintains existing `analyzeJournalRisk` method for journal entries only
+
+#### Technical Implementation
+- **Extended EvidenceSource Enum**: Added `draft` and `lumaraChat` sources to RIVET models
+- **Enhanced RivetEvent**: Factory methods for different source types with source weighting
+- **Weighted Analysis Methods**: All SENTINEL methods now support source weighting and confidence
+- **Unified Service Architecture**: Clean separation of concerns with specialized analysis services
+
+### 2. **Journal Editor Enhancements** 🆕
 
 #### Smart Save Behavior
 - **No Unnecessary Prompts**: Eliminates save-to-drafts dialog when viewing existing entries without changes

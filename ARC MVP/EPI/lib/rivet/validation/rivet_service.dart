@@ -76,11 +76,12 @@ class RivetService {
     final sample = _sampleALIGN(event.predPhase, event.refPhase, event.tolerance);
     final newAlign = (1 - beta) * state.align + beta * sample;
 
-    // Update TRACE with saturating accumulator
+    // Update TRACE with saturating accumulator and source weighting
     const baseWeight = 1.0;
     final independenceBoost = _independenceMultiplier(event, lastEvent);
     final noveltyBoost = _noveltyMultiplier(event, lastEvent);
-    final evidenceIncrement = baseWeight * independenceBoost * noveltyBoost;
+    final sourceWeight = event.sourceWeight; // Apply source weighting
+    final evidenceIncrement = baseWeight * independenceBoost * noveltyBoost * sourceWeight;
 
     // Convert current TRACE back to accumulated mass, add increment, re-saturate
     final currentMass = -K * math.log(1 - state.trace.clamp(0, 0.999999));

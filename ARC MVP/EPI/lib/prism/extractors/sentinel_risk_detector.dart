@@ -12,6 +12,7 @@ library;
 
 import 'dart:math';
 import 'package:my_app/prism/extractors/enhanced_keyword_extractor.dart';
+import '../../core/models/reflective_entry_data.dart';
 
 /// Risk level classifications
 enum RiskLevel {
@@ -147,9 +148,9 @@ class SentinelAnalysis {
 class SentinelRiskDetector {
   static const SentinelConfig _defaultConfig = SentinelConfig.defaultConfig;
 
-  /// Analyze journal entries for risk patterns
+  /// Analyze reflective entries (journal, drafts, chats) for risk patterns
   static SentinelAnalysis analyzeRisk({
-    required List<JournalEntryData> entries,
+    required List<ReflectiveEntryData> entries,
     required TimeWindow timeWindow,
     SentinelConfig config = _defaultConfig,
   }) {
@@ -183,14 +184,14 @@ class SentinelRiskDetector {
       );
     }
 
-    // Calculate metrics
-    final metrics = _calculateMetrics(filteredEntries, config);
+    // Calculate metrics with source weighting
+    final metrics = _calculateMetricsWithWeighting(filteredEntries, config);
 
-    // Detect patterns
-    final patterns = _detectPatterns(filteredEntries, config);
+    // Detect patterns with source awareness
+    final patterns = _detectPatternsWithWeighting(filteredEntries, config);
 
-    // Calculate risk score
-    final riskScore = _calculateRiskScore(metrics, patterns, config);
+    // Calculate risk score with source weighting
+    final riskScore = _calculateRiskScoreWithWeighting(metrics, patterns, config);
 
     // Determine risk level
     final riskLevel = _determineRiskLevel(riskScore);
@@ -198,8 +199,8 @@ class SentinelRiskDetector {
     // Generate recommendations
     final recommendations = _generateRecommendations(riskLevel, patterns, metrics);
 
-    // Generate summary
-    final summary = _generateSummary(riskLevel, patterns, metrics, filteredEntries.length);
+    // Generate summary with source breakdown
+    final summary = _generateSummaryWithSources(riskLevel, patterns, metrics, filteredEntries);
 
     return SentinelAnalysis(
       riskLevel: riskLevel,
@@ -211,7 +212,103 @@ class SentinelRiskDetector {
     );
   }
 
-  /// Calculate various metrics from entries
+  /// Backward-compatible method for journal entries only
+  static SentinelAnalysis analyzeJournalRisk({
+    required List<JournalEntryData> entries,
+    required TimeWindow timeWindow,
+    SentinelConfig config = _defaultConfig,
+  }) {
+    // Convert JournalEntryData to ReflectiveEntryData
+    final reflectiveEntries = entries.map((entry) => ReflectiveEntryData.fromJournalEntry(
+      timestamp: entry.timestamp,
+      keywords: entry.keywords,
+      phase: entry.phase,
+      mood: entry.mood,
+    )).toList();
+
+    return analyzeRisk(
+      entries: reflectiveEntries,
+      timeWindow: timeWindow,
+      config: config,
+    );
+  }
+
+  /// Calculate metrics with source weighting for ReflectiveEntryData
+  static Map<String, dynamic> _calculateMetricsWithWeighting(
+    List<ReflectiveEntryData> entries,
+    SentinelConfig config,
+  ) {
+    final metrics = <String, dynamic>{};
+
+    // Amplitude statistics with source weighting
+    final amplitudes = <double>[];
+    final highAmplitudeCount = <int>[0];
+    final criticalAmplitudeCount = <int>[0];
+    final sourceBreakdown = <String, int>{};
+
+    for (final entry in entries) {
+      double maxAmplitude = 0.0;
+      final sourceWeight = entry.effectiveConfidence;
+      
+      // Track source breakdown
+      sourceBreakdown[entry.source.toString()] = (sourceBreakdown[entry.source.toString()] ?? 0) + 1;
+      
+      for (final keyword in entry.keywords) {
+        final baseAmplitude = EnhancedKeywordExtractor.emotionAmplitudeMap[keyword.toLowerCase()] ?? 0.0;
+        final weightedAmplitude = baseAmplitude * sourceWeight;
+        amplitudes.add(weightedAmplitude);
+        
+        if (weightedAmplitude >= config.highAmplitudeThreshold) {
+          highAmplitudeCount[0]++;
+        }
+        if (weightedAmplitude >= config.criticalAmplitudeThreshold) {
+          criticalAmplitudeCount[0]++;
+        }
+        if (weightedAmplitude > maxAmplitude) {
+          maxAmplitude = weightedAmplitude;
+        }
+      }
+    }
+
+    // Calculate statistics
+    final avgAmplitude = amplitudes.isEmpty ? 0.0 : amplitudes.reduce((a, b) => a + b) / amplitudes.length;
+    final maxAmplitude = amplitudes.isEmpty ? 0.0 : amplitudes.reduce(max);
+
+    metrics['total_entries'] = entries.length;
+    metrics['avg_amplitude'] = avgAmplitude;
+    metrics['max_amplitude'] = maxAmplitude;
+    metrics['high_amplitude_count'] = highAmplitudeCount[0];
+    metrics['critical_amplitude_count'] = criticalAmplitudeCount[0];
+    metrics['high_amplitude_rate'] = entries.isEmpty ? 0.0 : highAmplitudeCount[0] / entries.length;
+    metrics['source_breakdown'] = sourceBreakdown;
+
+    // Temporal metrics
+    final daySpan = entries.last.timestamp.difference(entries.first.timestamp).inDays;
+    metrics['day_span'] = daySpan;
+    metrics['entries_per_day'] = daySpan == 0 ? entries.length.toDouble() : entries.length / daySpan;
+
+    // Negative keyword dominance with weighting
+    final negativeKeywords = _countNegativeKeywordsWithWeighting(entries);
+    final totalKeywords = entries.fold<double>(0, (sum, entry) => sum + (entry.keywords.length * entry.effectiveConfidence));
+    metrics['negative_keyword_ratio'] = totalKeywords == 0 ? 0.0 : negativeKeywords / totalKeywords;
+
+    // Phase distribution
+    final phaseCounts = <String, int>{};
+    for (final entry in entries) {
+      phaseCounts[entry.phase] = (phaseCounts[entry.phase] ?? 0) + 1;
+    }
+    metrics['phase_distribution'] = phaseCounts;
+
+    // Source confidence metrics
+    final avgConfidence = entries.fold<double>(0, (sum, entry) => sum + entry.effectiveConfidence) / entries.length;
+    final highConfidenceCount = entries.where((e) => e.isHighConfidence).length;
+    metrics['avg_confidence'] = avgConfidence;
+    metrics['high_confidence_ratio'] = entries.isEmpty ? 0.0 : highConfidenceCount / entries.length;
+
+    return metrics;
+  }
+
+  /// Calculate various metrics from entries (legacy method)
   static Map<String, dynamic> _calculateMetrics(
     List<JournalEntryData> entries,
     SentinelConfig config,
@@ -836,5 +933,290 @@ class SentinelRiskDetector {
     ];
 
     return negativeCategories.contains(keyword.toLowerCase());
+  }
+
+  /// Count negative keywords with source weighting
+  static double _countNegativeKeywordsWithWeighting(List<ReflectiveEntryData> entries) {
+    double count = 0.0;
+    for (final entry in entries) {
+      for (final keyword in entry.keywords) {
+        if (_isNegativeKeyword(keyword)) {
+          count += entry.effectiveConfidence;
+        }
+      }
+    }
+    return count;
+  }
+
+  /// Detect patterns with source weighting
+  static List<RiskPattern> _detectPatternsWithWeighting(
+    List<ReflectiveEntryData> entries,
+    SentinelConfig config,
+  ) {
+    final patterns = <RiskPattern>[];
+
+    // High amplitude clustering with weighting
+    final clusters = _detectClustersWithWeighting(entries, config);
+    patterns.addAll(clusters);
+
+    // Persistent distress with weighting
+    final persistent = _detectPersistentDistressWithWeighting(entries, config);
+    if (persistent != null) patterns.add(persistent);
+
+    // Escalating patterns with weighting
+    final escalating = _detectEscalatingPatternsWithWeighting(entries, config);
+    if (escalating != null) patterns.add(escalating);
+
+    return patterns;
+  }
+
+  /// Detect clusters with source weighting
+  static List<RiskPattern> _detectClustersWithWeighting(
+    List<ReflectiveEntryData> entries,
+    SentinelConfig config,
+  ) {
+    final patterns = <RiskPattern>[];
+    final windowHours = config.clusterWindowHours;
+    final minSize = config.clusterMinSize;
+
+    for (int i = 0; i < entries.length; i++) {
+      final cluster = <ReflectiveEntryData>[];
+      final startTime = entries[i].timestamp;
+
+      // Find entries within the time window
+      for (int j = i; j < entries.length; j++) {
+        final timeDiff = entries[j].timestamp.difference(startTime).inHours;
+        if (timeDiff <= windowHours) {
+          cluster.add(entries[j]);
+        } else {
+          break;
+        }
+      }
+
+      // Check if cluster meets criteria with weighting
+      if (cluster.length >= minSize) {
+        final weightedSeverity = _getClusterSeverityWithWeighting(cluster, config);
+        if (weightedSeverity > 0.5) {
+          patterns.add(RiskPattern(
+            type: 'cluster',
+            description: 'High-amplitude emotional keywords clustered over ${windowHours}h',
+            severity: weightedSeverity,
+            affectedDates: cluster.map((e) => e.timestamp).toList(),
+            triggerKeywords: cluster
+                .expand((e) => e.keywords)
+                .where((kw) => EnhancedKeywordExtractor.emotionAmplitudeMap[kw.toLowerCase()] ?? 0.0 >= config.highAmplitudeThreshold)
+                .toSet()
+                .toList(),
+          ));
+        }
+      }
+    }
+
+    return patterns;
+  }
+
+  /// Detect persistent distress with weighting
+  static RiskPattern? _detectPersistentDistressWithWeighting(
+    List<ReflectiveEntryData> entries,
+    SentinelConfig config,
+  ) {
+    final minDays = config.persistentDistressMinDays;
+    final negativeEntries = <ReflectiveEntryData>[];
+
+    for (final entry in entries) {
+      final hasNegativeKeywords = entry.keywords.any((kw) => _isNegativeKeyword(kw));
+      if (hasNegativeKeywords) {
+        negativeEntries.add(entry);
+      }
+    }
+
+    if (negativeEntries.isEmpty) return null;
+
+    // Group by day and check for persistent patterns
+    final dayGroups = <DateTime, List<ReflectiveEntryData>>{};
+    for (final entry in negativeEntries) {
+      final day = DateTime(entry.timestamp.year, entry.timestamp.month, entry.timestamp.day);
+      dayGroups[day] = (dayGroups[day] ?? [])..add(entry);
+    }
+
+    final consecutiveDays = <DateTime>[];
+    final sortedDays = dayGroups.keys.toList()..sort();
+
+    for (int i = 0; i < sortedDays.length; i++) {
+      if (i == 0 || sortedDays[i].difference(sortedDays[i - 1]).inDays == 1) {
+        consecutiveDays.add(sortedDays[i]);
+      } else {
+        if (consecutiveDays.length >= minDays) break;
+        consecutiveDays.clear();
+        consecutiveDays.add(sortedDays[i]);
+      }
+    }
+
+    if (consecutiveDays.length >= minDays) {
+      final affectedEntries = consecutiveDays
+          .expand((day) => dayGroups[day] ?? [])
+          .toList();
+
+      final weightedSeverity = _getClusterSeverityWithWeighting(affectedEntries, config);
+      
+      return RiskPattern(
+        type: 'persistent',
+        description: 'Persistent negative emotional patterns over ${consecutiveDays.length} days',
+        severity: weightedSeverity,
+        affectedDates: consecutiveDays,
+        triggerKeywords: affectedEntries
+            .expand((e) => e.keywords)
+            .where((kw) => _isNegativeKeyword(kw))
+            .toSet()
+            .toList(),
+      );
+    }
+
+    return null;
+  }
+
+  /// Detect escalating patterns with weighting
+  static RiskPattern? _detectEscalatingPatternsWithWeighting(
+    List<ReflectiveEntryData> entries,
+    SentinelConfig config,
+  ) {
+    if (entries.length < config.trendAnalysisMinEntries) return null;
+
+    // Calculate weighted amplitude trend
+    final amplitudes = <double>[];
+    for (final entry in entries) {
+      double maxAmplitude = 0.0;
+      for (final keyword in entry.keywords) {
+        final baseAmplitude = EnhancedKeywordExtractor.emotionAmplitudeMap[keyword.toLowerCase()] ?? 0.0;
+        final weightedAmplitude = baseAmplitude * entry.effectiveConfidence;
+        if (weightedAmplitude > maxAmplitude) {
+          maxAmplitude = weightedAmplitude;
+        }
+      }
+      amplitudes.add(maxAmplitude);
+    }
+
+    // Simple linear trend analysis
+    double sumX = 0, sumY = 0, sumXY = 0, sumXX = 0;
+    for (int i = 0; i < amplitudes.length; i++) {
+      sumX += i.toDouble();
+      sumY += amplitudes[i];
+      sumXY += i * amplitudes[i];
+      sumXX += i * i;
+    }
+
+    final n = amplitudes.length.toDouble();
+    final slope = (n * sumXY - sumX * sumY) / (n * sumXX - sumX * sumX);
+
+    if (slope > config.deteriorationThreshold) {
+      return RiskPattern(
+        type: 'escalating',
+        description: 'Emotional intensity is escalating over time',
+        severity: slope.clamp(0.0, 1.0),
+        affectedDates: entries.map((e) => e.timestamp).toList(),
+        triggerKeywords: entries
+            .expand((e) => e.keywords)
+            .where((kw) => EnhancedKeywordExtractor.emotionAmplitudeMap[kw.toLowerCase()] ?? 0.0 >= config.highAmplitudeThreshold)
+            .toSet()
+            .toList(),
+      );
+    }
+
+    return null;
+  }
+
+  /// Get cluster severity with weighting
+  static double _getClusterSeverityWithWeighting(
+    List<ReflectiveEntryData> cluster,
+    SentinelConfig config,
+  ) {
+    final amplitudes = <double>[];
+    for (final entry in cluster) {
+      for (final keyword in entry.keywords) {
+        final baseAmplitude = EnhancedKeywordExtractor.emotionAmplitudeMap[keyword.toLowerCase()] ?? 0.0;
+        final weightedAmplitude = baseAmplitude * entry.effectiveConfidence;
+        if (weightedAmplitude >= config.highAmplitudeThreshold) {
+          amplitudes.add(weightedAmplitude);
+        }
+      }
+    }
+
+    if (amplitudes.isEmpty) return 0.0;
+
+    final avgAmplitude = amplitudes.reduce((a, b) => a + b) / amplitudes.length;
+    final clusterSize = cluster.length / config.clusterMinSize;
+
+    return (avgAmplitude * 0.7 + clusterSize * 0.3).clamp(0.0, 1.0);
+  }
+
+  /// Calculate risk score with weighting
+  static double _calculateRiskScoreWithWeighting(
+    Map<String, dynamic> metrics,
+    List<RiskPattern> patterns,
+    SentinelConfig config,
+  ) {
+    double score = 0.0;
+
+    // Base amplitude score
+    final avgAmplitude = metrics['avg_amplitude'] as double;
+    final highAmplitudeRate = metrics['high_amplitude_rate'] as double;
+    score += avgAmplitude * 0.3;
+    score += highAmplitudeRate * 0.2;
+
+    // Pattern severity
+    if (patterns.isNotEmpty) {
+      final avgPatternSeverity = patterns.map((p) => p.severity).reduce((a, b) => a + b) / patterns.length;
+      score += avgPatternSeverity * 0.3;
+    }
+
+    // Source confidence adjustment
+    final avgConfidence = metrics['avg_confidence'] as double;
+    final highConfidenceRatio = metrics['high_confidence_ratio'] as double;
+    score += (1.0 - avgConfidence) * 0.1; // Lower confidence = higher risk
+    score += (1.0 - highConfidenceRatio) * 0.1; // Fewer high-confidence entries = higher risk
+
+    return score.clamp(0.0, 1.0);
+  }
+
+  /// Generate summary with source breakdown
+  static String _generateSummaryWithSources(
+    RiskLevel riskLevel,
+    List<RiskPattern> patterns,
+    Map<String, dynamic> metrics,
+    List<ReflectiveEntryData> entries,
+  ) {
+    final buffer = StringBuffer();
+    
+    // Risk level summary
+    buffer.writeln('Risk Level: ${riskLevel.name.toUpperCase()}');
+    buffer.writeln('Risk Score: ${(metrics['risk_score'] as double).toStringAsFixed(2)}');
+    buffer.writeln();
+
+    // Source breakdown
+    final sourceBreakdown = metrics['source_breakdown'] as Map<String, int>;
+    buffer.writeln('Data Sources:');
+    sourceBreakdown.forEach((source, count) {
+      final percentage = (count / entries.length * 100).toStringAsFixed(1);
+      buffer.writeln('  • $source: $count entries ($percentage%)');
+    });
+    buffer.writeln();
+
+    // Pattern summary
+    if (patterns.isNotEmpty) {
+      buffer.writeln('Detected Patterns:');
+      for (final pattern in patterns) {
+        buffer.writeln('  • ${pattern.type}: ${pattern.description}');
+      }
+      buffer.writeln();
+    }
+
+    // Confidence summary
+    final avgConfidence = metrics['avg_confidence'] as double;
+    final highConfidenceRatio = metrics['high_confidence_ratio'] as double;
+    buffer.writeln('Data Quality:');
+    buffer.writeln('  • Average Confidence: ${(avgConfidence * 100).toStringAsFixed(1)}%');
+    buffer.writeln('  • High Confidence Entries: ${(highConfidenceRatio * 100).toStringAsFixed(1)}%');
+
+    return buffer.toString();
   }
 }

@@ -2,6 +2,38 @@
 
 ## [Unreleased]
 
+### 🔄 **RIVET & SENTINEL EXTENSIONS** - January 17, 2025
+
+#### **Unified Reflective Analysis** ✅ **NEW**
+- **Extended Evidence Sources**: RIVET now processes `draft` and `lumaraChat` evidence sources
+- **ReflectiveEntryData Model**: New unified data model supporting journal entries, drafts, and chat conversations
+- **Source Weighting System**: Different confidence weights for different input types (journal=1.0, draft=0.6, chat=0.8)
+- **Unified Analysis Service**: Single service for analyzing all reflective inputs through RIVET and SENTINEL
+
+#### **Draft Entry Analysis** ✅ **IMPLEMENTED**
+- **Draft Processing**: `DraftAnalysisService` for processing draft journal entries
+- **Phase Inference**: Automatic phase detection from draft content and keywords
+- **Confidence Scoring**: Dynamic confidence calculation based on content quality and recency
+- **Keyword Extraction**: Enhanced keyword extraction from draft content
+
+#### **LUMARA Chat Analysis** ✅ **IMPLEMENTED**
+- **Chat Processing**: `ChatAnalysisService` for processing LUMARA conversations
+- **Context Keywords**: Automatic generation of chat-specific context keywords
+- **Conversation Quality**: Analysis of conversation balance and quality
+- **Phase Inference**: Phase detection from chat conversation patterns
+
+#### **Enhanced SENTINEL Analysis** ✅ **ENHANCED**
+- **Weighted Pattern Detection**: Source-aware clustering, persistent distress, and escalating pattern detection
+- **Source Breakdown**: Detailed analysis of data sources and confidence metrics
+- **Unified Recommendations**: Combined recommendations from all reflective sources
+- **Backward Compatibility**: Maintains existing `analyzeJournalRisk` method for journal entries only
+
+#### **Technical Implementation** ✅ **COMPLETE**
+- **Extended EvidenceSource Enum**: Added `draft` and `lumaraChat` sources
+- **Enhanced RivetEvent**: Factory methods for different source types with source weighting
+- **Weighted Analysis Methods**: All SENTINEL methods now support source weighting
+- **Unified Service Architecture**: Clean separation of concerns with specialized analysis services
+
 ### 📝 **JOURNAL EDITOR ENHANCEMENTS** - January 17, 2025
 
 #### **Smart Save Behavior** ✅ **PRODUCTION READY**

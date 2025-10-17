@@ -14,6 +14,10 @@ enum EvidenceSource {
   therapistTag,
   @HiveField(3)
   other,
+  @HiveField(4)
+  draft,          // Draft journal entries
+  @HiveField(5)
+  lumaraChat,     // LUMARA-user conversations
 }
 
 /// Single RIVET event capturing user interaction and phase prediction/confirmation
@@ -91,6 +95,88 @@ class RivetEvent extends Equatable {
       tolerance: Map<String, double>.from(json['tolerance'] as Map),
     );
   }
+
+  /// Create RIVET event from journal entry
+  factory RivetEvent.fromJournalEntry({
+    required DateTime date,
+    required Set<String> keywords,
+    required String predPhase,
+    required String refPhase,
+    Map<String, double> tolerance = const {},
+  }) {
+    return RivetEvent(
+      date: date,
+      source: EvidenceSource.text,
+      keywords: keywords,
+      predPhase: predPhase,
+      refPhase: refPhase,
+      tolerance: tolerance,
+    );
+  }
+
+  /// Create RIVET event from draft entry
+  factory RivetEvent.fromDraftEntry({
+    required DateTime date,
+    required Set<String> keywords,
+    required String predPhase,
+    required String refPhase,
+    Map<String, double> tolerance = const {},
+  }) {
+    return RivetEvent(
+      date: date,
+      source: EvidenceSource.draft,
+      keywords: keywords,
+      predPhase: predPhase,
+      refPhase: refPhase,
+      tolerance: tolerance,
+    );
+  }
+
+  /// Create RIVET event from LUMARA chat
+  factory RivetEvent.fromLumaraChat({
+    required DateTime date,
+    required Set<String> keywords,
+    required String predPhase,
+    required String refPhase,
+    Map<String, double> tolerance = const {},
+  }) {
+    return RivetEvent(
+      date: date,
+      source: EvidenceSource.lumaraChat,
+      keywords: keywords,
+      predPhase: predPhase,
+      refPhase: refPhase,
+      tolerance: tolerance,
+    );
+  }
+
+  /// Get source weight for analysis
+  double get sourceWeight {
+    switch (source) {
+      case EvidenceSource.text:
+      case EvidenceSource.voice:
+      case EvidenceSource.therapistTag:
+        return 1.0; // Full weight for journal entries
+      case EvidenceSource.draft:
+        return 0.6; // Reduced weight for drafts
+      case EvidenceSource.lumaraChat:
+        return 0.8; // Medium weight for chat
+      case EvidenceSource.other:
+        return 0.5; // Lowest weight for other sources
+    }
+  }
+
+  /// Check if this is a high-confidence event
+  bool get isHighConfidence => sourceWeight >= 0.8;
+
+  /// Check if this is a draft event
+  bool get isDraft => source == EvidenceSource.draft;
+
+  /// Check if this is a chat event
+  bool get isChat => source == EvidenceSource.lumaraChat;
+
+  /// Check if this is a journal event
+  bool get isJournal => source == EvidenceSource.text || source == EvidenceSource.voice;
 }
 
 /// Current RIVET state tracking ALIGN and TRACE values
