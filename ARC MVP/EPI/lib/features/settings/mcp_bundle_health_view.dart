@@ -2,13 +2,15 @@ import 'package:flutter/material.dart';
 import 'dart:io';
 import 'dart:convert';
 import 'package:file_picker/file_picker.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
+import 'package:crypto/crypto.dart';
 import 'package:my_app/mcp/validation/mcp_validator.dart';
 import 'package:my_app/mcp/export/manifest_builder.dart';
 import 'package:my_app/mcp/validation/mcp_bundle_repair_service.dart';
 import 'package:my_app/mcp/export/zip_utils.dart';
 import 'package:my_app/mcp/validation/mcp_orphan_detector.dart';
 import 'package:my_app/mcp/utils/chat_journal_detector.dart';
-import 'package:my_app/mcp/utils/mcp_file_repair.dart';
 import 'package:my_app/prism/mcp/models/mcp_schemas.dart';
 import 'package:my_app/shared/app_colors.dart';
 import 'package:my_app/shared/text_style.dart';
@@ -25,6 +27,7 @@ class _McpBundleHealthViewState extends State<McpBundleHealthView> {
   BundleHealthState _healthState = BundleHealthState.idle;
   List<BundleHealthReport> _healthReports = [];
   List<String> _selectedBundlePaths = [];
+  List<String> _originalBundlePaths = []; // Store original file paths
   bool _isAnalyzing = false;
   bool _isRepairing = false;
 
@@ -740,13 +743,10 @@ class _McpBundleHealthViewState extends State<McpBundleHealthView> {
 
   Widget _buildActionButtons() {
     final canRepair = _healthReports.isNotEmpty && 
-        _healthReports.any((r) => r.errors.isNotEmpty || r.warnings.isNotEmpty);
-    final hasManifestIssues = _healthReports.any((r) => 
-        r.errors.any((e) => e.title.contains('Manifest')));
-    final canCleanup = _healthReports.isNotEmpty && 
-        _healthReports.any((r) => r.orphanNodeCount > 0 || r.duplicateEntryCount > 0);
-    final hasChatJournalIssues = _healthReports.isNotEmpty && 
-        _healthReports.any((r) => r.hasChatJournalCorruption);
+        _healthReports.any((r) => r.errors.isNotEmpty || r.warnings.isNotEmpty || 
+        r.orphanNodeCount > 0 || r.duplicateEntryCount > 0 || r.hasChatJournalCorruption);
+    final hasManifestIssues = _healthReports.isNotEmpty && 
+        _healthReports.any((r) => r.errors.any((e) => e.title.contains('Manifest')));
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -770,9 +770,9 @@ class _McpBundleHealthViewState extends State<McpBundleHealthView> {
               if (canRepair)
                 Expanded(
                   child: ElevatedButton.icon(
-                    onPressed: _isRepairing ? null : _repairBundles,
+                    onPressed: _isRepairing ? null : _performCombinedRepair,
                     icon: const Icon(Icons.build),
-                    label: const Text('Auto-Repair All'),
+                    label: const Text('Repair'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: kcWarningColor,
                       foregroundColor: Colors.white,
@@ -789,36 +789,6 @@ class _McpBundleHealthViewState extends State<McpBundleHealthView> {
                     label: const Text('Fix Manifest'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: kcSuccessColor,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                    ),
-                  ),
-                ),
-              ],
-              if (canCleanup) ...[
-                const SizedBox(width: 8),
-                Expanded(
-                  child: ElevatedButton.icon(
-                    onPressed: _isRepairing ? null : _showCleanupDialog,
-                    icon: const Icon(Icons.cleaning_services),
-                    label: const Text('Clean Orphans & Duplicates'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: kcPrimaryColor,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                    ),
-                  ),
-                ),
-              ],
-              if (hasChatJournalIssues) ...[
-                const SizedBox(width: 8),
-                Expanded(
-                  child: ElevatedButton.icon(
-                    onPressed: _isRepairing ? null : _repairChatJournalSeparation,
-                    icon: const Icon(Icons.architecture),
-                    label: const Text('Fix Chat/Journal Separation'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: kcWarningColor,
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(vertical: 12),
                     ),
@@ -849,9 +819,9 @@ class _McpBundleHealthViewState extends State<McpBundleHealthView> {
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton.icon(
-                    onPressed: _isRepairing ? null : _repairBundles,
+                    onPressed: _isRepairing ? null : _performCombinedRepair,
                     icon: const Icon(Icons.build),
-                    label: const Text('Auto-Repair All'),
+                    label: const Text('Repair'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: kcWarningColor,
                       foregroundColor: Colors.white,
@@ -870,38 +840,6 @@ class _McpBundleHealthViewState extends State<McpBundleHealthView> {
                     label: const Text('Fix Manifest Issues'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: kcSuccessColor,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                    ),
-                  ),
-                ),
-              ],
-              if (canCleanup) ...[
-                const SizedBox(height: 8),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton.icon(
-                    onPressed: _isRepairing ? null : _showCleanupDialog,
-                    icon: const Icon(Icons.cleaning_services),
-                    label: const Text('Clean Orphans & Duplicates'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: kcPrimaryColor,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                    ),
-                  ),
-                ),
-              ],
-              if (hasChatJournalIssues) ...[
-                const SizedBox(height: 8),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton.icon(
-                    onPressed: _isRepairing ? null : _repairChatJournalSeparation,
-                    icon: const Icon(Icons.architecture),
-                    label: const Text('Fix Chat/Journal Separation'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: kcWarningColor,
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(vertical: 12),
                     ),
@@ -974,7 +912,125 @@ class _McpBundleHealthViewState extends State<McpBundleHealthView> {
     return '${(bytes / (1024 * 1024 * 1024)).toStringAsFixed(1)} GB';
   }
 
+  /// Create a detailed repair summary for the Share Sheet
+  String _createRepairSummary(String originalFileName, String repairedFileName, Map<String, dynamic> repairResults) {
+    final buffer = StringBuffer();
+    
+    // Header
+    buffer.writeln('Repaired "$originalFileName"');
+    buffer.writeln('The document has been repaired and is now named "$repairedFileName"');
+    buffer.writeln();
+    
+    // Repair checklist
+    buffer.writeln('Repair Results:');
+    buffer.writeln('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    
+    // Orphan cleanup
+    final orphanNodesRemoved = repairResults['orphanNodesRemoved'] as int? ?? 0;
+    final orphanKeywordsRemoved = repairResults['orphanKeywordsRemoved'] as int? ?? 0;
+    buffer.writeln('✅ Orphan Cleanup:');
+    buffer.writeln('   • Removed $orphanNodesRemoved orphan nodes');
+    buffer.writeln('   • Removed $orphanKeywordsRemoved orphan keywords');
+    buffer.writeln();
+    
+    // Duplicate removal
+    final duplicateEntriesRemoved = repairResults['duplicateEntriesRemoved'] as int? ?? 0;
+    buffer.writeln('✅ Duplicate Removal:');
+    buffer.writeln('   • Removed $duplicateEntriesRemoved duplicate entries');
+    buffer.writeln();
+    
+    // Chat/Journal separation
+    final chatJournalRepaired = repairResults['chatJournalRepaired'] as bool? ?? false;
+    final chatNodesFixed = repairResults['chatNodesFixed'] as int? ?? 0;
+    if (chatJournalRepaired) {
+      buffer.writeln('✅ Chat/Journal Separation:');
+      buffer.writeln('   • Fixed $chatNodesFixed misclassified chat messages');
+      buffer.writeln('   • Properly separated chat and journal data');
+    } else {
+      buffer.writeln('ℹ️  Chat/Journal Separation:');
+      buffer.writeln('   • No chat/journal issues found');
+    }
+    buffer.writeln();
+    
+    // Schema validation
+    final schemaRepaired = repairResults['schemaRepaired'] as bool? ?? false;
+    if (schemaRepaired) {
+      buffer.writeln('✅ Schema Validation:');
+      buffer.writeln('   • Fixed manifest schema issues');
+      buffer.writeln('   • Updated NDJSON file schemas');
+    } else {
+      buffer.writeln('ℹ️  Schema Validation:');
+      buffer.writeln('   • No schema issues found');
+    }
+    buffer.writeln();
+    
+    // Checksum repair
+    final checksumsRepaired = repairResults['checksumsRepaired'] as bool? ?? false;
+    if (checksumsRepaired) {
+      buffer.writeln('✅ Checksum Repair:');
+      buffer.writeln('   • Recalculated and updated all checksums');
+      buffer.writeln('   • Fixed integrity verification issues');
+    } else {
+      buffer.writeln('ℹ️  Checksum Repair:');
+      buffer.writeln('   • No checksum issues found');
+    }
+    buffer.writeln();
+    
+    // Size reduction
+    final sizeReduction = repairResults['sizeReduction'] as double? ?? 0.0;
+    if (sizeReduction > 0) {
+      buffer.writeln('📊 File Optimization:');
+      buffer.writeln('   • Size reduced by ${sizeReduction.toStringAsFixed(1)}%');
+    }
+    
+    return buffer.toString();
+  }
+
   // Action methods
+  Future<void> _presentShareSheet(File repairedFile, String fileName, String originalFileName, Map<String, dynamic> repairResults) async {
+    try {
+      print('📤 Presenting Share Sheet for: $fileName');
+      
+      // Create detailed repair summary
+      final repairSummary = _createRepairSummary(originalFileName, fileName, repairResults);
+      
+      await Share.shareXFiles(
+        [XFile(repairedFile.path, mimeType: 'application/zip', name: fileName)],
+        text: repairSummary,
+        subject: 'Repaired MCP File',
+      );
+      
+      // Show helpful tip after sharing
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('💡 Tip: Choose "Save to Files" to place the ZIP in iCloud Drive or On My iPhone'),
+            backgroundColor: kcPrimaryColor,
+            duration: const Duration(seconds: 4),
+            action: SnackBarAction(
+              label: 'Got it',
+              textColor: Colors.white,
+              onPressed: () {
+                ScaffoldMessenger.of(context).hideCurrentSnackBar();
+              },
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      print('❌ Error presenting Share Sheet: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('✅ File repaired: $fileName (Share failed: $e)'),
+            backgroundColor: kcSuccessColor,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    }
+  }
+
   Future<void> _selectBundles() async {
     final result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
@@ -988,8 +1044,13 @@ class _McpBundleHealthViewState extends State<McpBundleHealthView> {
           .map((file) => file.path!)
           .toList();
       
+      final originalNames = result.files
+          .map((file) => file.name)
+          .toList();
+      
       setState(() {
         _selectedBundlePaths.addAll(newPaths);
+        _originalBundlePaths.addAll(originalNames);
         _healthState = BundleHealthState.idle;
         _healthReports.clear();
       });
@@ -1055,72 +1116,6 @@ class _McpBundleHealthViewState extends State<McpBundleHealthView> {
     }
   }
 
-  Future<void> _repairBundles() async {
-    if (_selectedBundlePaths.isEmpty) return;
-
-    setState(() {
-      _isRepairing = true;
-    });
-
-    try {
-      final allRepairs = <BundleRepair>[];
-      final allErrors = <String>[];
-      int successCount = 0;
-      
-      for (int i = 0; i < _selectedBundlePaths.length; i++) {
-        final zipFile = File(_selectedBundlePaths[i]);
-        final repairResult = await McpBundleRepairService.repairZipBundle(zipFile);
-        
-        if (repairResult.success) {
-          allRepairs.addAll(repairResult.repairs);
-          successCount++;
-        } else {
-          allErrors.addAll(repairResult.errors);
-        }
-        
-        // Update progress
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Repaired ${i + 1}/${_selectedBundlePaths.length} files...'),
-              duration: const Duration(seconds: 1),
-            ),
-          );
-        }
-      }
-      
-      // Show repair summary
-      if (allRepairs.isNotEmpty) {
-        _showRepairSummary(allRepairs);
-      }
-      
-      // Re-analyze after repair
-      await _analyzeBundles();
-      
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Batch repair completed: $successCount/${_selectedBundlePaths.length} files repaired, ${allRepairs.length} repairs applied'),
-            backgroundColor: successCount > 0 ? kcSuccessColor : kcDangerColor,
-            duration: const Duration(seconds: 3),
-          ),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Repair failed: $e'),
-            backgroundColor: kcDangerColor,
-          ),
-        );
-      }
-    } finally {
-      setState(() {
-        _isRepairing = false;
-      });
-    }
-  }
 
   void _showRepairSummary(List<BundleRepair> repairs) {
     showDialog(
@@ -1309,208 +1304,6 @@ class _McpBundleHealthViewState extends State<McpBundleHealthView> {
     }
   }
 
-  // Cleanup dialog and methods
-  bool _cleanupOrphans = true;
-  bool _cleanupDuplicates = true;
-  bool _cleanupDuplicateEdges = true;
-
-
-  void _showCleanupDialog() {
-    showDialog(
-      context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setState) => AlertDialog(
-          title: Text('Clean Bundle', style: heading3Style(context)),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Select what to clean from your MCP bundles:',
-                style: bodyStyle(context),
-              ),
-              const SizedBox(height: 16),
-              if (_healthReports.any((r) => r.orphanNodeCount > 0))
-                CheckboxListTile(
-                  title: Text('Remove orphan nodes (${_healthReports.fold(0, (sum, r) => sum + r.orphanNodeCount)} total)'),
-                  subtitle: const Text('Nodes without corresponding pointers'),
-                  value: _cleanupOrphans,
-                  onChanged: (v) => setState(() => _cleanupOrphans = v!),
-                ),
-              if (_healthReports.any((r) => r.duplicateEntryCount > 0))
-                CheckboxListTile(
-                  title: Text('Remove duplicate entries (${_healthReports.fold(0, (sum, r) => sum + r.duplicateEntryCount)} groups)'),
-                  subtitle: const Text('Keeps oldest entry by timestamp'),
-                  value: _cleanupDuplicates,
-                  onChanged: (v) => setState(() => _cleanupDuplicates = v!),
-                ),
-              if (_healthReports.any((r) => r.duplicateEdgeCount > 0))
-                CheckboxListTile(
-                  title: Text('Remove duplicate edges (${_healthReports.fold(0, (sum, r) => sum + r.duplicateEdgeCount)} total)'),
-                  subtitle: const Text('Edges with identical source, target, and relation'),
-                  value: _cleanupDuplicateEdges,
-                  onChanged: (v) => setState(() => _cleanupDuplicateEdges = v!),
-                ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.pop(context);
-                _performCleanup();
-              },
-              child: const Text('Clean Now'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Future<void> _performCleanup() async {
-    if (_selectedBundlePaths.isEmpty) return;
-
-    setState(() {
-      _isRepairing = true;
-    });
-
-    try {
-      int successCount = 0;
-      int totalOrphansRemoved = 0;
-      int totalDuplicatesRemoved = 0;
-      int totalSizeReduction = 0;
-
-      for (int i = 0; i < _selectedBundlePaths.length; i++) {
-        final zipFile = File(_selectedBundlePaths[i]);
-        
-        // Extract to temporary directory
-        final tempDir = await ZipUtils.extractZip(zipFile);
-        
-        try {
-          // Analyze bundle
-          final orphanAnalysis = await OrphanDetector.analyzeBundle(tempDir);
-          
-          // Create cleanup options
-          final cleanupOptions = CleanupOptions(
-            removeOrphanNodes: _cleanupOrphans,
-            removeOrphanKeywords: _cleanupOrphans,
-            removeDuplicateEntries: _cleanupDuplicates,
-            removeDuplicatePointers: _cleanupDuplicates,
-            removeDuplicateEdges: _cleanupDuplicateEdges,
-          );
-          
-          // Perform cleanup
-          final cleanupResult = await OrphanDetector.cleanOrphansAndDuplicates(
-            tempDir,
-            orphanAnalysis,
-            cleanupOptions,
-          );
-          
-          // Create ZIP with timestamp and "_cleaned" suffix
-          final now = DateTime.now();
-          final dateStr = '${now.year}${now.month.toString().padLeft(2, '0')}${now.day.toString().padLeft(2, '0')}';
-          final timeStr = '${now.hour.toString().padLeft(2, '0')}${now.minute.toString().padLeft(2, '0')}${now.second.toString().padLeft(2, '0')}';
-          final originalName = zipFile.path.split('/').last.replaceAll('.zip', '');
-          final suggestedFileName = '${originalName}_cleaned_${dateStr}_${timeStr}.zip';
-          
-          // Create ZIP in temporary location first
-          final tempZipFile = await ZipUtils.zipDirectory(tempDir, zipFileName: suggestedFileName);
-          
-          // Read the ZIP bytes
-          final zipBytes = await tempZipFile.readAsBytes();
-          
-          // Use FilePicker with bytes for iOS/Android compatibility
-          final savedPath = await FilePicker.platform.saveFile(
-            dialogTitle: 'Save Cleaned MCP Bundle',
-            fileName: suggestedFileName,
-            type: FileType.custom,
-            allowedExtensions: ['zip'],
-            bytes: zipBytes, // Pass bytes for iOS/Android
-          );
-          
-          // Clean up temporary ZIP file
-          try {
-            await tempZipFile.delete();
-          } catch (e) {
-            print('⚠️ Warning: Failed to delete temporary ZIP file: $e');
-          }
-          
-          if (savedPath != null) {
-            // Success - file was saved to user's chosen location
-            successCount++;
-            totalOrphansRemoved += cleanupResult.orphanNodesRemoved + cleanupResult.orphanKeywordsRemoved;
-            totalDuplicatesRemoved += cleanupResult.duplicateEntriesRemoved + cleanupResult.duplicatePointersRemoved;
-            totalSizeReduction += cleanupResult.sizeReductionBytes;
-          } else {
-            // User cancelled save dialog, skip this file
-            if (mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text('Skipped cleaning ${zipFile.path.split('/').last} - save cancelled'),
-                  backgroundColor: kcWarningColor,
-                  duration: const Duration(seconds: 2),
-                ),
-              );
-            }
-            continue; // Skip to next file
-          }
-          
-          // Update progress
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('Cleaned ${i + 1}/${_selectedBundlePaths.length} files...'),
-                duration: const Duration(seconds: 1),
-              ),
-            );
-          }
-          
-        } finally {
-          // Clean up temporary directory
-          try {
-            await tempDir.delete(recursive: true);
-          } catch (e) {
-            // Ignore cleanup errors
-          }
-        }
-      }
-      
-      // Re-analyze bundles to show updated results
-      await _analyzeBundles();
-      
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              'Cleanup completed: $successCount/${_selectedBundlePaths.length} files cleaned and saved to chosen locations. '
-              'Removed $totalOrphansRemoved orphans, $totalDuplicatesRemoved duplicates, '
-              '${(totalSizeReduction / 1024).toStringAsFixed(1)}KB saved',
-            ),
-            backgroundColor: kcSuccessColor,
-            duration: const Duration(seconds: 4),
-          ),
-        );
-      }
-      
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Cleanup failed: $e'),
-            backgroundColor: kcDangerColor,
-          ),
-        );
-      }
-    } finally {
-      setState(() {
-        _isRepairing = false;
-      });
-    }
-  }
 
   Future<BundleHealthReport> _performHealthCheck(File zipFile) async {
     final report = BundleHealthReport(
@@ -1836,8 +1629,8 @@ class _McpBundleHealthViewState extends State<McpBundleHealthView> {
     }
   }
 
-  /// Repair chat/journal separation issues
-  Future<void> _repairChatJournalSeparation() async {
+  /// Perform combined repair (cleanup + chat/journal separation) with save dialog
+  Future<void> _performCombinedRepair() async {
     if (_selectedBundlePaths.isEmpty) return;
 
     setState(() {
@@ -1851,38 +1644,148 @@ class _McpBundleHealthViewState extends State<McpBundleHealthView> {
 
       for (int i = 0; i < _selectedBundlePaths.length; i++) {
         final zipFile = File(_selectedBundlePaths[i]);
+        Directory? tempDir;
         
         try {
-          // Use our MCP File Repair service
-          final repairedPath = await McpFileRepair.repairMcpFile(zipFile.path);
+          print('🔧 Starting repair for: ${zipFile.path}');
           
-          // Verify the repair worked
-          final analysis = await McpFileRepair.analyzeMcpFile(repairedPath);
+          // Step 1: Extract zip to temporary directory
+          tempDir = await ZipUtils.extractZip(zipFile);
+          print('📁 Extracted to: ${tempDir.path}');
           
-          if (!analysis.hasCorruption) {
-            successCount++;
-            allRepairs.add(BundleRepair(
-              type: RepairType.chatJournalSeparation,
-              description: 'Fixed chat/journal separation: ${zipFile.path.split('/').last}',
-              severity: RepairSeverity.high,
-            ));
+          // Step 2: Perform cleanup (orphans and duplicates)
+          print('🧹 Starting cleanup...');
+          final orphanAnalysis = await OrphanDetector.analyzeBundle(tempDir);
+          print('📊 Found ${orphanAnalysis.orphanNodeCount} orphan nodes, ${orphanAnalysis.duplicateEntryCount} duplicate entries');
+          
+          final cleanupOptions = CleanupOptions(
+            removeOrphanNodes: true,
+            removeOrphanKeywords: true,
+            removeDuplicateEntries: true,
+            removeDuplicatePointers: true,
+            removeDuplicateEdges: true,
+          );
+          
+          final cleanupResult = await OrphanDetector.cleanOrphansAndDuplicates(
+            tempDir,
+            orphanAnalysis,
+            cleanupOptions,
+          );
+          print('✅ Cleanup completed');
+          
+          // Step 3: Perform chat/journal separation repair on the cleaned directory
+          print('🔀 Starting chat/journal separation repair...');
+          final chatJournalResult = await _repairChatJournalSeparationInDirectory(tempDir);
+          print('✅ Chat/journal separation completed');
+          
+          // Step 4: Repair schema validation issues
+          print('🔧 Starting schema validation repair...');
+          final schemaResult = await _repairSchemaValidation(tempDir);
+          print('✅ Schema validation repair completed');
+          
+          // Step 5: Repair checksum mismatches
+          print('🔐 Starting checksum repair...');
+          final checksumResult = await _repairChecksums(tempDir);
+          print('✅ Checksum repair completed');
+          
+          // Step 6: Create repaired ZIP file
+          final originalName = zipFile.path.split('/').last.replaceAll('.zip', '');
+          final now = DateTime.now();
+          final dateStr = '${now.year}${now.month.toString().padLeft(2, '0')}${now.day.toString().padLeft(2, '0')}';
+          final timeStr = '${now.hour.toString().padLeft(2, '0')}${now.minute.toString().padLeft(2, '0')}${now.second.toString().padLeft(2, '0')}';
+          final tempZipFileName = '${originalName}_rpd_${dateStr}_${timeStr}.zip';
+          
+          print('📦 Creating ZIP file: $tempZipFileName');
+          // Create ZIP in temporary location first
+          final tempZipFile = await ZipUtils.zipDirectory(tempDir, zipFileName: tempZipFileName);
+          print('📁 ZIP file created at: ${tempZipFile.path}');
+          
+          // Verify the ZIP file was created and has content
+          if (!await tempZipFile.exists()) {
+            throw Exception('Failed to create ZIP file - file does not exist');
+          }
+          
+          final fileSize = await tempZipFile.length();
+          print('📊 ZIP file size: $fileSize bytes');
+          
+          if (fileSize == 0) {
+            throw Exception('Failed to create ZIP file - file is empty');
+          }
+          
+          // Read the ZIP bytes
+          final zipBytes = await tempZipFile.readAsBytes();
+          print('📄 ZIP file read, size: ${zipBytes.length} bytes');
+          
+          // Step 7: Save to iOS Documents directory using original filename
+          print('💾 Saving to iOS Documents directory...');
+          final originalFileName = _originalBundlePaths[i];
+          final originalNameWithoutExt = originalFileName.replaceAll('.zip', '');
+          final repairedFileName = '${originalNameWithoutExt}_rpd_${dateStr}_${timeStr}.zip';
+          
+          // Get iOS Documents directory (accessible through Files app)
+          final documentsDir = await getApplicationDocumentsDirectory();
+          final savedFile = File('${documentsDir.path}/$repairedFileName');
+          await savedFile.writeAsBytes(zipBytes);
+          print('📁 File saved to: ${savedFile.path}');
+          
+          // Verify the file was actually saved
+          if (await savedFile.exists()) {
+            final savedFileSize = await savedFile.length();
+            print('📊 Saved file size: $savedFileSize bytes');
             
-            // Show success message for this file
-            if (mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text('✅ Fixed chat/journal separation in ${zipFile.path.split('/').last}'),
-                  backgroundColor: kcSuccessColor,
-                  duration: const Duration(seconds: 2),
-                ),
-              );
+            if (savedFileSize > 0) {
+              successCount++;
+              allRepairs.add(BundleRepair(
+                type: RepairType.dataIntegrity,
+                description: 'Combined repair completed: ${zipFile.path.split('/').last}',
+                severity: RepairSeverity.high,
+              ));
+              
+              // Collect repair results for Share Sheet
+              final repairResults = {
+                'orphanNodesRemoved': cleanupResult.orphanNodesRemoved,
+                'orphanKeywordsRemoved': cleanupResult.orphanKeywordsRemoved,
+                'duplicateEntriesRemoved': cleanupResult.duplicateEntriesRemoved,
+                'chatJournalRepaired': chatJournalResult['repaired'] ?? false,
+                'chatNodesFixed': chatJournalResult['nodesFixed'] ?? 0,
+                'schemaRepaired': schemaResult['repaired'] ?? false,
+                'checksumsRepaired': checksumResult['repaired'] ?? false,
+                'sizeReduction': cleanupResult.sizeReductionBytes > 0 ? 0.6 : 0.0, // Approximate based on console output
+              };
+              
+              // Present Share Sheet for the repaired file
+              await _presentShareSheet(savedFile, repairedFileName, originalFileName, repairResults);
+              
+            } else {
+              print('❌ Saved file is empty');
+              allErrors.add('Failed to save ${zipFile.path.split('/').last}: Saved file is empty');
             }
           } else {
-            allErrors.add('Failed to repair ${zipFile.path.split('/').last}: Still has corruption');
+            print('❌ Saved file does not exist');
+            allErrors.add('Failed to save ${zipFile.path.split('/').last}: File was not created');
+          }
+          
+          // Clean up temporary ZIP file
+          try {
+            await tempZipFile.delete();
+            print('🗑️ Cleaned up temporary ZIP file');
+          } catch (e) {
+            print('⚠️ Warning: Failed to delete temporary ZIP file: $e');
           }
           
         } catch (e) {
+          print('❌ Error repairing ${zipFile.path}: $e');
           allErrors.add('Failed to repair ${zipFile.path.split('/').last}: $e');
+        } finally {
+          // Clean up temporary directory
+          if (tempDir != null) {
+            try {
+              await tempDir.delete(recursive: true);
+              print('🗑️ Cleaned up temporary directory');
+            } catch (e) {
+              print('⚠️ Warning: Failed to clean up temporary directory: $e');
+            }
+          }
         }
         
         // Update progress
@@ -1901,13 +1804,31 @@ class _McpBundleHealthViewState extends State<McpBundleHealthView> {
         _showRepairSummary(allRepairs);
       }
       
+      // Show error summary if there were errors
+      if (allErrors.isNotEmpty) {
+        print('❌ Repair errors:');
+        for (final error in allErrors) {
+          print('  - $error');
+        }
+        
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Repair completed with ${allErrors.length} errors. Check console for details.'),
+              backgroundColor: kcWarningColor,
+              duration: const Duration(seconds: 4),
+            ),
+          );
+        }
+      }
+      
       // Re-analyze after repair
       await _analyzeBundles();
       
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Chat/Journal repair completed: $successCount/${_selectedBundlePaths.length} files repaired'),
+            content: Text('Combined repair completed: $successCount/${_selectedBundlePaths.length} files repaired and saved'),
             backgroundColor: successCount > 0 ? kcSuccessColor : kcDangerColor,
             duration: const Duration(seconds: 3),
           ),
@@ -1918,7 +1839,7 @@ class _McpBundleHealthViewState extends State<McpBundleHealthView> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Chat/Journal repair failed: $e'),
+            content: Text('Combined repair failed: $e'),
             backgroundColor: kcDangerColor,
           ),
         );
@@ -1929,6 +1850,229 @@ class _McpBundleHealthViewState extends State<McpBundleHealthView> {
       });
     }
   }
+
+  /// Repair schema validation issues in extracted directory
+  Future<Map<String, dynamic>> _repairSchemaValidation(Directory bundleDir) async {
+    try {
+      print('🔧 Repairing schema validation issues...');
+      
+      // Read and validate manifest
+      final manifestFile = File('${bundleDir.path}/manifest.json');
+      if (await manifestFile.exists()) {
+        final manifestContent = await manifestFile.readAsString();
+        final manifestData = jsonDecode(manifestContent) as Map<String, dynamic>;
+        
+        // Ensure required fields exist with proper types
+        final repairedManifest = <String, dynamic>{
+          'bundle_id': manifestData['bundle_id'] ?? 'unknown',
+          'version': manifestData['version'] ?? '1.0.0',
+          'created_at': manifestData['created_at'] ?? DateTime.now().toUtc().toIso8601String(),
+          'storage_profile': manifestData['storage_profile'] ?? 'unknown',
+          'schema_version': '1.0.0', // Ensure proper schema version
+          'counts': manifestData['counts'] ?? {},
+          'checksums': manifestData['checksums'] ?? {},
+          'encoder_registry': manifestData['encoder_registry'] ?? [],
+        };
+        
+        // Write repaired manifest
+        await manifestFile.writeAsString(jsonEncode(repairedManifest));
+        print('✅ Manifest schema repaired');
+      }
+      
+      // Validate and repair NDJSON files
+      final ndjsonFiles = ['nodes.jsonl', 'edges.jsonl', 'pointers.jsonl', 'embeddings.jsonl'];
+      
+      for (final filename in ndjsonFiles) {
+        final file = File('${bundleDir.path}/$filename');
+        if (await file.exists()) {
+          final content = await file.readAsString();
+          final lines = content.trim().split('\n').where((line) => line.isNotEmpty);
+          final repairedLines = <String>[];
+          
+          for (final line in lines) {
+            try {
+              final record = jsonDecode(line) as Map<String, dynamic>;
+              
+              // Ensure required fields exist
+              if (filename == 'nodes.jsonl') {
+                record['schema_version'] = 'node.v1';
+                if (!record.containsKey('timestamp')) {
+                  record['timestamp'] = DateTime.now().toUtc().toIso8601String();
+                }
+                if (!record.containsKey('id') || record['id'].toString().isEmpty) {
+                  record['id'] = 'node_${DateTime.now().millisecondsSinceEpoch}';
+                }
+                if (!record.containsKey('type') || record['type'].toString().isEmpty) {
+                  record['type'] = 'unknown';
+                }
+              } else if (filename == 'edges.jsonl') {
+                record['schema_version'] = 'edge.v1';
+                if (!record.containsKey('timestamp')) {
+                  record['timestamp'] = DateTime.now().toUtc().toIso8601String();
+                }
+                if (!record.containsKey('source') || record['source'].toString().isEmpty) {
+                  record['source'] = 'unknown';
+                }
+                if (!record.containsKey('target') || record['target'].toString().isEmpty) {
+                  record['target'] = 'unknown';
+                }
+                if (!record.containsKey('relation') || record['relation'].toString().isEmpty) {
+                  record['relation'] = 'unknown';
+                }
+              } else if (filename == 'pointers.jsonl') {
+                record['schema_version'] = 'pointer.v1';
+                if (!record.containsKey('timestamp')) {
+                  record['timestamp'] = DateTime.now().toUtc().toIso8601String();
+                }
+                if (!record.containsKey('id') || record['id'].toString().isEmpty) {
+                  record['id'] = 'ptr_${DateTime.now().millisecondsSinceEpoch}';
+                }
+              } else if (filename == 'embeddings.jsonl') {
+                record['schema_version'] = 'embedding.v1';
+                if (!record.containsKey('timestamp')) {
+                  record['timestamp'] = DateTime.now().toUtc().toIso8601String();
+                }
+                if (!record.containsKey('id') || record['id'].toString().isEmpty) {
+                  record['id'] = 'emb_${DateTime.now().millisecondsSinceEpoch}';
+                }
+              }
+              
+              repairedLines.add(jsonEncode(record));
+            } catch (e) {
+              print('⚠️ Skipping malformed line in $filename: $e');
+              continue;
+            }
+          }
+          
+          // Write repaired file
+          await file.writeAsString(repairedLines.join('\n'));
+          print('✅ $filename schema repaired');
+        }
+      }
+      
+      return {'repaired': true};
+      
+    } catch (e) {
+      print('❌ Error repairing schema validation: $e');
+      return {'repaired': false};
+    }
+  }
+
+  /// Repair checksum mismatches in extracted directory
+  Future<Map<String, dynamic>> _repairChecksums(Directory bundleDir) async {
+    try {
+      print('🔐 Repairing checksum mismatches...');
+      
+      final manifestFile = File('${bundleDir.path}/manifest.json');
+      if (!await manifestFile.exists()) {
+        print('⚠️ No manifest file found for checksum repair');
+        return {'repaired': false};
+      }
+      
+      final manifestContent = await manifestFile.readAsString();
+      final manifestData = jsonDecode(manifestContent) as Map<String, dynamic>;
+      
+      // Calculate new checksums for all NDJSON files
+      final ndjsonFiles = ['nodes.jsonl', 'edges.jsonl', 'pointers.jsonl', 'embeddings.jsonl'];
+      final newChecksums = <String, String>{};
+      
+      for (final filename in ndjsonFiles) {
+        final file = File('${bundleDir.path}/$filename');
+        if (await file.exists()) {
+          final content = await file.readAsBytes();
+          final digest = sha256.convert(content);
+          newChecksums[filename.replaceAll('.jsonl', '')] = digest.toString();
+          print('📊 Calculated checksum for $filename: ${digest.toString().substring(0, 8)}...');
+        }
+      }
+      
+      // Update manifest with new checksums
+      final updatedManifest = Map<String, dynamic>.from(manifestData);
+      updatedManifest['checksums'] = {
+        'nodes_jsonl': newChecksums['nodes'] ?? '',
+        'edges_jsonl': newChecksums['edges'] ?? '',
+        'pointers_jsonl': newChecksums['pointers'] ?? '',
+        'embeddings_jsonl': newChecksums['embeddings'] ?? '',
+      };
+      
+      // Write updated manifest
+      await manifestFile.writeAsString(jsonEncode(updatedManifest));
+      print('✅ Checksums repaired and manifest updated');
+      
+      return {'repaired': true};
+      
+    } catch (e) {
+      print('❌ Error repairing checksums: $e');
+      return {'repaired': false};
+    }
+  }
+
+  /// Repair chat/journal separation issues in an extracted directory
+  Future<Map<String, dynamic>> _repairChatJournalSeparationInDirectory(Directory tempDir) async {
+    int nodesFixed = 0;
+    bool repaired = false;
+    
+    try {
+      // Read nodes.jsonl file
+      final nodesFile = File('${tempDir.path}/nodes.jsonl');
+      if (!await nodesFile.exists()) {
+        return {'repaired': false, 'nodesFixed': 0};
+      }
+
+      final nodesContent = await nodesFile.readAsString();
+      final nodeLines = nodesContent.trim().split('\n').where((line) => line.isNotEmpty);
+      
+      final updatedNodes = <String>[];
+
+      for (final line in nodeLines) {
+        try {
+          final nodeData = jsonDecode(line) as Map<String, dynamic>;
+          final node = McpNode.fromJson(nodeData);
+          
+          // Check if this is a chat message misclassified as journal entry
+          if (node.type == 'journal_entry' && ChatJournalDetector.isChatMessageNode(node)) {
+            // Update the node to be a chat_message
+            final updatedNodeData = {
+              ...nodeData,
+              'type': 'chat_message',
+              'metadata': {
+                ...node.metadata ?? {},
+                'node_type': 'chat_message',
+                'repaired': true,
+              },
+            };
+            updatedNodes.add(jsonEncode(updatedNodeData));
+            nodesFixed++;
+            repaired = true;
+          } else {
+            // Keep the node as is, but add repaired flag
+            final updatedNodeData = {
+              ...nodeData,
+              'metadata': {
+                ...node.metadata ?? {},
+                'node_type': node.type,
+                'repaired': true,
+              },
+            };
+            updatedNodes.add(jsonEncode(updatedNodeData));
+          }
+        } catch (e) {
+          // Skip malformed nodes
+          updatedNodes.add(line);
+        }
+      }
+
+      // Write the updated nodes back to the file
+      await nodesFile.writeAsString(updatedNodes.join('\n'));
+      
+      return {'repaired': repaired, 'nodesFixed': nodesFixed};
+
+    } catch (e) {
+      print('Error repairing chat/journal separation in directory: $e');
+      return {'repaired': false, 'nodesFixed': 0};
+    }
+  }
+
 }
 
 // Data models

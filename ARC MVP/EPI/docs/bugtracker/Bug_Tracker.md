@@ -18,6 +18,17 @@
 - ✅ **Build System**: All naming conflicts and syntax errors resolved
 - ✅ **Comprehensive Testing**: 100+ test cases covering all critical functionality
 
+### 🔧 MCP Repair System Issues Resolved (January 17, 2025)
+**Critical architectural and repair system bugs fixed:**
+- ✅ **Chat/Journal Separation Bug**: LUMARA chat messages incorrectly saved as journal entries
+- ✅ **Aggressive Duplicate Detection**: Fixed overly aggressive duplicate removal (84% → 0.6% reduction)
+- ✅ **Duplicate Removal Logic**: Fixed inverted logic that removed legitimate entries instead of duplicates
+- ✅ **Share Sheet Enhancement**: Added detailed repair summary with original/repaired filenames
+- ✅ **Schema Validation**: Fixed manifest and NDJSON file schema compliance issues
+- ✅ **Checksum Repair**: Fixed checksum mismatches and integrity verification
+- ✅ **Combined Repair UI**: Streamlined repair process with single "Repair" button
+- ✅ **iOS File Saving**: Fixed file saving to accessible iOS Documents directory
+
 ### Production-Ready Features
 All major bugs from the main branch merge have been resolved. The system is stable with:
 - ✅ On-device LLM integration (llama.cpp + Metal acceleration)
@@ -48,6 +59,8 @@ All major bugs from the main branch merge have been resolved. The system is stab
 - ✅ **NEW: Media Persistence & Photo Analysis System**
 - ✅ **NEW: Real-time Keyword Analysis Integration**
 - ✅ **NEW: Auto-capitalization for Text Fields**
+- ✅ **NEW: MCP File Repair & Chat/Journal Separation System**
+- ✅ **NEW: Enhanced Share Sheet with Detailed Repair Summary**
 - ✅ **NEW: Date/Time/Location/Phase Editing Controls**
 
 ### Recently Resolved Issues (January 12, 2025)

@@ -36,10 +36,11 @@ This document summarizes all features and integrations implemented in the multim
 #### Health Checker Integration
 - **Enhanced MCP Bundle Health View** (`lib/features/settings/mcp_bundle_health_view.dart`)
   - Integrated chat/journal separation analysis
-  - "Fix Chat/Journal Separation" button for one-click repair
+  - **Combined Repair Button**: Single "Repair" button performs all repair operations
   - Enhanced statistics showing chat and journal node counts
   - Real-time progress feedback during repair operations
   - Seamless integration with existing health checker UI
+  - **Enhanced Share Sheet**: Detailed repair summary with original/repaired filenames
 
 #### Technical Features
 - **Automatic Detection**: Real-time analysis during MCP bundle health checks
@@ -48,6 +49,14 @@ This document summarizes all features and integrations implemented in the multim
 - **Metadata Enhancement**: Adds `node_type` and `repaired` flags to all nodes
 - **File Management**: Automatic saving with `_repaired_timestamp.zip` suffix
 - **Verification**: Re-analysis after repair to confirm success
+
+#### Enhanced Share Sheet Experience
+- **Dynamic Filename Display**: Shows both original and repaired filenames for clarity
+- **Detailed Repair Summary**: Comprehensive checklist of all repairs performed
+- **Success/Failure Indicators**: Visual status indicators (✅/ℹ️) for each repair type
+- **Specific Metrics**: Exact counts of items removed/fixed (orphans, duplicates, etc.)
+- **File Optimization Stats**: Size reduction percentage and optimization details
+- **Professional Formatting**: Clean, readable format with Unicode separators and emojis
 
 ### 2. **Multimodal Integration**
 

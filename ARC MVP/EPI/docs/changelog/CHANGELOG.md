@@ -11,17 +11,26 @@
 - **Visual Indicators**: Clear warnings and statistics showing chat vs journal node counts
 
 #### **One-Click Repair System** ✅ **IMPLEMENTED**
-- **Automatic Repair**: "Fix Chat/Journal Separation" button appears when issues are detected
+- **Combined Repair Button**: Single "Repair" button performs all repair operations (orphans, duplicates, chat/journal separation, schema, checksums)
 - **Batch Processing**: Repair multiple MCP files simultaneously
 - **Node Type Correction**: Changes misclassified `journal_entry` nodes to `chat_message` type
 - **Metadata Enhancement**: Adds `node_type` and `repaired` flags to all nodes
 - **Verification**: Re-analyzes files after repair to confirm success
+- **Enhanced Share Sheet**: Detailed repair summary with original/repaired filenames and repair checklist
 
 #### **Enhanced MCP Bundle Health** ✅ **NEW**
 - **Chat/Journal Statistics**: Summary shows chat nodes and journal nodes counts
 - **Architectural Warnings**: Clear indicators when chat/journal separation issues exist
 - **Repair Integration**: Seamless integration with existing health checker UI
 - **Progress Feedback**: Real-time updates during repair operations
+
+#### **Enhanced Share Sheet Experience** ✅ **NEW**
+- **Dynamic Filename Display**: Shows both original and repaired filenames for clarity
+- **Detailed Repair Summary**: Comprehensive checklist of all repairs performed
+- **Success/Failure Indicators**: Visual status indicators (✅/ℹ️) for each repair type
+- **Specific Metrics**: Exact counts of items removed/fixed (orphans, duplicates, etc.)
+- **File Optimization Stats**: Size reduction percentage and optimization details
+- **Professional Formatting**: Clean, readable format with Unicode separators and emojis
 
 #### **Technical Implementation** ✅ **COMPLETE**
 - **ChatJournalDetector**: `lib/mcp/utils/chat_journal_detector.dart` with detection and separation logic

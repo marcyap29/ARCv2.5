@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:path/path.dart' as path;
+import 'package:crypto/crypto.dart';
 
 /// Analysis results for orphan nodes and duplicates in an MCP bundle
 class OrphanAnalysis {
@@ -198,13 +199,14 @@ class OrphanDetector {
 
     final orphanKeywords = allKeywords.where((kw) => !keywordUsage.containsKey(kw)).toList();
 
-    // Find duplicate entries (same content)
+    // Find duplicate entries (exact same content)
     final contentGroups = <String, List<Map<String, dynamic>>>{};
     for (final node in nodes) {
       if (node['type'] == 'journal_entry') {
         final content = _extractContent(node);
         if (content.isNotEmpty) {
-          final contentHash = content.substring(0, content.length > 100 ? 100 : content.length);
+          // Use full content hash for exact matching, not just first 100 chars
+          final contentHash = _computeContentHash(content);
           contentGroups[contentHash] = (contentGroups[contentHash] ?? [])..add(node);
         }
       }
@@ -371,40 +373,28 @@ class OrphanDetector {
     // Remove duplicate entries (keep oldest)
     if (options.removeDuplicateEntries) {
       final nodesToKeep = <Map<String, dynamic>>[];
-      final keptEntryIds = <String>{};
+      final duplicateEntryIdsToRemove = <String>{};
 
+      // Collect IDs of duplicate entries to remove (all except the first in each group)
       for (final group in analysis.duplicateEntries) {
-        // Keep the first entry (oldest by timestamp)
-        final keepEntry = group.entries.first;
-        keptEntryIds.add(keepEntry.id);
-        
-        // Remove the rest
+        // Keep the first entry (oldest by timestamp), remove the rest
         for (int i = 1; i < group.entries.length; i++) {
+          duplicateEntryIdsToRemove.add(group.entries[i].id);
           duplicateEntriesRemoved++;
           print('🧹 Marked duplicate entry for removal: ${group.entries[i].id}');
         }
       }
 
+      // Keep all nodes except the marked duplicates
       for (final node in nodes) {
         final nodeId = node['id'] as String?;
-        if (nodeId == null || !keptEntryIds.contains(nodeId) || node['type'] != 'journal_entry') {
+        if (nodeId == null || !duplicateEntryIdsToRemove.contains(nodeId)) {
+          // Keep all nodes that are not marked for removal
           nodesToKeep.add(node);
         } else {
-          // Check if this is a duplicate that should be removed
-          bool shouldRemove = false;
-          for (final group in analysis.duplicateEntries) {
-            if (group.entries.any((e) => e.id == nodeId && e.id != group.entries.first.id)) {
-              shouldRemove = true;
-              break;
-            }
-          }
-          
-          if (shouldRemove) {
-            nodesRemoved++;
-            print('🧹 Removed duplicate entry: $nodeId');
-          } else {
-            nodesToKeep.add(node);
-          }
+          // Remove only the marked duplicate entries
+          nodesRemoved++;
+          print('🧹 Removed duplicate entry: $nodeId');
         }
       }
       nodes.clear();
@@ -516,5 +506,12 @@ class OrphanDetector {
       sink.writeln(jsonEncode(item));
     }
     await sink.close();
+  }
+
+  /// Compute a hash of the content for exact duplicate detection
+  static String _computeContentHash(String content) {
+    final bytes = utf8.encode(content);
+    final digest = sha256.convert(bytes);
+    return digest.toString();
   }
 }

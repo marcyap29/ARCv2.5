@@ -48,8 +48,50 @@
   - ✅ **Timeline Performance**: RenderFlex overflow eliminated, rebuild spam reduced
   - ✅ **Model Registry**: "Unknown model ID" errors eliminated with validation system
   - ✅ **Media Extraction**: Unified handling across MIRA/MCP systems
+  - ✅ **MCP Repair System**: Complete chat/journal separation and file repair architecture
   - ✅ **Build System**: All naming conflicts and syntax errors resolved
   - ✅ **Testing Coverage**: 100+ test cases covering all critical functionality
+
+  ## 🔧 **MCP Repair System Architecture** (Updated January 17, 2025)
+
+  **Comprehensive MCP File Repair & Chat/Journal Separation System - PRODUCTION READY**:
+  ```
+  MCP Repair System:
+  ├── ChatJournalDetector (lib/mcp/utils/chat_journal_detector.dart)
+  │   ├── isChatMessageNode() - Detects chat messages in MCP nodes
+  │   ├── isChatMessageEntry() - Detects chat messages in journal entries
+  │   ├── separateJournalEntries() - Separates mixed entry lists
+  │   └── separateMcpNodes() - Separates mixed MCP node lists
+  ├── McpFileRepair (lib/mcp/utils/mcp_file_repair.dart)
+  │   ├── readMcpFile() - Robust MCP file parsing with fallback handling
+  │   ├── repairMcpFile() - Complete file repair with node type correction
+  │   ├── analyzeMcpFile() - Comprehensive file analysis and reporting
+  │   └── _computeContentHash() - SHA-256 based exact duplicate detection
+  ├── OrphanDetector (lib/mcp/validation/mcp_orphan_detector.dart)
+  │   ├── analyzeBundle() - Detects orphans, duplicates, and structural issues
+  │   ├── cleanOrphansAndDuplicates() - Removes orphaned nodes and duplicates
+  │   ├── _computeContentHash() - Exact content matching for duplicates
+  │   └── CleanupResult - Detailed repair statistics and metrics
+  ├── MCP Bundle Health View (lib/features/settings/mcp_bundle_health_view.dart)
+  │   ├── Combined Repair Button - Single button for all repair operations
+  │   ├── _performCombinedRepair() - Orchestrates complete repair process
+  │   ├── _repairSchemaValidation() - Fixes manifest and NDJSON schemas
+  │   ├── _repairChecksums() - Recalculates and updates checksums
+  │   ├── _repairChatJournalSeparationInDirectory() - Fixes node classifications
+  │   └── _createRepairSummary() - Generates detailed Share Sheet text
+  └── CLI Repair Tool (bin/mcp_repair_tool.dart)
+      ├── analyzeCommand - Command-line file analysis
+      ├── repairCommand - Command-line file repair
+      └── Batch processing capabilities
+  ```
+
+  **🔧 REPAIR OPERATIONS**:
+  - ✅ **Orphan Cleanup**: Removes nodes with no pointers or references
+  - ✅ **Duplicate Removal**: Removes exact duplicate entries (conservative approach)
+  - ✅ **Chat/Journal Separation**: Corrects misclassified node types
+  - ✅ **Schema Validation**: Fixes manifest and NDJSON file schemas
+  - ✅ **Checksum Repair**: Recalculates and updates integrity checksums
+  - ✅ **Enhanced Share Sheet**: Detailed repair summary with metrics
 
   ## 📸 **Lazy Photo Relinking Architecture** (Updated January 16, 2025)
 
