@@ -27,6 +27,9 @@ class PhotoMetadata {
   
   /// Perceptual hash for duplicate detection and matching
   final String? perceptualHash;
+  
+  /// Timestamp in milliseconds for precise iOS filtering
+  final int? timestampMs;
 
   const PhotoMetadata({
     required this.localIdentifier,
@@ -37,6 +40,7 @@ class PhotoMetadata {
     this.pixelWidth,
     this.pixelHeight,
     this.perceptualHash,
+    this.timestampMs,
   });
 
   /// Convert to JSON for MCP storage
@@ -50,6 +54,7 @@ class PhotoMetadata {
       'pixel_width': pixelWidth,
       'pixel_height': pixelHeight,
       'perceptual_hash': perceptualHash,
+      'timestampMs': timestampMs,
     };
   }
 
@@ -68,6 +73,7 @@ class PhotoMetadata {
       pixelWidth: json['pixel_width'] as int?,
       pixelHeight: json['pixel_height'] as int?,
       perceptualHash: json['perceptual_hash'] as String?,
+      timestampMs: json['timestampMs'] as int?,
     );
   }
 
@@ -81,6 +87,7 @@ class PhotoMetadata {
     int? pixelWidth,
     int? pixelHeight,
     String? perceptualHash,
+    int? timestampMs,
   }) {
     return PhotoMetadata(
       localIdentifier: localIdentifier ?? this.localIdentifier,
@@ -91,6 +98,7 @@ class PhotoMetadata {
       pixelWidth: pixelWidth ?? this.pixelWidth,
       pixelHeight: pixelHeight ?? this.pixelHeight,
       perceptualHash: perceptualHash ?? this.perceptualHash,
+      timestampMs: timestampMs ?? this.timestampMs,
     );
   }
 

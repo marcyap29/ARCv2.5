@@ -34,6 +34,7 @@ class LazyPhotoRelinkService {
         return {
           'placeholder_id': placeholderId,
           'creation_date': dt.toIso8601String(),
+          'timestampMs': ms, // Add timestampMs for iOS filtering
         };
       }
     }
@@ -93,6 +94,7 @@ class LazyPhotoRelinkService {
                  fileSize: (found['file_size'] is int) ? found['file_size'] as int : null,
                  pixelWidth: (found['pixel_width'] is int) ? found['pixel_width'] as int : null,
                  pixelHeight: (found['pixel_height'] is int) ? found['pixel_height'] as int : null,
+                 timestampMs: (found['timestampMs'] is int) ? found['timestampMs'] as int : null,
                );
         final resolved = await PhotoLibraryService.findPhotoByMetadata(photoMetadata);
         if (resolved != null && resolved.startsWith('ph://')) {
