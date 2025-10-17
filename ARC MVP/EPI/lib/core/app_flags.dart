@@ -74,7 +74,6 @@ enum QwenModel {
   qwen3_4b_instruct,    // Primary chat model for capable devices
   qwen3_1p7b_instruct,  // Fallback chat model for memory-constrained devices
   qwen2p5_1p5b_instruct, // Available Qwen 2.5 1.5B model
-  google_gemma_3n_e2b_instruct, // Google Gemma 3n E2B model
   
   // Vision models  
   qwen2p5_vl_3b_instruct,  // Primary VLM model
@@ -129,14 +128,6 @@ const Map<QwenModel, ModelConfig> modelConfigs = {
     isDefault: true, // Set as default since this is what we have
   ),
   
-  QwenModel.google_gemma_3n_e2b_instruct: ModelConfig(
-    filename: 'google_gemma-3n-E2B-it-Q6_K_L.gguf',
-    displayName: 'Google Gemma 3n E2B Instruct (Q6_K_L)',
-    estimatedSizeMB: 4340,
-    minRamGB: 6,
-    description: 'Uses Q8_0 for embed and output weights. Very high quality, near perfect, recommended.',
-    isDefault: false,
-  ),
   
   QwenModel.qwen2p5_vl_3b_instruct: ModelConfig(
     filename: 'qwen2p5_vl_3b_instruct_q5_k_m.gguf',

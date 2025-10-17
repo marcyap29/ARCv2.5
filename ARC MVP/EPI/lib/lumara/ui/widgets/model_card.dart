@@ -223,8 +223,6 @@ class ModelCard extends StatelessWidget {
         return 'Phi-3.5 Mini Instruct (Q5_K_M)';
       case 'Qwen3-4B-Instruct-2507-Q4_K_S.gguf':
         return 'Qwen3 4B Instruct (Q4_K_S)';
-      case 'google_gemma-3n-E2B-it-Q6_K_L.gguf':
-        return 'Google Gemma 3n E2B Instruct (Q6_K_L)';
       // Legacy model names for backward compatibility
       case 'gemma-3-270m':
         return 'Gemma 3 (270M)';
@@ -275,8 +273,6 @@ class ModelCard extends StatelessWidget {
       return 'Download (~2.6GB)';
     } else if (modelName.contains('Qwen3-4B-Instruct-2507-Q4_K_S.gguf')) {
       return 'Download (~2.3GB)';
-    } else if (modelName.contains('google_gemma-3n-E2B-it-Q6_K_L.gguf')) {
-      return 'Download (~4.3GB)';
     }
     // Legacy model sizes for backward compatibility
     else if (modelName.contains('270m')) {

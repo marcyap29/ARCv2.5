@@ -92,17 +92,6 @@ QWEN_MODELS = [
         download_url="https://huggingface.co/Qwen/Qwen3-Embedding-0.6B-GGUF/resolve/main/qwen3-embedding-0.6b-int4.gguf"
     ),
     QwenModelManifest(
-        model_id="google_gemma_3n_e2b_instruct",
-        display_name="Google Gemma 3n E2B Instruct (Q6_K_L)",
-        filename="google_gemma-3n-E2B-it-Q6_K_L.gguf",
-        size_mb=4340,
-        min_ram_gb=6,
-        description="Uses Q8_0 for embed and output weights. Very high quality, near perfect, recommended.",
-        repo_id="bartowski/google_gemma-3n-E2B-it-GGUF",
-        is_default=False,
-        sha256="",
-        download_url="https://huggingface.co/bartowski/google_gemma-3n-E2B-it-GGUF/resolve/main/google_gemma-3n-E2B-it-Q6_K_L.gguf?download=true"
-    ),
 ]
 
 class QwenModelDownloader:

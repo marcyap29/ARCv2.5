@@ -9,7 +9,6 @@ import 'providers/openai_provider.dart';
 import 'providers/anthropic_provider.dart';
 import 'providers/llama_provider.dart';
 import 'providers/qwen_provider.dart';
-import 'providers/gemma_provider.dart';
 
 /// Factory for creating LLM providers
 class LLMProviderFactory {
@@ -31,8 +30,6 @@ class LLMProviderFactory {
           return QwenProvider(_apiConfig);
         case LLMProviderType.llama3b:
           return LlamaProvider(_apiConfig);
-        case LLMProviderType.gemma3n:
-          return GemmaProvider(_apiConfig);
       }
     } catch (e) {
       debugPrint('LLMProviderFactory: Failed to create provider $type: $e');
@@ -73,7 +70,6 @@ class LLMProviderFactory {
       LLMProvider.anthropic => LLMProviderType.anthropic,
       LLMProvider.qwen4b => LLMProviderType.qwen4b,
       LLMProvider.llama3b => LLMProviderType.llama3b,
-      LLMProvider.gemma3n => LLMProviderType.gemma3n,
     };
   }
 }
@@ -85,5 +81,4 @@ enum LLMProviderType {
   anthropic,
   qwen4b,
   llama3b,
-  gemma3n,
 }

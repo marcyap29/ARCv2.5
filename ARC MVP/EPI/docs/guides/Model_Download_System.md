@@ -72,12 +72,6 @@ Model Download System
    - Description: Multilingual, excellent reasoning capabilities
    - Repo: `unsloth/Qwen3-4B-Instruct-2507-GGUF`
 
-3. **Google Gemma 3n E2B Instruct (Q6_K_L)**
-   - Size: 4340 MB
-   - Min RAM: 6 GB
-   - Quantization: Q6_K_L (Q8_0 for embed and output weights)
-   - Description: Very high quality, near perfect, recommended
-   - Repo: `bartowski/google_gemma-3n-E2B-it-GGUF`
 
 #### Vision-Language Models (Image + Text)
 

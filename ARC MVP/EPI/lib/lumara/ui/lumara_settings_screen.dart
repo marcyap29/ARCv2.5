@@ -67,13 +67,6 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
           'size': '~2.5 GB',
           'url': 'https://huggingface.co/unsloth/Qwen3-4B-Instruct-2507-GGUF/resolve/main/Qwen3-4B-Instruct-2507-Q4_K_S.gguf?download=true',
         };
-      case LLMProvider.gemma3n:
-        return {
-          'id': 'google_gemma-3n-E2B-it-Q6_K_L.gguf',
-          'name': 'Google Gemma 3n E2B Instruct (Q6_K_L)',
-          'size': '~4.3 GB',
-          'url': 'https://huggingface.co/bartowski/google_gemma-3n-E2B-it-GGUF/resolve/main/google_gemma-3n-E2B-it-Q6_K_L.gguf?download=true',
-        };
       default:
         return null;
     }
@@ -760,11 +753,6 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
         'name': 'Qwen3 4B Instruct',
         'size': '~2.5 GB',
       },
-      {
-        'id': 'google_gemma-3n-E2B-it-Q6_K_L.gguf',
-        'name': 'Google Gemma 3n E2B',
-        'size': '~4.3 GB',
-      },
     ];
 
     for (final model in internalModels) {
@@ -1432,7 +1420,7 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
 
   Widget _buildApiKeysCard(ThemeData theme) {
         final externalProviders = LLMProvider.values
-            .where((p) => p != LLMProvider.qwen4b && p != LLMProvider.llama3b && p != LLMProvider.gemma3n)
+            .where((p) => p != LLMProvider.qwen4b && p != LLMProvider.llama3b)
             .toList();
     
     return Card(

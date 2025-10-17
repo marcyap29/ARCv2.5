@@ -14,7 +14,6 @@ enum LLMProvider {
   anthropic,
   qwen4b,     // Internal Qwen3 4B Q4_K_S model
   llama3b,    // Internal Llama 3.2 3B model
-  gemma3n,    // Internal Google Gemma 3n E2B model
 }
 
 /// API configuration for different providers
@@ -135,9 +134,6 @@ class LumaraAPIConfig {
         case LLMProvider.llama3b:
           modelId = 'Llama-3.2-3b-Instruct-Q4_K_M.gguf';
           break;
-        case LLMProvider.gemma3n:
-          modelId = 'google_gemma-3n-E2B-it-Q6_K_L.gguf';
-          break;
         default:
           debugPrint('LUMARA API: Unknown provider type: ${config.provider}');
           return false;
@@ -213,19 +209,6 @@ class LumaraAPIConfig {
           isInternal: true,
         );
 
-        _configs[LLMProvider.gemma3n] = LLMProviderConfig(
-          provider: LLMProvider.gemma3n,
-          name: 'Google Gemma 3n E2B (Internal)',
-          baseUrl: 'http://localhost:8084', // Local inference server
-          additionalConfig: {
-            'modelPath': 'assets/models/gguf/google_gemma-3n-E2B-it-Q6_K_L.gguf',
-            'contextLength': 4096,
-            'temperature': 0.7,
-            'backend': 'llama.cpp',
-            'metal': true,
-          },
-          isInternal: true,
-        );
 
     // Load saved API keys from SharedPreferences (overrides environment)
     if (_prefs != null) {
@@ -312,9 +295,6 @@ class LumaraAPIConfig {
         case LLMProvider.llama3b:
           modelId = 'Llama-3.2-3b-Instruct-Q4_K_M.gguf';
           break;
-        case LLMProvider.gemma3n:
-          modelId = 'google_gemma-3n-E2B-it-Q6_K_L.gguf';
-          break;
         default:
           return;
       }
@@ -327,43 +307,6 @@ class LumaraAPIConfig {
     }
   }
 
-  /// Verify that a model is complete and properly extracted
-  Future<bool> _verifyModelCompleteness(LLMProviderConfig config) async {
-    try {
-      final bridge = LumaraNative();
-      
-      // Get the model ID for this provider
-      String modelId;
-      switch (config.provider) {
-        case LLMProvider.qwen4b:
-          modelId = 'Qwen3-4B-Instruct-2507-Q4_K_S.gguf';
-          break;
-        case LLMProvider.llama3b:
-          modelId = 'Llama-3.2-3b-Instruct-Q4_K_M.gguf';
-          break;
-        case LLMProvider.gemma3n:
-          modelId = 'google_gemma-3n-E2B-it-Q6_K_L.gguf';
-          break;
-        default:
-          return false;
-      }
-      
-      // Check if model is downloaded
-      final isDownloaded = await bridge.isModelDownloaded(modelId);
-      if (!isDownloaded) {
-        debugPrint('LUMARA API: Model completeness check - $modelId: Not downloaded');
-        return false;
-      }
-      
-      // Additional verification: Check if the model directory exists and has required files
-      // This is a more thorough check than just the basic isModelDownloaded
-      debugPrint('LUMARA API: Model completeness check - $modelId: Downloaded and verified complete');
-      return true;
-    } catch (e) {
-      debugPrint('LUMARA API: Error verifying model completeness for ${config.name}: $e');
-      return false;
-    }
-  }
 
   /// Check if internal model is available
   Future<bool> _checkInternalModelAvailability(LLMProviderConfig config) async {
@@ -392,17 +335,6 @@ class LumaraAPIConfig {
         }
       }
 
-      if (config.provider == LLMProvider.gemma3n) {
-        try {
-          final bridge = LumaraNative();
-          final isDownloaded = await bridge.isModelDownloaded('google_gemma-3n-E2B-it-Q6_K_L.gguf');
-          debugPrint('LUMARA API: Google Gemma 3n E2B model ${isDownloaded ? 'is' : 'is NOT'} downloaded');
-          return isDownloaded;
-        } catch (e) {
-          debugPrint('LUMARA API: Error checking Google Gemma 3n E2B availability: $e');
-          return false;
-        }
-      }
 
       debugPrint('LUMARA API: ${config.name} disabled (use LLMAdapter for native inference)');
       return false; // FIXED: Added missing return statement
