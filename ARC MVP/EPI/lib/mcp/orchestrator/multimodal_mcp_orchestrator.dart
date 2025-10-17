@@ -461,7 +461,7 @@ class MultimodalMcpOrchestrator {
         data: {
           'popupEnabled': true,
           'behavior': command.behavior,
-          'withData': command.with,
+          'withData': command.withData,
         },
       );
     } catch (e) {

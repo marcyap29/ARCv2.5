@@ -19,6 +19,17 @@ import 'package:my_app/features/arcforms/phase_recommender.dart';
 import 'package:my_app/core/services/photo_library_service.dart';
 import 'package:my_app/data/models/photo_metadata.dart';
 
+/// Normalize media extraction to single 'media' key
+List<Map<String, dynamic>> _extractMedia(Map<String, dynamic> meta) {
+  final dynamic a = meta['media'] ?? meta['mediaItems'] ?? meta['attachments'];
+  if (a is List) {
+    return a.whereType<Map>()
+            .map((m) => Map<String, dynamic>.from(m))
+            .toList();
+  }
+  return const [];
+}
+
 /// Result of an MCP import operation
 class McpImportResult {
   final bool success;
@@ -1098,9 +1109,9 @@ class McpImportService {
     print('🔍 MCP Import: Extracting media from placeholders for node ${node.id}');
     
     // Try to get media from root level (captured in metadata)
-    if (node.metadata != null && node.metadata!.containsKey('media')) {
-      final mediaData = node.metadata!['media'] as List?;
-      if (mediaData != null && mediaData.isNotEmpty) {
+    if (node.metadata != null) {
+      final mediaData = _extractMedia(node.metadata!);
+      if (mediaData.isNotEmpty) {
         print('🔄 Found ${mediaData.length} media items at root level');
         
         // Group by type for validation
@@ -1155,9 +1166,9 @@ class McpImportService {
     // Also check for media in journal_entry metadata (legacy support)
     if (node.metadata != null && node.metadata!.containsKey('journal_entry')) {
       final journalMeta = node.metadata!['journal_entry'] as Map<String, dynamic>?;
-      if (journalMeta != null && journalMeta.containsKey('media')) {
-        final mediaData = journalMeta['media'] as List?;
-        if (mediaData != null && mediaData.isNotEmpty) {
+      if (journalMeta != null) {
+        final mediaData = _extractMedia(journalMeta);
+        if (mediaData.isNotEmpty) {
           print('🔄 DEBUG: Found ${mediaData.length} media items in journal_entry metadata');
           int newMediaCount = 0;
           int reusedMediaCount = 0;

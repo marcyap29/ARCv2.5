@@ -56,6 +56,16 @@ class LumaraAPIConfig {
   
   LumaraAPIConfig._();
 
+  // Model registry for valid model IDs
+  static const Map<String, String> _modelRegistry = {
+    'Llama-3.2-3b-Instruct-Q4_K_M.gguf': 'llama3b',
+    'Qwen3-4B-Instruct-2507-Q4_K_S.gguf': 'qwen4b',
+  };
+
+  static bool isValidModelId(String modelId) => _modelRegistry.containsKey(modelId);
+  
+  static String? getProviderForModel(String modelId) => _modelRegistry[modelId];
+
   final Map<LLMProvider, LLMProviderConfig> _configs = {};
   SharedPreferences? _prefs;
   LLMProvider? _manualProvider; // User's manually selected provider
@@ -374,13 +384,33 @@ class LumaraAPIConfig {
     }
 
     // Preference order: Internal models first, then external APIs
-    final internal = available.where((c) => c.isInternal).toList();
+    final internal = available.where((c) => c.isInternal && _isValidInternalModel(c)).toList();
     if (internal.isNotEmpty) return internal.first;
 
     final external = available.where((c) => !c.isInternal).toList();
     if (external.isNotEmpty) return external.first;
 
     return null; // No providers available
+  }
+
+  /// Check if an internal model is valid according to the registry
+  bool _isValidInternalModel(LLMProviderConfig config) {
+    if (!config.isInternal) return false;
+    
+    final modelId = _getModelIdForProvider(config.provider);
+    return isValidModelId(modelId);
+  }
+
+  /// Get model ID for a provider
+  String _getModelIdForProvider(LLMProvider provider) {
+    switch (provider) {
+      case LLMProvider.qwen4b:
+        return 'Qwen3-4B-Instruct-2507-Q4_K_S.gguf';
+      case LLMProvider.llama3b:
+        return 'Llama-3.2-3b-Instruct-Q4_K_M.gguf';
+      default:
+        return '';
+    }
   }
 
   /// Save configurations to persistent storage

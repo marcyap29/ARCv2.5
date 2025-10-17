@@ -35,27 +35,34 @@ class TimelineLoaded extends TimelineState {
   final List<TimelineMonthGroup> groupedEntries;
   final TimelineFilter filter;
   final bool hasMore;
+  final int version; // Add version for stable hashing
 
   const TimelineLoaded({
     required this.groupedEntries,
     required this.filter,
     required this.hasMore,
+    this.version = 0,
   });
+
+  // Add stable hash for UI rebuilds
+  int get hashForUi => Object.hashAll(groupedEntries.map((g) => g.entries.map((e) => e.id))) ^ version.hashCode;
 
   TimelineLoaded copyWith({
     List<TimelineMonthGroup>? groupedEntries,
     TimelineFilter? filter,
     bool? hasMore,
+    int? version,
   }) {
     return TimelineLoaded(
       groupedEntries: groupedEntries ?? this.groupedEntries,
       filter: filter ?? this.filter,
       hasMore: hasMore ?? this.hasMore,
+      version: version ?? this.version + 1,
     );
   }
 
   @override
-  List<Object?> get props => [groupedEntries, filter, hasMore];
+  List<Object?> get props => [groupedEntries, filter, hasMore, version];
 }
 
 class TimelineEmpty extends TimelineState {

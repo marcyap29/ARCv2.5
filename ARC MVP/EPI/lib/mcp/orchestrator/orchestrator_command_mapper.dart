@@ -419,7 +419,7 @@ class OrchestratorCommandMapper {
             data: {
               'popupEnabled': true,
               'behavior': command.behavior,
-              'withData': command.with,
+              'withData': command.withData,
             },
           ),
         ],

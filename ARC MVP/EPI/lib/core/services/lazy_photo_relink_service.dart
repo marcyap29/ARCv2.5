@@ -40,7 +40,19 @@ class LazyPhotoRelinkService {
     return {'placeholder_id': placeholderId};
   }
 
-  /// Resolve a single photo URI using iOS bridge
+  /// Safe string extraction helper
+  static String? _asString(Map? m, String k) => (m?[k] is String) ? m![k] as String : null;
+
+  /// Safe map normalization helper
+  static Map<String, dynamic> _asStringMapOrNull(Object? raw) {
+    if (raw is Map<String, dynamic>) return raw;
+    if (raw is Map) {
+      return raw.map((k, v) => MapEntry(k.toString(), v));
+    }
+    return <String, dynamic>{};
+  }
+
+  /// Resolve a single photo URI using iOS bridge with null-safe metadata extraction
   static Future<String> resolvePhotoUri(String placeholderId, Map<String, dynamic> nodeMetadata) async {
     Map<String, dynamic> found = {};
     
@@ -56,8 +68,8 @@ class LazyPhotoRelinkService {
       found = metaFromPlaceholder(placeholderId);
     }
 
-    // Try local identifier first
-    final localId = (found['local_identifier'] as String?)?.trim();
+    // Safe string extraction with null guards
+    final localId = _asString(found, 'local_identifier')?.trim();
     if (localId?.isNotEmpty == true) {
       try {
         final exists = await PhotoLibraryService.photoExistsInLibrary('ph://$localId');
@@ -70,13 +82,23 @@ class LazyPhotoRelinkService {
       }
     }
 
-    // Try metadata search
+    // Safe metadata search with null guards
     try {
-      final photoMetadata = PhotoMetadata.fromJson(found);
-      final resolved = await PhotoLibraryService.findPhotoByMetadata(photoMetadata);
-      if (resolved != null && resolved.startsWith('ph://')) {
-        print('Relink result $placeholderId → $resolved (metadata search)');
-        return resolved;
+      final creationDate = _asString(found, 'creation_date');
+      if (creationDate != null) {
+        final photoMetadata = PhotoMetadata(
+          localIdentifier: localId,
+          creationDate: creationDate,
+          originalFilename: _asString(found, 'original_filename'),
+          fileSize: (found['file_size'] is int) ? found['file_size'] as int : null,
+          pixelWidth: (found['pixel_width'] is int) ? found['pixel_width'] as int : null,
+          pixelHeight: (found['pixel_height'] is int) ? found['pixel_height'] as int : null,
+        );
+        final resolved = await PhotoLibraryService.findPhotoByMetadata(photoMetadata);
+        if (resolved != null && resolved.startsWith('ph://')) {
+          print('Relink result $placeholderId → $resolved (metadata search)');
+          return resolved;
+        }
       }
     } catch (e) {
       print('Relink error metadata search for $placeholderId: $e');
