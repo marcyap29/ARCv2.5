@@ -25,6 +25,10 @@
 - ✅ **Poor Change Detection**: Implemented smart change tracking to distinguish viewing vs editing modes
 - ✅ **Limited Entry Management**: Enhanced with comprehensive metadata editing capabilities
 - ✅ **Inconsistent UX**: Streamlined navigation and editing experience for existing entries
+- ✅ **Auto-Save on Lifecycle**: Removed auto-save on app background/foreground transitions
+- ✅ **Auto-Restore Behavior**: Eliminated automatic draft restoration for new entries
+- ✅ **Draft Count Visibility**: Added badge showing number of stored drafts
+- ✅ **Blank Page Initialization**: New entries always start with clean, empty content
 
 ### 🔧 MCP Repair System Issues Resolved (January 17, 2025)
 **Critical architectural and repair system bugs fixed:**

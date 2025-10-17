@@ -94,6 +94,9 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
   TimeOfDay? _editableTime;
   String? _editableLocation;
   String? _editablePhase;
+  
+  // Draft count for badge display
+  int _draftCount = 0;
 
   @override
   void initState() {
@@ -149,6 +152,9 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
     // Initialize draft cache and create new draft
     _initializeDraftCache();
     
+    // Load draft count for badge display
+    _loadDraftCount();
+    
     // Check for periodic discovery
     _checkForDiscovery();
   }
@@ -173,14 +179,9 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
   void didChangeAppLifecycleState(AppLifecycleState state) {
     super.didChangeAppLifecycleState(state);
     
-    // Auto-save draft when app is backgrounded or closed
-    if (state == AppLifecycleState.paused || state == AppLifecycleState.inactive || state == AppLifecycleState.detached) {
-      final hasContent = _entryState.text.trim().isNotEmpty || _entryState.attachments.isNotEmpty;
-      if (hasContent && _currentDraftId != null) {
-        _draftCache.saveCurrentDraftImmediately();
-        print('📝 Auto-saved draft due to app lifecycle change: $state');
-      }
-    }
+    // No auto-save on app lifecycle changes - only save when user explicitly chooses to
+    // This prevents unwanted draft creation and keeps the drafts folder clean
+    debugPrint('JournalScreen: App lifecycle changed to $state (no auto-save)');
   }
 
   void _onTextChanged(String text) {
@@ -674,10 +675,39 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
         backgroundColor: Colors.transparent,
         elevation: 0,
         actions: [
-          IconButton(
-            onPressed: () => _navigateToDrafts(),
-            icon: const Icon(Icons.drafts),
-            tooltip: 'Drafts',
+          Stack(
+            children: [
+              IconButton(
+                onPressed: () => _navigateToDrafts(),
+                icon: const Icon(Icons.drafts),
+                tooltip: 'Drafts',
+              ),
+              if (_draftCount > 0)
+                Positioned(
+                  right: 8,
+                  top: 8,
+                  child: Container(
+                    padding: const EdgeInsets.all(2),
+                    decoration: BoxDecoration(
+                      color: Colors.red,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    constraints: const BoxConstraints(
+                      minWidth: 16,
+                      minHeight: 16,
+                    ),
+                    child: Text(
+                      '$_draftCount',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                ),
+            ],
           ),
           IconButton(
             onPressed: () async {
@@ -896,7 +926,8 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
       return true;
     }
     
-    // Show save/discard dialog
+    // Always ask user permission for manual navigation (back/home buttons)
+    // Auto-save only happens on app exit/crash via didChangeAppLifecycleState
     final result = await showDialog<String>(
       context: context,
       builder: (context) => AlertDialog(
@@ -1946,78 +1977,34 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
     }
   }
 
-  /// Initialize draft cache and create new draft or restore existing one
+  /// Initialize draft cache and create new draft (no restoration)
   Future<void> _initializeDraftCache() async {
     try {
       await _draftCache.initialize();
       
-      // If we have initial content, we might be opening an existing draft
-      if (widget.initialContent != null && widget.initialContent!.isNotEmpty) {
-        // Check if there's a recoverable draft that matches our content
-        final recoverableDraft = await _draftCache.getRecoverableDraft();
-        if (recoverableDraft != null && 
-            recoverableDraft.content == widget.initialContent) {
-          // Restore the existing draft
-          await _draftCache.restoreDraft(recoverableDraft);
-          _currentDraftId = recoverableDraft.id;
-          
-          // Restore media items from draft
-          if (recoverableDraft.mediaItems.isNotEmpty) {
-            // Convert MediaItems back to attachments
-            for (final mediaItem in recoverableDraft.mediaItems) {
-              if (mediaItem.type == MediaType.image) {
-                // Create PhotoAttachment from MediaItem
-                final photoAttachment = PhotoAttachment(
-                  type: 'photo_analysis',
-                  imagePath: mediaItem.uri,
-                  analysisResult: mediaItem.analysisData ?? {},
-                  timestamp: mediaItem.createdAt.millisecondsSinceEpoch,
-                  altText: mediaItem.altText,
-                );
-                _entryState.attachments.add(photoAttachment);
-              }
-            }
-            debugPrint('JournalScreen: Restored ${recoverableDraft.mediaItems.length} media items from draft');
-          }
-          
-          debugPrint('JournalScreen: Restored existing draft $_currentDraftId');
-        } else {
-          // Create new draft with the provided content
-          _currentDraftId = await _draftCache.createDraft(
-            initialEmotion: widget.selectedEmotion,
-            initialReason: widget.selectedReason,
-            initialContent: _entryState.text,
-          );
-          debugPrint('JournalScreen: Created new draft with content $_currentDraftId');
-        }
-      } else {
-        // Create new draft with emotion and reason if available
-        _currentDraftId = await _draftCache.createDraft(
-          initialEmotion: widget.selectedEmotion,
-          initialReason: widget.selectedReason,
-          initialContent: _entryState.text,
-        );
-        debugPrint('JournalScreen: Created new draft $_currentDraftId');
-      }
+      // Always create a fresh draft - no restoration of old drafts
+      // This prevents confusing dialogs and accidental draft deletion
+      _currentDraftId = await _draftCache.createDraft(
+        initialEmotion: widget.selectedEmotion,
+        initialReason: widget.selectedReason,
+        initialContent: _entryState.text,
+      );
+      debugPrint('JournalScreen: Created fresh draft $_currentDraftId');
     } catch (e) {
       debugPrint('JournalScreen: Failed to initialize draft cache: $e');
     }
   }
 
-  /// Update draft content with auto-save
+  /// Update draft content with auto-save (only for app lifecycle changes)
   void _updateDraftContent(String content) {
     if (_currentDraftId == null) return;
     
     // Cancel existing timer
     _autoSaveTimer?.cancel();
     
-    // Start new timer for auto-save
-    _autoSaveTimer = Timer(const Duration(seconds: 2), () {
-      // Convert attachments to MediaItems for persistence
-      final mediaItems = MediaConversionUtils.attachmentsToMediaItems(_entryState.attachments);
-      _draftCache.updateDraftContentAndMedia(content, mediaItems);
-      debugPrint('JournalScreen: Auto-saved draft content and media');
-    });
+    // Note: Auto-save timer disabled - only save on app lifecycle changes
+    // This prevents automatic saving during normal text editing
+    debugPrint('JournalScreen: Draft content updated (no auto-save)');
   }
 
   /// Navigate to drafts screen
@@ -2035,8 +2022,8 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
         ),
       );
 
-      // If a draft was opened, the drafts screen will handle navigation
-      // to the journal screen with the draft content
+      // Refresh draft count after returning from drafts screen
+      await _loadDraftCount();
     } catch (e) {
       debugPrint('JournalScreen: Error navigating to drafts: $e');
     }
@@ -2047,6 +2034,8 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
     try {
       await _draftCache.completeDraft();
       _currentDraftId = null;
+      // Refresh draft count after completing a draft
+      await _loadDraftCount();
       debugPrint('JournalScreen: Completed draft');
     } catch (e) {
       debugPrint('JournalScreen: Failed to complete draft: $e');
@@ -2062,6 +2051,19 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
       print('DEBUG: Timeline refreshed after saving entry');
     } catch (e) {
       print('DEBUG: Failed to refresh timeline after save: $e');
+    }
+  }
+
+  /// Load draft count for badge display
+  Future<void> _loadDraftCount() async {
+    try {
+      final drafts = await _draftCache.getAllDrafts();
+      setState(() {
+        _draftCount = drafts.length;
+      });
+      debugPrint('JournalScreen: Loaded draft count: $_draftCount');
+    } catch (e) {
+      debugPrint('JournalScreen: Failed to load draft count: $e');
     }
   }
 
