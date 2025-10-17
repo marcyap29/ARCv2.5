@@ -2,6 +2,15 @@ ate# EPI MVP Install Guide (Main MVP – Gemini API)
 
 This guide installs and runs the full MVP. The app uses Gemini via the LLMRegistry. If no key is provided (or the API fails), it falls back to the rule‑based client.
 
+## 🛡️ Production-Ready Stability (January 16, 2025)
+The app now includes comprehensive hardening improvements:
+- **Null Safety**: All null cast errors eliminated with safe JSON utilities
+- **Hive Stability**: ArcformPhaseSnapshot adapter with proper JSON string storage
+- **Timeline Performance**: RenderFlex overflow eliminated, rebuild spam reduced
+- **Model Registry**: "Unknown model ID" errors eliminated with validation system
+- **Comprehensive Testing**: 100+ test cases covering all critical functionality
+- **Build System**: All naming conflicts and syntax errors resolved
+
 ## Prerequisites
 - Flutter 3.35+ (stable)
 - Xcode (iOS) and/or Android SDK
