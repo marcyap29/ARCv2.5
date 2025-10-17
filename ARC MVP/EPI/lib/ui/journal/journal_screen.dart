@@ -6,7 +6,6 @@ import 'package:image_picker/image_picker.dart';
 import 'package:permission_handler/permission_handler.dart';
 import '../../state/journal_entry_state.dart';
 import '../../state/feature_flags.dart';
-import '../widgets/cached_thumbnail.dart';
 import '../../services/thumbnail_cache_service.dart';
 import '../../services/media_alt_text_generator.dart';
 import '../widgets/keywords_discovered_widget.dart';
@@ -85,7 +84,16 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
   
   // Periodic discovery service
   final PeriodicDiscoveryService _discoveryService = PeriodicDiscoveryService();
-  bool _showDiscoveryPopup = false;
+  
+  // Track if entry has been modified
+  bool _hasBeenModified = false;
+  String? _originalContent;
+  
+  // Metadata editing fields (only shown for existing entries)
+  DateTime? _editableDate;
+  TimeOfDay? _editableTime;
+  String? _editableLocation;
+  String? _editablePhase;
 
   @override
   void initState() {
@@ -117,6 +125,15 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
     if (widget.existingEntry != null) {
       _textController.text = widget.existingEntry!.content;
       _entryState.text = widget.existingEntry!.content;
+      
+      // Store original values for change tracking
+      _originalContent = widget.existingEntry!.content;
+      
+      // Initialize editable metadata fields
+      _editableDate = widget.existingEntry!.createdAt;
+      _editableTime = TimeOfDay.fromDateTime(widget.existingEntry!.createdAt);
+      _editableLocation = widget.existingEntry!.location;
+      _editablePhase = widget.existingEntry!.phase;
       
       // Convert MediaItems back to attachments
       if (widget.existingEntry!.media.isNotEmpty) {
@@ -170,6 +187,13 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
     setState(() {
       _entryState.text = text;
     });
+    
+    // Mark as modified if content changed from original
+    if (widget.existingEntry != null && _originalContent != null) {
+      _hasBeenModified = text != _originalContent;
+    } else {
+      _hasBeenModified = text.trim().isNotEmpty;
+    }
     
     // Update draft cache
     _updateDraftContent(text);
@@ -597,6 +621,11 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
             initialEmotion: widget.selectedEmotion,
             initialReason: widget.selectedReason,
             manualKeywords: _manualKeywords,
+            existingEntry: widget.existingEntry,
+            selectedDate: _editableDate,
+            selectedTime: _editableTime,
+            selectedLocation: _editableLocation,
+            selectedPhase: _editablePhase,
             mediaItems: (() {
               final mediaItems = MediaConversionUtils.attachmentsToMediaItems(_entryState.attachments);
               print('DEBUG: Saving entry with ${mediaItems.length} media items');
@@ -690,6 +719,12 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
                         // Photo selection controls (show at top when there are photos)
                         if (_entryState.attachments.any((attachment) => attachment is PhotoAttachment)) ...[
                           _buildPhotoSelectionControls(),
+                          const SizedBox(height: 16),
+                        ],
+
+                        // Metadata editing section (only for existing entries)
+                        if (widget.existingEntry != null) ...[
+                          _buildMetadataEditingSection(theme),
                           const SizedBox(height: 16),
                         ],
 
@@ -845,6 +880,14 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
 
   /// Handle back button press - show save/discard dialog
   Future<bool> _onBackPressed() async {
+    // For existing entries, only show dialog if content has been modified
+    if (widget.existingEntry != null) {
+      if (!_hasBeenModified) {
+        // No changes made, allow navigation without dialog
+        return true;
+      }
+    }
+    
     // Check if there's any content to save
     final hasContent = _entryState.text.trim().isNotEmpty || _entryState.attachments.isNotEmpty;
     
@@ -890,11 +933,142 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
     }
   }
 
-  /// Check if there are any photos with inline insertion positions
-  bool _hasInlinePhotos() {
-    return _entryState.attachments
-        .whereType<PhotoAttachment>()
-        .any((photo) => photo.insertionPosition != null);
+
+  /// Build metadata editing section for existing entries
+  Widget _buildMetadataEditingSection(ThemeData theme) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceVariant.withOpacity(0.3),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: theme.colorScheme.outline.withOpacity(0.2),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.edit_note,
+                size: 20,
+                color: theme.colorScheme.primary,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                'Edit Entry Details',
+                style: theme.textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: theme.colorScheme.primary,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          
+          // Date and Time row
+          Row(
+            children: [
+              // Date picker
+              Expanded(
+                child: InkWell(
+                  onTap: _selectDate,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    decoration: BoxDecoration(
+                      border: Border.all(color: theme.colorScheme.outline.withOpacity(0.3)),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.calendar_today, size: 16, color: theme.colorScheme.onSurfaceVariant),
+                        const SizedBox(width: 8),
+                        Text(
+                          _editableDate != null 
+                            ? '${_editableDate!.day}/${_editableDate!.month}/${_editableDate!.year}'
+                            : 'Select Date',
+                          style: theme.textTheme.bodyMedium,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              
+              // Time picker
+              Expanded(
+                child: InkWell(
+                  onTap: _selectTime,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    decoration: BoxDecoration(
+                      border: Border.all(color: theme.colorScheme.outline.withOpacity(0.3)),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.access_time, size: 16, color: theme.colorScheme.onSurfaceVariant),
+                        const SizedBox(width: 8),
+                        Text(
+                          _editableTime != null 
+                            ? _editableTime!.format(context)
+                            : 'Select Time',
+                          style: theme.textTheme.bodyMedium,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          
+          // Location field
+          TextField(
+            controller: TextEditingController(text: _editableLocation ?? ''),
+            decoration: InputDecoration(
+              labelText: 'Location',
+              hintText: 'Where were you?',
+              prefixIcon: const Icon(Icons.location_on, size: 16),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            ),
+            onChanged: (value) {
+              setState(() {
+                _editableLocation = value.trim().isEmpty ? null : value.trim();
+                _hasBeenModified = true;
+              });
+            },
+          ),
+          const SizedBox(height: 12),
+          
+          // Phase field
+          TextField(
+            controller: TextEditingController(text: _editablePhase ?? ''),
+            decoration: InputDecoration(
+              labelText: 'Phase',
+              hintText: 'What phase of life?',
+              prefixIcon: const Icon(Icons.timeline, size: 16),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            ),
+            onChanged: (value) {
+              setState(() {
+                _editablePhase = value.trim().isEmpty ? null : value.trim();
+                _hasBeenModified = true;
+              });
+            },
+          ),
+        ],
+      ),
+    );
   }
 
   /// Build content showing photos and reflections (without duplicating text)
@@ -1472,6 +1646,38 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
     });
   }
 
+  /// Select date for metadata editing
+  Future<void> _selectDate() async {
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: _editableDate ?? DateTime.now(),
+      firstDate: DateTime(1900),
+      lastDate: DateTime.now(),
+    );
+    
+    if (picked != null && picked != _editableDate) {
+      setState(() {
+        _editableDate = picked;
+        _hasBeenModified = true;
+      });
+    }
+  }
+
+  /// Select time for metadata editing
+  Future<void> _selectTime() async {
+    final TimeOfDay? picked = await showTimePicker(
+      context: context,
+      initialTime: _editableTime ?? TimeOfDay.now(),
+    );
+    
+    if (picked != null && picked != _editableTime) {
+      setState(() {
+        _editableTime = picked;
+        _hasBeenModified = true;
+      });
+    }
+  }
+
   void _toggleKeywordsDiscovered() {
     setState(() {
       _showKeywordsDiscovered = !_showKeywordsDiscovered;
@@ -1561,10 +1767,6 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
         );
         
         if (mounted) {
-          setState(() {
-            _showDiscoveryPopup = true;
-          });
-          
           // Show discovery popup
           _showDiscoveryDialog(suggestion);
         }
@@ -1595,9 +1797,6 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
       builder: (context) => DiscoveryPopup(
         suggestion: suggestion,
         onDismiss: () {
-          setState(() {
-            _showDiscoveryPopup = false;
-          });
           Navigator.of(context).pop();
         },
         onAcceptSuggestion: (suggestion) {

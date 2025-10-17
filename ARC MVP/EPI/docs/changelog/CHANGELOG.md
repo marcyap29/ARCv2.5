@@ -2,6 +2,34 @@
 
 ## [Unreleased]
 
+### 📝 **JOURNAL EDITOR ENHANCEMENTS** - January 17, 2025
+
+#### **Smart Save Behavior** ✅ **PRODUCTION READY**
+- **No Unnecessary Prompts**: Eliminates save-to-drafts dialog when viewing existing entries without changes
+- **Change Detection**: Tracks content modifications to determine when save prompts are needed
+- **Seamless Navigation**: Users can view entries and navigate back without interruption
+- **Improved UX**: Reduces friction for users who just want to read or browse entries
+
+#### **Metadata Editing for Existing Entries** ✅ **NEW**
+- **Date & Time Editing**: Intuitive date picker and time picker for adjusting entry timestamps
+- **Location Field**: Editable location information with clear labeling
+- **Phase Field**: Editable life phase information for better categorization
+- **Visual Design**: Clean, organized UI with appropriate icons and styling
+- **Conditional Display**: Only appears when editing existing entries, not for new entries
+
+#### **Enhanced Entry Management** ✅ **IMPLEMENTED**
+- **Change Tracking**: Comprehensive tracking of all modifications (content, metadata, media)
+- **Smart State Management**: Distinguishes between viewing and editing modes
+- **Preserved Functionality**: All existing features remain intact for new entry creation
+- **Backward Compatibility**: Existing entries and workflows continue to work seamlessly
+
+#### **Technical Implementation** ✅ **COMPLETE**
+- **Modified `_onBackPressed()`**: Smart logic to skip dialogs when no changes detected
+- **Added Metadata UI**: `_buildMetadataEditingSection()` with date/time/location/phase fields
+- **State Management**: `_hasBeenModified` flag and original content tracking
+- **Integration**: Seamless integration with existing `KeywordAnalysisView` and `JournalCaptureCubit`
+- **Data Flow**: Proper passing of metadata through save pipeline
+
 ### 🔧 **MCP FILE REPAIR & CHAT/JOURNAL SEPARATION** - January 17, 2025
 
 #### **Architectural Issue Detection** ✅ **PRODUCTION READY**

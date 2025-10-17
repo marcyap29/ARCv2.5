@@ -48,9 +48,59 @@
   - ✅ **Timeline Performance**: RenderFlex overflow eliminated, rebuild spam reduced
   - ✅ **Model Registry**: "Unknown model ID" errors eliminated with validation system
   - ✅ **Media Extraction**: Unified handling across MIRA/MCP systems
+  - ✅ **Journal Editor**: Smart save behavior and metadata editing for existing entries
   - ✅ **MCP Repair System**: Complete chat/journal separation and file repair architecture
   - ✅ **Build System**: All naming conflicts and syntax errors resolved
   - ✅ **Testing Coverage**: 100+ test cases covering all critical functionality
+
+  ## 📝 **Journal Editor Architecture** (Updated January 17, 2025)
+
+  **Enhanced Journal Entry Management with Smart Save Behavior and Metadata Editing**:
+
+  ```
+  Journal Editor Layer:
+  ├── Smart Save Behavior
+  │   ├── Change Detection (_hasBeenModified flag)
+  │   ├── Original Content Tracking (_originalContent)
+  │   ├── Modified _onBackPressed() logic
+  │   └── Conditional Save Dialog (only when changes detected)
+  ├── Metadata Editing (Existing Entries Only)
+  │   ├── Date & Time Pickers (_editableDate, _editableTime)
+  │   ├── Location Field (_editableLocation)
+  │   ├── Phase Field (_editablePhase)
+  │   ├── _buildMetadataEditingSection() UI
+  │   └── Conditional Display (widget.existingEntry != null)
+  ├── State Management
+  │   ├── Change Tracking (content, metadata, media)
+  │   ├── Smart State Updates (setState with modification flags)
+  │   └── Original Value Preservation (for comparison)
+  └── Integration Layer
+      ├── KeywordAnalysisView Integration (metadata parameters)
+      ├── JournalCaptureCubit Integration (updateEntryWithKeywords)
+      ├── Data Flow (metadata → save pipeline)
+      └── Backward Compatibility (new entries unchanged)
+  ```
+
+  **Key Components**:
+  - **`_onBackPressed()`**: Smart logic that skips save dialog when no changes detected
+  - **`_buildMetadataEditingSection()`**: UI component for date/time/location/phase editing
+  - **`_selectDate()` / `_selectTime()`**: Native date/time picker integration
+  - **Change Tracking**: `_hasBeenModified` flag with content comparison
+  - **Metadata State**: `_editableDate`, `_editableTime`, `_editableLocation`, `_editablePhase`
+
+  **Data Flow**:
+  1. **Entry Loading**: Original values stored for change detection
+  2. **User Interaction**: Metadata changes tracked and marked as modifications
+  3. **Save Process**: Metadata passed through KeywordAnalysisView → JournalCaptureCubit
+  4. **Update Logic**: `updateEntryWithKeywords()` handles all metadata updates
+  5. **Persistence**: Changes saved to JournalEntry model with `isEdited: true`
+
+  **User Experience Improvements**:
+  - ✅ **No Unnecessary Prompts**: View entries without save dialogs
+  - ✅ **Rich Metadata Editing**: Date, time, location, phase editing
+  - ✅ **Visual Design**: Clean, organized UI with appropriate icons
+  - ✅ **Conditional Display**: Only shows for existing entries
+  - ✅ **Seamless Integration**: Works with existing save/update infrastructure
 
   ## 🔧 **MCP Repair System Architecture** (Updated January 17, 2025)
 
