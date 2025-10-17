@@ -19,7 +19,7 @@ class RivetEventAdapter extends TypeAdapter<RivetEvent> {
     return RivetEvent(
       date: fields[0] as DateTime,
       source: fields[1] as EvidenceSource,
-      keywords: (fields[2] as List).cast<String>(),
+      keywords: (fields[2] as List).cast<String>().toSet(),
       predPhase: fields[3] as String,
       refPhase: fields[4] as String,
       tolerance: (fields[5] as Map).cast<String, double>(),
@@ -35,7 +35,7 @@ class RivetEventAdapter extends TypeAdapter<RivetEvent> {
       ..writeByte(1)
       ..write(obj.source)
       ..writeByte(2)
-      ..write(obj.keywords)
+      ..write(obj.keywords.toList())
       ..writeByte(3)
       ..write(obj.predPhase)
       ..writeByte(4)
@@ -113,6 +113,10 @@ class EvidenceSourceAdapter extends TypeAdapter<EvidenceSource> {
         return EvidenceSource.therapistTag;
       case 3:
         return EvidenceSource.other;
+      case 4:
+        return EvidenceSource.draft;
+      case 5:
+        return EvidenceSource.lumaraChat;
       default:
         return EvidenceSource.text;
     }
@@ -132,6 +136,12 @@ class EvidenceSourceAdapter extends TypeAdapter<EvidenceSource> {
         break;
       case EvidenceSource.other:
         writer.writeByte(3);
+        break;
+      case EvidenceSource.draft:
+        writer.writeByte(4);
+        break;
+      case EvidenceSource.lumaraChat:
+        writer.writeByte(5);
         break;
     }
   }

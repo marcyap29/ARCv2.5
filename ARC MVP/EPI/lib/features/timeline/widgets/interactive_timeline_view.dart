@@ -973,7 +973,7 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
           final rivetEvent = RivetEvent(
             date: entry.createdAt,
             source: EvidenceSource.text,
-                keywords: entry.keywords,
+            keywords: entry.keywords.toSet(),
             predPhase: recommendedPhase,
             refPhase: currentPhase,
             tolerance: const {},

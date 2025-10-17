@@ -720,7 +720,7 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
       final rivetEvent = RivetEvent(
         date: DateTime.now(),
         source: EvidenceSource.text,
-            keywords: entry.keywords,
+        keywords: entry.keywords.toSet(),
         predPhase: recommendedPhase, // What PhaseRecommender thinks
         refPhase: currentPhase, // What user currently has
         tolerance: const {}, // Stub for categorical phases

@@ -113,6 +113,10 @@ class EvidenceSourceAdapter extends TypeAdapter<EvidenceSource> {
         return EvidenceSource.therapistTag;
       case 3:
         return EvidenceSource.other;
+      case 4:
+        return EvidenceSource.draft;
+      case 5:
+        return EvidenceSource.lumaraChat;
       default:
         return EvidenceSource.text;
     }
@@ -132,6 +136,12 @@ class EvidenceSourceAdapter extends TypeAdapter<EvidenceSource> {
         break;
       case EvidenceSource.other:
         writer.writeByte(3);
+        break;
+      case EvidenceSource.draft:
+        writer.writeByte(4);
+        break;
+      case EvidenceSource.lumaraChat:
+        writer.writeByte(5);
         break;
     }
   }
