@@ -7,6 +7,23 @@ This directory contains comprehensive documentation for the EPI (Evolving Person
 
 ## 🆕 Latest Updates (January 17, 2025)
 
+**🧠 MIRA v0.2 - Enhanced Semantic Memory System**
+
+Complete implementation of next-generation semantic memory with advanced privacy controls, multimodal support, and intelligent retrieval:
+- **ULID-based Identity** - Deterministic, sortable IDs replacing UUIDs throughout the system
+- **Provenance Tracking** - Complete audit trail with source, agent, operation, and trace ID
+- **Privacy-First Design** - Domain scoping with 5-level privacy classification and PII protection
+- **Intelligent Retrieval** - Composite scoring with phase affinity, hard negatives, and memory caps
+- **Multimodal Support** - Unified text/image/audio pointers with embedding references
+- **CRDT Sync** - Conflict-free replicated data types for multi-device synchronization
+- **VEIL Integration** - Automated memory lifecycle management with decay and deduplication
+- **MCP Bundle v1.1** - Enhanced export with Merkle roots, selective export, and integrity verification
+- **Migration System** - Seamless v0.1 to v0.2 migration with backward compatibility
+- **Observability** - Comprehensive metrics, golden tests, and health monitoring
+- **Documentation** - Complete API docs with examples and developer guides
+
+*For detailed technical information, see [MIRA v0.2 Documentation](../architecture/EPI_Architecture.md#mira-v02---enhanced-semantic-memory-architecture)*
+
 **🔄 RIVET & SENTINEL Extensions - Unified Reflective Analysis**
 
 Complete implementation of unified reflective analysis system extending RIVET and SENTINEL to process all reflective inputs:

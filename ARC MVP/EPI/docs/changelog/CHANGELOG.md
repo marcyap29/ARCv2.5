@@ -2,6 +2,65 @@
 
 ## [Unreleased]
 
+### 🧠 **MIRA v0.2 - Enhanced Semantic Memory System** - January 17, 2025
+
+#### **Complete Semantic Memory Overhaul** ✅ **PRODUCTION READY**
+- **ULID-based Identity**: Replaced all UUIDs with deterministic, sortable ULIDs
+- **Schema Versioning**: Added `schema_id` and `embeddings_ver` to all objects
+- **Provenance Tracking**: Complete audit trail with source, agent, operation, and trace ID
+- **Soft Delete**: Added `tombstone` and `deleted_at` fields for all objects
+- **Migration System**: Automated v0.1 to v0.2 migration with backward compatibility
+
+#### **Privacy & Security** ✅ **IMPLEMENTED**
+- **Policy Engine**: Domain-based access control with 5-level privacy classification
+- **Consent Logging**: Append-only consent tracking system
+- **PII Protection**: Automatic detection and redaction with user override
+- **Safe Export**: Privacy-aware export with domain and privacy level filtering
+- **Purpose-based Access**: Controlled access based on context and purpose
+
+#### **Intelligent Retrieval** ✅ **COMPLETE**
+- **Composite Scoring**: 45% semantic + 20% recency + 15% phase affinity + 10% domain match + 10% engagement
+- **Phase Affinity**: Life-stage aware memory retrieval
+- **Hard Negatives**: Query-specific exclusion lists
+- **Memory Caps**: Maximum 8 memories per response
+- **Memory Use Records**: Comprehensive attribution tracking with human-readable reasons
+
+#### **Multimodal Support** ✅ **IMPLEMENTED**
+- **Unified Pointers**: Text, image, audio with embedding references
+- **EXIF Normalization**: Consistent timestamp handling for media files
+- **Cross-modal Search**: Embedding-based similarity search across modalities
+- **Media Type Support**: Comprehensive media type enumeration and handling
+
+#### **Sync & Concurrency** ✅ **COMPLETE**
+- **CRDT-lite Merge**: Last-writer-wins for scalars, set-merge for tags
+- **Device Ticks**: Monotonic ordering for conflict resolution
+- **Wall-time**: Timestamp-based conflict resolution
+- **Conflict Resolution**: Deterministic conflict resolution strategies
+
+#### **Lifecycle Management** ✅ **IMPLEMENTED**
+- **VEIL Jobs**: Automated memory hygiene with decay and deduplication
+- **Decay System**: Half-life decay with phase multipliers and access reinforcement
+- **Nightly Jobs**: Dedupe-summaries, stale-edge-prune, conflict-review-batcher
+- **Reinforcement**: Pinning boost and access-based reinforcement
+
+#### **MCP Bundle v1.1** ✅ **COMPLETE**
+- **Enhanced Manifest**: Capabilities, hashes, and Merkle root support
+- **Selective Export**: Domain-based and privacy-level filtering
+- **Integrity Verification**: Complete bundle integrity checking
+- **Signature Support**: Optional detached signature verification
+
+#### **Observability & QA** ✅ **IMPLEMENTED**
+- **Metrics Collection**: Retrieval, policy, VEIL, export, and system metrics
+- **Golden Tests**: Comprehensive test suite ensuring deterministic behavior
+- **Health Monitoring**: System health status and performance tracking
+- **Regression Tests**: Automated testing for all major features
+
+#### **Documentation & DX** ✅ **COMPLETE**
+- **Comprehensive README**: Complete API documentation with examples
+- **Code Examples**: Extensive examples for all major features
+- **Inline Comments**: Detailed code documentation
+- **Developer Guide**: Complete setup and usage instructions
+
 ### 🧠 **MCP ALIGNMENT IMPLEMENTATION** - January 17, 2025
 
 #### **Complete Whitepaper Compliance** ✅ **PRODUCTION READY**

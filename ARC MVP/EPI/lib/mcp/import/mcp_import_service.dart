@@ -82,6 +82,9 @@ class McpImportService {
   
   // Media deduplication cache - maps URI to MediaItem to prevent duplicates
   final Map<String, MediaItem> _mediaCache = {};
+  
+  // Store photo pointers for linking to journal entries
+  final Map<String, McpPointer> _photoPointers = {};
 
   McpImportService({
     ManifestReader? manifestReader,
@@ -391,6 +394,19 @@ class McpImportService {
 
         // Store pointer as durable substrate
         await _miraWriter.putPointer(pointer, batchId);
+        
+         // If this is a photo pointer, store it for later linking
+         if (pointer.id.startsWith('ptr_photo_')) {
+          final metadata = pointer.descriptor.metadata;
+          final journalEntryId = metadata['journal_entry_id'] as String?;
+          final photoId = metadata['photo_id'] as String?;
+          
+          if (journalEntryId != null && photoId != null) {
+            print('📷 Storing photo pointer for linking: $photoId -> $journalEntryId');
+            _photoPointers[photoId] = pointer;
+          }
+        }
+        
         count++;
 
         if (count % 1000 == 0) {
@@ -1207,43 +1223,39 @@ class McpImportService {
     
     String finalUri = json['uri'] as String;
     
-         // If this is a ph:// URI and we have stored metadata, try to reconnect
-         if (finalUri.startsWith('ph://') && json.containsKey('photo_metadata')) {
+         // If this is a ph:// URI, try robust relinking
+         if (finalUri.startsWith('ph://')) {
            try {
-             print('🔄 MCP Import: Attempting to reconnect photo using metadata for ${json['id']}');
+             print('🔄 MCP Import: Attempting robust relink for ${json['id']}');
              print('🔄 MCP Import: Original URI: $finalUri');
-             final metadata = PhotoMetadata.fromJson(json['photo_metadata'] as Map<String, dynamic>);
-             print('🔄 MCP Import: Metadata: ${metadata.description}');
              
-             // First, check if the original photo still exists
-             bool exists = await PhotoLibraryService.photoExistsInLibrary(finalUri);
-             print('🔄 MCP Import: Original photo exists: $exists');
+             // Create PhotoMetadata from available data
+             final photoMetadata = PhotoMetadata(
+               localIdentifier: finalUri.replaceFirst('ph://', ''),
+               cloudIdentifier: json['cloud_identifier'] as String?,
+               creationDate: json['created_at'] != null 
+                   ? DateTime.parse(json['created_at'] as String)
+                   : node.timestamp,
+               filename: json['original_filename'] as String?,
+               pixelWidth: json['analysis_data']?['params']?['width'] as int?,
+               pixelHeight: json['analysis_data']?['params']?['height'] as int?,
+               perceptualHash: json['analysis_data']?['features']?['phash'] as String?,
+             );
              
-             if (exists) {
-               print('✅ MCP Import: Original photo still exists, using original URI: $finalUri');
-               // Keep the original URI
+             // Use robust relinking algorithm
+             final relinkedUri = await PhotoLibraryService.robustPhotoRelink(photoMetadata);
+             
+             if (relinkedUri != null) {
+               finalUri = relinkedUri;
+               print('✅ MCP Import: Robust relink successful: $relinkedUri');
              } else {
-               print('🔍 MCP Import: Original photo not found, searching by metadata...');
-               
-               // Try to find the photo using metadata search
-               final newPhotoId = await PhotoLibraryService.findPhotoByMetadata(metadata);
-               print('🔍 MCP Import: Metadata search result: $newPhotoId');
-               
-               if (newPhotoId != null) {
-                 finalUri = newPhotoId;
-                 print('✅ MCP Import: Found photo by metadata with new ID: $newPhotoId');
-               } else {
-                 print('⚠️ MCP Import: Could not find photo by metadata, keeping original URI: $finalUri');
-                 // Keep the original URI - it will show as "Photo unavailable" in UI
-               }
+               print('⚠️ MCP Import: Robust relink failed, keeping original URI: $finalUri');
              }
              
            } catch (e) {
-             print('⚠️ MCP Import: Error reconnecting photo using metadata: $e');
+             print('⚠️ MCP Import: Error in robust relink: $e');
              // Fall back to original URI
            }
-         } else if (finalUri.startsWith('ph://')) {
-           print('🔍 MCP Import: ph:// URI without metadata: $finalUri');
          } else {
            print('🔍 MCP Import: Non-ph:// URI: $finalUri');
          }
@@ -1289,6 +1301,28 @@ class McpImportService {
   Future<MediaItem?> _findMediaForPhotoId(String photoId, McpNode node) async {
     print('🔍 MCP Import: Looking for photo ID: $photoId');
     
+    // First, try to find photo pointer
+    if (_photoPointers.containsKey(photoId)) {
+      final pointer = _photoPointers[photoId]!;
+      print('🔍 MCP Import: Found photo pointer for $photoId');
+      
+      // Create MediaItem from pointer
+      final mediaItem = MediaItem(
+        id: photoId,
+        uri: pointer.sourceUri ?? 'placeholder://$photoId',
+        type: _parseMediaType(pointer.mediaType),
+        createdAt: pointer.integrity.createdAt,
+        sizeBytes: pointer.integrity.bytes,
+        altText: pointer.descriptor.metadata['alt_text'] as String?,
+        ocrText: pointer.descriptor.metadata['ocr_text'] as String?,
+        analysisData: pointer.descriptor.metadata['analysis_data'] as Map<String, dynamic>?,
+      );
+      
+      // Try to relink the photo
+      final relinkedItem = await _relinkPhotoFromPointer(mediaItem, pointer);
+      return relinkedItem;
+    }
+    
     // Try to find media in node metadata by matching photo ID
     if (node.metadata != null && node.metadata!.containsKey('media')) {
       final mediaData = node.metadata!['media'] as List?;
@@ -1305,7 +1339,32 @@ class McpImportService {
       }
     }
 
-    // ALWAYS try photos array if we haven't found anything yet
+    // Legacy support: Extract from node metadata if no photo pointer exists
+    print('🔍 MCP Import: No photo pointer found, trying legacy metadata extraction');
+    return await _extractMediaFromLegacyNode(photoId, node);
+  }
+
+  /// Extract media from legacy node metadata (for MCP files without photo pointers)
+  Future<MediaItem?> _extractMediaFromLegacyNode(String photoId, McpNode node) async {
+    print('🔍 MCP Import: Extracting media from legacy node for $photoId');
+
+    // Try to find media in node metadata by matching photo ID
+    if (node.metadata != null && node.metadata!.containsKey('media')) {
+      final mediaData = node.metadata!['media'] as List?;
+      if (mediaData != null) {
+        for (final mediaJson in mediaData) {
+          if (mediaJson is Map<String, dynamic>) {
+            final mediaId = mediaJson['id'] as String?;
+            if (mediaId == photoId) {
+              print('🔍 MCP Import: Found media in metadata.media for $photoId');
+              return await _parseMediaItemFromJson(mediaJson, node);
+            }
+          }
+        }
+      }
+    }
+
+    // Try photos array
     if (node.metadata != null && node.metadata!.containsKey('photos')) {
       final photosData = node.metadata!['photos'] as List?;
       if (photosData != null) {
@@ -1326,6 +1385,141 @@ class McpImportService {
     final fallbackMetadata = metaFromPlaceholder(photoId);
     return await _reconstructFromPlaceholder(photoId, fallbackMetadata, node);
   }
+
+         /// Relink photo from pointer metadata using robust 4-step algorithm
+         Future<MediaItem> _relinkPhotoFromPointer(MediaItem mediaItem, McpPointer pointer) async {
+           print('🔄 MCP Import: Attempting robust relink for photo: ${mediaItem.id}');
+
+           // Create PhotoMetadata from pointer metadata
+           final metadata = pointer.descriptor.metadata;
+           final photoMetadata = PhotoMetadata(
+             localIdentifier: metadata['local_identifier'] as String? ?? 
+                 (mediaItem.uri.startsWith('ph://') ? mediaItem.uri.replaceFirst('ph://', '') : ''),
+             cloudIdentifier: metadata['cloud_identifier'] as String?,
+             creationDate: mediaItem.createdAt,
+             filename: metadata['original_filename'] as String?,
+             pixelWidth: metadata['analysis_data']?['params']?['width'] as int?,
+             pixelHeight: metadata['analysis_data']?['params']?['height'] as int?,
+             perceptualHash: metadata['analysis_data']?['features']?['phash'] as String?,
+           );
+
+           // Use robust relinking algorithm
+           final relinkedUri = await PhotoLibraryService.robustPhotoRelink(photoMetadata);
+           
+           if (relinkedUri != null) {
+             print('✅ MCP Import: Robust relink successful: $relinkedUri');
+             return MediaItem(
+               id: mediaItem.id,
+               uri: relinkedUri,
+               type: mediaItem.type,
+               createdAt: mediaItem.createdAt,
+               sizeBytes: mediaItem.sizeBytes,
+               altText: mediaItem.altText,
+               ocrText: mediaItem.ocrText,
+               analysisData: mediaItem.analysisData,
+             );
+           } else {
+             print('⚠️ MCP Import: Robust relink failed, keeping original URI: ${mediaItem.uri}');
+             return mediaItem;
+           }
+         }
+
+  /// Extract metadata from placeholder timestamp
+  Map<String, dynamic> metaFromPlaceholder(String placeholderId) {
+    // placeholderId: "photo_1760654962279"
+    final parts = placeholderId.split('_');
+    if (parts.length == 2) {
+      final ms = int.tryParse(parts[1]);
+      if (ms != null) {
+        final dt = DateTime.fromMillisecondsSinceEpoch(ms, isUtc: true);
+        return {
+          'placeholder_id': placeholderId,
+          'creation_date': dt.toIso8601String(),
+          'local_identifier': null,
+          'pixel_width': null,
+          'pixel_height': null,
+          'filename': null,
+          'uniform_type_identifier': null,
+          'perceptual_hash': null,
+        };
+      }
+    }
+    return {'placeholder_id': placeholderId};
+  }
+
+  /// Reconstruct media from placeholder using photo metadata
+  Future<MediaItem> _reconstructFromPlaceholder(
+    String placeholderId,
+    Map<String, dynamic> photoMetadata,
+    McpNode node,
+  ) async {
+    print('🔄 MCP Import: Attempting to reconnect photo $placeholderId using metadata');
+    
+    String? uri; // final media URI we will store
+
+    // Use fallback metadata if the provided metadata is empty or only has placeholder_id
+    Map<String, dynamic> effectiveMetadata = photoMetadata;
+    if (photoMetadata.isEmpty || (photoMetadata.length == 1 && photoMetadata.containsKey('placeholder_id'))) {
+      print('🔍 MCP Import: Using timestamp-derived metadata for $placeholderId');
+      effectiveMetadata = metaFromPlaceholder(placeholderId);
+    }
+
+    // 1) Fast path: local_identifier present
+    final localId = effectiveMetadata['local_identifier'] as String?;
+    if (localId != null && localId.isNotEmpty) {
+      print('🔍 MCP Import: Checking if original photo exists: ph://$localId');
+      final exists = await PhotoLibraryService.photoExistsInLibrary('ph://$localId');
+      if (exists) {
+        uri = 'ph://$localId';
+        print('✅ MCP Import: Original photo still exists: $uri');
+      } else {
+        print('⚠️ MCP Import: Original photo not found, will try metadata search');
+      }
+    }
+
+    // 2) Relink by metadata (date → dims → filename → pHash)
+    if (uri == null && effectiveMetadata.isNotEmpty) {
+      print('🔍 MCP Import: Attempting metadata-based reconnection');
+      try {
+        final photoMetadataObj = PhotoMetadata.fromJson(effectiveMetadata);
+        final resolved = await PhotoLibraryService.findPhotoByMetadata(photoMetadataObj);
+        if (resolved != null && resolved.startsWith('ph://')) {
+          uri = resolved;
+          print('✅ MCP Import: Found photo by metadata: $uri');
+        } else {
+          print('⚠️ MCP Import: Could not find photo by metadata');
+        }
+      } catch (e) {
+        print('⚠️ MCP Import: Error creating PhotoMetadata object: $e');
+      }
+    }
+
+    // 3) Last resort: keep as placeholder (UI will show relink affordance)
+    uri ??= 'placeholder://$placeholderId';
+    print('🔍 MCP Import: Final URI for $placeholderId: $uri');
+
+    return MediaItem(
+      id: placeholderId,
+      type: MediaType.image,
+      uri: uri,
+      createdAt: node.timestamp,
+      altText: uri.startsWith('ph://')
+          ? 'Photo reconnected'
+          : 'Photo unavailable - tap to relink',
+      analysisData: uri.startsWith('ph://')
+          ? {'photo_id': placeholderId, 'imported': true, 'placeholder': false}
+          : {'photo_id': placeholderId, 'imported': true, 'placeholder': true, 'unavailable': true},
+    );
+  }
+
+}
+               analysisData: mediaItem.analysisData,
+             );
+           } else {
+             print('⚠️ MCP Import: Robust relink failed, keeping original URI: ${mediaItem.uri}');
+             return mediaItem;
+           }
+         }
 
   /// Extract metadata from placeholder timestamp
   Map<String, dynamic> metaFromPlaceholder(String placeholderId) {

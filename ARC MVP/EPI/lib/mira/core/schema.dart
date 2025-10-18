@@ -218,6 +218,16 @@ class MiraNode {
 
   @override
   String toString() => 'MiraNode($id, $type)';
+
+  /// Create from JSON
+  factory MiraNode.fromJson(Map<String, dynamic> json) => MiraNode(
+    id: json['id'] as String,
+    type: NodeType.values[json['type'] as int],
+    schemaVersion: json['schemaVersion'] as int,
+    data: Map<String, dynamic>.from(json['data'] as Map),
+    createdAt: DateTime.parse(json['createdAt'] as String),
+    updatedAt: DateTime.parse(json['updatedAt'] as String),
+  );
 }
 
 /// An edge connecting two nodes in the MIRA graph
@@ -381,4 +391,15 @@ class MiraEdge {
 
   @override
   String toString() => 'MiraEdge($src -[$label]-> $dst)';
+
+  /// Create from JSON
+  factory MiraEdge.fromJson(Map<String, dynamic> json) => MiraEdge(
+    id: json['id'] as String,
+    src: json['src'] as String,
+    dst: json['dst'] as String,
+    label: EdgeType.values[json['label'] as int],
+    schemaVersion: json['schemaVersion'] as int,
+    data: Map<String, dynamic>.from(json['data'] as Map),
+    createdAt: DateTime.parse(json['createdAt'] as String),
+  );
 }

@@ -30,6 +30,9 @@ class PhotoMetadata {
   
   /// Timestamp in milliseconds for precise iOS filtering
   final int? timestampMs;
+  
+  /// Cloud identifier for cross-device stability (iCloud Photos)
+  final String? cloudIdentifier;
 
   const PhotoMetadata({
     required this.localIdentifier,
@@ -41,6 +44,7 @@ class PhotoMetadata {
     this.pixelHeight,
     this.perceptualHash,
     this.timestampMs,
+    this.cloudIdentifier,
   });
 
   /// Convert to JSON for MCP storage
@@ -55,6 +59,7 @@ class PhotoMetadata {
       'pixel_height': pixelHeight,
       'perceptual_hash': perceptualHash,
       'timestampMs': timestampMs,
+      'cloud_identifier': cloudIdentifier,
     };
   }
 
@@ -74,6 +79,7 @@ class PhotoMetadata {
       pixelHeight: json['pixel_height'] as int?,
       perceptualHash: json['perceptual_hash'] as String?,
       timestampMs: json['timestampMs'] as int?,
+      cloudIdentifier: json['cloud_identifier'] as String?,
     );
   }
 
@@ -88,6 +94,7 @@ class PhotoMetadata {
     int? pixelHeight,
     String? perceptualHash,
     int? timestampMs,
+    String? cloudIdentifier,
   }) {
     return PhotoMetadata(
       localIdentifier: localIdentifier ?? this.localIdentifier,
@@ -99,6 +106,7 @@ class PhotoMetadata {
       pixelHeight: pixelHeight ?? this.pixelHeight,
       perceptualHash: perceptualHash ?? this.perceptualHash,
       timestampMs: timestampMs ?? this.timestampMs,
+      cloudIdentifier: cloudIdentifier ?? this.cloudIdentifier,
     );
   }
 
@@ -132,7 +140,8 @@ class PhotoMetadata {
         other.fileSize == fileSize &&
         other.pixelWidth == pixelWidth &&
         other.pixelHeight == pixelHeight &&
-        other.perceptualHash == perceptualHash;
+        other.perceptualHash == perceptualHash &&
+        other.cloudIdentifier == cloudIdentifier;
   }
 
   @override
@@ -146,6 +155,17 @@ class PhotoMetadata {
       pixelWidth,
       pixelHeight,
       perceptualHash,
+      cloudIdentifier,
+    );
+  }
+
+  @override
+  String toString() {
+    return 'PhotoMetadata($description)';
+  }
+}
+
+      cloudIdentifier,
     );
   }
 

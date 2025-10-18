@@ -301,15 +301,141 @@ class PhotoLibraryService {
         'metadata': metadata.toJson(),
       });
       
+      return result as String?;
+    } catch (e) {
+      print('PhotoLibraryService: Error finding photo by metadata: $e');
+      return null;
+    }
+  }
+  
+  /// Get cloud identifier for a local photo
+  /// 
+  /// [localId] - Local identifier of the photo
+  /// Returns the cloud identifier if available, null otherwise
+  static Future<String?> getCloudIdentifier(String localId) async {
+    try {
+      final permission = await Permission.photos.status;
+      if (!permission.isGranted && !permission.isLimited) {
+        print('PhotoLibraryService: Photo library permission not granted');
+        return null;
+      }
+      
+      final result = await _channel.invokeMethod('getCloudIdentifier', {
+        'localId': localId,
+      });
+      
+      return result as String?;
+    } catch (e) {
+      print('PhotoLibraryService: Error getting cloud identifier: $e');
+      return null;
+    }
+  }
+  
+  /// Find photo by cloud identifier
+  /// 
+  /// [cloudId] - Cloud identifier of the photo
+  /// Returns the local photo library identifier if found, null otherwise
+  static Future<String?> findPhotoByCloudIdentifier(String cloudId) async {
+    try {
+      final permission = await Permission.photos.status;
+      if (!permission.isGranted && !permission.isLimited) {
+        print('PhotoLibraryService: Photo library permission not granted');
+        return null;
+      }
+      
+      final result = await _channel.invokeMethod('findPhotoByCloudIdentifier', {
+        'cloudId': cloudId,
+      });
+      
+      return result as String?;
+    } catch (e) {
+      print('PhotoLibraryService: Error finding photo by cloud identifier: $e');
+      return null;
+    }
+  }
+  
+  /// Robust photo relinking using the 4-step algorithm
+  /// 
+  /// [metadata] - PhotoMetadata object with all available identifiers
+  /// Returns the photo library identifier if found, null otherwise
+  static Future<String?> robustPhotoRelink(PhotoMetadata metadata) async {
+    try {
+      final permission = await Permission.photos.status;
+      if (!permission.isGranted && !permission.isLimited) {
+        print('PhotoLibraryService: Photo library permission not granted');
+        return null;
+      }
+      
+      final result = await _channel.invokeMethod('robustPhotoRelink', {
+        'metadata': metadata.toJson(),
+      });
+      
+      return result as String?;
+    } catch (e) {
+      print('PhotoLibraryService: Error in robust photo relink: $e');
+      return null;
+    }
+  }
+  
+  /// Find a photo in the library using perceptual hash
+  /// 
+  /// [hash] - Perceptual hash string to search for
+  /// Returns the photo library identifier if found, null otherwise
+  static Future<String?> findPhotoByPerceptualHash(String hash) async {
+    try {
+      final permission = await Permission.photos.status;
+      if (!permission.isGranted && !permission.isLimited) {
+        print('PhotoLibraryService: Photo library permission not granted');
+        return null;
+      }
+      
+      final result = await _channel.invokeMethod('findPhotoByPerceptualHash', {
+        'hash': hash,
+      });
+      
       if (result is String && result.isNotEmpty) {
-        print('PhotoLibraryService: Found photo by metadata: $result');
+        print('PhotoLibraryService: Found photo by perceptual hash: $result');
         return result;
       } else {
-        print('PhotoLibraryService: No photo found matching metadata');
+        print('PhotoLibraryService: No photo found matching perceptual hash');
         return null;
       }
     } catch (e) {
-      print('PhotoLibraryService: Error finding photo by metadata: $e');
+      print('PhotoLibraryService: Error finding photo by perceptual hash: $e');
+      return null;
+    }
+  }
+}
+
+        'cloudId': cloudId,
+      });
+      
+      return result as String?;
+    } catch (e) {
+      print('PhotoLibraryService: Error finding photo by cloud identifier: $e');
+      return null;
+    }
+  }
+  
+  /// Robust photo relinking using the 4-step algorithm
+  /// 
+  /// [metadata] - PhotoMetadata object with all available identifiers
+  /// Returns the photo library identifier if found, null otherwise
+  static Future<String?> robustPhotoRelink(PhotoMetadata metadata) async {
+    try {
+      final permission = await Permission.photos.status;
+      if (!permission.isGranted && !permission.isLimited) {
+        print('PhotoLibraryService: Photo library permission not granted');
+        return null;
+      }
+      
+      final result = await _channel.invokeMethod('robustPhotoRelink', {
+        'metadata': metadata.toJson(),
+      });
+      
+      return result as String?;
+    } catch (e) {
+      print('PhotoLibraryService: Error in robust photo relink: $e');
       return null;
     }
   }

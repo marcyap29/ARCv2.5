@@ -17,6 +17,8 @@ import '../../lumara/chat/chat_repo.dart';
 import '../../lumara/chat/chat_models.dart';
 import 'package:my_app/models/journal_entry_model.dart';
 import '../../data/models/media_item.dart';
+import '../../core/services/photo_library_service.dart';
+import '../../data/models/photo_metadata.dart';
 
 class McpExportService {
   final String bundleId;
@@ -57,6 +59,10 @@ class McpExportService {
 
       // Create pointers for media files
       final pointers = await _createPointersFromMedia(mediaFiles ?? []);
+
+      // Extract photo references from journal entries and create pointers
+      final photoPointers = await _extractPhotoReferencesFromEntries(filteredEntries);
+      pointers.addAll(photoPointers);
 
       // Export chat data if chat repository is available
       final chatData = await _exportChatData(scope, customScope, includeChats, includeArchivedChats);
@@ -273,17 +279,6 @@ class McpExportService {
     );
   }
 
-  /// Extract situation from journal content
-  String? _extractSituation(String content) {
-    // Simplified: look for situation keywords
-    final situationKeywords = ['situation', 'context', 'when', 'where', 'circumstance'];
-    for (final keyword in situationKeywords) {
-      if (content.toLowerCase().contains(keyword)) {
-        return 'Situation extracted from journal entry';
-      }
-    }
-    return null;
-  }
 
   /// Extract action from journal content
   String? _extractAction(String content) {
@@ -343,6 +338,119 @@ class McpExportService {
     // For journal entries, preserve the full content in contentSummary
     // This ensures complete content preservation during export/import cycle
     return entry.content;
+  }
+
+  /// Extract photo references from journal entries and create pointers
+  Future<List<McpPointer>> _extractPhotoReferencesFromEntries(List<JournalEntry> entries) async {
+    final pointers = <McpPointer>[];
+    
+    print('📷 Extracting photo references from journal entries...');
+    
+    for (final entry in entries) {
+      // Extract photo references from entry content
+      final photoRefs = _extractPhotoReferencesFromContent(entry.content);
+      
+      for (final photoRef in photoRefs) {
+        // Find the corresponding media item
+        MediaItem? mediaItem;
+        try {
+          mediaItem = entry.media.firstWhere(
+            (media) => media.id == photoRef,
+          );
+        } catch (e) {
+          mediaItem = null;
+        }
+        
+        if (mediaItem != null) {
+          print('📷 Creating pointer for photo: ${mediaItem.id} (${mediaItem.uri})');
+          
+                 // Get cloud identifier for cross-device stability
+                 String? cloudIdentifier;
+                 if (mediaItem.uri.startsWith('ph://')) {
+                   final localId = mediaItem.uri.replaceFirst('ph://', '');
+                   cloudIdentifier = await PhotoLibraryService.getCloudIdentifier(localId);
+                   print('📷 Cloud identifier for ${mediaItem.id}: $cloudIdentifier');
+                 }
+
+                 // Create pointer for the actual photo file
+                 final pointer = McpPointer(
+                   id: 'ptr_photo_${mediaItem.id}',
+                   mediaType: mediaItem.type.name,
+                   sourceUri: mediaItem.uri,
+                   descriptor: McpDescriptor(
+                     language: 'en',
+                     length: mediaItem.sizeBytes ?? 0,
+                     mimeType: _getMimeTypeForMediaType(mediaItem.type),
+                     metadata: {
+                       'photo_id': mediaItem.id,
+                       'local_identifier': mediaItem.uri.startsWith('ph://') 
+                           ? mediaItem.uri.replaceFirst('ph://', '') 
+                           : mediaItem.uri,
+                       'cloud_identifier': cloudIdentifier,
+                       'original_filename': mediaItem.uri.split('/').last,
+                       'alt_text': mediaItem.altText,
+                       'ocr_text': mediaItem.ocrText,
+                       'analysis_data': mediaItem.analysisData,
+                       'created_at': mediaItem.createdAt.toIso8601String(),
+                       'journal_entry_id': entry.id,
+                       'content_reference': '[PHOTO:${mediaItem.id}]',
+                     },
+                   ),
+            samplingManifest: McpSamplingManifest(
+              spans: _createSpansForMedia(mediaItem),
+              keyframes: _createKeyframesForMedia(mediaItem),
+              metadata: {
+                'sampling_method': 'photo_export',
+                'quality': 'high',
+                'source': 'journal_entry',
+              },
+            ),
+            integrity: McpIntegrity(
+              contentHash: mediaItem.id, // Use ID as hash for now
+              bytes: mediaItem.sizeBytes ?? 0,
+              mime: _getMimeTypeForMediaType(mediaItem.type),
+              createdAt: mediaItem.createdAt.toUtc(),
+            ),
+            provenance: McpProvenance(
+              source: 'ARC',
+              device: Platform.operatingSystem,
+              app: 'EPI',
+              importMethod: 'photo_export',
+              userId: null,
+            ),
+            privacy: McpPrivacy(
+              containsPii: false, // Will be updated by PRISM analysis
+              facesDetected: mediaItem.analysisData?['faces'] != null,
+              sharingPolicy: 'private',
+            ),
+            labels: ['photo', 'journal_media', 'exported_photo'],
+          );
+          
+          pointers.add(pointer);
+        } else {
+          print('⚠️ Photo reference ${photoRef} not found in entry media');
+        }
+      }
+    }
+    
+    print('📷 Created ${pointers.length} photo pointers from journal entries');
+    return pointers;
+  }
+
+  /// Extract photo references from journal entry content
+  List<String> _extractPhotoReferencesFromContent(String content) {
+    final photoRefs = <String>[];
+    final regex = RegExp(r'\[PHOTO:([^\]]+)\]');
+    final matches = regex.allMatches(content);
+    
+    for (final match in matches) {
+      final photoId = match.group(1);
+      if (photoId != null) {
+        photoRefs.add(photoId);
+      }
+    }
+    
+    return photoRefs;
   }
 
   /// Create pointers from media files
@@ -780,6 +888,114 @@ class McpExportService {
         sharingPolicy: 'private',
       ),
       labels: ['chat_session', ...session.tags],
+    );
+  }
+
+  /// Create contains edge between session and message
+  Future<McpEdge> _createChatContainsEdge(String sessionId, String messageId, DateTime timestamp, int order) async {
+    return McpEdge(
+      source: 'session:$sessionId',
+      target: 'msg:$messageId',
+      relation: 'contains',
+      timestamp: timestamp.toUtc(),
+      weight: 1.0,
+    );
+  }
+
+  /// Validate all records
+  Future<ValidationResult> _validateRecords(
+    List<McpNode> nodes,
+    List<McpEdge> edges,
+    List<McpPointer> pointers,
+    List<McpEmbedding> embeddings,
+  ) async {
+    final allErrors = <String>[];
+    
+    // Validate nodes
+    for (final node in nodes) {
+      final result = McpValidator.validateNode(node);
+      if (!result.isValid) {
+        allErrors.addAll(result.errors.map((e) => 'Node ${node.id}: $e'));
+      }
+    }
+    
+    // Validate edges
+    for (final edge in edges) {
+      final result = McpValidator.validateEdge(edge);
+      if (!result.isValid) {
+        allErrors.addAll(result.errors.map((e) => 'Edge ${edge.source}->${edge.target}: $e'));
+      }
+    }
+    
+    // Validate pointers
+    for (final pointer in pointers) {
+      final result = McpValidator.validatePointer(pointer);
+      if (!result.isValid) {
+        allErrors.addAll(result.errors.map((e) => 'Pointer ${pointer.id}: $e'));
+      }
+    }
+    
+    // Validate embeddings
+    for (final embedding in embeddings) {
+      final result = McpValidator.validateEmbedding(embedding);
+      if (!result.isValid) {
+        allErrors.addAll(result.errors.map((e) => 'Embedding ${embedding.id}: $e'));
+      }
+    }
+    
+    return ValidationResult(
+      isValid: allErrors.isEmpty,
+      errors: allErrors,
+    );
+  }
+}
+
+/// MCP Export Result
+class McpExportResult {
+  final bool success;
+  final String? error;
+  final String bundleId;
+  final Directory outputDir;
+  final File? manifestFile;
+  final Map<String, File>? ndjsonFiles;
+  final McpCounts? counts;
+  final List<McpEncoderRegistry>? encoderRegistry;
+
+  const McpExportResult({
+    required this.success,
+    this.error,
+    required this.bundleId,
+    required this.outputDir,
+    this.manifestFile,
+    this.ndjsonFiles,
+    this.counts,
+    this.encoderRegistry,
+  });
+}
+
+/// MCP Export Exception
+class McpExportException implements Exception {
+  final String message;
+  const McpExportException(this.message);
+  
+  @override
+  String toString() => 'McpExportException: $message';
+}
+
+
+/// Container for chat export data
+class ChatExportData {
+  final List<McpNode> nodes;
+  final List<McpEdge> edges;
+  final List<McpPointer> pointers;
+
+  const ChatExportData({
+    required this.nodes,
+    required this.edges,
+    required this.pointers,
+  });
+}
+
     );
   }
 

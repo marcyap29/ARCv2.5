@@ -28,6 +28,12 @@ import CommonCrypto
             findPhotoByPerceptualHash(call: call, result: result)
         case "relinkByMetadata":
             relinkByMetadata(call: call, result: result)
+        case "getCloudIdentifier":
+            getCloudIdentifier(call: call, result: result)
+        case "findPhotoByCloudIdentifier":
+            findPhotoByCloudIdentifier(call: call, result: result)
+        case "robustPhotoRelink":
+            robustPhotoRelink(call: call, result: result)
         default:
             result(FlutterMethodNotImplemented)
         }
@@ -589,6 +595,370 @@ import CommonCrypto
 
         // Last resort: best candidate by recency
         result(candidates.first?.localIdentifier)
+    }
+    
+    // MARK: - Cloud Identifier Support
+    
+    /// Get cloud identifier for a local photo
+    private func getCloudIdentifier(call: FlutterMethodCall, result: @escaping FlutterResult) {
+        guard let args = call.arguments as? [String: Any],
+              let localId = args["localId"] as? String else {
+            result(FlutterError(code: "INVALID_ARGUMENTS", message: "Missing localId", details: nil))
+            return
+        }
+        
+        let localIdentifier = stripPhScheme(localId)
+        let assets = PHAsset.fetchAssets(withLocalIdentifiers: [localIdentifier], options: nil)
+        
+        guard let asset = assets.firstObject else {
+            result(nil)
+            return
+        }
+
+        // Get cloud identifier for the asset
+        if #available(iOS 15.0, *) {
+            PHPhotoLibrary.shared().cloudIdentifiers(forLocalIdentifiers: [localIdentifier]) { cloudIds, _ in
+                if let cloudId = cloudIds.first {
+                    result(cloudId.stringValue)
+                } else {
+                    result(nil)
+                }
+            }
+        } else {
+            // Fallback for older iOS versions
+            result(nil)
+        }
+    }
+    
+    /// Find photo by cloud identifier
+    private func findPhotoByCloudIdentifier(call: FlutterMethodCall, result: @escaping FlutterResult) {
+        guard let args = call.arguments as? [String: Any],
+              let cloudIdString = args["cloudId"] as? String else {
+            result(FlutterError(code: "INVALID_ARGUMENTS", message: "Missing cloudId", details: nil))
+            return
+        }
+        
+        if #available(iOS 15.0, *) {
+            let cloudId = PHCloudIdentifier(stringValue: cloudIdString)
+            
+            PHPhotoLibrary.shared().localIdentifierMappings(for: [cloudId]) { mappings, _ in
+                if let localId = mappings[cloudId] {
+                    // Check if the local asset still exists
+                    let assets = PHAsset.fetchAssets(withLocalIdentifiers: [localId], options: nil)
+                    if assets.firstObject != nil {
+                        result("ph://\(localId)")
+                    } else {
+                        result(nil)
+                    }
+                } else {
+                    result(nil)
+                }
+            }
+        } else {
+            // Fallback for older iOS versions
+            result(nil)
+        }
+    }
+    
+    /// Robust photo relinking using the 4-step algorithm
+    private func robustPhotoRelink(call: FlutterMethodCall, result: @escaping FlutterResult) {
+        guard let args = call.arguments as? [String: Any],
+              let metadata = args["metadata"] as? [String: Any] else {
+            result(FlutterError(code: "INVALID_ARGUMENTS", message: "Missing metadata", details: nil))
+            return
+        }
+
+        let localId = metadata["local_identifier"] as? String ?? ""
+        let cloudId = metadata["cloud_identifier"] as? String
+        let creationDate = metadata["creation_date"] as? String
+        let pixelWidth = metadata["pixel_width"] as? Int
+        let pixelHeight = metadata["pixel_height"] as? Int
+        let filename = metadata["filename"] as? String
+        let perceptualHash = metadata["perceptual_hash"] as? String
+        
+        // Step 1: Try local identifier first
+        if !localId.isEmpty {
+            let assets = PHAsset.fetchAssets(withLocalIdentifiers: [localId], options: nil)
+            if assets.firstObject != nil {
+                result("ph://\(localId)")
+                return
+            }
+        }
+
+        // Step 2: Try cloud identifier if available
+        if let cloudId = cloudId, !cloudId.isEmpty {
+            if #available(iOS 15.0, *) {
+                let cloudIdentifier = PHCloudIdentifier(stringValue: cloudId)
+                PHPhotoLibrary.shared().localIdentifierMappings(for: [cloudIdentifier]) { mappings, _ in
+                        if let localId = mappings[cloudIdentifier] {
+                            let assets = PHAsset.fetchAssets(withLocalIdentifiers: [localId], options: nil)
+                            if assets.firstObject != nil {
+                                result("ph://\(localId)")
+                                return
+                            }
+                        }
+                        // Continue to step 3
+                        self.performHeuristicSearch(creationDate: creationDate, pixelWidth: pixelWidth, pixelHeight: pixelHeight, filename: filename, perceptualHash: perceptualHash, result: result)
+                    }
+                    return
+                }
+        }
+        
+        // Step 3: Heuristic search
+        performHeuristicSearch(creationDate: creationDate, pixelWidth: pixelWidth, pixelHeight: pixelHeight, filename: filename, perceptualHash: perceptualHash, result: result)
+    }
+    
+    /// Perform heuristic search for photo matching
+    private func performHeuristicSearch(creationDate: String?, pixelWidth: Int?, pixelHeight: Int?, filename: String?, perceptualHash: String?, result: @escaping FlutterResult) {
+        var predicates: [NSPredicate] = []
+        
+        // Add creation date predicate
+        if let creationDate = creationDate,
+           let date = ISO8601DateFormatter().date(from: creationDate) {
+            let tolerance: TimeInterval = 60 // 1 minute tolerance
+            let startDate = date.addingTimeInterval(-tolerance)
+            let endDate = date.addingTimeInterval(tolerance)
+            predicates.append(NSPredicate(format: "creationDate >= %@ AND creationDate <= %@", startDate as NSDate, endDate as NSDate))
+        }
+        
+        // Add filename predicate
+        if let filename = filename {
+            predicates.append(NSPredicate(format: "filename == %@", filename))
+        }
+        
+        // Add pixel dimensions predicate
+        if let width = pixelWidth, let height = pixelHeight {
+            predicates.append(NSPredicate(format: "pixelWidth == %d AND pixelHeight == %d", width, height))
+        }
+        
+        // Combine predicates
+        let fetchOptions = PHFetchOptions()
+        if !predicates.isEmpty {
+            fetchOptions.predicate = NSCompoundPredicate(andPredicateWithSubpredicates: predicates)
+        }
+        fetchOptions.sortDescriptors = [NSSortDescriptor(key: "creationDate", ascending: false)]
+        
+        let assets = PHAsset.fetchAssets(with: .image, options: fetchOptions)
+        
+        if assets.count == 0 {
+            result(nil)
+            return
+        }
+        
+        // If we have a perceptual hash, try to match it
+        if let perceptualHash = perceptualHash {
+            let candidates = (0..<assets.count).compactMap { assets.object(at: $0) }
+            let opts = PHImageRequestOptions()
+            opts.isSynchronous = true
+            opts.deliveryMode = .fastFormat
+            opts.isNetworkAccessAllowed = true
+            let targetSize = CGSize(width: 8, height: 8)
+            
+            for asset in candidates {
+                var matched = false
+                PHImageManager.default().requestImage(for: asset, targetSize: targetSize, contentMode: .aspectFill, options: opts) { img, _ in
+                    if let img = img, let hash = self.generatePerceptualHash(for: img), hash == perceptualHash {
+                        matched = true
+                    }
+                }
+                if matched {
+                    result("ph://\(asset.localIdentifier)")
+                    return
+                }
+            }
+        }
+        
+        // Step 4: Return best candidate or nil
+        if let bestMatch = assets.firstObject {
+            result("ph://\(bestMatch.localIdentifier)")
+        } else {
+            result(nil)
+        }
+    }
+}
+
+// MARK: - Date Extension for ISO8601
+extension Date {
+    var iso8601String: String {
+        let formatter = ISO8601DateFormatter()
+        return formatter.string(from: self)
+    }
+}
+
+    private func getCloudIdentifier(call: FlutterMethodCall, result: @escaping FlutterResult) {
+        guard let args = call.arguments as? [String: Any],
+              let localId = args["localId"] as? String else {
+            result(FlutterError(code: "INVALID_ARGUMENTS", message: "Missing localId", details: nil))
+            return
+        }
+        
+        let localIdentifier = stripPhScheme(localId)
+        let assets = PHAsset.fetchAssets(withLocalIdentifiers: [localIdentifier], options: nil)
+        
+        guard let asset = assets.firstObject else {
+            result(nil)
+            return
+        }
+
+        // Get cloud identifier for the asset
+        if #available(iOS 15.0, *) {
+            PHPhotoLibrary.shared().cloudIdentifiers(forLocalIdentifiers: [localIdentifier]) { cloudIds, _ in
+                if let cloudId = cloudIds.first {
+                    result(cloudId.stringValue)
+                } else {
+                    result(nil)
+                }
+            }
+        } else {
+            // Fallback for older iOS versions
+            result(nil)
+        }
+    }
+    
+    /// Find photo by cloud identifier
+    private func findPhotoByCloudIdentifier(call: FlutterMethodCall, result: @escaping FlutterResult) {
+        guard let args = call.arguments as? [String: Any],
+              let cloudIdString = args["cloudId"] as? String else {
+            result(FlutterError(code: "INVALID_ARGUMENTS", message: "Missing cloudId", details: nil))
+            return
+        }
+        
+        if #available(iOS 15.0, *) {
+            let cloudId = PHCloudIdentifier(stringValue: cloudIdString)
+            
+            PHPhotoLibrary.shared().localIdentifierMappings(for: [cloudId]) { mappings, _ in
+                if let localId = mappings[cloudId] {
+                    // Check if the local asset still exists
+                    let assets = PHAsset.fetchAssets(withLocalIdentifiers: [localId], options: nil)
+                    if assets.firstObject != nil {
+                        result("ph://\(localId)")
+                    } else {
+                        result(nil)
+                    }
+                } else {
+                    result(nil)
+                }
+            }
+        } else {
+            // Fallback for older iOS versions
+            result(nil)
+        }
+    }
+    
+    /// Robust photo relinking using the 4-step algorithm
+    private func robustPhotoRelink(call: FlutterMethodCall, result: @escaping FlutterResult) {
+        guard let args = call.arguments as? [String: Any],
+              let metadata = args["metadata"] as? [String: Any] else {
+            result(FlutterError(code: "INVALID_ARGUMENTS", message: "Missing metadata", details: nil))
+            return
+        }
+
+        let localId = metadata["local_identifier"] as? String ?? ""
+        let cloudId = metadata["cloud_identifier"] as? String
+        let creationDate = metadata["creation_date"] as? String
+        let pixelWidth = metadata["pixel_width"] as? Int
+        let pixelHeight = metadata["pixel_height"] as? Int
+        let filename = metadata["filename"] as? String
+        let perceptualHash = metadata["perceptual_hash"] as? String
+        
+        // Step 1: Try local identifier first
+        if !localId.isEmpty {
+            let assets = PHAsset.fetchAssets(withLocalIdentifiers: [localId], options: nil)
+            if assets.firstObject != nil {
+                result("ph://\(localId)")
+                return
+            }
+        }
+
+        // Step 2: Try cloud identifier if available
+        if let cloudId = cloudId, !cloudId.isEmpty {
+            if #available(iOS 15.0, *) {
+                let cloudIdentifier = PHCloudIdentifier(stringValue: cloudId)
+                PHPhotoLibrary.shared().localIdentifierMappings(for: [cloudIdentifier]) { mappings, _ in
+                        if let localId = mappings[cloudIdentifier] {
+                            let assets = PHAsset.fetchAssets(withLocalIdentifiers: [localId], options: nil)
+                            if assets.firstObject != nil {
+                                result("ph://\(localId)")
+                                return
+                            }
+                        }
+                        // Continue to step 3
+                        self.performHeuristicSearch(creationDate: creationDate, pixelWidth: pixelWidth, pixelHeight: pixelHeight, filename: filename, perceptualHash: perceptualHash, result: result)
+                    }
+                    return
+                }
+        }
+        
+        // Step 3: Heuristic search
+        performHeuristicSearch(creationDate: creationDate, pixelWidth: pixelWidth, pixelHeight: pixelHeight, filename: filename, perceptualHash: perceptualHash, result: result)
+    }
+    
+    /// Perform heuristic search for photo matching
+    private func performHeuristicSearch(creationDate: String?, pixelWidth: Int?, pixelHeight: Int?, filename: String?, perceptualHash: String?, result: @escaping FlutterResult) {
+        var predicates: [NSPredicate] = []
+        
+        // Add creation date predicate
+        if let creationDate = creationDate,
+           let date = ISO8601DateFormatter().date(from: creationDate) {
+            let tolerance: TimeInterval = 60 // 1 minute tolerance
+            let startDate = date.addingTimeInterval(-tolerance)
+            let endDate = date.addingTimeInterval(tolerance)
+            predicates.append(NSPredicate(format: "creationDate >= %@ AND creationDate <= %@", startDate as NSDate, endDate as NSDate))
+        }
+        
+        // Add filename predicate
+        if let filename = filename {
+            predicates.append(NSPredicate(format: "filename == %@", filename))
+        }
+        
+        // Add pixel dimensions predicate
+        if let width = pixelWidth, let height = pixelHeight {
+            predicates.append(NSPredicate(format: "pixelWidth == %d AND pixelHeight == %d", width, height))
+        }
+        
+        // Combine predicates
+        let fetchOptions = PHFetchOptions()
+        if !predicates.isEmpty {
+            fetchOptions.predicate = NSCompoundPredicate(andPredicateWithSubpredicates: predicates)
+        }
+        fetchOptions.sortDescriptors = [NSSortDescriptor(key: "creationDate", ascending: false)]
+        
+        let assets = PHAsset.fetchAssets(with: .image, options: fetchOptions)
+        
+        if assets.count == 0 {
+            result(nil)
+            return
+        }
+        
+        // If we have a perceptual hash, try to match it
+        if let perceptualHash = perceptualHash {
+            let candidates = (0..<assets.count).compactMap { assets.object(at: $0) }
+            let opts = PHImageRequestOptions()
+            opts.isSynchronous = true
+            opts.deliveryMode = .fastFormat
+            opts.isNetworkAccessAllowed = true
+            let targetSize = CGSize(width: 8, height: 8)
+            
+            for asset in candidates {
+                var matched = false
+                PHImageManager.default().requestImage(for: asset, targetSize: targetSize, contentMode: .aspectFill, options: opts) { img, _ in
+                    if let img = img, let hash = self.generatePerceptualHash(for: img), hash == perceptualHash {
+                        matched = true
+                    }
+                }
+                if matched {
+                    result("ph://\(asset.localIdentifier)")
+                    return
+                }
+            }
+        }
+        
+        // Step 4: Return best candidate or nil
+        if let bestMatch = assets.firstObject {
+            result("ph://\(bestMatch.localIdentifier)")
+        } else {
+            result(nil)
+        }
     }
 }
 

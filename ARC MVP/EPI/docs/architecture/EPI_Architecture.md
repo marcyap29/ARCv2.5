@@ -5,9 +5,9 @@
   - PRISM: Multi-Modal Processing (Enhanced with iOS Vision + Thumbnail Caching)
   - ECHO: Expressive Response Layer
   - ATLAS: Phase Detection & Analysis
-  - MIRA: Narrative Intelligence
+  - MIRA: Narrative Intelligence (v0.2 - Enhanced Semantic Memory)
   - AURORA: Circadian Intelligence
-  - VEIL: Self-Pruning & Coherence
+  - VEIL: Self-Pruning & Coherence (Integrated with MIRA v0.2)
   - RIVET: Risk-Validation Evidence Tracker
 
   ## 🛡️ **Comprehensive App Hardening Architecture** (Updated January 16, 2025)
@@ -1240,6 +1240,111 @@ lib/core/rivet/
   - MVP masking enhanced to preserve narrative coherence
   - Graph-level anonymization that maintains semantic relationships
   - Story-aware PII detection that understands context
+
+## 🧠 **MIRA v0.2 - Enhanced Semantic Memory Architecture** (Updated January 17, 2025)
+
+**MIRA (Memory Integration & Recall Architecture) v0.2** represents a complete overhaul of the semantic memory system with advanced privacy controls, multimodal support, and intelligent retrieval capabilities.
+
+### **Core Architecture**
+
+```
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│   Retrieval     │    │   Policy        │    │   VEIL Jobs     │
+│   Engine        │◄──►│   Engine        │◄──►│   (Lifecycle)   │
+└─────────────────┘    └─────────────────┘    └─────────────────┘
+         │                       │                       │
+         ▼                       ▼                       ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                    MIRA Core v0.2                              │
+│  • ULID-based IDs  • Provenance  • Soft Delete  • Schema v2   │
+└─────────────────────────────────────────────────────────────────┘
+         │                       │                       │
+         ▼                       ▼                       ▼
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│   Multimodal    │    │   CRDT Sync     │    │   MCP Bundle    │
+│   Pointers      │    │   (Concurrency) │    │   v1.1          │
+└─────────────────┘    └─────────────────┘    └─────────────────┘
+```
+
+### **Key Features**
+
+#### **🔍 Intelligent Retrieval**
+- **Composite Scoring**: 45% semantic + 20% recency + 15% phase affinity + 10% domain match + 10% engagement
+- **Phase Affinity**: Life-stage aware memory retrieval
+- **Hard Negatives**: Query-specific exclusion lists
+- **Memory Caps**: Maximum 8 memories per response
+
+#### **🔒 Privacy & Security**
+- **Domain Scoping**: Separate memory buckets (personal, work, health, creative, etc.)
+- **Privacy Levels**: 5-level classification (public → confidential)
+- **PII Protection**: Automatic detection and redaction
+- **Consent Logging**: Complete audit trail
+
+#### **🔄 Sync & Concurrency**
+- **CRDT-lite Merge**: Last-writer-wins for scalars, set-merge for tags
+- **Device Ticks**: Monotonic ordering for conflict resolution
+- **Wall-time**: Timestamp-based conflict resolution
+
+#### **🎯 Multimodal Support**
+- **Text, Image, Audio**: Unified pointer system
+- **Embedding References**: Cross-modal similarity search
+- **EXIF Normalization**: Consistent timestamp handling
+
+#### **🧹 Lifecycle Management**
+- **VEIL Jobs**: Automated memory hygiene
+- **Decay System**: Half-life with phase multipliers
+- **Deduplication**: Near-duplicate detection and merging
+
+### **Data Models**
+
+#### **Enhanced Node (MiraNodeV2)**
+```dart
+class MiraNodeV2 {
+  final String id;                    // ULID
+  final String schemaId;              // Schema identifier
+  final NodeType type;                // Node type
+  final Provenance provenance;        // Full provenance tracking
+  final String? embeddingsVer;        // Embedding model version
+  final bool isTombstoned;            // Soft delete support
+  final DateTime? deletedAt;          // When tombstoned
+  final Map<String, dynamic> metadata; // Additional metadata
+}
+```
+
+#### **Provenance Tracking**
+```dart
+class Provenance {
+  final String source;        // Where it originated (ARC, LUMARA, etc.)
+  final String agent;         // Which agent created it
+  final String operation;     // What operation (create, update, merge)
+  final String traceId;       // Distributed tracing ID
+  final DateTime timestamp;   // When this was recorded
+}
+```
+
+### **Migration & Compatibility**
+
+- **Automatic Detection**: Identifies v0.1 data automatically
+- **ULID Conversion**: Converts old IDs to ULIDs
+- **Provenance Addition**: Adds provenance to all objects
+- **Schema Upgrade**: Upgrades to v0.2 schema
+- **Backward Compatibility**: Maintains read support for v0.1
+
+### **Observability**
+
+- **Metrics Collection**: Retrieval, policy, VEIL, export, and system metrics
+- **Golden Tests**: Comprehensive test suite ensuring deterministic behavior
+- **Health Monitoring**: System health status and performance tracking
+- **Regression Tests**: Automated testing for all major features
+
+### **Integration Points**
+
+- **ARC**: Enhanced journaling with semantic memory
+- **PRISM**: Multimodal content processing and embedding
+- **ECHO**: Context-aware response generation
+- **ATLAS**: Phase-aware memory retrieval
+- **VEIL**: Integrated lifecycle management
+- **RIVET**: Evidence-based memory validation
 
   RIVET Privacy: Evidence protection
 
