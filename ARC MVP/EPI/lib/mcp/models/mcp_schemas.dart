@@ -153,17 +153,30 @@ class McpNode {
 }
 
 /// SAGE narrative structure for Node content
+/// Enhanced with complete SAGE field mapping as per whitepaper
 class McpNarrative {
   final String? situation;
   final String? action;
   final String? growth;
   final String? essence;
+  
+  // Additional SAGE fields for comprehensive mapping
+  final String? context;
+  final String? reflection;
+  final String? learning;
+  final String? nextSteps;
+  final Map<String, dynamic>? sageMetadata;
 
   const McpNarrative({
     this.situation,
     this.action,
     this.growth,
     this.essence,
+    this.context,
+    this.reflection,
+    this.learning,
+    this.nextSteps,
+    this.sageMetadata,
   });
 
   Map<String, dynamic> toJson() {
@@ -172,6 +185,11 @@ class McpNarrative {
     if (action != null) json['action'] = action;
     if (growth != null) json['growth'] = growth;
     if (essence != null) json['essence'] = essence;
+    if (context != null) json['context'] = context;
+    if (reflection != null) json['reflection'] = reflection;
+    if (learning != null) json['learning'] = learning;
+    if (nextSteps != null) json['nextSteps'] = nextSteps;
+    if (sageMetadata != null) json['sageMetadata'] = sageMetadata;
     return json;
   }
 
@@ -181,6 +199,40 @@ class McpNarrative {
       action: json['action'] as String?,
       growth: json['growth'] as String?,
       essence: json['essence'] as String?,
+      context: json['context'] as String?,
+      reflection: json['reflection'] as String?,
+      learning: json['learning'] as String?,
+      nextSteps: json['nextSteps'] as String?,
+      sageMetadata: json['sageMetadata'] as Map<String, dynamic>?,
+    );
+  }
+
+  /// Create SAGE narrative from journal entry content
+  factory McpNarrative.fromJournalContent(String content) {
+    // Simple SAGE extraction - in production, use proper SAGE analysis
+    final lines = content.split('\n');
+    String? situation;
+    String? action;
+    String? growth;
+    String? essence;
+
+    for (final line in lines) {
+      if (line.toLowerCase().contains('situation') || line.toLowerCase().contains('what happened')) {
+        situation = line;
+      } else if (line.toLowerCase().contains('action') || line.toLowerCase().contains('what did you do')) {
+        action = line;
+      } else if (line.toLowerCase().contains('growth') || line.toLowerCase().contains('what did you learn')) {
+        growth = line;
+      } else if (line.toLowerCase().contains('essence') || line.toLowerCase().contains('key insight')) {
+        essence = line;
+      }
+    }
+
+    return McpNarrative(
+      situation: situation,
+      action: action,
+      growth: growth,
+      essence: essence,
     );
   }
 }
