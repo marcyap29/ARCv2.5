@@ -113,6 +113,7 @@ class PhotoAttachment {
   final String? altText; // Descriptive text for accessibility and fallback (like HTML alt attribute)
   final int? insertionPosition; // Character position in text where photo was added (for inline display)
   final String? photoId; // Unique ID for text placeholder reference
+  final String? sha256; // SHA-256 hash for content-addressed linking
 
   PhotoAttachment({
     required this.type,
@@ -122,6 +123,7 @@ class PhotoAttachment {
     this.altText,
     this.insertionPosition,
     this.photoId,
+    this.sha256,
   });
 
   Map<String, dynamic> toJson() => {
@@ -132,6 +134,7 @@ class PhotoAttachment {
     'altText': altText,
     'insertionPosition': insertionPosition,
     'photoId': photoId,
+    'sha256': sha256,
   };
 
   factory PhotoAttachment.fromJson(Map<String, dynamic> json) => PhotoAttachment(
@@ -142,6 +145,7 @@ class PhotoAttachment {
     altText: json['altText'] as String?,
     insertionPosition: json['insertionPosition'] as int?,
     photoId: json['photoId'] as String?,
+    sha256: json['sha256'] as String?,
   );
 
   /// Create a copy with updated fields
@@ -153,6 +157,7 @@ class PhotoAttachment {
     String? altText,
     int? insertionPosition,
     String? photoId,
+    String? sha256,
   }) {
     return PhotoAttachment(
       type: type ?? this.type,
@@ -162,6 +167,7 @@ class PhotoAttachment {
       altText: altText ?? this.altText,
       insertionPosition: insertionPosition ?? this.insertionPosition,
       photoId: photoId ?? this.photoId,
+      sha256: sha256 ?? this.sha256,
     );
   }
 }

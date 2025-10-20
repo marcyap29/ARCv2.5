@@ -162,12 +162,20 @@ class McpMediaExportService {
     MediaItem media,
     McpZipWriter journalWriter,
   ) async {
-    // Get original bytes
+    // Get original bytes from permanent file path
     Uint8List? originalBytes;
     String? originalFormat;
 
-    if (PhotoBridge.isPhotoLibraryUri(media.uri)) {
-      // Get bytes from photo library
+    // Check if this is a permanent file path (starts with app documents directory)
+    if (media.uri.startsWith('/') && !media.uri.startsWith('ph://')) {
+      // This is a permanent file path
+      final file = File(media.uri);
+      if (await file.exists()) {
+        originalBytes = await file.readAsBytes();
+        originalFormat = _getFileExtension(media.uri);
+      }
+    } else if (PhotoBridge.isPhotoLibraryUri(media.uri)) {
+      // Get bytes from photo library (fallback for old entries)
       final localId = PhotoBridge.extractLocalIdentifier(media.uri);
       if (localId != null) {
         final photoData = await PhotoBridge.getPhotoBytes(localId);
@@ -177,7 +185,7 @@ class McpMediaExportService {
         }
       }
     } else if (PhotoBridge.isFilePath(media.uri)) {
-      // Get bytes from file
+      // Get bytes from file (fallback for old entries)
       final file = File(media.uri);
       if (await file.exists()) {
         originalBytes = await file.readAsBytes();
@@ -186,12 +194,17 @@ class McpMediaExportService {
     }
 
     if (originalBytes == null) {
-      print('ContentAddressedExportService: Could not get bytes for media ${media.id}');
+      print('McpMediaExportService: Could not get bytes for media ${media.id}');
       return null;
     }
 
-    // Compute SHA-256 hash
-    final sha = sha256Hex(originalBytes);
+    // Use existing SHA-256 hash if available, otherwise compute it
+    String sha;
+    if (media.sha256 != null && media.sha256!.isNotEmpty) {
+      sha = media.sha256!;
+    } else {
+      sha = sha256Hex(originalBytes);
+    }
 
     // Check if we already have this media in current pack
     if (_currentMediaPack != null && _currentMediaPack!.hasFile('photos/$sha.${originalFormat ?? 'jpg'}')) {
@@ -241,6 +254,7 @@ class McpMediaExportService {
       'altText': originalMedia.altText,
       'ocrText': originalMedia.ocrText,
       'analysisData': originalMedia.analysisData,
+      'permanentPath': originalMedia.uri, // Store the permanent file path
     };
   }
 

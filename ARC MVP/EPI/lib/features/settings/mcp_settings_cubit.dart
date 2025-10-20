@@ -110,11 +110,10 @@ class McpSettingsCubit extends Cubit<McpSettingsState> {
 
       // Initialize MIRA service if needed
       final miraService = MiraService.instance;
-      final journalRepo = JournalRepository();
 
       // Ensure MIRA is initialized with journal repository
       try {
-        await miraService.initialize(journalRepo: journalRepo);
+        await miraService.initialize(journalRepo: _journalRepository);
       } catch (e) {
         // MIRA might already be initialized, continue
         print('⚠️ MIRA initialization warning: $e');

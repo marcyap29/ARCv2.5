@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:my_app/arc/core/journal_capture_state.dart';
@@ -24,11 +25,11 @@ import 'package:uuid/uuid.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:audioplayers/audioplayers.dart';
+import 'package:crypto/crypto.dart';
 import 'package:hive/hive.dart';
 import 'package:my_app/mode/first_responder/fr_mode_suggestion_service.dart';
 import 'package:my_app/mode/first_responder/fr_settings_cubit.dart';
 import 'package:my_app/core/services/draft_cache_service.dart';
-import 'package:my_app/data/models/media_item.dart';
 
 class JournalCaptureCubit extends Cubit<JournalCaptureState> {
   final JournalRepository _journalRepository;
@@ -346,6 +347,51 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
         }
       }
       
+      // Process photos to permanent storage before saving entry
+      List<MediaItem> processedMedia = [];
+      if (media != null && media.isNotEmpty) {
+        for (final mediaItem in media) {
+          if (mediaItem.type == 'photo' && !mediaItem.uri.contains('/photos/')) {
+            // This is a temporary photo that needs to be copied to permanent storage
+            try {
+              final bytes = await File(mediaItem.uri).readAsBytes();
+              final digest = sha256.convert(bytes);
+              final hash = digest.toString();
+              
+              final appDir = await getApplicationDocumentsDirectory();
+              final fileName = 'photo_${hash.substring(0, 16)}.jpg';
+              final permanentDir = '${appDir.path}/photos';
+              await Directory(permanentDir).create(recursive: true);
+              final permanentPath = '$permanentDir/$fileName';
+              
+              await File(mediaItem.uri).copy(permanentPath);
+              
+              // Create new MediaItem with permanent path and hash
+              final processedItem = MediaItem(
+                id: mediaItem.id,
+                type: mediaItem.type,
+                uri: permanentPath,
+                createdAt: mediaItem.createdAt,
+                analysisData: mediaItem.analysisData,
+                sha256: hash,
+                thumbUri: mediaItem.thumbUri,
+                fullRef: mediaItem.fullRef,
+              );
+              
+              processedMedia.add(processedItem);
+              print('DEBUG: Copied photo to permanent storage: $permanentPath');
+            } catch (e) {
+              print('ERROR: Failed to copy photo to permanent storage: $e');
+              // Keep original media item if copying fails
+              processedMedia.add(mediaItem);
+            }
+          } else {
+            // Already in permanent storage or not a photo
+            processedMedia.add(mediaItem);
+          }
+        }
+      }
+      
       final now = DateTime.now();
       final entry = JournalEntry(
         id: const Uuid().v4(),
@@ -359,7 +405,7 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
         keywords: selectedKeywords,
         emotion: emotion,
         emotionReason: emotionReason,
-        media: media ?? [], // Include media items
+        media: processedMedia, // Use processed media with permanent paths
       );
       
       print('DEBUG: JournalEntry created with ${entry.media.length} media items');

@@ -1,5 +1,8 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:convert';
+import 'package:crypto/crypto.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:image_picker/image_picker.dart';
@@ -28,6 +31,7 @@ import 'media_conversion_utils.dart';
 import '../../mcp/orchestrator/ios_vision_orchestrator.dart';
 import 'widgets/lumara_suggestion_sheet.dart';
 import 'widgets/inline_reflection_block.dart';
+import '../../features/timeline/widgets/entry_content_renderer.dart';
 import 'widgets/full_screen_photo_viewer.dart';
 import 'drafts_screen.dart';
 import '../../models/journal_entry_model.dart';
@@ -432,21 +436,7 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
       _isPhotoSelectionMode = false;
     });
 
-    // Remove photo placeholders from content
-    if (photoIdsToRemove.isNotEmpty) {
-      String updatedContent = _textController.text;
-      for (final photoId in photoIdsToRemove) {
-        final placeholder = '[PHOTO:$photoId]';
-        updatedContent = updatedContent.replaceAll(placeholder, '');
-        print('🗑️ Removed photo placeholder: $placeholder');
-      }
-      
-      // Update text controller and entry state
-      _textController.text = updatedContent;
-      _entryState.text = updatedContent;
-      
-      print('🗑️ Updated content after photo deletion: ${updatedContent.length} chars');
-    }
+    // No text placeholders to remove - photos are displayed as separate thumbnails
 
     // Show confirmation
     ScaffoldMessenger.of(context).showSnackBar(
@@ -518,18 +508,8 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
         _entryState.attachments.removeAt(attachmentIndex);
       });
 
-      // Remove photo placeholder from content if it exists
-      if (photoId != null) {
-        final placeholder = '[PHOTO:$photoId]';
-        String updatedContent = _textController.text;
-        updatedContent = updatedContent.replaceAll(placeholder, '');
-        
-        _textController.text = updatedContent;
-        _entryState.text = updatedContent;
-        
-        print('🗑️ Removed broken photo reference: $imagePath');
-        print('🗑️ Removed placeholder: $placeholder');
-      }
+      // No text placeholders to remove - photos are displayed as separate thumbnails
+      print('🗑️ Removed broken photo reference: $imagePath');
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -772,7 +752,7 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
                           const SizedBox(height: 16),
                         ],
 
-                        // Always show the TextField for editing
+                        // Always show the TextField (handles view-only vs edit mode internally)
                         _buildAITextField(theme),
                         const SizedBox(height: 16),
 
@@ -1139,15 +1119,10 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
       }
     });
 
-    // Show photos in chronological order (without text segments since TextField handles text)
-    for (int i = 0; i < photoAttachments.length; i++) {
-      final photo = photoAttachments[i];
-      final photoIndex = _entryState.attachments.indexOf(photo);
-      
-      print('DEBUG: Showing photo $i at insertion position ${photo.insertionPosition}');
-      
-      widgets.add(_buildPhotoAttachment(photo, photoIndex));
-      widgets.add(const SizedBox(height: 8));
+    // Show photos as a clean grid of thumbnails
+    if (photoAttachments.isNotEmpty) {
+      widgets.add(_buildPhotoThumbnailGrid(photoAttachments, theme));
+      widgets.add(const SizedBox(height: 16));
     }
 
     // Add inline reflection blocks
@@ -1166,6 +1141,121 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
     }));
 
     return widgets;
+  }
+
+  /// Build a clean list of photo references (no thumbnails)
+  Widget _buildPhotoThumbnailGrid(List<PhotoAttachment> photos, ThemeData theme) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.3),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: theme.colorScheme.outline.withOpacity(0.2),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.photo_library,
+                size: 18,
+                color: theme.colorScheme.primary,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                'Photos (${photos.length})',
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          // Show photos as a grid wrap
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: photos.map((photo) => _buildPhotoThumbnailCard(photo, theme)).toList(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Generate SHA-256 hash for photo linking
+  Future<String?> _generatePhotoHash(String imagePath) async {
+    try {
+      // For photo library IDs, we need to load the actual file first
+      if (imagePath.startsWith('ph://')) {
+        final actualPath = await PhotoLibraryService.loadPhotoFromLibrary(imagePath);
+        if (actualPath == null) return null;
+        imagePath = actualPath;
+      }
+      
+      // Generate SHA-256 hash of the file
+      final file = File(imagePath);
+      if (!await file.exists()) return null;
+      
+      final bytes = await file.readAsBytes();
+      final digest = sha256.convert(bytes);
+      return digest.toString();
+    } catch (e) {
+      print('Error generating photo hash: $e');
+      return null;
+    }
+  }
+
+
+  /// Build individual photo thumbnail card for grid display
+  Widget _buildPhotoThumbnailCard(PhotoAttachment photo, ThemeData theme) {
+    return GestureDetector(
+      onTap: () => _openPhotoInGallery(photo.imagePath),
+      child: Container(
+        width: 100,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: theme.colorScheme.outline.withOpacity(0.3),
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ClipRRect(
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(8)),
+              child: Image.file(
+                File(photo.imagePath),
+                width: 100,
+                height: 100,
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) {
+                  return Container(
+                    width: 100,
+                    height: 100,
+                    color: theme.colorScheme.surfaceContainerHighest,
+                    child: Icon(Icons.broken_image, color: theme.colorScheme.error),
+                  );
+                },
+              ),
+            ),
+            if (photo.altText != null && photo.altText!.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.all(4),
+                child: Text(
+                  photo.altText!,
+                  style: theme.textTheme.bodySmall,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
   }
 
   Widget _buildScanAttachment(ScanAttachment attachment) {
@@ -1368,137 +1458,6 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
     }
   }
 
-  Widget _buildPhotoAttachment(PhotoAttachment attachment, int index) {
-    final analysis = attachment.analysisResult;
-    final summary = analysis['summary'] as String? ?? 'Photo analyzed';
-    final ocrText = analysis['ocr']?['fullText'] as String? ?? '';
-    final objects = analysis['objects'] as List? ?? [];
-    final faces = analysis['faces'] as List? ?? [];
-    final labels = analysis['labels'] as List? ?? [];
-    final features = analysis['features'] as Map? ?? {};
-    final keypoints = features['kp'] as int? ?? 0;
-
-    // Check if this is a photo library ID (starts with "ph://") or a file path
-    final isPhotoLibraryId = attachment.imagePath.startsWith('ph://');
-    print('DEBUG: Photo attachment - ID: ${attachment.imagePath}, IsPhotoLibrary: $isPhotoLibraryId');
-
-    // Check if this photo is selected
-    final isSelected = _selectedPhotoIndices.contains(index);
-
-    // Extract keywords from analysis
-    final keywords = <String>[];
-    if (ocrText.isNotEmpty) {
-      keywords.addAll(ocrText.split(' ').where((word) => word.length > 3).take(5));
-    }
-    if (objects.isNotEmpty) {
-      keywords.addAll(objects.take(3).map((obj) => obj['label']?.toString() ?? ''));
-    }
-    if (labels.isNotEmpty) {
-      keywords.addAll(labels.take(3).map((label) => label['label']?.toString() ?? ''));
-    }
-    
-    return GestureDetector(
-      onTap: _isPhotoSelectionMode
-          ? () => _togglePhotoSelection(index)
-          : () => _openPhotoInGallery(attachment.imagePath),
-      behavior: HitTestBehavior.opaque, // Ensure this gesture detector captures taps
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 8),
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.surfaceContainerHighest.withOpacity(0.3),
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(
-            color: isSelected 
-                ? Theme.of(context).colorScheme.primary
-                : Theme.of(context).colorScheme.outline.withOpacity(0.2),
-            width: isSelected ? 2 : 1,
-          ),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(
-                  Icons.photo_camera,
-                  size: 16,
-                  color: Theme.of(context).colorScheme.primary,
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  'Photo Analysis',
-                  style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const Spacer(),
-                if (_isPhotoSelectionMode)
-                  Icon(
-                    isSelected ? Icons.check_circle : Icons.radio_button_unchecked,
-                    size: 20,
-                    color: isSelected 
-                        ? Theme.of(context).colorScheme.primary
-                        : Theme.of(context).colorScheme.onSurface.withOpacity(0.5),
-                  )
-                else
-                  Icon(
-                    Icons.open_in_new,
-                    size: 14,
-                    color: Theme.of(context).colorScheme.primary.withOpacity(0.7),
-                  ),
-              ],
-            ),
-            const SizedBox(height: 12),
-
-            // Photo thumbnail and analysis
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Photo thumbnail
-                Container(
-                  width: 80,
-                  height: 80,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(
-                      color: Theme.of(context).colorScheme.outline.withOpacity(0.3),
-                    ),
-                  ),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(8),
-                    child: _buildPhotoThumbnail(attachment.imagePath),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                // Analysis details
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        summary,
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'Keypoints: $keypoints',
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 
   void _openPhotoInGallery(String imagePath) async {
     try {
@@ -1577,7 +1536,8 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
           );
 
       final analysis = photoAttachment.analysisResult;
-      final summary = analysis['summary'] as String? ?? '';
+      // Use altText (3-5 keywords) instead of full summary
+      final summary = photoAttachment.altText ?? 'Photo analyzed';
       final ocrText = analysis['ocr']?['fullText'] as String? ?? '';
       final objects = analysis['objects'] as List? ?? [];
       final faces = analysis['faces'] as List? ?? [];
@@ -1736,24 +1696,55 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
     });
   }
 
+  /// Build content view with inline thumbnails for view-only mode
+  Widget _buildContentView(ThemeData theme) {
+    // Convert photo attachments to MediaItems for EntryContentRenderer
+    final mediaItems = _entryState.attachments
+        .whereType<PhotoAttachment>()
+        .map((attachment) => MediaItem(
+              id: attachment.photoId ?? DateTime.now().millisecondsSinceEpoch.toString(),
+              uri: attachment.imagePath,
+              type: MediaType.image,
+              createdAt: DateTime.fromMillisecondsSinceEpoch(attachment.timestamp),
+              analysisData: attachment.analysisResult,
+              altText: attachment.altText,
+            ))
+        .toList();
+
+    return EntryContentRenderer(
+      content: _entryState.text,
+      mediaItems: mediaItems,
+      textStyle: theme.textTheme.bodyLarge?.copyWith(
+        color: Colors.white,
+        fontSize: 16,
+        height: 1.5,
+      ),
+    );
+  }
+
   Widget _buildAITextField(ThemeData theme) {
     final isReadOnly = widget.isViewOnly && !_isEditMode;
     
+    if (isReadOnly) {
+      // In view-only mode, show content with inline thumbnails
+      return _buildContentView(theme);
+    }
+    
+    // In edit mode, show regular text field
     return TextField(
       controller: _textController,
-      onChanged: isReadOnly ? null : _onTextChanged, // Disable text changes in view-only mode
-      readOnly: isReadOnly, // Make read-only when viewing
+      onChanged: _onTextChanged,
       maxLines: null,
       style: theme.textTheme.bodyLarge?.copyWith(
         color: Colors.white,
         fontSize: 16,
         height: 1.5,
       ),
-      cursorColor: isReadOnly ? Colors.transparent : Colors.white, // Hide cursor in view-only mode
+      cursorColor: Colors.white,
       cursorWidth: 2.0,
       cursorHeight: 20.0,
       decoration: InputDecoration(
-        hintText: isReadOnly ? 'Viewing entry...' : 'What\'s on your mind right now?',
+        hintText: 'What\'s on your mind right now?',
         hintStyle: theme.textTheme.bodyLarge?.copyWith(
           color: Colors.white.withOpacity(0.5),
           fontSize: 16,
@@ -2393,86 +2384,31 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
       if (result['success'] == true) {
         print('DEBUG: Photo analysis successful');
 
-        // Save photo to Photo Library with duplicate detection
-        // The duplicate detection will check if this photo already exists in the library
-        // and return the existing photo ID instead of saving a duplicate
-        String photoReference = imagePath;
+        // Generate alt text from analysis (3-5 keywords)
+        final altText = MediaAltTextGenerator.generateAltText(result);
 
-        print('DEBUG: Attempting to save photo to iOS Photo Library (with duplicate detection)...');
-        final photoLibraryId = await PhotoLibraryService.savePhotoToLibrary(
-          imagePath,
-          checkDuplicates: true, // Enable duplicate detection
-        );
-
-        if (photoLibraryId == null) {
-          // If saving failed, fall back to using the original file path
-          print('DEBUG: Photo library save failed, using original file path as fallback');
-          photoReference = imagePath;
-        } else {
-          print('DEBUG: Photo saved/found in library with ID: $photoLibraryId');
-          photoReference = photoLibraryId;
-        }
-
-        // Generate alt text from analysis
-        final altText = MediaAltTextGenerator.generateFromAnalysis(result);
-
-        // Capture current cursor position for inline display
-        final cursorPosition = _textController.selection.baseOffset;
-        final insertionPosition = (cursorPosition >= 0 && cursorPosition <= _textController.text.length)
-            ? cursorPosition
-            : _textController.text.length;
-
-        print('DEBUG: Photo insertion position: $insertionPosition in text of length ${_textController.text.length}');
-
-        // Generate unique photo ID for placeholder
+        // Generate unique photo ID
         final photoId = 'photo_${DateTime.now().millisecondsSinceEpoch}';
-        
-        // Create photo attachment with insertion position
+
+        // Store the original picked path directly - no copying yet
         final photoAttachment = PhotoAttachment(
           type: 'photo_analysis',
-          imagePath: photoReference, // Use photo library ID or original path
+          imagePath: imagePath, // Use original picked path
           analysisResult: result,
           timestamp: DateTime.now().millisecondsSinceEpoch,
           altText: altText,
-          insertionPosition: insertionPosition,
-          photoId: photoId, // Add photoId for placeholder reference
+          photoId: photoId,
+          sha256: null, // Will be generated when entry is saved
         );
 
         setState(() {
           _entryState.attachments.add(photoAttachment);
         });
 
-        // Create text placeholder for the photo
-        final photoPlaceholder = '[PHOTO:$photoId]';
-        
-        // Insert photo placeholder into text at cursor position
-        final currentText = _textController.text;
-        final newText = '${currentText.substring(0, insertionPosition)}$photoPlaceholder${currentText.substring(insertionPosition)}';
-        
-        // Update text controller and entry state
-        _textController.text = newText;
-        _textController.selection = TextSelection.collapsed(
-          offset: insertionPosition + photoPlaceholder.length,
-        );
-        
-        setState(() {
-          _entryState.text = newText;
-        });
-
-        // Insert analysis summary with clickable link
-        final summary = result['summary'] as String? ?? 'Photo analyzed';
-        final ocrText = result['ocr']?['fullText'] as String? ?? '';
-        final objects = result['objects'] as List<Map<String, dynamic>>? ?? [];
-        final faces = result['faces'] as List<Map<String, dynamic>>? ?? [];
-        final labels = result['labels'] as List<Map<String, dynamic>>? ?? [];
-        
-        // Auto-save the updated content with photo placeholder
-        _updateDraftContent(newText);
-
-        // Show success message with summary
+        // Show success message with alt text
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('✅ $summary'),
+            content: Text('✅ Photo added: $altText'),
             duration: const Duration(seconds: 2),
           ),
         );

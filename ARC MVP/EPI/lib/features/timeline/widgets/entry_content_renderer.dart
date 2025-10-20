@@ -1,7 +1,9 @@
 import 'dart:io';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:my_app/data/models/media_item.dart';
 import 'package:my_app/ui/widgets/full_image_viewer.dart';
+import 'package:my_app/services/media_resolver_service.dart';
 
 /// Renders journal entry content with inline photo thumbnails
 class EntryContentRenderer extends StatelessWidget {
@@ -34,147 +36,108 @@ class EntryContentRenderer extends StatelessWidget {
   /// Build content with inline photo thumbnails
   List<Widget> _buildContentWithInlinePhotos(BuildContext context) {
     final widgets = <Widget>[];
-    final photoPlaceholderRegex = RegExp(r'\[PHOTO:([^\]]+)\]');
     
-    int lastIndex = 0;
-    final matches = photoPlaceholderRegex.allMatches(content);
-    
-    if (matches.isEmpty) {
-      // No photos, just render text
+    // Simply render the text content without parsing PHOTO tags
+    // Photos are now displayed separately as thumbnails below the text
+    if (content.trim().isNotEmpty) {
       widgets.add(Text(content, style: textStyle));
-      return widgets;
     }
     
-    for (final match in matches) {
-      // Add text before the photo
-      if (match.start > lastIndex) {
-        final textBefore = content.substring(lastIndex, match.start);
-        if (textBefore.trim().isNotEmpty) {
-          widgets.add(Text(textBefore, style: textStyle));
-          widgets.add(const SizedBox(height: 8));
-        }
-      }
-      
-      // Find and add the photo
-      final photoId = match.group(1)!;
-      final mediaItem = _findMediaItemByPhotoId(photoId);
-      
-      if (mediaItem != null) {
-        widgets.add(_buildPhotoWidget(context, mediaItem));
-        widgets.add(const SizedBox(height: 12));
-      } else {
-        // Photo not found, show placeholder
-        widgets.add(_buildMissingPhotoPlaceholder(photoId));
-        widgets.add(const SizedBox(height: 8));
-      }
-      
-      lastIndex = match.end;
-    }
-    
-    // Add remaining text after last photo
-    if (lastIndex < content.length) {
-      final textAfter = content.substring(lastIndex);
-      if (textAfter.trim().isNotEmpty) {
-        widgets.add(Text(textAfter, style: textStyle));
-      }
+    // Add photo thumbnails below the text if any exist
+    if (mediaItems.isNotEmpty) {
+      widgets.add(const SizedBox(height: 16));
+      widgets.add(_buildPhotoThumbnailGrid(context));
     }
     
     return widgets;
   }
 
-  /// Find media item by photo ID
-  MediaItem? _findMediaItemByPhotoId(String photoId) {
-    try {
-      return mediaItems.firstWhere((item) => item.id == photoId);
-    } catch (e) {
-      return null;
-    }
+  /// Build photo thumbnail grid
+  Widget _buildPhotoThumbnailGrid(BuildContext context) {
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: mediaItems.map((mediaItem) => _buildPhotoWidget(context, mediaItem)).toList(),
+    );
   }
 
-  /// Build tappable photo widget with thumbnail
+  /// Build tappable photo widget with thumbnail (smaller for grid layout)
   Widget _buildPhotoWidget(BuildContext context, MediaItem mediaItem) {
-    return GestureDetector(
-      onTap: () {
-        // Open full-screen viewer
-        Navigator.of(context).push(
-          MaterialPageRoute(
-            builder: (context) => FullImageViewer(mediaItem: mediaItem),
-          ),
-        );
-      },
-      child: Container(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(8),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.1),
-              blurRadius: 4,
-              offset: const Offset(0, 2),
+    return SizedBox(
+      width: 80,
+      height: 80,
+      child: GestureDetector(
+        onTap: () {
+          // Open full-screen viewer
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (context) => FullImageViewer(mediaItem: mediaItem),
             ),
-          ],
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(8),
-          child: Stack(
-            children: [
-              _buildThumbnailImage(mediaItem),
-              
-              // Overlay with alt text if available
-              if (mediaItem.altText != null && mediaItem.altText!.isNotEmpty)
-                Positioned(
-                  bottom: 0,
-                  left: 0,
-                  right: 0,
-                  child: Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.bottomCenter,
-                        end: Alignment.topCenter,
-                        colors: [
-                          Colors.black.withOpacity(0.7),
-                          Colors.transparent,
-                        ],
-                      ),
-                    ),
-                    child: Text(
-                      mediaItem.altText!,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 12,
-                      ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                ),
-              
-              // Tap indicator
-              Positioned(
-                top: 8,
-                right: 8,
-                child: Container(
-                  padding: const EdgeInsets.all(6),
-                  decoration: BoxDecoration(
-                    color: Colors.black.withOpacity(0.5),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: const Icon(
-                    Icons.zoom_in,
-                    color: Colors.white,
-                    size: 16,
-                  ),
-                ),
+          );
+        },
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(8),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.1),
+                blurRadius: 2,
+                offset: const Offset(0, 1),
               ),
             ],
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: Stack(
+              children: [
+                _buildThumbnailImage(mediaItem),
+                
+                // Tap indicator
+                Positioned(
+                  top: 4,
+                  right: 4,
+                  child: Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withOpacity(0.5),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Icon(
+                      Icons.zoom_in,
+                      color: Colors.white,
+                      size: 12,
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
     );
   }
 
-  /// Build thumbnail image from MediaItem
+  /// Build thumbnail image from MediaItem (smaller for grid layout)
   Widget _buildThumbnailImage(MediaItem mediaItem) {
+    // Check if MCP media (content-addressed)
+    if (mediaItem.isMcpMedia && mediaItem.sha256 != null) {
+      return FutureBuilder<Uint8List?>(
+        future: MediaResolverService.instance.resolver?.loadThumbnail(mediaItem.sha256!),
+        builder: (context, snapshot) {
+          if (snapshot.hasData && snapshot.data != null) {
+            return Image.memory(
+              snapshot.data!,
+              width: 80,
+              height: 80,
+              fit: BoxFit.cover,
+              cacheWidth: 160, // Optimize for performance
+            );
+          }
+          return _buildPlaceholderImage();
+        },
+      );
+    }
+    
     // Try to use thumbUri if available
     if (mediaItem.thumbUri != null && mediaItem.thumbUri!.isNotEmpty) {
       final thumbPath = mediaItem.thumbUri!.startsWith('file://')
@@ -185,7 +148,10 @@ class EntryContentRenderer extends StatelessWidget {
       if (thumbFile.existsSync()) {
         return Image.file(
           thumbFile,
+          width: 80,
+          height: 80,
           fit: BoxFit.cover,
+          cacheWidth: 160, // Optimize for performance
           errorBuilder: (context, error, stackTrace) {
             return _buildPlaceholderImage();
           },
@@ -197,7 +163,10 @@ class EntryContentRenderer extends StatelessWidget {
     if (mediaItem.uri.startsWith('file://')) {
       return Image.file(
         File(mediaItem.uri.replaceFirst('file://', '')),
+        width: 80,
+        height: 80,
         fit: BoxFit.cover,
+        cacheWidth: 160, // Optimize for performance
         errorBuilder: (context, error, stackTrace) {
           return _buildPlaceholderImage();
         },
@@ -206,7 +175,10 @@ class EntryContentRenderer extends StatelessWidget {
       // Assume local file path
       return Image.file(
         File(mediaItem.uri),
+        width: 80,
+        height: 80,
         fit: BoxFit.cover,
+        cacheWidth: 160, // Optimize for performance
         errorBuilder: (context, error, stackTrace) {
           return _buildPlaceholderImage();
         },
@@ -220,47 +192,11 @@ class EntryContentRenderer extends StatelessWidget {
   /// Build placeholder for missing or unloadable images
   Widget _buildPlaceholderImage() {
     return Container(
-      height: 200,
+      width: 80,
+      height: 80,
       color: Colors.grey[300],
       child: const Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.image, size: 48, color: Colors.grey),
-            SizedBox(height: 8),
-            Text(
-              'Image unavailable',
-              style: TextStyle(color: Colors.grey),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  /// Build placeholder for missing photos
-  Widget _buildMissingPhotoPlaceholder(String photoId) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.orange[50],
-        border: Border.all(color: Colors.orange[300]!),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Row(
-        children: [
-          Icon(Icons.warning_amber, color: Colors.orange[700]),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              'Photo missing: $photoId',
-              style: TextStyle(
-                color: Colors.orange[900],
-                fontSize: 12,
-              ),
-            ),
-          ),
-        ],
+        child: Icon(Icons.image, size: 24, color: Colors.grey),
       ),
     );
   }

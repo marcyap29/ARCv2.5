@@ -109,31 +109,51 @@ class MediaAltTextGenerator {
 
     final keywords = <String>[];
 
-    // Collect top keywords
+    // Limit to top 3-5 keywords total
+    // Priority: labels (2) -> faces (1) -> objects (1-2)
     if (labels.isNotEmpty) {
       keywords.addAll(
         labels.take(2).map((label) => _extractLabel(label)),
       );
     }
 
-    if (faces.isNotEmpty) {
+    if (faces.isNotEmpty && keywords.length < 5) {
       keywords.add(faces.length == 1 ? '1 person' : '${faces.length} people');
     }
 
-    if (objects.isNotEmpty && keywords.length < 4) {
+    if (objects.isNotEmpty && keywords.length < 5) {
+      final remaining = 5 - keywords.length;
       keywords.addAll(
         objects
-            .take(4 - keywords.length)
+            .take(remaining)
             .map((obj) => _extractLabel(obj))
             .where((label) => label.isNotEmpty),
       );
     }
 
-    if (keywords.isEmpty) {
+    // Limit to exactly 3-5 keywords
+    final finalKeywords = keywords.take(5).toList();
+    if (finalKeywords.length < 3 && finalKeywords.isNotEmpty) {
+      // Pad with "scene" if less than 3
+      while (finalKeywords.length < 3 && finalKeywords.length < keywords.length) {
+        finalKeywords.add('scene');
+      }
+    }
+
+    if (finalKeywords.isEmpty) {
       return 'Photo';
     }
 
-    return 'Photo: ${keywords.join(', ')}';
+    return 'Photo: ${finalKeywords.join(', ')}';
+  }
+
+  /// Generate 3-5 keyword alternate text for photos
+  static String generateAltText(Map<String, dynamic>? analysisData) {
+    final concise = generateConcise(analysisData);
+    if (concise == null) return 'Photo';
+    
+    // Remove "Photo: " prefix if present
+    return concise.replaceFirst('Photo: ', '');
   }
 
   /// Generate alt text suitable for export (MCP bundles, backups)
