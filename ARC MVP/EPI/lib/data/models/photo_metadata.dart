@@ -164,13 +164,3 @@ class PhotoMetadata {
     return 'PhotoMetadata($description)';
   }
 }
-
-      cloudIdentifier,
-    );
-  }
-
-  @override
-  String toString() {
-    return 'PhotoMetadata($description)';
-  }
-}

@@ -8,7 +8,58 @@
   - MIRA: Narrative Intelligence (v0.2 - Enhanced Semantic Memory)
   - AURORA: Circadian Intelligence
   - VEIL: Self-Pruning & Coherence (Integrated with MIRA v0.2)
-  - RIVET: Risk-Validation Evidence Tracker
+  - RIVET: Risk-Validation Evidence Tracker (Extended with Draft & Chat Analysis)
+
+  ## 🔄 **RIVET & SENTINEL Extensions Architecture** (Updated January 17, 2025)
+
+  **Unified Reflective Analysis System - PRODUCTION READY**:
+  ```
+  RIVET & SENTINEL Extensions:
+  ├── Extended Evidence Sources
+  │   ├── Journal Entries (EvidenceSource.text, weight: 1.0)
+  │   ├── Draft Entries (EvidenceSource.draft, weight: 0.6)
+  │   └── LUMARA Chats (EvidenceSource.lumaraChat, weight: 0.8)
+  ├── ReflectiveEntryData Model
+  │   ├── Unified data model for all reflective inputs
+  │   ├── Source-specific factory methods
+  │   ├── Confidence scoring system
+  │   └── Source weight integration
+  ├── Draft Analysis Service
+  │   ├── Phase inference from content patterns
+  │   ├── Confidence scoring based on content quality
+  │   ├── Keyword extraction with context awareness
+  │   └── Pattern analysis for draft entries
+  ├── Chat Analysis Service
+  │   ├── LUMARA conversation processing
+  │   ├── Context keyword generation
+  │   ├── Conversation quality assessment
+  │   └── Role-based message filtering
+  ├── Enhanced SENTINEL Analysis
+  │   ├── Source-aware pattern detection
+  │   ├── Weighted clustering algorithms
+  │   ├── Persistent distress detection
+  │   └── Escalation pattern recognition
+  ├── Unified Analysis Service
+  │   ├── Comprehensive analysis across all sources
+  │   ├── Combined recommendation generation
+  │   ├── Source weight integration
+  │   └── Backward compatibility maintenance
+  └── Technical Implementation
+      ├── Type safety (List<String> → Set<String>)
+      ├── Model consolidation (RivetEvent/RivetState)
+      ├── Hive adapter updates
+      └── Build system integration
+  ```
+
+  **🚀 CURRENT STATUS: PRODUCTION READY**
+  - ✅ **Extended Evidence Sources**: RIVET now processes drafts and LUMARA chats alongside journal entries
+  - ✅ **Unified Data Model**: ReflectiveEntryData provides consistent interface for all reflective inputs
+  - ✅ **Source Weighting**: Different confidence weights for different input types
+  - ✅ **Specialized Services**: DraftAnalysisService and ChatAnalysisService for targeted processing
+  - ✅ **Enhanced Pattern Detection**: Source-aware SENTINEL analysis with weighted algorithms
+  - ✅ **Unified Recommendations**: Combined insights from all reflective sources
+  - ✅ **Backward Compatibility**: Existing journal-only workflows remain unchanged
+  - ✅ **Build Success**: All type conflicts resolved, iOS build working with full integration
 
   ## 🛡️ **Comprehensive App Hardening Architecture** (Updated January 16, 2025)
 

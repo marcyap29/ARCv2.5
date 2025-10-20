@@ -33,6 +33,7 @@
 		97C146FE1CF9000F007C117D /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FD1CF9000F007C117D /* Assets.xcassets */; };
 		97C147011CF9000F007C117D /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FF1CF9000F007C117D /* LaunchScreen.storyboard */; };
 		D1754AEF759146E8920F2B30 /* MiraMemoryStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4700A91B00044A52AA765055 /* MiraMemoryStore.swift */; };
+		PHOTOCHAN001 /* PhotoChannel.swift in Sources */ = {isa = PBXBuildFile; fileRef = PHOTOCHAN002 /* PhotoChannel.swift */; };
 		PHOTOLIB001 /* PhotoLibraryService.swift in Sources */ = {isa = PBXBuildFile; fileRef = PHOTOLIB002 /* PhotoLibraryService.swift */; };
 		VISIONIMPL001 /* VisionApiImpl.swift in Sources */ = {isa = PBXBuildFile; fileRef = VISIONIMPL002 /* VisionApiImpl.swift */; };
 /* End PBXBuildFile section */
@@ -115,6 +116,7 @@
 		CA6B8AF217A87269699FDB4E /* Pods-Runner.profile.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Runner.profile.xcconfig"; path = "Target Support Files/Pods-Runner/Pods-Runner.profile.xcconfig"; sourceTree = "<group>"; };
 		CCB9F8A598D731000EFECF92 /* Pods-RunnerTests.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-RunnerTests.debug.xcconfig"; path = "Target Support Files/Pods-RunnerTests/Pods-RunnerTests.debug.xcconfig"; sourceTree = "<group>"; };
 		D93B1FE37922688B4BC936FB /* Pods-Runner.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Runner.debug.xcconfig"; path = "Target Support Files/Pods-Runner/Pods-Runner.debug.xcconfig"; sourceTree = "<group>"; };
+		PHOTOCHAN002 /* PhotoChannel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhotoChannel.swift; sourceTree = "<group>"; };
 		PHOTOLIB002 /* PhotoLibraryService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhotoLibraryService.swift; sourceTree = "<group>"; };
 		VISIONIMPL002 /* VisionApiImpl.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VisionApiImpl.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -237,6 +239,7 @@
 				AB3677EB70444E1F82E0E2CC /* Bridge.pigeon.swift */,
 				VISIONIMPL002 /* VisionApiImpl.swift */,
 				PHOTOLIB002 /* PhotoLibraryService.swift */,
+				PHOTOCHAN002 /* PhotoChannel.swift */,
 				AD02F52095DB446494429964 /* LumaraPromptSystem.swift */,
 				4700A91B00044A52AA765055 /* MiraMemoryStore.swift */,
 				74858FAD1ED2DC5600515810 /* Runner-Bridging-Header.h */,
@@ -505,6 +508,7 @@
 				1498D2341E8E89220040F4C2 /* GeneratedPluginRegistrant.m in Sources */,
 				VISIONIMPL001 /* VisionApiImpl.swift in Sources */,
 				PHOTOLIB001 /* PhotoLibraryService.swift in Sources */,
+				PHOTOCHAN001 /* PhotoChannel.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

@@ -1345,7 +1345,7 @@ class _McpBundleHealthViewState extends State<McpBundleHealthView> {
         report.errors.add(HealthIssue(
           title: 'Invalid MCP Bundle',
           description: 'ZIP file does not contain a valid MCP bundle (missing required files)',
-          suggestion: 'Ensure the ZIP contains manifest.json, nodes.jsonl, edges.jsonl, pointers.jsonl, and embeddings.jsonl',
+          suggestion: 'Ensure the ZIP contains manifest.json, nodes.jsonl, and edges.jsonl (plus optional journal_v1.mcp.zip for new format)',
         ));
         return report;
       }
@@ -1355,14 +1355,25 @@ class _McpBundleHealthViewState extends State<McpBundleHealthView> {
       
       try {
         // Check required files in extracted directory
+        // Support both old and new MCP formats
         final requiredFiles = [
           'manifest.json',
           'nodes.jsonl',
           'edges.jsonl',
+        ];
+        
+        // Optional files for new format
+        final optionalFiles = [
+          'journal_v1.mcp.zip',
+        ];
+        
+        // Legacy files (optional)
+        final legacyFiles = [
           'pointers.jsonl',
           'embeddings.jsonl',
         ];
 
+        // Check required files
         for (final filename in requiredFiles) {
           final file = File('${tempDir.path}/$filename');
           final exists = await file.exists();
@@ -1373,6 +1384,85 @@ class _McpBundleHealthViewState extends State<McpBundleHealthView> {
             sizeBytes: sizeBytes,
             checksumValid: null,
           );
+          
+          if (!exists) {
+            report.errors.add(HealthIssue(
+              title: 'Required File Missing',
+              description: '$filename is required but not found in the bundle',
+              suggestion: 'Ensure the ZIP contains all required MCP bundle files',
+            ));
+          }
+        }
+        
+        // Check optional files (new format)
+        for (final filename in optionalFiles) {
+          final file = File('${tempDir.path}/$filename');
+          final exists = await file.exists();
+          final sizeBytes = exists ? await file.length() : 0;
+          
+          report.fileStatus[filename] = FileStatus(
+            exists: exists,
+            sizeBytes: sizeBytes,
+            checksumValid: null,
+          );
+          
+          if (exists) {
+            report.warnings.add(HealthIssue(
+              title: 'New Format Detected',
+              description: 'Found $filename - this bundle uses the new MCP format with structured media',
+              suggestion: 'This is expected for newer exports',
+            ));
+          }
+        }
+        
+        // Check legacy files (old format)
+        for (final filename in legacyFiles) {
+          final file = File('${tempDir.path}/$filename');
+          final exists = await file.exists();
+          final sizeBytes = exists ? await file.length() : 0;
+          
+          report.fileStatus[filename] = FileStatus(
+            exists: exists,
+            sizeBytes: sizeBytes,
+            checksumValid: null,
+          );
+          
+          if (exists) {
+            report.warnings.add(HealthIssue(
+              title: 'Legacy Format Detected',
+              description: 'Found $filename - this bundle uses the legacy MCP format',
+              suggestion: 'Consider upgrading to the new format for better media handling',
+            ));
+          }
+        }
+        
+        // Check for media pack files (new format)
+        final mediaPackFiles = <String>[];
+        try {
+          final entries = await tempDir.list().toList();
+          for (final entry in entries) {
+            if (entry is File && entry.path.contains('mcp_media_') && entry.path.endsWith('.zip')) {
+              final filename = entry.path.split('/').last;
+              mediaPackFiles.add(filename);
+              final sizeBytes = await entry.length();
+              
+              report.fileStatus[filename] = FileStatus(
+                exists: true,
+                sizeBytes: sizeBytes,
+                checksumValid: null,
+              );
+            }
+          }
+        } catch (e) {
+          // Ignore directory listing errors
+        }
+        
+        if (mediaPackFiles.isNotEmpty) {
+          report.warnings.add(HealthIssue(
+            title: 'Media Packs Found',
+            description: 'Found ${mediaPackFiles.length} media pack(s): ${mediaPackFiles.join(', ')}',
+            suggestion: 'These contain full-resolution images and media for the journal entries',
+          ));
         }
 
         // Validate manifest

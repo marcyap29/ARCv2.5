@@ -38,6 +38,7 @@ class JournalScreen extends StatefulWidget {
   final String? selectedReason;
   final String? initialContent;
   final JournalEntry? existingEntry; // For loading existing entries with media
+  final bool isViewOnly; // New parameter to distinguish viewing vs editing
   
   const JournalScreen({
     super.key,
@@ -45,6 +46,7 @@ class JournalScreen extends StatefulWidget {
     this.selectedReason,
     this.initialContent,
     this.existingEntry,
+    this.isViewOnly = false, // Default to editing mode for backward compatibility
   });
 
   @override
@@ -88,6 +90,9 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
   // Track if entry has been modified
   bool _hasBeenModified = false;
   String? _originalContent;
+  
+  // Track if we're currently in edit mode (can switch from view-only to edit)
+  bool _isEditMode = false;
   
   // Metadata editing fields (only shown for existing entries)
   DateTime? _editableDate;
@@ -196,8 +201,10 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
       _hasBeenModified = text.trim().isNotEmpty;
     }
     
-    // Update draft cache
-    _updateDraftContent(text);
+    // Only update draft cache if user is actively writing/editing (not just viewing)
+    if (!widget.isViewOnly || _isEditMode) {
+      _updateDraftContent(text);
+    }
   }
 
   void _onLumaraFabTapped() {
@@ -671,10 +678,17 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
       child: Scaffold(
       backgroundColor: theme.colorScheme.surface,
       appBar: AppBar(
-        title: const Text('Write what is true right now'),
+        title: Text(widget.isViewOnly && !_isEditMode ? 'View Entry' : 'Write what is true right now'),
         backgroundColor: Colors.transparent,
         elevation: 0,
         actions: [
+          // Show Edit button when in view-only mode and not yet editing
+          if (widget.isViewOnly && !_isEditMode)
+            IconButton(
+              onPressed: _switchToEditMode,
+              icon: const Icon(Icons.edit),
+              tooltip: 'Edit Entry',
+            ),
           Stack(
             children: [
               IconButton(
@@ -1723,20 +1737,23 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
   }
 
   Widget _buildAITextField(ThemeData theme) {
+    final isReadOnly = widget.isViewOnly && !_isEditMode;
+    
     return TextField(
       controller: _textController,
-      onChanged: _onTextChanged,
+      onChanged: isReadOnly ? null : _onTextChanged, // Disable text changes in view-only mode
+      readOnly: isReadOnly, // Make read-only when viewing
       maxLines: null,
       style: theme.textTheme.bodyLarge?.copyWith(
         color: Colors.white,
         fontSize: 16,
         height: 1.5,
       ),
-      cursorColor: Colors.white,
+      cursorColor: isReadOnly ? Colors.transparent : Colors.white, // Hide cursor in view-only mode
       cursorWidth: 2.0,
       cursorHeight: 20.0,
       decoration: InputDecoration(
-        hintText: 'What\'s on your mind right now?',
+        hintText: isReadOnly ? 'Viewing entry...' : 'What\'s on your mind right now?',
         hintStyle: theme.textTheme.bodyLarge?.copyWith(
           color: Colors.white.withOpacity(0.5),
           fontSize: 16,
@@ -1982,17 +1999,32 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
     try {
       await _draftCache.initialize();
       
-      // Always create a fresh draft - no restoration of old drafts
-      // This prevents confusing dialogs and accidental draft deletion
-      _currentDraftId = await _draftCache.createDraft(
-        initialEmotion: widget.selectedEmotion,
-        initialReason: widget.selectedReason,
-        initialContent: _entryState.text,
-      );
-      debugPrint('JournalScreen: Created fresh draft $_currentDraftId');
+      // Only create a draft if user is actively writing/editing (not just viewing)
+      if (!widget.isViewOnly || _isEditMode) {
+        _currentDraftId = await _draftCache.createDraft(
+          initialEmotion: widget.selectedEmotion,
+          initialReason: widget.selectedReason,
+          initialContent: _entryState.text,
+        );
+        debugPrint('JournalScreen: Created fresh draft $_currentDraftId');
+      } else {
+        debugPrint('JournalScreen: View-only mode - no draft created');
+      }
     } catch (e) {
       debugPrint('JournalScreen: Failed to initialize draft cache: $e');
     }
+  }
+
+  /// Switch from view-only mode to edit mode
+  void _switchToEditMode() {
+    setState(() {
+      _isEditMode = true;
+    });
+    
+    // Initialize draft cache now that we're editing
+    _initializeDraftCache();
+    
+    debugPrint('JournalScreen: Switched to edit mode');
   }
 
   /// Update draft content with auto-save (only for app lifecycle changes)

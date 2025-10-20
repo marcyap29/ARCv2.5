@@ -52,6 +52,16 @@ class MediaItem {
   @HiveField(9)
   final String? altText; // Descriptive text for accessibility and fallback (like HTML alt attribute)
 
+  // MCP media fields (MCP v2)
+  @HiveField(10)
+  final String? sha256; // Content hash for deduplication
+
+  @HiveField(11)
+  final String? thumbUri; // Thumbnail path in journal bundle (e.g. "assets/thumbs/<sha>.jpg")
+
+  @HiveField(12)
+  final String? fullRef; // Full-res reference (e.g. "mcp://photo/<sha>")
+
   const MediaItem({
     required this.id,
     required this.uri,
@@ -63,6 +73,9 @@ class MediaItem {
     this.ocrText,
     this.analysisData,
     this.altText,
+    this.sha256,
+    this.thumbUri,
+    this.fullRef,
   });
 
   factory MediaItem.fromJson(Map<String, dynamic> json) => _$MediaItemFromJson(json);
@@ -79,6 +92,9 @@ class MediaItem {
     String? ocrText,
     Map<String, dynamic>? analysisData,
     String? altText,
+    String? sha256,
+    String? thumbUri,
+    String? fullRef,
   }) {
     return MediaItem(
       id: id ?? this.id,
@@ -91,8 +107,14 @@ class MediaItem {
       ocrText: ocrText ?? this.ocrText,
       analysisData: analysisData ?? this.analysisData,
       altText: altText ?? this.altText,
+      sha256: sha256 ?? this.sha256,
+      thumbUri: thumbUri ?? this.thumbUri,
+      fullRef: fullRef ?? this.fullRef,
     );
   }
+
+  /// Check if this media item is MCP media (has SHA-256 hash)
+  bool get isMcpMedia => sha256 != null && sha256!.isNotEmpty;
 
   @override
   bool operator ==(Object other) {

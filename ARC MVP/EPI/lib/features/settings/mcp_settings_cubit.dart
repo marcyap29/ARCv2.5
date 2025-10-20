@@ -189,7 +189,7 @@ class McpSettingsCubit extends Cubit<McpSettingsState> {
     McpImportOptions options = const McpImportOptions(),
   }) async {
     // Initialize import service with journal repository
-    _importService ??= McpImportService(journalRepo: JournalRepository());
+    _importService ??= McpImportService(journalRepo: _journalRepository);
 
     emit(state.copyWith(
       isLoading: true,

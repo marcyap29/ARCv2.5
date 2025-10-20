@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'package:crypto/crypto.dart';
 import 'package:path/path.dart' as path;
 import 'package:path_provider/path_provider.dart';
-import 'package:my_app/prism/mcp/models/mcp_schemas.dart';
+import 'package:my_app/prism/mcp/core/mcp_schemas.dart';
 
 /// Exception thrown during MIRA write operations
 class MiraWriteException implements Exception {
@@ -13,7 +13,8 @@ class MiraWriteException implements Exception {
   const MiraWriteException(this.message, [this.cause]);
 
   @override
-  String toString() => 'MiraWriteException: $message${cause != null ? ' (caused by: $cause)' : ''}';
+  String toString() =>
+      'MiraWriteException: $message${cause != null ? ' (caused by: $cause)' : ''}';
 }
 
 /// Statistics for MIRA write operations
@@ -24,12 +25,12 @@ class MiraWriteStats {
   int edgesWritten = 0;
   int indexesRebuilt = 0;
   Duration totalTime = Duration.zero;
-  
+
   @override
   String toString() {
     return 'MiraWriteStats(pointers: $pointersWritten, embeddings: $embeddingsWritten, '
-           'nodes: $nodesWritten, edges: $edgesWritten, indexes: $indexesRebuilt, '
-           'time: ${totalTime.inMilliseconds}ms)';
+        'nodes: $nodesWritten, edges: $edgesWritten, indexes: $indexesRebuilt, '
+        'time: ${totalTime.inMilliseconds}ms)';
   }
 }
 
@@ -43,8 +44,7 @@ class MiraWriter {
   final MiraWriteStats _stats = MiraWriteStats();
   String? _resolvedStorageRoot;
 
-  MiraWriter({String? storageRoot})
-    : _customStorageRoot = storageRoot;
+  MiraWriter({String? storageRoot}) : _customStorageRoot = storageRoot;
 
   /// Get the storage root directory, using iOS app sandbox paths when needed
   Future<String> get _storageRoot async {
@@ -68,7 +68,7 @@ class MiraWriter {
     final storageRoot = await _storageRoot;
     final directories = [
       'pointers',
-      'embeddings', 
+      'embeddings',
       'nodes',
       'edges',
       'indexes/time',
@@ -96,17 +96,16 @@ class MiraWriter {
       final filename = _sanitizeFilename('${pointer.id}.json');
       final storageRoot = await _storageRoot;
       final file = File(path.join(storageRoot, 'pointers', filename));
-      
+
       // Prepare pointer record with metadata
       final record = {
         'id': pointer.id,
         'descriptor': pointer.descriptor,
         'source_uri': pointer.sourceUri,
         'media_type': pointer.mediaType,
-        'source_uri': pointer.sourceUri,
         'alt_uris': pointer.altUris,
         'labels': pointer.labels,
-        
+
         // MIRA metadata
         'batch_id': batchId,
         'imported_at': DateTime.now().toUtc().toIso8601String(),
@@ -125,10 +124,10 @@ class MiraWriter {
       }
 
       await file.writeAsString(jsonEncode(record));
-      
+
       // Update lineage tracking
       await _updateLineageRecord('pointer', pointer.id, batchId);
-      
+
       _stats.pointersWritten++;
     } catch (e) {
       throw MiraWriteException('Failed to write pointer ${pointer.id}', e);
@@ -143,7 +142,7 @@ class MiraWriter {
       final filename = _sanitizeFilename('${embedding.id}.json');
       final storageRoot = await _storageRoot;
       final file = File(path.join(storageRoot, 'embeddings', filename));
-      
+
       final record = {
         'id': embedding.id,
         'vector': embedding.vector,
@@ -153,7 +152,7 @@ class MiraWriter {
         'pointer_ref': embedding.pointerRef,
         'span_ref': embedding.spanRef,
         'doc_scope': embedding.docScope,
-        
+
         // MIRA metadata
         'batch_id': batchId,
         'imported_at': DateTime.now().toUtc().toIso8601String(),
@@ -173,7 +172,7 @@ class MiraWriter {
 
       await file.writeAsString(jsonEncode(record));
       await _updateLineageRecord('embedding', embedding.id, batchId);
-      
+
       _stats.embeddingsWritten++;
     } catch (e) {
       throw MiraWriteException('Failed to write embedding ${embedding.id}', e);
@@ -188,11 +187,10 @@ class MiraWriter {
       final filename = _sanitizeFilename('${node.id}.json');
       final storageRoot = await _storageRoot;
       final file = File(path.join(storageRoot, 'nodes', filename));
-      
+
       // Map SAGE fields to MIRA structure
       final record = {
         'id': node.id,
-        'type': node.type,
         'type': node.type,
         'timestamp': node.timestamp.toUtc().toIso8601String(),
         'pointer_ref': node.pointerRef,
@@ -201,13 +199,13 @@ class MiraWriter {
         'keywords': node.keywords,
         'embedding_ref': node.embeddingRef,
         'emotions': node.emotions,
-        
+
         // SAGE mapping
         'sage_situation': node.narrative?.situation,
-        'sage_action': node.narrative?.action, 
+        'sage_action': node.narrative?.action,
         'sage_growth': node.narrative?.growth,
         'sage_essence': node.narrative?.essence,
-        
+
         // MIRA metadata
         'batch_id': batchId,
         'imported_at': DateTime.now().toUtc().toIso8601String(),
@@ -228,7 +226,7 @@ class MiraWriter {
 
       await file.writeAsString(jsonEncode(record));
       await _updateLineageRecord('node', node.id, batchId);
-      
+
       _stats.nodesWritten++;
     } catch (e) {
       throw MiraWriteException('Failed to write node ${node.id}', e);
@@ -243,18 +241,19 @@ class MiraWriter {
       final filename = _sanitizeFilename('${edge.source}_${edge.target}.json');
       final storageRoot = await _storageRoot;
       final file = File(path.join(storageRoot, 'edges', filename));
-      
+
       final record = {
         'source': edge.source,
         'target': edge.target,
         'relation': edge.relation,
         'timestamp': edge.timestamp.toUtc().toIso8601String(),
         'weight': edge.weight,
-        
+
         // MIRA metadata
         'batch_id': batchId,
         'imported_at': DateTime.now().toUtc().toIso8601String(),
-        'lineage_hash': _generateLineageHash('${edge.source}_${edge.target}', batchId),
+        'lineage_hash':
+            _generateLineageHash('${edge.source}_${edge.target}', batchId),
       };
 
       // Track edge evolution
@@ -270,11 +269,13 @@ class MiraWriter {
       }
 
       await file.writeAsString(jsonEncode(record));
-      await _updateLineageRecord('edge', '${edge.source}_${edge.target}', batchId);
-      
+      await _updateLineageRecord(
+          'edge', '${edge.source}_${edge.target}', batchId);
+
       _stats.edgesWritten++;
     } catch (e) {
-      throw MiraWriteException('Failed to write edge ${edge.source}_${edge.target}', e);
+      throw MiraWriteException(
+          'Failed to write edge ${edge.source}_${edge.target}', e);
     }
   }
 
@@ -289,17 +290,18 @@ class MiraWriter {
     for (final type in types) {
       final dir = Directory(path.join(storageRoot, type));
       if (!dir.existsSync()) continue;
-      
+
       await for (final entity in dir.list()) {
         if (entity is File && entity.path.endsWith('.json')) {
           try {
             final content = jsonDecode(await entity.readAsString());
             final createdAt = content['created_at'] as String?;
-            
+
             if (createdAt != null) {
               final date = DateTime.parse(createdAt);
-              final monthKey = '${date.year}-${date.month.toString().padLeft(2, '0')}';
-              
+              final monthKey =
+                  '${date.year}-${date.month.toString().padLeft(2, '0')}';
+
               timeIndex[monthKey] ??= [];
               timeIndex[monthKey]!.add('$type/${path.basename(entity.path)}');
             }
@@ -309,15 +311,20 @@ class MiraWriter {
         }
       }
     }
-    
+
     // Write time index
-    final indexFile = File(path.join(storageRoot, 'indexes/time', 'monthly_index.json'));
+    final indexFile =
+        File(path.join(storageRoot, 'indexes/time', 'monthly_index.json'));
+    
+    // Ensure directory exists
+    await indexFile.parent.create(recursive: true);
+    
     await indexFile.writeAsString(jsonEncode({
       'last_updated': DateTime.now().toUtc().toIso8601String(),
       'batch_id': batchId,
       'index': timeIndex,
     }));
-    
+
     _stats.indexesRebuilt++;
   }
 
@@ -336,15 +343,20 @@ class MiraWriter {
           try {
             final content = jsonDecode(await entity.readAsString());
             final filename = 'nodes/${path.basename(entity.path)}';
-            
+
             // Index label
             final label = content['label'] as String?;
             if (label != null) {
               _addToKeywordIndex(keywordIndex, label.toLowerCase(), filename);
             }
-            
+
             // Index SAGE fields
-            final sageFields = ['sage_situation', 'sage_action', 'sage_growth', 'sage_essence'];
+            final sageFields = [
+              'sage_situation',
+              'sage_action',
+              'sage_growth',
+              'sage_essence'
+            ];
             for (final field in sageFields) {
               final value = content[field] as String?;
               if (value != null) {
@@ -361,15 +373,20 @@ class MiraWriter {
         }
       }
     }
-    
+
     // Write keyword index
-    final indexFile = File(path.join(storageRoot, 'indexes/keyword', 'keyword_index.json'));
+    final indexFile =
+        File(path.join(storageRoot, 'indexes/keyword', 'keyword_index.json'));
+    
+    // Ensure directory exists
+    await indexFile.parent.create(recursive: true);
+    
     await indexFile.writeAsString(jsonEncode({
       'last_updated': DateTime.now().toUtc().toIso8601String(),
       'batch_id': batchId,
       'index': keywordIndex,
     }));
-    
+
     _stats.indexesRebuilt++;
   }
 
@@ -384,13 +401,13 @@ class MiraWriter {
     for (final type in types) {
       final dir = Directory(path.join(storageRoot, type));
       if (!dir.existsSync()) continue;
-      
+
       await for (final entity in dir.list()) {
         if (entity is File && entity.path.endsWith('.json')) {
           try {
             final content = jsonDecode(await entity.readAsString());
             final phase = content['phase'] as String?;
-            
+
             if (phase != null) {
               phaseIndex[phase] ??= [];
               phaseIndex[phase]!.add('$type/${path.basename(entity.path)}');
@@ -401,15 +418,20 @@ class MiraWriter {
         }
       }
     }
-    
+
     // Write phase index
-    final indexFile = File(path.join(storageRoot, 'indexes/phase', 'phase_index.json'));
+    final indexFile =
+        File(path.join(storageRoot, 'indexes/phase', 'phase_index.json'));
+    
+    // Ensure directory exists
+    await indexFile.parent.create(recursive: true);
+    
     await indexFile.writeAsString(jsonEncode({
       'last_updated': DateTime.now().toUtc().toIso8601String(),
       'batch_id': batchId,
       'index': phaseIndex,
     }));
-    
+
     _stats.indexesRebuilt++;
   }
 
@@ -434,16 +456,16 @@ class MiraWriter {
             final sourceId = content['source_id'] as String?;
             final targetId = content['target_id'] as String?;
             final edgeType = content['type'] as String?;
-            
+
             if (sourceId != null && targetId != null) {
               // Outgoing relations
               relationIndex['outgoing']![sourceId] ??= [];
               relationIndex['outgoing']![sourceId]!.add(filename);
-              
+
               // Incoming relations
               relationIndex['incoming']![targetId] ??= [];
               relationIndex['incoming']![targetId]!.add(filename);
-              
+
               // By type
               if (edgeType != null) {
                 relationIndex['by_type']![edgeType] ??= [];
@@ -456,23 +478,29 @@ class MiraWriter {
         }
       }
     }
-    
+
     // Write relation index
-    final indexFile = File(path.join(storageRoot, 'indexes/relation', 'relation_index.json'));
+    final indexFile =
+        File(path.join(storageRoot, 'indexes/relation', 'relation_index.json'));
+    
+    // Ensure directory exists
+    await indexFile.parent.create(recursive: true);
+    
     await indexFile.writeAsString(jsonEncode({
       'last_updated': DateTime.now().toUtc().toIso8601String(),
       'batch_id': batchId,
       'index': relationIndex,
     }));
-    
+
     _stats.indexesRebuilt++;
   }
 
   /// Update lineage tracking record
-  Future<void> _updateLineageRecord(String type, String id, String batchId) async {
+  Future<void> _updateLineageRecord(
+      String type, String id, String batchId) async {
     final storageRoot = await _storageRoot;
     final lineageFile = File(path.join(storageRoot, 'lineage', '$type.jsonl'));
-    
+
     final lineageRecord = {
       'id': id,
       'type': type,
@@ -480,7 +508,7 @@ class MiraWriter {
       'imported_at': DateTime.now().toUtc().toIso8601String(),
       'lineage_hash': _generateLineageHash(id, batchId),
     };
-    
+
     // Append to lineage log
     final lineageJson = jsonEncode(lineageRecord);
     await lineageFile.writeAsString('$lineageJson\n', mode: FileMode.append);
@@ -493,7 +521,8 @@ class MiraWriter {
   }
 
   /// Add keyword to index
-  void _addToKeywordIndex(Map<String, List<String>> index, String keyword, String filename) {
+  void _addToKeywordIndex(
+      Map<String, List<String>> index, String keyword, String filename) {
     index[keyword] ??= [];
     if (!index[keyword]!.contains(filename)) {
       index[keyword]!.add(filename);
@@ -509,12 +538,13 @@ class MiraWriter {
   MiraWriteStats get stats => _stats;
 
   /// Create batch summary record
-  Future<void> createBatchSummary(String batchId, Map<String, int> counts) async {
+  Future<void> createBatchSummary(
+      String batchId, Map<String, int> counts) async {
     await initialize();
 
     final storageRoot = await _storageRoot;
     final batchFile = File(path.join(storageRoot, 'batches', '$batchId.json'));
-    
+
     final summary = {
       'batch_id': batchId,
       'created_at': DateTime.now().toUtc().toIso8601String(),
@@ -528,7 +558,7 @@ class MiraWriter {
         'total_time_ms': _stats.totalTime.inMilliseconds,
       },
     };
-    
+
     await batchFile.writeAsString(jsonEncode(summary));
   }
 
@@ -537,17 +567,18 @@ class MiraWriter {
     final storageRoot = await _storageRoot;
     final batchesDir = Directory(path.join(storageRoot, 'batches'));
     if (!batchesDir.existsSync()) return;
-    
+
     final batchFiles = <File>[];
     await for (final entity in batchesDir.list()) {
       if (entity is File && entity.path.endsWith('.json')) {
         batchFiles.add(entity);
       }
     }
-    
+
     // Sort by modification time, keep recent ones
-    batchFiles.sort((a, b) => b.lastModifiedSync().compareTo(a.lastModifiedSync()));
-    
+    batchFiles
+        .sort((a, b) => b.lastModifiedSync().compareTo(a.lastModifiedSync()));
+
     if (batchFiles.length > keepRecentBatches) {
       final filesToDelete = batchFiles.skip(keepRecentBatches);
       for (final file in filesToDelete) {

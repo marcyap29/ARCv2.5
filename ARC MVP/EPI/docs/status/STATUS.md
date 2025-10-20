@@ -1,12 +1,30 @@
 # EPI ARC MVP - Current Status
 
-**Last Updated**: January 16, 2025  
-**Branch**: main  
-**Status**: ✅ Production Ready - MVP complete + Comprehensive Hardening
+**Last Updated**: October 19, 2025  
+**Branch**: feat/mcp-media-packs  
+**Status**: ✅ Production Ready - MVP complete + Draft Creation Bug Fix + MCP Media System
 
 ---
 
 ## 🎯 MVP Finalization Status
+
+### 🐛 Draft Creation Bug Fix Complete (October 19, 2025)
+
+#### 11. Smart View/Edit Mode System
+- **Feature**: Fixed critical bug where viewing timeline entries automatically created unwanted drafts
+- **Technical**: Added isViewOnly parameter, smart draft creation logic, edit mode switching
+- **UI/UX**: View-only mode by default, edit button for switching modes, read-only text field
+- **Architecture**: Modified JournalScreen, InteractiveTimelineView, and DraftCacheService
+- **Status**: ✅ Complete - Production-ready smart view/edit mode system
+
+### 🔄 RIVET & SENTINEL Extensions Complete (October 17, 2025)
+
+#### 10. Unified Reflective Analysis System
+- **Feature**: Extended RIVET and SENTINEL to analyze drafts and LUMARA chats alongside journal entries
+- **Technical**: ReflectiveEntryData unified model, source weighting system, specialized analysis services
+- **UI/UX**: Enhanced pattern detection with source-aware analysis and unified recommendations
+- **Architecture**: DraftAnalysisService, ChatAnalysisService, enhanced SENTINEL with weighted algorithms
+- **Status**: ✅ Complete - Production-ready unified reflective analysis system
 
 ### 🛡️ Comprehensive App Hardening Complete (January 16, 2025)
 

@@ -1,12 +1,14 @@
 import 'dart:io';
 import 'dart:convert';
 import 'package:crypto/crypto.dart';
+import 'package:archive/archive_io.dart';
 import 'package:my_app/prism/mcp/import/manifest_reader.dart';
 import 'package:my_app/prism/mcp/import/ndjson_stream_reader.dart';
+import 'package:my_app/prism/mcp/import/media_link_resolver.dart';
 import 'package:my_app/prism/mcp/validation/mcp_import_validator.dart';
 import 'package:my_app/prism/mcp/adapters/mira_writer.dart';
 import 'package:my_app/prism/mcp/adapters/cas_resolver.dart';
-import 'package:my_app/prism/mcp/models/mcp_schemas.dart';
+import 'package:my_app/prism/mcp/core/mcp_schemas.dart';
 import 'package:my_app/lumara/chat/chat_repo.dart';
 import 'package:my_app/lumara/chat/chat_models.dart';
 import 'package:my_app/models/journal_entry_model.dart';
@@ -85,6 +87,9 @@ class McpImportService {
   
   // Store photo pointers for linking to journal entries
   final Map<String, McpPointer> _photoPointers = {};
+  
+  // Media link resolver for thumbnails and SHA-256 linking
+  MediaLinkResolver? _mediaLinkResolver;
 
   McpImportService({
     ManifestReader? manifestReader,
@@ -136,7 +141,13 @@ class McpImportService {
         );
       }
 
-      // Step 2: Verify bundle integrity (checksums)
+      // Step 2: Initialize MediaLinkResolver for thumbnail and media pack handling
+      print('🔗 Initializing media link resolver...');
+      _mediaLinkResolver = MediaLinkResolver(bundleDir: bundleDir.path);
+      await _mediaLinkResolver!.initialize();
+      print('✅ Media link resolver initialized');
+
+      // Step 3: Verify bundle integrity (checksums)
       print('🔐 Verifying bundle integrity...');
       final integrityValid = await _verifyBundleIntegrity(bundleDir, manifest, errors);
       if (!integrityValid && options.strictMode) {
@@ -470,6 +481,14 @@ class McpImportService {
     List<String> warnings,
     McpImportOptions options,
   ) async {
+    // Check for journal_v1.mcp.zip first (new format with media)
+    final journalZip = File('${bundleDir.path}/journal_v1.mcp.zip');
+    if (await journalZip.exists()) {
+      print('📦 Found journal_v1.mcp.zip, using structured import...');
+      return await _importFromJournalZip(journalZip, batchId, errors, warnings, options);
+    }
+
+    // Fallback to nodes.jsonl (legacy format)
     final file = File('${bundleDir.path}/nodes.jsonl');
     print('🔍 DEBUG: Checking for nodes.jsonl at: ${file.path}');
 
@@ -482,7 +501,7 @@ class McpImportService {
     final fileSize = await file.length();
     print('✅ DEBUG: Found nodes.jsonl, size: $fileSize bytes');
 
-    print('📝 Importing nodes...');
+    print('📝 Importing nodes from legacy format...');
     int count = 0;
     int journalEntriesImported = 0;
     int totalLines = 0;
@@ -557,6 +576,111 @@ class McpImportService {
     print('✅ DEBUG: Total lines read from nodes.jsonl: $totalLines');
     print('✅ Imported $count nodes ($journalEntriesImported journal entries)');
     return count;
+  }
+
+  /// Import nodes from journal_v1.mcp.zip (new format with media)
+  Future<int> _importFromJournalZip(
+    File journalZip,
+    String batchId,
+    List<String> errors,
+    List<String> warnings,
+    McpImportOptions options,
+  ) async {
+    try {
+      // Extract journal ZIP to a temporary directory
+      final tempDir = Directory('${journalZip.parent.path}/journal_extracted');
+      if (await tempDir.exists()) {
+        await tempDir.delete(recursive: true);
+      }
+      await tempDir.create(recursive: true);
+
+      print('📂 Extracting journal ZIP to: ${tempDir.path}');
+      await extractFileToDisk(journalZip.path, tempDir.path);
+
+      // Read entries directory
+      final entriesDir = Directory('${tempDir.path}/entries');
+      if (!await entriesDir.exists()) {
+        print('❌ No entries directory found in journal ZIP');
+        errors.add('No entries directory found in journal ZIP');
+        return 0;
+      }
+
+      print('📝 Importing entries from journal ZIP...');
+      int count = 0;
+      int journalEntriesImported = 0;
+
+      await for (final entryFile in entriesDir.list()) {
+        if (entryFile is File && entryFile.path.endsWith('.json')) {
+          try {
+            final contents = await entryFile.readAsString();
+            final entryJson = jsonDecode(contents) as Map<String, dynamic>;
+            
+            // Create McpNode from entry JSON
+            final timestampValue = entryJson['timestamp'] as String?;
+            final parsedTimestamp = timestampValue != null 
+                ? DateTime.parse(timestampValue)
+                : DateTime.now();
+            
+            print('🕐 DEBUG: Entry ${entryJson['id']} timestamp: $timestampValue -> $parsedTimestamp');
+            
+            final node = McpNode(
+              id: entryJson['id'] as String,
+              type: 'journal_entry',
+              contentSummary: entryJson['content'] as String? ?? '',
+              timestamp: parsedTimestamp,
+              metadata: {
+                'journal_entry': {
+                  'content': entryJson['content'],
+                  'media': entryJson['media'] ?? [],
+                },
+                ...?entryJson['metadata'] as Map<String, dynamic>?,
+              },
+              emotions: {},
+              keywords: [],
+              narrative: null,
+              phaseHint: null,
+              provenance: McpProvenance(
+                source: 'mcp_import',
+                app: 'EPI',
+                importMethod: 'journal_zip',
+              ),
+            );
+
+            // Convert to journal entry and import
+            final journalEntry = await _convertMcpNodeToJournalEntry(node);
+            if (journalEntry != null) {
+              await _importJournalEntry(journalEntry);
+              journalEntriesImported++;
+              print('✅ Imported journal entry: ${journalEntry.title}');
+            }
+
+            // Map SAGE fields to MIRA structure
+            await _miraWriter.putNode(node, batchId);
+            count++;
+
+            if (count % 10 == 0) {
+              print('  Imported $count entries...');
+            }
+          } catch (e, stackTrace) {
+            print('❌ Error processing entry file ${entryFile.path}: $e');
+            print('Stack trace: $stackTrace');
+            errors.add('Failed to import entry ${entryFile.path}: $e');
+            if (errors.length > options.maxErrors) break;
+          }
+        }
+      }
+
+      // Clean up temp directory
+      await tempDir.delete(recursive: true);
+
+      print('✅ Imported $count entries from journal ZIP ($journalEntriesImported journal entries)');
+      return count;
+    } catch (e, stackTrace) {
+      print('❌ Error importing from journal ZIP: $e');
+      print('Stack trace: $stackTrace');
+      errors.add('Failed to import from journal ZIP: $e');
+      return 0;
+    }
   }
 
   /// Import edges (relations)
@@ -764,6 +888,15 @@ class McpImportService {
       } else if (node.narrative != null) {
         content = _extractNarrativeText(node.narrative) ?? '';
         print('🔄 DEBUG: Got content from narrative: ${content.length} chars');
+      }
+      
+      // Check for content in the original JSON data (for nodes imported from JSON)
+      if (content.isEmpty && node.metadata != null) {
+        final originalContent = node.metadata!['content'] as String?;
+        if (originalContent != null && originalContent.isNotEmpty) {
+          content = originalContent;
+          print('🔄 DEBUG: Got content from metadata.content: ${content.length} chars');
+        }
       }
 
       // Early fallback to metadata.content if content is still missing
@@ -1222,6 +1355,20 @@ class McpImportService {
     print('🔍 MCP Import: Media URI: ${json['uri']}');
     
     String finalUri = json['uri'] as String;
+    String? localThumbPath;
+    
+    // Check if this media item has MCP media fields
+    final sha256 = json['sha256'] as String?;
+    final thumbUri = json['thumbUri'] as String?;
+    final fullRef = json['fullRef'] as String?;
+    
+    // If we have a MediaLinkResolver and SHA-256, get the local thumbnail path
+    if (_mediaLinkResolver != null && sha256 != null) {
+      localThumbPath = _mediaLinkResolver!.getThumbnailPath(sha256);
+      if (localThumbPath != null) {
+        print('✅ MCP Import: Found local thumbnail for SHA-256: $sha256');
+      }
+    }
     
          // If this is a ph:// URI, try robust relinking
          if (finalUri.startsWith('ph://')) {
@@ -1275,9 +1422,16 @@ class McpImportService {
       altText: json['alt_text'] as String?,
       ocrText: json['ocr_text'] as String?,
       analysisData: json['analysis_data'] as Map<String, dynamic>?,
+      sha256: sha256,
+      thumbUri: localThumbPath ?? thumbUri, // Use local path if available
+      fullRef: fullRef,
     );
 
     print('✅ MCP Import: Created MediaItem with final URI: ${mediaItem.uri}');
+    if (mediaItem.isMcpMedia) {
+      print('✅ MCP Import: Media is MCP media with SHA-256: ${mediaItem.sha256}');
+      print('✅ MCP Import: Thumbnail URI: ${mediaItem.thumbUri}');
+    }
     return mediaItem;
   }
 
@@ -1416,103 +1570,6 @@ class McpImportService {
                sizeBytes: mediaItem.sizeBytes,
                altText: mediaItem.altText,
                ocrText: mediaItem.ocrText,
-               analysisData: mediaItem.analysisData,
-             );
-           } else {
-             print('⚠️ MCP Import: Robust relink failed, keeping original URI: ${mediaItem.uri}');
-             return mediaItem;
-           }
-         }
-
-  /// Extract metadata from placeholder timestamp
-  Map<String, dynamic> metaFromPlaceholder(String placeholderId) {
-    // placeholderId: "photo_1760654962279"
-    final parts = placeholderId.split('_');
-    if (parts.length == 2) {
-      final ms = int.tryParse(parts[1]);
-      if (ms != null) {
-        final dt = DateTime.fromMillisecondsSinceEpoch(ms, isUtc: true);
-        return {
-          'placeholder_id': placeholderId,
-          'creation_date': dt.toIso8601String(),
-          'local_identifier': null,
-          'pixel_width': null,
-          'pixel_height': null,
-          'filename': null,
-          'uniform_type_identifier': null,
-          'perceptual_hash': null,
-        };
-      }
-    }
-    return {'placeholder_id': placeholderId};
-  }
-
-  /// Reconstruct media from placeholder using photo metadata
-  Future<MediaItem> _reconstructFromPlaceholder(
-    String placeholderId,
-    Map<String, dynamic> photoMetadata,
-    McpNode node,
-  ) async {
-    print('🔄 MCP Import: Attempting to reconnect photo $placeholderId using metadata');
-    
-    String? uri; // final media URI we will store
-
-    // Use fallback metadata if the provided metadata is empty or only has placeholder_id
-    Map<String, dynamic> effectiveMetadata = photoMetadata;
-    if (photoMetadata.isEmpty || (photoMetadata.length == 1 && photoMetadata.containsKey('placeholder_id'))) {
-      print('🔍 MCP Import: Using timestamp-derived metadata for $placeholderId');
-      effectiveMetadata = metaFromPlaceholder(placeholderId);
-    }
-
-    // 1) Fast path: local_identifier present
-    final localId = effectiveMetadata['local_identifier'] as String?;
-    if (localId != null && localId.isNotEmpty) {
-      print('🔍 MCP Import: Checking if original photo exists: ph://$localId');
-      final exists = await PhotoLibraryService.photoExistsInLibrary('ph://$localId');
-      if (exists) {
-        uri = 'ph://$localId';
-        print('✅ MCP Import: Original photo still exists: $uri');
-      } else {
-        print('⚠️ MCP Import: Original photo not found, will try metadata search');
-      }
-    }
-
-    // 2) Relink by metadata (date → dims → filename → pHash)
-    if (uri == null && effectiveMetadata.isNotEmpty) {
-      print('🔍 MCP Import: Attempting metadata-based reconnection');
-      try {
-        final photoMetadataObj = PhotoMetadata.fromJson(effectiveMetadata);
-        final resolved = await PhotoLibraryService.findPhotoByMetadata(photoMetadataObj);
-        if (resolved != null && resolved.startsWith('ph://')) {
-          uri = resolved;
-          print('✅ MCP Import: Found photo by metadata: $uri');
-        } else {
-          print('⚠️ MCP Import: Could not find photo by metadata');
-        }
-      } catch (e) {
-        print('⚠️ MCP Import: Error creating PhotoMetadata object: $e');
-      }
-    }
-
-    // 3) Last resort: keep as placeholder (UI will show relink affordance)
-    uri ??= 'placeholder://$placeholderId';
-    print('🔍 MCP Import: Final URI for $placeholderId: $uri');
-
-    return MediaItem(
-      id: placeholderId,
-      type: MediaType.image,
-      uri: uri,
-      createdAt: node.timestamp,
-      altText: uri.startsWith('ph://')
-          ? 'Photo reconnected'
-          : 'Photo unavailable - tap to relink',
-      analysisData: uri.startsWith('ph://')
-          ? {'photo_id': placeholderId, 'imported': true, 'placeholder': false}
-          : {'photo_id': placeholderId, 'imported': true, 'placeholder': true, 'unavailable': true},
-    );
-  }
-
-}
                analysisData: mediaItem.analysisData,
              );
            } else {

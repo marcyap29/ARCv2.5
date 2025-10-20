@@ -68,23 +68,23 @@ class ZipUtils {
 
   /// Check if a zip file contains a valid MCP bundle.
   /// Returns true if the zip contains the required MCP files.
+  /// Supports both old and new MCP formats.
   static Future<bool> isValidMcpBundle(File zipFile) async {
     try {
       final bytes = await zipFile.readAsBytes();
       final archive = ZipDecoder().decodeBytes(bytes, verify: true);
       
-      final requiredFiles = [
+      // Core required files for all MCP formats
+      final coreRequiredFiles = [
         'manifest.json',
         'nodes.jsonl',
         'edges.jsonl',
-        'pointers.jsonl',
-        'embeddings.jsonl',
       ];
       
       final fileNames = archive.files.map((f) => f.name).toSet();
       
-      // Check if all required files exist (accounting for possible subdirectories)
-      for (final requiredFile in requiredFiles) {
+      // Check if all core required files exist (accounting for possible subdirectories)
+      for (final requiredFile in coreRequiredFiles) {
         final found = fileNames.any((fileName) => 
             fileName.endsWith(requiredFile) || 
             fileName.endsWith('/$requiredFile'));
@@ -93,7 +93,20 @@ class ZipUtils {
         }
       }
       
-      return true;
+      // Check for format indicators
+      final hasNewFormat = fileNames.any((fileName) => 
+          fileName.endsWith('journal_v1.mcp.zip') || 
+          fileName.endsWith('/journal_v1.mcp.zip'));
+      
+      final hasLegacyFormat = fileNames.any((fileName) => 
+          fileName.endsWith('pointers.jsonl') || 
+          fileName.endsWith('/pointers.jsonl')) &&
+          fileNames.any((fileName) => 
+          fileName.endsWith('embeddings.jsonl') || 
+          fileName.endsWith('/embeddings.jsonl'));
+      
+      // Valid if it has core files and either new or legacy format indicators
+      return hasNewFormat || hasLegacyFormat;
     } catch (e) {
       return false;
     }

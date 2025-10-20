@@ -38,7 +38,11 @@ import Photos
         photoLibraryService.handle(call, result: result)
     }
     NSLog("[AppDelegate] PhotoLibraryService registered via MethodChannel ✅")
-    
+
+    // Register PhotoChannel for content-addressed media
+    PhotoChannel.register(with: self.registrar(forPlugin: "PhotoChannel")!)
+    NSLog("[AppDelegate] PhotoChannel registered ✅")
+
         // Register Photos method channel
         let photosChannel = FlutterMethodChannel(name: "com.epi.arcmvp/photos", binaryMessenger: controller.binaryMessenger)
         photosChannel.setMethodCallHandler { [weak self] (call, result) in

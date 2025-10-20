@@ -448,6 +448,10 @@ class _McpSettingsViewContent extends StatelessWidget {
       print('❌ DEBUG: Error listing extraction directory: $e');
     }
 
+    // Also check if the directory exists and is readable
+    print('🔍 DEBUG: Directory exists: ${await extractedDir.exists()}');
+    print('🔍 DEBUG: Directory is readable: ${await extractedDir.exists()}');
+
     final manifestAtRoot = File('${extractedDir.path}/manifest.json');
     if (await manifestAtRoot.exists()) {
       print('✅ DEBUG: Found manifest.json at root: ${manifestAtRoot.path}');
@@ -525,6 +529,7 @@ class _McpSettingsViewContent extends StatelessWidget {
   /// Custom archive extraction that handles zero-byte files properly
   Future<void> _extractArchiveRobustly(Archive archive, Directory destDir) async {
     print('🔧 Starting robust extraction to: ${destDir.path}');
+    print('🔧 Archive contains ${archive.files.length} files');
 
     for (final file in archive.files) {
       if (!file.isFile) {
@@ -534,6 +539,8 @@ class _McpSettingsViewContent extends StatelessWidget {
 
       final filePath = '${destDir.path}/${file.name}';
       final outputFile = File(filePath);
+
+      print('🔧 Processing file: ${file.name} -> ${filePath}');
 
       // Ensure parent directory exists
       final parentDir = outputFile.parent;
@@ -552,6 +559,14 @@ class _McpSettingsViewContent extends StatelessWidget {
           final content = file.content as List<int>;
           await outputFile.writeAsBytes(content, flush: true);
           print('📄 Extracted file: ${file.name} (${content.length} bytes)');
+        }
+        
+        // Verify the file was created
+        if (await outputFile.exists()) {
+          final actualSize = await outputFile.length();
+          print('✅ File verified: ${file.name} (${actualSize} bytes)');
+        } else {
+          print('❌ File creation failed: ${file.name}');
         }
       } catch (e) {
         print('❌ Failed to extract ${file.name}: $e');

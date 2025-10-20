@@ -1,10 +1,39 @@
 # Bug Tracker - Current Status
 
-**Last Updated:** January 16, 2025
-**Branch:** main
-**Status:** Production Ready ✅ - Comprehensive Hardening Complete
+**Last Updated:** October 19, 2025
+**Branch:** feat/mcp-media-packs
+**Status:** Production Ready ✅ - Draft Creation Bug Fixed & MCP Media System Complete
 
 ## 📊 Current Status
+
+### 🐛 Draft Creation Bug Fix Complete (October 19, 2025)
+**Fixed critical bug where viewing timeline entries automatically created unwanted drafts:**
+- ✅ **View-Only Mode**: Timeline entries now open in read-only mode by default
+- ✅ **Smart Draft Creation**: Drafts only created when actively writing/editing content
+- ✅ **Edit Mode Switching**: Users can switch from viewing to editing with "Edit" button
+- ✅ **Clean Drafts Folder**: No more automatic draft creation when just reading entries
+- ✅ **Crash Protection**: Drafts still saved when editing and app crashes/closes
+- ✅ **Better UX**: Clear distinction between viewing and editing modes
+- ✅ **Backward Compatibility**: Existing writing workflows unchanged
+- ✅ **UI Improvements**: App bar title changes, read-only text field, edit button visibility
+- ✅ **Build Success**: All changes tested and working on iOS ✅
+
+### 🔄 RIVET & SENTINEL Extensions Complete (January 17, 2025)
+**Unified reflective analysis system enhancements:**
+- ✅ **Limited Data Sources**: Extended RIVET and SENTINEL to analyze drafts and LUMARA chats
+- ✅ **Data Isolation**: Created unified ReflectiveEntryData model for all reflective inputs
+- ✅ **Source Weighting**: Implemented confidence weighting system for different input types
+- ✅ **Analysis Fragmentation**: Unified analysis service for comprehensive reflective intelligence
+- ✅ **Draft Processing**: Added specialized draft analysis with phase inference and confidence scoring
+- ✅ **Chat Processing**: Added LUMARA chat analysis with context keywords and conversation quality
+- ✅ **Pattern Detection**: Enhanced SENTINEL with source-aware pattern detection and weighting
+- ✅ **Recommendation Integration**: Combined recommendations from all reflective sources
+- ✅ **Type Safety Issues**: Resolved all List<String> to Set<String> conversion errors
+- ✅ **Duplicate Model Classes**: Consolidated duplicate RivetEvent/RivetState definitions
+- ✅ **Hive Adapter Updates**: Fixed generated adapters for Set<String> keywords field
+- ✅ **Source Weight Integration**: Successfully integrated sourceWeight getter throughout RIVET
+- ✅ **Build System**: All compilation errors resolved, iOS build successful
+- ✅ **Final Build Confirmation**: Hive adapter fixed, all Set<String> conversions working, production ready ✅
 
 ### 🛡️ Comprehensive Hardening Complete (January 16, 2025)
 **All critical stability issues resolved with production-ready improvements:**

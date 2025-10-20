@@ -357,7 +357,12 @@ class TimelineCubit extends Cubit<TimelineState> {
   };
 
   String _formatDate(DateTime date) {
-    return '${date.month}/${date.day}/${date.year}';
+    // Format as "Month Day, Year" for better readability
+    final months = [
+      'January', 'February', 'March', 'April', 'May', 'June',
+      'July', 'August', 'September', 'October', 'November', 'December'
+    ];
+    return '${months[date.month - 1]} ${date.day}, ${date.year}';
   }
 
   String _formatMonthYear(DateTime date) {

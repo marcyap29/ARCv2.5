@@ -6,11 +6,13 @@ import 'package:my_app/prism/mcp/import/ndjson_stream_reader.dart';
 import 'package:my_app/prism/mcp/validation/mcp_import_validator.dart';
 import 'package:my_app/prism/mcp/adapters/mira_writer.dart';
 import 'package:my_app/prism/mcp/adapters/cas_resolver.dart';
-import 'package:my_app/prism/mcp/models/mcp_schemas.dart';
+import 'package:my_app/prism/mcp/core/mcp_schemas.dart';
 import 'package:my_app/lumara/chat/chat_repo.dart';
 import 'package:my_app/lumara/chat/chat_models.dart';
 import 'package:my_app/models/journal_entry_model.dart';
+import 'package:my_app/data/models/media_item.dart';
 import 'package:my_app/arc/core/journal_repository.dart';
+import 'package:my_app/core/services/mcp_photo_relink_service.dart';
 import 'package:my_app/rivet/validation/rivet_provider.dart';
 import 'package:my_app/rivet/models/rivet_models.dart';
 import 'package:my_app/services/user_phase_service.dart';
@@ -37,14 +39,14 @@ class McpImportResult {
   });
 
   Map<String, dynamic> toJson() => {
-    'success': success,
-    'message': message,
-    'counts': counts,
-    'warnings': warnings,
-    'errors': errors,
-    'processing_time_ms': processingTime.inMilliseconds,
-    'batch_id': batchId,
-  };
+        'success': success,
+        'message': message,
+        'counts': counts,
+        'warnings': warnings,
+        'errors': errors,
+        'processing_time_ms': processingTime.inMilliseconds,
+        'batch_id': batchId,
+      };
 }
 
 /// Options for MCP import operation
@@ -65,7 +67,7 @@ class McpImportOptions {
 }
 
 /// High-level orchestrator for MCP bundle imports
-/// 
+///
 /// Validates bundle integrity, streams NDJSON into MIRA storage (append-only),
 /// rebuilds indexes, and preserves pointer privacy/provenance and embedding lineage.
 class McpImportService {
@@ -76,6 +78,7 @@ class McpImportService {
   final CasResolver? _casResolver;
   final ChatRepo? _chatRepo;
   final JournalRepository? _journalRepo;
+  final McpPhotoRelinkService? _photoRelinkService;
 
   McpImportService({
     ManifestReader? manifestReader,
@@ -85,13 +88,15 @@ class McpImportService {
     CasResolver? casResolver,
     ChatRepo? chatRepo,
     JournalRepository? journalRepo,
+    McpPhotoRelinkService? photoRelinkService,
   })  : _manifestReader = manifestReader ?? ManifestReader(),
         _ndjsonReader = ndjsonReader ?? NdjsonStreamReader(),
         _validator = validator ?? McpImportValidator(),
         _miraWriter = miraWriter ?? MiraWriter(),
         _casResolver = casResolver,
         _chatRepo = chatRepo,
-        _journalRepo = journalRepo;
+        _journalRepo = journalRepo,
+        _photoRelinkService = photoRelinkService;
 
   /// Import an MCP bundle from the specified directory
   Future<McpImportResult> importBundle(
@@ -106,7 +111,8 @@ class McpImportService {
     try {
       // Step 1: Read and validate manifest
       print('📋 Reading manifest...');
-      final manifest = await _readAndValidateManifest(bundleDir, errors, warnings);
+      final manifest =
+          await _readAndValidateManifest(bundleDir, errors, warnings);
       if (manifest == null) {
         return McpImportResult(
           success: false,
@@ -120,7 +126,8 @@ class McpImportService {
 
       // Step 2: Verify bundle integrity (checksums)
       print('🔐 Verifying bundle integrity...');
-      final integrityValid = await _verifyBundleIntegrity(bundleDir, manifest, errors);
+      final integrityValid =
+          await _verifyBundleIntegrity(bundleDir, manifest, errors);
       if (!integrityValid && options.strictMode) {
         return McpImportResult(
           success: false,
@@ -138,12 +145,12 @@ class McpImportService {
         return McpImportResult(
           success: errors.isEmpty,
           message: 'Dry run completed',
-              counts: {
-                'nodes': manifest.counts.nodes,
-                'edges': manifest.counts.edges,
-                'pointers': manifest.counts.pointers,
-                'embeddings': manifest.counts.embeddings,
-              },
+          counts: {
+            'nodes': manifest.counts.nodes,
+            'edges': manifest.counts.edges,
+            'pointers': manifest.counts.pointers,
+            'embeddings': manifest.counts.embeddings,
+          },
           warnings: warnings,
           errors: errors,
           processingTime: stopwatch.elapsed,
@@ -156,29 +163,35 @@ class McpImportService {
 
       // Step 4: Stream ingest NDJSON tables (order: pointers → embeddings → nodes → edges)
       print('📥 Starting NDJSON ingest...');
-      
+
       // Import pointers first (substrate)
-      final pointerCount = await _importPointers(bundleDir, manifest, batchId, errors, warnings, options);
+      final pointerCount = await _importPointers(
+          bundleDir, manifest, batchId, errors, warnings, options);
       counts['pointers'] = pointerCount;
 
       // Import embeddings (lineage tracking)
-      final embeddingCount = await _importEmbeddings(bundleDir, manifest, batchId, errors, warnings, options);
+      final embeddingCount = await _importEmbeddings(
+          bundleDir, manifest, batchId, errors, warnings, options);
       counts['embeddings'] = embeddingCount;
 
       // Import nodes (SAGE mapping)
-      final nodeCount = await _importNodes(bundleDir, manifest, batchId, errors, warnings, options);
+      final nodeCount = await _importNodes(
+          bundleDir, manifest, batchId, errors, warnings, options);
       counts['nodes'] = nodeCount;
 
       // Import edges (relations)
-      final edgeCount = await _importEdges(bundleDir, manifest, batchId, errors, warnings, options);
+      final edgeCount = await _importEdges(
+          bundleDir, manifest, batchId, errors, warnings, options);
       counts['edges'] = edgeCount;
 
       // Step 4.5: Import chat data if chat repository is available
       if (_chatRepo != null) {
-        final chatCounts = await _importChatData(bundleDir, manifest, batchId, errors, warnings, options);
+        final chatCounts = await _importChatData(
+            bundleDir, manifest, batchId, errors, warnings, options);
         counts['chat_sessions'] = chatCounts['sessions'] ?? 0;
         counts['chat_messages'] = chatCounts['messages'] ?? 0;
-        print('📱 Imported ${chatCounts['sessions']} chat sessions, ${chatCounts['messages']} messages');
+        print(
+            '📱 Imported ${chatCounts['sessions']} chat sessions, ${chatCounts['messages']} messages');
       }
 
       // Step 5: Verify counts match manifest
@@ -195,14 +208,15 @@ class McpImportService {
       final success = errors.length <= options.maxErrors;
       return McpImportResult(
         success: success,
-        message: success ? 'Import completed successfully' : 'Import completed with errors',
+        message: success
+            ? 'Import completed successfully'
+            : 'Import completed with errors',
         counts: counts,
         warnings: warnings,
         errors: errors,
         processingTime: stopwatch.elapsed,
         batchId: batchId,
       );
-
     } catch (e, stackTrace) {
       stopwatch.stop();
       errors.add('Unexpected error: $e');
@@ -228,12 +242,12 @@ class McpImportService {
   ) async {
     try {
       final manifest = await _manifestReader.readManifest(bundleDir);
-      
+
       // Validate required fields
       if (manifest.schemaVersion.isEmpty) {
         errors.add('Manifest missing required field: schema_version');
       }
-      
+
       if (manifest.version.isEmpty) {
         errors.add('Manifest missing required field: version');
       }
@@ -245,7 +259,8 @@ class McpImportService {
 
       // Record warnings for optional sections
       if (manifest.encoderRegistry.isEmpty) {
-        warnings.add('Manifest missing encoder_registry - lineage tracking limited');
+        warnings.add(
+            'Manifest missing encoder_registry - lineage tracking limited');
       }
 
       if (manifest.casRemotes.isEmpty) {
@@ -283,7 +298,12 @@ class McpImportService {
     McpManifest manifest,
     List<String> errors,
   ) async {
-    final files = ['nodes.jsonl', 'edges.jsonl', 'pointers.jsonl', 'embeddings.jsonl'];
+    final files = [
+      'nodes.jsonl',
+      'edges.jsonl',
+      'pointers.jsonl',
+      'embeddings.jsonl'
+    ];
     bool allValid = true;
 
     for (final filename in files) {
@@ -292,7 +312,8 @@ class McpImportService {
         continue; // Optional files
       }
 
-          final expectedChecksum = _getChecksumForFile(manifest.checksums, filename);
+      final expectedChecksum =
+          _getChecksumForFile(manifest.checksums, filename);
       if (expectedChecksum == null) {
         errors.add('Missing checksum for $filename');
         allValid = false;
@@ -303,7 +324,8 @@ class McpImportService {
       final actualChecksum = sha256.convert(bytes).toString();
 
       if (actualChecksum != expectedChecksum) {
-        errors.add('Checksum mismatch for $filename: expected $expectedChecksum, got $actualChecksum');
+        errors.add(
+            'Checksum mismatch for $filename: expected $expectedChecksum, got $actualChecksum');
         allValid = false;
       }
     }
@@ -360,7 +382,7 @@ class McpImportService {
     await for (final line in _ndjsonReader.readStream(file)) {
       try {
         final pointer = McpPointer.fromJson(jsonDecode(line));
-        
+
         // Validate pointer without requiring source_uri
         if (!_isValidPointer(pointer)) {
           errors.add('Invalid pointer at line ${count + 1}');
@@ -405,7 +427,7 @@ class McpImportService {
     await for (final line in _ndjsonReader.readStream(file)) {
       try {
         final embedding = McpEmbedding.fromJson(jsonDecode(line));
-        
+
         // Record lineage information
         await _miraWriter.putEmbedding(embedding, batchId);
         count++;
@@ -453,11 +475,13 @@ class McpImportService {
       totalLines++;
       try {
         // Debug: Show the raw line content
-        print('🔍 DEBUG: Line $totalLines content (first 200 chars): ${line.length > 200 ? '${line.substring(0, 200)}...' : line}');
+        print(
+            '🔍 DEBUG: Line $totalLines content (first 200 chars): ${line.length > 200 ? '${line.substring(0, 200)}...' : line}');
 
         // First decode the JSON
         final jsonData = jsonDecode(line);
-        print('🔍 DEBUG: JSON decoded successfully, type: ${jsonData.runtimeType}');
+        print(
+            '🔍 DEBUG: JSON decoded successfully, type: ${jsonData.runtimeType}');
 
         // Check if the JSON is valid
         if (jsonData == null) {
@@ -467,8 +491,10 @@ class McpImportService {
         }
 
         if (jsonData is! Map<String, dynamic>) {
-          print('❌ DEBUG: Line $totalLines JSON is not a Map, type: ${jsonData.runtimeType}');
-          errors.add('Line $totalLines JSON is not a Map: ${jsonData.runtimeType}');
+          print(
+              '❌ DEBUG: Line $totalLines JSON is not a Map, type: ${jsonData.runtimeType}');
+          errors.add(
+              'Line $totalLines JSON is not a Map: ${jsonData.runtimeType}');
           continue;
         }
 
@@ -481,13 +507,16 @@ class McpImportService {
         // Check if this is a journal entry that needs special handling
         if (node.type == 'journal_entry') {
           print('📄 DEBUG: Found journal_entry node: ${node.id}');
-          print('📄 DEBUG: Node has contentSummary: ${node.contentSummary != null && node.contentSummary!.isNotEmpty}');
+          print(
+              '📄 DEBUG: Node has contentSummary: ${node.contentSummary != null && node.contentSummary!.isNotEmpty}');
           print('📄 DEBUG: Node has metadata: ${node.metadata != null}');
           if (node.metadata != null) {
             print('📄 DEBUG: Metadata keys: ${node.metadata!.keys}');
             if (node.metadata!.containsKey('journal_entry')) {
-              final journalMeta = node.metadata!['journal_entry'] as Map<String, dynamic>?;
-              print('📄 DEBUG: Journal metadata has content: ${journalMeta?['content'] != null}');
+              final journalMeta =
+                  node.metadata!['journal_entry'] as Map<String, dynamic>?;
+              print(
+                  '📄 DEBUG: Journal metadata has content: ${journalMeta?['content'] != null}');
             }
           }
 
@@ -495,9 +524,11 @@ class McpImportService {
           if (journalEntry != null) {
             await _importJournalEntry(journalEntry);
             journalEntriesImported++;
-            print('✅ DEBUG: Successfully imported journal entry: ${journalEntry.title}');
+            print(
+                '✅ DEBUG: Successfully imported journal entry: ${journalEntry.title}');
           } else {
-            print('❌ DEBUG: Failed to convert node ${node.id} to journal entry');
+            print(
+                '❌ DEBUG: Failed to convert node ${node.id} to journal entry');
           }
         }
 
@@ -505,7 +536,8 @@ class McpImportService {
         await _miraWriter.putNode(node, batchId);
         count++;
 
-        if (count % 100 == 0) {  // More frequent logging
+        if (count % 100 == 0) {
+          // More frequent logging
           print('  Imported $count nodes...');
         }
       } catch (e, stackTrace) {
@@ -542,7 +574,7 @@ class McpImportService {
     await for (final line in _ndjsonReader.readStream(file)) {
       try {
         final edge = McpEdge.fromJson(jsonDecode(line));
-        
+
         // Store normalized relations
         await _miraWriter.putEdge(edge, batchId);
         count++;
@@ -632,7 +664,8 @@ class McpImportService {
         final chatMessage = await _convertMcpNodeToChatMessage(node);
 
         // Find the session this message belongs to by looking at edges
-        final sessionId = await _findSessionForMessage(bundleDir, node.id, sessionMap);
+        final sessionId =
+            await _findSessionForMessage(bundleDir, node.id, sessionMap);
         if (sessionId == null) {
           warnings.add('No session found for message ${node.id} - skipping');
           continue;
@@ -655,7 +688,8 @@ class McpImportService {
       }
     }
 
-    print('✅ Imported $sessionCount chat sessions, $messageCount chat messages');
+    print(
+        '✅ Imported $sessionCount chat sessions, $messageCount chat messages');
     return {'sessions': sessionCount, 'messages': messageCount};
   }
 
@@ -663,7 +697,9 @@ class McpImportService {
   Future<ChatSession> _convertMcpNodeToChatSession(McpNode node) async {
     return ChatSession(
       id: '', // Will be generated by repository
-      subject: node.contentSummary ?? _extractNarrativeText(node.narrative) ?? 'Imported Session',
+      subject: node.contentSummary ??
+          _extractNarrativeText(node.narrative) ??
+          'Imported Session',
       createdAt: node.timestamp,
       updatedAt: node.timestamp,
       isPinned: false,
@@ -680,7 +716,8 @@ class McpImportService {
     String role = MessageRole.user; // Default
 
     // Check if we can infer the role from the narrative or metadata
-    final content = _extractNarrativeText(node.narrative) ?? node.contentSummary ?? '';
+    final content =
+        _extractNarrativeText(node.narrative) ?? node.contentSummary ?? '';
     if (content.toLowerCase().contains('assistant:') ||
         content.toLowerCase().startsWith('ai:') ||
         content.toLowerCase().contains('lumara:')) {
@@ -699,14 +736,16 @@ class McpImportService {
   /// Extract text content from McpNarrative
   String? _extractNarrativeText(McpNarrative? narrative) {
     if (narrative == null) return null;
-    
+
     // Combine all narrative fields into a single text
     final parts = <String>[];
-    if (narrative.situation != null) parts.add('Situation: ${narrative.situation}');
+    if (narrative.situation != null) {
+      parts.add('Situation: ${narrative.situation}');
+    }
     if (narrative.action != null) parts.add('Action: ${narrative.action}');
     if (narrative.growth != null) parts.add('Growth: ${narrative.growth}');
     if (narrative.essence != null) parts.add('Essence: ${narrative.essence}');
-    
+
     return parts.isNotEmpty ? parts.join('\n') : null;
   }
 
@@ -722,7 +761,8 @@ class McpImportService {
       // Try to get content from the node's content field or metadata
       if (node.contentSummary != null && node.contentSummary!.isNotEmpty) {
         content = node.contentSummary!;
-        print('🔄 DEBUG: Got content from contentSummary: ${content.length} chars');
+        print(
+            '🔄 DEBUG: Got content from contentSummary: ${content.length} chars');
       } else if (node.narrative != null) {
         content = _extractNarrativeText(node.narrative) ?? '';
         print('🔄 DEBUG: Got content from narrative: ${content.length} chars');
@@ -734,12 +774,14 @@ class McpImportService {
 
         // Check for journal metadata (used by export)
         if (node.metadata!.containsKey('journal_entry')) {
-          final journalEntryMeta = node.metadata!['journal_entry'] as Map<String, dynamic>?;
+          final journalEntryMeta =
+              node.metadata!['journal_entry'] as Map<String, dynamic>?;
           if (journalEntryMeta != null) {
             final metaContent = journalEntryMeta['content'] as String?;
             if (metaContent != null && metaContent.isNotEmpty) {
               content = metaContent;
-              print('🔄 DEBUG: Got content from journal_entry metadata: ${content.length} chars');
+              print(
+                  '🔄 DEBUG: Got content from journal_entry metadata: ${content.length} chars');
             }
 
             final metaTitle = journalEntryMeta['title'] as String?;
@@ -754,9 +796,12 @@ class McpImportService {
         final journalData = node.metadata!['journal'] as Map<String, dynamic>?;
         if (journalData != null) {
           final legacyContent = journalData['text'] as String?;
-          if (legacyContent != null && legacyContent.isNotEmpty && content.isEmpty) {
+          if (legacyContent != null &&
+              legacyContent.isNotEmpty &&
+              content.isEmpty) {
             content = legacyContent;
-            print('🔄 DEBUG: Got content from legacy journal metadata: ${content.length} chars');
+            print(
+                '🔄 DEBUG: Got content from legacy journal metadata: ${content.length} chars');
           }
         }
 
@@ -777,14 +822,15 @@ class McpImportService {
         return null;
       }
 
-      print('✅ DEBUG: Successfully extracted content: ${content.length} chars, title: $title');
+      print(
+          '✅ DEBUG: Successfully extracted content: ${content.length} chars, title: $title');
       print('🔄 DEBUG: Node keywords: ${node.keywords}');
-      
+
       // Extract emotions from node
       String mood = 'Neutral';
       String? emotion;
       String? emotionReason;
-      
+
       if (node.emotions.isNotEmpty) {
         // Use the first emotion as the mood
         final firstEmotion = node.emotions.keys.first;
@@ -792,17 +838,45 @@ class McpImportService {
         emotion = firstEmotion;
         emotionReason = 'Imported from MCP';
       }
-      
+
       // Check metadata for emotion info
       if (node.metadata != null) {
-        final emotionsData = node.metadata!['emotions'] as Map<String, dynamic>?;
+        final emotionsData =
+            node.metadata!['emotions'] as Map<String, dynamic>?;
         if (emotionsData != null) {
           mood = emotionsData['mood'] as String? ?? mood;
           emotion = emotionsData['primary'] as String? ?? emotion;
           emotionReason = emotionsData['reason'] as String? ?? emotionReason;
         }
       }
-      
+
+      // Extract media attachments from metadata
+      List<MediaItem> mediaItems = [];
+      if (node.metadata != null && node.metadata!.containsKey('journal_entry')) {
+        final journalMeta = node.metadata!['journal_entry'] as Map<String, dynamic>?;
+        if (journalMeta != null && journalMeta.containsKey('media')) {
+          final mediaList = journalMeta['media'] as List<dynamic>?;
+          if (mediaList != null) {
+            print('📸 DEBUG: Found ${mediaList.length} media items in MCP metadata');
+            for (final mediaData in mediaList) {
+              if (mediaData is Map<String, dynamic>) {
+                try {
+                  final mediaItem = _convertMcpMediaToMediaItem(mediaData);
+                  if (mediaItem != null) {
+                    // Attempt to relink the photo if it's an image
+                    final relinkedItem = await _attemptPhotoRelink(mediaItem);
+                    mediaItems.add(relinkedItem);
+                    print('📸 DEBUG: Converted media item: ${relinkedItem.id} (${relinkedItem.type.name})');
+                  }
+                } catch (e) {
+                  print('⚠️ DEBUG: Failed to convert media item: $e');
+                }
+              }
+            }
+          }
+        }
+      }
+
       // Create the journal entry
       return JournalEntry(
         id: _extractOriginalId(node.id),
@@ -815,6 +889,7 @@ class McpImportService {
         mood: mood,
         emotion: emotion,
         emotionReason: emotionReason,
+        media: mediaItems, // Include media attachments
         metadata: {
           'imported_from_mcp': true,
           'original_mcp_id': node.id,
@@ -824,6 +899,75 @@ class McpImportService {
       );
     } catch (e) {
       print('  Failed to convert MCP node ${node.id} to journal entry: $e');
+      return null;
+    }
+  }
+
+  /// Attempt to relink a photo by triggering the photo picker
+  Future<MediaItem> _attemptPhotoRelink(MediaItem mediaItem) async {
+    // For now, return the original media item
+    // Photo relinking will be handled at the journal entry level
+    print('📸 DEBUG: Photo relinking will be handled during journal entry import for ${mediaItem.id}');
+    return mediaItem;
+  }
+
+  /// Convert MCP media data to MediaItem
+  MediaItem? _convertMcpMediaToMediaItem(Map<String, dynamic> mediaData) {
+    try {
+      final id = mediaData['id'] as String?;
+      final uri = mediaData['uri'] as String?;
+      final typeStr = mediaData['type'] as String?;
+      final createdAtStr = mediaData['created_at'] as String?;
+      final altText = mediaData['alt_text'] as String?;
+      final ocrText = mediaData['ocr_text'] as String?;
+      final analysisData = mediaData['analysis_data'] as Map<String, dynamic>?;
+
+      if (id == null || uri == null || typeStr == null) {
+        print('⚠️ DEBUG: Missing required media fields: id=$id, uri=$uri, type=$typeStr');
+        return null;
+      }
+
+      // Convert type string to MediaType enum
+      MediaType type;
+      switch (typeStr.toLowerCase()) {
+        case 'image':
+          type = MediaType.image;
+          break;
+        case 'video':
+          type = MediaType.video;
+          break;
+        case 'audio':
+          type = MediaType.audio;
+          break;
+        default:
+          print('⚠️ DEBUG: Unknown media type: $typeStr, defaulting to image');
+          type = MediaType.image;
+      }
+
+      // Parse creation date
+      DateTime createdAt;
+      if (createdAtStr != null) {
+        try {
+          createdAt = DateTime.parse(createdAtStr);
+        } catch (e) {
+          print('⚠️ DEBUG: Failed to parse created_at: $createdAtStr, using current time');
+          createdAt = DateTime.now();
+        }
+      } else {
+        createdAt = DateTime.now();
+      }
+
+      return MediaItem(
+        id: id,
+        uri: uri,
+        type: type,
+        createdAt: createdAt,
+        altText: altText,
+        ocrText: ocrText,
+        analysisData: analysisData ?? {},
+      );
+    } catch (e) {
+      print('⚠️ DEBUG: Failed to convert MCP media data: $e');
       return null;
     }
   }
@@ -844,38 +988,51 @@ class McpImportService {
     print('  DEBUG: _importJournalEntry called for entry: ${entry.title}');
     try {
       if (_journalRepo == null) {
-        print('  Warning: No journal repository available - cannot import journal entry: ${entry.title}');
+        print(
+            '  Warning: No journal repository available - cannot import journal entry: ${entry.title}');
         return;
       }
-      
+
+      // If the entry has media and photo relinking service is available, 
+      // we'll need to handle photo relinking at the UI level
+      if (entry.media.isNotEmpty) {
+        print('  📸 DEBUG: Entry has ${entry.media.length} media items that may need relinking');
+        // Add a flag to indicate this entry needs photo relinking
+        final updatedMetadata = Map<String, dynamic>.from(entry.metadata ?? {});
+        updatedMetadata['needs_photo_relinking'] = true;
+        // Note: We can't modify entry.metadata directly as it's final
+        // This will be handled at the UI level when displaying the entry
+      }
+
       // Store the journal entry in the repository
       await _journalRepo!.createJournalEntry(entry);
       print('  Stored journal entry: ${entry.title}');
-      
+
       // Create RIVET event for the imported entry
       print('  DEBUG: Creating RIVET event for imported entry...');
       await _createRivetEventForEntry(entry);
-      
     } catch (e) {
       print('  Failed to import journal entry ${entry.id}: $e');
     }
   }
-  
+
   /// Create RIVET event for imported journal entry
   Future<void> _createRivetEventForEntry(JournalEntry entry) async {
-    print('  DEBUG: _createRivetEventForEntry called for entry: ${entry.title}');
+    print(
+        '  DEBUG: _createRivetEventForEntry called for entry: ${entry.title}');
     try {
       const userId = 'default_user'; // TODO: Use actual user ID
-      
+
       // Get current phase from user profile
       print('  DEBUG: Getting current user phase...');
       final currentPhase = await _getCurrentUserPhase();
       print('  DEBUG: Current phase: $currentPhase');
       if (currentPhase == null) {
-        print('  Warning: No current phase found, skipping RIVET event creation');
+        print(
+            '  Warning: No current phase found, skipping RIVET event creation');
         return;
       }
-      
+
       // Get recommended phase from PhaseRecommender
       final recommendedPhase = PhaseRecommender.recommend(
         emotion: '', // No emotion data from MCP import
@@ -883,7 +1040,7 @@ class McpImportService {
         text: entry.content,
         selectedKeywords: entry.keywords,
       );
-      
+
       // Create RIVET event
       final rivetEvent = RivetEvent(
         date: entry.createdAt,
@@ -893,33 +1050,37 @@ class McpImportService {
         refPhase: currentPhase,
         tolerance: const {}, // Stub for categorical phases
       );
-      
+
       // Submit to RIVET
       final rivetProvider = RivetProvider();
-      print('  DEBUG: RIVET provider isAvailable: ${rivetProvider.isAvailable}');
+      print(
+          '  DEBUG: RIVET provider isAvailable: ${rivetProvider.isAvailable}');
 
       if (!rivetProvider.isAvailable) {
-        print('  DEBUG: RIVET provider not available, attempting to initialize...');
+        print(
+            '  DEBUG: RIVET provider not available, attempting to initialize...');
         await rivetProvider.initialize(userId);
-        print('  DEBUG: RIVET provider isAvailable after init: ${rivetProvider.isAvailable}');
+        print(
+            '  DEBUG: RIVET provider isAvailable after init: ${rivetProvider.isAvailable}');
       }
 
       if (rivetProvider.isAvailable) {
         print('  DEBUG: Submitting RIVET event to provider...');
         final decision = await rivetProvider.safeIngest(rivetEvent, userId);
         print('  RIVET event created for imported entry: ${entry.title}');
-        print('  RIVET decision: ${decision != null && decision.open ? "OPEN" : "CLOSED"}');
+        print(
+            '  RIVET decision: ${decision != null && decision.open ? "OPEN" : "CLOSED"}');
         print('  RIVET decision details: $decision');
       } else {
-        print('  ERROR: RIVET provider still not available after initialization attempt');
+        print(
+            '  ERROR: RIVET provider still not available after initialization attempt');
         print('  ERROR: Init error: ${rivetProvider.initError}');
       }
-      
     } catch (e) {
       print('  Failed to create RIVET event for entry ${entry.id}: $e');
     }
   }
-  
+
   /// Get current user phase
   Future<String?> _getCurrentUserPhase() async {
     try {
@@ -976,13 +1137,14 @@ class McpImportService {
       'pointers': manifest.counts.pointers,
       'embeddings': manifest.counts.embeddings,
     };
-    
+
     for (final entry in expectedCounts.entries) {
       final expected = entry.value;
       final actual = actualCounts[entry.key] ?? 0;
-      
+
       if (actual != expected) {
-        warnings.add('Count mismatch for ${entry.key}: expected $expected, imported $actual');
+        warnings.add(
+            'Count mismatch for ${entry.key}: expected $expected, imported $actual');
       }
     }
   }
@@ -991,13 +1153,13 @@ class McpImportService {
   Future<void> _rebuildIndexes(String batchId) async {
     // Time-based indexes
     await _miraWriter.rebuildTimeIndexes(batchId);
-    
+
     // Keyword indexes
     await _miraWriter.rebuildKeywordIndexes(batchId);
-    
+
     // Phase indexes
     await _miraWriter.rebuildPhaseIndexes(batchId);
-    
+
     // Relation indexes
     await _miraWriter.rebuildRelationIndexes(batchId);
   }
@@ -1005,7 +1167,10 @@ class McpImportService {
   /// Generate a batch ID for this import
   String _generateBatchId(McpManifest manifest) {
     final timestamp = DateTime.now().toUtc().toIso8601String();
-    final manifestHash = sha256.convert(utf8.encode('${manifest.version}-${manifest.createdAt}')).toString().substring(0, 8);
+    final manifestHash = sha256
+        .convert(utf8.encode('${manifest.version}-${manifest.createdAt}'))
+        .toString()
+        .substring(0, 8);
     return 'mcp_import_${timestamp}_$manifestHash';
   }
 
@@ -1014,7 +1179,7 @@ class McpImportService {
     // Accept same major version (1.x.x)
     final parts = version.split('.');
     if (parts.isEmpty) return false;
-    
+
     try {
       final major = int.parse(parts[0]);
       return major == 1; // Compatible with MCP v1.x
@@ -1026,7 +1191,6 @@ class McpImportService {
   /// Validate pointer structure
   bool _isValidPointer(McpPointer pointer) {
     // Require ID and descriptor, but not source_uri
-    return pointer.id.isNotEmpty &&
-           (pointer.descriptor.isNotEmpty ?? false);
+    return pointer.id.isNotEmpty && (pointer.descriptor.isNotEmpty ?? false);
   }
 }

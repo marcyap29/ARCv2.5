@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../shared/app_colors.dart';
 import '../../shared/text_style.dart';
 import 'sync_settings_section.dart';
@@ -11,6 +12,8 @@ import 'privacy_settings_view.dart';
 import 'memory_mode_settings_view.dart';
 import 'memory_snapshot_management_view.dart';
 import 'conflict_management_view.dart';
+import '../../ui/screens/mcp_management_screen.dart';
+import '../../arc/core/journal_repository.dart';
 
 class SettingsView extends StatelessWidget {
   const SettingsView({super.key});
@@ -115,27 +118,31 @@ class SettingsView extends StatelessWidget {
 
             const SizedBox(height: 32),
 
-            // MCP Memory Bundle Section
+            // Export & Backup Section
             _buildSection(
               context,
-              title: 'Memory Bundle (MCP)',
+              title: 'Export & Backup',
               children: [
                 _buildSettingsTile(
                   context,
-                  title: 'Export MCP Memory Bundle',
-                  subtitle: 'Export your journal memories in portable MCP format',
+                  title: 'Export Journal',
+                  subtitle: 'Export your journal with photos and media packs',
                   icon: Icons.cloud_upload,
                   onTap: () {
                     Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (context) => const McpSettingsView()),
+                      MaterialPageRoute(
+                        builder: (context) => McpManagementScreen(
+                          journalRepository: context.read<JournalRepository>(),
+                        ),
+                      ),
                     );
                   },
                 ),
                 _buildSettingsTile(
                   context,
-                  title: 'Import MCP Memory Bundle',
-                  subtitle: 'Import memories from MCP bundle',
+                  title: 'Import Journal',
+                  subtitle: 'Import journal from backup file',
                   icon: Icons.cloud_download,
                   onTap: () {
                     Navigator.push(
@@ -146,8 +153,24 @@ class SettingsView extends StatelessWidget {
                 ),
                 _buildSettingsTile(
                   context,
-                  title: 'Validate MCP Bundle',
-                  subtitle: 'Check bundle health and auto-repair if needed',
+                  title: 'Manage Media Packs',
+                  subtitle: 'View and organize your media library',
+                  icon: Icons.dashboard,
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => McpManagementScreen(
+                          journalRepository: context.read<JournalRepository>(),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+                _buildSettingsTile(
+                  context,
+                  title: 'Bundle Health Check',
+                  subtitle: 'Validate and repair backup files',
                   icon: Icons.health_and_safety,
                   onTap: () {
                     Navigator.push(

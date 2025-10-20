@@ -18,6 +18,7 @@ import 'package:my_app/arc/core/sage_annotation_model.dart';
 import 'package:my_app/data/models/media_item.dart';
 import 'package:my_app/rivet/validation/rivet_storage.dart';
 import 'package:my_app/services/analytics_service.dart';
+import 'package:my_app/services/media_pack_tracking_service.dart';
 import 'package:my_app/data/hive/insight_snapshot.dart';
 import 'package:my_app/core/sync/sync_item_adapter.dart';
 import 'package:my_app/core/services/audio_service.dart';
@@ -327,6 +328,21 @@ Future<void> bootstrap({
         logger.e('Failed to initialize audio service', e, st);
         // Audio failure is non-critical - continue app startup
         logger.w('Ethereal music will be disabled due to initialization failure');
+      }
+
+      // === Media Pack Tracking Service Initialization ===
+      try {
+        await MediaPackTrackingService.instance.initialize();
+        // Run auto-archive check on startup
+        final archivedPacks = await MediaPackTrackingService.instance.autoArchiveOldPacks(6);
+        if (archivedPacks.isNotEmpty) {
+          logger.i('Auto-archived ${archivedPacks.length} old media packs');
+        }
+        logger.d('Media pack tracking service initialized successfully');
+      } catch (e, st) {
+        logger.e('Failed to initialize media pack tracking service', e, st);
+        // Tracking failure is non-critical - continue app startup
+        logger.w('Media pack tracking will be disabled due to initialization failure');
       }
 
       // ===========================================================

@@ -7,6 +7,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:my_app/features/timeline/timeline_cubit.dart';
 import 'package:my_app/features/timeline/timeline_state.dart';
 import 'package:my_app/features/timeline/timeline_entry_model.dart';
+import 'package:my_app/features/timeline/widgets/entry_content_renderer.dart';
 import 'package:my_app/data/models/media_item.dart';
 import 'package:my_app/ui/journal/journal_screen.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -24,13 +25,15 @@ import 'package:hive/hive.dart';
 import 'package:my_app/services/user_phase_service.dart';
 import 'package:my_app/features/arcforms/phase_recommender.dart';
 import 'package:my_app/mira/mira_service.dart';
+import 'package:my_app/ui/widgets/content_addressed_media_widget.dart';
 import 'dart:math' as math;
 
 class InteractiveTimelineView extends StatefulWidget {
   const InteractiveTimelineView({super.key});
 
   @override
-  State<InteractiveTimelineView> createState() => _InteractiveTimelineViewState();
+  State<InteractiveTimelineView> createState() =>
+      _InteractiveTimelineViewState();
 }
 
 class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
@@ -38,7 +41,7 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
   late PageController _pageController;
   late AnimationController _fadeController;
   late Animation<double> _fadeAnimation;
-  
+
   int _currentIndex = 0;
   List<TimelineEntry> _entries = [];
   bool _isSelectionMode = false;
@@ -51,12 +54,12 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
       initialPage: 0,
       viewportFraction: 0.6, // Show partial views of adjacent entries
     );
-    
+
     _fadeController = AnimationController(
       duration: const Duration(milliseconds: 300),
       vsync: this,
     );
-    
+
     _fadeAnimation = Tween<double>(
       begin: 0.0,
       end: 1.0,
@@ -64,7 +67,7 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
       parent: _fadeController,
       curve: Curves.easeInOut,
     ));
-    
+
     _fadeController.forward();
   }
 
@@ -86,36 +89,36 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
     try {
       final miraService = MiraService.instance;
       final miraRepo = miraService.repo;
-      
+
       // Generate the MIRA node ID for this entry
       final miraNodeId = 'je_$entryId';
-      
+
       print('🧹 Cleaning up MIRA data for entry $entryId (node: $miraNodeId)');
-      
+
       // Delete all edges where this node is source or target
-      final allEdges = await miraRepo.exportAll()
+      final allEdges = await miraRepo
+          .exportAll()
           .where((record) => record['kind'] == 'edge')
           .map((record) => record)
           .toList();
-      
+
       for (final edgeRecord in allEdges) {
         final src = edgeRecord['src'] as String?;
         final dst = edgeRecord['dst'] as String?;
         final edgeId = edgeRecord['id'] as String?;
-        
+
         if (edgeId != null && (src == miraNodeId || dst == miraNodeId)) {
           await miraRepo.removeEdge(edgeId);
           print('🧹 Deleted edge $edgeId');
         }
       }
-      
+
       // Delete the entry node itself
       await miraRepo.removeNode(miraNodeId);
       print('🧹 Deleted node $miraNodeId');
-      
+
       // Note: Keyword nodes are kept for other entries that may reference them
       // They will be cleaned up by a separate orphan cleanup process if needed
-      
     } catch (e) {
       print('⚠️ Error cleaning up MIRA data for entry $entryId: $e');
     }
@@ -131,51 +134,52 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
       child: BlocBuilder<TimelineCubit, TimelineState>(
         builder: (context, state) {
           print('DEBUG: BlocBuilder received state: ${state.runtimeType}');
-        if (state is TimelineLoaded) {
-          print('DEBUG: TimelineLoaded with ${state.groupedEntries.length} groups');
-          _entries = _getFilteredEntries(state);
-          print('DEBUG: Filtered entries count: ${_entries.length}');
-          
-          if (_entries.isEmpty) {
+          if (state is TimelineLoaded) {
+            print(
+                'DEBUG: TimelineLoaded with ${state.groupedEntries.length} groups');
+            _entries = _getFilteredEntries(state);
+            print('DEBUG: Filtered entries count: ${_entries.length}');
+
+            if (_entries.isEmpty) {
+              return Center(
+                child: Text(
+                  'No entries yet',
+                  style: bodyStyle(context),
+                ),
+              );
+            }
+
+            return SafeArea(
+              child: Column(
+                children: [
+                  _buildTimelineHeader(),
+                  Expanded(
+                    child: _buildInteractiveTimeline(),
+                  ),
+                  _buildTimelineFooter(),
+                ],
+              ),
+            );
+          }
+
+          if (state is TimelineLoading) {
+            return const Center(child: CircularProgressIndicator());
+          }
+
+          if (state is TimelineEmpty) {
+            return _buildEmptyState();
+          }
+
+          if (state is TimelineError) {
             return Center(
               child: Text(
-                'No entries yet',
+                state.message,
                 style: bodyStyle(context),
               ),
             );
           }
 
-          return SafeArea(
-            child: Column(
-              children: [
-                _buildTimelineHeader(),
-                Expanded(
-                  child: _buildInteractiveTimeline(),
-                ),
-                _buildTimelineFooter(),
-              ],
-            ),
-          );
-        }
-
-        if (state is TimelineLoading) {
-          return const Center(child: CircularProgressIndicator());
-        }
-
-        if (state is TimelineEmpty) {
-          return _buildEmptyState();
-        }
-
-        if (state is TimelineError) {
-          return Center(
-            child: Text(
-              state.message,
-              style: bodyStyle(context),
-            ),
-          );
-        }
-
-        return Container();
+          return Container();
         },
       ),
     );
@@ -220,9 +224,8 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
             const SizedBox(width: 8),
             // Delete selected button
             IconButton(
-              onPressed: _selectedEntryIds.isNotEmpty
-                  ? _deleteSelectedEntries
-                  : null,
+              onPressed:
+                  _selectedEntryIds.isNotEmpty ? _deleteSelectedEntries : null,
               icon: const Icon(Icons.delete),
               color: _selectedEntryIds.isNotEmpty
                   ? kcDangerColor
@@ -288,7 +291,7 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
         children: [
           // Horizontal timeline line
           _buildTimelineLine(),
-          
+
           // PageView with entries
           PageView.builder(
             controller: _pageController,
@@ -326,7 +329,7 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
     final isCurrentEntry = index == _currentIndex;
     final isSelected = _selectedEntryIds.contains(entry.id);
     final distance = (index - _currentIndex).abs();
-    
+
     // Calculate opacity based on distance from current entry
     double opacity = 1.0;
     if (distance > 0 && !_isSelectionMode) {
@@ -342,31 +345,44 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
             opacity: opacity * _fadeAnimation.value,
             child: GestureDetector(
               onTap: () => _onEntryTapped(entry, index),
-              onLongPress: _isSelectionMode ? null : () => _enterSelectionModeWithEntry(entry.id),
+              onLongPress: _isSelectionMode
+                  ? null
+                  : () => _enterSelectionModeWithEntry(entry.id),
               child: Stack(
                 children: [
                   Container(
-                    margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 40),
-                    decoration: isSelected ? BoxDecoration(
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(
-                        color: kcPrimaryColor,
-                        width: 3,
+                    margin: const EdgeInsets.symmetric(
+                        horizontal: 20, vertical: 40),
+                    decoration: isSelected
+                        ? BoxDecoration(
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(
+                              color: kcPrimaryColor,
+                              width: 3,
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: kcPrimaryColor.withOpacity(0.3),
+                                blurRadius: 12,
+                                spreadRadius: 2,
+                              ),
+                            ],
+                          )
+                        : null,
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(
+                        maxHeight: 400, // Limit height to prevent overflow
                       ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: kcPrimaryColor.withOpacity(0.3),
-                          blurRadius: 12,
-                          spreadRadius: 2,
+                      child: SingleChildScrollView(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            // Entry details with phase shape above
+                            _buildEntryDetailsWithPhaseShape(entry,
+                                isCurrentEntry && !_isSelectionMode, isSelected),
+                          ],
                         ),
-                      ],
-                    ) : null,
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        // Entry details with phase shape above
-                        _buildEntryDetailsWithPhaseShape(entry, isCurrentEntry && !_isSelectionMode, isSelected),
-                      ],
+                      ),
                     ),
                   ),
                   // Selection checkbox
@@ -379,7 +395,9 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
                           shape: BoxShape.circle,
                           color: isSelected ? kcPrimaryColor : Colors.white,
                           border: Border.all(
-                            color: isSelected ? kcPrimaryColor : kcSecondaryTextColor,
+                            color: isSelected
+                                ? kcPrimaryColor
+                                : kcSecondaryTextColor,
                             width: 2,
                           ),
                         ),
@@ -388,7 +406,8 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
                           child: Icon(
                             Icons.check,
                             size: 16,
-                            color: isSelected ? Colors.white : Colors.transparent,
+                            color:
+                                isSelected ? Colors.white : Colors.transparent,
                           ),
                         ),
                       ),
@@ -417,9 +436,9 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
       try {
         final journalRepository = context.read<JournalRepository>();
         final fullEntry = journalRepository.getJournalEntryById(entry.id);
-        
+
         if (fullEntry != null) {
-          // Navigate to journal screen with full entry for editing
+          // Navigate to journal screen with full entry for viewing (read-only)
           Navigator.of(context).push(
             MaterialPageRoute(
               builder: (context) => JournalScreen(
@@ -427,6 +446,7 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
                 selectedEmotion: fullEntry.emotion,
                 selectedReason: fullEntry.emotionReason,
                 existingEntry: fullEntry, // Pass the full entry with media
+                isViewOnly: true, // Set to view-only mode to prevent draft creation
               ),
             ),
           );
@@ -438,6 +458,7 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
                 initialContent: entry.preview,
                 selectedEmotion: entry.phase,
                 selectedReason: entry.geometry,
+                isViewOnly: true, // Set to view-only mode to prevent draft creation
               ),
             ),
           );
@@ -450,6 +471,7 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
               initialContent: entry.preview,
               selectedEmotion: entry.phase,
               selectedReason: entry.geometry,
+              isViewOnly: true, // Set to view-only mode to prevent draft creation
             ),
           ),
         );
@@ -457,16 +479,14 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
     }
   }
 
-
-
   Color _getPhaseColor(String? phase) {
     if (phase == null) return kcSecondaryTextColor;
-    
+
     switch (phase.toLowerCase()) {
       case 'discovery':
         return const Color(0xFF4F46E5); // Blue
       case 'expansion':
-        return const Color(0xFF7C3AED); // Purple  
+        return const Color(0xFF7C3AED); // Purple
       case 'transition':
         return const Color(0xFF059669); // Green
       case 'consolidation':
@@ -480,11 +500,10 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
     }
   }
 
-
-
-  Widget _buildEntryDetailsWithPhaseShape(TimelineEntry entry, bool isCurrentEntry, bool isSelected) {
+  Widget _buildEntryDetailsWithPhaseShape(
+      TimelineEntry entry, bool isCurrentEntry, bool isSelected) {
     final phaseColor = _getPhaseColor(entry.phase);
-    
+
     return Column(
       children: [
         // Phase name above the entry
@@ -492,7 +511,7 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
           _buildPhaseDisplay(entry.phase!, phaseColor, isCurrentEntry),
           const SizedBox(height: 16),
         ],
-        
+
         // Entry type label
         Text(
           'JOURNAL ENTRY',
@@ -500,28 +519,28 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
             fontSize: 12,
             fontWeight: FontWeight.w600,
             letterSpacing: 1.2,
-            color: isCurrentEntry 
+            color: isCurrentEntry
                 ? kcPrimaryTextColor
                 : kcSecondaryTextColor.withOpacity(0.7),
           ),
         ),
-        
+
         const SizedBox(height: 8),
-        
+
         // Date
         Text(
           entry.date,
           style: bodyStyle(context).copyWith(
             fontSize: 16,
             fontWeight: FontWeight.w500,
-            color: isCurrentEntry 
+            color: isCurrentEntry
                 ? kcPrimaryTextColor
                 : kcSecondaryTextColor.withOpacity(0.6),
           ),
         ),
-        
+
         const SizedBox(height: 12),
-        
+
         // Preview text (only for current entry)
         if (isCurrentEntry) ...[
           Container(
@@ -533,16 +552,13 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
                 color: kcPrimaryColor.withOpacity(0.2),
               ),
             ),
-            child: Column(
-              children: [
-                _buildTextWithPhotoLinks(entry.preview, entry.media),
-                
-                // Display media attachments if any
-                if (entry.media.isNotEmpty) ...[
-                  const SizedBox(height: 12),
-                  _buildMediaAttachments(entry.media),
-                ],
-              ],
+            child: EntryContentRenderer(
+              content: entry.preview,
+              mediaItems: entry.media,
+              textStyle: bodyStyle(context).copyWith(
+                fontSize: 14,
+                height: 1.4,
+              ),
             ),
           ),
         ],
@@ -550,7 +566,8 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
     );
   }
 
-  Widget _buildPhaseDisplay(String phase, Color phaseColor, bool isCurrentEntry) {
+  Widget _buildPhaseDisplay(
+      String phase, Color phaseColor, bool isCurrentEntry) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
@@ -560,13 +577,15 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
           color: phaseColor.withOpacity(isCurrentEntry ? 0.8 : 0.5),
           width: isCurrentEntry ? 2 : 1,
         ),
-        boxShadow: isCurrentEntry ? [
-          BoxShadow(
-            color: phaseColor.withOpacity(0.3),
-            blurRadius: 8,
-            spreadRadius: 1,
-          ),
-        ] : null,
+        boxShadow: isCurrentEntry
+            ? [
+                BoxShadow(
+                  color: phaseColor.withOpacity(0.3),
+                  blurRadius: 8,
+                  spreadRadius: 1,
+                ),
+              ]
+            : null,
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -623,7 +642,7 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
               color: kcSecondaryTextColor.withOpacity(0.6),
             ),
           ),
-          
+
           // Entry counter
           Text(
             '${_currentIndex + 1} of ${_entries.length}',
@@ -671,7 +690,8 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
               onPressed: _restartPhaseQuestionnaire,
               style: ElevatedButton.styleFrom(
                 backgroundColor: kcPrimaryColor,
-                padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
@@ -750,7 +770,7 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
     print('DEBUG: _deleteSelectedEntries called');
     print('DEBUG: Selected entries count: ${_selectedEntryIds.length}');
     print('DEBUG: Selected entry IDs: $_selectedEntryIds');
-    
+
     if (_selectedEntryIds.isEmpty) {
       print('DEBUG: No entries selected, returning');
       return;
@@ -791,26 +811,27 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
     );
 
     print('DEBUG: Dialog result: $confirmed');
-    
+
     if (confirmed == true && mounted) {
       try {
-        print('DEBUG: Starting deletion of ${_selectedEntryIds.length} entries');
+        print(
+            'DEBUG: Starting deletion of ${_selectedEntryIds.length} entries');
         print('DEBUG: Selected entry IDs: $_selectedEntryIds');
-        
+
         final journalRepository = JournalRepository();
-        
+
         // Get count before deletion
         final countBefore = await journalRepository.getEntryCount();
         print('DEBUG: Total entries before deletion: $countBefore');
-        
+
         // Delete all selected entries
         for (final entryId in _selectedEntryIds) {
           print('DEBUG: Deleting entry: $entryId');
           await journalRepository.deleteJournalEntry(entryId);
-          
+
           // NEW: Clean up MIRA nodes and edges for this entry
           await _cleanupMiraDataForEntry(entryId);
-          
+
           // Verify deletion
           final deletedEntry = journalRepository.getJournalEntryById(entryId);
           if (deletedEntry == null) {
@@ -819,18 +840,19 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
             print('DEBUG: ❌ Entry $entryId still exists after deletion');
           }
         }
-        
+
         // Get count after deletion
         final countAfter = await journalRepository.getEntryCount();
         print('DEBUG: Total entries after deletion: $countAfter');
 
         // Check if all entries have been deleted
         final timelineCubit = context.read<TimelineCubit>();
-        final allEntriesDeleted = await timelineCubit.checkIfAllEntriesDeleted();
-        
+        final allEntriesDeleted =
+            await timelineCubit.checkIfAllEntriesDeleted();
+
         // Store the count before clearing selection
         final deletedCount = _selectedEntryIds.length;
-        
+
         // If all entries were deleted, clear the draft cache to prevent old content from being restored
         if (allEntriesDeleted) {
           try {
@@ -841,10 +863,10 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
             print('⚠️ Error clearing drafts after deletion: $e');
           }
         }
-        
+
         // Recalculate RIVET state after deletion
         await _recalculateRivetState();
-        
+
         if (mounted) {
           if (!allEntriesDeleted) {
             // Refresh the timeline if there are still entries
@@ -853,10 +875,10 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
           } else {
             print('DEBUG: All entries deleted, no refresh needed');
           }
-          
+
           // Exit selection mode
           _exitSelectionMode();
-          
+
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text('$deletedCount entries deleted successfully'),
@@ -883,7 +905,7 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
     for (final group in state.groupedEntries) {
       allEntries.addAll(group.entries);
     }
-    
+
     // Apply filter
     switch (state.filter) {
       case TimelineFilter.all:
@@ -899,19 +921,19 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
   Future<void> _recalculateRivetState() async {
     try {
       print('DEBUG: Recalculating RIVET state after deletion');
-      
+
       // Get all remaining entries
       final journalRepository = JournalRepository();
       final remainingEntries = journalRepository.getAllJournalEntriesSync();
-      
+
       print('DEBUG: Remaining entries count: ${remainingEntries.length}');
-      
+
       const userId = 'default_user';
-      
+
       if (remainingEntries.isEmpty) {
         // No entries = reset to initial RIVET state
         print('DEBUG: No entries left - resetting RIVET to initial state');
-        
+
         try {
           if (Hive.isBoxOpen('rivet_state_v1')) {
             final stateBox = Hive.box('rivet_state_v1');
@@ -924,7 +946,7 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
             });
             print('DEBUG: Reset RIVET state to 0% ALIGN, 0% TRACE');
           }
-          
+
           if (Hive.isBoxOpen('rivet_events_v1')) {
             final eventsBox = Hive.box('rivet_events_v1');
             await eventsBox.delete(userId);
@@ -935,15 +957,16 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
         }
       } else {
         // Rebuild RIVET state from remaining entries using proper RIVET logic
-        print('DEBUG: Rebuilding RIVET state from ${remainingEntries.length} remaining entries');
-        
+        print(
+            'DEBUG: Rebuilding RIVET state from ${remainingEntries.length} remaining entries');
+
         // Clear existing RIVET data
         try {
           if (Hive.isBoxOpen('rivet_state_v1')) {
             final stateBox = Hive.box('rivet_state_v1');
             await stateBox.delete(userId);
           }
-          
+
           if (Hive.isBoxOpen('rivet_events_v1')) {
             final eventsBox = Hive.box('rivet_events_v1');
             await eventsBox.delete(userId);
@@ -951,14 +974,15 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
         } catch (e) {
           print('DEBUG: Error clearing RIVET data: $e');
         }
-        
+
         // Create fresh RIVET service and process remaining entries
         final rivetService = RivetService();
         RivetEvent? lastEvent;
-        
+
         // Sort entries chronologically
-        final sortedEntries = remainingEntries..sort((a, b) => a.createdAt.compareTo(b.createdAt));
-        
+        final sortedEntries = remainingEntries
+          ..sort((a, b) => a.createdAt.compareTo(b.createdAt));
+
         for (final entry in sortedEntries) {
           // Get current user phase and recommended phase
           final currentPhase = await UserPhaseService.getCurrentPhase();
@@ -968,7 +992,7 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
             text: entry.content,
             selectedKeywords: entry.keywords,
           );
-          
+
           // Create RIVET event
           final rivetEvent = RivetEvent(
             date: entry.createdAt,
@@ -978,14 +1002,15 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
             refPhase: currentPhase,
             tolerance: const {},
           );
-          
+
           // Process through RIVET service
           rivetService.ingest(rivetEvent, lastEvent: lastEvent);
           lastEvent = rivetEvent;
-          
-          print('DEBUG: Processed entry ${entry.id} - ALIGN: ${(rivetService.state.align * 100).toInt()}%, TRACE: ${(rivetService.state.trace * 100).toInt()}%');
+
+          print(
+              'DEBUG: Processed entry ${entry.id} - ALIGN: ${(rivetService.state.align * 100).toInt()}%, TRACE: ${(rivetService.state.trace * 100).toInt()}%');
         }
-        
+
         // Save the final RIVET state
         try {
           if (Hive.isBoxOpen('rivet_state_v1')) {
@@ -994,22 +1019,25 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
               'align': rivetService.state.align,
               'trace': rivetService.state.trace,
               'sustainCount': rivetService.state.sustainCount,
-              'sawIndependentInWindow': rivetService.state.sawIndependentInWindow,
+              'sawIndependentInWindow':
+                  rivetService.state.sawIndependentInWindow,
               'lastUpdated': DateTime.now().millisecondsSinceEpoch,
             });
-            print('DEBUG: Saved rebuilt RIVET state - ALIGN: ${(rivetService.state.align * 100).toInt()}%, TRACE: ${(rivetService.state.trace * 100).toInt()}%');
+            print(
+                'DEBUG: Saved rebuilt RIVET state - ALIGN: ${(rivetService.state.align * 100).toInt()}%, TRACE: ${(rivetService.state.trace * 100).toInt()}%');
           }
         } catch (e) {
           print('DEBUG: Error saving rebuilt RIVET state: $e');
         }
       }
-      
+
       // Reset the RIVET provider
       final rivetProvider = RivetProvider();
       rivetProvider.reset();
       await rivetProvider.initialize(userId);
-      
-      print('DEBUG: RIVET state recalculated from ${remainingEntries.length} remaining entries');
+
+      print(
+          'DEBUG: RIVET state recalculated from ${remainingEntries.length} remaining entries');
     } catch (e) {
       print('ERROR: Failed to recalculate RIVET state: $e');
     }
@@ -1019,11 +1047,16 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
     return Wrap(
       spacing: 8,
       runSpacing: 8,
-      children: media.map((item) {
+      children: media.map<Widget>((item) {
         if (item.type == MediaType.image) {
-          // Check if this is a photo library reference
+          // Check if this is MCP media (MCP v2)
+          if (item.isMcpMedia && item.sha256 != null) {
+            return _buildMcpMediaImage(item);
+          }
+
+          // Check if this is a photo library reference (legacy)
           final isPhotoLibraryUri = item.uri.startsWith('ph://');
-          
+
           if (isPhotoLibraryUri) {
             // For photo library URIs, show a descriptive indicator
             return GestureDetector(
@@ -1071,12 +1104,12 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
               ),
             );
           }
-          
+
           return FutureBuilder<bool>(
             future: _checkImageExists(item.uri),
             builder: (context, snapshot) {
               final imageExists = snapshot.data ?? false;
-              
+
               if (!imageExists) {
                 // Show broken image indicator
                 return GestureDetector(
@@ -1124,11 +1157,11 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
                   ),
                 );
               }
-              
+
               // Image exists, show normal thumbnail
               return GestureDetector(
                 onTap: () => _openImageInGallery(item.uri),
-                onLongPress: item.analysisData != null 
+                onLongPress: item.analysisData != null
                     ? () => _showAnalysisDetails(item.analysisData!)
                     : null,
                 child: Container(
@@ -1190,7 +1223,7 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
             future: _checkMediaExists(item.uri),
             builder: (context, snapshot) {
               final mediaExists = snapshot.data ?? false;
-              
+
               if (!mediaExists) {
                 // Show broken audio indicator
                 return GestureDetector(
@@ -1238,7 +1271,7 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
                   ),
                 );
               }
-              
+
               // Audio exists, show normal audio icon
               return GestureDetector(
                 onTap: () => _playAudio(item.uri),
@@ -1267,7 +1300,7 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
             future: _checkMediaExists(item.uri),
             builder: (context, snapshot) {
               final mediaExists = snapshot.data ?? false;
-              
+
               if (!mediaExists) {
                 // Show broken video indicator
                 return GestureDetector(
@@ -1315,7 +1348,7 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
                   ),
                 );
               }
-              
+
               // Video exists, show normal video thumbnail
               return GestureDetector(
                 onTap: () => _playVideo(item.uri),
@@ -1367,7 +1400,7 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
             future: _checkMediaExists(item.uri),
             builder: (context, snapshot) {
               final mediaExists = snapshot.data ?? false;
-              
+
               if (!mediaExists) {
                 // Show broken file indicator
                 return GestureDetector(
@@ -1415,7 +1448,7 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
                   ),
                 );
               }
-              
+
               // File exists, show normal file icon
               return GestureDetector(
                 onTap: () => _openFile(item.uri),
@@ -1488,7 +1521,8 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
       if (Platform.isIOS) {
         try {
           const platform = MethodChannel('com.epi.arcmvp/photos');
-          final result = await platform.invokeMethod('getPhotoIdentifierAndOpen', imagePath);
+          final result = await platform.invokeMethod(
+              'getPhotoIdentifierAndOpen', imagePath);
           if (result == true) {
             return true;
           }
@@ -1500,7 +1534,7 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
       // Method 2: Try to extract photo identifier from path and use photos:// scheme
       final fileName = imagePath.split('/').last;
       final photoId = _extractPhotoIdFromFileName(fileName);
-      
+
       if (photoId != null) {
         final photosUri = Uri.parse('photos://$photoId');
         if (await canLaunchUrl(photosUri)) {
@@ -1517,7 +1551,8 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
       }
 
       // Method 4: Try to use the Photos app with a search query
-      final searchUri = Uri.parse('photos-redirect://search?query=${Uri.encodeComponent(fileName)}');
+      final searchUri = Uri.parse(
+          'photos-redirect://search?query=${Uri.encodeComponent(fileName)}');
       if (await canLaunchUrl(searchUri)) {
         await launchUrl(searchUri, mode: LaunchMode.externalApplication);
         return true;
@@ -1541,7 +1576,8 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
       if (Platform.isIOS) {
         try {
           const platform = MethodChannel('com.epi.arcmvp/photos');
-          final result = await platform.invokeMethod('getVideoIdentifierAndOpen', videoPath);
+          final result = await platform.invokeMethod(
+              'getVideoIdentifierAndOpen', videoPath);
           if (result == true) {
             return true;
           }
@@ -1553,7 +1589,7 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
       // Method 2: Try to extract video identifier from path and use photos:// scheme
       final fileName = videoPath.split('/').last;
       final videoId = _extractPhotoIdFromFileName(fileName);
-      
+
       if (videoId != null) {
         final photosUri = Uri.parse('photos://$videoId');
         if (await canLaunchUrl(photosUri)) {
@@ -1570,7 +1606,8 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
       }
 
       // Method 4: Try to use the Photos app with a search query
-      final searchUri = Uri.parse('photos-redirect://search?query=${Uri.encodeComponent(fileName)}');
+      final searchUri = Uri.parse(
+          'photos-redirect://search?query=${Uri.encodeComponent(fileName)}');
       if (await canLaunchUrl(searchUri)) {
         await launchUrl(searchUri, mode: LaunchMode.externalApplication);
         return true;
@@ -1594,7 +1631,8 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
       if (Platform.isIOS) {
         try {
           const platform = MethodChannel('com.epi.arcmvp/photos');
-          final result = await platform.invokeMethod('getMediaIdentifierAndOpen', mediaPath);
+          final result = await platform.invokeMethod(
+              'getMediaIdentifierAndOpen', mediaPath);
           if (result == true) {
             return true;
           }
@@ -1606,7 +1644,7 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
       // Method 2: Try to extract media identifier from path and use photos:// scheme
       final fileName = mediaPath.split('/').last;
       final mediaId = _extractPhotoIdFromFileName(fileName);
-      
+
       if (mediaId != null) {
         final photosUri = Uri.parse('photos://$mediaId');
         if (await canLaunchUrl(photosUri)) {
@@ -1623,7 +1661,8 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
       }
 
       // Method 4: Try to use the Photos app with a search query
-      final searchUri = Uri.parse('photos-redirect://search?query=${Uri.encodeComponent(fileName)}');
+      final searchUri = Uri.parse(
+          'photos-redirect://search?query=${Uri.encodeComponent(fileName)}');
       if (await canLaunchUrl(searchUri)) {
         await launchUrl(searchUri, mode: LaunchMode.externalApplication);
         return true;
@@ -1639,7 +1678,9 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
   String? _extractPhotoIdFromFileName(String fileName) {
     // Try to extract a photo identifier from the filename
     // iOS Photos often use UUIDs or specific naming patterns
-    final uuidPattern = RegExp(r'[0-9A-F]{8}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{12}', caseSensitive: false);
+    final uuidPattern = RegExp(
+        r'[0-9A-F]{8}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{12}',
+        caseSensitive: false);
     final match = uuidPattern.firstMatch(fileName);
     if (match != null) {
       return match.group(0);
@@ -1743,8 +1784,53 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
       builder: (context) => BrokenImageDialog(
         mediaItem: mediaItem,
         onRelinkImage: () => _navigateToEditEntry(mediaItem),
+        onPhotoRelinked: (relinkedPhoto) => _handlePhotoRelinked(mediaItem, relinkedPhoto),
       ),
     );
+  }
+
+  void _handlePhotoRelinked(MediaItem originalMedia, MediaItem relinkedPhoto) {
+    // Find the entry that contains this media item and update it
+    final entryIndex = _entries.indexWhere(
+      (e) => e.media.any((m) => m.id == originalMedia.id),
+    );
+    
+    if (entryIndex != -1) {
+      // Update the media item in the entry
+      final updatedEntry = _entries[entryIndex];
+      final updatedMedia = updatedEntry.media.map((m) {
+        if (m.id == originalMedia.id) {
+          return relinkedPhoto;
+        }
+        return m;
+      }).toList();
+      
+      // Create updated entry
+      final newEntry = TimelineEntry(
+        id: updatedEntry.id,
+        date: updatedEntry.date,
+        monthYear: updatedEntry.monthYear,
+        preview: updatedEntry.preview,
+        hasArcform: updatedEntry.hasArcform,
+        phase: updatedEntry.phase,
+        geometry: updatedEntry.geometry,
+        media: updatedMedia,
+      );
+      
+      // Update the entries list
+      setState(() {
+        _entries[entryIndex] = newEntry;
+      });
+      
+      // Show success message
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Photo relinked successfully!'),
+          backgroundColor: Colors.green,
+          duration: Duration(seconds: 2),
+        ),
+      );
+    }
   }
 
   void _navigateToEditEntry(MediaItem mediaItem) {
@@ -1753,7 +1839,7 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
       (e) => e.media.any((m) => m.id == mediaItem.id),
       orElse: () => _entries.first,
     );
-    
+
     // Navigate directly to the full journal screen with the entry content
     Navigator.of(context).push(
       MaterialPageRoute(
@@ -1870,7 +1956,7 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
     print('🔍 Timeline: Building text with photo links');
     print('🔍 Timeline: Text length: ${text.length} chars');
     print('🔍 Timeline: Available media items: ${mediaItems.length}');
-    
+
     // Create a map of photo IDs to media items for quick lookup
     final mediaMap = <String, MediaItem>{};
     for (final media in mediaItems) {
@@ -1880,16 +1966,18 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
         mediaMap[photoId] = media;
         print('🔍 Timeline: Mapped photo ID $photoId -> ${media.uri}');
       } else {
-        print('🔍 Timeline: Could not extract photo ID from media: ${media.id}');
+        print(
+            '🔍 Timeline: Could not extract photo ID from media: ${media.id}');
       }
     }
-    
-    print('🔍 Timeline: Media map contains ${mediaMap.length} entries: ${mediaMap.keys.toList()}');
+
+    print(
+        '🔍 Timeline: Media map contains ${mediaMap.length} entries: ${mediaMap.keys.toList()}');
 
     // Parse text for photo placeholders [PHOTO:id]
     final photoPlaceholderRegex = RegExp(r'\[PHOTO:([^\]]+)\]');
     final matches = photoPlaceholderRegex.allMatches(text);
-    
+
     print('🔍 Timeline: Found ${matches.length} photo placeholders in text');
     for (final match in matches) {
       final photoId = match.group(1)!;
@@ -1901,7 +1989,7 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
         print('🔍 Timeline: ❌ No matching media found for $photoId');
       }
     }
-    
+
     if (matches.isEmpty) {
       // No photo placeholders, return regular text
       print('🔍 Timeline: No photo placeholders found, returning regular text');
@@ -1936,7 +2024,7 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
       // Add clickable photo link
       final photoId = match.group(1)!;
       final mediaItem = mediaMap[photoId];
-      
+
       textSpans.add(TextSpan(
         text: '[📷 Photo]',
         style: bodyStyle(context).copyWith(
@@ -1974,7 +2062,8 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
   /// Extract photo ID from media item
   String? _extractPhotoIdFromMedia(MediaItem media) {
     // Use the media item ID directly - this is the photoId we need
-    print('🔍 Timeline: Extracting photo ID from media: ${media.id} -> ${media.uri}');
+    print(
+        '🔍 Timeline: Extracting photo ID from media: ${media.id} -> ${media.uri}');
     return media.id;
   }
 
@@ -1984,7 +2073,8 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
       print('🔍 Timeline: Photo link tapped for $photoId -> ${mediaItem.uri}');
       // Check if this is a photo library URI
       if (mediaItem.uri.startsWith('ph://')) {
-        print('🔍 Timeline: Photo library URI detected, checking accessibility...');
+        print(
+            '🔍 Timeline: Photo library URI detected, checking accessibility...');
         // TODO: Add photo library accessibility check
       }
       // Navigate to photo view or show photo details
@@ -2016,8 +2106,8 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
                 width: 200,
                 height: 200,
                 fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) => 
-                  const Icon(Icons.broken_image, size: 100),
+                errorBuilder: (context, error, stackTrace) =>
+                    const Icon(Icons.broken_image, size: 100),
               ),
             const SizedBox(height: 16),
             Text('Type: ${mediaItem.type.name}'),
@@ -2051,7 +2141,7 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: Text('Cancel'),
+            child: const Text('Cancel'),
           ),
           ElevatedButton(
             onPressed: () {
@@ -2060,7 +2150,7 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
               // This will allow the user to change their phase using the existing phase change UI
               _navigateToPhaseTab();
             },
-            child: Text('Change Phase'),
+            child: const Text('Change Phase'),
           ),
         ],
       ),
@@ -2076,7 +2166,7 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
     // For now, we'll just show a message that they should go to the phase tab
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('Go to the Phase tab to change your phase'),
+        content: const Text('Go to the Phase tab to change your phase'),
         action: SnackBarAction(
           label: 'Go to Phase',
           onPressed: () {
@@ -2084,6 +2174,31 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
             print('DEBUG: User wants to go to phase tab');
           },
         ),
+      ),
+    );
+  }
+
+  /// Build MCP media widget (MCP v2)
+  Widget _buildMcpMediaImage(MediaItem item) {
+    return Container(
+      width: 60,
+      height: 60,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: Colors.green.withOpacity(0.5),
+          width: 2,
+        ),
+      ),
+      child: ContentAddressedMediaWidget(
+        sha256: item.sha256!,
+        thumbUri: item.thumbUri,
+        fullRef: item.fullRef,
+        // Resolver automatically obtained from MediaResolverService
+        width: 60,
+        height: 60,
+        fit: BoxFit.cover,
+        borderRadius: BorderRadius.circular(8),
       ),
     );
   }
@@ -2103,7 +2218,7 @@ class BrokenMediaDialog extends StatelessWidget {
   Widget build(BuildContext context) {
     final mediaTypeName = _getMediaTypeName(mediaItem.type);
     final mediaIcon = _getMediaTypeIcon(mediaItem.type);
-    
+
     return Dialog(
       child: Container(
         width: MediaQuery.of(context).size.width * 0.85,
@@ -2125,9 +2240,9 @@ class BrokenMediaDialog extends StatelessWidget {
                 size: 32,
               ),
             ),
-            
+
             const SizedBox(height: 20),
-            
+
             // Title
             Text(
               'Broken $mediaTypeName Link',
@@ -2137,9 +2252,9 @@ class BrokenMediaDialog extends StatelessWidget {
               ),
               textAlign: TextAlign.center,
             ),
-            
+
             const SizedBox(height: 12),
-            
+
             // Message
             Text(
               'The $mediaTypeName\'s link appears to be broken, please insert the $mediaTypeName again into the entry to relink it.',
@@ -2149,9 +2264,9 @@ class BrokenMediaDialog extends StatelessWidget {
               ),
               textAlign: TextAlign.center,
             ),
-            
+
             const SizedBox(height: 16),
-            
+
             // Media info
             Container(
               padding: const EdgeInsets.all(12),
@@ -2192,7 +2307,8 @@ class BrokenMediaDialog extends StatelessWidget {
                         color: kcSecondaryTextColor,
                       ),
                     ),
-                  if (mediaItem.transcript != null && mediaItem.transcript!.isNotEmpty)
+                  if (mediaItem.transcript != null &&
+                      mediaItem.transcript!.isNotEmpty)
                     Text(
                       'Transcript: ${mediaItem.transcript!.length > 50 ? '${mediaItem.transcript!.substring(0, 50)}...' : mediaItem.transcript!}',
                       style: bodyStyle(context).copyWith(
@@ -2203,9 +2319,9 @@ class BrokenMediaDialog extends StatelessWidget {
                 ],
               ),
             ),
-            
+
             const SizedBox(height: 24),
-            
+
             // Action buttons
             Row(
               children: [
@@ -2301,13 +2417,11 @@ class ArcformTimelinePainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final center = Offset(size.width / 2, size.height / 2);
     final radius = size.width / 3;
-    
+
     final paint = Paint()
       ..style = PaintingStyle.stroke
       ..strokeWidth = isCurrentEntry ? 2.5 : 1.5
-      ..color = isCurrentEntry 
-          ? phaseColor
-          : phaseColor.withOpacity(0.6);
+      ..color = isCurrentEntry ? phaseColor : phaseColor.withOpacity(0.6);
 
     // Draw phase-specific geometry pattern
     if (entry.keywords.isEmpty) {
@@ -2317,13 +2431,15 @@ class ArcformTimelinePainter extends CustomPainter {
     }
   }
 
-  void _drawSimpleCircle(Canvas canvas, Offset center, double radius, Paint paint) {
+  void _drawSimpleCircle(
+      Canvas canvas, Offset center, double radius, Paint paint) {
     canvas.drawCircle(center, radius * 0.6, paint);
   }
 
-  void _drawPhaseGeometry(Canvas canvas, Offset center, double radius, Paint paint) {
+  void _drawPhaseGeometry(
+      Canvas canvas, Offset center, double radius, Paint paint) {
     final keywordCount = entry.keywords.length;
-    
+
     switch (phaseGeometry) {
       case GeometryPattern.spiral:
         _drawSpiral(canvas, center, radius, paint, keywordCount);
@@ -2346,17 +2462,18 @@ class ArcformTimelinePainter extends CustomPainter {
     }
   }
 
-  void _drawSpiral(Canvas canvas, Offset center, double radius, Paint paint, int keywordCount) {
+  void _drawSpiral(Canvas canvas, Offset center, double radius, Paint paint,
+      int keywordCount) {
     final path = Path();
     const double goldenAngle = 2.39996; // Golden angle
     final spiralPoints = math.max(12, keywordCount * 2);
-    
+
     for (int i = 0; i < spiralPoints; i++) {
       final angle = i * goldenAngle;
       final r = radius * math.sqrt(i / spiralPoints.toDouble()) * 0.8;
       final x = center.dx + r * math.cos(angle);
       final y = center.dy + r * math.sin(angle);
-      
+
       if (i == 0) {
         path.moveTo(x, y);
       } else {
@@ -2366,29 +2483,31 @@ class ArcformTimelinePainter extends CustomPainter {
     canvas.drawPath(path, paint);
   }
 
-  void _drawFlower(Canvas canvas, Offset center, double radius, Paint paint, int keywordCount) {
+  void _drawFlower(Canvas canvas, Offset center, double radius, Paint paint,
+      int keywordCount) {
     final petalCount = math.max(5, keywordCount);
     final angleStep = (2 * math.pi) / petalCount;
-    
+
     for (int i = 0; i < petalCount; i++) {
       final angle = i * angleStep;
       final petalRadius = radius * 0.7;
       final x = center.dx + petalRadius * math.cos(angle);
       final y = center.dy + petalRadius * math.sin(angle);
-      
+
       canvas.drawLine(center, Offset(x, y), paint);
     }
     canvas.drawCircle(center, radius * 0.15, paint);
   }
 
-  void _drawBranch(Canvas canvas, Offset center, double radius, Paint paint, int keywordCount) {
+  void _drawBranch(Canvas canvas, Offset center, double radius, Paint paint,
+      int keywordCount) {
     // Main trunk
     canvas.drawLine(
       Offset(center.dx, center.dy + radius * 0.4),
       Offset(center.dx, center.dy - radius * 0.6),
       paint,
     );
-    
+
     // Branches
     final branchCount = math.min(keywordCount, 4);
     for (int i = 0; i < branchCount; i++) {
@@ -2396,20 +2515,21 @@ class ArcformTimelinePainter extends CustomPainter {
       final branchLength = radius * 0.5;
       final x = center.dx + branchLength * math.cos(angle);
       final y = center.dy + branchLength * math.sin(angle);
-      
+
       canvas.drawLine(center, Offset(x, y), paint);
     }
   }
 
-  void _drawWeave(Canvas canvas, Offset center, double radius, Paint paint, int keywordCount) {
+  void _drawWeave(Canvas canvas, Offset center, double radius, Paint paint,
+      int keywordCount) {
     final gridSize = math.max(2, math.sqrt(keywordCount).ceil());
     final spacing = radius * 0.4 / gridSize;
-    
+
     for (int i = 0; i < gridSize; i++) {
       for (int j = 0; j < gridSize; j++) {
         final x = center.dx + (i - gridSize / 2) * spacing;
         final y = center.dy + (j - gridSize / 2) * spacing;
-        
+
         if (j < gridSize - 1) {
           canvas.drawLine(Offset(x, y), Offset(x, y + spacing), paint);
         }
@@ -2420,9 +2540,10 @@ class ArcformTimelinePainter extends CustomPainter {
     }
   }
 
-  void _drawGlowCore(Canvas canvas, Offset center, double radius, Paint paint, int keywordCount) {
+  void _drawGlowCore(Canvas canvas, Offset center, double radius, Paint paint,
+      int keywordCount) {
     canvas.drawCircle(center, radius * 0.2, paint);
-    
+
     final rayCount = math.min(keywordCount, 8);
     for (int i = 0; i < rayCount; i++) {
       final angle = (2 * math.pi * i) / rayCount;
@@ -2432,31 +2553,33 @@ class ArcformTimelinePainter extends CustomPainter {
     }
   }
 
-  void _drawFractal(Canvas canvas, Offset center, double radius, Paint paint, int keywordCount) {
+  void _drawFractal(Canvas canvas, Offset center, double radius, Paint paint,
+      int keywordCount) {
     _drawFractalBranch(canvas, center, -math.pi / 2, radius * 0.6, 0, paint);
   }
 
-  void _drawFractalBranch(Canvas canvas, Offset start, double angle, double length, int depth, Paint paint) {
+  void _drawFractalBranch(Canvas canvas, Offset start, double angle,
+      double length, int depth, Paint paint) {
     if (depth > 2 || length < 10) return;
-    
+
     final endX = start.dx + length * math.cos(angle);
     final endY = start.dy + length * math.sin(angle);
     final end = Offset(endX, endY);
-    
+
     canvas.drawLine(start, end, paint);
-    
+
     final newLength = length * 0.7;
-    _drawFractalBranch(canvas, end, angle - math.pi / 4, newLength, depth + 1, paint);
-    _drawFractalBranch(canvas, end, angle + math.pi / 4, newLength, depth + 1, paint);
+    _drawFractalBranch(
+        canvas, end, angle - math.pi / 4, newLength, depth + 1, paint);
+    _drawFractalBranch(
+        canvas, end, angle + math.pi / 4, newLength, depth + 1, paint);
   }
-
-
 
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) {
     return oldDelegate is ArcformTimelinePainter &&
         (oldDelegate.isCurrentEntry != isCurrentEntry ||
-         oldDelegate.entry != entry);
+            oldDelegate.entry != entry);
   }
 }
 
@@ -2479,13 +2602,13 @@ class TimelineLinePainter extends CustomPainter {
 
     // Calculate the width of each segment
     final segmentWidth = size.width / totalEntries;
-    
+
     // Draw the main timeline line
     for (int i = 0; i < totalEntries - 1; i++) {
       final startX = (i + 0.5) * segmentWidth;
       final endX = (i + 1.5) * segmentWidth;
       final centerY = size.height / 2;
-      
+
       // Determine line color based on position relative to current entry
       if (i < currentIndex) {
         // Past entries - lighter color
@@ -2497,7 +2620,7 @@ class TimelineLinePainter extends CustomPainter {
         // Future entries - lighter color
         paint.color = kcSecondaryTextColor.withOpacity(0.3);
       }
-      
+
       canvas.drawLine(
         Offset(startX, centerY),
         Offset(endX, centerY),
@@ -2510,7 +2633,7 @@ class TimelineLinePainter extends CustomPainter {
   bool shouldRepaint(covariant CustomPainter oldDelegate) {
     return oldDelegate is TimelineLinePainter &&
         (oldDelegate.currentIndex != currentIndex ||
-         oldDelegate.totalEntries != totalEntries);
+            oldDelegate.totalEntries != totalEntries);
   }
 }
 
@@ -2534,7 +2657,7 @@ class AnalysisDetailsDialog extends StatelessWidget {
           children: [
             Row(
               children: [
-                Icon(
+                const Icon(
                   Icons.analytics,
                   color: kcPrimaryColor,
                   size: 24,
@@ -2615,25 +2738,50 @@ class AnalysisDetailsDialog extends StatelessWidget {
   }
 }
 
-class BrokenImageDialog extends StatelessWidget {
+class BrokenImageDialog extends StatefulWidget {
   final MediaItem mediaItem;
   final VoidCallback onRelinkImage;
+  final Function(MediaItem)? onPhotoRelinked;
 
   const BrokenImageDialog({
     super.key,
     required this.mediaItem,
     required this.onRelinkImage,
+    this.onPhotoRelinked,
   });
 
   @override
+  State<BrokenImageDialog> createState() => _BrokenImageDialogState();
+}
+
+class _BrokenImageDialogState extends State<BrokenImageDialog> {
+  bool _showPhotoSearch = false;
+
+  @override
   Widget build(BuildContext context) {
-    final isPhotoLibraryUri = mediaItem.uri.startsWith('ph://');
+    final isPhotoLibraryUri = widget.mediaItem.uri.startsWith('ph://');
     final iconColor = isPhotoLibraryUri ? Colors.orange : Colors.red;
-    final title = isPhotoLibraryUri ? 'Photo Library Reference' : 'Broken Image Link';
+    final title =
+        isPhotoLibraryUri ? 'Photo Library Reference' : 'Broken Image Link';
     final message = isPhotoLibraryUri
-        ? 'This photo is from your photo library and may no longer be accessible. The original photo may have been deleted or moved. You can remove this reference or re-add the photo from your library.'
-        : 'The image\'s link appears to be broken, please insert the image again into the entry to relink it.';
-    
+        ? 'This photo is from your photo library and may no longer be accessible. The original photo may have been deleted or moved. You can search your library to find and relink the correct photo.'
+        : 'The image\'s link appears to be broken, please search your photo library to find and relink the correct image.';
+
+    if (_showPhotoSearch) {
+      return PhotoSearchDialog(
+        originalMedia: widget.mediaItem,
+        onPhotoSelected: (selectedPhoto) {
+          Navigator.of(context).pop();
+          widget.onPhotoRelinked?.call(selectedPhoto);
+        },
+        onCancel: () {
+          setState(() {
+            _showPhotoSearch = false;
+          });
+        },
+      );
+    }
+
     return Dialog(
       child: Container(
         width: MediaQuery.of(context).size.width * 0.85,
@@ -2650,14 +2798,16 @@ class BrokenImageDialog extends StatelessWidget {
                 borderRadius: BorderRadius.circular(32),
               ),
               child: Icon(
-                isPhotoLibraryUri ? Icons.photo_library_outlined : Icons.broken_image,
+                isPhotoLibraryUri
+                    ? Icons.photo_library_outlined
+                    : Icons.broken_image,
                 color: iconColor,
                 size: 32,
               ),
             ),
-            
+
             const SizedBox(height: 20),
-            
+
             // Title
             Text(
               title,
@@ -2667,9 +2817,9 @@ class BrokenImageDialog extends StatelessWidget {
               ),
               textAlign: TextAlign.center,
             ),
-            
+
             const SizedBox(height: 12),
-            
+
             // Message
             Text(
               message,
@@ -2679,9 +2829,9 @@ class BrokenImageDialog extends StatelessWidget {
               ),
               textAlign: TextAlign.center,
             ),
-            
+
             const SizedBox(height: 16),
-            
+
             // Image info
             Container(
               padding: const EdgeInsets.all(12),
@@ -2701,22 +2851,23 @@ class BrokenImageDialog extends StatelessWidget {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    'ID: ${mediaItem.id}',
+                    'ID: ${widget.mediaItem.id}',
                     style: bodyStyle(context).copyWith(
                       fontSize: 12,
                       color: kcSecondaryTextColor,
                     ),
                   ),
                   Text(
-                    'Path: ${mediaItem.uri.split('/').last}',
+                    'Path: ${widget.mediaItem.uri.split('/').last}',
                     style: bodyStyle(context).copyWith(
                       fontSize: 12,
                       color: kcSecondaryTextColor,
                     ),
                   ),
-                  if (mediaItem.ocrText != null && mediaItem.ocrText!.isNotEmpty)
+                  if (widget.mediaItem.ocrText != null &&
+                      widget.mediaItem.ocrText!.isNotEmpty)
                     Text(
-                      'OCR Text: ${mediaItem.ocrText!.length > 50 ? '${mediaItem.ocrText!.substring(0, 50)}...' : mediaItem.ocrText!}',
+                      'OCR Text: ${widget.mediaItem.ocrText!.length > 50 ? '${widget.mediaItem.ocrText!.substring(0, 50)}...' : widget.mediaItem.ocrText!}',
                       style: bodyStyle(context).copyWith(
                         fontSize: 12,
                         color: kcSecondaryTextColor,
@@ -2725,10 +2876,34 @@ class BrokenImageDialog extends StatelessWidget {
                 ],
               ),
             ),
-            
+
             const SizedBox(height: 24),
-            
+
             // Action buttons
+            Column(
+              children: [
+                // Search Photo Library button
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: () {
+                      setState(() {
+                        _showPhotoSearch = true;
+                      });
+                    },
+                    icon: const Icon(Icons.search, size: 18),
+                    label: const Text('Search Photo Library'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: kcPrimaryColor,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                  ),
+                ),
+                
+                const SizedBox(height: 12),
+                
+                // Bottom row buttons
             Row(
               children: [
                 Expanded(
@@ -2739,18 +2914,20 @@ class BrokenImageDialog extends StatelessWidget {
                 ),
                 const SizedBox(width: 12),
                 Expanded(
-                  child: ElevatedButton.icon(
+                      child: OutlinedButton.icon(
                     onPressed: () {
                       Navigator.of(context).pop();
-                      onRelinkImage();
+                          widget.onRelinkImage();
                     },
                     icon: const Icon(Icons.add_photo_alternate, size: 18),
-                    label: const Text('Re-insert Image'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: kcPrimaryColor,
-                      foregroundColor: Colors.white,
+                        label: const Text('Manual Insert'),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: kcPrimaryColor,
+                          side: BorderSide(color: kcPrimaryColor),
+                        ),
+                      ),
                     ),
-                  ),
+                  ],
                 ),
               ],
             ),
@@ -2758,5 +2935,225 @@ class BrokenImageDialog extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+/// Dialog for searching and selecting photos from the photo library
+class PhotoSearchDialog extends StatefulWidget {
+  final MediaItem originalMedia;
+  final Function(MediaItem) onPhotoSelected;
+  final VoidCallback onCancel;
+
+  const PhotoSearchDialog({
+    super.key,
+    required this.originalMedia,
+    required this.onPhotoSelected,
+    required this.onCancel,
+  });
+
+  @override
+  State<PhotoSearchDialog> createState() => _PhotoSearchDialogState();
+}
+
+class _PhotoSearchDialogState extends State<PhotoSearchDialog> {
+  List<MediaItem> _photos = [];
+  bool _isLoading = true;
+  String _searchQuery = '';
+  MediaItem? _selectedPhoto;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadPhotos();
+  }
+
+  Future<void> _loadPhotos() async {
+    try {
+      // For now, return empty list since PhotoLibraryService doesn't have getPhotos method
+      // In a real implementation, you would need to add this method to PhotoLibraryService
+      setState(() {
+        _photos = [];
+        _isLoading = false;
+      });
+    } catch (e) {
+      print('Error loading photos: $e');
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
+  List<MediaItem> get _filteredPhotos {
+    if (_searchQuery.isEmpty) return _photos;
+    
+    return _photos.where((photo) {
+      final query = _searchQuery.toLowerCase();
+      return photo.altText?.toLowerCase().contains(query) == true ||
+             photo.ocrText?.toLowerCase().contains(query) == true ||
+             photo.uri.toLowerCase().contains(query);
+    }).toList();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      child: Container(
+        width: MediaQuery.of(context).size.width * 0.95,
+        height: MediaQuery.of(context).size.height * 0.85,
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          children: [
+            // Header
+            Row(
+              children: [
+                IconButton(
+                  onPressed: widget.onCancel,
+                  icon: const Icon(Icons.arrow_back),
+                ),
+                Expanded(
+                  child: Text(
+                    'Search Photo Library',
+                    style: heading2Style(context),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+                IconButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  icon: const Icon(Icons.close),
+                ),
+              ],
+            ),
+            
+            const SizedBox(height: 16),
+            
+            // Search bar
+            TextField(
+              decoration: InputDecoration(
+                hintText: 'Search by text, date, or filename...',
+                prefixIcon: const Icon(Icons.search),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                filled: true,
+                fillColor: Colors.grey[100],
+              ),
+              onChanged: (value) {
+                setState(() {
+                  _searchQuery = value;
+                });
+              },
+            ),
+            
+            const SizedBox(height: 16),
+            
+            // Photo grid
+            Expanded(
+              child: _isLoading
+                  ? const Center(child: CircularProgressIndicator())
+                  : _filteredPhotos.isEmpty
+                      ? Center(
+                          child: Text(
+                            'No photos found',
+                            style: bodyStyle(context).copyWith(
+                              color: kcSecondaryTextColor,
+                            ),
+                          ),
+                        )
+                      : GridView.builder(
+                          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: 3,
+                            crossAxisSpacing: 8,
+                            mainAxisSpacing: 8,
+                            childAspectRatio: 1,
+                          ),
+                          itemCount: _filteredPhotos.length,
+                          itemBuilder: (context, index) {
+                            final photo = _filteredPhotos[index];
+                            final isSelected = _selectedPhoto?.id == photo.id;
+                            
+                            return GestureDetector(
+                              onTap: () {
+                                setState(() {
+                                  _selectedPhoto = photo;
+                                });
+                              },
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(
+                                    color: isSelected ? kcPrimaryColor : Colors.grey[300]!,
+                                    width: isSelected ? 3 : 1,
+                                  ),
+                                ),
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(7),
+                                  child: FutureBuilder<bool>(
+                                    future: _checkImageExists(photo.uri),
+                                    builder: (context, snapshot) {
+                                      final imageExists = snapshot.data ?? false;
+                                      
+                                      if (!imageExists) {
+                                        return Container(
+                                          color: Colors.grey[200],
+                                          child: const Icon(
+                                            Icons.broken_image,
+                                            color: Colors.grey,
+                                          ),
+                                        );
+                                      }
+                                      
+                                      return Image.file(
+                                        File(photo.uri),
+                                        fit: BoxFit.cover,
+                                        errorBuilder: (context, error, stackTrace) {
+                                          return Container(
+                                            color: Colors.grey[200],
+                                            child: const Icon(
+                                              Icons.broken_image,
+                                              color: Colors.grey,
+                                            ),
+                                          );
+                                        },
+                                      );
+                                    },
+                                  ),
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+            ),
+            
+            // Action buttons
+            if (_selectedPhoto != null) ...[
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () {
+                    widget.onPhotoSelected(_selectedPhoto!);
+                  },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: kcPrimaryColor,
+                      foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                  child: const Text('Select Photo'),
+                  ),
+                ),
+              ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<bool> _checkImageExists(String imagePath) async {
+    try {
+      final file = File(imagePath);
+      return await file.exists();
+    } catch (e) {
+      return false;
+    }
   }
 }

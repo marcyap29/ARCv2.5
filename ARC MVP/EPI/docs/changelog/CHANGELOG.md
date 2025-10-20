@@ -2,6 +2,64 @@
 
 ## [Unreleased]
 
+### 🐛 **Draft Creation Bug Fix - Smart View/Edit Mode** - October 19, 2025
+
+#### **Fixed Critical Draft Creation Bug** ✅ **PRODUCTION READY**
+- **View-Only Mode**: Timeline entries now open in read-only mode by default
+- **Smart Draft Creation**: Drafts only created when actively writing/editing content
+- **Edit Mode Switching**: Users can switch from viewing to editing with "Edit" button
+- **Clean Drafts Folder**: No more automatic draft creation when just reading entries
+- **Crash Protection**: Drafts still saved when editing and app crashes/closes
+- **Better UX**: Clear distinction between viewing and editing modes
+- **Backward Compatibility**: Existing writing workflows unchanged
+- **UI Improvements**: App bar title changes, read-only text field, edit button visibility
+- **Build Success**: All changes tested and working on iOS ✅
+
+#### **Technical Implementation** ✅ **COMPLETE**
+- **isViewOnly Parameter**: Added to JournalScreen constructor to distinguish viewing vs editing
+- **Smart Draft Logic**: Modified _initializeDraftCache to only create drafts when editing
+- **Edit Mode Switching**: Added _switchToEditMode method and _isEditMode state tracking
+- **Read-Only Text Field**: Modified _buildAITextField to be read-only in view-only mode
+- **Timeline Integration**: Updated _onEntryTapped to pass isViewOnly: true
+- **App Bar Updates**: Dynamic title and edit button visibility based on mode
+- **Draft Content Updates**: Modified _onTextChanged to respect view-only mode
+
+### 🔄 **RIVET & SENTINEL Extensions - Unified Reflective Analysis** - October 17, 2025
+
+#### **Complete Unified Reflective Analysis System** ✅ **PRODUCTION READY**
+- **Extended Evidence Sources**: RIVET now processes `draft` and `lumaraChat` evidence sources alongside journal entries
+- **ReflectiveEntryData Model**: New unified data model supporting journal entries, drafts, and chat conversations
+- **Source Weighting System**: Different confidence weights for different input types (journal=1.0, draft=0.6, chat=0.8)
+- **Draft Analysis Service**: Specialized processing for draft journal entries with phase inference and confidence scoring
+- **Chat Analysis Service**: Specialized processing for LUMARA conversations with context keywords and conversation quality
+- **Unified Analysis Service**: Comprehensive analysis across all reflective sources with combined recommendations
+- **Enhanced SENTINEL Analysis**: Source-aware pattern detection with weighted clustering, persistent distress, and escalation detection
+- **Backward Compatibility**: Existing journal-only workflows remain unchanged
+- **Phase Inference**: Automatic phase detection from content patterns and context
+- **Confidence Scoring**: Dynamic confidence calculation based on content quality and recency
+- **Build Success**: All type conflicts resolved, iOS build working with full integration ✅
+
+#### **Technical Implementation** ✅ **COMPLETE**
+- **DraftAnalysisService**: Complete service for processing draft journal entries
+- **ChatAnalysisService**: Complete service for processing LUMARA chat conversations
+- **ReflectiveEntryData**: Unified data model with source-specific factory methods
+- **RivetEvent Extensions**: Added `fromDraftEntry` and `fromLumaraChat` factory methods
+- **Source Weight Integration**: Integrated `sourceWeight` getter throughout RIVET calculations
+- **Enhanced Keyword Extraction**: Context-aware keyword extraction for different input types
+- **Phase Inference Logic**: Automatic phase detection based on content patterns and context
+- **Confidence Calculation**: Dynamic confidence scoring based on content quality and recency
+- **Pattern Detection**: Source-aware pattern detection with weighted clustering and escalation detection
+- **Recommendation Integration**: Combined recommendations from all reflective sources
+
+#### **Code Quality & Testing** ✅ **IMPLEMENTED**
+- **Type Safety**: Resolved all List<String> to Set<String> conversion errors
+- **Model Consolidation**: Consolidated duplicate RivetEvent/RivetState definitions
+- **Hive Adapter Updates**: Fixed generated adapters for Set<String> keywords field
+- **Build System**: All compilation errors resolved, iOS build successful
+- **Integration Testing**: Comprehensive testing of unified analysis system
+- **Performance Optimization**: Efficient processing of multiple reflective sources
+- **Error Handling**: Robust error handling for all analysis scenarios
+
 ### 🧠 **MIRA v0.2 - Enhanced Semantic Memory System** - January 17, 2025
 
 #### **Complete Semantic Memory Overhaul** ✅ **PRODUCTION READY**
