@@ -39,43 +39,33 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
 
     final bestProvider = apiConfig.getBestProvider();
 
-    // Check if onboarding has been completed
+    // Check if welcome screen has been shown
     final prefs = await SharedPreferences.getInstance();
-    final onboardingCompleted = prefs.getBool('lumara_onboarding_completed') ?? false;
+    final welcomeShown = prefs.getBool('lumara_welcome_shown') ?? false;
 
-    // TEMPORARILY DISABLE AUTOMATIC ONBOARDING TO PREVENT AUTO-DOWNLOADS
-    // Show onboarding ONLY if:
-    // 1. First time user (onboarding not completed) OR
-    // 2. No inference available at all (no models AND no API keys)
-    final showOnboarding = false; // DISABLED: !onboardingCompleted || bestProvider == null;
-
-    if (showOnboarding && bestProvider == null) {
-      // No inference available - show onboarding
+    if (!welcomeShown) {
+      // First time user - show Welcome to LUMARA screen
       if (mounted) {
-        debugPrint('LUMARA Assistant: No providers available, navigating to onboarding');
+        debugPrint('LUMARA Assistant: First time user, navigating to welcome screen');
         WidgetsBinding.instance.addPostFrameCallback((_) {
           Navigator.of(context, rootNavigator: true).push(
             MaterialPageRoute(
               builder: (context) => const LumaraOnboardingScreen(),
             ),
-          );
-        });
-      }
-    } else if (!onboardingCompleted) {
-      // First time user but has some provider - show onboarding anyway
-      if (mounted) {
-        debugPrint('LUMARA Assistant: First time user, navigating to onboarding');
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          Navigator.of(context, rootNavigator: true).push(
-            MaterialPageRoute(
-              builder: (context) => const LumaraOnboardingScreen(),
-            ),
-          );
+          ).then((_) {
+            // Mark welcome as shown after user completes onboarding
+            prefs.setBool('lumara_welcome_shown', true);
+            // Initialize LUMARA after welcome screen
+            final cubit = context.read<LumaraAssistantCubit>();
+            if (cubit.state is! LumaraAssistantLoaded) {
+              cubit.initializeLumara();
+            }
+          });
         });
       }
     } else {
-      // Has provider and onboarding completed - initialize normally
-      debugPrint('LUMARA Assistant: Provider configured, initializing');
+      // Welcome already shown - initialize LUMARA directly
+      debugPrint('LUMARA Assistant: Welcome already shown, initializing directly');
       final cubit = context.read<LumaraAssistantCubit>();
       if (cubit.state is! LumaraAssistantLoaded) {
         cubit.initializeLumara();

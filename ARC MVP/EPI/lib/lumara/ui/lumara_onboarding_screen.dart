@@ -243,6 +243,7 @@ class LumaraOnboardingScreen extends StatelessWidget {
     if (context.mounted && result == true) {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool('lumara_onboarding_completed', true);
+      await prefs.setBool('lumara_welcome_shown', true); // Mark welcome as shown
       Navigator.pop(context);
     }
   }
