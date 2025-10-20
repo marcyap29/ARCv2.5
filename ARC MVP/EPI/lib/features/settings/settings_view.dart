@@ -204,28 +204,6 @@ class SettingsView extends StatelessWidget {
                 ),
               ],
             ),
-
-            const SizedBox(height: 32),
-
-            // LUMARA Settings Section
-            _buildSection(
-              context,
-              title: 'LUMARA AI',
-              children: [
-                _buildSettingsTile(
-                  context,
-                  title: 'LUMARA Settings',
-                  subtitle: 'Configure your AI reflection partner',
-                  icon: Icons.auto_awesome,
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (context) => const LumaraSettingsView()),
-                    );
-                  },
-                ),
-              ],
-            ),
             
             const SizedBox(height: 32),
             
