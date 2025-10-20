@@ -369,7 +369,7 @@ class McpMediaExportService {
           'id': entry['id'],
           'type': 'journal_entry',
           'content': entry['content'],
-          'created_at': entry['created_at'],
+          'created_at': entry['timestamp'], // Use 'timestamp' field from processed entry
           'metadata': entry['metadata'] ?? {},
           'media_count': (entry['media'] as List<dynamic>? ?? []).length,
           'media': entry['media'] ?? [], // Include full media array with SHA-256 references

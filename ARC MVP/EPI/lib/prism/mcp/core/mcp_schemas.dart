@@ -192,25 +192,33 @@ class McpNode {
     final timestampValue = json['timestamp'] ?? json['created_at'] ?? json['createdAt'];
     
     if (timestampValue == null) {
-      return DateTime.now();
+      print('⚠️ No timestamp found in JSON, using current time');
+      return DateTime.now().toUtc();
     }
     
     if (timestampValue is String) {
       try {
-        return DateTime.parse(timestampValue);
+        // Parse and ensure UTC to preserve original date/time
+        final parsed = DateTime.parse(timestampValue);
+        final utc = parsed.toUtc();
+        print('🕐 DEBUG: Parsed timestamp "$timestampValue" -> $utc (UTC)');
+        return utc;
       } catch (e) {
         print('⚠️ Failed to parse timestamp "$timestampValue": $e');
-        return DateTime.now();
+        return DateTime.now().toUtc();
       }
     }
     
     if (timestampValue is int) {
       // Handle Unix timestamp (seconds)
-      return DateTime.fromMillisecondsSinceEpoch(timestampValue * 1000);
+      final parsed = DateTime.fromMillisecondsSinceEpoch(timestampValue * 1000);
+      final utc = parsed.toUtc();
+      print('🕐 DEBUG: Parsed Unix timestamp $timestampValue -> $utc (UTC)');
+      return utc;
     }
     
     print('⚠️ Unknown timestamp format: $timestampValue (${timestampValue.runtimeType})');
-    return DateTime.now();
+    return DateTime.now().toUtc();
   }
 }
 

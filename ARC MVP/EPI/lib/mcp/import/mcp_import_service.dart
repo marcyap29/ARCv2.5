@@ -485,7 +485,11 @@ class McpImportService {
     final journalZip = File('${bundleDir.path}/journal_v1.mcp.zip');
     if (await journalZip.exists()) {
       print('📦 Found journal_v1.mcp.zip, using structured import...');
+      print('🕐 DEBUG: Journal ZIP path: ${journalZip.path}');
+      print('🕐 DEBUG: Journal ZIP exists: ${await journalZip.exists()}');
       return await _importFromJournalZip(journalZip, batchId, errors, warnings, options);
+    } else {
+      print('❌ DEBUG: journal_v1.mcp.zip not found at ${journalZip.path}');
     }
 
     // Fallback to nodes.jsonl (legacy format)
@@ -617,11 +621,21 @@ class McpImportService {
             
             // Create McpNode from entry JSON
             final timestampValue = entryJson['timestamp'] as String?;
-            final parsedTimestamp = timestampValue != null 
-                ? DateTime.parse(timestampValue)
-                : DateTime.now();
+            DateTime parsedTimestamp;
             
-            print('🕐 DEBUG: Entry ${entryJson['id']} timestamp: $timestampValue -> $parsedTimestamp');
+            if (timestampValue != null) {
+              try {
+                // Parse the timestamp and ensure it's treated as UTC to preserve the original date
+                parsedTimestamp = DateTime.parse(timestampValue).toUtc();
+                print('🕐 DEBUG: Entry ${entryJson['id']} timestamp: $timestampValue -> $parsedTimestamp (UTC)');
+              } catch (e) {
+                print('⚠️ DEBUG: Failed to parse timestamp "$timestampValue": $e, using current time');
+                parsedTimestamp = DateTime.now().toUtc();
+              }
+            } else {
+              print('⚠️ DEBUG: No timestamp found for entry ${entryJson['id']}, using current time');
+              parsedTimestamp = DateTime.now().toUtc();
+            }
             
             final node = McpNode(
               id: entryJson['id'] as String,
@@ -649,9 +663,10 @@ class McpImportService {
             // Convert to journal entry and import
             final journalEntry = await _convertMcpNodeToJournalEntry(node);
             if (journalEntry != null) {
+              print('🕐 DEBUG: Journal entry created with timestamp: ${journalEntry.createdAt}');
               await _importJournalEntry(journalEntry);
               journalEntriesImported++;
-              print('✅ Imported journal entry: ${journalEntry.title}');
+              print('✅ Imported journal entry: ${journalEntry.title} (${journalEntry.createdAt})');
             }
 
             // Map SAGE fields to MIRA structure
