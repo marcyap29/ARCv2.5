@@ -10,6 +10,9 @@ import 'mcp_bundle_parser.dart';
 import 'semantic_similarity_service.dart';
 import 'reflective_prompt_generator.dart';
 import 'lumara_response_formatter.dart';
+import '../llm/llm_provider_factory.dart';
+import '../llm/llm_provider.dart';
+import '../config/api_config.dart';
 
 /// Enhanced LUMARA API with multimodal reflection
 class EnhancedLumaraApi {
@@ -18,6 +21,10 @@ class EnhancedLumaraApi {
   final SemanticSimilarityService _similarity = SemanticSimilarityService();
   final ReflectivePromptGenerator _promptGen = ReflectivePromptGenerator();
   final LumaraResponseFormatter _formatter = LumaraResponseFormatter();
+  
+  // LLM Provider for Gemini responses
+  LLMProviderBase? _llmProvider;
+  LumaraAPIConfig? _apiConfig;
   
   bool _initialized = false;
 
@@ -29,6 +36,19 @@ class EnhancedLumaraApi {
     
     try {
       await _storage.initialize();
+      
+      // Initialize LLM provider for Gemini responses
+      _apiConfig = LumaraAPIConfig.instance;
+      await _apiConfig!.initialize();
+      
+      final factory = LLMProviderFactory(_apiConfig!);
+      _llmProvider = factory.getBestProvider();
+      
+      if (_llmProvider != null) {
+        print('LUMARA: LLM Provider initialized: ${_llmProvider!.name}');
+      } else {
+        print('LUMARA: No LLM provider available - will use fallback responses');
+      }
       
       // Load MCP bundle if path provided
       if (mcpBundlePath != null) {
@@ -120,19 +140,44 @@ class EnhancedLumaraApi {
         nextStepSuggestions: _generateNextSteps(matches),
       );
       
-      // 6. Format for display
+      // 6. Generate Gemini response if LLM provider is available
+      if (_llmProvider != null && matches.isNotEmpty) {
+        try {
+          final context = {
+            'systemPrompt': 'You are LUMARA, a reflective AI partner. Generate thoughtful, personalized reflection prompts based on the user\'s current thoughts and their historical journal entries. Be warm, insightful, and encouraging.',
+            'userPrompt': 'Current entry: "$entryText"\n\nHistorical context: ${matches.map((m) => 'From ${m.approxDate?.year}: ${m.excerpt}').join('\n')}\n\nGenerate 2-3 reflective prompts that connect their current thoughts to their past experiences.',
+          };
+          
+          final geminiResponse = await _llmProvider!.generateResponse(context);
+          final formatted = '✨ Reflection\n\n$geminiResponse';
+          
+          _analytics.logLumaraEvent('reflection_generated', data: {
+            'matches': matches.length,
+            'top_similarity': matches.isNotEmpty ? matches.first.similarity : 0,
+            'gemini_generated': true,
+          });
+          
+          return formatted;
+        } catch (e) {
+          print('LUMARA: Error generating Gemini response: $e');
+          // Fall through to template-based response
+        }
+      }
+      
+      // 7. Format template-based response for display
       final formatted = _formatter.formatResponse(response);
       
       _analytics.logLumaraEvent('reflection_generated', data: {
         'matches': matches.length,
         'top_similarity': matches.isNotEmpty ? matches.first.similarity : 0,
+        'gemini_generated': false,
       });
       
       return formatted;
       
     } catch (e) {
       print('LUMARA: Reflection generation error: $e');
-      return _generateFallbackResponse(intent, phase);
+      return await _generateFallbackResponse(intent, phase);
     }
   }
 
@@ -170,8 +215,26 @@ class EnhancedLumaraApi {
     return suggestions;
   }
 
-  String _generateFallbackResponse(String intent, String? phase) {
-    // Return helpful response when indexing unavailable
+  Future<String> _generateFallbackResponse(String intent, String? phase) async {
+    // Use Gemini to generate contextual response even without historical data
+    if (_llmProvider != null) {
+      try {
+        final context = {
+          'systemPrompt': 'You are LUMARA, a reflective AI partner. Generate thoughtful, personalized reflection prompts that help users explore their current thoughts and feelings. Be warm, insightful, and encouraging.',
+          'userPrompt': 'Generate 2-3 reflective prompts for someone who is journaling. Focus on self-discovery, growth, and understanding their current moment. Make them personal and thought-provoking.',
+        };
+        
+        final response = await _llmProvider!.generateResponse(context);
+        
+        // Format the response with sparkle icon
+        return '✨ Reflection\n\n$response';
+      } catch (e) {
+        print('LUMARA: Error generating Gemini fallback response: $e');
+        // Fall through to hardcoded response
+      }
+    }
+    
+    // Hardcoded fallback only if Gemini fails
     return '''
 ✨ Reflection
 
