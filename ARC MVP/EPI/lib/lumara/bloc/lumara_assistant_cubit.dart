@@ -231,9 +231,9 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
       final currentProvider = _enhancedApi.getCurrentProvider();
       
       // If current provider is the same as the best provider, treat as automatic mode
-      final isManualSelection = currentProvider?.name != bestProvider?.name;
+      final isManualSelection = currentProvider != bestProvider?.name;
       
-      print('LUMARA Debug: Current provider: ${currentProvider?.name ?? 'none'}');
+      print('LUMARA Debug: Current provider: ${currentProvider ?? 'none'}');
       print('LUMARA Debug: Best provider: ${bestProvider?.name ?? 'none'}');
       print('LUMARA Debug: Is manual selection: $isManualSelection');
 
@@ -287,7 +287,7 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
           print('LUMARA Debug: [Priority 2] Falling back to Cloud API...');
         }
       } else {
-        print('LUMARA Debug: [Manual Selection] Using manually selected provider: ${currentProvider?.name}');
+            print('LUMARA Debug: [Manual Selection] Using manually selected provider: ${currentProvider}');
         print('LUMARA Debug: [Priority 2] Falling back to Cloud API...');
       }
 

@@ -112,7 +112,7 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
     super.initState();
     _lumaraApi = LumaraInlineApi(_analytics);
     _enhancedLumaraApi = EnhancedLumaraApi(_analytics);
-    _enhancedLumaraApi.initialize();
+    _initializeLumara();
     _ocrService = StubOcrService(_analytics); // TODO: Use platform-specific implementation
     
     // Initialize enhanced OCP services
@@ -211,6 +211,19 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
     }
   }
 
+  /// Initialize LUMARA with MCP bundle if available
+  Future<void> _initializeLumara() async {
+    try {
+      // TODO: Get MCP bundle path from settings or last import
+      // For now, initialize without bundle
+      await _enhancedLumaraApi.initialize();
+      print('LUMARA: Initialized successfully');
+    } catch (e) {
+      print('LUMARA: Initialization error: $e');
+      // Continue with degraded mode
+    }
+  }
+
   void _onLumaraFabTapped() {
     _analytics.logLumaraEvent('fab_tapped');
     
@@ -240,6 +253,7 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
         entryText: _entryState.text,
         intent: 'reflect', // Simple reflection intent
         phase: _entryState.phase,
+        userId: 'default', // TODO: Get from user context
       );
 
       // Insert the reflection directly into the text

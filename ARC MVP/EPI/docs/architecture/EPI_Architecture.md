@@ -10,6 +10,92 @@
   - VEIL: Self-Pruning & Coherence (Integrated with MIRA v0.2)
   - RIVET: Risk-Validation Evidence Tracker (Extended with Draft & Chat Analysis)
 
+  ## 🌟 **LUMARA v2.0 Multimodal Reflective Engine Architecture** (Updated January 20, 2025)
+
+  **Complete Multimodal Reflective Intelligence System - PRODUCTION READY**:
+  ```
+  LUMARA v2.0 System:
+  ├── Data Layer
+  │   ├── ReflectiveNode Models
+  │   │   ├── Core data models with Hive adapters
+  │   │   ├── Multimodal data storage (text, photos, audio, video)
+  │   │   ├── Phase hints and metadata tracking
+  │   │   └── Media references with SHA-256 linking
+  │   ├── ReflectiveNodeStorage
+  │   │   ├── Hive-based persistence with query capabilities
+  │   │   ├── User filtering and date range queries
+  │   │   ├── Search functionality across content types
+  │   │   └── Statistics and analytics methods
+  │   └── McpBundleParser
+  │       ├── Parse nodes.jsonl for journal entries
+  │       ├── Extract journal_v1.mcp.zip entries
+  │       ├── Process mcp_media_*.zip files for media
+  │       └── Handle drafts and metadata extraction
+  ├── Intelligence Layer
+  │   ├── SemanticSimilarityService
+  │   │   ├── TF-IDF based keyword similarity
+  │   │   ├── Jaccard similarity calculation
+  │   │   ├── Recency boosting (recent entries preferred)
+  │   │   ├── Phase boosting (same/adjacent phases)
+  │   │   └── Keyword overlap boosting
+  │   ├── ReflectivePromptGenerator
+  │   │   ├── Phase-aware template system
+  │   │   ├── Temporal connection prompts
+  │   │   ├── Keyword/theme resonance prompts
+  │   │   ├── Cross-modal pattern detection
+  │   │   └── Fallback prompts for no-match scenarios
+  │   └── LumaraResponseFormatter
+  │       ├── Visual distinction with sparkle icons
+  │       ├── Context display with connected entries
+  │       ├── Cross-modal pattern highlighting
+  │       └── Proper markdown-style formatting
+  ├── Integration Layer
+  │   ├── EnhancedLumaraApi
+  │   │   ├── Orchestrates all services with full pipeline
+  │   │   ├── MCP bundle indexing capability
+  │   │   ├── Similarity search and ranking
+  │   │   ├── Contextual prompt generation
+  │   │   └── Graceful fallback when no matches
+  │   ├── LumaraInlineApi
+  │   │   ├── Compatibility layer redirecting to enhanced API
+  │   │   ├── PII scrubbing and analytics logging
+  │   │   ├── Specialized methods for softer/deeper reflections
+  │   │   └── No more placeholder responses
+  │   └── JournalScreen Integration
+  │       ├── Proper LUMARA initialization
+  │       ├── Enhanced reflection generation with user context
+  │       ├── Error handling and user feedback
+  │       └── Real-time response formatting
+  └── Configuration Layer
+      ├── LumaraSettingsView
+      │   ├── Comprehensive configuration interface
+      │   ├── Similarity threshold sliders (0.1-1.0)
+      │   ├── Lookback period settings (1-10 years)
+      │   ├── Max matches configuration (1-20)
+      │   ├── Cross-modal awareness toggle
+      │   └── Real-time status and node count display
+      ├── Settings Integration
+      │   ├── LUMARA section with sparkle icon
+      │   ├── Direct navigation to configuration
+      │   └── User-friendly descriptions
+      └── Bundle Management
+          ├── MCP bundle path selection
+          ├── Bundle indexing controls
+          ├── Status monitoring and error handling
+          └── Future file picker integration
+  ```
+
+  **Key Features Implemented**:
+  - ✅ **No More Placeholder Responses**: Real similarity-based reflection generation
+  - ✅ **Multimodal Awareness**: Connects text, photos, audio, video, and chat across time
+  - ✅ **Phase-Aware Prompts**: Different tones for Recovery, Breakthrough, Consolidation, etc.
+  - ✅ **3-5 Year Lookback**: Searches historical entries with configurable time range
+  - ✅ **Visual Distinction**: Formatted responses with sparkle icons and clear formatting
+  - ✅ **Graceful Fallback**: Helpful responses when no historical matches found
+  - ✅ **Performance Optimized**: TF-IDF similarity with boosting algorithms
+  - ✅ **MCP Bundle Integration**: Parses and indexes imported data for reflection
+  - ✅ **Build Compatibility**: All code compiles successfully with no errors
+
   ## 🔄 **RIVET & SENTINEL Extensions Architecture** (Updated January 17, 2025)
 
   **Unified Reflective Analysis System - PRODUCTION READY**:

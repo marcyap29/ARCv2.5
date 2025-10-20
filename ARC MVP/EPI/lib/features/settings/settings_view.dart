@@ -12,6 +12,7 @@ import 'privacy_settings_view.dart';
 import 'memory_mode_settings_view.dart';
 import 'memory_snapshot_management_view.dart';
 import 'conflict_management_view.dart';
+import 'lumara_settings_view.dart';
 import '../../ui/screens/mcp_management_screen.dart';
 import '../../arc/core/journal_repository.dart';
 
@@ -176,6 +177,50 @@ class SettingsView extends StatelessWidget {
                     Navigator.push(
                       context,
                       MaterialPageRoute(builder: (context) => const McpBundleHealthView()),
+                    );
+                  },
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 32),
+
+            // LUMARA Settings Section
+            _buildSection(
+              context,
+              title: 'LUMARA AI',
+              children: [
+                _buildSettingsTile(
+                  context,
+                  title: 'LUMARA Settings',
+                  subtitle: 'Configure your AI reflection partner',
+                  icon: Icons.auto_awesome,
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const LumaraSettingsView()),
+                    );
+                  },
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 32),
+
+            // LUMARA Settings Section
+            _buildSection(
+              context,
+              title: 'LUMARA AI',
+              children: [
+                _buildSettingsTile(
+                  context,
+                  title: 'LUMARA Settings',
+                  subtitle: 'Configure your AI reflection partner',
+                  icon: Icons.auto_awesome,
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const LumaraSettingsView()),
                     );
                   },
                 ),

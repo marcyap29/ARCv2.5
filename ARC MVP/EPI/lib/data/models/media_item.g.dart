@@ -27,13 +27,16 @@ class MediaItemAdapter extends TypeAdapter<MediaItem> {
       ocrText: fields[7] as String?,
       analysisData: (fields[8] as Map?)?.cast<String, dynamic>(),
       altText: fields[9] as String?,
+      sha256: fields[10] as String?,
+      thumbUri: fields[11] as String?,
+      fullRef: fields[12] as String?,
     );
   }
 
   @override
   void write(BinaryWriter writer, MediaItem obj) {
     writer
-      ..writeByte(10)
+      ..writeByte(13)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -53,7 +56,13 @@ class MediaItemAdapter extends TypeAdapter<MediaItem> {
       ..writeByte(8)
       ..write(obj.analysisData)
       ..writeByte(9)
-      ..write(obj.altText);
+      ..write(obj.altText)
+      ..writeByte(10)
+      ..write(obj.sha256)
+      ..writeByte(11)
+      ..write(obj.thumbUri)
+      ..writeByte(12)
+      ..write(obj.fullRef);
   }
 
   @override
@@ -133,6 +142,9 @@ MediaItem _$MediaItemFromJson(Map<String, dynamic> json) => MediaItem(
       ocrText: json['ocrText'] as String?,
       analysisData: json['analysisData'] as Map<String, dynamic>?,
       altText: json['altText'] as String?,
+      sha256: json['sha256'] as String?,
+      thumbUri: json['thumbUri'] as String?,
+      fullRef: json['fullRef'] as String?,
     );
 
 Map<String, dynamic> _$MediaItemToJson(MediaItem instance) => <String, dynamic>{
@@ -146,6 +158,9 @@ Map<String, dynamic> _$MediaItemToJson(MediaItem instance) => <String, dynamic>{
       'ocrText': instance.ocrText,
       'analysisData': instance.analysisData,
       'altText': instance.altText,
+      'sha256': instance.sha256,
+      'thumbUri': instance.thumbUri,
+      'fullRef': instance.fullRef,
     };
 
 const _$MediaTypeEnumMap = {
