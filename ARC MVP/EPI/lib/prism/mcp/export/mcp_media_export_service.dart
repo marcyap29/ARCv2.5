@@ -148,6 +148,7 @@ class McpMediaExportService {
       'emotion': entry.emotion,
       'emotionReason': entry.emotionReason,
       'phase': entry.phase,
+      'keywords': entry.keywords, // Include manual keywords
       'metadata': entry.metadata,
     };
 

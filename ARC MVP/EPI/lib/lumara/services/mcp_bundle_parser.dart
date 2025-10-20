@@ -203,12 +203,16 @@ class McpBundleParser {
         ];
       }
       
+      // Use original keywords if available, otherwise extract from content
+      final originalKeywords = json['keywords'] as List<dynamic>?;
+      final keywords = originalKeywords?.cast<String>() ?? _extractKeywords(content);
+      
       return ReflectiveNode(
         id: id,
         mcpId: metadata['original_mcp_id'] as String?,
         type: NodeType.journal,
         contentText: content,
-        keywords: _extractKeywords(content),
+        keywords: keywords,
         phaseHint: phaseHint,
         mediaRefs: mediaRefs,
         createdAt: createdAt,
@@ -258,12 +262,16 @@ class McpBundleParser {
         }).toList();
       }
       
+      // Use original keywords if available, otherwise extract from content
+      final originalKeywords = json['keywords'] as List<dynamic>?;
+      final keywords = originalKeywords?.cast<String>() ?? _extractKeywords(content);
+      
       return ReflectiveNode(
         id: id,
         mcpId: metadata['original_mcp_id'] as String?,
         type: NodeType.journal,
         contentText: content,
-        keywords: _extractKeywords(content),
+        keywords: keywords,
         phaseHint: phaseHint,
         mediaRefs: mediaRefs,
         createdAt: timestamp,
