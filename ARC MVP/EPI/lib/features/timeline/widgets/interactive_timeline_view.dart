@@ -225,57 +225,23 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
       );
     }
 
+    // Simplified header - just the title
     return Container(
-      padding: const EdgeInsets.all(16),
-      child: Row(
-        children: [
-          Expanded(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
             child: Text(
               'Your Sacred Journey',
               style: heading1Style(context).copyWith(
-                fontSize: 24,
-                fontWeight: FontWeight.w300,
+          fontSize: 20,
+          fontWeight: FontWeight.w400,
               ),
               textAlign: TextAlign.center,
             ),
-          ),
-          // Button group with flexible spacing
-          Flexible(
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // Refresh button
-                IconButton(
-                  onPressed: _refreshTimeline,
-                  icon: const Icon(Icons.refresh),
-                  color: kcPrimaryColor,
-                  tooltip: 'Refresh timeline',
-                ),
-                // Phase change button
-                IconButton(
-                  onPressed: _showPhaseChangeDialog,
-                  icon: const Icon(Icons.auto_awesome),
-                  color: kcPrimaryColor,
-                  tooltip: 'Change phase',
-                ),
-                // Selection mode button
-                IconButton(
-                  onPressed: _enterSelectionMode,
-                  icon: const Icon(Icons.checklist),
-                  color: kcPrimaryColor,
-                  tooltip: 'Select multiple entries',
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
     );
   }
 
   Widget _buildInteractiveTimeline() {
     return Stack(
-      children: [
+              children: [
         RefreshIndicator(
           onRefresh: _refreshTimeline,
           child: _build2DGridTimeline(),
@@ -293,9 +259,9 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
               color: Colors.white,
             ),
             mini: true,
+            ),
           ),
-        ),
-      ],
+        ],
     );
   }
 
@@ -305,11 +271,6 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
     
     return CustomScrollView(
       slivers: [
-        // Timeline header
-        SliverToBoxAdapter(
-          child: _buildTimelineHeader(),
-        ),
-        
         // Timeline entries with sticky headers
         ...groupedEntries.asMap().entries.map((groupEntry) {
           final periodIndex = groupEntry.key;
@@ -327,7 +288,7 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
               
               // Horizontal scrollable row of entries
               SliverToBoxAdapter(
-                child: SizedBox(
+      child: SizedBox(
                   height: 220, // Increased height for better card visibility
                   child: ListView.builder(
                     scrollDirection: Axis.horizontal,
@@ -499,7 +460,7 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
         child: Row(
-          children: [
+                children: [
             Expanded(
               child: Text(
                 title,
@@ -509,12 +470,12 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
                 ),
               ),
             ),
-            Container(
+                  Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               decoration: BoxDecoration(
                 color: kcPrimaryColor.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(
+                            border: Border.all(
                   color: kcPrimaryColor.withOpacity(0.3),
                   width: 1,
                 ),
@@ -522,14 +483,14 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
               child: Text(
                 '$entryCount entries',
                 style: captionStyle(context).copyWith(
-                  color: kcPrimaryColor,
+                              color: kcPrimaryColor,
                   fontWeight: FontWeight.w500,
                 ),
               ),
             ),
-          ],
-        ),
-      ),
+                      ],
+                    ),
+                  ),
     );
   }
 
@@ -539,9 +500,9 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
     return GestureDetector(
       onTap: () => _onEntryTap(entry),
       onLongPress: () => _onEntryLongPress(entry),
-      child: Container(
-        decoration: BoxDecoration(
-          color: isSelected 
+                      child: Container(
+                        decoration: BoxDecoration(
+                            color: isSelected
               ? kcPrimaryColor.withOpacity(0.1)
               : kcSurfaceColor,
           borderRadius: BorderRadius.circular(12),
@@ -556,8 +517,8 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
               offset: const Offset(0, 2),
             ),
           ],
-        ),
-        child: Padding(
+                        ),
+                        child: Padding(
           padding: const EdgeInsets.all(12.0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -578,7 +539,7 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
                   if (entry.hasArcform)
                     Icon(
                       Icons.auto_awesome,
-                      size: 16,
+                            size: 16,
                       color: kcPrimaryColor,
                     ),
                 ],
@@ -632,11 +593,11 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
                     ),
                   ),
                 ],
+                    ),
+                ],
               ),
-            ],
+            ),
           ),
-        ),
-      ),
     );
   }
 
@@ -929,25 +890,12 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          // Navigation hint
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Scroll vertically to navigate time periods',
-                style: captionStyle(context).copyWith(
-                  color: kcSecondaryTextColor.withOpacity(0.6),
-                ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                'Swipe horizontally to browse entries',
-                style: captionStyle(context).copyWith(
-                  color: kcSecondaryTextColor.withOpacity(0.4),
-                  fontSize: 12,
-                ),
-              ),
-            ],
+          // Simplified navigation hint
+          Text(
+            'Scroll to explore your journey',
+            style: captionStyle(context).copyWith(
+              color: kcSecondaryTextColor.withOpacity(0.6),
+            ),
           ),
 
           // Entry counter
