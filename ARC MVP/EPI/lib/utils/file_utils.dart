@@ -7,14 +7,14 @@ class FileUtils {
     return path.toLowerCase().endsWith('.zip') || path.toLowerCase().endsWith('.mcpkg');
   }
 
-  /// Check if path is an MCP folder (.mcp/)
+  /// Check if path is an MCP folder (.mcp/) - DEPRECATED, use .zip files only
   static bool isMcpFolder(String path) {
-    return path.toLowerCase().endsWith('.mcp') || path.toLowerCase().endsWith('.mcp/');
+    return false; // No longer supported
   }
 
-  /// Check if path is a valid MCP input (package or folder)
+  /// Check if path is a valid MCP input (package only)
   static bool isValidMcpInput(String path) {
-    return isMcpPackage(path) || isMcpFolder(path);
+    return isMcpPackage(path); // Only .zip files supported
   }
 
   /// Get file extension

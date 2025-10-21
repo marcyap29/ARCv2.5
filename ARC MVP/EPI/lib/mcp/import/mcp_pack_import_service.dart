@@ -8,7 +8,7 @@ import '../../models/journal_entry_model.dart';
 import '../../data/models/media_item.dart';
 import '../../arc/core/journal_repository.dart';
 
-/// MCP Pack Import Service for .zip and .mcp/ formats
+/// MCP Pack Import Service for .zip files only
 class McpPackImportService {
   final JournalRepository? _journalRepo;
 
@@ -16,37 +16,28 @@ class McpPackImportService {
     JournalRepository? journalRepo,
   }) : _journalRepo = journalRepo;
 
-  /// Import from MCP package (.zip) or folder (.mcp/)
+  /// Import from MCP package (.zip) only
   Future<McpImportResult> importFromPath(String inputPath) async {
     try {
       print('📥 Starting MCP import from: $inputPath');
       
-      // Detect if it's a .zip file or .mcp/ folder
+      // Only accept .zip files
       final inputFile = File(inputPath);
-      final inputDir = Directory(inputPath);
       
-      Directory mcpDir;
-      bool isZipped = false;
+      if (!await inputFile.exists() || !inputPath.endsWith('.zip')) {
+        throw Exception('Invalid input: must be .zip file');
+      }
       
-      if (await inputFile.exists() && inputPath.endsWith('.zip')) {
-        // It's a .zip MCP package file
-        print('📦 Detected MCP package (.zip)');
-        isZipped = true;
-        
-        // Extract to temporary directory
-        final tempDir = Directory.systemTemp.createTempSync('mcp_import_');
-        await extractFileToDisk(inputPath, tempDir.path);
-        mcpDir = Directory(path.join(tempDir.path, 'mcp'));
-        
-        if (!await mcpDir.exists()) {
-          throw Exception('Invalid MCP package: no mcp/ directory found');
-        }
-      } else if (await inputDir.exists() && inputPath.endsWith('.mcp')) {
-        // It's a .mcp/ folder
-        print('📁 Detected MCP folder (.mcp/)');
-        mcpDir = inputDir;
-      } else {
-        throw Exception('Invalid input: must be .zip file or .mcp/ folder');
+      // It's a .zip MCP package file
+      print('📦 Detected MCP package (.zip)');
+      
+      // Extract to temporary directory
+      final tempDir = Directory.systemTemp.createTempSync('mcp_import_');
+      await extractFileToDisk(inputPath, tempDir.path);
+      final mcpDir = Directory(path.join(tempDir.path, 'mcp'));
+      
+      if (!await mcpDir.exists()) {
+        throw Exception('Invalid MCP package: no mcp/ directory found');
       }
 
       // Read and validate manifest
@@ -72,10 +63,8 @@ class McpPackImportService {
       final entriesImported = await _importJournalEntries(mcpDir, photoMapping);
       print('📝 Imported $entriesImported journal entries');
 
-      // Clean up temporary directory if we extracted from ZIP
-      if (isZipped) {
-        await mcpDir.parent.delete(recursive: true);
-      }
+      // Clean up temporary directory (always extracted from ZIP)
+      await mcpDir.parent.delete(recursive: true);
 
       return McpImportResult(
         success: true,

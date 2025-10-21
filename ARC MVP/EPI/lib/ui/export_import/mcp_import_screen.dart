@@ -41,20 +41,6 @@ class _McpImportScreenState extends State<McpImportScreen> {
     }
   }
 
-  Future<void> _selectMcpFolder() async {
-    try {
-      final result = await FilePicker.platform.getDirectoryPath();
-      
-      if (result != null) {
-        setState(() {
-          _selectedPath = result;
-          _detectedFormat = FileUtils.isMcpFolder(result) ? 'MCP Folder (.mcp/)' : 'Unknown';
-        });
-      }
-    } catch (e) {
-      _showErrorDialog('Failed to select folder: $e');
-    }
-  }
 
   Future<void> _importMcpData() async {
     if (_isImporting || _selectedPath == null) return;
@@ -236,7 +222,7 @@ class _McpImportScreenState extends State<McpImportScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Select an MCP package file (.zip) or folder (.mcp/) to restore your data.',
+                    'Select an MCP package file (.zip) to restore your data.',
                     style: bodyStyle(context).copyWith(
                       color: kcSecondaryTextColor,
                     ),
@@ -268,19 +254,9 @@ class _McpImportScreenState extends State<McpImportScreen> {
             // Package file selection
             _buildSelectionTile(
               title: 'Select MCP Package File',
-              subtitle: 'Choose a .mcpkg file to restore from',
+              subtitle: 'Choose a .zip file to restore from',
               icon: Icons.file_present,
               onTap: _selectMcpFile,
-            ),
-
-            const SizedBox(height: 8),
-
-            // Folder selection
-            _buildSelectionTile(
-              title: 'Select MCP Folder',
-              subtitle: 'Choose a .mcp/ folder to restore from',
-              icon: Icons.folder_open,
-              onTap: _selectMcpFolder,
             ),
 
             // Selected file info
