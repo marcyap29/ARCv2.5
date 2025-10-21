@@ -2,6 +2,30 @@
 
 ## [Unreleased]
 
+### 🔧 **Phase Dropdown & Auto-Capitalization** - January 21, 2025
+
+#### **Phase Selection Enhancement** ✅ **PRODUCTION READY**
+- **Dropdown Implementation**: Replaced phase text field with structured dropdown containing all 6 ATLAS phases
+- **Data Integrity**: Prevents typos and invalid phase entries by restricting selection to valid options
+- **User Experience**: Clean, intuitive interface for phase selection in journal editor
+- **Phase Options**: Discovery, Expansion, Transition, Consolidation, Recovery, Breakthrough
+- **State Management**: Properly updates `_editablePhase` and `_hasBeenModified` flags
+- **Controller Sync**: Maintains consistency with existing `_phaseController` for backward compatibility
+
+#### **Auto-Capitalization Enhancement** ✅ **PRODUCTION READY**
+- **Sentence Capitalization**: Added `TextCapitalization.sentences` to journal text field and chat inputs
+- **Word Capitalization**: Added `TextCapitalization.words` to location, phase, and keyword fields
+- **Comprehensive Coverage**: Applied to all major text input fields across the application
+- **User Experience**: Automatic proper capitalization for better writing experience
+- **Consistent Implementation**: Standardized capitalization across journal, chat, and form fields
+
+#### **Technical Implementation** ✅ **COMPLETE**
+- **Journal Screen**: Updated main text field, location field, phase dropdown, and keyword field
+- **LUMARA Chat**: Updated assistant screen and session view text fields
+- **Location Picker**: Updated search field with word capitalization
+- **Chat Management**: Updated new chat dialog with sentence capitalization
+- **Phase Dropdown**: Implemented `DropdownButtonFormField` with 6 predefined ATLAS phases
+
 ### 🔧 **Timeline Ordering & Timestamp Fixes** - January 21, 2025
 
 #### **Critical Timeline Ordering Fix** ✅ **PRODUCTION READY**

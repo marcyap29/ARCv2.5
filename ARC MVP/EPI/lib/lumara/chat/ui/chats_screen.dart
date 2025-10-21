@@ -630,6 +630,7 @@ class _NewChatDialogState extends State<_NewChatDialog> {
       content: TextField(
         controller: _controller,
         autofocus: true,
+        textCapitalization: TextCapitalization.sentences,
         decoration: const InputDecoration(
           hintText: 'Enter chat subject...',
           border: OutlineInputBorder(),

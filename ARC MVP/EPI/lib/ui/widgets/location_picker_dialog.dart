@@ -45,6 +45,7 @@ class _LocationPickerDialogState extends State<LocationPickerDialog> {
             // Search field
             TextField(
               controller: _searchController,
+              textCapitalization: TextCapitalization.words,
               decoration: InputDecoration(
                 hintText: 'Search for a location...',
                 prefixIcon: const Icon(Icons.search),

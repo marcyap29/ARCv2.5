@@ -1205,6 +1205,7 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
           // Location field
           TextField(
             controller: _locationController,
+            textCapitalization: TextCapitalization.words,
             decoration: InputDecoration(
               labelText: 'Location',
               hintText: 'Where were you?',
@@ -1238,9 +1239,9 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
           ),
           const SizedBox(height: 12),
           
-          // Phase field
-          TextField(
-            controller: _phaseController,
+          // Phase dropdown
+          DropdownButtonFormField<String>(
+            value: _editablePhase,
             decoration: InputDecoration(
               labelText: 'Phase',
               hintText: 'What phase of life?',
@@ -1250,11 +1251,21 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
               ),
               contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             ),
+            items: const [
+              DropdownMenuItem(value: 'Discovery', child: Text('Discovery')),
+              DropdownMenuItem(value: 'Expansion', child: Text('Expansion')),
+              DropdownMenuItem(value: 'Transition', child: Text('Transition')),
+              DropdownMenuItem(value: 'Consolidation', child: Text('Consolidation')),
+              DropdownMenuItem(value: 'Recovery', child: Text('Recovery')),
+              DropdownMenuItem(value: 'Breakthrough', child: Text('Breakthrough')),
+            ],
             onChanged: (value) {
               setState(() {
-                _editablePhase = value.trim().isEmpty ? null : value.trim();
+                _editablePhase = value;
                 _hasBeenModified = true;
               });
+              // Update the phase controller for consistency
+              _phaseController.text = value ?? '';
             },
           ),
         ],
@@ -1764,6 +1775,7 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
           children: [
             TextField(
               controller: _keywordController,
+              textCapitalization: TextCapitalization.words,
               decoration: const InputDecoration(
                 hintText: 'Enter keywords separated by commas',
                 border: OutlineInputBorder(),
@@ -2042,6 +2054,7 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
       controller: _textController,
       onChanged: _onTextChanged,
       maxLines: null,
+      textCapitalization: TextCapitalization.sentences,
       style: theme.textTheme.bodyLarge?.copyWith(
         color: Colors.white,
         fontSize: 16,

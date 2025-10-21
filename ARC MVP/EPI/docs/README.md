@@ -1,11 +1,22 @@
 # EPI Documentation
 
 **Last Updated:** January 21, 2025
-**Status:** Production Ready ✅ - MCP Export/Import System Simplified, LUMARA v2.0 Complete & Timeline Ordering Fixed
+**Status:** Production Ready ✅ - MCP Export/Import System Simplified, LUMARA v2.0 Complete, Timeline Ordering Fixed & Phase Dropdown + Auto-Capitalization
 
 This directory contains comprehensive documentation for the EPI (Evolving Personal Intelligence) project - an 8-module intelligent journaling system built with Flutter.
 
 ## 🆕 Latest Updates (January 21, 2025)
+
+**🔧 Phase Dropdown & Auto-Capitalization**
+
+Enhanced user experience with structured phase selection and automatic capitalization:
+- **Phase Dropdown Implementation** - Replaced phase text field with structured dropdown containing all 6 ATLAS phases
+- **Data Integrity** - Prevents typos and invalid phase entries by restricting selection to valid options
+- **User Experience** - Clean, intuitive interface for phase selection in journal editor
+- **Phase Options** - Discovery, Expansion, Transition, Consolidation, Recovery, Breakthrough
+- **Auto-Capitalization** - Added TextCapitalization.sentences to journal text field and chat inputs
+- **Word Capitalization** - Added TextCapitalization.words to location, phase, and keyword fields
+- **Comprehensive Coverage** - Applied to all major text input fields across the application
 
 **🔧 Timeline Ordering & Timestamp Fixes**
 

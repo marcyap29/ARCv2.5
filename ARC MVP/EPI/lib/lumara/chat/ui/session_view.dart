@@ -300,6 +300,7 @@ class _SessionViewState extends State<SessionView> {
                 controller: _messageController,
                 style: bodyStyle(context),
                 maxLines: null,
+                textCapitalization: TextCapitalization.sentences,
                 decoration: InputDecoration(
                   hintText: 'Type your message...',
                   hintStyle: bodyStyle(context).copyWith(color: kcTextSecondaryColor),
