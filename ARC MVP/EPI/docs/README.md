@@ -1,11 +1,22 @@
 # EPI Documentation
 
 **Last Updated:** January 20, 2025
-**Status:** Production Ready ✅ - LUMARA v2.0 Multimodal Reflective Engine Complete
+**Status:** Production Ready ✅ - MCP Export/Import System Simplified & LUMARA v2.0 Complete
 
 This directory contains comprehensive documentation for the EPI (Evolving Personal Intelligence) project - an 8-module intelligent journaling system built with Flutter.
 
 ## 🆕 Latest Updates (January 20, 2025)
+
+**📦 MCP Export/Import System - Simplified & Streamlined**
+
+Completely redesigned the MCP (Memory Container Protocol) system for better user experience:
+- **Single File Format** - All data exported to one `.mcpkg` file (or `.mcp/` folder for debugging)
+- **Simplified UI** - Clean management screen with two main actions: Create Package, Restore Package
+- **No More Media Packs** - Eliminated complex rolling media pack system and confusing terminology
+- **Direct Photo Handling** - Photos stored directly in the package with simple file paths
+- **Legacy Cleanup** - Removed 9 complex files and 2,816 lines of legacy code
+- **Better Performance** - Faster export/import with simpler architecture
+- **User-Friendly** - Clear navigation to dedicated export/import screens
 
 **🌟 LUMARA v2.0 - Multimodal Reflective Engine Complete**
 

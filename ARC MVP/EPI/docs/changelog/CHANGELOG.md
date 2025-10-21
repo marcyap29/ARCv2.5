@@ -2,6 +2,48 @@
 
 ## [Unreleased]
 
+### 📦 **MCP Export/Import System - Simplified & Streamlined** - January 20, 2025
+
+#### **Complete System Redesign** ✅ **PRODUCTION READY**
+- **Single File Format**: All data exported to one `.mcpkg` file (or `.mcp/` folder for debugging)
+- **Simplified UI**: Clean management screen with two main actions: Create Package, Restore Package
+- **No More Media Packs**: Eliminated complex rolling media pack system and confusing terminology
+- **Direct Photo Handling**: Photos stored directly in the package with simple file paths
+- **Legacy Cleanup**: Removed 9 complex files and 2,816 lines of legacy code
+- **Better Performance**: Faster export/import with simpler architecture
+- **User-Friendly**: Clear navigation to dedicated export/import screens
+
+#### **Technical Implementation** ✅ **COMPLETE**
+- **McpPackExportService**: Single service for creating `.mcpkg` files and `.mcp/` folders
+- **McpPackImportService**: Single service for importing both `.mcpkg` files and `.mcp/` folders
+- **McpManifest**: Standardized manifest format with format validation and content indexing
+- **McpExportScreen**: Clean UI for export configuration with photo options and size estimation
+- **McpImportScreen**: Simple UI for file/folder selection with progress tracking
+- **FileUtils**: Updated with `.mcpkg` and `.mcp/` detection methods
+- **Legacy Removal**: Deleted 9 complex files including media pack management and content-addressed systems
+- **Timeline Integration**: Simplified photo display using basic `Image.file` widgets
+
+#### **Files Modified** ✅ **COMPLETE**
+- `lib/mcp/export/mcp_pack_export_service.dart` - New simplified export service
+- `lib/mcp/import/mcp_pack_import_service.dart` - New simplified import service
+- `lib/mcp/models/mcp_manifest.dart` - New manifest model for standardized format
+- `lib/ui/export_import/mcp_export_screen.dart` - New export UI screen
+- `lib/ui/export_import/mcp_import_screen.dart` - New import UI screen
+- `lib/ui/screens/mcp_management_screen.dart` - Simplified management interface
+- `lib/utils/file_utils.dart` - Added MCP file/folder detection methods
+- `lib/features/timeline/widgets/interactive_timeline_view.dart` - Simplified photo display
+
+#### **Files Removed** ✅ **COMPLETE**
+- `lib/prism/mcp/export/mcp_media_export_service.dart` - Complex rolling media packs
+- `lib/prism/mcp/export/simple_mcp_export_service.dart` - Replaced by mcp_pack_export_service.dart
+- `lib/prism/mcp/export/content_addressed_export_service.dart` - Legacy content-addressed system
+- `lib/prism/mcp/import/content_addressed_import_service.dart` - Legacy import system
+- `lib/ui/widgets/media_pack_management_dialog.dart` - Complex pack management UI
+- `lib/ui/widgets/media_pack_dashboard.dart` - Complex dashboard UI
+- `lib/ui/widgets/content_addressed_media_widget.dart` - Complex media widget
+- `lib/test_content_addressed.dart` - Legacy test file
+- `lib/prism/mcp/examples/content_addressed_example.dart` - Legacy example
+
 ### 🌟 **LUMARA v2.0 - Multimodal Reflective Engine** - January 20, 2025
 
 #### **Complete Multimodal Reflective Intelligence** ✅ **PRODUCTION READY**

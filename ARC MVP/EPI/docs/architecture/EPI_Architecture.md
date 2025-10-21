@@ -10,6 +10,69 @@
   - VEIL: Self-Pruning & Coherence (Integrated with MIRA v0.2)
   - RIVET: Risk-Validation Evidence Tracker (Extended with Draft & Chat Analysis)
 
+  ## 📦 **MCP Export/Import System Architecture** (Updated January 20, 2025)
+
+  **Simplified Memory Container Protocol System - PRODUCTION READY**:
+  ```
+  MCP System:
+  ├── Export Layer
+  │   ├── McpPackExportService
+  │   │   ├── Single service for .mcpkg and .mcp/ creation
+  │   │   ├── Journal entry processing and JSON serialization
+  │   │   ├── Photo handling with direct file paths
+  │   │   ├── Manifest generation with content indexing
+  │   │   └── ZIP compression for .mcpkg files
+  │   ├── McpManifest
+  │   │   ├── Standardized format validation
+  │   │   ├── Content counts and metadata
+  │   │   ├── File path indexing for journal/photos
+  │   │   └── Version and compatibility tracking
+  │   └── McpExportScreen
+  │       ├── Clean UI for export configuration
+  │       ├── Photo inclusion and size options
+  │       ├── Progress tracking and status display
+  │       └── File size estimation and validation
+  ├── Import Layer
+  │   ├── McpPackImportService
+  │   │   ├── Single service for .mcpkg and .mcp/ import
+  │   │   ├── Manifest validation and format checking
+  │   │   ├── Journal entry restoration with timestamps
+  │   │   ├── Photo copying to permanent storage
+  │   │   └── Error handling and progress reporting
+  │   └── McpImportScreen
+  │       ├── File/folder selection interface
+  │       ├── Progress tracking and status display
+  │       ├── Error reporting and user feedback
+  │       └── Success confirmation and statistics
+  ├── Management Layer
+  │   ├── McpManagementScreen
+  │   │   ├── Simplified interface with two main actions
+  │   │   ├── Clear MCP protocol description
+  │   │   ├── Navigation to export/import screens
+  │   │   └── Info cards explaining file formats
+  │   └── FileUtils
+  │       ├── .mcpkg file detection and validation
+  │       ├── .mcp/ folder detection and validation
+  │       └── File extension utilities
+  └── Integration Layer
+      ├── Timeline Integration
+      │   ├── Simplified photo display using Image.file
+      │   ├── Direct file path handling
+      │   └── Error handling for missing files
+      └── Legacy Cleanup
+          ├── Removed 9 complex files (2,816 lines)
+          ├── Eliminated media pack tracking system
+          ├── Removed content-addressed storage complexity
+          └── Simplified photo handling throughout app
+  ```
+
+  **Key Benefits**:
+  - **Single File Format**: All data in one `.mcpkg` file or `.mcp/` folder
+  - **Simplified Architecture**: No complex media pack management or rolling systems
+  - **Better Performance**: Faster export/import with direct file handling
+  - **User-Friendly**: Clear UI with no confusing terminology
+  - **Maintainable**: 2,816 lines of legacy code removed
+
   ## 🌟 **LUMARA v2.0 Multimodal Reflective Engine Architecture** (Updated January 20, 2025)
 
   **Complete Multimodal Reflective Intelligence System - PRODUCTION READY**:
