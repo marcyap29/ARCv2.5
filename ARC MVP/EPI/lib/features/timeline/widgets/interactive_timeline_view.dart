@@ -25,7 +25,7 @@ import 'package:hive/hive.dart';
 import 'package:my_app/services/user_phase_service.dart';
 import 'package:my_app/features/arcforms/phase_recommender.dart';
 import 'package:my_app/mira/mira_service.dart';
-import 'package:my_app/ui/widgets/content_addressed_media_widget.dart';
+import 'dart:io';
 import 'dart:math' as math;
 
 class InteractiveTimelineView extends StatefulWidget {
@@ -374,13 +374,13 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
                         maxHeight: 400, // Limit height to prevent overflow
                       ),
                       child: SingleChildScrollView(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            // Entry details with phase shape above
-                            _buildEntryDetailsWithPhaseShape(entry,
-                                isCurrentEntry && !_isSelectionMode, isSelected),
-                          ],
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        // Entry details with phase shape above
+                        _buildEntryDetailsWithPhaseShape(entry,
+                            isCurrentEntry && !_isSelectionMode, isSelected),
+                      ],
                         ),
                       ),
                     ),
@@ -1586,15 +1586,22 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
           width: 2,
         ),
       ),
-      child: ContentAddressedMediaWidget(
-        sha256: item.sha256!,
-        thumbUri: item.thumbUri,
-        fullRef: item.fullRef,
-        // Resolver automatically obtained from MediaResolverService
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(8),
+        child: Image.file(
+          File(item.uri),
         width: 60,
         height: 60,
         fit: BoxFit.cover,
-        borderRadius: BorderRadius.circular(8),
+          errorBuilder: (context, error, stackTrace) {
+            return Container(
+              width: 60,
+              height: 60,
+              color: Colors.grey[300],
+              child: const Icon(Icons.broken_image, color: Colors.grey),
+            );
+          },
+        ),
       ),
     );
   }
