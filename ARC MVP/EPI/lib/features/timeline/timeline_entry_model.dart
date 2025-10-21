@@ -11,6 +11,7 @@ class TimelineEntry extends Equatable {
   final String? phase; // ATLAS phase at time of entry
   final String? geometry; // Geometry pattern at time of entry
   final List<MediaItem> media; // Multimodal media attachments
+  final DateTime createdAt; // Original date for sorting
 
   const TimelineEntry({
     required this.id,
@@ -22,8 +23,9 @@ class TimelineEntry extends Equatable {
     this.phase,
     this.geometry,
     this.media = const [],
+    required this.createdAt,
   });
 
   @override
-  List<Object?> get props => [id, date, monthYear, preview, hasArcform, keywords, phase, geometry, media];
+  List<Object?> get props => [id, date, monthYear, preview, hasArcform, keywords, phase, geometry, media, createdAt];
 }

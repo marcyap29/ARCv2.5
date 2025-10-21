@@ -266,57 +266,21 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
   }
 
   Widget _build2DGridTimeline() {
-    // Group entries by time periods with smart adaptive grouping
-    final groupedEntries = _groupEntriesByTimePeriod();
+    // Get all entries and sort them properly by actual date (newest first)
+    final sortedEntries = List<TimelineEntry>.from(_entries);
     
-    return CustomScrollView(
-      slivers: [
-        // Timeline entries with sticky headers
-        ...groupedEntries.asMap().entries.map((groupEntry) {
-          final periodIndex = groupEntry.key;
-          final period = groupEntry.value;
-          
-          return SliverMainAxisGroup(
-            slivers: [
-              // Sticky period header
-              SliverPersistentHeader(
-                pinned: true,
-                delegate: _StickyHeaderDelegate(
-                  child: _buildStickyHeader(period['title'], period['entries'].length),
-                ),
-              ),
-              
-              // Horizontal scrollable row of entries
-              SliverToBoxAdapter(
-      child: SizedBox(
-                  height: 220, // Increased height for better card visibility
-                  child: ListView.builder(
-                    scrollDirection: Axis.horizontal,
-                    physics: const BouncingScrollPhysics(),
-                    itemCount: period['entries'].length,
-                    itemBuilder: (context, index) {
-                      final entry = period['entries'][index];
-                      return Container(
-                        width: 320, // Increased width for better readability
-                        margin: EdgeInsets.only(
-                          left: index == 0 ? 16.0 : 8.0,
-                          right: index == period['entries'].length - 1 ? 16.0 : 8.0,
-                        ),
-                        child: _buildTimelineEntryCard(entry, periodIndex, index),
-                      );
-                    },
-                  ),
-                ),
-              ),
-              
-              // Spacing between periods
-              const SliverToBoxAdapter(
-                child: SizedBox(height: 16),
-              ),
-            ],
-          );
-        }).toList(),
-      ],
+    // Sort by the original createdAt DateTime (newest first)
+    sortedEntries.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    
+    return ListView.builder(
+      itemCount: sortedEntries.length,
+      itemBuilder: (context, index) {
+        final entry = sortedEntries[index];
+        return Container(
+          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          child: _buildTimelineEntryCard(entry, 0, index),
+        );
+      },
     );
   }
 

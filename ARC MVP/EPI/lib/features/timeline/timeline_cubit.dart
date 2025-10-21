@@ -206,7 +206,8 @@ class TimelineCubit extends Cubit<TimelineState> {
         ];
       }
       
-      final groupedEntries = _groupEntriesByMonth(allEntries);
+      // For single scroll timeline, we don't need complex grouping
+      final groupedEntries = [TimelineMonthGroup(month: 'All', entries: allEntries)];
 
       print('DEBUG: TimelineCubit emitting TimelineLoaded with ${groupedEntries.length} groups');
       emit(TimelineLoaded(
@@ -253,8 +254,8 @@ class TimelineCubit extends Cubit<TimelineState> {
       // Convert to timeline entries
       final allTimelineEntries = _mapToTimelineEntries(filteredEntries);
       
-      // Group by month
-      final groupedEntries = _groupEntriesByMonth(allTimelineEntries);
+      // For single scroll timeline, we don't need complex grouping
+      final groupedEntries = [TimelineMonthGroup(month: 'All', entries: allTimelineEntries)];
 
       print('DEBUG: TimelineCubit._loadAllEntries emitting TimelineLoaded with ${groupedEntries.length} groups');
       emit(TimelineLoaded(
@@ -277,12 +278,24 @@ class TimelineCubit extends Cubit<TimelineState> {
       groups[entry.monthYear]!.add(entry);
     }
 
+    // Sort entries within each group (earliest on left, latest on right)
+    for (final group in groups.values) {
+      group.sort((a, b) => a.date.compareTo(b.date));
+    }
+
+    // Convert to list and sort groups by newest month first
     return groups.entries
         .map((entry) => TimelineMonthGroup(
               month: entry.key,
               entries: entry.value,
             ))
-        .toList();
+        .toList()
+        ..sort((a, b) {
+          // Sort by the newest entry in each group (newest month first)
+          final aNewestEntry = a.entries.last; // Last entry is newest since we sort oldest-first within groups
+          final bNewestEntry = b.entries.last; // Last entry is newest since we sort oldest-first within groups
+          return bNewestEntry.date.compareTo(aNewestEntry.date);
+        });
   }
 
   List<TimelineEntry> _mapToTimelineEntries(List<JournalEntry> journalEntries) {
@@ -344,6 +357,7 @@ class TimelineCubit extends Cubit<TimelineState> {
         phase: phase,
         geometry: geometry,
         media: finalMedia, // Use reconstructed media if available
+        createdAt: entry.createdAt, // Store original date for sorting
       );
     }).toList();
   }
