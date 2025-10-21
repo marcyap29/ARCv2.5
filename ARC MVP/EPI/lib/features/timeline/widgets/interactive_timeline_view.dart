@@ -51,7 +51,7 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
   void initState() {
     super.initState();
     _pageController = PageController(
-      initialPage: 0,
+      initialPage: 0, // Will be updated to last page when entries are loaded
       viewportFraction: 0.6, // Show partial views of adjacent entries
     );
 
@@ -139,6 +139,20 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
                 'DEBUG: TimelineLoaded with ${state.groupedEntries.length} groups');
             _entries = _getFilteredEntries(state);
             print('DEBUG: Filtered entries count: ${_entries.length}');
+            
+            // Jump to the last page (newest entries) when entries are first loaded
+            if (_entries.isNotEmpty && _currentIndex == 0) {
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (_pageController.hasClients) {
+                  _pageController.animateToPage(
+                    _entries.length - 1,
+                    duration: const Duration(milliseconds: 300),
+                    curve: Curves.easeInOut,
+                  );
+                  _currentIndex = _entries.length - 1;
+                }
+              });
+            }
 
             if (_entries.isEmpty) {
               return Center(
@@ -637,7 +651,7 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
         children: [
           // Swipe hint
           Text(
-            'Swipe to explore',
+            'Swipe right for newer entries',
             style: captionStyle(context).copyWith(
               color: kcSecondaryTextColor.withOpacity(0.6),
             ),

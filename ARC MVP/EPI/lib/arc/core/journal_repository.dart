@@ -238,7 +238,7 @@ class JournalRepository {
     TimelineFilter? filter,
   }) {
     final allEntries = getAllJournalEntriesSync();
-    allEntries.sort((a, b) => b.createdAt.compareTo(a.createdAt)); // Newest first
+    allEntries.sort((a, b) => a.createdAt.compareTo(b.createdAt)); // Oldest first
 
     // Apply filter if provided
     List<JournalEntry> filtered = allEntries;
