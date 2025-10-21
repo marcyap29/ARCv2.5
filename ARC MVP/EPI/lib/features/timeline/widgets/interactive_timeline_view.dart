@@ -323,89 +323,33 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
   List<Map<String, dynamic>> _groupEntriesByTimePeriod() {
     if (_entries.isEmpty) return [];
     
-    // Sort entries by date (newest first) - using date string for sorting
-    final sortedEntries = List<TimelineEntry>.from(_entries);
-    sortedEntries.sort((a, b) => b.date.compareTo(a.date));
+    // Group entries by month
+    final monthGroups = <String, List<TimelineEntry>>{};
     
-    // First, group by week to analyze density
-    final weekGroups = <String, List<TimelineEntry>>{};
-    
-    for (final entry in sortedEntries) {
-      // Parse date string to DateTime for week calculation
+    for (final entry in _entries) {
       final entryDate = DateTime.tryParse(entry.date) ?? DateTime.now();
-      final weekStart = _getWeekStart(entryDate);
-      final weekKey = '${weekStart.year}-W${_getWeekNumber(weekStart)}';
+      final monthKey = '${entryDate.year}-${entryDate.month.toString().padLeft(2, '0')}';
       
-      if (!weekGroups.containsKey(weekKey)) {
-        weekGroups[weekKey] = [];
+      if (!monthGroups.containsKey(monthKey)) {
+        monthGroups[monthKey] = [];
       }
-      weekGroups[weekKey]!.add(entry);
+      monthGroups[monthKey]!.add(entry);
     }
     
-    // Apply smart adaptive grouping
-    final finalGroups = <String, List<TimelineEntry>>{};
-    
-    for (final weekEntry in weekGroups.entries) {
-      final weekKey = weekEntry.key;
-      final entries = weekEntry.value;
-      final entryCount = entries.length;
-      
-      if (entryCount < 5) {
-        // Sparse period - merge into monthly group
-        final weekStart = DateTime.parse(weekKey.split('-W')[0] + '-01-01');
-        final weekNum = int.parse(weekKey.split('-W')[1]);
-        final weekStartDate = weekStart.add(Duration(days: (weekNum - 1) * 7));
-        final monthKey = '${weekStartDate.year}-${weekStartDate.month.toString().padLeft(2, '0')}';
-        
-        if (!finalGroups.containsKey(monthKey)) {
-          finalGroups[monthKey] = [];
-        }
-        finalGroups[monthKey]!.addAll(entries);
-      } else if (entryCount > 20) {
-        // Dense period - split into daily groups
-        for (final entry in entries) {
-          final entryDate = DateTime.tryParse(entry.date) ?? DateTime.now();
-          final dayKey = '${entryDate.year}-${entryDate.month.toString().padLeft(2, '0')}-${entryDate.day.toString().padLeft(2, '0')}';
-          
-          if (!finalGroups.containsKey(dayKey)) {
-            finalGroups[dayKey] = [];
-          }
-          finalGroups[dayKey]!.add(entry);
-        }
-      } else {
-        // Normal period - keep weekly grouping
-        finalGroups[weekKey] = entries;
-      }
-    }
-    
-    // Sort entries within each group (oldest first for left-to-right display)
-    for (final group in finalGroups.values) {
+    // Sort entries within each month (earliest on left, latest on right)
+    for (final group in monthGroups.values) {
       group.sort((a, b) => a.date.compareTo(b.date));
     }
     
-    // Convert to list with titles, sorted newest first
-    return finalGroups.entries.map((entry) {
-      final key = entry.key;
+    // Convert to list with month titles, sorted newest month first
+    return monthGroups.entries.map((entry) {
+      final monthKey = entry.key;
       final entries = entry.value;
       
-      String title;
-      if (key.contains('-W')) {
-        // Weekly group
-        final weekStart = DateTime.parse(key.split('-W')[0] + '-01-01');
-        final weekNum = int.parse(key.split('-W')[1]);
-        final weekStartDate = weekStart.add(Duration(days: (weekNum - 1) * 7));
-        final weekEndDate = weekStartDate.add(const Duration(days: 6));
-        title = 'Week of ${_formatDate(weekStartDate)} - ${_formatDate(weekEndDate)}';
-      } else if (key.split('-').length == 3) {
-        // Daily group
-        final date = DateTime.parse(key);
-        title = '${_getMonthName(date.month)} ${date.day}';
-      } else {
-        // Monthly group
-        final year = int.parse(key.split('-')[0]);
-        final month = int.parse(key.split('-')[1]);
-        title = '${_getMonthName(month)} $year';
-      }
+      // Create month title
+      final year = int.parse(monthKey.split('-')[0]);
+      final month = int.parse(monthKey.split('-')[1]);
+      final title = '${_getMonthName(month)} $year';
       
       return {
         'title': title,
@@ -413,7 +357,7 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
       };
     }).toList()
       ..sort((a, b) {
-        // Sort groups by the date of their newest entry (newest first)
+        // Sort months by newest first (October 2025 before September 2025)
         final aEntries = a['entries'] as List<TimelineEntry>;
         final bEntries = b['entries'] as List<TimelineEntry>;
         final aNewestEntry = aEntries.last; // Last entry is newest since we sort oldest-first within groups
