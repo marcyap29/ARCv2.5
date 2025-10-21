@@ -126,36 +126,8 @@ class SettingsView extends StatelessWidget {
               children: [
                 _buildSettingsTile(
                   context,
-                  title: 'Export Journal',
-                  subtitle: 'Export your journal with photos and media packs',
-                  icon: Icons.cloud_upload,
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => McpManagementScreen(
-                          journalRepository: context.read<JournalRepository>(),
-                        ),
-                      ),
-                    );
-                  },
-                ),
-                _buildSettingsTile(
-                  context,
-                  title: 'Import Journal',
-                  subtitle: 'Import journal from backup file',
-                  icon: Icons.cloud_download,
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (context) => const McpSettingsView()),
-                    );
-                  },
-                ),
-                _buildSettingsTile(
-                  context,
-                  title: 'Manage Media Packs',
-                  subtitle: 'View and organize your media library',
+                  title: 'Import/Export Data',
+                  subtitle: 'Export, import, and organize your journal data',
                   icon: Icons.dashboard,
                   onTap: () {
                     Navigator.push(
