@@ -651,7 +651,7 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
         children: [
           // Swipe hint
           Text(
-            'Swipe right for newer entries',
+            'Swipe left/right to navigate entries',
             style: captionStyle(context).copyWith(
               color: kcSecondaryTextColor.withOpacity(0.6),
             ),

@@ -21,7 +21,7 @@ class TimelineCubit extends Cubit<TimelineState> {
     emit(const TimelineLoading());
     _currentPage = 0;
     _hasMore = true;
-    await _loadEntries();
+    await _loadAllEntries();
   }
 
   Future<void> loadMoreEntries() async {
@@ -35,7 +35,7 @@ class TimelineCubit extends Cubit<TimelineState> {
     print('DEBUG: Refreshing timeline to show updated entries...');
     _currentPage = 0;
     _hasMore = true;
-    await _loadEntries();
+    await _loadAllEntries();
     print('DEBUG: Timeline refresh completed');
   }
 
@@ -166,7 +166,7 @@ class TimelineCubit extends Cubit<TimelineState> {
       emit(const TimelineLoading());
       _currentPage = 0;
       _hasMore = true;
-      await _loadEntries(filter: filter);
+      await _loadAllEntries(filter: filter);
     }
   }
 
