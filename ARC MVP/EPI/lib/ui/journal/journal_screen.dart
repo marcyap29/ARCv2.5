@@ -17,6 +17,8 @@ import '../../telemetry/analytics.dart';
 import '../../services/periodic_discovery_service.dart';
 import '../../services/lumara/lumara_inline_api.dart';
 import '../../lumara/services/enhanced_lumara_api.dart';
+import '../../lumara/ui/lumara_settings_screen.dart';
+import '../../lumara/config/api_config.dart';
 import '../../services/ocr/ocr_service.dart';
 import '../../services/journal_session_cache.dart';
 import '../../arc/core/keyword_extraction_cubit.dart';
@@ -87,6 +89,7 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
   // UI state management
   bool _showKeywordsDiscovered = false;
   bool _showLumaraBox = false;
+  bool _isLumaraConfigured = false;
   
   // Periodic discovery service
   final PeriodicDiscoveryService _discoveryService = PeriodicDiscoveryService();
@@ -217,10 +220,38 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
       // TODO: Get MCP bundle path from settings or last import
       // For now, initialize without bundle
       await _enhancedLumaraApi.initialize();
-      print('LUMARA: Initialized successfully');
+      
+      // Check if LUMARA is properly configured
+      _isLumaraConfigured = await _checkLumaraConfiguration();
+      
+      if (mounted) {
+        setState(() {
+          // Update UI state
+        });
+      }
+      
+      print('LUMARA: Initialized successfully (configured: $_isLumaraConfigured)');
     } catch (e) {
       print('LUMARA: Initialization error: $e');
       // Continue with degraded mode
+    }
+  }
+
+  /// Check if LUMARA is properly configured with an API key
+  Future<bool> _checkLumaraConfiguration() async {
+    try {
+      final apiConfig = LumaraAPIConfig.instance;
+      await apiConfig.initialize();
+      final availableProviders = apiConfig.getAvailableProviders();
+      final bestProvider = apiConfig.getBestProvider();
+      
+      print('LUMARA Journal: Available providers: ${availableProviders.map((p) => p.name).join(', ')}');
+      print('LUMARA Journal: Best provider: ${bestProvider?.name ?? 'none'}');
+      
+      return bestProvider != null && availableProviders.isNotEmpty;
+    } catch (e) {
+      print('LUMARA Journal: Configuration check error: $e');
+      return false;
     }
   }
 
@@ -246,7 +277,54 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
         return;
       }
 
+      // Check if LUMARA is properly configured
+      final isConfigured = await _checkLumaraConfiguration();
+      if (!isConfigured) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('LUMARA needs an API key to work. Configure it in Settings.'),
+              backgroundColor: Theme.of(context).colorScheme.error,
+              action: SnackBarAction(
+                label: 'Settings',
+                textColor: Colors.white,
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => LumaraSettingsScreen(),
+                    ),
+                  );
+                },
+              ),
+              duration: Duration(seconds: 5),
+            ),
+          );
+        }
+        return;
+      }
+
       _analytics.logLumaraEvent('reflection_generated');
+      
+      // Show loading indicator
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+                SizedBox(width: 12),
+                Text('LUMARA is thinking...'),
+              ],
+            ),
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
       
       // Use enhanced LUMARA API to generate a reflection
       final reflection = await _enhancedLumaraApi.generatePromptedReflection(
@@ -262,14 +340,39 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
     } catch (e) {
       _analytics.log('lumara_error', {'error': e.toString()});
       
-      // Show error to user
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Unable to generate reflection: $e'),
-            backgroundColor: Theme.of(context).colorScheme.error,
-          ),
-        );
+      // Check if it's an API key issue
+      if (e.toString().contains('API key') || e.toString().contains('not configured') || e.toString().contains('Gemini API key')) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('LUMARA needs a Gemini API key to work. Configure it in Settings.'),
+              backgroundColor: Theme.of(context).colorScheme.error,
+              action: SnackBarAction(
+                label: 'Settings',
+                textColor: Colors.white,
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => LumaraSettingsScreen(),
+                    ),
+                  );
+                },
+              ),
+              duration: Duration(seconds: 5),
+            ),
+          );
+        }
+      } else {
+        // Show generic error to user
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('LUMARA reflection failed: ${e.toString()}'),
+              backgroundColor: Theme.of(context).colorScheme.error,
+            ),
+          );
+        }
       }
     }
   }
@@ -870,14 +973,24 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
                         // Center: LUMARA button (compact)
                         IconButton(
                           onPressed: _onLumaraFabTapped,
-                          icon: const Icon(Icons.psychology, size: 18),
-                          tooltip: 'Reflect with LUMARA',
+                          icon: Icon(
+                            Icons.psychology, 
+                            size: 18,
+                            color: _isLumaraConfigured 
+                              ? null 
+                              : theme.colorScheme.onSurface.withOpacity(0.5),
+                          ),
+                          tooltip: _isLumaraConfigured 
+                            ? 'Reflect with LUMARA' 
+                            : 'LUMARA needs API key configuration',
                           padding: const EdgeInsets.all(4),
                           constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
                           style: IconButton.styleFrom(
                             backgroundColor: _showLumaraBox 
                               ? theme.colorScheme.primary.withOpacity(0.2)
-                              : null,
+                              : _isLumaraConfigured 
+                                ? null 
+                                : theme.colorScheme.surface.withOpacity(0.5),
                           ),
                         ),
                         
