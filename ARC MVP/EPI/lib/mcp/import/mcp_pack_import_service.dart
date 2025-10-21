@@ -34,11 +34,9 @@ class McpPackImportService {
       // Extract to temporary directory
       final tempDir = Directory.systemTemp.createTempSync('mcp_import_');
       await extractFileToDisk(inputPath, tempDir.path);
-      final mcpDir = Directory(path.join(tempDir.path, 'mcp'));
       
-      if (!await mcpDir.exists()) {
-        throw Exception('Invalid MCP package: no mcp/ directory found');
-      }
+      // The ZIP contains files directly in the root, not in a mcp/ subdirectory
+      final mcpDir = tempDir;
 
       // Read and validate manifest
       final manifestFile = File(path.join(mcpDir.path, 'manifest.json'));
