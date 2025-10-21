@@ -167,7 +167,7 @@ class McpPackImportService {
             createdAt: DateTime.parse(entryJson['timestamp'] as String),
             updatedAt: DateTime.parse(entryJson['timestamp'] as String),
             media: mediaItems,
-            tags: entryJson['keywords'] as List<dynamic>? ?? [],
+            tags: (entryJson['keywords'] as List<dynamic>? ?? []).cast<String>(),
             keywords: (entryJson['keywords'] as List<dynamic>? ?? []).cast<String>(),
             mood: entryJson['emotion'] as String? ?? 'Neutral',
             emotion: entryJson['emotion'] as String?,

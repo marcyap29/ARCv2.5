@@ -7,7 +7,8 @@ import '../../shared/app_colors.dart';
 import '../../shared/text_style.dart';
 import '../../arc/core/journal_repository.dart';
 import '../../models/journal_entry_model.dart';
-import '../export/mcp_pack_export_service.dart';
+import '../../data/models/media_item.dart';
+import '../../mcp/export/mcp_pack_export_service.dart';
 import '../../utils/file_utils.dart';
 
 /// MCP Export Screen - Create MCP Package (.mcpkg)

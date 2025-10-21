@@ -5,7 +5,7 @@ import 'package:path/path.dart' as path;
 import '../../shared/app_colors.dart';
 import '../../shared/text_style.dart';
 import '../../arc/core/journal_repository.dart';
-import '../import/mcp_pack_import_service.dart';
+import '../../mcp/import/mcp_pack_import_service.dart';
 import '../../utils/file_utils.dart';
 
 /// MCP Import Screen - Restore from MCP Package (.mcpkg) or Folder (.mcp/)
