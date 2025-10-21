@@ -15,7 +15,7 @@
 - **Technical**: Single file format (.zip only), direct photo handling, standardized manifest, legacy cleanup
 - **UI/UX**: Clean management screen with two main actions, dedicated export/import screens, no confusing terminology
 - **Architecture**: McpPackExportService, McpPackImportService, McpManifest, simplified timeline integration
-- **Status**: ✅ Complete - Production-ready ultra-simplified MCP system with 2,816 lines of legacy code removed
+- **Status**: ✅ Complete - Production-ready ultra-simplified MCP system with 2,816 lines of legacy code removed + timeline refresh fix
 
 ### 🌟 LUMARA v2.0 Multimodal Reflective Engine Complete (January 20, 2025)
 

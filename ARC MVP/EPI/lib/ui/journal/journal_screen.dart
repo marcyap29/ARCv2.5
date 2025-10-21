@@ -7,6 +7,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:geocoding/geocoding.dart';
 import '../../state/journal_entry_state.dart';
 import '../../state/feature_flags.dart';
 import '../../services/thumbnail_cache_service.dart';
@@ -35,6 +37,7 @@ import 'widgets/lumara_suggestion_sheet.dart';
 import 'widgets/inline_reflection_block.dart';
 import '../../features/timeline/widgets/entry_content_renderer.dart';
 import 'widgets/full_screen_photo_viewer.dart';
+import '../../ui/widgets/location_picker_dialog.dart';
 import 'drafts_screen.dart';
 import '../../models/journal_entry_model.dart';
 
@@ -85,6 +88,10 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
   // Manual keyword entry
   final TextEditingController _keywordController = TextEditingController();
   List<String> _manualKeywords = [];
+  
+  // Text controllers for metadata editing
+  late TextEditingController _locationController;
+  late TextEditingController _phaseController;
   
   // UI state management
   bool _showKeywordsDiscovered = false;
@@ -150,6 +157,10 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
       _editableLocation = widget.existingEntry!.location;
       _editablePhase = widget.existingEntry!.phase;
       
+      // Initialize text controllers
+      _locationController = TextEditingController(text: _editableLocation ?? '');
+      _phaseController = TextEditingController(text: _editablePhase ?? '');
+      
       // Convert MediaItems back to attachments
       if (widget.existingEntry!.media.isNotEmpty) {
         final attachments = MediaConversionUtils.mediaItemsToAttachments(widget.existingEntry!.media);
@@ -159,6 +170,10 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
         print('DEBUG: Entry content length: ${widget.existingEntry!.content.length}');
         print('DEBUG: Entry media count: ${widget.existingEntry!.media.length}');
       }
+    } else {
+      // Initialize text controllers for new entries
+      _locationController = TextEditingController();
+      _phaseController = TextEditingController();
     }
 
     // Initialize draft cache and create new draft
@@ -180,6 +195,8 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
     _textController.dispose();
     _scrollController.dispose();
     _keywordController.dispose();
+    _locationController.dispose();
+    _phaseController.dispose();
     
     // Clean up thumbnails when journal screen is closed
     _thumbnailCache.clearAllThumbnails();
@@ -1187,11 +1204,26 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
           
           // Location field
           TextField(
-            controller: TextEditingController(text: _editableLocation ?? ''),
+            controller: _locationController,
             decoration: InputDecoration(
               labelText: 'Location',
               hintText: 'Where were you?',
               prefixIcon: const Icon(Icons.location_on, size: 16),
+              suffixIcon: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.search),
+                    onPressed: _showLocationPicker,
+                    tooltip: 'Search locations',
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.my_location),
+                    onPressed: _getCurrentLocation,
+                    tooltip: 'Get current location',
+                  ),
+                ],
+              ),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),
               ),
@@ -1208,7 +1240,7 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
           
           // Phase field
           TextField(
-            controller: TextEditingController(text: _editablePhase ?? ''),
+            controller: _phaseController,
             decoration: InputDecoration(
               labelText: 'Phase',
               hintText: 'What phase of life?',
@@ -1815,6 +1847,147 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
         _hasBeenModified = true;
       });
     }
+  }
+
+  /// Get current location using GPS
+  Future<void> _getCurrentLocation() async {
+    try {
+      // Request location permission
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+        if (permission == LocationPermission.denied) {
+          _showLocationPermissionDialog();
+          return;
+        }
+      }
+
+      if (permission == LocationPermission.deniedForever) {
+        _showLocationPermissionDialog();
+        return;
+      }
+
+      // Show loading indicator
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+
+      // Get current position
+      Position position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+      );
+
+      // Get address from coordinates
+      List<Placemark> placemarks = await placemarkFromCoordinates(
+        position.latitude,
+        position.longitude,
+      );
+
+      // Dismiss loading indicator
+      if (mounted) Navigator.of(context).pop();
+
+      if (placemarks.isNotEmpty) {
+        Placemark place = placemarks[0];
+        String location = _formatLocation(place);
+        
+        setState(() {
+          _editableLocation = location;
+          _locationController.text = location;
+          _hasBeenModified = true;
+        });
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Location set: $location'),
+              backgroundColor: Colors.green,
+              duration: const Duration(seconds: 2),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      // Dismiss loading indicator if still showing
+      if (mounted) Navigator.of(context).pop();
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to get location: $e'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    }
+  }
+
+  /// Format location from placemark
+  String _formatLocation(Placemark place) {
+    List<String> parts = [];
+    
+    if (place.street != null && place.street!.isNotEmpty) {
+      parts.add(place.street!);
+    }
+    if (place.locality != null && place.locality!.isNotEmpty) {
+      parts.add(place.locality!);
+    }
+    if (place.administrativeArea != null && place.administrativeArea!.isNotEmpty) {
+      parts.add(place.administrativeArea!);
+    }
+    if (place.country != null && place.country!.isNotEmpty) {
+      parts.add(place.country!);
+    }
+    
+    return parts.join(', ');
+  }
+
+  /// Show location permission dialog
+  void _showLocationPermissionDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Location Permission Required'),
+        content: const Text(
+          'This app needs location permission to automatically set your current location. '
+          'You can also manually enter your location.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              openAppSettings();
+            },
+            child: const Text('Open Settings'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Show location picker dialog
+  Future<void> _showLocationPicker() async {
+    await showDialog<String>(
+      context: context,
+      builder: (context) => LocationPickerDialog(
+        initialLocation: _editableLocation,
+        onLocationSelected: (location) {
+          setState(() {
+            _editableLocation = location;
+            _locationController.text = location;
+            _hasBeenModified = true;
+          });
+        },
+      ),
+    );
   }
 
   void _toggleKeywordsDiscovered() {

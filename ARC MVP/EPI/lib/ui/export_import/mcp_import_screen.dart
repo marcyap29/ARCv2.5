@@ -7,6 +7,7 @@ import '../../shared/text_style.dart';
 import '../../arc/core/journal_repository.dart';
 import '../../mcp/import/mcp_pack_import_service.dart';
 import '../../utils/file_utils.dart';
+import '../../features/timeline/timeline_cubit.dart';
 
 /// MCP Import Screen - Restore from MCP Package (.mcpkg) or Folder (.mcp/)
 class McpImportScreen extends StatefulWidget {
@@ -64,6 +65,8 @@ class _McpImportScreenState extends State<McpImportScreen> {
       Navigator.of(context).pop();
 
       if (importResult.success) {
+        // Refresh timeline to show imported entries
+        context.read<TimelineCubit>().reloadAllEntries();
         _showSuccessDialog(importResult);
       } else {
         _showErrorDialog(importResult.error ?? 'Import failed');

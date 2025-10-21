@@ -19,6 +19,7 @@
 - ✅ **iOS Compatibility**: Changed from .mcpkg to .zip extension for better iOS Files app support
 - ✅ **Ultra-Simple**: Removed .mcp/ folder support - only .zip files for maximum simplicity
 - ✅ **Import Fix**: Fixed "Invalid MCP package: no mcp/ directory found" error by correcting ZIP structure handling
+- ✅ **Timeline Refresh Fix**: Fixed issue where imported entries weren't showing in timeline by adding automatic refresh after import
 - ✅ **Build Success**: All code compiles successfully and is production-ready ✅
 
 ### 🌟 LUMARA v2.0 Multimodal Reflective Engine Complete (January 20, 2025)

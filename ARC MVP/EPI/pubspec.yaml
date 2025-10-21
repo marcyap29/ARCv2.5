@@ -58,6 +58,10 @@ dependencies:
   # Qwen Models: Chat (Qwen3-4B-Instruct) + VLM (Qwen2.5-VL-3B) + Embeddings (Qwen3-Embedding-0.6B)
   # Native bridges via llama.cpp and MLC LLM
   
+  # Location Services
+  geolocator: ^10.1.0
+  geocoding: ^2.1.1
+  
   # Firebase Dependencies
   # Uncomment these lines when you need Firebase functionality
   # To use Firebase, you'll also need to:

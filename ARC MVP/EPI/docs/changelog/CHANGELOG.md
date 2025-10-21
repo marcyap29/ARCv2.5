@@ -24,6 +24,7 @@
 - **FileUtils**: Updated with `.zip` detection methods only
 - **Legacy Removal**: Deleted 9 complex files including media pack management and content-addressed systems
 - **Timeline Integration**: Simplified photo display using basic `Image.file` widgets
+- **Timeline Refresh Fix**: Fixed issue where imported entries weren't showing in timeline by adding automatic refresh after import
 
 #### **Files Modified** ✅ **COMPLETE**
 - `lib/mcp/export/mcp_pack_export_service.dart` - New simplified export service
