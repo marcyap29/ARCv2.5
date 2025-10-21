@@ -1,10 +1,34 @@
 # Bug Tracker - Current Status
 
-**Last Updated:** January 21, 2025
-**Branch:** main
-**Status:** Production Ready ✅ - MCP System Simplified + LUMARA v2.0 Complete + Timeline Ordering Fixed + Phase Dropdown + Auto-Capitalization
+**Last Updated:** October 21, 2025
+**Branch:** cleanup
+**Status:** Production Ready ✅ - llama.cpp XCFramework Linking Fixed + MCP System Simplified + LUMARA v2.0 Complete + Timeline Ordering Fixed + Phase Dropdown + Auto-Capitalization
 
 ## 📊 Current Status
+
+### 🔧 llama.cpp XCFramework Linking Fixed (October 21, 2025)
+**Resolved critical iOS build failure with undefined GGML symbols:**
+- ✅ **Problem Identified**: XCFramework missing GGML library dependencies causing linker errors
+- ✅ **Root Cause**: Only libllama.a included, missing 5 required GGML libraries (base, cpu, metal, blas, wrapper)
+- ✅ **Header Updates**: Changed includes from ../../third_party/llama.cpp/include to XCFramework headers
+- ✅ **Library Combination**: Used libtool -static to properly combine all 6 libraries (prevents object file overwrites)
+- ✅ **Complete Integration**: Combined library now 5.4MB (up from 3.1MB) with all GGML symbols defined
+- ✅ **Build Success**: iOS build completes successfully at 34.9MB - all symbols resolved ✅
+- ✅ **Metal Ready**: GPU acceleration libraries included and ready for on-device AI inference
+- ✅ **Files Modified**: llama_wrapper.cpp, llama_compat_simple.hpp, llama_compat.hpp, build script
+- ✅ **Build Script Enhanced**: Updated build_llama_xcframework_final.sh to combine all GGML libraries
+- ✅ **Production Ready**: Committed to cleanup branch and ready for testing ✅
+
+**Technical Details:**
+- **Issue**: Undefined symbols: _ggml_abort, _ggml_add, _quantize_row_q4_0, etc.
+- **GGML Libraries Required**:
+  - libggml-base.a - Core GGML tensor operations
+  - libggml-cpu.a - CPU backend optimizations
+  - libggml-metal.a - Metal (GPU) acceleration
+  - libggml-blas.a - BLAS acceleration framework
+  - libggml.a - Registration and wrapper code
+- **Solution**: libtool -static properly merges all object files including duplicates
+- **Alternative Failed**: ar -x approach caused duplicate object files to be overwritten
 
 ### 🔧 Phase Dropdown & Auto-Capitalization Complete (January 21, 2025)
 **Enhanced user experience with structured phase selection and automatic capitalization:**
