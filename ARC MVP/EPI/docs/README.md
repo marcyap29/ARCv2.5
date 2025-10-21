@@ -7,16 +7,18 @@ This directory contains comprehensive documentation for the EPI (Evolving Person
 
 ## 🆕 Latest Updates (January 20, 2025)
 
-**📦 MCP Export/Import System - Simplified & Streamlined**
+**📦 MCP Export/Import System - Ultra-Simplified & Streamlined**
 
-Completely redesigned the MCP (Memory Container Protocol) system for better user experience:
-- **Single File Format** - All data exported to one `.mcpkg` file (or `.mcp/` folder for debugging)
+Completely redesigned the MCP (Memory Container Protocol) system for maximum simplicity:
+- **Single File Format** - All data exported to one `.zip` file only (no more .mcpkg or .mcp/ folders)
 - **Simplified UI** - Clean management screen with two main actions: Create Package, Restore Package
 - **No More Media Packs** - Eliminated complex rolling media pack system and confusing terminology
 - **Direct Photo Handling** - Photos stored directly in the package with simple file paths
+- **iOS Compatibility** - Uses .zip extension for perfect iOS Files app integration
 - **Legacy Cleanup** - Removed 9 complex files and 2,816 lines of legacy code
 - **Better Performance** - Faster export/import with simpler architecture
 - **User-Friendly** - Clear navigation to dedicated export/import screens
+- **Ultra-Simple** - Only .zip files - no confusion, no complex options
 
 **🌟 LUMARA v2.0 - Multimodal Reflective Engine Complete**
 

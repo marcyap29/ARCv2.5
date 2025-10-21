@@ -211,7 +211,7 @@ class EnhancedLumaraApi {
     }
     
     suggestions.add('If energy is low, try recording a voice note to capture your current tone.');
-    
+
     return suggestions;
   }
 
@@ -243,7 +243,7 @@ What feels most important in this moment?
 ---
 
 If you could speak to yourself a year from now, what would you want them to know about today?
-    ''';
+''';
   }
 
   /// Get status for compatibility with existing code

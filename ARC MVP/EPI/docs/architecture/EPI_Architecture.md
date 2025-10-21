@@ -12,16 +12,16 @@
 
   ## 📦 **MCP Export/Import System Architecture** (Updated January 20, 2025)
 
-  **Simplified Memory Container Protocol System - PRODUCTION READY**:
+  **Ultra-Simplified Memory Container Protocol System - PRODUCTION READY**:
   ```
   MCP System:
   ├── Export Layer
   │   ├── McpPackExportService
-  │   │   ├── Single service for .mcpkg and .mcp/ creation
+  │   │   ├── Single service for .zip creation only
   │   │   ├── Journal entry processing and JSON serialization
   │   │   ├── Photo handling with direct file paths
   │   │   ├── Manifest generation with content indexing
-  │   │   └── ZIP compression for .mcpkg files
+  │   │   └── ZIP compression for .zip files
   │   ├── McpManifest
   │   │   ├── Standardized format validation
   │   │   ├── Content counts and metadata
@@ -34,13 +34,13 @@
   │       └── File size estimation and validation
   ├── Import Layer
   │   ├── McpPackImportService
-  │   │   ├── Single service for .mcpkg and .mcp/ import
+  │   │   ├── Single service for .zip import only
   │   │   ├── Manifest validation and format checking
   │   │   ├── Journal entry restoration with timestamps
   │   │   ├── Photo copying to permanent storage
   │   │   └── Error handling and progress reporting
   │   └── McpImportScreen
-  │       ├── File/folder selection interface
+  │       ├── File selection interface (.zip only)
   │       ├── Progress tracking and status display
   │       ├── Error reporting and user feedback
   │       └── Success confirmation and statistics
@@ -51,8 +51,7 @@
   │   │   ├── Navigation to export/import screens
   │   │   └── Info cards explaining file formats
   │   └── FileUtils
-  │       ├── .mcpkg file detection and validation
-  │       ├── .mcp/ folder detection and validation
+  │       ├── .zip file detection and validation
   │       └── File extension utilities
   └── Integration Layer
       ├── Timeline Integration

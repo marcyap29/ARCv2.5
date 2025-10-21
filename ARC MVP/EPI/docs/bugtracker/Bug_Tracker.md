@@ -8,7 +8,7 @@
 
 ### 📦 MCP Export/Import System Simplified Complete (January 20, 2025)
 **Completely redesigned MCP system for better user experience and simpler architecture:**
-- ✅ **Single File Format**: All data exported to one `.mcpkg` file (or `.mcp/` folder for debugging)
+- ✅ **Single File Format**: All data exported to one `.zip` file only
 - ✅ **Simplified UI**: Clean management screen with two main actions: Create Package, Restore Package
 - ✅ **No More Media Packs**: Eliminated complex rolling media pack system and confusing terminology
 - ✅ **Direct Photo Handling**: Photos stored directly in the package with simple file paths
@@ -16,6 +16,8 @@
 - ✅ **Better Performance**: Faster export/import with simpler architecture
 - ✅ **User-Friendly**: Clear navigation to dedicated export/import screens
 - ✅ **iOS Share Fix**: Fixed "Bytes are required" error by using share_plus with XFile instead of FilePicker
+- ✅ **iOS Compatibility**: Changed from .mcpkg to .zip extension for better iOS Files app support
+- ✅ **Ultra-Simple**: Removed .mcp/ folder support - only .zip files for maximum simplicity
 - ✅ **Build Success**: All code compiles successfully and is production-ready ✅
 
 ### 🌟 LUMARA v2.0 Multimodal Reflective Engine Complete (January 20, 2025)

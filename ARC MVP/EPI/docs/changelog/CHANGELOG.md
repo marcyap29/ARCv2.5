@@ -2,24 +2,26 @@
 
 ## [Unreleased]
 
-### 📦 **MCP Export/Import System - Simplified & Streamlined** - January 20, 2025
+### 📦 **MCP Export/Import System - Ultra-Simplified & Streamlined** - January 20, 2025
 
 #### **Complete System Redesign** ✅ **PRODUCTION READY**
-- **Single File Format**: All data exported to one `.mcpkg` file (or `.mcp/` folder for debugging)
+- **Single File Format**: All data exported to one `.zip` file only (no more .mcpkg or .mcp/ folders)
 - **Simplified UI**: Clean management screen with two main actions: Create Package, Restore Package
 - **No More Media Packs**: Eliminated complex rolling media pack system and confusing terminology
 - **Direct Photo Handling**: Photos stored directly in the package with simple file paths
+- **iOS Compatibility**: Uses .zip extension for perfect iOS Files app integration
 - **Legacy Cleanup**: Removed 9 complex files and 2,816 lines of legacy code
 - **Better Performance**: Faster export/import with simpler architecture
 - **User-Friendly**: Clear navigation to dedicated export/import screens
+- **Ultra-Simple**: Only .zip files - no confusion, no complex options
 
 #### **Technical Implementation** ✅ **COMPLETE**
-- **McpPackExportService**: Single service for creating `.mcpkg` files and `.mcp/` folders
-- **McpPackImportService**: Single service for importing both `.mcpkg` files and `.mcp/` folders
+- **McpPackExportService**: Single service for creating `.zip` files only
+- **McpPackImportService**: Single service for importing `.zip` files only
 - **McpManifest**: Standardized manifest format with format validation and content indexing
 - **McpExportScreen**: Clean UI for export configuration with photo options and size estimation
-- **McpImportScreen**: Simple UI for file/folder selection with progress tracking
-- **FileUtils**: Updated with `.mcpkg` and `.mcp/` detection methods
+- **McpImportScreen**: Simple UI for file selection with progress tracking
+- **FileUtils**: Updated with `.zip` detection methods only
 - **Legacy Removal**: Deleted 9 complex files including media pack management and content-addressed systems
 - **Timeline Integration**: Simplified photo display using basic `Image.file` widgets
 
