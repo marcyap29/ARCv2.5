@@ -38,11 +38,8 @@ class InteractiveTimelineView extends StatefulWidget {
 
 class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
     with TickerProviderStateMixin {
-  late PageController _pageController;
   late AnimationController _fadeController;
   late Animation<double> _fadeAnimation;
-
-  int _currentIndex = 0;
   List<TimelineEntry> _entries = [];
   bool _isSelectionMode = false;
   final Set<String> _selectedEntryIds = {};
@@ -50,11 +47,6 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
   @override
   void initState() {
     super.initState();
-    _pageController = PageController(
-      initialPage: 0, // Will be updated to last page when entries are loaded
-      viewportFraction: 0.6, // Show partial views of adjacent entries
-    );
-
     _fadeController = AnimationController(
       duration: const Duration(milliseconds: 300),
       vsync: this,
@@ -73,16 +65,11 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
 
   @override
   void dispose() {
-    _pageController.dispose();
     _fadeController.dispose();
     super.dispose();
   }
 
-  void _onPageChanged(int index) {
-    setState(() {
-      _currentIndex = index;
-    });
-  }
+  // Removed PageView-related methods for 2D grid layout
 
   /// Clean up MIRA nodes and edges when a journal entry is deleted
   Future<void> _cleanupMiraDataForEntry(String entryId) async {
@@ -140,19 +127,7 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
             _entries = _getFilteredEntries(state);
             print('DEBUG: Filtered entries count: ${_entries.length}');
             
-            // Jump to the last page (newest entries) when entries are first loaded
-            if (_entries.isNotEmpty && _currentIndex == 0) {
-              WidgetsBinding.instance.addPostFrameCallback((_) {
-                if (_pageController.hasClients) {
-                  _pageController.animateToPage(
-                    _entries.length - 1,
-                    duration: const Duration(milliseconds: 300),
-                    curve: Curves.easeInOut,
-                  );
-                  _currentIndex = _entries.length - 1;
-                }
-              });
-            }
+            // 2D grid layout - no need to jump to specific page
 
             if (_entries.isEmpty) {
               return Center(
@@ -301,141 +276,245 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
   Widget _buildInteractiveTimeline() {
     return RefreshIndicator(
       onRefresh: _refreshTimeline,
-      child: Stack(
-        children: [
-          // Horizontal timeline line
-          _buildTimelineLine(),
+      child: _build2DGridTimeline(),
+    );
+  }
 
-          // PageView with entries
-          PageView.builder(
-            controller: _pageController,
-            onPageChanged: _onPageChanged,
-            itemCount: _entries.length,
-            itemBuilder: (context, index) {
-              return _buildTimelineEntry(index);
-            },
-          ),
+  Widget _build2DGridTimeline() {
+    // Group entries by time periods (weeks or months)
+    final groupedEntries = _groupEntriesByTimePeriod();
+    
+    return SingleChildScrollView(
+      scrollDirection: Axis.vertical,
+      child: Column(
+        children: [
+          // Header
+          _buildTimelineHeader(),
+          
+          // 2D Grid of entries
+          ...groupedEntries.asMap().entries.map((groupEntry) {
+            final periodIndex = groupEntry.key;
+            final period = groupEntry.value;
+            
+            return Container(
+              margin: const EdgeInsets.symmetric(vertical: 8.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Period header
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                    child: Text(
+                      period['title'],
+                      style: heading3Style(context).copyWith(
+                        color: kcPrimaryTextColor,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                  
+                  // Horizontal scrollable row of entries
+                  SizedBox(
+                    height: 200, // Fixed height for each row
+                    child: ListView.builder(
+                      scrollDirection: Axis.horizontal,
+                      itemCount: period['entries'].length,
+                      itemBuilder: (context, index) {
+                        final entry = period['entries'][index];
+                        return Container(
+                          width: 300, // Fixed width for each entry card
+                          margin: const EdgeInsets.symmetric(horizontal: 8.0),
+                          child: _buildTimelineEntryCard(entry, periodIndex, index),
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }).toList(),
         ],
       ),
     );
   }
 
-  Widget _buildTimelineLine() {
-    return Positioned(
-      top: MediaQuery.of(context).size.height * 0.4, // Center vertically
-      left: 0,
-      right: 0,
-      child: SizedBox(
-        height: 2,
-        child: CustomPaint(
-          painter: TimelineLinePainter(
-            currentIndex: _currentIndex,
-            totalEntries: _entries.length,
+  List<Map<String, dynamic>> _groupEntriesByTimePeriod() {
+    if (_entries.isEmpty) return [];
+    
+    // Sort entries by date (newest first) - using date string for sorting
+    final sortedEntries = List<TimelineEntry>.from(_entries);
+    sortedEntries.sort((a, b) => b.date.compareTo(a.date));
+    
+    // Group by week (you can change this to month, day, etc.)
+    final groups = <String, List<TimelineEntry>>{};
+    
+    for (final entry in sortedEntries) {
+      // Parse date string to DateTime for week calculation
+      final entryDate = DateTime.tryParse(entry.date) ?? DateTime.now();
+      final weekStart = _getWeekStart(entryDate);
+      final weekKey = '${weekStart.year}-W${_getWeekNumber(weekStart)}';
+      
+      if (!groups.containsKey(weekKey)) {
+        groups[weekKey] = [];
+      }
+      groups[weekKey]!.add(entry);
+    }
+    
+    // Convert to list with titles
+    return groups.entries.map((entry) {
+      final weekStart = DateTime.parse(entry.key.split('-W')[0] + '-01-01');
+      final weekNum = int.parse(entry.key.split('-W')[1]);
+      final weekStartDate = weekStart.add(Duration(days: (weekNum - 1) * 7));
+      final weekEndDate = weekStartDate.add(const Duration(days: 6));
+      
+      return {
+        'title': 'Week of ${_formatDate(weekStartDate)} - ${_formatDate(weekEndDate)}',
+        'entries': entry.value,
+      };
+    }).toList();
+  }
+
+  DateTime _getWeekStart(DateTime date) {
+    final weekday = date.weekday;
+    return date.subtract(Duration(days: weekday - 1));
+  }
+
+  int _getWeekNumber(DateTime date) {
+    final firstDayOfYear = DateTime(date.year, 1, 1);
+    final daysSinceFirstDay = date.difference(firstDayOfYear).inDays;
+    return ((daysSinceFirstDay + firstDayOfYear.weekday - 1) / 7).floor() + 1;
+  }
+
+  String _formatDate(DateTime date) {
+    return '${date.month}/${date.day}';
+  }
+
+  Widget _buildTimelineEntryCard(TimelineEntry entry, int periodIndex, int entryIndex) {
+    final isSelected = _selectedEntryIds.contains(entry.id);
+    
+    return GestureDetector(
+      onTap: () => _onEntryTap(entry),
+      onLongPress: () => _onEntryLongPress(entry),
+      child: Container(
+        decoration: BoxDecoration(
+          color: isSelected 
+              ? kcPrimaryColor.withOpacity(0.1)
+              : kcSurfaceColor,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: isSelected ? kcPrimaryColor : kcBorderColor,
+            width: isSelected ? 2 : 1,
           ),
-          size: Size.infinite,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.1),
+              blurRadius: 4,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(12.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Entry header with date and time
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: Text(
+                      entry.date,
+                      style: captionStyle(context).copyWith(
+                        color: kcSecondaryTextColor,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                  if (entry.hasArcform)
+                    Icon(
+                      Icons.auto_awesome,
+                      size: 16,
+                      color: kcPrimaryColor,
+                    ),
+                ],
+              ),
+              
+              const SizedBox(height: 8),
+              
+              // Entry content preview
+              Expanded(
+                child: Text(
+                  entry.preview.isNotEmpty 
+                      ? entry.preview.length > 100 
+                          ? '${entry.preview.substring(0, 100)}...'
+                          : entry.preview
+                      : 'No content',
+                  style: bodyStyle(context).copyWith(
+                    fontSize: 14,
+                    color: kcPrimaryTextColor,
+                  ),
+                  maxLines: 4,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              
+              const SizedBox(height: 8),
+              
+              // Entry metadata
+              Row(
+                children: [
+                  if (entry.media.isNotEmpty)
+                    Icon(
+                      Icons.photo,
+                      size: 14,
+                      color: kcSecondaryTextColor,
+                    ),
+                  if (entry.media.isNotEmpty) const SizedBox(width: 4),
+                  if (entry.keywords.isNotEmpty)
+                    Icon(
+                      Icons.tag,
+                      size: 14,
+                      color: kcSecondaryTextColor,
+                    ),
+                  if (entry.keywords.isNotEmpty) const SizedBox(width: 4),
+                  Expanded(
+                    child: Text(
+                      entry.phase ?? 'Discovery',
+                      style: captionStyle(context).copyWith(
+                        color: kcSecondaryTextColor,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildTimelineEntry(int index) {
-    final entry = _entries[index];
-    final isCurrentEntry = index == _currentIndex;
-    final isSelected = _selectedEntryIds.contains(entry.id);
-    final distance = (index - _currentIndex).abs();
-
-    // Calculate opacity based on distance from current entry
-    double opacity = 1.0;
-    if (distance > 0 && !_isSelectionMode) {
-      opacity = math.max(0.3, 1.0 - (distance * 0.3));
+  String _formatEntryDate(DateTime date) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final entryDate = DateTime(date.year, date.month, date.day);
+    
+    if (entryDate == today) {
+      return 'Today ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
+    } else if (entryDate == today.subtract(const Duration(days: 1))) {
+      return 'Yesterday ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
+    } else {
+      return '${date.month}/${date.day} ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
     }
-
-    return AnimatedBuilder(
-      animation: _fadeAnimation,
-      builder: (context, child) {
-        return Transform.scale(
-          scale: (isCurrentEntry && !_isSelectionMode) ? 1.0 : 0.8,
-          child: Opacity(
-            opacity: opacity * _fadeAnimation.value,
-            child: GestureDetector(
-              onTap: () => _onEntryTapped(entry, index),
-              onLongPress: _isSelectionMode
-                  ? null
-                  : () => _enterSelectionModeWithEntry(entry.id),
-              child: Stack(
-                children: [
-                  Container(
-                    margin: const EdgeInsets.symmetric(
-                        horizontal: 20, vertical: 40),
-                    decoration: isSelected
-                        ? BoxDecoration(
-                            borderRadius: BorderRadius.circular(16),
-                            border: Border.all(
-                              color: kcPrimaryColor,
-                              width: 3,
-                            ),
-                            boxShadow: [
-                              BoxShadow(
-                                color: kcPrimaryColor.withOpacity(0.3),
-                                blurRadius: 12,
-                                spreadRadius: 2,
-                              ),
-                            ],
-                          )
-                        : null,
-                    child: ConstrainedBox(
-                      constraints: const BoxConstraints(
-                        maxHeight: 400, // Limit height to prevent overflow
-                      ),
-                      child: SingleChildScrollView(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        // Entry details with phase shape above
-                        _buildEntryDetailsWithPhaseShape(entry,
-                            isCurrentEntry && !_isSelectionMode, isSelected),
-                      ],
-                        ),
-                      ),
-                    ),
-                  ),
-                  // Selection checkbox
-                  if (_isSelectionMode)
-                    Positioned(
-                      top: 45,
-                      right: 25,
-                      child: Container(
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: isSelected ? kcPrimaryColor : Colors.white,
-                          border: Border.all(
-                            color: isSelected
-                                ? kcPrimaryColor
-                                : kcSecondaryTextColor,
-                            width: 2,
-                          ),
-                        ),
-                        child: Padding(
-                          padding: const EdgeInsets.all(4.0),
-                          child: Icon(
-                            Icons.check,
-                            size: 16,
-                            color:
-                                isSelected ? Colors.white : Colors.transparent,
-                          ),
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-            ),
-          ),
-        );
-      },
-    );
   }
 
-  void _onEntryTapped(TimelineEntry entry, int index) async {
+  // Timeline line removed for 2D grid layout
+
+  // Removed old _buildTimelineEntry method - using _buildTimelineEntryCard for 2D grid
+
+  void _onEntryTap(TimelineEntry entry) async {
     if (_isSelectionMode) {
       // Toggle selection
       setState(() {
@@ -490,6 +569,12 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
           ),
         );
       }
+    }
+  }
+
+  void _onEntryLongPress(TimelineEntry entry) {
+    if (!_isSelectionMode) {
+      _enterSelectionModeWithEntry(entry.id);
     }
   }
 
@@ -649,9 +734,9 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          // Swipe hint
+          // Navigation hint
           Text(
-            'Swipe left/right to navigate entries',
+            'Scroll up/down for time periods, left/right for entries',
             style: captionStyle(context).copyWith(
               color: kcSecondaryTextColor.withOpacity(0.6),
             ),
@@ -659,7 +744,7 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
 
           // Entry counter
           Text(
-            '${_currentIndex + 1} of ${_entries.length}',
+            '${_entries.length} entries total',
             style: captionStyle(context).copyWith(
               color: kcSecondaryTextColor.withOpacity(0.6),
             ),
