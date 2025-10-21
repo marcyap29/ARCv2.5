@@ -25,7 +25,7 @@ class _McpImportScreenState extends State<McpImportScreen> {
     try {
       final result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
-        allowedExtensions: ['mcpkg'],
+        allowedExtensions: ['zip', 'mcpkg'],
         allowMultiple: false,
       );
 
@@ -33,7 +33,7 @@ class _McpImportScreenState extends State<McpImportScreen> {
         final file = result.files.first;
         setState(() {
           _selectedPath = file.path;
-          _detectedFormat = FileUtils.isMcpPackage(file.path!) ? 'MCP Package (.mcpkg)' : 'Unknown';
+          _detectedFormat = FileUtils.isMcpPackage(file.path!) ? 'MCP Package (.zip)' : 'Unknown';
         });
       }
     } catch (e) {
@@ -236,7 +236,7 @@ class _McpImportScreenState extends State<McpImportScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Select an MCP package file (.mcpkg) or folder (.mcp/) to restore your data.',
+                    'Select an MCP package file (.zip) or folder (.mcp/) to restore your data.',
                     style: bodyStyle(context).copyWith(
                       color: kcSecondaryTextColor,
                     ),

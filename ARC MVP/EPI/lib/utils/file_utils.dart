@@ -2,9 +2,9 @@ import 'dart:io';
 
 /// File utilities for MCP package handling
 class FileUtils {
-  /// Check if file is an MCP package (.mcpkg)
+  /// Check if file is an MCP package (.zip with MCP content)
   static bool isMcpPackage(String path) {
-    return path.toLowerCase().endsWith('.mcpkg');
+    return path.toLowerCase().endsWith('.zip') || path.toLowerCase().endsWith('.mcpkg');
   }
 
   /// Check if path is an MCP folder (.mcp/)
@@ -36,7 +36,7 @@ class FileUtils {
   static String generateMcpPackageName(String basename) {
     final now = DateTime.now();
     final dateStr = '${now.year}${now.month.toString().padLeft(2, '0')}${now.day.toString().padLeft(2, '0')}';
-    return '${basename}_$dateStr.mcpkg';
+    return '${basename}_$dateStr.zip';
   }
 
   /// Generate MCP folder name

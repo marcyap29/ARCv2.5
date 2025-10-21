@@ -286,7 +286,7 @@ class _McpExportScreenState extends State<McpExportScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Save all your journal entries and photos in a single portable file.',
+                    'Save all your journal entries and photos in a single portable .zip file.',
                     style: bodyStyle(context).copyWith(
                       color: kcSecondaryTextColor,
                     ),
@@ -404,7 +404,7 @@ class _McpExportScreenState extends State<McpExportScreen> {
                         ],
                       )
                     : const Text(
-                        'Create MCP Package (.mcpkg)',
+                        'Create MCP Package (.zip)',
                         style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                       ),
               ),
