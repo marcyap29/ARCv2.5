@@ -35,6 +35,11 @@
 - `lib/utils/file_utils.dart` - Added MCP file/folder detection methods
 - `lib/features/timeline/widgets/interactive_timeline_view.dart` - Simplified photo display
 
+#### **Bug Fixes** ✅ **COMPLETE**
+- **Import Fix**: Fixed "Invalid MCP package: no mcp/ directory found" error by correcting ZIP structure handling
+- **iOS Compatibility**: Resolved file sharing issues with share_plus integration
+- **File Extension**: Changed from .mcpkg to .zip for better iOS Files app support
+
 #### **Files Removed** ✅ **COMPLETE**
 - `lib/prism/mcp/export/mcp_media_export_service.dart` - Complex rolling media packs
 - `lib/prism/mcp/export/simple_mcp_export_service.dart` - Replaced by mcp_pack_export_service.dart
