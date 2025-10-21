@@ -147,8 +147,12 @@ class _KeywordAnalysisViewState extends State<KeywordAnalysisView>
         ),
       );
       
-      // Refresh timeline
-      context.read<TimelineCubit>().refreshEntries();
+      // Reload all entries to handle date changes properly
+      if (widget.existingEntry != null) {
+        context.read<TimelineCubit>().reloadAllEntries();
+      } else {
+        context.read<TimelineCubit>().refreshEntries();
+      }
       
       // Return result to previous screen instead of navigating directly to home
       Navigator.of(context).pop({'save': true});

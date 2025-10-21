@@ -39,6 +39,17 @@ class TimelineCubit extends Cubit<TimelineState> {
     print('DEBUG: Timeline refresh completed');
   }
 
+  /// Reload all entries (used when an entry's date changes and might move pages)
+  Future<void> reloadAllEntries() async {
+    print('DEBUG: TimelineCubit.reloadAllEntries() called');
+    print('DEBUG: Reloading all entries to handle date changes...');
+    emit(const TimelineLoading());
+    _currentPage = 0;
+    _hasMore = true;
+    await _loadAllEntries();
+    print('DEBUG: All entries reload completed');
+  }
+
   /// Check if all entries have been deleted and emit a special state
   Future<bool> checkIfAllEntriesDeleted() async {
     final journalRepository = JournalRepository();
@@ -205,6 +216,54 @@ class TimelineCubit extends Cubit<TimelineState> {
       ));
     } catch (e) {
       emit(const TimelineError(message: 'Failed to load timeline entries'));
+    }
+  }
+
+  /// Load all entries without pagination (used when entry dates change)
+  Future<void> _loadAllEntries({TimelineFilter? filter}) async {
+    print('DEBUG: TimelineCubit._loadAllEntries() called with filter: $filter');
+    try {
+      final currentState = state is TimelineLoaded
+          ? state as TimelineLoaded
+          : const TimelineLoaded(
+              groupedEntries: [],
+              filter: TimelineFilter.all,
+              hasMore: true,
+            );
+
+      final effectiveFilter = filter ?? currentState.filter;
+
+      // Get all entries without pagination
+      final allJournalEntries = _journalRepository.getAllJournalEntriesSync();
+      
+      // Apply filter
+      List<JournalEntry> filteredEntries = allJournalEntries;
+      switch (effectiveFilter) {
+        case TimelineFilter.textOnly:
+          filteredEntries = allJournalEntries.where((e) => e.content.isNotEmpty).toList();
+          break;
+        case TimelineFilter.withArcform:
+          filteredEntries = allJournalEntries.where((e) => e.sageAnnotation != null).toList();
+          break;
+        case TimelineFilter.all:
+        default:
+          filteredEntries = allJournalEntries;
+      }
+
+      // Convert to timeline entries
+      final allTimelineEntries = _mapToTimelineEntries(filteredEntries);
+      
+      // Group by month
+      final groupedEntries = _groupEntriesByMonth(allTimelineEntries);
+
+      print('DEBUG: TimelineCubit._loadAllEntries emitting TimelineLoaded with ${groupedEntries.length} groups');
+      emit(TimelineLoaded(
+        groupedEntries: groupedEntries,
+        filter: effectiveFilter,
+        hasMore: false, // No pagination when loading all entries
+      ));
+    } catch (e) {
+      emit(const TimelineError(message: 'Failed to load all timeline entries'));
     }
   }
 
