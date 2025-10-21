@@ -3,6 +3,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as path;
+import 'package:share_plus/share_plus.dart';
+import 'dart:io';
 import '../../shared/app_colors.dart';
 import '../../shared/text_style.dart';
 import '../../arc/core/journal_repository.dart';
@@ -77,25 +79,15 @@ class _McpExportScreenState extends State<McpExportScreen> {
         return;
       }
 
-      // Let user choose export location
-      final result = await FilePicker.platform.saveFile(
-        dialogTitle: 'Save MCP Package',
-        fileName: FileUtils.generateMcpPackageName('journal_export'),
-        type: FileType.custom,
-        allowedExtensions: ['mcpkg'],
-      );
-
-      if (result == null) {
-        setState(() {
-          _isExporting = false;
-        });
-        return;
-      }
+      // Create temporary file path
+      final tempDir = await getTemporaryDirectory();
+      final fileName = FileUtils.generateMcpPackageName('journal_export');
+      final tempFilePath = path.join(tempDir.path, fileName);
 
       // Create export service
       final exportService = McpPackExportService(
         bundleId: 'export_${DateTime.now().millisecondsSinceEpoch}',
-        outputPath: result,
+        outputPath: tempFilePath,
         isDebugMode: false,
       );
 
@@ -157,7 +149,8 @@ class _McpExportScreenState extends State<McpExportScreen> {
     );
   }
 
-  void _showSuccessDialog(McpExportResult result) {
+  void _showSuccessDialog(McpExportResult result) async {
+    // First show the success dialog
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -173,23 +166,55 @@ class _McpExportScreenState extends State<McpExportScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Your MCP Package was saved successfully!',
+              'Your MCP Package was created successfully!',
               style: bodyStyle(context),
             ),
             const SizedBox(height: 16),
             _buildSummaryRow('Entries exported:', '$_entryCount'),
             _buildSummaryRow('Photos exported:', '$_photoCount'),
-            _buildSummaryRow('File location:', path.basename(result.outputPath ?? '')),
+            const SizedBox(height: 16),
+            Text(
+              'Tap "Share" to save the file to your device.',
+              style: bodyStyle(context).copyWith(
+                fontStyle: FontStyle.italic,
+                color: kcSecondaryTextColor,
+              ),
+            ),
           ],
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Done'),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.of(context).pop(); // Close dialog first
+              await _shareMcpPackage(result.outputPath!);
+            },
+            child: const Text('Share'),
           ),
         ],
       ),
     );
+  }
+
+  Future<void> _shareMcpPackage(String filePath) async {
+    try {
+      final file = File(filePath);
+      if (!await file.exists()) {
+        _showErrorDialog('Export file not found');
+        return;
+      }
+
+      await Share.shareXFiles(
+        [XFile(filePath)],
+        text: 'MCP Package - $_entryCount entries, $_photoCount photos',
+        subject: 'Journal Export - ${path.basename(filePath)}',
+      );
+    } catch (e) {
+      _showErrorDialog('Failed to share file: $e');
+    }
   }
 
   Widget _buildSummaryRow(String label, String value) {
