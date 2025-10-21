@@ -1,12 +1,15 @@
 {
     "folders": [
 		{
+			"name": "ARC",
 			"path": "."
 		},
 		{
+			"name": "MCP Files",
 			"path": "../../Downloads/MCP Files"
 		},
 		{
+			"name": "Downloads",
 			"path": "../../Downloads"
 		}
 	]

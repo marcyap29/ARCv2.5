@@ -146,23 +146,62 @@ build_ios_simulator() {
 # Create XCFramework (device only for now)
 create_xcframework() {
     log_build "Creating XCFramework (device only)..."
-    
-    local ios_lib="$BUILD_DIR/ios-device/src/libllama.a"
-    
-    # Verify library exists
-    [[ -f "$ios_lib" ]] || { log_error "Missing iOS device libllama.a"; exit 1; }
-    
-    # Create XCFramework with device library only
+
+    local ios_llama_lib="$BUILD_DIR/ios-device/src/libllama.a"
+    local ios_ggml_base_lib="$BUILD_DIR/ios-device/ggml/src/libggml-base.a"
+    local ios_ggml_cpu_lib="$BUILD_DIR/ios-device/ggml/src/libggml-cpu.a"
+    local ios_ggml_metal_lib="$BUILD_DIR/ios-device/ggml/src/ggml-metal/libggml-metal.a"
+    local ios_ggml_blas_lib="$BUILD_DIR/ios-device/ggml/src/ggml-blas/libggml-blas.a"
+    local ios_ggml_lib="$BUILD_DIR/ios-device/ggml/src/libggml.a"
+    local combined_lib="$BUILD_DIR/ios-device/libllama_combined.a"
+
+    # Verify libraries exist
+    [[ -f "$ios_llama_lib" ]] || { log_error "Missing iOS device libllama.a"; exit 1; }
+    [[ -f "$ios_ggml_base_lib" ]] || { log_error "Missing iOS device libggml-base.a"; exit 1; }
+    [[ -f "$ios_ggml_cpu_lib" ]] || { log_error "Missing iOS device libggml-cpu.a"; exit 1; }
+    [[ -f "$ios_ggml_metal_lib" ]] || { log_error "Missing iOS device libggml-metal.a"; exit 1; }
+    [[ -f "$ios_ggml_blas_lib" ]] || { log_error "Missing iOS device libggml-blas.a"; exit 1; }
+    [[ -f "$ios_ggml_lib" ]] || { log_error "Missing iOS device libggml.a"; exit 1; }
+
+    # Combine all llama.cpp and GGML libraries into a single library using libtool
+    log_info "Combining all libraries using libtool (preserves all object files)..."
+
+    # Use libtool to combine libraries - this properly handles duplicate filenames
+    libtool -static -o "$combined_lib" \
+        "$ios_llama_lib" \
+        "$ios_ggml_base_lib" \
+        "$ios_ggml_cpu_lib" \
+        "$ios_ggml_metal_lib" \
+        "$ios_ggml_blas_lib" \
+        "$ios_ggml_lib"
+
+    # Verify combined library was created
+    [[ -f "$combined_lib" ]] || { log_error "Failed to create combined library"; exit 1; }
+
+    local combined_size=$(du -h "$combined_lib" | cut -f1)
+    log_success "Combined library created (${combined_size})"
+
+    # Create XCFramework with combined library
+    # First, create a combined headers directory
+    local combined_headers="$BUILD_DIR/combined_headers"
+    mkdir -p "$combined_headers"
+
+    # Copy llama headers
+    cp -r "$LLAMA_DIR/include"/* "$combined_headers/"
+
+    # Copy GGML headers
+    cp -r "$LLAMA_DIR/ggml/include"/* "$combined_headers/"
+
     xcodebuild -create-xcframework \
-        -library "$ios_lib" -headers "$LLAMA_DIR/include" \
+        -library "$combined_lib" -headers "$combined_headers" \
         -output "$OUT_DIR/llama.xcframework"
-    
+
     # Verify XCFramework structure
     if [[ ! -d "$OUT_DIR/llama.xcframework" ]]; then
         log_error "XCFramework creation failed"
         exit 1
     fi
-    
+
     log_success "XCFramework created successfully (device only)"
 }
 
@@ -183,9 +222,10 @@ verify_xcframework() {
         exit 1
     fi
     
-    # Check library files (device only for now)
-    if [[ ! -f "$xcframework_path/ios-arm64/libllama.a" ]]; then
-        log_error "Missing libllama.a in ios-arm64 slice"
+    # Check library files (device only for now) - looking for any .a file
+    local lib_file=$(find "$xcframework_path/ios-arm64" -name "*.a" | head -1)
+    if [[ -z "$lib_file" ]]; then
+        log_error "Missing static library in ios-arm64 slice"
         exit 1
     fi
     
@@ -194,7 +234,7 @@ verify_xcframework() {
     tree "$xcframework_path" || find "$xcframework_path" -type f | sort
     
     # Get file sizes (device only for now)
-    local device_size=$(du -h "$xcframework_path/ios-arm64/libllama.a" | cut -f1)
+    local device_size=$(du -h "$lib_file" | cut -f1)
     
     log_success "XCFramework verification passed"
     log_info "Device library size: $device_size"

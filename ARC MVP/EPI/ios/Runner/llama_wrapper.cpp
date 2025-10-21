@@ -1,6 +1,6 @@
 #include "llama_wrapper.h"
 #include "epi_logger.h"
-#include "../../third_party/llama.cpp/include/llama.h"
+#include <llama.h>
 #include "llama_compat_simple.hpp"
 #include <vector>
 #include <string>

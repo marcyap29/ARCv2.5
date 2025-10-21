@@ -612,11 +612,9 @@
 				FRAMEWORK_SEARCH_PATHS = "$(inherited)";
 				"FRAMEWORK_SEARCH_PATHS[sdk=iphonesimulator*]" = (
 					"$(inherited)",
-					"$(PROJECT_DIR)/../third_party/llama.cpp/build-apple",
 				);
 				HEADER_SEARCH_PATHS = (
-					"$(PROJECT_DIR)/../third_party/llama.cpp/include",
-					"$(PROJECT_DIR)/../third_party/llama.cpp/ggml/include",
+					"$(PROJECT_DIR)/Runner/Vendor/llama.xcframework/ios-arm64/Headers",
 				);
 				INFOPLIST_FILE = Runner/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = ARC;
@@ -626,7 +624,10 @@
 					"@executable_path/Frameworks",
 					"@loader_path/Frameworks",
 				);
-				LIBRARY_SEARCH_PATHS = "$(inherited)";
+				LIBRARY_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(PROJECT_DIR)/Runner/Vendor/llama.xcframework/ios-arm64",
+				);
 				MARKETING_VERSION = .01;
 				OTHER_LDFLAGS = (
 					"-lc++",
@@ -827,11 +828,9 @@
 				FRAMEWORK_SEARCH_PATHS = "$(inherited)";
 				"FRAMEWORK_SEARCH_PATHS[sdk=iphonesimulator*]" = (
 					"$(inherited)",
-					"$(PROJECT_DIR)/../third_party/llama.cpp/build-apple",
 				);
 				HEADER_SEARCH_PATHS = (
-					"$(PROJECT_DIR)/../third_party/llama.cpp/include",
-					"$(PROJECT_DIR)/../third_party/llama.cpp/ggml/include",
+					"$(PROJECT_DIR)/Runner/Vendor/llama.xcframework/ios-arm64/Headers",
 				);
 				INFOPLIST_FILE = Runner/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = ARC;
@@ -841,7 +840,10 @@
 					"@executable_path/Frameworks",
 					"@loader_path/Frameworks",
 				);
-				LIBRARY_SEARCH_PATHS = "$(inherited)";
+				LIBRARY_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(PROJECT_DIR)/Runner/Vendor/llama.xcframework/ios-arm64",
+				);
 				MARKETING_VERSION = .01;
 				OTHER_LDFLAGS = (
 					"-lc++",
@@ -876,11 +878,9 @@
 				FRAMEWORK_SEARCH_PATHS = "$(inherited)";
 				"FRAMEWORK_SEARCH_PATHS[sdk=iphonesimulator*]" = (
 					"$(inherited)",
-					"$(PROJECT_DIR)/../third_party/llama.cpp/build-apple",
 				);
 				HEADER_SEARCH_PATHS = (
-					"$(PROJECT_DIR)/../third_party/llama.cpp/include",
-					"$(PROJECT_DIR)/../third_party/llama.cpp/ggml/include",
+					"$(PROJECT_DIR)/Runner/Vendor/llama.xcframework/ios-arm64/Headers",
 				);
 				INFOPLIST_FILE = Runner/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = ARC;
@@ -890,7 +890,10 @@
 					"@executable_path/Frameworks",
 					"@loader_path/Frameworks",
 				);
-				LIBRARY_SEARCH_PATHS = "$(inherited)";
+				LIBRARY_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(PROJECT_DIR)/Runner/Vendor/llama.xcframework/ios-arm64",
+				);
 				MARKETING_VERSION = .01;
 				OTHER_LDFLAGS = (
 					"-lc++",
