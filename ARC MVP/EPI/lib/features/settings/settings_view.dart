@@ -126,7 +126,7 @@ class SettingsView extends StatelessWidget {
               children: [
                 _buildSettingsTile(
                   context,
-                  title: 'Manage Media Packs',
+                  title: 'Import/Export Data',
                   subtitle: 'Export, import, and organize your journal data',
                   icon: Icons.dashboard,
                   onTap: () {
