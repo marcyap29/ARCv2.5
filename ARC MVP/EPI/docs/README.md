@@ -1,11 +1,23 @@
 # EPI Documentation
 
-**Last Updated:** January 20, 2025
-**Status:** Production Ready ✅ - MCP Export/Import System Simplified & LUMARA v2.0 Complete
+**Last Updated:** January 21, 2025
+**Status:** Production Ready ✅ - MCP Export/Import System Simplified, LUMARA v2.0 Complete & Timeline Ordering Fixed
 
 This directory contains comprehensive documentation for the EPI (Evolving Personal Intelligence) project - an 8-module intelligent journaling system built with Flutter.
 
-## 🆕 Latest Updates (January 20, 2025)
+## 🆕 Latest Updates (January 21, 2025)
+
+**🔧 Timeline Ordering & Timestamp Fixes**
+
+Fixed critical timeline ordering issues caused by inconsistent timestamp formats:
+- **Timestamp Format Standardization** - All MCP exports now use consistent ISO 8601 UTC format with 'Z' suffix
+- **Robust Import Parsing** - Import service handles both old malformed timestamps and new properly formatted ones
+- **Timeline Chronological Order** - Entries now display in correct chronological order (oldest to newest)
+- **Group Sorting Logic** - Timeline groups sorted by newest entry, ensuring recent entries appear at top
+- **Backward Compatibility** - Existing exports with malformed timestamps automatically corrected during import
+- **Export Service Enhancement** - Added `_formatTimestamp()` method ensuring all future exports have proper formatting
+- **Import Service Enhancement** - Added `_parseTimestamp()` method with robust error handling and fallbacks
+- **Corrected Export File** - Created `journal_export_20251020_CORRECTED.zip` with fixed timestamps for testing
 
 **📦 MCP Export/Import System - Ultra-Simplified & Streamlined**
 

@@ -10,6 +10,63 @@
   - VEIL: Self-Pruning & Coherence (Integrated with MIRA v0.2)
   - RIVET: Risk-Validation Evidence Tracker (Extended with Draft & Chat Analysis)
 
+  ## 🔧 **Timeline Ordering & Timestamp Architecture** (Updated January 21, 2025)
+
+  **Critical Timeline Ordering Fix - PRODUCTION READY**:
+  ```
+  Timeline Ordering System:
+  ├── Timestamp Standardization
+  │   ├── McpPackExportService._formatTimestamp()
+  │   │   ├── Ensures all timestamps use ISO 8601 UTC format
+  │   │   ├── Adds 'Z' suffix for UTC timezone indication
+  │   │   ├── Converts local time to UTC before formatting
+  │   │   └── Handles edge cases and validation
+  │   └── Consistent Export Format
+  │       ├── All journal entries: "2025-10-19T17:41:00.000Z"
+  │       ├── All media items: "2025-10-19T17:41:00.000Z"
+  │       └── Manifest timestamps: "2025-10-21T06:52:20.786221Z"
+  ├── Robust Import Parsing
+  │   ├── McpPackImportService._parseTimestamp()
+  │   │   ├── Handles malformed timestamps missing 'Z' suffix
+  │   │   ├── Auto-adds 'Z' for timestamps ending in '.000'
+  │   │   ├── Assumes UTC for timestamps without timezone indicators
+  │   │   ├── Graceful fallback to current time if parsing fails
+  │   │   └── Error logging and debugging information
+  │   └── Backward Compatibility
+  │       ├── Supports old exports with malformed timestamps
+  │       ├── Automatically corrects format during import
+  │       └── Maintains data integrity and chronological order
+  ├── Timeline Group Sorting
+  │   ├── InteractiveTimelineView._groupEntriesByTimePeriod()
+  │   │   ├── Groups entries by time period (day/week/month)
+  │   │   ├── Sorts groups by newest entry in each group
+  │   │   ├── Sorts entries within groups oldest-first (left-to-right)
+  │   │   └── Ensures newest groups appear at top of timeline
+  │   └── Chronological Display
+  │       ├── Vertical scroll: newest groups at top
+  │       ├── Horizontal scroll: oldest entries on left
+  │       └── Proper chronological flow throughout timeline
+  └── Error Handling & Validation
+      ├── Timestamp Format Detection
+      │   ├── Identifies malformed timestamps during analysis
+      │   ├── Logs warnings for debugging and monitoring
+      │   └── Provides fallback mechanisms for data integrity
+      ├── Import Error Recovery
+      │   ├── Graceful handling of parsing failures
+      │   ├── Fallback to current time for invalid timestamps
+      │   └── Maintains import process continuity
+      └── Export Quality Assurance
+          ├── Validates timestamp format before export
+          ├── Ensures consistent formatting across all entries
+          └── Prevents future timestamp-related issues
+  ```
+
+  **Root Cause Analysis**:
+  - **Issue**: 2 out of 16 entries had malformed timestamps missing 'Z' suffix
+  - **Impact**: `DateTime.parse()` failed, causing incorrect chronological ordering
+  - **Solution**: Robust parsing with automatic format correction
+  - **Prevention**: Standardized export formatting with validation
+
   ## 📦 **MCP Export/Import System Architecture** (Updated January 20, 2025)
 
   **Ultra-Simplified Memory Container Protocol System - PRODUCTION READY**:

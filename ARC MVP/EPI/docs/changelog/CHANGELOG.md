@@ -2,6 +2,36 @@
 
 ## [Unreleased]
 
+### 🔧 **Timeline Ordering & Timestamp Fixes** - January 21, 2025
+
+#### **Critical Timeline Ordering Fix** ✅ **PRODUCTION READY**
+- **Timestamp Format Standardization**: All MCP exports now use consistent ISO 8601 UTC format with 'Z' suffix
+- **Robust Import Parsing**: Import service handles both old malformed timestamps and new properly formatted ones
+- **Timeline Chronological Order**: Entries now display in correct chronological order (oldest to newest)
+- **Group Sorting Logic**: Timeline groups sorted by newest entry, ensuring recent entries appear at top
+- **Backward Compatibility**: Existing exports with malformed timestamps automatically corrected during import
+- **Export Service Enhancement**: Added `_formatTimestamp()` method ensuring all future exports have proper formatting
+- **Import Service Enhancement**: Added `_parseTimestamp()` method with robust error handling and fallbacks
+- **Corrected Export File**: Created `journal_export_20251020_CORRECTED.zip` with fixed timestamps for testing
+
+#### **Technical Implementation** ✅ **COMPLETE**
+- **McpPackExportService**: Added `_formatTimestamp()` method for consistent UTC formatting
+- **McpPackImportService**: Added `_parseTimestamp()` method with robust error handling
+- **Timeline Group Sorting**: Fixed `_groupEntriesByTimePeriod()` to sort by newest entry in each group
+- **Timestamp Validation**: Automatic detection and correction of malformed timestamps during import
+- **Error Handling**: Graceful fallback to current time if timestamp parsing completely fails
+
+#### **Root Cause Analysis** ✅ **IDENTIFIED**
+- **Inconsistent Timestamps**: Found 2 out of 16 entries with malformed timestamps missing 'Z' suffix
+- **Parsing Failures**: `DateTime.parse()` failed on malformed timestamps, causing incorrect chronological ordering
+- **Group Sorting Issue**: Timeline groups were sorted by oldest entry instead of newest entry
+- **Import Service Gap**: No robust handling for different timestamp formats
+
+#### **Files Modified** ✅ **COMPLETE**
+- `lib/mcp/export/mcp_pack_export_service.dart` - Added `_formatTimestamp()` method
+- `lib/mcp/import/mcp_pack_import_service.dart` - Added `_parseTimestamp()` method
+- `lib/features/timeline/widgets/interactive_timeline_view.dart` - Fixed group sorting logic
+
 ### 📦 **MCP Export/Import System - Ultra-Simplified & Streamlined** - January 20, 2025
 
 #### **Complete System Redesign** ✅ **PRODUCTION READY**

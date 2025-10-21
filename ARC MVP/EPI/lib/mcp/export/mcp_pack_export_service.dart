@@ -159,10 +159,10 @@ class McpPackExportService {
       }
     }
 
-    // Create processed entry
+    // Create processed entry with properly formatted timestamp
     final processedEntry = {
       'id': entry.id,
-      'timestamp': entry.createdAt.toIso8601String(),
+      'timestamp': _formatTimestamp(entry.createdAt),
       'content': entry.content,
       'media': processedMedia,
       'emotion': entry.emotion,
@@ -275,6 +275,20 @@ class McpPackExportService {
     final lastDot = path.lastIndexOf('.');
     if (lastDot == -1) return 'jpg';
     return path.substring(lastDot + 1).toLowerCase();
+  }
+
+  /// Format timestamp to ensure consistent ISO 8601 format with Z suffix
+  String _formatTimestamp(DateTime dateTime) {
+    // Ensure the timestamp is in UTC and has the Z suffix
+    final utcDateTime = dateTime.toUtc();
+    final isoString = utcDateTime.toIso8601String();
+    
+    // Ensure it ends with 'Z' for UTC timezone
+    if (isoString.endsWith('Z')) {
+      return isoString;
+    } else {
+      return '${isoString}Z';
+    }
   }
 }
 

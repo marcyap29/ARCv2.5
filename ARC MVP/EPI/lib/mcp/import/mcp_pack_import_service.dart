@@ -151,8 +151,8 @@ class McpPackImportService {
             id: entryJson['id'] as String,
             title: _generateTitle(entryJson['content'] as String? ?? ''),
             content: entryJson['content'] as String? ?? '',
-            createdAt: DateTime.parse(entryJson['timestamp'] as String),
-            updatedAt: DateTime.parse(entryJson['timestamp'] as String),
+            createdAt: _parseTimestamp(entryJson['timestamp'] as String),
+            updatedAt: _parseTimestamp(entryJson['timestamp'] as String),
             media: mediaItems,
             tags: (entryJson['keywords'] as List<dynamic>? ?? []).cast<String>(),
             keywords: (entryJson['keywords'] as List<dynamic>? ?? []).cast<String>(),
@@ -226,6 +226,26 @@ class McpPackImportService {
       return firstLine;
     } else {
       return '${firstLine.substring(0, 47)}...';
+    }
+  }
+
+  /// Parse timestamp with robust handling of different formats
+  DateTime _parseTimestamp(String timestamp) {
+    try {
+      // Handle malformed timestamps missing 'Z' suffix
+      if (timestamp.endsWith('.000') && !timestamp.endsWith('Z')) {
+        // Add 'Z' suffix for UTC timezone
+        timestamp = '${timestamp}Z';
+      } else if (!timestamp.endsWith('Z') && !timestamp.contains('+') && !timestamp.contains('-', 10)) {
+        // If no timezone indicator, assume UTC and add 'Z'
+        timestamp = '${timestamp}Z';
+      }
+      
+      return DateTime.parse(timestamp);
+    } catch (e) {
+      print('⚠️ Failed to parse timestamp "$timestamp": $e');
+      // Fallback to current time if parsing fails
+      return DateTime.now();
     }
   }
 }
