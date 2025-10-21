@@ -711,16 +711,22 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
     // Navigate to keyword analysis
     Navigator.of(context).push<Map<String, dynamic>>(
       MaterialPageRoute(
-        builder: (context) => MultiBlocProvider(
-          providers: [
-            BlocProvider(
-              create: (context) => JournalCaptureCubit(context.read<JournalRepository>()),
-            ),
-            BlocProvider(
-              create: (context) => KeywordExtractionCubit()..initialize(),
-            ),
-          ],
-          child: KeywordAnalysisView(
+        builder: (context) {
+          print('DEBUG: JournalScreen - Passing date/time to KeywordAnalysisView:');
+          print('DEBUG: - _editableDate: $_editableDate');
+          print('DEBUG: - _editableTime: $_editableTime');
+          print('DEBUG: - existingEntry.createdAt: ${widget.existingEntry?.createdAt}');
+          
+          return MultiBlocProvider(
+            providers: [
+              BlocProvider(
+                create: (context) => JournalCaptureCubit(context.read<JournalRepository>()),
+              ),
+              BlocProvider(
+                create: (context) => KeywordExtractionCubit()..initialize(),
+              ),
+            ],
+            child: KeywordAnalysisView(
             content: _entryState.text,
             mood: widget.selectedEmotion ?? 'Other',
             initialEmotion: widget.selectedEmotion,
@@ -741,8 +747,9 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
               }
               return mediaItems;
             })(),
-          ),
-        ),
+            ),
+          );
+        },
       ),
     ).then((result) {
       // Handle save result - if saved successfully, go back to home

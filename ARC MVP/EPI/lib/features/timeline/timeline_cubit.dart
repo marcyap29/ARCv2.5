@@ -32,9 +32,11 @@ class TimelineCubit extends Cubit<TimelineState> {
 
   Future<void> refreshEntries() async {
     print('DEBUG: TimelineCubit.refreshEntries() called');
+    print('DEBUG: Refreshing timeline to show updated entries...');
     _currentPage = 0;
     _hasMore = true;
     await _loadEntries();
+    print('DEBUG: Timeline refresh completed');
   }
 
   /// Check if all entries have been deleted and emit a special state

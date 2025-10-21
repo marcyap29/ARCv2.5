@@ -548,6 +548,10 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
       
       // Combine date and time if provided
       DateTime? newCreatedAt = existingEntry.createdAt;
+      print('DEBUG: Original createdAt: ${existingEntry.createdAt}');
+      print('DEBUG: Selected date: $selectedDate');
+      print('DEBUG: Selected time: $selectedTime');
+      
       if (selectedDate != null && selectedTime != null) {
         newCreatedAt = DateTime(
           selectedDate.year,
@@ -556,6 +560,7 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
           selectedTime.hour,
           selectedTime.minute,
         );
+        print('DEBUG: New createdAt (date + time): $newCreatedAt');
       } else if (selectedDate != null) {
         newCreatedAt = DateTime(
           selectedDate.year,
@@ -564,6 +569,9 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
           existingEntry.createdAt.hour,
           existingEntry.createdAt.minute,
         );
+        print('DEBUG: New createdAt (date only): $newCreatedAt');
+      } else {
+        print('DEBUG: No date change, keeping original: $newCreatedAt');
       }
 
       // Create updated entry
