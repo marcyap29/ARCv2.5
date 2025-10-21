@@ -43,10 +43,12 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
   List<TimelineEntry> _entries = [];
   bool _isSelectionMode = false;
   final Set<String> _selectedEntryIds = {};
+  late ScrollController _scrollController;
 
   @override
   void initState() {
     super.initState();
+    _scrollController = ScrollController();
     _fadeController = AnimationController(
       duration: const Duration(milliseconds: 300),
       vsync: this,
@@ -65,6 +67,7 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
 
   @override
   void dispose() {
+    _scrollController.dispose();
     _fadeController.dispose();
     super.dispose();
   }
@@ -273,6 +276,7 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
     sortedEntries.sort((a, b) => b.createdAt.compareTo(a.createdAt));
     
     return ListView.builder(
+      controller: _scrollController,
       itemCount: sortedEntries.length,
       itemBuilder: (context, index) {
         final entry = sortedEntries[index];
@@ -605,38 +609,57 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
   }
 
   void _jumpToDate(DateTime targetDate) {
-    // Find the closest group to the target date
-    final groupedEntries = _groupEntriesByTimePeriod();
+    if (_entries.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No entries available'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+      return;
+    }
+
+    // Sort entries by date (newest first, same as display)
+    final sortedEntries = List<TimelineEntry>.from(_entries);
+    sortedEntries.sort((a, b) => b.createdAt.compareTo(a.createdAt));
     
-    for (int i = 0; i < groupedEntries.length; i++) {
-      final group = groupedEntries[i];
-      final entries = group['entries'] as List<TimelineEntry>;
+    // Find the closest entry to the target date
+    int closestIndex = 0;
+    int minDaysDifference = 999999;
+    
+    for (int i = 0; i < sortedEntries.length; i++) {
+      final entry = sortedEntries[i];
+      final daysDifference = entry.createdAt.difference(targetDate).inDays.abs();
       
-      // Check if any entry in this group is close to the target date
-      for (final entry in entries) {
-        final entryDate = DateTime.tryParse(entry.date);
-        if (entryDate != null) {
-          final daysDifference = entryDate.difference(targetDate).inDays.abs();
-          if (daysDifference <= 7) { // Within a week
-            // Scroll to this group
-            // Note: This would require a ScrollController to be implemented
-            // For now, we'll just show a snackbar
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('Found entries near ${targetDate.toString().split(' ')[0]}'),
-                duration: const Duration(seconds: 2),
-              ),
-            );
-            return;
-          }
-        }
+      if (daysDifference < minDaysDifference) {
+        minDaysDifference = daysDifference;
+        closestIndex = i;
       }
     }
     
-    // No entries found near the target date
+    // Calculate the scroll position (approximate height per item)
+    const double itemHeight = 200.0; // Approximate height of each timeline entry card
+    const double margin = 16.0; // Vertical margin
+    final double targetOffset = closestIndex * (itemHeight + margin);
+    
+    // Scroll to the closest entry
+    _scrollController.animateTo(
+      targetOffset,
+      duration: const Duration(milliseconds: 500),
+      curve: Curves.easeInOut,
+    );
+    
+    // Show feedback to user
+    final closestEntry = sortedEntries[closestIndex];
+    final daysDiff = closestEntry.createdAt.difference(targetDate).inDays.abs();
+    
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('No entries found near ${targetDate.toString().split(' ')[0]}'),
+        content: Text(
+          daysDiff == 0 
+            ? 'Jumped to entry on ${targetDate.toString().split(' ')[0]}'
+            : 'Jumped to closest entry (${daysDiff} days from ${targetDate.toString().split(' ')[0]})'
+        ),
         duration: const Duration(seconds: 2),
       ),
     );
@@ -1546,6 +1569,7 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
         phase: updatedEntry.phase,
         geometry: updatedEntry.geometry,
         media: updatedMedia,
+        createdAt: updatedEntry.createdAt,
       );
       
       // Update the entries list
