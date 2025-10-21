@@ -413,12 +413,12 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
       };
     }).toList()
       ..sort((a, b) {
-        // Sort groups by the date of their first entry (newest first)
+        // Sort groups by the date of their newest entry (newest first)
         final aEntries = a['entries'] as List<TimelineEntry>;
         final bEntries = b['entries'] as List<TimelineEntry>;
-        final aFirstEntry = aEntries.first;
-        final bFirstEntry = bEntries.first;
-        return bFirstEntry.date.compareTo(aFirstEntry.date);
+        final aNewestEntry = aEntries.last; // Last entry is newest since we sort oldest-first within groups
+        final bNewestEntry = bEntries.last; // Last entry is newest since we sort oldest-first within groups
+        return bNewestEntry.date.compareTo(aNewestEntry.date);
       });
   }
 
