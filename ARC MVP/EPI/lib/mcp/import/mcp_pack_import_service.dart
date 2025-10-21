@@ -8,7 +8,7 @@ import '../../models/journal_entry_model.dart';
 import '../../data/models/media_item.dart';
 import '../../arc/core/journal_repository.dart';
 
-/// MCP Pack Import Service for .mcpkg and .mcp/ formats
+/// MCP Pack Import Service for .zip and .mcp/ formats
 class McpPackImportService {
   final JournalRepository? _journalRepo;
 
@@ -16,21 +16,21 @@ class McpPackImportService {
     JournalRepository? journalRepo,
   }) : _journalRepo = journalRepo;
 
-  /// Import from MCP package (.mcpkg) or folder (.mcp/)
+  /// Import from MCP package (.zip) or folder (.mcp/)
   Future<McpImportResult> importFromPath(String inputPath) async {
     try {
       print('📥 Starting MCP import from: $inputPath');
       
-      // Detect if it's a .mcpkg file or .mcp/ folder
+      // Detect if it's a .zip file or .mcp/ folder
       final inputFile = File(inputPath);
       final inputDir = Directory(inputPath);
       
       Directory mcpDir;
       bool isZipped = false;
       
-      if (await inputFile.exists() && inputPath.endsWith('.mcpkg')) {
-        // It's a .mcpkg ZIP file
-        print('📦 Detected MCP package (.mcpkg)');
+      if (await inputFile.exists() && inputPath.endsWith('.zip')) {
+        // It's a .zip MCP package file
+        print('📦 Detected MCP package (.zip)');
         isZipped = true;
         
         // Extract to temporary directory
@@ -46,7 +46,7 @@ class McpPackImportService {
         print('📁 Detected MCP folder (.mcp/)');
         mcpDir = inputDir;
       } else {
-        throw Exception('Invalid input: must be .mcpkg file or .mcp/ folder');
+        throw Exception('Invalid input: must be .zip file or .mcp/ folder');
       }
 
       // Read and validate manifest
