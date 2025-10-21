@@ -274,67 +274,88 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
   }
 
   Widget _buildInteractiveTimeline() {
-    return RefreshIndicator(
-      onRefresh: _refreshTimeline,
-      child: _build2DGridTimeline(),
+    return Stack(
+      children: [
+        RefreshIndicator(
+          onRefresh: _refreshTimeline,
+          child: _build2DGridTimeline(),
+        ),
+        
+        // Jump to date floating action button
+        Positioned(
+          bottom: 100,
+          right: 16,
+          child: FloatingActionButton(
+            onPressed: _showJumpToDateDialog,
+            backgroundColor: kcPrimaryColor,
+            child: const Icon(
+              Icons.calendar_today,
+              color: Colors.white,
+            ),
+            mini: true,
+          ),
+        ),
+      ],
     );
   }
 
   Widget _build2DGridTimeline() {
-    // Group entries by time periods (weeks or months)
+    // Group entries by time periods with smart adaptive grouping
     final groupedEntries = _groupEntriesByTimePeriod();
     
-    return SingleChildScrollView(
-      scrollDirection: Axis.vertical,
-      child: Column(
-        children: [
-          // Header
-          _buildTimelineHeader(),
+    return CustomScrollView(
+      slivers: [
+        // Timeline header
+        SliverToBoxAdapter(
+          child: _buildTimelineHeader(),
+        ),
+        
+        // Timeline entries with sticky headers
+        ...groupedEntries.asMap().entries.map((groupEntry) {
+          final periodIndex = groupEntry.key;
+          final period = groupEntry.value;
           
-          // 2D Grid of entries
-          ...groupedEntries.asMap().entries.map((groupEntry) {
-            final periodIndex = groupEntry.key;
-            final period = groupEntry.value;
-            
-            return Container(
-              margin: const EdgeInsets.symmetric(vertical: 8.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Period header
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-                    child: Text(
-                      period['title'],
-                      style: heading3Style(context).copyWith(
-                        color: kcPrimaryTextColor,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                  
-                  // Horizontal scrollable row of entries
-                  SizedBox(
-                    height: 200, // Fixed height for each row
-                    child: ListView.builder(
-                      scrollDirection: Axis.horizontal,
-                      itemCount: period['entries'].length,
-                      itemBuilder: (context, index) {
-                        final entry = period['entries'][index];
-                        return Container(
-                          width: 300, // Fixed width for each entry card
-                          margin: const EdgeInsets.symmetric(horizontal: 8.0),
-                          child: _buildTimelineEntryCard(entry, periodIndex, index),
-                        );
-                      },
-                    ),
-                  ),
-                ],
+          return SliverMainAxisGroup(
+            slivers: [
+              // Sticky period header
+              SliverPersistentHeader(
+                pinned: true,
+                delegate: _StickyHeaderDelegate(
+                  child: _buildStickyHeader(period['title'], period['entries'].length),
+                ),
               ),
-            );
-          }).toList(),
-        ],
-      ),
+              
+              // Horizontal scrollable row of entries
+              SliverToBoxAdapter(
+                child: SizedBox(
+                  height: 220, // Increased height for better card visibility
+                  child: ListView.builder(
+                    scrollDirection: Axis.horizontal,
+                    physics: const BouncingScrollPhysics(),
+                    itemCount: period['entries'].length,
+                    itemBuilder: (context, index) {
+                      final entry = period['entries'][index];
+                      return Container(
+                        width: 320, // Increased width for better readability
+                        margin: EdgeInsets.only(
+                          left: index == 0 ? 16.0 : 8.0,
+                          right: index == period['entries'].length - 1 ? 16.0 : 8.0,
+                        ),
+                        child: _buildTimelineEntryCard(entry, periodIndex, index),
+                      );
+                    },
+                  ),
+                ),
+              ),
+              
+              // Spacing between periods
+              const SliverToBoxAdapter(
+                child: SizedBox(height: 16),
+              ),
+            ],
+          );
+        }).toList(),
+      ],
     );
   }
 
@@ -345,8 +366,8 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
     final sortedEntries = List<TimelineEntry>.from(_entries);
     sortedEntries.sort((a, b) => b.date.compareTo(a.date));
     
-    // Group by week (you can change this to month, day, etc.)
-    final groups = <String, List<TimelineEntry>>{};
+    // First, group by week to analyze density
+    final weekGroups = <String, List<TimelineEntry>>{};
     
     for (final entry in sortedEntries) {
       // Parse date string to DateTime for week calculation
@@ -354,24 +375,98 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
       final weekStart = _getWeekStart(entryDate);
       final weekKey = '${weekStart.year}-W${_getWeekNumber(weekStart)}';
       
-      if (!groups.containsKey(weekKey)) {
-        groups[weekKey] = [];
+      if (!weekGroups.containsKey(weekKey)) {
+        weekGroups[weekKey] = [];
       }
-      groups[weekKey]!.add(entry);
+      weekGroups[weekKey]!.add(entry);
     }
     
-    // Convert to list with titles
-    return groups.entries.map((entry) {
-      final weekStart = DateTime.parse(entry.key.split('-W')[0] + '-01-01');
-      final weekNum = int.parse(entry.key.split('-W')[1]);
-      final weekStartDate = weekStart.add(Duration(days: (weekNum - 1) * 7));
-      final weekEndDate = weekStartDate.add(const Duration(days: 6));
+    // Apply smart adaptive grouping
+    final finalGroups = <String, List<TimelineEntry>>{};
+    
+    for (final weekEntry in weekGroups.entries) {
+      final weekKey = weekEntry.key;
+      final entries = weekEntry.value;
+      final entryCount = entries.length;
+      
+      if (entryCount < 5) {
+        // Sparse period - merge into monthly group
+        final weekStart = DateTime.parse(weekKey.split('-W')[0] + '-01-01');
+        final weekNum = int.parse(weekKey.split('-W')[1]);
+        final weekStartDate = weekStart.add(Duration(days: (weekNum - 1) * 7));
+        final monthKey = '${weekStartDate.year}-${weekStartDate.month.toString().padLeft(2, '0')}';
+        
+        if (!finalGroups.containsKey(monthKey)) {
+          finalGroups[monthKey] = [];
+        }
+        finalGroups[monthKey]!.addAll(entries);
+      } else if (entryCount > 20) {
+        // Dense period - split into daily groups
+        for (final entry in entries) {
+          final entryDate = DateTime.tryParse(entry.date) ?? DateTime.now();
+          final dayKey = '${entryDate.year}-${entryDate.month.toString().padLeft(2, '0')}-${entryDate.day.toString().padLeft(2, '0')}';
+          
+          if (!finalGroups.containsKey(dayKey)) {
+            finalGroups[dayKey] = [];
+          }
+          finalGroups[dayKey]!.add(entry);
+        }
+      } else {
+        // Normal period - keep weekly grouping
+        finalGroups[weekKey] = entries;
+      }
+    }
+    
+    // Sort entries within each group (oldest first for left-to-right display)
+    for (final group in finalGroups.values) {
+      group.sort((a, b) => a.date.compareTo(b.date));
+    }
+    
+    // Convert to list with titles, sorted newest first
+    return finalGroups.entries.map((entry) {
+      final key = entry.key;
+      final entries = entry.value;
+      
+      String title;
+      if (key.contains('-W')) {
+        // Weekly group
+        final weekStart = DateTime.parse(key.split('-W')[0] + '-01-01');
+        final weekNum = int.parse(key.split('-W')[1]);
+        final weekStartDate = weekStart.add(Duration(days: (weekNum - 1) * 7));
+        final weekEndDate = weekStartDate.add(const Duration(days: 6));
+        title = 'Week of ${_formatDate(weekStartDate)} - ${_formatDate(weekEndDate)}';
+      } else if (key.split('-').length == 3) {
+        // Daily group
+        final date = DateTime.parse(key);
+        title = '${_getMonthName(date.month)} ${date.day}';
+      } else {
+        // Monthly group
+        final year = int.parse(key.split('-')[0]);
+        final month = int.parse(key.split('-')[1]);
+        title = '${_getMonthName(month)} $year';
+      }
       
       return {
-        'title': 'Week of ${_formatDate(weekStartDate)} - ${_formatDate(weekEndDate)}',
-        'entries': entry.value,
+        'title': title,
+        'entries': entries,
       };
-    }).toList();
+    }).toList()
+      ..sort((a, b) {
+        // Sort groups by the date of their first entry (newest first)
+        final aEntries = a['entries'] as List<TimelineEntry>;
+        final bEntries = b['entries'] as List<TimelineEntry>;
+        final aFirstEntry = aEntries.first;
+        final bFirstEntry = bEntries.first;
+        return bFirstEntry.date.compareTo(aFirstEntry.date);
+      });
+  }
+
+  String _getMonthName(int month) {
+    const months = [
+      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+    ];
+    return months[month - 1];
   }
 
   DateTime _getWeekStart(DateTime date) {
@@ -387,6 +482,55 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
 
   String _formatDate(DateTime date) {
     return '${date.month}/${date.day}';
+  }
+
+  Widget _buildStickyHeader(String title, int entryCount) {
+    return Container(
+      height: 60,
+      decoration: BoxDecoration(
+        color: kcSurfaceColor,
+        border: Border(
+          bottom: BorderSide(
+            color: kcBorderColor.withOpacity(0.3),
+            width: 1,
+          ),
+        ),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(
+                title,
+                style: heading3Style(context).copyWith(
+                  color: kcPrimaryTextColor,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: kcPrimaryColor.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: kcPrimaryColor.withOpacity(0.3),
+                  width: 1,
+                ),
+              ),
+              child: Text(
+                '$entryCount entries',
+                style: captionStyle(context).copyWith(
+                  color: kcPrimaryColor,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   Widget _buildTimelineEntryCard(TimelineEntry entry, int periodIndex, int entryIndex) {
@@ -578,6 +722,57 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
     }
   }
 
+  void _showJumpToDateDialog() {
+    showDatePicker(
+      context: context,
+      initialDate: DateTime.now(),
+      firstDate: DateTime(2020),
+      lastDate: DateTime.now().add(const Duration(days: 365)),
+    ).then((selectedDate) {
+      if (selectedDate != null) {
+        _jumpToDate(selectedDate);
+      }
+    });
+  }
+
+  void _jumpToDate(DateTime targetDate) {
+    // Find the closest group to the target date
+    final groupedEntries = _groupEntriesByTimePeriod();
+    
+    for (int i = 0; i < groupedEntries.length; i++) {
+      final group = groupedEntries[i];
+      final entries = group['entries'] as List<TimelineEntry>;
+      
+      // Check if any entry in this group is close to the target date
+      for (final entry in entries) {
+        final entryDate = DateTime.tryParse(entry.date);
+        if (entryDate != null) {
+          final daysDifference = entryDate.difference(targetDate).inDays.abs();
+          if (daysDifference <= 7) { // Within a week
+            // Scroll to this group
+            // Note: This would require a ScrollController to be implemented
+            // For now, we'll just show a snackbar
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Found entries near ${targetDate.toString().split(' ')[0]}'),
+                duration: const Duration(seconds: 2),
+              ),
+            );
+            return;
+          }
+        }
+      }
+    }
+    
+    // No entries found near the target date
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('No entries found near ${targetDate.toString().split(' ')[0]}'),
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
+
   Color _getPhaseColor(String? phase) {
     if (phase == null) return kcSecondaryTextColor;
 
@@ -735,11 +930,24 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           // Navigation hint
-          Text(
-            'Scroll up/down for time periods, left/right for entries',
-            style: captionStyle(context).copyWith(
-              color: kcSecondaryTextColor.withOpacity(0.6),
-            ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Scroll vertically to navigate time periods',
+                style: captionStyle(context).copyWith(
+                  color: kcSecondaryTextColor.withOpacity(0.6),
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                'Swipe horizontally to browse entries',
+                style: captionStyle(context).copyWith(
+                  color: kcSecondaryTextColor.withOpacity(0.4),
+                  fontSize: 12,
+                ),
+              ),
+            ],
           ),
 
           // Entry counter
@@ -2657,5 +2865,27 @@ class _PhotoSearchDialogState extends State<PhotoSearchDialog> {
     } catch (e) {
       return false;
     }
+  }
+}
+
+class _StickyHeaderDelegate extends SliverPersistentHeaderDelegate {
+  final Widget child;
+
+  _StickyHeaderDelegate({required this.child});
+
+  @override
+  double get minExtent => 60;
+
+  @override
+  double get maxExtent => 60;
+
+  @override
+  Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) {
+    return child;
+  }
+
+  @override
+  bool shouldRebuild(covariant SliverPersistentHeaderDelegate oldDelegate) {
+    return false;
   }
 }
