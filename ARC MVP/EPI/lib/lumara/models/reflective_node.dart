@@ -12,6 +12,7 @@ enum NodeType {
   photo,
   audio,
   video,
+  phaseRegime,
 }
 
 enum PhaseHint {

@@ -61,7 +61,8 @@ class McpBundleParser {
           final json = jsonDecode(line) as Map<String, dynamic>;
           
           // Only process journal_entry nodes
-          if (json['type'] != 'journal_entry') continue;
+          // Handle both journal entries and phase regimes
+          if (json['type'] != 'journal_entry' && json['type'] != 'phase_regime') continue;
           
           final node = _createReflectiveNodeFromJson(json);
           if (node != null) {
@@ -173,13 +174,82 @@ class McpBundleParser {
     return [];
   }
 
+  /// Create a ReflectiveNode from phase regime data
+  ReflectiveNode? _createPhaseRegimeNode(Map<String, dynamic> json) {
+    try {
+      final id = json['id'] as String? ?? DateTime.now().millisecondsSinceEpoch.toString();
+      final timestamp = _parseTimestamp(json['timestamp'] ?? json['created_at']);
+      final metadata = json['metadata'] as Map<String, dynamic>? ?? {};
+      
+      // Extract phase regime information
+      final phaseLabel = metadata['phase_label'] as String? ?? 'discovery';
+      final phaseSource = metadata['phase_source'] as String? ?? 'user';
+      final confidence = metadata['confidence'] as double?;
+      final startTime = metadata['start_time'] as String?;
+      final endTime = metadata['end_time'] as String?;
+      final isOngoing = metadata['is_ongoing'] as bool? ?? false;
+      final anchors = (metadata['anchors'] as List<dynamic>?)?.cast<String>() ?? [];
+      
+      // Create content summary
+      final contentSummary = 'Phase: ${phaseLabel.toUpperCase()}';
+      if (startTime != null) {
+        final start = DateTime.tryParse(startTime);
+        final end = endTime != null ? DateTime.tryParse(endTime) : null;
+        if (start != null) {
+          final duration = (end ?? DateTime.now()).difference(start);
+          contentSummary += ' (${duration.inDays} days)';
+        }
+      }
+      
+      // Extract phase hint
+      PhaseHint? phaseHint;
+      try {
+        phaseHint = PhaseHint.values.firstWhere(
+          (e) => e.name == phaseLabel.toLowerCase(),
+          orElse: () => PhaseHint.discovery,
+        );
+      } catch (e) {
+        phaseHint = PhaseHint.discovery;
+      }
+      
+      return ReflectiveNode(
+        id: id,
+        content: contentSummary,
+        timestamp: timestamp,
+        type: NodeType.phaseRegime,
+        phaseHint: phaseHint,
+        keywords: [phaseLabel],
+        metadata: {
+          'phase_regime_id': id,
+          'phase_label': phaseLabel,
+          'phase_source': phaseSource,
+          'confidence': confidence,
+          'start_time': startTime,
+          'end_time': endTime,
+          'is_ongoing': isOngoing,
+          'anchors': anchors,
+          'duration_days': metadata['duration_days'],
+        },
+      );
+    } catch (e) {
+      print('LUMARA: Error creating phase regime node: $e');
+      return null;
+    }
+  }
+
   ReflectiveNode? _createReflectiveNodeFromJson(Map<String, dynamic> json) {
     try {
       final id = json['id'] as String? ?? DateTime.now().millisecondsSinceEpoch.toString();
+      final type = json['type'] as String? ?? 'unknown';
       final content = json['content'] as String? ?? '';
       final createdAt = _parseTimestamp(json['created_at'] ?? json['timestamp']);
       final metadata = json['metadata'] as Map<String, dynamic>? ?? {};
       final mediaCount = json['media_count'] as int? ?? 0;
+      
+      // Handle phase regime nodes differently
+      if (type == 'phase_regime') {
+        return _createPhaseRegimeNode(json);
+      }
       
       // Extract phase hint from metadata
       PhaseHint? phaseHint;
