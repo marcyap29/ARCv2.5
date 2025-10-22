@@ -53,7 +53,10 @@ class JournalEntry extends Equatable {
   final String? location; // Location where entry was created/edited
 
   @HiveField(15)
-  final String? phase; // Current phase of the entry
+  final String? phase; // Current phase of the entry (deprecated - use phaseAtTime)
+  
+  @HiveField(18)
+  final DateTime? phaseAtTime; // Reference to phase regime start time
 
   @HiveField(16)
   final bool isEdited; // Whether this entry has been edited from original
@@ -75,6 +78,7 @@ class JournalEntry extends Equatable {
     this.metadata,
     this.location,
     this.phase,
+    this.phaseAtTime,
     this.isEdited = false,
   });
 
@@ -95,6 +99,7 @@ class JournalEntry extends Equatable {
     Map<String, dynamic>? metadata,
     String? location,
     String? phase,
+    DateTime? phaseAtTime,
     bool? isEdited,
   }) {
     return JournalEntry(
@@ -114,6 +119,7 @@ class JournalEntry extends Equatable {
       metadata: metadata ?? this.metadata,
       location: location ?? this.location,
       phase: phase ?? this.phase,
+      phaseAtTime: phaseAtTime ?? this.phaseAtTime,
       isEdited: isEdited ?? this.isEdited,
     );
   }
@@ -136,6 +142,7 @@ class JournalEntry extends Equatable {
         metadata,
         location,
         phase,
+        phaseAtTime,
         isEdited,
       ];
 
@@ -157,6 +164,7 @@ class JournalEntry extends Equatable {
       'metadata': metadata,
       'location': location,
       'phase': phase,
+      'phaseAtTime': phaseAtTime?.toIso8601String(),
       'isEdited': isEdited,
     };
   }
@@ -184,6 +192,7 @@ class JournalEntry extends Equatable {
       metadata: json['metadata'] as Map<String, dynamic>?,
       location: json['location'] as String?,
       phase: json['phase'] as String?,
+      phaseAtTime: json['phaseAtTime'] != null ? DateTime.parse(json['phaseAtTime']) : null,
       isEdited: json['isEdited'] as bool? ?? false,
     );
   }

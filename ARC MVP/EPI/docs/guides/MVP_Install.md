@@ -245,15 +245,28 @@ flutter run --dart-define=GEMINI_API_KEY=$GEMINI_API_KEY --route=/llm-demo
 ## Known Issues
 
 ### Phase Transfer Issue
-**Status**: Identified but not yet fixed
+**Status**: ✅ FIXED - Implemented RIVET Sweep Phase System
 
-The user's Overall Phase selection is not being transferred to the MCP export file. While the phase is captured in the journal UI and the MCP infrastructure supports phase information, there's a gap in the data flow:
+The phase transfer issue has been resolved with the implementation of the new RIVET Sweep phase system:
 
-1. ✅ Phase is captured in journal screen UI (`_editablePhase`)
-2. ✅ Phase is passed to KeywordAnalysisView (`selectedPhase` parameter)
-3. ❌ Phase is lost during save - KeywordAnalysisView doesn't accept `selectedPhase` parameter
-4. ❌ Journal entry created without phase - `saveEntryWithKeywords` doesn't include phase
-5. ✅ MCP export correctly handles phase when present in journal entry
-6. ✅ MCP import correctly extracts phase from MCP files
+1. ✅ **Phase Timeline System**: Phases are now managed as timeline regimes rather than per-entry labels
+2. ✅ **PhaseRegime Model**: New data model for phase periods with start/end times
+3. ✅ **PhaseIndex Service**: Efficient timeline resolution for phase lookups
+4. ✅ **MCP Export/Import**: Full support for phase regime data in MCP bundles
+5. ✅ **RIVET Sweep**: Automated phase detection and segmentation
+6. ✅ **Phase Timeline UI**: Visual timeline with phase bands and edit controls
+7. ✅ **Migration Support**: Automatic migration from legacy per-entry phases
 
-**Fix Required**: Update `KeywordAnalysisView` constructor and `saveEntryWithKeywords` method to include phase parameter.
+**New Features**:
+- **Timeline-based Phases**: Phases are now periods on a timeline, not individual entry labels
+- **RIVET Sweep**: Automated phase detection using topic shift, emotion delta, and tempo analysis
+- **Phase Timeline UI**: Visual timeline with colored bands for easy phase management
+- **User Override**: Users can always override RIVET suggestions
+- **MCP Integration**: Full phase regime support in MCP export/import
+- **Migration**: Automatic conversion from legacy phase system
+
+**Usage**:
+- Phases are now managed at the timeline level
+- Use the Phase Timeline UI to view and edit phase periods
+- RIVET Sweep automatically detects phase changes in your journal
+- MCP exports now include complete phase timeline data

@@ -19,6 +19,8 @@ import 'package:my_app/models/journal_entry_model.dart';
 import '../../data/models/media_item.dart';
 import '../../core/services/photo_library_service.dart';
 import '../../data/models/photo_metadata.dart';
+import '../../models/phase_models.dart';
+import '../../services/phase_index.dart';
 
 class McpExportService {
   final String bundleId;
@@ -35,7 +37,7 @@ class McpExportService {
   }) : bundleId = bundleId ?? McpManifestBuilder.generateBundleId(),
        _chatExporter = chatRepo != null ? ChatMcpExporter(chatRepo) : null;
 
-  /// Export MIRA memory to MCP bundle (including chat data)
+  /// Export MIRA memory to MCP bundle (including chat data and phase regimes)
   Future<McpExportResult> exportToMcp({
     required Directory outputDir,
     required McpExportScope scope,
@@ -44,6 +46,7 @@ class McpExportService {
     Map<String, dynamic>? customScope,
     bool includeChats = true,
     bool includeArchivedChats = true,
+    PhaseIndex? phaseIndex,
   }) async {
     try {
       // Ensure output directory exists
@@ -67,10 +70,13 @@ class McpExportService {
       // Export chat data if chat repository is available
       final chatData = await _exportChatData(scope, customScope, includeChats, includeArchivedChats);
 
+      // Export phase regimes if phase index is available
+      final phaseData = await _exportPhaseRegimes(phaseIndex);
+
       // Combine all nodes, edges, and pointers
-      final allNodes = <McpNode>[...nodes, ...chatData.nodes];
-      final allEdges = <McpEdge>[...chatData.edges];
-      final allPointers = <McpPointer>[...pointers, ...chatData.pointers];
+      final allNodes = <McpNode>[...nodes, ...chatData.nodes, ...phaseData.nodes];
+      final allEdges = <McpEdge>[...chatData.edges, ...phaseData.edges];
+      final allPointers = <McpPointer>[...pointers, ...chatData.pointers, ...phaseData.pointers];
 
       // Generate embeddings for nodes and pointers
       final embeddings = await _generateEmbeddings(allNodes, allPointers);
@@ -983,6 +989,85 @@ class McpExportException implements Exception {
 }
 
 
+  /// Export phase regimes to MCP format
+  Future<PhaseExportData> _exportPhaseRegimes(PhaseIndex? phaseIndex) async {
+    if (phaseIndex == null) {
+      return const PhaseExportData(nodes: [], edges: [], pointers: []);
+    }
+
+    final nodes = <McpNode>[];
+    final edges = <McpEdge>[];
+    final pointers = <McpPointer>[];
+
+    for (final regime in phaseIndex.allRegimes) {
+      // Create phase regime node
+      final regimeNode = McpNode(
+        id: 'phase_regime_${regime.id}',
+        type: 'phase_regime',
+        timestamp: regime.start,
+        contentSummary: 'Phase: ${regime.label.name}',
+        phaseHint: regime.label.name,
+        keywords: [regime.label.name],
+        narrative: McpNarrative(
+          situation: 'Phase regime from ${regime.start.toIso8601String()} to ${regime.end?.toIso8601String() ?? 'ongoing'}',
+          action: 'Phase transition',
+          goal: 'Life phase management',
+          expectation: 'Continued growth and development',
+          result: 'Phase maintained',
+          essence: 'Phase: ${regime.label.name}',
+        ),
+        emotions: {
+          'phase': regime.label.name,
+          'confidence': regime.confidence ?? 1.0,
+          'source': regime.source.name,
+        },
+        provenance: McpProvenance(
+          source: 'ARC',
+          timestamp: regime.createdAt,
+          version: '1.0',
+        ),
+        metadata: {
+          'phase_regime_id': regime.id,
+          'phase_label': regime.label.name,
+          'phase_source': regime.source.name,
+          'confidence': regime.confidence,
+          'inferred_at': regime.inferredAt?.toIso8601String(),
+          'start_time': regime.start.toIso8601String(),
+          'end_time': regime.end?.toIso8601String(),
+          'is_ongoing': regime.isOngoing,
+          'anchors': regime.anchors,
+          'duration_days': regime.duration.inDays,
+        },
+      );
+
+      nodes.add(regimeNode);
+
+      // Create edges to anchored entries
+      for (final entryId in regime.anchors) {
+        final edge = McpEdge(
+          id: 'edge_${regime.id}_${entryId}',
+          sourceId: 'phase_regime_${regime.id}',
+          targetId: 'entry_${entryId}',
+          relationship: 'anchors',
+          weight: 1.0,
+          metadata: {
+            'phase_regime_id': regime.id,
+            'entry_id': entryId,
+            'relationship_type': 'anchors',
+          },
+        );
+        edges.add(edge);
+      }
+    }
+
+    return PhaseExportData(
+      nodes: nodes,
+      edges: edges,
+      pointers: pointers,
+    );
+  }
+}
+
 /// Container for chat export data
 class ChatExportData {
   final List<McpNode> nodes;
@@ -990,6 +1075,19 @@ class ChatExportData {
   final List<McpPointer> pointers;
 
   const ChatExportData({
+    required this.nodes,
+    required this.edges,
+    required this.pointers,
+  });
+}
+
+/// Container for phase regime export data
+class PhaseExportData {
+  final List<McpNode> nodes;
+  final List<McpEdge> edges;
+  final List<McpPointer> pointers;
+
+  const PhaseExportData({
     required this.nodes,
     required this.edges,
     required this.pointers,
