@@ -78,11 +78,25 @@
   │   │   ├── Keyword and summary display for each segment
   │   │   ├── Callback pattern: onApprove(proposals, overrides)
   │   │   └── Data flow to parent for regime creation
-  │   ├── PhaseTimelineView
-  │   │   ├── Visual timeline interface
-  │   │   ├── Phase regime visualization
-  │   │   ├── Edit operations (split, merge, adjust)
-  │   │   └── Anchored entry display
+  │   ├── PhaseTimelineView (ENHANCED - January 22, 2025)
+  │   │   ├── Phase Legend with color coding for all 6 phase types
+  │   │   ├── Timeline axis with start/NOW/end markers
+  │   │   ├── TODAY indicator showing current position
+  │   │   ├── Detailed regime list (newest first, up to 10 shown)
+  │   │   ├── Regime cards with confidence badges, dates, durations
+  │   │   ├── Status indicators (ongoing/completed, user/RIVET)
+  │   │   ├── Quick actions menu (relabel, split, merge, end)
+  │   │   ├── Empty state with helpful guidance
+  │   │   └── Interactive tap for regime details
+  │   ├── PhaseChangeReadinessCard (NEW - January 22, 2025)
+  │   │   ├── Moved from Insights tab to Phase > Analysis tab
+  │   │   ├── Circular progress indicator with color coding
+  │   │   ├── Clear status labels (Getting Started, Almost There, Ready!)
+  │   │   ├── Visual requirements checklist
+  │   │   ├── Entry count display (X/2 entries)
+  │   │   ├── Contextual help text based on progress
+  │   │   ├── Refresh button for updating RIVET state
+  │   │   └── First-time user friendly design
   │   └── Phase Regime Service
   │       ├── CRUD operations for phase regimes
   │       ├── Timeline integrity validation

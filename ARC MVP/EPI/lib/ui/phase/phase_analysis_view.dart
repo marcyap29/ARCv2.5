@@ -13,6 +13,7 @@ import 'phase_timeline_view.dart';
 import 'rivet_sweep_wizard.dart';
 import 'phase_info_overview.dart';
 import 'phase_help_screen.dart';
+import 'phase_change_readiness_card.dart';
 
 class PhaseAnalysisView extends StatefulWidget {
   const PhaseAnalysisView({super.key});
@@ -376,6 +377,8 @@ class _PhaseAnalysisViewState extends State<PhaseAnalysisView>
               ),
             ),
           ),
+          const SizedBox(height: 16),
+          const PhaseChangeReadinessCard(),
         ],
       ),
     );
