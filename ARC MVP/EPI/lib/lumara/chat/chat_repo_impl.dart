@@ -30,24 +30,13 @@ class ChatRepoImpl implements ChatRepo {
 
     try {
       // Register adapters (they're accessible here since we import chat_models.dart)
-      if (!Hive.isAdapterRegistered(70)) {
+      if (!Hive.isAdapterRegistered(0)) {
         Hive.registerAdapter(ChatSessionAdapter());
       }
-      if (!Hive.isAdapterRegistered(71)) {
+      if (!Hive.isAdapterRegistered(1)) {
         Hive.registerAdapter(ChatMessageAdapter());
       }
-      if (!Hive.isAdapterRegistered(72)) {
-        Hive.registerAdapter(ChatCategoryAdapter());
-      }
-      if (!Hive.isAdapterRegistered(73)) {
-        Hive.registerAdapter(ChatSessionCategoryAdapter());
-      }
-      if (!Hive.isAdapterRegistered(74)) {
-        Hive.registerAdapter(ChatExportDataAdapter());
-      }
-      if (!Hive.isAdapterRegistered(81)) {
-        Hive.registerAdapter(TextContentPartAdapter());
-      }
+      // Note: Other adapters (ChatCategory, etc.) may use different type IDs
 
       // Open boxes
       _sessionsBox = await Hive.openBox<ChatSession>(_sessionsBoxName);
@@ -108,7 +97,7 @@ class ChatRepoImpl implements ChatRepo {
     final message = ChatMessage.createText(
       sessionId: sessionId,
       role: role,
-      text: content,
+      content: content,
     );
 
     await _messagesBox!.put(message.id, message);

@@ -831,12 +831,12 @@ class McpExportService {
       id: 'msg:${message.id}',
       type: 'ChatMessage',
       timestamp: message.createdAt.toUtc(),
-      contentSummary: message.content.length > 100
-          ? '${message.content.substring(0, 100)}...'
-          : message.content,
+      contentSummary: message.textContent.length > 100
+          ? '${message.textContent.substring(0, 100)}...'
+          : message.textContent,
       keywords: [],
       narrative: McpNarrative(
-        situation: message.content,
+        situation: message.textContent,
       ),
       provenance: McpProvenance(
         source: 'LUMARA',

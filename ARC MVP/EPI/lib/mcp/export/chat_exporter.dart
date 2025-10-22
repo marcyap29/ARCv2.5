@@ -154,7 +154,7 @@ class ChatMcpExporter {
   /// Create MCP node.v2 for chat message
   Map<String, dynamic> _createMessageNode(ChatMessage message) {
     // Process content for privacy
-    final privacyResult = _privacyRedactor.processContent(message.content);
+    final privacyResult = _privacyRedactor.processContent(message.textContent);
 
     final node = {
       "kind": "node",

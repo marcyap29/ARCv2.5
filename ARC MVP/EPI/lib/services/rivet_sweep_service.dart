@@ -2,7 +2,6 @@
 // RIVET Sweep: Segmented Phase Backfill Pipeline
 
 import 'dart:math';
-import 'dart:collection';
 import '../models/phase_models.dart';
 import '../models/journal_entry_model.dart';
 import 'phase_index.dart';
@@ -11,7 +10,7 @@ import 'analytics_service.dart';
 
 class RivetSweepService {
   // final SemanticSimilarityService _similarityService; // TODO: Implement
-  final AnalyticsService _analytics;
+  // final AnalyticsService _analytics; // TODO: Use analytics
   
   // Configuration
   static const Duration _minWindowDays = Duration(days: 10);
@@ -21,7 +20,7 @@ class RivetSweepService {
   // static const int _maxSegmentsPerYear = 15; // TODO: Use in future
   // static const int _minSegmentsPerYear = 6; // TODO: Use in future
 
-  RivetSweepService(this._analytics);
+  RivetSweepService(AnalyticsService analytics);
 
   /// Detect if RIVET Sweep is needed
   bool needsRivetSweep(List<JournalEntry> entries, PhaseIndex phaseIndex) {
@@ -39,11 +38,16 @@ class RivetSweepService {
 
   /// Run RIVET Sweep analysis
   Future<RivetSweepResult> analyzeEntries(List<JournalEntry> entries) async {
-    _analytics.logLumaraEvent('rivet_sweep.analysis_started', data: {
+        AnalyticsService.trackEvent('rivet_sweep.analysis_started', properties: {
       'entry_count': entries.length,
     });
 
     try {
+      // Validate input
+      if (entries.isEmpty) {
+        throw ArgumentError('Cannot analyze empty entry list. Add journal entries first.');
+      }
+
       // 1. Aggregate daily signals
       final dailySignals = await _aggregateDailySignals(entries);
       
@@ -65,7 +69,7 @@ class RivetSweepService {
         p.confidence >= _reviewConfidence && p.confidence < _minConfidence).toList();
       final lowConfidence = finalProposals.where((p) => p.confidence < _reviewConfidence).toList();
 
-      _analytics.logLumaraEvent('rivet_sweep.analysis_completed', data: {
+          AnalyticsService.trackEvent('rivet_sweep.analysis_completed', properties: {
         'total_segments': finalProposals.length,
         'auto_assign': autoAssign.length,
         'review_needed': review.length,
@@ -80,7 +84,7 @@ class RivetSweepService {
         dailySignals: dailySignals,
       );
     } catch (e) {
-      _analytics.logLumaraEvent('rivet_sweep.analysis_failed', data: {
+          AnalyticsService.trackEvent('rivet_sweep.analysis_failed', properties: {
         'error': e.toString(),
       });
       rethrow;
@@ -112,7 +116,7 @@ class RivetSweepService {
       phaseIndex.addRegime(regime);
     }
 
-    _analytics.logLumaraEvent('rivet_sweep.proposals_applied', data: {
+        AnalyticsService.trackEvent('rivet_sweep.proposals_applied', properties: {
       'regime_count': regimes.length,
     });
 
@@ -260,7 +264,11 @@ class RivetSweepService {
   List<EntrySegment> _createSegments(List<JournalEntry> entries, List<PhaseChangePoint> changePoints) {
     final segments = <EntrySegment>[];
     final sortedEntries = List.from(entries)..sort((a, b) => a.createdAt.compareTo(b.createdAt));
-    
+
+    if (sortedEntries.isEmpty) {
+      return segments;
+    }
+
     DateTime segmentStart = sortedEntries.first.createdAt;
     
     for (final changePoint in changePoints) {
@@ -273,7 +281,7 @@ class RivetSweepService {
         segments.add(EntrySegment(
           start: segmentStart,
           end: changePoint.timestamp,
-          entries: segmentEntries,
+              entries: segmentEntries.cast<JournalEntry>(),
         ));
       }
       
@@ -289,7 +297,7 @@ class RivetSweepService {
       segments.add(EntrySegment(
         start: segmentStart,
         end: DateTime.now(),
-        entries: finalSegmentEntries,
+            entries: finalSegmentEntries.cast<JournalEntry>(),
       ));
     }
     

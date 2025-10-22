@@ -7,13 +7,13 @@ import '../../services/rivet_sweep_service.dart';
 
 class RivetSweepWizard extends StatefulWidget {
   final RivetSweepResult sweepResult;
-  final VoidCallback? onComplete;
+  final Function(List<PhaseSegmentProposal> approved, Map<String, PhaseLabel> overrides)? onApprove;
   final VoidCallback? onSkip;
 
   const RivetSweepWizard({
     super.key,
     required this.sweepResult,
-    this.onComplete,
+    this.onApprove,
     this.onSkip,
   });
 
@@ -78,7 +78,7 @@ class _RivetSweepWizardState extends State<RivetSweepWizard>
                          widget.sweepResult.review.length + 
                          widget.sweepResult.lowConfidence.length;
     
-    return Padding(
+    return SingleChildScrollView(
       padding: const EdgeInsets.all(16.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -455,7 +455,19 @@ class _RivetSweepWizardState extends State<RivetSweepWizard>
   }
 
   void _applyApprovals() {
-    // This would apply the approved segments to create phase regimes
-    widget.onComplete?.call();
+    // Collect all approved segment proposals
+    final allSegments = [
+      ...widget.sweepResult.autoAssign,
+      ...widget.sweepResult.review,
+      ...widget.sweepResult.lowConfidence,
+    ];
+
+    // Filter to only approved segments
+    final approvedProposals = allSegments.where((segment) {
+      return _approvedSegments.contains(_getSegmentId(segment));
+    }).toList();
+
+    // Call the onApprove callback with approved segments and manual overrides
+    widget.onApprove?.call(approvedProposals, _manualOverrides);
   }
 }

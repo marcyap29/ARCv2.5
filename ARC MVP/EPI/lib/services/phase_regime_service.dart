@@ -12,15 +12,14 @@ import 'analytics_service.dart';
 
 class PhaseRegimeService {
   static const String _regimesBoxName = 'phase_regimes';
-  static const String _lastSweepKey = 'last_rivet_sweep';
   
-  final AnalyticsService _analytics;
+  // final AnalyticsService _analytics; // TODO: Use analytics
   final RivetSweepService _rivetSweep;
   
   Box<PhaseRegime>? _regimesBox;
   PhaseIndex? _phaseIndex;
   
-  PhaseRegimeService(this._analytics, this._rivetSweep);
+  PhaseRegimeService(AnalyticsService analytics, this._rivetSweep);
 
   /// Initialize the service
   Future<void> initialize() async {
@@ -33,7 +32,7 @@ class PhaseRegimeService {
     if (_phaseIndex == null) {
       _loadPhaseIndex();
     }
-    return _phaseIndex!;
+    return _phaseIndex ?? PhaseIndex([]);
   }
 
   /// Load phase index from storage
@@ -75,7 +74,7 @@ class PhaseRegimeService {
     await _regimesBox?.put(regime.id, regime);
     _phaseIndex?.addRegime(regime);
     
-    _analytics.logEvent('phase_regime.created', data: {
+        AnalyticsService.trackEvent('phase_regime.created', properties: {
       'label': label.name,
       'source': source.name,
       'duration_days': regime.duration.inDays,
@@ -90,7 +89,7 @@ class PhaseRegimeService {
     await _regimesBox?.put(regime.id, updatedRegime);
     _phaseIndex?.updateRegime(updatedRegime);
     
-    _analytics.logEvent('phase_regime.updated', data: {
+        AnalyticsService.trackEvent('phase_regime.updated', properties: {
       'regime_id': regime.id,
       'label': regime.label.name,
     });
@@ -101,7 +100,7 @@ class PhaseRegimeService {
     await _regimesBox?.delete(regimeId);
     _phaseIndex?.removeRegime(regimeId);
     
-    _analytics.logEvent('phase_regime.deleted', data: {
+        AnalyticsService.trackEvent('phase_regime.deleted', properties: {
       'regime_id': regimeId,
     });
   }
@@ -114,7 +113,7 @@ class PhaseRegimeService {
       await _regimesBox?.put(regime.id, regime);
     }
     
-    _analytics.logEvent('phase_regime.split', data: {
+        AnalyticsService.trackEvent('phase_regime.split', properties: {
       'regime_id': regimeId,
       'split_at': splitAt.toIso8601String(),
       'new_regimes': regimes.length,
@@ -131,7 +130,7 @@ class PhaseRegimeService {
       await _regimesBox?.put(mergedRegime.id, mergedRegime);
       await _regimesBox?.delete(rightId);
       
-      _analytics.logEvent('phase_regime.merged', data: {
+          AnalyticsService.trackEvent('phase_regime.merged', properties: {
         'left_id': leftId,
         'right_id': rightId,
         'merged_id': mergedRegime.id,
@@ -205,7 +204,7 @@ class PhaseRegimeService {
       if (result.autoAssign.isNotEmpty) {
         await _rivetSweep.applyProposals(result.autoAssign, phaseIndex);
         
-        _analytics.logEvent('rivet_sweep.auto_applied', data: {
+            AnalyticsService.trackEvent('rivet_sweep.auto_applied', properties: {
           'segments': result.autoAssign.length,
         });
       }
@@ -215,7 +214,7 @@ class PhaseRegimeService {
       
       return result.review.isNotEmpty || result.lowConfidence.isNotEmpty;
     } catch (e) {
-      _analytics.logEvent('rivet_sweep.failed', data: {
+          AnalyticsService.trackEvent('rivet_sweep.failed', properties: {
         'error': e.toString(),
       });
       return false;
@@ -235,7 +234,6 @@ class PhaseRegimeService {
     if (resultJson == null) return null;
     
     try {
-      final resultData = jsonDecode(resultJson) as Map<String, dynamic>;
       // This would need proper deserialization
       return null; // Placeholder
     } catch (e) {
@@ -254,7 +252,7 @@ class PhaseRegimeService {
   Future<void> applySweepProposals(List<PhaseSegmentProposal> proposals) async {
     await _rivetSweep.applyProposals(proposals, phaseIndex);
     
-    _analytics.logEvent('rivet_sweep.proposals_applied', data: {
+        AnalyticsService.trackEvent('rivet_sweep.proposals_applied', properties: {
       'proposals': proposals.length,
     });
   }
@@ -265,7 +263,6 @@ class PhaseRegimeService {
       final regime = phaseIndex.regimeFor(entry.createdAt);
       if (regime != null && entry.phaseAtTime != regime.start) {
         // Update entry with phase reference
-        final updatedEntry = entry.copyWith(phaseAtTime: regime.start);
         // This would need to be saved through the journal repository
       }
     }
@@ -302,7 +299,7 @@ class PhaseRegimeService {
     
     _loadPhaseIndex();
     
-    _analytics.logEvent('phase_regimes.imported', data: {
+        AnalyticsService.trackEvent('phase_regimes.imported', properties: {
       'count': regimesJson.length,
     });
   }
@@ -312,7 +309,7 @@ class PhaseRegimeService {
     await _regimesBox?.clear();
     _loadPhaseIndex();
     
-    _analytics.logEvent('phase_regimes.cleared');
+        AnalyticsService.trackEvent('phase_regimes.cleared');
   }
 
   /// Migrate legacy phase data
@@ -382,7 +379,7 @@ class PhaseRegimeService {
       }
     }
     
-    _analytics.logEvent('phase_regimes.migrated', data: {
+        AnalyticsService.trackEvent('phase_regimes.migrated', properties: {
       'legacy_phases': phaseGroups.length,
       'total_entries': entries.length,
     });

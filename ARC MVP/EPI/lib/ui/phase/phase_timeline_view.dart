@@ -33,12 +33,22 @@ class _PhaseTimelineViewState extends State<PhaseTimelineView> {
     
     return Column(
       children: [
-        _buildTimelineHeader(theme),
-        const SizedBox(height: 16),
         Expanded(
-          child: _buildTimelineContent(theme, regimes),
+          child: SingleChildScrollView(
+            child: Column(
+              children: [
+                _buildTimelineHeader(theme),
+                const SizedBox(height: 16),
+                SizedBox(
+                  height: 200, // Fixed height for timeline content
+                  child: _buildTimelineContent(theme, regimes),
+                ),
+                const SizedBox(height: 16),
+                _buildTimelineControls(theme),
+              ],
+            ),
+          ),
         ),
-        _buildTimelineControls(theme),
       ],
     );
   }
@@ -89,16 +99,19 @@ class _PhaseTimelineViewState extends State<PhaseTimelineView> {
   Widget _buildTimelineStats(ThemeData theme) {
     final stats = widget.phaseIndex.stats;
     
-    return Row(
-      children: [
-        _buildStatItem('Total Phases', stats.totalRegimes.toString(), theme),
-        const SizedBox(width: 16),
-        _buildStatItem('User Set', stats.userRegimes.toString(), theme),
-        const SizedBox(width: 16),
-        _buildStatItem('RIVET', stats.rivetRegimes.toString(), theme),
-        const SizedBox(width: 16),
-        _buildStatItem('Duration', '${stats.totalDuration.inDays} days', theme),
-      ],
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: [
+          _buildStatItem('Total Phases', stats.totalRegimes.toString(), theme),
+          const SizedBox(width: 16),
+          _buildStatItem('User Set', stats.userRegimes.toString(), theme),
+          const SizedBox(width: 16),
+          _buildStatItem('RIVET', stats.rivetRegimes.toString(), theme),
+          const SizedBox(width: 16),
+          _buildStatItem('Duration', '${stats.totalDuration.inDays} days', theme),
+        ],
+      ),
     );
   }
 
@@ -337,7 +350,6 @@ class _PhaseTimelineViewState extends State<PhaseTimelineView> {
 
   void _changeCurrentPhase(PhaseLabel newLabel) {
     // End current regime and start new one
-    final now = DateTime.now();
     // Implementation would go here
   }
 

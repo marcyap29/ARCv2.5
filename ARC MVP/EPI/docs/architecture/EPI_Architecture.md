@@ -12,7 +12,7 @@
 
   ## 🌟 **RIVET Sweep Phase System Architecture** (Updated January 22, 2025)
 
-  **Timeline-Based Phase Management - PRODUCTION READY (Build System Fixed)**:
+  **Timeline-Based Phase Management - PRODUCTION READY (Phase Analysis Integration Complete)**:
   ```
   RIVET Sweep Phase System:
   ├── PhaseRegime Timeline Architecture
@@ -61,11 +61,23 @@
   │       ├── ReflectiveNode conversion
   │       └── Backward compatibility with legacy formats
   ├── Phase Timeline UI
-  │   ├── RivetSweepWizard
-  │   │   ├── Guided phase detection interface
-  │   │   ├── Change point review and approval
-  │   │   ├── Phase regime editing and validation
-  │   │   └── Confidence threshold configuration
+  │   ├── PhaseAnalysisView (NEW - January 22, 2025)
+  │   │   ├── Main orchestration hub for phase analysis workflow
+  │   │   ├── Three-tab interface (Timeline, Analysis, Overview)
+  │   │   ├── Journal repository integration
+  │   │   ├── Entry validation (minimum 5 entries required)
+  │   │   ├── Phase regime creation and persistence
+  │   │   ├── Automatic timeline refresh after approval
+  │   │   └── Phase statistics display
+  │   ├── RivetSweepWizard (ENHANCED - January 22, 2025)
+  │   │   ├── Three-tab UI (Overview, Review, Timeline)
+  │   │   ├── Segmented review workflow (auto-assign, review, low-confidence)
+  │   │   ├── Interactive checkbox-based approval system
+  │   │   ├── Manual phase label override with FilterChips
+  │   │   ├── Visual confidence indicators (color-coded)
+  │   │   ├── Keyword and summary display for each segment
+  │   │   ├── Callback pattern: onApprove(proposals, overrides)
+  │   │   └── Data flow to parent for regime creation
   │   ├── PhaseTimelineView
   │   │   ├── Visual timeline interface
   │   │   ├── Phase regime visualization
@@ -93,6 +105,77 @@
           ├── Migration testing and validation
           ├── Performance testing for timeline operations
           └── Build system validation (iOS build successful)
+  ```
+
+  **Phase Analysis Workflow - Implementation Details**:
+  ```
+  End-to-End Phase Analysis Workflow:
+
+  1. User Triggers Analysis
+     └── PhaseAnalysisView._runRivetSweep()
+         ├── Loads journal entries from JournalRepository
+         ├── Validates minimum 5 entries requirement
+         ├── Shows user-friendly error if insufficient data
+         └── Proceeds to analysis if validation passes
+
+  2. RIVET Sweep Analysis
+     └── RivetSweepService.analyzeEntries(entries)
+         ├── Daily signal aggregation (topic, emotion, tempo)
+         ├── Change-point detection algorithm
+         ├── Segment creation from change points
+         ├── Phase inference for each segment
+         ├── Confidence scoring (0.0-1.0)
+         ├── Keyword extraction per segment
+         ├── Summary generation per segment
+         └── Returns RivetSweepResult with categorized proposals
+
+  3. User Review and Approval
+     └── RivetSweepWizard displays results
+         ├── Overview Tab: Shows all segments categorized by confidence
+         │   ├── Auto-assign (≥0.7): High confidence, bulk approval
+         │   ├── Review (0.5-0.7): Medium confidence, needs review
+         │   └── Low confidence (<0.5): Uncertain, careful review
+         ├── Review Tab: Detailed segment cards
+         │   ├── Phase label override with FilterChips
+         │   ├── Summary and keywords display
+         │   ├── Individual checkbox approval
+         │   └── Confidence indicator (color-coded)
+         ├── Timeline Tab: Visual timeline (placeholder)
+         └── Bottom Bar: Shows approval count and "Apply Changes" button
+
+  4. Regime Creation
+     └── User clicks "Apply Changes"
+         ├── Wizard collects approved segments
+         ├── Wizard collects manual phase overrides
+         ├── Calls onApprove(approvedProposals, overrides)
+         └── PhaseAnalysisView._createPhaseRegimes()
+             ├── Initializes PhaseRegimeService
+             ├── Applies manual overrides to proposals
+             ├── Creates PhaseRegime objects for each approved proposal
+             ├── Saves to Hive database via createRegime()
+             ├── Reloads phase data with _loadPhaseData()
+             └── Shows success message with regime count
+
+  5. Timeline Display
+     └── PhaseAnalysisView updates UI
+         ├── Timeline Tab: Shows phase bands with PhaseTimelineView
+         ├── Analysis Tab: Shows phase statistics
+         │   ├── Total regime count
+         │   └── Breakdown by phase label
+         └── Overview Tab: Phase information and help
+
+  Key Architecture Decisions:
+  ├── Minimum 5 Entries: Ensures meaningful statistical analysis
+  ├── Three Confidence Levels: Balances automation with user control
+  ├── Callback Pattern: Decouples wizard from persistence logic
+  ├── Manual Override Support: User retains final control over labels
+  ├── Automatic Refresh: Timeline updates immediately after approval
+  └── User-Friendly Errors: Clear messaging for insufficient data
+
+  Data Flow:
+  JournalRepository → RivetSweepService → RivetSweepWizard →
+  PhaseAnalysisView → PhaseRegimeService → Hive Database →
+  PhaseIndex → PhaseTimelineView
   ```
 
   ## 🔧 **Build System Fixes** (Updated January 22, 2025)

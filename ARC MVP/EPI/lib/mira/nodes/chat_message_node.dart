@@ -38,7 +38,7 @@ class ChatMessageNode extends MiraNode {
       messageId: message.id,
       sessionId: message.sessionId,
       role: message.role,
-      content: message.content,
+      content: message.textContent,
       createdAt: message.createdAt,
       originalTextHash: message.originalTextHash,
     );

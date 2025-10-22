@@ -1,15 +1,127 @@
-import 'package:equatable/equatable.dart';
+// lib/lumara/chat/chat_models.dart
+// Chat models for LUMARA chat system
+
 import 'package:hive/hive.dart';
-import 'ulid.dart';
-import 'content_parts.dart';
+import 'package:uuid/uuid.dart';
 
 part 'chat_models.g.dart';
 
-/// Represents a chat session with LUMARA
-@HiveType(typeId: 70)
-class ChatSession extends Equatable {
+const _uuid = Uuid();
+
+// Role constants for chat messages
+class MessageRole {
+  static const String user = 'user';
+  static const String assistant = 'assistant';
+  static const String system = 'system';
+}
+
+@HiveType(typeId: 1)
+class ChatMessage extends HiveObject {
   @HiveField(0)
-  final String id; // ULID, stable
+  final String id;
+
+  @HiveField(1)
+  final String sessionId;
+
+  @HiveField(2)
+  final String role;
+
+  @HiveField(3)
+  final String textContent;
+
+  @HiveField(4)
+  final DateTime createdAt;
+
+  @HiveField(5)
+  final String? originalTextHash;
+
+  @HiveField(6)
+  final String? provenance;
+
+  @HiveField(7)
+  final Map<String, dynamic>? metadata;
+
+  ChatMessage({
+    required this.id,
+    required this.sessionId,
+    required this.role,
+    required this.textContent,
+    required this.createdAt,
+    this.originalTextHash,
+    this.provenance,
+    this.metadata,
+  });
+
+  // Factory methods
+  factory ChatMessage.createText({
+    required String sessionId,
+    required String role,
+    required String content,
+    String? provenance,
+    Map<String, dynamic>? metadata,
+  }) {
+    return ChatMessage(
+      id: _uuid.v4(),
+      sessionId: sessionId,
+      role: role,
+      textContent: content,
+      createdAt: DateTime.now(),
+      provenance: provenance,
+      metadata: metadata,
+    );
+  }
+
+  factory ChatMessage.createLegacy({
+    required String sessionId,
+    required String role,
+    required String content,
+  }) {
+    return ChatMessage(
+      id: _uuid.v4(),
+      sessionId: sessionId,
+      role: role,
+      textContent: content,
+      createdAt: DateTime.now(),
+    );
+  }
+
+  static bool isValidRole(String role) {
+    return role == MessageRole.user ||
+        role == MessageRole.assistant ||
+        role == MessageRole.system;
+  }
+
+  factory ChatMessage.fromJson(Map<String, dynamic> json) {
+    return ChatMessage(
+      id: json['id'] as String,
+      sessionId: json['sessionId'] as String,
+      role: json['role'] as String,
+      textContent: json['textContent'] as String,
+      createdAt: DateTime.parse(json['createdAt']),
+      originalTextHash: json['originalTextHash'] as String?,
+      provenance: json['provenance'] as String?,
+      metadata: json['metadata'] as Map<String, dynamic>?,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'sessionId': sessionId,
+      'role': role,
+      'textContent': textContent,
+      'createdAt': createdAt.toIso8601String(),
+      'originalTextHash': originalTextHash,
+      'provenance': provenance,
+      'metadata': metadata,
+    };
+  }
+}
+
+@HiveType(typeId: 0)
+class ChatSession extends HiveObject {
+  @HiveField(0)
+  final String id;
 
   @HiveField(1)
   final String subject;
@@ -36,9 +148,12 @@ class ChatSession extends Equatable {
   final int messageCount;
 
   @HiveField(9)
-  final String retention; // "auto-archive-30d" | "pinned" | "manual"
+  final String? retention;
 
-  const ChatSession({
+  @HiveField(10)
+  final Map<String, dynamic>? metadata;
+
+  ChatSession({
     required this.id,
     required this.subject,
     required this.createdAt,
@@ -46,49 +161,30 @@ class ChatSession extends Equatable {
     this.isPinned = false,
     this.isArchived = false,
     this.archivedAt,
-    this.tags = const [],
+    List<String>? tags,
     this.messageCount = 0,
-    this.retention = "auto-archive-30d",
-  });
+    this.retention,
+    this.metadata,
+  }) : tags = tags ?? [];
 
-  /// Create a new chat session with generated ID
+  // Factory method to create a new session
   factory ChatSession.create({
     required String subject,
-    List<String> tags = const [],
+    List<String>? tags,
+    Map<String, dynamic>? metadata,
   }) {
     final now = DateTime.now();
     return ChatSession(
-      id: ULID.generate(),
+      id: _uuid.v4(),
       subject: subject,
       createdAt: now,
       updatedAt: now,
       tags: tags,
+      metadata: metadata,
     );
   }
 
-  /// Generate subject from first user message
-  static String generateSubject(String firstMessage) {
-    // Take first 8-12 words, trim punctuation
-    final words = firstMessage
-        .trim()
-        .replaceAll(RegExp(r'[^\w\s]'), '')
-        .split(RegExp(r'\s+'))
-        .where((word) => word.isNotEmpty)
-        .take(10)
-        .toList();
-
-    if (words.isEmpty) {
-      return 'New chat';
-    }
-
-    String subject = words.join(' ');
-    if (subject.length > 50) {
-      subject = '${subject.substring(0, 47)}...';
-    }
-
-    return subject;
-  }
-
+  // CopyWith method for updates
   ChatSession copyWith({
     String? subject,
     DateTime? updatedAt,
@@ -98,6 +194,7 @@ class ChatSession extends Equatable {
     List<String>? tags,
     int? messageCount,
     String? retention,
+    Map<String, dynamic>? metadata,
   }) {
     return ChatSession(
       id: id,
@@ -110,151 +207,43 @@ class ChatSession extends Equatable {
       tags: tags ?? this.tags,
       messageCount: messageCount ?? this.messageCount,
       retention: retention ?? this.retention,
+      metadata: metadata ?? this.metadata,
     );
   }
 
-  @override
-  List<Object?> get props => [
-        id,
-        subject,
-        createdAt,
-        updatedAt,
-        isPinned,
-        isArchived,
-        archivedAt,
-        tags,
-        messageCount,
-        retention,
-      ];
-}
-
-/// Represents a single message in a chat session
-@HiveType(typeId: 71)
-class ChatMessage extends Equatable {
-  @HiveField(0)
-  final String id; // ULID with msg: prefix
-
-  @HiveField(1)
-  final String sessionId; // ULID
-
-  @HiveField(2)
-  final String role; // 'user' | 'assistant' | 'system'
-
-  @HiveField(3)
-  final List<ContentPart> contentParts; // multimodal content
-
-  @HiveField(4)
-  final DateTime createdAt; // ISO 8601 UTC
-
-  @HiveField(5)
-  final String? originalTextHash; // for audit if content was redacted
-
-  @HiveField(6)
-  final Map<String, dynamic>? provenance; // device, appVersion, etc.
-
-  const ChatMessage({
-    required this.id,
-    required this.sessionId,
-    required this.role,
-    required this.contentParts,
-    required this.createdAt,
-    this.originalTextHash,
-    this.provenance,
-  });
-
-  /// Create a new chat message with generated ID
-  factory ChatMessage.create({
-    required String sessionId,
-    required String role,
-    required List<ContentPart> contentParts,
-    String? originalTextHash,
-    Map<String, dynamic>? provenance,
-  }) {
-    return ChatMessage(
-      id: 'msg:${ULID.generate()}',
-      sessionId: sessionId,
-      role: role,
-      contentParts: contentParts,
-      createdAt: DateTime.now().toUtc(),
-      originalTextHash: originalTextHash,
-      provenance: provenance,
+  factory ChatSession.fromJson(Map<String, dynamic> json) {
+    return ChatSession(
+      id: json['id'] as String,
+      subject: json['subject'] as String,
+      createdAt: DateTime.parse(json['createdAt']),
+      updatedAt: DateTime.parse(json['updatedAt']),
+      isPinned: json['isPinned'] as bool? ?? false,
+      isArchived: json['isArchived'] as bool? ?? false,
+      archivedAt: json['archivedAt'] != null
+          ? DateTime.parse(json['archivedAt'])
+          : null,
+      tags: json['tags'] != null
+          ? (json['tags'] as List).cast<String>()
+          : null,
+      messageCount: json['messageCount'] as int? ?? 0,
+      retention: json['retention'] as String?,
+      metadata: json['metadata'] as Map<String, dynamic>?,
     );
   }
 
-  /// Create a text-only message (legacy compatibility)
-  factory ChatMessage.createText({
-    required String sessionId,
-    required String role,
-    required String text,
-    String? originalTextHash,
-    Map<String, dynamic>? provenance,
-  }) {
-    return ChatMessage.create(
-      sessionId: sessionId,
-      role: role,
-      contentParts: ContentPartUtils.fromLegacyContent(text),
-      originalTextHash: originalTextHash,
-      provenance: provenance,
-    );
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'subject': subject,
+      'createdAt': createdAt.toIso8601String(),
+      'updatedAt': updatedAt.toIso8601String(),
+      'isPinned': isPinned,
+      'isArchived': isArchived,
+      'archivedAt': archivedAt?.toIso8601String(),
+      'tags': tags.toList(),
+      'messageCount': messageCount,
+      'retention': retention,
+      'metadata': metadata,
+    };
   }
-
-  /// Legacy constructor for backward compatibility
-  factory ChatMessage.createLegacy({
-    required String id,
-    required String sessionId,
-    required String role,
-    required String content,
-    required DateTime createdAt,
-    String? originalTextHash,
-  }) {
-    return ChatMessage(
-      id: id,
-      sessionId: sessionId,
-      role: role,
-      contentParts: ContentPartUtils.fromLegacyContent(content),
-      createdAt: createdAt,
-      originalTextHash: originalTextHash,
-    );
-  }
-
-  /// Get text content from content parts
-  String get textContent => ContentPartUtils.extractText(contentParts);
-
-  /// Legacy compatibility: Get content as string (for backward compatibility)
-  String get content => textContent;
-
-  /// Check if message has media
-  bool get hasMedia => ContentPartUtils.hasMedia(contentParts);
-
-  /// Check if message has PRISM analysis
-  bool get hasPrismAnalysis => ContentPartUtils.hasPrismAnalysis(contentParts);
-
-  /// Get all media pointers
-  List<MediaPointer> get mediaPointers => ContentPartUtils.getMediaPointers(contentParts);
-
-  /// Get all PRISM summaries
-  List<PrismSummary> get prismSummaries => ContentPartUtils.getPrismSummaries(contentParts);
-
-  /// Validate message role
-  static bool isValidRole(String role) {
-    return ['user', 'assistant', 'system'].contains(role);
-  }
-
-  @override
-  List<Object?> get props => [
-        id,
-        sessionId,
-        role,
-        contentParts,
-        createdAt,
-        originalTextHash,
-        provenance,
-      ];
-}
-
-/// Message role constants
-class MessageRole {
-  static const String user = 'user';
-  static const String assistant = 'assistant';
-  static const String system = 'system';
 }

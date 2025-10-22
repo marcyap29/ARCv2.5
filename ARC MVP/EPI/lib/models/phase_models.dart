@@ -3,7 +3,7 @@
 
 import 'package:hive/hive.dart';
 
-// part 'phase_models.g.dart'; // TODO: Generate with build_runner
+part 'phase_models.g.dart';
 
 enum PhaseLabel {
   discovery,

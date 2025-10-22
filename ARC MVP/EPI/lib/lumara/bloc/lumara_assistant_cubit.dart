@@ -1375,11 +1375,9 @@ Your exported MCP bundle can be imported into any MCP-compatible system, ensurin
       
       // Create a summary message
       final summaryMessage = ChatMessage.createLegacy(
-        id: 'summary_${DateTime.now().millisecondsSinceEpoch}',
         sessionId: currentChatSessionId!,
         role: 'system',
         content: summary,
-        createdAt: DateTime.now(),
       );
       
       // Replace old messages with summary
@@ -1400,8 +1398,8 @@ Your exported MCP bundle can be imported into any MCP-compatible system, ensurin
   /// Create a summary of old messages
   Future<String> _createConversationSummary(List<ChatMessage> messages) async {
     // Group messages by role and create summary
-    final userMessages = messages.where((m) => m.role == 'user').map((m) => m.content).toList();
-    final assistantMessages = messages.where((m) => m.role == 'assistant').map((m) => m.content).toList();
+    final userMessages = messages.where((m) => m.role == 'user').map((m) => m.textContent).toList();
+    final assistantMessages = messages.where((m) => m.role == 'assistant').map((m) => m.textContent).toList();
     
     return '''📝 **Conversation Summary** (${messages.length} messages compacted)
 
@@ -1421,7 +1419,7 @@ ${assistantMessages.take(3).map((m) => '• ${m.length > 150 ? m.substring(0, 15
     await _chatRepo.addMessage(
       sessionId: currentChatSessionId!,
       role: 'system',
-      content: summaryMessage.content,
+      content: summaryMessage.textContent,
     );
   }
 

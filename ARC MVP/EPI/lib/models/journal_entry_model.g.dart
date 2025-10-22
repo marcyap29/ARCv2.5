@@ -33,6 +33,7 @@ class JournalEntryAdapter extends TypeAdapter<JournalEntry> {
       metadata: (fields[13] as Map?)?.cast<String, dynamic>(),
       location: fields[14] as String?,
       phase: fields[15] as String?,
+      phaseAtTime: fields[18] as DateTime?,
       isEdited: fields[16] as bool,
     );
   }
@@ -40,7 +41,7 @@ class JournalEntryAdapter extends TypeAdapter<JournalEntry> {
   @override
   void write(BinaryWriter writer, JournalEntry obj) {
     writer
-      ..writeByte(17)
+      ..writeByte(18)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -73,6 +74,8 @@ class JournalEntryAdapter extends TypeAdapter<JournalEntry> {
       ..write(obj.location)
       ..writeByte(15)
       ..write(obj.phase)
+      ..writeByte(18)
+      ..write(obj.phaseAtTime)
       ..writeByte(16)
       ..write(obj.isEdited);
   }

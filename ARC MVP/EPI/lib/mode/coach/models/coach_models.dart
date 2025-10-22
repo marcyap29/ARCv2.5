@@ -1,7 +1,7 @@
 import 'package:hive/hive.dart';
 import 'package:equatable/equatable.dart';
 
-// part 'coach_models.g.dart';
+part 'coach_models.g.dart';
 
 @HiveType(typeId: 50)
 enum DropletFieldType {

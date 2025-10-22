@@ -328,9 +328,8 @@ class ChatExportData extends Equatable {
           .map((m) => ChatMessage.createText(
                 sessionId: m['sessionId'] as String,
                 role: m['role'] as String,
-                text: m['content'] as String,
-                originalTextHash: m['originalTextHash'] as String?,
-                provenance: m['provenance'] as Map<String, dynamic>?,
+                content: m['content'] as String,
+                provenance: m['provenance'] as String?,
               ))
           .toList(),
       categories: (json['categories'] as List)
