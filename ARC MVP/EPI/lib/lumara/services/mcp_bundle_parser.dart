@@ -61,8 +61,11 @@ class McpBundleParser {
           final json = jsonDecode(line) as Map<String, dynamic>;
           
           // Only process journal_entry nodes
-          // Handle both journal entries and phase regimes
-          if (json['type'] != 'journal_entry' && json['type'] != 'phase_regime') continue;
+          // Handle journal entries, phase regimes, and chat data
+          if (json['type'] != 'journal_entry' && 
+              json['type'] != 'phase_regime' && 
+              json['type'] != 'ChatSession' && 
+              json['type'] != 'ChatMessage') continue;
           
           final node = _createReflectiveNodeFromJson(json);
           if (node != null) {
@@ -237,6 +240,56 @@ class McpBundleParser {
     }
   }
 
+  /// Create a ReflectiveNode from ChatSession data
+  ReflectiveNode? _createChatSessionNode(Map<String, dynamic> json) {
+    try {
+      final id = json['id'] as String? ?? DateTime.now().millisecondsSinceEpoch.toString();
+      final timestamp = _parseTimestamp(json['timestamp'] ?? json['created_at']);
+      final contentSummary = json['contentSummary'] as String? ?? '';
+      final keywords = (json['keywords'] as List<dynamic>?)?.cast<String>() ?? [];
+      
+      return ReflectiveNode(
+        id: id,
+        content: contentSummary,
+        timestamp: timestamp,
+        type: NodeType.chatSession,
+        keywords: keywords,
+        metadata: {
+          'chat_session_id': id,
+          'subject': contentSummary,
+          'tags': keywords,
+        },
+      );
+    } catch (e) {
+      print('LUMARA: Error creating chat session node: $e');
+      return null;
+    }
+  }
+
+  /// Create a ReflectiveNode from ChatMessage data
+  ReflectiveNode? _createChatMessageNode(Map<String, dynamic> json) {
+    try {
+      final id = json['id'] as String? ?? DateTime.now().millisecondsSinceEpoch.toString();
+      final timestamp = _parseTimestamp(json['timestamp'] ?? json['created_at']);
+      final contentSummary = json['contentSummary'] as String? ?? '';
+      
+      return ReflectiveNode(
+        id: id,
+        content: contentSummary,
+        timestamp: timestamp,
+        type: NodeType.chatMessage,
+        keywords: [],
+        metadata: {
+          'chat_message_id': id,
+          'content': contentSummary,
+        },
+      );
+    } catch (e) {
+      print('LUMARA: Error creating chat message node: $e');
+      return null;
+    }
+  }
+
   ReflectiveNode? _createReflectiveNodeFromJson(Map<String, dynamic> json) {
     try {
       final id = json['id'] as String? ?? DateTime.now().millisecondsSinceEpoch.toString();
@@ -246,9 +299,13 @@ class McpBundleParser {
       final metadata = json['metadata'] as Map<String, dynamic>? ?? {};
       final mediaCount = json['media_count'] as int? ?? 0;
       
-      // Handle phase regime nodes differently
+      // Handle different node types
       if (type == 'phase_regime') {
         return _createPhaseRegimeNode(json);
+      } else if (type == 'ChatSession') {
+        return _createChatSessionNode(json);
+      } else if (type == 'ChatMessage') {
+        return _createChatMessageNode(json);
       }
       
       // Extract phase hint from metadata

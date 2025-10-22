@@ -9,6 +9,8 @@ enum NodeType {
   journal,
   draft,
   chat,
+  chatSession,
+  chatMessage,
   photo,
   audio,
   video,
