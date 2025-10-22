@@ -45,7 +45,7 @@ class _RivetSweepWizardState extends State<RivetSweepWizard>
     
     return Scaffold(
       appBar: AppBar(
-        title: const Text('RIVET Sweep'),
+        title: const Text('Phase Analysis'),
         bottom: TabBar(
           controller: _tabController,
           tabs: const [

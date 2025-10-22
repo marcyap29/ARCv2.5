@@ -12,13 +12,14 @@ import 'analytics_service.dart';
 
 class PhaseRegimeService {
   static const String _regimesBoxName = 'phase_regimes';
-  
+  static const String _lastAnalysisKey = 'last_phase_analysis_date';
+
   // final AnalyticsService _analytics; // TODO: Use analytics
   final RivetSweepService _rivetSweep;
-  
+
   Box<PhaseRegime>? _regimesBox;
   PhaseIndex? _phaseIndex;
-  
+
   PhaseRegimeService(AnalyticsService analytics, this._rivetSweep);
 
   /// Initialize the service
@@ -263,6 +264,24 @@ class PhaseRegimeService {
     final prefs = await SharedPreferences.getInstance();
     // This would need proper serialization
     await prefs.setString('rivet_sweep_result', '{}');
+  }
+
+  /// Get last analysis date
+  Future<DateTime?> getLastAnalysisDate() async {
+    final prefs = await SharedPreferences.getInstance();
+    final dateString = prefs.getString(_lastAnalysisKey);
+    if (dateString == null) return null;
+    try {
+      return DateTime.parse(dateString);
+    } catch (e) {
+      return null;
+    }
+  }
+
+  /// Set last analysis date
+  Future<void> setLastAnalysisDate(DateTime date) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_lastAnalysisKey, date.toIso8601String());
   }
 
   /// Apply sweep proposals

@@ -177,6 +177,9 @@ class _PhaseAnalysisViewState extends State<PhaseAnalysisView>
         );
       }
 
+      // Save the analysis date
+      await phaseRegimeService.setLastAnalysisDate(DateTime.now());
+
       // Reload phase data to show new regimes
       await _loadPhaseData();
 
@@ -269,7 +272,7 @@ class _PhaseAnalysisViewState extends State<PhaseAnalysisView>
           IconButton(
             icon: const Icon(Icons.auto_awesome),
             onPressed: _runRivetSweep,
-            tooltip: 'Run RIVET Sweep',
+            tooltip: 'Run Phase Analysis',
           ),
         ],
         bottom: TabBar(
@@ -338,7 +341,31 @@ class _PhaseAnalysisViewState extends State<PhaseAnalysisView>
                   const Text(
                     'Automatically detect phase transitions in your journal entries using advanced pattern recognition.',
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 12),
+                  FutureBuilder<DateTime?>(
+                    future: _getLastAnalysisDate(),
+                    builder: (context, snapshot) {
+                      if (snapshot.hasData && snapshot.data != null) {
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 12.0),
+                          child: Row(
+                            children: [
+                              Icon(Icons.schedule, size: 16, color: Colors.grey[600]),
+                              const SizedBox(width: 6),
+                              Text(
+                                'Last analysis: ${_formatDateTime(snapshot.data!)}',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey[600],
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      }
+                      return const SizedBox.shrink();
+                    },
+                  ),
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton.icon(
@@ -490,5 +517,34 @@ class _PhaseAnalysisViewState extends State<PhaseAnalysisView>
         ],
       ),
     );
+  }
+
+  Future<DateTime?> _getLastAnalysisDate() async {
+    final analyticsService = AnalyticsService();
+    final rivetSweepService = RivetSweepService(analyticsService);
+    final phaseRegimeService = PhaseRegimeService(analyticsService, rivetSweepService);
+    await phaseRegimeService.initialize();
+    return await phaseRegimeService.getLastAnalysisDate();
+  }
+
+  String _formatDateTime(DateTime dateTime) {
+    final now = DateTime.now();
+    final difference = now.difference(dateTime);
+
+    if (difference.inDays == 0) {
+      if (difference.inHours == 0) {
+        if (difference.inMinutes == 0) {
+          return 'Just now';
+        }
+        return '${difference.inMinutes}m ago';
+      }
+      return '${difference.inHours}h ago';
+    } else if (difference.inDays == 1) {
+      return 'Yesterday';
+    } else if (difference.inDays < 7) {
+      return '${difference.inDays}d ago';
+    } else {
+      return '${dateTime.month}/${dateTime.day}/${dateTime.year}';
+    }
   }
 }
