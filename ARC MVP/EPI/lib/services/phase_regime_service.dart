@@ -23,6 +23,23 @@ class PhaseRegimeService {
 
   /// Initialize the service
   Future<void> initialize() async {
+    // Register Hive adapters if not already registered
+    if (!Hive.isAdapterRegistered(200)) {
+      Hive.registerAdapter(PhaseRegimeAdapter());
+    }
+    if (!Hive.isAdapterRegistered(201)) {
+      Hive.registerAdapter(PhaseInfoAdapter());
+    }
+    if (!Hive.isAdapterRegistered(202)) {
+      Hive.registerAdapter(PhaseWindowAdapter());
+    }
+    if (!Hive.isAdapterRegistered(203)) {
+      Hive.registerAdapter(PhaseLabelAdapter());
+    }
+    if (!Hive.isAdapterRegistered(204)) {
+      Hive.registerAdapter(PhaseSourceAdapter());
+    }
+
     _regimesBox = await Hive.openBox<PhaseRegime>(_regimesBoxName);
     _loadPhaseIndex();
   }

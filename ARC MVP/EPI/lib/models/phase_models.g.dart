@@ -146,3 +146,101 @@ class PhaseWindowAdapter extends TypeAdapter<PhaseWindow> {
           runtimeType == other.runtimeType &&
           typeId == other.typeId;
 }
+
+class PhaseLabelAdapter extends TypeAdapter<PhaseLabel> {
+  @override
+  final int typeId = 203;
+
+  @override
+  PhaseLabel read(BinaryReader reader) {
+    switch (reader.readByte()) {
+      case 0:
+        return PhaseLabel.discovery;
+      case 1:
+        return PhaseLabel.expansion;
+      case 2:
+        return PhaseLabel.transition;
+      case 3:
+        return PhaseLabel.consolidation;
+      case 4:
+        return PhaseLabel.recovery;
+      case 5:
+        return PhaseLabel.breakthrough;
+      default:
+        return PhaseLabel.discovery;
+    }
+  }
+
+  @override
+  void write(BinaryWriter writer, PhaseLabel obj) {
+    switch (obj) {
+      case PhaseLabel.discovery:
+        writer.writeByte(0);
+        break;
+      case PhaseLabel.expansion:
+        writer.writeByte(1);
+        break;
+      case PhaseLabel.transition:
+        writer.writeByte(2);
+        break;
+      case PhaseLabel.consolidation:
+        writer.writeByte(3);
+        break;
+      case PhaseLabel.recovery:
+        writer.writeByte(4);
+        break;
+      case PhaseLabel.breakthrough:
+        writer.writeByte(5);
+        break;
+    }
+  }
+
+  @override
+  int get hashCode => typeId.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is PhaseLabelAdapter &&
+          runtimeType == other.runtimeType &&
+          typeId == other.typeId;
+}
+
+class PhaseSourceAdapter extends TypeAdapter<PhaseSource> {
+  @override
+  final int typeId = 204;
+
+  @override
+  PhaseSource read(BinaryReader reader) {
+    switch (reader.readByte()) {
+      case 0:
+        return PhaseSource.user;
+      case 1:
+        return PhaseSource.rivet;
+      default:
+        return PhaseSource.user;
+    }
+  }
+
+  @override
+  void write(BinaryWriter writer, PhaseSource obj) {
+    switch (obj) {
+      case PhaseSource.user:
+        writer.writeByte(0);
+        break;
+      case PhaseSource.rivet:
+        writer.writeByte(1);
+        break;
+    }
+  }
+
+  @override
+  int get hashCode => typeId.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is PhaseSourceAdapter &&
+          runtimeType == other.runtimeType &&
+          typeId == other.typeId;
+}

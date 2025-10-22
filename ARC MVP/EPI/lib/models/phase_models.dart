@@ -5,17 +5,27 @@ import 'package:hive/hive.dart';
 
 part 'phase_models.g.dart';
 
+@HiveType(typeId: 203)
 enum PhaseLabel {
+  @HiveField(0)
   discovery,
+  @HiveField(1)
   expansion,
+  @HiveField(2)
   transition,
+  @HiveField(3)
   consolidation,
+  @HiveField(4)
   recovery,
+  @HiveField(5)
   breakthrough,
 }
 
+@HiveType(typeId: 204)
 enum PhaseSource {
+  @HiveField(0)
   user,
+  @HiveField(1)
   rivet,
 }
 
