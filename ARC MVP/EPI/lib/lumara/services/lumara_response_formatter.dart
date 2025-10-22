@@ -45,12 +45,18 @@ class LumaraResponseFormatter {
         return 'draft';
       case NodeType.chat:
         return 'chat';
+      case NodeType.chatSession:
+        return 'chat session';
+      case NodeType.chatMessage:
+        return 'chat message';
       case NodeType.photo:
         return 'photo';
       case NodeType.audio:
         return 'voice note';
       case NodeType.video:
         return 'video';
+      case NodeType.phaseRegime:
+        return 'phase regime';
     }
   }
   

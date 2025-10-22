@@ -194,13 +194,13 @@ class McpBundleParser {
       final anchors = (metadata['anchors'] as List<dynamic>?)?.cast<String>() ?? [];
       
       // Create content summary
-      final contentSummary = 'Phase: ${phaseLabel.toUpperCase()}';
+      String contentSummary = 'Phase: ${phaseLabel.toUpperCase()}';
       if (startTime != null) {
         final start = DateTime.tryParse(startTime);
         final end = endTime != null ? DateTime.tryParse(endTime) : null;
         if (start != null) {
           final duration = (end ?? DateTime.now()).difference(start);
-          contentSummary += ' (${duration.inDays} days)';
+          contentSummary = '${contentSummary} (${duration.inDays} days)';
         }
       }
       
@@ -217,12 +217,13 @@ class McpBundleParser {
       
       return ReflectiveNode(
         id: id,
-        content: contentSummary,
-        timestamp: timestamp,
+        contentText: contentSummary,
+        createdAt: timestamp,
         type: NodeType.phaseRegime,
         phaseHint: phaseHint,
         keywords: [phaseLabel],
-        metadata: {
+        userId: 'system',
+        extra: {
           'phase_regime_id': id,
           'phase_label': phaseLabel,
           'phase_source': phaseSource,
@@ -250,11 +251,12 @@ class McpBundleParser {
       
       return ReflectiveNode(
         id: id,
-        content: contentSummary,
-        timestamp: timestamp,
+        contentText: contentSummary,
+        createdAt: timestamp,
         type: NodeType.chatSession,
         keywords: keywords,
-        metadata: {
+        userId: 'system',
+        extra: {
           'chat_session_id': id,
           'subject': contentSummary,
           'tags': keywords,
@@ -275,11 +277,12 @@ class McpBundleParser {
       
       return ReflectiveNode(
         id: id,
-        content: contentSummary,
-        timestamp: timestamp,
+        contentText: contentSummary,
+        createdAt: timestamp,
         type: NodeType.chatMessage,
         keywords: [],
-        metadata: {
+        userId: 'system',
+        extra: {
           'chat_message_id': id,
           'content': contentSummary,
         },

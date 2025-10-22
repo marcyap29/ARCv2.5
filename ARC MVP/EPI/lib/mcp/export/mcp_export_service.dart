@@ -954,6 +954,81 @@ class McpExportService {
       errors: allErrors,
     );
   }
+
+  /// Export phase regimes to MCP format
+  Future<PhaseExportData> _exportPhaseRegimes(PhaseIndex? phaseIndex) async {
+    if (phaseIndex == null) {
+      return const PhaseExportData(nodes: [], edges: [], pointers: []);
+    }
+
+    final nodes = <McpNode>[];
+    final edges = <McpEdge>[];
+    final pointers = <McpPointer>[];
+
+    for (final regime in phaseIndex.allRegimes) {
+      // Create phase regime node
+      final regimeNode = McpNode(
+        id: 'phase_regime_${regime.id}',
+        type: 'phase_regime',
+        timestamp: regime.start,
+        contentSummary: 'Phase: ${regime.label.name}',
+        phaseHint: regime.label.name,
+        keywords: [regime.label.name],
+        narrative: McpNarrative(
+          situation: 'Phase regime from ${regime.start.toIso8601String()} to ${regime.end?.toIso8601String() ?? 'ongoing'}',
+          action: 'Phase transition',
+          growth: 'Life phase management',
+          essence: 'Phase: ${regime.label.name}',
+        ),
+        emotions: {
+          'confidence': regime.confidence ?? 1.0,
+        },
+        provenance: McpProvenance(
+          source: 'ARC',
+          app: 'EPI',
+          importMethod: 'phase_regime',
+        ),
+        metadata: {
+          'phase_regime_id': regime.id,
+          'phase_label': regime.label.name,
+          'phase_source': regime.source.name,
+          'confidence': regime.confidence,
+          'inferred_at': regime.inferredAt?.toIso8601String(),
+          'start_time': regime.start.toIso8601String(),
+          'end_time': regime.end?.toIso8601String(),
+          'is_ongoing': regime.isOngoing,
+          'anchors': regime.anchors,
+          'duration_days': regime.duration.inDays,
+        },
+      );
+
+      nodes.add(regimeNode);
+
+      // Create edges to anchored entries
+      for (final entryId in regime.anchors) {
+        final edge = McpEdge(
+          id: 'edge_${regime.id}_${entryId}',
+          source: 'phase_regime_${regime.id}',
+          target: 'entry_${entryId}',
+          relation: 'anchors',
+          timestamp: regime.start,
+          weight: 1.0,
+          metadata: {
+            'phase_regime_id': regime.id,
+            'entry_id': entryId,
+            'relationship_type': 'anchors',
+          },
+        );
+        edges.add(edge);
+      }
+    }
+
+    return PhaseExportData(
+      nodes: nodes,
+      edges: edges,
+      pointers: pointers,
+    );
+  }
 }
 
 /// MCP Export Result
@@ -988,84 +1063,17 @@ class McpExportException implements Exception {
   String toString() => 'McpExportException: $message';
 }
 
+/// Container for phase export data
+class PhaseExportData {
+  final List<McpNode> nodes;
+  final List<McpEdge> edges;
+  final List<McpPointer> pointers;
 
-  /// Export phase regimes to MCP format
-  Future<PhaseExportData> _exportPhaseRegimes(PhaseIndex? phaseIndex) async {
-    if (phaseIndex == null) {
-      return const PhaseExportData(nodes: [], edges: [], pointers: []);
-    }
-
-    final nodes = <McpNode>[];
-    final edges = <McpEdge>[];
-    final pointers = <McpPointer>[];
-
-    for (final regime in phaseIndex.allRegimes) {
-      // Create phase regime node
-      final regimeNode = McpNode(
-        id: 'phase_regime_${regime.id}',
-        type: 'phase_regime',
-        timestamp: regime.start,
-        contentSummary: 'Phase: ${regime.label.name}',
-        phaseHint: regime.label.name,
-        keywords: [regime.label.name],
-        narrative: McpNarrative(
-          situation: 'Phase regime from ${regime.start.toIso8601String()} to ${regime.end?.toIso8601String() ?? 'ongoing'}',
-          action: 'Phase transition',
-          goal: 'Life phase management',
-          expectation: 'Continued growth and development',
-          result: 'Phase maintained',
-          essence: 'Phase: ${regime.label.name}',
-        ),
-        emotions: {
-          'phase': regime.label.name,
-          'confidence': regime.confidence ?? 1.0,
-          'source': regime.source.name,
-        },
-        provenance: McpProvenance(
-          source: 'ARC',
-          timestamp: regime.createdAt,
-          version: '1.0',
-        ),
-        metadata: {
-          'phase_regime_id': regime.id,
-          'phase_label': regime.label.name,
-          'phase_source': regime.source.name,
-          'confidence': regime.confidence,
-          'inferred_at': regime.inferredAt?.toIso8601String(),
-          'start_time': regime.start.toIso8601String(),
-          'end_time': regime.end?.toIso8601String(),
-          'is_ongoing': regime.isOngoing,
-          'anchors': regime.anchors,
-          'duration_days': regime.duration.inDays,
-        },
-      );
-
-      nodes.add(regimeNode);
-
-      // Create edges to anchored entries
-      for (final entryId in regime.anchors) {
-        final edge = McpEdge(
-          id: 'edge_${regime.id}_${entryId}',
-          sourceId: 'phase_regime_${regime.id}',
-          targetId: 'entry_${entryId}',
-          relationship: 'anchors',
-          weight: 1.0,
-          metadata: {
-            'phase_regime_id': regime.id,
-            'entry_id': entryId,
-            'relationship_type': 'anchors',
-          },
-        );
-        edges.add(edge);
-      }
-    }
-
-    return PhaseExportData(
-      nodes: nodes,
-      edges: edges,
-      pointers: pointers,
-    );
-  }
+  const PhaseExportData({
+    required this.nodes,
+    required this.edges,
+    required this.pointers,
+  });
 }
 
 /// Container for chat export data
@@ -1081,15 +1089,3 @@ class ChatExportData {
   });
 }
 
-/// Container for phase regime export data
-class PhaseExportData {
-  final List<McpNode> nodes;
-  final List<McpEdge> edges;
-  final List<McpPointer> pointers;
-
-  const PhaseExportData({
-    required this.nodes,
-    required this.edges,
-    required this.pointers,
-  });
-}

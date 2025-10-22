@@ -205,7 +205,7 @@ class PhaseWindow {
   Duration get duration => (end ?? DateTime.now()).difference(start);
 
   factory PhaseWindow.fromJson(Map<String, dynamic>? json) {
-    if (json == null) return const PhaseWindow(start: DateTime(1970));
+    if (json == null) return PhaseWindow(start: DateTime(1970));
     
     return PhaseWindow(
       start: DateTime.parse(json['start']),
