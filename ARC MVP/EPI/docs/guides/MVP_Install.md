@@ -80,7 +80,7 @@ flutter clean
 flutter pub get
 flutter devices
 flutter build ios --release
-flutter instTall -d YOUR_DEVICE_ID
+flutter install -d YOUR_DEVICE_ID
 
 ```
 
@@ -241,3 +241,19 @@ flutter run --dart-define=GEMINI_API_KEY=$GEMINI_API_KEY --route=/llm-demo
 - `lib/llm/*`: LLMClient, GeminiClient (streaming), RuleBasedClient, LLMRegistry
 - Startup selection via `LLMRegistry.initialize()` in `lib/main.dart` with `GEMINI_API_KEY`
 - Tests in `test/llm/*` with a fake HTTP client for JSONL parsing
+
+## Known Issues
+
+### Phase Transfer Issue
+**Status**: Identified but not yet fixed
+
+The user's Overall Phase selection is not being transferred to the MCP export file. While the phase is captured in the journal UI and the MCP infrastructure supports phase information, there's a gap in the data flow:
+
+1. ✅ Phase is captured in journal screen UI (`_editablePhase`)
+2. ✅ Phase is passed to KeywordAnalysisView (`selectedPhase` parameter)
+3. ❌ Phase is lost during save - KeywordAnalysisView doesn't accept `selectedPhase` parameter
+4. ❌ Journal entry created without phase - `saveEntryWithKeywords` doesn't include phase
+5. ✅ MCP export correctly handles phase when present in journal entry
+6. ✅ MCP import correctly extracts phase from MCP files
+
+**Fix Required**: Update `KeywordAnalysisView` constructor and `saveEntryWithKeywords` method to include phase parameter.

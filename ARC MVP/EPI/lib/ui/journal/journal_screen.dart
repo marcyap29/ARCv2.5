@@ -20,6 +20,8 @@ import '../../services/periodic_discovery_service.dart';
 import '../../services/lumara/lumara_inline_api.dart';
 import '../../lumara/services/enhanced_lumara_api.dart';
 import '../../lumara/ui/lumara_settings_screen.dart';
+import '../../models/user_profile_model.dart';
+import 'package:hive/hive.dart';
 import '../../lumara/config/api_config.dart';
 import '../../services/ocr/ocr_service.dart';
 import '../../services/journal_session_cache.dart';
@@ -192,6 +194,13 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
     WidgetsBinding.instance.removeObserver(this);
     
     _autoSaveTimer?.cancel();
+    
+    // Save current draft before disposing
+    if (_currentDraftId != null && _entryState.text.trim().isNotEmpty) {
+      _draftCache.updateDraftContent(_entryState.text);
+      _draftCache.saveCurrentDraftImmediately();
+    }
+    
     _textController.dispose();
     _scrollController.dispose();
     _keywordController.dispose();
@@ -208,9 +217,16 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
   void didChangeAppLifecycleState(AppLifecycleState state) {
     super.didChangeAppLifecycleState(state);
     
-    // No auto-save on app lifecycle changes - only save when user explicitly chooses to
-    // This prevents unwanted draft creation and keeps the drafts folder clean
-    debugPrint('JournalScreen: App lifecycle changed to $state (no auto-save)');
+    // Save draft when app goes to background or becomes inactive
+    if (state == AppLifecycleState.paused || state == AppLifecycleState.inactive) {
+      if (_currentDraftId != null && _entryState.text.trim().isNotEmpty) {
+        _draftCache.updateDraftContent(_entryState.text);
+        _draftCache.saveCurrentDraftImmediately();
+        debugPrint('JournalScreen: App lifecycle changed to $state - saved draft');
+      }
+    } else {
+      debugPrint('JournalScreen: App lifecycle changed to $state (no auto-save)');
+    }
   }
 
   void _onTextChanged(String text) {
@@ -343,12 +359,39 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
         );
       }
       
+      // Get user ID from user profile
+      Box<UserProfile> userBox;
+      if (Hive.isBoxOpen('user_profile')) {
+        userBox = Hive.box<UserProfile>('user_profile');
+      } else {
+        userBox = await Hive.openBox<UserProfile>('user_profile');
+      }
+      final userProfile = userBox.get('profile');
+      final userId = userProfile?.id ?? 'default';
+      
+      // If no user profile exists, create a default one
+      if (userProfile == null) {
+        final defaultProfile = UserProfile(
+          id: 'user_${DateTime.now().millisecondsSinceEpoch}',
+          name: 'User',
+          email: '',
+          createdAt: DateTime.now(),
+          preferences: const {},
+          onboardingCompleted: false,
+          onboardingCurrentSeason: 'Discovery',
+          currentPhase: 'Discovery',
+          lastPhaseChangeAt: DateTime.now(),
+        );
+        await userBox.put('profile', defaultProfile);
+        print('DEBUG: Created default user profile with ID: ${defaultProfile.id}');
+      }
+      
       // Use enhanced LUMARA API to generate a reflection
       final reflection = await _enhancedLumaraApi.generatePromptedReflection(
         entryText: _entryState.text,
         intent: 'reflect', // Simple reflection intent
         phase: _entryState.phase,
-        userId: 'default', // TODO: Get from user context
+        userId: userId,
       );
 
       // Insert the reflection directly into the text
@@ -2169,10 +2212,38 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
   Future<void> _onRegenerateReflection(int index) async {
     final block = _entryState.blocks[index];
     try {
+      // Get user ID from user profile
+      Box<UserProfile> userBox;
+      if (Hive.isBoxOpen('user_profile')) {
+        userBox = Hive.box<UserProfile>('user_profile');
+      } else {
+        userBox = await Hive.openBox<UserProfile>('user_profile');
+      }
+      final userProfile = userBox.get('profile');
+      final userId = userProfile?.id ?? 'default';
+      
+      // If no user profile exists, create a default one
+      if (userProfile == null) {
+        final defaultProfile = UserProfile(
+          id: 'user_${DateTime.now().millisecondsSinceEpoch}',
+          name: 'User',
+          email: '',
+          createdAt: DateTime.now(),
+          preferences: const {},
+          onboardingCompleted: false,
+          onboardingCurrentSeason: 'Discovery',
+          currentPhase: 'Discovery',
+          lastPhaseChangeAt: DateTime.now(),
+        );
+        await userBox.put('profile', defaultProfile);
+        print('DEBUG: Created default user profile with ID: ${defaultProfile.id}');
+      }
+      
       final newReflection = await _lumaraApi.generatePromptedReflection(
         entryText: _entryState.text,
         intent: block.intent,
         phase: _entryState.phase,
+        userId: userId,
       );
 
       setState(() {
@@ -2257,11 +2328,39 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
     try {
       _analytics.logLumaraEvent('suggestion_selected', data: {'intent': suggestion});
       
+      // Get user ID from user profile
+      Box<UserProfile> userBox;
+      if (Hive.isBoxOpen('user_profile')) {
+        userBox = Hive.box<UserProfile>('user_profile');
+      } else {
+        userBox = await Hive.openBox<UserProfile>('user_profile');
+      }
+      final userProfile = userBox.get('profile');
+      final userId = userProfile?.id ?? 'default';
+      
+      // If no user profile exists, create a default one
+      if (userProfile == null) {
+        final defaultProfile = UserProfile(
+          id: 'user_${DateTime.now().millisecondsSinceEpoch}',
+          name: 'User',
+          email: '',
+          createdAt: DateTime.now(),
+          preferences: const {},
+          onboardingCompleted: false,
+          onboardingCurrentSeason: 'Discovery',
+          currentPhase: 'Discovery',
+          lastPhaseChangeAt: DateTime.now(),
+        );
+        await userBox.put('profile', defaultProfile);
+        print('DEBUG: Created default user profile with ID: ${defaultProfile.id}');
+      }
+      
       // Generate reflection using LUMARA inline API
       final reflection = await _lumaraApi.generatePromptedReflection(
         entryText: _entryState.text,
         intent: suggestion,
         phase: _entryState.phase,
+        userId: userId,
       );
       
       // Insert the reflection into the text
@@ -2345,9 +2444,18 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
     // Cancel existing timer
     _autoSaveTimer?.cancel();
     
-    // Note: Auto-save timer disabled - only save on app lifecycle changes
-    // This prevents automatic saving during normal text editing
-    debugPrint('JournalScreen: Draft content updated (no auto-save)');
+    // Update the draft content in the cache service
+    _draftCache.updateDraftContent(content);
+    
+    // Start a timer to save the draft after 30 seconds of inactivity
+    _autoSaveTimer = Timer(const Duration(seconds: 30), () {
+      if (_currentDraftId != null && _entryState.text.trim().isNotEmpty) {
+        _draftCache.saveCurrentDraftImmediately();
+        debugPrint('JournalScreen: Auto-saved draft after 30 seconds of inactivity');
+      }
+    });
+    
+    debugPrint('JournalScreen: Draft content updated and saved to cache');
   }
 
   /// Navigate to drafts screen
@@ -2752,7 +2860,7 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
   Future<void> _performOCR(File imageFile) async {
     try {
       final extractedText = await _ocrService.extractText(imageFile);
-      if (extractedText != null && extractedText.isNotEmpty) {
+      if (extractedText.isNotEmpty) {
         // Create ScanAttachment for the attachments list
         final scanAttachment = ScanAttachment(
           type: 'ocr_text',

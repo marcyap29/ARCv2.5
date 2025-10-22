@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:my_app/core/constants/app_colors.dart';
+import 'package:my_app/core/constants/app_styles.dart';
 import 'package:my_app/lumara/chat/chat_models.dart';
 import 'package:my_app/lumara/chat/chat_repo.dart';
+import '../chat_repo.dart';
 import '../../bloc/lumara_assistant_cubit.dart';
 import '../../data/context_provider.dart';
 import '../../data/context_scope.dart';

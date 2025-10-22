@@ -141,11 +141,23 @@ class EnhancedLumaraApi {
       );
       
       // 6. Generate Gemini response if LLM provider is available
-      if (_llmProvider != null && matches.isNotEmpty) {
+      if (_llmProvider != null) {
+        print('LUMARA: Using LLM provider: ${_llmProvider!.name}');
         try {
+          String userPrompt;
+          if (matches.isNotEmpty) {
+            // Use historical context if available
+            userPrompt = 'Current entry: "$entryText"\n\nHistorical context: ${matches.map((m) => 'From ${m.approxDate?.year}: ${m.excerpt}').join('\n')}\n\nGenerate 2-3 reflective prompts that connect their current thoughts to their past experiences.';
+            print('LUMARA: Generating response with ${matches.length} historical matches');
+          } else {
+            // Generate fresh reflection without historical context
+            userPrompt = 'Current entry: "$entryText"\n\nThis appears to be one of the user\'s first journal entries, so there\'s limited history for LUMARA to draw from. Generate 2-3 thoughtful reflection prompts that help the user explore their current thoughts more deeply. Also include a gentle note that LUMARA will become more personalized and insightful as they write more entries and build a richer journal history. Be warm, encouraging, and focus on the current entry while explaining the value of continued journaling.';
+            print('LUMARA: Generating response without historical context (new user)');
+          }
+          
           final context = {
-            'systemPrompt': 'You are LUMARA, a reflective AI partner. Generate thoughtful, personalized reflection prompts based on the user\'s current thoughts and their historical journal entries. Be warm, insightful, and encouraging.',
-            'userPrompt': 'Current entry: "$entryText"\n\nHistorical context: ${matches.map((m) => 'From ${m.approxDate?.year}: ${m.excerpt}').join('\n')}\n\nGenerate 2-3 reflective prompts that connect their current thoughts to their past experiences.',
+            'systemPrompt': 'You are LUMARA, a reflective AI partner. Generate thoughtful, personalized reflection prompts based on the user\'s current thoughts. Be warm, insightful, and encouraging. When users have limited journal history, explain that LUMARA becomes more helpful with more entries and encourage continued journaling.',
+            'userPrompt': userPrompt,
           };
           
           final geminiResponse = await _llmProvider!.generateResponse(context);
@@ -220,8 +232,8 @@ class EnhancedLumaraApi {
     if (_llmProvider != null) {
       try {
         final context = {
-          'systemPrompt': 'You are LUMARA, a reflective AI partner. Generate thoughtful, personalized reflection prompts that help users explore their current thoughts and feelings. Be warm, insightful, and encouraging.',
-          'userPrompt': 'Generate 2-3 reflective prompts for someone who is journaling. Focus on self-discovery, growth, and understanding their current moment. Make them personal and thought-provoking.',
+          'systemPrompt': 'You are LUMARA, a reflective AI partner. Generate thoughtful, personalized reflection prompts that help users explore their current thoughts and feelings. Be warm, insightful, and encouraging. When users have limited journal history, explain that LUMARA becomes more helpful with more entries and encourage continued journaling.',
+          'userPrompt': 'Generate 2-3 reflective prompts for someone who is journaling. Focus on self-discovery, growth, and understanding their current moment. Make them personal and thought-provoking. Also include a gentle note that LUMARA will become more personalized and insightful as they write more entries and build a richer journal history.',
         };
         
         final response = await _llmProvider!.generateResponse(context);
@@ -243,6 +255,10 @@ What feels most important in this moment?
 ---
 
 If you could speak to yourself a year from now, what would you want them to know about today?
+
+---
+
+*Note: As you write more entries, LUMARA will become more personalized and insightful by drawing from your growing journal history. Keep writing to unlock deeper reflections!*
 ''';
   }
 

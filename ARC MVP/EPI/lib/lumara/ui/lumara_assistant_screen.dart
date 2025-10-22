@@ -5,10 +5,11 @@ import 'package:gap/gap.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../bloc/lumara_assistant_cubit.dart';
 import '../data/models/lumara_message.dart';
-import '../chat/ui/chats_screen.dart';
+import '../chat/ui/enhanced_chats_screen.dart';
+import '../chat/enhanced_chat_repo_impl.dart';
+import '../chat/chat_repo_impl.dart';
 import 'lumara_quick_palette.dart';
-import 'lumara_consent_sheet.dart';
-import 'lumara_settings_screen.dart';
+import 'simple_lumara_settings_screen.dart';
 import 'lumara_onboarding_screen.dart';
 import '../widgets/attribution_display_widget.dart';
 import '../../mira/memory/enhanced_memory_schema.dart';
@@ -123,7 +124,11 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
             icon: const Icon(Icons.history),
             onPressed: () => Navigator.push(
               context,
-              MaterialPageRoute(builder: (context) => const ChatsScreen()),
+              MaterialPageRoute(
+                builder: (context) => EnhancedChatsScreen(
+                  chatRepo: EnhancedChatRepoImpl(ChatRepoImpl.instance),
+                ),
+              ),
             ),
             tooltip: 'Chat History',
           ),
@@ -208,11 +213,11 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
                                 onPressed: () {
                                   Navigator.push(
                                     context,
-                                    MaterialPageRoute(
-                                      builder: (context) => isConfigError
-                                          ? const LumaraOnboardingScreen()
-                                          : const LumaraSettingsScreen(),
-                                    ),
+                                  MaterialPageRoute(
+                                    builder: (context) => isConfigError
+                                        ? const LumaraOnboardingScreen()
+                                        : const SimpleLumaraSettingsScreen(),
+                                  ),
                                   );
                                 },
                                 child: Text(isConfigError ? 'Set Up AI' : 'Settings'),
@@ -589,10 +594,10 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
     // Dismiss keyboard first
     _dismissKeyboard();
     
-    // Navigate to enhanced LUMARA settings
+    // Navigate to simplified LUMARA settings
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (context) => const LumaraSettingsScreen(),
+        builder: (context) => const SimpleLumaraSettingsScreen(),
       ),
     );
   }

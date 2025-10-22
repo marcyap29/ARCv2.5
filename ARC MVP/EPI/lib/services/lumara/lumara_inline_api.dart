@@ -17,6 +17,7 @@ class LumaraInlineApi {
     required String entryText,
     required String intent,
     String? phase,
+    String? userId,
   }) async {
     final scrubbed = PiiScrubber.rivetScrub(entryText);
     analytics.logLumaraEvent('inline_reflection_requested', data: {
@@ -30,7 +31,7 @@ class LumaraInlineApi {
       entryText: scrubbed,
       intent: intent,
       phase: phase,
-      userId: 'default', // TODO: Get from user context
+      userId: userId ?? 'default',
     );
   }
 
@@ -39,6 +40,7 @@ class LumaraInlineApi {
     required String entryText,
     required String intent,
     String? phase,
+    String? userId,
   }) async {
     PiiScrubber.rivetScrub(entryText); // Scrub for privacy
     analytics.logLumaraEvent('softer_reflection_requested', data: {
@@ -53,7 +55,7 @@ class LumaraInlineApi {
       entryText: entryText,
       intent: intent,
       phase: gentlePhase,
-      userId: 'default',
+      userId: userId ?? 'default',
     );
   }
 
@@ -62,6 +64,7 @@ class LumaraInlineApi {
     required String entryText,
     required String intent,
     String? phase,
+    String? userId,
   }) async {
     PiiScrubber.rivetScrub(entryText); // Scrub for privacy
     analytics.logLumaraEvent('deeper_reflection_requested', data: {
@@ -74,7 +77,7 @@ class LumaraInlineApi {
       entryText: entryText,
       intent: 'analyze', // Force analytical intent
       phase: phase,
-      userId: 'default',
+      userId: userId ?? 'default',
     );
   }
 }

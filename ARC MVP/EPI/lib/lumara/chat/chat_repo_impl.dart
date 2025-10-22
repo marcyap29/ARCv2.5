@@ -1,5 +1,6 @@
 import 'package:hive/hive.dart';
 import 'chat_models.dart';
+import 'chat_category_models.dart';
 import 'chat_repo.dart';
 import 'chat_archive_policy.dart';
 import 'content_parts.dart';
@@ -34,6 +35,15 @@ class ChatRepoImpl implements ChatRepo {
       }
       if (!Hive.isAdapterRegistered(71)) {
         Hive.registerAdapter(ChatMessageAdapter());
+      }
+      if (!Hive.isAdapterRegistered(72)) {
+        Hive.registerAdapter(ChatCategoryAdapter());
+      }
+      if (!Hive.isAdapterRegistered(73)) {
+        Hive.registerAdapter(ChatSessionCategoryAdapter());
+      }
+      if (!Hive.isAdapterRegistered(74)) {
+        Hive.registerAdapter(ChatExportDataAdapter());
       }
       if (!Hive.isAdapterRegistered(81)) {
         Hive.registerAdapter(TextContentPartAdapter());

@@ -99,7 +99,7 @@ class LumaraAPIConfig {
     
     // Final status check
     final bestProvider = getBestProvider();
-    debugPrint('LUMARA API: Final initialization complete - Best provider: ${bestProvider?.name ?? 'None'}');
+    debugPrint('LUMARA API: Final initialization complete - Best provider (Cloud APIs prioritized): ${bestProvider?.name ?? 'None'}');
   }
 
   /// Perform startup check for model availability
@@ -290,7 +290,7 @@ class LumaraAPIConfig {
     final availableProviders = getAvailableProviders();
     debugPrint('LUMARA API: Available providers: ${availableProviders.map((p) => p.name).join(', ')}');
     final bestProvider = getBestProvider();
-    debugPrint('LUMARA API: Best provider: ${bestProvider?.name ?? 'None'}');
+    debugPrint('LUMARA API: Best provider (Cloud APIs prioritized): ${bestProvider?.name ?? 'None'}');
   }
 
   /// Update download state service for a model
@@ -383,12 +383,12 @@ class LumaraAPIConfig {
       _prefs?.remove('manual_provider');
     }
 
-    // Preference order: Internal models first, then external APIs
-    final internal = available.where((c) => c.isInternal && _isValidInternalModel(c)).toList();
-    if (internal.isNotEmpty) return internal.first;
-
+    // Preference order: Cloud APIs first, then internal models
     final external = available.where((c) => !c.isInternal).toList();
     if (external.isNotEmpty) return external.first;
+
+    final internal = available.where((c) => c.isInternal && _isValidInternalModel(c)).toList();
+    if (internal.isNotEmpty) return internal.first;
 
     return null; // No providers available
   }

@@ -874,6 +874,12 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
       case 'media':
         newScope = currentState.scope.copyWith(media: !currentState.scope.media);
         break;
+      case 'drafts':
+        newScope = currentState.scope.copyWith(drafts: !currentState.scope.drafts);
+        break;
+      case 'chats':
+        newScope = currentState.scope.copyWith(chats: !currentState.scope.chats);
+        break;
       default:
         return;
     }
