@@ -30,19 +30,21 @@ class _PhaseTimelineViewState extends State<PhaseTimelineView> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final regimes = widget.phaseIndex.allRegimes;
-    
+
     return Column(
       children: [
         Expanded(
           child: SingleChildScrollView(
+            padding: const EdgeInsets.all(16.0),
             child: Column(
               children: [
                 _buildTimelineHeader(theme),
                 const SizedBox(height: 16),
-                SizedBox(
-                  height: 200, // Fixed height for timeline content
-                  child: _buildTimelineContent(theme, regimes),
-                ),
+                _buildPhaseLegend(theme),
+                const SizedBox(height: 16),
+                _buildTimelineVisualization(theme, regimes),
+                const SizedBox(height: 16),
+                _buildRegimeList(theme, regimes),
                 const SizedBox(height: 16),
                 _buildTimelineControls(theme),
               ],
@@ -133,32 +135,388 @@ class _PhaseTimelineViewState extends State<PhaseTimelineView> {
     );
   }
 
-  Widget _buildTimelineContent(ThemeData theme, List<PhaseRegime> regimes) {
-    return Container(
-      decoration: BoxDecoration(
-        border: Border.all(color: theme.dividerColor),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(8),
-        child: CustomPaint(
-          painter: PhaseTimelinePainter(
-            regimes: regimes,
-            visibleStart: _visibleStart,
-            visibleEnd: _visibleEnd,
-            zoomLevel: _zoomLevel,
-            theme: theme,
-          ),
-          child: GestureDetector(
-            onTapDown: (details) => _handleTimelineTap(details, regimes),
-            child: Container(
-              width: double.infinity,
-              height: 200,
+  Widget _buildPhaseLegend(ThemeData theme) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.palette, color: theme.colorScheme.primary, size: 20),
+                const SizedBox(width: 8),
+                Text(
+                  'Phase Legend',
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
             ),
-          ),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 12,
+              runSpacing: 8,
+              children: PhaseLabel.values.map((label) {
+                return _buildLegendItem(label, theme);
+              }).toList(),
+            ),
+            const SizedBox(height: 12),
+            const Divider(),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                _buildSourceIndicator(PhaseSource.user, theme),
+                const SizedBox(width: 16),
+                _buildSourceIndicator(PhaseSource.rivet, theme),
+              ],
+            ),
+          ],
         ),
       ),
     );
+  }
+
+  Widget _buildLegendItem(PhaseLabel label, ThemeData theme) {
+    final color = _getPhaseColor(label);
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 16,
+          height: 16,
+          decoration: BoxDecoration(
+            color: color.withOpacity(0.7),
+            border: Border.all(color: color, width: 2),
+            borderRadius: BorderRadius.circular(4),
+          ),
+        ),
+        const SizedBox(width: 6),
+        Text(
+          label.name.toUpperCase(),
+          style: theme.textTheme.bodySmall,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSourceIndicator(PhaseSource source, ThemeData theme) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 12,
+          height: 12,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: source == PhaseSource.user ? Colors.white : Colors.transparent,
+            border: Border.all(
+              color: source == PhaseSource.user ? theme.colorScheme.primary : Colors.grey,
+              width: 2,
+            ),
+          ),
+        ),
+        const SizedBox(width: 6),
+        Text(
+          source == PhaseSource.user ? 'User Set' : 'RIVET Detected',
+          style: theme.textTheme.bodySmall,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTimelineVisualization(ThemeData theme, List<PhaseRegime> regimes) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.view_timeline, color: theme.colorScheme.primary, size: 20),
+                const SizedBox(width: 8),
+                Text(
+                  'Timeline Visualization',
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            _buildTimelineAxis(theme),
+            const SizedBox(height: 8),
+            Container(
+              height: 120,
+              decoration: BoxDecoration(
+                border: Border.all(color: theme.dividerColor),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: CustomPaint(
+                  painter: PhaseTimelinePainter(
+                    regimes: regimes,
+                    visibleStart: _visibleStart,
+                    visibleEnd: _visibleEnd,
+                    zoomLevel: _zoomLevel,
+                    theme: theme,
+                  ),
+                  child: GestureDetector(
+                    onTapDown: (details) => _handleTimelineTap(details, regimes),
+                    child: Container(
+                      width: double.infinity,
+                      height: 120,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+            _buildTimelineLabels(theme),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTimelineAxis(ThemeData theme) {
+    return Row(
+      children: [
+        Text(
+          _formatDate(_visibleStart),
+          style: theme.textTheme.bodySmall?.copyWith(
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        Expanded(
+          child: Container(
+            height: 1,
+            margin: const EdgeInsets.symmetric(horizontal: 8),
+            color: theme.dividerColor,
+          ),
+        ),
+        Text(
+          'NOW',
+          style: theme.textTheme.bodySmall?.copyWith(
+            fontWeight: FontWeight.bold,
+            color: theme.colorScheme.primary,
+          ),
+        ),
+        Expanded(
+          child: Container(
+            height: 1,
+            margin: const EdgeInsets.symmetric(horizontal: 8),
+            color: theme.dividerColor,
+          ),
+        ),
+        Text(
+          _formatDate(_visibleEnd),
+          style: theme.textTheme.bodySmall?.copyWith(
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTimelineLabels(ThemeData theme) {
+    final now = DateTime.now();
+    final totalDuration = _visibleEnd.difference(_visibleStart);
+    final nowProgress = now.difference(_visibleStart).inMilliseconds / totalDuration.inMilliseconds;
+
+    return SizedBox(
+      height: 20,
+      child: Stack(
+        children: [
+          if (nowProgress >= 0 && nowProgress <= 1)
+            Positioned(
+              left: MediaQuery.of(context).size.width * nowProgress * 0.85,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.primary,
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Text(
+                  'TODAY',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: Colors.white,
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRegimeList(ThemeData theme, List<PhaseRegime> regimes) {
+    if (regimes.isEmpty) {
+      return Card(
+        child: Padding(
+          padding: const EdgeInsets.all(32.0),
+          child: Center(
+            child: Column(
+              children: [
+                Icon(Icons.info_outline, size: 48, color: Colors.grey),
+                const SizedBox(height: 16),
+                Text(
+                  'No phase regimes yet',
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    color: Colors.grey,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Run Phase Analysis to detect phases automatically',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: Colors.grey,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    final sortedRegimes = List<PhaseRegime>.from(regimes)
+      ..sort((a, b) => b.start.compareTo(a.start)); // Newest first
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.list, color: theme.colorScheme.primary, size: 20),
+                const SizedBox(width: 8),
+                Text(
+                  'Phase Regimes (${regimes.length})',
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            ...sortedRegimes.take(10).map((regime) => _buildRegimeCard(regime, theme)),
+            if (regimes.length > 10)
+              Padding(
+                padding: const EdgeInsets.only(top: 8.0),
+                child: Center(
+                  child: Text(
+                    '+ ${regimes.length - 10} more regimes',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: Colors.grey,
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildRegimeCard(PhaseRegime regime, ThemeData theme) {
+    final color = _getPhaseColor(regime.label);
+    final duration = regime.duration;
+    final isOngoing = regime.isOngoing;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8.0),
+      decoration: BoxDecoration(
+        border: Border(
+          left: BorderSide(color: color, width: 4),
+        ),
+        color: color.withOpacity(0.05),
+        borderRadius: const BorderRadius.only(
+          topRight: Radius.circular(8),
+          bottomRight: Radius.circular(8),
+        ),
+      ),
+      child: ListTile(
+        dense: true,
+        leading: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              isOngoing ? Icons.play_circle_filled : Icons.check_circle,
+              color: color,
+              size: 20,
+            ),
+            if (regime.source == PhaseSource.user)
+              Container(
+                width: 8,
+                height: 8,
+                margin: const EdgeInsets.only(top: 2),
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: theme.colorScheme.primary,
+                ),
+              ),
+          ],
+        ),
+        title: Row(
+          children: [
+            Text(
+              regime.label.name.toUpperCase(),
+              style: theme.textTheme.bodyMedium?.copyWith(
+                fontWeight: FontWeight.bold,
+                color: color,
+              ),
+            ),
+            if (regime.confidence != null) ...[
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: _getConfidenceColor(regime.confidence!),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Text(
+                  '${(regime.confidence! * 100).toInt()}%',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: Colors.white,
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
+        subtitle: Text(
+          isOngoing
+              ? '${_formatDate(regime.start)} - Ongoing (${duration.inDays}d)'
+              : '${_formatDate(regime.start)} - ${_formatDate(regime.end!)} (${duration.inDays}d)',
+          style: theme.textTheme.bodySmall,
+        ),
+        trailing: IconButton(
+          icon: const Icon(Icons.more_vert, size: 20),
+          onPressed: () => _showRegimeActions(regime),
+        ),
+        onTap: () => widget.onRegimeTap?.call(regime),
+      ),
+    );
+  }
+
+  Color _getConfidenceColor(double confidence) {
+    if (confidence >= 0.7) return Colors.green;
+    if (confidence >= 0.5) return Colors.orange;
+    return Colors.red;
+  }
+
+  String _formatDate(DateTime date) {
+    return '${date.month}/${date.day}/${date.year}';
   }
 
   Widget _buildTimelineControls(ThemeData theme) {
