@@ -2,6 +2,16 @@ ate# EPI MVP Install Guide (Main MVP – Gemini API)
 
 This guide installs and runs the full MVP. The app uses Gemini via the LLMRegistry. If no key is provided (or the API fails), it falls back to the rule‑based client.
 
+## 🌟 New Features (January 22, 2025)
+
+### RIVET Sweep Phase System
+- **Timeline-Based Phases**: Phases are now timeline segments rather than entry-level labels
+- **Automated Phase Detection**: RIVET Sweep algorithm automatically detects phase transitions
+- **MCP Phase Export/Import**: Full compatibility with phase regimes in MCP bundles
+- **Chat History Support**: LUMARA chat histories fully supported in MCP bundles
+- **Phase Timeline UI**: Visual timeline interface for phase management and editing
+- **Backward Compatibility**: Legacy phase fields preserved during migration
+
 ## Prerequisites
 - Flutter 3.35+ (stable)
 - Xcode (iOS) and/or Android SDK

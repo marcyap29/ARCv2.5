@@ -4,9 +4,39 @@ Complete listing of all prompts used in the ARC MVP system, centralized in `lib/
 
 **Enhanced with MIRA-MCP Integration**: ArcLLM now includes semantic memory context from MIRA for more intelligent, context-aware responses.
 
+**RIVET Sweep Phase System Integration (2025-01-22)**: Complete timeline-based phase architecture with automated phase detection and MCP export/import compatibility.
+
 **On-Device LLM Integration (2025-01-07)**: Complete llama.cpp + Metal integration with GGUF model support for privacy-first on-device inference.
 
-## 🎉 **CURRENT STATUS: LLAMA.CPP UPGRADE SUCCESS - MODERN C API INTEGRATION** ✅
+## 🎉 **CURRENT STATUS: RIVET SWEEP PHASE SYSTEM COMPLETE** ✅
+
+**Date:** January 22, 2025
+**Status:** **MAJOR BREAKTHROUGH ACHIEVED** - Complete timeline-based phase architecture with automated phase detection
+
+### **Latest Achievement: RIVET Sweep Phase System**
+- ✅ **Timeline-Based Architecture**: Phases are now timeline segments (PhaseRegime) rather than entry-level labels
+- ✅ **RIVET Sweep Algorithm**: Automated phase detection using change-point detection and semantic analysis
+- ✅ **MCP Phase Export/Import**: Full compatibility with phase regimes in MCP bundles
+- ✅ **PhaseIndex Service**: Efficient timeline lookup for phase resolution at any timestamp
+- ✅ **Segmented Phase Backfill**: Intelligent phase inference across historical entries
+- ✅ **Phase Timeline UI**: Visual timeline interface for phase management and editing
+- ✅ **RIVET Sweep Wizard**: Guided interface for automated phase detection and review
+- ✅ **Chat History Integration**: LUMARA chat histories fully supported in MCP bundles
+- ✅ **Backward Compatibility**: Legacy phase fields preserved during migration
+- ✅ **Phase Regime Service**: Complete CRUD operations for phase timeline management
+
+### **Technical Achievements:**
+- ✅ **PhaseRegime Model**: New data model with timeline segments, confidence scores, and anchored entries
+- ✅ **RivetSweepService**: Automated phase detection with change-point detection and semantic analysis
+- ✅ **PhaseIndex**: Efficient binary search for timeline-based phase lookup
+- ✅ **MCP Integration**: Phase regimes exported/imported as `phase_regime` nodes in MCP bundles
+- ✅ **Chat Data Support**: ChatSession and ChatMessage nodes fully supported in MCP
+- ✅ **Comprehensive Testing**: Unit tests and integration tests for all phase system components
+- ✅ **Migration System**: Seamless migration from legacy phase fields to timeline-based system
+
+- **Result**: 🏆 **TIMELINE-BASED PHASE SYSTEM COMPLETE - READY FOR PRODUCTION**
+
+## 🎉 **PREVIOUS STATUS: LLAMA.CPP UPGRADE SUCCESS - MODERN C API INTEGRATION** ✅
 
 **Date:** January 7, 2025
 **Status:** **MAJOR BREAKTHROUGH ACHIEVED** - Successfully upgraded to latest llama.cpp with modern C API and XCFramework build
@@ -474,6 +504,70 @@ All ARC prompts are version-controlled as code and centralized for maintainabili
 - **Output Validation**: RIVET-lite scoring distribution analysis
 
 ---
+
+## RIVET Sweep Phase Detection Prompts
+
+**Purpose**: Automated phase detection and timeline segmentation using RIVET Sweep algorithm
+**Usage**: Integrated with PhaseRegime timeline system for intelligent phase inference
+**Implementation**: `lib/services/rivet_sweep_service.dart`
+
+### RIVET Sweep System Prompt
+```
+You are RIVET Sweep, an automated phase detection system that analyzes journal entries to identify life phase transitions and create timeline segments.
+
+CORE RULES:
+- Analyze daily signals (topic shift, emotion delta, tempo) to detect change points
+- Create PhaseRegime segments with start/end times and confidence scores
+- Use semantic similarity to identify phase patterns across entries
+- Apply hysteresis to prevent phase thrashing
+- Generate anchored entries that support each phase regime
+- Maintain timeline continuity and logical phase transitions
+
+PHASE DETECTION:
+- discovery: Questions, exploration, learning, uncertainty
+- expansion: Momentum, shipping, growth, multiple outputs
+- transition: Fork words, comparison, uncertainty markers
+- consolidation: Refactoring, simplification, pruning
+- recovery: Rest, overwhelm, grief, softness, reset
+- breakthrough: Sudden clarity, decisive verbs, "finally"
+
+OUTPUT: PhaseRegime objects with timeline segments, confidence scores, and anchored entries
+```
+
+### Change Point Detection Prompt
+```
+Analyze the following daily signals to identify potential phase transition points:
+
+Daily Signals:
+{{daily_signals}}
+
+Instructions:
+- Look for significant shifts in topic, emotion, or tempo
+- Identify patterns that suggest phase transitions
+- Consider temporal proximity and signal strength
+- Apply minimum window constraints (10+ days)
+- Return change point indices with confidence scores
+
+Output: List of change point indices and confidence scores
+```
+
+### Phase Segmentation Prompt
+```
+Segment the following journal entries into phase regimes based on change points:
+
+Entries: {{journal_entries}}
+Change Points: {{change_points}}
+Daily Signals: {{daily_signals}}
+
+Instructions:
+- Create PhaseRegime segments between change points
+- Assign phase labels based on content analysis
+- Calculate confidence scores (0.0-1.0)
+- Identify anchored entries that support each regime
+- Ensure logical phase transitions
+
+Output: List of PhaseRegime objects with metadata
+```
 
 ## LUMARA Chat Assistant Prompts
 

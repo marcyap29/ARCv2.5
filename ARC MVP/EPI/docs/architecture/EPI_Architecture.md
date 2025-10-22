@@ -4,11 +4,95 @@
   - ARC: Core Journaling Interface
   - PRISM: Multi-Modal Processing (Enhanced with iOS Vision + Thumbnail Caching)
   - ECHO: Expressive Response Layer
-  - ATLAS: Phase Detection & Analysis
+  - ATLAS: Phase Detection & Analysis (Enhanced with RIVET Sweep Timeline System)
   - MIRA: Narrative Intelligence (v0.2 - Enhanced Semantic Memory)
   - AURORA: Circadian Intelligence
   - VEIL: Self-Pruning & Coherence (Integrated with MIRA v0.2)
-  - RIVET: Risk-Validation Evidence Tracker (Extended with Draft & Chat Analysis)
+  - RIVET: Risk-Validation Evidence Tracker (Extended with Draft & Chat Analysis + Phase Sweep)
+
+  ## 🌟 **RIVET Sweep Phase System Architecture** (Updated January 22, 2025)
+
+  **Timeline-Based Phase Management - PRODUCTION READY**:
+  ```
+  RIVET Sweep Phase System:
+  ├── PhaseRegime Timeline Architecture
+  │   ├── PhaseRegime Model
+  │   │   ├── Timeline segments with start/end times
+  │   │   ├── Phase labels (discovery, expansion, transition, consolidation, recovery, breakthrough)
+  │   │   ├── Confidence scores (0.0-1.0)
+  │   │   ├── Source tracking (user, rivet)
+  │   │   ├── Anchored entries supporting each regime
+  │   │   └── Ongoing regime support (null end time)
+  │   └── PhaseIndex Service
+  │       ├── Efficient binary search for timeline lookup
+  │       ├── O(log n) phase resolution at any timestamp
+  │       ├── Change point detection and analysis
+  │       └── Regime management (add, update, delete, split, merge)
+  ├── RIVET Sweep Algorithm
+  │   ├── Change Point Detection (CPD)
+  │   │   ├── Daily signal aggregation (topic shift, emotion delta, tempo)
+  │   │   ├── Statistical analysis for phase transitions
+  │   │   ├── Minimum window constraints (10+ days)
+  │   │   └── Confidence scoring for change points
+  │   ├── Segment-Level Phase Inference
+  │   │   ├── Semantic similarity analysis across entries
+  │   │   ├── Phase pattern recognition
+  │   │   ├── Hysteresis to prevent phase thrashing
+  │   │   └── Anchored entry identification
+  │   └── RivetSweepService
+  │       ├── Automated phase detection pipeline
+  │       ├── Integration with analytics and telemetry
+  │       ├── Guardrails and feature flags
+  │       └── Comprehensive testing and validation
+  ├── MCP Phase Export/Import
+  │   ├── Phase Regime Nodes
+  │   │   ├── type: 'phase_regime' in MCP bundles
+  │   │   ├── Complete metadata preservation
+  │   │   ├── Timeline relationships and anchors
+  │   │   └── Confidence and source tracking
+  │   ├── Chat Data Integration
+  │   │   ├── ChatSession and ChatMessage nodes
+  │   │   ├── Relationship edges (contains, anchors)
+  │   │   ├── Date filtering and scope support
+  │   │   └── Archived chat handling
+  │   └── MCP Bundle Parser
+  │       ├── phase_regime node type support
+  │       ├── ChatSession and ChatMessage parsing
+  │       ├── ReflectiveNode conversion
+  │       └── Backward compatibility with legacy formats
+  ├── Phase Timeline UI
+  │   ├── RivetSweepWizard
+  │   │   ├── Guided phase detection interface
+  │   │   ├── Change point review and approval
+  │   │   ├── Phase regime editing and validation
+  │   │   └── Confidence threshold configuration
+  │   ├── PhaseTimelineView
+  │   │   ├── Visual timeline interface
+  │   │   ├── Phase regime visualization
+  │   │   ├── Edit operations (split, merge, adjust)
+  │   │   └── Anchored entry display
+  │   └── Phase Regime Service
+  │       ├── CRUD operations for phase regimes
+  │       ├── Timeline integrity validation
+  │       ├── Conflict resolution and merging
+  │       └── Migration from legacy phase fields
+  └── Migration & Compatibility
+      ├── Legacy Phase Field Support
+      │   ├── phase field preserved in JournalEntry
+      │   ├── phaseAtTime field for timeline reference
+      │   ├── Backward compatibility during migration
+      │   └── Gradual transition to timeline-based system
+      ├── Data Model Updates
+      │   ├── JournalEntry.phaseAtTime field
+      │   ├── NodeType.phaseRegime enum value
+      │   ├── MCP schema extensions
+      │   └── ReflectiveNode phase regime support
+      └── Testing & Validation
+          ├── Unit tests for all phase system components
+          ├── Integration tests for MCP export/import
+          ├── Migration testing and validation
+          └── Performance testing for timeline operations
+  ```
 
   ## 🔧 **Timeline Ordering & Timestamp Architecture** (Updated January 21, 2025)
 

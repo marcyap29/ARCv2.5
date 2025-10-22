@@ -1,11 +1,25 @@
 # EPI Documentation
 
-**Last Updated:** January 21, 2025
-**Status:** Production Ready ✅ - MCP Export/Import System Simplified, LUMARA v2.0 Complete, Timeline Ordering Fixed & Phase Dropdown + Auto-Capitalization
+**Last Updated:** January 22, 2025
+**Status:** Production Ready ✅ - RIVET Sweep Phase System Complete, MCP Phase Export/Import, Timeline-Based Phase Architecture
 
 This directory contains comprehensive documentation for the EPI (Evolving Personal Intelligence) project - an 8-module intelligent journaling system built with Flutter.
 
-## 🆕 Latest Updates (January 21, 2025)
+## 🆕 Latest Updates (January 22, 2025)
+
+**🌟 RIVET Sweep Phase System - Timeline-Based Architecture**
+
+Complete implementation of next-generation phase management with timeline-based architecture:
+- **PhaseRegime Timeline System** - Phases are now timeline segments rather than entry-level labels
+- **RIVET Sweep Algorithm** - Automated phase detection using change-point detection and semantic analysis
+- **MCP Phase Export/Import** - Full compatibility with phase regimes in MCP bundles
+- **PhaseIndex Service** - Efficient timeline lookup for phase resolution at any timestamp
+- **Segmented Phase Backfill** - Intelligent phase inference across historical entries
+- **Phase Timeline UI** - Visual timeline interface for phase management and editing
+- **RIVET Sweep Wizard** - Guided interface for automated phase detection and review
+- **Backward Compatibility** - Legacy phase fields preserved during migration
+- **Chat History Integration** - LUMARA chat histories fully supported in MCP bundles
+- **Phase Regime Service** - Complete CRUD operations for phase timeline management
 
 **🔧 Phase Dropdown & Auto-Capitalization**
 
