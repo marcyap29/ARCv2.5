@@ -49,9 +49,9 @@ class _Arcform3DState extends State<Arcform3D> with TickerProviderStateMixin {
   void initState() {
     super.initState();
     _animationController = AnimationController(
-      duration: const Duration(seconds: 4),
+      duration: const Duration(seconds: 1), // Minimal duration since we're not using animation
       vsync: this,
-    )..repeat();
+    );
     _buildScene();
   }
 
@@ -187,22 +187,17 @@ class _Arcform3DState extends State<Arcform3D> with TickerProviderStateMixin {
           });
         }
       },
-      child: AnimatedBuilder(
-        animation: _animationController,
-        builder: (context, child) {
-          return CustomPaint(
-            size: Size.infinite,
-            painter: _ConstellationPainter(
-              stars: _stars,
-              edges: _edges,
-              nebula: _nebulaParticles,
-              rotationX: _rotationX,
-              rotationY: _rotationY,
-              zoom: _zoom,
-              animationValue: _animationController.value,
-            ),
-          );
-        },
+      child: CustomPaint(
+        size: Size.infinite,
+        painter: _ConstellationPainter(
+          stars: _stars,
+          edges: _edges,
+          nebula: _nebulaParticles,
+          rotationX: _rotationX,
+          rotationY: _rotationY,
+          zoom: _zoom,
+          animationValue: 0.0, // Static - no animation
+        ),
       ),
     );
   }
@@ -342,9 +337,8 @@ class _ConstellationPainter extends CustomPainter {
         center.dy - rotated.y * scale,
       );
 
-      // Galaxy-like twinkling stars with phase-specific shapes
-      final twinkle = 1.0 + 0.4 * math.sin(animationValue * 2 * 3.14159 + star.position.x * 0.3 + star.position.y * 0.2);
-      final finalSize = star.size * twinkle;
+      // Static stars - no twinkling to prevent spinning illusion
+      final finalSize = star.size;
 
       // Multiple glow layers for galaxy star effect
       // Outer glow (largest, most transparent)
