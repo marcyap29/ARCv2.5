@@ -45,7 +45,21 @@ class _SimplifiedArcformView3DState extends State<SimplifiedArcformView3D> {
       final constellation = _generatePhaseConstellation(currentPhase);
       
       setState(() {
-        _snapshots = constellation != null ? [constellation.toJson()] : [];
+        if (constellation != null) {
+          // Convert Arcform3DData to the expected snapshot format
+          final snapshot = {
+            'id': constellation.id,
+            'title': constellation.title,
+            'phaseHint': constellation.phase,
+            'keywords': constellation.nodes.map((node) => node.label).toList(),
+            'createdAt': constellation.createdAt.toIso8601String(),
+            'content': constellation.content,
+            'arcformData': constellation.toJson(), // Store the full 3D data
+          };
+          _snapshots = [snapshot];
+        } else {
+          _snapshots = [];
+        }
         _isLoading = false;
       });
     } catch (e) {
@@ -335,6 +349,13 @@ class _SimplifiedArcformView3DState extends State<SimplifiedArcformView3D> {
 
   Arcform3DData? _generateArcformData(Map<String, dynamic> snapshot, String phase) {
     try {
+      // Check if we have stored 3D data
+      if (snapshot['arcformData'] != null) {
+        final arcformJson = snapshot['arcformData'] as Map<String, dynamic>;
+        return Arcform3DData.fromJson(arcformJson);
+      }
+      
+      // Fallback: generate from keywords if no 3D data
       final keywords = List<String>.from(snapshot['keywords'] ?? []);
       if (keywords.isEmpty) return null;
 

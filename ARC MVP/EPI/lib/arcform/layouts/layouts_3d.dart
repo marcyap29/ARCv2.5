@@ -52,14 +52,14 @@ List<ArcNode3D> _layoutHelix(
     final keyword = keywords[i];
     final t = i / math.max(1, count - 1);
     
-    // Spiral parameters
+    // Spiral parameters - increased spacing
     final angle = t * 2.5 * 2 * math.pi; // 2.5 turns
-    final radius = 0.5 + t * 0.3; // Expand outward
+    final radius = 1.5 + t * 1.0; // Expand outward (was 0.5 + t * 0.3)
     
     // Helix coordinates
     final x = radius * math.cos(angle);
     final y = radius * math.sin(angle);
-    final z = (t - 0.5) * 1.5; // Vertical spread
+    final z = (t - 0.5) * 3.0; // Vertical spread (was 1.5)
     
     // Add slight jitter
     final childRng = rng.derive(keyword);
@@ -95,8 +95,8 @@ List<ArcNode3D> _layoutPetalRings(
   
   int idx = 0;
   for (int layer = 0; layer < layers && idx < count; layer++) {
-    final z = (layer / (layers - 1) - 0.5) * 1.2;
-    final layerRadius = 0.6 + (layer % 2) * 0.2; // Alternating radii
+    final z = (layer / (layers - 1) - 0.5) * 2.5; // Increased vertical spread (was 1.2)
+    final layerRadius = 1.2 + (layer % 2) * 0.5; // Increased radii (was 0.6 + 0.2)
     
     final itemsInLayer = math.min(perLayer, count - idx);
     for (int i = 0; i < itemsInLayer; i++) {
@@ -142,11 +142,11 @@ List<ArcNode3D> _layoutBranches(
     for (int i = 0; i < itemsInBranch; i++) {
       final keyword = keywords[idx++];
       final t = i / itemsInBranch;
-      final dist = 0.2 + t * 0.7;
+      final dist = 0.5 + t * 1.5; // Increased distance (was 0.2 + t * 0.7)
       
       final x = branchDir.x * dist;
       final y = branchDir.y * dist;
-      final z = (t - 0.5) * 0.6;
+      final z = (t - 0.5) * 1.2; // Increased vertical spread (was 0.6)
       
       nodes.add(ArcNode3D(
         id: keyword,
@@ -176,9 +176,9 @@ List<ArcNode3D> _layoutLattice(
     final keyword = keywords[i];
     final childRng = rng.derive(keyword);
     
-    // Distribute on sphere surface
+    // Distribute on sphere surface - increased radius
     final point = childRng.nextUnitSphere();
-    final radius = 0.7 + childRng.nextDouble() * 0.2;
+    final radius = 1.5 + childRng.nextDouble() * 0.5; // Increased radius (was 0.7 + 0.2)
     
     nodes.add(ArcNode3D(
       id: keyword,
@@ -207,10 +207,10 @@ List<ArcNode3D> _layoutCluster(
     final keyword = keywords[i];
     final childRng = rng.derive(keyword);
     
-    // Gaussian distribution for tight cluster
-    final x = childRng.nextGaussian() * 0.3;
-    final y = childRng.nextGaussian() * 0.3;
-    final z = childRng.nextGaussian() * 0.3;
+    // Gaussian distribution for tight cluster - increased spread
+    final x = childRng.nextGaussian() * 0.8; // Increased from 0.3
+    final y = childRng.nextGaussian() * 0.8; // Increased from 0.3
+    final z = childRng.nextGaussian() * 0.8; // Increased from 0.3
     
     nodes.add(ArcNode3D(
       id: keyword,
@@ -239,10 +239,10 @@ List<ArcNode3D> _layoutBurst(
     final keyword = keywords[i];
     final childRng = rng.derive(keyword);
     
-    // Radial burst pattern
+    // Radial burst pattern - increased spread for galaxy-like distribution
     final point = childRng.nextUnitSphere();
     final t = childRng.nextDouble();
-    final radius = 0.5 + math.pow(t, 0.4) * 0.7; // Bias toward outer
+    final radius = 1.0 + math.pow(t, 0.4) * 1.5; // Increased radius for galaxy spread
     
     nodes.add(ArcNode3D(
       id: keyword,
@@ -280,8 +280,8 @@ List<ArcNode3D> _layoutSpherical(
     final x = radius * math.cos(theta);
     final z = radius * math.sin(theta);
     
-    // Scale to desired size
-    final scale = 0.7 + childRng.nextDouble() * 0.2;
+    // Scale to desired size - increased for galaxy spread
+    final scale = 1.5 + childRng.nextDouble() * 0.8; // Increased from 0.7 + 0.2
     
     nodes.add(ArcNode3D(
       id: keyword,

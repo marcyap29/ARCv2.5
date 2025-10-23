@@ -25,13 +25,15 @@ This guide installs and runs the full MVP. The app uses Gemini via the LLMRegist
 - **Privacy-First Design**: All analysis happens on-device with no data transmission
 
 ### 3D Constellation ARCForms Enhancement (January 22, 2025)
+- **Constellation Display Fix**: Fixed critical "0 Stars" issue - constellations now properly display after phase analysis
 - **Static Constellation Display**: Fixed spinning issue - constellations now appear as stable star formations
 - **Manual 3D Controls**: Users can manually rotate and explore 3D space with intuitive gestures
 - **Phase-Specific Layouts**: Different 3D arrangements for each phase (Discovery helix, Recovery cluster, etc.)
 - **Sentiment Colors**: Warm/cool colors based on emotional valence with deterministic variations
 - **Connected Stars**: All nodes connected with lines forming real constellation patterns
-- **Subtle Twinkling**: Gentle 10% size variation like real stars (not spinning)
-- **Glow Effects**: Soft halos around stars for depth and visual appeal
+- **Galaxy-like Twinkling**: Multiple glow layers with subtle twinkling animation (4-second cycle)
+- **Colorful Connecting Lines**: Lines blend colors of connected stars based on sentiment
+- **Enhanced Glow Effects**: Outer, middle, and inner glow layers for realistic star appearance
 - **Performance Optimized**: Removed unnecessary animations and calculations
 
 ## Prerequisites

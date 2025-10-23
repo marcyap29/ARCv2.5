@@ -1173,9 +1173,10 @@
   - ✅ **Phase-Specific Layouts**: Different 3D arrangements for each phase (Discovery helix, Recovery cluster, etc.)
   - ✅ **Sentiment Colors**: Warm/cool colors based on emotional valence with deterministic jitter
   - ✅ **Connected Stars**: All nodes connected with lines forming constellation patterns
-  - ✅ **Subtle Twinkling**: Gentle 10% size variation like real stars (not spinning)
-  - ✅ **Glow Effects**: Soft halos around stars for depth and visual appeal
+  - ✅ **Galaxy-like Twinkling**: Multiple glow layers with subtle twinkling animation (4-second cycle)
+  - ✅ **Colorful Connecting Lines**: Lines blend colors of connected stars based on sentiment
   - ✅ **Nebula Background**: Phase-aware particle effects for atmospheric depth
+  - ✅ **Data Structure Fix**: Proper conversion between Arcform3DData and snapshot display format
 
   **Technical Implementation (January 22, 2025)**:
   - **Static Constellation**: Removed automatic spinning, added manual 3D rotation controls
@@ -1185,6 +1186,8 @@
   - **Deterministic Rendering**: Seeded random generation for consistent visual variations
   - **Sentiment Integration**: Warm/cool color mapping based on emotional valence data
   - **3D Math**: Vector3D transformations with proper camera controls and bounds checking
+  - **Data Flow Fix**: Fixed Arcform3DData to snapshot conversion for proper display
+  - **Enhanced Visuals**: Multiple glow layers, colorful connecting lines, galaxy-like twinkling
 
   **3D Constellation Data Models**:
   ```dart

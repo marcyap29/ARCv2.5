@@ -10,7 +10,8 @@ import 'color_map.dart';
 import 'nebula.dart';
 
 /// Main 3D ARCForm widget with static constellation that users can manually rotate
-/// Features: Connected star formation, subtle twinkling, manual 3D rotation controls
+/// Features: Connected star formation, manual 3D rotation controls, pinch-to-zoom
+/// The constellation remains stationary until the user interacts with it via drag or pinch gestures
 class Arcform3D extends StatefulWidget {
   final List<ArcNode3D> nodes;
   final List<ArcEdge3D> edges;
@@ -33,24 +34,24 @@ class Arcform3D extends StatefulWidget {
   State<Arcform3D> createState() => _Arcform3DState();
 }
 
-class _Arcform3DState extends State<Arcform3D> with SingleTickerProviderStateMixin {
-  late AnimationController _animationController;
+class _Arcform3DState extends State<Arcform3D> with TickerProviderStateMixin {
   double _rotationX = 0.2;
   double _rotationY = 0.0;
-  double _zoom = 3.5;
+  double _zoom = 2.0; // Start more zoomed out to see the galaxy spread
   Offset? _lastPanPosition;
-  
+
   List<_Star> _stars = [];
   List<_Edge> _edges = [];
   List<NebulaParticle> _nebulaParticles = [];
+  late AnimationController _animationController;
 
   @override
   void initState() {
     super.initState();
     _animationController = AnimationController(
-      vsync: this,
       duration: const Duration(seconds: 4),
-    )..repeat(); // Gentle twinkling effect
+      vsync: this,
+    )..repeat();
     _buildScene();
   }
 
@@ -82,7 +83,7 @@ class _Arcform3DState extends State<Arcform3D> with SingleTickerProviderStateMix
       );
       
       return _Star(
-        position: vm.Vector3(node.x * 2, node.y * 2, node.z * 2),
+        position: vm.Vector3(node.x * 3, node.y * 3, node.z * 3), // Increased scale for galaxy spread
         color: Color.fromRGBO(
           (color.x * 255).toInt(),
           (color.y * 255).toInt(),
@@ -108,19 +109,31 @@ class _Arcform3DState extends State<Arcform3D> with SingleTickerProviderStateMix
         if (sourceStar != null && targetStar != null) {
           final rng = Seeded('${widget.skin.seed}:edge:${edge.sourceId}:${edge.targetId}');
           
-          // Jitter the colors slightly
+          // Blend colors of both connected stars for constellation lines
           final sourceHsl = rgbToHsl(vm.Vector3(
             sourceStar.color.red / 255.0,
             sourceStar.color.green / 255.0,
             sourceStar.color.blue / 255.0,
           ));
-          final jitter = (rng.nextDouble() - 0.5) * 2.0 * widget.skin.lineHueJitter;
-          final newHue = (sourceHsl.x + jitter).clamp(0.0, 1.0);
-          final rgb = hslToRgb(newHue, sourceHsl.y * 0.9, sourceHsl.z * 0.95);
+          final targetHsl = rgbToHsl(vm.Vector3(
+            targetStar.color.red / 255.0,
+            targetStar.color.green / 255.0,
+            targetStar.color.blue / 255.0,
+          ));
+          
+          // Blend the hues, saturations, and lightness of both stars
+          final blendedHue = (sourceHsl.x + targetHsl.x) / 2.0;
+          final blendedSat = (sourceHsl.y + targetHsl.y) / 2.0;
+          final blendedLight = (sourceHsl.z + targetHsl.z) / 2.0;
+          
+          // Add subtle jitter for variation
+          final jitter = (rng.nextDouble() - 0.5) * 0.1; // Reduced jitter for more stable colors
+          final finalHue = (blendedHue + jitter).clamp(0.0, 1.0);
+          final rgb = hslToRgb(finalHue, blendedSat * 0.8, blendedLight * 0.9);
           
           _edges.add(_Edge(
-            start: sourceStar.position,
-            end: targetStar.position,
+            start: vm.Vector3(sourceStar.position.x, sourceStar.position.y, sourceStar.position.z),
+            end: vm.Vector3(targetStar.position.x, targetStar.position.y, targetStar.position.z),
             color: Color.fromRGBO(
               (rgb.x * 255).toInt(),
               (rgb.y * 255).toInt(),
@@ -170,7 +183,7 @@ class _Arcform3DState extends State<Arcform3D> with SingleTickerProviderStateMix
       onScaleUpdate: (details) {
         if (details.scale != 1.0) {
           setState(() {
-            _zoom = (_zoom / details.scale).clamp(2.0, 8.0);
+            _zoom = (_zoom / details.scale).clamp(0.5, 12.0); // Increased zoom range for galaxy exploration
           });
         }
       },
@@ -276,7 +289,7 @@ class _ConstellationPainter extends CustomPainter {
       canvas.drawCircle(projected, particle.size * scale * 12, paint);
     }
 
-    // Draw edges
+    // Draw constellation connecting lines - subtle and colorful
     for (final edge in edges) {
       final start3d = rotation.transform3(edge.start);
       final end3d = rotation.transform3(edge.end);
@@ -290,12 +303,34 @@ class _ConstellationPainter extends CustomPainter {
         center.dy - end3d.y * scale,
       );
 
-      final paint = Paint()
-        ..color = edge.color.withOpacity(edge.color.opacity * edge.weight)
-        ..strokeWidth = 1.0 + edge.weight * 1.5
+      // Create gradient effect by blending the edge color with transparency
+      final lineColor = edge.color.withOpacity(0.3 + edge.weight * 0.4); // More subtle, 0.3-0.7 opacity
+      
+      // Multiple line layers for constellation effect
+      // Outer glow line (very subtle)
+      final outerLinePaint = Paint()
+        ..color = lineColor.withOpacity(0.1)
+        ..strokeWidth = 3.0 + edge.weight * 2.0
+        ..style = PaintingStyle.stroke
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 2);
+
+      canvas.drawLine(startProj, endProj, outerLinePaint);
+
+      // Main constellation line
+      final mainLinePaint = Paint()
+        ..color = lineColor
+        ..strokeWidth = 0.8 + edge.weight * 0.8 // Thinner, more delicate lines
         ..style = PaintingStyle.stroke;
 
-      canvas.drawLine(startProj, endProj, paint);
+      canvas.drawLine(startProj, endProj, mainLinePaint);
+
+      // Inner bright line for definition
+      final innerLinePaint = Paint()
+        ..color = lineColor.withOpacity(0.6)
+        ..strokeWidth = 0.3 + edge.weight * 0.3
+        ..style = PaintingStyle.stroke;
+
+      canvas.drawLine(startProj, endProj, innerLinePaint);
     }
 
     // Draw stars
@@ -307,17 +342,34 @@ class _ConstellationPainter extends CustomPainter {
         center.dy - rotated.y * scale,
       );
 
-      // Subtle twinkling effect like real stars
-      final twinkle = 1.0 + 0.1 * math.sin(animationValue * 2 * 3.14159 + star.position.x * 0.5);
+      // Galaxy-like twinkling stars with phase-specific shapes
+      final twinkle = 1.0 + 0.4 * math.sin(animationValue * 2 * 3.14159 + star.position.x * 0.3 + star.position.y * 0.2);
       final finalSize = star.size * twinkle;
 
-      // Glow effect
-      final glowPaint = Paint()
-        ..color = star.color.withOpacity(0.3)
+      // Multiple glow layers for galaxy star effect
+      // Outer glow (largest, most transparent)
+      final outerGlowPaint = Paint()
+        ..color = star.color.withOpacity(0.15)
+        ..style = PaintingStyle.fill
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 15);
+
+      canvas.drawCircle(projected, finalSize * 4.0, outerGlowPaint);
+
+      // Middle glow
+      final middleGlowPaint = Paint()
+        ..color = star.color.withOpacity(0.25)
         ..style = PaintingStyle.fill
         ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8);
 
-      canvas.drawCircle(projected, finalSize * 2.5, glowPaint);
+      canvas.drawCircle(projected, finalSize * 2.5, middleGlowPaint);
+
+      // Inner glow
+      final innerGlowPaint = Paint()
+        ..color = star.color.withOpacity(0.4)
+        ..style = PaintingStyle.fill
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4);
+
+      canvas.drawCircle(projected, finalSize * 1.5, innerGlowPaint);
 
       // Core star
       final starPaint = Paint()
@@ -326,12 +378,12 @@ class _ConstellationPainter extends CustomPainter {
 
       canvas.drawCircle(projected, finalSize, starPaint);
 
-      // Bright center
+      // Bright white center for twinkling effect
       final centerPaint = Paint()
-        ..color = Colors.white.withOpacity(0.8)
+        ..color = Colors.white.withOpacity(0.9)
         ..style = PaintingStyle.fill;
 
-      canvas.drawCircle(projected, finalSize * 0.4, centerPaint);
+      canvas.drawCircle(projected, finalSize * 0.3, centerPaint);
     }
   }
 
@@ -342,7 +394,8 @@ class _ConstellationPainter extends CustomPainter {
         oldDelegate.zoom != zoom ||
         oldDelegate.animationValue != animationValue ||
         oldDelegate.stars != stars ||
-        oldDelegate.edges != edges;
+        oldDelegate.edges != edges ||
+        oldDelegate.nebula != nebula;
   }
 }
 
