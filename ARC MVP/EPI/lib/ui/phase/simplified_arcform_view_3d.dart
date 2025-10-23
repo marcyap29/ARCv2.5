@@ -231,7 +231,7 @@ class _SimplifiedArcformView3DState extends State<SimplifiedArcformView3D> {
                           phase: arcformData.phase,
                           skin: arcformData.skin,
                           showNebula: true,
-                          enableLabels: false,
+                          enableLabels: true, // Enable keyword labels
                         )
                       : Center(
                           child: Column(

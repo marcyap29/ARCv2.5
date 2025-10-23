@@ -49,9 +49,9 @@ class _Arcform3DState extends State<Arcform3D> with TickerProviderStateMixin {
   void initState() {
     super.initState();
     _animationController = AnimationController(
-      duration: const Duration(seconds: 1), // Minimal duration since we're not using animation
+      duration: const Duration(seconds: 10), // 10 second cycle for slow twinkling
       vsync: this,
-    );
+    )..repeat();
     _buildScene();
   }
 
@@ -171,8 +171,8 @@ class _Arcform3DState extends State<Arcform3D> with TickerProviderStateMixin {
       onPanUpdate: (details) {
         final delta = details.localPosition - (_lastPanPosition ?? details.localPosition);
         setState(() {
-          _rotationY += delta.dx * 0.01;
-          _rotationX = (_rotationX - delta.dy * 0.01).clamp(-1.5, 1.5);
+          _rotationY += delta.dx * 0.003; // Much slower, smoother rotation
+          _rotationX = (_rotationX - delta.dy * 0.003).clamp(-1.5, 1.5);
         });
         _lastPanPosition = details.localPosition;
       },
@@ -187,17 +187,23 @@ class _Arcform3DState extends State<Arcform3D> with TickerProviderStateMixin {
           });
         }
       },
-      child: CustomPaint(
-        size: Size.infinite,
-        painter: _ConstellationPainter(
-          stars: _stars,
-          edges: _edges,
-          nebula: _nebulaParticles,
-          rotationX: _rotationX,
-          rotationY: _rotationY,
-          zoom: _zoom,
-          animationValue: 0.0, // Static - no animation
-        ),
+      child: AnimatedBuilder(
+        animation: _animationController,
+        builder: (context, child) {
+          return CustomPaint(
+            size: Size.infinite,
+            painter: _ConstellationPainter(
+              stars: _stars,
+              edges: _edges,
+              nebula: _nebulaParticles,
+              rotationX: _rotationX,
+              rotationY: _rotationY,
+              zoom: _zoom,
+              animationValue: _animationController.value,
+              enableLabels: widget.enableLabels,
+            ),
+          );
+        },
       ),
     );
   }
@@ -239,6 +245,7 @@ class _ConstellationPainter extends CustomPainter {
   final double rotationY;
   final double zoom;
   final double animationValue;
+  final bool enableLabels;
 
   _ConstellationPainter({
     required this.stars,
@@ -248,6 +255,7 @@ class _ConstellationPainter extends CustomPainter {
     required this.rotationY,
     required this.zoom,
     required this.animationValue,
+    required this.enableLabels,
   });
 
   @override
@@ -337,8 +345,12 @@ class _ConstellationPainter extends CustomPainter {
         center.dy - rotated.y * scale,
       );
 
-      // Static stars - no twinkling to prevent spinning illusion
-      final finalSize = star.size;
+      // Individual star twinkling - each star twinkles at different times
+      final starPhase = (star.position.x + star.position.y + star.position.z) * 0.5; // Unique phase per star
+      final twinkleCycle = (animationValue + starPhase) % 1.0; // 0-1 cycle per star
+      final twinkleIntensity = math.sin(twinkleCycle * 2 * math.pi) * 0.5 + 0.5; // 0-1 smooth curve
+      final twinkle = 1.0 + 0.15 * twinkleIntensity; // 15% size variation max
+      final finalSize = star.size * twinkle;
 
       // Multiple glow layers for galaxy star effect
       // Outer glow (largest, most transparent)
@@ -378,6 +390,60 @@ class _ConstellationPainter extends CustomPainter {
         ..style = PaintingStyle.fill;
 
       canvas.drawCircle(projected, finalSize * 0.3, centerPaint);
+    }
+
+    // Draw labels if enabled
+    if (enableLabels) {
+      _drawLabels(canvas, size, center, scale, rotation);
+    }
+  }
+
+  void _drawLabels(Canvas canvas, Size size, Offset center, double scale, vm.Matrix4 rotation) {
+    final textStyle = TextStyle(
+      color: Colors.white,
+      fontSize: 12,
+      fontWeight: FontWeight.w500,
+    );
+
+    for (final star in stars) {
+      final rotated = rotation.transform3(star.position);
+      final projected = Offset(
+        center.dx + rotated.x * scale,
+        center.dy - rotated.y * scale,
+      );
+
+      // Only show labels if they're not too far from center (avoid edge labels)
+      final distanceFromCenter = (projected - center).distance;
+      if (distanceFromCenter < size.width * 0.4) {
+        final textPainter = TextPainter(
+          text: TextSpan(text: star.label, style: textStyle),
+          textDirection: TextDirection.ltr,
+        );
+        textPainter.layout();
+
+        // Position label slightly above the star
+        final labelOffset = Offset(
+          projected.dx - textPainter.width / 2,
+          projected.dy - star.size * 2 - textPainter.height,
+        );
+
+        // Draw label background for readability
+        final backgroundRect = Rect.fromLTWH(
+          labelOffset.dx - 2,
+          labelOffset.dy - 1,
+          textPainter.width + 4,
+          textPainter.height + 2,
+        );
+        final backgroundPaint = Paint()
+          ..color = Colors.black.withOpacity(0.7)
+          ..style = PaintingStyle.fill;
+        canvas.drawRRect(
+          RRect.fromRectAndRadius(backgroundRect, const Radius.circular(4)),
+          backgroundPaint,
+        );
+
+        textPainter.paint(canvas, labelOffset);
+      }
     }
   }
 
