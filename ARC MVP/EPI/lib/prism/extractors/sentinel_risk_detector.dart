@@ -200,7 +200,7 @@ class SentinelRiskDetector {
     final recommendations = _generateRecommendations(riskLevel, patterns, metrics);
 
     // Generate summary with source breakdown
-    final summary = _generateSummaryWithSources(riskLevel, patterns, metrics, filteredEntries);
+    final summary = _generateSummaryWithSources(riskLevel, riskScore, patterns, metrics, filteredEntries);
 
     return SentinelAnalysis(
       riskLevel: riskLevel,
@@ -710,9 +710,9 @@ class SentinelRiskDetector {
     double baseScore = 0.0;
 
     // Base score from metrics (inverse of RIVET's keyword quality scoring)
-    final avgAmplitude = metrics['avg_amplitude'] as double;
-    final highAmplitudeRate = metrics['high_amplitude_rate'] as double;
-    final negativeRatio = metrics['negative_keyword_ratio'] as double;
+    final avgAmplitude = (metrics['avg_amplitude'] as double?) ?? 0.0;
+    final highAmplitudeRate = (metrics['high_amplitude_rate'] as double?) ?? 0.0;
+    final negativeRatio = (metrics['negative_keyword_ratio'] as double?) ?? 0.0;
 
     baseScore += avgAmplitude * 0.3;
     baseScore += highAmplitudeRate * 0.3;
@@ -1004,7 +1004,7 @@ class SentinelRiskDetector {
             affectedDates: cluster.map((e) => e.timestamp).toList(),
             triggerKeywords: cluster
                 .expand((e) => e.keywords)
-                .where((kw) => EnhancedKeywordExtractor.emotionAmplitudeMap[kw.toLowerCase()] ?? 0.0 >= config.highAmplitudeThreshold)
+                .where((kw) => (EnhancedKeywordExtractor.emotionAmplitudeMap[kw.toLowerCase()] ?? 0.0) >= config.highAmplitudeThreshold)
                 .toSet()
                 .toList(),
           ));
@@ -1054,7 +1054,7 @@ class SentinelRiskDetector {
 
     if (consecutiveDays.length >= minDays) {
       final affectedEntries = consecutiveDays
-          .expand((day) => dayGroups[day] ?? [])
+          .expand((day) => dayGroups[day] ?? <ReflectiveEntryData>[])
           .toList();
 
       final weightedSeverity = _getClusterSeverityWithWeighting(affectedEntries, config);
@@ -1068,7 +1068,8 @@ class SentinelRiskDetector {
             .expand((e) => e.keywords)
             .where((kw) => _isNegativeKeyword(kw))
             .toSet()
-            .toList(),
+            .toList()
+            .cast<String>(),
       );
     }
 
@@ -1116,7 +1117,7 @@ class SentinelRiskDetector {
         affectedDates: entries.map((e) => e.timestamp).toList(),
         triggerKeywords: entries
             .expand((e) => e.keywords)
-            .where((kw) => EnhancedKeywordExtractor.emotionAmplitudeMap[kw.toLowerCase()] ?? 0.0 >= config.highAmplitudeThreshold)
+            .where((kw) => (EnhancedKeywordExtractor.emotionAmplitudeMap[kw.toLowerCase()] ?? 0.0) >= config.highAmplitudeThreshold)
             .toSet()
             .toList(),
       );
@@ -1158,8 +1159,8 @@ class SentinelRiskDetector {
     double score = 0.0;
 
     // Base amplitude score
-    final avgAmplitude = metrics['avg_amplitude'] as double;
-    final highAmplitudeRate = metrics['high_amplitude_rate'] as double;
+    final avgAmplitude = (metrics['avg_amplitude'] as double?) ?? 0.0;
+    final highAmplitudeRate = (metrics['high_amplitude_rate'] as double?) ?? 0.0;
     score += avgAmplitude * 0.3;
     score += highAmplitudeRate * 0.2;
 
@@ -1170,8 +1171,8 @@ class SentinelRiskDetector {
     }
 
     // Source confidence adjustment
-    final avgConfidence = metrics['avg_confidence'] as double;
-    final highConfidenceRatio = metrics['high_confidence_ratio'] as double;
+    final avgConfidence = (metrics['avg_confidence'] as double?) ?? 1.0;
+    final highConfidenceRatio = (metrics['high_confidence_ratio'] as double?) ?? 1.0;
     score += (1.0 - avgConfidence) * 0.1; // Lower confidence = higher risk
     score += (1.0 - highConfidenceRatio) * 0.1; // Fewer high-confidence entries = higher risk
 
@@ -1181,6 +1182,7 @@ class SentinelRiskDetector {
   /// Generate summary with source breakdown
   static String _generateSummaryWithSources(
     RiskLevel riskLevel,
+    double riskScore,
     List<RiskPattern> patterns,
     Map<String, dynamic> metrics,
     List<ReflectiveEntryData> entries,
@@ -1189,7 +1191,7 @@ class SentinelRiskDetector {
     
     // Risk level summary
     buffer.writeln('Risk Level: ${riskLevel.name.toUpperCase()}');
-    buffer.writeln('Risk Score: ${(metrics['risk_score'] as double).toStringAsFixed(2)}');
+    buffer.writeln('Risk Score: ${riskScore.toStringAsFixed(2)}');
     buffer.writeln();
 
     // Source breakdown
@@ -1211,8 +1213,8 @@ class SentinelRiskDetector {
     }
 
     // Confidence summary
-    final avgConfidence = metrics['avg_confidence'] as double;
-    final highConfidenceRatio = metrics['high_confidence_ratio'] as double;
+    final avgConfidence = (metrics['avg_confidence'] as double?) ?? 1.0;
+    final highConfidenceRatio = (metrics['high_confidence_ratio'] as double?) ?? 1.0;
     buffer.writeln('Data Quality:');
     buffer.writeln('  • Average Confidence: ${(avgConfidence * 100).toStringAsFixed(1)}%');
     buffer.writeln('  • High Confidence Entries: ${(highConfidenceRatio * 100).toStringAsFixed(1)}%');

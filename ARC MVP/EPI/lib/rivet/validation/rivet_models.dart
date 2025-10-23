@@ -8,6 +8,12 @@ enum EvidenceSource {
   arcform,
   phase,
   system,
+  text,           // For journal entries
+  voice,          // For voice entries
+  therapistTag,   // For therapist-tagged entries
+  draft,          // For draft entries
+  lumaraChat,     // For LUMARA chat entries
+  other,          // For other sources
 }
 
 class RivetEvent {

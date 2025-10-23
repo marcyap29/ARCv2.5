@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:my_app/features/home/home_view.dart';
-import 'package:my_app/features/startup/phase_quiz_prompt_view.dart';
 import 'package:hive/hive.dart';
 import 'package:my_app/models/user_profile_model.dart';
 import 'package:my_app/shared/app_colors.dart';
@@ -42,22 +41,13 @@ class _StartupViewState extends State<StartupView> {
       print('DEBUG: Onboarding completed: ${userProfile?.onboardingCompleted}');
       print('DEBUG: Current season: ${userProfile?.onboardingCurrentSeason}');
 
-      // NEW RULES: Only show quiz to completely new users (no profile exists at all)
-      // This ensures the quiz only appears on fresh installs, not when users delete all entries
-      final isNewUser = userProfile == null;
-      
-      if (isNewUser) {
-        print('DEBUG: New user detected (no profile), showing phase quiz');
-        _navigateToPhaseQuiz();
-      } else {
-        print('DEBUG: Existing user, navigating to main menu');
-        // Existing user - go directly to main menu
-        _navigateToHome();
-      }
+      // Always navigate to home - quiz is now optional via Phase tab
+      print('DEBUG: Navigating to main menu');
+      _navigateToHome();
     } catch (e) {
       print('DEBUG: Error in _checkOnboardingStatus: $e');
-      // If there's an error accessing the profile, treat as new user
-      _navigateToPhaseQuiz();
+      // If there's an error, still navigate to home
+      _navigateToHome();
     }
   }
 
@@ -72,14 +62,6 @@ class _StartupViewState extends State<StartupView> {
   }
 
 
-  void _navigateToPhaseQuiz() {
-    if (mounted) {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => const PhaseQuizPromptView()),
-      );
-    }
-  }
 
 
   @override

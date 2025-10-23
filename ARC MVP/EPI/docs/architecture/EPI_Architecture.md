@@ -60,15 +60,16 @@
   │       ├── ChatSession and ChatMessage parsing
   │       ├── ReflectiveNode conversion
   │       └── Backward compatibility with legacy formats
-  ├── Phase Timeline UI
-  │   ├── PhaseAnalysisView (NEW - January 22, 2025)
-  │   │   ├── Main orchestration hub for phase analysis workflow
-  │   │   ├── Three-tab interface (Timeline, Analysis, Overview)
-  │   │   ├── Journal repository integration
-  │   │   ├── Entry validation (minimum 5 entries required)
-  │   │   ├── Phase regime creation and persistence
-  │   │   ├── Automatic timeline refresh after approval
-  │   │   └── Phase statistics display
+├── Phase Timeline UI
+│   ├── PhaseAnalysisView (ENHANCED - January 22, 2025)
+│   │   ├── Main orchestration hub for phase analysis workflow
+│   │   ├── Four-tab interface (Timeline, Analysis, SENTINEL, Overview)
+│   │   ├── Journal repository integration
+│   │   ├── Entry validation (minimum 5 entries required)
+│   │   ├── Phase regime creation and persistence
+│   │   ├── Automatic timeline refresh after approval
+│   │   ├── Phase statistics display
+│   │   └── SENTINEL emotional risk analysis integration
   │   ├── RivetSweepWizard (ENHANCED - January 22, 2025)
   │   │   ├── Three-tab UI (Overview, Review, Timeline)
   │   │   ├── Segmented review workflow (auto-assign, review, low-confidence)
@@ -97,6 +98,15 @@
   │   │   ├── Contextual help text based on progress
   │   │   ├── Refresh button for updating RIVET state
   │   │   └── First-time user friendly design
+  │   ├── SentinelAnalysisView (NEW - January 22, 2025)
+  │   │   ├── Emotional risk detection and pattern analysis UI
+  │   │   ├── Risk level visualization with color-coded indicators
+  │   │   ├── Pattern detection cards with expandable details
+  │   │   ├── Time window selection (7, 14, 30, 90 days)
+  │   │   ├── Actionable recommendations display
+  │   │   ├── Safety disclaimers and professional help guidance
+  │   │   ├── On-device analysis with privacy-first design
+  │   │   └── Integration with existing SENTINEL backend
   │   └── Phase Regime Service
   │       ├── CRUD operations for phase regimes
   │       ├── Timeline integrity validation
@@ -1140,62 +1150,67 @@
   4. **Usage Logic**: `LumaraAssistantCubit` respects manual selection or uses automatic fallback
   5. **Consistent Detection**: `LLMAdapter` uses same detection method for on-device models
 
-  ## 🎨 Constellation Arcform Visualization Architecture (Updated Oct 10, 2025)
+  ## 🌟 3D Constellation ARCForms Architecture (Updated January 22, 2025)
 
-  **Complete Polar Coordinate Layout System for Journal Keywords**:
+  **Static 3D Constellation System with Manual Rotation Controls**:
   ```
-  Journal Entry → Keywords → Constellation Renderer → Polar Layout → Custom Painter → Animated Visualization
+  Phase Data → 3D Layout Engine → Static Constellation → Manual 3D Controls → Interactive Visualization
                                       ↓                    ↓              ↓
-                              AtlasPhase Mapping   Geometric Masking   Star Nodes + Edges
+                              Phase-Specific Layouts   Connected Stars   User-Controlled Rotation
   ```
 
   **Key Components**:
-  - `lib/features/arcforms/constellation/constellation_arcform_renderer.dart` - Main widget with animation controllers
-  - `lib/features/arcforms/constellation/constellation_layout_service.dart` - Polar layout engine
-  - `lib/features/arcforms/constellation/constellation_painter.dart` - CustomPainter for rendering
-  - `lib/features/arcforms/constellation/polar_masks.dart` - Geometric masking for star placement
-  - `lib/features/arcforms/constellation/graph_utils.dart` - Graph calculation utilities
-  - `lib/features/arcforms/constellation/constellation_demo.dart` - Demo and testing interface
+  - `lib/arcform/render/arcform_renderer_3d.dart` - Main 3D renderer with manual rotation controls
+  - `lib/arcform/layouts/layouts_3d.dart` - Phase-aware 3D layout algorithms
+  - `lib/arcform/render/color_map.dart` - Sentiment-aware color mapping
+  - `lib/arcform/render/nebula.dart` - Phase-aware nebula particle effects
+  - `lib/arcform/util/seeded.dart` - Deterministic random number generation
+  - `lib/arcform/models/arcform_models.dart` - 3D data contracts (ArcNode3D, ArcEdge3D, ArcformSkin)
 
-  **Constellation Visualization Features**:
-  - ✅ **Polar Coordinate Layout**: Intelligent star placement using polar coordinates with geometric masking
-  - ✅ **ATLAS Phase Mapping**: 6 phases (Discovery, Expansion, Transition, Consolidation, Recovery, Breakthrough)
-  - ✅ **Animation System**: Twinkle, fade-in, and selection pulse animations with TickerProvider
-  - ✅ **Emotion Palette**: 8-color emotional visualization system with gradient support
-  - ✅ **Interactive Nodes**: Tap to select stars with haptic feedback and visual highlighting
-  - ✅ **Edge Rendering**: Weighted connections between keywords with opacity-based visualization
-  - ✅ **Label System**: Optional keyword labels with collision detection
-  - ✅ **Reduced Motion**: Accessibility support for motion sensitivity
+  **3D Constellation Features**:
+  - ✅ **Static Star Formation**: Constellations appear as stable, connected star patterns (like real constellations)
+  - ✅ **Manual 3D Controls**: Users can manually rotate and explore 3D space at their own pace
+  - ✅ **Phase-Specific Layouts**: Different 3D arrangements for each phase (Discovery helix, Recovery cluster, etc.)
+  - ✅ **Sentiment Colors**: Warm/cool colors based on emotional valence with deterministic jitter
+  - ✅ **Connected Stars**: All nodes connected with lines forming constellation patterns
+  - ✅ **Subtle Twinkling**: Gentle 10% size variation like real stars (not spinning)
+  - ✅ **Glow Effects**: Soft halos around stars for depth and visual appeal
+  - ✅ **Nebula Background**: Phase-aware particle effects for atmospheric depth
 
-  **Technical Implementation (Oct 10, 2025)**:
-  - **2,357 insertions**: Complete constellation visualization system
-  - **6 new files**: Modular architecture with clear separation of concerns
-  - **3 modified files**: Integration with existing arcform renderer architecture
-  - **AtlasPhase Enum**: Type-safe phase representation with display name extensions
-  - **Animation Controllers**: 3 independent controllers (twinkle, fade-in, selection pulse)
-  - **Haptic Feedback**: Light and medium impact feedback for user interactions
-  - **Gesture Detection**: Tap and double-tap handling for node selection and deselection
+  **Technical Implementation (January 22, 2025)**:
+  - **Static Constellation**: Removed automatic spinning, added manual 3D rotation controls
+  - **Gesture Controls**: Single finger drag for rotation, two finger pinch for zoom
+  - **Performance Optimized**: Removed unnecessary breathing animations and calculations
+  - **Phase-Aware Layouts**: 6 different 3D arrangements based on current phase
+  - **Deterministic Rendering**: Seeded random generation for consistent visual variations
+  - **Sentiment Integration**: Warm/cool color mapping based on emotional valence data
+  - **3D Math**: Vector3D transformations with proper camera controls and bounds checking
 
-  **Constellation Data Models**:
+  **3D Constellation Data Models**:
   ```dart
-  class KeywordScore {
-    final String text;
-    final double score;
-    final double sentiment;
-  }
-
-  class ConstellationNode {
-    final Offset pos;          // Polar coordinate position
-    final KeywordScore data;
-    final double radius;       // Visual size
-    final Color color;         // Emotion-based coloring
+  class ArcNode3D {
     final String id;           // Unique identifier
+    final String label;        // Display name
+    final double x, y, z;      // 3D coordinates (-1 to 1)
+    final double weight;       // Visual size multiplier
+    final double valence;      // Emotional valence (-1 to 1)
   }
 
-  class ConstellationEdge {
-    final int a;               // Source node index
-    final int b;               // Target node index
+  class ArcEdge3D {
+    final String sourceId;     // Source node ID
+    final String targetId;     // Target node ID
     final double weight;       // Connection strength
+  }
+
+  class ArcformSkin {
+    final int seed;            // Deterministic variation seed
+    final double glowJitter;   // Glow effect variation
+    final double nebulaJitter; // Nebula particle variation
+    final double hueJitter;    // Color hue variation
+    final double lineHueJitter;// Line color variation
+    final double lineAlphaBase;// Base line opacity
+    final double warmBias;     // Warm color bias
+    final double coolBias;     // Cool color bias
   }
   ```
 

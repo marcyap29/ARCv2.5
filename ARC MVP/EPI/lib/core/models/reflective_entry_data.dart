@@ -103,6 +103,7 @@ class ReflectiveEntryData extends Equatable {
   /// Get source weight for analysis
   double get sourceWeight {
     switch (source) {
+      case EvidenceSource.journal:
       case EvidenceSource.text:
       case EvidenceSource.voice:
       case EvidenceSource.therapistTag:
@@ -113,6 +114,12 @@ class ReflectiveEntryData extends Equatable {
         return 0.8; // Medium weight for chat
       case EvidenceSource.other:
         return 0.5; // Lowest weight for other sources
+      case EvidenceSource.chat:
+      case EvidenceSource.media:
+      case EvidenceSource.arcform:
+      case EvidenceSource.phase:
+      case EvidenceSource.system:
+        return 0.7; // Medium weight for other system sources
     }
   }
 

@@ -22,6 +22,12 @@ class PhaseInfoOverview extends StatelessWidget {
           const SizedBox(height: 24),
           _buildPhaseTypes(theme),
           const SizedBox(height: 24),
+          _buildRivetSystem(theme),
+          const SizedBox(height: 24),
+          _buildSentinelSystem(theme),
+          const SizedBox(height: 24),
+          _buildPhaseQuizSection(theme),
+          const SizedBox(height: 24),
           _buildHowItWorks(theme),
           const SizedBox(height: 24),
           _buildBenefits(theme),
@@ -173,6 +179,165 @@ class PhaseInfoOverview extends StatelessWidget {
               'Automatic phase detection using RIVET Sweep',
               'Visual timeline shows phase transitions',
             ]),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildRivetSystem(ThemeData theme) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(20.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.auto_awesome, color: Colors.blue),
+                const SizedBox(width: 12),
+                Text(
+                  'RIVET System',
+                  style: theme.textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.blue[50],
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.blue[200]!),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'RIVET: Risk–Validation Evidence Tracker',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: Colors.blue[800],
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'RIVET determines when it is defensible to shift from one developmental phase to the next based on sustained evidence of model or behavioral coherence.',
+                    style: TextStyle(fontSize: 14),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              'How RIVET Works:',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+              ),
+            ),
+            const SizedBox(height: 8),
+            _buildFeatureList([
+              'Uses dual-signal, sustainment-gated logic',
+              'Analyzes writing patterns and emotional coherence',
+              'Detects when phase transitions are justified',
+              'Provides confidence scores for each detection',
+              'Automatically creates timeline-based phase regimes',
+            ]),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSentinelSystem(ThemeData theme) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(20.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.shield, color: Colors.red),
+                const SizedBox(width: 12),
+                Text(
+                  'SENTINEL System',
+                  style: theme.textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.red[50],
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.red[200]!),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'SENTINEL: Severity Evaluation and Negative Trend Identification for Emotional Longitudinal tracking',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: Colors.red[800],
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'SENTINEL is the conceptual inverse of RIVET, applied to emotional and behavioral domains within EPI. It uses the same dual-signal, sustainment-gated logic to detect when distress patterns warrant intervention rather than reduction.',
+                    style: TextStyle(fontSize: 14),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              'How SENTINEL Works:',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+              ),
+            ),
+            const SizedBox(height: 8),
+            _buildFeatureList([
+              'Detects concerning emotional patterns and trends',
+              'Identifies clustering, persistence, and escalation patterns',
+              'Monitors for isolation and hopelessness indicators',
+              'Provides risk levels and actionable recommendations',
+              'Uses same dual-signal logic as RIVET but for escalation',
+            ]),
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.amber[50],
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.amber[200]!),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.info, color: Colors.amber[700]),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'SENTINEL analysis is not medical advice. If you have concerns about your mental health, please consult a qualified healthcare professional.',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.amber[800],
+                        fontStyle: FontStyle.italic,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ],
         ),
       ),
@@ -386,5 +551,95 @@ class PhaseInfoOverview extends StatelessWidget {
       case PhaseLabel.breakthrough:
         return 'Achieving clarity, making breakthroughs, and moving forward';
     }
+  }
+
+  Widget _buildPhaseQuizSection(ThemeData theme) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(20.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.quiz, color: Colors.purple),
+                const SizedBox(width: 12),
+                Text(
+                  'Phase Self-Assessment',
+                  style: theme.textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.purple[50],
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.purple[200]!),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Quick Phase Assessment',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: Colors.purple[800],
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Take a quick self-assessment to help identify your current developmental phase. This provides an initial baseline while you build journaling data.',
+                    style: TextStyle(fontSize: 14),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              'How Phase Detection Works:',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+              ),
+            ),
+            const SizedBox(height: 8),
+            _buildFeatureList([
+              'Self-assessment quiz (this tab) - Quick initial phase identification',
+              'Natural journaling patterns (RIVET analysis) - Most accurate over time',
+              'Imported MCP bundle analysis - Historical data analysis',
+            ]),
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.amber[50],
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.amber[200]!),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.lightbulb, color: Colors.amber[700]),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'The most accurate phase detection comes from analyzing your actual journaling patterns over time. The quiz is a helpful starting point!',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.amber[800],
+                        fontStyle: FontStyle.italic,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }

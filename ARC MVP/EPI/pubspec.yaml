@@ -25,6 +25,7 @@ dependencies:
   just_audio: ^0.10.5
   uuid: ^4.5.1
   flutter_cube: ^0.1.1
+  vector_math: ^2.1.4
   shared_preferences: ^2.2.2
   device_info_plus: ^10.1.0
   package_info_plus: ^8.0.0
@@ -95,6 +96,7 @@ flutter:
     - assets/audio/
     - assets/insights/rules_v1.json
     - assets/models/
+    - assets/textures/
 
 
 flutter_launcher_icons:

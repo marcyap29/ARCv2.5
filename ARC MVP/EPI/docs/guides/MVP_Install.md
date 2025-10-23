@@ -14,6 +14,26 @@ This guide installs and runs the full MVP. The app uses Gemini via the LLMRegist
 - **Build System**: All compilation errors resolved, iOS build successful
 - **Production Ready**: Complete implementation with comprehensive testing
 
+### SENTINEL UI Integration (January 22, 2025)
+- **SENTINEL Analysis Tab**: New 4th tab in Phase Analysis View for emotional risk detection
+- **Risk Level Visualization**: Color-coded risk assessment with circular progress indicators
+- **Pattern Detection Cards**: Expandable cards showing detected emotional patterns
+- **Time Window Selection**: 7-day, 14-day, 30-day, and 90-day analysis windows
+- **Actionable Recommendations**: Contextual suggestions based on risk analysis
+- **Safety Disclaimers**: Clear medical disclaimers and professional help guidance
+- **Comprehensive Help System**: Dedicated RIVET and SENTINEL explanation tabs
+- **Privacy-First Design**: All analysis happens on-device with no data transmission
+
+### 3D Constellation ARCForms Enhancement (January 22, 2025)
+- **Static Constellation Display**: Fixed spinning issue - constellations now appear as stable star formations
+- **Manual 3D Controls**: Users can manually rotate and explore 3D space with intuitive gestures
+- **Phase-Specific Layouts**: Different 3D arrangements for each phase (Discovery helix, Recovery cluster, etc.)
+- **Sentiment Colors**: Warm/cool colors based on emotional valence with deterministic variations
+- **Connected Stars**: All nodes connected with lines forming real constellation patterns
+- **Subtle Twinkling**: Gentle 10% size variation like real stars (not spinning)
+- **Glow Effects**: Soft halos around stars for depth and visual appeal
+- **Performance Optimized**: Removed unnecessary animations and calculations
+
 ## Prerequisites
 - Flutter 3.35+ (stable)
 - Xcode (iOS) and/or Android SDK

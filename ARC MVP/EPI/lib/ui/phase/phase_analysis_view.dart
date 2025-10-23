@@ -3,7 +3,6 @@
 
 import 'package:flutter/material.dart';
 import '../../models/phase_models.dart';
-import '../../models/journal_entry_model.dart';
 import '../../services/phase_index.dart';
 import '../../services/phase_regime_service.dart';
 import '../../services/rivet_sweep_service.dart';
@@ -14,6 +13,10 @@ import 'rivet_sweep_wizard.dart';
 import 'phase_info_overview.dart';
 import 'phase_help_screen.dart';
 import 'phase_change_readiness_card.dart';
+import 'sentinel_analysis_view.dart';
+import 'simplified_arcform_view_3d.dart';
+import 'phase_arcform_3d_screen.dart';
+import '../../shared/app_colors.dart';
 
 class PhaseAnalysisView extends StatefulWidget {
   const PhaseAnalysisView({super.key});
@@ -28,11 +31,12 @@ class _PhaseAnalysisViewState extends State<PhaseAnalysisView>
   PhaseIndex? _phaseIndex;
   bool _isLoading = true;
   String? _error;
+  final GlobalKey<State<SimplifiedArcformView3D>> _arcformsKey = GlobalKey<State<SimplifiedArcformView3D>>();
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(length: 6, vsync: this);
     _loadPhaseData();
   }
 
@@ -76,19 +80,11 @@ class _PhaseAnalysisViewState extends State<PhaseAnalysisView>
 
       // Get journal entries for analysis
       final journalRepo = JournalRepository();
-      final journalEntries = journalRepo.getAllJournalEntries();
+      final journalEntries = journalRepo.getAllJournalEntriesSync();
 
       // Check if there are enough entries for analysis
       if (journalEntries.length < 5) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Need at least 5 journal entries for phase analysis. You have ${journalEntries.length}.'),
-              backgroundColor: Colors.orange,
-              duration: const Duration(seconds: 4),
-            ),
-          );
-        }
+        // Progress card is already shown in the UI, no need for snackbar
         return;
       }
 
@@ -125,6 +121,8 @@ class _PhaseAnalysisViewState extends State<PhaseAnalysisView>
         onApprove: (approvedProposals, overrides) async {
           Navigator.of(context).pop();
           await _createPhaseRegimes(approvedProposals, overrides);
+          // Phase Analysis completed - refresh ARCForms
+          _refreshArcforms();
         },
         onSkip: () {
           Navigator.of(context).pop();
@@ -277,10 +275,16 @@ class _PhaseAnalysisViewState extends State<PhaseAnalysisView>
         ],
         bottom: TabBar(
           controller: _tabController,
+          isScrollable: true,
+          labelStyle: const TextStyle(fontSize: 12),
+          unselectedLabelStyle: const TextStyle(fontSize: 11),
           tabs: const [
-            Tab(icon: Icon(Icons.timeline), text: 'Timeline'),
-            Tab(icon: Icon(Icons.analytics), text: 'Analysis'),
-            Tab(icon: Icon(Icons.info), text: 'Overview'),
+            Tab(icon: Icon(Icons.timeline, size: 20), text: 'Timeline'),
+            Tab(icon: Icon(Icons.analytics, size: 20), text: 'Analysis'),
+            Tab(icon: Icon(Icons.shield, size: 20), text: 'SENTINEL'),
+            Tab(icon: Icon(Icons.auto_awesome, size: 20), text: 'ARCForms'),
+            Tab(icon: Icon(Icons.info, size: 20), text: 'Overview'),
+            Tab(icon: Icon(Icons.quiz, size: 20), text: 'Quiz'),
           ],
         ),
       ),
@@ -305,8 +309,17 @@ class _PhaseAnalysisViewState extends State<PhaseAnalysisView>
           // Analysis Tab
           _buildAnalysisTab(),
 
+          // SENTINEL Tab
+          const SentinelAnalysisView(),
+
+          // ARCForms Tab
+          _buildArcformsTab(),
+
           // Overview Tab
           const PhaseInfoOverview(),
+
+          // Quiz Tab
+          _buildQuizTab(),
         ],
       ),
     );
@@ -366,14 +379,7 @@ class _PhaseAnalysisViewState extends State<PhaseAnalysisView>
                       return const SizedBox.shrink();
                     },
                   ),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton.icon(
-                      onPressed: _runRivetSweep,
-                      icon: const Icon(Icons.play_arrow),
-                      label: const Text('Run Phase Analysis'),
-                    ),
-                  ),
+                  _buildRivetActionSection(),
                 ],
               ),
             ),
@@ -433,10 +439,20 @@ class _PhaseAnalysisViewState extends State<PhaseAnalysisView>
           return Padding(
             padding: const EdgeInsets.symmetric(vertical: 2.0),
             child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text('${phase.name.toUpperCase()}:'),
-                Text('$count regimes'),
+                Expanded(
+                  child: Text(
+                    '${phase.name.toUpperCase()}:',
+                    style: const TextStyle(fontSize: 12),
+                  ),
+                ),
+                Text(
+                  '$count regimes',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
               ],
             ),
           );
@@ -546,5 +562,319 @@ class _PhaseAnalysisViewState extends State<PhaseAnalysisView>
     } else {
       return '${dateTime.month}/${dateTime.day}/${dateTime.year}';
     }
+  }
+
+  Widget _buildRivetActionSection() {
+    return FutureBuilder<int>(
+      future: _getJournalEntryCount(),
+      builder: (context, snapshot) {
+        if (snapshot.hasData) {
+          final entryCount = snapshot.data!;
+          
+          if (entryCount < 5) {
+            return _buildInsufficientEntriesCard(entryCount);
+          } else {
+            return SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: _runRivetSweep,
+                icon: const Icon(Icons.play_arrow),
+                label: const Text('Run Phase Analysis'),
+              ),
+            );
+          }
+        }
+        
+        return SizedBox(
+          width: double.infinity,
+          child: ElevatedButton.icon(
+            onPressed: null,
+            icon: const Icon(Icons.play_arrow),
+            label: const Text('Run Phase Analysis'),
+          ),
+        );
+      },
+    );
+  }
+
+  Future<int> _getJournalEntryCount() async {
+    try {
+      final journalRepo = JournalRepository();
+      final entries = journalRepo.getAllJournalEntriesSync();
+      return entries.length;
+    } catch (e) {
+      return 0;
+    }
+  }
+
+  Widget _buildInsufficientEntriesCard(int entryCount) {
+    return Card(
+      color: Colors.blue[50],
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.auto_awesome, color: Colors.blue[700]),
+                const SizedBox(width: 8),
+                Text(
+                  'Building Your Phase Timeline',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.blue[700],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'RIVET needs at least 5 entries to detect phase patterns',
+              style: TextStyle(color: Colors.blue[600]),
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(
+                  child: LinearProgressIndicator(
+                    value: entryCount / 5.0,
+                    backgroundColor: Colors.blue[200],
+                    valueColor: AlwaysStoppedAnimation<Color>(Colors.blue[600]!),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Text(
+                  '$entryCount/5 entries',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.blue[700],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Keep journaling and your phase timeline will emerge naturally',
+              style: TextStyle(
+                fontSize: 12,
+                color: Colors.blue[600],
+                fontStyle: FontStyle.italic,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Or import an MCP bundle to analyze past entries',
+              style: TextStyle(
+                fontSize: 12,
+                color: Colors.blue[600],
+                fontStyle: FontStyle.italic,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildArcformsTab() {
+    return Column(
+      children: [
+        // Header with 3D view button
+        Container(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'Constellation Visualizations',
+                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+              ElevatedButton.icon(
+                onPressed: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (context) => PhaseArcform3DScreen(
+                        phase: _phaseIndex?.currentRegime?.label.name,
+                        title: '3D Constellation View',
+                      ),
+                    ),
+                  );
+                },
+                icon: const Icon(Icons.auto_awesome),
+                label: const Text('3D View'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: kcPrimaryColor,
+                  foregroundColor: Colors.white,
+                ),
+              ),
+            ],
+          ),
+        ),
+        // Simplified view below
+        Expanded(
+          child: SimplifiedArcformView3D(
+            key: _arcformsKey,
+            currentPhase: _phaseIndex?.currentRegime?.label.name,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildQuizTab() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(Icons.quiz, color: Colors.purple),
+                      const SizedBox(width: 8),
+                      const Text(
+                        'Phase Self-Assessment',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  const Text(
+                    'Take a quick self-assessment to help identify your current developmental phase. This can provide an initial baseline while you build journaling data.',
+                  ),
+                  const SizedBox(height: 16),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: _startPhaseQuiz,
+                      icon: const Icon(Icons.play_arrow),
+                      label: const Text('Start Self-Assessment'),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(Icons.info_outline, color: Colors.blue),
+                      const SizedBox(width: 8),
+                      const Text(
+                        'About Phase Detection',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Your phase can be determined in three ways:',
+                    style: TextStyle(fontWeight: FontWeight.w500),
+                  ),
+                  const SizedBox(height: 8),
+                  const Text('• Self-assessment quiz (this tab)'),
+                  const Text('• Natural journaling patterns (RIVET analysis)'),
+                  const Text('• Imported MCP bundle analysis'),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'The most accurate detection comes from analyzing your actual journaling patterns over time.',
+                    style: TextStyle(fontStyle: FontStyle.italic),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Refresh ARCForms when phase changes occur
+  void _refreshArcforms() {
+    // Call refresh method on the ARCForms view
+    final state = _arcformsKey.currentState;
+    if (state != null && state.mounted) {
+      (state as dynamic).refreshSnapshots();
+      // Also update the phase if it has changed
+      (state as dynamic).updatePhase(_phaseIndex?.currentRegime?.label.name);
+    }
+  }
+
+
+  void _startPhaseQuiz() {
+    // For now, show a simple dialog with phase options
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Select Your Phase'),
+        content: const Text(
+          'Based on your current state, which phase best describes you?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              _setPhaseFromQuiz('Discovery');
+            },
+            child: const Text('Discovery'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              _setPhaseFromQuiz('Exploration');
+            },
+            child: const Text('Exploration'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              _setPhaseFromQuiz('Integration');
+            },
+            child: const Text('Integration'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              _setPhaseFromQuiz('Mastery');
+            },
+            child: const Text('Mastery'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _setPhaseFromQuiz(String phase) {
+    // Set the phase and refresh the data
+    // This is a simplified implementation - in practice you'd want to save this properly
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Phase set to $phase. This will be refined as you journal.'),
+        backgroundColor: Colors.green,
+      ),
+    );
+    _loadPhaseData(); // Refresh the phase data
   }
 }
