@@ -10,6 +10,9 @@ import '../../arcform/render/arcform_renderer_3d.dart';
 import '../../arcform/util/seeded.dart';
 import '../../services/patterns_data_service.dart';
 import '../../services/keyword_aggregator.dart';
+import '../../services/phase_regime_service.dart';
+import '../../services/analytics_service.dart';
+import '../../services/rivet_sweep_service.dart';
 import '../../arc/core/journal_repository.dart';
 
 /// Simplified ARCForms view with 3D constellation renderer
@@ -508,16 +511,57 @@ class _SimplifiedArcformView3DState extends State<SimplifiedArcformView3D> {
 
           // Get emotion keywords that match this phase
           final emotionKeywords = nodes
-              .where((node) => node.phase?.toLowerCase() == phase.toLowerCase() || node.phase == null)
+              .where((node) => node.phase.toLowerCase() == phase.toLowerCase())
               .map((node) => node.label)
               .toList();
 
           // Get aggregated concept keywords from journal entries
+          // Use phase regime date ranges instead of relying on phase field in entries
           final allEntries = journalRepo.getAllJournalEntriesSync();
-          final journalTexts = allEntries
-              .where((entry) => entry.phase?.toLowerCase() == phase.toLowerCase() || phase.toLowerCase() == 'discovery')
-              .map((entry) => entry.content)
-              .toList();
+          List<String> journalTexts = [];
+          
+          // Try to get phase regime data to find entries by date range
+          try {
+            // Import PhaseRegimeService to get current phase regime
+            final analyticsService = AnalyticsService();
+            final rivetSweepService = RivetSweepService(analyticsService);
+            final phaseRegimeService = PhaseRegimeService(analyticsService, rivetSweepService);
+            await phaseRegimeService.initialize();
+            
+            // Get current phase regime
+            final currentRegime = phaseRegimeService.phaseIndex.currentRegime;
+            
+            if (currentRegime != null && currentRegime.label.name.toLowerCase() == phase.toLowerCase()) {
+              // Use the current phase regime's date range
+              final regimeStart = currentRegime.start;
+              final regimeEnd = currentRegime.end ?? DateTime.now();
+              
+              journalTexts = allEntries
+                  .where((entry) => entry.createdAt.isAfter(regimeStart) && 
+                                    entry.createdAt.isBefore(regimeEnd))
+                  .map((entry) => entry.content)
+                  .toList();
+                  
+              print('DEBUG: Found ${journalTexts.length} entries in current phase regime (${regimeStart} to ${regimeEnd})');
+            } else {
+              // Fallback: get recent entries (last 30 days)
+              final recentCutoff = DateTime.now().subtract(const Duration(days: 30));
+              journalTexts = allEntries
+                  .where((entry) => entry.createdAt.isAfter(recentCutoff))
+                  .map((entry) => entry.content)
+                  .toList();
+                  
+              print('DEBUG: Using fallback - found ${journalTexts.length} recent entries');
+            }
+          } catch (e) {
+            print('DEBUG: Error accessing phase regime data: $e');
+            // Fallback: get recent entries (last 30 days)
+            final recentCutoff = DateTime.now().subtract(const Duration(days: 30));
+            journalTexts = allEntries
+                .where((entry) => entry.createdAt.isAfter(recentCutoff))
+                .map((entry) => entry.content)
+                .toList();
+          }
 
           final aggregatedKeywords = KeywordAggregator.getTopAggregatedKeywords(
             journalTexts,
