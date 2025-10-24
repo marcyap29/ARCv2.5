@@ -1,6 +1,7 @@
 // lib/arcform/render/arcform_renderer_3d.dart
 // 3D Constellation ARCForm renderer with orbit controls
 
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:vector_math/vector_math_64.dart' as vm;
 import '../models/arcform_models.dart';
@@ -130,6 +131,55 @@ class _Arcform3DState extends State<Arcform3D> {
     super.dispose();
   }
 
+  /// Build 3D nodes using molecular design approach with proper rotation math
+  List<Widget> _build3DNodes() {
+    final nodes = <Widget>[];
+    final size = MediaQuery.of(context).size;
+    final center = Offset(size.width / 2, size.height / 2);
+
+    for (final star in _stars) {
+      // Apply proper 3D rotation math (like molecular design)
+      final rotatedX = star.position.x * math.cos(_rotationY) - star.position.z * math.sin(_rotationY);
+      final rotatedZ = star.position.x * math.sin(_rotationY) + star.position.z * math.cos(_rotationY);
+      final rotatedY = star.position.y * math.cos(_rotationX) - rotatedZ * math.sin(_rotationX);
+      final finalZ = star.position.y * math.sin(_rotationX) + rotatedZ * math.cos(_rotationX);
+
+      // Perspective projection
+      const focalLength = 400.0;
+      final scale = focalLength / (focalLength + finalZ);
+      final projectedX = rotatedX * scale * _zoom;
+      final projectedY = rotatedY * scale * _zoom;
+
+      // Scale for depth effect
+      final depthScale = (1.0 + finalZ / 300).clamp(0.4, 1.8);
+      final nodeSize = star.size * depthScale;
+
+      // Calculate screen position
+      final screenX = center.dx + projectedX;
+      final screenY = center.dy + projectedY;
+
+      // Only render nodes that are visible
+      if (screenX > -50 && screenX < size.width + 50 &&
+          screenY > -50 && screenY < size.height + 50) {
+
+        nodes.add(
+          Positioned(
+            left: screenX - nodeSize / 2,
+            top: screenY - nodeSize / 2,
+            child: _MolecularNodeWidget(
+              size: nodeSize,
+              color: star.color,
+              label: widget.enableLabels ? star.label : '',
+              depth: finalZ,
+            ),
+          ),
+        );
+      }
+    }
+
+    return nodes;
+  }
+
   void _buildScene() {
     // Build stars from nodes
     _stars = widget.nodes.map((node) {
@@ -251,38 +301,33 @@ class _Arcform3DState extends State<Arcform3D> {
 
       child: Stack(
         children: [
-          // 3D transformed constellation (stars, edges, nebula)
-          Transform(
-            alignment: Alignment.center,
-            transform: Matrix4.identity()
-              ..setEntry(3, 2, 0.001) // Add perspective
-              ..scale(_zoom)
-              ..rotateX(_rotationX)
-              ..rotateY(_rotationY),
-            child: CustomPaint(
-              size: Size.infinite,
-              painter: _ConstellationPainter(
-                stars: _stars,
-                edges: _edges,
-                nebula: _nebulaParticles,
-                rotationX: 0.0, // No additional rotation in painter
-                rotationY: 0.0, // No additional rotation in painter
-                zoom: 1.0, // No additional zoom in painter
-                enableLabels: false, // Disable labels in 3D transformed layer
-              ),
+          // Constellation connection lines (behind nodes)
+          CustomPaint(
+            size: Size.infinite,
+            painter: _ConstellationLinesPainter(
+              stars: _stars,
+              edges: _edges,
+              rotationX: _rotationX,
+              rotationY: _rotationY,
+              zoom: _zoom,
             ),
           ),
-          // Non-transformed labels layer
-          if (widget.enableLabels)
+
+          // Twinkling nebula background
+          if (widget.showNebula)
             CustomPaint(
               size: Size.infinite,
-              painter: _LabelsPainter(
-                stars: _stars,
+              painter: _NebulaGlowPainter(
+                particles: _nebulaParticles,
                 rotationX: _rotationX,
                 rotationY: _rotationY,
                 zoom: _zoom,
+                twinkleValue: (DateTime.now().millisecondsSinceEpoch / 1000.0) % 1.0,
               ),
             ),
+
+          // 3D molecular constellation nodes with proper depth
+          ..._build3DNodes(),
         ],
       ),
     );
@@ -622,6 +667,286 @@ class _LabelsPainter extends CustomPainter {
         oldDelegate.rotationY != rotationY ||
         oldDelegate.zoom != zoom ||
         oldDelegate.stars != stars;
+  }
+}
+
+/// Molecular-style 3D node widget with glow and twinkling effects
+class _MolecularNodeWidget extends StatefulWidget {
+  final double size;
+  final Color color;
+  final String label;
+  final double depth;
+
+  const _MolecularNodeWidget({
+    required this.size,
+    required this.color,
+    required this.label,
+    required this.depth,
+  });
+
+  @override
+  State<_MolecularNodeWidget> createState() => _MolecularNodeWidgetState();
+}
+
+class _MolecularNodeWidgetState extends State<_MolecularNodeWidget>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _twinkleController;
+
+  @override
+  void initState() {
+    super.initState();
+    _twinkleController = AnimationController(
+      duration: Duration(milliseconds: 1500 + (widget.depth * 10).round()),
+      vsync: this,
+    );
+    _twinkleController.repeat(reverse: true);
+  }
+
+  @override
+  void dispose() {
+    _twinkleController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _twinkleController,
+      builder: (context, child) {
+        final twinkle = 0.7 + (_twinkleController.value * 0.3);
+        final glowIntensity = (1.0 - (widget.depth / 500).clamp(0.0, 0.8)) * twinkle;
+
+        return Stack(
+          alignment: Alignment.center,
+          children: [
+            // Outer glow
+            Container(
+              width: widget.size * 3,
+              height: widget.size * 3,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: widget.color.withOpacity(glowIntensity * 0.3),
+                    blurRadius: widget.size * 2,
+                    spreadRadius: widget.size * 0.5,
+                  ),
+                ],
+              ),
+            ),
+            // Inner glow
+            Container(
+              width: widget.size * 1.5,
+              height: widget.size * 1.5,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: widget.color.withOpacity(glowIntensity * 0.6),
+                    blurRadius: widget.size,
+                    spreadRadius: widget.size * 0.2,
+                  ),
+                ],
+              ),
+            ),
+            // Core node
+            Container(
+              width: widget.size,
+              height: widget.size,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: widget.color.withOpacity(glowIntensity),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.white.withOpacity(glowIntensity * 0.8),
+                    blurRadius: 2,
+                  ),
+                ],
+              ),
+            ),
+            // Label
+            if (widget.label.isNotEmpty)
+              Positioned(
+                top: widget.size + 8,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withOpacity(0.7),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Text(
+                    widget.label,
+                    style: TextStyle(
+                      color: Colors.white.withOpacity(glowIntensity),
+                      fontSize: 10,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+/// Nebula glow painter with twinkling effects
+class _NebulaGlowPainter extends CustomPainter {
+  final List<NebulaParticle> particles;
+  final double rotationX;
+  final double rotationY;
+  final double zoom;
+  final double twinkleValue;
+
+  _NebulaGlowPainter({
+    required this.particles,
+    required this.rotationX,
+    required this.rotationY,
+    required this.zoom,
+    required this.twinkleValue,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = Offset(size.width / 2, size.height / 2);
+
+    for (final particle in particles) {
+      // Apply 3D rotation to nebula particles
+      final rotatedX = particle.x * math.cos(rotationY) - particle.z * math.sin(rotationY);
+      final rotatedZ = particle.x * math.sin(rotationY) + particle.z * math.cos(rotationY);
+      final rotatedY = particle.y * math.cos(rotationX) - rotatedZ * math.sin(rotationX);
+      final finalZ = particle.y * math.sin(rotationX) + rotatedZ * math.cos(rotationX);
+
+      // Perspective projection
+      const focalLength = 400.0;
+      final scale = focalLength / (focalLength + finalZ);
+      final projectedX = rotatedX * scale * zoom;
+      final projectedY = rotatedY * scale * zoom;
+
+      final screenPos = Offset(
+        center.dx + projectedX,
+        center.dy + projectedY,
+      );
+
+      // Individual twinkling with depth-based variation
+      final depthTwinkle = (1.0 - (finalZ / 600).clamp(0.0, 0.7));
+      final twinklePhase = (twinkleValue + particle.x * 0.1) % 1.0;
+      final twinkleIntensity = (math.sin(twinklePhase * math.pi * 2) + 1) * 0.5;
+      final finalAlpha = particle.alpha * depthTwinkle * (0.4 + twinkleIntensity * 0.6);
+
+      final paint = Paint()
+        ..color = Color.fromRGBO(
+          (particle.r * 255).toInt(),
+          (particle.g * 255).toInt(),
+          (particle.b * 255).toInt(),
+          finalAlpha,
+        )
+        ..style = PaintingStyle.fill
+        ..maskFilter = MaskFilter.blur(BlurStyle.normal, particle.size * scale * 15);
+
+      canvas.drawCircle(screenPos, particle.size * scale * 20, paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(_NebulaGlowPainter oldDelegate) {
+    return oldDelegate.twinkleValue != twinkleValue ||
+        oldDelegate.rotationX != rotationX ||
+        oldDelegate.rotationY != rotationY ||
+        oldDelegate.zoom != zoom;
+  }
+}
+
+/// Constellation lines painter with 3D depth and colorful connections
+class _ConstellationLinesPainter extends CustomPainter {
+  final List<_Star> stars;
+  final List<_Edge> edges;
+  final double rotationX;
+  final double rotationY;
+  final double zoom;
+
+  _ConstellationLinesPainter({
+    required this.stars,
+    required this.edges,
+    required this.rotationX,
+    required this.rotationY,
+    required this.zoom,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = Offset(size.width / 2, size.height / 2);
+
+    // Create a map for quick star lookup by label
+    final starByLabel = {for (var star in stars) star.label: star};
+
+    // Draw constellation connecting lines
+    for (final edge in edges) {
+      final sourceStar = starByLabel[edge.start.toString()];
+      final targetStar = starByLabel[edge.end.toString()];
+
+      if (sourceStar == null || targetStar == null) continue;
+
+      // Apply 3D rotation to both endpoints
+      final startRotatedX = edge.start.x * math.cos(rotationY) - edge.start.z * math.sin(rotationY);
+      final startRotatedZ = edge.start.x * math.sin(rotationY) + edge.start.z * math.cos(rotationY);
+      final startRotatedY = edge.start.y * math.cos(rotationX) - startRotatedZ * math.sin(rotationX);
+      final startFinalZ = edge.start.y * math.sin(rotationX) + startRotatedZ * math.cos(rotationX);
+
+      final endRotatedX = edge.end.x * math.cos(rotationY) - edge.end.z * math.sin(rotationY);
+      final endRotatedZ = edge.end.x * math.sin(rotationY) + edge.end.z * math.cos(rotationY);
+      final endRotatedY = edge.end.y * math.cos(rotationX) - endRotatedZ * math.sin(rotationX);
+      final endFinalZ = edge.end.y * math.sin(rotationX) + endRotatedZ * math.cos(rotationX);
+
+      // Perspective projection for both points
+      const focalLength = 400.0;
+      final startScale = focalLength / (focalLength + startFinalZ);
+      final endScale = focalLength / (focalLength + endFinalZ);
+
+      final startProj = Offset(
+        center.dx + startRotatedX * startScale * zoom,
+        center.dy + startRotatedY * startScale * zoom,
+      );
+      final endProj = Offset(
+        center.dx + endRotatedX * endScale * zoom,
+        center.dy + endRotatedY * endScale * zoom,
+      );
+
+      // Calculate line opacity based on depth and distance
+      final avgDepth = (startFinalZ + endFinalZ) / 2;
+      final distance = (startProj - endProj).distance;
+      final depthOpacity = (1.0 - (avgDepth / 500).clamp(0.0, 0.8));
+      final distanceOpacity = (1.0 - (distance / 400).clamp(0.0, 0.8));
+      final finalOpacity = (depthOpacity * distanceOpacity * 0.4).clamp(0.05, 0.4);
+
+      // Create gradient line color based on connected stars
+      final blendedColor = Color.lerp(sourceStar.color, targetStar.color, 0.5) ?? edge.color;
+
+      // Draw constellation line with glow
+      final linePaint = Paint()
+        ..color = blendedColor.withOpacity(finalOpacity)
+        ..strokeWidth = (2.0 * depthOpacity).clamp(0.5, 3.0)
+        ..style = PaintingStyle.stroke
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 1);
+
+      canvas.drawLine(startProj, endProj, linePaint);
+
+      // Add inner bright line
+      final innerLinePaint = Paint()
+        ..color = blendedColor.withOpacity(finalOpacity * 1.5)
+        ..strokeWidth = 0.5
+        ..style = PaintingStyle.stroke;
+
+      canvas.drawLine(startProj, endProj, innerLinePaint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(_ConstellationLinesPainter oldDelegate) {
+    return oldDelegate.rotationX != rotationX ||
+        oldDelegate.rotationY != rotationY ||
+        oldDelegate.zoom != zoom;
   }
 }
 
