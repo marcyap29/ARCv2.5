@@ -12,7 +12,7 @@ import 'package:my_app/shared/text_style.dart';
 import 'package:my_app/rivet/validation/rivet_provider.dart';
 import 'package:my_app/rivet/models/rivet_models.dart';
 import 'package:my_app/core/i18n/copy.dart';
-import 'package:my_app/atlas/phase_detection/cards/aurora_card.dart';
+// AURORA card removed - was just a placeholder
 import 'package:my_app/services/user_phase_service.dart';
 import 'package:my_app/atlas/phase_detection/cards/veil_card.dart';
 import 'package:my_app/atlas/phase_detection/your_patterns_view.dart';
@@ -532,11 +532,9 @@ class _InsightsPageState extends State<_InsightsPage> with WidgetsBindingObserve
                   children: [
                     _buildMiraGraphCard(context),
                     const SizedBox(height: 20),
-                    _RivetCard(key: _rivetCardKey),
-                    const SizedBox(height: 20),
-                    const AuroraCard(),
-                    const SizedBox(height: 20),
-                    const VeilCard(),
+                    // RIVET Card removed - now only in Phase tab
+                    // AURORA Card removed - placeholder not needed
+                    const VeilCard(), // To be repurposed as AI Prompt Intelligence card
                     const SizedBox(height: 20),
                     // Insight Cards
                     _buildInsightsSection(),
@@ -551,64 +549,40 @@ class _InsightsPageState extends State<_InsightsPage> with WidgetsBindingObserve
   }
 
   Widget _buildMiraGraphCard(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: Colors.white.withOpacity(0.2),
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => const YourPatternsView(),
+          ),
+        );
+      },
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: Colors.white.withOpacity(0.2),
+          ),
         ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              _buildMiniRadialIcon(),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Row(
-                  children: [
-                    Flexible(
-                      child: Text(
-                        'Your Patterns',
-                        style: heading2Style(context),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    InfoIcons.patterns(),
-                  ],
-                ),
-              ),
-              TextButton(
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const YourPatternsView(),
-                    ),
-                  );
-                },
-                child: Text(
-                  'Explore',
-                  style: bodyStyle(context).copyWith(
-                    color: kcAccentColor,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Text(
-            'Interactive visualization with multiple views and semantic insights.',
-            style: bodyStyle(context).copyWith(
-              color: kcPrimaryTextColor.withOpacity(0.7),
+        child: Row(
+          children: [
+            _buildMiniRadialIcon(),
+            const SizedBox(width: 12),
+            Text(
+              'Your Patterns',
+              style: heading2Style(context).copyWith(fontSize: 18),
             ),
-          ),
-        ],
+            const Spacer(),
+            Icon(
+              Icons.arrow_forward_ios,
+              size: 16,
+              color: kcPrimaryTextColor.withOpacity(0.6),
+            ),
+          ],
+        ),
       ),
     );
   }

@@ -2,6 +2,9 @@
 import 'package:flutter/material.dart';
 import 'dart:math' as math;
 import 'package:graphview/GraphView.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:my_app/arc/core/journal_repository.dart';
+import 'package:my_app/services/patterns_data_service.dart';
 
 enum PatternsView { wordCloud, network, timeline, radial }
 
@@ -54,57 +57,122 @@ class _YourPatternsViewState extends State<YourPatternsView> {
   late List<KeywordNode> nodes;
   late List<KeywordEdge> edges;
 
+  // Loading state
+  bool _isLoading = true;
+
   @override
   void initState() {
     super.initState();
-    final demo = _demoData();
-    nodes = demo.$1;
-    edges = demo.$2;
+    _loadRealData();
+  }
+
+  Future<void> _loadRealData() async {
+    if (mounted) {
+      setState(() {
+        _isLoading = true;
+        nodes = [];
+        edges = [];
+      });
+    }
+
+    try {
+      final journalRepo = context.read<JournalRepository>();
+      final service = PatternsDataService(journalRepository: journalRepo);
+
+      print('DEBUG: Loading patterns data from real journal entries...');
+      final data = await service.getPatternsData();
+
+      if (mounted) {
+        setState(() {
+          nodes = data.$1;
+          edges = data.$2;
+          _isLoading = false;
+        });
+        print('DEBUG: Successfully loaded ${nodes.length} nodes and ${edges.length} edges');
+      }
+    } catch (e) {
+      print('ERROR: Failed to load patterns data: $e');
+      print('ERROR: Stack trace: ${StackTrace.current}');
+
+      // Fallback to demo data on error
+      if (mounted) {
+        final demo = _demoData();
+        setState(() {
+          nodes = demo.$1;
+          edges = demo.$2;
+          _isLoading = false;
+        });
+        print('DEBUG: Using demo data as fallback');
+      }
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Your Patterns')),
-      body: Column(
-        children: [
-          const SizedBox(height: 8),
-          _ViewSwitcher(
-            current: current,
-            onChanged: (v) => setState(() => current = v),
-          ),
-          _FilterBar(
-            emotion: emotionFilter,
-            phase: phaseFilter,
-            range: range,
-            onEmotion: (e) => setState(() => emotionFilter = e),
-            onPhase: (p) => setState(() => phaseFilter = p),
-            onRange: (r) => setState(() => range = r),
-            onClear: () => setState(() {
-              emotionFilter = null;
-              phaseFilter = null;
-              range = null;
-            }),
-          ),
-          const Divider(height: 1),
-          Expanded(
-            child: AnimatedSwitcher(
-              duration: const Duration(milliseconds: 250),
-              child: _buildCurrentView(),
-            ),
+      appBar: AppBar(
+        title: const Text('Your Patterns'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            tooltip: 'Refresh Patterns',
+            onPressed: _isLoading ? null : _loadRealData,
           ),
         ],
       ),
+      body: _isLoading
+          ? const Center(
+              child: CircularProgressIndicator(),
+            )
+          : Column(
+              children: [
+                const SizedBox(height: 8),
+                _ViewSwitcher(
+                  current: current,
+                  onChanged: (v) => setState(() => current = v),
+                ),
+                _FilterBar(
+                  emotion: emotionFilter,
+                  phase: phaseFilter,
+                  range: range,
+                  onEmotion: (e) => setState(() => emotionFilter = e),
+                  onPhase: (p) => setState(() => phaseFilter = p),
+                  onRange: (r) => setState(() => range = r),
+                  onClear: () => setState(() {
+                    emotionFilter = null;
+                    phaseFilter = null;
+                    range = null;
+                  }),
+                ),
+                const Divider(height: 1),
+                Expanded(
+                  child: AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 250),
+                    child: _buildCurrentView(),
+                  ),
+                ),
+              ],
+            ),
     );
   }
 
   Widget _buildCurrentView() {
+    // Show empty state if no data
+    if (nodes.isEmpty) {
+      return _buildEmptyState();
+    }
+
     final filteredNodes = nodes.where(_nodePassesFilters).toList();
     final filteredEdges = edges.where((e) {
       final aOk = filteredNodes.any((n) => n.id == e.a);
       final bOk = filteredNodes.any((n) => n.id == e.b);
       return aOk && bOk;
     }).toList();
+
+    // Show filtered empty state if filters removed all data
+    if (filteredNodes.isEmpty) {
+      return _buildFilteredEmptyState();
+    }
 
     switch (current) {
       case PatternsView.wordCloud:
@@ -133,6 +201,80 @@ class _YourPatternsViewState extends State<YourPatternsView> {
           onTap: _showDetails,
         );
     }
+  }
+
+  Widget _buildEmptyState() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.auto_graph,
+              size: 80,
+              color: Colors.white.withOpacity(0.3),
+            ),
+            const SizedBox(height: 24),
+            Text(
+              'No Patterns Yet',
+              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'Start journaling to see your patterns emerge.\nPatterns are generated from your journal entries.',
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: Colors.white.withOpacity(0.7),
+              ),
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton.icon(
+              onPressed: () => Navigator.pop(context),
+              icon: const Icon(Icons.edit),
+              label: const Text('Start Journaling'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFilteredEmptyState() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.filter_list_off,
+              size: 64,
+              color: Colors.white.withOpacity(0.3),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'No Matches',
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Try adjusting your filters to see more patterns.',
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: Colors.white.withOpacity(0.7),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   bool _nodePassesFilters(KeywordNode n) {

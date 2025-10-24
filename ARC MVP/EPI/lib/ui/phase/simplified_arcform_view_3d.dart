@@ -8,6 +8,8 @@ import '../../arcform/models/arcform_models.dart';
 import '../../arcform/layouts/layouts_3d.dart';
 import '../../arcform/render/arcform_renderer_3d.dart';
 import '../../arcform/util/seeded.dart';
+import '../../services/patterns_data_service.dart';
+import '../../arc/core/journal_repository.dart';
 
 /// Simplified ARCForms view with 3D constellation renderer
 class SimplifiedArcformView3D extends StatefulWidget {
@@ -38,10 +40,10 @@ class _SimplifiedArcformView3DState extends State<SimplifiedArcformView3D> {
     });
 
     try {
-      // Generate a single constellation for the current phase
+      // Generate a single constellation for the current phase (user's actual phase)
       final currentPhase = widget.currentPhase ?? 'Discovery';
-      final constellation = _generatePhaseConstellation(currentPhase);
-      
+      final constellation = await _generatePhaseConstellation(currentPhase, isUserPhase: true);
+
       setState(() {
         if (constellation != null) {
           // Convert Arcform3DData to the expected snapshot format
@@ -407,21 +409,28 @@ class _SimplifiedArcformView3DState extends State<SimplifiedArcformView3D> {
     return 0.0;
   }
 
-  Arcform3DData? _generatePhaseConstellation(String phase) {
+  Future<Arcform3DData?> _generatePhaseConstellation(String phase, {bool isUserPhase = false}) async {
     try {
       // Create skin for this phase
       final skin = ArcformSkin.forUser('user', 'phase_$phase');
-      
-      // Generate phase-specific keywords and constellation
-      final keywords = _getPhaseKeywords(phase);
-      
+
+      // Get keywords: actual from journal if this is user's phase, hardcoded if demo/example
+      final List<String> keywords;
+      if (isUserPhase) {
+        // User's actual phase - use real keywords from journal entries
+        keywords = await _getActualPhaseKeywords(phase);
+      } else {
+        // Demo/example phase - use hardcoded keywords
+        keywords = _getHardcodedPhaseKeywords(phase);
+      }
+
       // Generate 3D layout
       final nodes = layout3D(
         keywords: keywords,
         phase: phase,
         skin: skin,
-        keywordWeights: {for (var kw in keywords) kw: 0.6 + (kw.length / 30.0)},
-        keywordValences: {for (var kw in keywords) kw: _getPhaseValence(kw, phase)},
+        keywordWeights: {for (var kw in keywords) kw: kw.isEmpty ? 0.0 : 0.6 + (kw.length / 30.0)},
+        keywordValences: {for (var kw in keywords) kw: kw.isEmpty ? 0.0 : _getPhaseValence(kw, phase)},
       );
 
       // Generate edges
@@ -439,7 +448,9 @@ class _SimplifiedArcformView3DState extends State<SimplifiedArcformView3D> {
         phase: phase,
         skin: skin,
         title: '$phase Constellation',
-        content: 'A beautiful 3D constellation representing your current $phase phase',
+        content: isUserPhase
+            ? 'Your personal 3D constellation for $phase phase'
+            : 'Example 3D constellation for $phase phase',
         createdAt: DateTime.now(),
         id: 'phase_${phase.toLowerCase()}_${DateTime.now().millisecondsSinceEpoch}',
       );
@@ -449,7 +460,56 @@ class _SimplifiedArcformView3DState extends State<SimplifiedArcformView3D> {
     }
   }
 
-  List<String> _getPhaseKeywords(String phase) {
+  /// Get actual keywords from user's journal entries for their current phase
+  Future<List<String>> _getActualPhaseKeywords(String phase) async {
+    const int targetNodeCount = 20; // Maintain helix shape with 20 nodes
+
+    try {
+      // Get actual keywords from user's journal entries
+      final journalRepo = JournalRepository();
+      final patternsService = PatternsDataService(journalRepository: journalRepo);
+
+      // Get patterns data (emotion keywords from user's actual journal)
+      final (nodes, _) = await patternsService.getPatternsData(
+        maxNodes: 50, // Get more than we need to have options
+        minCoOccurrenceWeight: 0.3,
+      );
+
+      // Filter nodes that match this phase or extract just the keywords
+      final actualKeywords = nodes
+          .where((node) => node.phase?.toLowerCase() == phase.toLowerCase() || node.phase == null)
+          .map((node) => node.label)
+          .take(targetNodeCount)
+          .toList();
+
+      print('DEBUG: Found ${actualKeywords.length} actual keywords for user\'s $phase phase');
+
+      // If we have some keywords but not enough, fill remaining with blanks
+      if (actualKeywords.isNotEmpty) {
+        final keywordsWithBlanks = List<String>.from(actualKeywords);
+
+        // Add empty strings for blank nodes to maintain total count of 20
+        while (keywordsWithBlanks.length < targetNodeCount) {
+          keywordsWithBlanks.add(''); // Blank node
+        }
+
+        print('DEBUG: Returning ${keywordsWithBlanks.length} total nodes (${actualKeywords.length} with keywords, ${keywordsWithBlanks.length - actualKeywords.length} blank)');
+        return keywordsWithBlanks;
+      }
+
+      // If no actual keywords found, return all blank nodes but maintain the count
+      print('DEBUG: No actual keywords found for $phase phase, using ${targetNodeCount} blank nodes');
+      return List.generate(targetNodeCount, (_) => '');
+
+    } catch (e) {
+      print('ERROR: Failed to load actual keywords for $phase: $e');
+      // On error, return blank nodes to maintain helix shape
+      return List.generate(20, (_) => '');
+    }
+  }
+
+  /// Get hardcoded demo keywords for example/demo phases
+  List<String> _getHardcodedPhaseKeywords(String phase) {
     switch (phase.toLowerCase()) {
       case 'discovery':
         return [
@@ -584,23 +644,30 @@ class _SimplifiedArcformView3DState extends State<SimplifiedArcformView3D> {
   }
 
   /// Show full-screen 3D ARCForm viewer for a specific phase
-  void _showFullScreenArcform(String phase) {
+  void _showFullScreenArcform(String phase) async {
+    // Check if this is the user's current phase
+    final isUserPhase = phase.toLowerCase() == (widget.currentPhase?.toLowerCase() ?? 'discovery');
+
     // Generate constellation data for this phase
-    final arcform = _generatePhaseConstellation(phase);
+    final arcform = await _generatePhaseConstellation(phase, isUserPhase: isUserPhase);
 
     if (arcform == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Unable to generate constellation for $phase phase')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Unable to generate constellation for $phase phase')),
+        );
+      }
       return;
     }
 
     // Navigate directly to full-screen viewer
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (context) => _FullScreenArcformViewer(arcform: arcform),
-      ),
-    );
+    if (mounted) {
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (context) => _FullScreenArcformViewer(arcform: arcform),
+        ),
+      );
+    }
   }
 
   /// Build section showing other phase shapes as examples

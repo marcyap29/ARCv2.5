@@ -433,6 +433,7 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
                         child: Padding(
           padding: const EdgeInsets.all(12.0),
           child: Column(
+            mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // Entry header with date and time
@@ -456,24 +457,22 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
                     ),
                 ],
               ),
-              
+
               const SizedBox(height: 8),
-              
+
               // Entry content preview
-              Expanded(
-                child: Text(
-                  entry.preview.isNotEmpty 
-                      ? entry.preview.length > 100 
-                          ? '${entry.preview.substring(0, 100)}...'
-                          : entry.preview
-                      : 'No content',
-                  style: bodyStyle(context).copyWith(
-                    fontSize: 14,
-                    color: kcPrimaryTextColor,
-                  ),
-                  maxLines: 4,
-                  overflow: TextOverflow.ellipsis,
+              Text(
+                entry.preview.isNotEmpty
+                    ? entry.preview.length > 100
+                        ? '${entry.preview.substring(0, 100)}...'
+                        : entry.preview
+                    : 'No content',
+                style: bodyStyle(context).copyWith(
+                  fontSize: 14,
+                  color: kcPrimaryTextColor,
                 ),
+                maxLines: 4,
+                overflow: TextOverflow.ellipsis,
               ),
               
               const SizedBox(height: 8),
@@ -502,6 +501,8 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
                         color: kcSecondaryTextColor,
                         fontSize: 12,
                       ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
                 ],
@@ -822,16 +823,20 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           // Simplified navigation hint
-          Text(
-            'Scroll to explore your journey',
-            style: captionStyle(context).copyWith(
-              color: kcSecondaryTextColor.withOpacity(0.6),
+          Expanded(
+            child: Text(
+              'Scroll to explore your journey',
+              style: captionStyle(context).copyWith(
+                color: kcSecondaryTextColor.withOpacity(0.6),
+              ),
             ),
           ),
 
+          const SizedBox(width: 8),
+
           // Entry counter
           Text(
-            '${_entries.length} entries total',
+            '${_entries.length} entries',
             style: captionStyle(context).copyWith(
               color: kcSecondaryTextColor.withOpacity(0.6),
             ),

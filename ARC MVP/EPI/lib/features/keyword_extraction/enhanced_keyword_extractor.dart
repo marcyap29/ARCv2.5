@@ -215,18 +215,21 @@ class EnhancedKeywordExtractor {
     // High amplitude emotions
     'ecstatic': 0.95, 'devastated': 0.95, 'furious': 0.95, 'terrified': 0.95,
     'overjoyed': 0.90, 'heartbroken': 0.90, 'enraged': 0.90, 'panicked': 0.90,
-    
+    'blessed': 0.85, 'thrilled': 0.85, 'overwhelmed': 0.85,
+
     // Medium-high amplitude
     'excited': 0.80, 'anxious': 0.80, 'angry': 0.75, 'sad': 0.75,
     'joyful': 0.70, 'worried': 0.70, 'frustrated': 0.65, 'hopeful': 0.65,
-    
+    'stressed': 0.70, 'exhausted': 0.70, 'energized': 0.70, 'inspired': 0.68,
+
     // Medium amplitude
     'happy': 0.60, 'nervous': 0.60, 'disappointed': 0.55, 'grateful': 0.55,
     'confident': 0.50, 'uncertain': 0.50, 'proud': 0.50, 'ashamed': 0.50,
-    
+    'tired': 0.50, 'motivated': 0.55, 'optimistic': 0.55, 'pessimistic': 0.55,
+
     // Lower amplitude
     'content': 0.40, 'calm': 0.35, 'peaceful': 0.35, 'relaxed': 0.30,
-    'neutral': 0.15, 'stable': 0.20, 'steady': 0.20,
+    'neutral': 0.15, 'stable': 0.20, 'steady': 0.20, 'comfortable': 0.30,
   };
 
   /// Extract enhanced keywords with RIVET gating

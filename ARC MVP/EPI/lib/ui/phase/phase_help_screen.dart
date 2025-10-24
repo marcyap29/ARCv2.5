@@ -18,7 +18,7 @@ class _PhaseHelpScreenState extends State<PhaseHelpScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 6, vsync: this);
+    _tabController = TabController(length: 7, vsync: this);
   }
 
   @override
@@ -39,6 +39,7 @@ class _PhaseHelpScreenState extends State<PhaseHelpScreen>
           controller: _tabController,
           isScrollable: true,
           tabs: const [
+            Tab(text: 'Overview'),
             Tab(text: 'Getting Started'),
             Tab(text: 'Phase Types'),
             Tab(text: 'RIVET Sweep'),
@@ -51,12 +52,82 @@ class _PhaseHelpScreenState extends State<PhaseHelpScreen>
       body: TabBarView(
         controller: _tabController,
         children: [
+          _buildOverview(theme),
           _buildGettingStarted(theme),
           _buildPhaseTypes(theme),
           _buildRivetSweep(theme),
           _buildTimelineView(theme),
           _buildRivetSystem(theme),
           _buildSentinelSystem(theme),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildOverview(ThemeData theme) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Card(
+            elevation: 4,
+            child: Padding(
+              padding: const EdgeInsets.all(24.0),
+              child: Column(
+                children: [
+                  Icon(
+                    Icons.auto_graph,
+                    size: 64,
+                    color: theme.primaryColor,
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Understanding Life Phases',
+                    style: theme.textTheme.headlineMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    'Discover the natural rhythms and patterns in your personal growth journey',
+                    style: theme.textTheme.bodyLarge?.copyWith(
+                      color: theme.textTheme.bodyMedium?.color,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 24),
+          _buildSectionCard(
+            theme,
+            'What Are Life Phases?',
+            'Life phases are distinct periods in your personal development journey, each characterized by unique patterns of growth, challenges, and opportunities. Just as nature has seasons, your personal growth follows natural cycles.\n\nOur system identifies six core phases that most people experience throughout their journey.',
+            Icons.psychology,
+          ),
+          const SizedBox(height: 16),
+          _buildSectionCard(
+            theme,
+            'Timeline-Based Phases',
+            'Unlike traditional phase systems that assign phases to individual entries, our timeline-based approach creates continuous phase regimes that span across time periods.\n\n• Phases are timeline segments, not entry labels\n• Each phase regime has start and end times\n• Entries are anchored to their corresponding phase\n• Automatic phase detection using RIVET Sweep\n• Visual timeline shows phase transitions',
+            Icons.timeline,
+          ),
+          const SizedBox(height: 16),
+          _buildSectionCard(
+            theme,
+            'How It Works',
+            '1. Your journal entries, emotions, and patterns are analyzed\n2. RIVET Sweep detects changes in writing patterns and topics\n3. Phase transitions are identified and timeline segments created\n4. View your phase journey as a colorful timeline',
+            Icons.settings,
+          ),
+          const SizedBox(height: 16),
+          _buildSectionCard(
+            theme,
+            'Benefits of Phase Analysis',
+            '• Understand your natural growth patterns\n• Identify when you\'re in transition periods\n• Recognize recurring themes and cycles\n• Make more informed decisions about timing\n• Track progress across different life areas\n• Gain insights into your personal development',
+            Icons.star,
+          ),
         ],
       ),
     );

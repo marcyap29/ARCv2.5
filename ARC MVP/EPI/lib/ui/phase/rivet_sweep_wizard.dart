@@ -93,9 +93,12 @@ class _RivetSweepWizardState extends State<RivetSweepWizard>
                     children: [
                       Icon(Icons.auto_awesome, color: theme.colorScheme.primary),
                       const SizedBox(width: 8),
-                      Text(
-                        'Phase Analysis Complete',
-                        style: theme.textTheme.headlineSmall,
+                      Expanded(
+                        child: Text(
+                          'Phase Analysis Complete',
+                          style: theme.textTheme.headlineSmall,
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       ),
                     ],
                   ),
@@ -166,13 +169,15 @@ class _RivetSweepWizardState extends State<RivetSweepWizard>
                   color: isAutoAssign ? Colors.green : Colors.orange,
                 ),
                 const SizedBox(width: 8),
-                Text(
-                  title,
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
+                Expanded(
+                  child: Text(
+                    title,
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
-                const Spacer(),
                 if (isAutoAssign)
                   ElevatedButton(
                     onPressed: () => _approveAllSegments(segments),
@@ -209,11 +214,14 @@ class _RivetSweepWizardState extends State<RivetSweepWizard>
               children: [
                 _buildPhaseChip(displayLabel, theme),
                 const SizedBox(width: 8),
-                Text(
-                  '${_formatDate(segment.start)} - ${_formatDate(segment.end)}',
-                  style: theme.textTheme.bodySmall,
+                Expanded(
+                  child: Text(
+                    '${_formatDate(segment.start)} - ${_formatDate(segment.end)}',
+                    style: theme.textTheme.bodySmall,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
-                const Spacer(),
+                const SizedBox(width: 8),
                 Text(
                   '${(segment.confidence * 100).toInt()}%',
                   style: theme.textTheme.bodySmall?.copyWith(
@@ -306,11 +314,14 @@ class _RivetSweepWizardState extends State<RivetSweepWizard>
               children: [
                 _buildPhaseChip(displayLabel, theme),
                 const SizedBox(width: 8),
-                Text(
-                  '${_formatDate(segment.start)} - ${_formatDate(segment.end)}',
-                  style: theme.textTheme.titleMedium,
+                Expanded(
+                  child: Text(
+                    '${_formatDate(segment.start)} - ${_formatDate(segment.end)}',
+                    style: theme.textTheme.titleMedium,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
-                const Spacer(),
+                const SizedBox(width: 8),
                 Text(
                   '${(segment.confidence * 100).toInt()}% confidence',
                   style: theme.textTheme.bodySmall?.copyWith(

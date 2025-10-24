@@ -5,7 +5,23 @@
 
 This directory contains comprehensive documentation for the EPI (Evolving Personal Intelligence) project - an 8-module intelligent journaling system built with Flutter.
 
-## 🆕 Latest Updates (January 22, 2025)
+## 🆕 Latest Updates (January 24, 2025)
+
+**🎨 Phase Visualization with Actual Journal Keywords**
+
+Enhanced phase constellation visualization to display real emotion keywords from user's journal entries:
+- **Personal Keyword Display** - User's current phase shows actual emotion keywords extracted from their journal entries
+- **Demo/Example Phases** - Other phases continue to use hardcoded keywords for showcase purposes
+- **Smart Blank Nodes** - Maintains consistent 20-node helix structure, filling blanks as keywords are discovered
+- **Progressive Enhancement** - Constellation becomes richer as user writes more journal entries
+- **Phase-Aware Filtering** - Keywords filtered by phase association (Discovery, Expansion, etc.)
+- **Emotion Keyword Integration** - Uses EnhancedKeywordExtractor's emotion amplitude mapping
+- **Graceful Fallback** - Returns blank nodes if keyword extraction fails, preventing crashes
+- **Dual Keyword System** - Distinguishes between user's personal phase and example phases automatically
+
+*For detailed technical information, see [Phase Visualization with Actual Keywords](./updates/Phase_Visualization_Actual_Keywords_Jan2025.md)*
+
+## Previous Updates (January 22, 2025)
 
 **🌟 RIVET Sweep Phase System - Timeline-Based Architecture**
 

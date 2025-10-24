@@ -10,7 +10,6 @@ import '../../services/analytics_service.dart';
 import '../../arc/core/journal_repository.dart';
 import 'phase_timeline_view.dart';
 import 'rivet_sweep_wizard.dart';
-import 'phase_info_overview.dart';
 import 'phase_help_screen.dart';
 import 'phase_change_readiness_card.dart';
 import 'sentinel_analysis_view.dart';
@@ -36,7 +35,7 @@ class _PhaseAnalysisViewState extends State<PhaseAnalysisView>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 6, vsync: this);
+    _tabController = TabController(length: 4, vsync: this);
     _loadPhaseData();
   }
 
@@ -279,18 +278,19 @@ class _PhaseAnalysisViewState extends State<PhaseAnalysisView>
           labelStyle: const TextStyle(fontSize: 12),
           unselectedLabelStyle: const TextStyle(fontSize: 11),
           tabs: const [
+            Tab(icon: Icon(Icons.auto_awesome, size: 20), text: 'ARCForms'),
             Tab(icon: Icon(Icons.timeline, size: 20), text: 'Timeline'),
             Tab(icon: Icon(Icons.analytics, size: 20), text: 'Analysis'),
             Tab(icon: Icon(Icons.shield, size: 20), text: 'SENTINEL'),
-            Tab(icon: Icon(Icons.auto_awesome, size: 20), text: 'ARCForms'),
-            Tab(icon: Icon(Icons.info, size: 20), text: 'Overview'),
-            Tab(icon: Icon(Icons.quiz, size: 20), text: 'Quiz'),
           ],
         ),
       ),
       body: TabBarView(
         controller: _tabController,
         children: [
+          // ARCForms Tab (moved to first position)
+          _buildArcformsTab(),
+
           // Timeline Tab
           _phaseIndex != null
               ? PhaseTimelineView(
@@ -311,15 +311,6 @@ class _PhaseAnalysisViewState extends State<PhaseAnalysisView>
 
           // SENTINEL Tab
           const SentinelAnalysisView(),
-
-          // ARCForms Tab
-          _buildArcformsTab(),
-
-          // Overview Tab
-          const PhaseInfoOverview(),
-
-          // Quiz Tab
-          _buildQuizTab(),
         ],
       ),
     );
@@ -412,6 +403,43 @@ class _PhaseAnalysisViewState extends State<PhaseAnalysisView>
           ),
           const SizedBox(height: 16),
           const PhaseChangeReadinessCard(),
+          const SizedBox(height: 16),
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(Icons.quiz, color: Colors.purple),
+                      const SizedBox(width: 8),
+                      const Text(
+                        'Phase Self-Assessment',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  const Text(
+                    'Take a quick self-assessment to help identify your current developmental phase. This can provide an initial baseline while you build journaling data.',
+                  ),
+                  const SizedBox(height: 16),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: _startPhaseQuiz,
+                      icon: const Icon(Icons.play_arrow),
+                      label: const Text('Start Self-Assessment'),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -726,90 +754,6 @@ class _PhaseAnalysisViewState extends State<PhaseAnalysisView>
     );
   }
 
-  Widget _buildQuizTab() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Icon(Icons.quiz, color: Colors.purple),
-                      const SizedBox(width: 8),
-                      const Text(
-                        'Phase Self-Assessment',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  const Text(
-                    'Take a quick self-assessment to help identify your current developmental phase. This can provide an initial baseline while you build journaling data.',
-                  ),
-                  const SizedBox(height: 16),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton.icon(
-                      onPressed: _startPhaseQuiz,
-                      icon: const Icon(Icons.play_arrow),
-                      label: const Text('Start Self-Assessment'),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 16),
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Icon(Icons.info_outline, color: Colors.blue),
-                      const SizedBox(width: 8),
-                      const Text(
-                        'About Phase Detection',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  const Text(
-                    'Your phase can be determined in three ways:',
-                    style: TextStyle(fontWeight: FontWeight.w500),
-                  ),
-                  const SizedBox(height: 8),
-                  const Text('• Self-assessment quiz (this tab)'),
-                  const Text('• Natural journaling patterns (RIVET analysis)'),
-                  const Text('• Imported MCP bundle analysis'),
-                  const SizedBox(height: 8),
-                  const Text(
-                    'The most accurate detection comes from analyzing your actual journaling patterns over time.',
-                    style: TextStyle(fontStyle: FontStyle.italic),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 
   /// Refresh ARCForms when phase changes occur
   void _refreshArcforms() {
