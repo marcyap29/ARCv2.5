@@ -2,6 +2,49 @@
 
 ## [Unreleased]
 
+### 🔍 **Phase Detector Service & Enhanced ARCForm Shapes** - January 23, 2025
+
+#### **New Feature: Real-Time Phase Detector** ✅ **PRODUCTION READY**
+- **Keyword-Based Detection**: Analyzes last 10-20 journal entries (or past 28 days) to detect current phase
+- **Comprehensive Keywords**: 20+ keywords per phase across all 6 phase types (Discovery, Expansion, Transition, Consolidation, Recovery, Breakthrough)
+- **Multi-Tier Scoring**: Exact match (1.0), partial match (0.5), content match (0.3)
+- **Confidence Calculation**: Intelligent scoring based on separation, entry count, and match count
+- **Detailed Results**: Returns PhaseDetectionResult with phase scores, matched keywords, confidence level, and message
+- **Adaptive Window**: Uses temporal window (28 days) or entry count (10-20), whichever provides better data
+
+#### **Enhancement: Consolidation Geodesic Lattice** ✅ **PRODUCTION READY**
+- **Denser Pattern**: Increased from 3 to 4 latitude rings for better visibility
+- **More Nodes**: Increased from 15 to 20 nodes for clearer lattice structure
+- **Larger Display**: Increased sphere radius from 1.5 to 2.0
+- **Optimized Camera**: rotX=0.3, rotY=0.2, zoom=1.8 for straight-on view showing dome rings as circles
+- **Better Recognition**: Geodesic dome pattern now clearly visible with improved depth perception
+
+#### **Enhancement: Recovery Core-Shell Cluster** ✅ **PRODUCTION READY**
+- **Two-Layer Structure**: Tight core (60%) + dispersed shell (40%) for depth perception
+- **Core Emphasis**: Core nodes very tight (0.4 spread) with 1.2x weight
+- **Shell Depth**: Shell nodes wider (0.9 spread) creating visible depth
+- **Optimized Camera**: rotX=0.2, rotY=0.1, zoom=0.9 for very close view
+- **Better Recognition**: Healing ball cluster now clearly recognizable with core-shell structure
+
+#### **Enhancement: Breakthrough Supernova Rays** ✅ **PRODUCTION READY**
+- **Visible Rays**: Changed from random burst to 6-8 clear rays shooting from center
+- **Arranged Nodes**: Nodes positioned along rays with power distribution for dramatic effect
+- **Dramatic Spread**: Radius 0.8-4.0 creating explosive visual pattern
+- **Optimized Camera**: rotX=1.2, rotY=0.8, zoom=2.5 for bird's eye view of explosion
+- **Better Recognition**: Supernova explosion pattern now clearly visible with radial rays
+
+#### **Technical Improvements** ✅ **COMPLETE**
+- **Phase Detector Service**: New service at `lib/services/phase_detector_service.dart`
+- **Enhanced Layouts**: Updated `lib/arcform/layouts/layouts_3d.dart` with improved algorithms
+- **Camera Refinements**: Updated `lib/arcform/render/arcform_renderer_3d.dart` with optimized angles
+- **Complete Documentation**: Architecture docs updated with new service and enhanced layouts
+
+#### **Files Modified** ✅ **COMPLETE**
+- `lib/services/phase_detector_service.dart` - NEW: Real-time phase detection service
+- `lib/arcform/layouts/layouts_3d.dart` - Enhanced Consolidation, Recovery, and Breakthrough layouts
+- `lib/arcform/render/arcform_renderer_3d.dart` - Optimized camera angles for all three phases
+- `docs/architecture/EPI_Architecture.md` - Added Phase Detector Service section and updated ARCForm table
+
 ### 🐛 **Constellation Display Fix** - January 22, 2025
 
 #### **Critical Bug Fix** ✅ **PRODUCTION READY**

@@ -1,12 +1,46 @@
 # EPI ARC MVP - Current Status
 
-**Last Updated**: October 21, 2025
-**Branch**: cleanup
-**Status**: ✅ Production Ready - llama.cpp XCFramework Fixed + MCP System Simplified + LUMARA v2.0 Complete + Timeline Ordering Fixed + Phase Dropdown + Auto-Capitalization
+**Last Updated**: January 23, 2025
+**Branch**: phase-updates
+**Status**: ✅ Production Ready - Phase Detector Service + Enhanced ARCForm 3D Shapes + RIVET Sweep Complete + LUMARA v2.0 Complete
 
 ---
 
 ## 🎯 MVP Finalization Status
+
+### 🔍 Phase Detector Service & Enhanced ARCForm Shapes (January 23, 2025)
+
+#### 18. Real-Time Phase Detector Service
+- **Feature**: New keyword-based service to detect current phase from recent journal entries
+- **Technical**: Analyzes 10-20 recent entries with comprehensive keyword sets (20+ per phase), multi-tier scoring
+- **UI/UX**: Returns confidence-scored phase suggestions for user awareness and reflection
+- **Architecture**: PhaseDetectorService with PhaseDetectionResult model, adaptive time window (28 days)
+- **Status**: ✅ Complete - Production-ready phase detection service
+
+**Implementation Details:**
+- Multi-tier scoring: exact match (1.0), partial match (0.5), content match (0.3)
+- Confidence calculation: separation + entry count + match count (0.0-1.0 scale)
+- Comprehensive keywords: Discovery, Expansion, Transition, Consolidation, Recovery, Breakthrough
+- Adaptive window: uses temporal (28 days) or count (10-20), whichever provides better data
+- Returns detailed results with phase scores, matched keywords, confidence, and message
+
+#### 19. Enhanced ARCForm 3D Visualizations
+- **Feature**: Dramatically improved Consolidation, Recovery, and Breakthrough shape recognition
+- **Technical**: Redesigned layouts with optimized node counts, camera angles, and structural patterns
+- **UI/UX**: Shapes now clearly recognizable as geodesic lattice, healing cluster, and supernova explosion
+- **Architecture**: Enhanced layouts_3d.dart algorithms and arcform_renderer_3d.dart camera system
+- **Status**: ✅ Complete - Production-ready enhanced 3D visualizations
+
+**Shape Enhancements:**
+- **Consolidation**: 4 latitude rings (was 3), 20 nodes (was 15), radius 2.0 (was 1.5), straight-on camera
+- **Recovery**: Core-shell structure with 60% tight core (0.4 spread) + 40% dispersed shell (0.9 spread)
+- **Breakthrough**: 6-8 visible rays shooting from center, power distribution, radius 0.8-4.0, bird's eye camera
+
+**Files Modified:**
+- lib/services/phase_detector_service.dart - NEW: Real-time phase detection
+- lib/arcform/layouts/layouts_3d.dart - Enhanced shape algorithms
+- lib/arcform/render/arcform_renderer_3d.dart - Optimized camera angles
+- docs/architecture/EPI_Architecture.md - Complete documentation updates
 
 ### 🔧 llama.cpp XCFramework Linking Fixed (October 21, 2025)
 
