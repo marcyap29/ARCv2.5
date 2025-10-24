@@ -40,9 +40,9 @@ class _Arcform3DState extends State<Arcform3D> {
   late double _rotationY;
   late double _zoom;
 
-  // GESTURES DISABLED: No interaction until we verify the shape looks correct
-  // Offset? _lastPanPosition;  // Disabled
-  // double _baseScaleFactor = 1.0;  // Disabled
+  // Gesture handling for 3D interaction
+  Offset? _lastPanPosition;
+  double _baseScaleFactor = 1.0;
 
   List<_Star> _stars = [];
   List<_Edge> _edges = [];
@@ -59,53 +59,53 @@ class _Arcform3DState extends State<Arcform3D> {
   void _setCameraForPhase() {
     switch (widget.phase.toLowerCase()) {
       case 'discovery':
-        // HELIX: STRONG side-angled view to show vertical spiral clearly
-        _rotationX = 1.2;  // Even more sideways (was 1.0) - looking at helix from the side
-        _rotationY = 0.7;  // More rotation to emphasize spiral curve (was 0.5)
-        _zoom = 1.4;       // Adjusted zoom (was 1.5)
+        // HELIX: Balanced view to show vertical spiral clearly
+        _rotationX = 0.2;   // Slight angle to show depth
+        _rotationY = 0.0;   // No rotation for clear helix view
+        _zoom = 3.5;        // Good distance to see full helix
         break;
 
       case 'exploration':
       case 'expansion':
         // PETAL RINGS: Angled down to see layered concentric rings
-        _rotationX = 0.8;
-        _rotationY = 0.3;
-        _zoom = 1.3;
+        _rotationX = 0.3;
+        _rotationY = 0.2;
+        _zoom = 3.0;
         break;
 
       case 'transition':
         // BRANCHES: Straight-on view to see "reaching fingers" from side
-        _rotationX = 0.0;   // Level view - looking straight at fingers reaching
+        _rotationX = 0.1;   // Very slight angle
         _rotationY = 0.0;   // No rotation - see fingers reaching horizontally
-        _zoom = 1.2;        // Medium distance to see full reach
+        _zoom = 2.8;        // Good distance to see full reach
         break;
 
       case 'consolidation':
-        // LATTICE: Straight-on view to see geodesic dome rings as circles
-        _rotationX = 0.3;   // Slight tilt to show depth
-        _rotationY = 0.2;   // Minimal rotation
-        _zoom = 1.8;        // Further out to see complete sphere structure
+        // LATTICE: Slight angle to see geodesic dome structure
+        _rotationX = 0.4;   // Slight tilt to show depth
+        _rotationY = 0.3;   // Some rotation to see 3D structure
+        _zoom = 4.0;        // Further out to see complete sphere structure
         break;
 
       case 'recovery':
-        // CLUSTER: Straight-on close view to see tight cluster clearly
+        // CLUSTER: Close view to see cluster detail
         _rotationX = 0.2;   // Very slight angle
         _rotationY = 0.1;   // Minimal rotation
-        _zoom = 0.9;        // Closer to see cluster detail (LOWER = closer)
+        _zoom = 2.5;        // Closer to see cluster detail
         break;
 
       case 'breakthrough':
-        // BURST: Angled bird's eye view to see radial explosion pattern
-        _rotationX = 1.2;   // Higher angle looking down
-        _rotationY = 0.8;   // More rotation for full radial view
-        _zoom = 2.5;        // Far back to see full starburst
+        // BURST: Angled view to see radial explosion pattern
+        _rotationX = 0.6;   // Higher angle looking down
+        _rotationY = 0.4;   // Some rotation for full radial view
+        _zoom = 4.5;        // Far back to see full starburst
         break;
 
       default:
         // SPHERICAL: Balanced view of Fibonacci sphere
-        _rotationX = 0.5;
-        _rotationY = 0.5;
-        _zoom = 1.3;
+        _rotationX = 0.2;
+        _rotationY = 0.0;
+        _zoom = 3.5;
     }
 
     print('📷 Camera set for ${widget.phase}: rotX=$_rotationX, rotY=$_rotationY, zoom=$_zoom');
@@ -222,22 +222,6 @@ class _Arcform3DState extends State<Arcform3D> {
 
   @override
   Widget build(BuildContext context) {
-    // GESTURES DISABLED: Display static constellation with fixed camera angle
-    // This lets us verify the helix shape is correct before adding back interaction
-    return CustomPaint(
-      size: Size.infinite,
-      painter: _ConstellationPainter(
-        stars: _stars,
-        edges: _edges,
-        nebula: _nebulaParticles,
-        rotationX: _rotationX,
-        rotationY: _rotationY,
-        zoom: _zoom,
-        enableLabels: widget.enableLabels,
-      ),
-    );
-
-    /* COMMENTED OUT: Gesture handling - will re-enable after verifying shape
     return GestureDetector(
       // Rotation gesture - single finger drag
       onPanStart: (details) {
@@ -247,8 +231,8 @@ class _Arcform3DState extends State<Arcform3D> {
         if (_lastPanPosition != null) {
           final delta = details.localPosition - _lastPanPosition!;
           setState(() {
-            _rotationY += delta.dx * 0.005;
-            _rotationX = (_rotationX - delta.dy * 0.005).clamp(-1.5, 1.5);
+            _rotationY += delta.dx * 0.01; // Horizontal drag rotates around Y-axis
+            _rotationX = (_rotationX - delta.dy * 0.01).clamp(-1.5, 1.5); // Vertical drag rotates around X-axis
           });
           _lastPanPosition = details.localPosition;
         }
@@ -264,7 +248,7 @@ class _Arcform3DState extends State<Arcform3D> {
       },
       onScaleUpdate: (details) {
         setState(() {
-          _zoom = (_baseScaleFactor / details.scale).clamp(0.3, 5.0);
+          _zoom = (_baseScaleFactor / details.scale).clamp(0.5, 8.0); // Improved zoom range
         });
       },
       onScaleEnd: (_) {
@@ -284,7 +268,6 @@ class _Arcform3DState extends State<Arcform3D> {
         ),
       ),
     );
-    */
   }
 }
 

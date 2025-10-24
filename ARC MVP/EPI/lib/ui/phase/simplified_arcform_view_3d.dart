@@ -208,29 +208,33 @@ class _SimplifiedArcformView3DState extends State<SimplifiedArcformView3D> {
                   Icon(
                     Icons.auto_awesome,
                     color: kcPrimaryColor,
-                    size: 24,
+                    size: 20, // Reduced from 24
                   ),
-                  const SizedBox(width: 8),
+                  const SizedBox(width: 6), // Reduced from 8
                   Expanded(
-                  child: Text(
-                    '$phaseHint Phase',
-                    style: heading3Style(context),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+                    child: Text(
+                      '$phaseHint Phase',
+                      style: heading3Style(context).copyWith(
+                        fontSize: 16, // Reduced font size
+                        fontWeight: FontWeight.w600,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ),
-                  ),
+                  const SizedBox(width: 4), // Add spacing before chip
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3), // Reduced padding
                     decoration: BoxDecoration(
                       color: kcPrimaryColor.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(10), // Reduced from 12
                       border: Border.all(color: kcPrimaryColor.withOpacity(0.3)),
                     ),
                     child: Text(
                       phaseHint.toUpperCase(),
                       style: TextStyle(
                         color: kcPrimaryColor,
-                        fontSize: 10,
+                        fontSize: 9, // Reduced from 10
                         fontWeight: FontWeight.bold,
                       ),
                     ),
@@ -253,7 +257,7 @@ class _SimplifiedArcformView3DState extends State<SimplifiedArcformView3D> {
                   borderRadius: BorderRadius.circular(8),
                   child: arcformData != null
                       ? IgnorePointer(
-                          // Prevent touch events from triggering any animation in preview
+                          ignoring: true, // Explicitly disable all pointer events
                           child: Arcform3D(
                             nodes: arcformData.nodes,
                             edges: arcformData.edges,
