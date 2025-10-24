@@ -457,6 +457,10 @@ class _ConstellationPainter extends CustomPainter {
 
     // Draw labels if enabled
     if (enableLabels) {
+      // Create rotation matrix from rotationX and rotationY
+      final rotation = vm.Matrix4.identity()
+        ..rotateX(rotationX)
+        ..rotateY(rotationY);
       _drawLabels(canvas, size, center, scale, rotation);
     }
   }
