@@ -230,19 +230,18 @@ class _Arcform3DState extends State<Arcform3D> {
       },
       onScaleUpdate: (details) {
         setState(() {
-          // Handle zoom if scale changed (pinch gesture)
+          // Handle zoom with iOS-style direction (pinch gesture)
           if (details.scale != 1.0) {
-            _zoom = (_baseScaleFactor / details.scale).clamp(0.5, 8.0);
+            _zoom = (_baseScaleFactor * details.scale).clamp(0.5, 8.0);
           }
 
-          // Handle rotation if position changed (drag gesture)
-          if (_lastPanPosition != null) {
+          // Handle rotation only for single finger drag (not during pinch)
+          if (_lastPanPosition != null && details.pointerCount == 1) {
             final delta = details.focalPoint - _lastPanPosition!;
             _rotationY += delta.dx * 0.01; // Horizontal drag rotates around Y-axis
             _rotationX = (_rotationX - delta.dy * 0.01).clamp(-1.5, 1.5); // Vertical drag rotates around X-axis
+            _lastPanPosition = details.focalPoint;
           }
-
-          _lastPanPosition = details.focalPoint;
         });
       },
       onScaleEnd: (_) {
