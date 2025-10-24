@@ -109,16 +109,19 @@ class _HomeViewState extends State<HomeView> {
     _pages = [
       const PhaseAnalysisView(), // Phase Analysis (index 0)
       const TimelineView(), // Timeline (index 1)
-      const Center(child: Text('Write Action')), // Write placeholder (index 2) - won't be shown
       if (AppFlags.isLumaraEnabled)
         BlocProvider<LumaraAssistantCubit>.value(
           value: _lumaraCubit!,
           child: const LumaraAssistantScreen(),
-        ) // LUMARA (index 3)
+        ) // LUMARA (index 2)
       else
-        const Center(child: Text('LUMARA not available')),
-      _InsightsPage(key: _insightsPageKey), // Insights (index 4 or 3)
-      const SettingsView(), // Settings (index 5 or 4)
+        _InsightsPage(key: _insightsPageKey), // Insights (index 2)
+      if (AppFlags.isLumaraEnabled)
+        _InsightsPage(key: _insightsPageKey) // Insights (index 3)
+      else
+        const SettingsView(), // Settings (index 3)
+      if (AppFlags.isLumaraEnabled)
+        const SettingsView(), // Settings (index 4)
     ];
     
     // Initialize ethereal music (P22)
@@ -237,7 +240,7 @@ class _HomeViewState extends State<HomeView> {
 
                   _homeCubit.changeTab(index);
                   // Refresh RIVET card when Insights tab is selected
-                  final insightsIndex = AppFlags.isLumaraEnabled ? 2 : 2; // Insights is now at index 2
+                  final insightsIndex = AppFlags.isLumaraEnabled ? 3 : 2; // Insights is at index 3 with LUMARA, index 2 without
                   if (index == insightsIndex) {
                     print('DEBUG: Insights tab selected, refreshing RIVET card');
                     print('DEBUG: Calling _refreshRivetCardInInsights...');
