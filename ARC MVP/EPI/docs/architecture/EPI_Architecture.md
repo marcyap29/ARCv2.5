@@ -202,6 +202,73 @@
   PhaseIndex → PhaseTimelineView
   ```
 
+  ## 🔍 **Real-Time Phase Detector Service** (NEW - January 23, 2025)
+
+  **Keyword-Based Current Phase Detection**:
+  ```
+  Recent Entries → Keyword Extraction → Phase Scoring → Confidence Calculation → Suggested Phase
+  ```
+
+  **Key Features**:
+  - ✅ **Real-Time Detection**: Analyzes last 10-20 journal entries (or past 28 days)
+  - ✅ **Comprehensive Keywords**: 20+ keywords per phase across 6 phase types
+  - ✅ **Multi-Tier Scoring**: Exact match (1.0), partial match (0.5), content match (0.3)
+  - ✅ **Confidence Scoring**: Normalized 0.0-1.0 confidence with separation analysis
+  - ✅ **Adaptive Window**: Uses temporal window (28 days) or entry count (10-20), whichever is better
+  - ✅ **Top-N Results**: Returns ranked phase suggestions for comparison
+
+  **Phase-Specific Keyword Sets**:
+  - **Discovery** (25 keywords): new, discover, explore, learning, curious, experiment, journey, seeking...
+  - **Expansion** (24 keywords): grow, expand, building, confident, progress, success, momentum, flow...
+  - **Transition** (24 keywords): change, shift, transform, uncertain, crossroads, threshold, adapt...
+  - **Consolidation** (24 keywords): stable, grounded, settled, balanced, integrate, routine, order...
+  - **Recovery** (24 keywords): heal, rest, restore, tired, gentle, pause, care, nurture, comfort...
+  - **Breakthrough** (24 keywords): insight, revelation, epiphany, clarity, aha, realize, unlock, transform...
+
+  **Detection Algorithm**:
+  ```dart
+  class PhaseDetectorService {
+    PhaseDetectionResult detectCurrentPhase(List<JournalEntry> allEntries) {
+      // 1. Get recent entries (last 10-20 or past 28 days)
+      final recentEntries = _getRecentEntries(allEntries);
+
+      // 2. Extract all keywords from entries
+      final keywords = recentEntries.expand((e) => e.keywords).toList();
+
+      // 3. Score each phase against keywords
+      for (final phase in PhaseLabel.values) {
+        final score = _scorePhase(phase, keywords, content);
+        // Exact match: +1.0, Partial match: +0.5, Content match: +0.3
+      }
+
+      // 4. Calculate confidence (0.0-1.0)
+      // - Separation: How much better is top vs second? (0.0-0.5)
+      // - Entry count: Do we have enough data? (0.0-0.3)
+      // - Match count: Did we find keywords? (0.0-0.2)
+
+      return PhaseDetectionResult(
+        suggestedPhase: topPhase,
+        confidence: confidenceScore,
+        phaseScores: allScores,
+        matchedKeywords: matches,
+      );
+    }
+  }
+  ```
+
+  **Use Cases**:
+  - Real-time phase suggestion in UI
+  - Phase change detection for VEIL-EDGE routing
+  - Validation of RIVET Sweep results
+  - User self-awareness and reflection
+  - Integration with ARCForm visualization
+
+  **Integration Points**:
+  - `lib/services/phase_detector_service.dart` - Main service implementation
+  - `lib/models/phase_models.dart` - PhaseLabel enum and models
+  - `lib/models/journal_entry_model.dart` - Entry keyword extraction
+  - Future UI integration in Phase Analysis tab
+
   ## 🔧 **Build System Fixes** (Updated January 22, 2025)
 
   **Compilation Errors Resolved - PRODUCTION READY**:
@@ -1181,16 +1248,16 @@
   - ✅ **Keyword Labels**: Keywords visible on each node with sentiment-aware styling
   - ✅ **Nebula Background**: Phase-aware particle effects for atmospheric depth
 
-  **Phase-Specific 3D Layouts & Camera Settings** (January 23, 2025):
+  **Phase-Specific 3D Layouts & Camera Settings** (January 23, 2025 - ENHANCED):
 
   | Phase | Shape | Nodes | Camera Angle | Zoom | Description |
   |-------|-------|-------|-------------|------|-------------|
   | **Discovery** | Helix | 10 | rotX=1.2, rotY=0.7 | 1.4 | Vertical spiral ascending with 1.5 turns, Z-spread=3.0 |
   | **Expansion** | Petal Rings | 12 | rotX=0.8, rotY=0.3 | 1.3 | Multi-layer concentric rings with 2.5 vertical spread |
   | **Transition** | Reaching Fingers | 12 | rotX=0.0, rotY=0.0 | 1.2 | "Creation of Adam" - two centers with 3 fingers each reaching toward connection |
-  | **Consolidation** | Geodesic Lattice | 15 | rotX=1.0, rotY=0.6 | 1.5 | Spherical grid with 3 latitude rings (like geodesic dome) |
-  | **Recovery** | Tight Cluster | 8 | rotX=0.7, rotY=0.5 | 1.2 | Compact Gaussian cluster (0.8 spread) showing healing huddle |
-  | **Breakthrough** | Supernova Burst | 10 | rotX=0.8, rotY=0.6 | 2.8 | Explosive radial spread (0.5-3.0 radius) with 30% streak effect |
+  | **Consolidation** | Geodesic Lattice | **20** | rotX=0.3, rotY=0.2 | 1.8 | **ENHANCED**: Spherical grid with **4 latitude rings**, radius 2.0 for denser lattice pattern |
+  | **Recovery** | Core-Shell Cluster | 8 | rotX=0.2, rotY=0.1 | 0.9 | **ENHANCED**: Two-layer structure - tight core (60%) + dispersed shell (40%) for depth perception |
+  | **Breakthrough** | Supernova Rays | 10 | rotX=1.2, rotY=0.8 | 2.5 | **ENHANCED**: 6-8 visible rays shooting from center, radius 0.8-4.0 for dramatic explosion |
 
   **Technical Implementation (January 23, 2025)**:
   - **No Animation**: Completely static display - removed all automatic spinning and twinkling
@@ -1413,7 +1480,7 @@
       └── models/
           └── mcp_schemas.dart              # MCP data models with null safety fixes
 
-  4. ATLAS Module: Phase Detection & Analysis
+  4. ATLAS Module: Phase Detection & Analysis (ENHANCED - January 23, 2025)
 
   lib/atlas/
   ├── phase_detection/
@@ -1421,6 +1488,8 @@
   │   ├── transition_detector.dart       # Major life changes
   │   ├── pattern_recognition.dart       # Behavioral pattern analysis
   │   └── phase_classifier.dart          # ML-based phase classification
+  ├── services/
+  │   └── phase_detector_service.dart    # **NEW**: Real-time phase detection from recent entries
   ├── analysis/
   │   ├── readiness_signals.dart         # System adaptation signals
   │   ├── coherence_analyzer.dart        # Analyze entry coherence

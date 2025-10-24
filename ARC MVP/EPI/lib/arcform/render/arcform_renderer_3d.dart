@@ -81,24 +81,24 @@ class _Arcform3DState extends State<Arcform3D> {
         break;
 
       case 'consolidation':
-        // LATTICE: 3/4 view from side to see geodesic dome rings clearly
-        _rotationX = 1.0;   // Side angle to see latitude rings
-        _rotationY = 0.6;   // Rotation for depth
-        _zoom = 1.5;        // Zoom OUT to see entire sphere (HIGHER = further)
+        // LATTICE: Straight-on view to see geodesic dome rings as circles
+        _rotationX = 0.3;   // Slight tilt to show depth
+        _rotationY = 0.2;   // Minimal rotation
+        _zoom = 1.8;        // Further out to see complete sphere structure
         break;
 
       case 'recovery':
-        // CLUSTER: Medium distance to see tight cluster without overlap
-        _rotationX = 0.7;   // Angled view for depth
-        _rotationY = 0.5;   // Moderate rotation
-        _zoom = 1.2;        // Zoom OUT to fit cluster comfortably (HIGHER = further)
+        // CLUSTER: Straight-on close view to see tight cluster clearly
+        _rotationX = 0.2;   // Very slight angle
+        _rotationY = 0.1;   // Minimal rotation
+        _zoom = 0.9;        // Closer to see cluster detail (LOWER = closer)
         break;
 
       case 'breakthrough':
-        // BURST: Far view with better angle to show starburst pattern
-        _rotationX = 0.8;   // More angled to see 3D depth
-        _rotationY = 0.6;   // More rotation to show radial spread
-        _zoom = 2.8;        // Far back (keep similar distance)
+        // BURST: Angled bird's eye view to see radial explosion pattern
+        _rotationX = 1.2;   // Higher angle looking down
+        _rotationY = 0.8;   // More rotation for full radial view
+        _zoom = 2.5;        // Far back to see full starburst
         break;
 
       default:

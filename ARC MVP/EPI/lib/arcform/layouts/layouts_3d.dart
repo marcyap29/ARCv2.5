@@ -17,7 +17,7 @@ int _getOptimalNodeCount(String phase) {
     case 'transition':
       return 12; // 3 branches × 4 nodes to show forking
     case 'consolidation':
-      return 15; // Enough to show spherical shell pattern
+      return 20; // More nodes for denser geodesic lattice (4 rings × 5 nodes)
     case 'recovery':
       return 8; // Tight cluster is clear with fewer nodes
     case 'breakthrough':
@@ -245,6 +245,7 @@ List<ArcNode3D> _layoutBranches(
 
 /// Consolidation: Geodesic lattice - nodes arranged in clear grid pattern on sphere
 /// Creates visible "meridians and parallels" like a geodesic dome
+/// ENHANCED: More latitude rings, denser pattern, better visualization
 List<ArcNode3D> _layoutLattice(
   List<String> keywords,
   Map<String, double> weights,
@@ -254,8 +255,8 @@ List<ArcNode3D> _layoutLattice(
   final nodes = <ArcNode3D>[];
   final count = keywords.length;
 
-  // Create a geodesic pattern with visible latitude/longitude lines
-  final latitudes = 3;  // Number of horizontal rings
+  // Create a geodesic pattern with MORE rings for better visibility
+  final latitudes = 4;  // Increased from 3 to 4 rings for denser lattice
   final longitudesPerLat = (count / latitudes).ceil();
 
   int idx = 0;
@@ -263,7 +264,7 @@ List<ArcNode3D> _layoutLattice(
     // Latitude angle from -π/2 (bottom) to +π/2 (top)
     final latAngle = (lat / (latitudes - 1) - 0.5) * math.pi;
     final latRadius = math.cos(latAngle);  // Radius at this latitude
-    final z = math.sin(latAngle) * 1.5;     // Height
+    final z = math.sin(latAngle) * 2.0;     // INCREASED height for more dramatic sphere (was 1.5)
 
     final itemsInRing = math.min(longitudesPerLat, count - idx);
 
@@ -271,9 +272,9 @@ List<ArcNode3D> _layoutLattice(
       final keyword = keywords[idx++];
       final lonAngle = (lon / longitudesPerLat) * 2 * math.pi;
 
-      // Position on sphere surface
-      final x = latRadius * math.cos(lonAngle) * 1.5;
-      final y = latRadius * math.sin(lonAngle) * 1.5;
+      // Position on sphere surface - LARGER radius for more visible lattice
+      final x = latRadius * math.cos(lonAngle) * 2.0;  // Increased from 1.5
+      final y = latRadius * math.sin(lonAngle) * 2.0;  // Increased from 1.5
 
       nodes.add(ArcNode3D(
         id: keyword,
@@ -287,11 +288,13 @@ List<ArcNode3D> _layoutLattice(
     }
   }
 
-  print('🌐 Created Consolidation geodesic lattice: $count nodes, $latitudes latitude rings');
+  print('🌐 Created Consolidation geodesic lattice: $count nodes, $latitudes latitude rings, radius 2.0');
   return nodes;
 }
 
 /// Recovery: Compact cluster near origin
+/// ENHANCED: Creates a dense "healing ball" with core-shell structure
+/// Inner core of tightly packed nodes with outer shell for depth
 List<ArcNode3D> _layoutCluster(
   List<String> keywords,
   Map<String, double> weights,
@@ -299,32 +302,55 @@ List<ArcNode3D> _layoutCluster(
   Seeded rng,
 ) {
   final nodes = <ArcNode3D>[];
-  
-  for (int i = 0; i < keywords.length; i++) {
+  final count = keywords.length;
+
+  for (int i = 0; i < count; i++) {
     final keyword = keywords[i];
     final childRng = rng.derive(keyword);
-    
-    // Gaussian distribution for tight cluster - increased spread
-    final x = childRng.nextGaussian() * 0.8; // Increased from 0.3
-    final y = childRng.nextGaussian() * 0.8; // Increased from 0.3
-    final z = childRng.nextGaussian() * 0.8; // Increased from 0.3
-    
-    nodes.add(ArcNode3D(
-      id: keyword,
-      label: keyword,
-      x: x,
-      y: y,
-      z: z,
-      weight: weights[keyword] ?? 0.5,
-      valence: valences[keyword] ?? 0.0,
-    ));
+
+    // Create two-layer structure: tight core + slightly dispersed shell
+    final isCore = i < count * 0.6; // 60% in core, 40% in shell
+
+    if (isCore) {
+      // VERY tight core - nodes close together (healing huddle)
+      final x = childRng.nextGaussian() * 0.4;  // Tight cluster
+      final y = childRng.nextGaussian() * 0.4;  // Tight cluster
+      final z = childRng.nextGaussian() * 0.4;  // Tight cluster
+
+      nodes.add(ArcNode3D(
+        id: keyword,
+        label: keyword,
+        x: x,
+        y: y,
+        z: z,
+        weight: (weights[keyword] ?? 0.5) * 1.2, // Slightly larger nodes in core
+        valence: valences[keyword] ?? 0.0,
+      ));
+    } else {
+      // Outer shell - creates depth perception
+      final x = childRng.nextGaussian() * 0.9;  // Wider shell
+      final y = childRng.nextGaussian() * 0.9;  // Wider shell
+      final z = childRng.nextGaussian() * 0.9;  // Wider shell
+
+      nodes.add(ArcNode3D(
+        id: keyword,
+        label: keyword,
+        x: x,
+        y: y,
+        z: z,
+        weight: weights[keyword] ?? 0.5,
+        valence: valences[keyword] ?? 0.0,
+      ));
+    }
   }
 
+  print('🔮 Created Recovery cluster: $count nodes, core-shell structure (60/40 split)');
   return nodes;
 }
 
 /// Breakthrough: Dramatic explosive burst radiating from center like a supernova
-/// Nodes shoot outward in all directions with varying distances for depth
+/// ENHANCED: Creates visible rays/arms with concentrated nodes along radial lines
+/// Some nodes VERY far for dramatic effect, creating clear "explosion" pattern
 List<ArcNode3D> _layoutBurst(
   List<String> keywords,
   Map<String, double> weights,
@@ -332,34 +358,55 @@ List<ArcNode3D> _layoutBurst(
   Seeded rng,
 ) {
   final nodes = <ArcNode3D>[];
+  final count = keywords.length;
 
-  for (int i = 0; i < keywords.length; i++) {
-    final keyword = keywords[i];
-    final childRng = rng.derive(keyword);
+  // Create 6-8 main "rays" shooting out from center
+  final numRays = 6 + (count % 3); // 6-8 rays depending on node count
+  final nodesPerRay = count ~/ numRays;
+  final remainder = count % numRays;
 
-    // EXPLOSIVE RADIAL BURST - like a supernova explosion
-    final point = childRng.nextUnitSphere();
-    final t = childRng.nextDouble();
+  int idx = 0;
 
-    // Dramatic distance variation - some nodes very far, creating "rays"
-    // Power function creates more nodes far from center (explosive effect)
-    final radius = 0.5 + math.pow(t, 0.3) * 2.5; // Range: 0.5 to 3.0 - VERY spread out
+  // Create main rays
+  for (int ray = 0; ray < numRays && idx < count; ray++) {
+    final childRng = rng.derive('ray_$ray');
 
-    // Add some "streaking" effect - nodes along rays
-    final streak = childRng.nextDouble() > 0.7 ? 1.3 : 1.0;  // 30% chance of extra streak
+    // Random direction for this ray
+    final rayDirection = childRng.nextUnitSphere();
 
-    nodes.add(ArcNode3D(
-      id: keyword,
-      label: keyword,
-      x: point.x * radius * streak,
-      y: point.y * radius * streak,
-      z: point.z * radius * streak,
-      weight: weights[keyword] ?? 0.5,
-      valence: valences[keyword] ?? 0.0,
-    ));
+    // Number of nodes along this ray
+    final nodesInRay = nodesPerRay + (ray < remainder ? 1 : 0);
+
+    for (int n = 0; n < nodesInRay && idx < count; n++) {
+      final keyword = keywords[idx++];
+
+      // Distance along ray - HEAVILY weighted toward far distances
+      // Power of 0.2 creates more nodes far from center (explosive effect)
+      final t = n / math.max(1, nodesInRay - 1);
+      final baseRadius = 0.8 + math.pow(t, 0.2) * 3.2; // Range: 0.8 to 4.0 - VERY dramatic
+
+      // Add slight perpendicular jitter for volume (but keep on ray)
+      final jitterAmount = childRng.nextRange(-0.2, 0.2);
+      final perpJitter = childRng.nextUnitSphere();
+
+      // Final position: along ray + tiny perpendicular jitter
+      final x = rayDirection.x * baseRadius + perpJitter.x * jitterAmount;
+      final y = rayDirection.y * baseRadius + perpJitter.y * jitterAmount;
+      final z = rayDirection.z * baseRadius + perpJitter.z * jitterAmount;
+
+      nodes.add(ArcNode3D(
+        id: keyword,
+        label: keyword,
+        x: x,
+        y: y,
+        z: z,
+        weight: weights[keyword] ?? 0.5,
+        valence: valences[keyword] ?? 0.0,
+      ));
+    }
   }
 
-  print('💥 Created Breakthrough burst: ${keywords.length} nodes, explosive radial spread (0.5-3.0 radius)');
+  print('💥 Created Breakthrough supernova: $count nodes, $numRays rays, radius 0.8-4.0');
   return nodes;
 }
 
