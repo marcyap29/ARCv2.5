@@ -306,3 +306,15 @@ The phase transfer issue has been resolved with the implementation of the new RI
 - Use the Phase Timeline UI to view and edit phase periods
 - RIVET Sweep automatically detects phase changes in your journal
 - MCP exports now include complete phase timeline data
+
+### UI/UX Improvements (January 24, 2025)
+
+**Clean Timeline Design**:
+- Write (+) and Calendar buttons moved to Timeline app bar
+- Better information architecture with logical button placement
+- More screen space with simplified bottom navigation
+
+**Simplified Navigation**:
+- Removed elevated Write tab from bottom navigation
+- Clean 4-tab design: Phase, Timeline, Insights, Settings
+- Flat bottom navigation design for better content visibility

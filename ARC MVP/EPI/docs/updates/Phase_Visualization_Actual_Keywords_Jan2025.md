@@ -2,7 +2,7 @@
 
 **Date:** January 24, 2025
 **Status:** ✅ Complete
-**Branch:** `phase-updates`
+**Branch:** `timeline-ui-updates`
 
 ## Overview
 
@@ -152,6 +152,13 @@ Extract higher-level concepts from journal text patterns:
 - **Confirmation Dialog**: Prevents accidental deletions with clear warning
 - **Visual Feedback**: Red delete button with success/error messages
 - **Proper Cleanup**: Uses regime ID for accurate removal from PhaseIndex
+
+### UI/UX Improvements
+- **Clean Timeline Design**: Moved Write (+) and Calendar buttons to Timeline app bar
+- **Simplified Navigation**: Removed elevated Write tab from bottom navigation
+- **Better Information Architecture**: Write button now logically placed where users view entries
+- **More Screen Space**: Flat bottom navigation design provides more content area
+- **Streamlined Bottom Nav**: Clean 4-tab design (Phase, Timeline, Insights, Settings)
 
 ## Testing
 

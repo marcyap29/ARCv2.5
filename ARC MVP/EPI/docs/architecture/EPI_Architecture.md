@@ -1327,30 +1327,32 @@
   - `arcform_renderer_view.dart`: UI integration with renderer widget
   - `emotional_valence_service.dart`: Emotion detection for color mapping
 
-  ## 📱 Navigation & User Interface Architecture (Updated Sept 28, 2025)
+  ## 📱 Navigation & User Interface Architecture (Updated January 24, 2025)
 
   **Primary Navigation Structure**:
   ```
-  Phase → Timeline → Write (Elevated) → LUMARA → Insights → Settings
-   [0]     [1]       [2]               [3]       [4]       [5]
+  Phase → Timeline → LUMARA → Insights → Settings
+   [0]     [1]       [2]       [3]       [4]
   ```
 
-  **Elevated Actions**:
-  - **Write Button**: Elevated circular button above navigation tabs, launches complete journal flow
+  **Timeline App Bar Actions**:
+  - **Write Button (+)**: Located in Timeline app bar, launches complete journal flow
+  - **Calendar Button**: Jump to specific date in timeline
   - **Flow**: Emotion Picker → Reason Picker → Advanced Writing → Keyword Analysis → Save
 
   **Key Components**:
-  - `lib/features/home/home_view.dart` - Main navigation controller with elevated tab design
-  - `lib/shared/tab_bar.dart` - Custom tab bar with elevated tab functionality
+  - `lib/features/home/home_view.dart` - Main navigation controller with flat tab design
+  - `lib/shared/tab_bar.dart` - Simplified custom tab bar without elevated functionality
+  - `lib/features/timeline/timeline_view.dart` - Timeline with integrated Write and Calendar buttons
   - `lib/arc/core/start_entry_flow.dart` - Complete journal creation flow
   - `lib/ui/journal/journal_screen.dart` - Advanced writing interface
 
-  **UI/UX Design Evolution (Sept 27, 2025)**:
-  - ✅ **Elevated Write Button**: Replaced floating action button with elegant elevated tab design
-  - ✅ **Thicker Navigation**: Increased bottom navigation height to 100px for elevated button
-  - ✅ **No Content Blocking**: Eliminated FAB interference with content across all tabs
-  - ✅ **Perfect Integration**: Seamless integration with existing CustomTabBar elevated functionality
-  - ✅ **Action vs Navigation**: Write triggers action (journal flow) rather than navigation to page
+  **UI/UX Design Evolution (January 24, 2025)**:
+  - ✅ **Clean Timeline Design**: Moved Write and Calendar buttons to Timeline app bar
+  - ✅ **Simplified Navigation**: Removed elevated Write tab for cleaner bottom navigation
+  - ✅ **Better Information Architecture**: Write button logically placed where users view entries
+  - ✅ **More Screen Space**: Flat bottom navigation design provides more content area
+  - ✅ **Streamlined Bottom Nav**: Clean 4-tab design with consistent spacing
 
   1. ARC Module: Core Journaling Interface
 
