@@ -131,7 +131,7 @@ class _PhaseAnalysisViewState extends State<PhaseAnalysisView>
   }
 
   Future<void> _createPhaseRegimes(
-    List<PhaseSegmentProposal> proposals,
+List<PhaseSegmentProposal> proposals,
     Map<String, PhaseLabel> overrides,
   ) async {
     try {
@@ -205,6 +205,47 @@ class _PhaseAnalysisViewState extends State<PhaseAnalysisView>
     }
   }
 
+  Future<void> _cleanupDuplicates() async {
+    try {
+      setState(() {
+        _isLoading = true;
+      });
+
+      final analyticsService = AnalyticsService();
+      final rivetSweepService = RivetSweepService(analyticsService);
+      final phaseRegimeService = PhaseRegimeService(analyticsService, rivetSweepService);
+      await phaseRegimeService.initialize();
+
+      final removedCount = await phaseRegimeService.removeDuplicates();
+
+      // Reload phase data to show cleaned up regimes
+      await _loadPhaseData();
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Cleaned up $removedCount duplicate phase regimes'),
+            backgroundColor: removedCount > 0 ? Colors.orange : Colors.green,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to cleanup duplicates: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
@@ -265,6 +306,11 @@ class _PhaseAnalysisViewState extends State<PhaseAnalysisView>
               );
             },
             tooltip: 'Phase Help',
+          ),
+          IconButton(
+            icon: const Icon(Icons.clean_hands),
+            onPressed: _cleanupDuplicates,
+            tooltip: 'Clean Up Duplicates',
           ),
           IconButton(
             icon: const Icon(Icons.auto_awesome),

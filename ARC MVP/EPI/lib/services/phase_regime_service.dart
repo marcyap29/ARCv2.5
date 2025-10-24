@@ -1,7 +1,6 @@
 // lib/services/phase_regime_service.dart
 // Service for managing phase regimes and timeline
 
-import 'dart:convert';
 import 'package:hive/hive.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/phase_models.dart';
@@ -76,6 +75,37 @@ class PhaseRegimeService {
     double? confidence,
     List<String> anchors = const [],
   }) async {
+    // Check for duplicates by time overlap
+    final existingRegimes = allRegimes;
+    final hasOverlap = existingRegimes.any((existing) {
+      return existing.start.isBefore(end ?? DateTime.now()) &&
+             (existing.end == null || existing.end!.isAfter(start));
+    });
+    
+    if (hasOverlap) {
+      print('⚠️ Skipping phase regime creation: overlaps with existing regime');
+      print('   New: ${label.name} (${start} - ${end ?? 'ongoing'})');
+      print('   Existing: ${existingRegimes.where((r) => 
+        r.start.isBefore(end ?? DateTime.now()) &&
+        (r.end == null || r.end!.isAfter(start))
+      ).map((r) => '${r.label.name} (${r.start} - ${r.end ?? 'ongoing'})').join(', ')}');
+      
+      // Return the existing overlapping regime instead of creating a new one
+      final overlappingRegime = existingRegimes.firstWhere((r) => 
+        r.start.isBefore(end ?? DateTime.now()) &&
+        (r.end == null || r.end!.isAfter(start))
+      );
+      
+      AnalyticsService.trackEvent('phase_regime.duplicate_skipped', properties: {
+        'label': label.name,
+        'source': source.name,
+        'existing_id': overlappingRegime.id,
+        'existing_label': overlappingRegime.label.name,
+      });
+      
+      return overlappingRegime;
+    }
+
     final regime = PhaseRegime(
       id: 'regime_${DateTime.now().millisecondsSinceEpoch}',
       label: label,
@@ -92,7 +122,9 @@ class PhaseRegimeService {
     await _regimesBox?.put(regime.id, regime);
     _phaseIndex?.addRegime(regime);
     
-        AnalyticsService.trackEvent('phase_regime.created', properties: {
+    print('✅ Created phase regime: ${regime.label.name} (${regime.start} - ${regime.end ?? 'ongoing'})');
+    
+    AnalyticsService.trackEvent('phase_regime.created', properties: {
       'label': label.name,
       'source': source.name,
       'duration_days': regime.duration.inDays,
@@ -121,6 +153,46 @@ class PhaseRegimeService {
         AnalyticsService.trackEvent('phase_regime.deleted', properties: {
       'regime_id': regimeId,
     });
+  }
+
+  /// Remove duplicate phase regimes (keeps the first one for each time period)
+  Future<int> removeDuplicates() async {
+    final regimes = allRegimes;
+    final duplicatesToRemove = <String>[];
+    
+    // Sort regimes by start time
+    regimes.sort((a, b) => a.start.compareTo(b.start));
+    
+    for (int i = 0; i < regimes.length; i++) {
+      for (int j = i + 1; j < regimes.length; j++) {
+        final regime1 = regimes[i];
+        final regime2 = regimes[j];
+        
+        // Check if they overlap in time
+        final hasOverlap = regime1.start.isBefore(regime2.end ?? DateTime.now()) &&
+                          (regime1.end == null || regime1.end!.isAfter(regime2.start));
+        
+        if (hasOverlap) {
+          // Keep the first one (earlier start time), remove the second
+          duplicatesToRemove.add(regime2.id);
+          print('🗑️ Marking duplicate for removal: ${regime2.label.name} (${regime2.start} - ${regime2.end ?? 'ongoing'})');
+          print('   Keeping: ${regime1.label.name} (${regime1.start} - ${regime1.end ?? 'ongoing'})');
+        }
+      }
+    }
+    
+    // Remove duplicates
+    for (final regimeId in duplicatesToRemove) {
+      await deleteRegime(regimeId);
+    }
+    
+    print('🧹 Cleaned up ${duplicatesToRemove.length} duplicate phase regimes');
+    
+    AnalyticsService.trackEvent('phase_regimes.duplicates_removed', properties: {
+      'count': duplicatesToRemove.length,
+    });
+    
+    return duplicatesToRemove.length;
   }
 
   /// Split a regime at a specific timestamp
