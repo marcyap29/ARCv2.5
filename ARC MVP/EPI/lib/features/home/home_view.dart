@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:my_app/features/home/home_cubit.dart';
 import 'package:my_app/features/home/home_state.dart';
-import 'package:my_app/arc/core/start_entry_flow.dart';
 import 'package:my_app/ui/phase/phase_analysis_view.dart';
 import 'package:my_app/features/timeline/timeline_view.dart';
 import 'package:my_app/features/timeline/timeline_cubit.dart';
@@ -17,7 +16,6 @@ import 'package:my_app/services/user_phase_service.dart';
 import 'package:my_app/atlas/phase_detection/cards/veil_card.dart';
 import 'package:my_app/atlas/phase_detection/your_patterns_view.dart';
 import 'package:my_app/atlas/phase_detection/info/insights_info_icon.dart';
-import 'package:my_app/atlas/phase_detection/info/info_icon.dart';
 import 'package:my_app/atlas/phase_detection/info/why_held_sheet.dart';
 import 'package:my_app/insights/insight_cubit.dart';
 import 'package:my_app/insights/widgets/insight_card_widget.dart';
@@ -33,7 +31,6 @@ import 'package:my_app/lumara/data/context_provider.dart';
 import 'package:my_app/lumara/data/context_scope.dart';
 import 'package:my_app/core/app_flags.dart';
 import 'package:flutter/foundation.dart';
-import 'package:my_app/services/journal_session_cache.dart';
 import 'package:my_app/core/services/photo_library_service.dart';
 import 'dart:math' as math;
 
@@ -58,7 +55,6 @@ class _HomeViewState extends State<HomeView> {
     const baseTabs = [
       TabItem(icon: Icons.auto_graph, text: 'Phase'),
       TabItem(icon: Icons.timeline, text: 'Timeline'),
-      TabItem(icon: Icons.add, text: 'Write'), // Write button as elevated tab
       TabItem(icon: Icons.insights, text: 'Insights'),
       TabItem(icon: Icons.settings, text: 'Settings'),
     ];
@@ -67,19 +63,18 @@ class _HomeViewState extends State<HomeView> {
       return [
         baseTabs[0], // Phase
         baseTabs[1], // Timeline
-        baseTabs[2], // Write (elevated)
         const TabItem(icon: Icons.psychology, text: 'LUMARA'),
-        baseTabs[3], // Insights
-        baseTabs[4], // Settings
+        baseTabs[2], // Insights
+        baseTabs[3], // Settings
       ];
     }
     return baseTabs;
   }
 
   List<String> get _tabNames {
-    const baseNames = ['Phase', 'Timeline', 'Write', 'Insights', 'Settings'];
+    const baseNames = ['Phase', 'Timeline', 'Insights', 'Settings'];
     if (AppFlags.isLumaraEnabled) {
-      return ['Phase', 'Timeline', 'Write', 'LUMARA', 'Insights', 'Settings'];
+      return ['Phase', 'Timeline', 'LUMARA', 'Insights', 'Settings'];
     }
     return baseNames;
   }
@@ -240,23 +235,15 @@ class _HomeViewState extends State<HomeView> {
                   print('DEBUG: Tab selected: $index');
                   print('DEBUG: Current selected index was: $selectedIndex');
 
-                  // Handle Write tab action instead of navigation
-                  if (_tabs[index].text == 'Write') {
-                    _onWritePressed();
-                    return;
-                  }
-
                   _homeCubit.changeTab(index);
                   // Refresh RIVET card when Insights tab is selected
-                  final insightsIndex = AppFlags.isLumaraEnabled ? 4 : 3; // Adjusted for Write tab
+                  final insightsIndex = AppFlags.isLumaraEnabled ? 2 : 2; // Insights is now at index 2
                   if (index == insightsIndex) {
                     print('DEBUG: Insights tab selected, refreshing RIVET card');
                     print('DEBUG: Calling _refreshRivetCardInInsights...');
                     _refreshRivetCardInInsights();
                   }
                 },
-                height: 100, // Increased height to accommodate elevated Write button
-                elevatedTabIndex: 2, // Write button is at index 2, elevated above other tabs
               ),
             // Write button is now integrated into the elevated tab bar design
             );
@@ -297,19 +284,6 @@ class _HomeViewState extends State<HomeView> {
     }
   }
 
-  void _onWritePressed() async {
-    // Clear any existing session cache to ensure fresh start
-    await JournalSessionCache.clearSession();
-
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => StartEntryFlow(
-          onExitToPhase: () => Navigator.pop(context),
-        ),
-      ),
-    );
-  }
 
   @override
   void dispose() {

@@ -25,11 +25,15 @@ import 'package:hive/hive.dart';
 import 'package:my_app/services/user_phase_service.dart';
 import 'package:my_app/features/arcforms/phase_recommender.dart';
 import 'package:my_app/mira/mira_service.dart';
-import 'dart:io';
 import 'dart:math' as math;
 
 class InteractiveTimelineView extends StatefulWidget {
-  const InteractiveTimelineView({super.key});
+  final VoidCallback? onJumpToDate;
+  
+  const InteractiveTimelineView({
+    super.key,
+    this.onJumpToDate,
+  });
 
   @override
   State<InteractiveTimelineView> createState() =>
@@ -243,28 +247,9 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
   }
 
   Widget _buildInteractiveTimeline() {
-    return Stack(
-              children: [
-        RefreshIndicator(
-          onRefresh: _refreshTimeline,
-          child: _build2DGridTimeline(),
-        ),
-        
-        // Jump to date floating action button
-        Positioned(
-          bottom: 100,
-          right: 16,
-          child: FloatingActionButton(
-            onPressed: _showJumpToDateDialog,
-            backgroundColor: kcPrimaryColor,
-            child: const Icon(
-              Icons.calendar_today,
-              color: Colors.white,
-            ),
-            mini: true,
-            ),
-          ),
-        ],
+    return RefreshIndicator(
+      onRefresh: _refreshTimeline,
+      child: _build2DGridTimeline(),
     );
   }
 
@@ -596,75 +581,6 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
     }
   }
 
-  void _showJumpToDateDialog() {
-    showDatePicker(
-      context: context,
-      initialDate: DateTime.now(),
-      firstDate: DateTime(2020),
-      lastDate: DateTime.now().add(const Duration(days: 365)),
-    ).then((selectedDate) {
-      if (selectedDate != null) {
-        _jumpToDate(selectedDate);
-      }
-    });
-  }
-
-  void _jumpToDate(DateTime targetDate) {
-    if (_entries.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('No entries available'),
-          duration: Duration(seconds: 2),
-        ),
-      );
-      return;
-    }
-
-    // Sort entries by date (newest first, same as display)
-    final sortedEntries = List<TimelineEntry>.from(_entries);
-    sortedEntries.sort((a, b) => b.createdAt.compareTo(a.createdAt));
-    
-    // Find the closest entry to the target date
-    int closestIndex = 0;
-    int minDaysDifference = 999999;
-    
-    for (int i = 0; i < sortedEntries.length; i++) {
-      final entry = sortedEntries[i];
-      final daysDifference = entry.createdAt.difference(targetDate).inDays.abs();
-      
-      if (daysDifference < minDaysDifference) {
-        minDaysDifference = daysDifference;
-        closestIndex = i;
-      }
-    }
-    
-    // Calculate the scroll position (approximate height per item)
-    const double itemHeight = 200.0; // Approximate height of each timeline entry card
-    const double margin = 16.0; // Vertical margin
-    final double targetOffset = closestIndex * (itemHeight + margin);
-    
-    // Scroll to the closest entry
-    _scrollController.animateTo(
-      targetOffset,
-      duration: const Duration(milliseconds: 500),
-      curve: Curves.easeInOut,
-    );
-    
-    // Show feedback to user
-    final closestEntry = sortedEntries[closestIndex];
-    final daysDiff = closestEntry.createdAt.difference(targetDate).inDays.abs();
-    
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          daysDiff == 0 
-            ? 'Jumped to entry on ${targetDate.toString().split(' ')[0]}'
-            : 'Jumped to closest entry (${daysDiff} days from ${targetDate.toString().split(' ')[0]})'
-        ),
-        duration: const Duration(seconds: 2),
-      ),
-    );
-  }
 
   Color _getPhaseColor(String? phase) {
     if (phase == null) return kcSecondaryTextColor;

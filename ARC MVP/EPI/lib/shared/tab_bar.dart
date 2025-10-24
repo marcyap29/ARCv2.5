@@ -6,7 +6,6 @@ class CustomTabBar extends StatefulWidget {
   final int selectedIndex;
   final ValueChanged<int> onTabSelected;
   final double? height;
-  final int? elevatedTabIndex; // Index of tab to elevate (e.g., + button)
 
   const CustomTabBar({
     super.key,
@@ -14,7 +13,6 @@ class CustomTabBar extends StatefulWidget {
     required this.selectedIndex,
     required this.onTabSelected,
     this.height,
-    this.elevatedTabIndex,
   });
 
   @override
@@ -24,15 +22,6 @@ class CustomTabBar extends StatefulWidget {
 class _CustomTabBarState extends State<CustomTabBar> {
   @override
   Widget build(BuildContext context) {
-    // Check if we have an elevated tab (roman numeral 1 shape)
-    final hasElevatedTab = widget.elevatedTabIndex != null && 
-                          widget.elevatedTabIndex! < widget.tabs.length;
-    
-    if (hasElevatedTab) {
-      return _buildRomanNumeralOneShape();
-    }
-    
-    // Default flat tab bar
     return Container(
       height: widget.height ?? 80,
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -53,7 +42,6 @@ class _CustomTabBarState extends State<CustomTabBar> {
           final index = entry.key;
           final tab = entry.value;
           final isSelected = index == widget.selectedIndex;
-          final isCenterTab = tab.text == 'Write'; // Check if this is the center Write tab
 
           return Expanded(
             child: GestureDetector(
@@ -65,14 +53,6 @@ class _CustomTabBarState extends State<CustomTabBar> {
                   gradient: isSelected ? kcPrimaryGradient : null,
                   color: isSelected ? null : kcSurfaceAltColor,
                   borderRadius: BorderRadius.circular(16),
-                  // Add special styling for center tab when selected
-                  boxShadow: isSelected && isCenterTab ? [
-                    BoxShadow(
-                      color: kcPrimaryColor.withOpacity(0.3),
-                      blurRadius: 8,
-                      offset: const Offset(0, 2),
-                    ),
-                  ] : null,
                 ),
                 child: Center(
                   child: _buildTabContent(tab, isSelected),
@@ -85,103 +65,9 @@ class _CustomTabBarState extends State<CustomTabBar> {
     );
   }
 
-  Widget _buildRomanNumeralOneShape() {
-    final elevatedIndex = widget.elevatedTabIndex!;
-    final elevatedTab = widget.tabs[elevatedIndex];
-    final otherTabs = widget.tabs.where((tab) => tab != elevatedTab).toList();
-    
-    return Container(
-      height: (widget.height ?? 80) + 30, // Slightly more height for elevated button
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      child: Stack(
-        children: [
-          // Main tab bar container
-          Positioned(
-            bottom: 0,
-            left: 0,
-            right: 0,
-            child: Container(
-              height: (widget.height ?? 80) - 15, // Reduce height by 15px
-              padding: const EdgeInsets.all(6), // Reduce padding from 8 to 6
-              decoration: BoxDecoration(
-                color: kcSurfaceAltColor,
-                borderRadius: BorderRadius.circular(24),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.2),
-                    blurRadius: 10,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-              ),
-              child: Row(
-                children: otherTabs.asMap().entries.map((entry) {
-                  final originalIndex = widget.tabs.indexOf(otherTabs[entry.key]);
-                  final isSelected = originalIndex == widget.selectedIndex;
-
-                  return Expanded(
-                    child: GestureDetector(
-                      onTap: () => widget.onTabSelected(originalIndex),
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 250),
-                        margin: const EdgeInsets.all(2), // Reduce margin from 4 to 2
-                        decoration: BoxDecoration(
-                          gradient: isSelected ? kcPrimaryGradient : null,
-                          color: isSelected ? null : kcSurfaceAltColor,
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        child: Center(
-                          child: _buildTabContent(otherTabs[entry.key], isSelected),
-                        ),
-                      ),
-                    ),
-                  );
-                }).toList(),
-              ),
-            ),
-          ),
-          // Elevated + button
-          Positioned(
-            top: 0, // Lower the + button slightly
-            left: 0,
-            right: 0,
-            child: Center(
-              child: GestureDetector(
-                onTap: () => widget.onTabSelected(elevatedIndex),
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 250),
-                  width: 45, // Smaller purple border to prevent cropping
-                  height: 45,
-                  decoration: BoxDecoration(
-                    gradient: elevatedIndex == widget.selectedIndex ? kcPrimaryGradient : kcPrimaryGradient,
-                    shape: BoxShape.circle,
-                    boxShadow: [
-                      BoxShadow(
-                        color: kcPrimaryColor.withOpacity(0.4),
-                        blurRadius: 12,
-                        offset: const Offset(0, 5),
-                      ),
-                    ],
-                  ),
-                  child: Center(
-                    child: Icon(
-                      elevatedTab.icon,
-                      size: 28, // Keep icon size the same
-                      color: Colors.white,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 
   Widget _buildTabContent(TabItem tab, bool isSelected) {
     final textColor = isSelected ? Colors.white : kcPrimaryTextColor;
-    final isCenterTab = tab.text == 'Write'; // Check if this is the center Write tab
 
     if (tab.icon != null && tab.text != null) {
       return Column(
@@ -189,15 +75,15 @@ class _CustomTabBarState extends State<CustomTabBar> {
         children: [
           Icon(
             tab.icon,
-            size: isCenterTab ? 24 : 20, // Larger icon for center tab
+            size: 20,
             color: textColor,
           ),
-          const SizedBox(height: 2), // Reduce spacing from 4 to 2
+          const SizedBox(height: 2),
           Text(
             tab.text!,
             style: TextStyle(
-              fontSize: isCenterTab ? 12 : 10, // Larger text for center tab
-              fontWeight: isCenterTab ? FontWeight.w600 : FontWeight.w500, // Bolder for center tab
+              fontSize: 10,
+              fontWeight: FontWeight.w500,
               color: textColor,
             ),
             maxLines: 1,
@@ -208,14 +94,14 @@ class _CustomTabBarState extends State<CustomTabBar> {
     } else if (tab.icon != null) {
       return Icon(
         tab.icon,
-        size: 20, // Reduce icon size from 24 to 20
+        size: 20,
         color: textColor,
       );
     } else {
       return Text(
         tab.text!,
         style: TextStyle(
-          fontSize: 12, // Reduce text size from 14 to 12
+          fontSize: 12,
           fontWeight: FontWeight.w500,
           color: textColor,
         ),
