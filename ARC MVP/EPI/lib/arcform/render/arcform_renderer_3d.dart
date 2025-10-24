@@ -144,15 +144,15 @@ class _Arcform3DState extends State<Arcform3D> {
       final rotatedY = star.position.y * math.cos(_rotationX) - rotatedZ * math.sin(_rotationX);
       final finalZ = star.position.y * math.sin(_rotationX) + rotatedZ * math.cos(_rotationX);
 
-      // Perspective projection
-      const focalLength = 400.0;
-      final scale = focalLength / (focalLength + finalZ);
-      final projectedX = rotatedX * scale * _zoom;
-      final projectedY = rotatedY * scale * _zoom;
+      // Perspective projection with closer focal length
+      const focalLength = 200.0; // Reduced from 400 to bring constellation closer
+      final scale = focalLength / (focalLength + finalZ * 0.5); // Reduce Z impact
+      final projectedX = rotatedX * scale * _zoom * 2.0; // Increase overall scale
+      final projectedY = rotatedY * scale * _zoom * 2.0;
 
-      // Scale for depth effect
-      final depthScale = (1.0 + finalZ / 300).clamp(0.4, 1.8);
-      final nodeSize = star.size * depthScale;
+      // Scale for depth effect - more pronounced scaling
+      final depthScale = (1.0 + finalZ / 150).clamp(0.6, 2.5); // Increase range
+      final nodeSize = (star.size * depthScale * 3.0).clamp(8.0, 30.0); // Larger base size
 
       // Calculate screen position
       final screenX = center.dx + projectedX;
@@ -818,11 +818,11 @@ class _NebulaGlowPainter extends CustomPainter {
       final rotatedY = particle.y * math.cos(rotationX) - rotatedZ * math.sin(rotationX);
       final finalZ = particle.y * math.sin(rotationX) + rotatedZ * math.cos(rotationX);
 
-      // Perspective projection
-      const focalLength = 400.0;
-      final scale = focalLength / (focalLength + finalZ);
-      final projectedX = rotatedX * scale * zoom;
-      final projectedY = rotatedY * scale * zoom;
+      // Perspective projection with closer focal length
+      const focalLength = 200.0; // Match node rendering
+      final scale = focalLength / (focalLength + finalZ * 0.5);
+      final projectedX = rotatedX * scale * zoom * 2.0; // Match node scaling
+      final projectedY = rotatedY * scale * zoom * 2.0;
 
       final screenPos = Offset(
         center.dx + projectedX,
@@ -845,7 +845,7 @@ class _NebulaGlowPainter extends CustomPainter {
         ..style = PaintingStyle.fill
         ..maskFilter = MaskFilter.blur(BlurStyle.normal, particle.size * scale * 15);
 
-      canvas.drawCircle(screenPos, particle.size * scale * 20, paint);
+      canvas.drawCircle(screenPos, particle.size * scale * 40, paint); // Double nebula size
     }
   }
 
@@ -899,18 +899,18 @@ class _ConstellationLinesPainter extends CustomPainter {
       final endRotatedY = edge.end.y * math.cos(rotationX) - endRotatedZ * math.sin(rotationX);
       final endFinalZ = edge.end.y * math.sin(rotationX) + endRotatedZ * math.cos(rotationX);
 
-      // Perspective projection for both points
-      const focalLength = 400.0;
-      final startScale = focalLength / (focalLength + startFinalZ);
-      final endScale = focalLength / (focalLength + endFinalZ);
+      // Perspective projection for both points with closer focal length
+      const focalLength = 200.0; // Match node rendering
+      final startScale = focalLength / (focalLength + startFinalZ * 0.5);
+      final endScale = focalLength / (focalLength + endFinalZ * 0.5);
 
       final startProj = Offset(
-        center.dx + startRotatedX * startScale * zoom,
-        center.dy + startRotatedY * startScale * zoom,
+        center.dx + startRotatedX * startScale * zoom * 2.0, // Match node scaling
+        center.dy + startRotatedY * startScale * zoom * 2.0,
       );
       final endProj = Offset(
-        center.dx + endRotatedX * endScale * zoom,
-        center.dy + endRotatedY * endScale * zoom,
+        center.dx + endRotatedX * endScale * zoom * 2.0,
+        center.dy + endRotatedY * endScale * zoom * 2.0,
       );
 
       // Calculate line opacity based on depth and distance
