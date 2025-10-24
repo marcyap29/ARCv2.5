@@ -351,7 +351,8 @@ The EPI project continues to evolve with this major enhancement to the reflectiv
 - **Intuitive Gestures**: Single finger drag to rotate, two finger pinch to zoom (2x to 8x range)
 
 #### **2. Enhanced Visual Experience** ✅ **PRODUCTION READY**
-- **Galaxy-like Twinkling**: Multiple glow layers with subtle twinkling animation (4-second cycle)
+- **Individual Star Twinkling**: Each star twinkles at different times (10-second cycle, 15% size variation)
+- **Keyword Labels**: Keywords visible above each star with white text and dark background
 - **Colorful Connecting Lines**: Lines blend colors of connected stars based on sentiment
 - **Enhanced Glow Effects**: Outer, middle, and inner glow layers for realistic star appearance
 - **Connected Stars**: All nodes connected with lines forming constellation patterns
@@ -365,15 +366,15 @@ The EPI project continues to evolve with this major enhancement to the reflectiv
 - **Better UX**: Constellation stays in place until user manually rotates it
 
 ### **Files Modified**
-- `lib/ui/phase/simplified_arcform_view_3d.dart` - Fixed data structure conversion and display
-- `lib/arcform/render/arcform_renderer_3d.dart` - Enhanced visuals, fixed imports, added twinkling
+- `lib/ui/phase/simplified_arcform_view_3d.dart` - Fixed data structure conversion and enabled labels
+- `lib/arcform/render/arcform_renderer_3d.dart` - Added individual twinkling and label rendering
 - `lib/arcform/models/arcform_models.dart` - Added fromJson method for data conversion
 - `lib/ui/phase/phase_arcform_3d_screen.dart` - Enhanced 3D full-screen experience
 
 ### **User Experience Impact**
 - **Before**: "Generating Constellations" with 0 stars, no visual feedback after phase analysis
-- **After**: Beautiful, twinkling galaxy-like constellations that update after phase analysis
-- **Result**: Users now see their current phase represented as stunning 3D constellations they can explore
+- **After**: Beautiful, individual twinkling stars with keyword labels that update after phase analysis
+- **Result**: Users now see their current phase represented as stunning 3D constellations with informative labels they can explore
 
 ---
 

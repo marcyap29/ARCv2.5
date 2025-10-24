@@ -8,6 +8,7 @@ import 'package:my_app/prism/mcp/utils/image_processing.dart';
 import 'package:archive/archive.dart';
 import 'package:archive/archive_io.dart';
 import 'package:path/path.dart' as path;
+import 'package:path_provider/path_provider.dart';
 import '../models/mcp_manifest.dart';
 
 /// MCP Pack Export Service for .mcpkg and .mcp/ formats
@@ -30,11 +31,22 @@ class McpPackExportService {
     bool includePhotos = true,
     bool reducePhotoSize = false,
   }) async {
+    Directory? tempDir;
     try {
       print('📦 Starting MCP export to: $_outputPath');
-      
+
       // Create temporary directory for MCP structure
-      final tempDir = Directory.systemTemp.createTempSync('mcp_export_');
+      // Use getApplicationDocumentsDirectory instead of systemTemp for iOS compatibility
+      final appDir = await getApplicationDocumentsDirectory();
+      final tempDirPath = path.join(appDir.path, 'tmp', 'mcp_export_${DateTime.now().millisecondsSinceEpoch}');
+      tempDir = Directory(tempDirPath);
+
+      // Ensure temp directory exists
+      if (await tempDir.exists()) {
+        await tempDir.delete(recursive: true);
+      }
+      await tempDir.create(recursive: true);
+
       final mcpDir = Directory(path.join(tempDir.path, 'mcp'));
       await mcpDir.create(recursive: true);
       
@@ -119,6 +131,19 @@ class McpPackExportService {
       
     } catch (e) {
       print('❌ MCP export failed: $e');
+
+      // Clean up temp directory on error
+      if (tempDir != null) {
+        try {
+          if (await tempDir.exists()) {
+            await tempDir.delete(recursive: true);
+            print('🗑️ Cleaned up temp directory after error');
+          }
+        } catch (cleanupError) {
+          print('⚠️ Warning: Failed to clean up temp directory: $cleanupError');
+        }
+      }
+
       return McpExportResult(
         success: false,
         error: e.toString(),

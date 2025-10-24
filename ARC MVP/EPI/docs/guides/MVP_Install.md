@@ -31,9 +31,11 @@ This guide installs and runs the full MVP. The app uses Gemini via the LLMRegist
 - **Phase-Specific Layouts**: Different 3D arrangements for each phase (Discovery helix, Recovery cluster, etc.)
 - **Sentiment Colors**: Warm/cool colors based on emotional valence with deterministic variations
 - **Connected Stars**: All nodes connected with lines forming real constellation patterns
-- **Galaxy-like Twinkling**: Multiple glow layers with subtle twinkling animation (4-second cycle)
+- **Individual Star Twinkling**: Each star twinkles at different times (10-second cycle, 15% size variation)
+- **Keyword Labels**: Keywords visible above each star with white text and dark background
 - **Colorful Connecting Lines**: Lines blend colors of connected stars based on sentiment
 - **Enhanced Glow Effects**: Outer, middle, and inner glow layers for realistic star appearance
+- **Smooth Rotation**: Reduced rotation sensitivity for better control and user experience
 - **Performance Optimized**: Removed unnecessary animations and calculations
 
 ## Prerequisites

@@ -1150,44 +1150,63 @@
   4. **Usage Logic**: `LumaraAssistantCubit` respects manual selection or uses automatic fallback
   5. **Consistent Detection**: `LLMAdapter` uses same detection method for on-device models
 
-  ## 🌟 3D Constellation ARCForms Architecture (Updated January 22, 2025)
+  ## 🌟 3D Constellation ARCForms Architecture (Updated January 23, 2025)
 
-  **Static 3D Constellation System with Manual Rotation Controls**:
+  **Static 3D Constellation System with Phase-Optimized Camera Angles**:
   ```
-  Phase Data → 3D Layout Engine → Static Constellation → Manual 3D Controls → Interactive Visualization
-                                      ↓                    ↓              ↓
-                              Phase-Specific Layouts   Connected Stars   User-Controlled Rotation
+  Phase Data → 3D Layout Engine → Static Constellation → Phase Camera → Full-Screen Viewer
+                    ↓                    ↓                    ↓              ↓
+            Optimized Node Count   Phase-Specific Shape   Optimal Angle   Direct Navigation
   ```
 
   **Key Components**:
-  - `lib/arcform/render/arcform_renderer_3d.dart` - Main 3D renderer with manual rotation controls
-  - `lib/arcform/layouts/layouts_3d.dart` - Phase-aware 3D layout algorithms
+  - `lib/arcform/render/arcform_renderer_3d.dart` - Main 3D renderer with phase-aware camera angles
+  - `lib/arcform/layouts/layouts_3d.dart` - Phase-aware 3D layout algorithms with optimized node counts
   - `lib/arcform/render/color_map.dart` - Sentiment-aware color mapping
   - `lib/arcform/render/nebula.dart` - Phase-aware nebula particle effects
   - `lib/arcform/util/seeded.dart` - Deterministic random number generation
   - `lib/arcform/models/arcform_models.dart` - 3D data contracts (ArcNode3D, ArcEdge3D, ArcformSkin)
+  - `lib/ui/phase/simplified_arcform_view_3d.dart` - Direct full-screen navigation with preview protection
+  - `lib/ui/phase/phase_arcform_3d_screen.dart` - Full-screen ARCForm viewer
 
   **3D Constellation Features**:
-  - ✅ **Static Star Formation**: Constellations appear as stable, connected star patterns (like real constellations)
-  - ✅ **Manual 3D Controls**: Users can manually rotate and explore 3D space at their own pace
-  - ✅ **Phase-Specific Layouts**: Different 3D arrangements for each phase (Discovery helix, Recovery cluster, etc.)
+  - ✅ **Static Visualization**: Perfectly static constellations with no animation or spinning
+  - ✅ **Phase-Optimized Shapes**: Each phase has a unique 3D form optimized for visual clarity
+  - ✅ **Smart Camera Angles**: Each phase viewed from optimal angle to show its characteristic shape
+  - ✅ **Optimized Node Counts**: 8-15 nodes per phase for clear, recognizable patterns
+  - ✅ **Direct Navigation**: Tap card → full-screen 3D view (no intermediate screens)
+  - ✅ **Preview Protection**: Touch events disabled on preview cards to prevent unwanted motion
   - ✅ **Sentiment Colors**: Warm/cool colors based on emotional valence with deterministic jitter
-  - ✅ **Connected Stars**: All nodes connected with lines forming constellation patterns
-  - ✅ **Galaxy-like Twinkling**: Multiple glow layers with subtle twinkling animation (4-second cycle)
-  - ✅ **Colorful Connecting Lines**: Lines blend colors of connected stars based on sentiment
+  - ✅ **Connected Stars**: Proximity-based edge connections forming constellation patterns
+  - ✅ **Keyword Labels**: Keywords visible on each node with sentiment-aware styling
   - ✅ **Nebula Background**: Phase-aware particle effects for atmospheric depth
-  - ✅ **Data Structure Fix**: Proper conversion between Arcform3DData and snapshot display format
 
-  **Technical Implementation (January 22, 2025)**:
-  - **Static Constellation**: Removed automatic spinning, added manual 3D rotation controls
-  - **Gesture Controls**: Single finger drag for rotation, two finger pinch for zoom
-  - **Performance Optimized**: Removed unnecessary breathing animations and calculations
-  - **Phase-Aware Layouts**: 6 different 3D arrangements based on current phase
+  **Phase-Specific 3D Layouts & Camera Settings** (January 23, 2025):
+
+  | Phase | Shape | Nodes | Camera Angle | Zoom | Description |
+  |-------|-------|-------|-------------|------|-------------|
+  | **Discovery** | Helix | 10 | rotX=1.2, rotY=0.7 | 1.4 | Vertical spiral ascending with 1.5 turns, Z-spread=3.0 |
+  | **Expansion** | Petal Rings | 12 | rotX=0.8, rotY=0.3 | 1.3 | Multi-layer concentric rings with 2.5 vertical spread |
+  | **Transition** | Reaching Fingers | 12 | rotX=0.0, rotY=0.0 | 1.2 | "Creation of Adam" - two centers with 3 fingers each reaching toward connection |
+  | **Consolidation** | Geodesic Lattice | 15 | rotX=1.0, rotY=0.6 | 1.5 | Spherical grid with 3 latitude rings (like geodesic dome) |
+  | **Recovery** | Tight Cluster | 8 | rotX=0.7, rotY=0.5 | 1.2 | Compact Gaussian cluster (0.8 spread) showing healing huddle |
+  | **Breakthrough** | Supernova Burst | 10 | rotX=0.8, rotY=0.6 | 2.8 | Explosive radial spread (0.5-3.0 radius) with 30% streak effect |
+
+  **Technical Implementation (January 23, 2025)**:
+  - **No Animation**: Completely static display - removed all automatic spinning and twinkling
+  - **Phase-Aware Cameras**: Each phase gets optimized camera angle (rotX, rotY, zoom) for best visibility
+  - **Zoom System**: `scale = width / 6.0 * (1.0 / zoom)` - HIGHER zoom = FURTHER away
+  - **Node Optimization**: Phase-specific node counts (8-15) for optimal shape recognition
+  - **Layout Improvements**:
+    - Discovery: 50% wider Z-spread (3.0) for clear helix visibility
+    - Transition: 67% wider spread (-2.0 to +2.0) with "reaching fingers" pattern
+    - Consolidation: Geodesic dome with visible latitude/longitude rings
+    - Breakthrough: Power function distribution for dramatic starburst effect
+  - **Navigation UX**: Direct tap → full-screen (bypasses intermediate list screen)
+  - **Preview Protection**: `IgnorePointer` wrapper prevents touch events on preview cards
   - **Deterministic Rendering**: Seeded random generation for consistent visual variations
   - **Sentiment Integration**: Warm/cool color mapping based on emotional valence data
-  - **3D Math**: Vector3D transformations with proper camera controls and bounds checking
-  - **Data Flow Fix**: Fixed Arcform3DData to snapshot conversion for proper display
-  - **Enhanced Visuals**: Multiple glow layers, colorful connecting lines, galaxy-like twinkling
+  - **3D Math**: Vector3D transformations with phase-optimized camera matrices
 
   **3D Constellation Data Models**:
   ```dart

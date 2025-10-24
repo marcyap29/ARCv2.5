@@ -2,14 +2,12 @@
 // 3D Constellation ARCForms view - updated with 3D renderer
 
 import 'package:flutter/material.dart';
-import 'package:hive/hive.dart';
 import '../../shared/app_colors.dart';
 import '../../shared/text_style.dart';
 import '../../arcform/models/arcform_models.dart';
 import '../../arcform/layouts/layouts_3d.dart';
 import '../../arcform/render/arcform_renderer_3d.dart';
 import '../../arcform/util/seeded.dart';
-import 'phase_arcform_3d_screen.dart';
 
 /// Simplified ARCForms view with 3D constellation renderer
 class SimplifiedArcformView3D extends StatefulWidget {
@@ -151,7 +149,6 @@ class _SimplifiedArcformView3DState extends State<SimplifiedArcformView3D> {
     final keywords = List<String>.from(snapshot['keywords'] ?? []);
     final phaseHint = snapshot['phaseHint'] ?? 'Discovery';
     final createdAt = DateTime.tryParse(snapshot['createdAt'] ?? '') ?? DateTime.now();
-    final title = snapshot['title'] ?? 'Untitled Constellation';
     
     // Generate 3D constellation data
     final arcformData = _generateArcformData(snapshot, phaseHint);
@@ -161,14 +158,8 @@ class _SimplifiedArcformView3DState extends State<SimplifiedArcformView3D> {
       color: kcSurfaceColor,
       child: InkWell(
         onTap: () {
-          Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (context) => PhaseArcform3DScreen(
-                phase: phaseHint,
-                title: 'Constellation View',
-              ),
-            ),
-          );
+          // Go directly to full-screen 3D view
+          _showFullScreenArcform(phaseHint);
         },
         child: Padding(
           padding: const EdgeInsets.all(16),
@@ -186,7 +177,7 @@ class _SimplifiedArcformView3DState extends State<SimplifiedArcformView3D> {
                   const SizedBox(width: 8),
                   Expanded(
                   child: Text(
-                    '$phaseHint Constellation',
+                    '$phaseHint Phase',
                     style: heading3Style(context),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -225,13 +216,16 @@ class _SimplifiedArcformView3DState extends State<SimplifiedArcformView3D> {
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(8),
                   child: arcformData != null
-                      ? Arcform3D(
-                          nodes: arcformData.nodes,
-                          edges: arcformData.edges,
-                          phase: arcformData.phase,
-                          skin: arcformData.skin,
-                          showNebula: true,
-                          enableLabels: true, // Enable keyword labels
+                      ? IgnorePointer(
+                          // Prevent touch events from triggering any animation in preview
+                          child: Arcform3D(
+                            nodes: arcformData.nodes,
+                            edges: arcformData.edges,
+                            phase: arcformData.phase,
+                            skin: arcformData.skin,
+                            showNebula: true,
+                            enableLabels: true, // Enable keyword labels
+                          ),
                         )
                       : Center(
                           child: Column(
@@ -310,9 +304,14 @@ class _SimplifiedArcformView3DState extends State<SimplifiedArcformView3D> {
                   ),
                 ],
               ],
-              
+
               const SizedBox(height: 16),
-              
+
+              // OTHER PHASE SHAPES PREVIEW
+              _buildOtherPhasesSection(phaseHint),
+
+              const SizedBox(height: 16),
+
               // Metadata
               Row(
                 children: [
@@ -572,7 +571,7 @@ class _SimplifiedArcformView3DState extends State<SimplifiedArcformView3D> {
   String _formatDate(DateTime date) {
     final now = DateTime.now();
     final difference = now.difference(date);
-    
+
     if (difference.inDays == 0) {
       return 'Today';
     } else if (difference.inDays == 1) {
@@ -582,5 +581,181 @@ class _SimplifiedArcformView3DState extends State<SimplifiedArcformView3D> {
     } else {
       return '${date.month}/${date.day}/${date.year}';
     }
+  }
+
+  /// Show full-screen 3D ARCForm viewer for a specific phase
+  void _showFullScreenArcform(String phase) {
+    // Generate constellation data for this phase
+    final arcform = _generatePhaseConstellation(phase);
+
+    if (arcform == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Unable to generate constellation for $phase phase')),
+      );
+      return;
+    }
+
+    // Navigate directly to full-screen viewer
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => _FullScreenArcformViewer(arcform: arcform),
+      ),
+    );
+  }
+
+  /// Build section showing other phase shapes as examples
+  Widget _buildOtherPhasesSection(String currentPhase) {
+    // Get list of other phases to show (exclude current phase)
+    final allPhases = [
+      'Discovery',
+      'Expansion',
+      'Transition',
+      'Consolidation',
+      'Recovery',
+      'Breakthrough',
+    ];
+
+    final otherPhases = allPhases
+        .where((phase) => phase.toLowerCase() != currentPhase.toLowerCase())
+        .toList();
+
+    if (otherPhases.isEmpty) return const SizedBox.shrink();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Other Phase Shapes:',
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 12,
+            color: kcSecondaryTextColor,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: otherPhases.map((phase) => _buildPhasePreviewChip(phase)).toList(),
+        ),
+      ],
+    );
+  }
+
+  /// Build a small chip showing a phase preview
+  Widget _buildPhasePreviewChip(String phase) {
+    return GestureDetector(
+      onTap: () {
+        // Navigate to this phase's full 3D view
+        _showFullScreenArcform(phase);
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: kcBackgroundColor,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: kcSecondaryColor.withOpacity(0.3)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Phase icon (different for each phase type)
+            Icon(
+              _getPhaseIcon(phase),
+              color: kcPrimaryColor.withOpacity(0.7),
+              size: 16,
+            ),
+            const SizedBox(width: 6),
+            Text(
+              phase,
+              style: TextStyle(
+                color: kcPrimaryColor,
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Get icon for each phase type
+  IconData _getPhaseIcon(String phase) {
+    switch (phase.toLowerCase()) {
+      case 'discovery':
+        return Icons.explore;
+      case 'expansion':
+        return Icons.air;
+      case 'transition':
+        return Icons.shuffle;
+      case 'consolidation':
+        return Icons.verified;
+      case 'recovery':
+        return Icons.spa;
+      case 'breakthrough':
+        return Icons.auto_awesome;
+      default:
+        return Icons.auto_awesome_outlined;
+    }
+  }
+}
+
+/// Full-screen ARCForm viewer
+class _FullScreenArcformViewer extends StatelessWidget {
+  final Arcform3DData arcform;
+
+  const _FullScreenArcformViewer({required this.arcform});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: kcBackgroundColor,
+      appBar: AppBar(
+        backgroundColor: kcBackgroundColor,
+        title: Text(arcform.title, style: heading1Style(context)),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.info_outline),
+            onPressed: () => _showInfo(context),
+          ),
+        ],
+      ),
+      body: Arcform3D(
+        nodes: arcform.nodes,
+        edges: arcform.edges,
+        phase: arcform.phase,
+        skin: arcform.skin,
+        showNebula: true,
+        enableLabels: true,
+      ),
+    );
+  }
+
+  void _showInfo(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('ARCForm Info', style: heading2Style(context)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Phase: ${arcform.phase}'),
+            Text('Nodes: ${arcform.nodes.length}'),
+            Text('Edges: ${arcform.edges.length}'),
+            const SizedBox(height: 16),
+            const Text('About this ARCForm:'),
+            Text(arcform.content ?? '', style: const TextStyle(fontSize: 12, fontStyle: FontStyle.italic)),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
   }
 }

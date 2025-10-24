@@ -3,7 +3,6 @@
 
 import 'package:flutter/material.dart';
 import 'package:vector_math/vector_math_64.dart' as vm;
-import 'dart:math' as math;
 import '../models/arcform_models.dart';
 import '../util/seeded.dart';
 import 'color_map.dart';
@@ -34,41 +33,100 @@ class Arcform3D extends StatefulWidget {
   State<Arcform3D> createState() => _Arcform3DState();
 }
 
-class _Arcform3DState extends State<Arcform3D> with TickerProviderStateMixin {
-  double _rotationX = 0.2;
-  double _rotationY = 0.0;
-  double _zoom = 2.0; // Start more zoomed out to see the galaxy spread
-  Offset? _lastPanPosition;
+class _Arcform3DState extends State<Arcform3D> {
+  // PHASE-AWARE CAMERA ANGLES: Each phase gets optimized 3/4 view
+  // Set dynamically based on phase to show each shape clearly
+  late double _rotationX;
+  late double _rotationY;
+  late double _zoom;
+
+  // GESTURES DISABLED: No interaction until we verify the shape looks correct
+  // Offset? _lastPanPosition;  // Disabled
+  // double _baseScaleFactor = 1.0;  // Disabled
 
   List<_Star> _stars = [];
   List<_Edge> _edges = [];
   List<NebulaParticle> _nebulaParticles = [];
-  late AnimationController _animationController;
 
   @override
   void initState() {
     super.initState();
-    _animationController = AnimationController(
-      duration: const Duration(seconds: 10), // 10 second cycle for slow twinkling
-      vsync: this,
-    )..repeat();
+    _setCameraForPhase();
     _buildScene();
+  }
+
+  /// Set camera angle optimized for the current phase's shape
+  void _setCameraForPhase() {
+    switch (widget.phase.toLowerCase()) {
+      case 'discovery':
+        // HELIX: STRONG side-angled view to show vertical spiral clearly
+        _rotationX = 1.2;  // Even more sideways (was 1.0) - looking at helix from the side
+        _rotationY = 0.7;  // More rotation to emphasize spiral curve (was 0.5)
+        _zoom = 1.4;       // Adjusted zoom (was 1.5)
+        break;
+
+      case 'exploration':
+      case 'expansion':
+        // PETAL RINGS: Angled down to see layered concentric rings
+        _rotationX = 0.8;
+        _rotationY = 0.3;
+        _zoom = 1.3;
+        break;
+
+      case 'transition':
+        // BRANCHES: Straight-on view to see "reaching fingers" from side
+        _rotationX = 0.0;   // Level view - looking straight at fingers reaching
+        _rotationY = 0.0;   // No rotation - see fingers reaching horizontally
+        _zoom = 1.2;        // Medium distance to see full reach
+        break;
+
+      case 'consolidation':
+        // LATTICE: 3/4 view from side to see geodesic dome rings clearly
+        _rotationX = 1.0;   // Side angle to see latitude rings
+        _rotationY = 0.6;   // Rotation for depth
+        _zoom = 1.5;        // Zoom OUT to see entire sphere (HIGHER = further)
+        break;
+
+      case 'recovery':
+        // CLUSTER: Medium distance to see tight cluster without overlap
+        _rotationX = 0.7;   // Angled view for depth
+        _rotationY = 0.5;   // Moderate rotation
+        _zoom = 1.2;        // Zoom OUT to fit cluster comfortably (HIGHER = further)
+        break;
+
+      case 'breakthrough':
+        // BURST: Far view with better angle to show starburst pattern
+        _rotationX = 0.8;   // More angled to see 3D depth
+        _rotationY = 0.6;   // More rotation to show radial spread
+        _zoom = 2.8;        // Far back (keep similar distance)
+        break;
+
+      default:
+        // SPHERICAL: Balanced view of Fibonacci sphere
+        _rotationX = 0.5;
+        _rotationY = 0.5;
+        _zoom = 1.3;
+    }
+
+    print('📷 Camera set for ${widget.phase}: rotX=$_rotationX, rotY=$_rotationY, zoom=$_zoom');
   }
 
   @override
   void didUpdateWidget(Arcform3D oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.nodes != widget.nodes ||
+    if (oldWidget.phase != widget.phase) {
+      _setCameraForPhase(); // Update camera when phase changes
+      _buildScene();
+    } else if (oldWidget.nodes != widget.nodes ||
         oldWidget.edges != widget.edges ||
-        oldWidget.phase != widget.phase ||
         oldWidget.skin != widget.skin) {
       _buildScene();
     }
+    // NO setState() calls here - prevents spinning during navigation
   }
 
   @override
   void dispose() {
-    _animationController.dispose();
     super.dispose();
   }
 
@@ -83,14 +141,14 @@ class _Arcform3DState extends State<Arcform3D> with TickerProviderStateMixin {
       );
       
       return _Star(
-        position: vm.Vector3(node.x * 3, node.y * 3, node.z * 3), // Increased scale for galaxy spread
+        position: vm.Vector3(node.x * 2, node.y * 2, node.z * 2), // Moderate spread - not too far apart
         color: Color.fromRGBO(
           (color.x * 255).toInt(),
           (color.y * 255).toInt(),
           (color.z * 255).toInt(),
           1.0,
         ),
-        size: 4.0 + node.weight * 6.0,
+        size: 6.0 + node.weight * 8.0, // Larger, more visible stars
         label: node.label,
       );
     }).toList();
@@ -164,48 +222,69 @@ class _Arcform3DState extends State<Arcform3D> with TickerProviderStateMixin {
 
   @override
   Widget build(BuildContext context) {
+    // GESTURES DISABLED: Display static constellation with fixed camera angle
+    // This lets us verify the helix shape is correct before adding back interaction
+    return CustomPaint(
+      size: Size.infinite,
+      painter: _ConstellationPainter(
+        stars: _stars,
+        edges: _edges,
+        nebula: _nebulaParticles,
+        rotationX: _rotationX,
+        rotationY: _rotationY,
+        zoom: _zoom,
+        enableLabels: widget.enableLabels,
+      ),
+    );
+
+    /* COMMENTED OUT: Gesture handling - will re-enable after verifying shape
     return GestureDetector(
+      // Rotation gesture - single finger drag
       onPanStart: (details) {
         _lastPanPosition = details.localPosition;
       },
       onPanUpdate: (details) {
-        final delta = details.localPosition - (_lastPanPosition ?? details.localPosition);
-        setState(() {
-          _rotationY += delta.dx * 0.003; // Much slower, smoother rotation
-          _rotationX = (_rotationX - delta.dy * 0.003).clamp(-1.5, 1.5);
-        });
-        _lastPanPosition = details.localPosition;
+        if (_lastPanPosition != null) {
+          final delta = details.localPosition - _lastPanPosition!;
+          setState(() {
+            _rotationY += delta.dx * 0.005;
+            _rotationX = (_rotationX - delta.dy * 0.005).clamp(-1.5, 1.5);
+          });
+          _lastPanPosition = details.localPosition;
+        }
       },
       onPanEnd: (_) {
         _lastPanPosition = null;
       },
-      onScaleStart: (_) {},
-      onScaleUpdate: (details) {
-        if (details.scale != 1.0) {
-          setState(() {
-            _zoom = (_zoom / details.scale).clamp(0.5, 12.0); // Increased zoom range for galaxy exploration
-          });
-        }
+
+      // Zoom gesture - two finger pinch
+      onScaleStart: (details) {
+        _baseScaleFactor = _zoom;
+        _lastPanPosition = null;
       },
-      child: AnimatedBuilder(
-        animation: _animationController,
-        builder: (context, child) {
-          return CustomPaint(
-            size: Size.infinite,
-            painter: _ConstellationPainter(
-              stars: _stars,
-              edges: _edges,
-              nebula: _nebulaParticles,
-              rotationX: _rotationX,
-              rotationY: _rotationY,
-              zoom: _zoom,
-              animationValue: _animationController.value,
-              enableLabels: widget.enableLabels,
-            ),
-          );
-        },
+      onScaleUpdate: (details) {
+        setState(() {
+          _zoom = (_baseScaleFactor / details.scale).clamp(0.3, 5.0);
+        });
+      },
+      onScaleEnd: (_) {
+        _baseScaleFactor = _zoom;
+      },
+
+      child: CustomPaint(
+        size: Size.infinite,
+        painter: _ConstellationPainter(
+          stars: _stars,
+          edges: _edges,
+          nebula: _nebulaParticles,
+          rotationX: _rotationX,
+          rotationY: _rotationY,
+          zoom: _zoom,
+          enableLabels: widget.enableLabels,
+        ),
       ),
     );
+    */
   }
 }
 
@@ -244,7 +323,6 @@ class _ConstellationPainter extends CustomPainter {
   final double rotationX;
   final double rotationY;
   final double zoom;
-  final double animationValue;
   final bool enableLabels;
 
   _ConstellationPainter({
@@ -254,7 +332,6 @@ class _ConstellationPainter extends CustomPainter {
     required this.rotationX,
     required this.rotationY,
     required this.zoom,
-    required this.animationValue,
     required this.enableLabels,
   });
 
@@ -345,12 +422,8 @@ class _ConstellationPainter extends CustomPainter {
         center.dy - rotated.y * scale,
       );
 
-      // Individual star twinkling - each star twinkles at different times
-      final starPhase = (star.position.x + star.position.y + star.position.z) * 0.5; // Unique phase per star
-      final twinkleCycle = (animationValue + starPhase) % 1.0; // 0-1 cycle per star
-      final twinkleIntensity = math.sin(twinkleCycle * 2 * math.pi) * 0.5 + 0.5; // 0-1 smooth curve
-      final twinkle = 1.0 + 0.15 * twinkleIntensity; // 15% size variation max
-      final finalSize = star.size * twinkle;
+      // Static stars - no twinkling for clean, stable constellation
+      final finalSize = star.size;
 
       // Multiple glow layers for galaxy star effect
       // Outer glow (largest, most transparent)
@@ -449,13 +522,14 @@ class _ConstellationPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_ConstellationPainter oldDelegate) {
+    // Only repaint when user interaction changes rotation/zoom, or when scene data changes
     return oldDelegate.rotationX != rotationX ||
         oldDelegate.rotationY != rotationY ||
         oldDelegate.zoom != zoom ||
-        oldDelegate.animationValue != animationValue ||
         oldDelegate.stars != stars ||
         oldDelegate.edges != edges ||
-        oldDelegate.nebula != nebula;
+        oldDelegate.nebula != nebula ||
+        oldDelegate.enableLabels != enableLabels;
   }
 }
 
