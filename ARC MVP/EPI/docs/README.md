@@ -22,6 +22,7 @@ This directory contains comprehensive documentation for the EPI (Evolving Person
   - **Phase Management** - Delete duplicate phases with confirmation dialog and proper cleanup
   - **Clean UI Design** - Moved Write and Calendar buttons to Timeline app bar for better UX
   - **Simplified Navigation** - Removed elevated Write tab, streamlined bottom navigation
+  - **Fixed Tab Arrangement** - Corrected tab mapping after Write tab removal
   - **Graceful Fallback** - Returns blank nodes if keyword extraction fails, preventing crashes
 
 *For detailed technical information, see [Phase Visualization with Actual Keywords](./updates/Phase_Visualization_Actual_Keywords_Jan2025.md)*
