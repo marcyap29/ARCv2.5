@@ -327,16 +327,44 @@ class PhaseRegimeService {
   /// Import phase regimes from MCP
   Future<void> importFromMcp(Map<String, dynamic> data) async {
     final regimesJson = data['phase_regimes'] as List<dynamic>? ?? [];
+    int importedCount = 0;
+    int skippedCount = 0;
     
     for (final regimeJson in regimesJson) {
       final regime = PhaseRegime.fromJson(regimeJson as Map<String, dynamic>);
+      
+      // Check for duplicates by time overlap
+      final existingRegimes = allRegimes;
+      final hasOverlap = existingRegimes.any((existing) {
+        return existing.start.isBefore(regime.end ?? DateTime.now()) &&
+               (existing.end == null || existing.end!.isAfter(regime.start));
+      });
+      
+      if (hasOverlap) {
+        print('⚠️ Skipping phase regime ${regime.id}: overlaps with existing regime');
+        skippedCount++;
+        continue;
+      }
+      
+      // Check for exact ID duplicates
+      if (existingRegimes.any((existing) => existing.id == regime.id)) {
+        print('⚠️ Skipping phase regime ${regime.id}: ID already exists');
+        skippedCount++;
+        continue;
+      }
+      
       await _regimesBox?.put(regime.id, regime);
+      importedCount++;
+      print('✅ Imported phase regime: ${regime.label.name} (${regime.start} - ${regime.end ?? 'ongoing'})');
     }
     
     _loadPhaseIndex();
     
-        AnalyticsService.trackEvent('phase_regimes.imported', properties: {
-      'count': regimesJson.length,
+    print('📊 Phase regime import complete: $importedCount imported, $skippedCount skipped');
+    
+    AnalyticsService.trackEvent('phase_regimes.imported', properties: {
+      'count': importedCount,
+      'skipped': skippedCount,
     });
   }
 

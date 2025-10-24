@@ -16,6 +16,8 @@ import 'package:my_app/core/services/mcp_photo_relink_service.dart';
 import 'package:my_app/rivet/validation/rivet_provider.dart';
 import 'package:my_app/rivet/models/rivet_models.dart';
 import 'package:my_app/services/user_phase_service.dart';
+import 'package:my_app/services/phase_regime_service.dart';
+import 'package:my_app/models/phase_models.dart';
 import 'package:my_app/features/arcforms/phase_recommender.dart';
 
 /// Result of an MCP import operation
@@ -79,6 +81,7 @@ class McpImportService {
   final ChatRepo? _chatRepo;
   final JournalRepository? _journalRepo;
   final McpPhotoRelinkService? _photoRelinkService;
+  final PhaseRegimeService? _phaseRegimeService;
 
   McpImportService({
     ManifestReader? manifestReader,
@@ -89,6 +92,7 @@ class McpImportService {
     ChatRepo? chatRepo,
     JournalRepository? journalRepo,
     McpPhotoRelinkService? photoRelinkService,
+    PhaseRegimeService? phaseRegimeService,
   })  : _manifestReader = manifestReader ?? ManifestReader(),
         _ndjsonReader = ndjsonReader ?? NdjsonStreamReader(),
         _validator = validator ?? McpImportValidator(),
@@ -96,7 +100,8 @@ class McpImportService {
         _casResolver = casResolver,
         _chatRepo = chatRepo,
         _journalRepo = journalRepo,
-        _photoRelinkService = photoRelinkService;
+        _photoRelinkService = photoRelinkService,
+        _phaseRegimeService = phaseRegimeService;
 
   /// Import an MCP bundle from the specified directory
   Future<McpImportResult> importBundle(

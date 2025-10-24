@@ -668,6 +668,7 @@ class McpImportService {
               journalEntriesImported++;
               print('✅ Imported journal entry: ${journalEntry.title} (${journalEntry.createdAt})');
             }
+            
 
             // Map SAGE fields to MIRA structure
             await _miraWriter.putNode(node, batchId);
@@ -1678,5 +1679,6 @@ class McpImportService {
           : {'photo_id': placeholderId, 'imported': true, 'placeholder': true, 'unavailable': true},
     );
   }
+
 
 }

@@ -5,6 +5,7 @@ import 'package:path/path.dart' as path;
 import '../../prism/mcp/import/mcp_import_service.dart';
 import '../../prism/mcp/models/mcp_schemas.dart';
 import '../../arc/core/journal_repository.dart';
+import '../../services/phase_regime_service.dart';
 import 'package:my_app/models/journal_entry_model.dart' as model;
 import '../../mira/mira_service.dart';
 import '../../../mira/core/schema.dart';
@@ -59,11 +60,14 @@ class McpSettingsState {
 /// Cubit for managing MCP export and import operations
 class McpSettingsCubit extends Cubit<McpSettingsState> {
   final JournalRepository _journalRepository;
+  final PhaseRegimeService _phaseRegimeService;
   McpImportService? _importService;
 
   McpSettingsCubit({
     required JournalRepository journalRepository,
+    required PhaseRegimeService phaseRegimeService,
   }) : _journalRepository = journalRepository,
+       _phaseRegimeService = phaseRegimeService,
        super(const McpSettingsState());
 
 
@@ -187,8 +191,11 @@ class McpSettingsCubit extends Cubit<McpSettingsState> {
     required Directory bundleDir,
     McpImportOptions options = const McpImportOptions(),
   }) async {
-    // Initialize import service with journal repository
-    _importService ??= McpImportService(journalRepo: _journalRepository);
+    // Initialize import service with journal repository and phase regime service
+    _importService ??= McpImportService(
+      journalRepo: _journalRepository,
+      phaseRegimeService: _phaseRegimeService,
+    );
 
     emit(state.copyWith(
       isLoading: true,

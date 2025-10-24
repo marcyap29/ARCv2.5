@@ -11,6 +11,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:archive/archive_io.dart';
 import '../../prism/mcp/export/zip_utils.dart';
 import '../../arc/core/journal_repository.dart';
+import '../../services/phase_regime_service.dart';
 import 'mcp_settings_cubit.dart';
 import '../timeline/timeline_cubit.dart';
 import 'mcp_bundle_health_view.dart';
@@ -23,6 +24,7 @@ class McpSettingsView extends StatelessWidget {
     return BlocProvider(
       create: (context) => McpSettingsCubit(
         journalRepository: context.read<JournalRepository>(),
+        phaseRegimeService: context.read<PhaseRegimeService>(),
       ),
       child: const _McpSettingsViewContent(),
     );
