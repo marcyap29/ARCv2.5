@@ -255,16 +255,24 @@ class _Arcform3DState extends State<Arcform3D> {
         _baseScaleFactor = _zoom;
       },
 
-      child: CustomPaint(
-        size: Size.infinite,
-        painter: _ConstellationPainter(
-          stars: _stars,
-          edges: _edges,
-          nebula: _nebulaParticles,
-          rotationX: _rotationX,
-          rotationY: _rotationY,
-          zoom: _zoom,
-          enableLabels: widget.enableLabels,
+      child: Transform(
+        alignment: Alignment.center,
+        transform: Matrix4.identity()
+          ..setEntry(3, 2, 0.001) // Add perspective
+          ..rotateX(_rotationX)
+          ..rotateY(_rotationY)
+          ..scale(_zoom),
+        child: CustomPaint(
+          size: Size.infinite,
+          painter: _ConstellationPainter(
+            stars: _stars,
+            edges: _edges,
+            nebula: _nebulaParticles,
+            rotationX: 0.0, // No additional rotation in painter
+            rotationY: 0.0, // No additional rotation in painter
+            zoom: 1.0, // No additional zoom in painter
+            enableLabels: widget.enableLabels,
+          ),
         ),
       ),
     );
@@ -321,22 +329,16 @@ class _ConstellationPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final center = Offset(size.width / 2, size.height / 2);
-    final scale = size.width / 6.0 * (1.0 / zoom);
-
-    // Create rotation matrices
-    final rotX = vm.Matrix4.rotationX(rotationX);
-    final rotY = vm.Matrix4.rotationY(rotationY);
-    final rotation = rotY * rotX;
+    final scale = size.width / 6.0;
 
     // Draw nebula first (background)
     for (final particle in nebula) {
       final pos3d = vm.Vector3(particle.x, particle.y, particle.z);
-      final rotated = rotation.transform3(pos3d);
       
-      // Simple perspective (no proper projection for performance)
+      // Simple 2D projection (3D transformation handled by Flutter Transform)
       final projected = Offset(
-        center.dx + rotated.x * scale,
-        center.dy - rotated.y * scale,
+        center.dx + pos3d.x * scale,
+        center.dy - pos3d.y * scale,
       );
 
       final paint = Paint()
@@ -354,16 +356,14 @@ class _ConstellationPainter extends CustomPainter {
 
     // Draw constellation connecting lines - subtle and colorful
     for (final edge in edges) {
-      final start3d = rotation.transform3(edge.start);
-      final end3d = rotation.transform3(edge.end);
-
+      // Simple 2D projection (3D transformation handled by Flutter Transform)
       final startProj = Offset(
-        center.dx + start3d.x * scale,
-        center.dy - start3d.y * scale,
+        center.dx + edge.start.x * scale,
+        center.dy - edge.start.y * scale,
       );
       final endProj = Offset(
-        center.dx + end3d.x * scale,
-        center.dy - end3d.y * scale,
+        center.dx + edge.end.x * scale,
+        center.dy - edge.end.y * scale,
       );
 
       // Create gradient effect by blending the edge color with transparency
@@ -396,13 +396,20 @@ class _ConstellationPainter extends CustomPainter {
       canvas.drawLine(startProj, endProj, innerLinePaint);
     }
 
-    // Draw stars
-    for (final star in stars) {
-      final rotated = rotation.transform3(star.position);
-      
+    // Draw stars with depth sorting for proper 3D layering
+    final starsWithDepth = stars.map((star) {
+      return MapEntry(star.position.z, star);
+    }).toList();
+    
+    // Sort by Z-depth (farthest first)
+    starsWithDepth.sort((a, b) => a.key.compareTo(b.key));
+    
+    for (final entry in starsWithDepth) {
+      final star = entry.value;
+      // Simple 2D projection (3D transformation handled by Flutter Transform)
       final projected = Offset(
-        center.dx + rotated.x * scale,
-        center.dy - rotated.y * scale,
+        center.dx + star.position.x * scale,
+        center.dy - star.position.y * scale,
       );
 
       // Static stars - no twinkling for clean, stable constellation
