@@ -462,13 +462,17 @@ class _SimplifiedArcformView3DState extends State<SimplifiedArcformView3D> {
         keywords = _getHardcodedPhaseKeywords(phase);
       }
 
-      // Generate 3D layout
+      // Filter out blank keywords for 3D layout (keep only non-empty keywords)
+      final nonEmptyKeywords = keywords.where((kw) => kw.isNotEmpty).toList();
+
+      // Generate 3D layout with phase-optimized node count
+      // Don't override maxNodes - let layout3D use the phase-optimized count
       final nodes = layout3D(
-        keywords: keywords,
+        keywords: nonEmptyKeywords.isNotEmpty ? nonEmptyKeywords : ['Phase'], // Fallback to at least one node
         phase: phase,
         skin: skin,
-        keywordWeights: {for (var kw in keywords) kw: kw.isEmpty ? 0.0 : 0.6 + (kw.length / 30.0)},
-        keywordValences: {for (var kw in keywords) kw: kw.isEmpty ? 0.0 : _getPhaseValence(kw, phase)},
+        keywordWeights: {for (var kw in nonEmptyKeywords) kw: 0.6 + (kw.length / 30.0)},
+        keywordValences: {for (var kw in nonEmptyKeywords) kw: _getPhaseValence(kw, phase)},
       );
 
       // Generate edges
@@ -500,7 +504,7 @@ class _SimplifiedArcformView3DState extends State<SimplifiedArcformView3D> {
 
     /// Get actual keywords from user's journal entries for their current phase
     Future<List<String>> _getActualPhaseKeywords(String phase) async {
-        const int targetNodeCount = 20; // Maintain helix shape with 20 nodes
+        const int targetNodeCount = 20; // Maintain consistent 20-node structure
 
         try {
           // Get actual keywords from user's journal entries
@@ -513,11 +517,16 @@ class _SimplifiedArcformView3DState extends State<SimplifiedArcformView3D> {
             minCoOccurrenceWeight: 0.3,
           );
 
-          // Get emotion keywords that match this phase
-          final emotionKeywords = nodes
-              .where((node) => node.phase.toLowerCase() == phase.toLowerCase())
+          // Get emotion keywords that match this phase (or any phase if no match)
+          final phaseMatchedKeywords = nodes
+              .where((node) => node.phase?.toLowerCase() == phase.toLowerCase())
               .map((node) => node.label)
               .toList();
+
+          // If no phase-matched keywords, use all available keywords
+          final emotionKeywords = phaseMatchedKeywords.isNotEmpty
+              ? phaseMatchedKeywords
+              : nodes.map((node) => node.label).take(10).toList();
 
           // Get aggregated concept keywords from journal entries
           // Use phase regime date ranges instead of relying on phase field in entries
@@ -577,33 +586,26 @@ class _SimplifiedArcformView3DState extends State<SimplifiedArcformView3D> {
           allKeywords.addAll(emotionKeywords);
           allKeywords.addAll(aggregatedKeywords);
 
-          // Remove duplicates and take up to targetNodeCount
-          final uniqueKeywords = allKeywords.toSet().take(targetNodeCount).toList();
+          // Remove duplicates - layout3D will select optimal count per phase
+          final uniqueKeywords = allKeywords.toSet().toList();
 
           print('DEBUG: Found ${emotionKeywords.length} emotion keywords and ${aggregatedKeywords.length} concept keywords for user\'s $phase phase');
           print('DEBUG: Total unique keywords: ${uniqueKeywords.length}');
 
-          // If we have some keywords but not enough, fill remaining with blanks
+          // Return all unique keywords - layout3D will optimize per phase
+          // Discovery: 10 nodes, Expansion: 12 nodes, Consolidation: 20 nodes, etc.
           if (uniqueKeywords.isNotEmpty) {
-            final keywordsWithBlanks = List<String>.from(uniqueKeywords);
-
-            // Add empty strings for blank nodes to maintain total count of 20
-            while (keywordsWithBlanks.length < targetNodeCount) {
-              keywordsWithBlanks.add(''); // Blank node
-            }
-
-            print('DEBUG: Returning ${keywordsWithBlanks.length} total nodes (${uniqueKeywords.length} with keywords, ${keywordsWithBlanks.length - uniqueKeywords.length} blank)');
-            return keywordsWithBlanks;
+            print('DEBUG: Returning ${uniqueKeywords.length} actual keywords (layout3D will optimize)');
+            return uniqueKeywords;
           }
 
-          // If no actual keywords found, return all blank nodes but maintain the count
-          print('DEBUG: No actual keywords found for $phase phase, using ${targetNodeCount} blank nodes');
-          return List.generate(targetNodeCount, (_) => '');
+          // If no actual keywords found, return empty list - will use hardcoded keywords
+          print('DEBUG: No actual keywords found for $phase phase');
+          return [];
 
         } catch (e) {
           print('ERROR: Failed to load actual keywords for $phase: $e');
-          // On error, return blank nodes to maintain helix shape
-          return List.generate(20, (_) => '');
+          return [];
         }
       }
 

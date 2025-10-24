@@ -223,36 +223,31 @@ class _Arcform3DState extends State<Arcform3D> {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      // Rotation gesture - single finger drag
-      onPanStart: (details) {
-        _lastPanPosition = details.localPosition;
-      },
-      onPanUpdate: (details) {
-        if (_lastPanPosition != null) {
-          final delta = details.localPosition - _lastPanPosition!;
-          setState(() {
-            _rotationY += delta.dx * 0.01; // Horizontal drag rotates around Y-axis
-            _rotationX = (_rotationX - delta.dy * 0.01).clamp(-1.5, 1.5); // Vertical drag rotates around X-axis
-          });
-          _lastPanPosition = details.localPosition;
-        }
-      },
-      onPanEnd: (_) {
-        _lastPanPosition = null;
-      },
-
-      // Zoom gesture - two finger pinch
+      // Scale gesture handles both rotation (single finger) and zoom (pinch)
       onScaleStart: (details) {
         _baseScaleFactor = _zoom;
-        _lastPanPosition = null;
+        _lastPanPosition = details.focalPoint;
       },
       onScaleUpdate: (details) {
         setState(() {
-          _zoom = (_baseScaleFactor / details.scale).clamp(0.5, 8.0); // Improved zoom range
+          // Handle zoom if scale changed (pinch gesture)
+          if (details.scale != 1.0) {
+            _zoom = (_baseScaleFactor / details.scale).clamp(0.5, 8.0);
+          }
+
+          // Handle rotation if position changed (drag gesture)
+          if (_lastPanPosition != null) {
+            final delta = details.focalPoint - _lastPanPosition!;
+            _rotationY += delta.dx * 0.01; // Horizontal drag rotates around Y-axis
+            _rotationX = (_rotationX - delta.dy * 0.01).clamp(-1.5, 1.5); // Vertical drag rotates around X-axis
+          }
+
+          _lastPanPosition = details.focalPoint;
         });
       },
       onScaleEnd: (_) {
         _baseScaleFactor = _zoom;
+        _lastPanPosition = null;
       },
 
       child: Transform(
