@@ -18,6 +18,8 @@ This directory contains comprehensive documentation for the EPI (Evolving Person
   - **Phase-Aware Filtering** - Keywords filtered by phase association (Discovery, Expansion, etc.)
   - **Dual Keyword System** - Combines emotion keywords with aggregated concept keywords
   - **10 Concept Categories** - Innovation, Breakthrough, Awareness, Growth, Challenge, Achievement, Connection, Transformation, Recovery, Exploration
+  - **Timeline Visualization Fixes** - Fixed "TODAY" label cut-off with optimized spacing and font sizing
+  - **Phase Management** - Delete duplicate phases with confirmation dialog and proper cleanup
   - **Graceful Fallback** - Returns blank nodes if keyword extraction fails, preventing crashes
 
 *For detailed technical information, see [Phase Visualization with Actual Keywords](./updates/Phase_Visualization_Actual_Keywords_Jan2025.md)*

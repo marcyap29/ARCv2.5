@@ -139,12 +139,26 @@ Extract higher-level concepts from journal text patterns:
 - Phase-aware concept extraction
 - **10 concept categories**: Innovation, Breakthrough, Awareness, Growth, Challenge, Achievement, Connection, Transformation, Recovery, Exploration
 
+## Recent Fixes (January 24, 2025)
+
+### Timeline Visualization Improvements
+- **Fixed "TODAY" Label Cut-off**: Reduced horizontal margins and font size for better fit
+- **Optimized Spacing**: Reduced timeline axis margins from 8px to 4px
+- **Conservative Positioning**: Adjusted "TODAY" label positioning to prevent overflow
+- **Smaller Font Size**: Reduced from 10px to 9px for better mobile display
+
+### Phase Management Enhancements
+- **Delete Phase Functionality**: Added ability to remove duplicate or unwanted phases
+- **Confirmation Dialog**: Prevents accidental deletions with clear warning
+- **Visual Feedback**: Red delete button with success/error messages
+- **Proper Cleanup**: Uses regime ID for accurate removal from PhaseIndex
+
 ## Testing
 
 ### Build Status
 ```bash
 flutter build ios --debug --no-codesign
-✓ Built build/ios/iphoneos/Runner.app (9.9s)
+✓ Built build/ios/iphoneos/Runner.app (9.8s)
 ```
 
 ### Test Cases
