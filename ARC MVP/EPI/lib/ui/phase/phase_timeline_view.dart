@@ -333,9 +333,9 @@ class _PhaseTimelineViewState extends State<PhaseTimelineView> {
         children: [
           if (nowProgress >= 0 && nowProgress <= 1)
             Positioned(
-              left: MediaQuery.of(context).size.width * nowProgress * 0.85,
+              left: (MediaQuery.of(context).size.width - 32) * nowProgress * 0.85, // Account for padding
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                 decoration: BoxDecoration(
                   color: theme.colorScheme.primary,
                   borderRadius: BorderRadius.circular(4),

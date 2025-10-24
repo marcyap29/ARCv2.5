@@ -9,6 +9,7 @@ import '../../arcform/layouts/layouts_3d.dart';
 import '../../arcform/render/arcform_renderer_3d.dart';
 import '../../arcform/util/seeded.dart';
 import '../../services/patterns_data_service.dart';
+import '../../services/keyword_aggregator.dart';
 import '../../arc/core/journal_repository.dart';
 
 /// Simplified ARCForms view with 3D constellation renderer
@@ -27,6 +28,7 @@ class SimplifiedArcformView3D extends StatefulWidget {
 class _SimplifiedArcformView3DState extends State<SimplifiedArcformView3D> {
   List<Map<String, dynamic>> _snapshots = [];
   bool _isLoading = true;
+  Set<String> _userExperiencedPhases = {}; // Track phases user has been in
 
   @override
   void initState() {
@@ -40,6 +42,9 @@ class _SimplifiedArcformView3DState extends State<SimplifiedArcformView3D> {
     });
 
     try {
+      // Discover which phases the user has experienced
+      await _discoverUserPhases();
+
       // Generate a single constellation for the current phase (user's actual phase)
       final currentPhase = widget.currentPhase ?? 'Discovery';
       final constellation = await _generatePhaseConstellation(currentPhase, isUserPhase: true);
@@ -68,6 +73,32 @@ class _SimplifiedArcformView3DState extends State<SimplifiedArcformView3D> {
         _snapshots = [];
         _isLoading = false;
       });
+    }
+  }
+
+  /// Discover which phases the user has actually experienced from their journal entries
+  Future<void> _discoverUserPhases() async {
+    try {
+      final journalRepo = JournalRepository();
+      final allEntries = journalRepo.getAllJournalEntriesSync();
+
+      // Extract unique phases from journal entries
+      final phases = allEntries
+          .where((entry) => entry.phase != null && entry.phase!.isNotEmpty)
+          .map((entry) => entry.phase!)
+          .toSet();
+
+      // Also add current phase
+      if (widget.currentPhase != null) {
+        phases.add(widget.currentPhase!);
+      }
+
+      _userExperiencedPhases = phases.map((p) => p.toLowerCase()).toSet();
+
+      print('DEBUG: User has experienced ${_userExperiencedPhases.length} phases: $_userExperiencedPhases');
+    } catch (e) {
+      print('ERROR: Failed to discover user phases: $e');
+      _userExperiencedPhases = {};
     }
   }
 
@@ -460,53 +491,73 @@ class _SimplifiedArcformView3DState extends State<SimplifiedArcformView3D> {
     }
   }
 
-  /// Get actual keywords from user's journal entries for their current phase
-  Future<List<String>> _getActualPhaseKeywords(String phase) async {
-    const int targetNodeCount = 20; // Maintain helix shape with 20 nodes
+    /// Get actual keywords from user's journal entries for their current phase
+    Future<List<String>> _getActualPhaseKeywords(String phase) async {
+        const int targetNodeCount = 20; // Maintain helix shape with 20 nodes
 
-    try {
-      // Get actual keywords from user's journal entries
-      final journalRepo = JournalRepository();
-      final patternsService = PatternsDataService(journalRepository: journalRepo);
+        try {
+          // Get actual keywords from user's journal entries
+          final journalRepo = JournalRepository();
+          final patternsService = PatternsDataService(journalRepository: journalRepo);
 
-      // Get patterns data (emotion keywords from user's actual journal)
-      final (nodes, _) = await patternsService.getPatternsData(
-        maxNodes: 50, // Get more than we need to have options
-        minCoOccurrenceWeight: 0.3,
-      );
+          // Get patterns data (emotion keywords from user's actual journal)
+          final (nodes, _) = await patternsService.getPatternsData(
+            maxNodes: 50, // Get more than we need to have options
+            minCoOccurrenceWeight: 0.3,
+          );
 
-      // Filter nodes that match this phase or extract just the keywords
-      final actualKeywords = nodes
-          .where((node) => node.phase?.toLowerCase() == phase.toLowerCase() || node.phase == null)
-          .map((node) => node.label)
-          .take(targetNodeCount)
-          .toList();
+          // Get emotion keywords that match this phase
+          final emotionKeywords = nodes
+              .where((node) => node.phase?.toLowerCase() == phase.toLowerCase() || node.phase == null)
+              .map((node) => node.label)
+              .toList();
 
-      print('DEBUG: Found ${actualKeywords.length} actual keywords for user\'s $phase phase');
+          // Get aggregated concept keywords from journal entries
+          final allEntries = journalRepo.getAllJournalEntriesSync();
+          final journalTexts = allEntries
+              .where((entry) => entry.phase?.toLowerCase() == phase.toLowerCase() || phase.toLowerCase() == 'discovery')
+              .map((entry) => entry.content)
+              .toList();
 
-      // If we have some keywords but not enough, fill remaining with blanks
-      if (actualKeywords.isNotEmpty) {
-        final keywordsWithBlanks = List<String>.from(actualKeywords);
+          final aggregatedKeywords = KeywordAggregator.getTopAggregatedKeywords(
+            journalTexts,
+            topN: 10, // Get top 10 concept keywords
+          );
 
-        // Add empty strings for blank nodes to maintain total count of 20
-        while (keywordsWithBlanks.length < targetNodeCount) {
-          keywordsWithBlanks.add(''); // Blank node
+          // Combine emotion keywords and aggregated concept keywords
+          final allKeywords = <String>[];
+          allKeywords.addAll(emotionKeywords);
+          allKeywords.addAll(aggregatedKeywords);
+
+          // Remove duplicates and take up to targetNodeCount
+          final uniqueKeywords = allKeywords.toSet().take(targetNodeCount).toList();
+
+          print('DEBUG: Found ${emotionKeywords.length} emotion keywords and ${aggregatedKeywords.length} concept keywords for user\'s $phase phase');
+          print('DEBUG: Total unique keywords: ${uniqueKeywords.length}');
+
+          // If we have some keywords but not enough, fill remaining with blanks
+          if (uniqueKeywords.isNotEmpty) {
+            final keywordsWithBlanks = List<String>.from(uniqueKeywords);
+
+            // Add empty strings for blank nodes to maintain total count of 20
+            while (keywordsWithBlanks.length < targetNodeCount) {
+              keywordsWithBlanks.add(''); // Blank node
+            }
+
+            print('DEBUG: Returning ${keywordsWithBlanks.length} total nodes (${uniqueKeywords.length} with keywords, ${keywordsWithBlanks.length - uniqueKeywords.length} blank)');
+            return keywordsWithBlanks;
+          }
+
+          // If no actual keywords found, return all blank nodes but maintain the count
+          print('DEBUG: No actual keywords found for $phase phase, using ${targetNodeCount} blank nodes');
+          return List.generate(targetNodeCount, (_) => '');
+
+        } catch (e) {
+          print('ERROR: Failed to load actual keywords for $phase: $e');
+          // On error, return blank nodes to maintain helix shape
+          return List.generate(20, (_) => '');
         }
-
-        print('DEBUG: Returning ${keywordsWithBlanks.length} total nodes (${actualKeywords.length} with keywords, ${keywordsWithBlanks.length - actualKeywords.length} blank)');
-        return keywordsWithBlanks;
       }
-
-      // If no actual keywords found, return all blank nodes but maintain the count
-      print('DEBUG: No actual keywords found for $phase phase, using ${targetNodeCount} blank nodes');
-      return List.generate(targetNodeCount, (_) => '');
-
-    } catch (e) {
-      print('ERROR: Failed to load actual keywords for $phase: $e');
-      // On error, return blank nodes to maintain helix shape
-      return List.generate(20, (_) => '');
-    }
-  }
 
   /// Get hardcoded demo keywords for example/demo phases
   List<String> _getHardcodedPhaseKeywords(String phase) {
@@ -645,8 +696,10 @@ class _SimplifiedArcformView3DState extends State<SimplifiedArcformView3D> {
 
   /// Show full-screen 3D ARCForm viewer for a specific phase
   void _showFullScreenArcform(String phase) async {
-    // Check if this is the user's current phase
-    final isUserPhase = phase.toLowerCase() == (widget.currentPhase?.toLowerCase() ?? 'discovery');
+    // Check if this is a phase the user has experienced (current OR past phases)
+    final isUserPhase = _userExperiencedPhases.contains(phase.toLowerCase());
+
+    print('DEBUG: Viewing $phase phase - isUserPhase: $isUserPhase (experienced phases: $_userExperiencedPhases)');
 
     // Generate constellation data for this phase
     final arcform = await _generatePhaseConstellation(phase, isUserPhase: isUserPhase);
