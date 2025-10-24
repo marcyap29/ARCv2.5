@@ -294,7 +294,7 @@ class _PhaseTimelineViewState extends State<PhaseTimelineView> {
         Expanded(
           child: Container(
             height: 1,
-            margin: const EdgeInsets.symmetric(horizontal: 8),
+            margin: const EdgeInsets.symmetric(horizontal: 4), // Reduced from 8 to 4
             color: theme.dividerColor,
           ),
         ),
@@ -308,7 +308,7 @@ class _PhaseTimelineViewState extends State<PhaseTimelineView> {
         Expanded(
           child: Container(
             height: 1,
-            margin: const EdgeInsets.symmetric(horizontal: 8),
+            margin: const EdgeInsets.symmetric(horizontal: 4), // Reduced from 8 to 4
             color: theme.dividerColor,
           ),
         ),
@@ -333,18 +333,18 @@ class _PhaseTimelineViewState extends State<PhaseTimelineView> {
         children: [
           if (nowProgress >= 0 && nowProgress <= 1)
             Positioned(
-              left: (MediaQuery.of(context).size.width - 32) * nowProgress * 0.85, // Account for padding
+              left: (MediaQuery.of(context).size.width - 64) * nowProgress * 0.75, // More conservative positioning
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1), // Reduced padding
                 decoration: BoxDecoration(
                   color: theme.colorScheme.primary,
-                  borderRadius: BorderRadius.circular(4),
+                  borderRadius: BorderRadius.circular(3),
                 ),
                 child: Text(
                   'TODAY',
                   style: theme.textTheme.bodySmall?.copyWith(
                     color: Colors.white,
-                    fontSize: 10,
+                    fontSize: 9, // Reduced from 10 to 9
                     fontWeight: FontWeight.bold,
                   ),
                 ),
@@ -624,6 +624,15 @@ class _PhaseTimelineViewState extends State<PhaseTimelineView> {
                 _endPhaseHere(regime);
               },
             ),
+            const Divider(),
+            ListTile(
+              leading: const Icon(Icons.delete, color: Colors.red),
+              title: const Text('Delete Phase', style: TextStyle(color: Colors.red)),
+              onTap: () {
+                Navigator.pop(context);
+                _showDeleteConfirmation(regime);
+              },
+            ),
           ],
         ),
       ),
@@ -724,6 +733,59 @@ class _PhaseTimelineViewState extends State<PhaseTimelineView> {
   void _endPhaseHere(PhaseRegime regime) {
     // End the regime at current time
     // Implementation would go here
+  }
+
+  void _showDeleteConfirmation(PhaseRegime regime) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Phase'),
+        content: Text(
+          'Are you sure you want to delete this ${regime.label.name.toUpperCase()} phase?\n\n'
+          'This action cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _deleteRegime(regime);
+            },
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _deleteRegime(PhaseRegime regime) {
+    try {
+      // Remove the regime from the phase index using its ID
+      widget.phaseIndex.removeRegime(regime.id);
+      
+      // Show success message
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('${regime.label.name.toUpperCase()} phase deleted'),
+          backgroundColor: Colors.green,
+        ),
+      );
+      
+      // Refresh the UI
+      setState(() {});
+    } catch (e) {
+      // Show error message
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to delete phase: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
   void _zoomIn() {
