@@ -250,25 +250,41 @@ class _Arcform3DState extends State<Arcform3D> {
         _lastPanPosition = null;
       },
 
-      child: Transform(
-        alignment: Alignment.center,
-        transform: Matrix4.identity()
-          ..setEntry(3, 2, 0.001) // Add perspective
-          ..rotateX(_rotationX)
-          ..rotateY(_rotationY)
-          ..scale(_zoom),
-        child: CustomPaint(
-          size: Size.infinite,
-          painter: _ConstellationPainter(
-            stars: _stars,
-            edges: _edges,
-            nebula: _nebulaParticles,
-            rotationX: 0.0, // No additional rotation in painter
-            rotationY: 0.0, // No additional rotation in painter
-            zoom: 1.0, // No additional zoom in painter
-            enableLabels: widget.enableLabels,
+      child: Stack(
+        children: [
+          // 3D transformed constellation (stars, edges, nebula)
+          Transform(
+            alignment: Alignment.center,
+            transform: Matrix4.identity()
+              ..setEntry(3, 2, 0.001) // Add perspective
+              ..scale(_zoom)
+              ..rotateX(_rotationX)
+              ..rotateY(_rotationY),
+            child: CustomPaint(
+              size: Size.infinite,
+              painter: _ConstellationPainter(
+                stars: _stars,
+                edges: _edges,
+                nebula: _nebulaParticles,
+                rotationX: 0.0, // No additional rotation in painter
+                rotationY: 0.0, // No additional rotation in painter
+                zoom: 1.0, // No additional zoom in painter
+                enableLabels: false, // Disable labels in 3D transformed layer
+              ),
+            ),
           ),
-        ),
+          // Non-transformed labels layer
+          if (widget.enableLabels)
+            CustomPaint(
+              size: Size.infinite,
+              painter: _LabelsPainter(
+                stars: _stars,
+                rotationX: _rotationX,
+                rotationY: _rotationY,
+                zoom: _zoom,
+              ),
+            ),
+        ],
       ),
     );
   }
@@ -329,11 +345,12 @@ class _ConstellationPainter extends CustomPainter {
     // Draw nebula first (background)
     for (final particle in nebula) {
       final pos3d = vm.Vector3(particle.x, particle.y, particle.z);
-      
-      // Simple 2D projection (3D transformation handled by Flutter Transform)
+
+      // Apply proper 3D perspective projection with Z-depth
+      final perspective = 1.0 / (1.0 + pos3d.z * 0.1);
       final projected = Offset(
-        center.dx + pos3d.x * scale,
-        center.dy - pos3d.y * scale,
+        center.dx + pos3d.x * scale * perspective,
+        center.dy - pos3d.y * scale * perspective,
       );
 
       final paint = Paint()
@@ -346,19 +363,21 @@ class _ConstellationPainter extends CustomPainter {
         ..style = PaintingStyle.fill
         ..maskFilter = MaskFilter.blur(BlurStyle.normal, particle.size * 8);
 
-      canvas.drawCircle(projected, particle.size * scale * 12, paint);
+      canvas.drawCircle(projected, particle.size * scale * 12 * perspective, paint);
     }
 
     // Draw constellation connecting lines - subtle and colorful
     for (final edge in edges) {
-      // Simple 2D projection (3D transformation handled by Flutter Transform)
+      // Apply proper 3D perspective projection with Z-depth
+      final startPerspective = 1.0 / (1.0 + edge.start.z * 0.1);
+      final endPerspective = 1.0 / (1.0 + edge.end.z * 0.1);
       final startProj = Offset(
-        center.dx + edge.start.x * scale,
-        center.dy - edge.start.y * scale,
+        center.dx + edge.start.x * scale * startPerspective,
+        center.dy - edge.start.y * scale * startPerspective,
       );
       final endProj = Offset(
-        center.dx + edge.end.x * scale,
-        center.dy - edge.end.y * scale,
+        center.dx + edge.end.x * scale * endPerspective,
+        center.dy - edge.end.y * scale * endPerspective,
       );
 
       // Create gradient effect by blending the edge color with transparency
@@ -401,14 +420,16 @@ class _ConstellationPainter extends CustomPainter {
     
     for (final entry in starsWithDepth) {
       final star = entry.value;
-      // Simple 2D projection (3D transformation handled by Flutter Transform)
+      // Apply proper 3D perspective projection with Z-depth
+      final perspective = 1.0 / (1.0 + star.position.z * 0.1); // Perspective divisor based on Z-depth
       final projected = Offset(
-        center.dx + star.position.x * scale,
-        center.dy - star.position.y * scale,
+        center.dx + star.position.x * scale * perspective,
+        center.dy - star.position.y * scale * perspective,
       );
 
       // Static stars - no twinkling for clean, stable constellation
-      final finalSize = star.size;
+      // Scale star size based on perspective (closer = bigger, farther = smaller)
+      final finalSize = star.size * perspective;
 
       // Multiple glow layers for galaxy star effect
       // Outer glow (largest, most transparent)
@@ -519,6 +540,89 @@ class _ConstellationPainter extends CustomPainter {
         oldDelegate.edges != edges ||
         oldDelegate.nebula != nebula ||
         oldDelegate.enableLabels != enableLabels;
+  }
+}
+
+/// Separate painter for labels that aren't affected by 3D transformation
+/// but are positioned correctly relative to the 3D stars
+class _LabelsPainter extends CustomPainter {
+  final List<_Star> stars;
+  final double rotationX;
+  final double rotationY;
+  final double zoom;
+
+  _LabelsPainter({
+    required this.stars,
+    required this.rotationX,
+    required this.rotationY,
+    required this.zoom,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = Offset(size.width / 2, size.height / 2);
+    final scale = size.width / 6.0;
+
+    final textStyle = TextStyle(
+      color: Colors.white,
+      fontSize: 12,
+      fontWeight: FontWeight.w500,
+    );
+
+    // Create the same rotation matrix as the 3D transform
+    final rotation = vm.Matrix4.identity()
+      ..rotateX(rotationX)
+      ..rotateY(rotationY);
+
+    for (final star in stars) {
+      // Apply 3D transformation to get the same position as the star
+      final transformed = rotation.transform3(star.position);
+      final projected = Offset(
+        center.dx + transformed.x * scale * zoom,
+        center.dy - transformed.y * scale * zoom,
+      );
+
+      // Only show labels if they're not too far from center and have content
+      final distanceFromCenter = (projected - center).distance;
+      if (distanceFromCenter < size.width * 0.4 && star.label.isNotEmpty) {
+        final textPainter = TextPainter(
+          text: TextSpan(text: star.label, style: textStyle),
+          textDirection: TextDirection.ltr,
+        );
+        textPainter.layout();
+
+        // Position label slightly above the star (scaled with zoom)
+        final labelOffset = Offset(
+          projected.dx - textPainter.width / 2,
+          projected.dy - (star.size * zoom * 2) - textPainter.height,
+        );
+
+        // Draw label background for readability
+        final backgroundRect = Rect.fromLTWH(
+          labelOffset.dx - 2,
+          labelOffset.dy - 1,
+          textPainter.width + 4,
+          textPainter.height + 2,
+        );
+        final backgroundPaint = Paint()
+          ..color = Colors.black.withOpacity(0.7)
+          ..style = PaintingStyle.fill;
+        canvas.drawRRect(
+          RRect.fromRectAndRadius(backgroundRect, const Radius.circular(4)),
+          backgroundPaint,
+        );
+
+        textPainter.paint(canvas, labelOffset);
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(_LabelsPainter oldDelegate) {
+    return oldDelegate.rotationX != rotationX ||
+        oldDelegate.rotationY != rotationY ||
+        oldDelegate.zoom != zoom ||
+        oldDelegate.stars != stars;
   }
 }
 
