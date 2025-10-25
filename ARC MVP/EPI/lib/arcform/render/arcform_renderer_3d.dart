@@ -286,8 +286,9 @@ class _Arcform3DState extends State<Arcform3D> {
             _zoom = (_baseScaleFactor / details.scale).clamp(0.5, 8.0);
           }
 
-          // Handle rotation based on finger count with improved sensitivity
-          if (_lastPanPosition != null) {
+          // Only handle rotation if we're NOT zooming (scale == 1.0)
+          // This prevents rotation interference during pinch gestures
+          if (_lastPanPosition != null && details.scale == 1.0) {
             if (details.pointerCount == 1) {
               // Single finger: drag to rotate around X and Y axes (increased sensitivity)
               final delta = details.focalPoint - _lastPanPosition!;
@@ -297,14 +298,11 @@ class _Arcform3DState extends State<Arcform3D> {
               _rotationY = _rotationY % (2 * math.pi); // Wrap Y rotation
               _lastPanPosition = details.focalPoint;
             } else if (details.pointerCount == 2) {
-              // Two fingers: only handle rotation if NOT zooming (prevent interference)
-              if (details.rotation != 0 && details.scale == 1.0) {
+              // Two fingers: rotation gesture for Z-axis rotation
+              if (details.rotation != 0) {
                 _rotationY += details.rotation * 0.3; // Reduced from 0.5 to 0.3 for better control
               }
-              // Only update focal point if we're not zooming to prevent rotation during pinch
-              if (details.scale == 1.0) {
-                _lastPanPosition = details.focalPoint;
-              }
+              _lastPanPosition = details.focalPoint;
             }
           }
         });
