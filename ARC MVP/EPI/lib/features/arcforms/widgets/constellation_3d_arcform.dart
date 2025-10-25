@@ -58,7 +58,14 @@ class _Constellation3DArcformState extends State<Constellation3DArcform>
   // Interactive selection state
   String? _selectedNodeId;
   late AnimationController _selectionPulseController;
-  
+
+  // Camera translation for single-finger panning
+  double _cameraX = 0.0;
+  double _cameraY = 0.0;
+
+  // Track previous rotation for delta calculation
+  double _lastRotation = 0.0;
+
   // Smooth transition animations
   late Animation<double> _scaleTransition;
   late Animation<double> _rotationXTransition;
@@ -202,6 +209,7 @@ class _Constellation3DArcformState extends State<Constellation3DArcform>
 
   void _handleScaleStart(ScaleStartDetails details) {
     _lastFocalPoint = details.focalPoint;
+    _lastRotation = 0.0; // Initialize rotation tracking
     setState(() {
       _autoRotate = false;
     });
@@ -210,30 +218,47 @@ class _Constellation3DArcformState extends State<Constellation3DArcform>
 
   void _handleScaleUpdate(ScaleUpdateDetails details) {
     setState(() {
-      if (details.scale != 1.0) {
-        _scale = (_scale * details.scale).clamp(0.3, 3.0);
+      final currentPointerCount = details.pointerCount;
+
+      if (currentPointerCount == 1) {
+        // One-finger drag: Move/rotate the object (x & y axes)
+        if (_lastFocalPoint != null) {
+          final delta = details.focalPoint - _lastFocalPoint!;
+          _rotationY += delta.dx * 0.01; // Horizontal drag rotates around Y-axis
+          _rotationX -= delta.dy * 0.01; // Vertical drag rotates around X-axis
+          _rotationX = _rotationX.clamp(-math.pi/2, math.pi/2);
+          _rotationY = _rotationY % (2 * math.pi);
+        }
+      } else if (currentPointerCount == 2) {
+        // Two-finger gestures: pinch zoom, pan/drag translation, twist rotation
+
+        // Two-finger pinch: Zoom in (open) / Zoom out (close)
+        if (details.scale != 1.0) {
+          _scale = (_scale * details.scale).clamp(0.3, 3.0);
+        }
+
+        // Two-finger pan/drag: Translate object in plane
+        if (_lastFocalPoint != null) {
+          final delta = details.focalPoint - _lastFocalPoint!;
+          _cameraX += delta.dx * 1.0; // Horizontal translation
+          _cameraY += delta.dy * 1.0; // Vertical translation
+        }
+
+        // Two-finger rotation (twist): Rotate around axis
+        final rotationDelta = details.rotation - _lastRotation;
+        if (rotationDelta.abs() > 0.001) { // Only apply if there's meaningful change
+          _rotationZ += rotationDelta * 0.5; // Z-axis rotation for twist
+          _rotationZ = _rotationZ % (2 * math.pi); // Allow full rotation
+        }
+        _lastRotation = details.rotation;
       }
-      
-      if (_lastFocalPoint != null && details.pointerCount == 1) {
-        final delta = details.focalPoint - _lastFocalPoint!;
-        _rotationY += delta.dx * 0.01; // Horizontal drag rotates around Y-axis
-        _rotationX -= delta.dy * 0.01; // Vertical drag rotates around X-axis
-        
-        // Clamp rotations to prevent extreme angles
-        _rotationX = _rotationX.clamp(-math.pi/2, math.pi/2);
-        _rotationY = _rotationY % (2 * math.pi);
-      }
-      
-      // Handle Z-axis rotation with two-finger twist (same as molecular design)
-      if (details.pointerCount == 2 && details.rotation != 0) {
-        _rotationZ += details.rotation * 0.5;
-      }
-      
+
       _lastFocalPoint = details.focalPoint;
     });
   }
 
   void _handleScaleEnd(ScaleEndDetails details) {
+    _lastRotation = 0.0; // Reset rotation tracking
     Future.delayed(const Duration(seconds: 3), () {
       if (mounted && !_autoRotate) {
         setState(() {
@@ -248,12 +273,14 @@ class _Constellation3DArcformState extends State<Constellation3DArcform>
     // Smooth reset to default view
     _animateScaleTo(1.0);
     _animateRotationTo(0.0, 0.0, 0.0); // Reset to proper vertical orientation
-    
-    // Reset selection
+
+    // Reset camera position and selection
     setState(() {
       _selectedNodeId = null;
+      _cameraX = 0.0;
+      _cameraY = 0.0;
     });
-    
+
     // Haptic feedback for reset
     HapticFeedback.mediumImpact();
   }
@@ -324,8 +351,8 @@ class _Constellation3DArcformState extends State<Constellation3DArcform>
                       selectedNodeId: _selectedNodeId,
                       selectionPulse: _selectionPulseController.value,
                       screenCenter: Offset(
-                        MediaQuery.of(context).size.width / 2,
-                        MediaQuery.of(context).size.height * 0.4, // Lower the constellation vertically
+                        MediaQuery.of(context).size.width / 2 + _cameraX,
+                        MediaQuery.of(context).size.height * 0.4 + _cameraY, // Apply camera translation
                       ),
                       selectedGeometry: widget.selectedGeometry,
                       onNodeTapped: _handleNodeTapped,
@@ -684,32 +711,48 @@ class ConstellationPainter extends CustomPainter {
   
   void _drawConstellationLines(Canvas canvas, Map<String, StarPosition> starPositions) {
     if (starPositions.length < 2) return;
-    
+
     // Use provided edges instead of generating dynamic connections
     final connections = _createConnectionsFromEdges(starPositions);
-    
-    final linePaint = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.0;
-    
+    final emotionalService = EmotionalValenceService();
+
     for (final connection in connections) {
       final star1 = starPositions[connection.nodeId1];
       final star2 = starPositions[connection.nodeId2];
-      
+
       if (star1 == null || star2 == null || !star1.inBounds || !star2.inBounds) {
         continue;
       }
-      
+
       // Calculate line opacity based on distance and depth
       final distance = (star1.screenPos - star2.screenPos).distance;
       final avgDepth = (star1.depth + star2.depth) / 2;
       final depthOpacity = (1.0 - (avgDepth / 400).clamp(0.0, 0.8));
       final distanceOpacity = (1.0 - (distance / 300).clamp(0.0, 0.8));
-      final finalOpacity = (depthOpacity * distanceOpacity * 0.3).clamp(0.05, 0.3);
-      
-      // Draw faint constellation line with gentle glow
-      linePaint.color = Colors.white.withOpacity(finalOpacity);
-      canvas.drawLine(star1.screenPos, star2.screenPos, linePaint);
+      final baseOpacity = (depthOpacity * distanceOpacity * 0.6).clamp(0.1, 0.6); // Increased opacity
+
+      // Get emotional colors from connected nodes
+      final color1 = emotionalService.getEmotionalColor(star1.node.label);
+      final color2 = emotionalService.getEmotionalColor(star2.node.label);
+
+      // Create gradient-like effect by blending the two colors
+      final blendedColor = Color.lerp(color1, color2, 0.5) ?? color1;
+
+      // Draw colored constellation line with glow effect
+      final glowPaint = Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 3.0
+        ..color = blendedColor.withOpacity(baseOpacity * 0.3)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 2);
+
+      final corePaint = Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.5
+        ..color = blendedColor.withOpacity(baseOpacity);
+
+      // Draw glow first, then core line
+      canvas.drawLine(star1.screenPos, star2.screenPos, glowPaint);
+      canvas.drawLine(star1.screenPos, star2.screenPos, corePaint);
     }
   }
   
@@ -855,8 +898,11 @@ class ConstellationPainter extends CustomPainter {
     
     textPainter.layout();
     
-    // Position label further for selected stars
-    final labelOffset = isSelected ? const Offset(16, -12) : const Offset(12, -8);
+    // Position label much lower below the star, centered horizontally
+    final labelOffset = Offset(
+      -textPainter.width / 2, // Center horizontally
+      isSelected ? 55 : 50,    // Position even lower below star
+    );
     final labelPos = starPos + labelOffset;
     textPainter.paint(canvas, labelPos);
   }

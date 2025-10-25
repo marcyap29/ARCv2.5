@@ -37,77 +37,77 @@ class NebulaGenerator {
 
     switch (phase.toLowerCase()) {
       case 'discovery':
-        // Wider spiral/helix volume
+        // Much wider spiral/helix volume for expansive nebula
         particles.addAll(_generateSpiralNebula(
           rng: rng,
           skin: skin,
           count: particleCount,
-          radius: 2.5,
-          height: 3.0,
+          radius: 6.0, // Much larger spatial spread
+          height: 8.0, // Much taller nebula field
           turns: 2.5,
         ));
         break;
 
       case 'exploration':
       case 'expansion':
-        // Petal rings on multiple z-layers
+        // Much larger petal rings spanning wider area
         particles.addAll(_generatePetalNebula(
           rng: rng,
           skin: skin,
           count: particleCount,
-          layers: 3,
-          radius: 2.0,
+          layers: 4, // More layers for depth
+          radius: 5.5, // Much larger radius
         ));
         break;
 
       case 'transition':
-        // Forked branches with z offsets
+        // Forked branches with much wider z offsets for transformation phase
         particles.addAll(_generateBranchedNebula(
           rng: rng,
           skin: skin,
           count: particleCount,
-          branches: 3,
-          spread: 2.2,
+          branches: 4, // More branches
+          spread: 8.5, // Extra wide spread for transformation auras
         ));
         break;
 
       case 'consolidation':
-        // Woven lattice/shell
+        // Much larger woven lattice/shell
         particles.addAll(_generateLatticeNebula(
           rng: rng,
           skin: skin,
           count: particleCount,
-          radius: 1.8,
+          radius: 5.0, // Much larger lattice
         ));
         break;
 
       case 'recovery':
-        // Compact cluster near origin
+        // Larger cluster spanning more space
         particles.addAll(_generateClusteredNebula(
           rng: rng,
           skin: skin,
           count: particleCount,
-          radius: 1.2,
+          radius: 4.0, // Much larger cluster radius
         ));
         break;
 
       case 'breakthrough':
-        // Sparse bursts (radial with z spikes)
+        // Extra large sparse bursts for breakthrough phase auras
         particles.addAll(_generateBurstNebula(
           rng: rng,
           skin: skin,
           count: particleCount,
-          burstRadius: 2.8,
+          burstRadius: 9.0, // Extra large burst radius for breakthrough auras
         ));
         break;
 
       default:
-        // Default: moderate spherical distribution
+        // Default: large spherical distribution for expansive nebula
         particles.addAll(_generateSphericalNebula(
           rng: rng,
           skin: skin,
           count: particleCount,
-          radius: 2.0,
+          radius: 5.5, // Much larger default radius
         ));
     }
 
@@ -302,8 +302,8 @@ class NebulaGenerator {
     double y,
     double z,
   ) {
-    // Base size with jitter
-    final baseSize = 0.15 + rng.nextDouble() * 0.25;
+    // Moderately larger base size with jitter
+    final baseSize = 0.25 + rng.nextDouble() * 0.35; // Moderately larger than original
     final size = baseSize * (1.0 + (rng.nextDouble() - 0.5) * skin.nebulaJitter);
     
     // Alpha with jitter

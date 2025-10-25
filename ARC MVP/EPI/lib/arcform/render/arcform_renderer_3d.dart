@@ -45,6 +45,18 @@ class _Arcform3DState extends State<Arcform3D> {
   // Gesture handling for 3D interaction
   Offset? _lastPanPosition;
   double _baseScaleFactor = 1.0;
+  int _initialPointerCount = 0;
+
+  // Camera translation for single-finger panning
+  double _cameraX = 0.0;
+  double _cameraY = 0.0;
+
+  // Track two-finger positions for opposite direction detection
+  Offset? _finger1LastPos;
+  Offset? _finger2LastPos;
+
+  // Track previous rotation for delta calculation
+  double _lastRotation = 0.0;
 
   List<_Star> _stars = [];
   List<_Edge> _edges = [];
@@ -169,9 +181,9 @@ class _Arcform3DState extends State<Arcform3D> {
       final depthScale = (1.0 + finalZ / 300).clamp(0.4, 1.8); // Original molecular scale range
       final nodeSize = (star.size * depthScale * _zoom).clamp(8.0, 30.0); // Original molecular size range
 
-      // Calculate screen position
-      final screenX = center.dx + projectedX;
-      final screenY = center.dy + projectedY;
+      // Calculate screen position with camera translation
+      final screenX = center.dx + projectedX + _cameraX;
+      final screenY = center.dy + projectedY + _cameraY;
 
       // Only render nodes that are visible
       if (screenX > -50 && screenX < size.width + 50 &&
@@ -274,7 +286,7 @@ class _Arcform3DState extends State<Arcform3D> {
       _nebulaParticles = NebulaGenerator.generate(
         phase: widget.phase,
         skin: widget.skin,
-        particleCount: 18,
+        particleCount: 25, // Moderately more particles for better coverage
       );
     } else {
       _nebulaParticles = [];
@@ -292,37 +304,54 @@ class _Arcform3DState extends State<Arcform3D> {
       onScaleStart: (details) {
         _baseScaleFactor = _zoom;
         _lastPanPosition = details.focalPoint;
+        _initialPointerCount = details.pointerCount;
+        _lastRotation = 0.0; // Initialize rotation tracking
       },
       onScaleUpdate: (details) {
         setState(() {
-          // Handle zoom - Flutter scale is REVERSE from Swift, so use division
-          if (details.scale != 1.0) {
-            _zoom = (_baseScaleFactor / details.scale).clamp(0.5, 8.0);
-          }
+          final currentPointerCount = details.pointerCount;
 
-          // Handle rotation based on finger count
-          if (_lastPanPosition != null && details.scale == 1.0) {
-            if (details.pointerCount == 1) {
-              // Single finger: drag to rotate around X and Y axes
+          if (currentPointerCount == 1) {
+            // One-finger drag: Move/rotate the object (x & y axes)
+            if (_lastPanPosition != null) {
               final delta = details.focalPoint - _lastPanPosition!;
               _rotationY += delta.dx * 0.01; // Horizontal drag rotates around Y-axis
-              _rotationX -= delta.dy * 0.01; // Vertical drag rotates around X-axis (note: -= not +=)
-              _rotationX = _rotationX.clamp(-math.pi/2, math.pi/2); // Clamp X rotation
-              _rotationY = _rotationY % (2 * math.pi); // Wrap Y rotation
-              _lastPanPosition = details.focalPoint;
-            } else if (details.pointerCount == 2) {
-              // Two fingers: rotation gesture for Z-axis rotation
-              if (details.rotation != 0) {
-                _rotationZ += details.rotation * 0.3; // Z-axis rotation for two fingers
-              }
-              _lastPanPosition = details.focalPoint;
+              _rotationX -= delta.dy * 0.01; // Vertical drag rotates around X-axis
+              _rotationX = _rotationX.clamp(-math.pi/2, math.pi/2);
+              _rotationY = _rotationY % (2 * math.pi);
             }
+          } else if (currentPointerCount == 2) {
+            // Two-finger gestures: pinch zoom, pan/drag translation, twist rotation
+
+            // Two-finger pinch: Zoom in (open) / Zoom out (close)
+            if (details.scale != 1.0) {
+              _zoom = (_baseScaleFactor * details.scale).clamp(0.5, 8.0);
+            }
+
+            // Two-finger pan/drag: Translate object/camera in plane
+            if (_lastPanPosition != null) {
+              final delta = details.focalPoint - _lastPanPosition!;
+              _cameraX += delta.dx * 1.0; // Horizontal translation
+              _cameraY += delta.dy * 1.0; // Vertical translation
+            }
+
+            // Two-finger rotation (twist): Rotate around axis
+            final rotationDelta = details.rotation - _lastRotation;
+            if (rotationDelta.abs() > 0.001) { // Only apply if there's meaningful change
+              _rotationZ += rotationDelta * 0.5; // Z-axis rotation for twist
+              _rotationZ = _rotationZ % (2 * math.pi); // Allow full rotation
+            }
+            _lastRotation = details.rotation;
           }
+
+          _lastPanPosition = details.focalPoint;
         });
       },
       onScaleEnd: (_) {
         _baseScaleFactor = _zoom;
         _lastPanPosition = null;
+        _initialPointerCount = 0;
+        _lastRotation = 0.0; // Reset rotation tracking
       },
 
       child: Stack(
@@ -337,6 +366,8 @@ class _Arcform3DState extends State<Arcform3D> {
               rotationY: _rotationY,
               rotationZ: _rotationZ,
               zoom: _zoom,
+              cameraX: _cameraX,
+              cameraY: _cameraY,
             ),
           ),
 
@@ -350,6 +381,8 @@ class _Arcform3DState extends State<Arcform3D> {
                 rotationY: _rotationY,
                 rotationZ: _rotationZ,
                 zoom: _zoom,
+                cameraX: _cameraX,
+                cameraY: _cameraY,
                 twinkleValue: (DateTime.now().millisecondsSinceEpoch / 1000.0) % 1.0,
               ),
             ),
@@ -452,23 +485,33 @@ class _ConstellationPainter extends CustomPainter {
         center.dy - edge.end.y * scale * endPerspective,
       );
 
-      // Create gradient effect by blending the edge color with transparency
-      final lineColor = edge.color.withOpacity(0.3 + edge.weight * 0.4); // More subtle, 0.3-0.7 opacity
-      
-      // Multiple line layers for constellation effect
-      // Outer glow line (very subtle)
+      // Create enhanced gradient effect with more vibrant colors
+      final baseOpacity = (0.5 + edge.weight * 0.5).clamp(0.3, 0.9); // Increased base opacity
+      final lineColor = edge.color.withOpacity(baseOpacity);
+
+      // Enhanced multiple line layers for constellation effect
+      // Outer glow line (more visible)
       final outerLinePaint = Paint()
-        ..color = lineColor.withOpacity(0.1)
-        ..strokeWidth = 3.0 + edge.weight * 2.0
+        ..color = lineColor.withOpacity(0.3)
+        ..strokeWidth = (4.0 + edge.weight * 3.0).clamp(2.0, 8.0)
         ..style = PaintingStyle.stroke
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 2);
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3);
 
       canvas.drawLine(startProj, endProj, outerLinePaint);
 
-      // Main constellation line
+      // Inner glow line
+      final innerGlowPaint = Paint()
+        ..color = lineColor.withOpacity(0.6)
+        ..strokeWidth = (2.0 + edge.weight * 1.5).clamp(1.0, 4.0)
+        ..style = PaintingStyle.stroke
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 1.5);
+
+      canvas.drawLine(startProj, endProj, innerGlowPaint);
+
+      // Main constellation line (core)
       final mainLinePaint = Paint()
         ..color = lineColor
-        ..strokeWidth = 0.8 + edge.weight * 0.8 // Thinner, more delicate lines
+        ..strokeWidth = (1.0 + edge.weight * 1.0).clamp(0.5, 2.5) // Slightly thicker core
         ..style = PaintingStyle.stroke;
 
       canvas.drawLine(startProj, endProj, mainLinePaint);
@@ -576,10 +619,10 @@ class _ConstellationPainter extends CustomPainter {
         );
         textPainter.layout();
 
-        // Position label slightly above the star
+        // Position label much lower below the star with extra spacing
         final labelOffset = Offset(
           projected.dx - textPainter.width / 2,
-          projected.dy - star.size * 2 - textPainter.height,
+          projected.dy + star.size * 4 + 35, // Position even lower below star
         );
 
         // Draw label background for readability
@@ -663,10 +706,10 @@ class _LabelsPainter extends CustomPainter {
         );
         textPainter.layout();
 
-        // Position label slightly above the star (scaled with zoom)
+        // Position label much lower below the star with extra spacing (scaled with zoom)
         final labelOffset = Offset(
           projected.dx - textPainter.width / 2,
-          projected.dy - (star.size * zoom * 2) - textPainter.height,
+          projected.dy + (star.size * zoom * 4) + 35, // Position even lower below star
         );
 
         // Draw label background for readability
@@ -795,7 +838,7 @@ class _MolecularNodeWidgetState extends State<_MolecularNodeWidget>
             // Label
             if (widget.label.isNotEmpty)
               Positioned(
-                top: widget.size + 8,
+                top: widget.size + 45, // Position even lower below the node
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                   decoration: BoxDecoration(
@@ -826,6 +869,8 @@ class _NebulaGlowPainter extends CustomPainter {
   final double rotationY;
   final double rotationZ; // Add Z rotation parameter
   final double zoom;
+  final double cameraX;
+  final double cameraY;
   final double twinkleValue;
 
   _NebulaGlowPainter({
@@ -834,6 +879,8 @@ class _NebulaGlowPainter extends CustomPainter {
     required this.rotationY,
     required this.rotationZ, // Add Z rotation parameter
     required this.zoom,
+    required this.cameraX,
+    required this.cameraY,
     required this.twinkleValue,
   });
 
@@ -862,8 +909,8 @@ class _NebulaGlowPainter extends CustomPainter {
       final projectedY = rotatedY * scale * baseScale * zoom;
 
       final screenPos = Offset(
-        center.dx + projectedX,
-        center.dy + projectedY,
+        center.dx + projectedX + cameraX,
+        center.dy + projectedY + cameraY,
       );
 
       // Individual twinkling with depth-based variation
@@ -880,9 +927,9 @@ class _NebulaGlowPainter extends CustomPainter {
           finalAlpha,
         )
         ..style = PaintingStyle.fill
-        ..maskFilter = MaskFilter.blur(BlurStyle.normal, particle.size * scale * 15);
+        ..maskFilter = MaskFilter.blur(BlurStyle.normal, particle.size * scale * 25); // Moderately larger blur
 
-      canvas.drawCircle(screenPos, particle.size * scale * 30, paint); // Balanced nebula size
+      canvas.drawCircle(screenPos, particle.size * scale * 50, paint); // Moderately larger nebula
     }
   }
 
@@ -891,7 +938,10 @@ class _NebulaGlowPainter extends CustomPainter {
     return oldDelegate.twinkleValue != twinkleValue ||
         oldDelegate.rotationX != rotationX ||
         oldDelegate.rotationY != rotationY ||
-        oldDelegate.zoom != zoom;
+        oldDelegate.rotationZ != rotationZ ||
+        oldDelegate.zoom != zoom ||
+        oldDelegate.cameraX != cameraX ||
+        oldDelegate.cameraY != cameraY;
   }
 }
 
@@ -903,6 +953,8 @@ class _ConstellationLinesPainter extends CustomPainter {
   final double rotationY;
   final double rotationZ; // Add Z rotation parameter
   final double zoom;
+  final double cameraX;
+  final double cameraY;
 
   _ConstellationLinesPainter({
     required this.stars,
@@ -911,6 +963,8 @@ class _ConstellationLinesPainter extends CustomPainter {
     required this.rotationY,
     required this.rotationZ, // Add Z rotation parameter
     required this.zoom,
+    required this.cameraX,
+    required this.cameraY,
   });
 
   @override
@@ -957,12 +1011,12 @@ class _ConstellationLinesPainter extends CustomPainter {
       final endScale = focalLength / (focalLength + endFinalZ);
 
       final startProj = Offset(
-        center.dx + startRotatedX * startScale * baseScale * zoom, // Match node scaling exactly
-        center.dy + startRotatedY * startScale * baseScale * zoom,
+        center.dx + startRotatedX * startScale * baseScale * zoom + cameraX, // Add camera translation
+        center.dy + startRotatedY * startScale * baseScale * zoom + cameraY,
       );
       final endProj = Offset(
-        center.dx + endRotatedX * endScale * baseScale * zoom,
-        center.dy + endRotatedY * endScale * baseScale * zoom,
+        center.dx + endRotatedX * endScale * baseScale * zoom + cameraX, // Add camera translation
+        center.dy + endRotatedY * endScale * baseScale * zoom + cameraY,
       );
 
       // Calculate line opacity based on depth and distance
@@ -970,27 +1024,33 @@ class _ConstellationLinesPainter extends CustomPainter {
       final distance = (startProj - endProj).distance;
       final depthOpacity = (1.0 - (avgDepth / 500).clamp(0.0, 0.8));
       final distanceOpacity = (1.0 - (distance / 400).clamp(0.0, 0.8));
-      final finalOpacity = (depthOpacity * distanceOpacity * 0.4).clamp(0.05, 0.4);
+      final baseOpacity = (depthOpacity * distanceOpacity * 0.8).clamp(0.15, 0.8); // Increased opacity
 
       // Create gradient line color based on connected stars
       final blendedColor = Color.lerp(sourceStar.color, targetStar.color, 0.5) ?? edge.color;
 
-      // Draw constellation line with glow
-      final linePaint = Paint()
-        ..color = blendedColor.withOpacity(finalOpacity)
-        ..strokeWidth = (2.0 * depthOpacity).clamp(0.5, 3.0)
+      // Draw enhanced constellation line with layered glow effect
+      final outerGlowPaint = Paint()
+        ..color = blendedColor.withOpacity(baseOpacity * 0.3)
+        ..strokeWidth = (5.0 * depthOpacity).clamp(2.0, 8.0)
         ..style = PaintingStyle.stroke
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 1);
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4);
 
-      canvas.drawLine(startProj, endProj, linePaint);
+      final innerGlowPaint = Paint()
+        ..color = blendedColor.withOpacity(baseOpacity * 0.6)
+        ..strokeWidth = (3.0 * depthOpacity).clamp(1.0, 4.0)
+        ..style = PaintingStyle.stroke
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 2);
 
-      // Add inner bright line
-      final innerLinePaint = Paint()
-        ..color = blendedColor.withOpacity(finalOpacity * 1.5)
-        ..strokeWidth = 0.5
+      final corePaint = Paint()
+        ..color = blendedColor.withOpacity(baseOpacity)
+        ..strokeWidth = (1.5 * depthOpacity).clamp(0.5, 2.0)
         ..style = PaintingStyle.stroke;
 
-      canvas.drawLine(startProj, endProj, innerLinePaint);
+      // Draw layered effect: outer glow -> inner glow -> core line
+      canvas.drawLine(startProj, endProj, outerGlowPaint);
+      canvas.drawLine(startProj, endProj, innerGlowPaint);
+      canvas.drawLine(startProj, endProj, corePaint);
     }
   }
 
@@ -998,7 +1058,10 @@ class _ConstellationLinesPainter extends CustomPainter {
   bool shouldRepaint(_ConstellationLinesPainter oldDelegate) {
     return oldDelegate.rotationX != rotationX ||
         oldDelegate.rotationY != rotationY ||
-        oldDelegate.zoom != zoom;
+        oldDelegate.rotationZ != rotationZ ||
+        oldDelegate.zoom != zoom ||
+        oldDelegate.cameraX != cameraX ||
+        oldDelegate.cameraY != cameraY;
   }
 }
 

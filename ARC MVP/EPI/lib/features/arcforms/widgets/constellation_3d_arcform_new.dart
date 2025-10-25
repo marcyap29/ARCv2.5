@@ -41,6 +41,9 @@ class _Constellation3DArcformNewState extends State<Constellation3DArcformNew>
   // Interactive selection state
   String? _selectedNodeId;
 
+  // Gesture handling state
+  Offset? _lastFocalPoint;
+
   @override
   void initState() {
     super.initState();
@@ -73,12 +76,50 @@ class _Constellation3DArcformNewState extends State<Constellation3DArcformNew>
     widget.onNodeTapped?.call(nodeId);
   }
 
+  void _handleScaleStart(ScaleStartDetails details) {
+    _lastFocalPoint = details.focalPoint;
+  }
+
   void _handleScaleUpdate(ScaleUpdateDetails details) {
     setState(() {
-      _scale = (_scale * details.scale).clamp(0.5, 3.0);
-      _rotationX += details.focalPointDelta.dy * 0.01;
-      _rotationY += details.focalPointDelta.dx * 0.01;
-      _rotationZ += details.rotation * 0.5; // Two-finger twist for Z rotation
+      final currentPointerCount = details.pointerCount;
+
+      if (currentPointerCount == 1) {
+        // One-finger drag: Move/rotate the object (x & y axes)
+        if (_lastFocalPoint != null) {
+          final delta = details.focalPoint - _lastFocalPoint!;
+          _rotationY += delta.dx * 0.01; // Horizontal drag rotates around Y-axis
+          _rotationX -= delta.dy * 0.01; // Vertical drag rotates around X-axis
+          _rotationX = _rotationX.clamp(-math.pi/2, math.pi/2);
+          _rotationY = _rotationY % (2 * math.pi);
+        }
+      } else if (currentPointerCount == 2) {
+        // Two-finger gestures: pinch zoom, pan/drag translation, twist rotation
+
+        // Two-finger pinch: Zoom in (open) / Zoom out (close)
+        if (details.scale != 1.0) {
+          _scale = (_scale * details.scale).clamp(0.5, 3.0);
+        }
+
+        // Two-finger pan/drag: Translate object in plane
+        // Note: This implementation doesn't have camera translation, so we'll use it for additional rotation
+        if (_lastFocalPoint != null) {
+          final delta = details.focalPoint - _lastFocalPoint!;
+          // For this helix renderer, use pan as fine rotation adjustment
+          _rotationY += delta.dx * 0.005; // Fine horizontal rotation
+          _rotationX -= delta.dy * 0.005; // Fine vertical rotation
+          _rotationX = _rotationX.clamp(-math.pi/2, math.pi/2);
+          _rotationY = _rotationY % (2 * math.pi);
+        }
+
+        // Two-finger rotation (twist): Rotate around Z axis
+        if (details.rotation != 0) {
+          _rotationZ += details.rotation * 0.5; // Z-axis rotation for twist
+          _rotationZ = _rotationZ % (2 * math.pi);
+        }
+      }
+
+      _lastFocalPoint = details.focalPoint;
     });
   }
 
@@ -94,6 +135,7 @@ class _Constellation3DArcformNewState extends State<Constellation3DArcformNew>
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
+      onScaleStart: _handleScaleStart,
       onScaleUpdate: _handleScaleUpdate,
       onDoubleTap: _handleDoubleTap,
       child: CustomPaint(
@@ -222,22 +264,48 @@ class _ConstellationPainter extends CustomPainter {
     // 7) Optional background stars (cheap parallax feel)
     _paintBackground(canvas, size);
 
-    // 8) Draw edges (faint glow)
-    final edgePaint = Paint()
-      ..color = Colors.white.withOpacity(0.15)
-      ..strokeWidth = 1.0
-      ..isAntiAlias = true;
+    // 8) Draw enhanced colored edges
+    final emotionalService = EmotionalValenceService();
+
     // Use a map index->screen for fast lookup
     final posMap = {for (final p in transformed) p.index: p.screen};
     for (final (a, b) in edges) {
       final pa = posMap[a], pb = posMap[b];
-      if (pa != null && pb != null) {
-        canvas.drawLine(pa, pb, edgePaint);
+      if (pa != null && pb != null && a < nodeCount && b < nodeCount) {
+        // Get colors from connected nodes
+        final nodeA = nodes[a];
+        final nodeB = nodes[b];
+        final colorA = emotionalService.getEmotionalColor(nodeA.label);
+        final colorB = emotionalService.getEmotionalColor(nodeB.label);
+        final blendedColor = Color.lerp(colorA, colorB, 0.5) ?? colorA;
+
+        // Calculate depth-based opacity
+        final depthA = transformed.firstWhere((p) => p.index == a).depth;
+        final depthB = transformed.firstWhere((p) => p.index == b).depth;
+        final avgDepth = (depthA + depthB) / 2;
+        final depthOpacity = (1.0 - (avgDepth / 200).clamp(0.0, 0.8));
+        final baseOpacity = (depthOpacity * 0.8).clamp(0.2, 0.8);
+
+        // Draw layered colored edge
+        final glowPaint = Paint()
+          ..color = blendedColor.withOpacity(baseOpacity * 0.4)
+          ..strokeWidth = 3.0
+          ..style = PaintingStyle.stroke
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 2)
+          ..isAntiAlias = true;
+
+        final corePaint = Paint()
+          ..color = blendedColor.withOpacity(baseOpacity)
+          ..strokeWidth = 1.5
+          ..style = PaintingStyle.stroke
+          ..isAntiAlias = true;
+
+        canvas.drawLine(pa, pb, glowPaint);
+        canvas.drawLine(pa, pb, corePaint);
       }
     }
 
     // 9) Draw stars (core + halo), near last for additive look
-    final emotionalService = EmotionalValenceService();
     for (final p in transformed) {
       if (p.index < nodeCount) {
         final node = nodes[p.index];
@@ -299,8 +367,8 @@ class _ConstellationPainter extends CustomPainter {
     textPainter.layout();
     
     final textOffset = Offset(
-      position.dx - textPainter.width / 2,
-      position.dy - textPainter.height - 15,
+      position.dx - textPainter.width / 2,  // Center horizontally
+      position.dy + 50, // Position even lower below star
     );
     
     textPainter.paint(canvas, textOffset);
