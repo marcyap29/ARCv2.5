@@ -39,6 +39,7 @@ class _Arcform3DState extends State<Arcform3D> {
   // Set dynamically based on phase to show each shape clearly
   late double _rotationX;
   late double _rotationY;
+  late double _rotationZ; // Add Z-axis rotation for two-finger rotation
   late double _zoom;
 
   // Gesture handling for 3D interaction
@@ -62,8 +63,9 @@ class _Arcform3DState extends State<Arcform3D> {
       case 'discovery':
         // HELIX: Balanced view to show vertical spiral clearly
         _rotationX = 0.2;   // Slight angle to show depth
-        _rotationY = 0.0;   // No rotation for clear helix view
-        _zoom = 3.5;        // Good distance to see full helix
+        _rotationY = 0.0;   // No Y rotation for clear helix view
+        _rotationZ = math.pi / 2 + math.pi / 2;   // 90 + 90 = 180-degree Z-axis rotation away from viewer
+        _zoom = 2.5;        // More zoomed out starting position
         break;
 
       case 'exploration':
@@ -71,6 +73,7 @@ class _Arcform3DState extends State<Arcform3D> {
         // PETAL RINGS: Angled down to see layered concentric rings
         _rotationX = 0.3;
         _rotationY = 0.2;
+        _rotationZ = 0.0;
         _zoom = 3.0;
         break;
 
@@ -78,6 +81,7 @@ class _Arcform3DState extends State<Arcform3D> {
         // BRANCHES: Straight-on view to see "reaching fingers" from side
         _rotationX = 0.1;   // Very slight angle
         _rotationY = 0.0;   // No rotation - see fingers reaching horizontally
+        _rotationZ = 0.0;
         _zoom = 2.8;        // Good distance to see full reach
         break;
 
@@ -85,6 +89,7 @@ class _Arcform3DState extends State<Arcform3D> {
         // LATTICE: Slight angle to see geodesic dome structure
         _rotationX = 0.4;   // Slight tilt to show depth
         _rotationY = 0.3;   // Some rotation to see 3D structure
+        _rotationZ = 0.0;
         _zoom = 4.0;        // Further out to see complete sphere structure
         break;
 
@@ -92,6 +97,7 @@ class _Arcform3DState extends State<Arcform3D> {
         // CLUSTER: Close view to see cluster detail
         _rotationX = 0.2;   // Very slight angle
         _rotationY = 0.1;   // Minimal rotation
+        _rotationZ = 0.0;
         _zoom = 2.5;        // Closer to see cluster detail
         break;
 
@@ -99,6 +105,7 @@ class _Arcform3DState extends State<Arcform3D> {
         // BURST: Angled view to see radial explosion pattern
         _rotationX = 0.6;   // Higher angle looking down
         _rotationY = 0.4;   // Some rotation for full radial view
+        _rotationZ = 0.0;
         _zoom = 4.5;        // Far back to see full starburst
         break;
 
@@ -106,6 +113,7 @@ class _Arcform3DState extends State<Arcform3D> {
         // SPHERICAL: Balanced view of Fibonacci sphere
         _rotationX = 0.2;
         _rotationY = 0.0;
+        _rotationZ = 0.0;
         _zoom = 3.5;
     }
 
@@ -138,11 +146,17 @@ class _Arcform3DState extends State<Arcform3D> {
     final center = Offset(size.width / 2, size.height * 0.35);
 
     for (final star in _stars) {
-      // Apply proper 3D rotation math (like molecular design)
-      final rotatedX = star.position.x * math.cos(_rotationY) - star.position.z * math.sin(_rotationY);
-      final rotatedZ = star.position.x * math.sin(_rotationY) + star.position.z * math.cos(_rotationY);
-      final rotatedY = star.position.y * math.cos(_rotationX) - rotatedZ * math.sin(_rotationX);
-      final finalZ = star.position.y * math.sin(_rotationX) + rotatedZ * math.cos(_rotationX);
+      // Apply proper 3D rotation math (like molecular design) with Z rotation
+      // First apply Z rotation around the Z-axis
+      final zRotatedX = star.position.x * math.cos(_rotationZ) - star.position.y * math.sin(_rotationZ);
+      final zRotatedY = star.position.x * math.sin(_rotationZ) + star.position.y * math.cos(_rotationZ);
+      final zRotatedZ = star.position.z;
+      
+      // Then apply Y rotation around the Y-axis
+      final rotatedX = zRotatedX * math.cos(_rotationY) - zRotatedZ * math.sin(_rotationY);
+      final rotatedZ = zRotatedX * math.sin(_rotationY) + zRotatedZ * math.cos(_rotationY);
+      final rotatedY = zRotatedY * math.cos(_rotationX) - rotatedZ * math.sin(_rotationX);
+      final finalZ = zRotatedY * math.sin(_rotationX) + rotatedZ * math.cos(_rotationX);
 
       // Perspective projection with original molecular approach
       const focalLength = 400.0; // Original focal length from simple_3d_arcform
@@ -274,7 +288,7 @@ class _Arcform3DState extends State<Arcform3D> {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      // Scale gesture handles rotation (single finger), zoom (pinch), and two-finger rotation
+      // Handle all gestures with scale detector (superset of pan)
       onScaleStart: (details) {
         _baseScaleFactor = _zoom;
         _lastPanPosition = details.focalPoint;
@@ -286,21 +300,20 @@ class _Arcform3DState extends State<Arcform3D> {
             _zoom = (_baseScaleFactor / details.scale).clamp(0.5, 8.0);
           }
 
-          // Only handle rotation if we're NOT zooming (scale == 1.0)
-          // This prevents rotation interference during pinch gestures
+          // Handle rotation based on finger count
           if (_lastPanPosition != null && details.scale == 1.0) {
             if (details.pointerCount == 1) {
-              // Single finger: drag to rotate around X and Y axes (increased sensitivity)
+              // Single finger: drag to rotate around X and Y axes
               final delta = details.focalPoint - _lastPanPosition!;
-              _rotationY += delta.dx * 0.02; // Increased from 0.01 to 0.02
-              _rotationX -= delta.dy * 0.02; // Increased from 0.01 to 0.02
+              _rotationY += delta.dx * 0.01; // Horizontal drag rotates around Y-axis
+              _rotationX -= delta.dy * 0.01; // Vertical drag rotates around X-axis (note: -= not +=)
               _rotationX = _rotationX.clamp(-math.pi/2, math.pi/2); // Clamp X rotation
               _rotationY = _rotationY % (2 * math.pi); // Wrap Y rotation
               _lastPanPosition = details.focalPoint;
             } else if (details.pointerCount == 2) {
               // Two fingers: rotation gesture for Z-axis rotation
               if (details.rotation != 0) {
-                _rotationY += details.rotation * 0.3; // Reduced from 0.5 to 0.3 for better control
+                _rotationZ += details.rotation * 0.3; // Z-axis rotation for two fingers
               }
               _lastPanPosition = details.focalPoint;
             }
@@ -322,6 +335,7 @@ class _Arcform3DState extends State<Arcform3D> {
               edges: _edges,
               rotationX: _rotationX,
               rotationY: _rotationY,
+              rotationZ: _rotationZ,
               zoom: _zoom,
             ),
           ),
@@ -334,6 +348,7 @@ class _Arcform3DState extends State<Arcform3D> {
                 particles: _nebulaParticles,
                 rotationX: _rotationX,
                 rotationY: _rotationY,
+                rotationZ: _rotationZ,
                 zoom: _zoom,
                 twinkleValue: (DateTime.now().millisecondsSinceEpoch / 1000.0) % 1.0,
               ),
@@ -809,6 +824,7 @@ class _NebulaGlowPainter extends CustomPainter {
   final List<NebulaParticle> particles;
   final double rotationX;
   final double rotationY;
+  final double rotationZ; // Add Z rotation parameter
   final double zoom;
   final double twinkleValue;
 
@@ -816,6 +832,7 @@ class _NebulaGlowPainter extends CustomPainter {
     required this.particles,
     required this.rotationX,
     required this.rotationY,
+    required this.rotationZ, // Add Z rotation parameter
     required this.zoom,
     required this.twinkleValue,
   });
@@ -825,11 +842,17 @@ class _NebulaGlowPainter extends CustomPainter {
     final center = Offset(size.width / 2, size.height / 2);
 
     for (final particle in particles) {
-      // Apply 3D rotation to nebula particles
-      final rotatedX = particle.x * math.cos(rotationY) - particle.z * math.sin(rotationY);
-      final rotatedZ = particle.x * math.sin(rotationY) + particle.z * math.cos(rotationY);
-      final rotatedY = particle.y * math.cos(rotationX) - rotatedZ * math.sin(rotationX);
-      final finalZ = particle.y * math.sin(rotationX) + rotatedZ * math.cos(rotationX);
+      // Apply 3D rotation to nebula particles with Z rotation
+      // First apply Z rotation around the Z-axis
+      final zRotatedX = particle.x * math.cos(rotationZ) - particle.y * math.sin(rotationZ);
+      final zRotatedY = particle.x * math.sin(rotationZ) + particle.y * math.cos(rotationZ);
+      final zRotatedZ = particle.z;
+      
+      // Then apply Y rotation around the Y-axis
+      final rotatedX = zRotatedX * math.cos(rotationY) - zRotatedZ * math.sin(rotationY);
+      final rotatedZ = zRotatedX * math.sin(rotationY) + zRotatedZ * math.cos(rotationY);
+      final rotatedY = zRotatedY * math.cos(rotationX) - rotatedZ * math.sin(rotationX);
+      final finalZ = zRotatedY * math.sin(rotationX) + rotatedZ * math.cos(rotationX);
 
       // Perspective projection matching molecular nodes exactly
       const focalLength = 400.0; // Match node rendering exactly
@@ -878,6 +901,7 @@ class _ConstellationLinesPainter extends CustomPainter {
   final List<_Edge> edges;
   final double rotationX;
   final double rotationY;
+  final double rotationZ; // Add Z rotation parameter
   final double zoom;
 
   _ConstellationLinesPainter({
@@ -885,6 +909,7 @@ class _ConstellationLinesPainter extends CustomPainter {
     required this.edges,
     required this.rotationX,
     required this.rotationY,
+    required this.rotationZ, // Add Z rotation parameter
     required this.zoom,
   });
 
@@ -902,16 +927,28 @@ class _ConstellationLinesPainter extends CustomPainter {
 
       if (sourceStar == null || targetStar == null) continue;
 
-      // Apply 3D rotation to both endpoints
-      final startRotatedX = edge.start.x * math.cos(rotationY) - edge.start.z * math.sin(rotationY);
-      final startRotatedZ = edge.start.x * math.sin(rotationY) + edge.start.z * math.cos(rotationY);
-      final startRotatedY = edge.start.y * math.cos(rotationX) - startRotatedZ * math.sin(rotationX);
-      final startFinalZ = edge.start.y * math.sin(rotationX) + startRotatedZ * math.cos(rotationX);
+      // Apply 3D rotation to both endpoints with Z rotation
+      // First apply Z rotation around the Z-axis for start point
+      final startZRotatedX = edge.start.x * math.cos(rotationZ) - edge.start.y * math.sin(rotationZ);
+      final startZRotatedY = edge.start.x * math.sin(rotationZ) + edge.start.y * math.cos(rotationZ);
+      final startZRotatedZ = edge.start.z;
+      
+      // Then apply Y rotation around the Y-axis for start point
+      final startRotatedX = startZRotatedX * math.cos(rotationY) - startZRotatedZ * math.sin(rotationY);
+      final startRotatedZ = startZRotatedX * math.sin(rotationY) + startZRotatedZ * math.cos(rotationY);
+      final startRotatedY = startZRotatedY * math.cos(rotationX) - startRotatedZ * math.sin(rotationX);
+      final startFinalZ = startZRotatedY * math.sin(rotationX) + startRotatedZ * math.cos(rotationX);
 
-      final endRotatedX = edge.end.x * math.cos(rotationY) - edge.end.z * math.sin(rotationY);
-      final endRotatedZ = edge.end.x * math.sin(rotationY) + edge.end.z * math.cos(rotationY);
-      final endRotatedY = edge.end.y * math.cos(rotationX) - endRotatedZ * math.sin(rotationX);
-      final endFinalZ = edge.end.y * math.sin(rotationX) + endRotatedZ * math.cos(rotationX);
+      // First apply Z rotation around the Z-axis for end point
+      final endZRotatedX = edge.end.x * math.cos(rotationZ) - edge.end.y * math.sin(rotationZ);
+      final endZRotatedY = edge.end.x * math.sin(rotationZ) + edge.end.y * math.cos(rotationZ);
+      final endZRotatedZ = edge.end.z;
+      
+      // Then apply Y rotation around the Y-axis for end point
+      final endRotatedX = endZRotatedX * math.cos(rotationY) - endZRotatedZ * math.sin(rotationY);
+      final endRotatedZ = endZRotatedX * math.sin(rotationY) + endZRotatedZ * math.cos(rotationY);
+      final endRotatedY = endZRotatedY * math.cos(rotationX) - endRotatedZ * math.sin(rotationX);
+      final endFinalZ = endZRotatedY * math.sin(rotationX) + endRotatedZ * math.cos(rotationX);
 
       // Perspective projection matching molecular nodes exactly
       const focalLength = 400.0; // Match node rendering exactly
