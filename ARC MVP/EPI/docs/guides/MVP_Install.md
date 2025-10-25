@@ -319,3 +319,25 @@ The phase transfer issue has been resolved with the implementation of the new RI
 - Clean 4-tab design: Phase, Timeline, Insights, Settings
 - Flat bottom navigation design for better content visibility
 - Fixed tab arrangement to ensure proper page routing
+
+### Journal Editor & ARCForm Integration (January 25, 2025)
+
+**Full-Featured Journal Editor**:
+- Complete JournalScreen integration with all modern capabilities
+- Media support: camera, gallery, voice recording
+- Location picker for adding location data to entries
+- Phase editing for existing journal entries
+- LUMARA in-journal assistance and suggestions
+- OCR text extraction from photos
+- Keyword discovery and management
+- Metadata editing: date, time, location, phase
+- Draft management with auto-save and recovery
+- Smart save behavior (only prompts when changes detected)
+
+**ARCForm Keyword Integration**:
+- ARCForms now update with real keywords from journal entries
+- MCP bundle integration displays actual user keywords
+- Phase regime detection from MCP bundles
+- Journal entry filtering by phase regime date ranges
+- Real keyword display from user's actual writing
+- Fallback system to recent entries if no phase regime found

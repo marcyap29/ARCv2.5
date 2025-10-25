@@ -1,10 +1,41 @@
 # Bug Tracker - Current Status
 
-**Last Updated:** January 23, 2025
+**Last Updated:** January 25, 2025
 **Branch:** phase-updates
-**Status:** Production Ready ✅ - Phase Detector Service + Enhanced ARCForm 3D Shapes + Camera Optimizations Complete
+**Status:** Production Ready ✅ - Journal Editor Upgrade + ARCForm Keyword Integration + Phase Detector Service + Enhanced ARCForm 3D Shapes Complete
 
 ## 📊 Current Status
+
+### 📝 Journal Editor & ARCForm Integration Fixes (January 25, 2025)
+**Resolved critical issues with journal editor and ARCForm keyword integration:**
+
+#### ✅ Bug Fix #1: Journal Editor Upgrade
+- **Problem**: Timeline "+" button was using old, basic StartEntryFlow instead of full-featured JournalScreen
+- **Solution**: Updated timeline view to use complete JournalScreen with all modern capabilities
+- **Features Now Available**:
+  - Media support (camera, gallery, voice recording)
+  - Location picker integration
+  - Phase editing for existing entries
+  - LUMARA in-journal assistance
+  - OCR text extraction from photos
+  - Keyword discovery and management
+  - Metadata editing (date, time, location, phase)
+  - Draft management with auto-save
+  - Smart save behavior
+- **Status**: PRODUCTION READY ✅
+- **Testing**: Full functionality verified
+
+#### ✅ Bug Fix #2: ARCForm Keyword Integration
+- **Problem**: ARCForms not updating with real keywords from journal entries when loading MCP bundles
+- **Solution**: Enhanced _discoverUserPhases() to check both journal entries and phase regimes
+- **Features Now Available**:
+  - MCP bundle integration with real keyword display
+  - Phase regime detection from MCP bundles
+  - Journal entry filtering by phase regime date ranges
+  - Real keyword display from user's actual writing
+  - Fallback system to recent entries
+- **Status**: PRODUCTION READY ✅
+- **Testing**: MCP bundle integration verified
 
 ### 🔍 Phase Detector Service & ARCForm Enhancements (January 23, 2025)
 **Implemented real-time phase detection and dramatically improved ARCForm 3D visualizations:**

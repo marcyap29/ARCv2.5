@@ -397,17 +397,6 @@ class _PhaseArcform3DScreenState extends State<PhaseArcform3DScreen> {
               ),
               
               const SizedBox(height: 12),
-              
-              // Metadata
-              Row(
-                children: [
-                  _buildMetadataChip('Nodes', '${arcform.nodes.length}', kcSecondaryColor),
-                  const SizedBox(width: 8),
-                  _buildMetadataChip('Edges', '${arcform.edges.length}', kcAccentColor),
-                  const SizedBox(width: 8),
-                  _buildMetadataChip('Created', _formatDate(arcform.createdAt), kcSuccessColor),
-                ],
-              ),
             ],
           ),
         ),
@@ -415,28 +404,6 @@ class _PhaseArcform3DScreenState extends State<PhaseArcform3DScreen> {
     );
   }
 
-  Widget _buildMetadataChip(String label, String value, Color color) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.2),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withOpacity(0.5)),
-      ),
-      child: Text(
-        '$label: $value',
-        style: TextStyle(
-          color: color,
-          fontSize: 10,
-          fontWeight: FontWeight.w500,
-        ),
-      ),
-    );
-  }
-
-  String _formatDate(DateTime date) {
-    return '${date.month}/${date.day}/${date.year}';
-  }
 
   void _showArcformViewer(Arcform3DData arcform) {
     Navigator.of(context).push(

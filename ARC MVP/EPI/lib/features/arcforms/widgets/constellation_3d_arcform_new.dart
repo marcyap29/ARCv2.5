@@ -34,7 +34,7 @@ class _Constellation3DArcformNewState extends State<Constellation3DArcformNew>
   // 3D rotation and scaling state
   double _rotationX = 0.0;
   double _rotationY = 0.0;
-  double _rotationZ = 0.0;
+  double _rotationZ = math.pi / 2; // Start with 90-degree Z rotation to show helix from side
   double _scale = 1.0;
   final bool _autoRotate = true;
   
@@ -127,7 +127,7 @@ class _Constellation3DArcformNewState extends State<Constellation3DArcformNew>
     setState(() {
       _rotationX = 0.0;
       _rotationY = 0.0;
-      _rotationZ = 0.0;
+      _rotationZ = math.pi / 2; // Reset to side view to show helix properly
       _scale = 1.0;
     });
   }

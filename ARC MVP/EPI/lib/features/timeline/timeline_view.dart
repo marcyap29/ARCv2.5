@@ -5,7 +5,7 @@ import 'package:my_app/features/timeline/timeline_state.dart';
 import 'package:my_app/features/timeline/widgets/interactive_timeline_view.dart';
 import 'package:my_app/shared/app_colors.dart';
 import 'package:my_app/services/journal_session_cache.dart';
-import 'package:my_app/features/journal/start_entry_flow.dart';
+import 'package:my_app/ui/journal/journal_screen.dart';
 import 'package:my_app/features/timeline/timeline_entry_model.dart';
 
 class TimelineView extends StatelessWidget {
@@ -60,7 +60,7 @@ class _TimelineViewContentState extends State<TimelineViewContent> {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => const StartEntryFlow(),
+        builder: (context) => const JournalScreen(),
       ),
     );
   }

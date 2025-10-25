@@ -2,6 +2,28 @@
 
 ## [Unreleased]
 
+### 📝 **Full-Featured Journal Editor & ARCForm Keyword Integration** - January 25, 2025
+
+#### **Enhancement: Journal Editor Upgrade** ✅ **PRODUCTION READY**
+- **Full JournalScreen Integration**: Replaced basic StartEntryFlow with complete JournalScreen
+- **Media Support**: Camera, gallery, voice recording integration
+- **Location Picker**: Add location data to journal entries
+- **Phase Editing**: Change phase for existing entries
+- **LUMARA Integration**: In-journal LUMARA assistance and suggestions
+- **OCR Text Extraction**: Extract text from photos automatically
+- **Keyword Discovery**: Automatic keyword extraction and management
+- **Metadata Editing**: Edit date, time, location, and phase for existing entries
+- **Draft Management**: Auto-save and recovery functionality
+- **Smart Save Behavior**: Only prompts to save when changes are detected
+
+#### **Fix: ARCForm Keyword Integration** ✅ **PRODUCTION READY**
+- **MCP Bundle Integration**: ARCForms now update with real keywords when loading MCP bundles
+- **Phase Regime Detection**: Properly detects phases from MCP bundle phase regimes
+- **Journal Entry Filtering**: Filters journal entries by phase regime date ranges
+- **Real Keyword Display**: Shows actual emotion and concept keywords from user's writing
+- **Fallback System**: Graceful fallback to recent entries if no phase regime found
+- **Phase Discovery**: Enhanced _discoverUserPhases() to check both journal entries and phase regimes
+
 ### 🔍 **Phase Detector Service & Enhanced ARCForm Shapes** - January 23, 2025
 
 #### **New Feature: Real-Time Phase Detector** ✅ **PRODUCTION READY**

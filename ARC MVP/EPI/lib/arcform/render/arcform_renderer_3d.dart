@@ -73,11 +73,11 @@ class _Arcform3DState extends State<Arcform3D> {
   void _setCameraForPhase() {
     switch (widget.phase.toLowerCase()) {
       case 'discovery':
-        // HELIX: Balanced view to show vertical spiral clearly
-        _rotationX = 0.2;   // Slight angle to show depth
-        _rotationY = 0.0;   // No Y rotation for clear helix view
-        _rotationZ = math.pi / 2 + math.pi / 2;   // 90 + 90 = 180-degree Z-axis rotation away from viewer
-        _zoom = 2.5;        // More zoomed out starting position
+        // HELIX: Side view to show helix structure clearly
+        _rotationX = 0.0;   // No X rotation for straight side view
+        _rotationY = math.pi / 4;   // 45-degree Y rotation to see helix from side
+        _rotationZ = math.pi / 2;   // 90-degree Z rotation for proper helix orientation
+        _zoom = 3.0;        // Good zoom level to see full helix
         break;
 
       case 'exploration':
@@ -362,6 +362,20 @@ class _Arcform3DState extends State<Arcform3D> {
             painter: _ConstellationLinesPainter(
               stars: _stars,
               edges: _edges,
+              rotationX: _rotationX,
+              rotationY: _rotationY,
+              rotationZ: _rotationZ,
+              zoom: _zoom,
+              cameraX: _cameraX,
+              cameraY: _cameraY,
+            ),
+          ),
+
+          // Node-to-node connectors (behind nodes)
+          CustomPaint(
+            size: Size.infinite,
+            painter: _NodeConnectorsPainter(
+              stars: _stars,
               rotationX: _rotationX,
               rotationY: _rotationY,
               rotationZ: _rotationZ,
@@ -766,8 +780,11 @@ class _MolecularNodeWidgetState extends State<_MolecularNodeWidget>
   @override
   void initState() {
     super.initState();
+    // More varied twinkling durations for natural effect
+    final baseDuration = 1200 + (widget.depth * 15).round();
+    final randomOffset = ((widget.depth * 7) % 800).round(); // Add some randomness
     _twinkleController = AnimationController(
-      duration: Duration(milliseconds: 1500 + (widget.depth * 10).round()),
+      duration: Duration(milliseconds: baseDuration + randomOffset),
       vsync: this,
     );
     _twinkleController.repeat(reverse: true);
@@ -784,52 +801,37 @@ class _MolecularNodeWidgetState extends State<_MolecularNodeWidget>
     return AnimatedBuilder(
       animation: _twinkleController,
       builder: (context, child) {
-        final twinkle = 0.7 + (_twinkleController.value * 0.3);
+        // Enhanced twinkling with more dramatic variation
+        final twinkle = 0.4 + (_twinkleController.value * 0.6); // Range from 0.4 to 1.0
         final glowIntensity = (1.0 - (widget.depth / 500).clamp(0.0, 0.8)) * twinkle;
+        
+        // Add a secondary twinkle for sparkle effect
+        final sparkle = math.sin(_twinkleController.value * math.pi * 2) * 0.3 + 0.7;
 
         return Stack(
           alignment: Alignment.center,
           children: [
-            // Outer glow
-            Container(
-              width: widget.size * 3,
-              height: widget.size * 3,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                boxShadow: [
-                  BoxShadow(
-                    color: widget.color.withOpacity(glowIntensity * 0.3),
-                    blurRadius: widget.size * 2,
-                    spreadRadius: widget.size * 0.5,
-                  ),
-                ],
+            // Custom painted glow layers for perfect circular fade
+            CustomPaint(
+              size: Size(widget.size * 6, widget.size * 6),
+              painter: _NodeGlowPainter(
+                color: widget.color,
+                glowIntensity: glowIntensity,
+                nodeSize: widget.size,
+                twinkleValue: twinkle,
+                sparkleValue: sparkle,
               ),
             ),
-            // Inner glow
-            Container(
-              width: widget.size * 1.5,
-              height: widget.size * 1.5,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                boxShadow: [
-                  BoxShadow(
-                    color: widget.color.withOpacity(glowIntensity * 0.6),
-                    blurRadius: widget.size,
-                    spreadRadius: widget.size * 0.2,
-                  ),
-                ],
-              ),
-            ),
-            // Core node
+            // Core node - semi-transparent to allow connectors to show through
             Container(
               width: widget.size,
               height: widget.size,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: widget.color.withOpacity(glowIntensity),
+                color: widget.color.withOpacity(glowIntensity * 0.7), // More transparent
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.white.withOpacity(glowIntensity * 0.8),
+                    color: Colors.white.withOpacity(glowIntensity * 0.6),
                     blurRadius: 2,
                   ),
                 ],
@@ -859,6 +861,219 @@ class _MolecularNodeWidgetState extends State<_MolecularNodeWidget>
         );
       },
     );
+  }
+}
+
+/// Custom painter for connecting all nodes with subtle lines
+class _NodeConnectorsPainter extends CustomPainter {
+  final List<_Star> stars;
+  final double rotationX;
+  final double rotationY;
+  final double rotationZ;
+  final double zoom;
+  final double cameraX;
+  final double cameraY;
+
+  _NodeConnectorsPainter({
+    required this.stars,
+    required this.rotationX,
+    required this.rotationY,
+    required this.rotationZ,
+    required this.zoom,
+    required this.cameraX,
+    required this.cameraY,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (stars.length < 2) return;
+
+    final center = Offset(size.width / 2, size.height / 2);
+
+    // Project all stars to 2D coordinates
+    final projectedStars = <_Star, Offset>{};
+    for (final star in stars) {
+      // Apply 3D rotation with Z rotation
+      final zRotatedX = star.position.x * math.cos(rotationZ) - star.position.y * math.sin(rotationZ);
+      final zRotatedY = star.position.x * math.sin(rotationZ) + star.position.y * math.cos(rotationZ);
+      final zRotatedZ = star.position.z;
+      
+      final rotatedX = zRotatedX * math.cos(rotationY) - zRotatedZ * math.sin(rotationY);
+      final rotatedZ = zRotatedX * math.sin(rotationY) + zRotatedZ * math.cos(rotationY);
+      final rotatedY = zRotatedY * math.cos(rotationX) - rotatedZ * math.sin(rotationX);
+      final finalZ = zRotatedY * math.sin(rotationX) + rotatedZ * math.cos(rotationX);
+
+      // Perspective projection
+      const focalLength = 400.0;
+      const baseScale = 30.0;
+      final perspective = focalLength / (focalLength + finalZ);
+      final projectedX = rotatedX * perspective * baseScale * zoom;
+      final projectedY = rotatedY * perspective * baseScale * zoom;
+
+      final projected = Offset(
+        center.dx + projectedX + cameraX,
+        center.dy + projectedY + cameraY,
+      );
+      projectedStars[star] = projected;
+    }
+
+    // Draw helix connections - end nodes have 1 connection, middle nodes have 2
+    final starList = stars.toList();
+    
+    // Sort stars by their Z position to maintain helix order
+    starList.sort((a, b) => a.position.z.compareTo(b.position.z));
+    
+    for (int i = 0; i < starList.length; i++) {
+      final currentStar = starList[i];
+      final currentPos = projectedStars[currentStar]!;
+      
+      // Determine how many connections this node should have
+      int maxConnections;
+      if (starList.length <= 2) {
+        // For 1-2 nodes, connect all to each other
+        maxConnections = starList.length - 1;
+      } else if (i == 0 || i == starList.length - 1) {
+        // End nodes: only 1 connection
+        maxConnections = 1;
+      } else {
+        // Middle nodes: 2 connections
+        maxConnections = 2;
+      }
+      
+      // Find the closest neighbors in 3D space
+      final distances = <_Star, double>{};
+      for (final otherStar in starList) {
+        if (otherStar == currentStar) continue;
+        
+        // Calculate 3D distance
+        final dx = currentStar.position.x - otherStar.position.x;
+        final dy = currentStar.position.y - otherStar.position.y;
+        final dz = currentStar.position.z - otherStar.position.z;
+        final distance3D = math.sqrt(dx * dx + dy * dy + dz * dz);
+        distances[otherStar] = distance3D;
+      }
+      
+      // Sort by distance and take the closest neighbors
+      final sortedDistances = distances.entries.toList()
+        ..sort((a, b) => a.value.compareTo(b.value));
+      
+      final closestNeighbors = sortedDistances.take(maxConnections).map((e) => e.key).toList();
+      
+      // Draw connections to the closest neighbors
+      for (final neighbor in closestNeighbors) {
+        final neighborPos = projectedStars[neighbor]!;
+        
+        // Calculate connection points on the edges of the nodes
+        final directionVector = neighborPos - currentPos;
+        final distance = directionVector.distance;
+        final direction = distance > 0 ? Offset(directionVector.dx / distance, directionVector.dy / distance) : Offset.zero;
+        
+        final currentNodeRadius = currentStar.size / 2;
+        final neighborNodeRadius = neighbor.size / 2;
+        
+        // Start point: edge of current node
+        final startPoint = currentPos + Offset(direction.dx * currentNodeRadius, direction.dy * currentNodeRadius);
+        // End point: edge of neighbor node  
+        final endPoint = neighborPos - Offset(direction.dx * neighborNodeRadius, direction.dy * neighborNodeRadius);
+        
+        // Create a more vibrant blend of the two connected stars' colors
+        final blendedColor = Color.lerp(currentStar.color, neighbor.color, 0.5)!;
+        // Enhance the color saturation for better visibility
+        final enhancedColor = Color.fromARGB(
+          blendedColor.alpha,
+          (blendedColor.red * 1.2).clamp(0, 255).round(),
+          (blendedColor.green * 1.2).clamp(0, 255).round(),
+          (blendedColor.blue * 1.2).clamp(0, 255).round(),
+        );
+        
+        final connectorPaint = Paint()
+          ..color = enhancedColor.withOpacity(0.8) // Higher opacity for better visibility
+          ..strokeWidth = 2.0 // Thicker lines for better visibility
+          ..style = PaintingStyle.stroke;
+
+        canvas.drawLine(startPoint, endPoint, connectorPaint);
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) {
+    return oldDelegate is _NodeConnectorsPainter &&
+        (oldDelegate.stars != stars ||
+            oldDelegate.rotationX != rotationX ||
+            oldDelegate.rotationY != rotationY ||
+            oldDelegate.rotationZ != rotationZ ||
+            oldDelegate.zoom != zoom ||
+            oldDelegate.cameraX != cameraX ||
+            oldDelegate.cameraY != cameraY);
+  }
+}
+
+/// Custom painter for node glow effects with perfect circular fade
+class _NodeGlowPainter extends CustomPainter {
+  final Color color;
+  final double glowIntensity;
+  final double nodeSize;
+  final double twinkleValue;
+  final double sparkleValue;
+
+  _NodeGlowPainter({
+    required this.color,
+    required this.glowIntensity,
+    required this.nodeSize,
+    required this.twinkleValue,
+    required this.sparkleValue,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = Offset(size.width / 2, size.height / 2);
+
+    // Enhanced twinkling effect with multiple layers
+    final twinkledIntensity = glowIntensity * twinkleValue;
+    final sparkledIntensity = twinkledIntensity * sparkleValue;
+
+    // Outer glow (largest, most transparent) - twinkles
+    final outerGlowPaint = Paint()
+      ..color = color.withOpacity(twinkledIntensity * 0.2)
+      ..style = PaintingStyle.fill
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 15);
+
+    canvas.drawCircle(center, nodeSize * 4.0, outerGlowPaint);
+
+    // Middle glow - sparkles
+    final middleGlowPaint = Paint()
+      ..color = color.withOpacity(sparkledIntensity * 0.35)
+      ..style = PaintingStyle.fill
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8);
+
+    canvas.drawCircle(center, nodeSize * 2.5, middleGlowPaint);
+
+    // Inner glow - most dramatic twinkling
+    final innerGlowPaint = Paint()
+      ..color = color.withOpacity(sparkledIntensity * 0.6)
+      ..style = PaintingStyle.fill
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4);
+
+    canvas.drawCircle(center, nodeSize * 1.5, innerGlowPaint);
+
+    // Add a bright sparkle core that pulses
+    final sparkleCorePaint = Paint()
+      ..color = color.withOpacity(sparkledIntensity * 0.9)
+      ..style = PaintingStyle.fill
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 2);
+
+    canvas.drawCircle(center, nodeSize * 0.8, sparkleCorePaint);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) {
+    return oldDelegate is _NodeGlowPainter &&
+        (oldDelegate.color != color ||
+            oldDelegate.glowIntensity != glowIntensity ||
+            oldDelegate.nodeSize != nodeSize ||
+            oldDelegate.twinkleValue != twinkleValue ||
+            oldDelegate.sparkleValue != sparkleValue);
   }
 }
 

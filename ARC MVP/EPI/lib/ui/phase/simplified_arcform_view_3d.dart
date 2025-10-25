@@ -84,12 +84,31 @@ class _SimplifiedArcformView3DState extends State<SimplifiedArcformView3D> {
     try {
       final journalRepo = JournalRepository();
       final allEntries = journalRepo.getAllJournalEntriesSync();
+      final phases = <String>{};
 
       // Extract unique phases from journal entries
-      final phases = allEntries
+      final entryPhases = allEntries
           .where((entry) => entry.phase != null && entry.phase!.isNotEmpty)
           .map((entry) => entry.phase!)
           .toSet();
+      phases.addAll(entryPhases);
+
+      // Also check for phase regimes (from MCP bundles)
+      try {
+        final analyticsService = AnalyticsService();
+        final rivetSweepService = RivetSweepService(analyticsService);
+        final phaseRegimeService = PhaseRegimeService(analyticsService, rivetSweepService);
+        await phaseRegimeService.initialize();
+        
+        final regimePhases = phaseRegimeService.phaseIndex.allRegimes
+            .map((regime) => regime.label.name)
+            .toSet();
+        phases.addAll(regimePhases);
+        
+        print('DEBUG: Found ${regimePhases.length} phases from phase regimes: $regimePhases');
+      } catch (e) {
+        print('DEBUG: Could not access phase regimes: $e');
+      }
 
       // Also add current phase
       if (widget.currentPhase != null) {
@@ -297,9 +316,23 @@ class _SimplifiedArcformView3DState extends State<SimplifiedArcformView3D> {
                         ),
                 ),
               ),
-              
+
               const SizedBox(height: 16),
-              
+
+              // Constellation Statistics
+              if (arcformData != null) ...[
+                Row(
+                  children: [
+                    _buildMetadataChip('Nodes', '${arcformData.nodes.length}', kcSecondaryColor),
+                    const SizedBox(width: 8),
+                    _buildMetadataChip('Edges', '${arcformData.edges.length}', kcAccentColor),
+                    const SizedBox(width: 8),
+                    _buildMetadataChip('Created', _formatDate(createdAt), kcSuccessColor),
+                  ],
+                ),
+                const SizedBox(height: 16),
+              ],
+
               // Keywords as constellation points
               if (keywords.isNotEmpty) ...[
                 Text(
@@ -868,6 +901,25 @@ class _SimplifiedArcformView3DState extends State<SimplifiedArcformView3D> {
       default:
         return Icons.auto_awesome_outlined;
     }
+  }
+
+  Widget _buildMetadataChip(String label, String value, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.2),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withOpacity(0.5)),
+      ),
+      child: Text(
+        '$label: $value',
+        style: TextStyle(
+          color: color,
+          fontSize: 10,
+          fontWeight: FontWeight.w500,
+        ),
+      ),
+    );
   }
 }
 
