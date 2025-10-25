@@ -146,7 +146,7 @@ class _Arcform3DState extends State<Arcform3D> {
 
       // Perspective projection with original molecular approach
       const focalLength = 400.0; // Original focal length from simple_3d_arcform
-      const baseScale = 100.0; // Converts normalized coords to pixel space (matches original radius=80, height=200)
+      const baseScale = 30.0; // Much smaller scale for closer nodes (was 100.0)
       final perspective = focalLength / (focalLength + finalZ); // Original perspective formula
       final projectedX = rotatedX * perspective * baseScale * _zoom; // Original direct scaling
       final projectedY = rotatedY * perspective * baseScale * _zoom;
@@ -274,7 +274,7 @@ class _Arcform3DState extends State<Arcform3D> {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      // Scale gesture handles both rotation (single finger) and zoom (pinch)
+      // Scale gesture handles rotation (single finger), zoom (pinch), and two-finger rotation
       onScaleStart: (details) {
         _baseScaleFactor = _zoom;
         _lastPanPosition = details.focalPoint;
@@ -286,12 +286,21 @@ class _Arcform3DState extends State<Arcform3D> {
             _zoom = (_baseScaleFactor * details.scale).clamp(0.5, 8.0);
           }
 
-          // Handle rotation only for single finger drag (not during pinch)
-          if (_lastPanPosition != null && details.pointerCount == 1) {
-            final delta = details.focalPoint - _lastPanPosition!;
-            _rotationY += delta.dx * 0.01; // Horizontal drag rotates around Y-axis
-            _rotationX = (_rotationX - delta.dy * 0.01).clamp(-1.5, 1.5); // Vertical drag rotates around X-axis
-            _lastPanPosition = details.focalPoint;
+          // Handle rotation based on finger count
+          if (_lastPanPosition != null) {
+            if (details.pointerCount == 1) {
+              // Single finger: drag to rotate
+              final delta = details.focalPoint - _lastPanPosition!;
+              _rotationY += delta.dx * 0.01; // Horizontal drag rotates around Y-axis
+              _rotationX = (_rotationX - delta.dy * 0.01).clamp(-1.5, 1.5); // Vertical drag rotates around X-axis
+              _lastPanPosition = details.focalPoint;
+            } else if (details.pointerCount == 2) {
+              // Two fingers: rotation gesture for Z-axis rotation
+              if (details.rotation != 0) {
+                _rotationY += details.rotation * 0.5; // Two-finger rotation around Z-axis
+              }
+              _lastPanPosition = details.focalPoint;
+            }
           }
         });
       },
@@ -821,7 +830,7 @@ class _NebulaGlowPainter extends CustomPainter {
 
       // Perspective projection matching molecular nodes exactly
       const focalLength = 400.0; // Match node rendering exactly
-      const baseScale = 100.0; // Match node rendering
+      const baseScale = 30.0; // Match node rendering (reduced from 100.0)
       final scale = focalLength / (focalLength + finalZ); // Match original perspective formula
       final projectedX = rotatedX * scale * baseScale * zoom; // Match node scaling exactly
       final projectedY = rotatedY * scale * baseScale * zoom;
@@ -903,7 +912,7 @@ class _ConstellationLinesPainter extends CustomPainter {
 
       // Perspective projection matching molecular nodes exactly
       const focalLength = 400.0; // Match node rendering exactly
-      const baseScale = 100.0; // Match node rendering
+      const baseScale = 30.0; // Match node rendering (reduced from 100.0)
       final startScale = focalLength / (focalLength + startFinalZ); // Match original perspective formula
       final endScale = focalLength / (focalLength + endFinalZ);
 
