@@ -116,20 +116,38 @@ class _Simple3DArcformState extends State<Simple3DArcform>
 
   void _handleScaleUpdate(ScaleUpdateDetails details) {
     setState(() {
-      if (details.scale != 1.0) {
-        _scale = (_scale * details.scale).clamp(0.3, 3.0);
+      final currentPointerCount = details.pointerCount;
+
+      if (currentPointerCount == 1) {
+        // Single finger: orbit around the center
+        if (_lastFocalPoint != null) {
+          final delta = details.focalPoint - _lastFocalPoint!;
+          // Orbit controls - horizontal movement orbits around Y-axis, vertical around X-axis
+          _rotationY += delta.dx * 0.01; // Horizontal drag orbits around Y-axis
+          _rotationX -= delta.dy * 0.01; // Vertical drag orbits around X-axis (inverted for natural feel)
+          _rotationX = _rotationX.clamp(-math.pi/2, math.pi/2); // Prevent flipping upside down
+          _rotationY = _rotationY % (2 * math.pi); // Allow full rotation around Y
+        }
+      } else if (currentPointerCount == 2) {
+        // Two fingers: pinch to zoom AND rotate in all axes
+
+        // Pinch zoom
+        if (details.scale != 1.0) {
+          _scale = (_scale * details.scale).clamp(0.3, 3.0);
+        }
+
+        // Two-finger rotation in X, Y, and Z axes
+        if (_lastFocalPoint != null) {
+          final delta = details.focalPoint - _lastFocalPoint!;
+
+          // X and Y rotation from focal point movement
+          _rotationY += delta.dx * 0.008; // Slightly less sensitive for two-finger
+          _rotationX -= delta.dy * 0.008;
+          _rotationX = _rotationX.clamp(-math.pi/2, math.pi/2);
+          _rotationY = _rotationY % (2 * math.pi);
+        }
       }
-      
-      if (_lastFocalPoint != null && details.pointerCount == 1) {
-        final delta = details.focalPoint - _lastFocalPoint!;
-        _rotationY += delta.dx * 0.01;
-        _rotationX -= delta.dy * 0.01;
-        
-        _rotationX = _rotationX.clamp(-math.pi/2, math.pi/2);
-        _rotationY = _rotationY % (2 * math.pi);
-      }
-      
-      
+
       _lastFocalPoint = details.focalPoint;
     });
   }
