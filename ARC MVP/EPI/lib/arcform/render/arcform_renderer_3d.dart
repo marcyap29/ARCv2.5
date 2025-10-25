@@ -286,21 +286,26 @@ class _Arcform3DState extends State<Arcform3D> {
             _zoom = (_baseScaleFactor / details.scale).clamp(0.5, 8.0);
           }
 
-          // Handle rotation based on finger count (matching original working implementation)
-          if (_lastPanPosition != null && details.pointerCount == 1) {
-            // Single finger: drag to rotate around X and Y axes
-            final delta = details.focalPoint - _lastPanPosition!;
-            _rotationY += delta.dx * 0.01; // Horizontal drag rotates around Y-axis
-            _rotationX -= delta.dy * 0.01; // Vertical drag rotates around X-axis (note: -= not +=)
-            _rotationX = _rotationX.clamp(-math.pi/2, math.pi/2); // Clamp X rotation
-            _rotationY = _rotationY % (2 * math.pi); // Wrap Y rotation
-            _lastPanPosition = details.focalPoint;
-          }
-          
-          // Two fingers: rotation gesture for Z-axis rotation
-          if (details.pointerCount == 2 && details.rotation != 0) {
-            _rotationY += details.rotation * 0.5; // Two-finger rotation around Z-axis
-            _lastPanPosition = details.focalPoint;
+          // Handle rotation based on finger count with improved sensitivity
+          if (_lastPanPosition != null) {
+            if (details.pointerCount == 1) {
+              // Single finger: drag to rotate around X and Y axes (increased sensitivity)
+              final delta = details.focalPoint - _lastPanPosition!;
+              _rotationY += delta.dx * 0.02; // Increased from 0.01 to 0.02
+              _rotationX -= delta.dy * 0.02; // Increased from 0.01 to 0.02
+              _rotationX = _rotationX.clamp(-math.pi/2, math.pi/2); // Clamp X rotation
+              _rotationY = _rotationY % (2 * math.pi); // Wrap Y rotation
+              _lastPanPosition = details.focalPoint;
+            } else if (details.pointerCount == 2) {
+              // Two fingers: only handle rotation if NOT zooming (prevent interference)
+              if (details.rotation != 0 && details.scale == 1.0) {
+                _rotationY += details.rotation * 0.3; // Reduced from 0.5 to 0.3 for better control
+              }
+              // Only update focal point if we're not zooming to prevent rotation during pinch
+              if (details.scale == 1.0) {
+                _lastPanPosition = details.focalPoint;
+              }
+            }
           }
         });
       },
