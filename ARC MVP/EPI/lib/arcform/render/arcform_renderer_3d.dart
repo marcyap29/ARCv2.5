@@ -135,7 +135,7 @@ class _Arcform3DState extends State<Arcform3D> {
   List<Widget> _build3DNodes() {
     final nodes = <Widget>[];
     final size = MediaQuery.of(context).size;
-    final center = Offset(size.width / 2, size.height / 2);
+    final center = Offset(size.width / 2, size.height * 0.35);
 
     for (final star in _stars) {
       // Apply proper 3D rotation math (like molecular design)
@@ -144,15 +144,16 @@ class _Arcform3DState extends State<Arcform3D> {
       final rotatedY = star.position.y * math.cos(_rotationX) - rotatedZ * math.sin(_rotationX);
       final finalZ = star.position.y * math.sin(_rotationX) + rotatedZ * math.cos(_rotationX);
 
-      // Perspective projection with balanced focal length and spacing
-      const focalLength = 300.0; // Balanced focal length for good spacing
-      final scale = focalLength / (focalLength + finalZ * 0.3); // Slight Z impact reduction
-      final projectedX = rotatedX * scale * _zoom * 1.5; // Moderate scale increase
-      final projectedY = rotatedY * scale * _zoom * 1.5;
+      // Perspective projection with original molecular approach
+      const focalLength = 400.0; // Original focal length from simple_3d_arcform
+      const baseScale = 100.0; // Converts normalized coords to pixel space (matches original radius=80, height=200)
+      final perspective = focalLength / (focalLength + finalZ); // Original perspective formula
+      final projectedX = rotatedX * perspective * baseScale * _zoom; // Original direct scaling
+      final projectedY = rotatedY * perspective * baseScale * _zoom;
 
-      // Scale for depth effect - more pronounced scaling
-      final depthScale = (1.0 + finalZ / 150).clamp(0.6, 2.5); // Increase range
-      final nodeSize = (star.size * depthScale * 3.0).clamp(8.0, 30.0); // Larger base size
+      // Scale for depth effect - original molecular sizing
+      final depthScale = (1.0 + finalZ / 300).clamp(0.4, 1.8); // Original molecular scale range
+      final nodeSize = (star.size * depthScale * _zoom).clamp(8.0, 30.0); // Original molecular size range
 
       // Calculate screen position
       final screenX = center.dx + projectedX;
@@ -191,7 +192,7 @@ class _Arcform3DState extends State<Arcform3D> {
       );
       
       return _Star(
-        position: vm.Vector3(node.x * 2, node.y * 2, node.z * 2), // Moderate spread - not too far apart
+        position: vm.Vector3(node.x * 2, node.y * 2, node.z * 2), // Original molecular spacing
         color: Color.fromRGBO(
           (color.x * 255).toInt(),
           (color.y * 255).toInt(),
@@ -819,10 +820,11 @@ class _NebulaGlowPainter extends CustomPainter {
       final finalZ = particle.y * math.sin(rotationX) + rotatedZ * math.cos(rotationX);
 
       // Perspective projection matching molecular nodes exactly
-      const focalLength = 300.0; // Match node rendering exactly
-      final scale = focalLength / (focalLength + finalZ * 0.3); // Match Z impact
-      final projectedX = rotatedX * scale * zoom * 1.5; // Match node scaling exactly
-      final projectedY = rotatedY * scale * zoom * 1.5;
+      const focalLength = 400.0; // Match node rendering exactly
+      const baseScale = 100.0; // Match node rendering
+      final scale = focalLength / (focalLength + finalZ); // Match original perspective formula
+      final projectedX = rotatedX * scale * baseScale * zoom; // Match node scaling exactly
+      final projectedY = rotatedY * scale * baseScale * zoom;
 
       final screenPos = Offset(
         center.dx + projectedX,
@@ -900,17 +902,18 @@ class _ConstellationLinesPainter extends CustomPainter {
       final endFinalZ = edge.end.y * math.sin(rotationX) + endRotatedZ * math.cos(rotationX);
 
       // Perspective projection matching molecular nodes exactly
-      const focalLength = 300.0; // Match node rendering exactly
-      final startScale = focalLength / (focalLength + startFinalZ * 0.3); // Match Z impact
-      final endScale = focalLength / (focalLength + endFinalZ * 0.3);
+      const focalLength = 400.0; // Match node rendering exactly
+      const baseScale = 100.0; // Match node rendering
+      final startScale = focalLength / (focalLength + startFinalZ); // Match original perspective formula
+      final endScale = focalLength / (focalLength + endFinalZ);
 
       final startProj = Offset(
-        center.dx + startRotatedX * startScale * zoom * 1.5, // Match node scaling exactly
-        center.dy + startRotatedY * startScale * zoom * 1.5,
+        center.dx + startRotatedX * startScale * baseScale * zoom, // Match node scaling exactly
+        center.dy + startRotatedY * startScale * baseScale * zoom,
       );
       final endProj = Offset(
-        center.dx + endRotatedX * endScale * zoom * 1.5,
-        center.dy + endRotatedY * endScale * zoom * 1.5,
+        center.dx + endRotatedX * endScale * baseScale * zoom,
+        center.dy + endRotatedY * endScale * baseScale * zoom,
       );
 
       // Calculate line opacity based on depth and distance
