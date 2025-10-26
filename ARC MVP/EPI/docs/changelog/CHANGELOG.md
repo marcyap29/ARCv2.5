@@ -2,6 +2,25 @@
 
 ## [Unreleased]
 
+### 🔧 **Gemini API Integration & Flutter Zone Fixes** - January 25, 2025
+
+#### **Fix: Gemini API Access Issues** ✅ **PRODUCTION READY**
+- **Enhanced API Configuration**: Improved error handling, detailed logging, and robust provider detection in `api_config.dart`
+- **Fixed Gemini Send Service**: Clearer error messages, proper initialization, and enhanced debugging in `gemini_send.dart`
+- **Improved Settings Screen**: Better validation, user feedback, and error handling for API key management
+- **Enhanced Journal Screen**: Better error detection for API key issues with user-friendly messages and action buttons
+- **Comprehensive Debugging**: Added detailed provider status logging for troubleshooting API key configuration
+- **User Experience**: Clear, actionable error messages instead of cryptic technical errors
+
+#### **Fix: Flutter Zone Mismatch Error** ✅ **PRODUCTION READY**
+- **Zone Alignment**: Moved `WidgetsFlutterBinding.ensureInitialized()` inside `runZonedGuarded()` to prevent zone conflicts
+- **Bootstrap Stability**: Fixed zone mismatch between initialization and `runApp()` calls
+- **Error Prevention**: Eliminated Flutter zone mismatch warnings during app startup
+
+#### **Fix: Swift Decoding Error** ✅ **PRODUCTION READY**
+- **Immutable Property Fix**: Resolved Swift decoding error in `LumaraPromptSystem.swift` by moving initial values to `init` method
+- **Codable Compliance**: Fixed `MCPEnvelope` struct to properly handle immutable properties with initial values
+
 ### 📝 **Full-Featured Journal Editor & ARCForm Keyword Integration** - January 25, 2025
 
 #### **Enhancement: Journal Editor Upgrade** ✅ **PRODUCTION READY**
