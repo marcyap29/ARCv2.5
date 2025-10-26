@@ -1,11 +1,23 @@
 # EPI Documentation
 
 **Last Updated:** October 26, 2025
-**Status:** Production Ready ✅ - RIVET Sweep Phase System Complete, MCP Phase Export/Import, Timeline-Based Phase Architecture, Clean UI Design, Full-Featured Journal Editor, ARCForm Keyword Integration, Gemini API Integration Fixed, LUMARA Phase Fallback Debug System Complete
+**Status:** Production Ready ✅ - In-Journal LUMARA Reflection System Complete with Brevity Constraints, InlineReflectionBlock Integration, Conversation-Style Journal Entries, Continuation Fields
 
 This directory contains comprehensive documentation for the EPI (Evolving Personal Intelligence) project - an 8-module intelligent journaling system built with Flutter.
 
 ## 🆕 Latest Updates (October 26, 2025)
+
+  **✨ In-Journal LUMARA Reflection System**
+
+  Implemented streamlined in-journal LUMARA reflections with strict brevity:
+  - **Brevity Constraints**: 1-2 sentences maximum, 150 characters total
+  - **Visual Distinction**: InlineReflectionBlock with secondary color and italic styling
+  - **Conversation-Style Entries**: Continuation text fields after each reflection for detailed dialogue
+  - **Inline Reflection Blocks**: Separate styled widgets (not plain text)
+  - **Action Buttons**: Regenerate, Soften tone, More depth, Continue with LUMARA
+  - **Phase-Aware Badges**: Shows phase context for each reflection
+  - **Apply to All Options**: Brevity constraints apply to all reflection variations
+  - **Rosebud-Inspired Design**: Visual distinction like chat bubbles
 
   **🐛 LUMARA Phase Fallback Debug System**
 
