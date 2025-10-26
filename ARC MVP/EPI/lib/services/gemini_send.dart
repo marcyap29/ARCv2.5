@@ -16,17 +16,21 @@ Future<String> geminiSend({
 }) async {
   // Get API key from LumaraAPIConfig instead of environment variable
   final apiConfig = LumaraAPIConfig.instance;
+  
+  // Ensure API config is initialized
   await apiConfig.initialize();
+  
   final geminiConfig = apiConfig.getConfig(LLMProvider.gemini);
   final apiKey = geminiConfig?.apiKey ?? '';
   
   print('DEBUG GEMINI: API Key available: ${apiKey.isNotEmpty}');
   print('DEBUG GEMINI: API Key length: ${apiKey.length}');
   print('DEBUG GEMINI: API Key prefix: ${apiKey.isNotEmpty ? apiKey.substring(0, apiKey.length > 10 ? 10 : apiKey.length) : 'none'}');
+  print('DEBUG GEMINI: Gemini config available: ${geminiConfig?.isAvailable}');
 
   if (apiKey.isEmpty) {
     print('DEBUG GEMINI: No API key found, throwing StateError');
-    throw StateError('GEMINI_API_KEY not provided');
+    throw StateError('Gemini API key not configured. Please add your API key in LUMARA Settings.');
   }
 
   final uri = Uri.parse(
@@ -95,6 +99,15 @@ Future<String> geminiSend({
     final result = buffer.toString();
     print('DEBUG GEMINI: Successfully parsed response, result length: ${result.length}');
     return result;
+  } catch (e) {
+    print('DEBUG GEMINI: Error in geminiSend: $e');
+    if (e is StateError) {
+      rethrow; // Re-throw StateError as-is (API key issues)
+    } else if (e is HttpException) {
+      rethrow; // Re-throw HttpException as-is (API errors)
+    } else {
+      throw Exception('Gemini API request failed: $e');
+    }
   } finally {
     client.close(force: true);
   }
@@ -114,10 +127,11 @@ Stream<String> geminiSendStream({
   final apiKey = geminiConfig?.apiKey ?? '';
   
   print('DEBUG GEMINI STREAM: API Key available: ${apiKey.isNotEmpty}');
+  print('DEBUG GEMINI STREAM: Gemini config available: ${geminiConfig?.isAvailable}');
 
   if (apiKey.isEmpty) {
     print('DEBUG GEMINI STREAM: No API key found, throwing StateError');
-    throw StateError('GEMINI_API_KEY not provided');
+    throw StateError('Gemini API key not configured. Please add your API key in LUMARA Settings.');
   }
 
   final uri = Uri.parse(

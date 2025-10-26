@@ -57,18 +57,30 @@ class _SimpleLumaraSettingsScreenState extends State<SimpleLumaraSettingsScreen>
   }
 
   Future<void> _saveApiKey(LLMProvider provider, String key) async {
-    if (key.trim().isEmpty) return;
+    if (key.trim().isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Please enter a valid API key'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      }
+      return;
+    }
     
     setState(() => _isLoading = true);
     
     try {
       await _apiConfig.updateApiKey(provider, key.trim());
+      
+      // Force refresh to ensure the provider is detected as available
       await _apiConfig.refreshProviderAvailability();
       
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('${provider.name} API key saved!'),
+            content: Text('${provider.name} API key saved successfully!'),
             backgroundColor: Colors.green,
           ),
         );
@@ -79,6 +91,7 @@ class _SimpleLumaraSettingsScreenState extends State<SimpleLumaraSettingsScreen>
           SnackBar(
             content: Text('Error saving API key: $e'),
             backgroundColor: Colors.red,
+            duration: Duration(seconds: 5),
           ),
         );
       }
@@ -373,10 +386,12 @@ class _SimpleLumaraSettingsScreenState extends State<SimpleLumaraSettingsScreen>
               children: [
                 Icon(Icons.security, color: theme.colorScheme.primary),
                 const SizedBox(width: 8),
-                Text(
-                  'Internal Models',
-                  style: theme.textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.bold,
+                Expanded(
+                  child: Text(
+                    'Internal Models',
+                    style: theme.textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
                 const SizedBox(width: 8),

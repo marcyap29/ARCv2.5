@@ -401,7 +401,10 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
       _analytics.log('lumara_error', {'error': e.toString()});
       
       // Check if it's an API key issue
-      if (e.toString().contains('API key') || e.toString().contains('not configured') || e.toString().contains('Gemini API key')) {
+      if (e.toString().contains('API key') || 
+          e.toString().contains('not configured') || 
+          e.toString().contains('Gemini API key') ||
+          e.toString().contains('not configured')) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -679,7 +682,6 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
 
     if (attachmentIndex != -1) {
       final attachment = _entryState.attachments[attachmentIndex] as PhotoAttachment;
-      final photoId = attachment.photoId;
 
       setState(() {
         _entryState.attachments.removeAt(attachmentIndex);
@@ -1431,45 +1433,91 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
 
   /// Build individual photo thumbnail card for grid display
   Widget _buildPhotoThumbnailCard(PhotoAttachment photo, ThemeData theme) {
+    // Find the index of this photo in the attachments list
+    final photoIndex = _entryState.attachments.indexOf(photo);
+    final isSelected = _selectedPhotoIndices.contains(photoIndex);
+    
     return GestureDetector(
-      onTap: () => _openPhotoInGallery(photo.imagePath),
+      onTap: () {
+        if (_isPhotoSelectionMode) {
+          _togglePhotoSelection(photoIndex);
+        } else {
+          _openPhotoInGallery(photo.imagePath);
+        }
+      },
       child: Container(
         width: 100,
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(8),
           border: Border.all(
-            color: theme.colorScheme.outline.withOpacity(0.3),
+            color: isSelected 
+              ? theme.colorScheme.primary 
+              : theme.colorScheme.outline.withOpacity(0.3),
+            width: isSelected ? 2 : 1,
           ),
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
+        child: Stack(
           children: [
-            ClipRRect(
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(8)),
-              child: Image.file(
-                File(photo.imagePath),
-                width: 100,
-                height: 100,
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) {
-                  return Container(
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ClipRRect(
+                  borderRadius: const BorderRadius.vertical(top: Radius.circular(8)),
+                  child: Image.file(
+                    File(photo.imagePath),
                     width: 100,
                     height: 100,
-                    color: theme.colorScheme.surfaceContainerHighest,
-                    child: Icon(Icons.broken_image, color: theme.colorScheme.error),
-                  );
-                },
-              ),
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) {
+                      return Container(
+                        width: 100,
+                        height: 100,
+                        color: theme.colorScheme.surfaceContainerHighest,
+                        child: Icon(Icons.broken_image, color: theme.colorScheme.error),
+                      );
+                    },
+                  ),
+                ),
+                if (photo.altText != null && photo.altText!.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.all(4),
+                    child: Text(
+                      photo.altText!,
+                      style: theme.textTheme.bodySmall,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+              ],
             ),
-            if (photo.altText != null && photo.altText!.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.all(4),
-                child: Text(
-                  photo.altText!,
-                  style: theme.textTheme.bodySmall,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+            // Selection checkbox overlay
+            if (_isPhotoSelectionMode)
+              Positioned(
+                top: 4,
+                right: 4,
+                child: Container(
+                  width: 24,
+                  height: 24,
+                  decoration: BoxDecoration(
+                    color: isSelected 
+                      ? theme.colorScheme.primary 
+                      : theme.colorScheme.surface.withOpacity(0.8),
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: isSelected 
+                        ? theme.colorScheme.primary 
+                        : theme.colorScheme.outline,
+                      width: 1,
+                    ),
+                  ),
+                  child: isSelected
+                    ? Icon(
+                        Icons.check,
+                        size: 16,
+                        color: theme.colorScheme.onPrimary,
+                      )
+                    : null,
                 ),
               ),
           ],

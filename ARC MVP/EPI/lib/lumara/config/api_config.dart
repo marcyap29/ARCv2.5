@@ -73,33 +73,42 @@ class LumaraAPIConfig {
   /// Initialize the API configuration
   Future<void> initialize() async {
     debugPrint('LUMARA API: Initializing API configuration...');
-    _prefs = await SharedPreferences.getInstance();
-    await _loadConfigs();
-    await _detectAvailableProviders();
-
-    // Load manual provider preference
-    final manualProviderName = _prefs?.getString('manual_provider');
-    if (manualProviderName != null) {
-      try {
-        _manualProvider = LLMProvider.values.firstWhere(
-          (p) => p.name == manualProviderName,
-        );
-        debugPrint('LUMARA API: Manual provider set to: ${_manualProvider?.name}');
-      } catch (e) {
-        // Invalid provider name, clear it
-        _manualProvider = null;
-        await _prefs?.remove('manual_provider');
-        debugPrint('LUMARA API: Invalid manual provider name, cleared');
-      }
-    }
-
-    // Perform quick startup model availability check (lightweight)
-    // Full model validation happens on-demand when actually needed
-    await _performStartupModelCheck();
     
-    // Final status check
-    final bestProvider = getBestProvider();
-    debugPrint('LUMARA API: Final initialization complete - Best provider (Cloud APIs prioritized): ${bestProvider?.name ?? 'None'}');
+    try {
+      _prefs = await SharedPreferences.getInstance();
+      await _loadConfigs();
+      await _detectAvailableProviders();
+
+      // Load manual provider preference
+      final manualProviderName = _prefs?.getString('manual_provider');
+      if (manualProviderName != null) {
+        try {
+          _manualProvider = LLMProvider.values.firstWhere(
+            (p) => p.name == manualProviderName,
+          );
+          debugPrint('LUMARA API: Manual provider set to: ${_manualProvider?.name}');
+        } catch (e) {
+          // Invalid provider name, clear it
+          _manualProvider = null;
+          await _prefs?.remove('manual_provider');
+          debugPrint('LUMARA API: Invalid manual provider name, cleared');
+        }
+      }
+
+      // Perform quick startup model availability check (lightweight)
+      // Full model validation happens on-demand when actually needed
+      await _performStartupModelCheck();
+      
+      // Final status check
+      final bestProvider = getBestProvider();
+      debugPrint('LUMARA API: Final initialization complete - Best provider (Cloud APIs prioritized): ${bestProvider?.name ?? 'None'}');
+      
+      // Log detailed provider status for debugging
+      _logDetailedProviderStatus();
+    } catch (e) {
+      debugPrint('LUMARA API: Initialization error: $e');
+      rethrow;
+    }
   }
 
   /// Perform startup check for model availability
@@ -439,16 +448,28 @@ class LumaraAPIConfig {
           ? '${apiKey.substring(0, 4)}...${apiKey.substring(apiKey.length - 4)}'
           : '***';
       debugPrint('LUMARA API: Saving API key for ${config.name} ($provider): $maskedKey (length: ${apiKey.length})');
-      _configs[provider] = config.copyWith(apiKey: apiKey);
-      await _saveConfigs();
-      debugPrint('LUMARA API: Configs saved to SharedPreferences');
-      await _detectAvailableProviders();
       
-      // Log the final status after updating
-      final updatedConfig = _configs[provider];
-      debugPrint('LUMARA API: After update - ${config.name} available: ${updatedConfig?.isAvailable}');
+      try {
+        _configs[provider] = config.copyWith(apiKey: apiKey);
+        await _saveConfigs();
+        debugPrint('LUMARA API: Configs saved to SharedPreferences');
+        
+        // Refresh provider availability to update the isAvailable status
+        await _detectAvailableProviders();
+        
+        // Log the final status after updating
+        final updatedConfig = _configs[provider];
+        debugPrint('LUMARA API: After update - ${config.name} available: ${updatedConfig?.isAvailable}');
+        
+        // Log detailed status for debugging
+        _logDetailedProviderStatus();
+      } catch (e) {
+        debugPrint('LUMARA API: Error updating API key for ${config.name}: $e');
+        rethrow;
+      }
     } else {
       debugPrint('LUMARA API: ERROR - Provider $provider not found in configs');
+      throw Exception('Provider $provider not found in configuration');
     }
   }
 
@@ -507,6 +528,30 @@ class LumaraAPIConfig {
   Future<void> refreshProviderAvailability() async {
     debugPrint('LUMARA API: Force refreshing all provider availability...');
     await _detectAvailableProviders();
+    _logDetailedProviderStatus();
+  }
+
+  /// Log detailed provider status for debugging
+  void _logDetailedProviderStatus() {
+    debugPrint('LUMARA API: === DETAILED PROVIDER STATUS ===');
+    for (final config in _configs.values) {
+      final apiKeyLength = config.apiKey?.length ?? 0;
+      final apiKeyMasked = config.apiKey?.isNotEmpty == true 
+          ? '${config.apiKey!.substring(0, config.apiKey!.length > 8 ? 4 : 0)}...${config.apiKey!.substring(config.apiKey!.length - 4)}'
+          : 'none';
+      
+      debugPrint('LUMARA API: ${config.name}:');
+      debugPrint('LUMARA API:   - Available: ${config.isAvailable}');
+      debugPrint('LUMARA API:   - Internal: ${config.isInternal}');
+      debugPrint('LUMARA API:   - API Key: $apiKeyMasked (length: $apiKeyLength)');
+      debugPrint('LUMARA API:   - Base URL: ${config.baseUrl ?? 'none'}');
+    }
+    
+    final availableProviders = getAvailableProviders();
+    final bestProvider = getBestProvider();
+    debugPrint('LUMARA API: Available providers: ${availableProviders.map((p) => p.name).join(', ')}');
+    debugPrint('LUMARA API: Best provider: ${bestProvider?.name ?? 'None'}');
+    debugPrint('LUMARA API: === END PROVIDER STATUS ===');
   }
 
   /// Clear all saved API keys (for debugging)

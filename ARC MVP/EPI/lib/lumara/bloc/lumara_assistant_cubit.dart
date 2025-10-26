@@ -417,7 +417,12 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
 
     // PRIORITY 2: Try Cloud API if on-device failed
     try {
-      const apiKey = String.fromEnvironment('GEMINI_API_KEY');
+      // Get API key from LumaraAPIConfig instead of environment variable
+      final apiConfig = LumaraAPIConfig.instance;
+      await apiConfig.initialize();
+      final geminiConfig = apiConfig.getConfig(LLMProvider.gemini);
+      final apiKey = geminiConfig?.apiKey ?? '';
+      
       if (apiKey.isNotEmpty) {
         print('LUMARA Debug: [Cloud API] Using Gemini API for response generation');
         

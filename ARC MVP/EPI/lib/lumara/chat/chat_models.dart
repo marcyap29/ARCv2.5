@@ -15,7 +15,7 @@ class MessageRole {
   static const String system = 'system';
 }
 
-@HiveType(typeId: 1)
+@HiveType(typeId: 70)
 class ChatMessage extends HiveObject {
   @HiveField(0)
   final String id;
@@ -118,7 +118,7 @@ class ChatMessage extends HiveObject {
   }
 }
 
-@HiveType(typeId: 0)
+@HiveType(typeId: 71)
 class ChatSession extends HiveObject {
   @HiveField(0)
   final String id;

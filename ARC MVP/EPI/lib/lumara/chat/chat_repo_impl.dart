@@ -1,9 +1,7 @@
 import 'package:hive/hive.dart';
 import 'chat_models.dart';
-import 'chat_category_models.dart';
 import 'chat_repo.dart';
 import 'chat_archive_policy.dart';
-import 'content_parts.dart';
 
 /// Hive implementation of ChatRepo
 class ChatRepoImpl implements ChatRepo {
@@ -30,10 +28,10 @@ class ChatRepoImpl implements ChatRepo {
 
     try {
       // Register adapters (they're accessible here since we import chat_models.dart)
-      if (!Hive.isAdapterRegistered(0)) {
+      if (!Hive.isAdapterRegistered(71)) {
         Hive.registerAdapter(ChatSessionAdapter());
       }
-      if (!Hive.isAdapterRegistered(1)) {
+      if (!Hive.isAdapterRegistered(70)) {
         Hive.registerAdapter(ChatMessageAdapter());
       }
       // Note: Other adapters (ChatCategory, etc.) may use different type IDs

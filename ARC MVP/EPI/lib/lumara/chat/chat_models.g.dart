@@ -8,7 +8,7 @@ part of 'chat_models.dart';
 
 class ChatMessageAdapter extends TypeAdapter<ChatMessage> {
   @override
-  final int typeId = 1;
+  final int typeId = 70;
 
   @override
   ChatMessage read(BinaryReader reader) {
@@ -63,7 +63,7 @@ class ChatMessageAdapter extends TypeAdapter<ChatMessage> {
 
 class ChatSessionAdapter extends TypeAdapter<ChatSession> {
   @override
-  final int typeId = 0;
+  final int typeId = 71;
 
   @override
   ChatSession read(BinaryReader reader) {

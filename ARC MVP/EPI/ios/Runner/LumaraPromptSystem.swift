@@ -138,8 +138,8 @@ class LumaraPromptSystem {
     }
     
     struct MCPEnvelope: Codable {
-        let mcpVersion: String = "1.0"
-        let containerId: String = "mcp://orbitalai/local"
+        let mcpVersion: String
+        let containerId: String
         let recordId: String
         let createdAt: String
         let actor: Actor
@@ -150,6 +150,21 @@ class LumaraPromptSystem {
         let hash: Hash?
         let signature: String?
         let data: MiraMemory
+        
+        init(recordId: String, createdAt: String, actor: Actor, provenance: Provenance, piiRedacted: Bool, phase: String?, links: [Link]?, hash: Hash?, signature: String?, data: MiraMemory) {
+            self.mcpVersion = "1.0"
+            self.containerId = "mcp://orbitalai/local"
+            self.recordId = recordId
+            self.createdAt = createdAt
+            self.actor = actor
+            self.provenance = provenance
+            self.piiRedacted = piiRedacted
+            self.phase = phase
+            self.links = links
+            self.hash = hash
+            self.signature = signature
+            self.data = data
+        }
         
         struct Actor: Codable {
             let role: String

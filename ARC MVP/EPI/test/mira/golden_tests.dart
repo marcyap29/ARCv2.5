@@ -99,10 +99,8 @@ class GoldenTestData {
 class RetrievalGoldenTests {
   static void runTests() {
     group('Retrieval Engine Golden Tests', () {
-    late PolicyEngine policyEngine;
-
     setUp(() {
-      policyEngine = PolicyEngine();
+      // Setup for retrieval tests
     });
 
       test('should return consistent results for breakthrough query', () async {
@@ -260,7 +258,7 @@ class PolicyGoldenTests {
 class VeilGoldenTests {
   static void runTests() {
     group('VEIL Jobs Golden Tests', () {
-      test('should consistently dedupe similar summaries', () {
+      test('should consistently dedupe similar summaries', () async {
         final nodes = [
           MiraNodeV2.create(
             type: NodeType.summary,
@@ -293,7 +291,7 @@ class VeilGoldenTests {
         }
       });
 
-      test('should consistently prune stale edges', () {
+      test('should consistently prune stale edges', () async {
         final edges = [
           MiraEdgeV2.create(
             src: 'node1',
@@ -393,8 +391,8 @@ class MultimodalGoldenTests {
 
       test('should consistently normalize EXIF timestamps', () {
         final exifData = ExifData(
-          creationTime: DateTime(2024, 1, 15, 14, 30, 0, 0, DateTime.now().timeZoneOffset),
-          modificationTime: DateTime(2024, 1, 15, 15, 0, 0, 0, DateTime.now().timeZoneOffset),
+          creationTime: DateTime(2024, 1, 15, 14, 30, 0),
+          modificationTime: DateTime(2024, 1, 15, 15, 0, 0),
         );
 
         // Run multiple times to ensure consistent normalization

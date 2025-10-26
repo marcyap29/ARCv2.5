@@ -4,7 +4,6 @@ import 'package:flutter/services.dart';
 import 'package:logger/logger.dart';
 // import 'package:sentry_flutter/sentry_flutter.dart';
 
-import 'package:my_app/app/app.dart';
 
 import 'package:hive_flutter/hive_flutter.dart';
 
@@ -22,9 +21,9 @@ import 'package:my_app/services/media_pack_tracking_service.dart';
 import 'package:my_app/data/hive/insight_snapshot.dart';
 import 'package:my_app/core/sync/sync_item_adapter.dart';
 import 'package:my_app/core/services/audio_service.dart';
-import 'package:my_app/lumara/chat/chat_models.dart';
 import 'package:my_app/lumara/llm/model_progress_service.dart';
 import 'package:my_app/lumara/llm/bridge.pigeon.dart' as pigeon;
+import 'package:my_app/lumara/chat/chat_models.dart';
 
 import 'package:my_app/shared/app_colors.dart';
 import 'package:my_app/shared/text_style.dart';
@@ -131,8 +130,8 @@ class _BootstrapErrorWidgetState extends State<BootstrapErrorWidget> {
                           await _clearCorruptedHiveData();
                           await _openHiveBoxes();
                           
-                          // Restart the app
-                          runApp(const App());
+                          // Don't call runApp from error handler to avoid zone issues
+                          logger.i('Data cleared successfully - app will restart naturally');
                         } catch (e) {
                           logger.e('Failed to clear data and restart', e);
                         }
@@ -205,14 +204,13 @@ void _registerHiveAdapters() {
     if (!Hive.isAdapterRegistered(5)) {
       Hive.registerAdapter(SyncItemAdapter());
     }
-    // Chat adapters - COMMENTED OUT: Adapters not accessible from part file
-    // TODO: Move adapter registration to ChatRepoImpl.initialize() where they're accessible
-    // if (!Hive.isAdapterRegistered(70)) {
-    //   Hive.registerAdapter(ChatSessionAdapter());
-    // }
-    // if (!Hive.isAdapterRegistered(71)) {
-    //   Hive.registerAdapter(ChatMessageAdapter());
-    // }
+    // Chat adapters - handled by ChatRepoImpl.initialize()
+    if (!Hive.isAdapterRegistered(71)) {
+      Hive.registerAdapter(ChatSessionAdapter());
+    }
+    if (!Hive.isAdapterRegistered(70)) {
+      Hive.registerAdapter(ChatMessageAdapter());
+    }
   } catch (e) {
     logger.w('Some adapters may already be registered: $e');
     // Continue - this is not critical
@@ -240,8 +238,10 @@ Future<void> bootstrap({
   return runZonedGuarded(
     () async {
       try {
-        Flavors.flavor = flavor;
+        // Ensure Flutter bindings are initialized in the same zone as runApp
         WidgetsFlutterBinding.ensureInitialized();
+        
+        Flavors.flavor = flavor;
 
         logger.i('Starting bootstrap process for ${flavor.toString()} environment');
         logger.d('App startup triggered - handling potential force-quit recovery');
@@ -288,13 +288,8 @@ Future<void> bootstrap({
           logger.i('Hive recovery successful, continuing app startup');
         } catch (recoveryError, recoverySt) {
           logger.e('Hive recovery failed', recoveryError, recoverySt);
-          runApp(
-            BootstrapErrorWidget(
-              error: e,
-              stackTrace: st,
-              context: 'Failed to initialize data storage system and recovery failed',
-            ),
-          );
+          // Don't call runApp from error handler to avoid zone issues
+          logger.e('Hive recovery failed - error logged but not showing UI to avoid zone conflicts');
           return;
         }
       }
@@ -388,28 +383,17 @@ Future<void> bootstrap({
       runApp(app);
       } catch (e, stackTrace) {
         logger.e('Error during bootstrap initialization', e, stackTrace);
-        // Show error widget if bootstrap fails
-        runApp(
-          BootstrapErrorWidget(
-            error: e,
-            stackTrace: stackTrace,
-            context: 'Bootstrap initialization',
-          ),
-        );
+        // Don't call runApp from error handler to avoid zone issues
+        logger.e('Bootstrap initialization failed - error logged but not showing UI to avoid zone conflicts');
       }
     },
     (exception, stackTrace) async {
       logger.e('Uncaught exception in app', exception, stackTrace);
       // await Sentry.captureException(exception, stackTrace: stackTrace);
 
-      // Show error widget with recovery options - no complex recovery to avoid zone issues
-      runApp(
-        BootstrapErrorWidget(
-          error: exception,
-          stackTrace: stackTrace,
-          context: 'An unexpected error occurred during startup.',
-        ),
-      );
+      // Don't call runApp from error handler to avoid zone issues
+      // The error will be handled by the existing error handling mechanisms
+      logger.e('Zone error handler called - error logged but not showing UI to avoid zone conflicts');
     },
   );
 }
@@ -592,6 +576,7 @@ Future<void> _migrateUserProfileData() async {
 }
 
 /// Performs startup health check to detect recovery scenarios
+// ignore: unused_element
 Future<void> _performStartupHealthCheck() async {
   try {
     logger.d('Performing startup health check');
@@ -676,6 +661,7 @@ Future<void> _recoverFromStartupFailure() async {
 }
 
 /// Attempts emergency recovery from critical errors
+// ignore: unused_element
 Future<bool> _attemptEmergencyRecovery(Object exception, StackTrace stackTrace) async {
   try {
     logger.w('Attempting emergency recovery for: ${exception.toString()}');
@@ -711,10 +697,9 @@ Future<bool> _attemptEmergencyRecovery(Object exception, StackTrace stackTrace) 
         exception.toString().contains('deactivated')) {
       logger.i('Detected widget lifecycle error, attempting widget recovery');
       
-      // Simple app restart for widget issues
-      await Future.delayed(const Duration(milliseconds: 500));
-      runApp(const App());
-      return true;
+      // Don't call runApp from error handler to avoid zone issues
+      logger.i('Widget lifecycle error detected - error logged but not restarting to avoid zone conflicts');
+      return false;
     }
     
     // For other errors, return false to show error widget
