@@ -7,6 +7,18 @@ This directory contains comprehensive documentation for the EPI (Evolving Person
 
 ## 🆕 Latest Updates (October 26, 2025)
 
+  **🎯 Settings Overhaul & Phase Analysis Integration**
+
+  Streamlined settings with consolidated phase analysis functionality:
+  - **Removed Legacy Modes**: First Responder and Coach mode removed from settings (placeholders)
+  - **Import & Export Priority**: Moved to top of settings for easy access
+  - **Index & Analyze Data**: Consolidated phase analysis in Import & Export section
+  - **Auto-Update Phase**: Auto-applies RIVET Sweep results and updates UserProfile
+  - **ARCForms Refresh**: Automatically updates phase data in ARCForms visualization
+  - **Manual Refresh Button**: Small refresh icon in ARCForm Visualizations tab
+  - **One-Click Analysis**: Single button runs phase analysis with comprehensive updates
+  - **Files**: `settings_view.dart`, `lumara_settings_view.dart`, `phase_analysis_view.dart`
+
   **✨ In-Journal LUMARA Reflection System**
 
   Implemented streamlined in-journal LUMARA reflections with strict brevity:

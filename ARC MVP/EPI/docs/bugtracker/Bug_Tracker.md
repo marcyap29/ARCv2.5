@@ -6,6 +6,20 @@
 
 ## 📊 Current Status
 
+### 🎯 Settings Overhaul & Phase Analysis Integration (October 26, 2025)
+**Streamlined settings with consolidated phase analysis functionality:**
+- **Feature**: Removed legacy placeholder modes, reorganized settings, added Index & Analyze Data button
+- **Removed**: First Responder and Coach mode (non-functional placeholders)
+- **Moved**: Import & Export section to top of settings (above Privacy & Security)
+- **Added**: "Index & Analyze Data" button that runs RIVET Sweep and auto-updates phase
+- **Auto-Update**: Automatically applies phase proposals, updates UserProfile, refreshes ARCForms
+- **Manual Control**: Small refresh button in ARCForm Visualizations tab for manual phase refresh
+- **Files Modified**:
+  - `lib/features/settings/settings_view.dart` - Reorganized, added Index & Analyze Data
+  - `lib/features/settings/lumara_settings_view.dart` - Removed non-functional MCP Bundle Path
+  - `lib/ui/phase/phase_analysis_view.dart` - Added refresh button, restored Phase Analysis card
+- **Status**: PRODUCTION READY ✅
+
 ### ✨ In-Journal LUMARA Reflection System (October 26, 2025)
 **Implemented streamlined in-journal LUMARA reflections with strict brevity:**
 - **Feature**: Brief, profound reflections (1-2 sentences, 150 characters max)
