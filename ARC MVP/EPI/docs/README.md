@@ -1,11 +1,22 @@
 # EPI Documentation
 
-**Last Updated:** January 25, 2025
-**Status:** Production Ready ✅ - RIVET Sweep Phase System Complete, MCP Phase Export/Import, Timeline-Based Phase Architecture, Clean UI Design, Full-Featured Journal Editor, ARCForm Keyword Integration, Gemini API Integration Fixed, Flutter Zone Mismatch Resolved, All Build Errors Resolved
+**Last Updated:** October 26, 2025
+**Status:** Production Ready ✅ - RIVET Sweep Phase System Complete, MCP Phase Export/Import, Timeline-Based Phase Architecture, Clean UI Design, Full-Featured Journal Editor, ARCForm Keyword Integration, Gemini API Integration Fixed, LUMARA Phase Fallback Debug System Complete
 
 This directory contains comprehensive documentation for the EPI (Evolving Personal Intelligence) project - an 8-module intelligent journaling system built with Flutter.
 
-## 🆕 Latest Updates (January 25, 2025)
+## 🆕 Latest Updates (October 26, 2025)
+
+  **🐛 LUMARA Phase Fallback Debug System**
+
+  Fixed hard-coded phase message fallback in LUMARA chat system:
+  - **Disabled On-Device LLM Fallback** - Temporarily disabled to isolate Gemini API path
+  - **Added Comprehensive Debug Logging** - Step-by-step logging throughout the entire Gemini API call chain
+  - **Stubbed Rule-Based Fallback** - Returns debug message instead of hard-coded phase responses
+  - **Enhanced Error Tracking** - Detailed exception logging with stack traces for troubleshooting
+  - **Debug Tracing** - Tracks API config initialization, Gemini config retrieval, API key validation, ArcLLM calls, response handling, and fallback mechanisms
+  - **Testing Support** - Full debug output for identifying where the Gemini API path fails
+  - **Files Modified**: `lumara_assistant_cubit.dart`, `rule_based_adapter.dart`, `llm_bridge_adapter.dart`, `enhanced_lumara_api.dart`
 
   **🔧 Gemini API Integration & Flutter Zone Fixes**
 

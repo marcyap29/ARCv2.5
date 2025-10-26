@@ -376,6 +376,10 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
     // Memory retrieval will be handled in response generation
 
     // PRIORITY 1: Try on-device LLMAdapter first (privacy-first, security-first)
+    // TEMPORARILY DISABLED FOR DEBUGGING
+    debugPrint('LUMARA Debug: [On-Device] SKIPPED - Disabled for Gemini debugging');
+    
+    /* ORIGINAL CODE COMMENTED OUT
     try {
       print('LUMARA Debug: [Priority 1] Attempting on-device LLM...');
 
@@ -414,36 +418,63 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
       print('LUMARA Debug: [On-Device] Failed: $onDeviceError');
       print('LUMARA Debug: [Priority 2] Falling back to Cloud API...');
     }
+    */
 
     // PRIORITY 2: Try Cloud API if on-device failed
     try {
       // Get API key from LumaraAPIConfig instead of environment variable
+      debugPrint('LUMARA Debug: ========== STARTING GEMINI API PATH ==========');
+      
+      debugPrint('LUMARA Debug: [Gemini] Step 1: Initializing API config...');
       final apiConfig = LumaraAPIConfig.instance;
       await apiConfig.initialize();
+      debugPrint('LUMARA Debug: [Gemini] Step 1: ✓ API config initialized');
+      
+      debugPrint('LUMARA Debug: [Gemini] Step 2: Getting Gemini config...');
       final geminiConfig = apiConfig.getConfig(LLMProvider.gemini);
       final apiKey = geminiConfig?.apiKey ?? '';
+      debugPrint('LUMARA Debug: [Gemini] Step 2: Config exists: ${geminiConfig != null}');
+      debugPrint('LUMARA Debug: [Gemini] Step 2: API key present: ${apiKey.isNotEmpty}');
+      debugPrint('LUMARA Debug: [Gemini] Step 2: API key length: ${apiKey.length}');
+      debugPrint('LUMARA Debug: [Gemini] Step 2: Config isAvailable: ${geminiConfig?.isAvailable}');
       
-      if (apiKey.isNotEmpty) {
-        print('LUMARA Debug: [Cloud API] Using Gemini API for response generation');
+      if (apiKey.isEmpty) {
+        debugPrint('LUMARA Debug: [Gemini] Step 2: ✗ FAILED - API key is empty');
+        throw Exception('Gemini API key is empty');
+      }
+      debugPrint('LUMARA Debug: [Gemini] Step 2: ✓ API key validated');
+      
+      debugPrint('LUMARA Debug: [Gemini] Step 3: Building context for ArcLLM...');
+      // Build context for ArcLLM
+      final entryText = _buildEntryContext(context);
+      final phaseHint = _buildPhaseHint(context);
+      final keywords = _buildKeywordsContext(context);
+      debugPrint('LUMARA Debug: [Gemini] Step 3: Context built');
+      debugPrint('LUMARA Debug: [Gemini] Step 3: Entry text length: ${entryText.length}');
+      debugPrint('LUMARA Debug: [Gemini] Step 3: Phase hint: $phaseHint');
+      debugPrint('LUMARA Debug: [Gemini] Step 3: Keywords: $keywords');
+
+      debugPrint('LUMARA Debug: [Gemini] Step 4: Calling _arcLLM.chat()...');
+      debugPrint('LUMARA Debug: [Gemini] Step 4: User intent: $text');
+      // Use ArcLLM chat function with context
+      final response = await _arcLLM.chat(
+        userIntent: text,
+        entryText: entryText,
+        phaseHintJson: phaseHint,
+        lastKeywordsJson: keywords,
+      );
+
+      debugPrint('LUMARA Debug: [Gemini] Step 4: ✓ Response received');
+      debugPrint('LUMARA Debug: [Gemini] Step 4: Response length: ${response.length}');
+      debugPrint('LUMARA Debug: [Gemini] Step 4: Response preview: ${response.substring(0, response.length > 100 ? 100 : response.length)}...');
+
+      if (response.isNotEmpty) {
+        debugPrint('LUMARA Debug: [Gemini] SUCCESS - Using Gemini response');
         
-        // Build context for ArcLLM
-        final entryText = _buildEntryContext(context);
-        final phaseHint = _buildPhaseHint(context);
-        final keywords = _buildKeywordsContext(context);
-
-        // Use ArcLLM chat function with context
-        final response = await _arcLLM.chat(
-          userIntent: text,
-          entryText: entryText,
-          phaseHintJson: phaseHint,
-          lastKeywordsJson: keywords,
-        );
-
-        print('LUMARA Debug: Direct Gemini API response length: ${response.length}');
-
         // Generate explainable response with attribution if memory service available
         if (_memoryService != null) {
           try {
+            debugPrint('LUMARA Debug: [Gemini] Step 5: Retrieving memories for attribution...');
             final responseId = 'resp_${DateTime.now().millisecondsSinceEpoch}';
             print('LUMARA Debug: Retrieving memories for query: "$text"');
             
@@ -472,6 +503,7 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
               print('LUMARA Debug: Trace - ${trace.nodeRef}: ${trace.relation} (${(trace.confidence * 100).toInt()}%)');
             }
 
+            debugPrint('LUMARA Debug: ========== GEMINI API PATH COMPLETED ==========');
             return {
               'content': response,
               'attributionTraces': traces,
@@ -481,77 +513,91 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
           }
         }
 
-        return {
-          'content': response,
-          'attributionTraces': <AttributionTrace>[],
-        };
-      } else {
-        print('LUMARA Debug: [Cloud API] No Gemini API key, trying Enhanced LUMARA API');
-
-        // Try enhanced LUMARA API with multi-provider support
-        final entryText = _buildEntryContext(context);
-        final phaseHint = _buildPhaseHint(context);
-
-        // Use enhanced API for response generation
-        final response = await _enhancedApi.generatePromptedReflection(
-          entryText: entryText,
-          intent: _mapTaskToIntent(task),
-          phase: phaseHint,
-        );
-
-        print('LUMARA Debug: [Cloud API] Enhanced API response length: ${response.length}');
-
-        // Generate explainable response with attribution if memory service available
-        if (_memoryService != null) {
-          try {
-            final responseId = 'resp_${DateTime.now().millisecondsSinceEpoch}';
-            print('LUMARA Debug: [Enhanced API] Retrieving memories for query: "$text"');
-            
-            final memoryResult = await _memoryService!.retrieveMemories(
-              query: text,
-              domains: [MemoryDomain.personal, MemoryDomain.creative, MemoryDomain.learning],
-              responseId: responseId,
-            );
-            
-            print('LUMARA Debug: [Enhanced API] Retrieved ${memoryResult.nodes.length} memory nodes');
-            print('LUMARA Debug: [Enhanced API] Retrieved ${memoryResult.attributions.length} attribution traces from memory service');
-
-            if (memoryResult.nodes.isEmpty) {
-              print('LUMARA Debug: [Enhanced API] ⚠️ NO MEMORY NODES RETRIEVED - This is why no attribution data is generated');
-            } else {
-              for (final node in memoryResult.nodes) {
-                print('LUMARA Debug: [Enhanced API] Memory node - ID: ${node.id}, Content: ${node.narrative.substring(0, node.narrative.length > 50 ? 50 : node.narrative.length)}...');
-              }
-            }
-
-            // Use attribution traces directly from memory retrieval result
-            print('LUMARA Debug: [Enhanced API] About to extract attribution traces...');
-            final traces = memoryResult.attributions;
-            print('LUMARA Debug: [Enhanced API] Extracted ${traces.length} traces');
-
-            print('LUMARA Debug: [Enhanced API] Using ${traces.length} attribution traces from memory retrieval');
-            for (final trace in traces) {
-              print('LUMARA Debug: [Enhanced API] Trace - ${trace.nodeRef}: ${trace.relation} (${(trace.confidence * 100).toInt()}%)');
-            }
-
-            print('LUMARA Debug: [Enhanced API] Returning response with ${traces.length} traces');
-            return {
-              'content': response,
-              'attributionTraces': traces,
-            };
-          } catch (e, stackTrace) {
-            print('LUMARA Memory: Error in memory attribution processing: $e');
-            print('LUMARA Memory: Stack trace: $stackTrace');
-          }
-        }
-
+        debugPrint('LUMARA Debug: ========== GEMINI API PATH COMPLETED ==========');
         return {
           'content': response,
           'attributionTraces': <AttributionTrace>[],
         };
       }
-    } catch (cloudApiError) {
-      print('LUMARA Debug: [Cloud API] Failed: $cloudApiError');
+      
+      debugPrint('LUMARA Debug: [Gemini] ✗ FAILED - Empty response received');
+    } catch (e, stackTrace) {
+      debugPrint('LUMARA Debug: [Gemini] ✗✗✗ EXCEPTION CAUGHT ✗✗✗');
+      debugPrint('LUMARA Debug: [Gemini] Exception type: ${e.runtimeType}');
+      debugPrint('LUMARA Debug: [Gemini] Exception message: $e');
+      debugPrint('LUMARA Debug: [Gemini] Stack trace: $stackTrace');
+      
+      // Fall through to Enhanced API or Rule-Based
+    }
+    
+    // PRIORITY 3: Try Enhanced LUMARA API as fallback
+    try {
+      debugPrint('LUMARA Debug: [Enhanced API] Attempting Enhanced LUMARA API fallback...');
+      print('LUMARA Debug: [Enhanced API] No Gemini API key, trying Enhanced LUMARA API');
+
+      // Try enhanced LUMARA API with multi-provider support
+      final entryText = _buildEntryContext(context);
+      final phaseHint = _buildPhaseHint(context);
+
+      // Use enhanced API for response generation
+      final response = await _enhancedApi.generatePromptedReflection(
+        entryText: entryText,
+        intent: _mapTaskToIntent(task),
+        phase: phaseHint,
+      );
+
+      print('LUMARA Debug: [Enhanced API] Response length: ${response.length}');
+
+      // Generate explainable response with attribution if memory service available
+      if (_memoryService != null) {
+        try {
+          final responseId = 'resp_${DateTime.now().millisecondsSinceEpoch}';
+          print('LUMARA Debug: [Enhanced API] Retrieving memories for query: "$text"');
+          
+          final memoryResult = await _memoryService!.retrieveMemories(
+            query: text,
+            domains: [MemoryDomain.personal, MemoryDomain.creative, MemoryDomain.learning],
+            responseId: responseId,
+          );
+          
+          print('LUMARA Debug: [Enhanced API] Retrieved ${memoryResult.nodes.length} memory nodes');
+          print('LUMARA Debug: [Enhanced API] Retrieved ${memoryResult.attributions.length} attribution traces from memory service');
+
+          if (memoryResult.nodes.isEmpty) {
+            print('LUMARA Debug: [Enhanced API] ⚠️ NO MEMORY NODES RETRIEVED - This is why no attribution data is generated');
+          } else {
+            for (final node in memoryResult.nodes) {
+              print('LUMARA Debug: [Enhanced API] Memory node - ID: ${node.id}, Content: ${node.narrative.substring(0, node.narrative.length > 50 ? 50 : node.narrative.length)}...');
+            }
+          }
+
+          // Use attribution traces directly from memory retrieval result
+          print('LUMARA Debug: [Enhanced API] About to extract attribution traces...');
+          final traces = memoryResult.attributions;
+          print('LUMARA Debug: [Enhanced API] Extracted ${traces.length} traces');
+
+          print('LUMARA Debug: [Enhanced API] Using ${traces.length} attribution traces from memory retrieval');
+          for (final trace in traces) {
+            print('LUMARA Debug: [Enhanced API] Trace - ${trace.nodeRef}: ${trace.relation} (${(trace.confidence * 100).toInt()}%)');
+          }
+
+          print('LUMARA Debug: [Enhanced API] Returning response with ${traces.length} traces');
+          return {
+            'content': response,
+            'attributionTraces': traces,
+          };
+        } catch (e, stackTrace) {
+          print('LUMARA Memory: Error in memory attribution processing: $e');
+          print('LUMARA Memory: Stack trace: $stackTrace');
+        }
+      }
+
+      return {
+        'content': response,
+        'attributionTraces': <AttributionTrace>[],
+      };
+    } catch (enhancedApiError) {
+      print('LUMARA Debug: [Enhanced API] Failed: $enhancedApiError');
     }
 
     // No providers available - return clear guidance
