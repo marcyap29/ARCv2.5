@@ -371,7 +371,7 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
 
     // Debug logging
     print('LUMARA Debug: Query: "$text" -> Task: ${task.name}');
-    print('LUMARA Debug: Fallback priority: Cloud API (Gemini) → Rule-Based');
+    print('LUMARA Debug: Fallback priority: Cloud API (Gemini) → Enhanced API → Rule-Based');
 
     // Memory retrieval will be handled in response generation
 
@@ -481,6 +481,75 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
       debugPrint('LUMARA Debug: [Gemini] Exception type: ${e.runtimeType}');
       debugPrint('LUMARA Debug: [Gemini] Exception message: $e');
       debugPrint('LUMARA Debug: [Gemini] Stack trace: $stackTrace');
+    }
+
+    // PRIORITY 2: Try Enhanced LUMARA API as fallback
+    try {
+      debugPrint('LUMARA Debug: [Enhanced API] Attempting Enhanced LUMARA API fallback...');
+      
+      // Try enhanced LUMARA API with multi-provider support
+      final entryText = _buildEntryContext(context);
+      final phaseHint = _buildPhaseHint(context);
+
+      // Use enhanced API for response generation
+      final response = await _enhancedApi.generatePromptedReflection(
+        entryText: entryText,
+        intent: _mapTaskToIntent(task),
+        phase: phaseHint,
+      );
+
+      print('LUMARA Debug: [Enhanced API] Response length: ${response.length}');
+
+      // Generate explainable response with attribution if memory service available
+      if (_memoryService != null) {
+        try {
+          final responseId = 'resp_${DateTime.now().millisecondsSinceEpoch}';
+          print('LUMARA Debug: [Enhanced API] Retrieving memories for query: "$text"');
+          
+          final memoryResult = await _memoryService!.retrieveMemories(
+            query: text,
+            domains: [MemoryDomain.personal, MemoryDomain.creative, MemoryDomain.learning],
+            responseId: responseId,
+          );
+          
+          print('LUMARA Debug: [Enhanced API] Retrieved ${memoryResult.nodes.length} memory nodes');
+          print('LUMARA Debug: [Enhanced API] Retrieved ${memoryResult.attributions.length} attribution traces from memory service');
+
+          if (memoryResult.nodes.isEmpty) {
+            print('LUMARA Debug: [Enhanced API] ⚠️ NO MEMORY NODES RETRIEVED - This is why no attribution data is generated');
+          } else {
+            for (final node in memoryResult.nodes) {
+              print('LUMARA Debug: [Enhanced API] Memory node - ID: ${node.id}, Content: ${node.narrative.substring(0, node.narrative.length > 50 ? 50 : node.narrative.length)}...');
+            }
+          }
+
+          // Use attribution traces directly from memory retrieval result
+          print('LUMARA Debug: [Enhanced API] About to extract attribution traces...');
+          final traces = memoryResult.attributions;
+          print('LUMARA Debug: [Enhanced API] Extracted ${traces.length} traces');
+
+          print('LUMARA Debug: [Enhanced API] Using ${traces.length} attribution traces from memory retrieval');
+          for (final trace in traces) {
+            print('LUMARA Debug: [Enhanced API] Trace - ${trace.nodeRef}: ${trace.relation} (${(trace.confidence * 100).toInt()}%)');
+          }
+
+          print('LUMARA Debug: [Enhanced API] Returning response with ${traces.length} traces');
+          return {
+            'content': response,
+            'attributionTraces': traces,
+          };
+        } catch (e, stackTrace) {
+          print('LUMARA Memory: Error in memory attribution processing: $e');
+          print('LUMARA Memory: Stack trace: $stackTrace');
+        }
+      }
+
+      return {
+        'content': response,
+        'attributionTraces': <AttributionTrace>[],
+      };
+    } catch (enhancedApiError) {
+      print('LUMARA Debug: [Enhanced API] Failed: $enhancedApiError');
     }
 
     // No providers available - return clear guidance
