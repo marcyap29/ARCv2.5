@@ -4,8 +4,6 @@ import '../../shared/app_colors.dart';
 import '../../shared/text_style.dart';
 import 'sync_settings_section.dart';
 import 'music_control_section.dart';
-import 'first_responder_settings_section.dart';
-import 'coach_mode_settings_section.dart';
 import 'mcp_settings_view.dart';
 import 'mcp_bundle_health_view.dart';
 import 'privacy_settings_view.dart';
@@ -106,16 +104,6 @@ class SettingsView extends StatelessWidget {
 
             // Music Control Section
             const MusicControlSection(),
-
-            const SizedBox(height: 32),
-
-            // First Responder Settings Section
-            const FirstResponderSettingsSection(),
-
-            const SizedBox(height: 32),
-
-            // Coach Mode Settings Section
-            const CoachModeSettingsSection(),
 
             const SizedBox(height: 32),
 
