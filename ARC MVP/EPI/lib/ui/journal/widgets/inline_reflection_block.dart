@@ -84,12 +84,13 @@ class InlineReflectionBlock extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 8),
-            // Reflection content
+            // Reflection content (different color to distinguish from user text)
             Text(
               content,
               style: theme.textTheme.bodyMedium?.copyWith(
                 height: 1.4,
-                color: theme.colorScheme.onSurfaceVariant,
+                color: theme.colorScheme.secondary, // Different color for LUMARA text
+                fontStyle: FontStyle.italic, // Italic to further distinguish
               ),
             ),
             const SizedBox(height: 12),
