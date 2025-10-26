@@ -154,9 +154,10 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
                     Expanded(
             child: BlocConsumer<LumaraAssistantCubit, LumaraAssistantState>(
               listener: (context, state) {
-                if (state is LumaraAssistantLoaded) {
-                  _scrollToBottom();
-                }
+                // Don't auto-scroll - keep user at top to see responses as they appear
+                // if (state is LumaraAssistantLoaded) {
+                //   _scrollToBottom();
+                // }
               },
               builder: (context, state) {
                 if (state is LumaraAssistantLoading) {
