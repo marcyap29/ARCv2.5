@@ -237,10 +237,69 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
       print('LUMARA Debug: Best provider: ${bestProvider?.name ?? 'none'}');
       print('LUMARA Debug: Is manual selection: $isManualSelection');
 
-      // PRIORITY 1: Try On-Device first (security-first, unless manually overridden)
+      // PRIORITY 1: Try Enhanced API (semantic search + Gemini) for ALL questions
+      try {
+        print('LUMARA Debug: [Priority 1] Attempting Enhanced API with semantic search...');
+        
+        // Get context for Enhanced API
+        final context = await _contextProvider.buildContext();
+        final entryText = _buildEntryContext(context);
+        final phaseHint = _buildPhaseHint(context);
+        
+        // Use Enhanced API - it does semantic search then uses Gemini
+        final response = await _enhancedApi.generatePromptedReflection(
+          entryText: entryText,
+          intent: 'think',
+          phase: phaseHint,
+        );
+        
+        print('LUMARA Debug: [Enhanced API] ✓ Response received, length: ${response.length}');
+        
+        // Get attribution traces
+        List<AttributionTrace>? attributionTraces;
+        if (_memoryService != null) {
+          try {
+            final responseId = 'resp_${DateTime.now().millisecondsSinceEpoch}';
+            final memoryResult = await _memoryService!.retrieveMemories(
+              query: text,
+              domains: [MemoryDomain.personal, MemoryDomain.creative, MemoryDomain.learning],
+              responseId: responseId,
+            );
+            attributionTraces = memoryResult.attributions;
+          } catch (e) {
+            print('LUMARA Debug: Error retrieving attribution traces: $e');
+          }
+        }
+        
+        // Record assistant response in MCP memory
+        await _recordAssistantMessage(response);
+        
+        // Add assistant response to chat session
+        await _addToChatSession(response, 'assistant');
+        
+        // Add assistant response to UI with attribution traces
+        final assistantMessage = LumaraMessage.assistant(
+          content: response,
+          attributionTraces: attributionTraces ?? [],
+        );
+        final finalMessages = [...updatedMessages, assistantMessage];
+        
+        emit(currentState.copyWith(
+          messages: finalMessages,
+          isProcessing: false,
+        ));
+        
+        print('LUMARA Debug: [Enhanced API] Complete - skipping other paths');
+        return; // Exit early - Enhanced API succeeded
+      } catch (e) {
+        print('LUMARA Debug: [Enhanced API] Failed: $e');
+        print('LUMARA Debug: Falling back to on-device or Gemini streaming...');
+      }
+      
+      // PRIORITY 2: Try On-Device fallback (security-first, unless manually overridden)
       if (!isManualSelection) {
         try {
-          print('LUMARA Debug: [Priority 1] Attempting on-device LLMAdapter...');
+          print('LUMARA Debug: [Priority 2] Attempting on-device LLMAdapter...');
 
           // Initialize LLMAdapter if not already done
           if (!LLMAdapter.isReady) {
