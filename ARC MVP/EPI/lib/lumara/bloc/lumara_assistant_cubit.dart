@@ -377,8 +377,14 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
 
     // PRIORITY 1: Try Enhanced API with semantic search (uses Gemini under the hood)
     try {
+      debugPrint('LUMARA Debug: ========== STARTING ENHANCED API PATH ==========');
+      print('LUMARA Debug: [Enhanced API] Attempting Enhanced LUMARA API...');
+      
       final entryText = _buildEntryContext(context);
       final phaseHint = _buildPhaseHint(context);
+      
+      print('LUMARA Debug: [Enhanced API] Entry text length: ${entryText.length}');
+      print('LUMARA Debug: [Enhanced API] Phase hint: $phaseHint');
 
       // Use enhanced API - it does semantic search then uses Gemini
       final response = await _enhancedApi.generatePromptedReflection(
@@ -387,7 +393,7 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
         phase: phaseHint,
       );
 
-      print('LUMARA Debug: [Enhanced API] Response length: ${response.length}');
+      print('LUMARA Debug: [Enhanced API] ✓ Response received, length: ${response.length}');
 
       // Generate explainable response with attribution if memory service available
       if (_memoryService != null) {
@@ -427,8 +433,12 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
         'content': response,
         'attributionTraces': <AttributionTrace>[],
       };
-    } catch (enhancedApiError) {
-      print('LUMARA Debug: [Enhanced API] Failed: $enhancedApiError');
+    } catch (e, stackTrace) {
+      debugPrint('LUMARA Debug: [Enhanced API] ✗✗✗ EXCEPTION CAUGHT ✗✗✗');
+      debugPrint('LUMARA Debug: [Enhanced API] Exception type: ${e.runtimeType}');
+      debugPrint('LUMARA Debug: [Enhanced API] Exception: $e');
+      debugPrint('LUMARA Debug: [Enhanced API] Stack trace: $stackTrace');
+      print('LUMARA Debug: [Enhanced API] Failed: $e');
     }
 
     // PRIORITY 2: Try Direct Gemini API fallback
