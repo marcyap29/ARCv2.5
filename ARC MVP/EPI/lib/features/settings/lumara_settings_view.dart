@@ -20,7 +20,6 @@ class _LumaraSettingsViewState extends State<LumaraSettingsView> {
   final _enhancedApi = EnhancedLumaraApi(Analytics());
   
   // Settings state
-  String? _mcpBundlePath;
   double _similarityThreshold = 0.55;
   int _lookbackYears = 5;
   int _maxMatches = 5;
@@ -52,42 +51,14 @@ class _LumaraSettingsViewState extends State<LumaraSettingsView> {
     });
   }
 
-  Future<void> _selectMcpBundle() async {
-    // TODO: Implement file picker for MCP bundle selection
-    // For now, show a placeholder dialog
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Select MCP Bundle'),
-        content: const Text('MCP bundle selection will be implemented in a future update. For now, LUMARA will work with any previously imported data.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('OK'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Future<void> _indexCurrentBundle() async {
-    if (_mcpBundlePath == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please select an MCP bundle first'),
-          backgroundColor: Colors.orange,
-        ),
-      );
-      return;
-    }
-
+  Future<void> _indexAndAnalyzeData() async {
     try {
       setState(() {
         _isInitialized = false;
       });
 
-      // Index MCP bundle
-      await _enhancedApi.indexMcpBundle(_mcpBundlePath!);
+      // Initialize Enhanced API (processes existing journal entries)
+      await _enhancedApi.initialize();
       
       final status = _enhancedApi.getStatus();
       setState(() {
@@ -111,7 +82,7 @@ class _LumaraSettingsViewState extends State<LumaraSettingsView> {
       
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Failed to index bundle: $e'),
+          content: Text('Failed to index data: $e'),
           backgroundColor: Colors.red,
         ),
       );
@@ -175,25 +146,18 @@ class _LumaraSettingsViewState extends State<LumaraSettingsView> {
 
             const SizedBox(height: 32),
 
-            // Data Source Section
+            // Data Management Section
             _buildSection(
               context,
-              title: 'Data Source',
+              title: 'Data Management',
               children: [
-                _buildSettingsTile(
-                  context,
-                  title: 'MCP Bundle Path',
-                  subtitle: _mcpBundlePath ?? 'No bundle selected',
-                  icon: Icons.folder,
-                  onTap: _selectMcpBundle,
-                ),
                 _buildActionButton(
                   context,
-                  title: 'Index Current Bundle',
-                  subtitle: 'Process MCP bundle for reflection data',
+                  title: 'Index & Analyze Data',
+                  subtitle: 'Process all journal data for LUMARA reflections and phase analysis',
                   icon: Icons.refresh,
-                  onTap: _indexCurrentBundle,
-                  enabled: _mcpBundlePath != null,
+                  onTap: _indexAndAnalyzeData,
+                  enabled: true,
                 ),
               ],
             ),
