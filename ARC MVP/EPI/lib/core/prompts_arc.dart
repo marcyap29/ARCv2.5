@@ -30,10 +30,10 @@ Context:
 
 Instructions:
 - Answer directly and briefly.
-- For in-journal reflections, keep to ONE concise sentence only. Be brief and thought-provoking.
+- For in-journal reflections, keep to 1–2 concise sentences (maximum 150 characters). Be brief and thought-provoking.
 - Tie suggestions back to the user's current themes when helpful.
 - Do not invent facts. If unknown, say so.
-Output: plain text (1 sentence for in-journal, 2–6 for main chat).
+Output: plain text (1–2 sentences for in-journal, 2–6 for main chat).
 ''';
 
   static const sageEcho = r'''

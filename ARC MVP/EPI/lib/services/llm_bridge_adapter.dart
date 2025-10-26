@@ -47,7 +47,7 @@ class ArcLLM {
       
       // Add extra brevity constraint for in-journal reflections
       if (isInJournalReflection) {
-        userPrompt += '\n\nCRITICAL: This is an in-journal reflection. Respond with ONLY ONE sentence (maximum 100 characters). Be profound but brief.';
+        userPrompt += '\n\nCRITICAL: This is an in-journal reflection. Respond with 1-2 sentences maximum (150 characters total). Be profound but brief.';
         print('ArcLLM Bridge: Added in-journal brevity constraint');
       }
       
