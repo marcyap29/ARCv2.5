@@ -21,11 +21,13 @@ import '../../services/lumara/lumara_inline_api.dart';
 import '../../lumara/services/enhanced_lumara_api.dart';
 import '../../lumara/services/progressive_memory_loader.dart';
 import '../../lumara/data/context_provider.dart';
+import '../../lumara/data/context_scope.dart';
 import '../../lumara/ui/lumara_settings_screen.dart';
 import '../../models/user_profile_model.dart';
 import 'package:hive/hive.dart';
 import '../../lumara/config/api_config.dart';
 import '../../services/llm_bridge_adapter.dart';
+import '../../services/gemini_send.dart';
 import '../../services/ocr/ocr_service.dart';
 import '../../services/journal_session_cache.dart';
 import '../../arc/core/keyword_extraction_cubit.dart';
@@ -411,8 +413,9 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
       
       // Build context from progressive memory loader (current year only)
       final loadedEntries = _memoryLoader.getLoadedEntries();
-      final contextProvider = ContextProvider(_journalRepository);
-      final context = await contextProvider.buildContext();
+      final lumaraScope = LumaraScope.defaultScope;
+      final contextProvider = ContextProvider(lumaraScope);
+      final contextWindow = await contextProvider.buildContext();
       
       // Build entry text from loaded journal entries
       final entryText = _buildJournalContext(loadedEntries);
