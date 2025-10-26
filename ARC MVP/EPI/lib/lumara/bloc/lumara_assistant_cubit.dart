@@ -694,77 +694,9 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
     final systemPrompt = _buildSystemPrompt(entryText, phaseHint, keywords);
 
     print('LUMARA Debug: Starting streaming response...');
+    print('LUMARA Debug: Using direct Gemini streaming with journal context');
 
-    // PRIORITY 1: Try Enhanced API with semantic search (non-streaming)
-    try {
-      print('LUMARA Debug: [Enhanced API] Attempting Enhanced LUMARA API...');
-      final response = await _enhancedApi.generatePromptedReflection(
-        entryText: entryText ?? '',
-        intent: 'think',
-        phase: phaseHint,
-      );
-      print('LUMARA Debug: [Enhanced API] ✓ Response received, length: ${response.length}');
-      
-      // Extract content from Enhanced API response
-      final finalContent = response;
-      
-      // Get attribution traces
-      List<AttributionTrace>? attributionTraces;
-      if (_memoryService != null) {
-        try {
-          final responseId = 'resp_${DateTime.now().millisecondsSinceEpoch}';
-          print('LUMARA Debug: Retrieving memories for attribution...');
-
-          final memoryResult = await _memoryService!.retrieveMemories(
-            query: text,
-            domains: [MemoryDomain.personal, MemoryDomain.creative, MemoryDomain.learning],
-            responseId: responseId,
-          );
-
-          attributionTraces = memoryResult.attributions;
-          print('LUMARA Debug: Retrieved ${attributionTraces.length} attribution traces');
-        } catch (e) {
-          print('LUMARA Debug: Error retrieving attribution traces: $e');
-        }
-      }
-
-      // Record assistant response in MCP memory
-      await _recordAssistantMessage(finalContent);
-
-      // Add assistant response to chat session
-      await _addToChatSession(finalContent, 'assistant');
-
-      // Update final message with attribution traces
-      if (state is LumaraAssistantLoaded) {
-        final currentMessages = (state as LumaraAssistantLoaded).messages;
-        if (currentMessages.isNotEmpty) {
-          final lastIndex = currentMessages.length - 1;
-          final finalMessage = currentMessages[lastIndex].copyWith(
-            content: finalContent,
-            attributionTraces: attributionTraces,
-          );
-
-          final finalMessages = [
-            ...currentMessages.sublist(0, lastIndex),
-            finalMessage,
-          ];
-
-          print('LUMARA Debug: Enhanced API complete with ${attributionTraces?.length ?? 0} attribution traces');
-
-          emit((state as LumaraAssistantLoaded).copyWith(
-            messages: finalMessages,
-            isProcessing: false,
-          ));
-        }
-      }
-      return; // Exit early - Enhanced API succeeded
-    } catch (e) {
-      print('LUMARA Debug: [Enhanced API] Failed: $e');
-      print('LUMARA Debug: Falling back to direct streaming...');
-    }
-
-    // PRIORITY 2: Fallback to direct Gemini streaming
-    print('LUMARA Debug: Using direct Gemini streaming...');
+    // Stream the response from Gemini with journal context
     final fullResponse = StringBuffer();
 
     try {
