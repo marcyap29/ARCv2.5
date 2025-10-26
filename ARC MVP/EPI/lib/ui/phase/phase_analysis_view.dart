@@ -376,60 +376,6 @@ List<PhaseSegmentProposal> proposals,
                 children: [
                   Row(
                     children: [
-                      Icon(Icons.auto_awesome, color: Colors.blue),
-                      const SizedBox(width: 8),
-                      const Text(
-                        'Phase Analysis',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  const Text(
-                    'Automatically detect phase transitions in your journal entries using advanced pattern recognition.',
-                  ),
-                  const SizedBox(height: 12),
-                  FutureBuilder<DateTime?>(
-                    future: _getLastAnalysisDate(),
-                    builder: (context, snapshot) {
-                      if (snapshot.hasData && snapshot.data != null) {
-                        return Padding(
-                          padding: const EdgeInsets.only(bottom: 12.0),
-                          child: Row(
-                            children: [
-                              Icon(Icons.schedule, size: 16, color: Colors.grey[600]),
-                              const SizedBox(width: 6),
-                              Text(
-                                'Last analysis: ${_formatDateTime(snapshot.data!)}',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: Colors.grey[600],
-                                ),
-                              ),
-                            ],
-                          ),
-                        );
-                      }
-                      return const SizedBox.shrink();
-                    },
-                  ),
-                  _buildRivetActionSection(),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 16),
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
                       Icon(Icons.timeline, color: Colors.green),
                       const SizedBox(width: 8),
                       const Text(
@@ -609,67 +555,6 @@ List<PhaseSegmentProposal> proposals,
     );
   }
 
-  Future<DateTime?> _getLastAnalysisDate() async {
-    final analyticsService = AnalyticsService();
-    final rivetSweepService = RivetSweepService(analyticsService);
-    final phaseRegimeService = PhaseRegimeService(analyticsService, rivetSweepService);
-    await phaseRegimeService.initialize();
-    return await phaseRegimeService.getLastAnalysisDate();
-  }
-
-  String _formatDateTime(DateTime dateTime) {
-    final now = DateTime.now();
-    final difference = now.difference(dateTime);
-
-    if (difference.inDays == 0) {
-      if (difference.inHours == 0) {
-        if (difference.inMinutes == 0) {
-          return 'Just now';
-        }
-        return '${difference.inMinutes}m ago';
-      }
-      return '${difference.inHours}h ago';
-    } else if (difference.inDays == 1) {
-      return 'Yesterday';
-    } else if (difference.inDays < 7) {
-      return '${difference.inDays}d ago';
-    } else {
-      return '${dateTime.month}/${dateTime.day}/${dateTime.year}';
-    }
-  }
-
-  Widget _buildRivetActionSection() {
-    return FutureBuilder<int>(
-      future: _getJournalEntryCount(),
-      builder: (context, snapshot) {
-        if (snapshot.hasData) {
-          final entryCount = snapshot.data!;
-          
-          if (entryCount < 5) {
-            return _buildInsufficientEntriesCard(entryCount);
-          } else {
-            return SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: _runRivetSweep,
-                icon: const Icon(Icons.play_arrow),
-                label: const Text('Run Phase Analysis'),
-              ),
-            );
-          }
-        }
-        
-        return SizedBox(
-          width: double.infinity,
-          child: ElevatedButton.icon(
-            onPressed: null,
-            icon: const Icon(Icons.play_arrow),
-            label: const Text('Run Phase Analysis'),
-          ),
-        );
-      },
-    );
-  }
 
   Future<int> _getJournalEntryCount() async {
     try {

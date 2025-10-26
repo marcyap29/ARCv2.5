@@ -14,6 +14,7 @@ import '../../ui/screens/mcp_management_screen.dart';
 import '../../arc/core/journal_repository.dart';
 import '../../services/analytics_service.dart';
 import '../../services/rivet_sweep_service.dart';
+import '../../services/phase_regime_service.dart';
 
 class SettingsView extends StatefulWidget {
   const SettingsView({super.key});
@@ -71,6 +72,11 @@ class _SettingsViewState extends State<SettingsView> {
       // Run RIVET Sweep
       final result = await rivetSweepService.analyzeEntries(journalEntries);
       final totalProposals = result.autoAssign.length + result.review.length + result.lowConfidence.length;
+      
+      // Force reload of phase regimes so Phase Statistics updates
+      // Phase Analysis view will automatically refresh when navigated to
+      final phaseRegimeService = PhaseRegimeService(analyticsService, rivetSweepService);
+      await phaseRegimeService.initialize();
       
       Navigator.of(context).pop(); // Close loading dialog
       
