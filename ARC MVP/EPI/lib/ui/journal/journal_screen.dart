@@ -2288,13 +2288,13 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
   }
 
   void _insertAISuggestion(String suggestion) {
-    // Insert AI suggestion text directly into the journal entry
+    // Insert AI suggestion text with LUMARA prefix to distinguish from user text
     final currentText = _textController.text;
     final cursorPosition = _textController.selection.baseOffset;
     
     // Insert reflection at cursor position or end of text
     final insertPosition = cursorPosition >= 0 ? cursorPosition : currentText.length;
-    final newText = '${currentText.substring(0, insertPosition)}\n\n$suggestion\n\n${currentText.substring(insertPosition)}';
+    final newText = '${currentText.substring(0, insertPosition)}\n\n💡 LUMARA: $suggestion\n\n${currentText.substring(insertPosition)}';
     
     // Update text controller and state
     _textController.text = newText;
