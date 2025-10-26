@@ -19,10 +19,13 @@ import '../../telemetry/analytics.dart';
 import '../../services/periodic_discovery_service.dart';
 import '../../services/lumara/lumara_inline_api.dart';
 import '../../lumara/services/enhanced_lumara_api.dart';
+import '../../lumara/services/progressive_memory_loader.dart';
+import '../../lumara/data/context_provider.dart';
 import '../../lumara/ui/lumara_settings_screen.dart';
 import '../../models/user_profile_model.dart';
 import 'package:hive/hive.dart';
 import '../../lumara/config/api_config.dart';
+import '../../services/llm_bridge_adapter.dart';
 import '../../services/ocr/ocr_service.dart';
 import '../../services/journal_session_cache.dart';
 import '../../arc/core/keyword_extraction_cubit.dart';
@@ -73,6 +76,11 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
   late final EnhancedLumaraApi _enhancedLumaraApi;
   late final OcrService _ocrService;
   final DraftCacheService _draftCache = DraftCacheService.instance;
+  
+  // Progressive memory loading for in-journal LUMARA
+  late final ProgressiveMemoryLoader _memoryLoader;
+  final JournalRepository _journalRepository = JournalRepository();
+  late final ArcLLM _arcLLM;
   String? _currentDraftId;
   Timer? _autoSaveTimer;
   final ImagePicker _imagePicker = ImagePicker();
@@ -124,6 +132,8 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
     super.initState();
     _lumaraApi = LumaraInlineApi(_analytics);
     _enhancedLumaraApi = EnhancedLumaraApi(_analytics);
+    _memoryLoader = ProgressiveMemoryLoader(_journalRepository);
+    _arcLLM = provideArcLLM();
     _initializeLumara();
     _ocrService = StubOcrService(_analytics); // TODO: Use platform-specific implementation
     
@@ -133,6 +143,9 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
     
     // Initialize thumbnail cache
     _thumbnailCache.initialize();
+    
+    // Initialize progressive memory loader
+    _initProgressiveMemory();
     
     _analytics.logJournalEvent('opened');
     
@@ -270,6 +283,16 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
     }
   }
 
+  /// Initialize progressive memory loader for in-journal LUMARA
+  Future<void> _initProgressiveMemory() async {
+    try {
+      await _memoryLoader.initialize();
+      print('LUMARA Journal: Initialized progressive memory loader');
+    } catch (e) {
+      print('LUMARA Journal: Memory loader initialization error: $e');
+    }
+  }
+
   /// Check if LUMARA is properly configured with an API key
   Future<bool> _checkLumaraConfiguration() async {
     try {
@@ -386,12 +409,21 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
         print('DEBUG: Created default user profile with ID: ${defaultProfile.id}');
       }
       
-      // Use enhanced LUMARA API to generate a reflection
-      final reflection = await _enhancedLumaraApi.generatePromptedReflection(
-        entryText: _entryState.text,
-        intent: 'reflect', // Simple reflection intent
-        phase: _entryState.phase,
-        userId: userId,
+      // Build context from progressive memory loader (current year only)
+      final loadedEntries = _memoryLoader.getLoadedEntries();
+      final contextProvider = ContextProvider(_journalRepository);
+      final context = await contextProvider.buildContext();
+      
+      // Build entry text from loaded journal entries
+      final entryText = _buildJournalContext(loadedEntries);
+      final phaseHint = _entryState.phase ?? 'Discovery';
+      
+      // Use ArcLLM with progressive memory for reflection
+      final reflection = await _arcLLM.chat(
+        userIntent: 'reflect',
+        entryText: entryText,
+        phaseHintJson: phaseHint,
+        lastKeywordsJson: '',
       );
 
       // Insert the reflection directly into the text
@@ -2229,6 +2261,27 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
       ),
       textInputAction: TextInputAction.newline,
     );
+  }
+
+  /// Build journal context from loaded entries for reflection
+  String _buildJournalContext(List<JournalEntry> loadedEntries) {
+    final buffer = StringBuffer();
+    
+    // Add current entry text
+    buffer.writeln('Current entry:');
+    buffer.writeln(_entryState.text);
+    buffer.writeln('---');
+    
+    // Add loaded entries from memory
+    if (loadedEntries.isNotEmpty) {
+      buffer.writeln('Recent journal history:');
+      for (final entry in loadedEntries.take(25)) {
+        buffer.writeln(entry.content);
+        buffer.writeln('---');
+      }
+    }
+    
+    return buffer.toString().trim();
   }
 
   void _insertAISuggestion(String suggestion) {
