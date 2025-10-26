@@ -2,11 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../shared/app_colors.dart';
 import '../../shared/text_style.dart';
-import '../../lumara/services/enhanced_lumara_api.dart';
 import '../../telemetry/analytics.dart';
-import '../../services/analytics_service.dart';
-import '../../services/rivet_sweep_service.dart';
-import '../../arc/core/journal_repository.dart';
 
 class LumaraSettingsView extends StatefulWidget {
   const LumaraSettingsView({super.key});
@@ -17,7 +13,6 @@ class LumaraSettingsView extends StatefulWidget {
 
 class _LumaraSettingsViewState extends State<LumaraSettingsView> {
   final _analytics = Analytics();
-  final _enhancedApi = EnhancedLumaraApi(Analytics());
   
   // Settings state
   double _similarityThreshold = 0.55;
@@ -51,67 +46,6 @@ class _LumaraSettingsViewState extends State<LumaraSettingsView> {
     });
   }
 
-  Future<void> _indexAndAnalyzeData() async {
-    try {
-      setState(() {
-        _isInitialized = false;
-      });
-
-      // Initialize Enhanced API (processes existing journal entries)
-      await _enhancedApi.initialize();
-      
-      final status = _enhancedApi.getStatus();
-      setState(() {
-        _nodeCount = status['nodeCount'] ?? 0;
-        _isInitialized = true;
-      });
-
-      // Also run Phase Analysis (RIVET Sweep) to detect phase transitions
-      await _runPhaseAnalysis();
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Successfully indexed $_nodeCount nodes and completed phase analysis'),
-          backgroundColor: Colors.green,
-        ),
-      );
-    } catch (e) {
-      setState(() {
-        _isInitialized = true;
-      });
-      
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Failed to index data: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
-    }
-  }
-  
-  Future<void> _runPhaseAnalysis() async {
-    try {
-      // Get required services
-      final analyticsService = AnalyticsService();
-      final rivetSweepService = RivetSweepService(analyticsService);
-      final journalRepo = JournalRepository();
-      final journalEntries = journalRepo.getAllJournalEntriesSync();
-
-      // Check if there are enough entries for analysis
-      if (journalEntries.length < 5) {
-        print('Not enough entries for phase analysis (need at least 5, have ${journalEntries.length})');
-        return;
-      }
-
-      // Run RIVET Sweep
-      final result = await rivetSweepService.analyzeEntries(journalEntries);
-      final totalProposals = result.autoAssign.length + result.review.length + result.lowConfidence.length;
-      print('Phase Analysis completed: $totalProposals phase proposals found');
-    } catch (e) {
-      print('Phase Analysis failed: $e');
-      // Don't throw - phase analysis is optional
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -141,24 +75,6 @@ class _LumaraSettingsViewState extends State<LumaraSettingsView> {
               title: 'Status',
               children: [
                 _buildStatusCard(),
-              ],
-            ),
-
-            const SizedBox(height: 32),
-
-            // Data Management Section
-            _buildSection(
-              context,
-              title: 'Data Management',
-              children: [
-                _buildActionButton(
-                  context,
-                  title: 'Index & Analyze Data',
-                  subtitle: 'Process all journal data for LUMARA reflections and phase analysis',
-                  icon: Icons.refresh,
-                  onTap: _indexAndAnalyzeData,
-                  enabled: true,
-                ),
               ],
             ),
 
