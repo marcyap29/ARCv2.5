@@ -239,23 +239,25 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
       print('LUMARA Debug: Best provider: ${bestProvider?.name ?? 'none'}');
       print('LUMARA Debug: Is manual selection: $isManualSelection');
 
-      // PRIORITY 1: Try Enhanced API (semantic search + Gemini) for ALL questions
+      // PRIORITY 1: Use Gemini with full journal context (ArcLLM chat)
       try {
-        print('LUMARA Debug: [Priority 1] Attempting Enhanced API with semantic search...');
+        print('LUMARA Debug: [Priority 1] Attempting Gemini with journal context...');
         
-        // Get context for Enhanced API
+        // Get context for Gemini
         final context = await _contextProvider.buildContext();
         final entryText = _buildEntryContext(context);
         final phaseHint = _buildPhaseHint(context);
+        final keywords = _buildKeywordsContext(context);
         
-        // Use Enhanced API - it does semantic search then uses Gemini
-        final response = await _enhancedApi.generatePromptedReflection(
+        // Use ArcLLM to call Gemini directly with all journal context
+        final response = await _arcLLM.chat(
+          userIntent: text,
           entryText: entryText,
-          intent: 'think',
-          phase: phaseHint,
+          phaseHintJson: phaseHint,
+          lastKeywordsJson: keywords,
         );
         
-        print('LUMARA Debug: [Enhanced API] ✓ Response received, length: ${response.length}');
+        print('LUMARA Debug: [Gemini] ✓ Response received, length: ${response.length}');
         
         // Get attribution traces
         List<AttributionTrace>? attributionTraces;
@@ -291,10 +293,10 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
           isProcessing: false,
         ));
         
-        print('LUMARA Debug: [Enhanced API] Complete - skipping other paths');
-        return; // Exit early - Enhanced API succeeded
+        print('LUMARA Debug: [Gemini] Complete - personalized response generated');
+        return; // Exit early - Gemini succeeded
       } catch (e) {
-        print('LUMARA Debug: [Enhanced API] Failed: $e');
+        print('LUMARA Debug: [Gemini] Failed: $e');
         print('LUMARA Debug: Falling back to on-device or Gemini streaming...');
       }
       
@@ -438,23 +440,26 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
 
     // PRIORITY 1: Try Enhanced API with semantic search (uses Gemini under the hood)
     try {
-      debugPrint('LUMARA Debug: ========== STARTING ENHANCED API PATH ==========');
-      print('LUMARA Debug: [Enhanced API] Attempting Enhanced LUMARA API...');
+      debugPrint('LUMARA Debug: ========== STARTING GEMINI PATH ==========');
+      print('LUMARA Debug: [Gemini] Calling Gemini with journal context...');
       
       final entryText = _buildEntryContext(context);
       final phaseHint = _buildPhaseHint(context);
+      final keywords = _buildKeywordsContext(context);
       
-      print('LUMARA Debug: [Enhanced API] Entry text length: ${entryText.length}');
-      print('LUMARA Debug: [Enhanced API] Phase hint: $phaseHint');
+      print('LUMARA Debug: [Gemini] Entry text length: ${entryText.length}');
+      print('LUMARA Debug: [Gemini] Phase hint: $phaseHint');
+      print('LUMARA Debug: [Gemini] Keywords: $keywords');
 
-      // Use enhanced API - it does semantic search then uses Gemini
-      final response = await _enhancedApi.generatePromptedReflection(
+      // Use ArcLLM to call Gemini directly with journal context
+      final response = await _arcLLM.chat(
+        userIntent: text,
         entryText: entryText,
-        intent: _mapTaskToIntent(task),
-        phase: phaseHint,
+        phaseHintJson: phaseHint,
+        lastKeywordsJson: keywords,
       );
 
-      print('LUMARA Debug: [Enhanced API] ✓ Response received, length: ${response.length}');
+      print('LUMARA Debug: [Gemini] ✓ Response received, length: ${response.length}');
 
       // Generate explainable response with attribution if memory service available
       if (_memoryService != null) {
