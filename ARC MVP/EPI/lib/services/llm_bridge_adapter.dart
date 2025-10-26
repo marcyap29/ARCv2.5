@@ -35,11 +35,21 @@ class ArcLLM {
     
     try {
       print('ArcLLM Bridge: Building user prompt...');
-      final userPrompt = ArcPrompts.chat
+      
+      // Check if this is an in-journal reflection (userIntent is "reflect")
+      final isInJournalReflection = userIntent.toLowerCase() == 'reflect';
+      
+      var userPrompt = ArcPrompts.chat
           .replaceAll('{{user_intent}}', userIntent)
           .replaceAll('{{entry_text}}', entryText)
           .replaceAll('{{phase_hint?}}', phaseHintJson ?? 'null')
           .replaceAll('{{keywords?}}', lastKeywordsJson ?? 'null');
+      
+      // Add extra brevity constraint for in-journal reflections
+      if (isInJournalReflection) {
+        userPrompt += '\n\nCRITICAL: This is an in-journal reflection. Respond with ONLY ONE sentence (maximum 100 characters). Be profound but brief.';
+        print('ArcLLM Bridge: Added in-journal brevity constraint');
+      }
       
       print('ArcLLM Bridge: Calling send() function...');
       final result = send(
