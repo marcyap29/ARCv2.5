@@ -1439,11 +1439,12 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
       widgets.add(const SizedBox(height: 16));
     }
 
-    // Add inline reflection blocks
-    widgets.addAll(_entryState.blocks.asMap().entries.map((entry) {
-      final index = entry.key;
-      final block = entry.value;
-      return InlineReflectionBlock(
+    // Add inline reflection blocks with continuation field after each
+    for (int index = 0; index < _entryState.blocks.length; index++) {
+      final block = _entryState.blocks[index];
+      
+      // Add the reflection block
+      widgets.add(InlineReflectionBlock(
         content: block.content,
         intent: block.intent,
         phase: block.phase,
@@ -1451,10 +1452,66 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
         onSoften: () => _onSoftenReflection(index),
         onMoreDepth: () => _onMoreDepthReflection(index),
         onContinueWithLumara: _onContinueWithLumara,
-      );
-    }));
+      ));
+      
+      // Add a text field below each reflection to continue the conversation
+      widgets.add(const SizedBox(height: 8));
+      widgets.add(_buildContinuationField(theme));
+      widgets.add(const SizedBox(height: 16));
+    }
 
     return widgets;
+  }
+  
+  /// Build continuation text field for user to respond after LUMARA reflection
+  Widget _buildContinuationField(ThemeData theme) {
+    // This is a simplified TextField for continuation
+    // In a full implementation, you'd need to manage separate controllers for each continuation
+    return TextField(
+      maxLines: null,
+      textCapitalization: TextCapitalization.sentences,
+      style: theme.textTheme.bodyMedium?.copyWith(
+        color: Colors.white,
+        fontSize: 16,
+        height: 1.5,
+      ),
+      cursorColor: Colors.white,
+      decoration: InputDecoration(
+        hintText: 'Continue your thoughts...',
+        hintStyle: theme.textTheme.bodyMedium?.copyWith(
+          color: Colors.white.withOpacity(0.4),
+          fontSize: 16,
+          height: 1.5,
+        ),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: BorderSide(
+            color: theme.colorScheme.outline.withOpacity(0.3),
+            width: 1,
+          ),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: BorderSide(
+            color: theme.colorScheme.outline.withOpacity(0.3),
+            width: 1,
+          ),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: BorderSide(
+            color: theme.colorScheme.primary.withOpacity(0.5),
+            width: 2,
+          ),
+        ),
+        filled: true,
+        fillColor: theme.colorScheme.surfaceContainerHighest.withOpacity(0.2),
+        contentPadding: const EdgeInsets.all(12),
+      ),
+      onChanged: (value) {
+        // Store continuation text - you might want to add this to block metadata
+      },
+    );
   }
 
   /// Build a clean list of photo references (no thumbnails)
