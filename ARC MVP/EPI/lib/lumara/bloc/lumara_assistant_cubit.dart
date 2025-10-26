@@ -298,7 +298,17 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
           content: response,
           attributionTraces: attributionTraces ?? [],
         );
-        final finalMessages = [...updatedMessages, assistantMessage];
+        
+        // Check if we should suggest loading more history
+        var finalMessages = [...updatedMessages, assistantMessage];
+        
+        if (hasMoreHistory() && _queryNeedsMoreHistory(text)) {
+          final suggestionMsg = _generateLoadMoreSuggestionMessage();
+          if (suggestionMsg.isNotEmpty) {
+            final suggestionMessage = LumaraMessage.system(content: suggestionMsg);
+            finalMessages = [...finalMessages, suggestionMessage];
+          }
+        }
         
         emit(currentState.copyWith(
           messages: finalMessages,
@@ -1528,6 +1538,39 @@ ${assistantMessages.take(3).map((m) => '• ${m.length > 150 ? m.substring(0, 15
     return _memoryLoader.hasMoreYears();
   }
   
+  /// Check if a query might benefit from more history
+  bool _queryNeedsMoreHistory(String query) {
+    final lowerQuery = query.toLowerCase();
+    
+    // Queries that likely need more historical context
+    final deepHistoryKeywords = [
+      'compare', 'change', 'evolution', 'trend', 'over time',
+      'since', 'ago', 'months ago', 'years ago', 'progress',
+      'journey', 'growth', 'transformation', 'improvement',
+      'pattern', 'recurring', 'history', 'past', 'archives',
+      'retrospective', 'reflection', 'becoming', 'development'
+    ];
+    
+    return deepHistoryKeywords.any((keyword) => lowerQuery.contains(keyword));
+  }
+  
+  /// Generate suggestion message to load more history
+  String _generateLoadMoreSuggestionMessage() {
+    final loadedYears = _memoryLoader.getLoadedYears();
+    final nextUnloaded = _memoryLoader.getNextUnloadedYear();
+    
+    if (nextUnloaded == null) {
+      return '';
+    }
+    
+    final yearsAgo = DateTime.now().year - nextUnloaded;
+    
+    return '''Would you like me to search through ${yearsAgo} years of your archive for more comprehensive insights? 
+
+Currently loaded: ${loadedYears.length} year${loadedYears.length > 1 ? 's' : ''} (${loadedYears.first}-${loadedYears.last})
+Available: ${yearsAgo} more year${yearsAgo > 1 ? 's' : ''} of history''';
+  }
+  
   /// Get currently loaded years
   List<int> getLoadedYears() {
     return _memoryLoader.getLoadedYears();
@@ -1536,6 +1579,32 @@ ${assistantMessages.take(3).map((m) => '• ${m.length > 150 ? m.substring(0, 15
   /// Get available years in the data
   List<int> getAvailableYears() {
     return _memoryLoader.getAvailableYears();
+  }
+  
+  /// Handle user request to load more history and re-answer with expanded context
+  Future<void> loadMoreAndReAnswer(String originalQuestion) async {
+    print('LUMARA: User requested to load more history for: "$originalQuestion"');
+    
+    if (!hasMoreHistory()) {
+      print('LUMARA: No more history available');
+      return;
+    }
+    
+    // Load more history
+    await loadMoreHistory();
+    
+    // Show loading indicator
+    if (state is LumaraAssistantLoaded) {
+      final currentState = state as LumaraAssistantLoaded;
+      emit(currentState.copyWith(
+        isProcessing: true,
+      ));
+    }
+    
+    // Re-answer the original question with expanded context
+    await Future.delayed(Duration(milliseconds: 500)); // Brief pause to show loading
+    
+    await sendMessage(originalQuestion);
   }
   
   /// Show compaction notification to user
