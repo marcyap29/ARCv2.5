@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:hive/hive.dart';
 import '../../shared/app_colors.dart';
 import '../../shared/text_style.dart';
+import '../../models/user_profile_model.dart';
 import 'sync_settings_section.dart';
 import 'music_control_section.dart';
 import 'mcp_bundle_health_view.dart';
@@ -73,10 +75,26 @@ class _SettingsViewState extends State<SettingsView> {
       final result = await rivetSweepService.analyzeEntries(journalEntries);
       final totalProposals = result.autoAssign.length + result.review.length + result.lowConfidence.length;
       
-      // Force reload of phase regimes so Phase Statistics updates
-      // Phase Analysis view will automatically refresh when navigated to
+      // Auto-apply high-confidence proposals to create phase regimes
       final phaseRegimeService = PhaseRegimeService(analyticsService, rivetSweepService);
       await phaseRegimeService.initialize();
+      
+      if (result.autoAssign.isNotEmpty) {
+        await phaseRegimeService.applySweepProposals(result.autoAssign);
+        print('Index & Analyze: Applied ${result.autoAssign.length} high-confidence phase regimes');
+      }
+      
+      // Determine current phase from the most recent regime and update UserProfile
+      final regimes = phaseRegimeService.allRegimes;
+      if (regimes.isNotEmpty) {
+        // Get the most recent regime (the user's current phase)
+        final currentRegime = regimes.last;
+        final currentPhase = currentRegime.label.name;
+        
+        // Update UserProfile with the detected phase
+        await _updateUserPhase(currentPhase);
+        print('Index & Analyze: Updated user phase to: $currentPhase');
+      }
       
       Navigator.of(context).pop(); // Close loading dialog
       
@@ -99,6 +117,33 @@ class _SettingsViewState extends State<SettingsView> {
       setState(() {
         _isIndexing = false;
       });
+    }
+  }
+
+  /// Update the user's phase in UserProfile
+  Future<void> _updateUserPhase(String newPhase) async {
+    try {
+      Box<UserProfile> userBox;
+      if (Hive.isBoxOpen('user_profile')) {
+        userBox = Hive.box<UserProfile>('user_profile');
+      } else {
+        userBox = await Hive.openBox<UserProfile>('user_profile');
+      }
+      
+      final userProfile = userBox.get('profile');
+      if (userProfile != null) {
+        final updatedProfile = userProfile.copyWith(
+          onboardingCurrentSeason: newPhase,
+          currentPhase: newPhase,
+          lastPhaseChangeAt: DateTime.now(),
+        );
+        await userBox.put('profile', updatedProfile);
+        print('Settings: Updated user phase to: $newPhase');
+      } else {
+        print('Settings: No user profile found to update phase');
+      }
+    } catch (e) {
+      print('Settings: Error updating user phase: $e');
     }
   }
 
