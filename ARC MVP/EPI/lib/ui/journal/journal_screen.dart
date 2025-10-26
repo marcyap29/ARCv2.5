@@ -627,6 +627,53 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
     );
   }
 
+  /// Show context menu for a single photo (long-press)
+  void _showPhotoContextMenu(PhotoAttachment photo, int photoIndex) {
+    showModalBottomSheet(
+      context: context,
+      builder: (context) => Container(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.visibility),
+              title: const Text('View Photo'),
+              onTap: () {
+                Navigator.of(context).pop();
+                _openPhotoInGallery(photo.imagePath);
+              },
+            ),
+            ListTile(
+              leading: Icon(Icons.delete, color: Theme.of(context).colorScheme.error),
+              title: Text('Delete Photo', style: TextStyle(color: Theme.of(context).colorScheme.error)),
+              onTap: () {
+                Navigator.of(context).pop();
+                _deleteSinglePhoto(photoIndex);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Delete a single photo
+  void _deleteSinglePhoto(int photoIndex) {
+    if (photoIndex >= _entryState.attachments.length) return;
+
+    setState(() {
+      _entryState.attachments.removeAt(photoIndex);
+    });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Deleted photo'),
+        duration: Duration(seconds: 2),
+      ),
+    );
+  }
+
   /// Show options for handling broken photo references
   void _showBrokenPhotoOptions(String imagePath) {
     showDialog(
@@ -752,6 +799,16 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
               tooltip: 'Cancel selection',
             ),
           ] else ...[
+            // Always show delete option when in selection mode but no photos selected yet
+            if (_isPhotoSelectionMode && _selectedPhotoIndices.isEmpty) ...[
+              Text(
+                'Tap photos to select',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+              ),
+              const SizedBox(width: 8),
+            ],
             IconButton(
               onPressed: _togglePhotoSelectionMode,
               icon: const Icon(Icons.checklist),
@@ -1444,6 +1501,10 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
         } else {
           _openPhotoInGallery(photo.imagePath);
         }
+      },
+      onLongPress: () {
+        // Show context menu on long press for quick deletion
+        _showPhotoContextMenu(photo, photoIndex);
       },
       child: Container(
         width: 100,
