@@ -808,11 +808,15 @@ class _InteractiveTimelineViewState extends State<InteractiveTimelineView>
                 children: [
                   const Icon(Icons.refresh, color: Colors.white),
                   const SizedBox(width: 8),
-                  Text(
-                    'Start Phase Questionnaire',
-                    style: buttonStyle(context).copyWith(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
+                  Flexible(
+                    child: Text(
+                      'Start Phase Questionnaire',
+                      style: buttonStyle(context).copyWith(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      softWrap: true,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
                 ],
