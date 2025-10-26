@@ -9,6 +9,7 @@ import 'package:my_app/lumara/llm/rule_based_adapter.dart'; // For InsightKind e
 import 'package:my_app/services/gemini_send.dart';
 import 'package:my_app/services/llm_bridge_adapter.dart';
 import '../services/enhanced_lumara_api.dart';
+import '../services/progressive_memory_loader.dart';
 import '../config/api_config.dart';
 import '../../mira/memory/enhanced_mira_memory_service.dart';
 import '../../mira/memory/enhanced_memory_schema.dart';
@@ -19,6 +20,7 @@ import '../chat/chat_repo_impl.dart';
 import '../chat/chat_models.dart';
 import '../chat/quickanswers_router.dart';
 import '../../mira/adapters/mira_basics_adapters.dart';
+import '../../arc/core/journal_repository.dart';
 
 /// LUMARA Assistant Cubit State
 abstract class LumaraAssistantState {}
@@ -81,6 +83,10 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
   // Quick Answers System
   QuickAnswersRouter? _quickAnswersRouter;
   
+  // Progressive Memory Loader
+  late final ProgressiveMemoryLoader _memoryLoader;
+  final JournalRepository _journalRepository = JournalRepository();
+  
   // Auto-save and compaction
   static const int _maxMessagesBeforeCompaction = 50;
   static const int _compactionThreshold = 100;
@@ -96,12 +102,18 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
     _arcLLM = provideArcLLM();
     // Initialize enhanced LUMARA API
     _enhancedApi = EnhancedLumaraApi(_analytics);
+    // Initialize progressive memory loader
+    _memoryLoader = ProgressiveMemoryLoader(_journalRepository);
   }
   
   /// Initialize the assistant
   Future<void> initialize() async {
     try {
       emit(LumaraAssistantLoading());
+
+      // Initialize progressive memory loader (loads current year entries by default)
+      await _memoryLoader.initialize();
+      print('LUMARA: Initialized progressive memory loader');
 
       // Initialize enhanced LUMARA API
       await _enhancedApi.initialize();
@@ -977,14 +989,19 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
 
   /// Build entry context for ArcLLM
   String _buildEntryContext(ContextWindow context) {
-    final recentEntries = context.nodes.where((n) => n['type'] == 'journal').toList();
-    if (recentEntries.isEmpty) return '';
+    // Use progressive memory loader to get entries from loaded years
+    final loadedEntries = _memoryLoader.getLoadedEntries();
+    
+    print('LUMARA: Building context from ${loadedEntries.length} loaded entries (years: ${_memoryLoader.getLoadedYears()})');
+    
+    if (loadedEntries.isEmpty) return '';
 
     final buffer = StringBuffer();
-    for (final entry in recentEntries.take(3)) {
-      final text = entry['text'] as String? ?? '';
+    for (final entry in loadedEntries.take(25)) {  // Use top 25 entries from loaded years
+      final text = entry.content;
       if (text.isNotEmpty) {
         buffer.writeln(text);
+        buffer.writeln('---');  // Add separator
       }
     }
     return buffer.toString().trim();
@@ -1492,6 +1509,35 @@ ${assistantMessages.take(3).map((m) => '• ${m.length > 150 ? m.substring(0, 15
     );
   }
 
+  /// Load more history (2-3 years back)
+  Future<bool> loadMoreHistory() async {
+    print('LUMARA: Loading more history...');
+    final loaded = await _memoryLoader.loadMoreHistory();
+    
+    if (loaded) {
+      final loadedYears = _memoryLoader.getLoadedYears();
+      final entryCount = _memoryLoader.getLoadedEntryCount();
+      print('LUMARA: Loaded ${entryCount} entries from years: $loadedYears');
+    }
+    
+    return loaded;
+  }
+  
+  /// Check if more history is available
+  bool hasMoreHistory() {
+    return _memoryLoader.hasMoreYears();
+  }
+  
+  /// Get currently loaded years
+  List<int> getLoadedYears() {
+    return _memoryLoader.getLoadedYears();
+  }
+  
+  /// Get available years in the data
+  List<int> getAvailableYears() {
+    return _memoryLoader.getAvailableYears();
+  }
+  
   /// Show compaction notification to user
   void _showCompactionNotification(int messageCount) {
     // This would be implemented with a proper notification system
