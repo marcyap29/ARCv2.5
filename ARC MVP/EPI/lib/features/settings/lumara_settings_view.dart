@@ -4,6 +4,9 @@ import '../../shared/app_colors.dart';
 import '../../shared/text_style.dart';
 import '../../lumara/services/enhanced_lumara_api.dart';
 import '../../telemetry/analytics.dart';
+import '../../services/analytics_service.dart';
+import '../../services/rivet_sweep_service.dart';
+import '../../arc/core/journal_repository.dart';
 
 class LumaraSettingsView extends StatefulWidget {
   const LumaraSettingsView({super.key});
@@ -83,6 +86,7 @@ class _LumaraSettingsViewState extends State<LumaraSettingsView> {
         _isInitialized = false;
       });
 
+      // Index MCP bundle
       await _enhancedApi.indexMcpBundle(_mcpBundlePath!);
       
       final status = _enhancedApi.getStatus();
@@ -91,9 +95,12 @@ class _LumaraSettingsViewState extends State<LumaraSettingsView> {
         _isInitialized = true;
       });
 
+      // Also run Phase Analysis (RIVET Sweep) to detect phase transitions
+      await _runPhaseAnalysis();
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Successfully indexed $_nodeCount nodes from MCP bundle'),
+          content: Text('Successfully indexed $_nodeCount nodes and completed phase analysis'),
           backgroundColor: Colors.green,
         ),
       );
@@ -108,6 +115,30 @@ class _LumaraSettingsViewState extends State<LumaraSettingsView> {
           backgroundColor: Colors.red,
         ),
       );
+    }
+  }
+  
+  Future<void> _runPhaseAnalysis() async {
+    try {
+      // Get required services
+      final analyticsService = AnalyticsService();
+      final rivetSweepService = RivetSweepService(analyticsService);
+      final journalRepo = JournalRepository();
+      final journalEntries = journalRepo.getAllJournalEntriesSync();
+
+      // Check if there are enough entries for analysis
+      if (journalEntries.length < 5) {
+        print('Not enough entries for phase analysis (need at least 5, have ${journalEntries.length})');
+        return;
+      }
+
+      // Run RIVET Sweep
+      final result = await rivetSweepService.analyzeEntries(journalEntries);
+      final totalProposals = result.autoAssign.length + result.review.length + result.lowConfidence.length;
+      print('Phase Analysis completed: $totalProposals phase proposals found');
+    } catch (e) {
+      print('Phase Analysis failed: $e');
+      // Don't throw - phase analysis is optional
     }
   }
 
