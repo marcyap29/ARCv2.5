@@ -4,6 +4,7 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'lumara_settings_screen.dart';
+import 'widgets/lumara_icon.dart';
 
 /// LUMARA onboarding screen shown when no AI provider is configured
 class LumaraOnboardingScreen extends StatelessWidget {
@@ -32,8 +33,7 @@ class LumaraOnboardingScreen extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               // Logo/Icon
-              Icon(
-                Icons.psychology,
+              LumaraIcon(
                 size: 80,
                 color: theme.colorScheme.primary,
               ),
@@ -60,40 +60,10 @@ class LumaraOnboardingScreen extends StatelessWidget {
               ),
               const SizedBox(height: 48),
 
-              // Setup message
-              Text(
-                'Choose how you\'d like LUMARA to provide insights:',
-                style: theme.textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w600,
-                  color: theme.colorScheme.onSurface,
-                ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 32),
-
-              // Option A: Internal Models
-              _buildOptionCard(
+              // LUMARA Settings Card
+              _buildSettingsCard(
                 context: context,
                 theme: theme,
-                icon: Icons.security,
-                title: 'Download Internal Models',
-                subtitle: 'Privacy-first AI that runs entirely on your device',
-                badge: 'RECOMMENDED',
-                badgeColor: theme.colorScheme.primary,
-                onTap: () => _navigateToSettings(context, showInternalModels: true),
-              ),
-              const SizedBox(height: 16),
-
-              // Option B: Cloud API
-              _buildOptionCard(
-                context: context,
-                theme: theme,
-                icon: Icons.cloud,
-                title: 'Use Cloud API',
-                subtitle: 'Connect to Gemini, OpenAI, or Anthropic',
-                badge: 'REQUIRES API KEY',
-                badgeColor: theme.colorScheme.secondary,
-                onTap: () => _navigateToSettings(context, showInternalModels: false),
               ),
               const SizedBox(height: 32),
 
@@ -130,15 +100,9 @@ class LumaraOnboardingScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildOptionCard({
+  Widget _buildSettingsCard({
     required BuildContext context,
     required ThemeData theme,
-    required IconData icon,
-    required String title,
-    required String subtitle,
-    required String badge,
-    required Color badgeColor,
-    required VoidCallback onTap,
   }) {
     return Card(
       elevation: 2,
@@ -146,7 +110,7 @@ class LumaraOnboardingScreen extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
       ),
       child: InkWell(
-        onTap: onTap,
+        onTap: () => _navigateToSettings(context),
         borderRadius: BorderRadius.circular(16),
         child: Padding(
           padding: const EdgeInsets.all(20),
@@ -158,12 +122,12 @@ class LumaraOnboardingScreen extends StatelessWidget {
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: badgeColor.withOpacity(0.1),
+                      color: theme.colorScheme.primary.withOpacity(0.1),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Icon(
-                      icon,
-                      color: badgeColor,
+                      Icons.settings,
+                      color: theme.colorScheme.primary,
                       size: 32,
                     ),
                   ),
@@ -171,17 +135,17 @@ class LumaraOnboardingScreen extends StatelessWidget {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
-                      color: badgeColor.withOpacity(0.1),
+                      color: theme.colorScheme.primary.withOpacity(0.1),
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(
-                        color: badgeColor.withOpacity(0.3),
+                        color: theme.colorScheme.primary.withOpacity(0.3),
                         width: 1,
                       ),
                     ),
                     child: Text(
-                      badge,
+                      'SETUP',
                       style: theme.textTheme.labelSmall?.copyWith(
-                        color: badgeColor,
+                        color: theme.colorScheme.primary,
                         fontWeight: FontWeight.bold,
                         fontSize: 10,
                       ),
@@ -191,7 +155,7 @@ class LumaraOnboardingScreen extends StatelessWidget {
               ),
               const SizedBox(height: 16),
               Text(
-                title,
+                'LUMARA Settings',
                 style: theme.textTheme.titleLarge?.copyWith(
                   fontWeight: FontWeight.bold,
                   color: theme.colorScheme.onSurface,
@@ -199,7 +163,7 @@ class LumaraOnboardingScreen extends StatelessWidget {
               ),
               const SizedBox(height: 8),
               Text(
-                subtitle,
+                'Configure AI provider, model settings, and preferences',
                 style: theme.textTheme.bodyMedium?.copyWith(
                   color: theme.colorScheme.onSurfaceVariant,
                 ),
@@ -209,16 +173,16 @@ class LumaraOnboardingScreen extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
                   Text(
-                    'Set up',
+                    'Open Settings',
                     style: theme.textTheme.labelLarge?.copyWith(
-                      color: badgeColor,
+                      color: theme.colorScheme.primary,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
                   const SizedBox(width: 4),
                   Icon(
                     Icons.arrow_forward,
-                    color: badgeColor,
+                    color: theme.colorScheme.primary,
                     size: 20,
                   ),
                 ],
@@ -230,7 +194,7 @@ class LumaraOnboardingScreen extends StatelessWidget {
     );
   }
 
-  void _navigateToSettings(BuildContext context, {required bool showInternalModels}) async {
+  void _navigateToSettings(BuildContext context) async {
     // Navigate to LUMARA Settings and wait for return
     final result = await Navigator.push(
       context,
