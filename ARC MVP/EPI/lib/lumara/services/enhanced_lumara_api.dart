@@ -164,6 +164,7 @@ class EnhancedLumaraApi {
           final context = {
             'systemPrompt': 'You are LUMARA, a reflective AI partner. Generate thoughtful, personalized reflection prompts based on the user\'s current thoughts. Be warm, insightful, and encouraging. When users have limited journal history, explain that LUMARA becomes more helpful with more entries and encourage continued journaling.',
             'userPrompt': userPrompt,
+            'useSimplePrompt': true, // Flag to use simple prompt instead of complex one
           };
           
           final geminiResponse = await _llmProvider!.generateResponse(context);

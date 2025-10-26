@@ -31,13 +31,14 @@ class GeminiProvider extends LLMProviderBase {
     final apiKey = config!.apiKey!;
     final systemPrompt = context['systemPrompt'] as String;
     final userPrompt = context['userPrompt'] as String;
+    final useSimplePrompt = context['useSimplePrompt'] as bool? ?? false;
 
     final uri = Uri.parse(
       'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=$apiKey',
     );
 
-    // Use the LUMARA Reflective Intelligence Core system prompt
-    final lumaraSystemPrompt = PromptTemplates.lumaraReflectiveCore;
+    // Use simple prompt or the LUMARA Reflective Intelligence Core system prompt
+    final lumaraSystemPrompt = useSimplePrompt ? systemPrompt : PromptTemplates.lumaraReflectiveCore;
     
     // Clean the user prompt to remove special characters that cause JSON parsing issues
     final cleanUserPrompt = userPrompt
