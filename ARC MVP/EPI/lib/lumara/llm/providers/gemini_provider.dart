@@ -36,8 +36,8 @@ class GeminiProvider extends LLMProviderBase {
       'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=$apiKey',
     );
 
-    // Use the LUMARA Reflective Intelligence Core system prompt
-    final lumaraSystemPrompt = PromptTemplates.lumaraReflectiveCore;
+    // Use the passed system prompt or default to LUMARA Reflective Intelligence Core
+    final lumaraSystemPrompt = systemPrompt.isNotEmpty ? systemPrompt : PromptTemplates.lumaraReflectiveCore;
     
     // Clean the user prompt to remove special characters that cause JSON parsing issues
     final cleanUserPrompt = userPrompt
@@ -64,7 +64,7 @@ class GeminiProvider extends LLMProviderBase {
       ],
       'generationConfig': {
         'temperature': 0.7,
-        'maxOutputTokens': 500,
+        'maxOutputTokens': 2048,  // Increased to 2048 to prevent MAX_TOKENS error with long responses
         'topP': 0.8,
         'topK': 40,
       },

@@ -2,6 +2,50 @@
 
 ## [Unreleased]
 
+### ✨ **In-Journal LUMARA Reflection System** - October 26, 2025
+
+#### **Feature: Streamlined In-Journal Reflections with Brevity Constraints** ✅ **PRODUCTION READY**
+- **Brevity Constraints**: 1-2 sentences maximum, 150 characters total for all in-journal reflections
+- **Visual Distinction**: InlineReflectionBlock displays with secondary color and italic styling to distinguish from user text
+- **Conversation-Style Entries**: Continuation text fields appear after each reflection for detailed dialogue
+- **Inline Reflection Blocks**: Separate styled widgets (not plain text in field)
+- **Action Buttons**: Regenerate, Soften tone, More depth, Continue with LUMARA options
+- **Phase-Aware Badges**: Shows phase context for each reflection
+- **Rosebud-Inspired Design**: Visual distinction like chat bubbles for user vs AI text
+- **Files Modified**:
+  - `lib/ui/journal/journal_screen.dart` - Added InlineReflectionBlock integration, continuation fields
+  - `lib/core/prompts_arc.dart` - Updated chat prompt with brevity constraints
+  - `lib/services/llm_bridge_adapter.dart` - Added in-journal brevity constraint detection
+  - `lib/lumara/services/enhanced_lumara_api.dart` - Applied brevity to all reflection options
+  - `lib/ui/journal/widgets/inline_reflection_block.dart` - Visual styling for distinct appearance
+- **User Experience**: Brief, profound, thought-provoking reflections that don't overwhelm the journal entry
+- **Status**: PRODUCTION READY ✅
+
+### 🐛 **LUMARA Phase Fallback Debug System** - October 26, 2025
+
+#### **Debug Enhancement: LUMARA Hard-Coded Phase Message Fallback** ✅ **PRODUCTION READY**
+- **Problem Identified**: LUMARA returning hard-coded phase explanations instead of using Gemini API
+- **Disabled On-Device LLM Fallback**: Commented out on-device attempt to isolate Gemini API path (lines 378-421 in `lumara_assistant_cubit.dart`)
+- **Added Comprehensive Debug Logging**: Step-by-step logging through entire Gemini API call chain with detailed tracing
+- **Stubbed Rule-Based Fallback**: Returns "[DEBUG] Rule-based fallback was triggered" message instead of hard-coded responses
+- **Enhanced Error Tracking**: Detailed exception logging with stack traces, API key validation, and provider status checks
+- **Debug Tracing Features**:
+  - API config initialization tracking
+  - Gemini config retrieval with availability checks
+  - API key validation with length and presence checks
+  - Context building for ArcLLM
+  - ArcLLM chat() call tracking
+  - Response handling and attribution
+  - Exception catching with detailed error messages
+- **Testing Support**: Full debug output for identifying exactly where the Gemini API path fails
+- **Files Modified**: 
+  - `lib/lumara/bloc/lumara_assistant_cubit.dart` - Added comprehensive Gemini API path logging
+  - `lib/lumara/llm/rule_based_adapter.dart` - Stubbed hard-coded phase rationale with debug message
+  - `lib/services/llm_bridge_adapter.dart` - Added debug logging to ArcLLM bridge
+  - `lib/lumara/services/enhanced_lumara_api.dart` - Added debug logging to Enhanced API
+- **User Experience**: Clear debug messages when hard-coded fallbacks are triggered, helping identify API configuration issues
+- **Status**: PRODUCTION READY ✅ (debugging system for troubleshooting LUMARA fallback issues)
+
 ### 🔧 **Gemini API Integration & Flutter Zone Fixes** - January 25, 2025
 
 #### **Fix: Gemini API Access Issues** ✅ **PRODUCTION READY**

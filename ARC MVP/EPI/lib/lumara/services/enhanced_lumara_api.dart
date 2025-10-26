@@ -141,26 +141,35 @@ class EnhancedLumaraApi {
       );
       
       // 6. Generate Gemini response if LLM provider is available
+      print('LUMARA Enhanced API: LLM Provider available: ${_llmProvider != null}');
+      
       if (_llmProvider != null) {
+        print('LUMARA Enhanced API: Using LLM provider: ${_llmProvider!.name}');
         print('LUMARA: Using LLM provider: ${_llmProvider!.name}');
         try {
           String userPrompt;
           if (matches.isNotEmpty) {
             // Use historical context if available
-            userPrompt = 'Current entry: "$entryText"\n\nHistorical context: ${matches.map((m) => 'From ${m.approxDate?.year}: ${m.excerpt}').join('\n')}\n\nGenerate 2-3 reflective prompts that connect their current thoughts to their past experiences.';
+            print('LUMARA Enhanced API: Using ${matches.length} historical matches');
+            userPrompt = 'Current entry: "$entryText"\n\nHistorical context: ${matches.map((m) => 'From ${m.approxDate?.year}: ${m.excerpt}').join('\n')}\n\nCRITICAL: Generate 1-2 sentences maximum (150 characters total) that connect their current thoughts to their past experiences. Be brief and profound.';
             print('LUMARA: Generating response with ${matches.length} historical matches');
           } else {
             // Generate fresh reflection without historical context
-            userPrompt = 'Current entry: "$entryText"\n\nThis appears to be one of the user\'s first journal entries, so there\'s limited history for LUMARA to draw from. Generate 2-3 thoughtful reflection prompts that help the user explore their current thoughts more deeply. Also include a gentle note that LUMARA will become more personalized and insightful as they write more entries and build a richer journal history. Be warm, encouraging, and focus on the current entry while explaining the value of continued journaling.';
+            print('LUMARA Enhanced API: No historical context - new user');
+            userPrompt = 'Current entry: "$entryText"\n\nCRITICAL: Generate 1-2 sentences maximum (150 characters total). Be brief and profound. Focus on the current entry. Be warm, encouraging, and thought-provoking.';
             print('LUMARA: Generating response without historical context (new user)');
           }
           
+          print('LUMARA Enhanced API: Calling generateResponse()...');
           final context = {
-            'systemPrompt': 'You are LUMARA, a reflective AI partner. Generate thoughtful, personalized reflection prompts based on the user\'s current thoughts. Be warm, insightful, and encouraging. When users have limited journal history, explain that LUMARA becomes more helpful with more entries and encourage continued journaling.',
+            'systemPrompt': 'You are LUMARA, a reflective AI partner. Generate thoughtful, personalized reflection prompts based on the user\'s current thoughts. CRITICAL: Keep responses to 1-2 sentences maximum (150 characters total). Be brief, profound, and thought-provoking.',
             'userPrompt': userPrompt,
           };
           
           final geminiResponse = await _llmProvider!.generateResponse(context);
+          print('LUMARA Enhanced API: ✓ generateResponse completed');
+          print('LUMARA Enhanced API: Response length: ${geminiResponse.length}');
+          
           final formatted = '✨ Reflection\n\n$geminiResponse';
           
           _analytics.logLumaraEvent('reflection_generated', data: {
@@ -171,9 +180,12 @@ class EnhancedLumaraApi {
           
           return formatted;
         } catch (e) {
+          print('LUMARA Enhanced API: ✗ Error generating response: $e');
           print('LUMARA: Error generating Gemini response: $e');
           // Fall through to template-based response
         }
+      } else {
+        print('LUMARA Enhanced API: ✗ No LLM provider available - falling back to template');
       }
       
       // 7. Format template-based response for display

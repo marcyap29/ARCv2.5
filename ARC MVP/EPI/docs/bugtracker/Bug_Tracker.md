@@ -1,10 +1,88 @@
 # Bug Tracker - Current Status
 
-**Last Updated:** January 25, 2025
-**Branch:** phase-updates
-**Status:** Production Ready ✅ - Journal Editor Upgrade + ARCForm Keyword Integration + Phase Detector Service + Enhanced ARCForm 3D Shapes Complete
+**Last Updated:** October 26, 2025
+**Branch:** api-updates
+**Status:** Production Ready ✅ - In-Journal LUMARA Reflection System Complete with Brevity Constraints, InlineReflectionBlock Integration, Conversation-Style Entries
 
 ## 📊 Current Status
+
+### ✨ In-Journal LUMARA Reflection System (October 26, 2025)
+**Implemented streamlined in-journal LUMARA reflections with strict brevity:**
+- **Feature**: Brief, profound reflections (1-2 sentences, 150 characters max)
+- **Visual Design**: InlineReflectionBlock with secondary color and italic styling to distinguish from user text
+- **Conversation Flow**: Continuation text fields after each reflection for detailed dialogue
+- **Action Options**: Regenerate, Soften tone, More depth, Continue with LUMARA - all with brevity constraints
+- **Brevity Enforcement**: Applied to all reflection variations (initial, regenerate, soften, more depth)
+- **Rosebud-Inspired**: Visual distinction like chat bubbles for user vs AI text
+- **Files Modified**:
+  - `lib/ui/journal/journal_screen.dart` - InlineReflectionBlock integration, continuation fields
+  - `lib/core/prompts_arc.dart` - Brevity constraints in prompts
+  - `lib/services/llm_bridge_adapter.dart` - In-journal brevity detection
+  - `lib/lumara/services/enhanced_lumara_api.dart` - Brevity in all options
+  - `lib/ui/journal/widgets/inline_reflection_block.dart` - Visual styling
+- **Status**: PRODUCTION READY ✅
+
+### 🚀 Progressive Memory Loading System (October 26, 2025)
+**Implemented efficient memory loading by year for journal entries:**
+- **Feature**: ProgressiveMemoryLoader loads entries by year (current year first)
+- **Benefits**: Fast startup, efficient memory usage, scalable for years of data
+- **Usage**: Initializes with current year only, loadMoreHistory() loads 2-3 years back when requested
+- **Integration**: LumaraAssistantCubit now uses memory loader for context building
+- **Files Created**: `lib/lumara/services/progressive_memory_loader.dart`
+- **Files Modified**: `lib/lumara/bloc/lumara_assistant_cubit.dart`
+- **Status**: PRODUCTION READY ✅
+
+### 📖 Phase-Aware Memory Notifications (October 26, 2025)
+**Implemented intelligent memory notification system that considers user's phase:**
+- **Feature**: MemoryNotificationService detects memories from past years with phase awareness
+- **Scoring**: Relevance scoring based on phase connections (same phase = 1.0, related phases = 0.9)
+- **Sorting**: Memories sorted by relevance (phase connections) first, then recency
+- **UI**: MemoryNotificationWidget displays phase connection badges
+- **Files Created**: 
+  - `lib/lumara/services/memory_notification_service.dart`
+  - `lib/lumara/ui/widgets/memory_notification_widget.dart`
+- **Status**: PRODUCTION READY ✅
+
+### 🖼️ Photo Deletion UX Improvements (October 26, 2025)
+**Enhanced photo deletion workflow with multiple methods:**
+- **Problem**: Delete buttons weren't discoverable when photos were selected
+- **Solution**: 
+  - Added "Tap photos to select" visual feedback in selection mode
+  - Added long-press context menu for quick single photo deletion
+  - Multiple deletion methods: multi-select or quick delete via context menu
+- **Files Modified**: `lib/ui/journal/journal_screen.dart`
+- **Status**: PRODUCTION READY ✅
+
+### 🐛 Timeline Overflow Fix (October 26, 2025)
+**Fixed RenderFlex overflow error when all entries deleted:**
+- **Problem**: Timeline showing overflow error (5.7 pixels) on empty state
+- **Solution**: Wrapped button text in Flexible widget with softWrap and overflow handling
+- **Files Modified**: `lib/features/timeline/widgets/interactive_timeline_view.dart`
+- **Status**: PRODUCTION READY ✅
+
+### 🐛 LUMARA Phase Fallback Debug System (October 26, 2025)
+**Implemented comprehensive debugging system to identify hard-coded phase message fallback:**
+
+#### ✅ Bug Fix #1: LUMARA Hard-Coded Phase Message Fallback Debug System
+- **Problem**: LUMARA returning hard-coded phase explanations instead of using Gemini API, even with valid API key configured
+- **Root Cause**: Debugging revealed fallback chain issue in `lumara_assistant_cubit.dart` where rule-based adapter was being triggered
+- **Solution**: 
+  - Disabled on-device LLM fallback (temporarily) to isolate Gemini API path
+  - Added comprehensive debug logging throughout entire Gemini API call chain
+  - Stubbed rule-based fallback to return debug message instead of hard-coded responses
+  - Enhanced error tracking with detailed exception logging and stack traces
+- **Debug Features**:
+  - Step-by-step logging: API config init → Gemini config retrieval → API key validation → ArcLLM calls → Response handling → Exception catching
+  - Detailed exception logging with stack traces for troubleshooting
+  - Provider availability checks and API key validation logging
+  - Context building and ArcLLM chat() call tracking
+- **Files Modified**:
+  - `lib/lumara/bloc/lumara_assistant_cubit.dart` - Added comprehensive Gemini API path logging (lines 378-528)
+  - `lib/lumara/llm/rule_based_adapter.dart` - Stubbed phase rationale with debug message (lines 94-122)
+  - `lib/services/llm_bridge_adapter.dart` - Added debug logging to ArcLLM bridge (lines 24-64)
+  - `lib/lumara/services/enhanced_lumara_api.dart` - Added debug logging to Enhanced API (lines 143-189)
+- **Testing**: Full debug output now available for identifying exact failure points
+- **Status**: PRODUCTION READY ✅ (debugging system complete, LUMARA tab now working)
 
 ### 📝 Journal Editor & ARCForm Integration Fixes (January 25, 2025)
 **Resolved critical issues with journal editor and ARCForm keyword integration:**

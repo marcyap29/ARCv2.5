@@ -9,6 +9,7 @@ import 'package:my_app/lumara/llm/rule_based_adapter.dart'; // For InsightKind e
 import 'package:my_app/services/gemini_send.dart';
 import 'package:my_app/services/llm_bridge_adapter.dart';
 import '../services/enhanced_lumara_api.dart';
+import '../services/progressive_memory_loader.dart';
 import '../config/api_config.dart';
 import '../../mira/memory/enhanced_mira_memory_service.dart';
 import '../../mira/memory/enhanced_memory_schema.dart';
@@ -19,6 +20,7 @@ import '../chat/chat_repo_impl.dart';
 import '../chat/chat_models.dart';
 import '../chat/quickanswers_router.dart';
 import '../../mira/adapters/mira_basics_adapters.dart';
+import '../../arc/core/journal_repository.dart';
 
 /// LUMARA Assistant Cubit State
 abstract class LumaraAssistantState {}
@@ -81,6 +83,10 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
   // Quick Answers System
   QuickAnswersRouter? _quickAnswersRouter;
   
+  // Progressive Memory Loader
+  late final ProgressiveMemoryLoader _memoryLoader;
+  final JournalRepository _journalRepository = JournalRepository();
+  
   // Auto-save and compaction
   static const int _maxMessagesBeforeCompaction = 50;
   static const int _compactionThreshold = 100;
@@ -96,12 +102,18 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
     _arcLLM = provideArcLLM();
     // Initialize enhanced LUMARA API
     _enhancedApi = EnhancedLumaraApi(_analytics);
+    // Initialize progressive memory loader
+    _memoryLoader = ProgressiveMemoryLoader(_journalRepository);
   }
   
   /// Initialize the assistant
   Future<void> initialize() async {
     try {
       emit(LumaraAssistantLoading());
+
+      // Initialize progressive memory loader (loads current year entries by default)
+      await _memoryLoader.initialize();
+      print('LUMARA: Initialized progressive memory loader');
 
       // Initialize enhanced LUMARA API
       await _enhancedApi.initialize();
@@ -177,22 +189,24 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
     }
 
     // Check for quick answers (phase, themes, streak, etc.) - INSTANT response
-    final quickAnswer = await _tryQuickAnswer(text);
-    if (quickAnswer != null) {
-      // Add user message to UI
-      final userMessage = LumaraMessage.user(content: text);
-      final updatedMessages = [...currentState.messages, userMessage];
-      
-      // Add quick answer
-      final assistantMessage = LumaraMessage.assistant(content: quickAnswer);
-      final finalMessages = [...updatedMessages, assistantMessage];
-      
-      emit(currentState.copyWith(
-        messages: finalMessages,
-        isProcessing: false,
-      ));
-      return;
-    }
+    // SKIPPED - Use Enhanced API with semantic search for all questions instead
+    // final quickAnswer = await _tryQuickAnswer(text);
+    // if (quickAnswer != null) {
+    //   // Add user message to UI
+    //   final userMessage = LumaraMessage.user(content: text);
+    //   final updatedMessages = [...currentState.messages, userMessage];
+    //   
+    //   // Add quick answer
+    //   final assistantMessage = LumaraMessage.assistant(content: quickAnswer);
+    //   final finalMessages = [...updatedMessages, assistantMessage];
+    //   
+    //   emit(currentState.copyWith(
+    //     messages: finalMessages,
+    //     isProcessing: false,
+    //   ));
+    //   return;
+    // }
+    print('LUMARA Debug: Skipping quick answers - using Enhanced API with semantic search for all questions');
 
     // Ensure we have an active chat session (auto-create if needed)
     await _ensureActiveChatSession(text);
@@ -237,10 +251,81 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
       print('LUMARA Debug: Best provider: ${bestProvider?.name ?? 'none'}');
       print('LUMARA Debug: Is manual selection: $isManualSelection');
 
-      // PRIORITY 1: Try On-Device first (security-first, unless manually overridden)
+      // PRIORITY 1: Use Gemini with full journal context (ArcLLM chat)
+      try {
+        print('LUMARA Debug: [Priority 1] Attempting Gemini with journal context...');
+        
+        // Get context for Gemini
+        final context = await _contextProvider.buildContext();
+        final entryText = _buildEntryContext(context);
+        final phaseHint = _buildPhaseHint(context);
+        final keywords = _buildKeywordsContext(context);
+        
+        // Use ArcLLM to call Gemini directly with all journal context
+        final response = await _arcLLM.chat(
+          userIntent: text,
+          entryText: entryText,
+          phaseHintJson: phaseHint,
+          lastKeywordsJson: keywords,
+        );
+        
+        print('LUMARA Debug: [Gemini] ✓ Response received, length: ${response.length}');
+        
+        // Get attribution traces
+        List<AttributionTrace>? attributionTraces;
+        if (_memoryService != null) {
+          try {
+            final responseId = 'resp_${DateTime.now().millisecondsSinceEpoch}';
+            final memoryResult = await _memoryService!.retrieveMemories(
+              query: text,
+              domains: [MemoryDomain.personal, MemoryDomain.creative, MemoryDomain.learning],
+              responseId: responseId,
+            );
+            attributionTraces = memoryResult.attributions;
+          } catch (e) {
+            print('LUMARA Debug: Error retrieving attribution traces: $e');
+          }
+        }
+        
+        // Record assistant response in MCP memory
+        await _recordAssistantMessage(response);
+        
+        // Add assistant response to chat session
+        await _addToChatSession(response, 'assistant');
+        
+        // Add assistant response to UI with attribution traces
+        final assistantMessage = LumaraMessage.assistant(
+          content: response,
+          attributionTraces: attributionTraces ?? [],
+        );
+        
+        // Check if we should suggest loading more history
+        var finalMessages = [...updatedMessages, assistantMessage];
+        
+        if (hasMoreHistory() && _queryNeedsMoreHistory(text)) {
+          final suggestionMsg = _generateLoadMoreSuggestionMessage();
+          if (suggestionMsg.isNotEmpty) {
+            final suggestionMessage = LumaraMessage.system(content: suggestionMsg);
+            finalMessages = [...finalMessages, suggestionMessage];
+          }
+        }
+        
+        emit(currentState.copyWith(
+          messages: finalMessages,
+          isProcessing: false,
+        ));
+        
+        print('LUMARA Debug: [Gemini] Complete - personalized response generated');
+        return; // Exit early - Gemini succeeded
+      } catch (e) {
+        print('LUMARA Debug: [Gemini] Failed: $e');
+        print('LUMARA Debug: Falling back to on-device or Gemini streaming...');
+      }
+      
+      // PRIORITY 2: Try On-Device fallback (security-first, unless manually overridden)
       if (!isManualSelection) {
         try {
-          print('LUMARA Debug: [Priority 1] Attempting on-device LLMAdapter...');
+          print('LUMARA Debug: [Priority 2] Attempting on-device LLMAdapter...');
 
           // Initialize LLMAdapter if not already done
           if (!LLMAdapter.isReady) {
@@ -371,79 +456,134 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
 
     // Debug logging
     print('LUMARA Debug: Query: "$text" -> Task: ${task.name}');
-    print('LUMARA Debug: Fallback priority: On-Device → Cloud API → Rule-Based');
+    print('LUMARA Debug: Fallback priority: Enhanced API (with Gemini) → Direct Gemini → Rule-Based');
 
     // Memory retrieval will be handled in response generation
 
-    // PRIORITY 1: Try on-device LLMAdapter first (privacy-first, security-first)
+    // PRIORITY 1: Try Enhanced API with semantic search (uses Gemini under the hood)
     try {
-      print('LUMARA Debug: [Priority 1] Attempting on-device LLM...');
+      debugPrint('LUMARA Debug: ========== STARTING GEMINI PATH ==========');
+      print('LUMARA Debug: [Gemini] Calling Gemini with journal context...');
+      
+      final entryText = _buildEntryContext(context);
+      final phaseHint = _buildPhaseHint(context);
+      final keywords = _buildKeywordsContext(context);
+      
+      print('LUMARA Debug: [Gemini] Entry text length: ${entryText.length}');
+      print('LUMARA Debug: [Gemini] Phase hint: $phaseHint');
+      print('LUMARA Debug: [Gemini] Keywords: $keywords');
 
-      // Initialize LLMAdapter if not already done
-      if (!LLMAdapter.isReady) {
-        debugPrint('[LumaraAssistantCubit] invoking LLMAdapter.initialize(...)');
-        final initialized = await LLMAdapter.initialize();
-        debugPrint('[LumaraAssistantCubit] LLMAdapter.initialize completed (isAvailable=${LLMAdapter.isAvailable}, reason=${LLMAdapter.reason})');
-        if (!initialized) {
-          print('LUMARA Debug: [On-Device] LLMAdapter not available, reason: ${LLMAdapter.reason}');
-          throw Exception('LLMAdapter not available: ${LLMAdapter.reason}');
+      // Use ArcLLM to call Gemini directly with journal context
+      final response = await _arcLLM.chat(
+        userIntent: text,
+        entryText: entryText,
+        phaseHintJson: phaseHint,
+        lastKeywordsJson: keywords,
+      );
+
+      print('LUMARA Debug: [Gemini] ✓ Response received, length: ${response.length}');
+
+      // Generate explainable response with attribution if memory service available
+      if (_memoryService != null) {
+        try {
+          final responseId = 'resp_${DateTime.now().millisecondsSinceEpoch}';
+          print('LUMARA Debug: [Enhanced API] Retrieving memories for query: "$text"');
+          
+          final memoryResult = await _memoryService!.retrieveMemories(
+            query: text,
+            domains: [MemoryDomain.personal, MemoryDomain.creative, MemoryDomain.learning],
+            responseId: responseId,
+          );
+          
+          print('LUMARA Debug: [Enhanced API] Retrieved ${memoryResult.nodes.length} memory nodes');
+          print('LUMARA Debug: [Enhanced API] Retrieved ${memoryResult.attributions.length} attribution traces from memory service');
+
+          if (memoryResult.nodes.isEmpty) {
+            print('LUMARA Debug: [Enhanced API] ⚠️ NO MEMORY NODES RETRIEVED');
+          } else {
+            for (final node in memoryResult.nodes) {
+              print('LUMARA Debug: [Enhanced API] Memory node - ID: ${node.id}');
+            }
+          }
+
+          final traces = memoryResult.attributions;
+          
+          return {
+            'content': response,
+            'attributionTraces': traces,
+          };
+        } catch (e) {
+          print('LUMARA Memory: Error in memory attribution: $e');
         }
       }
 
-      // Use LLMAdapter for on-device generation
-      final responseStream = _llmAdapter.realize(
-        task: _mapTaskToString(task),
-        facts: _buildFactsFromContextWindow(context),
-        snippets: _buildSnippetsFromContextWindow(context),
-        chat: _buildChatHistoryFromContextWindow(context),
-      );
-      
-      // Collect all streamed words into complete response
-      String llmResponse = '';
-      await for (final word in responseStream) {
-        llmResponse += word;
-      }
-
-      print('LUMARA Debug: [On-Device] SUCCESS - Response length: ${llmResponse.length}');
-
       return {
-        'content': llmResponse,
+        'content': response,
         'attributionTraces': <AttributionTrace>[],
       };
-    } catch (onDeviceError) {
-      print('LUMARA Debug: [On-Device] Failed: $onDeviceError');
-      print('LUMARA Debug: [Priority 2] Falling back to Cloud API...');
+    } catch (e, stackTrace) {
+      debugPrint('LUMARA Debug: [Enhanced API] ✗✗✗ EXCEPTION CAUGHT ✗✗✗');
+      debugPrint('LUMARA Debug: [Enhanced API] Exception type: ${e.runtimeType}');
+      debugPrint('LUMARA Debug: [Enhanced API] Exception: $e');
+      debugPrint('LUMARA Debug: [Enhanced API] Stack trace: $stackTrace');
+      print('LUMARA Debug: [Enhanced API] Failed: $e');
     }
 
-    // PRIORITY 2: Try Cloud API if on-device failed
+    // PRIORITY 2: Try Direct Gemini API fallback
     try {
       // Get API key from LumaraAPIConfig instead of environment variable
+      debugPrint('LUMARA Debug: ========== STARTING GEMINI API PATH ==========');
+      
+      debugPrint('LUMARA Debug: [Gemini] Step 1: Initializing API config...');
       final apiConfig = LumaraAPIConfig.instance;
       await apiConfig.initialize();
+      debugPrint('LUMARA Debug: [Gemini] Step 1: ✓ API config initialized');
+      
+      debugPrint('LUMARA Debug: [Gemini] Step 2: Getting Gemini config...');
       final geminiConfig = apiConfig.getConfig(LLMProvider.gemini);
       final apiKey = geminiConfig?.apiKey ?? '';
+      debugPrint('LUMARA Debug: [Gemini] Step 2: Config exists: ${geminiConfig != null}');
+      debugPrint('LUMARA Debug: [Gemini] Step 2: API key present: ${apiKey.isNotEmpty}');
+      debugPrint('LUMARA Debug: [Gemini] Step 2: API key length: ${apiKey.length}');
+      debugPrint('LUMARA Debug: [Gemini] Step 2: Config isAvailable: ${geminiConfig?.isAvailable}');
       
-      if (apiKey.isNotEmpty) {
-        print('LUMARA Debug: [Cloud API] Using Gemini API for response generation');
+      if (apiKey.isEmpty) {
+        debugPrint('LUMARA Debug: [Gemini] Step 2: ✗ FAILED - API key is empty');
+        throw Exception('Gemini API key is empty');
+      }
+      debugPrint('LUMARA Debug: [Gemini] Step 2: ✓ API key validated');
+      
+      debugPrint('LUMARA Debug: [Gemini] Step 3: Building context for ArcLLM...');
+      // Build context for ArcLLM
+      final entryText = _buildEntryContext(context);
+      final phaseHint = _buildPhaseHint(context);
+      final keywords = _buildKeywordsContext(context);
+      debugPrint('LUMARA Debug: [Gemini] Step 3: Context built');
+      debugPrint('LUMARA Debug: [Gemini] Step 3: Entry text length: ${entryText.length}');
+      debugPrint('LUMARA Debug: [Gemini] Step 3: Phase hint: $phaseHint');
+      debugPrint('LUMARA Debug: [Gemini] Step 3: Keywords: $keywords');
+
+      debugPrint('LUMARA Debug: [Gemini] Step 4: Calling _arcLLM.chat()...');
+      debugPrint('LUMARA Debug: [Gemini] Step 4: User intent: $text');
+      // Use ArcLLM chat function with context
+      final response = await _arcLLM.chat(
+        userIntent: text,
+        entryText: entryText,
+        phaseHintJson: phaseHint,
+        lastKeywordsJson: keywords,
+      );
+
+      debugPrint('LUMARA Debug: [Gemini] Step 4: ✓ Response received');
+      debugPrint('LUMARA Debug: [Gemini] Step 4: Response length: ${response.length}');
+      debugPrint('LUMARA Debug: [Gemini] Step 4: Response preview: ${response.substring(0, response.length > 100 ? 100 : response.length)}...');
+
+      if (response.isNotEmpty) {
+        debugPrint('LUMARA Debug: [Gemini] SUCCESS - Using Gemini response');
         
-        // Build context for ArcLLM
-        final entryText = _buildEntryContext(context);
-        final phaseHint = _buildPhaseHint(context);
-        final keywords = _buildKeywordsContext(context);
-
-        // Use ArcLLM chat function with context
-        final response = await _arcLLM.chat(
-          userIntent: text,
-          entryText: entryText,
-          phaseHintJson: phaseHint,
-          lastKeywordsJson: keywords,
-        );
-
-        print('LUMARA Debug: Direct Gemini API response length: ${response.length}');
-
         // Generate explainable response with attribution if memory service available
         if (_memoryService != null) {
           try {
+            debugPrint('LUMARA Debug: [Gemini] Step 5: Retrieving memories for attribution...');
             final responseId = 'resp_${DateTime.now().millisecondsSinceEpoch}';
             print('LUMARA Debug: Retrieving memories for query: "$text"');
             
@@ -472,6 +612,7 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
               print('LUMARA Debug: Trace - ${trace.nodeRef}: ${trace.relation} (${(trace.confidence * 100).toInt()}%)');
             }
 
+            debugPrint('LUMARA Debug: ========== GEMINI API PATH COMPLETED ==========');
             return {
               'content': response,
               'attributionTraces': traces,
@@ -481,78 +622,21 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
           }
         }
 
-        return {
-          'content': response,
-          'attributionTraces': <AttributionTrace>[],
-        };
-      } else {
-        print('LUMARA Debug: [Cloud API] No Gemini API key, trying Enhanced LUMARA API');
-
-        // Try enhanced LUMARA API with multi-provider support
-        final entryText = _buildEntryContext(context);
-        final phaseHint = _buildPhaseHint(context);
-
-        // Use enhanced API for response generation
-        final response = await _enhancedApi.generatePromptedReflection(
-          entryText: entryText,
-          intent: _mapTaskToIntent(task),
-          phase: phaseHint,
-        );
-
-        print('LUMARA Debug: [Cloud API] Enhanced API response length: ${response.length}');
-
-        // Generate explainable response with attribution if memory service available
-        if (_memoryService != null) {
-          try {
-            final responseId = 'resp_${DateTime.now().millisecondsSinceEpoch}';
-            print('LUMARA Debug: [Enhanced API] Retrieving memories for query: "$text"');
-            
-            final memoryResult = await _memoryService!.retrieveMemories(
-              query: text,
-              domains: [MemoryDomain.personal, MemoryDomain.creative, MemoryDomain.learning],
-              responseId: responseId,
-            );
-            
-            print('LUMARA Debug: [Enhanced API] Retrieved ${memoryResult.nodes.length} memory nodes');
-            print('LUMARA Debug: [Enhanced API] Retrieved ${memoryResult.attributions.length} attribution traces from memory service');
-
-            if (memoryResult.nodes.isEmpty) {
-              print('LUMARA Debug: [Enhanced API] ⚠️ NO MEMORY NODES RETRIEVED - This is why no attribution data is generated');
-            } else {
-              for (final node in memoryResult.nodes) {
-                print('LUMARA Debug: [Enhanced API] Memory node - ID: ${node.id}, Content: ${node.narrative.substring(0, node.narrative.length > 50 ? 50 : node.narrative.length)}...');
-              }
-            }
-
-            // Use attribution traces directly from memory retrieval result
-            print('LUMARA Debug: [Enhanced API] About to extract attribution traces...');
-            final traces = memoryResult.attributions;
-            print('LUMARA Debug: [Enhanced API] Extracted ${traces.length} traces');
-
-            print('LUMARA Debug: [Enhanced API] Using ${traces.length} attribution traces from memory retrieval');
-            for (final trace in traces) {
-              print('LUMARA Debug: [Enhanced API] Trace - ${trace.nodeRef}: ${trace.relation} (${(trace.confidence * 100).toInt()}%)');
-            }
-
-            print('LUMARA Debug: [Enhanced API] Returning response with ${traces.length} traces');
-            return {
-              'content': response,
-              'attributionTraces': traces,
-            };
-          } catch (e, stackTrace) {
-            print('LUMARA Memory: Error in memory attribution processing: $e');
-            print('LUMARA Memory: Stack trace: $stackTrace');
-          }
-        }
-
+        debugPrint('LUMARA Debug: ========== GEMINI API PATH COMPLETED ==========');
         return {
           'content': response,
           'attributionTraces': <AttributionTrace>[],
         };
       }
-    } catch (cloudApiError) {
-      print('LUMARA Debug: [Cloud API] Failed: $cloudApiError');
+      
+      debugPrint('LUMARA Debug: [Gemini] ✗ FAILED - Empty response received');
+    } catch (e, stackTrace) {
+      debugPrint('LUMARA Debug: [Gemini] ✗✗✗ EXCEPTION CAUGHT ✗✗✗');
+      debugPrint('LUMARA Debug: [Gemini] Exception type: ${e.runtimeType}');
+      debugPrint('LUMARA Debug: [Gemini] Exception message: $e');
+      debugPrint('LUMARA Debug: [Gemini] Stack trace: $stackTrace');
     }
+
 
     // No providers available - return clear guidance
     print('LUMARA Debug: All providers failed. No inference available.');
@@ -637,7 +721,9 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
     final systemPrompt = _buildSystemPrompt(entryText, phaseHint, keywords);
 
     print('LUMARA Debug: Starting streaming response...');
+    print('LUMARA Debug: Using direct Gemini streaming with journal context');
 
+    // Stream the response from Gemini with journal context
     final fullResponse = StringBuffer();
 
     try {
@@ -913,14 +999,19 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
 
   /// Build entry context for ArcLLM
   String _buildEntryContext(ContextWindow context) {
-    final recentEntries = context.nodes.where((n) => n['type'] == 'journal').toList();
-    if (recentEntries.isEmpty) return '';
+    // Use progressive memory loader to get entries from loaded years
+    final loadedEntries = _memoryLoader.getLoadedEntries();
+    
+    print('LUMARA: Building context from ${loadedEntries.length} loaded entries (years: ${_memoryLoader.getLoadedYears()})');
+    
+    if (loadedEntries.isEmpty) return '';
 
     final buffer = StringBuffer();
-    for (final entry in recentEntries.take(3)) {
-      final text = entry['text'] as String? ?? '';
+    for (final entry in loadedEntries.take(25)) {  // Use top 25 entries from loaded years
+      final text = entry.content;
       if (text.isNotEmpty) {
         buffer.writeln(text);
+        buffer.writeln('---');  // Add separator
       }
     }
     return buffer.toString().trim();
@@ -1428,6 +1519,94 @@ ${assistantMessages.take(3).map((m) => '• ${m.length > 150 ? m.substring(0, 15
     );
   }
 
+  /// Load more history (2-3 years back)
+  Future<bool> loadMoreHistory() async {
+    print('LUMARA: Loading more history...');
+    final loaded = await _memoryLoader.loadMoreHistory();
+    
+    if (loaded) {
+      final loadedYears = _memoryLoader.getLoadedYears();
+      final entryCount = _memoryLoader.getLoadedEntryCount();
+      print('LUMARA: Loaded ${entryCount} entries from years: $loadedYears');
+    }
+    
+    return loaded;
+  }
+  
+  /// Check if more history is available
+  bool hasMoreHistory() {
+    return _memoryLoader.hasMoreYears();
+  }
+  
+  /// Check if a query might benefit from more history
+  bool _queryNeedsMoreHistory(String query) {
+    final lowerQuery = query.toLowerCase();
+    
+    // Queries that likely need more historical context
+    final deepHistoryKeywords = [
+      'compare', 'change', 'evolution', 'trend', 'over time',
+      'since', 'ago', 'months ago', 'years ago', 'progress',
+      'journey', 'growth', 'transformation', 'improvement',
+      'pattern', 'recurring', 'history', 'past', 'archives',
+      'retrospective', 'reflection', 'becoming', 'development'
+    ];
+    
+    return deepHistoryKeywords.any((keyword) => lowerQuery.contains(keyword));
+  }
+  
+  /// Generate suggestion message to load more history
+  String _generateLoadMoreSuggestionMessage() {
+    final loadedYears = _memoryLoader.getLoadedYears();
+    final nextUnloaded = _memoryLoader.getNextUnloadedYear();
+    
+    if (nextUnloaded == null) {
+      return '';
+    }
+    
+    final yearsAgo = DateTime.now().year - nextUnloaded;
+    
+    return '''Would you like me to search through ${yearsAgo} years of your archive for more comprehensive insights? 
+
+Currently loaded: ${loadedYears.length} year${loadedYears.length > 1 ? 's' : ''} (${loadedYears.first}-${loadedYears.last})
+Available: ${yearsAgo} more year${yearsAgo > 1 ? 's' : ''} of history''';
+  }
+  
+  /// Get currently loaded years
+  List<int> getLoadedYears() {
+    return _memoryLoader.getLoadedYears();
+  }
+  
+  /// Get available years in the data
+  List<int> getAvailableYears() {
+    return _memoryLoader.getAvailableYears();
+  }
+  
+  /// Handle user request to load more history and re-answer with expanded context
+  Future<void> loadMoreAndReAnswer(String originalQuestion) async {
+    print('LUMARA: User requested to load more history for: "$originalQuestion"');
+    
+    if (!hasMoreHistory()) {
+      print('LUMARA: No more history available');
+      return;
+    }
+    
+    // Load more history
+    await loadMoreHistory();
+    
+    // Show loading indicator
+    if (state is LumaraAssistantLoaded) {
+      final currentState = state as LumaraAssistantLoaded;
+      emit(currentState.copyWith(
+        isProcessing: true,
+      ));
+    }
+    
+    // Re-answer the original question with expanded context
+    await Future.delayed(Duration(milliseconds: 500)); // Brief pause to show loading
+    
+    await sendMessage(originalQuestion);
+  }
+  
   /// Show compaction notification to user
   void _showCompactionNotification(int messageCount) {
     // This would be implemented with a proper notification system

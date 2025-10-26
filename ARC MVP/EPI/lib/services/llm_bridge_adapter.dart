@@ -27,18 +27,50 @@ class ArcLLM {
     String? phaseHintJson,
     String? lastKeywordsJson,
   }) {
-    final userPrompt = ArcPrompts.chat
-        .replaceAll('{{user_intent}}', userIntent)
-        .replaceAll('{{entry_text}}', entryText)
-        .replaceAll('{{phase_hint?}}', phaseHintJson ?? 'null')
-        .replaceAll('{{keywords?}}', lastKeywordsJson ?? 'null');
-
-    // Use LUMARA's comprehensive system prompt for chat interactions
-    return send(
-      system: PromptTemplates.systemPrompt,
-      user: userPrompt,
-      jsonExpected: false,
-    );
+    print('ArcLLM Bridge: ===== CHAT REQUEST =====');
+    print('ArcLLM Bridge: User intent: $userIntent');
+    print('ArcLLM Bridge: Entry text length: ${entryText.length}');
+    print('ArcLLM Bridge: Phase hint: $phaseHintJson');
+    print('ArcLLM Bridge: Keywords: $lastKeywordsJson');
+    
+    try {
+      print('ArcLLM Bridge: Building user prompt...');
+      
+      // Check if this is an in-journal reflection (userIntent is "reflect")
+      final isInJournalReflection = userIntent.toLowerCase() == 'reflect';
+      
+      var userPrompt = ArcPrompts.chat
+          .replaceAll('{{user_intent}}', userIntent)
+          .replaceAll('{{entry_text}}', entryText)
+          .replaceAll('{{phase_hint?}}', phaseHintJson ?? 'null')
+          .replaceAll('{{keywords?}}', lastKeywordsJson ?? 'null');
+      
+      // Add extra brevity constraint for in-journal reflections
+      if (isInJournalReflection) {
+        userPrompt += '\n\nCRITICAL: This is an in-journal reflection. Respond with 1-2 sentences maximum (150 characters total). Be profound but brief.';
+        print('ArcLLM Bridge: Added in-journal brevity constraint');
+      }
+      
+      print('ArcLLM Bridge: Calling send() function...');
+      final result = send(
+        system: PromptTemplates.systemPrompt,
+        user: userPrompt,
+        jsonExpected: false,
+      );
+      
+      result.then((response) {
+        print('ArcLLM Bridge: ✓ Send completed');
+        print('ArcLLM Bridge: Response length: ${response.length}');
+        print('ArcLLM Bridge: Response preview: ${response.substring(0, response.length > 100 ? 100 : response.length)}...');
+      });
+      
+      return result;
+    } catch (e) {
+      print('ArcLLM Bridge: ✗✗✗ EXCEPTION in chat ✗✗✗');
+      print('ArcLLM Bridge: Exception type: ${e.runtimeType}');
+      print('ArcLLM Bridge: Exception: $e');
+      rethrow;
+    }
   }
 
   Future<String> sageEcho(String entryText) async {

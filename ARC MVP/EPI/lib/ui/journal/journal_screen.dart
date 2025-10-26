@@ -19,10 +19,15 @@ import '../../telemetry/analytics.dart';
 import '../../services/periodic_discovery_service.dart';
 import '../../services/lumara/lumara_inline_api.dart';
 import '../../lumara/services/enhanced_lumara_api.dart';
+import '../../lumara/services/progressive_memory_loader.dart';
+import '../../lumara/data/context_provider.dart';
+import '../../lumara/data/context_scope.dart';
 import '../../lumara/ui/lumara_settings_screen.dart';
 import '../../models/user_profile_model.dart';
 import 'package:hive/hive.dart';
 import '../../lumara/config/api_config.dart';
+import '../../services/llm_bridge_adapter.dart';
+import '../../services/gemini_send.dart';
 import '../../services/ocr/ocr_service.dart';
 import '../../services/journal_session_cache.dart';
 import '../../arc/core/keyword_extraction_cubit.dart';
@@ -73,6 +78,11 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
   late final EnhancedLumaraApi _enhancedLumaraApi;
   late final OcrService _ocrService;
   final DraftCacheService _draftCache = DraftCacheService.instance;
+  
+  // Progressive memory loading for in-journal LUMARA
+  late final ProgressiveMemoryLoader _memoryLoader;
+  final JournalRepository _journalRepository = JournalRepository();
+  late final ArcLLM _arcLLM;
   String? _currentDraftId;
   Timer? _autoSaveTimer;
   final ImagePicker _imagePicker = ImagePicker();
@@ -124,6 +134,8 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
     super.initState();
     _lumaraApi = LumaraInlineApi(_analytics);
     _enhancedLumaraApi = EnhancedLumaraApi(_analytics);
+    _memoryLoader = ProgressiveMemoryLoader(_journalRepository);
+    _arcLLM = provideArcLLM();
     _initializeLumara();
     _ocrService = StubOcrService(_analytics); // TODO: Use platform-specific implementation
     
@@ -133,6 +145,9 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
     
     // Initialize thumbnail cache
     _thumbnailCache.initialize();
+    
+    // Initialize progressive memory loader
+    _initProgressiveMemory();
     
     _analytics.logJournalEvent('opened');
     
@@ -270,6 +285,16 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
     }
   }
 
+  /// Initialize progressive memory loader for in-journal LUMARA
+  Future<void> _initProgressiveMemory() async {
+    try {
+      await _memoryLoader.initialize();
+      print('LUMARA Journal: Initialized progressive memory loader');
+    } catch (e) {
+      print('LUMARA Journal: Memory loader initialization error: $e');
+    }
+  }
+
   /// Check if LUMARA is properly configured with an API key
   Future<bool> _checkLumaraConfiguration() async {
     try {
@@ -386,12 +411,22 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
         print('DEBUG: Created default user profile with ID: ${defaultProfile.id}');
       }
       
-      // Use enhanced LUMARA API to generate a reflection
-      final reflection = await _enhancedLumaraApi.generatePromptedReflection(
-        entryText: _entryState.text,
-        intent: 'reflect', // Simple reflection intent
-        phase: _entryState.phase,
-        userId: userId,
+      // Build context from progressive memory loader (current year only)
+      final loadedEntries = _memoryLoader.getLoadedEntries();
+      final lumaraScope = LumaraScope.defaultScope;
+      final contextProvider = ContextProvider(lumaraScope);
+      final contextWindow = await contextProvider.buildContext();
+      
+      // Build entry text from loaded journal entries
+      final entryText = _buildJournalContext(loadedEntries);
+      final phaseHint = _entryState.phase ?? 'Discovery';
+      
+      // Use ArcLLM with progressive memory for reflection
+      final reflection = await _arcLLM.chat(
+        userIntent: 'reflect',
+        entryText: entryText,
+        phaseHintJson: phaseHint,
+        lastKeywordsJson: '',
       );
 
       // Insert the reflection directly into the text
@@ -627,6 +662,53 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
     );
   }
 
+  /// Show context menu for a single photo (long-press)
+  void _showPhotoContextMenu(PhotoAttachment photo, int photoIndex) {
+    showModalBottomSheet(
+      context: context,
+      builder: (context) => Container(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.visibility),
+              title: const Text('View Photo'),
+              onTap: () {
+                Navigator.of(context).pop();
+                _openPhotoInGallery(photo.imagePath);
+              },
+            ),
+            ListTile(
+              leading: Icon(Icons.delete, color: Theme.of(context).colorScheme.error),
+              title: Text('Delete Photo', style: TextStyle(color: Theme.of(context).colorScheme.error)),
+              onTap: () {
+                Navigator.of(context).pop();
+                _deleteSinglePhoto(photoIndex);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Delete a single photo
+  void _deleteSinglePhoto(int photoIndex) {
+    if (photoIndex >= _entryState.attachments.length) return;
+
+    setState(() {
+      _entryState.attachments.removeAt(photoIndex);
+    });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Deleted photo'),
+        duration: Duration(seconds: 2),
+      ),
+    );
+  }
+
   /// Show options for handling broken photo references
   void _showBrokenPhotoOptions(String imagePath) {
     showDialog(
@@ -752,6 +834,16 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
               tooltip: 'Cancel selection',
             ),
           ] else ...[
+            // Always show delete option when in selection mode but no photos selected yet
+            if (_isPhotoSelectionMode && _selectedPhotoIndices.isEmpty) ...[
+              Text(
+                'Tap photos to select',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+              ),
+              const SizedBox(width: 8),
+            ],
             IconButton(
               onPressed: _togglePhotoSelectionMode,
               icon: const Icon(Icons.checklist),
@@ -1347,11 +1439,12 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
       widgets.add(const SizedBox(height: 16));
     }
 
-    // Add inline reflection blocks
-    widgets.addAll(_entryState.blocks.asMap().entries.map((entry) {
-      final index = entry.key;
-      final block = entry.value;
-      return InlineReflectionBlock(
+    // Add inline reflection blocks with continuation field after each
+    for (int index = 0; index < _entryState.blocks.length; index++) {
+      final block = _entryState.blocks[index];
+      
+      // Add the reflection block
+      widgets.add(InlineReflectionBlock(
         content: block.content,
         intent: block.intent,
         phase: block.phase,
@@ -1359,10 +1452,66 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
         onSoften: () => _onSoftenReflection(index),
         onMoreDepth: () => _onMoreDepthReflection(index),
         onContinueWithLumara: _onContinueWithLumara,
-      );
-    }));
+      ));
+      
+      // Add a text field below each reflection to continue the conversation
+      widgets.add(const SizedBox(height: 8));
+      widgets.add(_buildContinuationField(theme));
+      widgets.add(const SizedBox(height: 16));
+    }
 
     return widgets;
+  }
+  
+  /// Build continuation text field for user to respond after LUMARA reflection
+  Widget _buildContinuationField(ThemeData theme) {
+    // This is a simplified TextField for continuation
+    // In a full implementation, you'd need to manage separate controllers for each continuation
+    return TextField(
+      maxLines: null,
+      textCapitalization: TextCapitalization.sentences,
+      style: theme.textTheme.bodyMedium?.copyWith(
+        color: Colors.white,
+        fontSize: 16,
+        height: 1.5,
+      ),
+      cursorColor: Colors.white,
+      decoration: InputDecoration(
+        hintText: 'Continue your thoughts...',
+        hintStyle: theme.textTheme.bodyMedium?.copyWith(
+          color: Colors.white.withOpacity(0.4),
+          fontSize: 16,
+          height: 1.5,
+        ),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: BorderSide(
+            color: theme.colorScheme.outline.withOpacity(0.3),
+            width: 1,
+          ),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: BorderSide(
+            color: theme.colorScheme.outline.withOpacity(0.3),
+            width: 1,
+          ),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: BorderSide(
+            color: theme.colorScheme.primary.withOpacity(0.5),
+            width: 2,
+          ),
+        ),
+        filled: true,
+        fillColor: theme.colorScheme.surfaceContainerHighest.withOpacity(0.2),
+        contentPadding: const EdgeInsets.all(12),
+      ),
+      onChanged: (value) {
+        // Store continuation text - you might want to add this to block metadata
+      },
+    );
   }
 
   /// Build a clean list of photo references (no thumbnails)
@@ -1444,6 +1593,10 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
         } else {
           _openPhotoInGallery(photo.imagePath);
         }
+      },
+      onLongPress: () {
+        // Show context menu on long press for quick deletion
+        _showPhotoContextMenu(photo, photoIndex);
       },
       child: Container(
         width: 100,
@@ -2170,28 +2323,43 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
     );
   }
 
+  /// Build journal context from loaded entries for reflection
+  String _buildJournalContext(List<JournalEntry> loadedEntries) {
+    final buffer = StringBuffer();
+    
+    // Add current entry text
+    buffer.writeln('Current entry:');
+    buffer.writeln(_entryState.text);
+    buffer.writeln('---');
+    
+    // Add loaded entries from memory
+    if (loadedEntries.isNotEmpty) {
+      buffer.writeln('Recent journal history:');
+      for (final entry in loadedEntries.take(25)) {
+        buffer.writeln(entry.content);
+        buffer.writeln('---');
+      }
+    }
+    
+    return buffer.toString().trim();
+  }
+
   void _insertAISuggestion(String suggestion) {
-    // Insert AI suggestion text directly into the journal entry
-    final currentText = _textController.text;
-    final cursorPosition = _textController.selection.baseOffset;
-    
-    // Insert reflection at cursor position or end of text
-    final insertPosition = cursorPosition >= 0 ? cursorPosition : currentText.length;
-    final newText = '${currentText.substring(0, insertPosition)}\n\n$suggestion\n\n${currentText.substring(insertPosition)}';
-    
-    // Update text controller and state
-    _textController.text = newText;
-    _textController.selection = TextSelection.collapsed(
-      offset: insertPosition + suggestion.length + 4, // Position after inserted text
+    // Add as inline reflection block instead of inserting into text
+    final block = InlineBlock(
+      type: 'reflection',
+      intent: 'reflect',
+      content: suggestion,
+      timestamp: DateTime.now().millisecondsSinceEpoch,
+      phase: _entryState.phase,
     );
     
-    // Update entry state
     setState(() {
-      _entryState.text = newText;
+      _entryState.blocks.add(block);
     });
     
     // Auto-save the updated content
-    _updateDraftContent(newText);
+    _updateDraftContent(_textController.text);
     
     _analytics.logLumaraEvent('inline_reflection_inserted', data: {'intent': 'reflect'});
     
