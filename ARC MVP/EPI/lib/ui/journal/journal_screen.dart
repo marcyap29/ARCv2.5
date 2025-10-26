@@ -2288,27 +2288,21 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
   }
 
   void _insertAISuggestion(String suggestion) {
-    // Insert AI suggestion text with LUMARA prefix to distinguish from user text
-    final currentText = _textController.text;
-    final cursorPosition = _textController.selection.baseOffset;
-    
-    // Insert reflection at cursor position or end of text
-    final insertPosition = cursorPosition >= 0 ? cursorPosition : currentText.length;
-    final newText = '${currentText.substring(0, insertPosition)}\n\n💡 LUMARA: $suggestion\n\n${currentText.substring(insertPosition)}';
-    
-    // Update text controller and state
-    _textController.text = newText;
-    _textController.selection = TextSelection.collapsed(
-      offset: insertPosition + suggestion.length + 4, // Position after inserted text
+    // Add as inline reflection block instead of inserting into text
+    final block = InlineBlock(
+      type: 'reflection',
+      intent: 'reflect',
+      content: suggestion,
+      timestamp: DateTime.now().millisecondsSinceEpoch,
+      phase: _entryState.phase,
     );
     
-    // Update entry state
     setState(() {
-      _entryState.text = newText;
+      _entryState.blocks.add(block);
     });
     
     // Auto-save the updated content
-    _updateDraftContent(newText);
+    _updateDraftContent(_textController.text);
     
     _analytics.logLumaraEvent('inline_reflection_inserted', data: {'intent': 'reflect'});
     
