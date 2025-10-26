@@ -45,6 +45,15 @@ class _PhaseAnalysisViewState extends State<PhaseAnalysisView>
     super.dispose();
   }
 
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Reload phase data when navigating to this view to show latest changes
+    if (ModalRoute.of(context)?.isCurrent == true) {
+      _loadPhaseData();
+    }
+  }
+
   Future<void> _loadPhaseData() async {
     try {
       setState(() {
