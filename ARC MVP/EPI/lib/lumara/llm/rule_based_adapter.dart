@@ -93,11 +93,6 @@ ${context.summary}''',
   
   /// Generate phase rationale
   String _generatePhaseRationale(ContextWindow context) {
-    // TEMPORARILY DISABLED FOR DEBUGGING
-    print('LUMARA Debug: [RULE-BASED] Phase rationale requested - THIS SHOULD NOT HAPPEN');
-    return '[DEBUG] Rule-based fallback was triggered. Gemini API should have been used. Check logs for errors.';
-    
-    /* ORIGINAL CODE COMMENTED OUT
     final phaseData = context.nodes.where((n) => n['type'] == 'phase').firstOrNull;
     
     if (phaseData == null) {
@@ -118,7 +113,6 @@ ${context.summary}''',
 • **Independent**: $independent independent events
 
 ${context.summary}''';
-    */
   }
   
   /// Generate period comparison
