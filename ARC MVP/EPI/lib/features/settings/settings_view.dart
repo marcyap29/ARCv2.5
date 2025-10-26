@@ -1,12 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:hive/hive.dart';
 import '../../shared/app_colors.dart';
 import '../../shared/text_style.dart';
+import '../../models/user_profile_model.dart';
 import 'sync_settings_section.dart';
 import 'music_control_section.dart';
-import 'first_responder_settings_section.dart';
-import 'coach_mode_settings_section.dart';
-import 'mcp_settings_view.dart';
 import 'mcp_bundle_health_view.dart';
 import 'privacy_settings_view.dart';
 import 'memory_mode_settings_view.dart';
@@ -15,9 +14,138 @@ import 'conflict_management_view.dart';
 import 'lumara_settings_view.dart';
 import '../../ui/screens/mcp_management_screen.dart';
 import '../../arc/core/journal_repository.dart';
+import '../../services/analytics_service.dart';
+import '../../services/rivet_sweep_service.dart';
+import '../../services/phase_regime_service.dart';
 
-class SettingsView extends StatelessWidget {
+class SettingsView extends StatefulWidget {
   const SettingsView({super.key});
+
+  @override
+  State<SettingsView> createState() => _SettingsViewState();
+}
+
+class _SettingsViewState extends State<SettingsView> {
+  bool _isIndexing = false;
+  
+  Future<void> _handleIndexAndAnalyze() async {
+    if (_isIndexing) return;
+    
+    setState(() {
+      _isIndexing = true;
+    });
+    
+    try {
+      // Show loading dialog
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => AlertDialog(
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const CircularProgressIndicator(),
+              const SizedBox(height: 16),
+              Text('Indexing and analyzing data...', style: heading3Style(context)),
+            ],
+          ),
+        ),
+      );
+      
+      // Import required services
+      final analyticsService = AnalyticsService();
+      final rivetSweepService = RivetSweepService(analyticsService);
+      final journalRepo = JournalRepository();
+      final journalEntries = journalRepo.getAllJournalEntriesSync();
+      
+      // Check if there are enough entries for analysis
+      if (journalEntries.length < 5) {
+        Navigator.of(context).pop(); // Close loading dialog
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Not enough entries for analysis (need at least 5, have ${journalEntries.length})'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+        return;
+      }
+      
+      // Run RIVET Sweep
+      final result = await rivetSweepService.analyzeEntries(journalEntries);
+      final totalProposals = result.autoAssign.length + result.review.length + result.lowConfidence.length;
+      
+      // Auto-apply high-confidence proposals to create phase regimes
+      final phaseRegimeService = PhaseRegimeService(analyticsService, rivetSweepService);
+      await phaseRegimeService.initialize();
+      
+      if (result.autoAssign.isNotEmpty) {
+        await phaseRegimeService.applySweepProposals(result.autoAssign);
+        print('Index & Analyze: Applied ${result.autoAssign.length} high-confidence phase regimes');
+      }
+      
+      // Determine current phase from the most recent regime and update UserProfile
+      final regimes = phaseRegimeService.allRegimes;
+      if (regimes.isNotEmpty) {
+        // Get the most recent regime (the user's current phase)
+        final currentRegime = regimes.last;
+        final currentPhase = currentRegime.label.name;
+        
+        // Update UserProfile with the detected phase
+        await _updateUserPhase(currentPhase);
+        print('Index & Analyze: Updated user phase to: $currentPhase');
+      }
+      
+      Navigator.of(context).pop(); // Close loading dialog
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Successfully indexed and analyzed data: $totalProposals phase proposals found'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (e) {
+      Navigator.of(context).pop(); // Close loading dialog
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to index and analyze data: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      setState(() {
+        _isIndexing = false;
+      });
+    }
+  }
+
+  /// Update the user's phase in UserProfile
+  Future<void> _updateUserPhase(String newPhase) async {
+    try {
+      Box<UserProfile> userBox;
+      if (Hive.isBoxOpen('user_profile')) {
+        userBox = Hive.box<UserProfile>('user_profile');
+      } else {
+        userBox = await Hive.openBox<UserProfile>('user_profile');
+      }
+      
+      final userProfile = userBox.get('profile');
+      if (userProfile != null) {
+        final updatedProfile = userProfile.copyWith(
+          onboardingCurrentSeason: newPhase,
+          currentPhase: newPhase,
+          lastPhaseChangeAt: DateTime.now(),
+        );
+        await userBox.put('profile', updatedProfile);
+        print('Settings: Updated user phase to: $newPhase');
+      } else {
+        print('Settings: No user profile found to update phase');
+      }
+    } catch (e) {
+      print('Settings: Error updating user phase: $e');
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -41,7 +169,52 @@ class SettingsView extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Privacy & Security Section (Top Priority)
+            // Import & Export Section (Top Priority)
+            _buildSection(
+              context,
+              title: 'Import & Export',
+              children: [
+                _buildSettingsTile(
+                  context,
+                  title: 'Import/Export Data',
+                  subtitle: 'Export, import, and organize your journal data',
+                  icon: Icons.dashboard,
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => McpManagementScreen(
+                          journalRepository: context.read<JournalRepository>(),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+                _buildSettingsTile(
+                  context,
+                  title: 'Bundle Health Check',
+                  subtitle: 'Validate and repair backup files',
+                  icon: Icons.health_and_safety,
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const McpBundleHealthView()),
+                    );
+                  },
+                ),
+                _buildSettingsTile(
+                  context,
+                  title: 'Index & Analyze Data',
+                  subtitle: 'Process journal data for LUMARA reflections and phase analysis',
+                  icon: Icons.refresh,
+                  onTap: _handleIndexAndAnalyze,
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 32),
+
+            // Privacy & Security Section
             _buildSection(
               context,
               title: 'Privacy & Security',
@@ -106,54 +279,6 @@ class SettingsView extends StatelessWidget {
 
             // Music Control Section
             const MusicControlSection(),
-
-            const SizedBox(height: 32),
-
-            // First Responder Settings Section
-            const FirstResponderSettingsSection(),
-
-            const SizedBox(height: 32),
-
-            // Coach Mode Settings Section
-            const CoachModeSettingsSection(),
-
-            const SizedBox(height: 32),
-
-            // Export & Backup Section
-            _buildSection(
-              context,
-              title: 'Export & Backup',
-              children: [
-                _buildSettingsTile(
-                  context,
-                  title: 'Import/Export Data',
-                  subtitle: 'Export, import, and organize your journal data',
-                  icon: Icons.dashboard,
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => McpManagementScreen(
-                          journalRepository: context.read<JournalRepository>(),
-                        ),
-                      ),
-                    );
-                  },
-                ),
-                _buildSettingsTile(
-                  context,
-                  title: 'Bundle Health Check',
-                  subtitle: 'Validate and repair backup files',
-                  icon: Icons.health_and_safety,
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (context) => const McpBundleHealthView()),
-                    );
-                  },
-                ),
-              ],
-            ),
 
             const SizedBox(height: 32),
 

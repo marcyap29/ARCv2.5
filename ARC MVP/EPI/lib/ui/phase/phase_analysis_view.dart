@@ -45,6 +45,15 @@ class _PhaseAnalysisViewState extends State<PhaseAnalysisView>
     super.dispose();
   }
 
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Reload phase data when navigating to this view to show latest changes
+    if (ModalRoute.of(context)?.isCurrent == true) {
+      _loadPhaseData();
+    }
+  }
+
   Future<void> _loadPhaseData() async {
     try {
       setState(() {
@@ -368,6 +377,7 @@ List<PhaseSegmentProposal> proposals,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Phase Analysis Card - restored
           Card(
             child: Padding(
               padding: const EdgeInsets.all(16.0),
@@ -422,6 +432,8 @@ List<PhaseSegmentProposal> proposals,
             ),
           ),
           const SizedBox(height: 16),
+          
+          // Phase Statistics Card
           Card(
             child: Padding(
               padding: const EdgeInsets.all(16.0),
@@ -609,14 +621,21 @@ List<PhaseSegmentProposal> proposals,
     );
   }
 
+
+  /// Get last analysis date from phase regime service
   Future<DateTime?> _getLastAnalysisDate() async {
-    final analyticsService = AnalyticsService();
-    final rivetSweepService = RivetSweepService(analyticsService);
-    final phaseRegimeService = PhaseRegimeService(analyticsService, rivetSweepService);
-    await phaseRegimeService.initialize();
-    return await phaseRegimeService.getLastAnalysisDate();
+    try {
+      final analyticsService = AnalyticsService();
+      final rivetSweepService = RivetSweepService(analyticsService);
+      final phaseRegimeService = PhaseRegimeService(analyticsService, rivetSweepService);
+      await phaseRegimeService.initialize();
+      return await phaseRegimeService.getLastAnalysisDate();
+    } catch (e) {
+      return null;
+    }
   }
 
+  /// Format date/time for display
   String _formatDateTime(DateTime dateTime) {
     final now = DateTime.now();
     final difference = now.difference(dateTime);
@@ -638,6 +657,7 @@ List<PhaseSegmentProposal> proposals,
     }
   }
 
+  /// Build RIVET action section with Run Phase Analysis button
   Widget _buildRivetActionSection() {
     return FutureBuilder<int>(
       future: _getJournalEntryCount(),
@@ -671,6 +691,7 @@ List<PhaseSegmentProposal> proposals,
     );
   }
 
+  /// Get journal entry count
   Future<int> _getJournalEntryCount() async {
     try {
       final journalRepo = JournalRepository();
@@ -681,6 +702,7 @@ List<PhaseSegmentProposal> proposals,
     }
   }
 
+  /// Build insufficient entries card
   Widget _buildInsufficientEntriesCard(int entryCount) {
     return Card(
       color: Colors.blue[50],
@@ -755,7 +777,7 @@ List<PhaseSegmentProposal> proposals,
   Widget _buildArcformsTab() {
     return Column(
       children: [
-        // Header with 3D view button
+        // Header with refresh and 3D view buttons
         Container(
           padding: const EdgeInsets.all(16),
           child: Row(
@@ -767,6 +789,27 @@ List<PhaseSegmentProposal> proposals,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
+              ),
+              // Small refresh button for phase updates
+              IconButton(
+                icon: const Icon(Icons.refresh),
+                iconSize: 18,
+                tooltip: 'Refresh phase data',
+                onPressed: () async {
+                  // Reload phase data from UserProfile and regimes
+                  await _loadPhaseData();
+                  // Refresh ARCForms
+                  _refreshArcforms();
+                  
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Phase data refreshed'),
+                        duration: Duration(seconds: 1),
+                      ),
+                    );
+                  }
+                },
               ),
               ElevatedButton.icon(
                 onPressed: () {

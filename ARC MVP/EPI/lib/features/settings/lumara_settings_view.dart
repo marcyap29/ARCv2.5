@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../shared/app_colors.dart';
 import '../../shared/text_style.dart';
-import '../../lumara/services/enhanced_lumara_api.dart';
 import '../../telemetry/analytics.dart';
 
 class LumaraSettingsView extends StatefulWidget {
@@ -14,10 +13,8 @@ class LumaraSettingsView extends StatefulWidget {
 
 class _LumaraSettingsViewState extends State<LumaraSettingsView> {
   final _analytics = Analytics();
-  final _enhancedApi = EnhancedLumaraApi(Analytics());
   
   // Settings state
-  String? _mcpBundlePath;
   double _similarityThreshold = 0.55;
   int _lookbackYears = 5;
   int _maxMatches = 5;
@@ -49,67 +46,6 @@ class _LumaraSettingsViewState extends State<LumaraSettingsView> {
     });
   }
 
-  Future<void> _selectMcpBundle() async {
-    // TODO: Implement file picker for MCP bundle selection
-    // For now, show a placeholder dialog
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Select MCP Bundle'),
-        content: const Text('MCP bundle selection will be implemented in a future update. For now, LUMARA will work with any previously imported data.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('OK'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Future<void> _indexCurrentBundle() async {
-    if (_mcpBundlePath == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please select an MCP bundle first'),
-          backgroundColor: Colors.orange,
-        ),
-      );
-      return;
-    }
-
-    try {
-      setState(() {
-        _isInitialized = false;
-      });
-
-      await _enhancedApi.indexMcpBundle(_mcpBundlePath!);
-      
-      final status = _enhancedApi.getStatus();
-      setState(() {
-        _nodeCount = status['nodeCount'] ?? 0;
-        _isInitialized = true;
-      });
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Successfully indexed $_nodeCount nodes from MCP bundle'),
-          backgroundColor: Colors.green,
-        ),
-      );
-    } catch (e) {
-      setState(() {
-        _isInitialized = true;
-      });
-      
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Failed to index bundle: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -139,31 +75,6 @@ class _LumaraSettingsViewState extends State<LumaraSettingsView> {
               title: 'Status',
               children: [
                 _buildStatusCard(),
-              ],
-            ),
-
-            const SizedBox(height: 32),
-
-            // Data Source Section
-            _buildSection(
-              context,
-              title: 'Data Source',
-              children: [
-                _buildSettingsTile(
-                  context,
-                  title: 'MCP Bundle Path',
-                  subtitle: _mcpBundlePath ?? 'No bundle selected',
-                  icon: Icons.folder,
-                  onTap: _selectMcpBundle,
-                ),
-                _buildActionButton(
-                  context,
-                  title: 'Index Current Bundle',
-                  subtitle: 'Process MCP bundle for reflection data',
-                  icon: Icons.refresh,
-                  onTap: _indexCurrentBundle,
-                  enabled: _mcpBundlePath != null,
-                ),
               ],
             ),
 

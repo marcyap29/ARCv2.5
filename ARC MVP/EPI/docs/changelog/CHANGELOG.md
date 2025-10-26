@@ -2,6 +2,27 @@
 
 ## [Unreleased]
 
+### 🎯 **Settings Overhaul & Phase Analysis Integration** - October 26, 2025
+
+#### **Feature: Streamlined Settings with Phase Analysis Integration** ✅ **PRODUCTION READY**
+- **Removed Legacy Modes**: Removed First Responder and Coach mode from settings as they were placeholders
+- **Import & Export Priority**: Moved "Import & Export" section to top of settings (above Privacy & Security)
+- **Consolidated Phase Analysis**: Added "Index & Analyze Data" button in Import & Export section that:
+  - Runs RIVET Sweep analysis on journal entries
+  - Auto-applies high-confidence phase proposals
+  - Updates UserProfile with detected current phase
+  - Refreshes ARCForms to show updated phase
+  - Triggers Phase Statistics refresh
+- **Auto-Refresh Phase Analysis**: Phase Statistics card now automatically updates when Index & Analyze Data completes
+- **Manual Refresh Control**: Added small refresh button in ARCForm Visualizations tab for manual phase data refresh
+- **Phase Analysis Card Restored**: Restored "Run Phase Analysis" button in Phase Analysis view for familiar workflow
+- **User Experience**: One-click phase analysis from Settings → Import & Export → Index & Analyze Data
+- **Files Modified**:
+  - `lib/features/settings/settings_view.dart` - Reorganized sections, added Index & Analyze Data
+  - `lib/features/settings/lumara_settings_view.dart` - Removed non-functional MCP Bundle Path
+  - `lib/ui/phase/phase_analysis_view.dart` - Added manual refresh button, restored Phase Analysis card
+- **Status**: PRODUCTION READY ✅
+
 ### ✨ **In-Journal LUMARA Reflection System** - October 26, 2025
 
 #### **Feature: Streamlined In-Journal Reflections with Brevity Constraints** ✅ **PRODUCTION READY**
