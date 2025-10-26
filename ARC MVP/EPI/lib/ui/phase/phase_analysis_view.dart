@@ -649,7 +649,7 @@ List<PhaseSegmentProposal> proposals,
   Widget _buildArcformsTab() {
     return Column(
       children: [
-        // Header with 3D view button
+        // Header with refresh and 3D view buttons
         Container(
           padding: const EdgeInsets.all(16),
           child: Row(
@@ -661,6 +661,27 @@ List<PhaseSegmentProposal> proposals,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
+              ),
+              // Small refresh button for phase updates
+              IconButton(
+                icon: const Icon(Icons.refresh),
+                iconSize: 18,
+                tooltip: 'Refresh phase data',
+                onPressed: () async {
+                  // Reload phase data from UserProfile and regimes
+                  await _loadPhaseData();
+                  // Refresh ARCForms
+                  _refreshArcforms();
+                  
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Phase data refreshed'),
+                        duration: Duration(seconds: 1),
+                      ),
+                    );
+                  }
+                },
               ),
               ElevatedButton.icon(
                 onPressed: () {
