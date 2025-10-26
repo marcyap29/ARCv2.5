@@ -177,22 +177,24 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
     }
 
     // Check for quick answers (phase, themes, streak, etc.) - INSTANT response
-    final quickAnswer = await _tryQuickAnswer(text);
-    if (quickAnswer != null) {
-      // Add user message to UI
-      final userMessage = LumaraMessage.user(content: text);
-      final updatedMessages = [...currentState.messages, userMessage];
-      
-      // Add quick answer
-      final assistantMessage = LumaraMessage.assistant(content: quickAnswer);
-      final finalMessages = [...updatedMessages, assistantMessage];
-      
-      emit(currentState.copyWith(
-        messages: finalMessages,
-        isProcessing: false,
-      ));
-      return;
-    }
+    // SKIPPED - Use Enhanced API with semantic search for all questions instead
+    // final quickAnswer = await _tryQuickAnswer(text);
+    // if (quickAnswer != null) {
+    //   // Add user message to UI
+    //   final userMessage = LumaraMessage.user(content: text);
+    //   final updatedMessages = [...currentState.messages, userMessage];
+    //   
+    //   // Add quick answer
+    //   final assistantMessage = LumaraMessage.assistant(content: quickAnswer);
+    //   final finalMessages = [...updatedMessages, assistantMessage];
+    //   
+    //   emit(currentState.copyWith(
+    //     messages: finalMessages,
+    //     isProcessing: false,
+    //   ));
+    //   return;
+    // }
+    print('LUMARA Debug: Skipping quick answers - using Enhanced API with semantic search for all questions');
 
     // Ensure we have an active chat session (auto-create if needed)
     await _ensureActiveChatSession(text);
