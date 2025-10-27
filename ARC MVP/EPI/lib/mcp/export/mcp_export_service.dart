@@ -519,6 +519,7 @@ class McpExportService {
             mime: _getMimeTypeForMediaType(mediaFile.type),
             createdAt: mediaFile.createdAt,
           ),
+          samplingManifest: const McpSamplingManifest(),
           provenance: const McpProvenance(source: 'ARC', device: 'unknown'),
           privacy: const McpPrivacy(containsPii: false, sharingPolicy: 'private'),
         );
