@@ -63,6 +63,13 @@ class ARCXExportService {
         
         print('ARCX Export: ✓ MCP bundle generated');
         
+        // Debug: List all files in temp directory
+        print('ARCX Export: Temp directory contents:');
+        final allFiles = await tempDir.list(recursive: true).toList();
+        for (final file in allFiles) {
+          print('  ${file.path}');
+        }
+        
         // Step 2: Read MCP manifest and files
         final manifestFile = File(path.join(tempDir.path, 'manifest.json'));
         if (!await manifestFile.exists()) {
@@ -70,27 +77,52 @@ class ARCXExportService {
         }
         
         final manifestJson = jsonDecode(await manifestFile.readAsString()) as Map<String, dynamic>;
+        print('ARCX Export: Manifest keys: ${manifestJson.keys}');
         
-        // Read journal entries
-        final journalDir = Directory(path.join(tempDir.path, 'nodes', 'journal'));
+        // Read journal entries - try both possible locations
+        final journalDir1 = Directory(path.join(tempDir.path, 'nodes', 'journal'));
+        final journalDir2 = Directory(path.join(tempDir.path, 'journal'));
+        
         final journalFiles = <File>[];
-        if (await journalDir.exists()) {
-          journalFiles.addAll(await journalDir
+        if (await journalDir1.exists()) {
+          journalFiles.addAll(await journalDir1
               .list()
               .where((f) => f.path.endsWith('.json'))
               .cast<File>()
               .toList());
+          print('ARCX Export: Found ${journalFiles.length} journal entries in nodes/journal/');
+        } else if (await journalDir2.exists()) {
+          journalFiles.addAll(await journalDir2
+              .list()
+              .where((f) => f.path.endsWith('.json'))
+              .cast<File>()
+              .toList());
+          print('ARCX Export: Found ${journalFiles.length} journal entries in journal/');
+        } else {
+          print('ARCX Export: Warning - neither nodes/journal/ nor journal/ directory found');
         }
         
-        // Read photo metadata
-        final photoDir = Directory(path.join(tempDir.path, 'nodes', 'media', 'photo'));
+        // Read photo metadata - try both possible locations
+        final photoDir1 = Directory(path.join(tempDir.path, 'nodes', 'media', 'photo'));
+        final photoDir2 = Directory(path.join(tempDir.path, 'media', 'photo'));
+        
         final photoFiles = <File>[];
-        if (await photoDir.exists()) {
-          photoFiles.addAll(await photoDir
+        if (await photoDir1.exists()) {
+          photoFiles.addAll(await photoDir1
               .list()
               .where((f) => f.path.endsWith('.json'))
               .cast<File>()
               .toList());
+          print('ARCX Export: Found ${photoFiles.length} photos in nodes/media/photo/');
+        } else if (await photoDir2.exists()) {
+          photoFiles.addAll(await photoDir2
+              .list()
+              .where((f) => f.path.endsWith('.json'))
+              .cast<File>()
+              .toList());
+          print('ARCX Export: Found ${photoFiles.length} photos in media/photo/');
+        } else {
+          print('ARCX Export: Warning - neither nodes/media/photo/ nor media/photo/ directory found');
         }
         
         print('ARCX Export: Found ${journalFiles.length} journal entries, ${photoFiles.length} photos');
