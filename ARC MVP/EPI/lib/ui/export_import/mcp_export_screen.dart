@@ -305,11 +305,13 @@ class _McpExportScreenState extends State<McpExportScreen> {
             ],
             const SizedBox(height: 16),
             Text(
-              'Tap "Share" to save the files. The archive is encrypted with AES-256-GCM and signed with Ed25519.',
+              'Encrypted with AES-256-GCM • Signed with Ed25519',
               style: bodyStyle(context).copyWith(
                 fontStyle: FontStyle.italic,
                 color: kcSecondaryTextColor,
+                fontSize: 11,
               ),
+              textAlign: TextAlign.center,
             ),
           ],
         ),
