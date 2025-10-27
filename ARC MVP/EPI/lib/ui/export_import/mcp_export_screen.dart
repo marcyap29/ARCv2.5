@@ -352,6 +352,10 @@ class _McpExportScreenState extends State<McpExportScreen> {
   }
 
   Widget _buildFilePath(String label, String path) {
+    // Extract just the filename for display
+    final filename = path.split('/').last;
+    final truncatedFilename = filename.length > 40 ? '...${filename.substring(filename.length - 40)}' : filename;
+    
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 2),
       child: Row(
@@ -364,7 +368,7 @@ class _McpExportScreenState extends State<McpExportScreen> {
           ),
           Expanded(
             child: Text(
-              path,
+              truncatedFilename,
               style: bodyStyle(context).copyWith(
                 fontFamily: 'monospace',
                 fontSize: 10,
