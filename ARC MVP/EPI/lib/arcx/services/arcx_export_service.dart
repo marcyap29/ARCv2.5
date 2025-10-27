@@ -9,6 +9,7 @@ import 'dart:typed_data';
 import 'package:crypto/crypto.dart';
 import 'package:archive/archive_io.dart';
 import 'package:path/path.dart' as path;
+import 'package:path_provider/path_provider.dart';
 import '../../models/journal_entry_model.dart';
 import '../../data/models/media_item.dart';
 import '../../mcp/export/mcp_export_service.dart';
@@ -40,8 +41,10 @@ class ARCXExportService {
     try {
       print('ARCX Export: Starting secure export...');
       
-      // Create temp directory for MCP bundle generation
-      final tempDir = Directory.systemTemp.createTempSync('arcx_export_');
+      // Create temp directory in app documents (safer than system temp on iOS)
+      final appDocDir = await getApplicationDocumentsDirectory();
+      final tempDir = Directory(path.join(appDocDir.path, 'arcx_temp_${DateTime.now().millisecondsSinceEpoch}'));
+      await tempDir.create(recursive: true);
       
       try {
         // Step 1: Generate MCP bundle
@@ -254,7 +257,11 @@ class ARCXExportService {
         
       } finally {
         // Clean up temp directory
-        await tempDir.delete(recursive: true);
+        try {
+          await tempDir.delete(recursive: true);
+        } catch (e) {
+          print('Warning: Could not delete temp directory: $e');
+        }
       }
     } catch (e, stackTrace) {
       print('ARCX Export: ✗ Failed: $e');
