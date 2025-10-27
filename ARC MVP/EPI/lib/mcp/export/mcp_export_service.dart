@@ -466,8 +466,38 @@ class McpExportService {
     for (final mediaFile in mediaFiles) {
       final pointerId = 'ptr_${mediaFile.id}';
       
-      // Create content hash
+      // Check if file exists
       final file = File(mediaFile.uri);
+      if (!await file.exists()) {
+        print('⚠️ ARCX Export: Media file not found, skipping: ${mediaFile.uri}');
+        // Create pointer without content hash for missing files
+        final pointer = McpPointer(
+          id: pointerId,
+          mediaType: mediaFile.type.name,
+          sourceUri: mediaFile.uri,
+          descriptor: McpDescriptor(
+            language: 'en',
+            length: mediaFile.sizeBytes ?? 0,
+            mimeType: _getMimeTypeForMediaType(mediaFile.type),
+            metadata: {
+              'original_filename': mediaFile.uri.split('/').last,
+              'status': 'file_not_found',
+            },
+          ),
+          integrity: McpIntegrity(
+            contentHash: '',
+            bytes: mediaFile.sizeBytes ?? 0,
+            mime: _getMimeTypeForMediaType(mediaFile.type),
+            createdAt: mediaFile.createdAt,
+          ),
+          provenance: const McpProvenance(source: 'ARC', device: 'unknown'),
+          privacy: const McpPrivacy(containsPii: false, sharingPolicy: 'private'),
+        );
+        pointers.add(pointer);
+        continue;
+      }
+      
+      // Create content hash
       final contentBytes = await file.readAsBytes();
       final contentHash = sha256.convert(contentBytes).toString();
       
