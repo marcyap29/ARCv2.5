@@ -229,6 +229,9 @@ class ARCXExportService {
         final arcxPath = path.join(outputDir.path, arcxFileName);
         final manifestPath = path.join(outputDir.path, '${arcxFileName}.manifest.json');
         
+        print('ARCX Export: Writing to $arcxPath');
+        print('ARCX Export: Writing manifest to $manifestPath');
+        
         await File(arcxPath).writeAsBytes(ciphertext);
         await File(manifestPath).writeAsString(jsonEncode(signedManifest.toJson()));
         
@@ -241,6 +244,8 @@ class ARCXExportService {
         }
         
         print('ARCX Export: ✓ Files written');
+        print('ARCX Export: Final arcxPath = $arcxPath');
+        print('ARCX Export: Final manifestPath = $manifestPath');
         
         return ARCXExportResult.success(
           arcxPath: arcxPath,
