@@ -497,33 +497,9 @@ class McpExportService {
         }
       }
       
-      // If still no bytes, create metadata-only pointer
+      // If still no bytes, skip this photo (don't create invalid pointer)
       if (contentBytes == null) {
-        print('⚠️ ARCX Export: No bytes available for media ${mediaFile.id}, creating metadata-only pointer');
-        final pointer = McpPointer(
-          id: pointerId,
-          mediaType: mediaFile.type.name,
-          sourceUri: mediaFile.uri,
-          descriptor: McpDescriptor(
-            language: 'en',
-            length: mediaFile.sizeBytes ?? 0,
-            mimeType: _getMimeTypeForMediaType(mediaFile.type),
-            metadata: {
-              'original_filename': mediaFile.uri.split('/').last,
-              'status': 'file_not_found',
-            },
-          ),
-          integrity: McpIntegrity(
-            contentHash: '',
-            bytes: mediaFile.sizeBytes ?? 0,
-            mime: _getMimeTypeForMediaType(mediaFile.type),
-            createdAt: mediaFile.createdAt,
-          ),
-          samplingManifest: const McpSamplingManifest(),
-          provenance: const McpProvenance(source: 'ARC', device: 'unknown'),
-          privacy: const McpPrivacy(containsPii: false, sharingPolicy: 'private'),
-        );
-        pointers.add(pointer);
+        print('⚠️ ARCX Export: No bytes available for media ${mediaFile.id} (uri: ${mediaFile.uri}), skipping photo export');
         continue;
       }
       
