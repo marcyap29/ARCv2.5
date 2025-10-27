@@ -79,53 +79,39 @@ class ARCXExportService {
         final manifestJson = jsonDecode(await manifestFile.readAsString()) as Map<String, dynamic>;
         print('ARCX Export: Manifest keys: ${manifestJson.keys}');
         
-        // Read journal entries - try both possible locations
-        final journalDir1 = Directory(path.join(tempDir.path, 'nodes', 'journal'));
-        final journalDir2 = Directory(path.join(tempDir.path, 'journal'));
+        // Read nodes.jsonl (NDJSON format)
+        final nodesFile = File(path.join(tempDir.path, 'nodes.jsonl'));
+        final pointersFile = File(path.join(tempDir.path, 'pointers.jsonl'));
         
-        final journalFiles = <File>[];
-        if (await journalDir1.exists()) {
-          journalFiles.addAll(await journalDir1
-              .list()
-              .where((f) => f.path.endsWith('.json'))
-              .cast<File>()
-              .toList());
-          print('ARCX Export: Found ${journalFiles.length} journal entries in nodes/journal/');
-        } else if (await journalDir2.exists()) {
-          journalFiles.addAll(await journalDir2
-              .list()
-              .where((f) => f.path.endsWith('.json'))
-              .cast<File>()
-              .toList());
-          print('ARCX Export: Found ${journalFiles.length} journal entries in journal/');
+        List<Map<String, dynamic>> journalNodes = [];
+        List<Map<String, dynamic>> photoNodes = [];
+        
+        if (await nodesFile.exists()) {
+          final lines = await nodesFile.readAsLines();
+          print('ARCX Export: Read ${lines.length} nodes from nodes.jsonl');
+          
+          for (final line in lines) {
+            if (line.trim().isEmpty) continue;
+            try {
+              final node = jsonDecode(line) as Map<String, dynamic>;
+              final nodeType = node['type'] as String?;
+              
+              if (nodeType == 'journal_entry') {
+                journalNodes.add(node);
+              } else if (nodeType == 'photo_metadata') {
+                photoNodes.add(node);
+              }
+            } catch (e) {
+              print('ARCX Export: Warning - could not parse node: $e');
+            }
+          }
+          
+          print('ARCX Export: Extracted ${journalNodes.length} journal nodes, ${photoNodes.length} photo nodes');
         } else {
-          print('ARCX Export: Warning - neither nodes/journal/ nor journal/ directory found');
+          print('ARCX Export: Warning - nodes.jsonl not found');
         }
         
-        // Read photo metadata - try both possible locations
-        final photoDir1 = Directory(path.join(tempDir.path, 'nodes', 'media', 'photo'));
-        final photoDir2 = Directory(path.join(tempDir.path, 'media', 'photo'));
-        
-        final photoFiles = <File>[];
-        if (await photoDir1.exists()) {
-          photoFiles.addAll(await photoDir1
-              .list()
-              .where((f) => f.path.endsWith('.json'))
-              .cast<File>()
-              .toList());
-          print('ARCX Export: Found ${photoFiles.length} photos in nodes/media/photo/');
-        } else if (await photoDir2.exists()) {
-          photoFiles.addAll(await photoDir2
-              .list()
-              .where((f) => f.path.endsWith('.json'))
-              .cast<File>()
-              .toList());
-          print('ARCX Export: Found ${photoFiles.length} photos in media/photo/');
-        } else {
-          print('ARCX Export: Warning - neither nodes/media/photo/ nor media/photo/ directory found');
-        }
-        
-        print('ARCX Export: Found ${journalFiles.length} journal entries, ${photoFiles.length} photos');
+        print('ARCX Export: Found ${journalNodes.length} journal entries, ${photoNodes.length} photos');
         
         // Step 3: Apply redaction and package into payload/
         print('ARCX Export: Step 2 - Applying redaction...');
@@ -142,15 +128,15 @@ class ARCXExportService {
         
         // Process and redact journal entries
         int redactedCount = 0;
-        for (final file in journalFiles) {
-          final entry = jsonDecode(await file.readAsString()) as Map<String, dynamic>;
+        for (final node in journalNodes) {
           final redacted = ARCXRedactionService.redactJournal(
-            entry,
+            node,
             dateOnly: dateOnlyTimestamps,
             installId: 'default', // TODO: Get actual install ID
           );
           
-          await File(path.join(payloadJournalDir.path, path.basename(file.path)))
+          final nodeId = node['id'] as String? ?? 'unknown';
+          await File(path.join(payloadJournalDir.path, '${nodeId}.json'))
               .writeAsString(jsonEncode(redacted));
           redactedCount++;
         }
@@ -161,14 +147,14 @@ class ARCXExportService {
         
         // Process and redact photo metadata
         int photosRedactedCount = 0;
-        for (final file in photoFiles) {
-          final photo = jsonDecode(await file.readAsString()) as Map<String, dynamic>;
+        for (final node in photoNodes) {
           final redacted = ARCXRedactionService.redactPhotoMeta(
-            photo,
+            node,
             includeLabels: includePhotoLabels,
           );
           
-          await File(path.join(payloadPhotoDir.path, path.basename(file.path)))
+          final nodeId = node['id'] as String? ?? 'unknown';
+          await File(path.join(payloadPhotoDir.path, '${nodeId}.json'))
               .writeAsString(jsonEncode(redacted));
           photosRedactedCount++;
         }
