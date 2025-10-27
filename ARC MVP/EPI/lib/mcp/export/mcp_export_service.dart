@@ -6,6 +6,7 @@ library;
 
 import 'dart:io';
 import 'dart:math';
+import 'dart:typed_data';
 import 'package:crypto/crypto.dart';
 import '../models/mcp_schemas.dart';
 import '../validation/mcp_validator.dart';
@@ -18,6 +19,7 @@ import '../../lumara/chat/chat_models.dart';
 import 'package:my_app/models/journal_entry_model.dart';
 import '../../data/models/media_item.dart';
 import '../../core/services/photo_library_service.dart';
+import '../../platform/photo_bridge.dart';
 import '../../data/models/photo_metadata.dart';
 import '../../models/phase_models.dart';
 import '../../services/phase_index.dart';
@@ -466,11 +468,38 @@ class McpExportService {
     for (final mediaFile in mediaFiles) {
       final pointerId = 'ptr_${mediaFile.id}';
       
-      // Check if file exists
+      // Try to get photo bytes - handle multiple sources
+      Uint8List? contentBytes;
+      
+      // 1. Try direct file path
       final file = File(mediaFile.uri);
-      if (!await file.exists()) {
-        print('⚠️ ARCX Export: Media file not found, skipping: ${mediaFile.uri}');
-        // Create pointer without content hash for missing files
+      if (await file.exists()) {
+        try {
+          contentBytes = await file.readAsBytes();
+        } catch (e) {
+          print('⚠️ ARCX Export: Could not read file: ${mediaFile.uri}: $e');
+        }
+      }
+      
+      // 2. Try PhotoBridge if it's a photo library URI
+      if (contentBytes == null && mediaFile.uri.startsWith('ph://')) {
+        try {
+          final localId = PhotoBridge.extractLocalIdentifier(mediaFile.uri);
+          if (localId != null) {
+            final photoData = await PhotoBridge.getPhotoBytes(localId);
+            if (photoData != null) {
+              contentBytes = photoData['bytes'] as Uint8List;
+              print('✅ ARCX Export: Got photo bytes via PhotoBridge for: ${mediaFile.id}');
+            }
+          }
+        } catch (e) {
+          print('⚠️ ARCX Export: PhotoBridge failed for ${mediaFile.uri}: $e');
+        }
+      }
+      
+      // If still no bytes, create metadata-only pointer
+      if (contentBytes == null) {
+        print('⚠️ ARCX Export: No bytes available for media ${mediaFile.id}, creating metadata-only pointer');
         final pointer = McpPointer(
           id: pointerId,
           mediaType: mediaFile.type.name,
@@ -498,7 +527,6 @@ class McpExportService {
       }
       
       // Create content hash
-      final contentBytes = await file.readAsBytes();
       final contentHash = sha256.convert(contentBytes).toString();
       
       // Create CAS URI
