@@ -12,6 +12,7 @@ import 'memory_mode_settings_view.dart';
 import 'memory_snapshot_management_view.dart';
 import 'conflict_management_view.dart';
 import 'lumara_settings_view.dart';
+import 'arcx_settings_view.dart';
 import '../../ui/screens/mcp_management_screen.dart';
 import '../../arc/core/journal_repository.dart';
 import '../../services/analytics_service.dart';
@@ -208,6 +209,18 @@ class _SettingsViewState extends State<SettingsView> {
                   subtitle: 'Process journal data for LUMARA reflections and phase analysis',
                   icon: Icons.refresh,
                   onTap: _handleIndexAndAnalyze,
+                ),
+                _buildSettingsTile(
+                  context,
+                  title: 'Secure Archive Settings',
+                  subtitle: 'Configure .arcx encryption and redaction',
+                  icon: Icons.security,
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const ARCXSettingsView()),
+                    );
+                  },
                 ),
               ],
             ),

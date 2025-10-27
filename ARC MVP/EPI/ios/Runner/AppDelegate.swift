@@ -4,25 +4,32 @@ import Photos
 
 @main
 @objc class AppDelegate: FlutterAppDelegate {
+  // ARCX import channel
   private let arcxChannelName = "arcx/import"
   private var arcxMethodChannel: FlutterMethodChannel?
-
+  
   override func application(
     _ application: UIApplication,
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
   ) -> Bool {
-    let controller = window?.rootViewController as! FlutterViewController
-    
-    // Register ARCX import method channel
-    arcxMethodChannel = FlutterMethodChannel(name: arcxChannelName, binaryMessenger: controller.binaryMessenger)
-    NSLog("[AppDelegate] ARCX import channel registered ✅")
-    
     // Register native LLM bridge using Pigeon
+    let controller = window?.rootViewController as! FlutterViewController
     let bridge = LLMBridge.shared
     LumaraNativeSetup.setUp(
       binaryMessenger: controller.binaryMessenger,
       api: bridge
     )
+    
+    // Register ARCX import channel
+    arcxMethodChannel = FlutterMethodChannel(name: arcxChannelName, binaryMessenger: controller.binaryMessenger)
+    NSLog("[AppDelegate] ARCX import channel registered ✅")
+    
+    // Register ARCX crypto channel
+    let arcxCryptoChannel = FlutterMethodChannel(name: "arcx/crypto", binaryMessenger: controller.binaryMessenger)
+    arcxCryptoChannel.setMethodCallHandler { (call, result) in
+      self.handleARCXCryptoCall(call: call, result: result)
+    }
+    NSLog("[AppDelegate] ARCX crypto channel registered ✅")
 
     // Create and wire up progress API for model loading callbacks
     let progressApi = LumaraNativeProgress(binaryMessenger: controller.binaryMessenger)
@@ -281,21 +288,16 @@ import Photos
     }
   }
   
-  // Handle ARCX file import from AirDrop/Files app
+  // Handle opening .arcx files from AirDrop, Files app, etc.
   override func application(
     _ app: UIApplication,
     open url: URL,
     options: [UIApplication.OpenURLOptionsKey : Any] = [:]
   ) -> Bool {
+    guard url.pathExtension.lowercased() == "arcx" else { return false }
     
-    guard url.pathExtension.lowercased() == "arcx" else {
-      NSLog("[AppDelegate] File is not an ARCX archive: \(url.pathExtension)")
-      return false
-    }
+    NSLog("[AppDelegate] Opening ARCX file: \(url.path)")
     
-    NSLog("[AppDelegate] Received ARCX file: \(url.path)")
-    
-    // Move to app sandbox with full file protection
     do {
       let fm = FileManager.default
       let importsDir = try fm.url(
@@ -312,13 +314,11 @@ import Photos
       }
       
       let destUrl = importsDir.appendingPathComponent(url.lastPathComponent)
-      if fm.fileExists(atPath: destUrl.path) {
-        try fm.removeItem(at: destUrl)
-      }
+      if fm.fileExists(atPath: destUrl.path) { try fm.removeItem(at: destUrl) }
       try fm.copyItem(at: url, to: destUrl)
       try fm.setAttributes([.protectionKey: FileProtectionType.complete], ofItemAtPath: destUrl.path)
       
-      // Check for sibling manifest file
+      // Look for sibling .manifest.json
       let manifestUrl = destUrl.deletingPathExtension().appendingPathExtension("manifest.json")
       var manifestPath: String? = nil
       if fm.fileExists(atPath: manifestUrl.path) {
@@ -326,18 +326,90 @@ import Photos
         manifestPath = manifestUrl.path
       }
       
-      NSLog("[AppDelegate] ARCX copied to sandbox: \(destUrl.path)")
+      NSLog("[AppDelegate] ARCX file copied to sandbox: \(destUrl.path)")
       
-      // Notify Flutter
       arcxMethodChannel?.invokeMethod("onOpenARCX", arguments: [
         "arcxPath": destUrl.path,
-        "manifestPath": manifestPath ?? ""
+        "manifestPath": manifestPath as Any
       ])
       
       return true
     } catch {
       NSLog("[AppDelegate] ARCX import failed: \(error)")
       return false
+    }
+  }
+  
+  // Handle ARCX crypto calls
+  private func handleARCXCryptoCall(call: FlutterMethodCall, result: @escaping FlutterResult) {
+    switch call.method {
+    case "signData":
+      guard let args = call.arguments as? [String: Any],
+            let data = args["data"] as? FlutterStandardTypedData else {
+        result(FlutterError(code: "INVALID_ARGS", message: "Expected data", details: nil))
+        return
+      }
+      
+      do {
+        let signature = try ARCXCrypto.signData(Data(data.data))
+        result(signature)
+      } catch {
+        result(FlutterError(code: "SIGN_FAILED", message: error.localizedDescription, details: nil))
+      }
+      
+    case "verifySignature":
+      guard let args = call.arguments as? [String: Any],
+            let data = args["data"] as? FlutterStandardTypedData,
+            let signatureB64 = args["signatureB64"] as? String else {
+        result(FlutterError(code: "INVALID_ARGS", message: "Expected data and signature", details: nil))
+        return
+      }
+      
+      do {
+        let isValid = try ARCXCrypto.verifySignature(data: Data(data.data), signature: signatureB64)
+        result(isValid)
+      } catch {
+        result(FlutterError(code: "VERIFY_FAILED", message: error.localizedDescription, details: nil))
+      }
+      
+    case "encryptAEAD":
+      guard let args = call.arguments as? [String: Any],
+            let plaintext = args["plaintext"] as? FlutterStandardTypedData else {
+        result(FlutterError(code: "INVALID_ARGS", message: "Expected plaintext", details: nil))
+        return
+      }
+      
+      do {
+        let ciphertext = try ARCXCrypto.encryptAEAD(Data(plaintext.data))
+        result(FlutterStandardTypedData(bytes: ciphertext))
+      } catch {
+        result(FlutterError(code: "ENCRYPT_FAILED", message: error.localizedDescription, details: nil))
+      }
+      
+    case "decryptAEAD":
+      guard let args = call.arguments as? [String: Any],
+            let ciphertext = args["ciphertext"] as? FlutterStandardTypedData else {
+        result(FlutterError(code: "INVALID_ARGS", message: "Expected ciphertext", details: nil))
+        return
+      }
+      
+      do {
+        let plaintext = try ARCXCrypto.decryptAEAD(Data(ciphertext.data))
+        result(FlutterStandardTypedData(bytes: plaintext))
+      } catch {
+        result(FlutterError(code: "DECRYPT_FAILED", message: error.localizedDescription, details: nil))
+      }
+      
+    case "getSigningPublicKeyFingerprint":
+      do {
+        let fingerprint = try ARCXCrypto.getSigningPublicKeyFingerprint()
+        result(fingerprint)
+      } catch {
+        result(FlutterError(code: "FINGERPRINT_FAILED", message: error.localizedDescription, details: nil))
+      }
+      
+    default:
+      result(FlutterMethodNotImplemented)
     }
   }
 }

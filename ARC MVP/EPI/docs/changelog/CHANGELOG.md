@@ -2,6 +2,52 @@
 
 ## [Unreleased]
 
+### 🔐 **ARCX Secure Archive System** - January 30, 2025
+
+#### **Feature: Complete iOS-Native Encrypted Archive Format (.arcx)** ✅ **PRODUCTION READY**
+
+**iOS Integration**:
+- Full UTI registration for `.arcx` file type (`com.orbital.arcx`)
+- Files app and AirDrop integration with "Open in ARC" handler
+- NSFileProtectionComplete on-disk encryption
+- MethodChannel bridge for Flutter ↔ Swift communication
+
+**Cryptographic Security**:
+- AES-256-GCM encryption via iOS CryptoKit
+- Ed25519 signing via Secure Enclave (hardware-backed on supported devices)
+- Secure key management via Keychain with proper access control
+- Platform channel bridge for Flutter-side crypto operations
+
+**Redaction & Privacy**:
+- Configurable photo label inclusion/exclusion (default: off)
+- Timestamp precision control (full vs date-only)
+- PII-sensitive field removal (author, email, device_id, ip)
+- Journal ID hashing with HKDF for privacy protection
+
+**Export Flow**:
+- Dual format selection UI (Legacy MCP .zip vs Secure Archive .arcx)
+- Secure export with AES-256-GCM encryption and Ed25519 signing
+- Payload structure validation and MCP manifest hash verification
+- Complete import handler with progress UI
+- Success dialog with files list and share functionality
+
+**UI Integration**:
+- Export format selection with radio buttons and icons
+- Security & Privacy settings panel (only shown for .arcx format)
+- Photo labels toggle with descriptive subtitle
+- Date-only timestamps toggle with privacy explanation
+- Success dialog showing both .arcx archive and .manifest.json
+- Share functionality for both files simultaneously
+
+**Files Created/Modified**:
+- **iOS**: `ARCXCrypto.swift`, `ARCXFileProtection.swift`, `AppDelegate.swift`, `Info.plist`
+- **Dart Services**: `arcx_export_service.dart`, `arcx_import_service.dart`, `arcx_redaction_service.dart`, `arcx_crypto_service.dart`
+- **Models**: `arcx_manifest.dart`, `arcx_result.dart`
+- **UI**: `arcx_import_progress_screen.dart`, `arcx_settings_view.dart`, `mcp_export_screen.dart`
+- **App**: `app.dart` (MethodChannel handler)
+
+**Status**: PRODUCTION READY ✅
+
 ### 🎯 **Settings Overhaul & Phase Analysis Integration** - October 26, 2025
 
 #### **Feature: Streamlined Settings with Phase Analysis Integration** ✅ **PRODUCTION READY**

@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:provider/provider.dart';
 
 import 'package:my_app/shared/app_colors.dart';
 import 'package:my_app/features/startup/startup_view.dart';
+import 'package:my_app/arcx/ui/arcx_import_progress_screen.dart';
 
 // Global repo + cubit
 import 'package:my_app/arc/core/journal_repository.dart';
@@ -30,11 +32,36 @@ class App extends StatefulWidget {
 
 class _AppState extends State<App> {
   final AppLifecycleManager _lifecycleManager = AppLifecycleManager();
+  static const MethodChannel _arcxChannel = MethodChannel('arcx/import');
 
   @override
   void initState() {
     super.initState();
     _lifecycleManager.initialize();
+    _setupARCXHandler();
+  }
+  
+  /// Setup ARCX import handler for iOS open-in events
+  void _setupARCXHandler() {
+    _arcxChannel.setMethodCallHandler((call) async {
+      if (call.method == 'onOpenARCX') {
+        final String arcxPath = call.arguments['arcxPath'];
+        final String? manifestPath = call.arguments['manifestPath'];
+        
+        // Navigate to import screen
+        if (mounted) {
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              fullscreenDialog: true,
+              builder: (_) => ARCXImportProgressScreen(
+                arcxPath: arcxPath,
+                manifestPath: manifestPath,
+              ),
+            ),
+          );
+        }
+      }
+    });
   }
 
   @override

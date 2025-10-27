@@ -1,9 +1,54 @@
 # EPI Documentation
 
-**Last Updated:** October 26, 2025
-**Status:** Production Ready ✅ - In-Journal LUMARA Reflection System Complete with Brevity Constraints, InlineReflectionBlock Integration, Conversation-Style Journal Entries, Continuation Fields
+**Last Updated:** January 30, 2025
+**Status:** Production Ready ✅ - ARCX Secure Archive System Complete with iOS Integration, Encrypted Export, and Redaction Settings
 
 This directory contains comprehensive documentation for the EPI (Evolving Personal Intelligence) project - an 8-module intelligent journaling system built with Flutter.
+
+## 🆕 Latest Updates (January 30, 2025)
+
+### 🔐 **ARCX Secure Archive System** - January 30, 2025
+
+**Complete iOS-Native Encrypted Archive Format (.arcx)**:
+- **iOS Integration**: Full UTI registration, Files app integration, AirDrop support, document type handler
+- **Cryptographic Security**:
+  - AES-256-GCM encryption via iOS CryptoKit
+  - Ed25519 signing via Secure Enclave (hardware-backed on supported devices)
+  - NSFileProtectionComplete on-disk encryption
+  - Secure key management via Keychain with proper access control
+- **Redaction & Privacy**:
+  - Configurable photo label inclusion/exclusion
+  - Timestamp precision control (full vs date-only)
+  - PII-sensitive field removal (author, email, device_id, ip)
+  - Journal ID hashing with HKDF
+- **Export Flow**:
+  - Dual format selection (Legacy MCP .zip vs Secure Archive .arcx)
+  - Secure export with AES-256-GCM encryption
+  - Ed25519 signature verification
+  - Payload structure validation and MCP manifest hash verification
+  - Complete import handler with progress UI
+- **UI Integration**:
+  - Export format selection with radio buttons
+  - Security & Privacy settings panel (only shown for .arcx format)
+  - Photo labels toggle (default: off)
+  - Date-only timestamps toggle (default: off)
+  - Success dialog with files list and share functionality
+- **Files Created/Modified**:
+  - `ios/Runner/ARCXCrypto.swift` - Cryptographic operations (Ed25519 + AES-256-GCM)
+  - `ios/Runner/ARCXFileProtection.swift` - iOS file protection helpers
+  - `ios/Runner/AppDelegate.swift` - MethodChannel handlers for crypto and file opening
+  - `ios/Runner/Info.plist` - UTI registration for .arcx document type
+  - `lib/arcx/services/arcx_export_service.dart` - Export orchestration
+  - `lib/arcx/services/arcx_import_service.dart` - Import with verification
+  - `lib/arcx/services/arcx_redaction_service.dart` - MCP-aware redaction
+  - `lib/arcx/services/arcx_crypto_service.dart` - Flutter ↔ iOS crypto bridge
+  - `lib/arcx/models/arcx_manifest.dart` - Manifest schema
+  - `lib/arcx/models/arcx_result.dart` - Result types
+  - `lib/arcx/ui/arcx_import_progress_screen.dart` - Import progress UI
+  - `lib/features/settings/arcx_settings_view.dart` - Settings screen
+  - `lib/ui/export_import/mcp_export_screen.dart` - Export UI with format selection
+  - `lib/app/app.dart` - MethodChannel handler for file opening
+- **Status**: PRODUCTION READY ✅
 
 ## 🆕 Latest Updates (October 26, 2025)
 

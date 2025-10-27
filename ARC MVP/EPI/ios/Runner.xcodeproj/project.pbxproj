@@ -9,6 +9,8 @@
 /* Begin PBXBuildFile section */
 		0943C7D7E64F4B5CBCE6F988 /* Bridge.pigeon.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB3677EB70444E1F82E0E2CC /* Bridge.pigeon.swift */; };
 		1498D2341E8E89220040F4C2 /* GeneratedPluginRegistrant.m in Sources */ = {isa = PBXBuildFile; fileRef = 1498D2331E8E89220040F4C2 /* GeneratedPluginRegistrant.m */; };
+		1F25018D2EAFB56500BCAD8B /* ARCXFileProtection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1F25018C2EAFB56500BCAD8B /* ARCXFileProtection.swift */; };
+		1F25018E2EAFB56500BCAD8B /* ARCXCrypto.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1F25018B2EAFB56500BCAD8B /* ARCXCrypto.swift */; };
 		1F3EEF6E2E93526C009BFF74 /* PrismScrubber.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1F3EEF6D2E93526C009BFF74 /* PrismScrubber.swift */; };
 		1F3EEF6E2E93526C009BFF76 /* PigeonShims.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1F3EEF6D2E93526C009BFF75 /* PigeonShims.swift */; };
 		1F3EEF6F2E93526C009BFF74 /* LlamaBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1F3EEF6C2E93526C009BFF74 /* LlamaBridge.swift */; };
@@ -77,6 +79,8 @@
 		1CA67E6F276CA3DB731B7284 /* Pods-Runner.profile.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Runner.profile.xcconfig"; path = "Target Support Files/Pods-Runner/Pods-Runner.profile.xcconfig"; sourceTree = "<group>"; };
 		1F1328252E999508006FD793 /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
 		1F1328272E999508006FD793 /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
+		1F25018B2EAFB56500BCAD8B /* ARCXCrypto.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ARCXCrypto.swift; sourceTree = "<group>"; };
+		1F25018C2EAFB56500BCAD8B /* ARCXFileProtection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ARCXFileProtection.swift; sourceTree = "<group>"; };
 		1F3EEF692E93526C009BFF74 /* CapabilityRouter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CapabilityRouter.swift; sourceTree = "<group>"; };
 		1F3EEF6A2E93526C009BFF74 /* llama_wrapper.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = llama_wrapper.h; sourceTree = "<group>"; };
 		1F3EEF6B2E93526C009BFF74 /* llama_wrapper.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Runner/llama_wrapper.cpp; sourceTree = "<group>"; };
@@ -196,6 +200,8 @@
 		97C146E51CF9000F007C117D = {
 			isa = PBXGroup;
 			children = (
+				1F25018B2EAFB56500BCAD8B /* ARCXCrypto.swift */,
+				1F25018C2EAFB56500BCAD8B /* ARCXFileProtection.swift */,
 				1F3EEF692E93526C009BFF74 /* CapabilityRouter.swift */,
 				1F3EEF6A2E93526C009BFF74 /* llama_wrapper.h */,
 				1F3EEF6B2E93526C009BFF74 /* llama_wrapper.cpp */,
@@ -499,6 +505,8 @@
 				D1754AEF759146E8920F2B30 /* MiraMemoryStore.swift in Sources */,
 				1F3EEF6E2E93526C009BFF76 /* PigeonShims.swift in Sources */,
 				1F3EEF6E2E93526C009BFF74 /* PrismScrubber.swift in Sources */,
+				1F25018D2EAFB56500BCAD8B /* ARCXFileProtection.swift in Sources */,
+				1F25018E2EAFB56500BCAD8B /* ARCXCrypto.swift in Sources */,
 				1F3EEF6F2E93526C009BFF74 /* LlamaBridge.swift in Sources */,
 				1F3EEF702E93526C009BFF74 /* llama_wrapper.cpp in Sources */,
 				1F3EEF712E93526C009BFF75 /* epi_logger.cpp in Sources */,

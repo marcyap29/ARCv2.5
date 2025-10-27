@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:file_picker/file_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as path;
 import 'package:share_plus/share_plus.dart';
@@ -12,6 +11,8 @@ import '../../models/journal_entry_model.dart';
 import '../../data/models/media_item.dart';
 import '../../mcp/export/mcp_pack_export_service.dart';
 import '../../utils/file_utils.dart';
+import '../../arcx/services/arcx_export_service.dart';
+import '../../arcx/models/arcx_result.dart';
 
 /// MCP Export Screen - Create MCP Package (.mcpkg)
 class McpExportScreen extends StatefulWidget {
@@ -29,6 +30,13 @@ class _McpExportScreenState extends State<McpExportScreen> {
   int _entryCount = 0;
   int _photoCount = 0;
   String _estimatedSize = 'Calculating...';
+  
+  // Export format selection
+  String _exportFormat = 'legacy'; // 'legacy' or 'secure'
+  
+  // ARCX redaction settings (only visible when secure format is selected)
+  bool _includePhotoLabels = false;
+  bool _dateOnlyTimestamps = false;
 
   @override
   void initState() {
@@ -79,42 +87,75 @@ class _McpExportScreenState extends State<McpExportScreen> {
         return;
       }
 
-      // Create temporary file path
-      final tempDir = await getTemporaryDirectory();
-      final fileName = FileUtils.generateMcpPackageName('journal_export');
-      final tempFilePath = path.join(tempDir.path, fileName);
-
-      // Create export service
-      final exportService = McpPackExportService(
-        bundleId: 'export_${DateTime.now().millisecondsSinceEpoch}',
-        outputPath: tempFilePath,
-        isDebugMode: false,
-      );
-
       // Show progress dialog
       _showProgressDialog();
 
-      // Export
-      final exportResult = await exportService.exportJournal(
-        entries: entries,
-        includePhotos: _includePhotos,
-        reducePhotoSize: _reducePhotoSize,
-      );
+      if (_exportFormat == 'secure') {
+        // Secure .arcx export
+        final outputDir = await getApplicationDocumentsDirectory();
+        final exportsDir = Directory(path.join(outputDir.path, 'Exports'));
+        if (!await exportsDir.exists()) {
+          await exportsDir.create(recursive: true);
+        }
 
-      // Hide progress dialog
-      Navigator.of(context).pop();
+        // Call ARCX export service
+        final arcxExport = ARCXExportService();
+        final result = await arcxExport.exportSecure(
+          outputDir: exportsDir,
+          journalEntries: entries,
+          mediaFiles: null, // Will be included if _includePhotos is true
+          includePhotoLabels: _includePhotoLabels,
+          dateOnlyTimestamps: _dateOnlyTimestamps,
+        );
 
-      if (exportResult.success) {
-        setState(() {
-          _exportPath = exportResult.outputPath;
-        });
-        _showSuccessDialog(exportResult);
+        // Hide progress dialog
+        Navigator.of(context).pop();
+
+        if (result.success) {
+          setState(() {
+            _exportPath = result.arcxPath;
+          });
+          _showArcSuccessDialog(result);
+        } else {
+          _showErrorDialog(result.error ?? 'ARCX export failed');
+        }
       } else {
-        _showErrorDialog(exportResult.error ?? 'Export failed');
+        // Legacy MCP export
+        final tempDir = await getTemporaryDirectory();
+        final fileName = FileUtils.generateMcpPackageName('journal_export');
+        final tempFilePath = path.join(tempDir.path, fileName);
+
+        // Create export service
+        final exportService = McpPackExportService(
+          bundleId: 'export_${DateTime.now().millisecondsSinceEpoch}',
+          outputPath: tempFilePath,
+          isDebugMode: false,
+        );
+
+        // Export
+        final exportResult = await exportService.exportJournal(
+          entries: entries,
+          includePhotos: _includePhotos,
+          reducePhotoSize: _reducePhotoSize,
+        );
+
+        // Hide progress dialog
+        Navigator.of(context).pop();
+
+        if (exportResult.success) {
+          setState(() {
+            _exportPath = exportResult.outputPath;
+          });
+          _showSuccessDialog(exportResult);
+        } else {
+          _showErrorDialog(exportResult.error ?? 'Export failed');
+        }
       }
 
     } catch (e) {
-      Navigator.of(context).pop(); // Hide progress dialog
+      if (mounted) {
+        Navigator.of(context).pop(); // Hide progress dialog
+      }
       _showErrorDialog('Export failed: $e');
     } finally {
       setState(() {
@@ -217,6 +258,86 @@ class _McpExportScreenState extends State<McpExportScreen> {
     }
   }
 
+  void _showArcSuccessDialog(ARCXExportResult result) async {
+    // First show the success dialog
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Row(
+          children: [
+            const Icon(Icons.check_circle, color: Colors.green),
+            const SizedBox(width: 8),
+            Text('Secure Archive Created', style: heading2Style(context)),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Your encrypted .arcx archive was created successfully!',
+              style: bodyStyle(context),
+            ),
+            const SizedBox(height: 16),
+            _buildSummaryRow('Entries exported:', '$_entryCount'),
+            _buildSummaryRow('Photos exported:', '$_photoCount'),
+            if (result.manifestPath != null) ...[
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.blue[50],
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Files created:',
+                      style: bodyStyle(context).copyWith(fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 4),
+                    _buildFilePath('📦 Archive', result.arcxPath!),
+                    _buildFilePath('📄 Manifest', result.manifestPath!),
+                  ],
+                ),
+              ),
+            ],
+            const SizedBox(height: 16),
+            Text(
+              'Tap "Share" to save the files. The archive is encrypted with AES-256-GCM and signed with Ed25519.',
+              style: bodyStyle(context).copyWith(
+                fontStyle: FontStyle.italic,
+                color: kcSecondaryTextColor,
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.of(context).pop(); // Close dialog first
+              
+              // Share both files
+              if (result.manifestPath != null) {
+                await Share.shareXFiles(
+                  [XFile(result.arcxPath!), XFile(result.manifestPath!)],
+                  text: 'Secure Archive - $_entryCount entries, $_photoCount photos',
+                  subject: 'Encrypted Journal Export',
+                );
+              }
+            },
+            child: const Text('Share Files'),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildSummaryRow(String label, String value) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
@@ -225,6 +346,32 @@ class _McpExportScreenState extends State<McpExportScreen> {
         children: [
           Text(label, style: bodyStyle(context)),
           Text(value, style: bodyStyle(context).copyWith(fontWeight: FontWeight.bold)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFilePath(String label, String path) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: Row(
+        children: [
+          Text(
+            '$label: ',
+            style: bodyStyle(context).copyWith(
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          Expanded(
+            child: Text(
+              path,
+              style: bodyStyle(context).copyWith(
+                fontFamily: 'monospace',
+                fontSize: 10,
+              ),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
         ],
       ),
     );
@@ -286,14 +433,14 @@ class _McpExportScreenState extends State<McpExportScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Save all your journal entries and photos in a single portable .zip file.',
+                    'Choose your export format: Legacy MCP (.zip) for compatibility, or Secure Archive (.arcx) with AES-256 encryption.',
                     style: bodyStyle(context).copyWith(
                       color: kcSecondaryTextColor,
                     ),
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'You can re-import this package at any time to restore your data.',
+                    'You can re-import either format at any time to restore your data.',
                     style: bodyStyle(context).copyWith(
                       color: kcSecondaryTextColor,
                       fontSize: 14,
@@ -304,6 +451,111 @@ class _McpExportScreenState extends State<McpExportScreen> {
             ),
 
             const SizedBox(height: 24),
+
+            // Export format selection
+            Text(
+              'Export Format',
+              style: heading2Style(context).copyWith(
+                color: kcPrimaryTextColor,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 12),
+            
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.05),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.white.withOpacity(0.1)),
+              ),
+              child: Column(
+                children: [
+                  _buildFormatOption(
+                    value: 'legacy',
+                    groupValue: _exportFormat,
+                    title: 'Legacy MCP (.zip)',
+                    subtitle: 'Unencrypted package for compatibility',
+                    icon: Icons.archive,
+                    color: Colors.blue,
+                    onChanged: (value) {
+                      setState(() {
+                        _exportFormat = value!;
+                      });
+                    },
+                  ),
+                  const Divider(height: 24),
+                  _buildFormatOption(
+                    value: 'secure',
+                    groupValue: _exportFormat,
+                    title: 'Secure Archive (.arcx)',
+                    subtitle: 'Encrypted with AES-256-GCM and Ed25519 signing',
+                    icon: Icons.lock,
+                    color: Colors.green,
+                    onChanged: (value) {
+                      setState(() {
+                        _exportFormat = value!;
+                      });
+                    },
+                  ),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 24),
+
+            // Redaction settings (only for secure format)
+            if (_exportFormat == 'secure') ...[
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.green.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.green.withOpacity(0.3)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(Icons.security, color: Colors.green, size: 20),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Security & Privacy Settings',
+                          style: heading3Style(context).copyWith(
+                            color: Colors.green,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    _buildOptionTile(
+                      title: 'Include photo labels',
+                      subtitle: 'Include AI-generated photo descriptions (may contain sensitive info)',
+                      value: _includePhotoLabels,
+                      onChanged: (value) {
+                        setState(() {
+                          _includePhotoLabels = value;
+                        });
+                      },
+                    ),
+                    const SizedBox(height: 8),
+                    _buildOptionTile(
+                      title: 'Date-only timestamps',
+                      subtitle: 'Reduce timestamp precision to date only (e.g., 2024-01-15 instead of full datetime)',
+                      value: _dateOnlyTimestamps,
+                      onChanged: (value) {
+                        setState(() {
+                          _dateOnlyTimestamps = value;
+                        });
+                      },
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 24),
+            ],
 
             // Options
             Text(
@@ -403,9 +655,11 @@ class _McpExportScreenState extends State<McpExportScreen> {
                           Text('Creating Package...'),
                         ],
                       )
-                    : const Text(
-                        'Create MCP Package (.zip)',
-                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                    : Text(
+                        _exportFormat == 'secure' 
+                          ? 'Create Secure Archive (.arcx)'
+                          : 'Create MCP Package (.zip)',
+                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                       ),
               ),
             ),
@@ -436,6 +690,68 @@ class _McpExportScreenState extends State<McpExportScreen> {
           activeColor: kcAccentColor,
         ),
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      ),
+    );
+  }
+
+  Widget _buildFormatOption({
+    required String value,
+    required String? groupValue,
+    required String title,
+    required String subtitle,
+    required IconData icon,
+    required Color color,
+    required ValueChanged<String?> onChanged,
+  }) {
+    final isSelected = groupValue == value;
+    
+    return InkWell(
+      onTap: () => onChanged(value),
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: isSelected ? color.withOpacity(0.1) : Colors.transparent,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: isSelected ? color : Colors.white.withOpacity(0.1),
+            width: isSelected ? 2 : 1,
+          ),
+        ),
+        child: Row(
+          children: [
+            Radio<String>(
+              value: value,
+              groupValue: groupValue,
+              onChanged: onChanged,
+              activeColor: color,
+            ),
+            const SizedBox(width: 12),
+            Icon(icon, color: color, size: 28),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: heading3Style(context).copyWith(
+                      color: isSelected ? color : kcPrimaryTextColor,
+                      fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    subtitle,
+                    style: bodyStyle(context).copyWith(
+                      color: kcSecondaryTextColor,
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
