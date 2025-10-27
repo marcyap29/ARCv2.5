@@ -24,11 +24,12 @@
 - PII-sensitive field removal (author, email, device_id, ip)
 - Journal ID hashing with HKDF for privacy protection
 
-**Export Flow**:
+**Export & Import Flow**:
 - Dual format selection UI (Legacy MCP .zip vs Secure Archive .arcx)
 - Secure export with AES-256-GCM encryption and Ed25519 signing
 - Payload structure validation and MCP manifest hash verification
-- Complete import handler with progress UI
+- Complete import handler with progress UI for both formats
+- Import screen accepts both .zip and .arcx files
 - Success dialog with files list and share functionality
 
 **UI Integration**:
@@ -43,7 +44,7 @@
 - **iOS**: `ARCXCrypto.swift`, `ARCXFileProtection.swift`, `AppDelegate.swift`, `Info.plist`
 - **Dart Services**: `arcx_export_service.dart`, `arcx_import_service.dart`, `arcx_redaction_service.dart`, `arcx_crypto_service.dart`
 - **Models**: `arcx_manifest.dart`, `arcx_result.dart`
-- **UI**: `arcx_import_progress_screen.dart`, `arcx_settings_view.dart`, `mcp_export_screen.dart`
+- **UI**: `arcx_import_progress_screen.dart`, `arcx_settings_view.dart`, `mcp_export_screen.dart`, `mcp_import_screen.dart` (added .arcx support)
 - **App**: `app.dart` (MethodChannel handler)
 
 **Status**: PRODUCTION READY ✅

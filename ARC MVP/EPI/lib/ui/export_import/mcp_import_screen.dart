@@ -2,14 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:path/path.dart' as path;
+import 'dart:io';
 import '../../shared/app_colors.dart';
 import '../../shared/text_style.dart';
 import '../../arc/core/journal_repository.dart';
 import '../../mcp/import/mcp_pack_import_service.dart';
 import '../../utils/file_utils.dart';
 import '../../features/timeline/timeline_cubit.dart';
+import '../../arcx/ui/arcx_import_progress_screen.dart';
 
-/// MCP Import Screen - Restore from MCP Package (.mcpkg) or Folder (.mcp/)
+/// MCP Import Screen - Restore from MCP Package (.zip) or Secure Archive (.arcx)
 class McpImportScreen extends StatefulWidget {
   const McpImportScreen({super.key});
 
@@ -26,15 +28,24 @@ class _McpImportScreenState extends State<McpImportScreen> {
     try {
       final result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
-        allowedExtensions: ['zip', 'mcpkg'],
+        allowedExtensions: ['zip', 'mcpkg', 'arcx'],
         allowMultiple: false,
       );
 
       if (result != null && result.files.isNotEmpty) {
         final file = result.files.first;
+        String? format;
+        if (file.path!.endsWith('.arcx')) {
+          format = 'Secure Archive (.arcx)';
+        } else if (FileUtils.isMcpPackage(file.path!)) {
+          format = 'MCP Package (.zip)';
+        } else {
+          format = 'Unknown';
+        }
+        
         setState(() {
           _selectedPath = file.path;
-          _detectedFormat = FileUtils.isMcpPackage(file.path!) ? 'MCP Package (.zip)' : 'Unknown';
+          _detectedFormat = format;
         });
       }
     } catch (e) {
@@ -51,29 +62,67 @@ class _McpImportScreenState extends State<McpImportScreen> {
     });
 
     try {
-      // Create import service
-      final journalRepo = context.read<JournalRepository>();
-      final importService = McpPackImportService(journalRepo: journalRepo);
+      // Check file type
+      if (_selectedPath!.endsWith('.arcx')) {
+        // Secure .arcx import - navigate to progress screen
+        final arcxFile = File(_selectedPath!);
+        if (!await arcxFile.exists()) {
+          _showErrorDialog('ARCX file not found');
+          setState(() => _isImporting = false);
+          return;
+        }
 
-      // Show progress dialog
-      _showProgressDialog();
+        // Find manifest file (sibling to .arcx)
+        final manifestPath = _selectedPath!.replaceAll('.arcx', '.manifest.json');
+        final manifestFile = File(manifestPath);
+        String? actualManifestPath;
+        
+        if (await manifestFile.exists()) {
+          actualManifestPath = manifestPath;
+        }
 
-      // Import
-      final importResult = await importService.importFromPath(_selectedPath!);
-
-      // Hide progress dialog
-      Navigator.of(context).pop();
-
-      if (importResult.success) {
-        // Refresh timeline to show imported entries
-        context.read<TimelineCubit>().reloadAllEntries();
-        _showSuccessDialog(importResult);
+        // Navigate to ARCX import progress screen
+        if (!mounted) return;
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => ARCXImportProgressScreen(
+              arcxPath: _selectedPath!,
+              manifestPath: actualManifestPath,
+            ),
+          ),
+        ).then((_) {
+          // Refresh timeline after import completes
+          context.read<TimelineCubit>().reloadAllEntries();
+          setState(() => _isImporting = false);
+        });
       } else {
-        _showErrorDialog(importResult.error ?? 'Import failed');
+        // Legacy MCP (.zip) import
+        final journalRepo = context.read<JournalRepository>();
+        final importService = McpPackImportService(journalRepo: journalRepo);
+
+        // Show progress dialog
+        _showProgressDialog();
+
+        // Import
+        final importResult = await importService.importFromPath(_selectedPath!);
+
+        // Hide progress dialog
+        Navigator.of(context).pop();
+
+        if (importResult.success) {
+          // Refresh timeline to show imported entries
+          context.read<TimelineCubit>().reloadAllEntries();
+          _showSuccessDialog(importResult);
+        } else {
+          _showErrorDialog(importResult.error ?? 'Import failed');
+        }
       }
 
     } catch (e) {
-      Navigator.of(context).pop(); // Hide progress dialog
+      if (mounted) {
+        Navigator.of(context).pop(); // Hide progress dialog
+      }
       _showErrorDialog('Import failed: $e');
     } finally {
       setState(() {
@@ -199,7 +248,7 @@ class _McpImportScreenState extends State<McpImportScreen> {
         backgroundColor: kcBackgroundColor,
         elevation: 0,
         title: Text(
-          'Restore from MCP Package',
+          'Restore from Package',
           style: heading1Style(context).copyWith(
             color: kcPrimaryTextColor,
             fontWeight: FontWeight.bold,
@@ -225,14 +274,14 @@ class _McpImportScreenState extends State<McpImportScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Select an MCP package file (.zip) to restore your data.',
+                    'Select an MCP package (.zip) or Secure Archive (.arcx) to restore your data.',
                     style: bodyStyle(context).copyWith(
                       color: kcSecondaryTextColor,
                     ),
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'This will restore all your journal entries and photos.',
+                    'Legacy .zip files import directly, while encrypted .arcx archives are decrypted with AES-256-GCM and verified with Ed25519 signatures.',
                     style: bodyStyle(context).copyWith(
                       color: kcSecondaryTextColor,
                       fontSize: 14,
@@ -256,8 +305,8 @@ class _McpImportScreenState extends State<McpImportScreen> {
 
             // Package file selection
             _buildSelectionTile(
-              title: 'Select MCP Package File',
-              subtitle: 'Choose a .zip file to restore from',
+              title: 'Select Package File',
+              subtitle: 'Choose a .zip (MCP) or .arcx (Secure Archive) file to restore from',
               icon: Icons.file_present,
               onTap: _selectMcpFile,
             ),

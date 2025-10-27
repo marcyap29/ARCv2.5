@@ -21,12 +21,13 @@ This directory contains comprehensive documentation for the EPI (Evolving Person
   - Timestamp precision control (full vs date-only)
   - PII-sensitive field removal (author, email, device_id, ip)
   - Journal ID hashing with HKDF
-- **Export Flow**:
-  - Dual format selection (Legacy MCP .zip vs Secure Archive .arcx)
-  - Secure export with AES-256-GCM encryption
-  - Ed25519 signature verification
-  - Payload structure validation and MCP manifest hash verification
-  - Complete import handler with progress UI
+- **Export & Import Flow**:
+- Dual format selection (Legacy MCP .zip vs Secure Archive .arcx)
+- Secure export with AES-256-GCM encryption
+- Ed25519 signature verification
+- Payload structure validation and MCP manifest hash verification
+- Complete import handler with progress UI for both .zip and .arcx formats
+- Import screen supports both legacy and secure archive restoration
 - **UI Integration**:
   - Export format selection with radio buttons
   - Security & Privacy settings panel (only shown for .arcx format)
