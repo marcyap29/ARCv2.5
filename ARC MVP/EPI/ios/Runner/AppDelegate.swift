@@ -4,12 +4,20 @@ import Photos
 
 @main
 @objc class AppDelegate: FlutterAppDelegate {
+  private let arcxChannelName = "arcx/import"
+  private var arcxMethodChannel: FlutterMethodChannel?
+
   override func application(
     _ application: UIApplication,
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
   ) -> Bool {
-    // Register native LLM bridge using Pigeon
     let controller = window?.rootViewController as! FlutterViewController
+    
+    // Register ARCX import method channel
+    arcxMethodChannel = FlutterMethodChannel(name: arcxChannelName, binaryMessenger: controller.binaryMessenger)
+    NSLog("[AppDelegate] ARCX import channel registered ✅")
+    
+    // Register native LLM bridge using Pigeon
     let bridge = LLMBridge.shared
     LumaraNativeSetup.setUp(
       binaryMessenger: controller.binaryMessenger,
@@ -270,6 +278,66 @@ import Photos
           completion(false)
         }
       }
+    }
+  }
+  
+  // Handle ARCX file import from AirDrop/Files app
+  override func application(
+    _ app: UIApplication,
+    open url: URL,
+    options: [UIApplication.OpenURLOptionsKey : Any] = [:]
+  ) -> Bool {
+    
+    guard url.pathExtension.lowercased() == "arcx" else {
+      NSLog("[AppDelegate] File is not an ARCX archive: \(url.pathExtension)")
+      return false
+    }
+    
+    NSLog("[AppDelegate] Received ARCX file: \(url.path)")
+    
+    // Move to app sandbox with full file protection
+    do {
+      let fm = FileManager.default
+      let importsDir = try fm.url(
+        for: .documentDirectory,
+        in: .userDomainMask,
+        appropriateFor: nil,
+        create: true
+      ).appendingPathComponent("Imports", isDirectory: true)
+      
+      if !fm.fileExists(atPath: importsDir.path) {
+        try fm.createDirectory(at: importsDir, withIntermediateDirectories: true, attributes: [
+          FileAttributeKey.protectionKey: FileProtectionType.complete
+        ])
+      }
+      
+      let destUrl = importsDir.appendingPathComponent(url.lastPathComponent)
+      if fm.fileExists(atPath: destUrl.path) {
+        try fm.removeItem(at: destUrl)
+      }
+      try fm.copyItem(at: url, to: destUrl)
+      try fm.setAttributes([.protectionKey: FileProtectionType.complete], ofItemAtPath: destUrl.path)
+      
+      // Check for sibling manifest file
+      let manifestUrl = destUrl.deletingPathExtension().appendingPathExtension("manifest.json")
+      var manifestPath: String? = nil
+      if fm.fileExists(atPath: manifestUrl.path) {
+        try fm.setAttributes([.protectionKey: FileProtectionType.complete], ofItemAtPath: manifestUrl.path)
+        manifestPath = manifestUrl.path
+      }
+      
+      NSLog("[AppDelegate] ARCX copied to sandbox: \(destUrl.path)")
+      
+      // Notify Flutter
+      arcxMethodChannel?.invokeMethod("onOpenARCX", arguments: [
+        "arcxPath": destUrl.path,
+        "manifestPath": manifestPath ?? ""
+      ])
+      
+      return true
+    } catch {
+      NSLog("[AppDelegate] ARCX import failed: \(error)")
+      return false
     }
   }
 }

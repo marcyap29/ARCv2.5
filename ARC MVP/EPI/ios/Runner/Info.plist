@@ -59,5 +59,51 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	
+	<!-- ARC Encrypted Archive (.arcx) Support -->
+	<key>UTExportedTypeDeclarations</key>
+	<array>
+		<dict>
+			<key>UTTypeIdentifier</key>
+			<string>com.orbital.arcx</string>
+			<key>UTTypeDescription</key>
+			<string>ARC Encrypted Archive</string>
+			<key>UTTypeConformsTo</key>
+			<array>
+				<string>public.data</string>
+				<string>public.content</string>
+			</array>
+			<key>UTTypeTagSpecification</key>
+			<dict>
+				<key>public.filename-extension</key>
+				<array>
+					<string>arcx</string>
+				</array>
+				<key>public.mime-type</key>
+				<string>application/x-arcx</string>
+			</dict>
+		</dict>
+	</array>
+	
+	<key>CFBundleDocumentTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeName</key>
+			<string>ARC Encrypted Archive</string>
+			<key>LSItemContentTypes</key>
+			<array>
+				<string>com.orbital.arcx</string>
+			</array>
+			<key>CFBundleTypeIconFiles</key>
+			<array/>
+			<key>LSHandlerRank</key>
+			<string>Owner</string>
+		</dict>
+	</array>
+	
+	<key>LSSupportsOpeningDocumentsInPlace</key>
+	<true/>
+	<key>UISupportsDocumentBrowser</key>
+	<true/>
 </dict>
 </plist>
