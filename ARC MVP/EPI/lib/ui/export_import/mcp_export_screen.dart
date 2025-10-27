@@ -98,12 +98,20 @@ class _McpExportScreenState extends State<McpExportScreen> {
           await exportsDir.create(recursive: true);
         }
 
+        // Collect photo media items from journal entries
+        final photoMedia = <MediaItem>[];
+        if (_includePhotos) {
+          for (final entry in entries) {
+            photoMedia.addAll(entry.media.where((m) => m.type == MediaType.image));
+          }
+        }
+
         // Call ARCX export service
         final arcxExport = ARCXExportService();
         final result = await arcxExport.exportSecure(
           outputDir: exportsDir,
           journalEntries: entries,
-          mediaFiles: null, // Will be included if _includePhotos is true
+          mediaFiles: _includePhotos ? photoMedia : null,
           includePhotoLabels: _includePhotoLabels,
           dateOnlyTimestamps: _dateOnlyTimestamps,
         );
