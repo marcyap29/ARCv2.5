@@ -1127,12 +1127,131 @@
   - `lib/lumara/llm/prompts/lumara_model_presets.dart` - Model-specific parameter optimization
   - `lib/lumara/llm/testing/lumara_test_harness.dart` - A/B testing framework for model comparison
 - `ios/Runner/LLMBridge.swift` - Updated to use optimized Dart prompts (end-to-end integration)
-- `ios/llama_wrapper.cpp` - Replaced ALL hard-coded test responses with real llama.cpp token generation
-- **Hard-coded Response Fix**: Eliminated ALL hard-coded test responses from llama.cpp
-- **Real AI Generation**: Now using actual llama.cpp token generation instead of test strings
-- **End-to-End Prompt Flow**: Optimized prompts now flow correctly from Dart → Swift → llama.cpp
-- **Token Counting Fix**: Resolved `tokensOut: 0` bug with proper token estimation (4 chars per token)
-- **Accurate Metrics**: Complete debugging visibility into token usage and generation metrics
+
+## 📝 **LUMARA Prompts Architecture** (Updated January 28, 2025)
+
+### **MVP Prompt System Overview**
+
+The MVP implements a sophisticated prompt system for LUMARA's in-journal reflections, orchestrated through `lib/lumara/prompts/lumara_prompts.dart`. The system consists of two primary prompts:
+
+### **1. Core System Prompt (General Purpose)**
+
+**Purpose**: Universal LUMARA identity and conversational behavior for chat interactions.
+
+**Key Components**:
+- **Identity & Role**: LUMARA as mirror, archivist, and contextual assistant
+- **EPI Module Awareness**: Knowledge of all 8 EPI modules (ARC, ATLAS, AURORA, VEIL, MIRA, POLYMETA, PRISM, LUMARA)
+- **Sub-Concepts**: Memory Container Protocol (MCP), Phase detection, Arcform visuals
+- **Narrative Dignity**: Resilience metaphors, sovereignty preservation, developmental framing
+- **Memory Handling**: MIRA semantic graph, MCP JSON format, context maximization
+- **External API Scrubbing**: PII removal, data normalization, uncertainty disclaimers
+- **Reflection & Growth**: Scaffolding questions, phase-aware framing, 90/10 balance
+
+**Location**: `LumaraPrompts.systemPrompt`
+
+### **2. In-Journal System Prompt v2.2 (Enhanced)**
+
+**Purpose**: Specialized for in-journal reflections with adaptive question bias and multimodal hooks.
+
+**Key Components**:
+- **ECHO Structure**: Empathize → Clarify → Highlight → Open (2-4 sentences, 5 for Abstract Register)
+- **Abstract Register Rule**: Detects conceptual language; expands to 2 clarifying questions (conceptual + felt-sense)
+- **Question/Expansion Bias**:
+  - **Phase-aware**: Recovery (low), Discovery/Expansion (high), Breakthrough (medium-high)
+  - **Entry-type aware**: Draft (high), Journal (med), Media (low)
+- **Multimodal Hook Layer**: Privacy-safe symbolic references ("photo titled 'steady' last summer")
+- **Tone Governance**: Empathic minimalism, reflective distance, agency reinforcement
+- **Output Format**: One paragraph ending with agency-forward question or choice
+
+**Location**: `LumaraPrompts.inJournalPrompt`
+
+### **Prompt Integration Flow**
+
+```
+User Input → Entry Analysis → LUMARA Service → Prompt Selection
+                                    ↓
+                      Enhanced LUMARA API
+                                    ↓
+                    Question Allowance Calculation
+                                    ↓
+                    Abstract Register Detection
+                                    ↓
+                    Multimodal Hook Selection
+                                    ↓
+                    LLM Generation + Scoring
+                                    ↓
+                        Response Formatting
+```
+
+### **Prompt Selection Logic**
+
+1. **Chat Interactions**: Use `LumaraPrompts.systemPrompt`
+   - Full EPI context awareness
+   - Memory integration
+   - Reflective scaffolding
+
+2. **In-Journal Reflections**: Use `LumaraPrompts.inJournalPrompt` (v2.2)
+   - ECHO structure enforcement
+   - Phase and entry-type adaptation
+   - Multimodal symbolic references
+   - Adaptive question bias
+
+### **Key Prompt Features**
+
+#### **Abstract Register Detection**
+- **Concrete**: "I'm frustrated I didn't finish my work"
+  - Response: 1 clarifying question, 2-3 sentences
+- **Abstract**: "A story of immense stakes, where preparation meets reality"
+  - Response: 2 clarifying questions (conceptual + emotional), 3-4 sentences
+
+#### **Question Bias Adaptation**
+
+**Recovery Phase + Journal Entry**:
+- Question Count: 1 (gentle containment)
+- Example: "Would it help to rest with this feeling for now, or note one gentle step forward?"
+
+**Discovery Phase + Draft Entry**:
+- Question Count: 2 (exploratory)
+- Example: "What draws you most strongly toward change? And what would it feel like to explore one direction without committing yet?"
+
+#### **Multimodal Symbolic References**
+- **Privacy-Safe**: Never quotes or exposes private content
+- **Symbolic Labels**: Uses user captions trimmed to ≤3 words
+- **Time Buckets**: Automatic context (last summer, this spring, 2 years ago)
+- **Weighted Selection**: Photos (0.35), audio (0.25), chat (0.2), video (0.15), journal (0.05)
+
+### **Scoring & Validation**
+
+All prompts are validated through `lumara_response_scoring.dart`:
+- **Empathy**: Lexical overlap with user text
+- **Depth**: Clarifying questions and pattern reflection
+- **Agency**: Ends with question, offers choice, avoids prescription
+- **Structure**: 2-4 sentences (5 for Abstract), appropriate question count
+- **Tone**: No parasocial "we", no exclamation marks, no clinical claims
+
+**Minimum Resonance Threshold**: 0.62
+- Auto-fix mechanism if below threshold
+- `autoTightenToEcho()` for basic correction
+
+### **Production Status**
+
+**Current Version**: v2.2
+- ✅ Question/Expansion Bias System
+- ✅ Abstract Register Detection
+- ✅ Multimodal Hook Layer
+- ✅ Phase-Aware & Entry-Type-Aware Adaptation
+- ✅ Privacy-Safe Symbolic References
+- ✅ Enhanced Error Handling with Intelligent Fallback
+- ✅ Retry Logic & Rate Limiting
+
+**Location**: `lib/lumara/prompts/lumara_prompts.dart`
+
+  - `ios/llama_wrapper.cpp` - Replaced ALL hard-coded test responses with real llama.cpp token generation
+  - **Hard-coded Response Fix**: Eliminated ALL hard-coded test responses from llama.cpp
+  - **Real AI Generation**: Now using actual llama.cpp token generation instead of test strings
+  - **End-to-End Prompt Flow**: Optimized prompts now flow correctly from Dart → Swift → llama.cpp
+  - **Token Counting Fix**: Resolved `tokensOut: 0` bug with proper token estimation (4 chars per token)
+  - **Accurate Metrics**: Complete debugging visibility into token usage and generation metrics
 
   **Real Token Streaming**:
   - **Live Generation**: `llama_start_generation()` and `llama_get_next_token()` for real inference
