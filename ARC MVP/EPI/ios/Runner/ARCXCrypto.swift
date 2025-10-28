@@ -5,6 +5,7 @@
 import Foundation
 import CryptoKit
 import Security
+import CommonCrypto
 
 class ARCXCrypto {
   private static let signingKeyIdentifier = "com.orbital.arcx.signing_key"
@@ -155,6 +156,87 @@ class ARCXCrypto {
     let key = try getAEADKey()
     return try AES.GCM.open(sealedBox, using: key)
   }
+  
+  // MARK: - Password-Based Encryption
+  
+  /// Derive key from password using PBKDF2
+  /// Returns 256-bit (32-byte) key
+  static func deriveKeyPBKDF2(password: String, salt: Data, iterations: Int) throws -> SymmetricKey {
+    guard let passwordData = password.data(using: .utf8) else {
+      throw ARCXCryptoError.invalidPassword
+    }
+    
+    var derivedKeyData = Data(count: 32) // 256 bits
+    
+    let status = CCKeyDerivationPBKDF(
+      CCPBKDFAlgorithm(kCCPBKDF2),
+      password,
+      passwordData.count,
+      [UInt8](salt),
+      salt.count,
+      CCPseudoRandomAlgorithm(kCCPRFHmacAlgSHA256),
+      UInt32(iterations),
+      [UInt8](derivedKeyData),
+      derivedKeyData.count
+    )
+    
+    guard status == kCCSuccess else {
+      throw ARCXCryptoError.keyDerivationFailed
+    }
+    
+    return SymmetricKey(data: derivedKeyData)
+  }
+  
+  /// Encrypt with password-derived key
+  /// Returns (ciphertext, salt) tuple
+  static func encryptWithPassword(_ plaintext: Data, password: String) throws -> (ciphertext: Data, salt: Data) {
+    // Generate random salt
+    var salt = Data(count: 32)
+    let status = SecRandomCopyBytes(kSecRandomDefault, salt.count, &salt)
+    guard status == errSecSuccess else {
+      throw ARCXCryptoError.saltGenerationFailed
+    }
+    
+    // Derive key from password
+    let key = try deriveKeyPBKDF2(password: password, salt: salt, iterations: 600000)
+    
+    // Encrypt
+    let sealedBox = try AES.GCM.seal(plaintext, using: key)
+    
+    var result = sealedBox.nonce.withUnsafeBytes { Data($0) }
+    result.append(sealedBox.ciphertext)
+    result.append(sealedBox.tag)
+    
+    return (ciphertext: result, salt: salt)
+  }
+  
+  /// Decrypt with password-derived key
+  static func decryptWithPassword(_ ciphertext: Data, password: String, salt: Data) throws -> Data {
+    guard ciphertext.count >= 12 + 16 else {
+      throw ARCXCryptoError.invalidCiphertext
+    }
+    
+    let nonce = ciphertext.prefix(12)
+    guard let nonceBox = try? AES.GCM.Nonce(data: nonce) else {
+      throw ARCXCryptoError.invalidCiphertext
+    }
+    
+    let tagSize = 16
+    let tagStart = ciphertext.count - tagSize
+    let tag = ciphertext[tagStart..<ciphertext.count]
+    let encrypted = ciphertext[12..<tagStart]
+    
+    guard let sealedBox = try? AES.GCM.SealedBox(
+      nonce: nonceBox,
+      ciphertext: encrypted,
+      tag: tag
+    ) else {
+      throw ARCXCryptoError.invalidCiphertext
+    }
+    
+    let key = try deriveKeyPBKDF2(password: password, salt: salt, iterations: 600000)
+    return try AES.GCM.open(sealedBox, using: key)
+  }
 }
 
 enum ARCXCryptoError: Error {
@@ -162,5 +244,8 @@ enum ARCXCryptoError: Error {
   case keyStorageFailed
   case invalidSignature
   case invalidCiphertext
+  case invalidPassword
+  case keyDerivationFailed
+  case saltGenerationFailed
 }
 

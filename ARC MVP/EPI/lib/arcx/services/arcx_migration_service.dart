@@ -5,14 +5,13 @@ library arcx_migration_service;
 
 import 'dart:io';
 import 'dart:convert';
+import 'dart:typed_data';
 import 'package:crypto/crypto.dart';
 import 'package:archive/archive.dart';
 import 'package:archive/archive_io.dart';
 import 'package:path/path.dart' as path;
-import '../../arc/core/journal_repository.dart';
 import 'arcx_crypto_service.dart';
 import 'arcx_redaction_service.dart';
-import 'arcx_export_service.dart';
 import '../models/arcx_result.dart';
 
 class ARCXMigrationService {
@@ -60,7 +59,6 @@ class ARCXMigrationService {
           throw Exception('Invalid MCP bundle: manifest.json not found');
         }
         
-        final manifestJson = jsonDecode(await manifestFile.readAsString()) as Map<String, dynamic>;
         print('ARCX Migration: ✓ Manifest read');
         
         // Step 4: Parse journal entries and photo metadata
@@ -87,10 +85,7 @@ class ARCXMigrationService {
         
         print('ARCX Migration: Found ${journalFiles.length} journal entries, ${photoFiles.length} photos');
         
-        // Step 5-7: Apply redaction and use export service
-        final exportService = ARCXExportService();
-        
-        // Convert files to JournalEntry objects for export service
+        // Step 5-7: Apply redaction
         // Since we're migrating from .zip, we don't have JournalEntry objects
         // We'll need to read the JSON directly and package it
         final payloadDir = Directory.systemTemp.createTempSync('arcx_payload_');
@@ -196,16 +191,39 @@ class ARCXMigrationService {
           
           final signedManifest = {...manifest, 'signature_b64': signature};
           
-          // Write files
+          // Write files - create single .arcx ZIP containing both encrypted payload and manifest
           final timestamp = DateTime.now().toIso8601String().replaceAll(':', '-').split('.')[0];
           final arcxFileName = 'migrated_$timestamp.arcx';
           final arcxPath = path.join(outputDir.path, arcxFileName);
-          final manifestPath = path.join(outputDir.path, '${arcxFileName}.manifest.json');
           
-          await File(arcxPath).writeAsBytes(ciphertext);
-          await File(manifestPath).writeAsString(jsonEncode(signedManifest));
+          // Create final ZIP containing both files (like export service)
+          final signedManifestJson = jsonEncode(signedManifest);
+          final manifestBytesFinal = utf8.encode(signedManifestJson);
+          final finalArchive = Archive();
           
-          print('ARCX Migration: ✓ Files written');
+          // Add encrypted payload
+          finalArchive.addFile(ArchiveFile(
+            'archive.arcx',
+            ciphertext.length,
+            ciphertext,
+          ));
+          
+          // Add signed manifest
+          finalArchive.addFile(ArchiveFile(
+            'manifest.json',
+            manifestBytesFinal.length,
+            manifestBytesFinal,
+          ));
+          
+          // Write the ZIP
+          final finalZipBytes = ZipEncoder().encode(finalArchive);
+          if (finalZipBytes == null) {
+            throw Exception('Failed to create final ZIP archive');
+          }
+          
+          await File(arcxPath).writeAsBytes(finalZipBytes);
+          
+          print('ARCX Migration: ✓ Files written to $arcxPath (${finalZipBytes.length} bytes)');
           
           // Step 10: Optionally secure-delete original
           if (secureDeleteOriginal) {
@@ -216,7 +234,6 @@ class ARCXMigrationService {
           
           return ARCXMigrationResult.success(
             arcxPath: arcxPath,
-            manifestPath: manifestPath,
             sourceZipPath: zipPath,
             sourceSha256: sourceSha256,
           );

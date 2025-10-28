@@ -3,10 +3,15 @@
 /// Configure .arcx export and migration settings.
 library arcx_settings;
 
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:path/path.dart' as path;
 import '../../shared/app_colors.dart';
 import '../../shared/text_style.dart';
+import '../../arcx/services/arcx_migration_service.dart';
 
 class ARCXSettingsView extends StatefulWidget {
   const ARCXSettingsView({super.key});
@@ -51,6 +56,121 @@ class _ARCXSettingsViewState extends State<ARCXSettingsView> {
         ),
       );
     }
+  }
+
+  Future<void> _migrateLegacyArchive() async {
+    try {
+      // Pick a .zip file
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['zip'],
+        allowMultiple: false,
+      );
+
+      if (result == null || result.files.isEmpty || result.files.single.path == null) {
+        return;
+      }
+
+      final zipPath = result.files.single.path!;
+      
+      // Get output directory
+      final outputDir = await getApplicationDocumentsDirectory();
+      final exportsDir = Directory(path.join(outputDir.path, 'Exports'));
+      if (!await exportsDir.exists()) {
+        await exportsDir.create(recursive: true);
+      }
+
+      // Show progress dialog
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => AlertDialog(
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const CircularProgressIndicator(),
+              const SizedBox(height: 16),
+              Text(
+                'Migrating legacy archive...',
+                style: heading3Style(context),
+              ),
+            ],
+          ),
+        ),
+      );
+
+      // Perform migration
+      final migrationService = ARCXMigrationService();
+      final migrationResult = await migrationService.migrateZipToARCX(
+        zipPath: zipPath,
+        outputDir: exportsDir,
+        includePhotoLabels: _includePhotoLabels,
+        dateOnlyTimestamps: _dateOnlyTimestamps,
+        secureDeleteOriginal: _secureDeleteOriginal,
+      );
+
+      // Close progress dialog
+      Navigator.of(context).pop();
+
+      if (migrationResult.success) {
+        // Show success dialog
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: Row(
+              children: [
+                const Icon(Icons.check_circle, color: Colors.green),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text('Migration Complete', style: heading2Style(context)),
+                ),
+              ],
+            ),
+            content: Text(
+              'Legacy .zip file has been successfully converted to secure .arcx format.\n\n'
+              'Location: ${path.basename(migrationResult.arcxPath ?? '')}',
+              style: bodyStyle(context),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('OK'),
+              ),
+            ],
+          ),
+        );
+      } else {
+        // Show error dialog
+        _showErrorDialog('Migration failed: ${migrationResult.error}');
+      }
+    } catch (e) {
+      Navigator.of(context).pop(); // Close progress dialog if open
+      _showErrorDialog('Migration error: $e');
+    }
+  }
+
+  void _showErrorDialog(String message) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Row(
+          children: [
+            const Icon(Icons.error, color: Colors.red),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text('Migration Failed', style: heading2Style(context)),
+            ),
+          ],
+        ),
+        content: Text(message, style: bodyStyle(context)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -145,6 +265,23 @@ class _ARCXSettingsViewState extends State<ARCXSettingsView> {
                     });
                     _saveSettings();
                   },
+                ),
+                const SizedBox(height: 16),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: _migrateLegacyArchive,
+                    icon: const Icon(Icons.import_export),
+                    label: const Text('Migrate Legacy Archive'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: kcAccentColor,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                  ),
                 ),
               ],
             ),

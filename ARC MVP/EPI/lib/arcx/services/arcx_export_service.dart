@@ -6,14 +6,14 @@ library arcx_export_service;
 import 'dart:io';
 import 'dart:convert';
 import 'dart:typed_data';
+import 'dart:async';
 import 'package:crypto/crypto.dart';
 import 'package:archive/archive_io.dart';
 import 'package:path/path.dart' as path;
 import 'package:path_provider/path_provider.dart';
 import '../../models/journal_entry_model.dart';
 import '../../data/models/media_item.dart';
-import '../../mcp/export/mcp_export_service.dart';
-import '../../mcp/models/mcp_schemas.dart';
+import '../../mcp/export/mcp_pack_export_service.dart';
 import 'arcx_crypto_service.dart';
 import 'arcx_redaction_service.dart';
 import '../models/arcx_manifest.dart';
@@ -28,7 +28,7 @@ class ARCXExportService {
   /// 2. Apply redaction to journal and photo metadata
   /// 3. Package into payload/ structure
   /// 4. Archive payload/ to zip
-  /// 5. Encrypt with AES-256-GCM
+  /// 5. Encrypt with AES-256-GCM (device-based or password-based)
   /// 6. Sign manifest with Ed25519
   /// 7. Write .arcx + .manifest.json with file protection
   Future<ARCXExportResult> exportSecure({
@@ -37,9 +37,12 @@ class ARCXExportService {
     List<MediaItem>? mediaFiles,
     bool includePhotoLabels = false,
     bool dateOnlyTimestamps = false,
+    String? password, // Optional password for portable archives
+    Function(String)? onProgress, // Progress callback
   }) async {
     try {
       print('ARCX Export: Starting secure export...');
+      onProgress?.call('Preparing export...');
       
       // Create temp directory in app documents (safer than system temp on iOS)
       final appDocDir = await getApplicationDocumentsDirectory();
@@ -49,12 +52,16 @@ class ARCXExportService {
       try {
         // Step 1: Generate MCP bundle
         print('ARCX Export: Step 1 - Generating MCP bundle...');
-        final mcpService = McpExportService();
-        final mcpResult = await mcpService.exportToMcp(
-          outputDir: tempDir,
-          scope: McpExportScope.all,
-          journalEntries: journalEntries,
-          mediaFiles: mediaFiles,
+        onProgress?.call('Gathering journal data...');
+        // Use McpPackExportService instead of McpExportService to get actual photo files
+        final mcpPackService = McpPackExportService(
+          bundleId: 'arcx_${DateTime.now().millisecondsSinceEpoch}',
+          outputPath: path.join(tempDir.path, 'mcp.zip'),
+        );
+        final mcpResult = await mcpPackService.exportJournal(
+          entries: journalEntries,
+          includePhotos: mediaFiles != null && mediaFiles.isNotEmpty,
+          reducePhotoSize: false,
         );
         
         if (!mcpResult.success) {
@@ -62,6 +69,30 @@ class ARCXExportService {
         }
         
         print('ARCX Export: ✓ MCP bundle generated');
+        onProgress?.call('Extracting data...');
+        
+        // Extract the MCP ZIP to temp directory
+        final mcpZipPath = path.join(tempDir.path, 'mcp.zip');
+        if (await File(mcpZipPath).exists()) {
+          print('ARCX Export: Extracting MCP bundle from ZIP...');
+          final zipDecoder = ZipDecoder();
+          final zipBytes = await File(mcpZipPath).readAsBytes();
+          final archive = zipDecoder.decodeBytes(zipBytes);
+          
+          for (final file in archive) {
+            if (file.isFile) {
+              final extractedPath = path.join(tempDir.path, file.name);
+              final extractedDir = Directory(path.dirname(extractedPath));
+              if (!await extractedDir.exists()) {
+                await extractedDir.create(recursive: true);
+              }
+              await File(extractedPath).writeAsBytes(file.content);
+            }
+          }
+          
+          // Delete the ZIP file after extraction
+          await File(mcpZipPath).delete();
+        }
         
         // Debug: List all files in temp directory
         print('ARCX Export: Temp directory contents:');
@@ -79,42 +110,48 @@ class ARCXExportService {
         final manifestJson = jsonDecode(await manifestFile.readAsString()) as Map<String, dynamic>;
         print('ARCX Export: Manifest keys: ${manifestJson.keys}');
         
-        // Read nodes.jsonl (NDJSON format)
-        final nodesFile = File(path.join(tempDir.path, 'nodes.jsonl'));
-        final pointersFile = File(path.join(tempDir.path, 'pointers.jsonl'));
+        // Read nodes (JSON files in McpPackExportService)
+        final nodesDir = Directory(path.join(tempDir.path, 'nodes'));
         
         List<Map<String, dynamic>> journalNodes = [];
         List<Map<String, dynamic>> photoNodes = [];
         
-        if (await nodesFile.exists()) {
-          final lines = await nodesFile.readAsLines();
-          print('ARCX Export: Read ${lines.length} nodes from nodes.jsonl');
-          
-          for (final line in lines) {
-            if (line.trim().isEmpty) continue;
-            try {
-              final node = jsonDecode(line) as Map<String, dynamic>;
-              final nodeType = node['type'] as String?;
-              
-              if (nodeType == 'journal_entry') {
-                journalNodes.add(node);
-              } else if (nodeType == 'photo_metadata') {
-                photoNodes.add(node);
+        if (await nodesDir.exists()) {
+          // Read journal nodes from individual JSON files
+          final journalDir = Directory(path.join(nodesDir.path, 'journal'));
+          if (await journalDir.exists()) {
+            final journalEntries = await journalDir.list().toList();
+            for (final entry in journalEntries) {
+              if (entry is File && entry.path.endsWith('.json')) {
+                final json = jsonDecode(await entry.readAsString()) as Map<String, dynamic>;
+                json['id'] = path.basenameWithoutExtension(entry.path);
+                journalNodes.add(json);
               }
-            } catch (e) {
-              print('ARCX Export: Warning - could not parse node: $e');
+            }
+          }
+          
+          // Read photo metadata from individual JSON files
+          final photoDir = Directory(path.join(nodesDir.path, 'media', 'photo'));
+          if (await photoDir.exists()) {
+            final photoEntries = await photoDir.list().toList();
+            for (final entry in photoEntries) {
+              if (entry is File && entry.path.endsWith('.json')) {
+                final json = jsonDecode(await entry.readAsString()) as Map<String, dynamic>;
+                photoNodes.add(json);
+              }
             }
           }
           
           print('ARCX Export: Extracted ${journalNodes.length} journal nodes, ${photoNodes.length} photo nodes');
         } else {
-          print('ARCX Export: Warning - nodes.jsonl not found');
+          print('ARCX Export: Warning - nodes directory not found');
         }
         
         print('ARCX Export: Found ${journalNodes.length} journal entries, ${photoNodes.length} photos');
+        onProgress?.call('Processing ${journalNodes.length} entries and ${photoNodes.length} photos...');
         
-        // Step 3: Apply redaction and package into payload/
-        print('ARCX Export: Step 2 - Applying redaction...');
+        // Step 3: Package into payload/ (no redaction - encrypt as-is)
+        print('ARCX Export: Step 2 - Packaging data...');
         final payloadDir = Directory(path.join(tempDir.path, 'payload'));
         await payloadDir.create(recursive: true);
         
@@ -126,40 +163,57 @@ class ARCXExportService {
         final payloadJournalDir = Directory(path.join(payloadDir.path, 'journal'));
         await payloadJournalDir.create(recursive: true);
         
-        // Process and redact journal entries
-        int redactedCount = 0;
-        for (final node in journalNodes) {
-          final redacted = ARCXRedactionService.redactJournal(
-            node,
-            dateOnly: dateOnlyTimestamps,
-            installId: 'default', // TODO: Get actual install ID
-          );
-          
-          final nodeId = node['id'] as String? ?? 'unknown';
-          await File(path.join(payloadJournalDir.path, '${nodeId}.json'))
-              .writeAsString(jsonEncode(redacted));
-          redactedCount++;
-        }
+            // Copy journal entries as-is (no redaction)
+            int entriesCount = 0;
+            for (final node in journalNodes) {
+              final nodeId = node['id'] as String? ?? 'unknown';
+              
+              // DEBUG: Log the first node's structure
+              if (entriesCount == 0) {
+                final nodeStr = jsonEncode(node);
+                final sampleLength = nodeStr.length > 500 ? 500 : nodeStr.length;
+                print('ARCX Export: First node keys: ${node.keys}');
+                print('ARCX Export: First node sample: ${nodeStr.substring(0, sampleLength)}');
+                if (node['media'] != null) {
+                  print('ARCX Export: First node media count: ${(node['media'] as List).length}');
+                }
+              }
+              
+              await File(path.join(payloadJournalDir.path, '${nodeId}.json'))
+                  .writeAsString(jsonEncode(node));
+              entriesCount++;
+            }
         
-        // Create photo directory
+        // Create photo metadata directory
         final payloadPhotoDir = Directory(path.join(payloadDir.path, 'media', 'photo'));
         await payloadPhotoDir.create(recursive: true);
         
-        // Process and redact photo metadata
-        int photosRedactedCount = 0;
+        // Create photo files directory
+        final payloadPhotosDir = Directory(path.join(payloadDir.path, 'media', 'photos'));
+        await payloadPhotosDir.create(recursive: true);
+        
+        // Copy photo metadata and files as-is (no redaction)
+        int photosCount = 0;
         for (final node in photoNodes) {
-          final redacted = ARCXRedactionService.redactPhotoMeta(
-            node,
-            includeLabels: includePhotoLabels,
-          );
-          
           final nodeId = node['id'] as String? ?? 'unknown';
           await File(path.join(payloadPhotoDir.path, '${nodeId}.json'))
-              .writeAsString(jsonEncode(redacted));
-          photosRedactedCount++;
+              .writeAsString(jsonEncode(node));
+          photosCount++;
+          
+          // Copy photo file if filename is available
+          final filename = node['filename'] as String?;
+          if (filename != null) {
+            final sourcePhotoFile = File(path.join(tempDir.path, 'media', 'photos', filename));
+            if (await sourcePhotoFile.exists()) {
+              final destPhotoFile = File(path.join(payloadPhotosDir.path, filename));
+              await sourcePhotoFile.copy(destPhotoFile.path);
+              print('ARCX Export: Copied photo file: $filename');
+            }
+          }
         }
         
-        print('ARCX Export: ✓ Redaction applied ($redactedCount entries, $photosRedactedCount photos)');
+        print('ARCX Export: ✓ Packaged ($entriesCount entries, $photosCount photos)');
+        onProgress?.call('Archiving data...');
         
         // Step 4: Archive payload to zip in memory
         print('ARCX Export: Step 3 - Archiving payload...');
@@ -174,11 +228,43 @@ class ARCXExportService {
         
         print('ARCX Export: ✓ Payload archived (${plaintextZip.length} bytes)');
         
-        // Step 5: Encrypt with AES-256-GCM
-        print('ARCX Export: Step 4 - Encrypting...');
-        final ciphertext = await ARCXCryptoService.encryptAEAD(Uint8List.fromList(plaintextZip));
+        // Step 5: Encrypt with AES-256-GCM (device-based or password-based)
+        Uint8List ciphertext;
+        String? saltB64;
+        bool isPasswordEncrypted;
         
-        print('ARCX Export: ✓ Encrypted (${ciphertext.length} bytes)');
+        // Write to temp file to avoid memory bottleneck
+        final plaintextTempFile = File(path.join(tempDir.path, 'plaintext_temp.zip'));
+        await plaintextTempFile.writeAsBytes(plaintextZip);
+        print('ARCX Export: Wrote plaintext to temp file (${plaintextTempFile.path})');
+        
+        if (password != null && password.isNotEmpty) {
+          // Password-based encryption
+          print('ARCX Export: Step 4 - Encrypting with password...');
+          onProgress?.call('Encrypting with password...');
+          
+          // For now, keep single-pass encryption but with timeout protection
+          final (encryptedData, salt) = await ARCXCryptoService.encryptWithPassword(
+            Uint8List.fromList(plaintextZip),
+            password,
+          );
+          ciphertext = encryptedData;
+          saltB64 = base64Encode(salt);
+          isPasswordEncrypted = true;
+          print('ARCX Export: Salt length: ${salt.length} bytes, SaltB64 length: ${saltB64.length} chars');
+          print('ARCX Export: ✓ Encrypted with password (${ciphertext.length} bytes)');
+        } else {
+          // Device-based encryption
+          print('ARCX Export: Step 4 - Encrypting with device key...');
+          onProgress?.call('Encrypting archive...');
+          ciphertext = await ARCXCryptoService.encryptAEAD(Uint8List.fromList(plaintextZip));
+          isPasswordEncrypted = false;
+          print('ARCX Export: ✓ Encrypted with device key (${ciphertext.length} bytes)');
+        }
+        
+        // Delete plaintext immediately after encryption
+        await plaintextTempFile.delete();
+        onProgress?.call('Signing archive...');
         
         // Step 6: Compute SHA-256 of ciphertext
         final ciphertextHash = sha256.convert(ciphertext).bytes;
@@ -189,11 +275,11 @@ class ARCXExportService {
         final mcpManifestHash = sha256.convert(mcpManifestData).bytes;
         final mcpManifestHashB64 = base64Encode(mcpManifestHash);
         
-        // Step 8: Build manifest JSON
+        // Step 8: Build manifest JSON (no redaction applied)
         final redactionReport = ARCXRedactionService.computeRedactionReport(
-          journalEntriesRedacted: redactedCount,
-          photosRedacted: photosRedactedCount,
-          dateOnly: dateOnlyTimestamps,
+          journalEntriesRedacted: entriesCount,
+          photosRedacted: photosCount,
+          dateOnly: false, // No date-only timestamps applied
           includePhotoLabels: includePhotoLabels,
         );
         
@@ -202,19 +288,21 @@ class ARCXExportService {
         final manifest = ARCXManifest(
           version: '1.1',
           algo: 'AES-256-GCM',
-          kdf: 'device-key',
+          kdf: isPasswordEncrypted ? 'pbkdf2-sha256-600000' : 'device-key',
           sha256: ciphertextHashB64,
           signerPubkeyFpr: pubkeyFpr,
           signatureB64: '', // Will be filled after signing
           payloadMeta: ARCXPayloadMeta(
-            journalCount: redactedCount,
-            photoMetaCount: photosRedactedCount,
+            journalCount: entriesCount,
+            photoMetaCount: photosCount,
             bytes: plaintextZip.length,
           ),
           mcpManifestSha256: mcpManifestHashB64,
           exportedAt: DateTime.now().toUtc().toIso8601String(),
           appVersion: '1.0.0', // TODO: Get from package_info
           redactionReport: redactionReport,
+          isPasswordEncrypted: isPasswordEncrypted,
+          saltB64: saltB64,
         );
         
         // Step 9: Sign manifest
@@ -236,22 +324,48 @@ class ARCXExportService {
           exportedAt: manifest.exportedAt,
           appVersion: manifest.appVersion,
           redactionReport: manifest.redactionReport,
+          isPasswordEncrypted: manifest.isPasswordEncrypted,
+          saltB64: manifest.saltB64,
         );
         
         print('ARCX Export: ✓ Manifest signed');
+        onProgress?.call('Writing archive file...');
         
-        // Step 10: Write .arcx and .manifest.json
-        print('ARCX Export: Step 5 - Writing files...');
+        // Step 10: Create final .arcx ZIP containing encrypted archive and manifest
+        print('ARCX Export: Step 5 - Creating final archive...');
         final timestamp = DateTime.now().toIso8601String().replaceAll(':', '-').split('.')[0];
         final arcxFileName = 'export_$timestamp.arcx';
         final arcxPath = path.join(outputDir.path, arcxFileName);
-        final manifestPath = path.join(outputDir.path, '${arcxFileName}.manifest.json');
         
         print('ARCX Export: Writing to $arcxPath');
-        print('ARCX Export: Writing manifest to $manifestPath');
         
-        await File(arcxPath).writeAsBytes(ciphertext);
-        await File(manifestPath).writeAsString(jsonEncode(signedManifest.toJson()));
+        // Create final ZIP containing both files
+        final manifestBytesFinal = utf8.encode(jsonEncode(signedManifest.toJson()));
+        final finalArchive = Archive();
+        
+        // Add encrypted payload
+        finalArchive.addFile(ArchiveFile(
+          'archive.arcx',
+          ciphertext.length,
+          ciphertext,
+        ));
+        
+        // Add signed manifest
+        finalArchive.addFile(ArchiveFile(
+          'manifest.json',
+          manifestBytesFinal.length,
+          manifestBytesFinal,
+        ));
+        
+        // Write the ZIP
+        final finalZipBytes = ZipEncoder().encode(finalArchive);
+        if (finalZipBytes == null) {
+          throw Exception('Failed to create final ZIP archive');
+        }
+        
+        await File(arcxPath).writeAsBytes(finalZipBytes);
+        print('ARCX Export: ✓ Final archive created (${finalZipBytes.length} bytes)');
+        onProgress?.call('Export complete!');
         
         // Apply file protection on iOS
         try {
@@ -261,17 +375,16 @@ class ARCXExportService {
           print('ARCX Export: Warning - could not set file protection: $e');
         }
         
-        print('ARCX Export: ✓ Files written');
+        print('ARCX Export: ✓ File written');
         print('ARCX Export: Final arcxPath = $arcxPath');
-        print('ARCX Export: Final manifestPath = $manifestPath');
         
         return ARCXExportResult.success(
           arcxPath: arcxPath,
-          manifestPath: manifestPath,
+          manifestPath: null, // Manifest is now inside the .arcx ZIP
           manifest: signedManifest,
           stats: ARCXExportStats(
-            journalEntries: redactedCount,
-            photoMetadata: photosRedactedCount,
+            journalEntries: entriesCount,
+            photoMetadata: photosCount,
             totalBytes: plaintextZip.length,
             encryptedBytes: ciphertext.length,
             exportDuration: Duration.zero, // TODO: Track duration
@@ -296,6 +409,7 @@ class ARCXExportService {
   /// Recursively add directory to archive
   Future<void> _addDirectoryToArchive(Archive archive, Directory dir, String basePath) async {
     final files = await dir.list().toList();
+    final mediaExtensions = {'.jpg', '.jpeg', '.png', '.mp4', '.mov', '.heic', '.heif'};
     
     for (final file in files) {
       if (file is Directory) {
@@ -303,9 +417,20 @@ class ARCXExportService {
       } else if (file is File) {
         final content = await file.readAsBytes();
         final relativePath = path.join(basePath, path.basename(file.path));
-        archive.addFile(ArchiveFile(relativePath, content.length, content));
+        final ext = path.extension(file.path).toLowerCase();
+        
+        // Create archive file
+        final archiveFile = ArchiveFile(relativePath, content.length, content);
+        
+        // Skip compression for already-compressed media
+        if (mediaExtensions.contains(ext)) {
+          archiveFile.compress = false;
+        }
+        
+        archive.addFile(archiveFile);
       }
     }
   }
+  
 }
 

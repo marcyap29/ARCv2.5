@@ -407,6 +407,112 @@ import Photos
       } catch {
         result(FlutterError(code: "FINGERPRINT_FAILED", message: error.localizedDescription, details: nil))
       }
+    
+    case "deriveKeyPBKDF2":
+      guard let args = call.arguments as? [String: Any],
+            let password = args["password"] as? String,
+            let salt = args["salt"] as? FlutterStandardTypedData,
+            let iterations = args["iterations"] as? Int else {
+        result(FlutterError(code: "INVALID_ARGS", message: "Expected password, salt, and iterations", details: nil))
+        return
+      }
+      
+      do {
+        let saltData = Data(salt.data)
+        let key = try ARCXCrypto.deriveKeyPBKDF2(password: password, salt: saltData, iterations: iterations)
+        let keyData = key.withUnsafeBytes { Data($0) }
+        result(FlutterStandardTypedData(bytes: keyData))
+      } catch {
+        result(FlutterError(code: "DERIVATION_FAILED", message: error.localizedDescription, details: nil))
+      }
+    
+    case "encryptWithPassword":
+      guard let args = call.arguments as? [String: Any],
+            let plaintext = args["plaintext"] as? FlutterStandardTypedData,
+            let password = args["password"] as? String else {
+        result(FlutterError(code: "INVALID_ARGS", message: "Expected plaintext and password", details: nil))
+        return
+      }
+      
+      do {
+        let (ciphertext, salt) = try ARCXCrypto.encryptWithPassword(Data(plaintext.data), password: password)
+        result([
+          "ciphertext": FlutterStandardTypedData(bytes: ciphertext),
+          "salt": FlutterStandardTypedData(bytes: salt)
+        ])
+      } catch {
+        result(FlutterError(code: "ENCRYPT_FAILED", message: error.localizedDescription, details: nil))
+      }
+    
+    case "decryptWithPassword":
+      guard let args = call.arguments as? [String: Any],
+            let ciphertext = args["ciphertext"] as? FlutterStandardTypedData,
+            let password = args["password"] as? String,
+            let salt = args["salt"] as? FlutterStandardTypedData else {
+        result(FlutterError(code: "INVALID_ARGS", message: "Expected ciphertext, password, and salt", details: nil))
+        return
+      }
+      
+      do {
+        let ciphertextData = Data(ciphertext.data)
+        let saltData = Data(salt.data)
+        let plaintext = try ARCXCrypto.decryptWithPassword(ciphertextData, password: password, salt: saltData)
+        result(FlutterStandardTypedData(bytes: plaintext))
+      } catch {
+        result(FlutterError(code: "DECRYPT_FAILED", message: error.localizedDescription, details: nil))
+      }
+    
+    case "generateSalt":
+      do {
+        let salt = try ARCXCrypto.generateSalt()
+        result(FlutterStandardTypedData(bytes: salt))
+      } catch {
+        result(FlutterError(code: "SALT_GEN_FAILED", message: error.localizedDescription, details: nil))
+      }
+    
+    case "encryptChunk":
+      guard let args = call.arguments as? [String: Any],
+            let plaintext = args["plaintext"] as? FlutterStandardTypedData,
+            let key = args["key"] as? FlutterStandardTypedData,
+            let nonce = args["nonce"] as? FlutterStandardTypedData,
+            let aad = args["aad"] as? FlutterStandardTypedData else {
+        result(FlutterError(code: "INVALID_ARGS", message: "Expected plaintext, key, nonce, and aad", details: nil))
+        return
+      }
+      
+      do {
+        let plaintextData = Data(plaintext.data)
+        let keyData = Data(key.data)
+        let nonceData = Data(nonce.data)
+        let aadData = Data(aad.data)
+        
+        let ciphertext = try ARCXCrypto.encryptChunkBytes(plaintextData, keyData: keyData, nonce: nonceData, aad: aadData)
+        result(FlutterStandardTypedData(bytes: ciphertext))
+      } catch {
+        result(FlutterError(code: "ENCRYPT_CHUNK_FAILED", message: error.localizedDescription, details: nil))
+      }
+    
+    case "decryptChunk":
+      guard let args = call.arguments as? [String: Any],
+            let ciphertext = args["ciphertext"] as? FlutterStandardTypedData,
+            let key = args["key"] as? FlutterStandardTypedData,
+            let nonce = args["nonce"] as? FlutterStandardTypedData,
+            let aad = args["aad"] as? FlutterStandardTypedData else {
+        result(FlutterError(code: "INVALID_ARGS", message: "Expected ciphertext, key, nonce, and aad", details: nil))
+        return
+      }
+      
+      do {
+        let ciphertextData = Data(ciphertext.data)
+        let keyData = Data(key.data)
+        let nonceData = Data(nonce.data)
+        let aadData = Data(aad.data)
+        
+        let plaintext = try ARCXCrypto.decryptChunkBytes(ciphertextData, keyData: keyData, nonce: nonceData, aad: aadData)
+        result(FlutterStandardTypedData(bytes: plaintext))
+      } catch {
+        result(FlutterError(code: "DECRYPT_CHUNK_FAILED", message: error.localizedDescription, details: nil))
+      }
       
     default:
       result(FlutterMethodNotImplemented)

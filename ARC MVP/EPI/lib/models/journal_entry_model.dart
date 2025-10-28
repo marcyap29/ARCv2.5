@@ -172,12 +172,12 @@ class JournalEntry extends Equatable {
   factory JournalEntry.fromJson(Map<String, dynamic> json) {
     return JournalEntry(
       id: json['id'] as String,
-      title: json['title'] as String,
-      content: json['content'] as String,
+      title: (json['title'] as String?) ?? 'Untitled',
+      content: (json['content'] as String?) ?? '',
       createdAt: DateTime.parse(json['createdAt'] as String),
       updatedAt: DateTime.parse(json['updatedAt'] as String),
-      tags: List<String>.from(json['tags'] as List),
-      mood: json['mood'] as String,
+      tags: List<String>.from(json['tags'] as List? ?? []),
+      mood: (json['mood'] as String?) ?? '',
       audioUri: json['audioUri'] as String?, // Legacy field
       media: (json['media'] as List?)
           ?.map((item) => MediaItem.fromJson(item as Map<String, dynamic>))

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:my_app/data/models/media_item.dart';
 import 'package:my_app/ui/widgets/full_image_viewer.dart';
 import 'package:my_app/services/media_resolver_service.dart';
+import 'package:my_app/core/services/photo_library_service.dart';
 
 /// Renders journal entry content with inline photo thumbnails
 class EntryContentRenderer extends StatelessWidget {
@@ -171,7 +172,43 @@ class EntryContentRenderer extends StatelessWidget {
           return _buildPlaceholderImage();
         },
       );
-    } else if (!mediaItem.uri.startsWith('ph://')) {
+    } else if (mediaItem.uri.startsWith('ph://')) {
+      // Load thumbnail from photo library
+      return FutureBuilder<String?>(
+        future: PhotoLibraryService.getPhotoThumbnail(mediaItem.uri, size: 160),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return Container(
+              width: 80,
+              height: 80,
+              color: Colors.grey[300],
+              child: const Center(
+                child: SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+              ),
+            );
+          }
+          
+          if (snapshot.hasData && snapshot.data != null) {
+            return Image.file(
+              File(snapshot.data!),
+              width: 80,
+              height: 80,
+              fit: BoxFit.cover,
+              cacheWidth: 160,
+              errorBuilder: (context, error, stackTrace) {
+                return _buildPlaceholderImage();
+              },
+            );
+          }
+          
+          return _buildPlaceholderImage();
+        },
+      );
+    } else {
       // Assume local file path
       return Image.file(
         File(mediaItem.uri),
@@ -184,9 +221,6 @@ class EntryContentRenderer extends StatelessWidget {
         },
       );
     }
-    
-    // Can't display ph:// URIs directly
-    return _buildPlaceholderImage();
   }
 
   /// Build placeholder for missing or unloadable images

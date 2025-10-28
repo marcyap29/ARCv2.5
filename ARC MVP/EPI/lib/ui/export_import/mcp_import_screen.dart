@@ -328,11 +328,13 @@ class _McpImportScreenState extends State<McpImportScreen> {
                       children: [
                         const Icon(Icons.check_circle, color: Colors.green, size: 20),
                         const SizedBox(width: 8),
-                        Text(
-                          'Selected: $_detectedFormat',
-                          style: bodyStyle(context).copyWith(
-                            color: Colors.green,
-                            fontWeight: FontWeight.bold,
+                        Expanded(
+                          child: Text(
+                            'Selected: $_detectedFormat',
+                            style: bodyStyle(context).copyWith(
+                              color: Colors.green,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                         ),
                       ],

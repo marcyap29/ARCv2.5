@@ -1,10 +1,24 @@
 # Bug Tracker - Current Status
 
-**Last Updated:** October 26, 2025
-**Branch:** api-updates
-**Status:** Production Ready ✅ - In-Journal LUMARA Reflection System Complete with Brevity Constraints, InlineReflectionBlock Integration, Conversation-Style Entries
+**Last Updated:** January 30, 2025
+**Branch:** mcp-security
+**Status:** Production Ready ✅ - ARCX Image Loading Fixed, Secure Archive System Complete
 
 ## 📊 Current Status
+
+### 🐛 ARCX Image Loading Fix (January 30, 2025)
+**Fixed critical bug where imported ARCX photos displayed as placeholders:**
+- **Problem**: Photos imported from ARCX archives showed placeholders instead of images
+- **Root Cause**: Imported MediaItems had SHA256 hashes from original MCP export, causing `isMcpMedia` to return true
+- **Impact**: Image renderer tried to load via MCP content-addressed store instead of file paths
+- **Solution**: Clear SHA256 field during import to treat photos as file-based media
+- **Technical Fix**:
+  - Modified `_convertMCPNodeToJournalEntry()` in `arcx_import_service.dart`
+  - Set `sha256: null` when creating MediaItem objects during import
+  - Removed unused SHA256 extraction from MCP media JSON
+  - Added comment explaining these are file-based media, not MCP content-addressed
+- **Files Modified**: `lib/arcx/services/arcx_import_service.dart`
+- **Status**: PRODUCTION READY ✅
 
 ### 🎯 Settings Overhaul & Phase Analysis Integration (October 26, 2025)
 **Streamlined settings with consolidated phase analysis functionality:**

@@ -30,6 +30,7 @@ class _McpExportScreenState extends State<McpExportScreen> {
   int _entryCount = 0;
   int _photoCount = 0;
   String _estimatedSize = 'Calculating...';
+  String _progressMessage = 'Preparing export...'; // Progress message
   
   // Export format selection
   String _exportFormat = 'legacy'; // 'legacy' or 'secure'
@@ -37,6 +38,10 @@ class _McpExportScreenState extends State<McpExportScreen> {
   // ARCX redaction settings (only visible when secure format is selected)
   bool _includePhotoLabels = false;
   bool _dateOnlyTimestamps = false;
+  
+  // Password-based encryption (only for .arcx format)
+  bool _usePasswordEncryption = false;
+  String? _exportPassword;
 
   @override
   void initState() {
@@ -87,8 +92,11 @@ class _McpExportScreenState extends State<McpExportScreen> {
         return;
       }
 
+      // Create progress notifier
+      final progressNotifier = ValueNotifier<String>('Preparing export...');
+      
       // Show progress dialog
-      _showProgressDialog();
+      _showProgressDialog(progressNotifier);
 
       if (_exportFormat == 'secure') {
         // Secure .arcx export
@@ -106,7 +114,7 @@ class _McpExportScreenState extends State<McpExportScreen> {
           }
         }
 
-        // Call ARCX export service
+        // Call ARCX export service with progress callback
         final arcxExport = ARCXExportService();
         final result = await arcxExport.exportSecure(
           outputDir: exportsDir,
@@ -114,10 +122,18 @@ class _McpExportScreenState extends State<McpExportScreen> {
           mediaFiles: _includePhotos ? photoMedia : null,
           includePhotoLabels: _includePhotoLabels,
           dateOnlyTimestamps: _dateOnlyTimestamps,
+          password: _usePasswordEncryption ? _exportPassword : null,
+          onProgress: (message) {
+            if (mounted) {
+              progressNotifier.value = message;
+            }
+          },
         );
 
         // Hide progress dialog
-        Navigator.of(context).pop();
+        if (mounted) {
+          Navigator.of(context).pop();
+        }
 
         if (result.success) {
           setState(() {
@@ -172,28 +188,38 @@ class _McpExportScreenState extends State<McpExportScreen> {
     }
   }
 
-  void _showProgressDialog() {
+  void _showProgressDialog(ValueNotifier<String> progressNotifier) {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const CircularProgressIndicator(),
-            const SizedBox(height: 16),
-            Text(
-              'Creating MCP Package...',
-              style: heading3Style(context),
+      builder: (context) => ValueListenableBuilder<String>(
+        valueListenable: progressNotifier,
+        builder: (context, message, child) {
+          return AlertDialog(
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  _exportFormat == 'secure' 
+                    ? 'Creating Secure Archive...'
+                    : 'Creating MCP Package...',
+                  style: heading3Style(context),
+                ),
+                const SizedBox(height: 16),
+                const LinearProgressIndicator(
+                  valueColor: AlwaysStoppedAnimation<Color>(kcPrimaryColor),
+                  minHeight: 6,
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  message,
+                  style: bodyStyle(context),
+                  textAlign: TextAlign.center,
+                ),
+              ],
             ),
-            const SizedBox(height: 8),
-            Text(
-              'Processing $_entryCount entries and $_photoCount photos',
-              style: bodyStyle(context),
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
+          );
+        },
       ),
     );
   }
@@ -207,7 +233,9 @@ class _McpExportScreenState extends State<McpExportScreen> {
           children: [
             const Icon(Icons.check_circle, color: Colors.green),
             const SizedBox(width: 8),
-            Text('Export Complete', style: heading2Style(context)),
+            Expanded(
+              child: Text('Export Complete', style: heading2Style(context)),
+            ),
           ],
         ),
         content: Column(
@@ -256,11 +284,31 @@ class _McpExportScreenState extends State<McpExportScreen> {
         return;
       }
 
+      // Store messenger reference before async operation
+      final messenger = mounted ? ScaffoldMessenger.of(context) : null;
+      
       await Share.shareXFiles(
         [XFile(filePath)],
         text: 'MCP Package - $_entryCount entries, $_photoCount photos',
         subject: 'Journal Export - ${path.basename(filePath)}',
       );
+      
+      // Show confirmation after successful share (only if still mounted)
+      if (mounted && messenger != null && messenger.mounted) {
+        messenger.showSnackBar(
+          SnackBar(
+            content: const Row(
+              children: [
+                Icon(Icons.check_circle, color: Colors.white),
+                SizedBox(width: 8),
+                Text('Archive saved successfully!'),
+              ],
+            ),
+            backgroundColor: Colors.green,
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
     } catch (e) {
       _showErrorDialog('Failed to share file: $e');
     }
@@ -275,7 +323,9 @@ class _McpExportScreenState extends State<McpExportScreen> {
           children: [
             const Icon(Icons.check_circle, color: Colors.green),
             const SizedBox(width: 8),
-            Text('Secure Archive Created', style: heading2Style(context)),
+            Expanded(
+              child: Text('Secure Archive Created', style: heading2Style(context)),
+            ),
           ],
         ),
         content: Column(
@@ -283,34 +333,32 @@ class _McpExportScreenState extends State<McpExportScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Your encrypted .arcx archive was created successfully!',
-              style: bodyStyle(context),
+              'Archive encrypted',
+              style: bodyStyle(context).copyWith(fontSize: 14),
+              textAlign: TextAlign.center,
             ),
             const SizedBox(height: 16),
             _buildSummaryRow('Entries exported:', '$_entryCount'),
             _buildSummaryRow('Photos exported:', '$_photoCount'),
-            if (result.manifestPath != null) ...[
-              const SizedBox(height: 16),
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.blue[50],
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Files created:',
-                      style: bodyStyle(context).copyWith(fontWeight: FontWeight.bold),
-                    ),
-                    const SizedBox(height: 4),
-                    _buildFilePath('📦 Archive', result.arcxPath!),
-                    _buildFilePath('📄 Manifest', result.manifestPath!),
-                  ],
-                ),
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.blue[50],
+                borderRadius: BorderRadius.circular(8),
               ),
-            ],
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'File created:',
+                    style: bodyStyle(context).copyWith(fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 4),
+                  _buildFilePath('📦 Archive', result.arcxPath!),
+                ],
+              ),
+            ),
             const SizedBox(height: 16),
             Text(
               'Encrypted with AES-256-GCM • Signed with Ed25519',
@@ -330,18 +378,36 @@ class _McpExportScreenState extends State<McpExportScreen> {
           ),
           ElevatedButton(
             onPressed: () async {
+              // Store messenger reference before async operations
+              final messenger = mounted ? ScaffoldMessenger.of(context) : null;
+              
               Navigator.of(context).pop(); // Close dialog first
               
-              // Share both files
-              if (result.manifestPath != null) {
-                await Share.shareXFiles(
-                  [XFile(result.arcxPath!), XFile(result.manifestPath!)],
-                  text: 'Secure Archive - $_entryCount entries, $_photoCount photos',
-                  subject: 'Encrypted Journal Export',
+              // Share the single .arcx file
+              await Share.shareXFiles(
+                [XFile(result.arcxPath!)],
+                text: 'Secure Archive - $_entryCount entries, $_photoCount photos',
+                subject: 'Encrypted Journal Export',
+              );
+              
+              // Show confirmation after successful share (only if still mounted)
+              if (mounted && messenger != null && messenger.mounted) {
+                messenger.showSnackBar(
+                  SnackBar(
+                    content: const Row(
+                      children: [
+                        Icon(Icons.check_circle, color: Colors.white),
+                        SizedBox(width: 8),
+                        Text('Secure archive saved successfully!'),
+                      ],
+                    ),
+                    backgroundColor: Colors.green,
+                    duration: const Duration(seconds: 2),
+                  ),
                 );
               }
             },
-            child: const Text('Share Files'),
+            child: const Text('Share File'),
           ),
         ],
       ),
@@ -364,7 +430,10 @@ class _McpExportScreenState extends State<McpExportScreen> {
   Widget _buildFilePath(String label, String path) {
     // Extract just the filename for display
     final filename = path.split('/').last;
-    final truncatedFilename = filename.length > 40 ? '...${filename.substring(filename.length - 40)}' : filename;
+    // Truncate if too long (keep first 30 and last 10 chars with ellipsis)
+    final truncatedFilename = filename.length > 40 
+        ? '${filename.substring(0, 30)}...${filename.substring(filename.length - 10)}' 
+        : filename;
     
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 2),
@@ -391,6 +460,93 @@ class _McpExportScreenState extends State<McpExportScreen> {
     );
   }
 
+  void _showPasswordDialog() {
+    final controller = TextEditingController();
+    final confirmController = TextEditingController();
+    bool showError = false;
+    
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          title: Row(
+            children: [
+              const Icon(Icons.lock, color: Colors.green),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text('Set Password', style: heading2Style(context)),
+              ),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Enter a password to create a portable archive that works on any device.',
+                style: bodyStyle(context),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: controller,
+                obscureText: true,
+                decoration: const InputDecoration(
+                  labelText: 'Password',
+                  hintText: 'Enter a strong password',
+                ),
+                onChanged: (_) {
+                  if (showError) {
+                    setState(() => showError = false);
+                  }
+                },
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: confirmController,
+                obscureText: true,
+                decoration: InputDecoration(
+                  labelText: 'Confirm Password',
+                  hintText: 'Re-enter the password',
+                  errorText: showError ? 'Passwords do not match' : null,
+                ),
+                onChanged: (_) {
+                  if (showError) {
+                    setState(() => showError = false);
+                  }
+                },
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                if (controller.text.isEmpty) {
+                  setState(() => showError = true);
+                  return;
+                }
+                
+                if (controller.text != confirmController.text) {
+                  setState(() => showError = true);
+                  return;
+                }
+                
+                this.setState(() {
+                  _exportPassword = controller.text;
+                });
+                Navigator.of(context).pop();
+              },
+              child: const Text('Confirm'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   void _showErrorDialog(String message) {
     showDialog(
       context: context,
@@ -399,7 +555,9 @@ class _McpExportScreenState extends State<McpExportScreen> {
           children: [
             const Icon(Icons.error, color: Colors.red),
             const SizedBox(width: 8),
-            Text('Export Failed', style: heading2Style(context)),
+            Expanded(
+              child: Text('Export Failed', style: heading2Style(context)),
+            ),
           ],
         ),
         content: Text(message, style: bodyStyle(context)),
@@ -534,11 +692,13 @@ class _McpExportScreenState extends State<McpExportScreen> {
                       children: [
                         const Icon(Icons.security, color: Colors.green, size: 20),
                         const SizedBox(width: 8),
-                        Text(
-                          'Security & Privacy Settings',
-                          style: heading3Style(context).copyWith(
-                            color: Colors.green,
-                            fontWeight: FontWeight.bold,
+                        Expanded(
+                          child: Text(
+                            'Security & Privacy Settings',
+                            style: heading3Style(context).copyWith(
+                              color: Colors.green,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                         ),
                       ],
@@ -565,6 +725,49 @@ class _McpExportScreenState extends State<McpExportScreen> {
                         });
                       },
                     ),
+                    const SizedBox(height: 8),
+                  // Password encryption temporarily disabled - causes hangs with large files
+                  // _buildOptionTile(
+                  //   title: 'Use password encryption',
+                  //   subtitle: 'Create portable archives that work on any device (requires password)',
+                  //   value: _usePasswordEncryption,
+                  //   onChanged: (value) {
+                  //     setState(() {
+                  //       _usePasswordEncryption = value;
+                  //       if (value && _exportPassword == null) {
+                  //         _showPasswordDialog();
+                  //       }
+                  //     });
+                  //   },
+                  // ),
+                    if (_usePasswordEncryption && _exportPassword != null)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 8, left: 16),
+                        child: Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.green[50],
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: Colors.green[200]!),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.lock, size: 16, color: Colors.green),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  'Password set',
+                                  style: bodyStyle(context),
+                                ),
+                              ),
+                              TextButton(
+                                onPressed: _showPasswordDialog,
+                                child: const Text('Change'),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
                   ],
                 ),
               ),

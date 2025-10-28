@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:my_app/arc/core/journal_capture_state.dart';
@@ -30,6 +31,7 @@ import 'package:hive/hive.dart';
 import 'package:my_app/mode/first_responder/fr_mode_suggestion_service.dart';
 import 'package:my_app/mode/first_responder/fr_settings_cubit.dart';
 import 'package:my_app/core/services/draft_cache_service.dart';
+import 'package:my_app/platform/photo_bridge.dart';
 
 class JournalCaptureCubit extends Cubit<JournalCaptureState> {
   final JournalRepository _journalRepository;
@@ -351,38 +353,58 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
       List<MediaItem> processedMedia = [];
       if (media != null && media.isNotEmpty) {
         for (final mediaItem in media) {
-          if (mediaItem.type == 'photo' && !mediaItem.uri.contains('/photos/')) {
-            // This is a temporary photo that needs to be copied to permanent storage
-            try {
-              final bytes = await File(mediaItem.uri).readAsBytes();
-              final digest = sha256.convert(bytes);
-              final hash = digest.toString();
-              
-              final appDir = await getApplicationDocumentsDirectory();
-              final fileName = 'photo_${hash.substring(0, 16)}.jpg';
-              final permanentDir = '${appDir.path}/photos';
-              await Directory(permanentDir).create(recursive: true);
-              final permanentPath = '$permanentDir/$fileName';
-              
-              await File(mediaItem.uri).copy(permanentPath);
-              
-              // Create new MediaItem with permanent path and hash
-              final processedItem = MediaItem(
-                id: mediaItem.id,
-                type: mediaItem.type,
-                uri: permanentPath,
-                createdAt: mediaItem.createdAt,
-                analysisData: mediaItem.analysisData,
-                sha256: hash,
-                thumbUri: mediaItem.thumbUri,
-                fullRef: mediaItem.fullRef,
-              );
-              
-              processedMedia.add(processedItem);
-              print('DEBUG: Copied photo to permanent storage: $permanentPath');
-            } catch (e) {
-              print('ERROR: Failed to copy photo to permanent storage: $e');
-              // Keep original media item if copying fails
+          if (mediaItem.type == MediaType.image && !mediaItem.uri.contains('/photos/')) {
+            // Get photo bytes from ph:// URI or file path
+            Uint8List? bytes;
+            
+            if (mediaItem.uri.startsWith('ph://')) {
+              // Get bytes from photo library
+              final localId = PhotoBridge.extractLocalIdentifier(mediaItem.uri);
+              if (localId != null) {
+                final photoData = await PhotoBridge.getPhotoBytes(localId);
+                if (photoData != null) {
+                  bytes = photoData['bytes'] as Uint8List;
+                  print('DEBUG: Got photo bytes from photo library for: ${mediaItem.id}');
+                }
+              }
+            } else {
+              // Get bytes from file path
+              try {
+                bytes = await File(mediaItem.uri).readAsBytes();
+              } catch (e) {
+                print('ERROR: Failed to read photo from file: ${mediaItem.uri}: $e');
+              }
+            }
+            
+            if (bytes != null) {
+              try {
+                // Compute hash and save to permanent storage
+                final digest = sha256.convert(bytes);
+                final hash = digest.toString();
+                
+                final appDir = await getApplicationDocumentsDirectory();
+                final fileName = '$hash.jpg';
+                final permanentDir = '${appDir.path}/photos';
+                await Directory(permanentDir).create(recursive: true);
+                final permanentPath = '$permanentDir/$fileName';
+                
+                await File(permanentPath).writeAsBytes(bytes);
+                
+                // Create new MediaItem with permanent path
+                final processedItem = mediaItem.copyWith(
+                  uri: permanentPath,
+                  sha256: hash,
+                );
+                
+                processedMedia.add(processedItem);
+                print('DEBUG: Saved photo to permanent storage: $permanentPath');
+              } catch (e) {
+                print('ERROR: Failed to save photo to permanent storage: $e');
+                // Keep original media item if saving fails
+                processedMedia.add(mediaItem);
+              }
+            } else {
+              print('ERROR: Could not get bytes for photo ${mediaItem.id}, keeping original URI');
               processedMedia.add(mediaItem);
             }
           } else {

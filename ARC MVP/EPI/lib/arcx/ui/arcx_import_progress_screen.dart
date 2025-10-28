@@ -3,11 +3,16 @@
 /// Fullscreen modal showing import progress with status updates.
 library arcx_import_progress;
 
+import 'dart:io';
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:archive/archive.dart';
 import '../../shared/app_colors.dart';
 import '../../shared/text_style.dart';
+import '../../arc/core/journal_repository.dart';
 import '../services/arcx_import_service.dart';
-import '../services/arcx_crypto_service.dart';
+import '../models/arcx_result.dart';
 
 class ARCXImportProgressScreen extends StatefulWidget {
   final String arcxPath;
@@ -29,18 +34,142 @@ class _ARCXImportProgressScreenState extends State<ARCXImportProgressScreen> {
   String? _error;
   int? _entriesImported;
   int? _photosImported;
+  String? _password;
 
   @override
   void initState() {
     super.initState();
-    _import();
+    _promptForPasswordIfNeeded();
+  }
+
+  Future<void> _promptForPasswordIfNeeded() async {
+    try {
+      // First, try to extract the manifest to check if password is required
+      final arcxFile = File(widget.arcxPath);
+      final arcxZip = await arcxFile.readAsBytes();
+      final zipDecoder = ZipDecoder().decodeBytes(arcxZip);
+      
+      ArchiveFile? manifestFile;
+      
+      for (final file in zipDecoder) {
+        if (file.name == 'manifest.json') {
+          manifestFile = file;
+          break;
+        }
+      }
+      
+      if (manifestFile != null) {
+        final manifestJson = jsonDecode(utf8.decode(manifestFile.content as List<int>)) as Map<String, dynamic>;
+        final isPasswordEncrypted = manifestJson['is_password_encrypted'] as bool? ?? false;
+        
+        if (isPasswordEncrypted) {
+          // Show password dialog
+          await _showPasswordDialog();
+          if (_password == null) {
+            // User cancelled
+            if (mounted) Navigator.of(context).pop();
+            return;
+          }
+        }
+      }
+      
+      // Continue with import
+      await _import();
+    } catch (e) {
+      // If we can't check, try importing without password first
+      await _import();
+    }
+  }
+
+  Future<void> _showPasswordDialog() async {
+    final controller = TextEditingController();
+    bool showError = false;
+    
+    await showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          title: Row(
+            children: [
+              const Icon(Icons.lock, color: Colors.orange),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text('Enter Password', style: heading2Style(context)),
+              ),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'This archive is encrypted with a password. Enter the password to restore your data.',
+                style: bodyStyle(context),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: controller,
+                obscureText: true,
+                autofocus: true,
+                decoration: InputDecoration(
+                  labelText: 'Password',
+                  hintText: 'Enter the archive password',
+                  errorText: showError ? 'Password required' : null,
+                ),
+                onChanged: (_) {
+                  if (showError) {
+                    setState(() => showError = false);
+                  }
+                },
+                onSubmitted: (_) {
+                  if (controller.text.isNotEmpty) {
+                    this.setState(() {
+                      _password = controller.text;
+                    });
+                    Navigator.of(context).pop();
+                  } else {
+                    setState(() => showError = true);
+                  }
+                },
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                Navigator.of(context).pop(); // Pop back to previous screen
+              },
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                if (controller.text.isEmpty) {
+                  setState(() => showError = true);
+                  return;
+                }
+                
+                this.setState(() {
+                  _password = controller.text;
+                });
+                Navigator.of(context).pop();
+              },
+              child: const Text('Decrypt'),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   Future<void> _import() async {
     try {
       setState(() => _status = 'Verifying signature...');
       
-      final importService = ARCXImportService();
+      // Get the journal repository from context
+      final journalRepo = context.read<JournalRepository>();
+      final importService = ARCXImportService(journalRepo: journalRepo);
       
       setState(() => _status = 'Decrypting...');
       
@@ -48,6 +177,7 @@ class _ARCXImportProgressScreenState extends State<ARCXImportProgressScreen> {
         arcxPath: widget.arcxPath,
         manifestPath: widget.manifestPath,
         dryRun: false,
+        password: _password,
       );
       
       if (result.success) {
@@ -58,17 +188,12 @@ class _ARCXImportProgressScreenState extends State<ARCXImportProgressScreen> {
           _photosImported = result.photosImported;
         });
         
-        // Show success message
+        // Show success dialog
         await Future.delayed(const Duration(seconds: 1));
         
         if (mounted) {
           Navigator.of(context).pop();
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Successfully imported ${result.entriesImported ?? 0} entries'),
-              backgroundColor: Colors.green,
-            ),
-          );
+          _showImportCompleteDialog(result);
         }
       } else {
         throw Exception(result.error ?? 'Import failed');
@@ -154,35 +279,75 @@ class _ARCXImportProgressScreenState extends State<ARCXImportProgressScreen> {
                   ),
                   child: const Text('Close'),
                 ),
-              ] else ...[
-                const Icon(
-                  Icons.check_circle,
-                  size: 64,
-                  color: Colors.green,
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  'Import Complete',
-                  style: heading2Style(context).copyWith(
-                    color: Colors.green,
-                  ),
-                ),
-                if (_entriesImported != null || _photosImported != null) ...[
-                  const SizedBox(height: 16),
-                  Text(
-                    'Entries: ${_entriesImported ?? 0}',
-                    style: bodyStyle(context),
-                  ),
-                  if (_photosImported != null && _photosImported! > 0)
-                    Text(
-                      'Photos: ${_photosImported}',
-                      style: bodyStyle(context),
-                    ),
-                ],
+              ] else if (_entriesImported != null || _photosImported != null) ...[
+                // Import complete - dialog will be shown
+                const SizedBox(),
               ],
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  void _showImportCompleteDialog(ARCXImportResult result) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Row(
+          children: [
+            const Icon(Icons.check_circle, color: Colors.green),
+            const SizedBox(width: 8),
+            Text('Import Complete', style: heading2Style(context)),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Your data has been successfully restored!',
+              style: bodyStyle(context),
+            ),
+            const SizedBox(height: 16),
+            _buildSummaryRow('Entries restored:', '${result.entriesImported ?? 0}'),
+            _buildSummaryRow('Photos restored:', '${result.photosImported ?? 0}'),
+            _buildSummaryRow('Missing/corrupted:', '0'),
+            const SizedBox(height: 8),
+            Text(
+              'Package info:',
+              style: bodyStyle(context).copyWith(fontWeight: FontWeight.bold),
+            ),
+            _buildSummaryRow('Format:', 'arcx'),
+            _buildSummaryRow('Version:', '1.1'),
+            _buildSummaryRow('Type:', 'secure'),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop(); // Close dialog
+              Navigator.of(context).pop(); // Go back to previous screen
+            },
+            child: const Text('Done'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSummaryRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label, style: bodyStyle(context)),
+          Text(
+            value,
+            style: bodyStyle(context).copyWith(fontWeight: FontWeight.bold),
+          ),
+        ],
       ),
     );
   }

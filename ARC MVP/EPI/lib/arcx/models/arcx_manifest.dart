@@ -18,6 +18,16 @@ class ARCXManifest {
   final Map<String, dynamic> redactionReport;
   final Map<String, dynamic>? metadata;
   
+  // Password-based encryption fields
+  final bool isPasswordEncrypted;
+  final String? saltB64;
+  
+  // Chunked format fields
+  final String? exportId;
+  final int? chunkSize;
+  final int? totalChunks;
+  final String? formatVersion;
+  
   ARCXManifest({
     required this.version,
     required this.algo,
@@ -32,6 +42,12 @@ class ARCXManifest {
     required this.appVersion,
     required this.redactionReport,
     this.metadata,
+    this.isPasswordEncrypted = false,
+    this.saltB64,
+    this.exportId,
+    this.chunkSize,
+    this.totalChunks,
+    this.formatVersion,
   });
   
   factory ARCXManifest.fromJson(Map<String, dynamic> json) {
@@ -49,6 +65,12 @@ class ARCXManifest {
       appVersion: json['app_version'] as String,
       redactionReport: json['redaction_report'] as Map<String, dynamic>,
       metadata: json['metadata'] as Map<String, dynamic>?,
+      isPasswordEncrypted: json['is_password_encrypted'] as bool? ?? false,
+      saltB64: json['salt_b64'] as String?,
+      exportId: json['export_id'] as String?,
+      chunkSize: json['chunk_size'] as int?,
+      totalChunks: json['total_chunks'] as int?,
+      formatVersion: json['format_version'] as String?,
     );
   }
   
@@ -67,6 +89,12 @@ class ARCXManifest {
       'app_version': appVersion,
       'redaction_report': redactionReport,
       if (metadata != null) 'metadata': metadata,
+      'is_password_encrypted': isPasswordEncrypted,
+      if (saltB64 != null) 'salt_b64': saltB64,
+      if (exportId != null) 'export_id': exportId,
+      if (chunkSize != null) 'chunk_size': chunkSize,
+      if (totalChunks != null) 'total_chunks': totalChunks,
+      if (formatVersion != null) 'format_version': formatVersion,
     };
   }
   

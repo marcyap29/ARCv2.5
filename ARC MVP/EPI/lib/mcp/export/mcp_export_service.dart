@@ -476,12 +476,13 @@ class McpExportService {
       if (await file.exists()) {
         try {
           contentBytes = await file.readAsBytes();
+          print('✅ ARCX Export: Got photo bytes from file for: ${mediaFile.id}');
         } catch (e) {
           print('⚠️ ARCX Export: Could not read file: ${mediaFile.uri}: $e');
         }
       }
       
-      // 2. Try PhotoBridge if it's a photo library URI
+      // 2. Try PhotoBridge for ph:// URIs
       if (contentBytes == null && mediaFile.uri.startsWith('ph://')) {
         try {
           final localId = PhotoBridge.extractLocalIdentifier(mediaFile.uri);
@@ -495,6 +496,31 @@ class McpExportService {
         } catch (e) {
           print('⚠️ ARCX Export: PhotoBridge failed for ${mediaFile.uri}: $e');
         }
+      }
+      
+      // 2b. Alternative for ph:// URIs: Use PhotoLibraryService to get thumbnail path
+      if (contentBytes == null && mediaFile.uri.startsWith('ph://')) {
+        try {
+          final thumbnailPath = await PhotoLibraryService.getPhotoThumbnail(mediaFile.uri, size: 1920);
+          if (thumbnailPath != null) {
+            final thumbFile = File(thumbnailPath);
+            if (await thumbFile.exists()) {
+              contentBytes = await thumbFile.readAsBytes();
+              print('✅ ARCX Export: Got photo bytes via PhotoLibraryService thumbnail for: ${mediaFile.id}');
+            }
+          }
+        } catch (e) {
+          print('⚠️ ARCX Export: PhotoLibraryService thumbnail failed for ${mediaFile.uri}: $e');
+        }
+      }
+      
+      // 3. Fallback for legacy entries where files were never properly persisted
+      if (contentBytes == null && mediaFile.uri.contains('/Documents/photos/')) {
+        print('⚠️ ARCX Export: Legacy entry detected for: ${mediaFile.id}');
+        print('   File path: ${mediaFile.uri}');
+        print('   Photo was saved before the persistence fix and cannot be automatically recovered.');
+        print('   The original photo still exists in the iOS Photo Library, but we cannot match it without the ph:// identifier.');
+        print('   Recommendation: Re-add photos from Photo Library to a new journal entry for proper export.');
       }
       
       // If still no bytes, skip this photo (don't create invalid pointer)

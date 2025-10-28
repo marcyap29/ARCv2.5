@@ -2,6 +2,20 @@
 
 ## [Unreleased]
 
+### 🐛 **ARCX Image Loading Fix** - January 30, 2025
+
+#### **Bug: Imported ARCX images not displaying in timeline** ✅ **RESOLVED**
+- **Problem**: Photos imported from ARCX archives showed placeholders instead of images
+- **Root Cause**: Imported MediaItems had SHA256 hashes from original MCP export, causing `isMcpMedia` to return true
+- **Impact**: Image renderer tried to load via MCP content-addressed store instead of file paths
+- **Solution**: Clear SHA256 field during import to treat photos as file-based media
+- **Changes**:
+  - Modified `arcx_import_service.dart` to set `sha256: null` when creating MediaItem objects
+  - Added comment explaining these are file-based media, not MCP content-addressed
+  - Removed unused SHA256 extraction from MCP media JSON
+- **Files Modified**: `lib/arcx/services/arcx_import_service.dart`
+- **Status**: PRODUCTION READY ✅
+
 ### 🔐 **ARCX Secure Archive System** - January 30, 2025
 
 #### **Feature: Complete iOS-Native Encrypted Archive Format (.arcx)** ✅ **PRODUCTION READY**
