@@ -28,6 +28,10 @@ class EnhancedLumaraApi {
   LLMProviderBase? _llmProvider;
   LumaraAPIConfig? _apiConfig;
   
+  // Rate limiting
+  DateTime? _lastRequestTime;
+  static const Duration _minRequestInterval = Duration(seconds: 3);
+  
   bool _initialized = false;
 
   EnhancedLumaraApi(this._analytics);
@@ -92,6 +96,15 @@ class EnhancedLumaraApi {
       if (!_initialized) {
         await initialize();
       }
+      
+      // Rate limiting check
+      final now = DateTime.now();
+      if (_lastRequestTime != null && 
+          now.difference(_lastRequestTime!) < _minRequestInterval) {
+        print('LUMARA: Rate limiting - too many requests, using fallback');
+        return _generateIntelligentFallback(entryText, [], _parsePhaseHint(phase));
+      }
+      _lastRequestTime = now;
       
       final currentPhase = _parsePhaseHint(phase);
       
@@ -169,8 +182,25 @@ class EnhancedLumaraApi {
             'userPrompt': userPrompt,
           };
           
-          // Generate primary response
-          final geminiResponse = await _llmProvider!.generateResponse(context);
+          // Generate primary response with retry logic
+          String geminiResponse;
+          int retryCount = 0;
+          const maxRetries = 2;
+          
+          while (retryCount <= maxRetries) {
+            try {
+              geminiResponse = await _llmProvider!.generateResponse(context);
+              break; // Success, exit retry loop
+            } catch (e) {
+              retryCount++;
+              if (retryCount > maxRetries || 
+                  (!e.toString().contains('503') && !e.toString().contains('overloaded'))) {
+                rethrow; // Re-throw if not a retryable error or max retries reached
+              }
+              print('LUMARA: Gemini API retry $retryCount/$maxRetries - waiting 2 seconds...');
+              await Future.delayed(const Duration(seconds: 2));
+            }
+          }
           print('LUMARA Enhanced API: ✓ generateResponse completed');
           print('LUMARA Enhanced API: Response length: ${geminiResponse.length}');
           
@@ -222,7 +252,14 @@ class EnhancedLumaraApi {
         } catch (e) {
           print('LUMARA Enhanced API: ✗ Error generating response: $e');
           print('LUMARA: Error generating Gemini response: $e');
-          // Fall through to template-based response
+          
+          // Check if it's a Gemini API overload error
+          if (e.toString().contains('503') || e.toString().contains('overloaded') || e.toString().contains('UNAVAILABLE')) {
+            print('LUMARA: Gemini API overloaded - using intelligent fallback');
+            return _generateIntelligentFallback(entryText, matches, currentPhase);
+          }
+          
+          // Fall through to template-based response for other errors
         }
       } else {
         print('LUMARA Enhanced API: ✗ No LLM provider available - falling back to template');
@@ -297,6 +334,63 @@ class EnhancedLumaraApi {
     suggestions.add('If energy is low, try recording a voice note to capture your current tone.');
 
     return suggestions;
+  }
+
+  /// Generate intelligent fallback when Gemini API is overloaded
+  String _generateIntelligentFallback(String entryText, List<MatchedNode> matches, PhaseHint? currentPhase) {
+    // Detect abstract register for appropriate response structure
+    final isAbstract = scoring.LumaraResponseScoring.detectAbstractRegister(entryText);
+    
+    // Generate ECHO-based response using template logic
+    String empathize;
+    List<String> clarify;
+    String highlight;
+    String open;
+    
+    // Empathize - mirror the tone
+    if (isAbstract) {
+      empathize = "This feels like a moment of reflection and scope where something meaningful is shifting.";
+    } else {
+      empathize = "This feels like a moment of strong emotion where something important is happening.";
+    }
+    
+    // Clarify - adaptive questions based on register
+    if (isAbstract) {
+      clarify = [
+        "What aspect of this experience feels most real to you right now?",
+        "And what emotion sits beneath the perspective you're describing?"
+      ];
+    } else {
+      clarify = ["What part of this feels most present for you now?"];
+    }
+    
+    // Highlight - use matches if available
+    if (matches.isNotEmpty) {
+      highlight = "You've reflected on similar themes before — like ${matches.first.excerpt?.substring(0, 50) ?? 'your previous entries'}.";
+    } else {
+      highlight = "Your writing shows awareness developing through these moments.";
+    }
+    
+    // Open - phase-aware ending
+    switch (currentPhase) {
+      case PhaseHint.recovery:
+        open = "Would it help to rest with this feeling for now, or note one gentle step forward?";
+        break;
+      case PhaseHint.breakthrough:
+        open = "What truth do you want to carry from this realization into your next phase?";
+        break;
+      case PhaseHint.transition:
+      case PhaseHint.consolidation:
+        open = "Would clarifying one anchor or value help guide your next move?";
+        break;
+      default:
+        open = "Would it help to explore what this is teaching you, or pause and return later?";
+    }
+    
+    // Combine into ECHO response
+    final response = [empathize, ...clarify, highlight, open].join(' ');
+    
+    return '✨ Reflection\n\n$response';
   }
 
   Future<String> _generateFallbackResponse(String intent, String? phase) async {
