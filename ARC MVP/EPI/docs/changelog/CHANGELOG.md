@@ -33,6 +33,51 @@
 
 ---
 
+### 🌼 **LUMARA v2.2 - Question/Expansion Bias & Multimodal Hooks** - January 28, 2025
+
+#### **Feature: Enhanced Question Bias and Multimodal Integration** ✅ **PRODUCTION READY**
+
+**Question/Expansion Bias System**:
+- **Phase-Aware Question Tuning**: Recovery=low questions, Discovery/Expansion=high questions
+- **Entry Type Bias**: Draft entries get more questions (2), Photo/Audio get fewer (1)
+- **Adaptive Question Allowance**: Calculates optimal question count based on phase + entry type + abstract register
+- **Smart Question Distribution**: Abstract register can lift question count to 2, concrete stays at 1
+
+**Multimodal Hook Layer**:
+- **Symbolic References**: Privacy-safe references like "photo titled 'steady' last summer"
+- **Time Buckets**: Automatic time context (last summer, this spring, 2 years ago)
+- **Content Protection**: Never quotes or exposes private content, only symbolic labels
+- **Weighted Selection**: Photos prioritized (0.35), audio (0.25), chat (0.2), video (0.15), journal (0.05)
+
+**Enhanced Response Structure**:
+- **ECHO Framework**: Empathize → Clarify → Highlight → Open
+- **Sentence Limits**: 2-4 sentences (5 allowed for Abstract Register)
+- **Phase-Aware Endings**: Recovery=gentle containment, Breakthrough=integration focus
+- **Entry Type Adaptation**: Drafts get more exploratory questions, media entries get concise responses
+
+**Technical Implementation**:
+- Added `EntryType` enum and `questionAllowance()` calculation function
+- Enhanced `ScoringInput` with `entryType` parameter
+- Updated `_generateIntelligentFallback()` with adaptive question allowance
+- Improved phase and entry type conversion methods
+- Maintained backward compatibility with existing scoring system
+
+**User Experience**:
+- **Draft Writing**: More questions to help develop thoughts (2 questions allowed)
+- **Recovery Phase**: Gentle containment with minimal questions
+- **Discovery/Expansion**: High question bias for exploration
+- **Media Entries**: Concise responses with symbolic references
+- **Abstract Writing**: Enhanced with 2 clarifying questions and up to 5 sentences
+
+**Files Modified**:
+- `lib/lumara/prompts/lumara_prompts.dart` - Updated to v2.2 system prompt
+- `lib/lumara/services/lumara_response_scoring.dart` - Added EntryType and questionAllowance()
+- `lib/lumara/services/enhanced_lumara_api.dart` - Enhanced with multimodal hooks and bias
+
+**Status**: PRODUCTION READY ✅
+
+---
+
 ### 🌼 **LUMARA Error Handling & Resilience** - January 28, 2025
 
 #### **Feature: Enhanced Error Handling for Gemini API Overload** ✅ **PRODUCTION READY**
