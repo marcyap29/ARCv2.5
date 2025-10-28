@@ -13,6 +13,8 @@ import 'lumara_response_formatter.dart';
 import '../llm/llm_provider_factory.dart';
 import '../llm/llm_provider.dart';
 import '../config/api_config.dart';
+import 'lumara_response_scoring.dart' as scoring;
+import '../prompts/lumara_prompts.dart';
 
 /// Enhanced LUMARA API with multimodal reflection
 class EnhancedLumaraApi {
@@ -161,16 +163,54 @@ class EnhancedLumaraApi {
           }
           
           print('LUMARA Enhanced API: Calling generateResponse()...');
+          // Use the new in-journal ECHO prompt
           final context = {
-            'systemPrompt': 'You are LUMARA, a reflective AI partner. Generate thoughtful, personalized reflection prompts based on the user\'s current thoughts. CRITICAL: Keep responses to 1-2 sentences maximum (150 characters total). Be brief, profound, and thought-provoking.',
+            'systemPrompt': LumaraPrompts.inJournalPrompt,
             'userPrompt': userPrompt,
           };
           
+          // Generate primary response
           final geminiResponse = await _llmProvider!.generateResponse(context);
           print('LUMARA Enhanced API: ✓ generateResponse completed');
           print('LUMARA Enhanced API: Response length: ${geminiResponse.length}');
           
-          final formatted = '✨ Reflection\n\n$geminiResponse';
+          // Score the response using the scoring heuristic
+          final priorKeywords = matches
+              .where((m) => m.excerpt != null)
+              .map((m) => m.excerpt!.split(' ').take(5).join(' '))
+              .toList();
+          final matchedHints = matches.take(1).map((m) => m.id).toList();
+          
+          final scoringInput = scoring.ScoringInput(
+            userText: entryText,
+            candidate: geminiResponse,
+            phaseHint: _convertToScoringPhaseHint(currentPhase),
+            priorKeywords: priorKeywords,
+            matchedNodeHints: matchedHints,
+          );
+          
+          var scoredResponse = geminiResponse;
+          final breakdown = scoring.LumaraResponseScoring.scoreLumaraResponse(scoringInput);
+          
+          print('🌼 LUMARA Response Scoring: resonance=${breakdown.resonance.toStringAsFixed(2)}, empathy=${breakdown.empathy.toStringAsFixed(2)}, depth=${breakdown.depth.toStringAsFixed(2)}, agency=${breakdown.agency.toStringAsFixed(2)}');
+          
+          // If below threshold, auto-fix
+          if (breakdown.resonance < scoring.minResonance) {
+            print('🌼 Auto-fixing response below threshold (${breakdown.resonance.toStringAsFixed(2)})');
+            scoredResponse = scoring.LumaraResponseScoring.autoTightenToEcho(geminiResponse);
+            final fixedBreakdown = scoring.LumaraResponseScoring.scoreLumaraResponse(
+              scoring.ScoringInput(
+                userText: entryText,
+                candidate: scoredResponse,
+                phaseHint: _convertToScoringPhaseHint(currentPhase),
+                priorKeywords: priorKeywords,
+                matchedNodeHints: matchedHints,
+              ),
+            );
+            print('🌼 After auto-fix: resonance=${fixedBreakdown.resonance.toStringAsFixed(2)}');
+          }
+          
+          final formatted = '✨ Reflection\n\n$scoredResponse';
           
           _analytics.logLumaraEvent('reflection_generated', data: {
             'matches': matches.length,
@@ -212,6 +252,26 @@ class EnhancedLumaraApi {
       (e) => e.name == phase.toLowerCase(),
       orElse: () => PhaseHint.discovery,
     );
+  }
+
+  /// Convert reflective_node PhaseHint to scoring PhaseHint
+  scoring.PhaseHint? _convertToScoringPhaseHint(PhaseHint? phase) {
+    if (phase == null) return null;
+    
+    switch (phase) {
+      case PhaseHint.discovery:
+        return scoring.PhaseHint.discovery;
+      case PhaseHint.expansion:
+        return scoring.PhaseHint.expansion;
+      case PhaseHint.transition:
+        return scoring.PhaseHint.transition;
+      case PhaseHint.consolidation:
+        return scoring.PhaseHint.consolidation;
+      case PhaseHint.recovery:
+        return scoring.PhaseHint.recovery;
+      case PhaseHint.breakthrough:
+        return scoring.PhaseHint.breakthrough;
+    }
   }
 
   List<String> _detectCrossModalPatterns(List<MatchedNode> matches) {
