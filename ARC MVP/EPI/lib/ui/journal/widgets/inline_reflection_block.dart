@@ -9,6 +9,7 @@ class InlineReflectionBlock extends StatelessWidget {
   final VoidCallback onSoften;
   final VoidCallback onMoreDepth;
   final VoidCallback onContinueWithLumara;
+  final VoidCallback onDelete;
 
   const InlineReflectionBlock({
     super.key,
@@ -19,6 +20,7 @@ class InlineReflectionBlock extends StatelessWidget {
     required this.onSoften,
     required this.onMoreDepth,
     required this.onContinueWithLumara,
+    required this.onDelete,
   });
 
   @override
@@ -45,7 +47,7 @@ class InlineReflectionBlock extends StatelessWidget {
       ),
       child: Padding(
         padding: const EdgeInsets.fromLTRB(12, 10, 12, 6),
-        child: Column(
+          child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Header with LUMARA icon and phase
@@ -81,6 +83,16 @@ class InlineReflectionBlock extends StatelessWidget {
                     ),
                   ),
                 ],
+                const Spacer(),
+                // Delete button
+                IconButton(
+                  icon: const Icon(Icons.close, size: 18),
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                  onPressed: onDelete,
+                  tooltip: 'Delete',
+                  color: theme.colorScheme.onSurfaceVariant.withOpacity(0.6),
+                ),
               ],
             ),
             const SizedBox(height: 8),

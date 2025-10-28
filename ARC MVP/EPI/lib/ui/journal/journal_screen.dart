@@ -1452,6 +1452,7 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
         onSoften: () => _onSoftenReflection(index),
         onMoreDepth: () => _onMoreDepthReflection(index),
         onContinueWithLumara: _onContinueWithLumara,
+        onDelete: () => _onDeleteReflection(index),
       ));
       
       // Add a text field below each reflection to continue the conversation
@@ -2520,6 +2521,13 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
     } catch (e) {
       _analytics.log('lumara_depth_error', {'error': e.toString()});
     }
+  }
+
+  void _onDeleteReflection(int index) {
+    setState(() {
+      _entryState.blocks.removeAt(index);
+    });
+    _analytics.logLumaraEvent('inline_reflection_deleted');
   }
 
   void _onContinueWithLumara() {
