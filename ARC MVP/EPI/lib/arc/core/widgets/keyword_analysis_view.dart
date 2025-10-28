@@ -23,6 +23,7 @@ class KeywordAnalysisView extends StatefulWidget {
   final String? selectedLocation;
   final String? selectedPhase;
   final List<MediaItem>? mediaItems; // Media items from journal screen
+  final List<Map<String, dynamic>>? lumaraBlocks; // LUMARA inline blocks
   
   const KeywordAnalysisView({
     super.key,
@@ -39,6 +40,7 @@ class KeywordAnalysisView extends StatefulWidget {
     this.selectedLocation,
     this.selectedPhase,
     this.mediaItems,
+    this.lumaraBlocks,
   });
 
   @override
@@ -119,6 +121,7 @@ class _KeywordAnalysisViewState extends State<KeywordAnalysisView>
         selectedPhase: widget.selectedPhase,
         context: context,
         media: widget.mediaItems, // Pass media items
+        blocks: widget.lumaraBlocks, // Pass LUMARA blocks
       );
     } else {
       // Save new entry
@@ -130,6 +133,7 @@ class _KeywordAnalysisViewState extends State<KeywordAnalysisView>
         emotionReason: widget.initialReason,
         context: context,
         media: widget.mediaItems, // Pass media items
+        blocks: widget.lumaraBlocks, // Pass LUMARA blocks
       );
     }
     

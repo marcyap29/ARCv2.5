@@ -901,6 +901,7 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
               }
               return mediaItems;
             })(),
+            lumaraBlocks: _entryState.blocks.map((b) => b.toJson()).toList(),
             ),
           );
         },

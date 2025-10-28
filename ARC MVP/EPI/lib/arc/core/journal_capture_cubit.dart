@@ -339,6 +339,7 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
     String? emotionReason,
     BuildContext? context,
     List<MediaItem>? media,
+    List<Map<String, dynamic>>? blocks,
   }) async {
     try {
       print('DEBUG: JournalCaptureCubit.saveEntryWithKeywords - Media count: ${media?.length ?? 0}');
@@ -415,6 +416,11 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
       }
       
       final now = DateTime.now();
+      // Save LUMARA blocks to metadata
+      final metadata = blocks != null && blocks.isNotEmpty
+          ? {'inlineBlocks': blocks}
+          : null;
+      
       final entry = JournalEntry(
         id: const Uuid().v4(),
         title: _generateTitle(content),
@@ -428,6 +434,7 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
         emotion: emotion,
         emotionReason: emotionReason,
         media: processedMedia, // Use processed media with permanent paths
+        metadata: metadata, // Include LUMARA blocks
       );
       
       print('DEBUG: JournalEntry created with ${entry.media.length} media items');
@@ -557,6 +564,7 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
     String? selectedPhase,
     BuildContext? context,
     List<MediaItem>? media,
+    List<Map<String, dynamic>>? blocks,
   }) async {
     try {
       print('DEBUG: JournalCaptureCubit.updateEntryWithKeywords - Existing media count: ${existingEntry.media.length}');
@@ -596,6 +604,11 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
         print('DEBUG: No date change, keeping original: $newCreatedAt');
       }
 
+      // Save LUMARA blocks to metadata
+      final metadata = blocks != null && blocks.isNotEmpty
+          ? {'inlineBlocks': blocks}
+          : existingEntry.metadata;
+      
       // Create updated entry
       final updatedEntry = existingEntry.copyWith(
         content: content,
@@ -608,6 +621,7 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
         location: selectedLocation,
         phase: selectedPhase,
         isEdited: true,
+        metadata: metadata,
         media: media ?? existingEntry.media, // Update media items or keep existing
       );
       
