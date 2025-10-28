@@ -6,23 +6,23 @@
 
 ## 📚 Documentation Index
 
-### 🔥 Latest Updates (January 17, 2025)
+### 🔥 Latest Updates (January 30, 2025)
 
-**RIVET & SENTINEL Extensions - Unified Reflective Analysis**
+**AURORA Circadian Signal Integration - Time-Aware Intelligence**
 
-Complete implementation of unified reflective analysis system extending RIVET and SENTINEL to process all reflective inputs:
-1. **Extended Evidence Sources** - RIVET now processes `draft` and `lumaraChat` evidence sources alongside journal entries
-2. **ReflectiveEntryData Model** - New unified data model supporting journal entries, drafts, and chat conversations
-3. **Source Weighting System** - Different confidence weights for different input types (journal=1.0, draft=0.6, chat=0.8)
-4. **Draft Analysis Service** - Specialized processing for draft journal entries with phase inference and confidence scoring
-5. **Chat Analysis Service** - Specialized processing for LUMARA conversations with context keywords and conversation quality
-6. **Unified Analysis Service** - Comprehensive analysis across all reflective sources with combined recommendations
-7. **Enhanced SENTINEL Analysis** - Source-aware pattern detection with weighted clustering, persistent distress, and escalation detection
-8. **Backward Compatibility** - Existing journal-only workflows remain unchanged
+Complete circadian-aware enhancement of VEIL-EDGE system:
+1. **Circadian Context Models** - Window, chronotype, and rhythm score detection
+2. **Chronotype Detection Service** - Automatic classification from journal entry timestamps
+3. **Time-Aware Policy Weights** - Block selection adjusted by circadian state and time of day
+4. **VEIL-EDGE Integration** - Router, prompt registry, and RIVET policy engine enhanced
+5. **LUMARA Enhancement** - Time-sensitive greetings, closings, and response formatting
+6. **Policy Hooks** - Commit restrictions for evening fragmented rhythms
+7. **Prompt Variants** - Time-specific templates (morning clarity, afternoon synthesis, evening closure)
+8. **Comprehensive Testing** - Full test suite for circadian integration
 
-**Result:** **Complete unified reflective intelligence system** with **source-aware analysis** + **early pattern detection**
+**Result:** **Complete circadian-aware intelligence system** with **time-sensitive policy adjustments** + **chronotype respect**
 
-### Previous Updates (January 8, 2025)
+### Previous Updates (January 17, 2025)
 
 **Complete Multimodal Processing System + Thumbnail Caching**
 

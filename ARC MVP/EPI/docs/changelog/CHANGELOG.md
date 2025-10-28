@@ -1,6 +1,42 @@
 # EPI ARC MVP - Changelog
 
-## [Unreleased] - 2025-01-28
+## [Unreleased] - 2025-01-30
+
+### 🌅 **AURORA Circadian Signal Integration** - January 30, 2025
+
+#### **Feature: Circadian-Aware VEIL-EDGE Enhancement** ✅ **PRODUCTION READY**
+
+**Circadian Context System**:
+- **CircadianContext Model**: Window (morning/afternoon/evening), chronotype, rhythm score (0-1)
+- **Chronotype Detection**: Automatic classification from journal entry timestamps
+- **Rhythm Coherence Scoring**: Measures daily activity pattern consistency
+- **Time-Aware Policy Weights**: Block selection adjusted by circadian state
+- **Policy Hooks**: Commit restrictions for evening fragmented rhythms
+
+**VEIL-EDGE Integration**:
+- **Router Enhancement**: Time-aware block weight adjustments
+- **Prompt Registry**: Time-specific variants (morning clarity, afternoon synthesis, evening closure)
+- **RIVET Policy Engine**: Circadian-aware alignment calculations and thresholds
+- **LUMARA Integration**: Time-sensitive greetings, closings, and response formatting
+
+**Technical Implementation**:
+- `CircadianProfileService` for chronotype detection from journal patterns
+- Hourly activity histogram with smoothing and peak detection
+- Concentration/coherence rhythm scoring algorithm
+- Time-aware policy weight adjustments in VEIL-EDGE router
+- Circadian-specific prompt variants in registry
+- Enhanced RIVET policy with circadian constraints
+
+**Files Created/Modified**:
+- `lib/aurora/models/circadian_context.dart` - Circadian context models
+- `lib/aurora/services/circadian_profile_service.dart` - Chronotype detection service
+- `lib/lumara/veil_edge/models/veil_edge_models.dart` - Extended with circadian fields
+- `lib/lumara/veil_edge/core/veil_edge_router.dart` - Time-aware policy weights
+- `lib/lumara/veil_edge/registry/prompt_registry.dart` - Time-specific prompt variants
+- `lib/lumara/veil_edge/services/veil_edge_service.dart` - AURORA integration
+- `lib/lumara/veil_edge/integration/lumara_veil_edge_integration.dart` - Circadian-aware responses
+- `lib/lumara/veil_edge/core/rivet_policy_engine.dart` - Circadian policy adjustments
+- Comprehensive test suite for AURORA integration
 
 ### 🌼 **LUMARA In-Journal v2.1 - Abstract Register Rule** - January 28, 2025
 

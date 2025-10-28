@@ -21,8 +21,27 @@ Within ARC, VEIL-EDGE serves as the adaptive *prompt conscience* that mirrors VE
 ### Input Pipeline
 
 ```
-User Signals → ATLAS → RIVET → SENTINEL → Phase Group Selection → Prompt Generation → LUMARA Response
+User Signals → ATLAS → RIVET → SENTINEL → AURORA → Phase Group Selection → Prompt Generation → LUMARA Response
 ```
+
+### AURORA Integration (January 30, 2025)
+
+VEIL-EDGE now integrates with AURORA for circadian-aware policy adjustments:
+
+#### **Circadian Context** (`CircadianContext`)
+- **Window**: morning | afternoon | evening (current time window)
+- **Chronotype**: morning | balanced | evening (user's natural rhythm)
+- **Rhythm Score**: 0.0 to 1.0 (daily activity pattern coherence)
+
+#### **Time-Aware Policy Weights**
+- **Morning**: Orient↑, Safeguard↓, Commit↑ (when aligned)
+- **Afternoon**: Orient↑, Nudge↑, synthesis focus
+- **Evening**: Mirror↑, Safeguard↑, Commit↓ (especially with fragmented rhythm)
+
+#### **Policy Hooks**
+- **Commit Restrictions**: Blocked in evening with fragmented rhythm (score < 0.45)
+- **Threshold Adjustments**: Lower alignment thresholds for evening fragmented rhythms
+- **Chronotype Boosts**: Enhanced alignment for morning/evening persons in their optimal windows
 
 ### Core Components
 

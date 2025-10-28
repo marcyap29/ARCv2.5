@@ -129,6 +129,98 @@ class UserSignals {
   }
 }
 
+/// Signal extraction result containing processed user signals
+class SignalExtraction {
+  final UserSignals signals;
+  final Map<String, dynamic> metadata;
+
+  const SignalExtraction({
+    required this.signals,
+    this.metadata = const {},
+  });
+
+  factory SignalExtraction.fromJson(Map<String, dynamic> json) {
+    return SignalExtraction(
+      signals: UserSignals.fromJson(json['signals'] as Map<String, dynamic>),
+      metadata: Map<String, dynamic>.from(json['metadata'] ?? {}),
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'signals': signals.toJson(),
+      'metadata': metadata,
+    };
+  }
+}
+
+/// VEIL-EDGE input containing all routing context
+class VeilEdgeInput {
+  final AtlasState atlas;
+  final RivetState rivet;
+  final SentinelState sentinel;
+  final SignalExtraction signals;
+  // AURORA circadian context
+  final String circadianWindow;     // 'morning'|'afternoon'|'evening'
+  final String circadianChronotype; // 'morning'|'balanced'|'evening'
+  final double rhythmScore;         // 0..1
+
+  const VeilEdgeInput({
+    required this.atlas,
+    required this.rivet,
+    required this.sentinel,
+    required this.signals,
+    required this.circadianWindow,
+    required this.circadianChronotype,
+    required this.rhythmScore,
+  });
+
+  factory VeilEdgeInput.fromJson(Map<String, dynamic> json) {
+    return VeilEdgeInput(
+      atlas: AtlasState.fromJson(json['atlas'] as Map<String, dynamic>),
+      rivet: RivetState.fromJson(json['rivet'] as Map<String, dynamic>),
+      sentinel: SentinelState.fromJson(json['sentinel'] as Map<String, dynamic>),
+      signals: SignalExtraction.fromJson(json['signals'] as Map<String, dynamic>),
+      circadianWindow: json['circadian_window'] as String,
+      circadianChronotype: json['circadian_chronotype'] as String,
+      rhythmScore: (json['rhythm_score'] as num).toDouble(),
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'atlas': atlas.toJson(),
+      'rivet': rivet.toJson(),
+      'sentinel': sentinel.toJson(),
+      'signals': signals.toJson(),
+      'circadian_window': circadianWindow,
+      'circadian_chronotype': circadianChronotype,
+      'rhythm_score': rhythmScore,
+    };
+  }
+
+  /// Check if this is an evening context
+  bool get isEvening => circadianWindow == 'evening';
+  
+  /// Check if this is a morning context
+  bool get isMorning => circadianWindow == 'morning';
+  
+  /// Check if this is an afternoon context
+  bool get isAfternoon => circadianWindow == 'afternoon';
+
+  /// Check if rhythm is fragmented
+  bool get isRhythmFragmented => rhythmScore < 0.45;
+  
+  /// Check if rhythm is coherent
+  bool get isRhythmCoherent => rhythmScore >= 0.55;
+
+  /// Check if user is a morning person
+  bool get isMorningPerson => circadianChronotype == 'morning';
+  
+  /// Check if user is an evening person
+  bool get isEveningPerson => circadianChronotype == 'evening';
+}
+
 /// Phase group mapping
 enum PhaseGroup {
   dB, // Discovery ↔ Breakthrough
@@ -179,6 +271,44 @@ class VeilEdgeRouteResult {
       'metadata': metadata,
     };
   }
+}
+
+/// VEIL-EDGE output containing routing result and metadata
+class VeilEdgeOutput {
+  final VeilEdgeRouteResult routeResult;
+  final Map<String, dynamic> metadata;
+  final String userText;
+
+  const VeilEdgeOutput({
+    required this.routeResult,
+    required this.userText,
+    this.metadata = const {},
+  });
+
+  factory VeilEdgeOutput.fromJson(Map<String, dynamic> json) {
+    return VeilEdgeOutput(
+      routeResult: VeilEdgeRouteResult.fromJson(json['route_result'] as Map<String, dynamic>),
+      userText: json['user_text'] as String,
+      metadata: Map<String, dynamic>.from(json['metadata'] ?? {}),
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'route_result': routeResult.toJson(),
+      'user_text': userText,
+      'metadata': metadata,
+    };
+  }
+
+  /// Get the phase group
+  String get phaseGroup => routeResult.phaseGroup;
+  
+  /// Get the variant
+  String get variant => routeResult.variant;
+  
+  /// Get the blocks
+  List<String> get blocks => routeResult.blocks;
 }
 
 /// Log schema for RIVET updates

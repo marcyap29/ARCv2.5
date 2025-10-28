@@ -1,45 +1,66 @@
 /// VEIL-EDGE Service
 /// 
 /// Main orchestration service that coordinates routing, prompt generation,
-/// and RIVET policy management for the VEIL-EDGE system.
+/// and RIVET policy management for the VEIL-EDGE system with AURORA integration.
 
 import '../models/veil_edge_models.dart';
 import '../core/veil_edge_router.dart';
 import '../core/rivet_policy_engine.dart';
 import '../registry/prompt_registry.dart';
+import '../../../aurora/services/circadian_profile_service.dart';
+import '../../../aurora/models/circadian_context.dart';
+import '../../../arc/core/journal_repository.dart';
 
-/// Main VEIL-EDGE service for phase-reactive restorative layer
+/// Main VEIL-EDGE service for phase-reactive restorative layer with AURORA integration
 class VeilEdgeService {
   final VeilEdgeRouter _router;
   final RivetPolicyEngine _rivetEngine;
   final VeilEdgePromptRenderer _promptRenderer;
   final PromptRegistry _registry;
+  final CircadianProfileService _aurora;
+  final JournalRepository _journalRepo;
 
   VeilEdgeService({
     VeilEdgeRouter? router,
     RivetPolicyEngine? rivetEngine,
     VeilEdgePromptRenderer? promptRenderer,
     PromptRegistry? registry,
+    CircadianProfileService? aurora,
+    JournalRepository? journalRepo,
   }) : _router = router ?? VeilEdgeRouter(),
        _rivetEngine = rivetEngine ?? RivetPolicyEngine(),
        _promptRenderer = promptRenderer ?? VeilEdgePromptRenderer(),
-       _registry = registry ?? VeilEdgePromptRegistry.getDefault();
+       _registry = registry ?? VeilEdgePromptRegistry.getDefault(),
+       _aurora = aurora ?? CircadianProfileService(),
+       _journalRepo = journalRepo ?? JournalRepository();
 
-  /// Route user context through ATLAS → RIVET → SENTINEL
+  /// Route user context through ATLAS → RIVET → SENTINEL → AURORA
   /// Returns phase group, variant, and blocks for prompt generation
-  VeilEdgeRouteResult route({
+  Future<VeilEdgeRouteResult> route({
     required UserSignals signals,
     required AtlasState atlas,
     required SentinelState sentinel,
     required RivetState rivet,
-  }) {
+  }) async {
     try {
-      return _router.route(
-        signals: signals,
+      // Get recent journal entries for circadian analysis
+      final recentEntries = _journalRepo.getAllJournalEntries();
+      
+      // Compute circadian context
+      final circadianContext = await _aurora.compute(recentEntries);
+      
+      // Create VEIL-EDGE input with circadian context
+      final input = VeilEdgeInput(
         atlas: atlas,
-        sentinel: sentinel,
         rivet: rivet,
+        sentinel: sentinel,
+        signals: SignalExtraction(signals: signals),
+        circadianWindow: circadianContext.window,
+        circadianChronotype: circadianContext.chronotype,
+        rhythmScore: circadianContext.rhythmScore,
       );
+
+      return _router.route(input);
     } catch (e) {
       // Fallback to safe mode on error
       return VeilEdgeRouteResult(
@@ -51,10 +72,62 @@ class VeilEdgeService {
     }
   }
 
-  /// Generate a complete LLM prompt from routing result
+  /// Route with explicit circadian context (for testing or external integration)
+  VeilEdgeRouteResult routeWithCircadian({
+    required UserSignals signals,
+    required AtlasState atlas,
+    required SentinelState sentinel,
+    required RivetState rivet,
+    required CircadianContext circadianContext,
+  }) {
+    try {
+      final input = VeilEdgeInput(
+        atlas: atlas,
+        rivet: rivet,
+        sentinel: sentinel,
+        signals: SignalExtraction(signals: signals),
+        circadianWindow: circadianContext.window,
+        circadianChronotype: circadianContext.chronotype,
+        rhythmScore: circadianContext.rhythmScore,
+      );
+
+      return _router.route(input);
+    } catch (e) {
+      return VeilEdgeRouteResult(
+        phaseGroup: 'R-T',
+        variant: ':safe',
+        blocks: ['Mirror', 'Safeguard', 'Log'],
+        metadata: {'error': e.toString()},
+      );
+    }
+  }
+
+  /// Generate a complete LLM prompt from routing result with circadian context
   String generatePrompt({
     required VeilEdgeRouteResult routeResult,
     required UserSignals signals,
+    Map<String, String>? additionalVariables,
+    String? circadianWindow,
+  }) {
+    final variables = _promptRenderer.extractVariables(signals);
+    if (additionalVariables != null) {
+      variables.addAll(additionalVariables);
+    }
+
+    return _promptRenderer.renderPrompt(
+      phaseGroup: routeResult.phaseGroup,
+      variant: routeResult.variant,
+      blocks: routeResult.blocks,
+      variables: variables,
+      circadianWindow: circadianWindow,
+    );
+  }
+
+  /// Generate prompt with full circadian context
+  String generatePromptWithCircadian({
+    required VeilEdgeRouteResult routeResult,
+    required UserSignals signals,
+    required CircadianContext circadianContext,
     Map<String, String>? additionalVariables,
   }) {
     final variables = _promptRenderer.extractVariables(signals);
@@ -67,6 +140,7 @@ class VeilEdgeService {
       variant: routeResult.variant,
       blocks: routeResult.blocks,
       variables: variables,
+      circadianWindow: circadianContext.window,
     );
   }
 
@@ -106,9 +180,30 @@ class VeilEdgeService {
     _rivetEngine.cleanupHistory(maxLogs: maxLogs);
   }
 
-  /// Get service status and diagnostics
-  Map<String, dynamic> getStatus() {
+  /// Get current circadian context
+  Future<CircadianContext> getCurrentCircadianContext() async {
+    final recentEntries = _journalRepo.getAllJournalEntries();
+    return await _aurora.compute(recentEntries);
+  }
+
+  /// Get circadian profile with detailed analysis
+  Future<CircadianProfile> getCircadianProfile() async {
+    final recentEntries = _journalRepo.getAllJournalEntries();
+    return await _aurora.computeProfile(recentEntries);
+  }
+
+  /// Check if journal entries provide sufficient data for reliable circadian analysis
+  bool hasSufficientCircadianData() {
+    final entries = _journalRepo.getAllJournalEntries();
+    return _aurora.hasSufficientData(entries);
+  }
+
+  /// Get service status and diagnostics including circadian context
+  Future<Map<String, dynamic>> getStatus() async {
     final rivetState = getCurrentRivetState();
+    final circadianContext = await getCurrentCircadianContext();
+    final hasData = hasSufficientCircadianData();
+
     return {
       'service': 'veil_edge',
       'version': _registry.version,
@@ -116,6 +211,9 @@ class VeilEdgeService {
       'can_change_phase': canChangePhase(),
       'available_phase_groups': _registry.availablePhaseGroups,
       'log_count': _rivetEngine.logHistory.length,
+        'circadian_context': (await circadianContext).toJson(),
+      'circadian_data_sufficient': hasData,
+      'aurora_integration': true,
     };
   }
 }
@@ -189,9 +287,45 @@ class VeilEdgeApi {
   }
 
   /// GET /veil-edge/status
-  /// Get service status and diagnostics
-  Map<String, dynamic> getStatus() {
-    return _service.getStatus();
+  /// Get service status and diagnostics including circadian context
+  Future<Map<String, dynamic>> getStatus() async {
+    return await _service.getStatus();
+  }
+
+  /// GET /veil-edge/circadian
+  /// Get current circadian context
+  Future<Map<String, dynamic>> getCircadianContext() async {
+    try {
+      final context = await _service.getCurrentCircadianContext();
+      return {
+        'circadian_context': context.toJson(),
+        'data_sufficient': _service.hasSufficientCircadianData(),
+      };
+    } catch (e) {
+      return {
+        'error': 'Circadian context retrieval failed: $e',
+        'circadian_context': null,
+        'data_sufficient': false,
+      };
+    }
+  }
+
+  /// GET /veil-edge/circadian/profile
+  /// Get detailed circadian profile
+  Future<Map<String, dynamic>> getCircadianProfile() async {
+    try {
+      final profile = await _service.getCircadianProfile();
+      return {
+        'circadian_profile': profile.toJson(),
+        'data_sufficient': _service.hasSufficientCircadianData(),
+      };
+    } catch (e) {
+      return {
+        'error': 'Circadian profile retrieval failed: $e',
+        'circadian_profile': null,
+        'data_sufficient': false,
+      };
+    }
   }
 }
 

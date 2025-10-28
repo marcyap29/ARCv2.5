@@ -182,12 +182,13 @@ class VeilEdgePromptRenderer {
   VeilEdgePromptRenderer({PromptRegistry? registry}) 
       : _registry = registry ?? VeilEdgePromptRegistry.getDefault();
 
-  /// Render a complete prompt for a phase group
+  /// Render a complete prompt for a phase group with time-aware variants
   String renderPrompt({
     required String phaseGroup,
     required String variant,
     required List<String> blocks,
     required Map<String, String> variables,
+    String? circadianWindow,
   }) {
     final family = _registry.getFamily(phaseGroup);
     if (family == null) {
@@ -204,14 +205,18 @@ class VeilEdgePromptRenderer {
     buffer.writeln('Style: ${family.style}');
     buffer.writeln();
 
-    // Add blocks
+    // Add time guidance if provided
+    if (circadianWindow != null) {
+      final timeGuidance = _getTimeGuidance(circadianWindow);
+      buffer.writeln('Time Guidance: $timeGuidance');
+      buffer.writeln();
+    }
+
+    // Add blocks with time-aware variants
     for (final blockName in blocks) {
-      final block = family.blocks[blockName];
-      if (block != null) {
-        final renderedBlock = block.render(variables);
-        buffer.writeln('[$blockName] $renderedBlock');
-        buffer.writeln();
-      }
+      final renderedBlock = renderBlock(blockName, family, variables, circadianWindow);
+      buffer.writeln('[$blockName] $renderedBlock');
+      buffer.writeln();
     }
 
     // Add variant-specific instructions
@@ -222,6 +227,173 @@ class VeilEdgePromptRenderer {
     }
 
     return buffer.toString().trim();
+  }
+
+  /// Render a specific block with time-aware variants
+  String renderBlock(String blockName, PhaseFamily family, Map<String, String> variables, String? circadianWindow) {
+    final block = family.blocks[blockName];
+    if (block == null) {
+      return '[$blockName] Block not found';
+    }
+
+    // Get time-aware variant if available
+    final timeVariant = _getTimeVariant(blockName, circadianWindow);
+    if (timeVariant != null) {
+      return timeVariant.render(variables);
+    }
+
+    // Fall back to default block
+    return block.render(variables);
+  }
+
+  /// Get time-aware variant for a block
+  PromptBlock? _getTimeVariant(String blockName, String? circadianWindow) {
+    if (circadianWindow == null) return null;
+
+    switch (blockName) {
+      case 'Mirror':
+        return _getMirrorVariant(circadianWindow);
+      case 'Orient':
+        return _getOrientVariant(circadianWindow);
+      case 'Commit':
+        return _getCommitVariant(circadianWindow);
+      case 'Nudge':
+        return _getNudgeVariant(circadianWindow);
+      case 'Safeguard':
+        return _getSafeguardVariant(circadianWindow);
+      case 'Log':
+        return _getLogVariant(circadianWindow);
+      default:
+        return null;
+    }
+  }
+
+  /// Get time guidance for circadian window
+  String _getTimeGuidance(String circadianWindow) {
+    switch (circadianWindow) {
+      case 'morning':
+        return 'Keep it clear and energizing. Favor intent and next step.';
+      case 'afternoon':
+        return 'Favor synthesis and decision clarity.';
+      case 'evening':
+        return 'Favor closure and gentle tone. Keep it light.';
+      default:
+        return 'Maintain reflective distance and agency.';
+    }
+  }
+
+  /// Mirror block variants by time
+  PromptBlock? _getMirrorVariant(String circadianWindow) {
+    switch (circadianWindow) {
+      case 'morning':
+        return PromptBlock(
+          name: 'Mirror',
+          template: "I am hearing clarity and intention around {themes}.",
+          requiredVariables: ['themes'],
+        );
+      case 'evening':
+        return PromptBlock(
+          name: 'Mirror',
+          template: "I am hearing reflection and integration around {themes}.",
+          requiredVariables: ['themes'],
+        );
+      default:
+        return null; // Use default
+    }
+  }
+
+  /// Orient block variants by time
+  PromptBlock? _getOrientVariant(String circadianWindow) {
+    switch (circadianWindow) {
+      case 'morning':
+        return PromptBlock(
+          name: 'Orient',
+          template: "Two clear paths are {A} and {B}. Which aligns with your energy this morning?",
+          requiredVariables: ['A', 'B'],
+        );
+      case 'afternoon':
+        return PromptBlock(
+          name: 'Orient',
+          template: "Let us synthesize {A} and {B} into a clear direction.",
+          requiredVariables: ['A', 'B'],
+        );
+      case 'evening':
+        return PromptBlock(
+          name: 'Orient',
+          template: "Two gentle options are {A} and {B}. Which feels right for winding down?",
+          requiredVariables: ['A', 'B'],
+        );
+      default:
+        return null;
+    }
+  }
+
+  /// Commit block variants by time
+  PromptBlock? _getCommitVariant(String circadianWindow) {
+    switch (circadianWindow) {
+      case 'morning':
+        return PromptBlock(
+          name: 'Commit',
+          template: "Confirm start {start}, stop {stop}, and a morning check-in at {checkpoint}.",
+          requiredVariables: ['start', 'stop', 'checkpoint'],
+        );
+      case 'evening':
+        return PromptBlock(
+          name: 'Commit',
+          template: "Set a gentle intention: start {start}, pause {stop}, and a soft check-in at {checkpoint}.",
+          requiredVariables: ['start', 'stop', 'checkpoint'],
+        );
+      default:
+        return null;
+    }
+  }
+
+  /// Nudge block variants by time
+  PromptBlock? _getNudgeVariant(String circadianWindow) {
+    switch (circadianWindow) {
+      case 'afternoon':
+        return PromptBlock(
+          name: 'Nudge',
+          template: "Choose one decision point and a clear success metric.",
+          requiredVariables: [],
+        );
+      case 'evening':
+        return PromptBlock(
+          name: 'Nudge',
+          template: "Pick one gentle step and a simple completion marker.",
+          requiredVariables: [],
+        );
+      default:
+        return null;
+    }
+  }
+
+  /// Safeguard block variants by time
+  PromptBlock? _getSafeguardVariant(String circadianWindow) {
+    switch (circadianWindow) {
+      case 'evening':
+        return PromptBlock(
+          name: 'Safeguard',
+          template: "Choose one calming action in 5 minutes or less.",
+          requiredVariables: [],
+        );
+      default:
+        return null;
+    }
+  }
+
+  /// Log block variants by time
+  PromptBlock? _getLogVariant(String circadianWindow) {
+    switch (circadianWindow) {
+      case 'evening':
+        return PromptBlock(
+          name: 'Log',
+          template: "Record outcome, ease(1-5), and one gentle reflection for closure.",
+          requiredVariables: [],
+        );
+      default:
+        return null;
+    }
   }
 
   /// Extract variables from user signals for prompt rendering

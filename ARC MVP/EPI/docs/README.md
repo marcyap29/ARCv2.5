@@ -7,6 +7,28 @@ This directory contains comprehensive documentation for the EPI (Evolving Person
 
 ## 🆕 Latest Updates (January 30, 2025)
 
+### 🌅 **AURORA Circadian Signal Integration** - January 30, 2025
+
+**Circadian-Aware VEIL-EDGE Enhancement**:
+- **Circadian Context Models**: `CircadianContext` with window, chronotype, and rhythm score
+- **Chronotype Detection**: Automatic detection from journal entry timestamps (morning/balanced/evening)
+- **Rhythm Coherence Scoring**: Measures daily activity pattern consistency (0-1 scale)
+- **Time-Aware Policy Weights**: Block selection adjusted by time of day and circadian state
+- **VEIL-EDGE Integration**: Router, prompt registry, and RIVET policy engine enhanced with circadian awareness
+- **LUMARA Enhancement**: Time-sensitive greetings, closings, and response formatting
+- **Policy Hooks**: Commit block restrictions for evening fragmented rhythms
+- **Prompt Variants**: Time-specific templates (morning clarity, afternoon synthesis, evening closure)
+- **Files Created/Modified**:
+  - `lib/aurora/models/circadian_context.dart` - Circadian context models
+  - `lib/aurora/services/circadian_profile_service.dart` - Chronotype detection service
+  - `lib/lumara/veil_edge/models/veil_edge_models.dart` - Extended with circadian fields
+  - `lib/lumara/veil_edge/core/veil_edge_router.dart` - Time-aware policy weights
+  - `lib/lumara/veil_edge/registry/prompt_registry.dart` - Time-specific prompt variants
+  - `lib/lumara/veil_edge/services/veil_edge_service.dart` - AURORA integration
+  - `lib/lumara/veil_edge/integration/lumara_veil_edge_integration.dart` - Circadian-aware responses
+  - `lib/lumara/veil_edge/core/rivet_policy_engine.dart` - Circadian policy adjustments
+  - Comprehensive test suite for AURORA integration
+
 ### 🔐 **ARCX Secure Archive System** - January 30, 2025
 
 **Complete iOS-Native Encrypted Archive Format (.arcx)**:

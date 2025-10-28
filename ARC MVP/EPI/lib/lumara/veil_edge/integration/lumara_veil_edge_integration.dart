@@ -4,11 +4,12 @@
 /// phase-reactive restorative responses.
 
 import 'dart:async';
+import 'dart:convert';
 import '../../chat/chat_models.dart';
 import '../../chat/chat_repo.dart';
-import '../../chat/content_parts.dart';
 import '../models/veil_edge_models.dart';
 import '../services/veil_edge_service.dart';
+import '../../../aurora/models/circadian_context.dart';
 
 /// Integration service for LUMARA and VEIL-EDGE
 class LumaraVeilEdgeIntegration {
@@ -21,7 +22,7 @@ class LumaraVeilEdgeIntegration {
   }) : _chatRepo = chatRepo,
        _veilEdgeService = veilEdgeService ?? VeilEdgeService();
 
-  /// Process a chat message through VEIL-EDGE
+  /// Process a chat message through VEIL-EDGE with AURORA circadian integration
   Future<ChatMessage> processMessage({
     required String sessionId,
     required String userMessage,
@@ -40,19 +41,23 @@ class LumaraVeilEdgeIntegration {
       // Get current RIVET state
       final rivet = _veilEdgeService.getCurrentRivetState();
       
-      // Route through VEIL-EDGE
-      final routeResult = _veilEdgeService.route(
+      // Route through VEIL-EDGE (now includes AURORA circadian context)
+      final routeResult = await _veilEdgeService.route(
         signals: signals,
         atlas: atlas,
         sentinel: sentinel,
         rivet: rivet,
       );
       
-      // Generate LUMARA response using VEIL-EDGE prompts
-      final lumaraResponse = await _generateLumaraResponse(
+      // Get circadian context for enhanced response
+      final circadianContext = await _veilEdgeService.getCurrentCircadianContext();
+      
+      // Generate LUMARA response using VEIL-EDGE prompts with circadian guidance
+      final lumaraResponse = await _generateLumaraResponseWithCircadian(
         routeResult: routeResult,
         signals: signals,
         userMessage: userMessage,
+        circadianContext: circadianContext,
       );
       
       // Create chat message
@@ -60,18 +65,21 @@ class LumaraVeilEdgeIntegration {
         id: 'msg:${DateTime.now().millisecondsSinceEpoch}',
         sessionId: sessionId,
         role: 'assistant',
-        contentParts: [
-          TextContentPart(text: lumaraResponse),
-        ],
+        textContent: lumaraResponse,
         createdAt: DateTime.now(),
-        provenance: {
+        provenance: jsonEncode({
           'veil_edge': {
             'phase_group': routeResult.phaseGroup,
             'variant': routeResult.variant,
             'blocks_used': routeResult.blocks,
             'metadata': routeResult.metadata,
           },
-        },
+          'aurora': {
+            'circadian_window': circadianContext.window,
+            'chronotype': circadianContext.chronotype,
+            'rhythm_score': circadianContext.rhythmScore,
+          },
+        }),
       );
       
       // Save message to repository
@@ -151,58 +159,102 @@ class LumaraVeilEdgeIntegration {
     );
   }
 
-  /// Generate LUMARA response using VEIL-EDGE prompts
-  Future<String> _generateLumaraResponse({
+  /// Generate LUMARA response using VEIL-EDGE prompts with circadian guidance
+  Future<String> _generateLumaraResponseWithCircadian({
     required VeilEdgeRouteResult routeResult,
     required UserSignals signals,
     required String userMessage,
+    required CircadianContext circadianContext,
   }) async {
-    // Generate prompt using VEIL-EDGE
-    final prompt = _veilEdgeService.generatePrompt(
+    // Generate prompt using VEIL-EDGE with circadian context
+    final prompt = _veilEdgeService.generatePromptWithCircadian(
       routeResult: routeResult,
       signals: signals,
+      circadianContext: circadianContext,
       additionalVariables: {
         'user_message': userMessage,
         'timestamp': DateTime.now().toIso8601String(),
+        'circadian_window': circadianContext.window,
+        'chronotype': circadianContext.chronotype,
+        'rhythm_score': circadianContext.rhythmScore.toString(),
       },
     );
     
     // In a real implementation, this would call the LLM
-    // For now, return a formatted response
-    return _formatLumaraResponse(prompt, routeResult);
+    // For now, return a formatted response with circadian awareness
+    return _formatLumaraResponseWithCircadian(prompt, routeResult, circadianContext);
   }
 
-  /// Format the VEIL-EDGE prompt as a LUMARA response
-  String _formatLumaraResponse(String prompt, VeilEdgeRouteResult routeResult) {
+  /// Format the VEIL-EDGE prompt as a LUMARA response with circadian awareness
+  String _formatLumaraResponseWithCircadian(
+    String prompt, 
+    VeilEdgeRouteResult routeResult,
+    CircadianContext circadianContext,
+  ) {
     final buffer = StringBuffer();
     
-    // Add LUMARA greeting
-    buffer.writeln("I'm LUMARA, and I'm here to support you through this moment.");
+    // Add LUMARA greeting with circadian awareness
+    buffer.writeln(_getCircadianGreeting(circadianContext));
     buffer.writeln();
     
     // Add the VEIL-EDGE generated content
     buffer.writeln(prompt);
     buffer.writeln();
     
-    // Add phase-specific closing
-    switch (routeResult.phaseGroup) {
-      case 'D-B':
-        buffer.writeln("Let's explore this together and find what works for you.");
-        break;
-      case 'T-D':
-        buffer.writeln("I'm here to help you navigate this transition gently.");
-        break;
-      case 'R-T':
-        buffer.writeln("Take care of yourself first - everything else can wait.");
-        break;
-      case 'C-R':
-        buffer.writeln("Let's build on what's working and make it sustainable.");
-        break;
-      default:
-        buffer.writeln("I'm here to support you however you need.");
-    }
+    // Add phase-specific closing with circadian awareness
+    buffer.writeln(_getCircadianClosing(routeResult.phaseGroup, circadianContext));
     
     return buffer.toString().trim();
+  }
+
+  /// Get circadian-aware greeting
+  String _getCircadianGreeting(CircadianContext circadianContext) {
+    switch (circadianContext.window) {
+      case 'morning':
+        return "Good morning! I'm LUMARA, and I'm here to help you start your day with intention and clarity.";
+      case 'afternoon':
+        return "Good afternoon! I'm LUMARA, and I'm here to help you synthesize and make clear decisions.";
+      case 'evening':
+        return "Good evening! I'm LUMARA, and I'm here to help you wind down gently and reflect on your day.";
+      default:
+        return "Hello! I'm LUMARA, and I'm here to support you through this moment.";
+    }
+  }
+
+  /// Get circadian-aware closing
+  String _getCircadianClosing(String phaseGroup, CircadianContext circadianContext) {
+    final baseClosing = _getPhaseClosing(phaseGroup);
+    final circadianNote = _getCircadianNote(circadianContext);
+    
+    return "$baseClosing $circadianNote";
+  }
+
+  /// Get phase-specific closing
+  String _getPhaseClosing(String phaseGroup) {
+    switch (phaseGroup) {
+      case 'D-B':
+        return "Let's explore this together and find what works for you.";
+      case 'T-D':
+        return "I'm here to help you navigate this transition gently.";
+      case 'R-T':
+        return "Take care of yourself first - everything else can wait.";
+      case 'C-R':
+        return "Let's build on what's working and make it sustainable.";
+      default:
+        return "I'm here to support you however you need.";
+    }
+  }
+
+  /// Get circadian-specific note
+  String _getCircadianNote(CircadianContext circadianContext) {
+    if (circadianContext.isEvening && circadianContext.rhythmScore < 0.45) {
+      return "Given the time and your current rhythm, let's keep things gentle and restorative.";
+    } else if (circadianContext.isMorning && circadianContext.isMorningPerson) {
+      return "This morning energy feels aligned with your natural rhythm - let's make the most of it.";
+    } else if (circadianContext.isEvening && circadianContext.isEveningPerson) {
+      return "Your evening energy is flowing well - this is a good time for reflection and planning.";
+    }
+    return "";
   }
 
   /// Process log for RIVET updates
@@ -245,16 +297,14 @@ class LumaraVeilEdgeIntegration {
       id: 'msg:${DateTime.now().millisecondsSinceEpoch}',
       sessionId: sessionId,
       role: 'assistant',
-      contentParts: [
-        TextContentPart(text: fallbackResponse),
-      ],
+      textContent: fallbackResponse,
       createdAt: DateTime.now(),
-      provenance: {
+      provenance: jsonEncode({
         'veil_edge': {
           'error': error,
           'fallback': true,
         },
-      },
+      }),
     );
     
     await _chatRepo.addMessage(
@@ -335,12 +385,14 @@ class LumaraVeilEdgeIntegration {
     return response.substring(0, response.length > 100 ? 100 : response.length);
   }
 
-  /// Get integration status
-  Map<String, dynamic> getStatus() {
+  /// Get integration status including circadian context
+  Future<Map<String, dynamic>> getStatus() async {
+    final veilEdgeStatus = await _veilEdgeService.getStatus();
     return {
       'integration': 'lumara_veil_edge',
-      'veil_edge_status': _veilEdgeService.getStatus(),
+      'veil_edge_status': veilEdgeStatus,
       'chat_repo_available': true,
+      'aurora_integration': true,
     };
   }
 }

@@ -49,19 +49,14 @@ class PhaseGroupMapper {
 /// VEIL-EDGE Router implementation
 class VeilEdgeRouter {
 
-  /// Select the appropriate phase group based on ATLAS, SENTINEL, and RIVET states
-  VeilEdgeRouteResult route({
-    required UserSignals signals,
-    required AtlasState atlas,
-    required SentinelState sentinel,
-    required RivetState rivet,
-  }) {
+  /// Select the appropriate phase group based on ATLAS, SENTINEL, RIVET, and AURORA states
+  VeilEdgeRouteResult route(VeilEdgeInput input) {
     final now = DateTime.now();
     
     // Get base phase group
-    final baseGroup = PhaseGroupMapper.getBaseGroup(atlas.phase);
+    final baseGroup = PhaseGroupMapper.getBaseGroup(input.atlas.phase);
     if (baseGroup == null) {
-      throw ArgumentError('Unknown phase: ${atlas.phase}');
+      throw ArgumentError('Unknown phase: ${input.atlas.phase}');
     }
 
     String phaseGroup = baseGroup.name;
@@ -69,28 +64,34 @@ class VeilEdgeRouter {
     List<String> blocks = [];
 
     // Apply confidence-based blending
-    if (atlas.confidence < VeilEdgeConfig.confidenceLow) {
-      final neighborGroup = PhaseGroupMapper.getNeighborGroup(atlas.neighbor);
+    if (input.atlas.confidence < VeilEdgeConfig.confidenceLow) {
+      final neighborGroup = PhaseGroupMapper.getNeighborGroup(input.atlas.neighbor);
       if (neighborGroup != null) {
         phaseGroup = '${baseGroup.name}+${neighborGroup.name}';
       }
     }
 
     // Apply hysteresis and cooldown logic
-    final timeSinceLastSwitch = now.difference(rivet.lastSwitchTimestamp);
+    final timeSinceLastSwitch = now.difference(input.rivet.lastSwitchTimestamp);
     final canSwitch = timeSinceLastSwitch >= VeilEdgeConfig.cooldownDuration && 
-                     rivet.stability >= VeilEdgeConfig.stabilityMin;
+                     input.rivet.stability >= VeilEdgeConfig.stabilityMin;
 
-    if (canSwitch && atlas.confidence < VeilEdgeConfig.confidenceLow) {
+    if (canSwitch && input.atlas.confidence < VeilEdgeConfig.confidenceLow) {
       // Allow phase switching if conditions are met
-      final neighborGroup = PhaseGroupMapper.getNeighborGroup(atlas.neighbor);
+      final neighborGroup = PhaseGroupMapper.getNeighborGroup(input.atlas.neighbor);
       if (neighborGroup != null) {
         phaseGroup = '${baseGroup.name}+${neighborGroup.name}';
       }
     }
 
+    // Get base blocks for phase group
+    final baseBlocks = _getStandardBlocks(phaseGroup);
+    
+    // Apply time-aware policy weights
+    final weightedBlocks = _applyTimeAwareWeights(input, baseBlocks);
+
     // Apply SENTINEL modifiers
-    switch (sentinel.state) {
+    switch (input.sentinel.state) {
       case 'watch':
         variant = ':safe';
         blocks = _getSafeBlocks(phaseGroup);
@@ -100,11 +101,11 @@ class VeilEdgeRouter {
         blocks = _getAlertBlocks(phaseGroup);
         break;
       default:
-        blocks = _getStandardBlocks(phaseGroup);
+        blocks = weightedBlocks;
     }
 
     // Apply RIVET policy for forced safe variants
-    if (rivet.align < VeilEdgeConfig.alignLow) {
+    if (input.rivet.align < VeilEdgeConfig.alignLow) {
       variant = ':safe';
       blocks = _getSafeBlocks(phaseGroup);
     }
@@ -114,14 +115,108 @@ class VeilEdgeRouter {
       variant: variant,
       blocks: blocks,
       metadata: {
-        'confidence': atlas.confidence,
-        'stability': rivet.stability,
-        'align': rivet.align,
-        'sentinel_state': sentinel.state,
+        'confidence': input.atlas.confidence,
+        'stability': input.rivet.stability,
+        'align': input.rivet.align,
+        'sentinel_state': input.sentinel.state,
         'can_switch': canSwitch,
         'time_since_switch': timeSinceLastSwitch.inHours,
+        'circadian_window': input.circadianWindow,
+        'circadian_chronotype': input.circadianChronotype,
+        'rhythm_score': input.rhythmScore,
       },
     );
+  }
+
+  /// Apply time-aware policy weights to block selection
+  List<String> _applyTimeAwareWeights(VeilEdgeInput input, List<String> baseBlocks) {
+    final blockWeights = <String, double>{};
+    
+    // Initialize weights for all blocks
+    for (final block in baseBlocks) {
+      blockWeights[block] = 1.0;
+    }
+
+    // Apply policy hook for Commit block
+    if (!allowCommitNow(input)) {
+      blockWeights['Commit'] = 0.0;
+    }
+
+    // Time-aware nudges based on circadian window
+    if (input.isEvening) {
+      // Evening: reduce activation, increase containment
+      blockWeights['Nudge'] = (blockWeights['Nudge'] ?? 0) * 0.8;
+      blockWeights['Orient'] = (blockWeights['Orient'] ?? 0) * 0.8;
+      blockWeights['Mirror'] = (blockWeights['Mirror'] ?? 0) * 1.15;
+      blockWeights['Safeguard'] = (blockWeights['Safeguard'] ?? 0) * 
+          (input.sentinel.isOk ? 1.1 : 1.25);
+      blockWeights['Log'] = (blockWeights['Log'] ?? 0) * 1.05;
+    } else if (input.isMorning) {
+      // Morning: increase orientation and commitment
+      blockWeights['Orient'] = (blockWeights['Orient'] ?? 0) * 1.15;
+      blockWeights['Mirror'] = (blockWeights['Mirror'] ?? 0) * 0.95;
+      blockWeights['Safeguard'] = (blockWeights['Safeguard'] ?? 0) * 0.9;
+    } else {
+      // Afternoon: synthesis and decision clarity
+      blockWeights['Orient'] = (blockWeights['Orient'] ?? 0) * 1.1;
+      blockWeights['Nudge'] = (blockWeights['Nudge'] ?? 0) * 1.05;
+    }
+
+    // Rhythm coherence guardrails
+    if (input.isRhythmFragmented && input.isEvening) {
+      // Reduce activation content when rhythm is fragmented in evening
+      blockWeights['Commit'] = (blockWeights['Commit'] ?? 0) * 0.5;
+      blockWeights['Orient'] = (blockWeights['Orient'] ?? 0) * 0.8;
+      blockWeights['Safeguard'] = (blockWeights['Safeguard'] ?? 0) * 1.2;
+      blockWeights['Mirror'] = (blockWeights['Mirror'] ?? 0) * 1.1;
+    }
+
+    // SENTINEL enforcement (watch/alert tighten further)
+    if (!input.sentinel.isOk) {
+      blockWeights['Commit'] = (blockWeights['Commit'] ?? 0) * 0.3;
+      blockWeights['Nudge'] = (blockWeights['Nudge'] ?? 0) * 0.6;
+      blockWeights['Orient'] = (blockWeights['Orient'] ?? 0) * 0.7;
+      blockWeights['Safeguard'] = (blockWeights['Safeguard'] ?? 0) * 1.3;
+      blockWeights['Mirror'] = (blockWeights['Mirror'] ?? 0) * 1.15;
+    }
+
+    // Select top blocks based on weights
+    return _selectTopBlocks(blockWeights, baseBlocks);
+  }
+
+  /// Select top blocks based on weights
+  List<String> _selectTopBlocks(Map<String, double> weights, List<String> baseBlocks) {
+    // Sort blocks by weight (descending)
+    final sortedBlocks = baseBlocks.toList()
+      ..sort((a, b) => (weights[b] ?? 0).compareTo(weights[a] ?? 0));
+
+    // Select top blocks, ensuring we have at least Mirror and Log
+    final selectedBlocks = <String>[];
+    
+    // Always include Mirror and Log
+    if (baseBlocks.contains('Mirror')) selectedBlocks.add('Mirror');
+    if (baseBlocks.contains('Log')) selectedBlocks.add('Log');
+    
+    // Add other blocks based on weights
+    for (final block in sortedBlocks) {
+      if (block != 'Mirror' && block != 'Log' && !selectedBlocks.contains(block)) {
+        if (weights[block] != null && weights[block]! > 0.5) {
+          selectedBlocks.add(block);
+        }
+      }
+    }
+
+    // Ensure we have at least 3 blocks
+    if (selectedBlocks.length < 3) {
+      for (final block in sortedBlocks) {
+        if (!selectedBlocks.contains(block)) {
+          selectedBlocks.add(block);
+          if (selectedBlocks.length >= 3) break;
+        }
+      }
+    }
+
+    return selectedBlocks;
   }
 
   /// Get standard blocks for a phase group
@@ -186,6 +281,23 @@ class VeilEdgeRouter {
     if (stabilityTrend < 0) return false;
 
     return true;
+  }
+
+  /// Check if Commit block is allowed based on circadian and policy constraints
+  bool allowCommitNow(VeilEdgeInput input) {
+    final cooldownOk = _hoursSinceLastPhaseChange(input.rivet.lastSwitchTimestamp) >= 48;
+    final rivetOk = input.rivet.align >= 0.62 && input.rivet.stability >= 0.55;
+    final sentinelOk = input.sentinel.isOk;
+    
+    // Evening + fragmented rhythm = no commit
+    if (input.isEvening && input.isRhythmFragmented) return false;
+    
+    return cooldownOk && rivetOk && sentinelOk;
+  }
+
+  /// Calculate hours since last phase change
+  int _hoursSinceLastPhaseChange(DateTime lastSwitch) {
+    return DateTime.now().difference(lastSwitch).inHours;
   }
 
   /// Extract alignment value from a log (placeholder implementation)
