@@ -179,7 +179,7 @@ class DraftCacheService {
     await _cleanupOldDrafts();
   }
 
-  /// Create a new draft session
+  /// Create a new draft session or reuse existing one
   Future<String> createDraft({
     String? initialEmotion,
     String? initialReason,
@@ -187,6 +187,12 @@ class DraftCacheService {
     List<MediaItem> initialMedia = const [],
   }) async {
     await _ensureInitialized();
+
+    // If we already have a current draft, reuse its ID instead of creating a new one
+    if (_currentDraft != null) {
+      debugPrint('DraftCacheService: Reusing existing draft ${_currentDraft!.id}');
+      return _currentDraft!.id;
+    }
 
     final now = DateTime.now();
     final draftId = 'draft_${now.millisecondsSinceEpoch}';
@@ -217,7 +223,8 @@ class DraftCacheService {
       lastModified: DateTime.now(),
     );
 
-    // Auto-save will handle persistence
+    // Save immediately to ensure the 30-second timer updates the same draft
+    await _saveDraft(_currentDraft!);
   }
 
   /// Update the current draft content and media items
@@ -319,8 +326,10 @@ class DraftCacheService {
     if (_currentDraft == null) return;
     
     try {
+      // Update lastModified timestamp before saving
+      _currentDraft = _currentDraft!.copyWith(lastModified: DateTime.now());
       await _saveDraft(_currentDraft!);
-      debugPrint('DraftCacheService: Saved current draft immediately');
+      debugPrint('DraftCacheService: Saved current draft immediately (ID: ${_currentDraft!.id})');
     } catch (e) {
       debugPrint('DraftCacheService: Error saving draft immediately - $e');
     }

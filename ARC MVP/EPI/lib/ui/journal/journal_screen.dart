@@ -2641,7 +2641,7 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
           initialReason: widget.selectedReason,
           initialContent: _entryState.text,
         );
-        debugPrint('JournalScreen: Created fresh draft $_currentDraftId');
+        debugPrint('JournalScreen: Created/reused draft $_currentDraftId');
       } else {
         debugPrint('JournalScreen: View-only mode - no draft created');
       }
