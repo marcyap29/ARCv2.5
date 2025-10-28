@@ -2,7 +2,36 @@
 
 ## [Unreleased] - 2025-01-28
 
-### 🌼 **LUMARA In-Journal Integration & Draft Management** - January 28, 2025
+### 🌼 **LUMARA In-Journal v2.1 - Abstract Register Rule** - January 28, 2025
+
+#### **Feature: Enhanced Abstract Register Detection** ✅ **PRODUCTION READY**
+
+**Abstract Register Enhancement**:
+- **Adaptive Response Structure**: LUMARA now detects abstract vs concrete writing styles
+- **Dynamic Clarify Questions**: 2 questions for abstract register, 1 for concrete
+- **Detection Heuristics**: Multi-factor analysis based on keyword ratio, word length, sentence structure
+- **30+ Abstract Keywords**: Comprehensive list including truth, meaning, purpose, reality, consequence, etc.
+- **Bridging Phrases**: Added grounding prompts for abstract conceptual thinking
+- **Length Adjustment**: Allows up to 5 sentences for abstract vs 4 for concrete
+
+**Technical Implementation**:
+- Enhanced `lumara_response_scoring.dart` with `detectAbstractRegister()` function
+- Updated scoring expectations based on register detection
+- Boosted depth score for abstract register responses (+0.1)
+- Enhanced diagnostics with abstract register detection feedback
+- Modified question count validation (expects 2 questions for abstract)
+
+**Example Behavior**:
+- **Concrete writing** ("I'm frustrated I didn't finish my work") → 1 Clarify question, 2-3 sentences
+- **Abstract writing** ("A story of immense stakes...") → 2 Clarify questions (conceptual + emotional), 3-4 sentences
+
+**Files Modified**:
+- `lib/lumara/prompts/lumara_prompts.dart` - Enhanced system prompt with Abstract Register Rule
+- `lib/lumara/services/lumara_response_scoring.dart` - Added abstract register detection and adaptive scoring
+
+**Status**: PRODUCTION READY ✅
+
+---
 
 #### **Feature: Enhanced LUMARA AI Assistant with ECHO-Based Responses** ✅ **PRODUCTION READY**
 
