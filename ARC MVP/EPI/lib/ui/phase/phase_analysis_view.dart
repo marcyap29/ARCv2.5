@@ -790,24 +790,69 @@ List<PhaseSegmentProposal> proposals,
                   ),
                 ),
               ),
-              // Small refresh button for phase updates
+              // Refresh button with Phase Analysis functionality
               IconButton(
                 icon: const Icon(Icons.refresh),
                 iconSize: 18,
-                tooltip: 'Refresh phase data',
+                tooltip: 'Refresh phase data & run analysis',
                 onPressed: () async {
-                  // Reload phase data from UserProfile and regimes
+                  // First reload phase data from UserProfile and regimes
                   await _loadPhaseData();
-                  // Refresh ARCForms
-                  _refreshArcforms();
                   
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Phase data refreshed'),
-                        duration: Duration(seconds: 1),
+                  // Check if we should run Phase Analysis
+                  final journalRepo = JournalRepository();
+                  final journalEntries = journalRepo.getAllJournalEntriesSync();
+                  
+                  if (journalEntries.length >= 5) {
+                    // Show dialog asking if user wants to run analysis
+                    final shouldRunAnalysis = await showDialog<bool>(
+                      context: context,
+                      builder: (context) => AlertDialog(
+                        title: const Text('Run Phase Analysis?'),
+                        content: Text(
+                          'You have ${journalEntries.length} journal entries. Would you like to run Phase Analysis to detect phase transitions and update your visualization?',
+                        ),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.of(context).pop(false),
+                            child: const Text('Just Refresh'),
+                          ),
+                          ElevatedButton(
+                            onPressed: () => Navigator.of(context).pop(true),
+                            child: const Text('Run Analysis'),
+                          ),
+                        ],
                       ),
                     );
+                    
+                    if (shouldRunAnalysis == true) {
+                      // Run the full Phase Analysis
+                      await _runRivetSweep();
+                    } else {
+                      // Just refresh ARCForms
+                      _refreshArcforms();
+                      
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Phase data refreshed'),
+                            duration: Duration(seconds: 1),
+                          ),
+                        );
+                      }
+                    }
+                  } else {
+                    // Not enough entries, just refresh
+                    _refreshArcforms();
+                    
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Phase data refreshed (need 5+ entries for analysis)'),
+                          duration: Duration(seconds: 2),
+                        ),
+                      );
+                    }
                   }
                 },
               ),
