@@ -324,7 +324,7 @@ List<PhaseSegmentProposal> proposals,
           IconButton(
             icon: const Icon(Icons.auto_awesome),
             onPressed: _runRivetSweep,
-            tooltip: 'Run Phase Analysis',
+            tooltip: 'Run Phase Analysis (also available in ARCForms tab)',
           ),
         ],
         bottom: TabBar(
@@ -790,69 +790,27 @@ List<PhaseSegmentProposal> proposals,
                   ),
                 ),
               ),
-              // Refresh button with Phase Analysis functionality
+              // Refresh button with RIVET Sweep functionality
               IconButton(
                 icon: const Icon(Icons.refresh),
                 iconSize: 18,
-                tooltip: 'Refresh phase data & run analysis',
+                tooltip: 'Run Phase Analysis & Refresh',
                 onPressed: () async {
-                  // First reload phase data from UserProfile and regimes
+                  // First run RIVET Sweep for phase analysis
+                  await _runRivetSweep();
+                  
+                  // Then reload phase data from UserProfile and regimes
                   await _loadPhaseData();
+                  // Refresh ARCForms
+                  _refreshArcforms();
                   
-                  // Check if we should run Phase Analysis
-                  final journalRepo = JournalRepository();
-                  final journalEntries = journalRepo.getAllJournalEntriesSync();
-                  
-                  if (journalEntries.length >= 5) {
-                    // Show dialog asking if user wants to run analysis
-                    final shouldRunAnalysis = await showDialog<bool>(
-                      context: context,
-                      builder: (context) => AlertDialog(
-                        title: const Text('Run Phase Analysis?'),
-                        content: Text(
-                          'You have ${journalEntries.length} journal entries. Would you like to run Phase Analysis to detect phase transitions and update your visualization?',
-                        ),
-                        actions: [
-                          TextButton(
-                            onPressed: () => Navigator.of(context).pop(false),
-                            child: const Text('Just Refresh'),
-                          ),
-                          ElevatedButton(
-                            onPressed: () => Navigator.of(context).pop(true),
-                            child: const Text('Run Analysis'),
-                          ),
-                        ],
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Phase analysis completed and data refreshed'),
+                        duration: Duration(seconds: 2),
                       ),
                     );
-                    
-                    if (shouldRunAnalysis == true) {
-                      // Run the full Phase Analysis
-                      await _runRivetSweep();
-                    } else {
-                      // Just refresh ARCForms
-                      _refreshArcforms();
-                      
-                      if (mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Phase data refreshed'),
-                            duration: Duration(seconds: 1),
-                          ),
-                        );
-                      }
-                    }
-                  } else {
-                    // Not enough entries, just refresh
-                    _refreshArcforms();
-                    
-                    if (mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Phase data refreshed (need 5+ entries for analysis)'),
-                          duration: Duration(seconds: 2),
-                        ),
-                      );
-                    }
                   }
                 },
               ),
