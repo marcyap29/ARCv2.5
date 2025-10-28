@@ -12,11 +12,57 @@ enum PhaseHint {
   breakthrough,
 }
 
+/// Entry type for question bias tuning
+enum EntryType {
+  journal,
+  draft,
+  chat,
+  photo,
+  audio,
+  video,
+  voice,
+}
+
+/// Phase tuning for question bias
+const Map<PhaseHint, String> _phaseTuning = {
+  PhaseHint.discovery: 'high',
+  PhaseHint.expansion: 'high',
+  PhaseHint.transition: 'med',
+  PhaseHint.consolidation: 'med',
+  PhaseHint.recovery: 'low',
+  PhaseHint.breakthrough: 'medHigh',
+};
+
+/// Entry type tuning for question bias
+const Map<EntryType, String> _typeTuning = {
+  EntryType.journal: 'med',
+  EntryType.draft: 'high',
+  EntryType.chat: 'med',
+  EntryType.photo: 'low',
+  EntryType.audio: 'low',
+  EntryType.video: 'low',
+  EntryType.voice: 'low',
+};
+
+/// Calculate question allowance based on phase, entry type, and abstract register
+int questionAllowance(PhaseHint? phase, EntryType? entryType, bool isAbstract) {
+  final p = phase != null ? _phaseTuning[phase] ?? 'med' : 'med';
+  final t = entryType != null ? _typeTuning[entryType] ?? 'med' : 'med';
+  
+  final base = (p == 'high' ? 2 : p == 'medHigh' ? 2 : p == 'med' ? 1 : 1) +
+               (t == 'high' ? 1 : t == 'med' ? 0 : 0);
+  
+  // Cap & adjust with Abstract Register rule
+  final cap = isAbstract ? 2 : 1; // Abstract can lift to 2
+  return [base, 1, 2, cap].reduce((a, b) => a < b ? a : b);
+}
+
 /// Input for scoring a LUMARA response
 class ScoringInput {
   final String userText;
   final String candidate;
   final PhaseHint? phaseHint;
+  final EntryType? entryType;
   final List<String> priorKeywords;
   final List<String> matchedNodeHints;
 
@@ -24,6 +70,7 @@ class ScoringInput {
     required this.userText,
     required this.candidate,
     this.phaseHint,
+    this.entryType,
     this.priorKeywords = const [],
     this.matchedNodeHints = const [],
   });
@@ -129,11 +176,11 @@ class LumaraResponseScoring {
     }
     
     final qCount = '?'.allMatches(input.candidate).length;
-    // Adjust question expectations for abstract register
-    final expectedQuestions = isAbstract ? 2 : 1;
+    // Calculate expected questions based on phase, entry type, and abstract register
+    final expectedQuestions = questionAllowance(input.phaseHint, input.entryType, isAbstract);
     if (qCount < expectedQuestions) {
       structurePenalty += 0.2;
-      diagnostics.add("Insufficient questions; expecting $expectedQuestions for ${isAbstract ? 'abstract' : 'concrete'} register.");
+      diagnostics.add("Insufficient questions; expecting $expectedQuestions for ${isAbstract ? 'abstract' : 'concrete'} register with ${input.phaseHint?.name ?? 'unknown'} phase and ${input.entryType?.name ?? 'journal'} entry type.");
     }
     if (qCount > expectedQuestions + 1) {
       structurePenalty += 0.1;

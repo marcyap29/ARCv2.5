@@ -219,6 +219,7 @@ class EnhancedLumaraApi {
             userText: entryText,
             candidate: geminiResponse,
             phaseHint: _convertToScoringPhaseHint(currentPhase),
+            entryType: _convertToScoringEntryType(intent),
             priorKeywords: priorKeywords,
             matchedNodeHints: matchedHints,
           );
@@ -315,6 +316,28 @@ class EnhancedLumaraApi {
     }
   }
 
+  /// Convert intent string to scoring EntryType
+  scoring.EntryType? _convertToScoringEntryType(String? intent) {
+    if (intent == null) return scoring.EntryType.journal;
+    
+    switch (intent.toLowerCase()) {
+      case 'draft':
+        return scoring.EntryType.draft;
+      case 'chat':
+        return scoring.EntryType.chat;
+      case 'photo':
+        return scoring.EntryType.photo;
+      case 'audio':
+        return scoring.EntryType.audio;
+      case 'video':
+        return scoring.EntryType.video;
+      case 'voice':
+        return scoring.EntryType.voice;
+      default:
+        return scoring.EntryType.journal;
+    }
+  }
+
   List<String> _detectCrossModalPatterns(List<MatchedNode> matches) {
     final patterns = <String>[];
     
@@ -345,6 +368,11 @@ class EnhancedLumaraApi {
     // Detect abstract register for appropriate response structure
     final isAbstract = scoring.LumaraResponseScoring.detectAbstractRegister(entryText);
     
+    // Calculate question allowance based on phase and entry type
+    final scoringPhase = _convertToScoringPhaseHint(currentPhase);
+    final scoringEntryType = _convertToScoringEntryType('journal'); // Default to journal for fallback
+    final qAllowance = scoring.questionAllowance(scoringPhase, scoringEntryType, isAbstract);
+    
     // Generate ECHO-based response using template logic
     String empathize;
     List<String> clarify;
@@ -358,14 +386,17 @@ class EnhancedLumaraApi {
       empathize = "This feels like a moment of strong emotion where something important is happening.";
     }
     
-    // Clarify - adaptive questions based on register
-    if (isAbstract) {
-      clarify = [
-        "What aspect of this experience feels most real to you right now?",
-        "And what emotion sits beneath the perspective you're describing?"
-      ];
-    } else {
-      clarify = ["What part of this feels most present for you now?"];
+    // Clarify - adaptive questions based on allowance
+    clarify = [];
+    if (qAllowance >= 1) {
+      clarify.add(isAbstract
+          ? "What aspect of this experience feels most real to you right now?"
+          : "What part of this feels most present for you now?");
+    }
+    if (qAllowance >= 2) {
+      clarify.add(isAbstract
+          ? "And what emotion sits beneath the perspective you're describing?"
+          : "Would naming the feeling make this clearer?");
     }
     
     // Highlight - use matches if available
