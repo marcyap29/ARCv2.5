@@ -183,7 +183,7 @@ class EnhancedLumaraApi {
           };
           
           // Generate primary response with retry logic
-          String geminiResponse;
+          String? geminiResponse;
           int retryCount = 0;
           const maxRetries = 2;
           
@@ -200,6 +200,10 @@ class EnhancedLumaraApi {
               print('LUMARA: Gemini API retry $retryCount/$maxRetries - waiting 2 seconds...');
               await Future.delayed(const Duration(seconds: 2));
             }
+          }
+          
+          if (geminiResponse == null) {
+            throw Exception('Failed to generate response after $maxRetries retries');
           }
           print('LUMARA Enhanced API: ✓ generateResponse completed');
           print('LUMARA Enhanced API: Response length: ${geminiResponse.length}');
