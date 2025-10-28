@@ -7,9 +7,11 @@ The Drafts feature provides comprehensive draft management for journal entries, 
 
 ### ✅ **Auto-Save Functionality**
 - **Continuous Auto-Save**: Drafts are automatically saved every 2 seconds while typing
+- **30-Second Timer**: Drafts are saved after 30 seconds of inactivity (replaces existing draft)
 - **App Lifecycle Integration**: Drafts are saved when app is paused, becomes inactive, or is closed
 - **Navigation Auto-Save**: Drafts are saved when navigating away from journal screen
 - **Crash Recovery**: Drafts persist through app crashes and can be recovered on restart
+- **Single Draft Per Session**: Prevents multiple draft versions by reusing existing draft ID
 
 ### ✅ **Draft Management UI**
 - **Drafts Screen**: Dedicated interface for managing all saved drafts
@@ -21,6 +23,7 @@ The Drafts feature provides comprehensive draft management for journal entries, 
 ### ✅ **Draft Operations**
 - **Create Draft**: New draft created automatically when opening journal
 - **Update Draft**: Same draft continuously updated with new content (overwrites previous version)
+- **Reuse Draft ID**: Prevents multiple draft versions by reusing existing draft ID for same session
 - **Open Draft**: Click any draft to open it in journal format with all content restored
 - **Delete Draft**: Individual or multiple draft deletion
 - **Draft History**: Maintains history of completed drafts
@@ -37,7 +40,9 @@ The Drafts feature provides comprehensive draft management for journal entries, 
 
 #### 1. DraftCacheService (`lib/core/services/draft_cache_service.dart`)
 - **Enhanced Methods**:
-  - `saveCurrentDraftImmediately()` - For app lifecycle events
+  - `createDraft()` - Creates new draft or reuses existing one (prevents duplicates)
+  - `updateDraftContent()` - Updates content and saves immediately
+  - `saveCurrentDraftImmediately()` - For app lifecycle events with timestamp update
   - `getAllDrafts()` - Retrieve all saved drafts
   - `deleteDrafts()` - Multi-delete functionality
   - `deleteDraft()` - Single draft deletion
@@ -96,8 +101,10 @@ The Drafts feature provides comprehensive draft management for journal entries, 
 
 ### **Auto-Save Settings**
 - **Interval**: 2 seconds between auto-saves
+- **30-Second Timer**: Saves after 30 seconds of inactivity (replaces existing draft)
 - **Triggers**: Text changes, app pause, navigation
 - **Persistence**: Hive database with automatic cleanup
+- **Draft Reuse**: Same draft ID reused to prevent multiple versions
 
 ### **Draft Retention**
 - **Current Draft**: Active draft for current session

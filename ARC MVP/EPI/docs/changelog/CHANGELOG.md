@@ -1,6 +1,47 @@
 # EPI ARC MVP - Changelog
 
-## [Unreleased]
+## [Unreleased] - 2025-01-28
+
+### 🌼 **LUMARA In-Journal Integration & Draft Management** - January 28, 2025
+
+#### **Feature: Enhanced LUMARA AI Assistant with ECHO-Based Responses** ✅ **PRODUCTION READY**
+
+**LUMARA In-Journal Features**:
+- **ECHO-Based Responses**: Structured 2-4 sentence reflections following Empathize, Clarify, Highlight, Open pattern
+- **Response Scoring System**: Quantitative evaluation with empathy:depth:agency (0.4:0.35:0.25) weights and auto-fix below 0.62 threshold
+- **Suggestion Persistence**: LUMARA suggestions saved in entry metadata and restored when viewing entries
+- **Delete Functionality**: X button to remove unwanted LUMARA suggestions from journal entries
+- **Auto-Fix Mechanism**: Responses below quality threshold automatically corrected to meet ECHO standards
+
+**Draft Management Enhancements**:
+- **Single Draft Per Session**: Prevents multiple confusing draft versions by reusing existing draft ID
+- **30-Second Timer Fix**: Auto-save now replaces existing draft instead of creating duplicates
+- **Draft ID Reuse**: Enhanced `createDraft()` method checks for existing draft and reuses ID
+- **Immediate Save**: `updateDraftContent()` now saves immediately for consistency
+- **Enhanced Logging**: Better debug information with draft ID tracking
+
+**Technical Implementation**:
+- Modified `lib/lumara/services/enhanced_lumara_api.dart` to integrate scoring system
+- Added `lib/lumara/services/lumara_response_scoring.dart` with comprehensive scoring heuristic
+- Updated `lib/lumara/prompts/lumara_prompts.dart` with ECHO-based system prompt
+- Enhanced `lib/core/services/draft_cache_service.dart` with draft reuse logic
+- Updated `lib/ui/journal/widgets/inline_reflection_block.dart` with delete functionality
+- Modified `lib/arc/core/journal_capture_cubit.dart` to persist LUMARA blocks in metadata
+- Updated `lib/arc/core/widgets/keyword_analysis_view.dart` to pass blocks to save flow
+
+**Files Modified**:
+- `lib/lumara/services/enhanced_lumara_api.dart`
+- `lib/lumara/services/lumara_response_scoring.dart`
+- `lib/lumara/prompts/lumara_prompts.dart`
+- `lib/core/services/draft_cache_service.dart`
+- `lib/ui/journal/widgets/inline_reflection_block.dart`
+- `lib/arc/core/journal_capture_cubit.dart`
+- `lib/arc/core/widgets/keyword_analysis_view.dart`
+- `lib/ui/journal/journal_screen.dart`
+
+**Status**: PRODUCTION READY ✅
+
+---
 
 ### 🐛 **ARCX Image Loading Fix** - January 30, 2025
 

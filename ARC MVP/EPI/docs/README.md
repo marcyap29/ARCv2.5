@@ -376,20 +376,22 @@ Resolved multiple critical UI/UX issues affecting core journal functionality:
 
 *For detailed technical information, see [UI_UX_FIXES_JAN_2025.md](../bugtracker/UI_UX_FIXES_JAN_2025.md)*
 
-**Drafts Feature Implementation**
+**LUMARA In-Journal Integration & Draft Management**
 
-Comprehensive draft management system for journal entries:
-- **Auto-Save Functionality** - Continuous auto-save every 2 seconds while typing
+Enhanced LUMARA AI assistant with comprehensive draft management:
+- **ECHO-Based Responses** - Structured 2-4 sentence reflections following Empathize, Clarify, Highlight, Open pattern
+- **Response Scoring System** - Quantitative evaluation of empathy:depth:agency (0.4:0.35:0.25) with auto-fix below 0.62 threshold
+- **LUMARA Suggestion Persistence** - Suggestions saved in entry metadata and restored when viewing entries
+- **Delete LUMARA Suggestions** - X button to remove unwanted LUMARA suggestions
+- **Draft Auto-Save Enhancement** - 30-second timer replaces existing draft instead of creating multiple versions
+- **Single Draft Per Session** - Prevents confusing multiple draft versions by reusing existing draft ID
 - **App Lifecycle Integration** - Drafts saved on app pause, close, or crash
 - **Multi-Select Operations** - Select and delete multiple drafts at once
 - **Draft Management UI** - Dedicated screen for managing all saved drafts
 - **Seamless Integration** - Drafts button in journal screen for easy access
 - **Draft Recovery** - Automatic recovery of drafts on app restart
-- **Content Overwriting** - Same draft continuously updated with new content
 - **Rich Metadata** - Draft preview with date, attachments, and emotions
-- **Navigation Flow** - Click any draft to open in journal format
 - **Auto-Cleanup** - Old drafts automatically cleaned up (7-day retention)
-- **Crash Protection** - Drafts persist through app crashes and force-quits
 
 ---
 
