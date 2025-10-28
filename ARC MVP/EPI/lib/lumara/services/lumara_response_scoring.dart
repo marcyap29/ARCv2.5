@@ -51,7 +51,17 @@ class ScoreBreakdown {
 }
 
 /// LUMARA Response Scoring Heuristic
+/// Enhanced with Abstract Register detection for conceptual/reflective writing
 class LumaraResponseScoring {
+  // Abstract keywords for register detection
+  static final List<String> _abstractKeywords = [
+    'truth', 'meaning', 'purpose', 'reality', 'consequence', 'perspective', 'identity',
+    'growth', 'preparation', 'journey', 'becoming', 'change', 'self', 'life', 'time',
+    'energy', 'light', 'shadow', 'destiny', 'pattern', 'vision', 'clarity', 'understanding',
+    'wisdom', 'insight', 'awareness', 'consciousness', 'essence', 'nature', 'spirit',
+    'soul', 'heart', 'mind', 'being', 'existence', 'experience', 'transformation'
+  ];
+
   // Bad tone patterns to penalize
   static final _badTonePatterns = [
     RegExp(r'\bwe\b', caseSensitive: false),
@@ -70,9 +80,31 @@ class LumaraResponseScoring {
     RegExp(r'\bif its right\b', caseSensitive: false),
   ];
 
+  /// Detect if text is in abstract register
+  static bool detectAbstractRegister(String text) {
+    final words = text.toLowerCase().split(RegExp(r'[^a-z]+')).where((w) => w.isNotEmpty).toList();
+    if (words.isEmpty) return false;
+    
+    final abstractCount = words.where((w) => _abstractKeywords.contains(w)).length;
+    final ratio = abstractCount / words.length;
+    
+    final avgWordLen = words.join('').length / words.length;
+    final sentenceCount = text.split(RegExp(r'[.!?]+')).length;
+    final avgSentLen = words.length / sentenceCount;
+    
+    return (ratio > 0.03 && avgWordLen > 4.8 && avgSentLen > 9) || abstractCount >= 3;
+  }
+
   /// Score a LUMARA response candidate
+  /// Enhanced with Abstract Register detection for conceptual/reflective writing
   static ScoreBreakdown scoreLumaraResponse(ScoringInput input) {
     final diagnostics = <String>[];
+    
+    // Detect abstract register in user text
+    final isAbstract = detectAbstractRegister(input.userText);
+    if (isAbstract) {
+      diagnostics.add('Abstract register detected - expecting 2 Clarify questions');
+    }
     
     final userN = _normalizeText(input.userText);
     final candN = _normalizeText(input.candidate);
@@ -89,17 +121,21 @@ class LumaraResponseScoring {
       structurePenalty += 0.25;
       diagnostics.add("Too short (<2 sentences).");
     }
-    if (nSent > 4) {
+    // Adjust length tolerance for abstract register
+    final maxSentences = isAbstract ? 5 : 4;
+    if (nSent > maxSentences) {
       structurePenalty += 0.25;
-      diagnostics.add("Too long (>4 sentences).");
+      diagnostics.add("Too long (>$maxSentences sentences).");
     }
     
     final qCount = '?'.allMatches(input.candidate).length;
-    if (qCount == 0) {
+    // Adjust question expectations for abstract register
+    final expectedQuestions = isAbstract ? 2 : 1;
+    if (qCount < expectedQuestions) {
       structurePenalty += 0.2;
-      diagnostics.add("No question present; missing Clarify/Open.");
+      diagnostics.add("Insufficient questions; expecting $expectedQuestions for ${isAbstract ? 'abstract' : 'concrete'} register.");
     }
-    if (qCount > 2) {
+    if (qCount > expectedQuestions + 1) {
       structurePenalty += 0.1;
       diagnostics.add("Too many questions; risks engagement feel.");
     }
@@ -143,6 +179,8 @@ class LumaraResponseScoring {
         input.priorKeywords.any((k) => candN.contains(k.toLowerCase()));
     var depth = (hasClarify ? 0.5 : 0.0) + (hasPattern ? 0.4 : 0.0);
     if (invitationalHits > 0) depth += 0.1;
+    // Boost depth score for abstract register (expects richer content)
+    if (isAbstract) depth = (depth + 0.1).clamp(0.0, 1.0);
     depth = depth.clamp(0.0, 1.0);
     if (!hasPattern) diagnostics.add("Missing Highlight/pattern reflection.");
     if (!hasClarify) diagnostics.add("Missing Clarify question.");
