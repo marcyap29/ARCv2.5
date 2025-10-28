@@ -103,6 +103,9 @@ class _PhaseAnalysisViewState extends State<PhaseAnalysisView>
       if (mounted) {
         // Show RIVET Sweep wizard
         await _showRivetSweepWizard(result);
+        
+        // After wizard completion, refresh ARCForms
+        _refreshArcforms();
       }
     } catch (e) {
       if (mounted) {
@@ -129,8 +132,7 @@ class _PhaseAnalysisViewState extends State<PhaseAnalysisView>
         onApprove: (approvedProposals, overrides) async {
           Navigator.of(context).pop();
           await _createPhaseRegimes(approvedProposals, overrides);
-          // Phase Analysis completed - refresh ARCForms
-          _refreshArcforms();
+          // ARCForms will be refreshed by the calling function
         },
         onSkip: () {
           Navigator.of(context).pop();
