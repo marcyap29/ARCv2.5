@@ -1,5 +1,28 @@
 # EPI ARC MVP - Changelog
 
+## [Unreleased] - 2025-10-29
+
+### 🐛 **Bug Fixes** - October 29, 2025
+
+#### **Photo Duplication Fix in View Entry Screen** ✅ **PRODUCTION READY**
+- **Fixed**: Photos no longer appear twice when viewing entries
+- **Root Cause**: Both `_buildContentView()` and `_buildInterleavedContent()` were displaying photos
+- **Solution**: Removed duplicate photo rendering from `_buildContentView()`, photos now only display once via `_buildPhotoThumbnailGrid()`
+- **Files Modified**: `lib/ui/journal/journal_screen.dart`
+- **Impact**: Cleaner entry view with photos displayed only once in the "Photos (N)" section
+
+#### **MediaItem Adapter Registration Fix** ✅ **PRODUCTION READY**
+- **Fixed**: Entries with photos can now be saved to database
+- **Root Cause**: Adapter ID conflict between MediaItem adapters (IDs 10, 11) and Rivet adapters (IDs 10, 11, 12)
+- **Solution**: Changed Rivet adapter IDs to 20, 21, 22 to avoid conflicts
+- **Files Modified**: 
+  - `lib/atlas/rivet/rivet_models.dart`
+  - `lib/atlas/rivet/rivet_storage.dart`
+  - `lib/atlas/rivet/rivet_models.g.dart`
+  - `lib/main/bootstrap.dart`
+  - `lib/arc/core/journal_repository.dart`
+- **Impact**: Entries with photos now successfully import and save to database
+
 ## [Unreleased] - 2025-01-30
 
 ### 🌅 **AURORA Circadian Signal Integration** - January 30, 2025

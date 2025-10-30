@@ -2,9 +2,32 @@
 
 **Last Updated:** October 29, 2025
 **Branch:** arcx export
-**Status:** Production Ready ✅ - ARCX Image Loading Fixed, Secure Archive System Complete, MediaItem Adapter Registration Fixed
+**Status:** Production Ready ✅ - ARCX Image Loading Fixed, Secure Archive System Complete, MediaItem Adapter Registration Fixed, Photo Duplication Fixed
 
 ## 📊 Current Status
+
+### 🐛 Photo Duplication Fix in View Entry Screen (October 29, 2025)
+**Fixed bug where photos appeared twice in View Entry screen:**
+- **Problem**: Photos were displayed twice - once in the main content area grid and again in the "Photos (N)" section below
+- **Root Cause**: 
+  1. `_buildContentView()` method was displaying photos in a Wrap widget for view-only mode
+  2. `_buildInterleavedContent()` method was also displaying photos via `_buildPhotoThumbnailGrid()`
+  3. Both methods were called when viewing an entry, causing duplicate display
+- **Impact**: 
+  - Photos appeared duplicated in view-only mode
+  - Confusing user experience with duplicate thumbnails
+  - Visual clutter in the entry view
+- **Solution**: 
+  - Removed photo display from `_buildContentView()` method
+  - Photos are now only displayed once via `_buildInterleavedContent()` -> `_buildPhotoThumbnailGrid()`
+  - `_buildContentView()` now only displays text content (as intended)
+- **Technical Fix**:
+  - Modified `lib/ui/journal/journal_screen.dart` - Removed duplicate photo rendering from `_buildContentView()`
+  - Added comment explaining that photos are handled separately via `_buildInterleavedContent`
+- **Files Modified**: 
+  - `lib/ui/journal/journal_screen.dart`
+- **Status**: PRODUCTION READY ✅
+- **Testing**: Photos now appear only once in the "Photos (N)" section below text content
 
 ### 🐛 MediaItem Adapter Registration Fix (October 29, 2025)
 **Fixed critical bug preventing entries with photos from being saved to database:**

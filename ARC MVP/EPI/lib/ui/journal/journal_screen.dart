@@ -18,35 +18,35 @@ import '../widgets/discovery_popup.dart';
 import '../../telemetry/analytics.dart';
 import '../../services/periodic_discovery_service.dart';
 import '../../services/lumara/lumara_inline_api.dart';
-import '../../lumara/services/enhanced_lumara_api.dart';
-import '../../lumara/services/progressive_memory_loader.dart';
-import '../../lumara/data/context_provider.dart';
-import '../../lumara/data/context_scope.dart';
-import '../../lumara/ui/lumara_settings_screen.dart';
+import 'package:my_app/lumara/services/enhanced_lumara_api.dart';
+import 'package:my_app/lumara/services/progressive_memory_loader.dart';
+import 'package:my_app/lumara/data/context_provider.dart';
+import 'package:my_app/lumara/data/context_scope.dart';
+import 'package:my_app/lumara/ui/lumara_settings_screen.dart';
 import '../../models/user_profile_model.dart';
 import 'package:hive/hive.dart';
-import '../../lumara/config/api_config.dart';
+import 'package:my_app/lumara/config/api_config.dart';
 import '../../services/llm_bridge_adapter.dart';
 import '../../services/gemini_send.dart';
-import '../../services/ocr/ocr_service.dart';
+// import '../../services/ocr/ocr_service.dart'; // TODO: OCR service not yet implemented
 import '../../services/journal_session_cache.dart';
 import '../../arc/core/keyword_extraction_cubit.dart';
 import '../../arc/core/journal_capture_cubit.dart';
-import '../../arc/core/journal_repository.dart';
+import 'package:my_app/arc/core/journal_repository.dart';
 import '../../arc/core/widgets/keyword_analysis_view.dart';
-import '../../features/timeline/timeline_cubit.dart';
-import '../../core/services/draft_cache_service.dart';
-import '../../core/services/photo_library_service.dart';
-import '../../data/models/media_item.dart';
+import 'package:my_app/arc/ui/timeline/timeline_cubit.dart';
+import 'package:my_app/core/services/draft_cache_service.dart';
+import 'package:my_app/core/services/photo_library_service.dart';
+import 'package:my_app/data/models/media_item.dart';
 import 'media_conversion_utils.dart';
-import '../../mcp/orchestrator/ios_vision_orchestrator.dart';
+import '../../core/mcp/orchestrator/ios_vision_orchestrator.dart';
 import 'widgets/lumara_suggestion_sheet.dart';
 import 'widgets/inline_reflection_block.dart';
-import '../../features/timeline/widgets/entry_content_renderer.dart';
+// import '../../features/timeline/widgets/entry_content_renderer.dart'; // TODO: EntryContentRenderer not yet implemented
 import 'widgets/full_screen_photo_viewer.dart';
 import '../../ui/widgets/location_picker_dialog.dart';
 import 'drafts_screen.dart';
-import '../../models/journal_entry_model.dart';
+import 'package:my_app/models/journal_entry_model.dart';
 
 /// Main journal screen with integrated LUMARA companion and OCR scanning
 class JournalScreen extends StatefulWidget {
@@ -76,7 +76,7 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
   final Analytics _analytics = Analytics();
   late final LumaraInlineApi _lumaraApi;
   late final EnhancedLumaraApi _enhancedLumaraApi;
-  late final OcrService _ocrService;
+  // late final OcrService _ocrService; // TODO: OCR service not yet implemented
   final DraftCacheService _draftCache = DraftCacheService.instance;
   
   // Progressive memory loading for in-journal LUMARA
@@ -137,7 +137,7 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
     _memoryLoader = ProgressiveMemoryLoader(_journalRepository);
     _arcLLM = provideArcLLM();
     _initializeLumara();
-    _ocrService = StubOcrService(_analytics); // TODO: Use platform-specific implementation
+    // _ocrService = StubOcrService(_analytics); // TODO: OCR service not yet implemented
     
     // Initialize enhanced OCP services
     _ocpOrchestrator = IOSVisionOrchestrator();
@@ -505,7 +505,9 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
     try {
       // Simulate OCR processing
       final mockImageFile = await _createMockImageFile();
-      final extractedText = await _ocrService.extractText(mockImageFile);
+      // TODO: OCR service not yet implemented
+      // final extractedText = await _ocrService.extractText(mockImageFile);
+      final extractedText = ''; // Placeholder until OCR is implemented
       
       // Create scan attachment
       final attachment = ScanAttachment(
@@ -2263,26 +2265,22 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
 
   /// Build content view with inline thumbnails for view-only mode
   Widget _buildContentView(ThemeData theme) {
-    // Convert photo attachments to MediaItems for EntryContentRenderer
-    final mediaItems = _entryState.attachments
-        .whereType<PhotoAttachment>()
-        .map((attachment) => MediaItem(
-              id: attachment.photoId ?? DateTime.now().millisecondsSinceEpoch.toString(),
-              uri: attachment.imagePath,
-              type: MediaType.image,
-              createdAt: DateTime.fromMillisecondsSinceEpoch(attachment.timestamp),
-              analysisData: attachment.analysisResult,
-              altText: attachment.altText,
-            ))
-        .toList();
-
-    return EntryContentRenderer(
-      content: _entryState.text,
-      mediaItems: mediaItems,
-      textStyle: theme.textTheme.bodyLarge?.copyWith(
-        color: Colors.white,
-        fontSize: 16,
-        height: 1.5,
+    // In view-only mode, just show the text content
+    // Photos are displayed separately via _buildInterleavedContent -> _buildPhotoThumbnailGrid
+    return Container(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            _entryState.text,
+            style: theme.textTheme.bodyLarge?.copyWith(
+              color: Colors.white,
+              fontSize: 16,
+              height: 1.5,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -3084,7 +3082,9 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
 
   Future<void> _performOCR(File imageFile) async {
     try {
-      final extractedText = await _ocrService.extractText(imageFile);
+      // TODO: OCR service not yet implemented
+      // final extractedText = await _ocrService.extractText(imageFile);
+      final extractedText = ''; // Placeholder until OCR is implemented
       if (extractedText.isNotEmpty) {
         // Create ScanAttachment for the attachments list
         final scanAttachment = ScanAttachment(
