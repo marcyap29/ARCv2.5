@@ -128,8 +128,12 @@ class McpPackImportService {
       return entriesImported;
     }
 
+    int totalEntriesFound = 0;
+    int entriesWithMedia = 0;
+    
     await for (final entryFile in journalDir.list()) {
       if (entryFile is File && entryFile.path.endsWith('.json')) {
+        totalEntriesFound++;
         try {
           final entryJson = jsonDecode(await entryFile.readAsString()) as Map<String, dynamic>;
           
@@ -137,7 +141,12 @@ class McpPackImportService {
           final mediaItems = <MediaItem>[];
           final mediaData = entryJson['media'] as List<dynamic>? ?? [];
           
-          print('📝 Processing entry ${entryJson['id']} with ${mediaData.length} media items');
+          if (mediaData.isNotEmpty) {
+            entriesWithMedia++;
+            print('📝 Processing entry ${entryJson['id']} with ${mediaData.length} media items');
+          } else {
+            print('📝 Processing entry ${entryJson['id']} with NO media items');
+          }
           
           for (final mediaJson in mediaData) {
             if (mediaJson is Map<String, dynamic>) {
@@ -190,15 +199,35 @@ class McpPackImportService {
 
           // Save to journal repository
           if (_journalRepo != null) {
-            await _journalRepo!.createJournalEntry(journalEntry);
-            entriesImported++;
-            print('📝 Imported entry: ${journalEntry.title}');
+            try {
+              await _journalRepo!.createJournalEntry(journalEntry);
+              entriesImported++;
+              print('✅ Successfully imported entry ${journalEntry.id}: ${journalEntry.title} (${mediaItems.length} media items)');
+            } catch (e, stackTrace) {
+              print('❌ ERROR: Failed to save entry ${journalEntry.id} to repository: $e');
+              print('   Stack trace: $stackTrace');
+              // Continue processing other entries even if this one fails
+            }
+          } else {
+            print('⚠️ Warning: No journal repository available, skipping entry ${journalEntry.id}');
           }
 
-        } catch (e) {
-          print('⚠️ Failed to import entry ${entryFile.path}: $e');
+        } catch (e, stackTrace) {
+          print('❌ ERROR: Failed to import entry ${entryFile.path}: $e');
+          print('   Stack trace: $stackTrace');
+          // Even if import fails, continue with other entries
+          // Don't let one bad entry stop the entire import
         }
       }
+    }
+
+    print('📊 Import Summary:');
+    print('   Total entries found: $totalEntriesFound');
+    print('   Entries with media: $entriesWithMedia');
+    print('   Entries successfully imported: $entriesImported');
+    
+    if (entriesImported < totalEntriesFound) {
+      print('⚠️ WARNING: ${totalEntriesFound - entriesImported} entries were NOT imported!');
     }
 
     return entriesImported;
@@ -294,7 +323,12 @@ class McpPackImportService {
     if (timestamp == null || timestamp.isEmpty) {
       return DateTime.now();
     }
-    return _parseTimestamp(timestamp);
+    try {
+      return _parseTimestamp(timestamp);
+    } catch (e) {
+      print('⚠️ Failed to parse media timestamp "$timestamp": $e, using current time');
+      return DateTime.now();
+    }
   }
 }
 
