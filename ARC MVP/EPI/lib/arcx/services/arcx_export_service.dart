@@ -11,9 +11,9 @@ import 'package:crypto/crypto.dart';
 import 'package:archive/archive_io.dart';
 import 'package:path/path.dart' as path;
 import 'package:path_provider/path_provider.dart';
-import '../../models/journal_entry_model.dart';
-import '../../data/models/media_item.dart';
-import '../../mcp/export/mcp_pack_export_service.dart';
+import 'package:my_app/models/journal_entry_model.dart';
+import 'package:my_app/data/models/media_item.dart';
+import '../../core/mcp/export/mcp_pack_export_service.dart';
 import 'arcx_crypto_service.dart';
 import 'arcx_redaction_service.dart';
 import '../models/arcx_manifest.dart';
@@ -124,7 +124,24 @@ class ARCXExportService {
             for (final entry in journalEntries) {
               if (entry is File && entry.path.endsWith('.json')) {
                 final json = jsonDecode(await entry.readAsString()) as Map<String, dynamic>;
-                json['id'] = path.basenameWithoutExtension(entry.path);
+                // Preserve the original ID from the JSON, don't overwrite with filename
+                // Only set ID if it's missing
+                if (json['id'] == null) {
+                  json['id'] = path.basenameWithoutExtension(entry.path);
+                }
+                
+                // Debug: Log media field for first entry
+                if (journalNodes.isEmpty) {
+                  print('ARCX Export: First entry ID: ${json['id']}');
+                  print('ARCX Export: First entry has media field: ${json.containsKey('media')}');
+                  if (json['media'] != null) {
+                    print('ARCX Export: First entry media count: ${(json['media'] as List).length}');
+                    if ((json['media'] as List).isNotEmpty) {
+                      print('ARCX Export: First entry first media item: ${json['media'][0]}');
+                    }
+                  }
+                }
+                
                 journalNodes.add(json);
               }
             }

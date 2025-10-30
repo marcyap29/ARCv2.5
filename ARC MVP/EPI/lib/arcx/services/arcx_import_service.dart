@@ -10,9 +10,9 @@ import 'package:crypto/crypto.dart';
 import 'package:archive/archive.dart';
 import 'package:path/path.dart' as path;
 import 'package:path_provider/path_provider.dart';
-import '../../models/journal_entry_model.dart';
-import '../../data/models/media_item.dart';
-import '../../arc/core/journal_repository.dart';
+import 'package:my_app/models/journal_entry_model.dart';
+import 'package:my_app/data/models/media_item.dart';
+import 'package:my_app/arc/core/journal_repository.dart';
 import 'arcx_crypto_service.dart';
 import '../models/arcx_manifest.dart';
 import '../models/arcx_result.dart';
@@ -259,9 +259,21 @@ class ARCXImportService {
               if (nodeJson['media'] != null) {
                 print('ARCX Import: Media field type: ${nodeJson['media'].runtimeType}');
                 print('ARCX Import: Media field value: ${nodeJson['media']}');
+                if (nodeJson['media'] is List) {
+                  print('ARCX Import: Media list length: ${(nodeJson['media'] as List).length}');
+                  if ((nodeJson['media'] as List).isNotEmpty) {
+                    print('ARCX Import: First media item: ${nodeJson['media'][0]}');
+                  }
+                }
               } else {
-                print('ARCX Import: No media field found in node!');
+                print('ARCX Import: ⚠️ No media field found in node!');
               }
+            }
+            
+            // Log media count for all entries
+            final mediaCount = (nodeJson['media'] as List<dynamic>? ?? []).length;
+            if (mediaCount > 0) {
+              print('ARCX Import: Entry ${nodeJson['id']} has $mediaCount media items');
             }
             
             final entry = await _convertMCPNodeToJournalEntry(nodeJson, photosPath);
@@ -356,7 +368,10 @@ class ARCXImportService {
       final mediaList = nodeJson['media'] as List<dynamic>? ?? [];
       final mediaItems = <MediaItem>[];
       
-      print('ARCX Import: Found ${mediaList.length} media items in entry ${originalId}');
+      print('ARCX Import: Processing entry ${originalId} with ${mediaList.length} media items');
+      if (mediaList.isEmpty) {
+        print('ARCX Import: ⚠️ Entry ${originalId} has NO media items');
+      }
       
       for (final mediaJson in mediaList) {
         if (mediaJson is Map<String, dynamic>) {
