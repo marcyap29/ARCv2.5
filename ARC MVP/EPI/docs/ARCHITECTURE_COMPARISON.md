@@ -1,11 +1,15 @@
 # MCP Import/Export Architecture Comparison
 
 **Date**: October 29, 2025  
-**Comparing**: Commit `7ff2f4f` (before fixes) vs Current `HEAD` (after fixes)
+**Last Updated**: October 29, 2025  
+**Comparing**: Commit `7ff2f4f` (before fixes) vs Current `HEAD` (after fixes)  
+**Status**: ✅ RESOLVED - Import issue fixed with MediaItem adapter registration fix
 
 ## Overview
 
 This document compares the MCP import/export architecture between the working version (commit 7ff2f4f) and the current version to identify what changed and why entries with photos aren't being imported properly.
+
+**Update (October 29, 2025)**: The import issue has been resolved. The root cause was not in the import service architecture itself, but rather an adapter ID conflict preventing entries with media from being saved to the Hive database. See Bug Tracker entry "MediaItem Adapter Registration Fix" for details.
 
 ## Key Architectural Changes
 

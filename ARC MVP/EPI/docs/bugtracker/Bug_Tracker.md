@@ -1,10 +1,46 @@
 # Bug Tracker - Current Status
 
-**Last Updated:** January 30, 2025
-**Branch:** mcp-security
-**Status:** Production Ready ✅ - ARCX Image Loading Fixed, Secure Archive System Complete
+**Last Updated:** October 29, 2025
+**Branch:** arcx export
+**Status:** Production Ready ✅ - ARCX Image Loading Fixed, Secure Archive System Complete, MediaItem Adapter Registration Fixed
 
 ## 📊 Current Status
+
+### 🐛 MediaItem Adapter Registration Fix (October 29, 2025)
+**Fixed critical bug preventing entries with photos from being saved to database:**
+- **Problem**: Entries with media items failed to save with error: `HiveError: Cannot write, unknown type: MediaItem. Did you forget to register an adapter?`
+- **Root Cause**: 
+  1. Adapter ID conflict: Rivet models (`EvidenceSource`, `RivetEvent`) were using IDs 10 and 11, which conflicted with `MediaTypeAdapter` (ID 10) and `MediaItemAdapter` (ID 11)
+  2. During parallel initialization, `RivetBox.initialize()` checked for IDs 10 and 11, saw they were registered (by MediaType/MediaItem), and skipped registering its adapters, but still expected those IDs
+  3. This caused the MediaItem adapter to not be properly registered when saving entries with media
+- **Impact**: 
+  - Entries with photos were not being imported from unencrypted `.zip` archives
+  - Import logs showed "5 entries were NOT imported" (entries 23, 24, 25 had photos)
+  - Entries were processed but failed to save to Hive database
+- **Solution**: 
+  1. **Fixed Adapter ID Conflicts**: Changed Rivet adapter IDs from 10, 11, 12 to 20, 21, 22
+     - `EvidenceSource`: ID 10 → 20
+     - `RivetEvent`: ID 11 → 21
+     - `RivetState`: ID 12 → 22
+  2. **Updated Registration**: Updated `rivet_storage.dart` to check for new IDs (20, 21, 22)
+  3. **Regenerated Adapters**: Ran `build_runner` to regenerate `rivet_models.g.dart` with new IDs
+  4. **Fixed Set Conversion**: Fixed generated adapter to properly convert List to Set for `keywords` field: `(fields[3] as List).cast<String>().toSet()`
+  5. **Added Safety Check**: Added `_ensureMediaItemAdapter()` method in `JournalRepository` to verify adapter registration before saving entries with media
+  6. **Enhanced Logging**: Added debug logging in `bootstrap.dart` to track adapter registration status
+- **Technical Fix**:
+  - Modified `lib/atlas/rivet/rivet_models.dart` - Changed adapter typeIds from 10,11,12 to 20,21,22
+  - Modified `lib/atlas/rivet/rivet_storage.dart` - Updated adapter registration checks to use new IDs
+  - Modified `lib/atlas/rivet/rivet_models.g.dart` - Fixed Set conversion for keywords field
+  - Modified `lib/main/bootstrap.dart` - Added comprehensive logging for adapter registration
+  - Modified `lib/arc/core/journal_repository.dart` - Added safety check to ensure MediaItem adapter is registered before saving
+- **Files Modified**: 
+  - `lib/atlas/rivet/rivet_models.dart`
+  - `lib/atlas/rivet/rivet_storage.dart`
+  - `lib/atlas/rivet/rivet_models.g.dart`
+  - `lib/main/bootstrap.dart`
+  - `lib/arc/core/journal_repository.dart`
+- **Status**: PRODUCTION READY ✅
+- **Testing**: Entries with photos now successfully import and save to database
 
 ### 🐛 ARCX Image Loading Fix (January 30, 2025)
 **Fixed critical bug where imported ARCX photos displayed as placeholders:**

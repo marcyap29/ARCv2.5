@@ -1,10 +1,11 @@
 import 'dart:async';
 import 'package:hive/hive.dart';
 import 'package:my_app/models/journal_entry_model.dart';
-import 'package:my_app/features/timeline/timeline_state.dart';
+import 'package:my_app/arc/ui/timeline/timeline_state.dart';
 import 'package:my_app/arc/core/sage_annotation_model.dart';
-import '../../mira/mira_service.dart';
-import '../../mira/core/ids.dart';
+import 'package:my_app/mira/mira_service.dart';
+import 'package:my_app/mira/core/ids.dart';
+import 'package:my_app/data/models/media_item.dart';
 
 /// Self-initializing repository with consistent box name.
 /// No external init() needed.
@@ -33,11 +34,34 @@ class JournalRepository {
     return _box!;
   }
 
+  /// Ensure MediaItem adapter is registered before saving entries with media
+  void _ensureMediaItemAdapter() {
+    if (!Hive.isAdapterRegistered(10)) {
+      Hive.registerAdapter(MediaTypeAdapter());
+      print('🔍 JournalRepository: Registered MediaTypeAdapter (ID: 10)');
+    }
+    if (!Hive.isAdapterRegistered(11)) {
+      Hive.registerAdapter(MediaItemAdapter());
+      print('🔍 JournalRepository: Registered MediaItemAdapter (ID: 11)');
+    }
+  }
+
   // Create
   Future<void> createJournalEntry(JournalEntry entry) async {
     print('🔍 JournalRepository: Creating journal entry with ID: ${entry.id}');
     print('🔍 JournalRepository: Entry content: ${entry.content}');
     print('🔍 JournalRepository: Entry media count: ${entry.media.length}');
+    
+    // Ensure MediaItem adapter is registered if entry has media
+    if (entry.media.isNotEmpty) {
+      _ensureMediaItemAdapter();
+      if (!Hive.isAdapterRegistered(11)) {
+        print('❌ JournalRepository: CRITICAL - MediaItemAdapter (ID: 11) is NOT registered!');
+      } else {
+        print('✅ JournalRepository: Verified MediaItemAdapter (ID: 11) is registered');
+      }
+    }
+    
     try {
       final box = await _ensureBox();
       await box.put(entry.id, entry);

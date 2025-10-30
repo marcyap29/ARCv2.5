@@ -15,7 +15,7 @@ import 'package:my_app/models/journal_entry_model.dart';
 import 'package:my_app/models/arcform_snapshot_model.dart';
 import 'package:my_app/arc/core/sage_annotation_model.dart';
 import 'package:my_app/data/models/media_item.dart';
-import 'package:my_app/rivet/validation/rivet_storage.dart';
+import 'package:my_app/atlas/rivet/rivet_storage.dart';
 import 'package:my_app/services/analytics_service.dart';
 import 'package:my_app/services/media_pack_tracking_service.dart';
 import 'package:my_app/data/hive/insight_snapshot.dart';
@@ -180,38 +180,60 @@ void _registerHiveAdapters() {
     // Register MediaItem adapters FIRST since JournalEntry depends on them
     if (!Hive.isAdapterRegistered(10)) {
       Hive.registerAdapter(MediaTypeAdapter());
+      logger.d('✅ Registered MediaTypeAdapter (ID: 10)');
+    } else {
+      logger.d('⚠️ MediaTypeAdapter (ID: 10) already registered');
     }
     if (!Hive.isAdapterRegistered(11)) {
       Hive.registerAdapter(MediaItemAdapter());
+      logger.d('✅ Registered MediaItemAdapter (ID: 11)');
+    } else {
+      logger.d('⚠️ MediaItemAdapter (ID: 11) already registered');
     }
     
     // Register other adapters
     if (!Hive.isAdapterRegistered(0)) {
       Hive.registerAdapter(UserProfileAdapter());
+      logger.d('✅ Registered UserProfileAdapter (ID: 0)');
     }
     if (!Hive.isAdapterRegistered(1)) {
       Hive.registerAdapter(JournalEntryAdapter());
+      logger.d('✅ Registered JournalEntryAdapter (ID: 1)');
     }
     if (!Hive.isAdapterRegistered(2)) {
       Hive.registerAdapter(ArcformSnapshotAdapter());
+      logger.d('✅ Registered ArcformSnapshotAdapter (ID: 2)');
     }
     if (!Hive.isAdapterRegistered(3)) {
       Hive.registerAdapter(SAGEAnnotationAdapter());
+      logger.d('✅ Registered SAGEAnnotationAdapter (ID: 3)');
     }
     if (!Hive.isAdapterRegistered(4)) {
       Hive.registerAdapter(InsightSnapshotAdapter());
+      logger.d('✅ Registered InsightSnapshotAdapter (ID: 4)');
     }
     if (!Hive.isAdapterRegistered(5)) {
       Hive.registerAdapter(SyncItemAdapter());
+      logger.d('✅ Registered SyncItemAdapter (ID: 5)');
     }
     // Chat adapters - handled by ChatRepoImpl.initialize()
     if (!Hive.isAdapterRegistered(71)) {
       Hive.registerAdapter(ChatSessionAdapter());
+      logger.d('✅ Registered ChatSessionAdapter (ID: 71)');
     }
     if (!Hive.isAdapterRegistered(70)) {
       Hive.registerAdapter(ChatMessageAdapter());
+      logger.d('✅ Registered ChatMessageAdapter (ID: 70)');
+    }
+    
+    // Verify MediaItemAdapter is registered
+    if (Hive.isAdapterRegistered(11)) {
+      logger.i('✅ Verified MediaItemAdapter (ID: 11) is registered');
+    } else {
+      logger.e('❌ ERROR: MediaItemAdapter (ID: 11) is NOT registered!');
     }
   } catch (e) {
+    logger.e('❌ Error registering Hive adapters: $e');
     logger.w('Some adapters may already be registered: $e');
     // Continue - this is not critical
   }
@@ -262,83 +284,18 @@ Future<void> bootstrap({
         logger.e('Failed to lock device orientation', e, st);
       }
 
-      // === Hive init (portable across mobile, desktop, web) ===
-      try {
-        await Hive.initFlutter(); // handles IndexedDB on web
-        logger.d('Hive.initFlutter() completed');
-        
-        // Register adapters (must match @HiveType typeIds) - check if already registered
-        _registerHiveAdapters();
-        logger.d('Hive adapters registered');
+      // === Parallel Initialization of Independent Services ===
+      // Run independent services in parallel for faster startup
+      final initializationResults = await Future.wait([
+        _initializeHive(),
+        _initializeRivet(),
+        _initializeAnalytics(),
+        _initializeAudioService(),
+        _initializeMediaPackTracking(),
+      ], eagerError: false);
 
-        // Open boxes with consistent snake_case names - with error recovery
-        await _openHiveBoxes();
-        
-        // Migrate existing user profile data if needed
-        await _migrateUserProfileData();
-
-        logger.d('Hive initialized, adapters registered, boxes opened');
-      } catch (e, st) {
-        logger.e('Failed to initialize Hive', e, st);
-        // Try to recover by clearing corrupted data
-        try {
-          logger.w('Attempting Hive recovery by clearing corrupted data');
-          await _clearCorruptedHiveData();
-          await _openHiveBoxes();
-          logger.i('Hive recovery successful, continuing app startup');
-        } catch (recoveryError, recoverySt) {
-          logger.e('Hive recovery failed', recoveryError, recoverySt);
-          // Don't call runApp from error handler to avoid zone issues
-          logger.e('Hive recovery failed - error logged but not showing UI to avoid zone conflicts');
-          return;
-        }
-      }
-
-      // === RIVET Storage Initialization ===
-      try {
-        await RivetBox.initialize();
-        logger.d('RIVET storage initialized successfully');
-      } catch (e, st) {
-        logger.e('Failed to initialize RIVET storage', e, st);
-        // RIVET failure is non-critical - continue app startup
-        logger.w('RIVET gating will be disabled due to storage initialization failure');
-      }
-
-      // === Analytics Initialization ===
-      try {
-        await AnalyticsService.initialize();
-        AnalyticsService.trackAppLaunch();
-        logger.d('Analytics service initialized successfully');
-      } catch (e, st) {
-        logger.e('Failed to initialize analytics service', e, st);
-        // Analytics failure is non-critical - continue app startup
-        logger.w('Analytics tracking will be disabled due to initialization failure');
-      }
-
-      // === Audio Service Initialization (P22 - Ethereal Music) ===
-      try {
-        await AudioService().initialize();
-        logger.d('Audio service initialized successfully');
-      } catch (e, st) {
-        logger.e('Failed to initialize audio service', e, st);
-        // Audio failure is non-critical - continue app startup
-        logger.w('Ethereal music will be disabled due to initialization failure');
-      }
-
-      // === Media Pack Tracking Service Initialization ===
-      try {
-        await MediaPackTrackingService.instance.initialize();
-        // Run auto-archive check on startup
-        final archivedPacks = await MediaPackTrackingService.instance.autoArchiveOldPacks(6);
-        if (archivedPacks.isNotEmpty) {
-          logger.i('Auto-archived ${archivedPacks.length} old media packs');
-        }
-        logger.d('Media pack tracking service initialized successfully');
-      } catch (e, st) {
-        logger.e('Failed to initialize media pack tracking service', e, st);
-        // Tracking failure is non-critical - continue app startup
-        logger.w('Media pack tracking will be disabled due to initialization failure');
-      }
+      // Log results
+      logger.d('Parallel initialization completed: ${initializationResults.where((r) => r).length}/5 services successful');
 
       // ===========================================================
       // NOTES FOR AI AGENT
@@ -724,5 +681,103 @@ Future<void> _registerNativeBridges() async {
   } catch (e) {
     logger.e('Failed to register native bridges', e);
     rethrow;
+  }
+}
+
+/// Initialize Hive storage
+Future<bool> _initializeHive() async {
+  try {
+    await Hive.initFlutter(); // handles IndexedDB on web
+    logger.d('Hive.initFlutter() completed');
+    
+    // Register adapters (must match @HiveType typeIds) - check if already registered
+    _registerHiveAdapters();
+    logger.d('Hive adapters registered');
+
+    // Open boxes with consistent snake_case names - with error recovery
+    await _openHiveBoxes();
+    
+    // Migrate existing user profile data if needed
+    await _migrateUserProfileData();
+
+    logger.d('Hive initialized, adapters registered, boxes opened');
+    return true;
+  } catch (e, st) {
+    logger.e('Failed to initialize Hive', e, st);
+    // Try to recover by clearing corrupted data
+    try {
+      logger.w('Attempting Hive recovery by clearing corrupted data');
+      await _clearCorruptedHiveData();
+      await _openHiveBoxes();
+      logger.i('Hive recovery successful, continuing app startup');
+      return true;
+    } catch (recoveryError, recoverySt) {
+      logger.e('Hive recovery failed', recoveryError, recoverySt);
+      return false;
+    }
+  }
+}
+
+/// Initialize RIVET storage
+Future<bool> _initializeRivet() async {
+  try {
+    await RivetBox.initialize();
+    logger.d('RIVET storage initialized successfully');
+    return true;
+  } catch (e, st) {
+    logger.e('Failed to initialize RIVET storage', e, st);
+    logger.w('RIVET gating will be disabled due to storage initialization failure');
+    return false;
+  }
+}
+
+/// Initialize Analytics service
+Future<bool> _initializeAnalytics() async {
+  try {
+    await AnalyticsService.initialize();
+    AnalyticsService.trackAppLaunch();
+    logger.d('Analytics service initialized successfully');
+    return true;
+  } catch (e, st) {
+    logger.e('Failed to initialize analytics service', e, st);
+    logger.w('Analytics tracking will be disabled due to initialization failure');
+    return false;
+  }
+}
+
+/// Initialize Audio service
+Future<bool> _initializeAudioService() async {
+  try {
+    await AudioService().initialize();
+    logger.d('Audio service initialized successfully');
+    return true;
+  } catch (e, st) {
+    logger.e('Failed to initialize audio service', e, st);
+    logger.w('Ethereal music will be disabled due to initialization failure');
+    return false;
+  }
+}
+
+/// Initialize Media Pack Tracking service
+Future<bool> _initializeMediaPackTracking() async {
+  try {
+    await MediaPackTrackingService.instance.initialize();
+    // Run auto-archive check on startup (defer heavy operation)
+    Future.delayed(const Duration(seconds: 5), () async {
+      try {
+        final archivedPacks = await MediaPackTrackingService.instance.autoArchiveOldPacks(6);
+        if (archivedPacks.isNotEmpty) {
+          logger.i('Auto-archived ${archivedPacks.length} old media packs');
+        }
+      } catch (e) {
+        logger.e('Failed to run auto-archive check', e);
+      }
+    });
+    logger.d('Media pack tracking service initialized successfully');
+    return true;
+  } catch (e, st) {
+    logger.e('Failed to initialize media pack tracking service', e, st);
+    logger.w('Media pack tracking will be disabled due to initialization failure');
+    return false;
   }
 }

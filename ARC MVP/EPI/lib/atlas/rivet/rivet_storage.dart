@@ -1,6 +1,15 @@
 import 'package:hive/hive.dart';
 import 'rivet_models.dart';
 
+/// Safe map normalization helper
+Map<String, dynamic> _asStringMapOrNull(Object? raw) {
+  if (raw is Map<String, dynamic>) return raw;
+  if (raw is Map) {
+    return raw.map((k, v) => MapEntry(k.toString(), v));
+  }
+  return <String, dynamic>{};
+}
+
 /// Persistent storage for RIVET state and event history using Hive
 class RivetBox {
   static const String boxName = 'rivet_state_v1';
@@ -26,7 +35,7 @@ class RivetBox {
         );
       }
       
-      return RivetState.fromJson(Map<String, dynamic>.from(stateData));
+      return RivetState.fromJson(_asStringMapOrNull(stateData) ?? {});
     } catch (e) {
       print('ERROR: Failed to load RIVET state for user $userId: $e');
       // Return safe default state on error
@@ -143,13 +152,13 @@ class RivetBox {
   static Future<void> initialize() async {
     try {
       // Register adapters if not already registered
-      if (!Hive.isAdapterRegistered(10)) {
+      if (!Hive.isAdapterRegistered(20)) {
         Hive.registerAdapter(EvidenceSourceAdapter());
       }
-      if (!Hive.isAdapterRegistered(11)) {
+      if (!Hive.isAdapterRegistered(21)) {
         Hive.registerAdapter(RivetEventAdapter());
       }
-      if (!Hive.isAdapterRegistered(12)) {
+      if (!Hive.isAdapterRegistered(22)) {
         Hive.registerAdapter(RivetStateAdapter());
       }
       

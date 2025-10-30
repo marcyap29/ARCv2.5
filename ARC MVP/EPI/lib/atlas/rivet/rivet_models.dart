@@ -4,7 +4,7 @@ import 'package:hive/hive.dart';
 part 'rivet_models.g.dart';
 
 /// Evidence source types for RIVET tracking
-@HiveType(typeId: 10)
+@HiveType(typeId: 20)
 enum EvidenceSource {
   @HiveField(0)
   text,
@@ -14,30 +14,51 @@ enum EvidenceSource {
   therapistTag,
   @HiveField(3)
   other,
+  // Extended sources for reflective entry system
+  @HiveField(4)
+  draft,
+  @HiveField(5)
+  lumaraChat,
+  @HiveField(6)
+  journal,
+  @HiveField(7)
+  chat,
+  @HiveField(8)
+  media,
+  @HiveField(9)
+  arcform,
+  @HiveField(10)
+  phase,
+  @HiveField(11)
+  system,
 }
 
 /// Single RIVET event capturing user interaction and phase prediction/confirmation
-@HiveType(typeId: 11)
+@HiveType(typeId: 21)
 class RivetEvent extends Equatable {
   @HiveField(0)
-  final DateTime date;
+  final String eventId;
   
   @HiveField(1)
-  final EvidenceSource source;
+  final DateTime date;
   
   @HiveField(2)
-  final Set<String> keywords; // selected by user
+  final EvidenceSource source;
   
   @HiveField(3)
-  final String predPhase; // from PhaseRecommender
+  final Set<String> keywords; // selected by user
   
   @HiveField(4)
-  final String refPhase; // from user-confirmation dialog
+  final String predPhase; // from PhaseRecommender
   
   @HiveField(5)
+  final String refPhase; // from user-confirmation dialog
+  
+  @HiveField(6)
   final Map<String, double> tolerance; // per-phase tolerance (stub for now)
 
   const RivetEvent({
+    required this.eventId,
     required this.date,
     required this.source,
     required this.keywords,
@@ -47,9 +68,10 @@ class RivetEvent extends Equatable {
   });
 
   @override
-  List<Object?> get props => [date, source, keywords, predPhase, refPhase, tolerance];
+  List<Object?> get props => [eventId, date, source, keywords, predPhase, refPhase, tolerance];
 
   RivetEvent copyWith({
+    String? eventId,
     DateTime? date,
     EvidenceSource? source,
     Set<String>? keywords,
@@ -58,6 +80,7 @@ class RivetEvent extends Equatable {
     Map<String, double>? tolerance,
   }) {
     return RivetEvent(
+      eventId: eventId ?? this.eventId,
       date: date ?? this.date,
       source: source ?? this.source,
       keywords: keywords ?? this.keywords,
@@ -69,6 +92,7 @@ class RivetEvent extends Equatable {
 
   Map<String, dynamic> toJson() {
     return {
+      'eventId': eventId,
       'date': date.toIso8601String(),
       'source': source.toString(),
       'keywords': keywords.toList(),
@@ -80,6 +104,7 @@ class RivetEvent extends Equatable {
 
   factory RivetEvent.fromJson(Map<String, dynamic> json) {
     return RivetEvent(
+      eventId: json['eventId'] as String? ?? '',
       date: DateTime.parse(json['date'] as String),
       source: EvidenceSource.values.firstWhere(
         (e) => e.toString() == json['source'],
@@ -91,10 +116,84 @@ class RivetEvent extends Equatable {
       tolerance: Map<String, double>.from(json['tolerance'] as Map),
     );
   }
+
+  /// Create RivetEvent from LUMARA chat message
+  factory RivetEvent.fromLumaraChat({
+    required DateTime date,
+    required Set<String> keywords,
+    required String predPhase,
+    String? refPhase,
+    Map<String, double> tolerance = const {},
+  }) {
+    return RivetEvent(
+      eventId: 'rivet_${date.millisecondsSinceEpoch}',
+      date: date,
+      source: EvidenceSource.lumaraChat,
+      keywords: keywords,
+      predPhase: predPhase,
+      refPhase: refPhase ?? predPhase,
+      tolerance: tolerance,
+    );
+  }
+
+  /// Create RivetEvent from draft entry
+  factory RivetEvent.fromDraftEntry({
+    required DateTime date,
+    required Set<String> keywords,
+    required String predPhase,
+    String? refPhase,
+    Map<String, double> tolerance = const {},
+  }) {
+    return RivetEvent(
+      eventId: 'rivet_draft_${date.millisecondsSinceEpoch}',
+      date: date,
+      source: EvidenceSource.draft,
+      keywords: keywords,
+      predPhase: predPhase,
+      refPhase: refPhase ?? predPhase,
+      tolerance: tolerance,
+    );
+  }
+
+  /// Create RivetEvent from journal entry
+  factory RivetEvent.fromJournalEntry({
+    required DateTime date,
+    required Set<String> keywords,
+    required String predPhase,
+    String? refPhase,
+    Map<String, double> tolerance = const {},
+  }) {
+    return RivetEvent(
+      eventId: 'rivet_journal_${date.millisecondsSinceEpoch}',
+      date: date,
+      source: EvidenceSource.journal,
+      keywords: keywords,
+      predPhase: predPhase,
+      refPhase: refPhase ?? predPhase,
+      tolerance: tolerance,
+    );
+  }
+}
+
+/// Configuration for RIVET reducer computation
+class RivetConfig {
+  final double Athresh; // ALIGN threshold (A*)
+  final double Tthresh; // TRACE threshold (T*)
+  final int W; // sustainment window size
+  final int N; // smoothing parameter for ALIGN
+  final double K; // saturation parameter for TRACE
+
+  const RivetConfig({
+    this.Athresh = 0.6,
+    this.Tthresh = 0.6,
+    this.W = 2,
+    this.N = 10,
+    this.K = 20,
+  });
 }
 
 /// Current RIVET state tracking ALIGN and TRACE values
-@HiveType(typeId: 12)
+@HiveType(typeId: 22)
 class RivetState extends Equatable {
   @HiveField(0)
   final double align; // [0,1] - fidelity between prediction and reference
@@ -114,6 +213,13 @@ class RivetState extends Equatable {
     required this.sustainCount,
     required this.sawIndependentInWindow,
   });
+
+  /// Computed gate open status based on config
+  /// For use in reducer tests - not stored in Hive
+  bool getGateOpen(RivetConfig config) {
+    return (sustainCount >= config.W) && sawIndependentInWindow &&
+           (align >= config.Athresh) && (trace >= config.Tthresh);
+  }
 
   @override
   List<Object?> get props => [align, trace, sustainCount, sawIndependentInWindow];
