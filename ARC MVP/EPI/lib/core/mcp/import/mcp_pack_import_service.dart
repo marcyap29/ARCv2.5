@@ -141,12 +141,18 @@ class McpPackImportService {
           
           for (final mediaJson in mediaData) {
             if (mediaJson is Map<String, dynamic>) {
-              final mediaItem = await _createMediaItemFromJson(mediaJson, photoMapping);
-              if (mediaItem != null) {
-                mediaItems.add(mediaItem);
-                print('✅ Added media item ${mediaItem.id} to entry ${entryJson['id']}');
-              } else {
-                print('⚠️ Failed to create media item for entry ${entryJson['id']}');
+              try {
+                final mediaItem = await _createMediaItemFromJson(mediaJson, photoMapping);
+                if (mediaItem != null) {
+                  mediaItems.add(mediaItem);
+                  print('✅ Added media item ${mediaItem.id} to entry ${entryJson['id']}');
+                } else {
+                  print('⚠️ Failed to create media item for entry ${entryJson['id']}');
+                }
+              } catch (e, stackTrace) {
+                print('⚠️ ERROR creating media item for entry ${entryJson['id']}: $e');
+                print('   Stack trace: $stackTrace');
+                // Continue processing other media items - don't let one failure stop the entry
               }
             }
           }
@@ -156,6 +162,9 @@ class McpPackImportService {
             print('   Photo mapping contains ${photoMapping.length} photos');
             print('   First media item filename: ${mediaData[0] is Map ? (mediaData[0] as Map<String, dynamic>)['filename'] : 'N/A'}');
           }
+          
+          // IMPORTANT: Always import the entry, even if media items failed
+          print('📝 Creating journal entry ${entryJson['id']} with ${mediaItems.length}/${mediaData.length} media items');
 
           // Create journal entry
           final journalEntry = JournalEntry(
@@ -220,7 +229,7 @@ class McpPackImportService {
             id: mediaJson['id'] as String,
             type: MediaType.image,
             uri: originalPath,
-            createdAt: DateTime.parse(mediaJson['createdAt'] as String),
+            createdAt: _parseMediaTimestamp(mediaJson['createdAt'] as String?),
             analysisData: mediaJson['analysisData'] as Map<String, dynamic>?,
             altText: mediaJson['altText'] as String?,
             ocrText: mediaJson['ocrText'] as String?,
@@ -234,7 +243,7 @@ class McpPackImportService {
         id: mediaJson['id'] as String,
         type: MediaType.image,
         uri: permanentPath,
-        createdAt: DateTime.parse(mediaJson['createdAt'] as String),
+        createdAt: _parseMediaTimestamp(mediaJson['createdAt'] as String?),
         analysisData: mediaJson['analysisData'] as Map<String, dynamic>?,
         altText: mediaJson['altText'] as String?,
         ocrText: mediaJson['ocrText'] as String?,
@@ -278,6 +287,14 @@ class McpPackImportService {
       // Fallback to current time if parsing fails
       return DateTime.now();
     }
+  }
+
+  /// Parse media timestamp with robust handling (can be null)
+  DateTime _parseMediaTimestamp(String? timestamp) {
+    if (timestamp == null || timestamp.isEmpty) {
+      return DateTime.now();
+    }
+    return _parseTimestamp(timestamp);
   }
 }
 
