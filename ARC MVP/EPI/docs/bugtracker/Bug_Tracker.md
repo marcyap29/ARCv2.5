@@ -2,9 +2,72 @@
 
 **Last Updated:** October 29, 2025
 **Branch:** arcx export
-**Status:** Production Ready ✅ - ARCX Image Loading Fixed, Secure Archive System Complete, MediaItem Adapter Registration Fixed, Photo Duplication Fixed
+**Status:** Production Ready ✅ - ARCX Image Loading Fixed, Secure Archive System Complete, MediaItem Adapter Registration Fixed, Photo Duplication Fixed, Infinite Rebuild Loop Fixed, Hive Initialization Order Fixed
 
 ## 📊 Current Status
+
+### 🐛 Infinite Rebuild Loop Fix in Timeline (October 29, 2025)
+**Fixed critical infinite rebuild loop causing performance issues:**
+- **Problem**: Timeline screen was stuck in an infinite rebuild loop, continuously rebuilding with the same state
+- **Root Cause**: 
+  1. `BlocBuilder` in `InteractiveTimelineView` was calling `_notifySelectionChanged()` on every rebuild via `addPostFrameCallback`
+  2. This callback triggered `setState()` in the parent `TimelineView` widget
+  3. Parent rebuild caused child rebuild, which triggered the callback again, creating an infinite loop
+- **Impact**: 
+  - App performance degradation (continuous rebuilds)
+  - Excessive CPU usage
+  - Potential UI freezing
+  - Debug logs flooded with repeated rebuild messages
+- **Solution**: 
+  1. **Added State Tracking**: Introduced `_previousSelectionMode`, `_previousSelectedCount`, and `_previousTotalEntries` to track previous notification state
+  2. **Conditional Notifications**: Only call `_notifySelectionChanged()` when selection state actually changes (not on every rebuild)
+  3. **Immediate State Updates**: Update previous values immediately before scheduling callback to prevent race conditions
+  4. **Parent Widget Guard**: Added conditional check in parent widget to only call `setState()` when values actually change
+- **Technical Fix**:
+  - Modified `lib/arc/ui/timeline/widgets/interactive_timeline_view.dart`:
+    - Added state tracking variables for previous notification state
+    - Conditionally call `_notifySelectionChanged()` only when state changes
+    - Update previous values immediately to prevent race conditions
+  - Modified `lib/arc/ui/timeline/timeline_view.dart`:
+    - Added conditional check in `onSelectionChanged` callback to only call `setState()` when values actually change
+- **Files Modified**: 
+  - `lib/arc/ui/timeline/widgets/interactive_timeline_view.dart`
+  - `lib/arc/ui/timeline/timeline_view.dart`
+- **Status**: PRODUCTION READY ✅
+- **Testing**: Timeline rebuilds only when actual data changes or user interacts with selection
+
+### 🐛 Hive Initialization Order Fix (October 29, 2025)
+**Fixed critical initialization errors causing app startup failures:**
+- **Problem**: 
+  1. `MediaPackTrackingService` tried to initialize before Hive was ready, causing "You need to initialize Hive" errors
+  2. Duplicate adapter registration errors for Rivet adapters (typeId 21)
+- **Root Cause**: 
+  1. Parallel initialization of services attempted to use Hive before it was initialized
+  2. `MediaPackTrackingService.initialize()` tried to open a Hive box before `Hive.initFlutter()` completed
+  3. `RivetBox.initialize()` attempted to register adapters that might already be registered, causing crashes
+- **Impact**: 
+  - App crashes on startup
+  - Hive initialization failures
+  - Duplicate adapter registration errors
+  - Services unable to initialize properly
+- **Solution**: 
+  1. **Sequential Initialization**: Changed from parallel to sequential initialization - Hive must initialize first
+  2. **Conditional Service Init**: Services that depend on Hive (Rivet, MediaPackTracking) only initialize if Hive initialization succeeds
+  3. **Graceful Error Handling**: Added try-catch blocks around each adapter registration in `RivetBox.initialize()` to handle "already registered" errors gracefully
+  4. **Removed Rethrow**: Changed from `rethrow` to graceful error handling so RIVET initialization doesn't crash the app
+- **Technical Fix**:
+  - Modified `lib/main/bootstrap.dart`:
+    - Changed initialization order: Hive first, then others in parallel
+    - Added conditional checks so Rivet and MediaPackTracking only initialize if Hive succeeded
+  - Modified `lib/atlas/rivet/rivet_storage.dart`:
+    - Wrapped each adapter registration in its own try-catch block
+    - Added specific handling for "already registered" errors
+    - Changed from `rethrow` to graceful error handling
+- **Files Modified**: 
+  - `lib/main/bootstrap.dart`
+  - `lib/atlas/rivet/rivet_storage.dart`
+- **Status**: PRODUCTION READY ✅
+- **Testing**: App starts successfully without initialization errors
 
 ### 🐛 Photo Duplication Fix in View Entry Screen (October 29, 2025)
 **Fixed bug where photos appeared twice in View Entry screen:**

@@ -152,20 +152,44 @@ class RivetBox {
   static Future<void> initialize() async {
     try {
       // Register adapters if not already registered
-      if (!Hive.isAdapterRegistered(20)) {
-        Hive.registerAdapter(EvidenceSourceAdapter());
+      // Note: Hive must be initialized before calling this
+      try {
+        if (!Hive.isAdapterRegistered(20)) {
+          Hive.registerAdapter(EvidenceSourceAdapter());
+        }
+      } catch (e) {
+        // Adapter may already be registered - this is fine
+        if (!e.toString().contains('already')) {
+          print('WARNING: Error registering EvidenceSourceAdapter: $e');
+        }
       }
-      if (!Hive.isAdapterRegistered(21)) {
-        Hive.registerAdapter(RivetEventAdapter());
+      
+      try {
+        if (!Hive.isAdapterRegistered(21)) {
+          Hive.registerAdapter(RivetEventAdapter());
+        }
+      } catch (e) {
+        // Adapter may already be registered - this is fine
+        if (!e.toString().contains('already')) {
+          print('WARNING: Error registering RivetEventAdapter: $e');
+        }
       }
-      if (!Hive.isAdapterRegistered(22)) {
-        Hive.registerAdapter(RivetStateAdapter());
+      
+      try {
+        if (!Hive.isAdapterRegistered(22)) {
+          Hive.registerAdapter(RivetStateAdapter());
+        }
+      } catch (e) {
+        // Adapter may already be registered - this is fine
+        if (!e.toString().contains('already')) {
+          print('WARNING: Error registering RivetStateAdapter: $e');
+        }
       }
       
       print('DEBUG: RIVET storage initialized');
     } catch (e) {
       print('ERROR: Failed to initialize RIVET storage: $e');
-      rethrow;
+      // Don't rethrow - RIVET can work without typed adapters
     }
   }
 }

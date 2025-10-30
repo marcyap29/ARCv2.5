@@ -4,6 +4,32 @@
 
 ### 🐛 **Bug Fixes** - October 29, 2025
 
+#### **Infinite Rebuild Loop Fix in Timeline** ✅ **PRODUCTION READY**
+- **Fixed**: Timeline screen no longer stuck in infinite rebuild loop
+- **Root Cause**: `BlocBuilder` was calling `_notifySelectionChanged()` on every rebuild, triggering parent `setState()`, causing infinite loop
+- **Solution**: 
+  - Added state tracking (`_previousSelectionMode`, `_previousSelectedCount`, `_previousTotalEntries`) to only notify when state actually changes
+  - Added conditional check in parent widget to only call `setState()` when values change
+  - Update previous values immediately before scheduling callback to prevent race conditions
+- **Files Modified**: 
+  - `lib/arc/ui/timeline/widgets/interactive_timeline_view.dart`
+  - `lib/arc/ui/timeline/timeline_view.dart`
+- **Impact**: Improved app performance, eliminated excessive CPU usage and UI freezing
+
+#### **Hive Initialization Order Fix** ✅ **PRODUCTION READY**
+- **Fixed**: App startup failures due to initialization order issues
+- **Root Cause**: 
+  1. `MediaPackTrackingService` tried to initialize before Hive was ready
+  2. Duplicate adapter registration errors for Rivet adapters
+- **Solution**: 
+  - Changed to sequential initialization: Hive first, then dependent services in parallel
+  - Added conditional checks so Rivet and MediaPackTracking only initialize if Hive succeeds
+  - Added graceful error handling for adapter registration (no crashes on "already registered")
+- **Files Modified**: 
+  - `lib/main/bootstrap.dart`
+  - `lib/atlas/rivet/rivet_storage.dart`
+- **Impact**: App starts successfully without initialization errors
+
 #### **Photo Duplication Fix in View Entry Screen** ✅ **PRODUCTION READY**
 - **Fixed**: Photos no longer appear twice when viewing entries
 - **Root Cause**: Both `_buildContentView()` and `_buildInterleavedContent()` were displaying photos

@@ -1,11 +1,27 @@
 # EPI Documentation
 
-**Last Updated:** January 30, 2025
-**Status:** Production Ready ✅ - ARCX Secure Archive System Complete with iOS Integration, Encrypted Export, and Redaction Settings
+**Last Updated:** October 29, 2025
+**Status:** Production Ready ✅ - ARCX Secure Archive System Complete with iOS Integration, Critical Bug Fixes Applied
 
 This directory contains comprehensive documentation for the EPI (Evolving Personal Intelligence) project - an 8-module intelligent journaling system built with Flutter.
 
-## 🆕 Latest Updates (January 30, 2025)
+## 🆕 Latest Updates (October 29, 2025)
+
+### 🐛 **Critical Bug Fixes** - October 29, 2025
+
+#### **Timeline Infinite Rebuild Loop Fix** ✅
+- **Fixed**: Timeline screen no longer stuck in infinite rebuild loop
+- **Impact**: Improved app performance, eliminated excessive CPU usage
+- **Files Modified**: 
+  - `lib/arc/ui/timeline/widgets/interactive_timeline_view.dart`
+  - `lib/arc/ui/timeline/timeline_view.dart`
+
+#### **Hive Initialization Order Fix** ✅
+- **Fixed**: App startup failures due to initialization order issues
+- **Impact**: App starts successfully without initialization errors
+- **Files Modified**: 
+  - `lib/main/bootstrap.dart`
+  - `lib/atlas/rivet/rivet_storage.dart`
 
 ### 🌅 **AURORA Circadian Signal Integration** - January 30, 2025
 

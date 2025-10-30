@@ -284,18 +284,21 @@ Future<void> bootstrap({
         logger.e('Failed to lock device orientation', e, st);
       }
 
-      // === Parallel Initialization of Independent Services ===
-      // Run independent services in parallel for faster startup
+      // === Sequential Initialization - Hive must be first ===
+      // Hive must be initialized before anything that uses it
+      final hiveInitialized = await _initializeHive();
+      
+      // === Parallel Initialization of Independent Services (after Hive) ===
+      // Run independent services in parallel after Hive is ready
       final initializationResults = await Future.wait([
-        _initializeHive(),
-        _initializeRivet(),
+        if (hiveInitialized) _initializeRivet() else Future.value(false),
         _initializeAnalytics(),
         _initializeAudioService(),
-        _initializeMediaPackTracking(),
+        if (hiveInitialized) _initializeMediaPackTracking() else Future.value(false),
       ], eagerError: false);
 
       // Log results
-      logger.d('Parallel initialization completed: ${initializationResults.where((r) => r).length}/5 services successful');
+      logger.d('Initialization completed: Hive=$hiveInitialized, ${initializationResults.where((r) => r).length}/4 additional services successful');
 
       // ===========================================================
       // NOTES FOR AI AGENT
