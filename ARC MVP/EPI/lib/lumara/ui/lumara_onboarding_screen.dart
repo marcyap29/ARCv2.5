@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'lumara_settings_screen.dart';
 import 'widgets/lumara_icon.dart';
+import '../../shared/ui/home/home_view.dart';
 
 /// LUMARA onboarding screen shown when no AI provider is configured
 class LumaraOnboardingScreen extends StatelessWidget {
@@ -20,53 +21,63 @@ class LumaraOnboardingScreen extends StatelessWidget {
         backgroundColor: theme.scaffoldBackgroundColor,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => Navigator.pop(context),
-          tooltip: 'Back',
+          icon: Icon(
+            Icons.arrow_back_ios,
+            color: theme.colorScheme.onSurface,
+            size: 24,
+          ),
+          onPressed: () => Navigator.of(context).pop(),
+          tooltip: 'Back to Main Menu',
         ),
+        automaticallyImplyLeading: false,
       ),
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24.0),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // Logo/Icon
-              LumaraIcon(
-                size: 80,
-                color: theme.colorScheme.primary,
-              ),
-              const SizedBox(height: 24),
-
-              // Title
-              Text(
-                'Welcome to LUMARA',
-                style: theme.textTheme.headlineMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: theme.colorScheme.onSurface,
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            return SingleChildScrollView(
+              padding: const EdgeInsets.all(24.0),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  minHeight: constraints.maxHeight - MediaQuery.of(context).padding.top - MediaQuery.of(context).padding.bottom,
                 ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 16),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    // Add space to push symbol lower
+                    const SizedBox(height: 120),
+                    
+                    // Logo/Icon - positioned lower, medium size
+                    Center(
+                      child: LayoutBuilder(
+                        builder: (context, constraints) {
+                          // Calculate icon size based on screen width (use 40% of screen width, min 200px)
+                          final iconSize = (constraints.maxWidth * 0.4).clamp(200.0, 600.0);
+                          return LumaraIcon(
+                            size: iconSize,
+                            color: theme.colorScheme.primary,
+                            strokeWidth: (iconSize / 100).clamp(2.0, 6.0),
+                          );
+                        },
+                      ),
+                    ),
+                    
+                    // Reduced gap between symbol and card
+                    const SizedBox(height: 16),
 
-              // Subtitle
-              Text(
-                'Your AI-powered journaling companion',
-                style: theme.textTheme.bodyLarge?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
+                    // LUMARA Settings Card - positioned closer to symbol
+                    _buildSettingsCard(
+                      context: context,
+                      theme: theme,
+                    ),
+                    
+                    // Ensure card doesn't scroll past bottom
+                    const SizedBox(height: 40),
+                  ],
                 ),
-                textAlign: TextAlign.center,
               ),
-              const SizedBox(height: 48),
-
-              // LUMARA Settings Card
-              _buildSettingsCard(
-                context: context,
-                theme: theme,
-              ),
-            ],
-          ),
+            );
+          },
         ),
       ),
     );
@@ -175,12 +186,18 @@ class LumaraOnboardingScreen extends StatelessWidget {
       ),
     );
 
-    // If settings were saved and configuration is complete, mark onboarding as completed
+    // If settings were saved and configuration is complete, navigate to HomeView
     if (context.mounted && result == true) {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool('lumara_onboarding_completed', true);
       await prefs.setBool('lumara_welcome_shown', true); // Mark welcome as shown
-      Navigator.pop(context);
+      
+      // Navigate to HomeView, replacing the onboarding screen
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(
+          builder: (context) => const HomeView(),
+        ),
+      );
     }
   }
 }

@@ -397,7 +397,7 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () => Navigator.pop(context),
-          tooltip: 'Back',
+          tooltip: 'Back to Main Menu',
         ),
       ),
       body: SingleChildScrollView(

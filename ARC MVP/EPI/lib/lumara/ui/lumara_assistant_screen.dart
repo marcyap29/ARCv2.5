@@ -11,8 +11,10 @@ import '../chat/chat_repo_impl.dart';
 import 'lumara_quick_palette.dart';
 import 'simple_lumara_settings_screen.dart';
 import 'lumara_onboarding_screen.dart';
+import 'lumara_settings_welcome_screen.dart';
+import 'lumara_settings_screen.dart';
 import '../widgets/attribution_display_widget.dart';
-import '../../mira/memory/enhanced_memory_schema.dart';
+import 'package:my_app/mira/memory/enhanced_memory_schema.dart';
 import '../config/api_config.dart';
 
 /// Main LUMARA Assistant screen
@@ -211,15 +213,30 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
                                 const Gap(12),
                               ],
                               ElevatedButton(
-                                onPressed: () {
-                                  Navigator.push(
-                                    context,
-                                  MaterialPageRoute(
-                                    builder: (context) => isConfigError
-                                        ? const LumaraOnboardingScreen()
-                                        : const SimpleLumaraSettingsScreen(),
-                                  ),
-                                  );
+                                onPressed: () async {
+                                  // Check if welcome screen should be shown
+                                  final prefs = await SharedPreferences.getInstance();
+                                  final welcomeShown = prefs.getBool('lumara_settings_welcome_shown') ?? false;
+                                  
+                                  if (!welcomeShown && !isConfigError) {
+                                    // First time - show welcome splash screen
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (context) => const LumaraSettingsWelcomeScreen(),
+                                      ),
+                                    );
+                                  } else {
+                                    // Navigate to appropriate screen
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (context) => isConfigError
+                                            ? const LumaraOnboardingScreen()
+                                            : const LumaraSettingsScreen(),
+                                      ),
+                                    );
+                                  }
                                 },
                                 child: Text(isConfigError ? 'Set Up AI' : 'Settings'),
                               ),
@@ -591,16 +608,29 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
   }
 
 
-  void _showEnhancedSettings() {
+  void _showEnhancedSettings() async {
     // Dismiss keyboard first
     _dismissKeyboard();
     
-    // Navigate to simplified LUMARA settings
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (context) => const SimpleLumaraSettingsScreen(),
-      ),
-    );
+    // Check if welcome screen should be shown
+    final prefs = await SharedPreferences.getInstance();
+    final welcomeShown = prefs.getBool('lumara_settings_welcome_shown') ?? false;
+    
+    if (!welcomeShown) {
+      // First time - show welcome splash screen
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (context) => const LumaraSettingsWelcomeScreen(),
+        ),
+      );
+    } else {
+      // Navigate directly to settings screen
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (context) => const LumaraSettingsScreen(),
+        ),
+      );
+    }
   }
 
   /// Handle attribution weight changes
