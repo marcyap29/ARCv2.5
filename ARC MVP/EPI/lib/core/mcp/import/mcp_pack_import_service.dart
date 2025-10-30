@@ -69,8 +69,12 @@ class McpPackImportService {
       final photoMapping = await _importPhotos(mcpDir);
       print('📸 Imported ${photoMapping.length} photos');
 
+      // Load photo metadata files for enhanced matching
+      final photoMetadataMap = await _loadPhotoMetadata(mcpDir);
+      print('📋 Loaded ${photoMetadataMap.length} photo metadata files');
+
       // Import journal entries
-      final entriesImported = await _importJournalEntries(mcpDir, photoMapping);
+      final entriesImported = await _importJournalEntries(mcpDir, photoMapping, photoMetadataMap);
       print('📝 Imported $entriesImported journal entries');
       
       // Log media cache statistics
@@ -141,8 +145,39 @@ class McpPackImportService {
     return photoMapping;
   }
 
+  /// Load photo metadata files from nodes/media/photo directory
+  Future<Map<String, Map<String, dynamic>>> _loadPhotoMetadata(Directory mcpDir) async {
+    final metadataMap = <String, Map<String, dynamic>>{};
+    
+    final photoMetadataDir = Directory(path.join(mcpDir.path, 'nodes', 'media', 'photo'));
+    if (!await photoMetadataDir.exists()) {
+      print('⚠️ No photo metadata directory found');
+      return metadataMap;
+    }
+
+    await for (final file in photoMetadataDir.list()) {
+      if (file is File && file.path.endsWith('.json')) {
+        try {
+          final json = jsonDecode(await file.readAsString()) as Map<String, dynamic>;
+          final photoId = json['id'] as String? ?? path.basenameWithoutExtension(file.path);
+          if (photoId.isNotEmpty) {
+            metadataMap[photoId] = json;
+          }
+        } catch (e) {
+          print('⚠️ Failed to load photo metadata from ${file.path}: $e');
+        }
+      }
+    }
+
+    return metadataMap;
+  }
+
   /// Import journal entries from MCP package
-  Future<int> _importJournalEntries(Directory mcpDir, Map<String, String> photoMapping) async {
+  Future<int> _importJournalEntries(
+    Directory mcpDir,
+    Map<String, String> photoMapping,
+    Map<String, Map<String, dynamic>> photoMetadataMap,
+  ) async {
     int entriesImported = 0;
     
     final journalDir = Directory(path.join(mcpDir.path, 'nodes', 'journal'));
@@ -229,7 +264,27 @@ class McpPackImportService {
           for (final mediaJson in mediaData) {
             if (mediaJson is Map<String, dynamic>) {
               try {
-                final mediaItem = await _createMediaItemFromJson(mediaJson, photoMapping, entryJson['id'] as String? ?? 'unknown');
+                // Try to enhance media JSON with photo metadata if available
+                final mediaId = mediaJson['id'] as String?;
+                Map<String, dynamic> enhancedMediaJson = mediaJson;
+                if (mediaId != null && photoMetadataMap.containsKey(mediaId)) {
+                  final metadata = photoMetadataMap[mediaId]!;
+                  // Merge metadata into mediaJson, preferring metadata values
+                  enhancedMediaJson = {
+                    ...mediaJson,
+                    // Use metadata values if mediaJson doesn't have them
+                    'filename': mediaJson['filename'] ?? metadata['filename'],
+                    'sha256': mediaJson['sha256'] ?? metadata['sha256'],
+                    'originalPath': mediaJson['originalPath'] ?? metadata['originalPath'],
+                    'createdAt': mediaJson['createdAt'] ?? metadata['createdAt'],
+                    'analysisData': mediaJson['analysisData'] ?? metadata['analysisData'],
+                    'altText': mediaJson['altText'] ?? metadata['altText'],
+                    'ocrText': mediaJson['ocrText'] ?? metadata['ocrText'],
+                  };
+                  print('📋 Enhanced media ${mediaId} with metadata from photo metadata file');
+                }
+                
+                final mediaItem = await _createMediaItemFromJson(enhancedMediaJson, photoMapping, entryJson['id'] as String? ?? 'unknown');
                 if (mediaItem != null) {
                   // Check cache for deduplication
                   final cacheKey = mediaItem.uri;
