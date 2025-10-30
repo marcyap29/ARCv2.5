@@ -1,12 +1,13 @@
 import 'dart:io';
 import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:my_app/mcp/adapters/journal_entry_projector.dart';
+import 'package:my_app/core/mcp/adapters/journal_entry_projector.dart';
 import 'package:my_app/core/services/photo_library_service.dart';
 import 'package:my_app/data/models/photo_metadata.dart';
 import 'package:my_app/data/models/media_item.dart';
 import 'package:my_app/models/journal_entry_model.dart';
-import 'package:my_app/arc/core/journal_repository.dart';
+import 'package:my_app/arc/core/journal_repository.dart' as arc;
+import 'package:my_app/arc/ui/timeline/timeline_state.dart';
 import 'package:flutter/services.dart';
 
 void main() {
@@ -284,29 +285,97 @@ void main() {
 }
 
 // Mock journal repository for testing
-class MockJournalRepository implements JournalRepository {
+class MockJournalRepository implements arc.JournalRepository {
   List<JournalEntry> entries = [];
   
   @override
   List<JournalEntry> getAllJournalEntries() => entries;
   
   @override
-  Future<void> saveJournalEntry(JournalEntry entry) async {}
+  List<JournalEntry> getAllJournalEntriesSync() => entries;
   
   @override
-  Future<void> deleteJournalEntry(String id) async {}
+  Future<void> createJournalEntry(JournalEntry entry) async {
+    entries.add(entry);
+  }
   
   @override
-  Future<JournalEntry?> getJournalEntry(String id) async => null;
+  Future<void> saveJournalEntry(JournalEntry entry) async {
+    final index = entries.indexWhere((e) => e.id == entry.id);
+    if (index >= 0) {
+      entries[index] = entry;
+    } else {
+      entries.add(entry);
+    }
+  }
   
   @override
-  Future<void> updateJournalEntry(JournalEntry entry) async {}
+  Future<void> deleteJournalEntry(String id) async {
+    entries.removeWhere((e) => e.id == id);
+  }
+  
+  @override
+  Future<void> deleteAllEntries() async {
+    entries.clear();
+  }
+  
+  @override
+  Future<JournalEntry?> getJournalEntry(String id) async {
+    return getJournalEntryById(id);
+  }
+  
+  @override
+  JournalEntry? getJournalEntryById(String id) {
+    try {
+      return entries.firstWhere((e) => e.id == id);
+    } catch (e) {
+      return null;
+    }
+  }
+  
+  @override
+  JournalEntry? getJournalEntryByIdSync(String id) {
+    return getJournalEntryById(id);
+  }
+  
+  @override
+  Future<void> updateJournalEntry(JournalEntry entry) async {
+    await saveJournalEntry(entry);
+  }
   
   @override
   Future<List<JournalEntry>> searchJournalEntries(String query) async => [];
   
   @override
-  Future<void> clearAllEntries() async {}
+  Future<void> clearAllEntries() async {
+    entries.clear();
+  }
+  
+  @override
+  Future<void> close() async {}
+  
+  @override
+  Future<int> getEntryCount() async => entries.length;
+  
+  @override
+  List<JournalEntry> getEntriesPaginatedSync({
+    required int page,
+    required int pageSize,
+    TimelineFilter? filter,
+  }) {
+    final start = page * pageSize;
+    final end = start + pageSize;
+    return entries.length > start ? entries.sublist(start, end > entries.length ? entries.length : end) : [];
+  }
+  
+  @override
+  Future<List<JournalEntry>> getEntriesPaginated({
+    required int page,
+    required int pageSize,
+    TimelineFilter? filter,
+  }) async {
+    return getEntriesPaginatedSync(page: page, pageSize: pageSize, filter: filter);
+  }
 }
 
 // Mock IOSink for testing
@@ -334,30 +403,44 @@ class MockIOSink implements IOSink {
   void writeAll(Iterable objects, [String separator = ""]) {
     for (final obj in objects) {
       write(obj);
+      if (separator.isNotEmpty && obj != objects.last) {
+        write(separator);
+      }
     }
   }
   
   @override
-  void add(List<int> data) {}
+  void writeCharCode(int charCode) {
+    write(String.fromCharCode(charCode));
+  }
   
   @override
-  void addError(Object error, [StackTrace? stackTrace]) {}
+  Encoding get encoding => utf8;
   
   @override
-  Future addStream(Stream<List<int>> stream) async {}
+  set encoding(Encoding value) {}
   
   @override
-  Future close() async {}
+  Future<void> addStream(Stream<List<int>> stream) async {
+    await for (final data in stream) {
+      write(String.fromCharCodes(data));
+    }
+  }
   
   @override
-  Future flush() async {}
+  Future<void> add(List<int> data) async {
+    write(String.fromCharCodes(data));
+  }
   
   @override
-  bool get done => false;
+  Future<void> addError(Object error, [StackTrace? stackTrace]) async {}
+  
+  @override
+  Future<void> flush() async {}
+  
+  @override
+  Future<void> close() async {}
   
   @override
   Future get done => Future.value();
-  
-  @override
-  void setEncoding(Encoding encoding) {}
 }

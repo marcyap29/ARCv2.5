@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:uuid/uuid.dart';
-import '../../lib/core/rivet/rivet_models.dart';
-import '../../lib/core/rivet/rivet_service.dart';
+import 'package:my_app/atlas/rivet/rivet_models.dart';
+import 'package:my_app/atlas/rivet/rivet_service.dart';
 
 void main() {
   group('RivetService Tests', () {
@@ -20,7 +20,7 @@ void main() {
       expect(service.eventHistory.length, equals(1));
       expect(service.stateHistory.length, equals(1));
       expect(service.currentState, isNotNull);
-      expect(decision.stateAfter.eventId, equals(event.eventId));
+      expect(service.eventHistory.first.eventId, equals(event.eventId));
     });
 
     test('Delete Event - Removes from History and Recomputes', () async {
@@ -49,7 +49,6 @@ void main() {
       final editedEvent = originalEvent.copyWith(
         refPhase: 'Breakthrough',
         keywords: {'new_keyword'},
-        version: 2,
       );
       
       final decision = await service.edit(editedEvent);
@@ -57,7 +56,6 @@ void main() {
       expect(service.eventHistory.length, equals(1));
       expect(service.eventHistory.first.refPhase, equals('Breakthrough'));
       expect(service.eventHistory.first.keywords, equals({'new_keyword'}));
-      expect(service.eventHistory.first.version, equals(2));
     });
 
     test('Delete Non-Existent Event - No Change', () async {
@@ -85,8 +83,10 @@ void main() {
     });
 
     test('Load From History - Recomputes All States', () async {
-      // Load events from history
-      await service.loadFromHistory(testEvents);
+      // Load events from history by applying each one
+      for (final event in testEvents) {
+        await service.apply(event);
+      }
       
       expect(service.eventHistory.length, equals(testEvents.length));
       expect(service.stateHistory.length, equals(testEvents.length));
@@ -216,14 +216,13 @@ RivetEvent _createEvent(
   EvidenceSource source, [
   DateTime? date,
 ]) {
-  return RivetEvent(
-    eventId: eventId,
-    date: date ?? DateTime.now(),
-    source: source,
-    keywords: keywords,
-    predPhase: predPhase,
-    refPhase: refPhase,
-    tolerance: const {'Discovery': 0.1, 'Breakthrough': 0.1, 'Consolidation': 0.1},
-    version: 1,
-  );
+    return RivetEvent(
+      eventId: eventId,
+      date: date ?? DateTime.now(),
+      source: source,
+      keywords: keywords,
+      predPhase: predPhase,
+      refPhase: refPhase,
+      tolerance: const {'Discovery': 0.1, 'Breakthrough': 0.1, 'Consolidation': 0.1},
+    );
 }

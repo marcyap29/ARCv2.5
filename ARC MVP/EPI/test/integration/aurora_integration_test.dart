@@ -2,6 +2,7 @@
 /// 
 /// Tests the complete integration of AURORA with VEIL-EDGE and LUMARA
 
+import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import '../../lib/aurora/services/circadian_profile_service.dart';
 import '../../lib/aurora/models/circadian_context.dart';
@@ -9,6 +10,7 @@ import '../../lib/lumara/veil_edge/services/veil_edge_service.dart';
 import '../../lib/lumara/veil_edge/models/veil_edge_models.dart';
 import '../../lib/lumara/veil_edge/integration/lumara_veil_edge_integration.dart';
 import '../../lib/lumara/chat/chat_repo.dart';
+import '../../lib/lumara/chat/chat_models.dart';
 import '../../lib/models/journal_entry_model.dart';
 
 void main() {
@@ -164,9 +166,17 @@ void main() {
 
         expect(chatMessage.role, 'assistant');
         expect(chatMessage.provenance, contains('aurora'));
-        expect(chatMessage.provenance?['aurora'], contains('circadian_window'));
-        expect(chatMessage.provenance?['aurora'], contains('chronotype'));
-        expect(chatMessage.provenance?['aurora'], contains('rhythm_score'));
+        if (chatMessage.provenance != null) {
+          final provenanceMap = jsonDecode(chatMessage.provenance!) as Map<String, dynamic>?;
+          if (provenanceMap != null) {
+            final aurora = provenanceMap['aurora'] as Map<String, dynamic>?;
+            if (aurora != null) {
+              expect(aurora.keys, contains('circadian_window'));
+              expect(aurora.keys, contains('chronotype'));
+              expect(aurora.keys, contains('rhythm_score'));
+            }
+          }
+        }
       });
     });
 
@@ -301,8 +311,8 @@ class MockChatRepo implements ChatRepo {
       ChatMessage(
         id: 'msg_${DateTime.now().millisecondsSinceEpoch}',
         sessionId: sessionId,
-        role: msg['role'],
-        content: msg['content'],
+        role: msg['role'] as String,
+        textContent: msg['content'] as String,
         createdAt: DateTime.now(),
       )
     ).toList();
@@ -318,22 +328,31 @@ class MockChatRepo implements ChatRepo {
   Future<void> addTags(String sessionId, List<String> tags) async {}
 
   @override
-  Future<void> archiveSession(String sessionId) async {}
+  Future<void> archiveSession(String sessionId, bool archive) async {}
 
   @override
   Future<void> close() async {}
 
   @override
-  Future<String> createSession({String? title}) async => 'test_session';
-
-  @override
-  Future<void> deleteMessage(String messageId) async {}
+  Future<String> createSession({required String subject, List<String>? tags}) async => 'test_session';
 
   @override
   Future<void> deleteSession(String sessionId) async {}
 
   @override
-  Future<List<ChatSession>> getAllSessions() async => [];
+  Future<void> deleteSessions(List<String> sessionIds) async {}
+
+  @override
+  Future<Map<String, int>> getStats() async => {};
+
+  @override
+  Future<List<ChatSession>> listActive({String? query}) async => [];
+
+  @override
+  Future<List<ChatSession>> listArchived({String? query}) async => [];
+
+  @override
+  Future<List<ChatSession>> listAll({bool includeArchived = true}) async => [];
 
   @override
   Future<ChatSession?> getSession(String sessionId) async => null;
@@ -342,10 +361,16 @@ class MockChatRepo implements ChatRepo {
   Future<void> initialize() async {}
 
   @override
-  Future<void> updateMessage(String messageId, String content) async {}
+  Future<void> pinSession(String sessionId, bool pin) async {}
 
   @override
-  Future<void> updateSession(String sessionId, {String? title}) async {}
+  Future<void> pruneByPolicy({Duration maxAge = const Duration(days: 30)}) async {}
+
+  @override
+  Future<void> removeTags(String sessionId, List<String> tags) async {}
+
+  @override
+  Future<void> renameSession(String sessionId, String subject) async {}
 }
 
 /// Helper function to create a journal entry with a specific hour

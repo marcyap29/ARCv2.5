@@ -10,7 +10,7 @@ import '../sync/crdt_sync.dart';
 import '../multimodal/multimodal_pointers.dart';
 import '../migration/migration_service.dart';
 import '../observability/metrics.dart';
-import '../../lumara/chat/ulid.dart';
+import 'package:my_app/lumara/chat/ulid.dart';
 
 /// Example: Basic Memory Creation and Retrieval
 class BasicMemoryExample {

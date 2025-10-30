@@ -4,7 +4,7 @@
 
 import 'dart:math';
 import 'package:collection/collection.dart';
-import '../../models/journal_entry_model.dart';
+import 'package:my_app/models/journal_entry_model.dart';
 import '../models/circadian_context.dart';
 
 /// Service for computing circadian context and chronotype from journal entries

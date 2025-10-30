@@ -1,10 +1,41 @@
 # Bug Tracker - Current Status
 
 **Last Updated:** October 29, 2025
-**Branch:** arcx export
-**Status:** Production Ready ✅ - ARCX Image Loading Fixed, Secure Archive System Complete, MediaItem Adapter Registration Fixed, Photo Duplication Fixed, Infinite Rebuild Loop Fixed, Hive Initialization Order Fixed
+**Branch:** aurora
+**Status:** Production Ready ✅ - ARCX Image Loading Fixed, Secure Archive System Complete, MediaItem Adapter Registration Fixed, Photo Duplication Fixed, Infinite Rebuild Loop Fixed, Hive Initialization Order Fixed, Insights Tab UI Enhancements Complete
 
 ## 📊 Current Status
+
+### ✨ Insights Tab UI Enhancements (October 29, 2025)
+**Enhanced Insights dashboard with comprehensive information cards:**
+- **Your Patterns Card Enhancement**:
+  - Added detailed "How it works" explanation section
+  - Added info chips explaining Keywords and Emotions
+  - Added comparison note highlighting differences from Phase system
+  - Improved user understanding of pattern visualization
+- **AURORA Dashboard Card** (New):
+  - Real-time circadian context display (current window, chronotype, rhythm score)
+  - Visual rhythm coherence score with progress bar and color coding
+  - Expandable "Available Options" section showing all chronotypes and time windows
+  - Current chronotype and time window highlighted with purple checkmarks
+  - Activation info explaining how circadian state affects LUMARA behavior
+  - Data sufficiency warning (needs 8+ entries for reliable analysis)
+  - Consistent styling with VEIL card (expandable sections, checkmarks)
+- **VEIL Card Enhancement**:
+  - Added expandable "Show Available Options" toggle
+  - Lists all available strategies with current strategy highlighted
+  - Lists all available response blocks (Mirror, Orient, Nudge, Commit, Safeguard, Log)
+  - Lists all available variants (Standard, :safe, :alert)
+  - Consistent styling with AURORA card for user experience
+- **Files Modified**: 
+  - `lib/shared/ui/home/home_view.dart` - Integrated new cards, enhanced Patterns card
+  - `lib/atlas/phase_detection/cards/aurora_card.dart` - New comprehensive AURORA dashboard
+  - `lib/atlas/phase_detection/cards/veil_card.dart` - Enhanced with expandable options
+- **Impact**: 
+  - Users now have comprehensive information about Patterns, AURORA, and VEIL systems
+  - Better understanding of how each system works and affects their experience
+  - Consistent UI/UX across all insight cards
+- **Status**: PRODUCTION READY ✅
 
 ### 🐛 Infinite Rebuild Loop Fix in Timeline (October 29, 2025)
 **Fixed critical infinite rebuild loop causing performance issues:**

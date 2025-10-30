@@ -16,6 +16,7 @@ class VeilCard extends StatefulWidget {
 class _VeilCardState extends State<VeilCard> {
   String? _currentPhase;
   bool _isLoading = true;
+  bool _showMoreInfo = false;
 
   @override
   void initState() {
@@ -115,6 +116,35 @@ class _VeilCardState extends State<VeilCard> {
       default:
         return 'Support your growth journey';
     }
+  }
+
+  List<String> _getAvailableStrategies() {
+    return [
+      'Exploration (Discovery ↔ Breakthrough)',
+      'Bridge (Transition ↔ Discovery)',
+      'Restore (Recovery ↔ Transition)',
+      'Stabilize (Consolidation ↔ Recovery)',
+      'Growth (Expansion ↔ Consolidation)',
+    ];
+  }
+
+  List<String> _getAvailableBlocks() {
+    return [
+      'Mirror - Reflect understanding',
+      'Orient - Provide direction',
+      'Nudge - Gentle encouragement',
+      'Commit - Action commitment',
+      'Safeguard - Safety first',
+      'Log - Record outcomes',
+    ];
+  }
+
+  List<String> _getAvailableVariants() {
+    return [
+      'Standard - Normal operation',
+      ':safe - Reduced activation, increased containment',
+      ':alert - Maximum safety, grounding focus',
+    ];
   }
 
   @override
@@ -258,6 +288,51 @@ class _VeilCardState extends State<VeilCard> {
 
           const SizedBox(height: 16),
 
+          // More Info Toggle
+          GestureDetector(
+            onTap: () {
+              setState(() {
+                _showMoreInfo = !_showMoreInfo;
+              });
+            },
+            child: Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.05),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    _showMoreInfo ? Icons.expand_less : Icons.expand_more,
+                    size: 16,
+                    color: kcPrimaryTextColor.withOpacity(0.7),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    _showMoreInfo ? 'Hide Details' : 'Show Available Options',
+                    style: bodyStyle(context).copyWith(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                      color: kcPrimaryTextColor.withOpacity(0.8),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          if (_showMoreInfo) ...[
+            const SizedBox(height: 12),
+            _buildAvailableStrategiesSection(),
+            const SizedBox(height: 12),
+            _buildAvailableBlocksSection(),
+            const SizedBox(height: 12),
+            _buildAvailableVariantsSection(),
+          ],
+
+          const SizedBox(height: 16),
+
           // Divider
           Container(
             height: 1,
@@ -330,6 +405,149 @@ class _VeilCardState extends State<VeilCard> {
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildAvailableStrategiesSection() {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.05),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Available Strategies',
+            style: bodyStyle(context).copyWith(
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+              color: kcPrimaryTextColor.withOpacity(0.9),
+            ),
+          ),
+          const SizedBox(height: 8),
+          ..._getAvailableStrategies().map((strategy) => Padding(
+                padding: const EdgeInsets.only(bottom: 6),
+                child: Row(
+                  children: [
+                    Icon(
+                      strategy.startsWith(_getPhaseFamily(_currentPhase))
+                          ? Icons.check_circle
+                          : Icons.circle_outlined,
+                      size: 12,
+                      color: strategy.startsWith(_getPhaseFamily(_currentPhase))
+                          ? Colors.green
+                          : kcPrimaryTextColor.withOpacity(0.5),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        strategy,
+                        style: bodyStyle(context).copyWith(
+                          fontSize: 11,
+                          color: strategy.startsWith(_getPhaseFamily(_currentPhase))
+                              ? Colors.green
+                              : kcPrimaryTextColor.withOpacity(0.7),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              )),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAvailableBlocksSection() {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.05),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Available Response Blocks',
+            style: bodyStyle(context).copyWith(
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+              color: kcPrimaryTextColor.withOpacity(0.9),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            children: _getAvailableBlocks().map((block) => Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(4),
+                    border: Border.all(
+                      color: Colors.blue.withOpacity(0.3),
+                    ),
+                  ),
+                  child: Text(
+                    block,
+                    style: bodyStyle(context).copyWith(
+                      fontSize: 10,
+                      color: Colors.blue.withOpacity(0.9),
+                    ),
+                  ),
+                )).toList(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAvailableVariantsSection() {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.05),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Available Variants',
+            style: bodyStyle(context).copyWith(
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+              color: kcPrimaryTextColor.withOpacity(0.9),
+            ),
+          ),
+          const SizedBox(height: 8),
+          ..._getAvailableVariants().map((variant) => Padding(
+                padding: const EdgeInsets.only(bottom: 6),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.info_outline,
+                      size: 12,
+                      color: kcPrimaryTextColor.withOpacity(0.6),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        variant,
+                        style: bodyStyle(context).copyWith(
+                          fontSize: 11,
+                          color: kcPrimaryTextColor.withOpacity(0.7),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              )),
+        ],
+      ),
     );
   }
 }

@@ -1,7 +1,7 @@
 import 'dart:io';
 import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:my_app/prism/mcp/import/mcp_import_service.dart';
+import 'package:my_app/core/mcp/import/mcp_import_service.dart';
 
 /// Integration tests for the complete MCP import pipeline
 /// 

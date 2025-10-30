@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:my_app/mcp/utils/mcp_file_repair.dart';
-import 'package:my_app/prism/mcp/models/mcp_schemas.dart';
+import 'package:my_app/core/mcp/utils/mcp_file_repair.dart';
+import 'package:my_app/core/mcp/models/mcp_schemas.dart';
 import 'package:archive/archive.dart';
 import 'dart:io';
 import 'dart:convert';

@@ -25,13 +25,14 @@ class ChatMessageAdapter extends TypeAdapter<ChatMessage> {
       originalTextHash: fields[5] as String?,
       provenance: fields[6] as String?,
       metadata: (fields[7] as Map?)?.cast<String, dynamic>(),
+      contentParts: (fields[8] as List?)?.cast<ContentPart>(),
     );
   }
 
   @override
   void write(BinaryWriter writer, ChatMessage obj) {
     writer
-      ..writeByte(8)
+      ..writeByte(9)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -47,7 +48,9 @@ class ChatMessageAdapter extends TypeAdapter<ChatMessage> {
       ..writeByte(6)
       ..write(obj.provenance)
       ..writeByte(7)
-      ..write(obj.metadata);
+      ..write(obj.metadata)
+      ..writeByte(8)
+      ..write(obj.contentParts);
   }
 
   @override

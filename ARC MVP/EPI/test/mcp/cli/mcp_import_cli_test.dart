@@ -1,7 +1,7 @@
 import 'dart:io';
 import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:my_app/prism/mcp/cli/mcp_import_cli.dart';
+import 'package:my_app/core/mcp/cli/mcp_import_cli.dart';
 
 void main() {
   group('McpImportCli', () {

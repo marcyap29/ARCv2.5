@@ -2,8 +2,8 @@
 // Dialog for resolving memory conflicts with user dignity
 
 import 'package:flutter/material.dart';
-import '../../mira/memory/enhanced_memory_schema.dart';
-import '../../mira/memory/conflict_resolution_service.dart';
+import 'package:my_app/mira/memory/enhanced_memory_schema.dart';
+import 'package:my_app/mira/memory/conflict_resolution_service.dart';
 
 /// Response from conflict resolution dialog
 class ConflictResolutionResponse {

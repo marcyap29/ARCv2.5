@@ -7,6 +7,25 @@ This directory contains comprehensive documentation for the EPI (Evolving Person
 
 ## 🆕 Latest Updates (October 29, 2025)
 
+### ✨ **Insights Tab UI Enhancements** - October 29, 2025
+
+#### **Enhanced Insights Dashboard** ✅
+- **Your Patterns Card**: Expanded with detailed explanations of how patterns work, keyword meanings, and differences from phases
+- **AURORA Dashboard**: New comprehensive circadian intelligence card showing:
+  - Current time window and chronotype
+  - Rhythm coherence score with visual progress indicator
+  - Expandable section with all available chronotypes and time windows
+  - How circadian state affects LUMARA behavior
+- **VEIL Card**: Enhanced with expandable details showing:
+  - All available strategies (Exploration, Bridge, Restore, Stabilize, Growth)
+  - All available response blocks (Mirror, Orient, Nudge, Commit, Safeguard, Log)
+  - All available variants (Standard, :safe, :alert)
+  - Current strategy highlighting
+- **Files Modified**: 
+  - `lib/shared/ui/home/home_view.dart`
+  - `lib/atlas/phase_detection/cards/aurora_card.dart` (new)
+  - `lib/atlas/phase_detection/cards/veil_card.dart`
+
 ### 🐛 **Critical Bug Fixes** - October 29, 2025
 
 #### **Timeline Infinite Rebuild Loop Fix** ✅

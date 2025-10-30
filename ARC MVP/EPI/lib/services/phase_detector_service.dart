@@ -3,7 +3,7 @@
 
 import 'dart:math';
 import '../models/phase_models.dart';
-import '../models/journal_entry_model.dart';
+import 'package:my_app/models/journal_entry_model.dart';
 
 /// Real-time phase detection service that analyzes recent journal entries
 /// to suggest the user's current phase based on keyword patterns

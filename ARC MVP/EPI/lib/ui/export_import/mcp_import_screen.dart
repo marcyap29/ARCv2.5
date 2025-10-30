@@ -5,10 +5,10 @@ import 'package:path/path.dart' as path;
 import 'dart:io';
 import '../../shared/app_colors.dart';
 import '../../shared/text_style.dart';
-import '../../arc/core/journal_repository.dart';
-import '../../mcp/import/mcp_pack_import_service.dart';
+import 'package:my_app/arc/core/journal_repository.dart';
+import '../../core/mcp/import/mcp_pack_import_service.dart';
 import '../../utils/file_utils.dart';
-import '../../features/timeline/timeline_cubit.dart';
+import 'package:my_app/arc/ui/timeline/timeline_cubit.dart';
 import '../../arcx/ui/arcx_import_progress_screen.dart';
 
 /// MCP Import Screen - Restore from MCP Package (.zip) or Secure Archive (.arcx)

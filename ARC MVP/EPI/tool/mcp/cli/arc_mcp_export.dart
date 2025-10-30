@@ -7,11 +7,11 @@
 
 import 'dart:io';
 import 'package:args/args.dart';
-import 'package:my_app/mcp/export/mcp_export_service.dart';
-import 'package:my_app/mcp/models/mcp_schemas.dart';
+import 'package:my_app/core/mcp/export/mcp_export_service.dart';
+import 'package:my_app/core/mcp/models/mcp_schemas.dart';
 import 'package:my_app/models/journal_entry_model.dart';
 import 'package:my_app/data/models/media_item.dart';
-import 'package:my_app/mcp/validation/mcp_validator.dart';
+import 'package:my_app/core/mcp/validation/mcp_validator.dart';
 
 void main(List<String> arguments) async {
   final parser = ArgParser()

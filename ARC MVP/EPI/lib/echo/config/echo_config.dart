@@ -51,9 +51,11 @@ class EchoConfig {
 
   /// Switch provider
   Future<void> switchProvider(ProviderType provider, {Map<String, dynamic>? options}) async {
-    _config.currentProvider = provider;
+    _config = _config.copyWith(currentProvider: provider);
     if (options != null) {
-      _config.providerOptions[provider.value] = options;
+      final updatedOptions = Map<String, Map<String, dynamic>>.from(_config.providerOptions);
+      updatedOptions[provider.value] = options;
+      _config = _config.copyWith(providerOptions: updatedOptions);
     }
     await _saveConfig();
     print('ECHO Config: Switched to provider ${provider.value}');

@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:my_app/features/arcforms/phase_recommender.dart';
+import 'package:my_app/arc/ui/arcforms/phase_recommender.dart';
 
 void main() {
   group('PhaseRecommender Integration', () {

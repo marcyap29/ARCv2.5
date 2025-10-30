@@ -71,7 +71,7 @@ class _AIEnhancedTextFieldState extends State<AIEnhancedTextField> {
         if (parts[i].isNotEmpty) {
           spans.add(TextSpan(
             text: parts[i],
-            style: const TextStyle(
+            style: TextStyle(
               color: Colors.blue,
               fontSize: 16,
               fontWeight: FontWeight.w500,

@@ -3,7 +3,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:my_app/models/journal_entry_model.dart';
-import '../services/memory_notification_service.dart';
+import 'package:my_app/lumara/services/memory_notification_service.dart';
 
 class MemoryNotificationWidget extends StatelessWidget {
   final MemoryNotification memory;
@@ -150,7 +150,7 @@ class MemoryNotificationWidget extends StatelessWidget {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Icon(
-                          Icons.cycle,
+                          Icons.refresh,
                           size: 12,
                           color: colorScheme.onSecondaryContainer,
                         ),

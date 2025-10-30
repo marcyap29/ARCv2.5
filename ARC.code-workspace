@@ -1,12 +1,10 @@
 {
     "folders": [
-		{
-			"name": "ARC",
-			"path": "."
-		},
-		{
-			"name": "Downloads",
-			"path": "../../Downloads"
-		}
-	]
+        {
+            "path": "."
+        },
+        {
+            "path": "../../Downloads"
+        }
+    ]
 }

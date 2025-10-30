@@ -5,8 +5,11 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:my_app/lumara/bloc/lumara_assistant_cubit.dart';
 import 'package:my_app/lumara/data/context_provider.dart';
+import 'package:my_app/lumara/data/context_scope.dart';
 import 'package:my_app/lumara/data/models/lumara_message.dart';
 import 'package:my_app/mira/memory/enhanced_mira_memory_service.dart';
+import 'package:my_app/mira/memory/enhanced_memory_schema.dart';
+import 'package:my_app/mira/mira_service.dart';
 import 'golden_prompts_harness.dart';
 
 void main() {
@@ -27,7 +30,14 @@ void main() {
       await lumaraCubit.initialize();
 
       // Get the enhanced memory service from the cubit
-      memoryService = lumaraCubit._memoryService!;
+      // Note: _memoryService is private, so we'll create our own instance for testing
+      memoryService = EnhancedMiraMemoryService(
+        miraService: MiraService.instance,
+      );
+      await memoryService.initialize(
+        userId: 'test_user_integration',
+        currentPhase: 'Expansion',
+      );
     });
 
     group('A. Real-World Memory Commands Testing', () {
@@ -164,7 +174,7 @@ void main() {
         );
 
         expect(guitarMemory.domain, MemoryDomain.personal);
-        expect(guitarMemory.source, 'LUMARA_Chat');
+        expect(guitarMemory.provenance.source, 'LUMARA_Chat');
         expect(guitarMemory.metadata['role'], 'user');
       });
 
@@ -246,7 +256,7 @@ void main() {
         final crossDomainResult = await memoryService.retrieveMemories(
           query: 'What do I have scheduled for Thursday?',
           domains: [MemoryDomain.work, MemoryDomain.health],
-          crossDomainConsent: true,
+          enableCrossDomainSynthesis: true,
           responseId: 'cross_domain_test',
         );
 
@@ -395,8 +405,16 @@ void main() {
 }
 
 class MockContextProvider extends ContextProvider {
+  MockContextProvider() : super(const LumaraScope());
+
   @override
-  Future<ContextWindow> buildContext() async {
+  Future<ContextWindow> buildContext({
+    int daysBack = 30,
+    int maxEntries = 100,
+  }) async {
+    final now = DateTime.now();
+    final startDate = now.subtract(Duration(days: daysBack));
+    
     return ContextWindow(
       nodes: [
         {
@@ -405,6 +423,11 @@ class MockContextProvider extends ContextProvider {
           'meta': {'current': true},
         },
       ],
+      edges: [],
+      totalEntries: 0,
+      totalArcforms: 0,
+      startDate: startDate,
+      endDate: now,
     );
   }
 
@@ -412,12 +435,6 @@ class MockContextProvider extends ContextProvider {
   Future<String> getContextSummary() async {
     return 'Mock context summary for testing';
   }
-}
-
-class ContextWindow {
-  final List<Map<String, dynamic>> nodes;
-
-  ContextWindow({required this.nodes});
 }
 
 enum MessageRole {

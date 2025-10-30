@@ -2,8 +2,8 @@
 // Phase timeline with colored bands and edit controls
 
 import 'package:flutter/material.dart';
-import '../../models/phase_models.dart';
-import '../../services/phase_index.dart';
+import 'package:my_app/models/phase_models.dart';
+import 'package:my_app/services/phase_index.dart';
 
 class PhaseTimelineView extends StatefulWidget {
   final PhaseIndex phaseIndex;

@@ -487,7 +487,7 @@ class PhotoManagerImportService implements MediaImportService {
   /// Factory method to create fully initialized service
   static Future<PhotoManagerImportService> create([StorageSettings? settings]) async {
     final visionService = await MLKitVisionAnalysisService.create();
-    final transcribeService = WhisperStubTranscribeService();
+    final transcribeService = NativeTranscribeService();
     final keyframeService = FFmpegVideoKeyframeService();
     final pointerEmitter = NDJSONPointerEmitter();
     final storageSettings = settings ?? StorageSettings.defaultSettings;

@@ -1,6 +1,6 @@
 import 'dart:math' as math;
-import '../../lumara/chat/chat_models.dart';
-import '../../lumara/chat/content_parts.dart';
+import 'package:my_app/lumara/chat/chat_models.dart';
+import 'package:my_app/lumara/chat/content_parts.dart';
 
 /// RIVET-lite validator for chat message readiness
 /// Provides lightweight coherence and consistency checks

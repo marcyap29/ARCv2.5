@@ -16,7 +16,7 @@ import 'package:my_app/arc/core/media/media_strip.dart';
 import 'package:my_app/arc/core/media/media_preview_dialog.dart';
 import 'package:my_app/arc/core/media/ocr_text_insert_dialog.dart';
 import 'package:my_app/core/services/media_store.dart';
-import 'package:my_app/core/services/ocr_service.dart';
+import 'package:my_app/core/mcp/orchestrator/ios_vision_orchestrator.dart';
 import 'package:my_app/mode/first_responder/fr_mode_suggestion_service.dart';
 
 class JournalCaptureView extends StatefulWidget {
@@ -41,7 +41,7 @@ class _JournalCaptureViewState extends State<JournalCaptureView> {
   // Media management
   final List<MediaItem> _mediaItems = [];
   final MediaStore _mediaStore = MediaStore();
-  final OCRService _ocrService = OCRService();
+  final IOSVisionOrchestrator _visionOrchestrator = IOSVisionOrchestrator();
   final FRModeSuggestionService _frSuggestionService = FRModeSuggestionService();
 
   @override
@@ -79,30 +79,50 @@ class _JournalCaptureViewState extends State<JournalCaptureView> {
         final imageFile = File(mediaItem.uri);
         if (await imageFile.exists()) {
           final imageBytes = await imageFile.readAsBytes();
-          final ocrText = await _ocrService.extractText(imageBytes);
-          if (ocrText != null && ocrText.isNotEmpty) {
-            // Show OCR text insert dialog
-            if (mounted) {
-              final insertedText = await showDialog<String>(
-                context: context,
-                builder: (context) => OCRTextInsertDialog(
-                  extractedText: ocrText,
-                  onTextInserted: (text) => text,
-                ),
-              );
+          // Create temporary file for iOS Vision processing
+          final tempDir = await Directory.systemTemp.createTemp('arc_ocr_');
+          final tempFile = File('${tempDir.path}/temp_image.jpg');
+          await tempFile.writeAsBytes(imageBytes);
+          
+          try {
+            final results = await _visionOrchestrator.processPhoto(imagePath: tempFile.path);
+            final ocrText = _visionOrchestrator.getFormattedText(results);
+            
+            if (ocrText.isNotEmpty) {
+              // Extract just the OCR text part (remove the "📝 Text (iOS Vision):" prefix)
+              final lines = ocrText.split('\n');
+              final textLines = lines.skip(1).where((line) => line.trim().isNotEmpty);
+              final cleanText = textLines.join('\n');
               
-              if (insertedText != null && insertedText.isNotEmpty) {
-                // Insert OCR text into editor
-                final currentText = _textController.text;
-                final newText = currentText.isEmpty 
-                  ? '[from photo] $insertedText'
-                  : '$currentText\n\n[from photo] $insertedText';
-                _textController.text = newText;
-                _textController.selection = TextSelection.fromPosition(
-                  TextPosition(offset: newText.length),
-                );
+              if (cleanText.isNotEmpty) {
+                // Show OCR text insert dialog
+                if (mounted) {
+                  final insertedText = await showDialog<String>(
+                    context: context,
+                    builder: (context) => OCRTextInsertDialog(
+                      extractedText: cleanText,
+                      onTextInserted: (text) => text,
+                    ),
+                  );
+                  
+                  if (insertedText != null && insertedText.isNotEmpty) {
+                    // Insert OCR text into editor
+                    final currentText = _textController.text;
+                    final newText = currentText.isEmpty 
+                      ? '[from photo] $insertedText'
+                      : '$currentText\n\n[from photo] $insertedText';
+                    _textController.text = newText;
+                    _textController.selection = TextSelection.fromPosition(
+                      TextPosition(offset: newText.length),
+                    );
+                  }
+                }
               }
             }
+          } finally {
+            // Clean up temporary file
+            await tempFile.delete();
+            await tempDir.delete();
           }
         }
       } catch (e) {

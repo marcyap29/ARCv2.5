@@ -4,7 +4,7 @@ import 'dart:typed_data';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:http/http.dart' as http;
-import 'package:my_app/prism/mcp/adapters/cas_resolver.dart';
+import 'package:my_app/core/mcp/adapters/cas_resolver.dart';
 
 class MockHttpClient extends Mock implements http.Client {}
 class MockResponse extends Mock implements http.Response {}
@@ -183,7 +183,7 @@ void main() {
 
       test('should respect content size limit', () async {
         // Arrange
-        const config = CasResolverConfig(
+        final config = CasResolverConfig(
           maxContentSize: 100, // Small limit
           trustedRemotes: ['https://cas.example.com'],
         );

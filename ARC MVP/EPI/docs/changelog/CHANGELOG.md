@@ -2,6 +2,32 @@
 
 ## [Unreleased] - 2025-10-29
 
+### ✨ **Features** - October 29, 2025
+
+#### **Insights Tab UI Enhancements** ✅ **PRODUCTION READY**
+- **Enhanced "Your Patterns" Card**: Expanded card with detailed explanations of how patterns work, what keywords and emotions mean, and how it differs from phases
+  - Added "How it works" section with pattern explanation
+  - Added info chips for Keywords and Emotions
+  - Added comparison note highlighting differences from Phase system
+- **New AURORA Dashboard Card**: Added comprehensive circadian intelligence dashboard to Insights tab
+  - Real-time circadian context display (window, chronotype, rhythm score)
+  - Visual indicators for rhythm coherence with progress bar
+  - Expandable "Available Options" section showing all chronotypes and time windows
+  - Current chronotype and time window highlighted with checkmarks
+  - Activation info showing how circadian state affects LUMARA behavior
+  - Data sufficiency warning for accurate analysis
+- **Enhanced VEIL Card**: Upgraded AI Prompt Intelligence card with expandable details
+  - Expandable "Show Available Options" section
+  - Lists all available strategies (Exploration, Bridge, Restore, Stabilize, Growth)
+  - Lists all available response blocks (Mirror, Orient, Nudge, Commit, Safeguard, Log)
+  - Lists all available variants (Standard, :safe, :alert)
+  - Current strategy highlighted with checkmark
+- **Files Modified**:
+  - `lib/shared/ui/home/home_view.dart` - Integrated new cards into Insights tab
+  - `lib/atlas/phase_detection/cards/aurora_card.dart` - New AURORA dashboard card
+  - `lib/atlas/phase_detection/cards/veil_card.dart` - Enhanced with expandable options
+- **Impact**: Users now have comprehensive information about Patterns, AURORA, and VEIL systems directly in Insights tab
+
 ### 🐛 **Bug Fixes** - October 29, 2025
 
 #### **Infinite Rebuild Loop Fix in Timeline** ✅ **PRODUCTION READY**

@@ -13,7 +13,7 @@ import '../../services/keyword_aggregator.dart';
 import '../../services/phase_regime_service.dart';
 import '../../services/analytics_service.dart';
 import '../../services/rivet_sweep_service.dart';
-import '../../arc/core/journal_repository.dart';
+import 'package:my_app/arc/core/journal_repository.dart';
 
 /// Simplified ARCForms view with 3D constellation renderer
 class SimplifiedArcformView3D extends StatefulWidget {

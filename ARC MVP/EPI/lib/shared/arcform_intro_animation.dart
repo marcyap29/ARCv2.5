@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:my_app/shared/app_colors.dart';
 import 'package:my_app/shared/text_style.dart';
-import 'package:my_app/features/arcforms/arcform_mvp_implementation.dart';
+import 'package:my_app/arc/ui/arcforms/arcform_mvp_implementation.dart';
 
 class ArcformIntroAnimation {
   static OverlayEntry? _currentOverlay;

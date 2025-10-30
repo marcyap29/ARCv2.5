@@ -12,7 +12,7 @@
 
 import 'dart:async';
 import '../lumara/llm/llm_adapter.dart' as llm;
-import '../models/journal_entry_model.dart';
+import 'package:my_app/models/journal_entry_model.dart';
 
 // ------------------------------
 // DATA SHAPES

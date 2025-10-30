@@ -2,12 +2,12 @@
 // Main Phase Analysis View - integrates timeline, wizard, and phase management
 
 import 'package:flutter/material.dart';
-import '../../models/phase_models.dart';
-import '../../services/phase_index.dart';
+import 'package:my_app/models/phase_models.dart';
+import 'package:my_app/services/phase_index.dart';
 import '../../services/phase_regime_service.dart';
 import '../../services/rivet_sweep_service.dart';
 import '../../services/analytics_service.dart';
-import '../../arc/core/journal_repository.dart';
+import 'package:my_app/arc/core/journal_repository.dart';
 import 'phase_timeline_view.dart';
 import 'rivet_sweep_wizard.dart';
 import 'phase_help_screen.dart';

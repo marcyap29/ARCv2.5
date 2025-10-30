@@ -4,7 +4,7 @@
 import 'package:hive/hive.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/phase_models.dart';
-import '../models/journal_entry_model.dart';
+import 'package:my_app/models/journal_entry_model.dart';
 import 'phase_index.dart';
 import 'rivet_sweep_service.dart';
 import 'analytics_service.dart';

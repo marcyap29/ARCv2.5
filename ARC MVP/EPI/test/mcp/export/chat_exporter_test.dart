@@ -7,7 +7,7 @@ import 'package:my_app/lumara/chat/chat_models.dart';
 import 'package:my_app/lumara/chat/chat_repo_impl.dart';
 import 'package:my_app/lumara/chat/privacy_redactor.dart';
 import 'package:my_app/lumara/chat/provenance_tracker.dart';
-import 'package:my_app/prism/mcp/export/chat_exporter.dart';
+import 'package:my_app/core/mcp/export/chat_exporter.dart';
 
 void main() {
   group('ChatMcpExporter Tests', () {
@@ -348,39 +348,37 @@ void main() {
     });
 
     group('Export Configuration', () {
-      test('should use full archive config', () async {
-        final config = ChatExportConfig.fullArchive(notes: 'Test export');
-
-        expect(config.mode, ChatExportMode.fullArchive);
-        expect(config.includeArchived, true);
-        expect(config.profile, 'full_chat_archive');
-        expect(config.notes, 'Test export');
+      // Note: ChatExportConfig and ChatExportMode not available in current API
+      // Config is passed directly as parameters to exportChatsToMcp
+      test('should export with includeArchived parameter', () async {
+        final outputDir = Directory('${tempDir.path}/test_archived');
+        await exporter.exportChatsToMcp(
+          outputDir: outputDir,
+          includeArchived: true,
+        );
+        expect(await File('${outputDir.path}/manifest.json').exists(), true);
       });
 
-      test('should use active only config', () async {
-        final config = ChatExportConfig.activeOnly(notes: 'Active only');
-
-        expect(config.mode, ChatExportMode.activeOnly);
-        expect(config.includeArchived, false);
-        expect(config.profile, 'active_chat_archive');
-        expect(config.notes, 'Active only');
+      test('should export active only', () async {
+        final outputDir = Directory('${tempDir.path}/test_active');
+        await exporter.exportChatsToMcp(
+          outputDir: outputDir,
+          includeArchived: false,
+        );
+        expect(await File('${outputDir.path}/manifest.json').exists(), true);
       });
 
-      test('should use date bounded config', () async {
+      test('should export with date bounds', () async {
         final since = DateTime.now().subtract(const Duration(days: 7));
         final until = DateTime.now();
+        final outputDir = Directory('${tempDir.path}/test_dated');
 
-        final config = ChatExportConfig.dateBounded(
+        await exporter.exportChatsToMcp(
+          outputDir: outputDir,
           since: since,
           until: until,
-          notes: 'Weekly export',
         );
-
-        expect(config.mode, ChatExportMode.dateBounded);
-        expect(config.since, since);
-        expect(config.until, until);
-        expect(config.profile, 'date_bounded_chat_archive');
-        expect(config.notes, 'Weekly export');
+        expect(await File('${outputDir.path}/manifest.json').exists(), true);
       });
     });
 

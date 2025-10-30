@@ -1,4 +1,9 @@
-// Audio Processor - Placeholder for future implementation
+/// Audio Processor - Placeholder for future implementation
+library;
+
+/// Placeholder audio processor
 class AudioProcessor {
-  // Future implementation for audio processing
+  // Future implementation
 }
+
+

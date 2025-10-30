@@ -9,7 +9,7 @@ class RuleBasedProvider extends LLMProviderBase {
   RuleBasedProvider(LumaraAPIConfig apiConfig) : super(apiConfig, 'Rule-Based Responses', true);
 
   @override
-  LLMProvider getProviderType() => LLMProvider.ruleBased;
+  LLMProvider getProviderType() => LLMProvider.qwen4b; // Fallback to first available
 
   @override
   Future<bool> isAvailable() async {

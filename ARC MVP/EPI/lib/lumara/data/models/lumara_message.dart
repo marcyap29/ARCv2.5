@@ -1,5 +1,5 @@
 import 'package:equatable/equatable.dart';
-import '../../../mira/memory/enhanced_memory_schema.dart';
+import 'package:my_app/mira/memory/enhanced_memory_schema.dart';
 
 /// Role of a LUMARA message
 enum LumaraMessageRole {

@@ -38,7 +38,7 @@ class DownloadProgressDialog extends StatelessWidget {
 
             if (state is ModelManagementLoaded) {
               progress = state.downloadProgress;
-              statusText = 'Downloading... ${(progress * 100).toInt()}%';
+              statusText = 'Downloading... ${((progress ?? 0.0) * 100).toInt()}%';
                         }
 
             return ConstrainedBox(

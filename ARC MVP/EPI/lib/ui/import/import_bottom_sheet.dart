@@ -1,8 +1,8 @@
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:photo_manager/photo_manager.dart';
-import '../../media/import/media_import_service.dart';
-import '../../media/settings/storage_profiles.dart';
+import '../../prism/processors/import/media_import_service.dart';
+import 'package:my_app/prism/processors/settings/storage_profiles.dart';
 
 /// Bottom sheet for importing media with storage profile options
 class ImportBottomSheet extends StatefulWidget {

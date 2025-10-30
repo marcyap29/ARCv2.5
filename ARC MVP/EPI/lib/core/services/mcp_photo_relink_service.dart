@@ -5,23 +5,23 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:my_app/data/models/media_item.dart';
 import 'package:my_app/core/services/media_store.dart';
 import 'package:my_app/core/services/media_sanitizer.dart';
-import 'package:my_app/core/services/ocr_service.dart';
+import 'package:my_app/core/mcp/orchestrator/ios_vision_orchestrator.dart';
 import 'package:my_app/core/services/photo_library_service.dart';
 
 /// Service for handling mandatory photo relinking during MCP import
 class McpPhotoRelinkService {
   final MediaStore _mediaStore;
   final MediaSanitizer _mediaSanitizer;
-  final OCRService _ocrService;
+  // final OCRService _ocrService; // Disabled - OCR dependencies not available
   final ImagePicker _imagePicker = ImagePicker();
 
   McpPhotoRelinkService({
     required MediaStore mediaStore,
     required MediaSanitizer mediaSanitizer,
-    required OCRService ocrService,
+    // required OCRService ocrService, // Disabled
   })  : _mediaStore = mediaStore,
-        _mediaSanitizer = mediaSanitizer,
-        _ocrService = ocrService;
+        _mediaSanitizer = mediaSanitizer;
+        // _ocrService = ocrService; // Disabled
 
   /// Show a dialog asking user to relink photos for a journal entry
   Future<List<MediaItem>> relinkPhotosForEntry({
@@ -72,7 +72,7 @@ class McpPhotoRelinkService {
         onRemove: () => Navigator.of(context).pop(null),
         mediaStore: _mediaStore,
         mediaSanitizer: _mediaSanitizer,
-        ocrService: _ocrService,
+        // ocrService: _ocrService, // Disabled
       ),
     );
   }
@@ -87,7 +87,7 @@ class PhotoRelinkDialog extends StatefulWidget {
   final VoidCallback onRemove;
   final MediaStore mediaStore;
   final MediaSanitizer mediaSanitizer;
-  final OCRService ocrService;
+  // final OCRService ocrService; // Disabled - OCR dependencies not available
 
   const PhotoRelinkDialog({
     super.key,
@@ -98,7 +98,7 @@ class PhotoRelinkDialog extends StatefulWidget {
     required this.onRemove,
     required this.mediaStore,
     required this.mediaSanitizer,
-    required this.ocrService,
+    // required this.ocrService, // Disabled
   });
 
   @override
@@ -255,7 +255,9 @@ class _PhotoRelinkDialogState extends State<PhotoRelinkDialog> {
         _processingMessage = 'Extracting text from image...';
       });
 
-      final ocrText = await widget.ocrService.extractTextWithPreprocessing(sanitizedData);
+      // OCR disabled - dependencies not available
+      // final ocrText = await widget.ocrService.extractTextWithPreprocessing(sanitizedData);
+      final ocrText = ''; // Placeholder - OCR disabled
 
       // Store image
       final mediaItem = await widget.mediaStore.storeImage(

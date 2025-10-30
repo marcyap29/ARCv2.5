@@ -1,4 +1,4 @@
-// lib/mira/core/schema.dart
+// lpackage:my_app/mira/core/schema.dart
 // Core MIRA schema definitions for nodes and edges
 // Follows additive-only evolution policy - never change field meanings
 import 'ids.dart';

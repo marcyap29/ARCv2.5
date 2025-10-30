@@ -2,7 +2,7 @@
 // MIRA Semantic Memory v0.2 Schema
 // Implements ULIDs, provenance tracking, and enhanced metadata
 
-import '../../lumara/chat/ulid.dart';
+import 'package:my_app/lumara/chat/ulid.dart';
 
 /// MIRA v0.2 Version Constants
 class MiraVersion {

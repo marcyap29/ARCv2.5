@@ -23,6 +23,7 @@ const Color kcDangerColor = Color(0xFFFF6B6B);
 const Color kcPrimaryTextColor = Colors.white;
 const Color kcSecondaryTextColor = Color(0xFFA0AEC0);
 const Color kcTextSecondaryColor = Color(0xFFA0AEC0); // Alias for compatibility
+const Color kcTextSecondary = Color(0xFFA0AEC0); // Alias for compatibility
 const Color kcTextColor = Colors.white; // Primary text color
 
 // Border Colors

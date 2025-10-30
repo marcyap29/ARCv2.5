@@ -14,6 +14,19 @@ class RivetService {
   final int W; // sustainment window size
   final int N; // smoothing parameter for ALIGN
   final double K; // saturation parameter for TRACE
+  
+  // History tracking
+  final List<RivetEvent> _eventHistory = [];
+  final List<RivetState> _stateHistory = [];
+  
+  /// Get event history
+  List<RivetEvent> get eventHistory => List.unmodifiable(_eventHistory);
+  
+  /// Get state history
+  List<RivetState> get stateHistory => List.unmodifiable(_stateHistory);
+  
+  /// Get current state (alias for getCurrentState())
+  RivetState get currentState => state;
 
   RivetService({
     RivetState? initial,
@@ -71,6 +84,8 @@ class RivetService {
 
   /// Core RIVET ingestion: update ALIGN/TRACE and evaluate gate
   RivetGateDecision ingest(RivetEvent event, {RivetEvent? lastEvent}) {
+    lastEvent ??= _eventHistory.isNotEmpty ? _eventHistory.last : null;
+    
     // Update ALIGN with exponential smoothing
     final beta = 2.0 / (N + 1.0);
     final sample = _sampleALIGN(event.predPhase, event.refPhase, event.tolerance);
@@ -118,6 +133,10 @@ class RivetService {
 
     // Update internal state
     state = updatedState;
+    
+    // Track history
+    _eventHistory.add(event);
+    _stateHistory.add(updatedState);
 
     // Log gate decision for debugging
     print('DEBUG RIVET: ALIGN=${newAlign.toStringAsFixed(3)}, '
@@ -130,6 +149,79 @@ class RivetService {
       open: gateOpen,
       stateAfter: updatedState,
       whyNot: whyNot,
+    );
+  }
+  
+  /// Apply event (alias for ingest, for test compatibility)
+  Future<RivetGateDecision> apply(RivetEvent event) async {
+    return ingest(event);
+  }
+  
+  /// Edit an event in history
+  Future<RivetGateDecision> edit(RivetEvent editedEvent) async {
+    final index = _eventHistory.indexWhere((e) => e.eventId == editedEvent.eventId);
+    if (index == -1) {
+      // Event not found, treat as new
+      return apply(editedEvent);
+    }
+    
+    // Replace event in history
+    _eventHistory[index] = editedEvent;
+    
+    // Rebuild state history from beginning
+    _stateHistory.clear();
+    state = const RivetState(
+      align: 0,
+      trace: 0,
+      sustainCount: 0,
+      sawIndependentInWindow: false,
+    );
+    
+    // Re-apply all events
+    for (final event in _eventHistory) {
+      ingest(event);
+    }
+    
+    return RivetGateDecision(
+      open: wouldGateOpen(),
+      stateAfter: state,
+      whyNot: wouldGateOpen() ? null : "State not meeting gate requirements",
+    );
+  }
+  
+  /// Delete an event from history
+  Future<RivetGateDecision> delete(String eventId) async {
+    final index = _eventHistory.indexWhere((e) => e.eventId == eventId);
+    if (index == -1) {
+      // Event not found, return current state
+      return RivetGateDecision(
+        open: wouldGateOpen(),
+        stateAfter: state,
+        whyNot: wouldGateOpen() ? null : "Event not found",
+      );
+    }
+    
+    // Remove event from history
+    _eventHistory.removeAt(index);
+    
+    // Rebuild state history from beginning
+    _stateHistory.clear();
+    state = const RivetState(
+      align: 0,
+      trace: 0,
+      sustainCount: 0,
+      sawIndependentInWindow: false,
+    );
+    
+    // Re-apply all remaining events
+    for (final event in _eventHistory) {
+      ingest(event);
+    }
+    
+    return RivetGateDecision(
+      open: wouldGateOpen(),
+      stateAfter: state,
+      whyNot: wouldGateOpen() ? null : "State not meeting gate requirements",
     );
   }
 
@@ -161,14 +253,16 @@ class RivetService {
 
   /// Get human-readable status summary
   String getStatusSummary() {
-    final alignStatus = state.align >= Athresh ? "✓" : "✗";
-    final traceStatus = state.trace >= Tthresh ? "✓" : "✗";
-    final sustainStatus = state.sustainCount >= W ? "✓" : "✗";
-    final independentStatus = state.sawIndependentInWindow ? "✓" : "✗";
-    
-    return "ALIGN $alignStatus${(state.align * 100).toStringAsFixed(0)}% "
-           "TRACE $traceStatus${(state.trace * 100).toStringAsFixed(0)}% "
-           "Sustain $sustainStatus${state.sustainCount}/$W "
-           "Independent $independentStatus";
+    final gateStatus = wouldGateOpen() ? 'OPEN' : 'CLOSED';
+    return 'ALIGN=${state.align.toStringAsFixed(2)}, '
+           'TRACE=${state.trace.toStringAsFixed(2)}, '
+           'Sustain=${state.sustainCount}/$W, '
+           'Independent=${state.sawIndependentInWindow ? "Yes" : "No"}, '
+           'Gate=$gateStatus';
+  }
+
+  /// Get gate explanation (alias for getStatusSummary)
+  String getGateExplanation() {
+    return getStatusSummary();
   }
 }

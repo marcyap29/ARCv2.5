@@ -1,10 +1,10 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:convert';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as path;
-import '../../lumara/chat/chat_models.dart';
-import '../../mcp/export/chat_mcp_exporter.dart';
-import '../safety/chat_rivet_lite.dart';
+import '../../core/mcp/export/chat_mcp_exporter.dart';
+import '../../core/mcp/models/mcp_schemas.dart';
 
 /// VEIL/AURORA rhythm scheduler for nightly tasks
 class VeilAuroraScheduler {
@@ -88,7 +88,6 @@ class VeilAuroraScheduler {
       // Create monthly archive
       final now = DateTime.now();
       final archiveName = 'mcp_chats_${now.year}-${now.month.toString().padLeft(2, '0')}.jsonl';
-      final archiveFile = File(path.join(chatDir.path, archiveName));
       
       // Export current chat data to archive
       final exporter = ChatMcpExporter(
@@ -160,27 +159,33 @@ class VeilAuroraScheduler {
       
       final totalSizeMB = totalSizeBytes / (1024 * 1024);
       
+      // Track current size for cleanup
+      int currentSizeBytes = totalSizeBytes;
+      
       if (totalSizeMB > _maxCacheSizeMB) {
         // Sort files by modification time (oldest first)
-        files.sort((a, b) async {
-          final statA = await a.stat();
-          final statB = await b.stat();
-          return statA.modified.compareTo(statB.modified);
-        });
+        // Get stats for all files first to enable proper sorting
+        final filesWithStats = <({File file, FileStat stat})>[];
+        for (final file in files) {
+          final stat = await file.stat();
+          filesWithStats.add((file: file, stat: stat));
+        }
+        
+        filesWithStats.sort((a, b) => a.stat.modified.compareTo(b.stat.modified));
         
         // Delete oldest files until under limit
-        int currentSizeBytes = totalSizeBytes;
-        for (final file in files) {
+        for (final fileStat in filesWithStats) {
           if (currentSizeBytes / (1024 * 1024) <= _maxCacheSizeMB) break;
           
-          final stat = await file.stat();
-          await file.delete();
-          currentSizeBytes -= stat.size;
-          print('VEIL/AURORA: Deleted cache file ${path.basename(file.path)}');
+          await fileStat.file.delete();
+          currentSizeBytes -= fileStat.stat.size;
+          print('VEIL/AURORA: Deleted cache file ${path.basename(fileStat.file.path)}');
         }
+        
+        print('VEIL/AURORA: Cache cleanup completed. Size: ${(currentSizeBytes / (1024 * 1024)).toStringAsFixed(1)}MB');
+      } else {
+        print('VEIL/AURORA: Cache size within limit. Size: ${totalSizeMB.toStringAsFixed(1)}MB');
       }
-      
-      print('VEIL/AURORA: Cache cleanup completed. Size: ${(currentSizeBytes / (1024 * 1024)).toStringAsFixed(1)}MB');
       
     } catch (e) {
       print('VEIL/AURORA: Error cleaning up caches - $e');

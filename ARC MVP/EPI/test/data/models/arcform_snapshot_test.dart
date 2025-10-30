@@ -1,7 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:hive/hive.dart';
-import 'package:my_app/data/models/arcform_snapshot.dart';
-import 'dart:convert';
+import 'package:my_app/core/models/arcform_snapshot.dart';
 
 void main() {
   group('ArcformSnapshot', () {
@@ -9,119 +7,105 @@ void main() {
 
     setUp(() {
       snapshot = ArcformSnapshot(
+        id: 'test-snapshot-1',
+        journalEntryId: 'test-entry-1',
+        title: 'Test snapshot',
+        keywords: [],
+        colorMap: {},
+        edges: [],
+        createdAt: DateTime(2024, 1, 1, 12, 0, 0),
         phase: 'discovery',
-        geometryJson: '{"x": 100, "y": 200}',
-        timestamp: DateTime(2024, 1, 1, 12, 0, 0),
-        description: 'Test snapshot',
+        userConsentedPhase: false,
       );
     });
 
     group('Constructor', () {
       test('creates instance with all parameters', () {
         expect(snapshot.phase, 'discovery');
-        expect(snapshot.geometryJson, '{"x": 100, "y": 200}');
-        expect(snapshot.timestamp, DateTime(2024, 1, 1, 12, 0, 0));
-        expect(snapshot.description, 'Test snapshot');
+        expect(snapshot.title, 'Test snapshot');
+        expect(snapshot.createdAt, DateTime(2024, 1, 1, 12, 0, 0));
+        expect(snapshot.id, 'test-snapshot-1');
       });
 
       test('creates instance with required parameters only', () {
         final minimalSnapshot = ArcformSnapshot(
+          id: 'test-2',
+          journalEntryId: 'entry-2',
+          title: 'Minimal',
+          keywords: [],
+          colorMap: {},
+          edges: [],
+          createdAt: DateTime.now(),
           phase: 'expansion',
-          geometryJson: '{}',
-          timestamp: DateTime.now(),
+          userConsentedPhase: false,
         );
         expect(minimalSnapshot.phase, 'expansion');
-        expect(minimalSnapshot.geometryJson, '{}');
-        expect(minimalSnapshot.description, null);
+        expect(minimalSnapshot.title, 'Minimal');
       });
     });
 
-    group('fromMap', () {
-      test('creates instance from valid map', () {
-        final map = {
+    group('fromJson', () {
+      test('creates instance from valid JSON', () {
+        final json = {
+          'id': 'test-id',
+          'journalEntryId': 'entry-id',
+          'title': 'Test description',
+          'keywords': ['test'],
+          'colorMap': {'key': 'value'},
+          'edges': [],
+          'createdAt': '2024-01-01T12:00:00.000Z',
           'phase': 'transition',
-          'geometry': '{"x": 50, "y": 75}',
-          'timestamp': '2024-01-01T12:00:00.000Z',
-          'description': 'Test description',
+          'userConsentedPhase': false,
+          'isGeometryAuto': true,
         };
-        final snapshot = ArcformSnapshot.fromMap(map);
+        final snapshot = ArcformSnapshot.fromJson(json);
         expect(snapshot.phase, 'transition');
-        expect(snapshot.geometryJson, '{"x": 50, "y": 75}');
-        expect(snapshot.timestamp, DateTime.utc(2024, 1, 1, 12, 0, 0));
-        expect(snapshot.description, 'Test description');
+        expect(snapshot.title, 'Test description');
+        expect(snapshot.createdAt, DateTime.utc(2024, 1, 1, 12, 0, 0));
+        expect(snapshot.recommendationRationale, null);
       });
 
-      test('handles map with geometry as Map object', () {
-        final map = {
+      test('handles optional fields', () {
+        final json = {
+          'id': 'test-id',
+          'journalEntryId': 'entry-id',
+          'title': 'Test',
+          'keywords': [],
+          'colorMap': {},
+          'edges': [],
+          'createdAt': '2024-01-01T12:00:00.000Z',
           'phase': 'consolidation',
-          'geometry': {'x': 25, 'y': 50},
-          'timestamp': '2024-01-01T12:00:00.000Z',
+          'userConsentedPhase': false,
+          'isGeometryAuto': false,
+          'recommendationRationale': 'Test rationale',
         };
-        final snapshot = ArcformSnapshot.fromMap(map);
+        final snapshot = ArcformSnapshot.fromJson(json);
         expect(snapshot.phase, 'consolidation');
-        expect(snapshot.geometryJson, '{"x":25,"y":50}');
-      });
-
-      test('handles missing optional fields', () {
-        final map = {
-          'phase': 'recovery',
-          'geometry': '{}',
-        };
-        final snapshot = ArcformSnapshot.fromMap(map);
-        expect(snapshot.phase, 'recovery');
-        expect(snapshot.geometryJson, '{}');
-        expect(snapshot.timestamp, isA<DateTime>());
-        expect(snapshot.description, null);
-      });
-
-      test('handles invalid timestamp', () {
-        final map = {
-          'phase': 'breakthrough',
-          'geometry': '{}',
-          'timestamp': 'invalid-date',
-        };
-        final snapshot = ArcformSnapshot.fromMap(map);
-        expect(snapshot.phase, 'breakthrough');
-        expect(snapshot.timestamp, isA<DateTime>());
+        expect(snapshot.recommendationRationale, 'Test rationale');
       });
     });
 
-    group('toMap', () {
-      test('converts instance to map', () {
-        final map = snapshot.toMap();
-        expect(map['phase'], 'discovery');
-        expect(map['geometry'], '{"x": 100, "y": 200}');
-        expect(map['timestamp'], '2024-01-01T12:00:00.000');
-        expect(map['description'], 'Test snapshot');
+    group('toJson', () {
+      test('converts instance to JSON', () {
+        final json = snapshot.toJson();
+        expect(json['phase'], 'discovery');
+        expect(json['title'], 'Test snapshot');
+        expect(json['createdAt'], '2024-01-01T12:00:00.000Z');
+        expect(json['id'], 'test-snapshot-1');
       });
     });
 
-    group('geometryMap', () {
-      test('returns parsed geometry as Map', () {
-        final geometry = snapshot.geometryMap;
-        expect(geometry, {'x': 100, 'y': 200});
-      });
-
-      test('returns empty map for invalid JSON', () {
-        final invalidSnapshot = ArcformSnapshot(
-          phase: 'test',
-          geometryJson: 'invalid json',
-          timestamp: DateTime.now(),
+    group('copyWith', () {
+      test('creates new instance with updated fields', () {
+        final updatedSnapshot = snapshot.copyWith(
+          phase: 'expansion',
+          title: 'Updated title',
         );
-        final geometry = invalidSnapshot.geometryMap;
-        expect(geometry, <String, dynamic>{});
-      });
-    });
-
-    group('copyWithGeometry', () {
-      test('creates new instance with updated geometry', () {
-        final newGeometry = {'x': 300, 'y': 400, 'z': 500};
-        final updatedSnapshot = snapshot.copyWithGeometry(newGeometry);
         
-        expect(updatedSnapshot.phase, snapshot.phase);
-        expect(updatedSnapshot.timestamp, snapshot.timestamp);
-        expect(updatedSnapshot.description, snapshot.description);
-        expect(updatedSnapshot.geometryMap, newGeometry);
+        expect(updatedSnapshot.phase, 'expansion');
+        expect(updatedSnapshot.title, 'Updated title');
+        expect(updatedSnapshot.id, snapshot.id);
+        expect(updatedSnapshot.createdAt, snapshot.createdAt);
       });
     });
 
@@ -130,16 +114,25 @@ void main() {
         final string = snapshot.toString();
         expect(string, contains('ArcformSnapshot'));
         expect(string, contains('phase: discovery'));
-        expect(string, contains('description: Test snapshot'));
       });
     });
 
-    group('Hive Serialization', () {
-      test('can be serialized and deserialized', () {
-        // This test would require Hive to be initialized
-        // In a real test environment, you'd set up Hive first
-        expect(snapshot, isA<HiveObject>());
+    group('Equality', () {
+      test('uses Equatable for equality', () {
+        final snapshot2 = ArcformSnapshot(
+          id: snapshot.id,
+          journalEntryId: snapshot.journalEntryId,
+          title: snapshot.title,
+          keywords: snapshot.keywords,
+          colorMap: snapshot.colorMap,
+          edges: snapshot.edges,
+          createdAt: snapshot.createdAt,
+          phase: snapshot.phase,
+          userConsentedPhase: snapshot.userConsentedPhase,
+        );
+        expect(snapshot, equals(snapshot2));
       });
     });
   });
 }
+

@@ -11,6 +11,7 @@ enum PIIType {
   creditCard,
   dateOfBirth,
   ipAddress,
+  url,
   macAddress,
   licensePlate,
   passport,

@@ -4,7 +4,7 @@
 
 import 'schema.dart' as v1;
 import 'schema_v2.dart';
-import '../../lumara/chat/ulid.dart';
+import 'package:my_app/lumara/chat/ulid.dart';
 
 /// Migration result
 class MigrationResult {

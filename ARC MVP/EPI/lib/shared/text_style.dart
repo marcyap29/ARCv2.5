@@ -20,6 +20,12 @@ TextStyle heading3Style(BuildContext context) => const TextStyle(
       color: kcPrimaryTextColor,
     );
 
+TextStyle heading4Style(BuildContext context) => const TextStyle(
+      fontSize: 20,
+      fontWeight: FontWeight.w600,
+      color: kcPrimaryTextColor,
+    );
+
 // Body Styles
 TextStyle bodyStyle(BuildContext context) => const TextStyle(
       fontSize: 16,

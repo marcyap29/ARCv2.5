@@ -2,7 +2,7 @@
 // Comprehensive help screen for phase analysis concepts
 
 import 'package:flutter/material.dart';
-import '../../models/phase_models.dart';
+import 'package:my_app/models/phase_models.dart';
 
 class PhaseHelpScreen extends StatefulWidget {
   const PhaseHelpScreen({super.key});

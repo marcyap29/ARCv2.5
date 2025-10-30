@@ -2,7 +2,7 @@
 // CRDT-lite Sync and Concurrency for MIRA Memory
 // Implements last-writer-wins for scalars, set-merge for tags, additive edges
 
-import '../../lumara/chat/ulid.dart';
+import 'package:my_app/lumara/chat/ulid.dart';
 
 /// Device information for sync operations
 class DeviceInfo {

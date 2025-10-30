@@ -2,11 +2,86 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:my_app/prism/mcp/export/mcp_media_export_service.dart';
-import 'package:my_app/prism/mcp/models/media_pack_manifest.dart';
-import 'package:my_app/prism/mcp/models/journal_manifest.dart';
+// import 'package:my_app/core/mcp/export/mcp_media_export_service.dart'; // TODO: Not yet implemented
+import 'package:my_app/core/mcp/models/media_pack_manifest.dart';
+// import 'package:my_app/core/mcp/models/journal_manifest.dart'; // TODO: Not yet implemented
 import 'package:my_app/arc/core/journal_repository.dart';
 import 'package:my_app/services/media_resolver_service.dart';
+
+/// Placeholder classes for export configuration (to be implemented)
+class MediaPackConfig {
+  final int maxSizeBytes;
+  final int maxItems;
+  final String format;
+  final int quality;
+  final int maxEdge;
+
+  MediaPackConfig({
+    required this.maxSizeBytes,
+    required this.maxItems,
+    required this.format,
+    required this.quality,
+    required this.maxEdge,
+  });
+}
+
+class ThumbnailConfig {
+  final int size;
+  final String format;
+  final int quality;
+
+  ThumbnailConfig({
+    required this.size,
+    required this.format,
+    required this.quality,
+  });
+}
+
+/// Placeholder for MCP Media Export Service (to be implemented)
+class McpMediaExportService {
+  final String bundleId;
+  final String outputDir;
+  final ThumbnailConfig thumbnailConfig;
+  final MediaPackConfig mediaPackConfig;
+
+  McpMediaExportService({
+    required this.bundleId,
+    required this.outputDir,
+    required this.thumbnailConfig,
+    required this.mediaPackConfig,
+  });
+
+  Future<McpExportResult> exportJournal({
+    required List entries,
+    required bool createMediaPacks,
+  }) async {
+    // TODO: Implement actual export logic
+    return McpExportResult(
+      success: false,
+      journalPath: '',
+      mediaPackPaths: [],
+      error: 'McpMediaExportService not yet implemented',
+    );
+  }
+}
+
+class McpExportResult {
+  final bool success;
+  final String journalPath;
+  final List<String> mediaPackPaths;
+  final String? error;
+  final int processedEntries;
+  final int totalMediaItems;
+
+  McpExportResult({
+    required this.success,
+    required this.journalPath,
+    required this.mediaPackPaths,
+    this.error,
+    this.processedEntries = 0,
+    this.totalMediaItems = 0,
+  });
+}
 
 /// Dialog for exporting journal and media to MCP format
 ///

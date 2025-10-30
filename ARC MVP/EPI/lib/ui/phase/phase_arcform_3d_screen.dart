@@ -8,8 +8,8 @@ import '../../arcform/models/arcform_models.dart';
 import '../../arcform/layouts/layouts_3d.dart';
 import '../../arcform/render/arcform_renderer_3d.dart';
 import '../../arcform/util/seeded.dart';
-import '../../arc/core/journal_repository.dart';
-import '../../models/journal_entry_model.dart';
+import 'package:my_app/arc/core/journal_repository.dart';
+import 'package:my_app/models/journal_entry_model.dart';
 
 /// Full-screen 3D Constellation ARCForm viewer
 class PhaseArcform3DScreen extends StatefulWidget {

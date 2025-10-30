@@ -1,6 +1,6 @@
 import 'package:hive/hive.dart';
 import 'package:my_app/core/models/arcform_snapshot.dart';
-import 'package:my_app/features/arcforms/arcform_mvp_implementation.dart';
+import 'package:my_app/arc/ui/arcforms/arcform_mvp_implementation.dart';
 import 'package:my_app/models/user_profile_model.dart';
 
 /// Service to manage the user's current ATLAS phase

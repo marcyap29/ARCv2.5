@@ -1,6 +1,92 @@
 import 'package:flutter/material.dart';
-import 'package:my_app/prism/mcp/migration/photo_migration_service.dart';
+// import 'package:my_app/core/mcp/migration/photo_migration_service.dart'; // TODO: Not yet implemented
 import 'package:my_app/arc/core/journal_repository.dart';
+
+/// Placeholder classes for photo migration (to be implemented)
+class PhotoMigrationService {
+  final JournalRepository journalRepository;
+  final String outputDir;
+
+  PhotoMigrationService({
+    required this.journalRepository,
+    required this.outputDir,
+  });
+
+  Future<PhotoMigrationAnalysis> analyzeMigration() async {
+    // TODO: Implement actual analysis
+    return PhotoMigrationAnalysis(
+      totalPhotos: 0,
+      migratedPhotos: 0,
+      failedPhotos: 0,
+      totalSizeBytes: 0,
+      migratedSizeBytes: 0,
+      errors: [],
+      totalEntries: 0,
+      entriesWithMedia: 0,
+      totalMedia: 0,
+      photoLibraryMedia: 0,
+      filePathMedia: 0,
+      networkMedia: 0,
+    );
+  }
+
+  Future<PhotoMigrationResult> migrateAllEntries({
+    required Function(int, int) onProgress,
+  }) async {
+    // TODO: Implement actual migration
+    return PhotoMigrationResult(
+      migratedEntries: 0,
+      migratedMedia: 0,
+      errors: [],
+    );
+  }
+}
+
+class PhotoMigrationResult {
+  final int migratedEntries;
+  final int migratedMedia;
+  final List<String> errors;
+  final String? journalPath;
+  final List<String> mediaPackPaths;
+
+  PhotoMigrationResult({
+    required this.migratedEntries,
+    required this.migratedMedia,
+    required this.errors,
+    this.journalPath,
+    this.mediaPackPaths = const [],
+  });
+}
+
+class PhotoMigrationAnalysis {
+  final int totalPhotos;
+  final int migratedPhotos;
+  final int failedPhotos;
+  final int totalSizeBytes;
+  final int migratedSizeBytes;
+  final List<String> errors;
+  final int totalEntries;
+  final int entriesWithMedia;
+  final int totalMedia;
+  final int photoLibraryMedia;
+  final int filePathMedia;
+  final int networkMedia;
+
+  PhotoMigrationAnalysis({
+    required this.totalPhotos,
+    required this.migratedPhotos,
+    required this.failedPhotos,
+    required this.totalSizeBytes,
+    required this.migratedSizeBytes,
+    required this.errors,
+    required this.totalEntries,
+    required this.entriesWithMedia,
+    required this.totalMedia,
+    required this.photoLibraryMedia,
+    required this.filePathMedia,
+    required this.networkMedia,
+  });
+}
 
 /// Dialog for migrating photos from ph:// to content-addressed (SHA-256) format
 class PhotoMigrationDialog extends StatefulWidget {
@@ -87,7 +173,16 @@ class _PhotoMigrationDialogState extends State<PhotoMigrationDialog> {
     });
 
     try {
-      final result = await _migrationService.migrateAllEntries();
+      final result = await _migrationService.migrateAllEntries(
+        onProgress: (processed, total) {
+          if (mounted) {
+            setState(() {
+              _processedEntries = processed;
+              _processedMedia = total;
+            });
+          }
+        },
+      );
 
       if (mounted) {
         setState(() {

@@ -1,4 +1,4 @@
-import 'lib/features/arcforms/arcform_mvp_implementation.dart';
+import 'package:my_app/arc/ui/arcforms/arcform_mvp_implementation.dart';
 
 /// Test file to demonstrate ARC MVP functionality
 /// Run this to see how the system works
@@ -76,7 +76,7 @@ void main() {
   
   // Test 6: Geometry Patterns
   print('6. Testing Geometry Patterns:');
-  const geometries = ArcformGeometry.values;
+  final geometries = ArcformGeometry.values;
   for (final geometry in geometries) {
     print('   - ${geometry.name}: ${geometry.description}');
   }

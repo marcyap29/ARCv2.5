@@ -11,16 +11,16 @@ import 'package:my_app/services/llm_bridge_adapter.dart';
 import '../services/enhanced_lumara_api.dart';
 import '../services/progressive_memory_loader.dart';
 import '../config/api_config.dart';
-import '../../mira/memory/enhanced_mira_memory_service.dart';
-import '../../mira/memory/enhanced_memory_schema.dart';
-import '../../mira/mira_service.dart';
+import 'package:my_app/mira/memory/enhanced_mira_memory_service.dart';
+import 'package:my_app/mira/memory/enhanced_memory_schema.dart';
+import 'package:my_app/mira/mira_service.dart';
 import '../../telemetry/analytics.dart';
 import '../chat/chat_repo.dart';
 import '../chat/chat_repo_impl.dart';
 import '../chat/chat_models.dart';
 import '../chat/quickanswers_router.dart';
-import '../../mira/adapters/mira_basics_adapters.dart';
-import '../../arc/core/journal_repository.dart';
+import 'package:my_app/mira/adapters/mira_basics_adapters.dart';
+import 'package:my_app/arc/core/journal_repository.dart';
 
 /// LUMARA Assistant Cubit State
 abstract class LumaraAssistantState {}
@@ -106,27 +106,24 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
     _memoryLoader = ProgressiveMemoryLoader(_journalRepository);
   }
   
-  /// Initialize the assistant
+  /// Initialize the assistant with parallel service loading
   Future<void> initialize() async {
     try {
       emit(LumaraAssistantLoading());
 
-      // Initialize progressive memory loader (loads current year entries by default)
-      await _memoryLoader.initialize();
-      print('LUMARA: Initialized progressive memory loader');
+      // Parallelize independent service initializations
+      final initializationResults = await Future.wait([
+        _memoryLoader.initialize().then((_) => true).catchError((_) => false),
+        _enhancedApi.initialize().then((_) => true).catchError((_) => false),
+        _initializeMemorySystem().then((_) => true).catchError((_) => false),
+        _chatRepo.initialize().then((_) => true).catchError((_) => false),
+      ], eagerError: false);
 
-      // Initialize enhanced LUMARA API
-      await _enhancedApi.initialize();
+      print('LUMARA: Parallel initialization completed: ${initializationResults.where((r) => r).length}/4 services successful');
 
-      // Initialize MCP Memory System
-      await _initializeMemorySystem();
+      // Lazy-load quick answers (only when user types a question)
+      // Quick answers are now loaded on-demand instead of during initialization
       
-      // Initialize Chat History System
-      await _chatRepo.initialize();
-
-      // Initialize Quick Answers System
-      await _initializeQuickAnswers();
-
       // Start with default scope
       const scope = LumaraScope.defaultScope;
 
@@ -1695,8 +1692,13 @@ Available: ${yearsAgo} more year${yearsAgo > 1 ? 's' : ''} of history''';
     }
   }
 
-  /// Try to get a quick answer for basic questions
+  /// Try to get a quick answer for basic questions (lazy-loads quick answers on first use)
   Future<String?> _tryQuickAnswer(String text) async {
+    // Lazy-load quick answers on first use
+    if (_quickAnswersRouter == null) {
+      await _initializeQuickAnswers();
+    }
+    
     if (_quickAnswersRouter == null) return null;
     
     try {

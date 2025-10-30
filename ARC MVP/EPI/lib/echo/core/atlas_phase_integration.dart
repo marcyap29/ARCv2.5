@@ -6,7 +6,7 @@ library;
 
 import '../../atlas/phase_detection/pattern_analysis_service.dart';
 import '../voice/lumara_voice_controller.dart';
-import '../../arc/core/journal_repository.dart';
+import 'package:my_app/arc/core/journal_repository.dart';
 
 class AtlasPhaseIntegration {
   /// Current detected ATLAS phase

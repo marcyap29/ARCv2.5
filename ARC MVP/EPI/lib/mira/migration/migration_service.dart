@@ -7,7 +7,7 @@ import 'dart:io';
 import '../core/schema.dart' as v1;
 import '../core/schema_v2.dart';
 import '../core/migrations.dart';
-import '../../../lumara/chat/ulid.dart';
+import 'package:my_app/lumara/chat/ulid.dart';
 
 /// Migration service for handling v0.1 to v0.2 transitions
 class MigrationService {

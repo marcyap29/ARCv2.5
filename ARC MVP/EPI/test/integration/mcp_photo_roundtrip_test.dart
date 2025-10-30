@@ -1,11 +1,13 @@
+import 'dart:io';
+import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter/services.dart';
-import 'package:my_app/mcp/adapters/journal_entry_projector.dart';
-import 'package:my_app/mcp/import/mcp_import_service.dart';
+import 'package:my_app/core/mcp/adapters/journal_entry_projector.dart';
 import 'package:my_app/core/services/photo_library_service.dart';
 import 'package:my_app/data/models/photo_metadata.dart';
 import 'package:my_app/data/models/media_item.dart';
 import 'package:my_app/models/journal_entry_model.dart';
+import 'package:my_app/arc/core/journal_repository.dart';
 
 void main() {
   group('Full Photo Roundtrip', () {
@@ -63,6 +65,8 @@ void main() {
         title: 'Test Entry with Photos',
         content: 'This entry has photos [PHOTO:photo-1] and [PHOTO:photo-2]',
         createdAt: DateTime(2025, 1, 15, 10, 30, 0),
+        updatedAt: DateTime(2025, 1, 15, 10, 30, 0),
+        tags: ['test', 'photos'],
         mood: 'happy',
         emotion: 'joy',
         emotionReason: 'Testing photo persistence',
@@ -89,19 +93,30 @@ void main() {
       final mockRepo = MockJournalRepository();
       mockRepo.entries = [entry];
       
-      final nodeSink = <Map<String, dynamic>>[];
-      final edgeSink = <Map<String, dynamic>>[];
-      final pointerSink = <Map<String, dynamic>>[];
+      // Create IOSink wrappers for NDJSON streaming
+      final tempDir = await Directory.systemTemp.createTemp('mcp_test');
+      final nodesFile = File('${tempDir.path}/nodes.jsonl');
+      final edgesFile = File('${tempDir.path}/edges.jsonl');
+      final pointersFile = File('${tempDir.path}/pointers.jsonl');
+      
+      final nodesSink = nodesFile.openWrite();
+      final edgesSink = edgesFile.openWrite();
+      final pointersSink = pointersFile.openWrite();
       
       await McpEntryProjector.emitAll(
-        journalRepo: mockRepo,
-        nodeSink: nodeSink.add,
-        edgeSink: edgeSink.add,
-        pointerSink: pointerSink.add,
+        repo: mockRepo,
+        nodesSink: nodesSink,
+        edgesSink: edgesSink,
+        pointersSink: pointersSink,
       );
       
-      // 3. Verify MCP <10KB
-      final jsonString = nodeSink.map((node) => node.toString()).join('\n');
+      await nodesSink.close();
+      await edgesSink.close();
+      await pointersSink.close();
+      
+      // 3. Verify MCP <10KB - read back from file
+      final nodeContent = await nodesFile.readAsString();
+      final jsonString = nodeContent;
       final sizeInBytes = jsonString.length;
       final sizeInKB = sizeInBytes / 1024;
       
@@ -109,7 +124,8 @@ void main() {
       expect(sizeInKB, lessThan(10.0));
       
       // Verify media data is stored as metadata, not base64
-      final node = nodeSink.first;
+      final nodeLines = nodeContent.trim().split('\n').where((line) => line.isNotEmpty);
+      final node = jsonDecode(nodeLines.first) as Map<String, dynamic>;
       final mediaList = node['media'] as List;
       expect(mediaList, hasLength(2));
       
@@ -128,11 +144,12 @@ void main() {
       mockRepo.entries.clear();
       
       // 5. Import MCP
-      final importService = McpImportService();
       final mockImportRepo = MockJournalRepository();
       
-      // Simulate importing the MCP data
-      for (final node in nodeSink) {
+      // Simulate importing the MCP data - read from file
+      final nodeLinesContent = await nodesFile.readAsString();
+      final nodeList = nodeLinesContent.trim().split('\n').where((line) => line.isNotEmpty).map((line) => jsonDecode(line) as Map<String, dynamic>).toList();
+      for (final node in nodeList) {
         if (node['type'] == 'journal_entry') {
           // Extract media from the node
           final mediaList = node['media'] as List;
@@ -179,6 +196,8 @@ void main() {
             title: node['title'] as String,
             content: node['content'] as String,
             createdAt: DateTime.parse(node['timestamp'] as String),
+            updatedAt: DateTime.parse(node['timestamp'] as String),
+            tags: [],
             mood: node['emotions']['mood'] as String,
             emotion: node['emotions']['primary'] as String?,
             emotionReason: node['emotions']['reason'] as String?,
@@ -217,6 +236,8 @@ void main() {
         title: 'Test Entry with Missing Photo',
         content: 'This entry has a photo that will be missing [PHOTO:missing-photo]',
         createdAt: DateTime(2025, 1, 15, 10, 30, 0),
+        updatedAt: DateTime(2025, 1, 15, 10, 30, 0),
+        tags: [],
         mood: 'sad',
         media: [
           MediaItem(
@@ -233,17 +254,30 @@ void main() {
       final mockRepo = MockJournalRepository();
       mockRepo.entries = [entry];
       
-      final nodeSink = <Map<String, dynamic>>[];
+      final tempDir2 = await Directory.systemTemp.createTemp('mcp_test_2');
+      final nodesFile2 = File('${tempDir2.path}/nodes.jsonl');
+      final edgesFile2 = File('${tempDir2.path}/edges.jsonl');
+      final pointersFile2 = File('${tempDir2.path}/pointers.jsonl');
+      
+      final nodesSink2 = nodesFile2.openWrite();
+      final edgesSink2 = edgesFile2.openWrite();
+      final pointersSink2 = pointersFile2.openWrite();
       
       await McpEntryProjector.emitAll(
-        journalRepo: mockRepo,
-        nodeSink: nodeSink.add,
-        edgeSink: (_) {},
-        pointerSink: (_) {},
+        repo: mockRepo,
+        nodesSink: nodesSink2,
+        edgesSink: edgesSink2,
+        pointersSink: pointersSink2,
       );
       
+      await nodesSink2.close();
+      await edgesSink2.close();
+      await pointersSink2.close();
+      
       // Import MCP (simulate missing photo scenario)
-      final node = nodeSink.first;
+      final nodeContent2 = await nodesFile2.readAsString();
+      final nodeLines2 = nodeContent2.trim().split('\n').where((line) => line.isNotEmpty);
+      final node = jsonDecode(nodeLines2.first) as Map<String, dynamic>;
       final mediaList = node['media'] as List;
       final mediaJson = mediaList.first as Map<String, dynamic>;
       
@@ -285,6 +319,8 @@ void main() {
         title: 'Test Entry with 10 Photos',
         content: 'This entry has 10 photos for performance testing',
         createdAt: DateTime(2025, 1, 15, 10, 30, 0),
+        updatedAt: DateTime(2025, 1, 15, 10, 30, 0),
+        tags: [],
         mood: 'excited',
         media: media,
       );
@@ -292,17 +328,28 @@ void main() {
       final mockRepo = MockJournalRepository();
       mockRepo.entries = [entry];
       
-      final nodeSink = <Map<String, dynamic>>[];
+      final tempDir3 = await Directory.systemTemp.createTemp('mcp_test_3');
+      final nodesFile3 = File('${tempDir3.path}/nodes.jsonl');
+      final edgesFile3 = File('${tempDir3.path}/edges.jsonl');
+      final pointersFile3 = File('${tempDir3.path}/pointers.jsonl');
+      
+      final nodesSink3 = nodesFile3.openWrite();
+      final edgesSink3 = edgesFile3.openWrite();
+      final pointersSink3 = pointersFile3.openWrite();
       
       // Measure export time
       final stopwatch = Stopwatch()..start();
       
       await McpEntryProjector.emitAll(
-        journalRepo: mockRepo,
-        nodeSink: nodeSink.add,
-        edgeSink: (_) {},
-        pointerSink: (_) {},
+        repo: mockRepo,
+        nodesSink: nodesSink3,
+        edgesSink: edgesSink3,
+        pointersSink: pointersSink3,
       );
+      
+      await nodesSink3.close();
+      await edgesSink3.close();
+      await pointersSink3.close();
       
       stopwatch.stop();
       
@@ -310,7 +357,8 @@ void main() {
       expect(stopwatch.elapsedMilliseconds, lessThan(5000)); // Should complete in <5 seconds
       
       // Verify file size
-      final jsonString = nodeSink.map((node) => node.toString()).join('\n');
+      final nodeContent3 = await nodesFile3.readAsString();
+      final jsonString = nodeContent3;
       final sizeInBytes = jsonString.length;
       final sizeInKB = sizeInBytes / 1024;
       
@@ -321,8 +369,9 @@ void main() {
 }
 
 // Mock journal repository for testing
-class MockJournalRepository {
+class MockJournalRepository extends JournalRepository {
   List<JournalEntry> entries = [];
   
-  Future<List<JournalEntry>> getAllEntries() async => entries;
+  @override
+  List<JournalEntry> getAllJournalEntries() => entries;
 }
