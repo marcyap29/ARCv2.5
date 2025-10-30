@@ -34,6 +34,10 @@
 	<string>This app needs access to photo library to select photos for your journal entries.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
 	<string>This app needs permission to save photos to your photo library for persistent storage.</string>
+	<key>NSHealthShareUsageDescription</key>
+	<string>This app reads your Apple Health data to show trends and summaries in the Health tab.</string>
+	<key>NSHealthUpdateUsageDescription</key>
+	<string>This app may write limited data to Apple Health when you choose to sync entries.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>This app needs access to your location to automatically set the location for your journal entries.</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>

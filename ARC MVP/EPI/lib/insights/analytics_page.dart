@@ -1,0 +1,382 @@
+import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:my_app/atlas/phase_detection/cards/aurora_card.dart';
+import 'package:my_app/atlas/phase_detection/cards/veil_card.dart';
+import 'package:my_app/atlas/phase_detection/your_patterns_view.dart';
+import 'package:my_app/insights/insight_cubit.dart';
+import 'package:my_app/insights/widgets/insight_card_widget.dart';
+import 'package:my_app/shared/text_style.dart';
+import 'package:my_app/shared/ui/qa/qa_screen.dart';
+import 'package:my_app/shared/app_colors.dart';
+import 'dart:math' as math;
+
+class AnalyticsPage extends StatefulWidget {
+  const AnalyticsPage({super.key});
+
+  @override
+  State<AnalyticsPage> createState() => _AnalyticsPageState();
+}
+
+class _AnalyticsPageState extends State<AnalyticsPage> with WidgetsBindingObserver {
+  InsightCubit? _insightCubit;
+  final ScrollController _scrollController = ScrollController();
+  final GlobalKey _patternsAnchor = GlobalKey();
+  final GlobalKey _themesAnchor = GlobalKey();
+  int _selectedSection = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _initializeInsightCubit();
+    });
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _scrollController.dispose();
+    _insightCubit?.close();
+    super.dispose();
+  }
+
+  void _initializeInsightCubit() {
+    try {
+      final cubit = InsightCubitFactory.create(
+        journalRepository: context.read(),
+        rivetProvider: context.read(),
+        userId: 'default_user',
+      );
+      cubit.generateInsights();
+      setState(() {
+        _insightCubit?.close();
+        _insightCubit = cubit;
+      });
+    } catch (_) {}
+  }
+
+  void _onSelectSection(int index) {
+    setState(() {
+      _selectedSection = index;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.transparent,
+      extendBodyBehindAppBar: false,
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        leading: const BackButton(color: kcPrimaryTextColor),
+        title: const Text('Analytics'),
+        centerTitle: true,
+        actions: [
+          if (kDebugMode)
+            IconButton(
+              icon: const Icon(Icons.bug_report, color: kcPrimaryTextColor),
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const QAScreen()),
+              ),
+            ),
+        ],
+      ),
+      body: Container(
+        decoration: const BoxDecoration(gradient: kcPrimaryGradient),
+        child: SafeArea(
+          top: true,
+          child: Column(
+            children: [
+              const SizedBox(height: 8),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20.0),
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: [
+                      _buildSectionChip('Patterns', 0),
+                      const SizedBox(width: 8),
+                      _buildSectionChip('AURORA', 1),
+                      const SizedBox(width: 8),
+                      _buildSectionChip('VEIL', 2),
+                      const SizedBox(width: 8),
+                      _buildSectionChip('Themes', 3),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.fromLTRB(20.0, 4.0, 20.0, 0.0),
+                  controller: _scrollController,
+                  child: _buildSelectedSection(context),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSelectedSection(BuildContext context) {
+    switch (_selectedSection) {
+      case 0:
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              key: _patternsAnchor,
+              child: _buildMiraGraphCard(context),
+            ),
+          ],
+        );
+      case 1:
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: const [
+            AuroraCard(),
+          ],
+        );
+      case 2:
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: const [
+            VeilCard(),
+          ],
+        );
+      case 3:
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              key: _themesAnchor,
+              child: _buildInsightsSection(),
+            ),
+          ],
+        );
+      default:
+        return const SizedBox.shrink();
+    }
+  }
+
+  Widget _buildSectionChip(String label, int index) {
+    final bool isSelected = _selectedSection == index;
+    return GestureDetector(
+      onTap: () => _onSelectSection(index),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: isSelected ? Colors.white.withOpacity(0.2) : Colors.white.withOpacity(0.08),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: Colors.white.withOpacity(isSelected ? 0.35 : 0.2)),
+        ),
+        child: Text(
+          label,
+          style: bodyStyle(context).copyWith(
+            color: kcPrimaryTextColor,
+            fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+            fontSize: 12,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMiraGraphCard(BuildContext context) {
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => const YourPatternsView(),
+          ),
+        );
+      },
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: Colors.white.withOpacity(0.2),
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+          children: [
+            _buildMiniRadialIcon(),
+            const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+            Text(
+              'Patterns',
+              style: heading2Style(context).copyWith(fontSize: 18),
+            ),
+                      Text(
+                        'Keyword & emotion visualization',
+                        style: bodyStyle(context).copyWith(
+                          fontSize: 11,
+                          color: kcPrimaryTextColor.withOpacity(0.6),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+            Icon(
+              Icons.arrow_forward_ios,
+              size: 16,
+              color: kcPrimaryTextColor.withOpacity(0.6),
+            ),
+          ],
+        ),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.05),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'How it works',
+                    style: bodyStyle(context).copyWith(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: kcPrimaryTextColor.withOpacity(0.9),
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    'Analyzes your journal entries to identify recurring keywords, emotions, and their connections. Keywords show frequency, emotional tone, and associated phases.',
+                    style: bodyStyle(context).copyWith(
+                      fontSize: 11,
+                      color: kcPrimaryTextColor.withOpacity(0.7),
+                      height: 1.3,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMiniRadialIcon() {
+    return Container(
+      width: 24,
+      height: 24,
+      decoration: const BoxDecoration(
+        color: Colors.transparent,
+        shape: BoxShape.circle,
+      ),
+      child: CustomPaint(
+        painter: _MiniRadialPainter(),
+      ),
+    );
+  }
+
+  Widget _buildInsightsSection() {
+    if (_insightCubit == null) {
+      return Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.white.withOpacity(0.2)),
+        ),
+        child: const Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    return BlocProvider<InsightCubit>.value(
+      value: _insightCubit!,
+      child: BlocBuilder<InsightCubit, InsightState>(
+        builder: (context, state) {
+          if (state is InsightInitial || state is InsightLoading) {
+            return Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: Colors.white.withOpacity(0.2)),
+              ),
+              child: const Center(child: CircularProgressIndicator()),
+            );
+          }
+          if (state is InsightLoaded) {
+            return InsightCardsList(
+              cards: state.cards,
+              onCardTap: (card) {},
+            );
+          }
+          if (state is InsightError) {
+            return Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: Colors.red.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: Colors.red.withOpacity(0.3)),
+              ),
+              child: Column(
+                children: const [
+                  Icon(Icons.error_outline, color: Colors.red, size: 32),
+                  SizedBox(height: 8),
+                  Text('Unable to load analytics', style: TextStyle(color: Colors.red)),
+                ],
+              ),
+            );
+          }
+          return const SizedBox.shrink();
+        },
+      ),
+    );
+  }
+}
+
+class _MiniRadialPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = Offset(size.width / 2, size.height / 2);
+    final radius = size.width / 2;
+
+    final paint = Paint()
+      ..color = kcPrimaryTextColor
+      ..strokeWidth = 1.5
+      ..style = PaintingStyle.stroke;
+
+    canvas.drawCircle(center, 2, Paint()..color = kcPrimaryTextColor..style = PaintingStyle.fill);
+
+    final angles = [0, 60, 120, 180, 240, 300];
+    for (final angle in angles) {
+      final radians = angle * 3.14159 / 180;
+      final startPoint = Offset(
+        center.dx + 3 * math.cos(radians),
+        center.dy + 3 * math.sin(radians),
+      );
+      final endPoint = Offset(
+        center.dx + radius * math.cos(radians),
+        center.dy + radius * math.sin(radians),
+      );
+      canvas.drawLine(startPoint, endPoint, paint);
+      canvas.drawCircle(endPoint, 1.5, Paint()..color = kcPrimaryTextColor.withOpacity(0.7)..style = PaintingStyle.fill);
+    }
+  }
+
+  @override
+  bool shouldRepaint(CustomPainter oldDelegate) => false;
+}
+
+

@@ -1,6 +1,31 @@
 # EPI ARC MVP - Changelog
 
 ## [Unreleased] - 2025-10-29
+### **Health & Analytics Updates** - October 30, 2025
+
+#### UI/UX
+- Health tab converted to Phase-style layout with a scrollable TabBar and icons:
+  - Tabs: Summary (heart), Connect (health shield), Analytics (chart)
+- Analytics screen header standardized to match Phase: AppBar with Back button, centered title; tabs row sits beneath; representative card below tabs.
+
+#### Apple Health (HealthKit)
+- Integrated `health` plugin usage for permission prompts and data reads (steps, heart rate, sleep, BMI).
+- Added Info.plist keys `NSHealthShareUsageDescription` and `NSHealthUpdateUsageDescription`.
+- Created `AppleHealthService` with permission request and a simple 7‑day summary fetch.
+
+#### Files Modified
+- `lib/arc/ui/health/health_view.dart` – TabBar with icons; sections for Summary, Connect, Analytics
+- `lib/insights/analytics_page.dart` – Standard AppBar/back navigation + spacing fixes
+- `lib/arc/health/apple_health_service.dart` – HealthKit permissions + basic reads
+- `ios/Runner/Info.plist` – HealthKit usage strings
+- `pubspec.yaml` – add `health` dependency
+- `docs/guides/MVP_Install.md` – Health & Analytics setup instructions
+
+#### Impact
+- Clear navigation parity with Phase tab
+- Reliable iOS permission dialog when tapping Connect
+- Basic Health overview appears in Health Summary when data is available
+
 
 ### ✨ **Features** - October 29, 2025
 

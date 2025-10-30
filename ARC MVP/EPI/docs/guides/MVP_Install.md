@@ -137,6 +137,42 @@ flutter install -d YOUR_DEVICE_ID
 - Find device ID: `flutter devices`
 - The key is compiled into this build; rebuild to rotate/change it.
 
+## Health & Analytics Setup (iOS)
+
+The Health tab now has sub‑tabs (Summary, Connect, Analytics) and the Analytics screen uses a standard header. To enable Apple Health access and ensure the UI works as intended:
+
+1. Dependencies
+   - Already declared: `health: ^10.2.0` in `pubspec.yaml`.
+   - Run:
+```bash
+flutter clean
+flutter pub get
+cd "ARC MVP/EPI/ios" && pod install && cd ../..
+```
+
+2. iOS Capabilities
+   - Open `ios/Runner.xcworkspace` in Xcode.
+   - Runner target → Signing & Capabilities → add the HealthKit capability.
+
+3. Permissions (Info.plist)
+   - Present in repo:
+     - `NSHealthShareUsageDescription`
+     - `NSHealthUpdateUsageDescription`
+   - If you customize copy, edit `ios/Runner/Info.plist`.
+
+4. First‑run permission prompt
+   - On device, open the app → Health tab → tap Connect. This triggers the native Apple Health authorization sheet. Grant “Allow” to share data.
+
+5. Build & install
+```bash
+flutter build ios --release --dart-define=GEMINI_API_KEY=YOUR_KEY
+flutter install -d YOUR_DEVICE_ID
+```
+
+6. UI notes
+   - Health tab: scrollable TabBar with icons (Summary, Connect, Analytics).
+   - Analytics: back button + centered title; tabs row below; representative card beneath tabs.
+
 ## Android build (release)
 ```bash
 flutter build apk --dart-define=GEMINI_API_KEY=YOUR_KEY
