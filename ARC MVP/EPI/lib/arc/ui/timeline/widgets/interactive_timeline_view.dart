@@ -415,13 +415,13 @@ class InteractiveTimelineViewState extends State<InteractiveTimelineView>
     return GestureDetector(
       onTap: () => _onEntryTap(entry),
       onLongPress: () => _onEntryLongPress(entry),
-      child: Container(
+                      child: Container(
         constraints: const BoxConstraints(
           minHeight: 100,
           maxHeight: double.infinity,
         ),
-        decoration: BoxDecoration(
-          color: isSelected
+                        decoration: BoxDecoration(
+                            color: isSelected
               ? kcPrimaryColor.withOpacity(0.1)
               : kcSurfaceColor,
           borderRadius: BorderRadius.circular(12),
@@ -436,8 +436,8 @@ class InteractiveTimelineViewState extends State<InteractiveTimelineView>
               offset: const Offset(0, 2),
             ),
           ],
-        ),
-        child: Padding(
+                        ),
+                        child: Padding(
           padding: const EdgeInsets.all(12.0),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -453,32 +453,32 @@ class InteractiveTimelineViewState extends State<InteractiveTimelineView>
                 ),
               // Entry content
               Expanded(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisAlignment: MainAxisAlignment.start,
-                  children: [
-                    // Entry header with date and time
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Expanded(
-                          child: Text(
-                            entry.date,
-                            style: captionStyle(context).copyWith(
-                              color: kcSecondaryTextColor,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ),
-                        if (entry.hasArcform)
-                          Icon(
-                            Icons.auto_awesome,
-                            size: 16,
-                            color: kcPrimaryColor,
-                          ),
-                      ],
+            children: [
+              // Entry header with date and time
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: Text(
+                      entry.date,
+                      style: captionStyle(context).copyWith(
+                        color: kcSecondaryTextColor,
+                        fontWeight: FontWeight.w500,
+                      ),
                     ),
+                  ),
+                  if (entry.hasArcform)
+                    Icon(
+                      Icons.auto_awesome,
+                            size: 16,
+                      color: kcPrimaryColor,
+                    ),
+                ],
+              ),
 
               const SizedBox(height: 8),
 
@@ -497,45 +497,45 @@ class InteractiveTimelineViewState extends State<InteractiveTimelineView>
                 overflow: TextOverflow.ellipsis,
               ),
               
-                    const SizedBox(height: 8),
-                    
-                    // Entry metadata
-                    Row(
-                      children: [
-                        if (entry.media.isNotEmpty)
-                          Icon(
-                            Icons.photo,
-                            size: 14,
-                            color: kcSecondaryTextColor,
-                          ),
-                        if (entry.media.isNotEmpty) const SizedBox(width: 4),
-                        if (entry.keywords.isNotEmpty)
-                          Icon(
-                            Icons.tag,
-                            size: 14,
-                            color: kcSecondaryTextColor,
-                          ),
-                        if (entry.keywords.isNotEmpty) const SizedBox(width: 4),
-                        Expanded(
-                          child: Text(
-                            entry.phase ?? 'Discovery',
-                            style: captionStyle(context).copyWith(
-                              color: kcSecondaryTextColor,
-                              fontSize: 12,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                      ],
+              const SizedBox(height: 8),
+              
+              // Entry metadata
+              Row(
+                children: [
+                  if (entry.media.isNotEmpty)
+                    Icon(
+                      Icons.photo,
+                      size: 14,
+                      color: kcSecondaryTextColor,
+                    ),
+                  if (entry.media.isNotEmpty) const SizedBox(width: 4),
+                  if (entry.keywords.isNotEmpty)
+                    Icon(
+                      Icons.tag,
+                      size: 14,
+                      color: kcSecondaryTextColor,
+                    ),
+                  if (entry.keywords.isNotEmpty) const SizedBox(width: 4),
+                  Expanded(
+                    child: Text(
+                      entry.phase ?? 'Discovery',
+                      style: captionStyle(context).copyWith(
+                        color: kcSecondaryTextColor,
+                        fontSize: 12,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
                     ),
                   ],
                 ),
+                    ),
+                ],
               ),
-            ],
+            ),
           ),
-        ),
-      ),
     );
   }
 

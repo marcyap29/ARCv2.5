@@ -35,15 +35,15 @@ class LumaraOnboardingScreen extends StatelessWidget {
         child: LayoutBuilder(
           builder: (context, constraints) {
             return SingleChildScrollView(
-              padding: const EdgeInsets.all(24.0),
+          padding: const EdgeInsets.all(24.0),
               child: ConstrainedBox(
                 constraints: BoxConstraints(
                   minHeight: constraints.maxHeight - MediaQuery.of(context).padding.top - MediaQuery.of(context).padding.bottom,
                 ),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
                     // Add space to push symbol lower
                     const SizedBox(height: 120),
                     
@@ -55,26 +55,26 @@ class LumaraOnboardingScreen extends StatelessWidget {
                           final iconSize = (constraints.maxWidth * 0.4).clamp(200.0, 600.0);
                           return LumaraIcon(
                             size: iconSize,
-                            color: theme.colorScheme.primary,
+                color: theme.colorScheme.primary,
                             strokeWidth: (iconSize / 100).clamp(2.0, 6.0),
                           );
                         },
                       ),
                     ),
-                    
+
                     // Reduced gap between symbol and card
-                    const SizedBox(height: 16),
+              const SizedBox(height: 16),
 
                     // LUMARA Settings Card - positioned closer to symbol
-                    _buildSettingsCard(
-                      context: context,
-                      theme: theme,
-                    ),
+              _buildSettingsCard(
+                context: context,
+                theme: theme,
+              ),
                     
                     // Ensure card doesn't scroll past bottom
                     const SizedBox(height: 40),
-                  ],
-                ),
+            ],
+          ),
               ),
             );
           },

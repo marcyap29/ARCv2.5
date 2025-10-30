@@ -37,6 +37,7 @@ class ARCXExportService {
     List<MediaItem>? mediaFiles,
     bool includePhotoLabels = false,
     bool dateOnlyTimestamps = false,
+    bool removePii = false,
     String? password, // Optional password for portable archives
     Function(String)? onProgress, // Progress callback
   }) async {
@@ -115,6 +116,8 @@ class ARCXExportService {
         
         List<Map<String, dynamic>> journalNodes = [];
         List<Map<String, dynamic>> photoNodes = [];
+        List<Map<String, dynamic>> healthPointers = [];
+        List<Map<String, dynamic>> healthSummaries = [];
         
         if (await nodesDir.exists()) {
           // Read journal nodes from individual JSON files
@@ -127,7 +130,7 @@ class ARCXExportService {
                 // Preserve the original ID from the JSON, don't overwrite with filename
                 // Only set ID if it's missing
                 if (json['id'] == null) {
-                  json['id'] = path.basenameWithoutExtension(entry.path);
+                json['id'] = path.basenameWithoutExtension(entry.path);
                 }
                 
                 // Debug: Log media field for first entry
@@ -142,7 +145,41 @@ class ARCXExportService {
                   }
                 }
                 
-                journalNodes.add(json);
+                // Apply redaction transforms in-memory prior to packaging
+                var node = Map<String, dynamic>.from(json);
+                if (removePii) {
+                  node = _removePiiFromJournalNode(node);
+                }
+                if (dateOnlyTimestamps) {
+                  node = _clampTimestampsInJournalNode(node);
+                }
+                if (!includePhotoLabels) {
+                  node = _stripPhotoLabelsFromJournalNode(node);
+                }
+                journalNodes.add(node);
+              }
+            }
+          }
+
+          // Read health pointers and summaries if present
+          final healthPointerDir = Directory(path.join(nodesDir.path, 'pointer', 'health'));
+          if (await healthPointerDir.exists()) {
+            final entries = await healthPointerDir.list().toList();
+            for (final entry in entries) {
+              if (entry is File && entry.path.endsWith('.json')) {
+                final json = jsonDecode(await entry.readAsString()) as Map<String, dynamic>;
+                healthPointers.add(json);
+              }
+            }
+          }
+
+          final healthSummaryDir = Directory(path.join(nodesDir.path, 'health'));
+          if (await healthSummaryDir.exists()) {
+            final entries = await healthSummaryDir.list().toList();
+            for (final entry in entries) {
+              if (entry is File && entry.path.endsWith('.json')) {
+                final json = jsonDecode(await entry.readAsString()) as Map<String, dynamic>;
+                healthSummaries.add(json);
               }
             }
           }
@@ -153,7 +190,16 @@ class ARCXExportService {
             final photoEntries = await photoDir.list().toList();
             for (final entry in photoEntries) {
               if (entry is File && entry.path.endsWith('.json')) {
-                final json = jsonDecode(await entry.readAsString()) as Map<String, dynamic>;
+                var json = jsonDecode(await entry.readAsString()) as Map<String, dynamic>;
+                if (removePii) {
+                  json = _removePiiFromPhotoNode(json);
+                }
+                if (dateOnlyTimestamps) {
+                  json = _clampTimestampsInPhotoNode(json);
+                }
+                if (!includePhotoLabels) {
+                  json = _stripPhotoLabelsFromPhotoNode(json);
+                }
                 photoNodes.add(json);
               }
             }
@@ -164,8 +210,8 @@ class ARCXExportService {
           print('ARCX Export: Warning - nodes directory not found');
         }
         
-        print('ARCX Export: Found ${journalNodes.length} journal entries, ${photoNodes.length} photos');
-        onProgress?.call('Processing ${journalNodes.length} entries and ${photoNodes.length} photos...');
+        print('ARCX Export: Found ${journalNodes.length} journal entries, ${photoNodes.length} photos, ${healthPointers.length}+${healthSummaries.length} health items');
+        onProgress?.call('Processing ${journalNodes.length} entries, ${photoNodes.length} photos, ${healthPointers.length + healthSummaries.length} health items...');
         
         // Step 3: Package into payload/ (no redaction - encrypt as-is)
         print('ARCX Export: Step 2 - Packaging data...');
@@ -209,7 +255,7 @@ class ARCXExportService {
         final payloadPhotosDir = Directory(path.join(payloadDir.path, 'media', 'photos'));
         await payloadPhotosDir.create(recursive: true);
         
-        // Copy photo metadata and files as-is (no redaction)
+        // Copy photo metadata and files (already redacted in-memory if selected)
         int photosCount = 0;
         for (final node in photoNodes) {
           final nodeId = node['id'] as String? ?? 'unknown';
@@ -228,8 +274,45 @@ class ARCXExportService {
             }
           }
         }
+
+        // Create health directories
+        if (healthPointers.isNotEmpty) {
+          final payloadPointerHealthDir = Directory(path.join(payloadDir.path, 'pointer', 'health'));
+          await payloadPointerHealthDir.create(recursive: true);
+          for (final node in healthPointers) {
+            final id = (node['id'] as String?) ?? 'unknown';
+            await File(path.join(payloadPointerHealthDir.path, '$id.json')).writeAsString(jsonEncode(node));
+          }
+        }
+
+        if (healthSummaries.isNotEmpty) {
+          final payloadHealthDir = Directory(path.join(payloadDir.path, 'health'));
+          await payloadHealthDir.create(recursive: true);
+          for (final node in healthSummaries) {
+            final id = (node['id'] as String?) ?? 'unknown';
+            await File(path.join(payloadHealthDir.path, '$id.json')).writeAsString(jsonEncode(node));
+          }
+        }
         
-        print('ARCX Export: ✓ Packaged ($entriesCount entries, $photosCount photos)');
+        // Copy health streams (JSONL files) if they exist in the MCP bundle
+        final streamsHealthDir = Directory(path.join(tempDir.path, 'streams', 'health'));
+        if (await streamsHealthDir.exists()) {
+          final payloadStreamsHealthDir = Directory(path.join(payloadDir.path, 'streams', 'health'));
+          await payloadStreamsHealthDir.create(recursive: true);
+          int streamFilesCount = 0;
+          await for (final entity in streamsHealthDir.list()) {
+            if (entity is File && entity.path.endsWith('.jsonl')) {
+              final filename = path.basename(entity.path);
+              await entity.copy(path.join(payloadStreamsHealthDir.path, filename));
+              streamFilesCount++;
+              print('ARCX Export: Copied health stream: $filename');
+            }
+          }
+          print('ARCX Export: ✓ Copied $streamFilesCount health stream file(s)');
+        }
+        
+        final healthCount = healthPointers.length + healthSummaries.length;
+        print('ARCX Export: ✓ Packaged ($entriesCount entries, $photosCount photos, $healthCount health)');
         onProgress?.call('Archiving data...');
         
         // Step 4: Archive payload to zip in memory
@@ -296,7 +379,7 @@ class ARCXExportService {
         final redactionReport = ARCXRedactionService.computeRedactionReport(
           journalEntriesRedacted: entriesCount,
           photosRedacted: photosCount,
-          dateOnly: false, // No date-only timestamps applied
+          dateOnly: dateOnlyTimestamps,
           includePhotoLabels: includePhotoLabels,
         );
         
@@ -447,6 +530,121 @@ class ARCXExportService {
         archive.addFile(archiveFile);
       }
     }
+  }
+  
+  // === Redaction helpers ===
+  Map<String, dynamic> _removePiiFromJournalNode(Map<String, dynamic> node) {
+    final n = Map<String, dynamic>.from(node);
+    // Common PII fields
+    for (final key in ['author','email','deviceId','device_id','ip','address']) {
+      n.remove(key);
+    }
+    // Location fields
+    n.remove('location');
+    if (n['metadata'] is Map) {
+      final m = Map<String, dynamic>.from(n['metadata']);
+      for (final key in ['pii','email','device','ip','address','user','account']) {
+        m.remove(key);
+      }
+      n['metadata'] = m;
+    }
+    return n;
+  }
+
+  Map<String, dynamic> _removePiiFromPhotoNode(Map<String, dynamic> node) {
+    final n = Map<String, dynamic>.from(node);
+    for (final key in ['author','email','deviceId','device_id','ip','address']) {
+      n.remove(key);
+    }
+    n.remove('location');
+    if (n['analysisData'] is Map) {
+      final a = Map<String, dynamic>.from(n['analysisData']);
+      for (final key in ['faces','face_embeddings','gps','gps_meta','address','people']) {
+        a.remove(key);
+      }
+      n['analysisData'] = a;
+    }
+    return n;
+  }
+
+  Map<String, dynamic> _stripPhotoLabelsFromJournalNode(Map<String, dynamic> node) {
+    final n = Map<String, dynamic>.from(node);
+    if (n['media'] is List) {
+      final media = (n['media'] as List).map((it) {
+        if (it is Map<String, dynamic>) {
+          final m = Map<String, dynamic>.from(it);
+          if (m['analysisData'] is Map) {
+            final a = Map<String, dynamic>.from(m['analysisData']);
+            a.remove('labels');
+            m['analysisData'] = a;
+          }
+          m.remove('labels');
+          return m;
+        }
+        return it;
+      }).toList();
+      n['media'] = media;
+    }
+    return n;
+  }
+
+  Map<String, dynamic> _stripPhotoLabelsFromPhotoNode(Map<String, dynamic> node) {
+    final n = Map<String, dynamic>.from(node);
+    n.remove('labels');
+    if (n['analysisData'] is Map) {
+      final a = Map<String, dynamic>.from(n['analysisData']);
+      a.remove('labels');
+      n['analysisData'] = a;
+    }
+    return n;
+  }
+
+  Map<String, dynamic> _clampTimestampsInJournalNode(Map<String, dynamic> node) {
+    final n = Map<String, dynamic>.from(node);
+    for (final key in ['createdAt','updatedAt','timestamp']) {
+      if (n[key] != null) {
+        n[key] = _dateOnly(n[key]);
+      }
+    }
+    if (n['media'] is List) {
+      final media = (n['media'] as List).map((it) {
+        if (it is Map<String, dynamic>) {
+          final m = Map<String, dynamic>.from(it);
+          for (final k in ['createdAt','timestamp']) {
+            if (m[k] != null) m[k] = _dateOnly(m[k]);
+          }
+          return m;
+        }
+        return it;
+      }).toList();
+      n['media'] = media;
+    }
+    return n;
+  }
+
+  Map<String, dynamic> _clampTimestampsInPhotoNode(Map<String, dynamic> node) {
+    final n = Map<String, dynamic>.from(node);
+    for (final key in ['createdAt','capturedAt','timestamp']) {
+      if (n[key] != null) {
+        n[key] = _dateOnly(n[key]);
+      }
+    }
+    return n;
+  }
+
+  String _dateOnly(dynamic ts) {
+    try {
+      if (ts is String) {
+        final dt = DateTime.tryParse(ts);
+        if (dt != null) {
+          return '${dt.year.toString().padLeft(4,'0')}-${dt.month.toString().padLeft(2,'0')}-${dt.day.toString().padLeft(2,'0')}';
+        }
+      } else if (ts is int) {
+        final dt = DateTime.fromMillisecondsSinceEpoch(ts);
+        return '${dt.year.toString().padLeft(4,'0')}-${dt.month.toString().padLeft(2,'0')}-${dt.day.toString().padLeft(2,'0')}';
+      }
+    } catch (_) {}
+    return ts.toString();
   }
   
 }

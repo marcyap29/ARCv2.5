@@ -54,6 +54,15 @@ class McpPackExportService {
       await Directory(path.join(mcpDir.path, 'nodes', 'journal')).create(recursive: true);
       await Directory(path.join(mcpDir.path, 'nodes', 'media', 'photo')).create(recursive: true);
       await Directory(path.join(mcpDir.path, 'media', 'photos')).create(recursive: true);
+      await Directory(path.join(mcpDir.path, 'streams', 'health')).create(recursive: true);
+      
+      // Copy health streams from app documents if they exist
+      final sourceAppDir = await getApplicationDocumentsDirectory();
+      final sourceHealthDir = Directory(path.join(sourceAppDir.path, 'mcp', 'streams', 'health'));
+      if (await sourceHealthDir.exists()) {
+        print('📦 MCP Export: Copying health streams...');
+        await _copyHealthStreams(sourceHealthDir, Directory(path.join(mcpDir.path, 'streams', 'health')));
+      }
       
       // Process each entry
       final processedEntries = <Map<String, dynamic>>[];
@@ -304,6 +313,25 @@ class McpPackExportService {
     await mediaNodeFile.writeAsString(jsonEncode(mediaNode));
 
     return mediaNode;
+  }
+
+  /// Copy health stream JSONL files from source to destination
+  Future<void> _copyHealthStreams(Directory sourceDir, Directory destDir) async {
+    if (!await sourceDir.exists()) return;
+    
+    int fileCount = 0;
+    await for (final entity in sourceDir.list()) {
+      if (entity is File && entity.path.endsWith('.jsonl')) {
+        final filename = path.basename(entity.path);
+        final destFile = File(path.join(destDir.path, filename));
+        await entity.copy(destFile.path);
+        fileCount++;
+        print('📦 MCP Export: Copied health stream: $filename');
+      }
+    }
+    if (fileCount > 0) {
+      print('📦 MCP Export: ✓ Copied $fileCount health stream file(s)');
+    }
   }
 
   /// Add directory contents to archive recursively

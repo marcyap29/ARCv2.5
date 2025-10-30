@@ -204,11 +204,11 @@ class _TimelineViewContentState extends State<TimelineViewContent> {
                     tooltip: 'Delete Selected',
                   ),
               ] else ...[
-                IconButton(
-                  icon: const Icon(Icons.calendar_today),
-                  onPressed: _showJumpToDateDialog,
-                  tooltip: 'Jump to Date',
-                ),
+              IconButton(
+                icon: const Icon(Icons.calendar_today),
+                onPressed: _showJumpToDateDialog,
+                tooltip: 'Jump to Date',
+              ),
                 IconButton(
                   icon: const Icon(Icons.checklist),
                   onPressed: () {
@@ -219,11 +219,11 @@ class _TimelineViewContentState extends State<TimelineViewContent> {
                   },
                   tooltip: 'Select Mode',
                 ),
-                IconButton(
-                  icon: const Icon(Icons.add),
-                  onPressed: _onWritePressed,
-                  tooltip: 'New Entry',
-                ),
+              IconButton(
+                icon: const Icon(Icons.add),
+                onPressed: _onWritePressed,
+                tooltip: 'New Entry',
+              ),
               ],
             ],
           ),

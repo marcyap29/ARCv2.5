@@ -187,23 +187,23 @@ class _KeywordAnalysisViewState extends State<KeywordAnalysisView>
         media: widget.mediaItems, // Pass media items
         blocks: widget.lumaraBlocks, // Pass LUMARA blocks
       );
-      
-      // Show success message with keyword count
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
+    
+    // Show success message with keyword count
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
               'Entry saved successfully with ${uniqueKeywords.length} keywords'
-            ),
-            backgroundColor: kcSuccessColor,
-            duration: const Duration(seconds: 3),
           ),
-        );
-        
+          backgroundColor: kcSuccessColor,
+          duration: const Duration(seconds: 3),
+        ),
+      );
+      
         timelineCubit.refreshEntries();
-        
-        // Return result to previous screen instead of navigating directly to home
-        Navigator.of(context).pop({'save': true});
+      
+      // Return result to previous screen instead of navigating directly to home
+      Navigator.of(context).pop({'save': true});
       }
     }
   }

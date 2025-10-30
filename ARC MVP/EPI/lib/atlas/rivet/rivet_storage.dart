@@ -155,8 +155,8 @@ class RivetBox {
       // Note: Hive must be initialized before calling this
       try {
         if (!Hive.isAdapterRegistered(20)) {
-          Hive.registerAdapter(EvidenceSourceAdapter());
-        }
+        Hive.registerAdapter(EvidenceSourceAdapter());
+      }
       } catch (e) {
         // Adapter may already be registered - this is fine
         if (!e.toString().contains('already')) {
@@ -166,8 +166,8 @@ class RivetBox {
       
       try {
         if (!Hive.isAdapterRegistered(21)) {
-          Hive.registerAdapter(RivetEventAdapter());
-        }
+        Hive.registerAdapter(RivetEventAdapter());
+      }
       } catch (e) {
         // Adapter may already be registered - this is fine
         if (!e.toString().contains('already')) {
@@ -177,7 +177,7 @@ class RivetBox {
       
       try {
         if (!Hive.isAdapterRegistered(22)) {
-          Hive.registerAdapter(RivetStateAdapter());
+        Hive.registerAdapter(RivetStateAdapter());
         }
       } catch (e) {
         // Adapter may already be registered - this is fine

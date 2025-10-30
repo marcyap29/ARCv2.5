@@ -291,7 +291,7 @@ class ARCXImportService {
             
             if (!dryRun && _journalRepo != null) {
               try {
-                await _journalRepo!.createJournalEntry(entry);
+              await _journalRepo!.createJournalEntry(entry);
                 entriesImported++;
                 print('ARCX Import: ✓ Saved entry ${entry.id}: ${entry.title} (${entry.media.length} media items)');
               } catch (e, stackTrace) {
@@ -333,7 +333,44 @@ class ARCXImportService {
           print('   - ${entry.key}: ${entry.value}');
         }
         
-        // Step 10: Count photo metadata files
+        // Step 10: Import health streams if they exist
+        final streamsHealthDir = Directory(path.join(payloadDir.path, 'streams', 'health'));
+        int healthStreamFilesImported = 0;
+        
+        if (await streamsHealthDir.exists()) {
+          print('ARCX Import: Step 6 - Importing health streams...');
+          final appDir = await getApplicationDocumentsDirectory();
+          final destHealthDir = Directory(path.join(appDir.path, 'mcp', 'streams', 'health'));
+          await destHealthDir.create(recursive: true);
+          
+          final streamFiles = await streamsHealthDir
+              .list()
+              .where((f) => f is File && f.path.endsWith('.jsonl'))
+              .cast<File>()
+              .toList();
+          
+          for (final file in streamFiles) {
+            final filename = path.basename(file.path);
+            final destFile = File(path.join(destHealthDir.path, filename));
+            // Append mode - preserve existing data, add imported data
+            final lines = await file.readAsLines();
+            final sink = destFile.openWrite(mode: FileMode.append);
+            for (final line in lines) {
+              if (line.trim().isNotEmpty) {
+                sink.writeln(line);
+              }
+            }
+            await sink.close();
+            healthStreamFilesImported++;
+            print('ARCX Import: ✓ Imported health stream: $filename (${lines.length} lines)');
+          }
+          
+          print('ARCX Import: ✓ Imported $healthStreamFilesImported health stream file(s)');
+        } else {
+          print('ARCX Import: No health streams found in payload');
+        }
+        
+        // Step 11: Count photo metadata files
         final photoDir = Directory(path.join(payloadDir.path, 'media', 'photo'));
         int photosImported = 0;
         
@@ -552,7 +589,7 @@ class ARCXImportService {
                 print('ARCX Import: ♻️ Reusing cached media: ${cachedMediaItem.id} -> $cacheKey');
               } else {
                 _mediaCache[cacheKey] = mediaItem;
-                mediaItems.add(mediaItem);
+            mediaItems.add(mediaItem);
                 print('ARCX Import: ✅ Added media item ${mediaItem.id} to entry ${originalId}');
               }
             } else {
@@ -579,25 +616,25 @@ class ARCXImportService {
       JournalEntry journalEntry;
       try {
         journalEntry = JournalEntry(
-          id: originalId,
-          title: title,
-          content: content,
-          createdAt: createdAt,
-          updatedAt: updatedAt,
+        id: originalId,
+        title: title,
+        content: content,
+        createdAt: createdAt,
+        updatedAt: updatedAt,
           media: mediaItems,
-          tags: (keywords?.cast<String>().toList()) ?? [],
-          keywords: (keywords?.cast<String>().toList()) ?? [],
-          mood: emotion ?? '',
-          emotion: emotion,
-          emotionReason: emotionReason,
-          phase: phase,
-          metadata: {
-            'imported_from_arcx': true,
-            'original_node_id': nodeId,
-            'import_timestamp': DateTime.now().toIso8601String(),
-            ...?metadata,
-          },
-        );
+        tags: (keywords?.cast<String>().toList()) ?? [],
+        keywords: (keywords?.cast<String>().toList()) ?? [],
+        mood: emotion ?? '',
+        emotion: emotion,
+        emotionReason: emotionReason,
+        phase: phase,
+        metadata: {
+          'imported_from_arcx': true,
+          'original_node_id': nodeId,
+          'import_timestamp': DateTime.now().toIso8601String(),
+          ...?metadata,
+        },
+      );
         print('ARCX Import: ✅ Successfully created JournalEntry object for $originalId');
       } catch (e, stackTrace) {
         print('ARCX Import: ❌ ERROR: Failed to create JournalEntry object for $originalId: $e');

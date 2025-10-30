@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:my_app/insights/analytics_page.dart';
-import 'package:my_app/arc/health/apple_health_service.dart';
 import 'package:my_app/arc/ui/health/health_detail_view.dart';
+import 'package:my_app/arc/ui/health/health_settings_dialog.dart';
+import 'package:my_app/shared/app_colors.dart';
 
 class HealthView extends StatefulWidget {
   const HealthView({super.key});
@@ -11,146 +12,97 @@ class HealthView extends StatefulWidget {
 }
 
 class _HealthViewState extends State<HealthView> {
-  int _selected = 0; // 0: Summary, 1: Connect, 2: Analytics
+  int _selected = 0; // 0: Health Insights, 1: Analytics
+
+  void _showInfoDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+        title: const Text('Health Tab Overview'),
+        content: const SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Health Insights',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+              ),
+              SizedBox(height: 8),
+              Text(
+                'View your daily health summary including steps, heart rate, and a 7-day overview. Tap the chart icon to see detailed metrics over time with interactive charts.',
+                style: TextStyle(fontSize: 14),
+              ),
+              SizedBox(height: 16),
+              Text(
+                'Analytics',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+              ),
+              SizedBox(height: 8),
+              Text(
+                'Deep dive into health analytics, trends, and patterns across your health data.',
+                style: TextStyle(fontSize: 14),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Got it'),
+          ),
+        ],
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     return DefaultTabController(
-      length: 3,
+      length: 2,
       initialIndex: _selected,
       child: Scaffold(
         appBar: AppBar(
           title: const Text('Health'),
           centerTitle: true,
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.info_outline),
+              tooltip: 'Health tab overview',
+              onPressed: () => _showInfoDialog(context),
+            ),
+            IconButton(
+              icon: const Icon(Icons.settings),
+              tooltip: 'Health Settings',
+              onPressed: () {
+                showDialog(
+                  context: context,
+                  builder: (context) => const HealthSettingsDialog(),
+                );
+              },
+            ),
+          ],
           bottom: TabBar(
             isScrollable: true,
             onTap: (i) => setState(() => _selected = i),
             tabs: const [
-              Tab(icon: Icon(Icons.favorite_outline, size: 20), text: 'Summary'),
-              Tab(icon: Icon(Icons.health_and_safety, size: 20), text: 'Connect'),
+              Tab(icon: Icon(Icons.favorite_outline, size: 20), text: 'Health Insights'),
               Tab(icon: Icon(Icons.stacked_line_chart, size: 20), text: 'Analytics'),
             ],
           ),
         ),
         body: Container(
-          color: Colors.black.withOpacity(0.04),
+          color: kcBackgroundColor,
           child: TabBarView(
             physics: const BouncingScrollPhysics(),
             children: [
-              _buildScrollable([_summaryCard(context)]),
-              _buildScrollable([_connectAppleHealthCard(context)]),
-              _buildScrollable([_analyticsEntryCard(context)]),
+              // Show the Health Summary content directly in the Health Insights tab
+              const HealthSummaryBody(pointerJson: {}),
+              // Render Analytics content directly within the Health tab
+              const AnalyticsContent(),
             ],
           ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildScrollable(List<Widget> children) => ListView(
-        padding: const EdgeInsets.all(20),
-        children: children,
-      );
-
-  Widget _summaryCard(BuildContext context) {
-    return InkWell(
-      onTap: () => Navigator.of(context).push(
-        MaterialPageRoute(
-          builder: (_) => const HealthDetailView(pointerJson: {}),
-        ),
-      ),
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        margin: const EdgeInsets.only(bottom: 12),
-        decoration: BoxDecoration(
-          color: Colors.black.withOpacity(0.04),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.black.withOpacity(0.08)),
-        ),
-        child: Row(
-          children: const [
-            Icon(Icons.favorite_outline),
-            SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                'Health Summary',
-                style: TextStyle(fontWeight: FontWeight.w600),
-              ),
-            ),
-            Icon(Icons.arrow_forward_ios, size: 16),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _connectAppleHealthCard(BuildContext context) {
-    return InkWell(
-      onTap: () async {
-        final granted = await AppleHealthService.instance.requestPermissions();
-        if (context.mounted) {
-          final summary = granted
-              ? await AppleHealthService.instance.fetchBasicSummary()
-              : <String, num>{};
-          final msg = granted
-              ? (summary.isEmpty
-                  ? 'Apple Health connected. No recent data found.'
-                  : 'Apple Health connected. Steps 7d: ${summary['steps7d']?.round() ?? 0}')
-              : 'Apple Health permission denied';
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(msg)),
-          );
-        }
-      },
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        margin: const EdgeInsets.only(bottom: 12),
-        decoration: BoxDecoration(
-          color: Colors.black.withOpacity(0.04),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.black.withOpacity(0.08)),
-        ),
-        child: Row(
-          children: const [
-            Icon(Icons.health_and_safety),
-            SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                'Connect Apple Health',
-                style: TextStyle(fontWeight: FontWeight.w600),
-              ),
-            ),
-            Icon(Icons.arrow_forward_ios, size: 16),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _analyticsEntryCard(BuildContext context) {
-    return InkWell(
-      onTap: () => Navigator.of(context).push(
-        MaterialPageRoute(builder: (_) => const AnalyticsPage()),
-      ),
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.black.withOpacity(0.04),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.black.withOpacity(0.08)),
-        ),
-        child: Row(
-          children: const [
-            Icon(Icons.stacked_line_chart),
-            SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                'Analytics',
-                style: TextStyle(fontWeight: FontWeight.w600),
-              ),
-            ),
-            Icon(Icons.arrow_forward_ios, size: 16),
-          ],
         ),
       ),
     );

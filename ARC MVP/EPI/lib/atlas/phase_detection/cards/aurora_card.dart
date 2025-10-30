@@ -165,20 +165,20 @@ class _AuroraCardState extends State<AuroraCard> {
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'AURORA',
-                      style: heading2Style(context),
-                    ),
-                    Text(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'AURORA',
+                        style: heading2Style(context),
+                  ),
+                  Text(
                       'Circadian Intelligence',
-                      style: bodyStyle(context).copyWith(
-                        color: kcPrimaryTextColor.withOpacity(0.7),
-                        fontSize: 12,
-                      ),
+                    style: bodyStyle(context).copyWith(
+                      color: kcPrimaryTextColor.withOpacity(0.7),
+                      fontSize: 12,
                     ),
-                  ],
+                  ),
+                ],
                 ),
               ),
             ],
@@ -330,18 +330,18 @@ class _AuroraCardState extends State<AuroraCard> {
                     color: kcPrimaryTextColor.withOpacity(0.7),
                     height: 1.4,
                   ),
-                ),
+                  ),
                 const SizedBox(height: 8),
                 _buildActivationInfo(circadianContext),
               ],
             ),
-          ),
+                ),
 
           if (!_hasSufficientData) ...[
-            const SizedBox(height: 12),
-            Container(
+                const SizedBox(height: 12),
+                Container(
               padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
+                  decoration: BoxDecoration(
                 color: Colors.orange.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(8),
               ),
@@ -360,8 +360,8 @@ class _AuroraCardState extends State<AuroraCard> {
                         fontSize: 10,
                         color: Colors.orange.withOpacity(0.9),
                         fontStyle: FontStyle.italic,
-                      ),
                     ),
+                  ),
                   ),
                 ],
               ),
@@ -416,8 +416,8 @@ class _AuroraCardState extends State<AuroraCard> {
                         color: Colors.purple,
                       ),
                     ),
-                  ),
-                ],
+                ),
+              ],
               ),
               if (description != null) ...[
                 const SizedBox(height: 2),

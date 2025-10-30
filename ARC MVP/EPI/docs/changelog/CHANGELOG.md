@@ -1,5 +1,71 @@
 # EPI ARC MVP - Changelog
 
+## [Unreleased] - 2025-01-XX
+### **Health Tab Full Integration** - January 2025
+
+#### Major Features
+- **Expanded Health Metrics Import**: Full 30/60/90 day import with comprehensive metrics
+  - Active & basal energy, exercise minutes, HR metrics (resting, avg, HRV)
+  - Sleep tracking, weight, workouts with metadata
+  - Daily aggregation into MCP format for PRISM fusion
+- **PRISM Joiner Pipeline**: Daily health fusion with enriched features
+  - Stress/readiness hints, activity balance, workout summaries
+  - ATLAS phase detection integration
+  - VEIL edge policy generation for journal cadence
+- **Health Detail Charts**: Interactive time-series visualization
+  - Charts for steps, energy, sleep, HR metrics, HRV, VO₂max, stand time
+  - Last 30 days display with fl_chart integration
+- **ARCX Export/Import**: Health streams included in encrypted archives
+  - Health JSONL files exported in `payload/streams/health/`
+  - Import restores health data to app documents
+  - Full round-trip preservation of health metrics
+
+#### UI/UX Improvements
+- **Health Tab Redesign**:
+  - Renamed "Summary" → "Health Insights" for clarity
+  - Added Settings submenu (gear icon) in header
+  - Added Info icon with tab overview dialog
+  - Removed outdated "Connect Health" icon
+- **Import Controls**:
+  - Moved import functionality to Settings dialog
+  - Clear button labels: "30 Days (Last month)", "60 Days (Last 2 months)", "90 Days (Last 3 months)"
+  - Better progress indicators and status messages
+  - Improved error handling and user feedback
+
+#### Technical Improvements
+- **Type Safety**: Fixed `NumericHealthValue` type casting with safe extraction helper
+- **iOS Compatibility**: Removed unsupported `DISTANCE_DELTA`, captures distance from workouts
+- **Error Handling**: Graceful fallback to minimal metric set if some types unavailable
+- **File Paths**: Proper iOS sandbox paths using `path_provider`
+
+#### Files Added
+- `lib/arc/ui/health/health_settings_dialog.dart` - Settings dialog with import controls
+- `lib/ui/health/health_detail_screen.dart` - Detailed charts view
+- `lib/prism/models/health_daily.dart` - Daily aggregation model
+- `lib/prism/pipelines/prism_joiner.dart` - Daily fusion pipeline
+- `lib/prism/engines/atlas_engine.dart` - Phase detection engine
+- `lib/prism/engines/veil_edge_policy.dart` - Journal cadence policy
+- `docs/guides/Health_Tab_Integration_Guide.md` - Complete integration guide
+
+#### Files Modified
+- `lib/arc/ui/health/health_view.dart` - UI redesign with Settings/Info icons, renamed tab
+- `lib/arc/ui/health/health_detail_view.dart` - Removed import card (moved to Settings)
+- `lib/prism/services/health_service.dart` - Expanded import, MCP writer, safe value extraction
+- `ios/Runner/HealthKitManager.swift` - Expanded read types (basal energy, workouts, weight, etc.)
+- `lib/core/mcp/export/mcp_pack_export_service.dart` - Include health streams in export
+- `lib/arcx/services/arcx_export_service.dart` - Copy health streams to ARCX payload
+- `lib/arcx/services/arcx_import_service.dart` - Import health streams on ARCX import
+- `pubspec.yaml` - Added `fl_chart: ^0.68.0` dependency
+
+#### Documentation
+- Created comprehensive `Health_Tab_Integration_Guide.md` covering:
+  - UI structure and navigation
+  - Import process and data flow
+  - MCP stream format specification
+  - PRISM Joiner integration
+  - ARCX export/import
+  - Troubleshooting guide
+
 ## [Unreleased] - 2025-10-29
 ### **Health & Analytics Updates** - October 30, 2025
 

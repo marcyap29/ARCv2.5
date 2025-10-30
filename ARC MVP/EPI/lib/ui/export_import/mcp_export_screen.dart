@@ -38,6 +38,7 @@ class _McpExportScreenState extends State<McpExportScreen> {
   // ARCX redaction settings (only visible when secure format is selected)
   bool _includePhotoLabels = false;
   bool _dateOnlyTimestamps = false;
+  bool _removePii = false; // New: user-controlled PII removal (default Off)
   
   // Password-based encryption (only for .arcx format)
   bool _usePasswordEncryption = false;
@@ -122,6 +123,7 @@ class _McpExportScreenState extends State<McpExportScreen> {
           mediaFiles: _includePhotos ? photoMedia : null,
           includePhotoLabels: _includePhotoLabels,
           dateOnlyTimestamps: _dateOnlyTimestamps,
+          removePii: _removePii,
           password: _usePasswordEncryption ? _exportPassword : null,
           onProgress: (message) {
             if (mounted) {
@@ -704,6 +706,17 @@ class _McpExportScreenState extends State<McpExportScreen> {
                       ],
                     ),
                     const SizedBox(height: 12),
+                    _buildOptionTile(
+                      title: 'Remove PII',
+                      subtitle: 'Strip names, emails, device IDs, IPs, locations from JSON',
+                      value: _removePii,
+                      onChanged: (value) {
+                        setState(() {
+                          _removePii = value;
+                        });
+                      },
+                    ),
+                    const SizedBox(height: 8),
                     _buildOptionTile(
                       title: 'Include photo labels',
                       subtitle: 'Include AI-generated photo descriptions (may contain sensitive info)',

@@ -1395,10 +1395,10 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
                         const SizedBox(width: 8),
                         Flexible(
                           child: Text(
-                            _editableDate != null 
-                              ? '${_editableDate!.day}/${_editableDate!.month}/${_editableDate!.year}'
-                              : 'Select Date',
-                            style: theme.textTheme.bodyMedium,
+                          _editableDate != null 
+                            ? '${_editableDate!.day}/${_editableDate!.month}/${_editableDate!.year}'
+                            : 'Select Date',
+                          style: theme.textTheme.bodyMedium,
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
@@ -1425,10 +1425,10 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
                         const SizedBox(width: 8),
                         Flexible(
                           child: Text(
-                            _editableTime != null 
-                              ? _editableTime!.format(context)
-                              : 'Select Time',
-                            style: theme.textTheme.bodyMedium,
+                          _editableTime != null 
+                            ? _editableTime!.format(context)
+                            : 'Select Time',
+                          style: theme.textTheme.bodyMedium,
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
@@ -1452,23 +1452,23 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
               suffixIcon: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 96),
                 child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    IconButton(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  IconButton(
                       icon: const Icon(Icons.search, size: 20),
-                      onPressed: _showLocationPicker,
-                      tooltip: 'Search locations',
+                    onPressed: _showLocationPicker,
+                    tooltip: 'Search locations',
                       padding: EdgeInsets.zero,
                       constraints: const BoxConstraints(),
-                    ),
-                    IconButton(
+                  ),
+                  IconButton(
                       icon: const Icon(Icons.my_location, size: 20),
-                      onPressed: _getCurrentLocation,
-                      tooltip: 'Get current location',
+                    onPressed: _getCurrentLocation,
+                    tooltip: 'Get current location',
                       padding: EdgeInsets.zero,
                       constraints: const BoxConstraints(),
-                    ),
-                  ],
+                  ),
+                ],
                 ),
               ),
               border: OutlineInputBorder(
@@ -2757,7 +2757,7 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
       _draftCache.updateDraftContentAndMedia(content, mediaItems);
     } else {
       _draftCache.updateDraftContent(content);
-    }
+      }
     
     debugPrint('JournalScreen: Draft content updated and saved to cache');
   }

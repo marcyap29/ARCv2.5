@@ -46,6 +46,8 @@ import Photos
     
     NSLog("[AppDelegate] VisionApi registered via Pigeon ✅")
     
+    // HealthKit is handled by the 'health' plugin, no custom bridge needed
+
     // Register PhotoLibraryService via MethodChannel
     let photoLibraryChannel = FlutterMethodChannel(name: "photo_library_service", binaryMessenger: controller.binaryMessenger)
     let photoLibraryService = PhotoLibraryService()

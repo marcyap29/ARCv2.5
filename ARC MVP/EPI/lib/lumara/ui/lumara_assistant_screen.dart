@@ -1,3 +1,4 @@
+import 'package:my_app/lumara/ui/widgets/health_preview_sheet.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -118,6 +119,11 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
         automaticallyImplyLeading: false, // Remove back button since this is a tab
         actions: [
           IconButton(
+            icon: const Icon(Icons.edit),
+            onPressed: () => _startNewChat(),
+            tooltip: 'New Chat',
+          ),
+          IconButton(
             icon: const Icon(Icons.settings),
             onPressed: () => _showEnhancedSettings(),
             tooltip: 'API Settings',
@@ -228,14 +234,14 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
                                     );
                                   } else {
                                     // Navigate to appropriate screen
-                                    Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (context) => isConfigError
-                                            ? const LumaraOnboardingScreen()
+                                  Navigator.push(
+                                    context,
+                                  MaterialPageRoute(
+                                    builder: (context) => isConfigError
+                                        ? const LumaraOnboardingScreen()
                                             : const LumaraSettingsScreen(),
-                                      ),
-                                    );
+                                  ),
+                                  );
                                   }
                                 },
                                 child: Text(isConfigError ? 'Set Up AI' : 'Settings'),
@@ -501,6 +507,11 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
               // TODO: Implement voice input
             },
           ),
+          IconButton(
+            icon: const Icon(Icons.favorite),
+            tooltip: 'Health',
+            onPressed: _showHealthPreview,
+          ),
           Expanded(
             child: TextField(
               controller: _messageController,
@@ -540,8 +551,32 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
     }
   }
 
+  void _showHealthPreview() async {
+    final result = await showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (context) {
+        return const HealthPreviewSheet();
+      },
+    );
+    if (result == 'attach_health') {
+      // Optionally: update draft state to note Health attached (implementation dependent)
+    }
+  }
+
   void _sendMessage(String message) {
     context.read<LumaraAssistantCubit>().sendMessage(message);
+  }
+
+  void _startNewChat() async {
+    // Dismiss keyboard and clear input
+    _dismissKeyboard();
+    _messageController.clear();
+    
+    // Start new chat (saves old chat to history)
+    await context.read<LumaraAssistantCubit>().startNewChat();
   }
 
   void _clearChat() async {
@@ -625,11 +660,11 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
       );
     } else {
       // Navigate directly to settings screen
-      Navigator.of(context).push(
-        MaterialPageRoute(
+    Navigator.of(context).push(
+      MaterialPageRoute(
           builder: (context) => const LumaraSettingsScreen(),
-        ),
-      );
+      ),
+    );
     }
   }
 

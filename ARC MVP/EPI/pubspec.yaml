@@ -41,6 +41,7 @@ dependencies:
   photo_manager: ^3.5.0
   args: ^2.4.2
   health: ^10.2.0
+  fl_chart: ^0.68.0
   # FFmpeg temporarily disabled due to iOS simulator architecture incompatibility
   # See Bug_Tracker-3.md for details. FFmpeg is currently unused (stub implementation).
   # Re-enable when video processing features are actually implemented.

@@ -7,20 +7,8 @@ import 'package:my_app/arc/ui/timeline/timeline_view.dart';
 import 'package:my_app/arc/ui/timeline/timeline_cubit.dart';
 import 'package:my_app/shared/app_colors.dart';
 import 'package:my_app/shared/tab_bar.dart';
-import 'package:my_app/shared/text_style.dart';
-import 'package:my_app/atlas/rivet/rivet_provider.dart';
-import 'package:my_app/atlas/rivet/rivet_models.dart';
-import 'package:my_app/core/i18n/copy.dart';
 // AURORA card removed - was just a placeholder
 import 'package:my_app/services/user_phase_service.dart';
-import 'package:my_app/atlas/phase_detection/cards/veil_card.dart';
-import 'package:my_app/atlas/phase_detection/cards/aurora_card.dart';
-import 'package:my_app/atlas/phase_detection/your_patterns_view.dart';
-import 'package:my_app/atlas/phase_detection/info/insights_info_icon.dart';
-import 'package:my_app/atlas/phase_detection/info/why_held_sheet.dart';
-import 'package:my_app/insights/insight_cubit.dart';
-import 'package:my_app/insights/widgets/insight_card_widget.dart';
-import 'package:my_app/shared/ui/qa/qa_screen.dart';
 import 'package:my_app/shared/ui/settings/settings_view.dart';
 import 'package:my_app/lumara/ui/lumara_assistant_screen.dart';
 import 'package:my_app/services/analytics_service.dart';
@@ -34,6 +22,7 @@ import 'package:my_app/core/app_flags.dart';
 import 'package:flutter/foundation.dart';
 import 'package:my_app/core/services/photo_library_service.dart';
 import 'dart:math' as math;
+import 'package:my_app/arc/ui/health/health_view.dart';
 
 // Debug flag for showing RIVET engineering labels
 const bool kShowRivetDebugLabels = false;
@@ -50,13 +39,13 @@ class HomeView extends StatefulWidget {
 class _HomeViewState extends State<HomeView> {
   late HomeCubit _homeCubit;
   LumaraAssistantCubit? _lumaraCubit;
-  final GlobalKey<_InsightsPageState> _insightsPageKey = GlobalKey<_InsightsPageState>();
+  // Insights moved under Health as Analytics
   
   List<TabItem> get _tabs {
     const baseTabs = [
       TabItem(icon: Icons.auto_graph, text: 'Phase'),
       TabItem(icon: Icons.timeline, text: 'Timeline'),
-      TabItem(icon: Icons.insights, text: 'Insights'),
+      TabItem(icon: Icons.favorite, text: 'Health'),
       TabItem(icon: Icons.settings, text: 'Settings'),
     ];
 
@@ -65,7 +54,7 @@ class _HomeViewState extends State<HomeView> {
         baseTabs[0], // Phase
         baseTabs[1], // Timeline
         const TabItem(icon: Icons.psychology, text: 'LUMARA'),
-        baseTabs[2], // Insights
+        baseTabs[2], // Health
         baseTabs[3], // Settings
       ];
     }
@@ -73,9 +62,9 @@ class _HomeViewState extends State<HomeView> {
   }
 
   List<String> get _tabNames {
-    const baseNames = ['Phase', 'Timeline', 'Insights', 'Settings'];
+    const baseNames = ['Phase', 'Timeline', 'Health', 'Settings'];
     if (AppFlags.isLumaraEnabled) {
-      return ['Phase', 'Timeline', 'LUMARA', 'Insights', 'Settings'];
+      return ['Phase', 'Timeline', 'LUMARA', 'Health', 'Settings'];
     }
     return baseNames;
   }
@@ -108,21 +97,21 @@ class _HomeViewState extends State<HomeView> {
     });
 
     _pages = [
-      const PhaseAnalysisView(), // Phase Analysis (index 0)
-      const TimelineView(), // Timeline (index 1)
+      const PhaseAnalysisView(), // index 0
+      const TimelineView(),      // index 1
       if (AppFlags.isLumaraEnabled)
         BlocProvider<LumaraAssistantCubit>.value(
           value: _lumaraCubit!,
           child: const LumaraAssistantScreen(),
-        ) // LUMARA (index 2)
+        ) // index 2
       else
-        _InsightsPage(key: _insightsPageKey), // Insights (index 2)
+        const HealthView(),       // Health when Lumara disabled (index 2)
       if (AppFlags.isLumaraEnabled)
-        _InsightsPage(key: _insightsPageKey) // Insights (index 3)
+        const HealthView()        // Health (index 3)
       else
-        const SettingsView(), // Settings (index 3)
+        const SettingsView(),     // Settings (index 3)
       if (AppFlags.isLumaraEnabled)
-        const SettingsView(), // Settings (index 4)
+        const SettingsView(),     // Settings (index 4)
     ];
     
     // Initialize ethereal music (P22)
@@ -240,13 +229,7 @@ class _HomeViewState extends State<HomeView> {
                   print('DEBUG: Current selected index was: $selectedIndex');
 
                   _homeCubit.changeTab(index);
-                  // Refresh RIVET card when Insights tab is selected
-                  final insightsIndex = AppFlags.isLumaraEnabled ? 3 : 2; // Insights is at index 3 with LUMARA, index 2 without
-                  if (index == insightsIndex) {
-                    print('DEBUG: Insights tab selected, refreshing RIVET card');
-                    print('DEBUG: Calling _refreshRivetCardInInsights...');
-                    _refreshRivetCardInInsights();
-                  }
+                  // No special action on Health tab select (handled in Health/Analytics pages)
                 },
               ),
             // Write button is now integrated into the elevated tab bar design
@@ -268,25 +251,7 @@ class _HomeViewState extends State<HomeView> {
     }
   }
   
-  /// Refresh RIVET card in Insights page
-  void _refreshRivetCardInInsights() {
-    print('DEBUG: _refreshRivetCardInInsights called from home view');
-    print('DEBUG: _insightsPageKey: $_insightsPageKey');
-    print('DEBUG: _insightsPageKey.currentState: ${_insightsPageKey.currentState}');
-
-    if (_insightsPageKey.currentState != null) {
-      print('DEBUG: Found InsightsPage state, calling refreshRivetCard...');
-      try {
-        _insightsPageKey.currentState!.refreshRivetCard();
-        print('DEBUG: Successfully called refreshRivetCard on InsightsPage');
-      } catch (e) {
-        print('ERROR: Failed to call refreshRivetCard on InsightsPage: $e');
-      }
-    } else {
-      print('DEBUG: ERROR - InsightsPage state is null!');
-      print('DEBUG: Widget tree may not be fully built yet');
-    }
-  }
+  
 
 
   @override
@@ -297,6 +262,9 @@ class _HomeViewState extends State<HomeView> {
   }
 }
 
+// Legacy Insights page moved under Health as Analytics
+// Keeping removed implementation minimal to avoid dead code
+/*
 class _InsightsPage extends StatefulWidget {
   const _InsightsPage({super.key});
 
@@ -307,6 +275,12 @@ class _InsightsPage extends StatefulWidget {
 class _InsightsPageState extends State<_InsightsPage> with WidgetsBindingObserver {
   InsightCubit? _insightCubit;
   final GlobalKey<_RivetCardState> _rivetCardKey = GlobalKey<_RivetCardState>();
+  final ScrollController _scrollController = ScrollController();
+  final GlobalKey _patternsAnchor = GlobalKey();
+  final GlobalKey _auroraAnchor = GlobalKey();
+  final GlobalKey _veilAnchor = GlobalKey();
+  final GlobalKey _themesAnchor = GlobalKey();
+  int _selectedSection = 0;
 
   @override
   void initState() {
@@ -333,6 +307,7 @@ class _InsightsPageState extends State<_InsightsPage> with WidgetsBindingObserve
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _scrollController.dispose();
     super.dispose();
   }
   
@@ -388,6 +363,85 @@ class _InsightsPageState extends State<_InsightsPage> with WidgetsBindingObserve
   }
 
 
+
+  void _onSelectSection(int index) {
+    setState(() {
+      _selectedSection = index;
+    });
+    switch (index) {
+      case 0:
+        _scrollTo(_patternsAnchor);
+        break;
+      case 1:
+        _scrollTo(_auroraAnchor);
+        break;
+      case 2:
+        _scrollTo(_veilAnchor);
+        break;
+      case 3:
+        _scrollTo(_themesAnchor);
+        break;
+    }
+  }
+
+  Future<void> _scrollTo(GlobalKey key) async {
+    try {
+      final context = key.currentContext;
+      if (context != null) {
+        await Scrollable.ensureVisible(
+          context,
+          duration: const Duration(milliseconds: 350),
+          alignment: 0.1,
+          curve: Curves.easeInOut,
+        );
+      }
+    } catch (_) {}
+  }
+
+  Widget _buildSelectedInsightsSection(BuildContext context) {
+    switch (_selectedSection) {
+      case 0:
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              key: _patternsAnchor,
+              child: _buildMiraGraphCard(context),
+            ),
+          ],
+        );
+      case 1:
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const SizedBox(height: 0),
+            // AURORA
+            const AuroraCard(),
+          ],
+        );
+      case 2:
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const SizedBox(height: 0),
+            // VEIL
+            const VeilCard(),
+          ],
+        );
+      case 3:
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              key: _themesAnchor,
+              child: _buildInsightsSection(),
+            ),
+          ],
+        );
+      default:
+        return const SizedBox.shrink();
+    }
+  }
 
   Widget _buildInsightsSection() {
     if (_insightCubit == null) {
@@ -502,26 +556,55 @@ class _InsightsPageState extends State<_InsightsPage> with WidgetsBindingObserve
                 ],
               ),
             ),
-            Expanded(
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20.0),
               child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 20.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                scrollDirection: Axis.horizontal,
+                child: Row(
                   children: [
-                    _buildMiraGraphCard(context),
-                    const SizedBox(height: 20),
-                    // RIVET Card removed - now only in Phase tab
-                    const AuroraCard(),
-                    const SizedBox(height: 20),
-                    const VeilCard(), // To be repurposed as AI Prompt Intelligence card
-                    const SizedBox(height: 20),
-                    // Insight Cards
-                    _buildInsightsSection(),
+                    _buildSectionChip('Patterns', 0),
+                    const SizedBox(width: 8),
+                    _buildSectionChip('AURORA', 1),
+                    const SizedBox(width: 8),
+                    _buildSectionChip('VEIL', 2),
+                    const SizedBox(width: 8),
+                    _buildSectionChip('Themes', 3),
                   ],
                 ),
               ),
             ),
+            const SizedBox(height: 12),
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(horizontal: 20.0),
+                controller: _scrollController,
+                child: _buildSelectedInsightsSection(context),
+              ),
+            ),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSectionChip(String label, int index) {
+    final bool isSelected = _selectedSection == index;
+    return GestureDetector(
+      onTap: () => _onSelectSection(index),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: isSelected ? Colors.white.withOpacity(0.2) : Colors.white.withOpacity(0.08),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: Colors.white.withOpacity(isSelected ? 0.35 : 0.2)),
+        ),
+        child: Text(
+          label,
+          style: bodyStyle(context).copyWith(
+            color: kcPrimaryTextColor,
+            fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+            fontSize: 12,
+          ),
         ),
       ),
     );
@@ -550,17 +633,17 @@ class _InsightsPageState extends State<_InsightsPage> with WidgetsBindingObserve
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
-              children: [
-                _buildMiniRadialIcon(),
-                const SizedBox(width: 12),
+          children: [
+            _buildMiniRadialIcon(),
+            const SizedBox(width: 12),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        'Your Patterns',
-                        style: heading2Style(context).copyWith(fontSize: 18),
-                      ),
+            Text(
+              'Patterns',
+              style: heading2Style(context).copyWith(fontSize: 18),
+            ),
                       Text(
                         'Keyword & emotion visualization',
                         style: bodyStyle(context).copyWith(
@@ -571,13 +654,13 @@ class _InsightsPageState extends State<_InsightsPage> with WidgetsBindingObserve
                     ],
                   ),
                 ),
-                Icon(
-                  Icons.arrow_forward_ios,
-                  size: 16,
-                  color: kcPrimaryTextColor.withOpacity(0.6),
-                ),
-              ],
+            Icon(
+              Icons.arrow_forward_ios,
+              size: 16,
+              color: kcPrimaryTextColor.withOpacity(0.6),
             ),
+          ],
+        ),
             const SizedBox(height: 12),
             Container(
               padding: const EdgeInsets.all(12),
@@ -707,591 +790,9 @@ class _InsightsPageState extends State<_InsightsPage> with WidgetsBindingObserve
     );
   }
 }
+*/
 
-class _RivetCard extends StatefulWidget {
-  const _RivetCard({super.key});
-
-  @override
-  State<_RivetCard> createState() => _RivetCardState();
-}
-
-class _RivetCardState extends State<_RivetCard> {
-  RivetState? _rivetState;
-  bool _isLoading = true;
-  
-  // Simplified readiness calculation
-  double _calculateReadinessScore() {
-    if (_rivetState == null) return 0.0;
-    
-    // Weight the different metrics for a single readiness score
-    const alignWeight = 0.3; // 30% - how well entries match new phase
-    const traceWeight = 0.3; // 30% - confidence in the match
-    const sustainWeight = 0.25; // 25% - consistency over time
-    const independentWeight = 0.15; // 15% - independent confirmation
-    
-    final alignScore = _rivetState!.align;
-    final traceScore = _rivetState!.trace;
-    final sustainScore = (_rivetState!.sustainCount / 2.0).clamp(0.0, 1.0); // 2 is target
-    final independentScore = _rivetState!.sawIndependentInWindow ? 1.0 : 0.0;
-    
-    return (alignScore * alignWeight + 
-            traceScore * traceWeight + 
-            sustainScore * sustainWeight + 
-            independentScore * independentWeight);
-  }
-  
-  String _getReadinessStatus(double score) {
-    if (score >= 0.8) return 'ready';
-    if (score >= 0.6) return 'almost';
-    return 'not_ready';
-  }
-
-  @override
-  void initState() {
-    super.initState();
-    print('DEBUG: _RivetCard initState called - widget hashCode: $hashCode');
-    _loadRivetState();
-  }
-
-  Future<void> _loadRivetState() async {
-    print('DEBUG: _loadRivetState called');
-    setState(() {
-      _isLoading = true;
-    });
-    
-    try {
-      final rivetProvider = RivetProvider();
-      const userId = 'default_user'; // TODO: Use actual user ID
-      
-      print('DEBUG: RIVET provider available: ${rivetProvider.isAvailable}');
-      
-      // Initialize provider if needed
-      if (!rivetProvider.isAvailable) {
-        print('DEBUG: Initializing RIVET provider...');
-        await rivetProvider.initialize(userId);
-        print('DEBUG: RIVET provider initialized: ${rivetProvider.isAvailable}');
-      }
-      
-      // Safely get state
-      print('DEBUG: Getting RIVET state for user: $userId');
-      final state = await rivetProvider.safeGetState(userId);
-      print('DEBUG: RIVET state retrieved: $state');
-      
-      if (state != null && rivetProvider.service != null) {
-        // Update service with current state
-        rivetProvider.service!.updateState(state);
-        
-        setState(() {
-          _rivetState = state;
-          _isLoading = false;
-        });
-        print('DEBUG: RIVET state updated successfully: $_rivetState');
-      } else {
-        print('DEBUG: No RIVET state found, using default state');
-        setState(() {
-          _rivetState = const RivetState(
-            align: 0,
-            trace: 0,
-            sustainCount: 0,
-            sawIndependentInWindow: false,
-          );
-          _isLoading = false;
-        });
-      }
-    } catch (e) {
-      print('ERROR: Failed to load RIVET state for insights: $e');
-      setState(() {
-        _rivetState = const RivetState(
-          align: 0,
-          trace: 0,
-          sustainCount: 0,
-          sawIndependentInWindow: false,
-        );
-        _isLoading = false;
-      });
-    }
-  }
-  
-  Future<void> _refreshRivetState() async {
-    print('DEBUG: _refreshRivetState called - widget hashCode: $hashCode');
-    print('DEBUG: Current RIVET state before refresh: $_rivetState');
-    print('DEBUG: Current loading state: $_isLoading');
-    await _loadRivetState();
-    print('DEBUG: RIVET state after refresh: $_rivetState');
-    print('DEBUG: Loading state after refresh: $_isLoading');
-  }
-  
-
-  @override
-  Widget build(BuildContext context) {
-    if (_isLoading || _rivetState == null) {
-      return Container(
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.1),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: Colors.white.withOpacity(0.2),
-          ),
-        ),
-        child: const Center(
-          child: CircularProgressIndicator(
-            valueColor: AlwaysStoppedAnimation<Color>(kcPrimaryTextColor),
-          ),
-        ),
-      );
-    }
-
-    // Calculate simplified readiness
-    final readinessScore = _calculateReadinessScore();
-    final status = _getReadinessStatus(readinessScore);
-
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: Colors.white.withOpacity(0.2),
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Header with title, subtitle, and refresh button
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: const Icon(
-                  Icons.psychology,
-                  size: 20,
-                  color: kcPrimaryTextColor,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      Copy.rivetTitle,
-                      style: heading2Style(context),
-                    ),
-                    Text(
-                      Copy.rivetSubtitle,
-                      style: bodyStyle(context).copyWith(
-                        color: kcPrimaryTextColor.withOpacity(0.7),
-                        fontSize: 12,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              IconButton(
-                onPressed: _refreshRivetState,
-                icon: const Icon(
-                  Icons.refresh,
-                  color: kcPrimaryTextColor,
-                  size: 20,
-                ),
-                tooltip: 'Refresh RIVET state',
-              ),
-            ],
-          ),
-          const SizedBox(height: 24),
-          
-          // Single progress ring with status
-          Center(
-            child: Column(
-              children: [
-                _buildProgressRing(context, readinessScore, status),
-                const SizedBox(height: 16),
-                _buildStatusMessage(context, status),
-              ],
-            ),
-          ),
-          const SizedBox(height: 24),
-          
-          // Action buttons
-          _buildActionButtons(context, status),
-        ],
-      ),
-    );
-  }
-  
-  Widget _buildProgressRing(BuildContext context, double score, String status) {
-    Color ringColor;
-    switch (status) {
-      case 'ready':
-        ringColor = Colors.green;
-        break;
-      case 'almost':
-        ringColor = Colors.orange;
-        break;
-      default:
-        ringColor = Colors.blue; // Changed from red to blue for more encouraging tone
-    }
-
-    final progressInfo = _getProgressInfo();
-
-    return Stack(
-      alignment: Alignment.center,
-      children: [
-        SizedBox(
-          width: 120,
-          height: 120,
-          child: CircularProgressIndicator(
-            value: _getVisualProgress(), // Visual progress based on entries, not RIVET math
-            strokeWidth: 8,
-            backgroundColor: Colors.white.withOpacity(0.2),
-            valueColor: AlwaysStoppedAnimation<Color>(ringColor),
-          ),
-        ),
-        Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(
-              progressInfo['display']!,
-              style: heading1Style(context).copyWith(
-                color: ringColor,
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            Text(
-              progressInfo['subtitle']!,
-              style: bodyStyle(context).copyWith(
-                color: kcPrimaryTextColor.withOpacity(0.7),
-                fontSize: 10,
-              ),
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-
-  // Get visual progress for ring (simpler than RIVET math)
-  double _getVisualProgress() {
-    if (_rivetState == null) return 0.0;
-
-    final sustainCount = _rivetState!.sustainCount;
-    const targetCount = 2; // Need 2 qualifying entries
-
-    // Visual progress based on entry count, capped at 0.9 until fully ready
-    final progress = (sustainCount / targetCount).clamp(0.0, 0.9);
-
-    // Only show 1.0 when actually ready
-    if (sustainCount >= targetCount &&
-        _rivetState!.sawIndependentInWindow &&
-        _rivetState!.align >= 0.6 &&
-        _rivetState!.trace >= 0.6) {
-      return 1.0;
-    }
-
-    return progress;
-  }
-
-  // Get user-friendly progress information
-  Map<String, String> _getProgressInfo() {
-    if (_rivetState == null) {
-      return {
-        'display': 'Getting\nStarted',
-        'subtitle': 'Begin journaling'
-      };
-    }
-
-    final sustainCount = _rivetState!.sustainCount;
-    const targetCount = 2;
-    final entriesNeeded = (targetCount - sustainCount).clamp(0, targetCount);
-    final hasIndependent = _rivetState!.sawIndependentInWindow;
-
-    if (sustainCount >= targetCount && hasIndependent) {
-      return {
-        'display': 'Ready!',
-        'subtitle': 'Phase unlocked'
-      };
-    } else if (sustainCount >= targetCount && !hasIndependent) {
-      return {
-        'display': 'Almost\nThere',
-        'subtitle': 'Try different day'
-      };
-    } else if (sustainCount == 1) {
-      return {
-        'display': '1 More\nEntry',
-        'subtitle': 'Great momentum!'
-      };
-    } else if (sustainCount == 0) {
-      return {
-        'display': '2 More\nEntries',
-        'subtitle': 'Building evidence'
-      };
-    } else {
-      return {
-        'display': '$entriesNeeded More\nEntries',
-        'subtitle': 'Keep exploring'
-      };
-    }
-  }
-  
-  
-  Widget _buildStatusMessage(BuildContext context, String status) {
-    String message;
-    Color messageColor;
-    IconData icon;
-
-    final readinessScore = _calculateReadinessScore();
-
-    switch (status) {
-      case 'ready':
-        message = "Ready to explore a new phase";
-        messageColor = Colors.green;
-        icon = Icons.check_circle;
-        break;
-      case 'almost':
-        message = _getPersonalizedStatusMessage(readinessScore);
-        messageColor = Colors.orange;
-        icon = Icons.schedule;
-        break;
-      default:
-        message = _getPersonalizedStatusMessage(readinessScore);
-        messageColor = Colors.blue; // Changed from red to blue for encouragement
-        icon = Icons.trending_up;
-    }
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      decoration: BoxDecoration(
-        color: messageColor.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: messageColor.withOpacity(0.3),
-        ),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            icon,
-            color: messageColor,
-            size: 20,
-          ),
-          const SizedBox(width: 8),
-          Flexible(
-            child: Text(
-              message,
-              style: bodyStyle(context).copyWith(
-                color: messageColor,
-                fontWeight: FontWeight.w500,
-                fontSize: 14,
-              ),
-              textAlign: TextAlign.center,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  String _getPersonalizedStatusMessage(double score) {
-    if (_rivetState == null) {
-      return "Start journaling to build your story";
-    }
-
-    final sustainCount = _rivetState!.sustainCount;
-    final hasIndependent = _rivetState!.sawIndependentInWindow;
-    const targetCount = 2;
-
-    if (sustainCount >= targetCount && hasIndependent) {
-      return "Phase change ready - explore new territory!";
-    } else if (sustainCount >= targetCount && !hasIndependent) {
-      return "Almost ready - try journaling on a different day";
-    } else if (sustainCount == 1) {
-      return "Great momentum - 1 more quality entry needed";
-    } else if (sustainCount == 0) {
-      return "Building your foundation - every entry matters";
-    } else {
-      final needed = targetCount - sustainCount;
-      return "Strong progress - $needed more qualifying entries";
-    }
-  }
-  
-  Widget _buildActionButtons(BuildContext context, String status) {
-    if (status == 'ready') {
-      return Row(
-        children: [
-          Expanded(
-            child: ElevatedButton(
-              onPressed: () {
-                // Navigate to phase change
-                // TODO: Implement phase change navigation
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.green,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 12),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-              ),
-              child: const Text(
-                "Change Phase",
-                style: TextStyle(
-                  fontWeight: FontWeight.w600,
-                  fontSize: 14,
-                ),
-              ),
-            ),
-          ),
-        ],
-      );
-    }
-
-    // For not ready status, show actionable guidance instead of grayed-out button
-    return _buildActionableGuidance(context);
-  }
-
-  Widget _buildActionableGuidance(BuildContext context) {
-    if (_rivetState == null) return const SizedBox.shrink();
-
-    final guidance = _getSpecificGuidance();
-
-    return Column(
-      children: [
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: Colors.blue.withOpacity(0.05),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: Colors.blue.withOpacity(0.2),
-            ),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  const Icon(
-                    Icons.lightbulb_outline,
-                    color: Colors.blue,
-                    size: 20,
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    "Next Steps",
-                    style: bodyStyle(context).copyWith(
-                      color: Colors.blue,
-                      fontWeight: FontWeight.w600,
-                      fontSize: 14,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              ...guidance.map((item) => Padding(
-                padding: const EdgeInsets.only(bottom: 4),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      "• ",
-                      style: bodyStyle(context).copyWith(
-                        color: Colors.blue,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    Expanded(
-                      child: Text(
-                        item,
-                        style: bodyStyle(context).copyWith(
-                          color: kcSecondaryTextColor,
-                          fontSize: 13,
-                          height: 1.3,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              )),
-            ],
-          ),
-        ),
-        const SizedBox(height: 12),
-        TextButton(
-          onPressed: () {
-            showModalBottomSheet(
-              context: context,
-              isScrollControlled: true,
-              backgroundColor: Colors.transparent,
-              builder: (context) => const WhyHeldSheet(),
-            );
-          },
-          child: Text(
-            "See detailed breakdown",
-            style: bodyStyle(context).copyWith(
-              color: Colors.blue,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  List<String> _getSpecificGuidance() {
-    if (_rivetState == null) return ["Start journaling to begin building your story"];
-
-    final guidance = <String>[];
-    final sustainCount = _rivetState!.sustainCount;
-    final hasIndependent = _rivetState!.sawIndependentInWindow;
-    final alignScore = _rivetState!.align;
-    const targetCount = 2;
-
-    // Entry-specific guidance
-    if (sustainCount == 0) {
-      guidance.add("✨ Write 2 thoughtful entries exploring your current life phase");
-      guidance.add("🌱 Focus on meaningful experiences and feelings");
-    } else if (sustainCount == 1) {
-      guidance.add("🎯 1 more quality entry needed - you're building great momentum!");
-      guidance.add("📝 Continue exploring themes from your current phase");
-    } else if (sustainCount >= targetCount && !hasIndependent) {
-      guidance.add("🗓️ Try journaling on a different day for independence");
-      guidance.add("✨ You've built strong evidence - just need variety");
-    }
-
-    // Quality guidance
-    if (alignScore < 0.4 && sustainCount > 0) {
-      guidance.add("💭 Dive deeper into your current phase's themes and challenges");
-    }
-
-    // Independence guidance
-    if (!hasIndependent && sustainCount > 0) {
-      guidance.add("🔄 Journal at different times or on different days");
-    }
-
-    // Always provide encouraging completion message
-    if (sustainCount >= targetCount && hasIndependent) {
-      guidance.add("🎉 Ready to explore your next phase - amazing progress!");
-    } else if (sustainCount == 1) {
-      guidance.add("💪 Great foundation built - 1 more entry unlocks phase change");
-    } else if (sustainCount == 0) {
-      guidance.add("🚀 Every entry matters - you're building something meaningful");
-    } else {
-      final needed = targetCount - sustainCount;
-      guidance.add("📈 Strong progress made - $needed more entries to unlock");
-    }
-
-    return guidance;
-  }
-}
+// Legacy RIVET card implementation removed
 
 
 class MiniRadialPainter extends CustomPainter {

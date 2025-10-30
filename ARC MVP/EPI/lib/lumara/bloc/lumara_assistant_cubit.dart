@@ -989,6 +989,53 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
     emit(currentState.copyWith(messages: messages));
   }
   
+  /// Start a new chat (saves current chat to history, then clears UI)
+  Future<void> startNewChat() async {
+    final currentState = state;
+    if (currentState is! LumaraAssistantLoaded) {
+      // If not loaded, just initialize
+      await initialize();
+      return;
+    }
+    
+    // Save current chat session to history if it exists and has messages
+    if (currentChatSessionId != null && currentState.messages.isNotEmpty) {
+      try {
+        await _chatRepo.initialize();
+        final session = await _chatRepo.getSession(currentChatSessionId!);
+        if (session != null) {
+          // Ensure session is up-to-date (messages are already saved via _addToChatSession)
+          // Update timestamp one final time to mark session as complete
+          // Using renameSession with same subject updates the timestamp
+          await _chatRepo.renameSession(currentChatSessionId!, session.subject);
+          print('LUMARA Chat: Finalized session $currentChatSessionId before starting new chat');
+        }
+      } catch (e) {
+        print('LUMARA Chat: Error finalizing session: $e');
+        // Continue anyway - messages should already be saved
+      }
+    }
+    
+    // Reset session ID to force new session on next message
+    currentChatSessionId = null;
+    
+    // Create welcome message for new chat (clears the old chat in the UI)
+    const welcomeContent = "Hello! I'm LUMARA, your personal assistant. I can help you understand your patterns, explain your current phase, and provide insights about your journey. What would you like to know?";
+    
+    final List<LumaraMessage> messages = [
+      LumaraMessage.assistant(content: welcomeContent),
+    ];
+    
+    // Record welcome message in MCP memory
+    await _recordAssistantMessage(welcomeContent);
+    
+    // Immediately update UI with new welcome message (clears old chat)
+    emit(currentState.copyWith(
+      messages: messages,
+      currentSessionId: null,
+    ));
+  }
+  
   /// Get context summary
   Future<String> getContextSummary() async {
     return await _contextProvider.getContextSummary();

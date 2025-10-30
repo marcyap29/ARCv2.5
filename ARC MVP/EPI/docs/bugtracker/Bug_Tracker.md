@@ -4,6 +4,30 @@
 **Branch:** aurora
 **Status:** Production Ready ✅ - ARCX Image Loading Fixed, Secure Archive System Complete, MediaItem Adapter Registration Fixed, Photo Duplication Fixed, Infinite Rebuild Loop Fixed, Hive Initialization Order Fixed, Insights Tab UI Enhancements Complete
 
+## Records Index
+- [Timeline Infinite Rebuild Loop](./records/timeline-infinite-rebuild-loop.md)
+- [Hive Initialization Order Errors](./records/hive-initialization-order.md)
+- [Photo Duplication in View Entry](./records/photo-duplication-view-entry.md)
+- [MediaItem Adapter Registration Conflict](./records/mediaitem-adapter-registration-conflict.md)
+- [Draft Creation When Viewing Entries](./records/draft-creation-unwanted-drafts.md)
+- [Timeline RenderFlex Overflow on Empty State](./records/timeline-overflow-empty-state.md)
+- [Timeline Ordering & Timestamp Inconsistencies](./records/timeline-ordering-timestamps.md)
+- [LUMARA Settings Refresh Loop During Model Downloads](./records/lumara-settings-refresh-loop.md)
+- [Constellation "Generating with 0 Stars" and Visual Enhancements](./records/constellation-zero-stars-display.md)
+- [MCP Repair System Issues Resolved](./records/mcp-repair-system-fixes.md)
+- [Journal Editor Issues Resolved](./records/journal-editor-issues.md)
+- [RIVET Deterministic Recompute System](./records/rivet-deterministic-recompute.md)
+- [LUMARA Integration Formatting Fix](./records/lumara-integration-formatting.md)
+- [UI/UX Critical Fixes](./records/ui-ux-critical-fixes-jan-08-2025.md)
+- [Vision API Integration (iOS) Fixes](./records/vision-api-integration-ios.md)
+- [Phase Analysis Integration Bugs](./records/phase-analysis-integration-bugs.md)
+
+### Companion (Detailed) Docs
+- [UI/UX Fixes (January 2025) - Detailed](./records/ui-ux-fixes-jan-2025.md)
+
+## 📦 Archive
+- Historical notes moved to `docs/bugtracker/archive/` (including legacy `Bug_Tracker Files/`).
+
 ## 📊 Current Status
 
 ### ✨ Insights Tab UI Enhancements (October 29, 2025)

@@ -316,16 +316,6 @@ List<PhaseSegmentProposal> proposals,
             },
             tooltip: 'Phase Help',
           ),
-          IconButton(
-            icon: const Icon(Icons.clean_hands),
-            onPressed: _cleanupDuplicates,
-            tooltip: 'Clean Up Duplicates',
-          ),
-          IconButton(
-            icon: const Icon(Icons.auto_awesome),
-            onPressed: _runRivetSweep,
-            tooltip: 'Run Phase Analysis',
-          ),
         ],
         bottom: TabBar(
           controller: _tabController,

@@ -24,6 +24,7 @@ class _ARCXSettingsViewState extends State<ARCXSettingsView> {
   bool _includePhotoLabels = false;
   bool _dateOnlyTimestamps = false;
   bool _secureDeleteOriginal = false;
+  bool _removePii = false; // New: default Off
   bool _isLoading = true;
 
   @override
@@ -38,6 +39,7 @@ class _ARCXSettingsViewState extends State<ARCXSettingsView> {
       _includePhotoLabels = prefs.getBool('arcx_include_photo_labels') ?? false;
       _dateOnlyTimestamps = prefs.getBool('arcx_date_only_timestamps') ?? false;
       _secureDeleteOriginal = prefs.getBool('arcx_secure_delete_original') ?? false;
+      _removePii = prefs.getBool('arcx_remove_pii') ?? false;
       _isLoading = false;
     });
   }
@@ -47,6 +49,7 @@ class _ARCXSettingsViewState extends State<ARCXSettingsView> {
     await prefs.setBool('arcx_include_photo_labels', _includePhotoLabels);
     await prefs.setBool('arcx_date_only_timestamps', _dateOnlyTimestamps);
     await prefs.setBool('arcx_secure_delete_original', _secureDeleteOriginal);
+    await prefs.setBool('arcx_remove_pii', _removePii);
     
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -222,6 +225,18 @@ class _ARCXSettingsViewState extends State<ARCXSettingsView> {
               children: [
                 _buildSwitchTile(
                   context,
+                  title: 'Remove PII',
+                  subtitle: 'Strip names, emails, device IDs, IPs, locations from JSON (optional)',
+                  value: _removePii,
+                  onChanged: (value) {
+                    setState(() {
+                      _removePii = value;
+                    });
+                    _saveSettings();
+                  },
+                ),
+                _buildSwitchTile(
+                  context,
                   title: 'Include Photo Labels',
                   subtitle: 'Include AI-generated labels in photo metadata (may contain sensitive information)',
                   value: _includePhotoLabels,
@@ -313,7 +328,7 @@ class _ARCXSettingsViewState extends State<ARCXSettingsView> {
                         ),
                         const SizedBox(height: 8),
                         Text(
-                          '• AES-256-GCM encryption\n• Ed25519 digital signatures\n• iOS-native file protection\n• PII redaction by default',
+                          '• AES-256-GCM encryption\n• Ed25519 digital signatures\n• iOS-native file protection\n• Optional PII redaction',
                           style: bodyStyle(context),
                         ),
                         const SizedBox(height: 16),

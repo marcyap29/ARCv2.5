@@ -11,7 +11,7 @@ import 'package:my_app/arc/core/journal_repository.dart';
 /// MCP Pack Import Service for .zip files only
 class McpPackImportService {
   final JournalRepository? _journalRepo;
-  
+
   // Media deduplication cache - maps URI to MediaItem to prevent duplicates
   final Map<String, MediaItem> _mediaCache = {};
 
@@ -188,7 +188,7 @@ class McpPackImportService {
 
     int totalEntriesFound = 0;
     int entriesWithMedia = 0;
-    
+
     await for (final entryFile in journalDir.list()) {
       if (entryFile is File && entryFile.path.endsWith('.json')) {
         totalEntriesFound++;
@@ -285,7 +285,7 @@ class McpPackImportService {
                 }
                 
                 final mediaItem = await _createMediaItemFromJson(enhancedMediaJson, photoMapping, entryJson['id'] as String? ?? 'unknown');
-                if (mediaItem != null) {
+              if (mediaItem != null) {
                   // Check cache for deduplication
                   final cacheKey = mediaItem.uri;
                   if (_mediaCache.containsKey(cacheKey)) {
@@ -294,7 +294,7 @@ class McpPackImportService {
                     print('♻️ Reusing cached media: ${cachedMediaItem.id} -> $cacheKey');
                   } else {
                     _mediaCache[cacheKey] = mediaItem;
-                    mediaItems.add(mediaItem);
+                mediaItems.add(mediaItem);
                     print('✅ Added media item ${mediaItem.id} to entry ${entryJson['id']}');
                   }
                 } else {
@@ -333,24 +333,24 @@ class McpPackImportService {
           try {
             journalEntry = JournalEntry(
               id: entryId,
-              title: _generateTitle(entryJson['content'] as String? ?? ''),
-              content: entryJson['content'] as String? ?? '',
-              createdAt: _parseTimestamp(entryJson['timestamp'] as String),
-              updatedAt: _parseTimestamp(entryJson['timestamp'] as String),
-              media: mediaItems,
-              tags: (entryJson['keywords'] as List<dynamic>? ?? []).cast<String>(),
-              keywords: (entryJson['keywords'] as List<dynamic>? ?? []).cast<String>(),
-              mood: entryJson['emotion'] as String? ?? 'Neutral',
-              emotion: entryJson['emotion'] as String?,
-              emotionReason: entryJson['emotionReason'] as String?,
-              metadata: {
-                'imported_from_mcp': true,
+            title: _generateTitle(entryJson['content'] as String? ?? ''),
+            content: entryJson['content'] as String? ?? '',
+            createdAt: _parseTimestamp(entryJson['timestamp'] as String),
+            updatedAt: _parseTimestamp(entryJson['timestamp'] as String),
+            media: mediaItems,
+            tags: (entryJson['keywords'] as List<dynamic>? ?? []).cast<String>(),
+            keywords: (entryJson['keywords'] as List<dynamic>? ?? []).cast<String>(),
+            mood: entryJson['emotion'] as String? ?? 'Neutral',
+            emotion: entryJson['emotion'] as String?,
+            emotionReason: entryJson['emotionReason'] as String?,
+            metadata: {
+              'imported_from_mcp': true,
                 'original_mcp_id': entryId,
-                'import_timestamp': DateTime.now().toIso8601String(),
-                'phase': entryJson['phase'],
-                ...?entryJson['metadata'] as Map<String, dynamic>?,
-              },
-            );
+              'import_timestamp': DateTime.now().toIso8601String(),
+              'phase': entryJson['phase'],
+              ...?entryJson['metadata'] as Map<String, dynamic>?,
+            },
+          );
             print('✅ Successfully created JournalEntry object for $entryId');
           } catch (e, stackTrace) {
             print('❌ ERROR: Failed to create JournalEntry object for $entryId: $e');
@@ -367,8 +367,8 @@ class McpPackImportService {
                 print('   Entry has ${journalEntry.media.length} media items');
               }
               
-              await _journalRepo!.createJournalEntry(journalEntry);
-              entriesImported++;
+            await _journalRepo!.createJournalEntry(journalEntry);
+            entriesImported++;
               
               // Special logging for entries 23, 24, 25
               if (entryId.contains('da055a24') || entryId.contains('ee12c32f') || entryId.contains('f25f9d72')) {
@@ -451,7 +451,7 @@ class McpPackImportService {
       String? permanentPath;
       if (filename != null && filename.isNotEmpty) {
         permanentPath = photoMapping[filename];
-        if (permanentPath == null) {
+      if (permanentPath == null) {
           // Try matching by SHA-256 if filename doesn't match
           final sha256 = mediaJson['sha256'] as String?;
           if (sha256 != null && sha256.isNotEmpty) {
