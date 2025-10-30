@@ -11,10 +11,19 @@ import 'package:my_app/arc/core/journal_repository.dart';
 /// MCP Pack Import Service for .zip files only
 class McpPackImportService {
   final JournalRepository? _journalRepo;
+  
+  // Media deduplication cache - maps URI to MediaItem to prevent duplicates
+  final Map<String, MediaItem> _mediaCache = {};
 
   McpPackImportService({
     JournalRepository? journalRepo,
   }) : _journalRepo = journalRepo;
+  
+  /// Clear the media cache (call before starting a new import)
+  void clearMediaCache() {
+    _mediaCache.clear();
+    print('🧹 Cleared media cache for new import');
+  }
 
   /// Import from MCP package (.zip) only
   Future<McpImportResult> importFromPath(String inputPath) async {
@@ -53,6 +62,9 @@ class McpPackImportService {
 
       print('📋 Manifest validated: ${manifest.entryCount} entries, ${manifest.photoCount} photos');
 
+      // Clear media cache for this import
+      clearMediaCache();
+
       // Import photos first
       final photoMapping = await _importPhotos(mcpDir);
       print('📸 Imported ${photoMapping.length} photos');
@@ -60,6 +72,17 @@ class McpPackImportService {
       // Import journal entries
       final entriesImported = await _importJournalEntries(mcpDir, photoMapping);
       print('📝 Imported $entriesImported journal entries');
+      
+      // Log media cache statistics
+      print('📊 Media Cache Statistics:');
+      print('   Total unique media items cached: ${_mediaCache.length}');
+      final mediaByType = <String, int>{};
+      for (final item in _mediaCache.values) {
+        mediaByType[item.type.name] = (mediaByType[item.type.name] ?? 0) + 1;
+      }
+      for (final entry in mediaByType.entries) {
+        print('   - ${entry.key}: ${entry.value}');
+      }
 
       // Clean up temporary directory (always extracted from ZIP)
       await mcpDir.parent.delete(recursive: true);
@@ -138,8 +161,63 @@ class McpPackImportService {
           final entryJson = jsonDecode(await entryFile.readAsString()) as Map<String, dynamic>;
           
           // Process media items and link to permanent photo paths
+          // Check multiple locations for media (robust fallback)
           final mediaItems = <MediaItem>[];
-          final mediaData = entryJson['media'] as List<dynamic>? ?? [];
+          List<dynamic>? mediaData = entryJson['media'] as List<dynamic>?;
+          
+          // Fallback 1: Check metadata.media
+          if (mediaData == null || mediaData.isEmpty) {
+            final metadata = entryJson['metadata'] as Map<String, dynamic>?;
+            if (metadata != null) {
+              mediaData = metadata['media'] as List<dynamic>?;
+              if (mediaData != null && mediaData.isNotEmpty) {
+                print('📝 Found ${mediaData.length} media items in metadata.media for entry ${entryJson['id']}');
+              }
+            }
+          }
+          
+          // Fallback 2: Check metadata.journal_entry.media
+          if (mediaData == null || mediaData.isEmpty) {
+            final metadata = entryJson['metadata'] as Map<String, dynamic>?;
+            if (metadata != null) {
+              final journalEntryMeta = metadata['journal_entry'] as Map<String, dynamic>?;
+              if (journalEntryMeta != null) {
+                mediaData = journalEntryMeta['media'] as List<dynamic>?;
+                if (mediaData != null && mediaData.isNotEmpty) {
+                  print('📝 Found ${mediaData.length} media items in metadata.journal_entry.media for entry ${entryJson['id']}');
+                }
+              }
+            }
+          }
+          
+          // Fallback 3: Check metadata.photos
+          if (mediaData == null || mediaData.isEmpty) {
+            final metadata = entryJson['metadata'] as Map<String, dynamic>?;
+            if (metadata != null) {
+              final photosData = metadata['photos'] as List<dynamic>?;
+              if (photosData != null && photosData.isNotEmpty) {
+                print('📝 Found ${photosData.length} photos in metadata.photos for entry ${entryJson['id']}');
+                // Convert photos array to media format
+                mediaData = photosData.map((photo) {
+                  if (photo is Map<String, dynamic>) {
+                    return {
+                      'id': photo['id'] ?? photo['placeholder_id'] ?? '',
+                      'filename': photo['filename'],
+                      'originalPath': photo['uri'] ?? photo['path'],
+                      'createdAt': photo['createdAt'] ?? photo['created_at'],
+                      'analysisData': photo['analysisData'] ?? photo['analysis_data'],
+                      'altText': photo['altText'] ?? photo['alt_text'],
+                      'ocrText': photo['ocrText'] ?? photo['ocr_text'],
+                      'sha256': photo['sha256'],
+                    };
+                  }
+                  return photo;
+                }).toList();
+              }
+            }
+          }
+          
+          mediaData ??= [];
           
           if (mediaData.isNotEmpty) {
             entriesWithMedia++;
@@ -151,10 +229,19 @@ class McpPackImportService {
           for (final mediaJson in mediaData) {
             if (mediaJson is Map<String, dynamic>) {
               try {
-                final mediaItem = await _createMediaItemFromJson(mediaJson, photoMapping);
+                final mediaItem = await _createMediaItemFromJson(mediaJson, photoMapping, entryJson['id'] as String? ?? 'unknown');
                 if (mediaItem != null) {
-                  mediaItems.add(mediaItem);
-                  print('✅ Added media item ${mediaItem.id} to entry ${entryJson['id']}');
+                  // Check cache for deduplication
+                  final cacheKey = mediaItem.uri;
+                  if (_mediaCache.containsKey(cacheKey)) {
+                    final cachedMediaItem = _mediaCache[cacheKey]!;
+                    mediaItems.add(cachedMediaItem);
+                    print('♻️ Reusing cached media: ${cachedMediaItem.id} -> $cacheKey');
+                  } else {
+                    _mediaCache[cacheKey] = mediaItem;
+                    mediaItems.add(mediaItem);
+                    print('✅ Added media item ${mediaItem.id} to entry ${entryJson['id']}');
+                  }
                 } else {
                   print('⚠️ Failed to create media item for entry ${entryJson['id']}');
                 }
@@ -233,54 +320,118 @@ class McpPackImportService {
     return entriesImported;
   }
 
-  /// Create MediaItem from JSON with photo mapping
+  /// Create MediaItem from JSON with photo mapping (robust version with multiple fallbacks)
   Future<MediaItem?> _createMediaItemFromJson(
     Map<String, dynamic> mediaJson,
     Map<String, String> photoMapping,
+    String entryId,
   ) async {
     try {
-      final filename = mediaJson['filename'] as String?;
-      if (filename == null) {
-        print('⚠️ Media item missing filename field');
-        return null;
+      // Extract media ID (try multiple field names)
+      final mediaId = mediaJson['id'] as String? ?? 
+                      mediaJson['photo_id'] as String? ?? 
+                      mediaJson['placeholder_id'] as String? ?? 
+                      '';
+      
+      if (mediaId.isEmpty) {
+        print('⚠️ Media item missing ID field for entry $entryId');
+        print('   Available keys: ${mediaJson.keys.join(', ')}');
+      }
+      
+      // Try multiple ways to find the filename
+      String? filename = mediaJson['filename'] as String?;
+      if (filename == null || filename.isEmpty) {
+        // Try alternative field names
+        filename = mediaJson['file_name'] as String?;
+        if (filename == null || filename.isEmpty) {
+          filename = mediaJson['name'] as String?;
+        }
       }
 
-      // Get permanent path from mapping
-      final permanentPath = photoMapping[filename];
-      if (permanentPath == null) {
-        print('⚠️ No permanent path found for photo: $filename');
-        print('   Available photo filenames in mapping: ${photoMapping.keys.take(5).join(', ')}...');
-        // Still try to create MediaItem with the original filename/path if available
-        final originalPath = mediaJson['originalPath'] as String?;
-        if (originalPath != null) {
-          print('   Using originalPath as fallback: $originalPath');
-          return MediaItem(
-            id: mediaJson['id'] as String,
-            type: MediaType.image,
-            uri: originalPath,
-            createdAt: _parseMediaTimestamp(mediaJson['createdAt'] as String?),
-            analysisData: mediaJson['analysisData'] as Map<String, dynamic>?,
-            altText: mediaJson['altText'] as String?,
-            ocrText: mediaJson['ocrText'] as String?,
-            sha256: mediaJson['sha256'] as String?,
-          );
+      // Try to get permanent path from mapping
+      String? permanentPath;
+      if (filename != null && filename.isNotEmpty) {
+        permanentPath = photoMapping[filename];
+        if (permanentPath == null) {
+          // Try matching by SHA-256 if filename doesn't match
+          final sha256 = mediaJson['sha256'] as String?;
+          if (sha256 != null && sha256.isNotEmpty) {
+            // Look for photo file that matches SHA-256
+            for (final entry in photoMapping.entries) {
+              if (entry.key.contains(sha256.substring(0, 8))) {
+                permanentPath = entry.value;
+                print('🔗 Matched photo by SHA-256 prefix: ${sha256.substring(0, 8)}...');
+                break;
+              }
+            }
+          }
         }
-        return null;
+      }
+
+      // Determine final URI (try multiple fallbacks)
+      String finalUri;
+      if (permanentPath != null) {
+        finalUri = permanentPath;
+      } else {
+        // Fallback 1: Try originalPath
+        final originalPath = mediaJson['originalPath'] as String? ?? 
+                             mediaJson['original_path'] as String? ??
+                             mediaJson['uri'] as String? ??
+                             mediaJson['path'] as String?;
+        
+        if (originalPath != null && originalPath.isNotEmpty) {
+          finalUri = originalPath;
+          print('   Using originalPath/uri as fallback: $originalPath');
+        } else {
+          // Fallback 2: Try to construct from filename if available
+          if (filename != null && filename.isNotEmpty) {
+            final appDir = await getApplicationDocumentsDirectory();
+            final photosDir = Directory(path.join(appDir.path, 'photos'));
+            final constructedPath = path.join(photosDir.path, filename);
+            if (await File(constructedPath).exists()) {
+              finalUri = constructedPath;
+              print('   Found photo at constructed path: $constructedPath');
+            } else {
+              // Last resort: placeholder URI
+              finalUri = 'placeholder://$mediaId';
+              print('⚠️ Could not find photo file, using placeholder: $finalUri');
+            }
+          } else {
+            // Last resort: placeholder URI
+            finalUri = 'placeholder://$mediaId';
+            print('⚠️ No filename or path found, using placeholder: $finalUri');
+          }
+        }
+      }
+
+      // Extract analysis data (try multiple field names)
+      Map<String, dynamic>? analysisData = mediaJson['analysisData'] as Map<String, dynamic>?;
+      if (analysisData == null) {
+        analysisData = mediaJson['analysis_data'] as Map<String, dynamic>?;
+      }
+      if (analysisData == null && mediaJson.containsKey('features')) {
+        analysisData = {'features': mediaJson['features']};
       }
 
       return MediaItem(
-        id: mediaJson['id'] as String,
+        id: mediaId,
         type: MediaType.image,
-        uri: permanentPath,
-        createdAt: _parseMediaTimestamp(mediaJson['createdAt'] as String?),
-        analysisData: mediaJson['analysisData'] as Map<String, dynamic>?,
-        altText: mediaJson['altText'] as String?,
-        ocrText: mediaJson['ocrText'] as String?,
+        uri: finalUri,
+        createdAt: _parseMediaTimestamp(
+          mediaJson['createdAt'] as String? ?? 
+          mediaJson['created_at'] as String?
+        ),
+        analysisData: analysisData,
+        altText: mediaJson['altText'] as String? ?? 
+                 mediaJson['alt_text'] as String?,
+        ocrText: mediaJson['ocrText'] as String? ?? 
+                 mediaJson['ocr_text'] as String?,
         sha256: mediaJson['sha256'] as String?,
       );
-    } catch (e) {
+    } catch (e, stackTrace) {
       print('⚠️ Failed to create MediaItem: $e');
-      print('   Media JSON: ${mediaJson.keys}');
+      print('   Stack trace: $stackTrace');
+      print('   Media JSON keys: ${mediaJson.keys.join(', ')}');
       return null;
     }
   }
@@ -348,3 +499,4 @@ class McpImportResult {
     this.error,
   });
 }
+
