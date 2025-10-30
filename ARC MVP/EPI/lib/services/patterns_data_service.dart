@@ -7,7 +7,7 @@ import 'package:my_app/atlas/phase_detection/your_patterns_view.dart';
 import 'package:my_app/utils/text_processing.dart';
 import 'package:my_app/utils/co_occurrence_calculator.dart';
 import 'package:my_app/services/user_phase_service.dart';
-import 'package:my_app/features/keyword_extraction/enhanced_keyword_extractor.dart';
+import 'package:my_app/prism/extractors/enhanced_keyword_extractor.dart';
 
 /// Service for generating pattern analysis data from journal entries
 class PatternsDataService {

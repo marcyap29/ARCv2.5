@@ -61,7 +61,7 @@ void main() {
       test('should not apply adjustments without circadian context', () {
         final log = _createLogSchema(ease: 4, mood: 4, energy: 4);
 
-        final alignment = engine._calculateAlignment(log);
+        final alignment = engine.calculateAlignment(log);
 
         // Should be base alignment without adjustments
         expect(alignment, closeTo(0.8, 0.1));
@@ -165,7 +165,7 @@ void main() {
           rhythmScore: 0.6,
         );
 
-        final recommendations = engine._generateRecommendations(0.4, 0.5, ['low_alignment'], circadianContext);
+        final recommendations = engine.generateRecommendations(0.4, 0.5, ['low_alignment'], circadianContext);
 
         expect(recommendations, contains('Consider adjusting morning activities to match your chronotype'));
       });
@@ -177,7 +177,7 @@ void main() {
           rhythmScore: 0.6,
         );
 
-        final recommendations = engine._generateRecommendations(0.4, 0.5, ['low_alignment'], circadianContext);
+        final recommendations = engine.generateRecommendations(0.4, 0.5, ['low_alignment'], circadianContext);
 
         expect(recommendations, contains('Consider adjusting evening activities to match your chronotype'));
       });
@@ -189,7 +189,7 @@ void main() {
           rhythmScore: 0.6,
         );
 
-        final recommendations = engine._generateRecommendations(0.4, 0.5, ['low_alignment'], circadianContext);
+        final recommendations = engine.generateRecommendations(0.4, 0.5, ['low_alignment'], circadianContext);
 
         expect(recommendations, contains('Consider gentle restorative activities appropriate for evening'));
       });
@@ -201,7 +201,7 @@ void main() {
           rhythmScore: 0.3, // Fragmented
         );
 
-        final recommendations = engine._generateRecommendations(0.5, 0.4, [], circadianContext);
+        final recommendations = engine.generateRecommendations(0.5, 0.4, [], circadianContext);
 
         expect(recommendations, contains('Focus on stabilizing current practices - rhythm coherence needed'));
       });

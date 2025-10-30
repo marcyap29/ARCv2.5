@@ -9,7 +9,7 @@ import '../core/rivet_policy_engine.dart';
 import '../registry/prompt_registry.dart';
 import '../../../aurora/services/circadian_profile_service.dart';
 import '../../../aurora/models/circadian_context.dart';
-import '../../../arc/core/journal_repository.dart';
+import 'package:my_app/arc/core/journal_repository.dart';
 
 /// Main VEIL-EDGE service for phase-reactive restorative layer with AURORA integration
 class VeilEdgeService {
@@ -227,14 +227,14 @@ class VeilEdgeApi {
 
   /// POST /veil-edge/route
   /// Input: {signals, atlas, sentinel, rivet} → Output: {phase_group, variant, blocks[]}
-  Map<String, dynamic> route(Map<String, dynamic> request) {
+  Future<Map<String, dynamic>> route(Map<String, dynamic> request) async {
     try {
       final signals = UserSignals.fromJson(request['signals'] as Map<String, dynamic>);
       final atlas = AtlasState.fromJson(request['atlas'] as Map<String, dynamic>);
       final sentinel = SentinelState.fromJson(request['sentinel'] as Map<String, dynamic>);
       final rivet = RivetState.fromJson(request['rivet'] as Map<String, dynamic>);
 
-      final result = _service.route(
+      final result = await _service.route(
         signals: signals,
         atlas: atlas,
         sentinel: sentinel,

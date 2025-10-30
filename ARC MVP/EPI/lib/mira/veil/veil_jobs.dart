@@ -4,7 +4,7 @@
 
 import 'dart:math';
 import '../core/schema_v2.dart';
-import '../../lumara/chat/ulid.dart';
+import 'package:my_app/lumara/chat/ulid.dart';
 
 /// VEIL job result
 class VeilJobResult {

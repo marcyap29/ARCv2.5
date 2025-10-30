@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:uuid/uuid.dart';
-import '../../lib/core/rivet/rivet_models.dart';
-import '../../lib/core/rivet/rivet_reducer.dart';
+import 'package:my_app/atlas/rivet/rivet_models.dart';
+import 'package:my_app/atlas/rivet/rivet_reducer.dart';
 
 void main() {
   group('RivetReducer Tests', () {
@@ -213,13 +213,12 @@ RivetEvent _createEvent(
   DateTime? date,
 ]) {
   return RivetEvent(
-    eventId: eventId,
+    eventId: const Uuid().v4(),
     date: date ?? DateTime.now(),
     source: source,
     keywords: keywords,
     predPhase: predPhase,
     refPhase: refPhase,
     tolerance: const {'Discovery': 0.1, 'Breakthrough': 0.1, 'Consolidation': 0.1},
-    version: 1,
   );
 }

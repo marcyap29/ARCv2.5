@@ -4,7 +4,7 @@
 // Call handleUserMessage(...) from your existing chat handler.
 
 import 'dart:async';
-import '../../mira/mira_basics.dart';
+import 'package:my_app/mira/mira_basics.dart';
 import '../llm/llm_adapter.dart';
 
 class _PromptPack {

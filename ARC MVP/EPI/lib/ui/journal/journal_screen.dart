@@ -1,8 +1,6 @@
 import 'dart:async';
 import 'dart:io';
-import 'dart:convert';
 import 'package:crypto/crypto.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:image_picker/image_picker.dart';
@@ -20,8 +18,6 @@ import '../../services/periodic_discovery_service.dart';
 import '../../services/lumara/lumara_inline_api.dart';
 import 'package:my_app/lumara/services/enhanced_lumara_api.dart';
 import 'package:my_app/lumara/services/progressive_memory_loader.dart';
-import 'package:my_app/lumara/data/context_provider.dart';
-import 'package:my_app/lumara/data/context_scope.dart';
 import 'package:my_app/lumara/ui/lumara_settings_screen.dart';
 import '../../models/user_profile_model.dart';
 import 'package:hive/hive.dart';
@@ -103,7 +99,6 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
   
   // Text controllers for metadata editing
   late TextEditingController _locationController;
-  late TextEditingController _phaseController;
   
   // UI state management
   bool _showKeywordsDiscovered = false;
@@ -124,7 +119,6 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
   DateTime? _editableDate;
   TimeOfDay? _editableTime;
   String? _editableLocation;
-  String? _editablePhase;
   
   // Draft count for badge display
   int _draftCount = 0;
@@ -172,11 +166,9 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
       _editableDate = widget.existingEntry!.createdAt;
       _editableTime = TimeOfDay.fromDateTime(widget.existingEntry!.createdAt);
       _editableLocation = widget.existingEntry!.location;
-      _editablePhase = widget.existingEntry!.phase;
       
       // Initialize text controllers
       _locationController = TextEditingController(text: _editableLocation ?? '');
-      _phaseController = TextEditingController(text: _editablePhase ?? '');
       
       // Convert MediaItems back to attachments
       if (widget.existingEntry!.media.isNotEmpty) {
@@ -187,14 +179,20 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
         print('DEBUG: Entry content length: ${widget.existingEntry!.content.length}');
         print('DEBUG: Entry media count: ${widget.existingEntry!.media.length}');
       }
+      
+      // Check for existing draft linked to this entry (3d requirement) - after UI is ready
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        await _checkForLinkedDraft(widget.existingEntry!.id);
+      });
     } else {
       // Initialize text controllers for new entries
       _locationController = TextEditingController();
-      _phaseController = TextEditingController();
     }
 
-    // Initialize draft cache and create new draft
-    _initializeDraftCache();
+    // Initialize draft cache and create new draft (done after checking for linked drafts)
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await _initializeDraftCache();
+    });
     
     // Load draft count for badge display
     _loadDraftCount();
@@ -210,9 +208,13 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
     
     _autoSaveTimer?.cancel();
     
-    // Save current draft before disposing
-    if (_currentDraftId != null && _entryState.text.trim().isNotEmpty) {
-      _draftCache.updateDraftContent(_entryState.text);
+    // Save current draft before disposing (2 requirement)
+    if (_currentDraftId != null && (!widget.isViewOnly || _isEditMode)) {
+      final mediaItems = _entryState.attachments.isNotEmpty
+          ? MediaConversionUtils.attachmentsToMediaItems(_entryState.attachments)
+          : const <MediaItem>[];
+      
+      _draftCache.updateDraftContentAndMedia(_entryState.text, mediaItems);
       _draftCache.saveCurrentDraftImmediately();
     }
     
@@ -220,7 +222,6 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
     _scrollController.dispose();
     _keywordController.dispose();
     _locationController.dispose();
-    _phaseController.dispose();
     
     // Clean up thumbnails when journal screen is closed
     _thumbnailCache.clearAllThumbnails();
@@ -232,12 +233,19 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
   void didChangeAppLifecycleState(AppLifecycleState state) {
     super.didChangeAppLifecycleState(state);
     
-    // Save draft when app goes to background or becomes inactive
-    if (state == AppLifecycleState.paused || state == AppLifecycleState.inactive) {
-      if (_currentDraftId != null && _entryState.text.trim().isNotEmpty) {
-        _draftCache.updateDraftContent(_entryState.text);
+    // Save draft when app goes to background, becomes inactive, or is detached (2, 2a requirement)
+    if (state == AppLifecycleState.paused || 
+        state == AppLifecycleState.inactive || 
+        state == AppLifecycleState.detached) {
+      if (_currentDraftId != null && (!widget.isViewOnly || _isEditMode)) {
+        // Update draft with current content and media
+        final mediaItems = _entryState.attachments.isNotEmpty
+            ? MediaConversionUtils.attachmentsToMediaItems(_entryState.attachments)
+            : const <MediaItem>[];
+        
+        _draftCache.updateDraftContentAndMedia(_entryState.text, mediaItems);
         _draftCache.saveCurrentDraftImmediately();
-        debugPrint('JournalScreen: App lifecycle changed to $state - saved draft');
+        debugPrint('JournalScreen: App lifecycle changed to $state - saved draft $_currentDraftId');
       }
     } else {
       debugPrint('JournalScreen: App lifecycle changed to $state (no auto-save)');
@@ -392,7 +400,6 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
         userBox = await Hive.openBox<UserProfile>('user_profile');
       }
       final userProfile = userBox.get('profile');
-      final userId = userProfile?.id ?? 'default';
       
       // If no user profile exists, create a default one
       if (userProfile == null) {
@@ -413,9 +420,6 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
       
       // Build context from progressive memory loader (current year only)
       final loadedEntries = _memoryLoader.getLoadedEntries();
-      final lumaraScope = LumaraScope.defaultScope;
-      final contextProvider = ContextProvider(lumaraScope);
-      final contextWindow = await contextProvider.buildContext();
       
       // Build entry text from loaded journal entries
       final entryText = _buildJournalContext(loadedEntries);
@@ -504,7 +508,7 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
 
     try {
       // Simulate OCR processing
-      final mockImageFile = await _createMockImageFile();
+      await _createMockImageFile(); // Create mock file for OCR (not yet implemented)
       // TODO: OCR service not yet implemented
       // final extractedText = await _ocrService.extractText(mockImageFile);
       final extractedText = ''; // Placeholder until OCR is implemented
@@ -765,8 +769,6 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
     );
 
     if (attachmentIndex != -1) {
-      final attachment = _entryState.attachments[attachmentIndex] as PhotoAttachment;
-
       setState(() {
         _entryState.attachments.removeAt(attachmentIndex);
       });
@@ -892,7 +894,6 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
             selectedDate: _editableDate,
             selectedTime: _editableTime,
             selectedLocation: _editableLocation,
-            selectedPhase: _editablePhase,
             mediaItems: (() {
               final mediaItems = MediaConversionUtils.attachmentsToMediaItems(_entryState.attachments);
               print('DEBUG: Saving entry with ${mediaItems.length} media items');
@@ -1193,8 +1194,90 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
     );
   }
 
-  /// Handle back button press - show save/discard dialog
+  /// Check for existing draft linked to an entry (3d requirement)
+  Future<void> _checkForLinkedDraft(String entryId) async {
+    try {
+      final draft = await _draftCache.getDraftByLinkedEntryId(entryId);
+      if (draft != null && draft.hasContent) {
+        // Found a draft for this entry - redirect user to it
+        if (mounted && !_isEditMode) {
+          // Only show dialog if not already in edit mode
+          final shouldOpenDraft = await showDialog<bool>(
+            context: context,
+            builder: (context) => AlertDialog(
+              title: const Text('Unfinished Draft Found'),
+              content: Text(
+                'You have an unfinished draft for this entry from ${_formatDraftDate(draft.lastModified)}. Would you like to continue editing the draft?',
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(false),
+                  child: const Text('View Original'),
+                ),
+                ElevatedButton(
+                  onPressed: () => Navigator.of(context).pop(true),
+                  child: const Text('Open Draft'),
+                ),
+              ],
+            ),
+          );
+          
+          if (shouldOpenDraft == true && mounted) {
+            // Load draft content
+            _textController.text = draft.content;
+            _entryState.text = draft.content;
+            
+            // Convert draft media items to attachments
+            if (draft.mediaItems.isNotEmpty) {
+              final attachments = MediaConversionUtils.mediaItemsToAttachments(draft.mediaItems);
+              _entryState.attachments.clear();
+              _entryState.attachments.addAll(attachments);
+            }
+            
+            // Switch to edit mode and restore draft
+            _switchToEditMode();
+            await _draftCache.restoreDraft(draft);
+            _currentDraftId = draft.id;
+            
+            setState(() {
+              _hasBeenModified = true;
+            });
+            
+            debugPrint('JournalScreen: Loaded draft ${draft.id} for entry $entryId');
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('JournalScreen: Error checking for linked draft: $e');
+    }
+  }
+
+  String _formatDraftDate(DateTime date) {
+    final now = DateTime.now();
+    final difference = now.difference(date);
+    
+    if (difference.inDays == 0) {
+      if (difference.inHours == 0) {
+        return '${difference.inMinutes} minutes ago';
+      }
+      return '${difference.inHours} hours ago';
+    } else if (difference.inDays == 1) {
+      return 'yesterday';
+    } else if (difference.inDays < 7) {
+      return '${difference.inDays} days ago';
+    } else {
+      return '${date.day}/${date.month}/${date.year}';
+    }
+  }
+
+  /// Handle back button press - show save/discard dialog (2a, 3b requirement)
   Future<bool> _onBackPressed() async {
+    // Only prompt if we're in edit mode or have content
+    if (widget.isViewOnly && !_isEditMode) {
+      // View-only mode with no edits, allow navigation
+      return true;
+    }
+    
     // For existing entries, only show dialog if content has been modified
     if (widget.existingEntry != null) {
       if (!_hasBeenModified) {
@@ -1211,16 +1294,20 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
       return true;
     }
     
-    // Always ask user permission for manual navigation (back/home buttons)
-    // Auto-save only happens on app exit/crash via didChangeAppLifecycleState
+    // Always ask user permission for manual navigation (back/home buttons) (2a, 3b requirement)
     final result = await showDialog<String>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Save Draft?'),
-        content: const Text('Would you like to save your work as a draft?'),
+        content: Text(
+          widget.existingEntry != null
+              ? 'You have unsaved changes. Would you like to save your work as a draft?'
+              : 'Would you like to save your work as a draft?',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop('discard'),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
             child: const Text('Discard'),
           ),
           TextButton(
@@ -1236,12 +1323,18 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
     );
     
     if (result == 'save') {
-      // Save draft
+      // Save draft with current content and media
+      final mediaItems = _entryState.attachments.isNotEmpty
+          ? MediaConversionUtils.attachmentsToMediaItems(_entryState.attachments)
+          : const <MediaItem>[];
+      
+      await _draftCache.updateDraftContentAndMedia(_entryState.text, mediaItems);
       await _draftCache.saveCurrentDraftImmediately();
       return true;
     } else if (result == 'discard') {
       // Discard draft
       await _draftCache.discardDraft();
+      _currentDraftId = null;
       return true;
     } else {
       // Cancel navigation
@@ -1300,11 +1393,14 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
                       children: [
                         Icon(Icons.calendar_today, size: 16, color: theme.colorScheme.onSurfaceVariant),
                         const SizedBox(width: 8),
-                        Text(
-                          _editableDate != null 
-                            ? '${_editableDate!.day}/${_editableDate!.month}/${_editableDate!.year}'
-                            : 'Select Date',
-                          style: theme.textTheme.bodyMedium,
+                        Flexible(
+                          child: Text(
+                            _editableDate != null 
+                              ? '${_editableDate!.day}/${_editableDate!.month}/${_editableDate!.year}'
+                              : 'Select Date',
+                            style: theme.textTheme.bodyMedium,
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ),
                       ],
                     ),
@@ -1327,11 +1423,14 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
                       children: [
                         Icon(Icons.access_time, size: 16, color: theme.colorScheme.onSurfaceVariant),
                         const SizedBox(width: 8),
-                        Text(
-                          _editableTime != null 
-                            ? _editableTime!.format(context)
-                            : 'Select Time',
-                          style: theme.textTheme.bodyMedium,
+                        Flexible(
+                          child: Text(
+                            _editableTime != null 
+                              ? _editableTime!.format(context)
+                              : 'Select Time',
+                            style: theme.textTheme.bodyMedium,
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ),
                       ],
                     ),
@@ -1350,20 +1449,27 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
               labelText: 'Location',
               hintText: 'Where were you?',
               prefixIcon: const Icon(Icons.location_on, size: 16),
-              suffixIcon: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  IconButton(
-                    icon: const Icon(Icons.search),
-                    onPressed: _showLocationPicker,
-                    tooltip: 'Search locations',
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.my_location),
-                    onPressed: _getCurrentLocation,
-                    tooltip: 'Get current location',
-                  ),
-                ],
+              suffixIcon: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 96),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.search, size: 20),
+                      onPressed: _showLocationPicker,
+                      tooltip: 'Search locations',
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.my_location, size: 20),
+                      onPressed: _getCurrentLocation,
+                      tooltip: 'Get current location',
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
+                    ),
+                  ],
+                ),
               ),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),
@@ -1378,36 +1484,6 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
             },
           ),
           const SizedBox(height: 12),
-          
-          // Phase dropdown
-          DropdownButtonFormField<String>(
-            value: _editablePhase,
-            decoration: InputDecoration(
-              labelText: 'Phase',
-              hintText: 'What phase of life?',
-              prefixIcon: const Icon(Icons.timeline, size: 16),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
-              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            ),
-            items: const [
-              DropdownMenuItem(value: 'Discovery', child: Text('Discovery')),
-              DropdownMenuItem(value: 'Expansion', child: Text('Expansion')),
-              DropdownMenuItem(value: 'Transition', child: Text('Transition')),
-              DropdownMenuItem(value: 'Consolidation', child: Text('Consolidation')),
-              DropdownMenuItem(value: 'Recovery', child: Text('Recovery')),
-              DropdownMenuItem(value: 'Breakthrough', child: Text('Breakthrough')),
-            ],
-            onChanged: (value) {
-              setState(() {
-                _editablePhase = value;
-                _hasBeenModified = true;
-              });
-              // Update the phase controller for consistency
-              _phaseController.text = value ?? '';
-            },
-          ),
         ],
       ),
     );
@@ -2627,19 +2703,24 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
     }
   }
 
-  /// Initialize draft cache and create new draft (no restoration)
+  /// Initialize draft cache and create new draft
   Future<void> _initializeDraftCache() async {
     try {
       await _draftCache.initialize();
       
       // Only create a draft if user is actively writing/editing (not just viewing)
       if (!widget.isViewOnly || _isEditMode) {
+        // Link draft to existing entry if we're editing one
+        final linkedEntryId = widget.existingEntry?.id;
+        
         _currentDraftId = await _draftCache.createDraft(
           initialEmotion: widget.selectedEmotion,
           initialReason: widget.selectedReason,
           initialContent: _entryState.text,
+          initialMedia: widget.existingEntry?.media ?? [],
+          linkedEntryId: linkedEntryId,
         );
-        debugPrint('JournalScreen: Created/reused draft $_currentDraftId');
+        debugPrint('JournalScreen: Created/reused draft $_currentDraftId${linkedEntryId != null ? ' (linked to entry $linkedEntryId)' : ''}');
       } else {
         debugPrint('JournalScreen: View-only mode - no draft created');
       }
@@ -2670,13 +2751,13 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
     // Update the draft content in the cache service
     _draftCache.updateDraftContent(content);
     
-    // Start a timer to save the draft after 30 seconds of inactivity
-    _autoSaveTimer = Timer(const Duration(seconds: 30), () {
-      if (_currentDraftId != null && _entryState.text.trim().isNotEmpty) {
-        _draftCache.saveCurrentDraftImmediately();
-        debugPrint('JournalScreen: Auto-saved draft after 30 seconds of inactivity');
-      }
-    });
+    // Also update media items if we have attachments
+    if (_entryState.attachments.isNotEmpty) {
+      final mediaItems = MediaConversionUtils.attachmentsToMediaItems(_entryState.attachments);
+      _draftCache.updateDraftContentAndMedia(content, mediaItems);
+    } else {
+      _draftCache.updateDraftContent(content);
+    }
     
     debugPrint('JournalScreen: Draft content updated and saved to cache');
   }

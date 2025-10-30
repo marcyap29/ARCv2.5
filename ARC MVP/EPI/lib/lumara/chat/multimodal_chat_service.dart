@@ -3,10 +3,10 @@ import 'dart:io';
 import 'package:path_provider/path_provider.dart';
 import 'chat_models.dart';
 import 'content_parts.dart';
-import '../../mcp/orchestrator/chat_multimodal_processor.dart';
-import '../../mcp/export/chat_mcp_exporter.dart';
+import '../../core/mcp/orchestrator/chat_multimodal_processor.dart';
+import '../../core/mcp/export/chat_mcp_exporter.dart';
+import '../../core/mcp/models/mcp_schemas.dart';
 import '../../echo/providers/llm/model_adapter.dart';
-import '../../echo/providers/llm/rule_based_adapter.dart';
 import '../../echo/providers/llm/llama_adapter.dart';
 import '../../echo/providers/llm/ollama_adapter.dart';
 import '../../echo/safety/chat_rivet_lite.dart';
@@ -121,7 +121,7 @@ class MultimodalChatService {
       sessionId: sessionId,
       role: MessageRole.user,
       contentParts: contentParts,
-      provenance: provenance,
+      provenance: provenance != null ? provenance.toString() : null,
     );
     
     // Process through OCP + PRISM pipeline
@@ -176,10 +176,7 @@ class MultimodalChatService {
       sessionId: sessionId,
       role: MessageRole.assistant,
       contentParts: ContentPartUtils.fromLegacyContent(responseText),
-      provenance: {
-        'adapter': _config.config.currentProvider.value,
-        'timestamp': DateTime.now().toIso8601String(),
-      },
+      provenance: '${_config.config.currentProvider.value}',
     );
     
     // RIVET-lite assessment
@@ -370,7 +367,7 @@ class MultimodalChatService {
 
   /// Dispose resources
   Future<void> dispose() async {
-    await VeilAuroraScheduler.stop();
+    VeilAuroraScheduler.stop();
     _isInitialized = false;
     print('MultimodalChatService: Disposed');
   }

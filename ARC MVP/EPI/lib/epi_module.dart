@@ -3,7 +3,7 @@
 
 export 'arc/arc_module.dart';
 export 'prism/prism_module.dart';
-export 'atlas/atlas_module.dart';
+export 'atlas/atlas_module.dart' hide RivetConfig;
 export 'mira/mira_integration.dart';
 export 'aurora/aurora_module.dart';
 export 'veil/veil_module.dart';

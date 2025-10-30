@@ -1,7 +1,7 @@
 import 'dart:io';
-import 'package:my_app/prism/mcp/media_resolver.dart';
+import 'package:my_app/core/mcp/media_resolver.dart';
 import 'package:my_app/services/media_pack_tracking_service.dart';
-import 'package:my_app/prism/mcp/models/media_pack_metadata.dart';
+import 'package:my_app/core/mcp/models/media_pack_metadata.dart';
 
 /// App-level service for managing MediaResolver instance
 ///
@@ -186,14 +186,15 @@ class MediaResolverService {
       // Create basic metadata (we'll need to read the actual pack for more details)
       final packMetadata = MediaPackMetadata(
         packId: packId,
+        name: packPath.split('/').last, // Use filename as name
+        path: packPath,
         createdAt: fileStat.modified,
         fileCount: 0, // Will be updated when pack is read
         totalSizeBytes: fileSize,
-        dateFrom: fileStat.modified,
-        dateTo: fileStat.modified,
         status: MediaPackStatus.active,
-        storagePath: packPath,
-        description: 'Media pack mounted from $packPath',
+        metadata: {
+          'mounted_from': packPath,
+        },
       );
       
       await MediaPackTrackingService.instance.registerPack(packMetadata);

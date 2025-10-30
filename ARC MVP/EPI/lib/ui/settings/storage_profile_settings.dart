@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import '../../media/settings/storage_profiles.dart';
-import '../../media/crypto/hash_utils.dart';
+import 'package:my_app/prism/processors/settings/storage_profiles.dart';
+// import '../../media/crypto/hash_utils.dart'; // TODO: hash_utils not yet implemented
 
 /// Settings screen for media storage profiles
 class StorageProfileSettings extends StatefulWidget {
@@ -418,7 +418,7 @@ class _StorageProfileSettingsState extends State<StorageProfileSettings> {
       await Future.delayed(const Duration(seconds: 1));
       
       // In a real implementation, this would query the CAS store and media files
-      const estimate = StorageEstimate(
+      final estimate = StorageEstimate(
         totalFiles: 42,
         totalSizeBytes: 15728640, // ~15MB
         thumbnailSizeBytes: 2097152, // ~2MB
@@ -546,7 +546,9 @@ class _StorageProfileSettingsState extends State<StorageProfileSettings> {
 
       // Perform cleanup (stub)
       await Future.delayed(const Duration(seconds: 2));
-      final cleanedCount = await CASStore.cleanup({});
+      // TODO: CASStore not yet implemented
+      // final cleanedCount = await CASStore.cleanup({});
+      final cleanedCount = 0; // Placeholder until CASStore is implemented
 
       Navigator.of(context).pop(); // Close loading dialog
       

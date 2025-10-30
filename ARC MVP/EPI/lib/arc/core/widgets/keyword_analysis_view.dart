@@ -3,7 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:my_app/arc/core/keyword_extraction_cubit.dart';
 import 'package:my_app/arc/core/keyword_extraction_state.dart';
 import 'package:my_app/arc/core/journal_capture_cubit.dart';
-import 'package:my_app/features/timeline/timeline_cubit.dart';
+import 'package:my_app/arc/ui/timeline/timeline_cubit.dart';
 import 'package:my_app/models/journal_entry_model.dart';
 import 'package:my_app/data/models/media_item.dart';
 import 'package:my_app/shared/app_colors.dart';
@@ -21,7 +21,6 @@ class KeywordAnalysisView extends StatefulWidget {
   final DateTime? selectedDate;
   final TimeOfDay? selectedTime;
   final String? selectedLocation;
-  final String? selectedPhase;
   final List<MediaItem>? mediaItems; // Media items from journal screen
   final List<Map<String, dynamic>>? lumaraBlocks; // LUMARA inline blocks
   
@@ -38,7 +37,6 @@ class KeywordAnalysisView extends StatefulWidget {
     this.selectedDate,
     this.selectedTime,
     this.selectedLocation,
-    this.selectedPhase,
     this.mediaItems,
     this.lumaraBlocks,
   });
@@ -101,14 +99,46 @@ class _KeywordAnalysisViewState extends State<KeywordAnalysisView>
     final uniqueKeywords = allKeywords.toSet().toList();
     
     // DEBUG: Log keyword saving for confirmation
-    print('🔍 KeywordAnalysisView: Saving entry with ${uniqueKeywords.length} total keywords');
-    print('🔍 - Discovered keywords: ${widget.selectedKeywords?.length ?? 0}');
-    print('🔍 - Manual keywords: ${widget.manualKeywords?.length ?? 0}');
-    print('🔍 - Final unique keywords: $uniqueKeywords');
+    debugPrint('🔍 KeywordAnalysisView: Saving entry with ${uniqueKeywords.length} total keywords');
+    debugPrint('🔍 - Discovered keywords: ${widget.selectedKeywords?.length ?? 0}');
+    debugPrint('🔍 - Manual keywords: ${widget.manualKeywords?.length ?? 0}');
+    debugPrint('🔍 - Final unique keywords: $uniqueKeywords');
     
     if (widget.existingEntry != null) {
-      // Update existing entry
-      context.read<JournalCaptureCubit>().updateEntryWithKeywords(
+      // For existing entries, ask for confirmation before overwriting (3e requirement)
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Overwrite Entry?'),
+          content: Text(
+            'This will overwrite the original entry from ${_formatEntryDate(widget.existingEntry!.createdAt)}. '
+            'This action cannot be undone. Are you sure you want to continue?',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              style: ElevatedButton.styleFrom(backgroundColor: kcPrimaryColor),
+              child: const Text('Overwrite'),
+            ),
+          ],
+        ),
+      );
+      
+      if (confirmed != true) {
+        // User cancelled, don't save
+        return;
+      }
+      
+      // Update existing entry - check if mounted before using context
+      if (!mounted) return;
+      final journalCaptureCubit = context.read<JournalCaptureCubit>();
+      final timelineCubit = context.read<TimelineCubit>();
+      
+      journalCaptureCubit.updateEntryWithKeywords(
         existingEntry: widget.existingEntry!,
         content: widget.content,
         mood: widget.mood,
@@ -118,14 +148,36 @@ class _KeywordAnalysisViewState extends State<KeywordAnalysisView>
         selectedDate: widget.selectedDate,
         selectedTime: widget.selectedTime,
         selectedLocation: widget.selectedLocation,
-        selectedPhase: widget.selectedPhase,
         context: context,
         media: widget.mediaItems, // Pass media items
         blocks: widget.lumaraBlocks, // Pass LUMARA blocks
       );
+      
+      // Show success message with keyword count
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Entry updated successfully with ${uniqueKeywords.length} keywords'
+            ),
+            backgroundColor: kcSuccessColor,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+        
+        // Reload all entries to handle date changes properly
+        timelineCubit.reloadAllEntries();
+        
+        // Return result to previous screen instead of navigating directly to home
+        Navigator.of(context).pop({'save': true});
+      }
     } else {
-      // Save new entry
-      context.read<JournalCaptureCubit>().saveEntryWithKeywords(
+      // Save new entry - check if mounted before using context
+      if (!mounted) return;
+      final journalCaptureCubit = context.read<JournalCaptureCubit>();
+      final timelineCubit = context.read<TimelineCubit>();
+      
+      journalCaptureCubit.saveEntryWithKeywords(
         content: widget.content,
         mood: widget.mood,
         selectedKeywords: uniqueKeywords,
@@ -135,32 +187,29 @@ class _KeywordAnalysisViewState extends State<KeywordAnalysisView>
         media: widget.mediaItems, // Pass media items
         blocks: widget.lumaraBlocks, // Pass LUMARA blocks
       );
-    }
-    
-    // Show success message with keyword count
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            widget.existingEntry != null 
-              ? 'Entry updated successfully with ${uniqueKeywords.length} keywords'
-              : 'Entry saved successfully with ${uniqueKeywords.length} keywords'
+      
+      // Show success message with keyword count
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Entry saved successfully with ${uniqueKeywords.length} keywords'
+            ),
+            backgroundColor: kcSuccessColor,
+            duration: const Duration(seconds: 3),
           ),
-          backgroundColor: kcSuccessColor,
-          duration: const Duration(seconds: 3),
-        ),
-      );
-      
-      // Reload all entries to handle date changes properly
-      if (widget.existingEntry != null) {
-        context.read<TimelineCubit>().reloadAllEntries();
-      } else {
-        context.read<TimelineCubit>().refreshEntries();
+        );
+        
+        timelineCubit.refreshEntries();
+        
+        // Return result to previous screen instead of navigating directly to home
+        Navigator.of(context).pop({'save': true});
       }
-      
-      // Return result to previous screen instead of navigating directly to home
-      Navigator.of(context).pop({'save': true});
     }
+  }
+
+  String _formatEntryDate(DateTime date) {
+    return '${date.day}/${date.month}/${date.year}';
   }
 
 

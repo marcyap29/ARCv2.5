@@ -1,7 +1,7 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:my_app/arc/core/keyword_extraction_state.dart';
 import 'package:my_app/prism/extractors/enhanced_keyword_extractor.dart';
-import 'package:my_app/features/arcforms/phase_recommender.dart';
+import 'package:my_app/arc/ui/arcforms/phase_recommender.dart';
 
 class KeywordExtractionCubit extends Cubit<KeywordExtractionState> {
   KeywordExtractionCubit() : super(KeywordExtractionInitial());

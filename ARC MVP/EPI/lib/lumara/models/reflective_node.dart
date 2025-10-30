@@ -179,6 +179,9 @@ class ReflectiveNode {
     this.extra,
   });
 
+  /// Get metadata (alias for extra field)
+  Map<String, dynamic> get metadata => extra ?? {};
+
   factory ReflectiveNode.fromJson(Map<String, dynamic> json) {
     return ReflectiveNode(
       id: json['id'] as String,

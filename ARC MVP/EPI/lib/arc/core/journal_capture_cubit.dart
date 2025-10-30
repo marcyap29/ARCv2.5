@@ -8,17 +8,17 @@ import 'package:my_app/models/journal_entry_model.dart';
 import 'package:my_app/arc/core/journal_repository.dart';
 import 'package:my_app/arc/core/sage_annotation_model.dart';
 import 'package:my_app/models/arcform_snapshot_model.dart';
-import 'package:my_app/features/arcforms/arcform_mvp_implementation.dart';
-import 'package:my_app/features/arcforms/phase_recommender.dart';
+import 'package:my_app/arc/ui/arcforms/arcform_mvp_implementation.dart';
+import 'package:my_app/arc/ui/arcforms/phase_recommender.dart';
 import 'package:my_app/services/analytics_service.dart';
 import 'package:my_app/services/user_phase_service.dart';
-import 'package:my_app/rivet/validation/rivet_provider.dart';
-import 'package:my_app/rivet/models/rivet_models.dart';
+import 'package:my_app/atlas/rivet/rivet_provider.dart';
+import 'package:my_app/atlas/rivet/rivet_models.dart';
 import 'package:my_app/models/user_profile_model.dart';
 import 'package:my_app/atlas/phase_detection/phase_tracker.dart';
 import 'package:my_app/atlas/phase_detection/phase_history_repository.dart';
 import 'package:my_app/atlas/phase_detection/phase_change_notifier.dart';
-import 'package:my_app/features/onboarding/phase_celebration_view.dart';
+import 'package:my_app/shared/ui/onboarding/phase_celebration_view.dart';
 import 'package:my_app/core/sync/sync_service.dart';
 import 'package:my_app/core/sync/sync_models.dart';
 import 'package:my_app/data/models/media_item.dart';
@@ -561,7 +561,6 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
     DateTime? selectedDate,
     TimeOfDay? selectedTime,
     String? selectedLocation,
-    String? selectedPhase,
     BuildContext? context,
     List<MediaItem>? media,
     List<Map<String, dynamic>>? blocks,
@@ -619,7 +618,7 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
         createdAt: newCreatedAt,
         updatedAt: DateTime.now(),
         location: selectedLocation,
-        phase: selectedPhase,
+        // Phase is determined automatically by phase regime system, not manually set
         isEdited: true,
         metadata: metadata,
         media: media ?? existingEntry.media, // Update media items or keep existing
@@ -808,6 +807,7 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
       
       // Create RIVET event
       final rivetEvent = RivetEvent(
+        eventId: const Uuid().v4(),
         date: DateTime.now(),
         source: EvidenceSource.text,
         keywords: entry.keywords.toSet(),

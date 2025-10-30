@@ -4,6 +4,7 @@
 import 'package:shared_preferences/shared_preferences.dart';
 import 'pii_detection_service.dart';
 import 'pii_masking_service.dart';
+import 'models/pii_types.dart' hide MaskingOptions;
 
 enum PrivacyLevel {
   /// Maximum privacy: Strict detection, full masking, no data retention

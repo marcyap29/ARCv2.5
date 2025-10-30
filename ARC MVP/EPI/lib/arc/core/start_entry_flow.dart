@@ -6,7 +6,7 @@ import 'package:my_app/shared/app_colors.dart';
 import 'package:my_app/data/models/media_item.dart';
 import 'package:my_app/ui/journal/journal_screen.dart';
 import 'package:my_app/core/services/draft_cache_service.dart';
-import 'package:my_app/features/journal/widgets/draft_recovery_dialog.dart';
+import 'package:my_app/arc/ui/widgets/draft_recovery_dialog.dart';
 
 class StartEntryFlow extends StatefulWidget {
   final VoidCallback? onExitToPhase;

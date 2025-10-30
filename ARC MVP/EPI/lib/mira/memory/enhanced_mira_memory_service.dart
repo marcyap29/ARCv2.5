@@ -369,7 +369,9 @@ class EnhancedMiraMemoryService {
     bool generatePrompt = true,
   }) async {
     final conflicts = _conflictService.getActiveConflicts();
-    final conflict = conflicts.firstWhere((c) => c.id == conflictId);
+    final conflict = conflicts.where((c) => c.id == conflictId).isNotEmpty
+        ? conflicts.firstWhere((c) => c.id == conflictId)
+        : null;
 
     if (conflict == null) {
       throw Exception('Conflict not found: $conflictId');
@@ -888,7 +890,9 @@ class EnhancedMiraMemoryService {
     }
   }
 
-  Future<EnhancedMiraNode?> _getNodeById(String nodeId) async {
+  /// Get a node by its ID
+  /// Public method for accessing nodes by ID (used by tests)
+  Future<EnhancedMiraNode?> getNodeById(String nodeId) async {
     try {
       // Try to get the node directly by ID first
       final miraNode = await _miraService.getNode(nodeId);
@@ -925,6 +929,9 @@ class EnhancedMiraMemoryService {
       return null;
     }
   }
+
+  // Private method for internal use (alias to public method)
+  Future<EnhancedMiraNode?> _getNodeById(String nodeId) => getNodeById(nodeId);
 
   Future<List<EnhancedMiraNode>> _getAllUserNodes({
     List<MemoryDomain>? domains,
@@ -1256,6 +1263,250 @@ class EnhancedMiraMemoryService {
     const decayBalance = 0.85;
 
     return (conflictHandling + attributionAccuracy + domainIsolation + decayBalance) / 4.0;
+  }
+
+  /// Process memory decay for all nodes
+  /// This method applies decay logic, identifies candidates for archival/deletion,
+  /// and updates node lifecycle metadata
+  Future<void> _processMemoryDecay() async {
+    if (_currentUserId == null) {
+      print('MIRA Memory: Cannot process decay - service not initialized');
+      return;
+    }
+
+    try {
+      // Get all user nodes
+      final allNodes = await _getAllUserNodes();
+
+      if (allNodes.isEmpty) {
+        return;
+      }
+
+      // Identify pruning candidates
+      final pruningCandidates = await _lifecycleService.identifyPruningCandidates(
+        nodes: allNodes,
+        pruningThreshold: 0.1, // 10% retention threshold
+        currentPhase: _currentPhase,
+      );
+
+      // Process each candidate
+      for (final candidate in pruningCandidates) {
+        final node = candidate.node;
+        
+        // Apply decay action based on recommendation
+        switch (candidate.recommendedAction) {
+          case PruningAction.delete:
+            // For highly decayed memories (below 5% retention), delete
+            if (candidate.decayScore < 0.05) {
+              // Mark for deletion - in a real system, this would update the node
+              // For now, we just update lifecycle metadata to reflect decay
+              final updatedNode = await _applyDecayToNode(node, candidate.decayScore);
+              await _miraService.addNode(_convertFromEnhancedNode(updatedNode));
+              print('MIRA Memory: Marked node ${node.id} for deletion (decay: ${(candidate.decayScore * 100).toStringAsFixed(1)}%)');
+            }
+            break;
+            
+          case PruningAction.archive:
+            // Archive memories with decay between 5-10%
+            final archivedNode = await _archiveNode(node, candidate.decayScore);
+            await _miraService.addNode(_convertFromEnhancedNode(archivedNode));
+            print('MIRA Memory: Archived node ${node.id} (decay: ${(candidate.decayScore * 100).toStringAsFixed(1)}%)');
+            break;
+            
+          case PruningAction.compress:
+            // Compress/summarize memories with decay between 10-20%
+            final compressedNode = await _compressNode(node, candidate.decayScore);
+            await _miraService.addNode(_convertFromEnhancedNode(compressedNode));
+            print('MIRA Memory: Compressed node ${node.id} (decay: ${(candidate.decayScore * 100).toStringAsFixed(1)}%)');
+            break;
+            
+          case PruningAction.merge:
+            // Merge similar memories
+            // This would require finding similar nodes - for now, just update decay metadata
+            final updatedNode = await _applyDecayToNode(node, candidate.decayScore);
+            await _miraService.addNode(_convertFromEnhancedNode(updatedNode));
+            break;
+        }
+      }
+
+      // Process scheduled decay operations from lifecycle service
+      final scheduledDecays = await _lifecycleService.processScheduledDecay();
+      for (final decayOp in scheduledDecays) {
+        final node = await _getNodeById(decayOp.nodeId);
+        if (node != null) {
+          switch (decayOp.action) {
+            case DecayAction.archive:
+              final archivedNode = await _archiveNode(node, 0.0);
+              await _miraService.addNode(_convertFromEnhancedNode(archivedNode));
+              break;
+            case DecayAction.compress:
+              final compressedNode = await _compressNode(node, 0.0);
+              await _miraService.addNode(_convertFromEnhancedNode(compressedNode));
+              break;
+            case DecayAction.delete:
+              // Mark for deletion
+              final updatedNode = await _applyDecayToNode(node, 0.0);
+              await _miraService.addNode(_convertFromEnhancedNode(updatedNode));
+              break;
+            case DecayAction.restore:
+              // Restore from decay
+              final restoredNode = await _restoreNodeFromDecay(node);
+              await _miraService.addNode(_convertFromEnhancedNode(restoredNode));
+              break;
+          }
+        }
+      }
+
+      print('MIRA Memory: Processed decay for ${pruningCandidates.length} candidates and ${scheduledDecays.length} scheduled operations');
+    } catch (e) {
+      print('MIRA Memory: Error processing memory decay - $e');
+    }
+  }
+
+  /// Apply decay to a node (update lifecycle metadata)
+  Future<EnhancedMiraNode> _applyDecayToNode(EnhancedMiraNode node, double decayScore) async {
+    final updatedLifecycle = node.lifecycle.copyWith(
+      lastAccessed: DateTime.now().toUtc(),
+    );
+
+    final updatedData = Map<String, dynamic>.from(node.data);
+    updatedData['decay_score'] = decayScore;
+    updatedData['decay_processed_at'] = DateTime.now().toUtc().toIso8601String();
+
+    return EnhancedMiraNode(
+      id: node.id,
+      type: node.type,
+      schemaVersion: node.schemaVersion,
+      data: updatedData,
+      createdAt: node.createdAt,
+      updatedAt: DateTime.now().toUtc(),
+      domain: node.domain,
+      privacy: node.privacy,
+      phaseContext: node.phaseContext,
+      rhythmScore: node.rhythmScore,
+      attributions: node.attributions,
+      sage: node.sage,
+      lifecycle: updatedLifecycle,
+      provenance: node.provenance,
+      piiFlags: node.piiFlags,
+    );
+  }
+
+  /// Archive a node (mark as archived, reduce content)
+  Future<EnhancedMiraNode> _archiveNode(EnhancedMiraNode node, double decayScore) async {
+    final updatedData = Map<String, dynamic>.from(node.data);
+    updatedData['archived'] = true;
+    updatedData['archived_at'] = DateTime.now().toUtc().toIso8601String();
+    updatedData['decay_score'] = decayScore;
+
+    // Optionally summarize content for archived nodes
+    if (node.narrative.length > 200) {
+      updatedData['narrative_original'] = node.narrative;
+      updatedData['narrative'] = '${node.narrative.substring(0, 200)}... [ARCHIVED]';
+    }
+
+    return EnhancedMiraNode(
+      id: node.id,
+      type: node.type,
+      schemaVersion: node.schemaVersion,
+      data: updatedData,
+      createdAt: node.createdAt,
+      updatedAt: DateTime.now().toUtc(),
+      domain: node.domain,
+      privacy: node.privacy,
+      phaseContext: node.phaseContext,
+      rhythmScore: node.rhythmScore,
+      attributions: node.attributions,
+      sage: node.sage,
+      lifecycle: node.lifecycle,
+      provenance: node.provenance,
+      piiFlags: node.piiFlags,
+    );
+  }
+
+  /// Compress a node (summarize content)
+  Future<EnhancedMiraNode> _compressNode(EnhancedMiraNode node, double decayScore) async {
+    final updatedData = Map<String, dynamic>.from(node.data);
+    updatedData['compressed'] = true;
+    updatedData['compressed_at'] = DateTime.now().toUtc().toIso8601String();
+    updatedData['decay_score'] = decayScore;
+
+    // Store original narrative if compressing
+    if (!updatedData.containsKey('narrative_original')) {
+      updatedData['narrative_original'] = node.narrative;
+    }
+
+    // Simple compression: take first part of narrative
+    final compressedNarrative = node.narrative.length > 150
+        ? '${node.narrative.substring(0, 150)}... [COMPRESSED]'
+        : node.narrative;
+
+    updatedData['narrative'] = compressedNarrative;
+
+    return EnhancedMiraNode(
+      id: node.id,
+      type: node.type,
+      schemaVersion: node.schemaVersion,
+      data: updatedData,
+      createdAt: node.createdAt,
+      updatedAt: DateTime.now().toUtc(),
+      domain: node.domain,
+      privacy: node.privacy,
+      phaseContext: node.phaseContext,
+      rhythmScore: node.rhythmScore,
+      attributions: node.attributions,
+      sage: node.sage,
+      lifecycle: node.lifecycle,
+      provenance: node.provenance,
+      piiFlags: node.piiFlags,
+    );
+  }
+
+  /// Restore node from decay
+  Future<EnhancedMiraNode> _restoreNodeFromDecay(EnhancedMiraNode node) async {
+    final updatedData = Map<String, dynamic>.from(node.data);
+    
+    // Restore original narrative if compressed/archived
+    if (updatedData.containsKey('narrative_original')) {
+      updatedData['narrative'] = updatedData['narrative_original'];
+      updatedData.remove('narrative_original');
+    }
+    
+    updatedData['archived'] = false;
+    updatedData['compressed'] = false;
+    updatedData['restored_at'] = DateTime.now().toUtc().toIso8601String();
+
+    return EnhancedMiraNode(
+      id: node.id,
+      type: node.type,
+      schemaVersion: node.schemaVersion,
+      data: updatedData,
+      createdAt: node.createdAt,
+      updatedAt: DateTime.now().toUtc(),
+      domain: node.domain,
+      privacy: node.privacy,
+      phaseContext: node.phaseContext,
+      rhythmScore: node.rhythmScore,
+      attributions: node.attributions,
+      sage: node.sage,
+      lifecycle: node.lifecycle,
+      provenance: node.provenance,
+      piiFlags: node.piiFlags,
+    );
+  }
+
+  /// Convert EnhancedMiraNode back to MiraNode for storage
+  MiraNode _convertFromEnhancedNode(EnhancedMiraNode enhancedNode) {
+    // Create a basic MiraNode from EnhancedMiraNode
+    // This is a simplified conversion - in production, you'd preserve all relevant fields
+    return MiraNode(
+      id: enhancedNode.id,
+      type: enhancedNode.type,
+      schemaVersion: enhancedNode.schemaVersion,
+      data: enhancedNode.data,
+      createdAt: enhancedNode.createdAt,
+      updatedAt: enhancedNode.updatedAt,
+    );
   }
 }
 

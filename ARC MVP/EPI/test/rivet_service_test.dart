@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:uuid/uuid.dart';
 import 'package:my_app/atlas/rivet/rivet_service.dart';
 import 'package:my_app/atlas/rivet/rivet_models.dart';
 
@@ -20,6 +21,7 @@ void main() {
 
     test('should calculate ALIGN correctly for matching phases', () {
       final event = RivetEvent(
+        eventId: const Uuid().v4(),
         date: DateTime.now(),
         source: EvidenceSource.text,
         keywords: const {'keyword1', 'keyword2'},
@@ -37,6 +39,7 @@ void main() {
 
     test('should calculate ALIGN correctly for mismatched phases', () {
       final event = RivetEvent(
+        eventId: const Uuid().v4(),
         date: DateTime.now(),
         source: EvidenceSource.text,
         keywords: const {'keyword1', 'keyword2'},
@@ -56,6 +59,7 @@ void main() {
     test('should keep gate closed until both thresholds are met', () {
       // First event: matching phase, should improve ALIGN and TRACE
       final event1 = RivetEvent(
+        eventId: const Uuid().v4(),
         date: DateTime.now(),
         source: EvidenceSource.text,
         keywords: const {'keyword1'},
@@ -75,6 +79,7 @@ void main() {
       // Create multiple matching events to build up ALIGN/TRACE
       const phase = 'discovery';
       final baseEvent = RivetEvent(
+        eventId: const Uuid().v4(),
         date: DateTime.now(),
         source: EvidenceSource.text,
         keywords: const {'keyword1'},
@@ -87,6 +92,7 @@ void main() {
       RivetGateDecision? lastDecision;
       for (int i = 0; i < 20; i++) {
         final event = RivetEvent(
+          eventId: const Uuid().v4(),
           date: DateTime.now().add(Duration(minutes: i)),
           source: EvidenceSource.text,
           keywords: {'keyword$i'},
@@ -107,6 +113,7 @@ void main() {
       
       // First event
       final event1 = RivetEvent(
+        eventId: const Uuid().v4(),
         date: now,
         source: EvidenceSource.text,
         keywords: const {'keyword1'},
@@ -123,6 +130,7 @@ void main() {
 
       // Second event with different source (should get independence boost)
       final event2 = RivetEvent(
+        eventId: const Uuid().v4(),
         date: now.add(const Duration(minutes: 1)),
         source: EvidenceSource.voice, // Different source
         keywords: const {'keyword2'},
@@ -142,6 +150,7 @@ void main() {
     test('should reset state correctly', () {
       // Add some events first
       final event = RivetEvent(
+        eventId: const Uuid().v4(),
         date: DateTime.now(),
         source: EvidenceSource.text,
         keywords: const {'keyword1'},
@@ -178,6 +187,7 @@ void main() {
     test('should handle edge cases gracefully', () {
       // Event with empty keywords
       final event = RivetEvent(
+        eventId: const Uuid().v4(),
         date: DateTime.now(),
         source: EvidenceSource.text,
         keywords: const {},
@@ -190,6 +200,7 @@ void main() {
       
       // Event with same timestamp
       final event2 = RivetEvent(
+        eventId: const Uuid().v4(),
         date: event.date,
         source: EvidenceSource.text,
         keywords: const {'keyword1'},

@@ -3,7 +3,7 @@ import 'package:hive/hive.dart';
 import 'package:my_app/models/journal_entry_model.dart';
 import 'fr_settings.dart';
 import 'debrief/debrief_flow_screen.dart';
-import '../../features/arcforms/services/emotional_valence_service.dart';
+import 'package:my_app/arc/ui/arcforms/services/emotional_valence_service.dart';
 
 class ContextTriggerService {
   static const String _lastTriggerKey = 'last_debrief_trigger';

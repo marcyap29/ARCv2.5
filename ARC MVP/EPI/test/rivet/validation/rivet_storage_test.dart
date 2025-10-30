@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:my_app/rivet/validation/rivet_storage.dart';
-import 'package:my_app/rivet/models/rivet_models.dart';
+import 'package:my_app/atlas/rivet/rivet_storage.dart';
+import 'package:my_app/atlas/rivet/rivet_models.dart';
 import 'package:hive/hive.dart';
 
 void main() {

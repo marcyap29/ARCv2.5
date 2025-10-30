@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:math';
 import 'dart:typed_data';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:cryptography/cryptography.dart';
 
 /// At-rest encryption service for media content
 /// Uses AES-256-GCM with keys stored in secure storage
@@ -75,14 +76,21 @@ class AtRestEncryption {
       final key = await _getContentKey(contentId);
       final iv = _generateRandomBytes(_ivLengthBytes);
       
-      // For now, we'll use a simple XOR-based encryption as a placeholder
-      // In a production app, you would use proper AES-GCM implementation
-      final encrypted = _simpleEncrypt(plaintext, key, iv);
+      // Use AES-256-GCM for proper encryption
+      final algorithm = AesGcm.with256bits();
+      final secretKey = SecretKey(key);
+      final nonce = algorithm.newNonce();
+      
+      final encrypted = await algorithm.encrypt(
+        plaintext,
+        secretKey: secretKey,
+        nonce: nonce,
+      );
       
       return EncryptedData(
-        ciphertext: encrypted,
+        ciphertext: Uint8List.fromList(encrypted.cipherText),
         iv: iv,
-        tag: _generateRandomBytes(_tagLengthBytes), // Placeholder tag
+        tag: Uint8List.fromList(encrypted.mac.bytes),
         contentId: contentId,
       );
     } catch (e) {
@@ -95,45 +103,27 @@ class AtRestEncryption {
     try {
       final key = await _getContentKey(encryptedData.contentId);
       
-      // For now, we'll use a simple XOR-based decryption as a placeholder
-      // In a production app, you would use proper AES-GCM implementation
-      final decrypted = _simpleDecrypt(encryptedData.ciphertext, key, encryptedData.iv);
+      // Use AES-256-GCM for proper decryption
+      final algorithm = AesGcm.with256bits();
+      final secretKey = SecretKey(key);
+      final nonce = encryptedData.iv;
+      final mac = Mac(encryptedData.tag);
       
-      return decrypted;
+      final secretBox = SecretBox(
+        encryptedData.ciphertext,
+        nonce: nonce,
+        mac: mac,
+      );
+      
+      return Uint8List.fromList(await algorithm.decrypt(
+        secretBox,
+        secretKey: secretKey,
+      ));
     } catch (e) {
       throw EncryptionException('Failed to decrypt data: $e');
     }
   }
 
-  /// Simple XOR-based encryption (placeholder for AES-GCM)
-  static Uint8List _simpleEncrypt(Uint8List plaintext, Uint8List key, Uint8List iv) {
-    final keyStream = _generateKeyStream(key, iv, plaintext.length);
-    final encrypted = Uint8List(plaintext.length);
-    
-    for (int i = 0; i < plaintext.length; i++) {
-      encrypted[i] = plaintext[i] ^ keyStream[i];
-    }
-    
-    return encrypted;
-  }
-
-  /// Simple XOR-based decryption (placeholder for AES-GCM)
-  static Uint8List _simpleDecrypt(Uint8List ciphertext, Uint8List key, Uint8List iv) {
-    // XOR is symmetric, so decryption is the same as encryption
-    return _simpleEncrypt(ciphertext, key, iv);
-  }
-
-  /// Generate key stream for XOR operation
-  static Uint8List _generateKeyStream(Uint8List key, Uint8List iv, int length) {
-    final keyStream = Uint8List(length);
-    final combined = Uint8List.fromList([...key, ...iv]);
-    
-    for (int i = 0; i < length; i++) {
-      keyStream[i] = combined[i % combined.length] ^ (i & 0xFF);
-    }
-    
-    return keyStream;
-  }
 
   /// Check if content has an encryption key
   static Future<bool> hasKey(String contentId) async {

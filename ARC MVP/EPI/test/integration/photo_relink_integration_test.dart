@@ -141,7 +141,7 @@ void main() {
 
         final mediaItems = await LazyPhotoRelinkService.reconstructMediaFromText(
           text: text,
-          nodeMetadata: null,
+          nodeMetadata: {},
         );
 
         expect(mediaItems.length, 1);

@@ -4,8 +4,9 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import '../../services/privacy/pii_detection_service.dart';
-import '../../services/privacy/pii_masking_service.dart';
+import '../../privacy_core/pii_detection_service.dart';
+import '../../privacy_core/pii_masking_service.dart';
+import '../../privacy_core/models/pii_types.dart' hide MaskingOptions;
 
 class PrivacyDemoScreen extends StatefulWidget {
   const PrivacyDemoScreen({super.key});
@@ -482,6 +483,15 @@ class _PrivacyDemoScreenState extends State<PrivacyDemoScreen> with TickerProvid
         return Colors.indigo;
       case PIIType.dateOfBirth:
         return Colors.brown;
+      case PIIType.macAddress:
+      case PIIType.licensePlate:
+      case PIIType.passport:
+      case PIIType.driverLicense:
+      case PIIType.bankAccount:
+      case PIIType.routingNumber:
+      case PIIType.medicalRecord:
+      case PIIType.healthInsurance:
+      case PIIType.biometric:
       case PIIType.other:
         return Colors.grey;
     }

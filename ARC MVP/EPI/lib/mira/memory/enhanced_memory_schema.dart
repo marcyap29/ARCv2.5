@@ -156,6 +156,9 @@ class EnhancedMiraNode extends MiraNode {
     updatedAt: updatedAt,
   );
 
+  /// Get content from data map (backward compatibility)
+  String get content => data['content'] ?? data['text'] ?? '';
+
   @override
   Map<String, dynamic> toJson() => {
     ...super.toJson(),

@@ -36,12 +36,19 @@ class _NetworkGraphForceCurvedViewState extends State<NetworkGraphForceCurvedVie
   final Map<String, Offset> _nodeVelocities = {};
   bool _isAnimating = false;
   
-  // Node manipulation state
+  // Node manipulation state - use ValueNotifier for better performance
   String? _draggedNodeId;
   final Map<String, bool> _isNodeDragged = {};
+  final ValueNotifier<Map<String, Offset>> _nodePositionsNotifier = ValueNotifier({});
   
   // Traditional zoom state
   final TransformationController _transformationController = TransformationController();
+
+  @override
+  void dispose() {
+    _nodePositionsNotifier.dispose();
+    super.dispose();
+  }
 
   @override
   void initState() {
@@ -395,9 +402,9 @@ class _NetworkGraphForceCurvedViewState extends State<NetworkGraphForceCurvedVie
                 },
                 onPanUpdate: (details) {
                   if (_draggedNodeId == node.id) {
-                    setState(() {
-                      _nodePositions[node.id] = _nodePositions[node.id]! + details.delta;
-                    });
+                    // Update position without triggering full rebuild
+                    _nodePositions[node.id] = _nodePositions[node.id]! + details.delta;
+                    _nodePositionsNotifier.value = Map.from(_nodePositions);
                     _sampleEdgeScreenPositions();
                   }
                 },

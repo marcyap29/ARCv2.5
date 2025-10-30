@@ -1,5 +1,5 @@
 import 'package:hive/hive.dart';
-import 'package:my_app/prism/mcp/models/media_pack_metadata.dart';
+import 'package:my_app/core/mcp/models/media_pack_metadata.dart';
 
 /// Service for tracking and managing media pack metadata
 class MediaPackTrackingService {
@@ -141,7 +141,7 @@ class MediaPackTrackingService {
   Future<List<MediaPackMetadata>> autoArchiveOldPacks(int ageThresholdMonths) async {
     if (_registry == null) return [];
     
-    final oldPacks = _registry!.getPacksOlderThan(ageThresholdMonths)
+    final oldPacks = _registry!.getPacksOlderThan(Duration(days: ageThresholdMonths * 30))
         .where((pack) => pack.status == MediaPackStatus.active)
         .toList();
     

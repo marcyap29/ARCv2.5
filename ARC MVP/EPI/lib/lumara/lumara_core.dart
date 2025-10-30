@@ -3,12 +3,12 @@
 
 import 'prompts/lumara_system_prompt.dart';
 import 'prompts/prompt_library.dart';
-import '../mcp/bundle_doctor/mcp_models.dart';
+import 'package:my_app/core/mcp/bundle_doctor/mcp_models.dart';
 
 export 'prompts/lumara_system_prompt.dart';
 export 'prompts/prompt_library.dart';
-export '../mcp/bundle_doctor/bundle_doctor.dart';
-export '../mcp/bundle_doctor/mcp_models.dart';
+export 'package:my_app/core/mcp/bundle_doctor/bundle_doctor.dart';
+export 'package:my_app/core/mcp/bundle_doctor/mcp_models.dart';
 
 /// LUMARA Core Integration
 ///

@@ -2,8 +2,8 @@
 // Phase Change Readiness Card - Shows when user is ready to transition to a new phase
 
 import 'package:flutter/material.dart';
-import '../../rivet/models/rivet_models.dart';
-import '../../rivet/validation/rivet_provider.dart';
+import 'package:my_app/atlas/rivet/rivet_models.dart';
+import 'package:my_app/atlas/rivet/rivet_provider.dart';
 
 class PhaseChangeReadinessCard extends StatefulWidget {
   const PhaseChangeReadinessCard({super.key});

@@ -138,7 +138,7 @@ class GoldenPromptsHarness {
           ? prompt.expectations.allowedDomains
           : MemoryDomain.values,
         responseId: responseId,
-        crossDomainConsent: prompt.expectations.requiresCrossDomainConsent,
+        enableCrossDomainSynthesis: prompt.expectations.requiresCrossDomainConsent,
       );
 
       final explainableResponse = await memoryService.generateExplainableResponse(
@@ -286,7 +286,7 @@ class GoldenPromptsHarness {
     );
     metrics['confidence_score'] = avgConfidence;
     metrics['used_memory_count'] = retrievalResult.nodes.length;
-    metrics['attributed_memory_count'] = attributedMemoryCount;
+    metrics['attributed_memory_count'] = explainableResponse.attribution['used_memories']?.length ?? 0;
 
     return {
       'errors': errors,

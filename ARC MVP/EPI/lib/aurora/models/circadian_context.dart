@@ -51,6 +51,9 @@ class CircadianContext {
   /// Check if rhythm is fragmented (low score)
   bool get isFragmented => rhythmScore < 0.45;
   
+  /// Alias for isFragmented (for compatibility)
+  bool get isRhythmFragmented => isFragmented;
+  
   /// Check if rhythm is coherent (high score)
   bool get isCoherent => rhythmScore >= 0.55;
 

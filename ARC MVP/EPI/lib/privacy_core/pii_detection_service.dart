@@ -4,19 +4,7 @@
 
 import 'dart:convert';
 import 'package:crypto/crypto.dart';
-
-enum PIIType {
-  name,
-  email,
-  phone,
-  address,
-  ssn,
-  creditCard,
-  ipAddress,
-  url,
-  dateOfBirth,
-  other
-}
+import 'package:my_app/privacy_core/models/pii_types.dart';
 
 enum SensitivityLevel {
   strict,   // Aggressive detection, may have false positives

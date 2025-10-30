@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:my_app/mcp/utils/chat_journal_detector.dart';
-import 'package:my_app/prism/mcp/models/mcp_schemas.dart';
+import 'package:my_app/core/mcp/utils/chat_journal_detector.dart';
+import 'package:my_app/core/mcp/models/mcp_schemas.dart';
 import 'package:my_app/models/journal_entry_model.dart';
 
 void main() {

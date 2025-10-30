@@ -2,7 +2,7 @@
 // RIVET Sweep Wizard UI for segmented phase backfill
 
 import 'package:flutter/material.dart';
-import '../../models/phase_models.dart';
+import 'package:my_app/models/phase_models.dart';
 import '../../services/rivet_sweep_service.dart';
 
 class RivetSweepWizard extends StatefulWidget {

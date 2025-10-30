@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:my_app/data/models/media_item.dart';
 import 'package:my_app/core/services/mcp_photo_relink_service.dart';
+import 'package:my_app/core/services/media_store.dart';
+import 'package:my_app/core/services/media_sanitizer.dart';
 
 /// Widget that prompts users to relink photos for imported journal entries
 class PhotoRelinkPrompt extends StatefulWidget {
@@ -117,7 +119,7 @@ class _PhotoRelinkPromptState extends State<PhotoRelinkPrompt> {
       final photoRelinkService = McpPhotoRelinkService(
         mediaStore: MediaStore(),
         mediaSanitizer: MediaSanitizer(),
-        ocrService: OcrService(),
+        // OCRService disabled - dependencies not available
       );
 
       // Relink photos
@@ -154,30 +156,5 @@ class _PhotoRelinkPromptState extends State<PhotoRelinkPrompt> {
   void _skipRelinking() {
     // Keep original media and notify parent
     widget.onPhotosRelinked(widget.originalMedia);
-  }
-}
-
-/// Service dependencies for photo relinking
-class MediaStore {
-  Future<MediaItem> storeImage({
-    required List<int> imageData,
-    String? ocrText,
-  }) async {
-    // This would be implemented with the actual MediaStore service
-    throw UnimplementedError('MediaStore not implemented');
-  }
-}
-
-class MediaSanitizer {
-  Future<List<int>> sanitizeImage(List<int> imageData) async {
-    // This would be implemented with the actual MediaSanitizer service
-    return imageData;
-  }
-}
-
-class OcrService {
-  Future<String?> extractTextWithPreprocessing(List<int> imageData) async {
-    // This would be implemented with the actual OcrService
-    return null;
   }
 }

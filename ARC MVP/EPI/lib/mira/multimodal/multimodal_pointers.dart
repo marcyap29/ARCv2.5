@@ -5,7 +5,7 @@
 import 'dart:typed_data';
 import 'package:crypto/crypto.dart';
 import '../core/schema_v2.dart';
-import '../../lumara/chat/ulid.dart';
+import 'package:my_app/lumara/chat/ulid.dart';
 
 /// Media type enumeration
 enum MediaType {

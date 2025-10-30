@@ -1,6 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import '../../core/services/draft_cache_service.dart';
+import 'package:my_app/core/services/draft_cache_service.dart';
 import 'journal_screen.dart';
 
 /// Screen for managing journal drafts with multi-select and multi-delete functionality

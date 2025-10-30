@@ -5,6 +5,7 @@
 import 'dart:convert';
 import 'package:crypto/crypto.dart';
 import 'pii_detection_service.dart';
+import 'models/pii_types.dart';
 
 class MaskingResult {
   final String maskedText;
@@ -141,6 +142,15 @@ class PIIMaskingService {
         return _generateURLToken(originalValue, options);
       case PIIType.dateOfBirth:
         return _generateDateToken(originalValue, options);
+      case PIIType.macAddress:
+      case PIIType.licensePlate:
+      case PIIType.passport:
+      case PIIType.driverLicense:
+      case PIIType.bankAccount:
+      case PIIType.routingNumber:
+      case PIIType.medicalRecord:
+      case PIIType.healthInsurance:
+      case PIIType.biometric:
       case PIIType.other:
         return '[SECRET]';
     }

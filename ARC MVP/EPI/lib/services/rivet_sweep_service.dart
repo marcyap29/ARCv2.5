@@ -3,7 +3,7 @@
 
 import 'dart:math';
 import '../models/phase_models.dart';
-import '../models/journal_entry_model.dart';
+import 'package:my_app/models/journal_entry_model.dart';
 import 'phase_index.dart';
 // import 'semantic_similarity_service.dart'; // TODO: Implement or use existing
 import 'analytics_service.dart';

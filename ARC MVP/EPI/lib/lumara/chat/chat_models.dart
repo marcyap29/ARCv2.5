@@ -3,6 +3,7 @@
 
 import 'package:hive/hive.dart';
 import 'package:uuid/uuid.dart';
+import 'content_parts.dart';
 
 part 'chat_models.g.dart';
 
@@ -41,6 +42,9 @@ class ChatMessage extends HiveObject {
   @HiveField(7)
   final Map<String, dynamic>? metadata;
 
+  @HiveField(8)
+  final List<ContentPart>? contentParts;
+
   ChatMessage({
     required this.id,
     required this.sessionId,
@@ -50,7 +54,34 @@ class ChatMessage extends HiveObject {
     this.originalTextHash,
     this.provenance,
     this.metadata,
+    this.contentParts,
   });
+
+  // Computed getters for backward compatibility
+  List<ContentPart> get contentPartsList => contentParts ?? ContentPartUtils.fromLegacyContent(textContent);
+  
+  // Alias for text content
+  String get content => textContent;
+  
+  bool get hasMedia {
+    if (contentParts == null) return false;
+    return ContentPartUtils.hasMedia(contentParts!);
+  }
+  
+  bool get hasPrismAnalysis {
+    if (contentParts == null) return false;
+    return ContentPartUtils.hasPrismAnalysis(contentParts!);
+  }
+  
+  List<MediaPointer> get mediaPointers {
+    if (contentParts == null) return [];
+    return ContentPartUtils.getMediaPointers(contentParts!);
+  }
+  
+  List<PrismSummary> get prismSummaries {
+    if (contentParts == null) return [];
+    return ContentPartUtils.getPrismSummaries(contentParts!);
+  }
 
   // Factory methods
   factory ChatMessage.createText({
@@ -85,6 +116,34 @@ class ChatMessage extends HiveObject {
     );
   }
 
+  /// Create a ChatMessage with content parts
+  factory ChatMessage.create({
+    required String sessionId,
+    required String role,
+    List<ContentPart>? contentParts,
+    String? provenance,
+    Map<String, dynamic>? metadata,
+  }) {
+    // Extract text content from parts if available
+    final textContent = contentParts != null && contentParts.isNotEmpty
+        ? contentParts
+            .whereType<TextContentPart>()
+            .map((part) => part.text)
+            .join(' ')
+        : '';
+    
+    return ChatMessage(
+      id: _uuid.v4(),
+      sessionId: sessionId,
+      role: role,
+      textContent: textContent,
+      createdAt: DateTime.now(),
+      provenance: provenance,
+      metadata: metadata,
+      contentParts: contentParts,
+    );
+  }
+
   static bool isValidRole(String role) {
     return role == MessageRole.user ||
         role == MessageRole.assistant ||
@@ -101,6 +160,9 @@ class ChatMessage extends HiveObject {
       originalTextHash: json['originalTextHash'] as String?,
       provenance: json['provenance'] as String?,
       metadata: json['metadata'] as Map<String, dynamic>?,
+      contentParts: json['contentParts'] != null
+          ? (json['contentParts'] as List).map((p) => ContentPart.fromJson(p as Map<String, dynamic>)).toList()
+          : null,
     );
   }
 
@@ -114,6 +176,7 @@ class ChatMessage extends HiveObject {
       'originalTextHash': originalTextHash,
       'provenance': provenance,
       'metadata': metadata,
+      if (contentParts != null) 'contentParts': contentParts!.map((p) => p.toJson()).toList(),
     };
   }
 }
@@ -182,6 +245,32 @@ class ChatSession extends HiveObject {
       tags: tags,
       metadata: metadata,
     );
+  }
+
+  // Alias for backward compatibility
+  String get title => subject;
+
+  /// Generate subject from message content
+  static String generateSubject(String message) {
+    if (message.isEmpty) return 'New chat';
+    
+    // Extract key words (remove common words and punctuation)
+    final words = message
+        .toLowerCase()
+        .replaceAll(RegExp(r'[^\w\s]'), '')
+        .split(RegExp(r'\s+'))
+        .where((word) => word.length > 3 && !['with', 'that', 'this', 'from', 'have', 'were', 'what'].contains(word))
+        .take(8)
+        .toList();
+    
+    final subject = words.join(' ');
+    
+    // Truncate if too long
+    if (subject.length > 50) {
+      return '${subject.substring(0, 47)}...';
+    }
+    
+    return subject.isEmpty ? 'New chat' : subject;
   }
 
   // CopyWith method for updates

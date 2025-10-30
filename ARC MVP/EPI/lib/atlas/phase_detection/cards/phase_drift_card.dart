@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../../core/mira/mira_feature_flags.dart';
+import 'package:my_app/core/mira/mira_feature_flags.dart';
 import '../../../shared/app_colors.dart';
 import '../../../shared/text_style.dart';
 

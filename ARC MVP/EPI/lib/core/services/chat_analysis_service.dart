@@ -1,9 +1,10 @@
+import 'dart:convert';
 import '../models/reflective_entry_data.dart';
-import '../../rivet/validation/rivet_models.dart';
+import 'package:my_app/atlas/rivet/rivet_models.dart';
 import '../../prism/extractors/sentinel_risk_detector.dart';
 import '../../prism/extractors/enhanced_keyword_extractor.dart';
-import '../../lumara/chat/chat_models.dart';
-import '../../lumara/chat/content_parts.dart';
+import 'package:my_app/lumara/chat/chat_models.dart';
+import 'package:my_app/lumara/chat/content_parts.dart';
 
 /// Service for analyzing LUMARA chat conversations through RIVET and SENTINEL
 class ChatAnalysisService {
@@ -81,7 +82,7 @@ class ChatAnalysisService {
 
   /// Get the text content from a chat message
   static String _getMessageContent(ChatMessage message) {
-    return message.contentParts
+    return (message.contentParts ?? [])
         .whereType<TextContentPart>()
         .map((part) => part.text)
         .join(' ')
@@ -110,13 +111,20 @@ class ChatAnalysisService {
     }
 
     // Add provenance context if available
-    if (message.provenance != null) {
-      final veilEdge = message.provenance!['veil_edge'] as Map<String, dynamic>?;
-      if (veilEdge != null) {
-        final phaseGroup = veilEdge['phase_group'] as String?;
-        if (phaseGroup != null) {
-          keywords.add('phase_group:$phaseGroup');
+    if (message.provenance != null && message.provenance!.isNotEmpty) {
+      try {
+        final provenanceMap = jsonDecode(message.provenance!) as Map<String, dynamic>?;
+        if (provenanceMap != null) {
+          final veilEdge = provenanceMap['veil_edge'] as Map<String, dynamic>?;
+          if (veilEdge != null) {
+            final phaseGroup = veilEdge['phase_group'];
+            if (phaseGroup != null) {
+              keywords.add('phase_group:$phaseGroup');
+            }
+          }
         }
+      } catch (e) {
+        // Provenance is not JSON, skip
       }
     }
 

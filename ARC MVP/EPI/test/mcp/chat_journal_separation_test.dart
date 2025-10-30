@@ -1,8 +1,9 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:my_app/mcp/export/mcp_export_service.dart';
-import 'package:my_app/mcp/import/mcp_import_service.dart';
+import 'package:my_app/core/mcp/export/mcp_export_service.dart';
+import 'package:my_app/core/mcp/import/mcp_import_service.dart';
 import 'package:my_app/models/journal_entry_model.dart';
-import 'package:my_app/prism/mcp/models/mcp_schemas.dart';
+import 'package:my_app/core/mcp/models/mcp_schemas.dart';
+import 'package:my_app/core/mcp/utils/chat_journal_detector.dart';
 import 'dart:io';
 
 void main() {
@@ -16,6 +17,7 @@ void main() {
           content: 'I had a great day today. Went for a walk and felt refreshed.',
           createdAt: DateTime.now(),
           updatedAt: DateTime.now(),
+          tags: [],
           mood: 'happy',
           phase: 'Discovery',
           keywords: ['walk', 'refreshed'],
@@ -28,6 +30,7 @@ void main() {
           content: 'Hello! I\'m LUMARA, your personal assistant. What would you like to know?',
           createdAt: DateTime.now(),
           updatedAt: DateTime.now(),
+          tags: [],
           mood: 'neutral',
           phase: 'Discovery',
           keywords: [],
@@ -40,6 +43,7 @@ void main() {
           content: 'Tell me about my patterns',
           createdAt: DateTime.now(),
           updatedAt: DateTime.now(),
+          tags: [],
           mood: 'neutral',
           phase: 'Discovery',
           keywords: [],
@@ -51,8 +55,8 @@ void main() {
       // Create export service
       final exportService = McpExportService();
       
-      // Test the separation logic
-      final (journalEntries, chatMessages) = exportService._separateJournalFromChat(testEntries);
+      // Test the separation logic using ChatJournalDetector utility
+      final (chatMessages, journalEntries) = ChatJournalDetector.separateJournalEntries(testEntries);
       
       // Verify separation
       expect(journalEntries.length, 1);
@@ -72,8 +76,9 @@ void main() {
           'source': 'LUMARA_Assistant',
           'entry_type': 'user_input',
         },
-        timestamp: DateTime.now().toUtc().toIso8601String(),
+        timestamp: DateTime.now().toUtc(),
         schemaVersion: '1.0.0',
+        provenance: const McpProvenance(source: 'test', device: 'test'),
       );
 
       final journalNode = McpNode(
@@ -84,16 +89,17 @@ void main() {
           'source': 'ARC',
           'entry_type': 'journal_entry',
         },
-        timestamp: DateTime.now().toUtc().toIso8601String(),
+        timestamp: DateTime.now().toUtc(),
         schemaVersion: '1.0.0',
+        provenance: const McpProvenance(source: 'test', device: 'test'),
       );
 
       // Create import service
       final importService = McpImportService();
       
-      // Test detection
-      expect(importService._isChatMessageNode(chatNode), true);
-      expect(importService._isChatMessageNode(journalNode), false);
+      // Test detection using ChatJournalDetector utility
+      expect(ChatJournalDetector.isChatMessageNode(chatNode), true);
+      expect(ChatJournalDetector.isChatMessageNode(journalNode), false);
     });
   });
 }

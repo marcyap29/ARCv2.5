@@ -1,7 +1,7 @@
 import 'package:my_app/lumara/chat/chat_repo.dart';
 import '../../insights/models/insight_card.dart';
 import '../../insights/insight_service.dart';
-import '../../arc/core/journal_repository.dart';
+import 'package:my_app/arc/core/journal_repository.dart';
 import '../../atlas/rivet/rivet_provider.dart';
 import 'chat_metrics_service.dart';
 

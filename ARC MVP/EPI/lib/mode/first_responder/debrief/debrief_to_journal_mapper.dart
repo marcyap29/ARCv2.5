@@ -1,4 +1,4 @@
-import '../package:my_app/models/journal_entry_model.dart';
+import 'package:my_app/models/journal_entry_model.dart';
 import 'debrief_models.dart';
 
 class DebriefToJournalMapper {

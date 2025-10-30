@@ -1,4 +1,4 @@
-// lib/mira/core/mira_repo.dart
+// lpackage:my_app/mira/core/mira_repo.dart
 // Abstract repository interface for MIRA semantic memory operations
 // Single touchpoint between features and storage, enabling clean testing and implementation swaps
 

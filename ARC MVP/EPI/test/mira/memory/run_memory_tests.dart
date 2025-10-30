@@ -8,6 +8,8 @@ import 'enhanced_memory_test_suite.dart' as enhanced_tests;
 import 'golden_prompts_harness.dart';
 import 'memory_system_integration_test.dart' as integration_tests;
 import 'security_red_team_tests.dart' as security_tests;
+import 'package:my_app/mira/memory/enhanced_mira_memory_service.dart';
+import 'package:my_app/mira/mira_service.dart';
 
 void main() async {
   group('Enhanced MIRA Memory System - Complete Test Suite', () {
@@ -94,19 +96,19 @@ void main() async {
 
         try {
           final harness = await _createGoldenPromptsHarness();
-          final results = await harness.runEvaluation();
+          final harnessResults = await harness.runEvaluation();
 
-          final passRate = results.where((r) => r.passed).length / results.length;
+          final passRate = harnessResults.where((r) => r.passed).length / harnessResults.length;
 
           if (passRate >= 0.95) {
-            this.results.addTestResult('Golden Prompts Basic', true,
+            results.addTestResult('Golden Prompts Basic', true,
               'Pass rate: ${(passRate * 100).toStringAsFixed(1)}%');
           } else {
-            this.results.addTestResult('Golden Prompts Basic', false,
+            results.addTestResult('Golden Prompts Basic', false,
               'Pass rate too low: ${(passRate * 100).toStringAsFixed(1)}%');
           }
 
-          await _saveGoldenPromptsReport(results);
+          await _saveGoldenPromptsReport(harnessResults);
 
         } catch (e) {
           results.addTestResult('Golden Prompts Basic', false, 'Golden prompts failed: $e');
@@ -119,15 +121,15 @@ void main() async {
 
         try {
           final harness = await _createDomainIsolationHarness();
-          final results = await harness.runEvaluation();
+          final harnessResults = await harness.runEvaluation();
 
           // Domain isolation must have 100% pass rate
-          final passRate = results.where((r) => r.passed).length / results.length;
+          final passRate = harnessResults.where((r) => r.passed).length / harnessResults.length;
 
           if (passRate == 1.0) {
-            this.results.addTestResult('Golden Prompts Domain', true, 'Perfect domain isolation');
+            results.addTestResult('Golden Prompts Domain', true, 'Perfect domain isolation');
           } else {
-            this.results.addTestResult('Golden Prompts Domain', false,
+            results.addTestResult('Golden Prompts Domain', false,
               'Domain isolation failures detected');
             throw Exception('Critical: Domain isolation not perfect');
           }
@@ -143,17 +145,17 @@ void main() async {
 
         try {
           final harness = await _createPerformanceHarness();
-          final results = await harness.runEvaluation();
+          final harnessResults = await harness.runEvaluation();
 
-          final avgLatency = results
+          final avgLatency = harnessResults
               .map((r) => r.executionTime.inMilliseconds)
-              .reduce((a, b) => a + b) / results.length;
+              .reduce((a, b) => a + b) / harnessResults.length;
 
           if (avgLatency <= 150.0) {
-            this.results.addTestResult('Golden Prompts Performance', true,
+            results.addTestResult('Golden Prompts Performance', true,
               'Average latency: ${avgLatency.toStringAsFixed(1)}ms');
           } else {
-            this.results.addTestResult('Golden Prompts Performance', false,
+            results.addTestResult('Golden Prompts Performance', false,
               'Latency budget exceeded: ${avgLatency.toStringAsFixed(1)}ms');
           }
 
@@ -322,30 +324,58 @@ Future<void> _runTestGroup(String groupName, Function testMain) async {
 }
 
 Future<GoldenPromptsHarness> _createGoldenPromptsHarness() async {
-  // Mock implementation - would create actual harness
+  // Create actual service instance for testing
+  final memoryService = EnhancedMiraMemoryService(
+    miraService: MiraService.instance,
+  );
+  await memoryService.initialize(
+    userId: 'test_user',
+    currentPhase: 'Discovery',
+  );
   return GoldenPromptsHarness(
-    memoryService: MockEnhancedMiraMemoryService(),
+    memoryService: memoryService,
     goldenPrompts: StandardGoldenPrompts.basicMemoryRetrieval,
   );
 }
 
 Future<GoldenPromptsHarness> _createDomainIsolationHarness() async {
+  final memoryService = EnhancedMiraMemoryService(
+    miraService: MiraService.instance,
+  );
+  await memoryService.initialize(
+    userId: 'test_user',
+    currentPhase: 'Discovery',
+  );
   return GoldenPromptsHarness(
-    memoryService: MockEnhancedMiraMemoryService(),
+    memoryService: memoryService,
     goldenPrompts: StandardGoldenPrompts.domainIsolation,
   );
 }
 
 Future<GoldenPromptsHarness> _createPerformanceHarness() async {
+  final memoryService = EnhancedMiraMemoryService(
+    miraService: MiraService.instance,
+  );
+  await memoryService.initialize(
+    userId: 'test_user',
+    currentPhase: 'Discovery',
+  );
   return GoldenPromptsHarness(
-    memoryService: MockEnhancedMiraMemoryService(),
+    memoryService: memoryService,
     goldenPrompts: StandardGoldenPrompts.performanceTests,
   );
 }
 
 Future<void> _saveGoldenPromptsReport(List<GoldenPromptResult> results) async {
+  final memoryService = EnhancedMiraMemoryService(
+    miraService: MiraService.instance,
+  );
+  await memoryService.initialize(
+    userId: 'test_user',
+    currentPhase: 'Discovery',
+  );
   final harness = GoldenPromptsHarness(
-    memoryService: MockEnhancedMiraMemoryService(),
+    memoryService: memoryService,
     goldenPrompts: [],
   );
 
@@ -561,8 +591,4 @@ class LoadTestResults {
   });
 }
 
-// Mock implementations for testing
-
-class MockEnhancedMiraMemoryService {
-  // Simplified mock for test harness
-}
+// Mock implementations removed - using real EnhancedMiraMemoryService instances

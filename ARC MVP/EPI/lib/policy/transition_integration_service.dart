@@ -11,7 +11,9 @@
 /// - Integrate with existing journal capture cubit
 
 import 'dart:async';
+import 'package:uuid/uuid.dart';
 import 'package:my_app/policy/transition_policy.dart';
+import 'package:my_app/core/models/reflective_entry_data.dart';
 import 'package:my_app/atlas/phase_detection/phase_tracker.dart';
 import 'package:my_app/atlas/rivet/rivet_service.dart';
 import 'package:my_app/atlas/rivet/rivet_models.dart';
@@ -84,6 +86,7 @@ class TransitionIntegrationService {
 
       // 3. Create RIVET event
       final rivetEvent = RivetEvent(
+        eventId: const Uuid().v4(),
         date: DateTime.now(),
         source: EvidenceSource.text,
         keywords: selectedKeywords.toSet(),
@@ -253,8 +256,16 @@ class TransitionIntegrationService {
   Future<SentinelAnalysis> _analyzeRiskWithSentinel() async {
     final entries = _recentJournalEntries.values.toList();
     
+    // Convert JournalEntryData to ReflectiveEntryData for SentinelRiskDetector
+    final reflectiveEntries = entries.map((entry) => ReflectiveEntryData.fromJournalEntry(
+      timestamp: entry.timestamp,
+      keywords: entry.keywords,
+      phase: entry.phase,
+      mood: entry.mood,
+    )).toList();
+    
     return SentinelRiskDetector.analyzeRisk(
-      entries: entries,
+      entries: reflectiveEntries,
       timeWindow: TimeWindow.twoWeek,
     );
   }

@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:my_app/lumara/chat/chat_models.dart';
 import 'package:my_app/lumara/chat/content_parts.dart';
 import 'package:my_app/lumara/chat/multimodal_chat_service.dart';
+import 'package:my_app/core/mcp/export/chat_mcp_exporter.dart';
 import 'package:my_app/echo/config/echo_config.dart';
 
 void main() {
@@ -289,7 +290,7 @@ void main() {
       final message = ChatMessage.createText(
         sessionId: 'session:123',
         role: MessageRole.user,
-        text: 'Hello, world!',
+        content: 'Hello, world!',
       );
       
       expect(message.id, startsWith('msg:'));

@@ -8,16 +8,16 @@ import 'core/mira_repo.dart';
 import 'core/hive_repo.dart';
 import 'core/sqlite_repo.dart';
 import 'core/schema.dart';
-import '../mcp/bundle/writer.dart';
-import '../mcp/bundle/reader.dart';
-import '../mcp/bundle/manifest.dart';
-import '../mcp/export/mcp_export_service.dart';
-import '../mcp/import/mcp_import_service.dart';
-import '../mcp/models/mcp_schemas.dart';
+import '../core/mcp/bundle/writer.dart';
+import '../core/mcp/bundle/reader.dart';
+import '../core/mcp/bundle/manifest.dart';
+import '../core/mcp/export/mcp_export_service.dart';
+import '../core/mcp/import/mcp_import_service.dart';
+import '../core/mcp/models/mcp_schemas.dart';
 import '../lumara/chat/chat_repo.dart';
-import '../data/models/media_item.dart';
+import 'package:my_app/data/models/media_item.dart';
 import 'package:my_app/models/journal_entry_model.dart';
-import '../arc/core/journal_repository.dart';
+import 'package:my_app/arc/core/journal_repository.dart';
 
 class MiraService {
   static MiraService? _instance;

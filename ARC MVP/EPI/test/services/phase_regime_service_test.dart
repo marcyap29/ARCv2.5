@@ -2,12 +2,16 @@
 // Unit tests for PhaseRegimeService
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:mockito/mockito.dart';
+import 'package:mocktail/mocktail.dart';
 import 'package:my_app/models/phase_models.dart';
 import 'package:my_app/services/phase_regime_service.dart';
 import 'package:my_app/services/analytics_service.dart';
+import 'package:my_app/services/rivet_sweep_service.dart';
+import 'package:my_app/services/phase_index.dart';
+import 'package:my_app/models/journal_entry_model.dart';
 
 class MockAnalyticsService extends Mock implements AnalyticsService {}
+class MockRivetSweepService extends Mock implements RivetSweepService {}
 
 void main() {
   group('PhaseRegimeService', () {
@@ -16,7 +20,8 @@ void main() {
 
     setUp(() {
       mockAnalytics = MockAnalyticsService();
-      service = PhaseRegimeService(mockAnalytics, null); // TODO: Add RivetSweepService
+      final mockRivetSweep = MockRivetSweepService();
+      service = PhaseRegimeService(mockAnalytics, mockRivetSweep);
     });
 
     test('should create phase regime', () async {

@@ -18,6 +18,7 @@ class JournalDraft {
   final DateTime createdAt;
   final DateTime lastModified;
   final Map<String, dynamic> metadata;
+  final String? linkedEntryId; // ID of the original entry this draft is linked to (for editing existing entries)
 
   JournalDraft({
     required this.id,
@@ -28,6 +29,7 @@ class JournalDraft {
     required this.createdAt,
     required this.lastModified,
     this.metadata = const {},
+    this.linkedEntryId,
   });
 
   Map<String, dynamic> toJson() {
@@ -49,6 +51,7 @@ class JournalDraft {
       'createdAt': createdAt.millisecondsSinceEpoch,
       'lastModified': lastModified.millisecondsSinceEpoch,
       'metadata': metadata,
+      'linkedEntryId': linkedEntryId,
     };
   }
 
@@ -76,6 +79,7 @@ class JournalDraft {
       createdAt: DateTime.fromMillisecondsSinceEpoch(json['createdAt'] as int),
       lastModified: DateTime.fromMillisecondsSinceEpoch(json['lastModified'] as int),
       metadata: Map<String, dynamic>.from(json['metadata'] as Map? ?? {}),
+      linkedEntryId: json['linkedEntryId'] as String?,
     );
   }
 
@@ -86,6 +90,7 @@ class JournalDraft {
     String? initialReason,
     DateTime? lastModified,
     Map<String, dynamic>? metadata,
+    String? linkedEntryId,
   }) {
     return JournalDraft(
       id: id,
@@ -96,6 +101,7 @@ class JournalDraft {
       createdAt: createdAt,
       lastModified: lastModified ?? DateTime.now(),
       metadata: metadata ?? this.metadata,
+      linkedEntryId: linkedEntryId ?? this.linkedEntryId,
     );
   }
 
@@ -125,7 +131,6 @@ class DraftCacheService {
   static const String _boxName = 'journal_drafts';
   static const String _currentDraftKey = 'current_draft';
   static const String _draftHistoryKey = 'draft_history';
-  static const Duration _autoSaveInterval = Duration(seconds: 2);
   static const Duration _maxDraftAge = Duration(days: 7);
   static const int _maxDraftHistory = 10;
 
@@ -185,11 +190,27 @@ class DraftCacheService {
     String? initialReason,
     String initialContent = '',
     List<MediaItem> initialMedia = const [],
+    String? linkedEntryId, // ID of the original entry this draft is linked to
   }) async {
     await _ensureInitialized();
 
-    // If we already have a current draft, reuse its ID instead of creating a new one
-    if (_currentDraft != null) {
+    // If editing an existing entry, check if there's already a draft for it
+    if (linkedEntryId != null) {
+      final existingDraft = await getDraftByLinkedEntryId(linkedEntryId);
+      if (existingDraft != null) {
+        debugPrint('DraftCacheService: Found existing draft ${existingDraft.id} for entry $linkedEntryId');
+        _currentDraft = existingDraft.copyWith(
+          lastModified: DateTime.now(),
+          content: initialContent.isNotEmpty ? initialContent : existingDraft.content,
+          mediaItems: initialMedia.isNotEmpty ? List.from(initialMedia) : existingDraft.mediaItems,
+        );
+        await _saveDraft(_currentDraft!);
+        return _currentDraft!.id;
+      }
+    }
+
+    // If we already have a current draft with the same linkedEntryId, reuse it
+    if (_currentDraft != null && _currentDraft!.linkedEntryId == linkedEntryId) {
       debugPrint('DraftCacheService: Reusing existing draft ${_currentDraft!.id}');
       return _currentDraft!.id;
     }
@@ -205,12 +226,13 @@ class DraftCacheService {
       initialReason: initialReason,
       createdAt: now,
       lastModified: now,
+      linkedEntryId: linkedEntryId,
     );
 
     await _saveDraft(_currentDraft!);
     // _startAutoSave(); // Disabled: No more automatic saving every few seconds
 
-    debugPrint('DraftCacheService: Created new draft $draftId');
+    debugPrint('DraftCacheService: Created new draft $draftId${linkedEntryId != null ? ' (linked to entry $linkedEntryId)' : ''}');
     return draftId;
   }
 
@@ -237,7 +259,7 @@ class DraftCacheService {
       lastModified: DateTime.now(),
     );
 
-    // Auto-save will handle persistence
+    await _saveDraft(_currentDraft!);
   }
 
   /// Add media item to the current draft
@@ -356,6 +378,43 @@ class DraftCacheService {
     return allDrafts;
   }
 
+  /// Find a draft by linked entry ID
+  Future<JournalDraft?> getDraftByLinkedEntryId(String entryId) async {
+    await _ensureInitialized();
+    
+    // Check current draft
+    if (_currentDraft != null && _currentDraft!.linkedEntryId == entryId) {
+      return _currentDraft;
+    }
+    
+    // Check history drafts
+    final historyDrafts = await getDraftHistory();
+    try {
+      final linkedDraft = historyDrafts.firstWhere(
+        (draft) => draft.linkedEntryId == entryId,
+      );
+      
+      if (linkedDraft.hasContent && linkedDraft.age < _maxDraftAge) {
+        return linkedDraft;
+      }
+    } catch (e) {
+      // No draft found for this entry ID
+      return null;
+    }
+    
+    return null;
+  }
+
+  /// Check if there's a draft linked to a specific entry ID
+  Future<bool> hasDraftForEntry(String entryId) async {
+    try {
+      final draft = await getDraftByLinkedEntryId(entryId);
+      return draft != null;
+    } catch (e) {
+      return false;
+    }
+  }
+
   /// Delete specific drafts by IDs
   Future<void> deleteDrafts(List<String> draftIds) async {
     await _ensureInitialized();
@@ -459,15 +518,6 @@ class DraftCacheService {
     } catch (e) {
       debugPrint('DraftCacheService: Error moving draft to history - $e');
     }
-  }
-
-  void _startAutoSave() {
-    _stopAutoSave();
-    _autoSaveTimer = Timer.periodic(_autoSaveInterval, (timer) {
-      if (_currentDraft != null) {
-        _saveDraft(_currentDraft!);
-      }
-    });
   }
 
   void _stopAutoSave() {

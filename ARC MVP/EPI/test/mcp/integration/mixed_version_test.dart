@@ -1,9 +1,9 @@
 import 'dart:io';
 import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:my_app/prism/mcp/adapters/to_mcp.dart';
-import 'package:my_app/prism/mcp/import/mcp_import_service.dart';
-import 'package:my_app/prism/mcp/export/chat_exporter.dart';
+import 'package:my_app/core/mcp/adapters/from_mira.dart';
+import 'package:my_app/core/mcp/import/mcp_import_service.dart';
+import 'package:my_app/core/mcp/export/chat_exporter.dart';
 import 'package:my_app/mira/core/schema.dart';
 import 'package:my_app/mira/nodes/chat_session_node.dart';
 import 'package:my_app/mira/nodes/chat_message_node.dart';
@@ -318,14 +318,14 @@ List<ChatMessage> _createTestChatMessages(String sessionId) {
       id: 'test_message_1',
       sessionId: sessionId,
       role: 'user',
-      content: 'Hello, this is a test message',
+      textContent: 'Hello, this is a test message',
       createdAt: DateTime.now().subtract(const Duration(minutes: 30)),
     ),
     ChatMessage(
       id: 'test_message_2',
       sessionId: sessionId,
       role: 'assistant',
-      content: 'Hi! This is a test response',
+      textContent: 'Hi! This is a test response',
       createdAt: DateTime.now().subtract(const Duration(minutes: 29)),
     ),
   ];

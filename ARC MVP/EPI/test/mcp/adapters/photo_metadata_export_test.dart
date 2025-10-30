@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:my_app/mcp/adapters/journal_entry_projector.dart';
+import 'package:my_app/core/mcp/adapters/journal_entry_projector.dart';
 import 'package:my_app/data/models/media_item.dart';
 import 'package:my_app/data/models/photo_metadata.dart';
 
@@ -25,7 +25,7 @@ void main() {
         ),
       ];
 
-      final result = await McpEntryProjector._extractPhotoMetadataFromContent(content, mediaItems);
+      final result = await McpEntryProjector.extractPhotoMetadataFromContent(content, mediaItems);
 
       expect(result.length, equals(2));
       
@@ -50,7 +50,7 @@ void main() {
       final content = 'This is a test entry without any photos.';
       final mediaItems = <MediaItem>[];
 
-      final result = await McpEntryProjector._extractPhotoMetadataFromContent(content, mediaItems);
+      final result = await McpEntryProjector.extractPhotoMetadataFromContent(content, mediaItems);
 
       expect(result.length, equals(0));
     });
@@ -68,7 +68,7 @@ void main() {
         ),
       ];
 
-      final result = await McpEntryProjector._extractPhotoMetadataFromContent(content, mediaItems);
+      final result = await McpEntryProjector.extractPhotoMetadataFromContent(content, mediaItems);
 
       expect(result.length, equals(1));
       expect(result.first['placeholder_id'], equals('photo_1760654962279'));
@@ -88,7 +88,7 @@ void main() {
         ),
       ];
 
-      final result = await McpEntryProjector._extractPhotoMetadataFromContent(content, mediaItems);
+      final result = await McpEntryProjector.extractPhotoMetadataFromContent(content, mediaItems);
 
       expect(result.length, equals(1));
       expect(result.first['placeholder_id'], equals('photo_1760654962279'));
@@ -107,7 +107,7 @@ void main() {
         ),
       ];
 
-      final result = await McpEntryProjector._extractPhotoMetadataFromContent(content, mediaItems);
+      final result = await McpEntryProjector.extractPhotoMetadataFromContent(content, mediaItems);
 
       expect(result.length, equals(2)); // Should create entries for both placeholders
       expect(result.every((p) => p['placeholder_id'] == 'photo_1760654962279'), isTrue);
@@ -118,7 +118,7 @@ void main() {
       
       final mediaItems = <MediaItem>[];
 
-      final result = await McpEntryProjector._extractPhotoMetadataFromContent(content, mediaItems);
+      final result = await McpEntryProjector.extractPhotoMetadataFromContent(content, mediaItems);
 
       expect(result.length, equals(1)); // Only the valid placeholder should be extracted
       expect(result.first['placeholder_id'], equals('photo_1760654962279'));

@@ -2,7 +2,7 @@
 // Informational overview explaining what phases are and how they work
 
 import 'package:flutter/material.dart';
-import '../../models/phase_models.dart';
+import 'package:my_app/models/phase_models.dart';
 
 class PhaseInfoOverview extends StatelessWidget {
   const PhaseInfoOverview({super.key});

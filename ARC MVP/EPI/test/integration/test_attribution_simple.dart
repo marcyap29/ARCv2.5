@@ -1,9 +1,9 @@
 // Simple test to verify attribution system works
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'lib/mira/memory/enhanced_mira_memory_service.dart';
-import 'lib/mira/memory/attribution_service.dart';
-import 'lib/mira/memory/enhanced_memory_schema.dart';
+import 'package:my_app/mira/memory/enhanced_mira_memory_service.dart';
+import 'package:my_app/mira/memory/attribution_service.dart';
+import 'package:my_app/mira/memory/enhanced_memory_schema.dart';
 
 void main() async {
   print('Testing attribution system...');

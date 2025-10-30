@@ -4,10 +4,10 @@
 
 import 'dart:async';
 import '../mira_basics.dart';
-import '../../arc/core/journal_repository.dart' as arc;
+import 'package:my_app/arc/core/journal_repository.dart' as arc;
 import '../../atlas/phase_detection/phase_history_repository.dart' as atlas;
 import 'package:shared_preferences/shared_preferences.dart';
-import '../../models/journal_entry_model.dart';
+import 'package:my_app/models/journal_entry_model.dart';
 
 // ------------------------------
 // JOURNAL REPOSITORY ADAPTER

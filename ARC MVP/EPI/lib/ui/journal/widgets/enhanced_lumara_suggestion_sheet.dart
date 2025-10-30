@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../../lumara/services/enhanced_lumara_api.dart';
+import 'package:my_app/lumara/services/enhanced_lumara_api.dart';
 import '../../../telemetry/analytics.dart';
 
 enum LumaraIntent {
@@ -48,18 +48,16 @@ class _EnhancedLumaraSuggestionSheetState extends State<EnhancedLumaraSuggestion
     });
 
     try {
-      // Get real cloud API analysis using Gemini
-      final analysis = await _lumaraApi.generateCloudAnalysis(
+      // TODO: generateCloudAnalysis and generateAISuggestions not yet implemented
+      // Using generatePromptedReflection as fallback
+      final analysis = await _lumaraApi.generatePromptedReflection(
         entryText: widget.entryText!,
+        intent: 'suggest',
         phase: widget.phase ?? 'Discovery',
       );
       
-      // Generate real AI suggestions based on analysis
-      final suggestions = await _lumaraApi.generateAISuggestions(
-        entryText: widget.entryText!,
-        analysis: analysis,
-        phase: widget.phase ?? 'Discovery',
-      );
+      // Generate suggestions from the analysis
+      final suggestions = _extractSuggestionsFromAnalysis(analysis);
 
       setState(() {
         _cloudAnalysis = analysis;
@@ -72,6 +70,22 @@ class _EnhancedLumaraSuggestionSheetState extends State<EnhancedLumaraSuggestion
         _isLoading = false;
       });
     }
+  }
+
+  List<String> _extractSuggestionsFromAnalysis(String analysis) {
+    // Extract suggestions from the analysis text
+    final suggestions = <String>[];
+    final lines = analysis.split('\n');
+    
+    for (final line in lines) {
+      if (line.trim().startsWith('•') || line.trim().startsWith('-')) {
+        suggestions.add(line.trim().substring(1).trim());
+      } else if (line.trim().isNotEmpty && line.length < 150) {
+        suggestions.add(line.trim());
+      }
+    }
+    
+    return suggestions.take(3).toList();
   }
 
   @override

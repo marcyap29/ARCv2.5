@@ -1,4 +1,9 @@
-// Video Processor - Placeholder for future implementation
+/// Video Processor - Placeholder for future implementation
+library;
+
+/// Placeholder video processor
 class VideoProcessor {
-  // Future implementation for video processing
+  // Future implementation
 }
+
+

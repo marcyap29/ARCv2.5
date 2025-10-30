@@ -20,7 +20,16 @@ import '../models/arcx_result.dart';
 class ARCXImportService {
   final JournalRepository? _journalRepo;
   
+  // Media deduplication cache - maps URI to MediaItem to prevent duplicates
+  final Map<String, MediaItem> _mediaCache = {};
+  
   ARCXImportService({JournalRepository? journalRepo}) : _journalRepo = journalRepo;
+  
+  /// Clear the media cache (call before starting a new import)
+  void clearMediaCache() {
+    _mediaCache.clear();
+    print('ARCX Import: 🧹 Cleared media cache for new import');
+  }
   
   /// Import secure .arcx archive
   /// 
@@ -201,9 +210,9 @@ class ARCXImportService {
         
         print('ARCX Import: ✓ MCP manifest hash verified');
         
-        // Step 8: Copy photos to permanent storage
+        // Step 8: Copy photos to permanent storage and create photo mapping
         final photosDir = Directory(path.join(payloadDir.path, 'media', 'photos'));
-        String? photosPath;
+        final photoMapping = <String, String>{};
         
         if (await photosDir.exists()) {
           // Copy photos to app's permanent storage
@@ -218,13 +227,24 @@ class ARCXImportService {
               final fileName = path.basename(file.path);
               final destFile = File(path.join(permanentPhotosDir.path, fileName));
               await file.copy(destFile.path);
+              // Map filename to permanent path
+              photoMapping[fileName] = destFile.path;
               photosCopied++;
             }
           }
           
-          photosPath = permanentPhotosDir.path;
-          print('ARCX Import: Copied $photosCopied photos to permanent storage at $photosPath');
+          print('ARCX Import: Copied $photosCopied photos to permanent storage (${permanentPhotosDir.path})');
+          print('ARCX Import: Created photo mapping with ${photoMapping.length} entries');
         }
+        
+        // Step 8.5: Load photo metadata files for enhanced matching
+        final photoMetadataMap = await _loadPhotoMetadata(payloadDir);
+        if (photoMetadataMap.isNotEmpty) {
+          print('ARCX Import: Loaded ${photoMetadataMap.length} photo metadata files');
+        }
+        
+        // Clear media cache for this import
+        clearMediaCache();
         
         // Step 9: Read and convert journal entries
         final journalDir = Directory(path.join(payloadDir.path, 'journal'));
@@ -240,43 +260,23 @@ class ARCXImportService {
         
         print('ARCX Import: Step 5 - Converting ${journalFiles.length} journal entries...');
         print('ARCX Import: Journal repo available: ${_journalRepo != null}');
-        print('ARCX Import: Photos directory: $photosPath');
+        print('ARCX Import: Photo mapping contains ${photoMapping.length} photos');
         
         int entriesImported = 0;
+        int totalEntriesFound = 0;
+        int entriesWithMedia = 0;
         final warnings = <String>[];
         
         for (final file in journalFiles) {
+          totalEntriesFound++;
           try {
             final nodeJson = jsonDecode(await file.readAsString()) as Map<String, dynamic>;
             
-            // DEBUG: Log the structure of the first node
-            if (entriesImported == 0) {
-              final nodeStr = jsonEncode(nodeJson);
-              final sampleLength = nodeStr.length > 500 ? 500 : nodeStr.length;
-              print('ARCX Import: First node structure:');
-              print('ARCX Import: Keys: ${nodeJson.keys}');
-              print('ARCX Import: Sample node: ${nodeStr.substring(0, sampleLength)}');
-              if (nodeJson['media'] != null) {
-                print('ARCX Import: Media field type: ${nodeJson['media'].runtimeType}');
-                print('ARCX Import: Media field value: ${nodeJson['media']}');
-                if (nodeJson['media'] is List) {
-                  print('ARCX Import: Media list length: ${(nodeJson['media'] as List).length}');
-                  if ((nodeJson['media'] as List).isNotEmpty) {
-                    print('ARCX Import: First media item: ${nodeJson['media'][0]}');
-                  }
-                }
-              } else {
-                print('ARCX Import: ⚠️ No media field found in node!');
-              }
-            }
-            
-            // Log media count for all entries
-            final mediaCount = (nodeJson['media'] as List<dynamic>? ?? []).length;
-            if (mediaCount > 0) {
-              print('ARCX Import: Entry ${nodeJson['id']} has $mediaCount media items');
-            }
-            
-            final entry = await _convertMCPNodeToJournalEntry(nodeJson, photosPath);
+            final entry = await _convertMCPNodeToJournalEntry(
+              nodeJson, 
+              photoMapping, 
+              photoMetadataMap,
+            );
             
             if (entry == null) {
               print('ARCX Import: ✗ Skipped entry ${path.basename(file.path)} - conversion returned null');
@@ -284,18 +284,53 @@ class ARCXImportService {
               continue;
             }
             
-            if (!dryRun && _journalRepo != null) {
-              await _journalRepo!.createJournalEntry(entry);
-              print('ARCX Import: ✓ Saved entry ${entry.id}: ${entry.title}');
-            } else {
-              print('ARCX Import: ✗ Skipped entry ${entry.id} (dryRun=$dryRun, repo=${_journalRepo != null})');
+            // Track entries with media
+            if (entry.media.isNotEmpty) {
+              entriesWithMedia++;
             }
             
-            entriesImported++;
-          } catch (e) {
+            if (!dryRun && _journalRepo != null) {
+              try {
+                await _journalRepo!.createJournalEntry(entry);
+                entriesImported++;
+                print('ARCX Import: ✓ Saved entry ${entry.id}: ${entry.title} (${entry.media.length} media items)');
+              } catch (e, stackTrace) {
+                print('ARCX Import: ✗ Failed to save entry ${entry.id} to repository: $e');
+                print('   Stack trace: $stackTrace');
+                warnings.add('Failed to save entry ${entry.id}: $e');
+                // Continue processing other entries even if this one fails
+              }
+            } else {
+              print('ARCX Import: ✗ Skipped entry ${entry.id} (dryRun=$dryRun, repo=${_journalRepo != null})');
+              entriesImported++; // Count as imported even in dry run
+            }
+          } catch (e, stackTrace) {
             print('ARCX Import: ✗ Failed to import entry ${path.basename(file.path)}: $e');
+            print('   Stack trace: $stackTrace');
             warnings.add('Failed to import entry ${path.basename(file.path)}: $e');
+            // Continue processing other entries even if this one fails
           }
+        }
+        
+        // Log import summary
+        print('ARCX Import: 📊 Import Summary:');
+        print('   Total entries found: $totalEntriesFound');
+        print('   Entries with media: $entriesWithMedia');
+        print('   Entries successfully imported: $entriesImported');
+        
+        if (entriesImported < totalEntriesFound) {
+          print('ARCX Import: ⚠️ WARNING: ${totalEntriesFound - entriesImported} entries were NOT imported!');
+        }
+        
+        // Log media cache statistics
+        print('ARCX Import: 📊 Media Cache Statistics:');
+        print('   Total unique media items cached: ${_mediaCache.length}');
+        final mediaByType = <String, int>{};
+        for (final item in _mediaCache.values) {
+          mediaByType[item.type.name] = (mediaByType[item.type.name] ?? 0) + 1;
+        }
+        for (final entry in mediaByType.entries) {
+          print('   - ${entry.key}: ${entry.value}');
         }
         
         // Step 10: Count photo metadata files
@@ -339,8 +374,59 @@ class ARCXImportService {
     }
   }
 
+  /// Load photo metadata files from nodes/media/photo directory
+  Future<Map<String, Map<String, dynamic>>> _loadPhotoMetadata(Directory payloadDir) async {
+    final metadataMap = <String, Map<String, dynamic>>{};
+    
+    final photoMetadataDir = Directory(path.join(payloadDir.path, 'nodes', 'media', 'photo'));
+    if (!await photoMetadataDir.exists()) {
+      // Try alternative location: media/photo
+      final altPhotoMetadataDir = Directory(path.join(payloadDir.path, 'media', 'photo'));
+      if (!await altPhotoMetadataDir.exists()) {
+        print('ARCX Import: ⚠️ No photo metadata directory found');
+        return metadataMap;
+      }
+      
+      // Use alternative location
+      await for (final file in altPhotoMetadataDir.list()) {
+        if (file is File && file.path.endsWith('.json')) {
+          try {
+            final json = jsonDecode(await file.readAsString()) as Map<String, dynamic>;
+            final photoId = json['id'] as String? ?? path.basenameWithoutExtension(file.path);
+            if (photoId.isNotEmpty) {
+              metadataMap[photoId] = json;
+            }
+          } catch (e) {
+            print('ARCX Import: ⚠️ Failed to load photo metadata from ${file.path}: $e');
+          }
+        }
+      }
+      return metadataMap;
+    }
+
+    await for (final file in photoMetadataDir.list()) {
+      if (file is File && file.path.endsWith('.json')) {
+        try {
+          final json = jsonDecode(await file.readAsString()) as Map<String, dynamic>;
+          final photoId = json['id'] as String? ?? path.basenameWithoutExtension(file.path);
+          if (photoId.isNotEmpty) {
+            metadataMap[photoId] = json;
+          }
+        } catch (e) {
+          print('ARCX Import: ⚠️ Failed to load photo metadata from ${file.path}: $e');
+        }
+      }
+    }
+
+    return metadataMap;
+  }
+
   /// Convert MCP node JSON to JournalEntry
-  Future<JournalEntry?> _convertMCPNodeToJournalEntry(Map<String, dynamic> nodeJson, String? photosPath) async {
+  Future<JournalEntry?> _convertMCPNodeToJournalEntry(
+    Map<String, dynamic> nodeJson,
+    Map<String, String> photoMapping,
+    Map<String, Map<String, dynamic>> photoMetadataMap,
+  ) async {
     try {
       // The node structure is already flat with direct fields
       final nodeId = nodeJson['id'] as String;
@@ -349,7 +435,7 @@ class ARCXImportService {
       // Extract fields directly from the node
       final content = nodeJson['content'] as String? ?? '';
       final timestamp = nodeJson['timestamp'] as String;
-      final createdAt = DateTime.parse(timestamp);
+      final createdAt = _parseTimestamp(timestamp);
       final updatedAt = createdAt; // Use same timestamp
       
       // Extract optional fields
@@ -364,106 +450,328 @@ class ARCXImportService {
       // Generate title from content (first line or first 50 chars)
       final title = _generateTitle(content);
       
-      // Reconstruct media items
-      final mediaList = nodeJson['media'] as List<dynamic>? ?? [];
+      // Process media items with robust fallback detection
+      // Check multiple locations for media (robust fallback)
       final mediaItems = <MediaItem>[];
+      List<dynamic>? mediaData = nodeJson['media'] as List<dynamic>?;
       
-      print('ARCX Import: Processing entry ${originalId} with ${mediaList.length} media items');
-      if (mediaList.isEmpty) {
-        print('ARCX Import: ⚠️ Entry ${originalId} has NO media items');
-      }
-      
-      for (final mediaJson in mediaList) {
-        if (mediaJson is Map<String, dynamic>) {
-          try {
-            // Convert MCP media format to MediaItem format
-            final mcpId = mediaJson['id'] as String;
-            final kind = mediaJson['kind'] as String? ?? 'photo';
-            final filename = mediaJson['filename'] as String?;
-            final originalPath = mediaJson['originalPath'] as String?;
-            final createdAtStr = mediaJson['createdAt'] as String?;
-            // Note: sha256 is intentionally omitted to prevent isMcpMedia from returning true
-            final altText = mediaJson['altText'] as String?;
-            final ocrText = mediaJson['ocrText'] as String?;
-            final analysisData = mediaJson['analysisData'] as Map<String, dynamic>?;
-            
-            // Map kind to MediaType
-            final mediaType = kind == 'photo' || kind == 'image'
-                ? MediaType.image
-                : kind == 'video'
-                    ? MediaType.video
-                    : kind == 'audio'
-                        ? MediaType.audio
-                        : MediaType.image; // Default to image
-            
-            // Construct URI from filename or use original path
-            String? uri;
-            if (filename != null && photosPath != null) {
-              // Construct path to photo in the extracted photos directory
-              uri = path.join(photosPath, filename);
-              print('ARCX Import: Constructed URI for photo: $uri');
-              
-              // Verify file exists
-              final photoFile = File(uri);
-              final exists = await photoFile.exists();
-              print('ARCX Import: Photo file exists: $exists');
-              if (!exists) {
-                print('ARCX Import: WARNING - Photo file does not exist at: $uri');
-              }
-            } else if (originalPath != null) {
-              uri = originalPath;
-            } else if (filename != null) {
-              print('ARCX Import: Warning - photos path not available, using filename as URI: $filename');
-              uri = filename;
-            }
-            
-            final createdAt = createdAtStr != null
-                ? DateTime.parse(createdAtStr)
-                : DateTime.now();
-            
-            final mediaItem = MediaItem(
-              id: mcpId,
-              uri: uri ?? '',
-              type: mediaType,
-              createdAt: createdAt,
-              ocrText: ocrText,
-              analysisData: analysisData,
-              altText: altText,
-              sha256: null, // Clear SHA256 - these are file-based media now, not MCP content-addressed
-            );
-            
-            mediaItems.add(mediaItem);
-            print('ARCX Import: ✓ Added media item: ${mediaItem.id} (type: ${mediaItem.type}, uri: ${mediaItem.uri})');
-          } catch (e) {
-            print('ARCX Import: Failed to parse media item: $e');
+      // Fallback 1: Check metadata.media
+      if (mediaData == null || mediaData.isEmpty) {
+        final metadataObj = nodeJson['metadata'] as Map<String, dynamic>?;
+        if (metadataObj != null) {
+          mediaData = metadataObj['media'] as List<dynamic>?;
+          if (mediaData != null && mediaData.isNotEmpty) {
+            print('ARCX Import: 📝 Found ${mediaData.length} media items in metadata.media for entry ${originalId}');
           }
         }
       }
       
-      // Create the journal entry
-      return JournalEntry(
-        id: originalId,
-        title: title,
-        content: content,
-        createdAt: createdAt,
-        updatedAt: updatedAt,
-        tags: (keywords?.cast<String>().toList()) ?? [],
-        keywords: (keywords?.cast<String>().toList()) ?? [],
-        mood: emotion ?? '',
-        emotion: emotion,
-        emotionReason: emotionReason,
-        phase: phase,
-        media: mediaItems,
-        metadata: {
-          'imported_from_arcx': true,
-          'original_node_id': nodeId,
-          'import_timestamp': DateTime.now().toIso8601String(),
-          ...?metadata,
-        },
-      );
-    } catch (e) {
+      // Fallback 2: Check metadata.journal_entry.media
+      if (mediaData == null || mediaData.isEmpty) {
+        final metadataObj = nodeJson['metadata'] as Map<String, dynamic>?;
+        if (metadataObj != null) {
+          final journalEntryMeta = metadataObj['journal_entry'] as Map<String, dynamic>?;
+          if (journalEntryMeta != null) {
+            mediaData = journalEntryMeta['media'] as List<dynamic>?;
+            if (mediaData != null && mediaData.isNotEmpty) {
+              print('ARCX Import: 📝 Found ${mediaData.length} media items in metadata.journal_entry.media for entry ${originalId}');
+            }
+          }
+        }
+      }
+      
+      // Fallback 3: Check metadata.photos
+      if (mediaData == null || mediaData.isEmpty) {
+        final metadataObj = nodeJson['metadata'] as Map<String, dynamic>?;
+        if (metadataObj != null) {
+          final photosData = metadataObj['photos'] as List<dynamic>?;
+          if (photosData != null && photosData.isNotEmpty) {
+            print('ARCX Import: 📝 Found ${photosData.length} photos in metadata.photos for entry ${originalId}');
+            // Convert photos array to media format
+            mediaData = photosData.map((photo) {
+              if (photo is Map<String, dynamic>) {
+                return {
+                  'id': photo['id'] ?? photo['placeholder_id'] ?? '',
+                  'filename': photo['filename'],
+                  'originalPath': photo['uri'] ?? photo['path'],
+                  'createdAt': photo['createdAt'] ?? photo['created_at'],
+                  'analysisData': photo['analysisData'] ?? photo['analysis_data'],
+                  'altText': photo['altText'] ?? photo['alt_text'],
+                  'ocrText': photo['ocrText'] ?? photo['ocr_text'],
+                  'sha256': photo['sha256'],
+                };
+              }
+              return photo;
+            }).toList();
+          }
+        }
+      }
+      
+      mediaData ??= [];
+      
+      if (mediaData.isNotEmpty) {
+        print('ARCX Import: 📝 Processing entry ${originalId} with ${mediaData.length} media items');
+      } else {
+        print('ARCX Import: 📝 Processing entry ${originalId} with NO media items');
+      }
+      
+      for (final mediaJson in mediaData) {
+        if (mediaJson is Map<String, dynamic>) {
+          try {
+            // Try to enhance media JSON with photo metadata if available
+            final mediaId = mediaJson['id'] as String?;
+            Map<String, dynamic> enhancedMediaJson = mediaJson;
+            if (mediaId != null && photoMetadataMap.containsKey(mediaId)) {
+              final metadataObj = photoMetadataMap[mediaId]!;
+              // Merge metadata into mediaJson, preferring metadata values
+              enhancedMediaJson = {
+                ...mediaJson,
+                // Use metadata values if mediaJson doesn't have them
+                'filename': mediaJson['filename'] ?? metadataObj['filename'],
+                'sha256': mediaJson['sha256'] ?? metadataObj['sha256'],
+                'originalPath': mediaJson['originalPath'] ?? metadataObj['originalPath'],
+                'createdAt': mediaJson['createdAt'] ?? metadataObj['createdAt'],
+                'analysisData': mediaJson['analysisData'] ?? metadataObj['analysisData'],
+                'altText': mediaJson['altText'] ?? metadataObj['altText'],
+                'ocrText': mediaJson['ocrText'] ?? metadataObj['ocrText'],
+              };
+              print('ARCX Import: 📋 Enhanced media ${mediaId} with metadata from photo metadata file');
+            }
+            
+            final mediaItem = await _createMediaItemFromJson(
+              enhancedMediaJson, 
+              photoMapping, 
+              originalId,
+            );
+            if (mediaItem != null) {
+              // Check cache for deduplication
+              final cacheKey = mediaItem.uri;
+              if (_mediaCache.containsKey(cacheKey)) {
+                final cachedMediaItem = _mediaCache[cacheKey]!;
+                mediaItems.add(cachedMediaItem);
+                print('ARCX Import: ♻️ Reusing cached media: ${cachedMediaItem.id} -> $cacheKey');
+              } else {
+                _mediaCache[cacheKey] = mediaItem;
+                mediaItems.add(mediaItem);
+                print('ARCX Import: ✅ Added media item ${mediaItem.id} to entry ${originalId}');
+              }
+            } else {
+              print('ARCX Import: ⚠️ Failed to create media item for entry ${originalId}');
+            }
+          } catch (e, stackTrace) {
+            print('ARCX Import: ⚠️ ERROR creating media item for entry ${originalId}: $e');
+            print('   Stack trace: $stackTrace');
+            // Continue processing other media items - don't let one failure stop the entry
+          }
+        }
+      }
+      
+      if (mediaData.length > 0 && mediaItems.isEmpty) {
+        print('ARCX Import: ⚠️ Entry ${originalId} had ${mediaData.length} media items but none could be mapped!');
+        print('   Photo mapping contains ${photoMapping.length} photos');
+        print('   First media item filename: ${mediaData[0] is Map ? (mediaData[0] as Map<String, dynamic>)['filename'] : 'N/A'}');
+      }
+      
+      // IMPORTANT: Always import the entry, even if media items failed
+      print('ARCX Import: 📝 Creating journal entry $originalId with ${mediaItems.length}/${mediaData.length} media items');
+      
+      // Create journal entry
+      JournalEntry journalEntry;
+      try {
+        journalEntry = JournalEntry(
+          id: originalId,
+          title: title,
+          content: content,
+          createdAt: createdAt,
+          updatedAt: updatedAt,
+          media: mediaItems,
+          tags: (keywords?.cast<String>().toList()) ?? [],
+          keywords: (keywords?.cast<String>().toList()) ?? [],
+          mood: emotion ?? '',
+          emotion: emotion,
+          emotionReason: emotionReason,
+          phase: phase,
+          metadata: {
+            'imported_from_arcx': true,
+            'original_node_id': nodeId,
+            'import_timestamp': DateTime.now().toIso8601String(),
+            ...?metadata,
+          },
+        );
+        print('ARCX Import: ✅ Successfully created JournalEntry object for $originalId');
+      } catch (e, stackTrace) {
+        print('ARCX Import: ❌ ERROR: Failed to create JournalEntry object for $originalId: $e');
+        print('   Stack trace: $stackTrace');
+        rethrow; // Re-throw to be caught by outer try-catch
+      }
+      
+      return journalEntry;
+    } catch (e, stackTrace) {
       print('ARCX Import: Failed to convert MCP node to journal entry: $e');
+      print('   Stack trace: $stackTrace');
       return null;
+    }
+  }
+  
+  /// Create MediaItem from JSON with photo mapping (robust version with multiple fallbacks)
+  Future<MediaItem?> _createMediaItemFromJson(
+    Map<String, dynamic> mediaJson,
+    Map<String, String> photoMapping,
+    String entryId,
+  ) async {
+    try {
+      // Extract media ID (try multiple field names)
+      final mediaId = mediaJson['id'] as String? ?? 
+                      mediaJson['photo_id'] as String? ?? 
+                      mediaJson['placeholder_id'] as String? ?? 
+                      '';
+      
+      if (mediaId.isEmpty) {
+        print('ARCX Import: ⚠️ Media item missing ID field for entry $entryId');
+        print('   Available keys: ${mediaJson.keys.join(', ')}');
+      }
+      
+      // Try multiple ways to find the filename
+      String? filename = mediaJson['filename'] as String?;
+      if (filename == null || filename.isEmpty) {
+        // Try alternative field names
+        filename = mediaJson['file_name'] as String?;
+        if (filename == null || filename.isEmpty) {
+          filename = mediaJson['name'] as String?;
+        }
+      }
+
+      // Try to get permanent path from mapping
+      String? permanentPath;
+      if (filename != null && filename.isNotEmpty) {
+        permanentPath = photoMapping[filename];
+        if (permanentPath == null) {
+          // Try matching by SHA-256 if filename doesn't match
+          final sha256 = mediaJson['sha256'] as String?;
+          if (sha256 != null && sha256.isNotEmpty) {
+            // Look for photo file that matches SHA-256
+            for (final entry in photoMapping.entries) {
+              if (entry.key.contains(sha256.substring(0, 8))) {
+                permanentPath = entry.value;
+                print('ARCX Import: 🔗 Matched photo by SHA-256 prefix: ${sha256.substring(0, 8)}...');
+                break;
+              }
+            }
+          }
+        }
+      }
+
+      // Determine final URI (try multiple fallbacks)
+      String finalUri;
+      if (permanentPath != null) {
+        finalUri = permanentPath;
+      } else {
+        // Fallback 1: Try originalPath
+        final originalPath = mediaJson['originalPath'] as String? ?? 
+                             mediaJson['original_path'] as String? ??
+                             mediaJson['uri'] as String? ??
+                             mediaJson['path'] as String?;
+        
+        if (originalPath != null && originalPath.isNotEmpty) {
+          finalUri = originalPath;
+          print('ARCX Import:   Using originalPath/uri as fallback: $originalPath');
+        } else {
+          // Fallback 2: Try to construct from filename if available
+          if (filename != null && filename.isNotEmpty) {
+            final appDir = await getApplicationDocumentsDirectory();
+            final photosDir = Directory(path.join(appDir.path, 'photos'));
+            final constructedPath = path.join(photosDir.path, filename);
+            if (await File(constructedPath).exists()) {
+              finalUri = constructedPath;
+              print('ARCX Import:   Found photo at constructed path: $constructedPath');
+            } else {
+              // Last resort: placeholder URI
+              finalUri = 'placeholder://$mediaId';
+              print('ARCX Import: ⚠️ Could not find photo file, using placeholder: $finalUri');
+            }
+          } else {
+            // Last resort: placeholder URI
+            finalUri = 'placeholder://$mediaId';
+            print('ARCX Import: ⚠️ No filename or path found, using placeholder: $finalUri');
+          }
+        }
+      }
+
+      // Extract analysis data (try multiple field names)
+      Map<String, dynamic>? analysisData = mediaJson['analysisData'] as Map<String, dynamic>?;
+      if (analysisData == null) {
+        analysisData = mediaJson['analysis_data'] as Map<String, dynamic>?;
+      }
+      if (analysisData == null && mediaJson.containsKey('features')) {
+        analysisData = {'features': mediaJson['features']};
+      }
+
+      // Extract kind/type for MediaType
+      final kind = mediaJson['kind'] as String? ?? 
+                   mediaJson['type'] as String? ?? 
+                   'photo';
+      
+      final mediaType = kind == 'photo' || kind == 'image'
+          ? MediaType.image
+          : kind == 'video'
+              ? MediaType.video
+              : kind == 'audio'
+                  ? MediaType.audio
+                  : MediaType.image; // Default to image
+
+      return MediaItem(
+        id: mediaId,
+        type: mediaType,
+        uri: finalUri,
+        createdAt: _parseMediaTimestamp(
+          mediaJson['createdAt'] as String? ?? 
+          mediaJson['created_at'] as String?
+        ),
+        analysisData: analysisData,
+        altText: mediaJson['altText'] as String? ?? 
+                 mediaJson['alt_text'] as String?,
+        ocrText: mediaJson['ocrText'] as String? ?? 
+                 mediaJson['ocr_text'] as String?,
+        sha256: null, // Clear SHA256 - these are file-based media now, not MCP content-addressed
+      );
+    } catch (e, stackTrace) {
+      print('ARCX Import: ⚠️ Failed to create MediaItem: $e');
+      print('   Stack trace: $stackTrace');
+      print('   Media JSON keys: ${mediaJson.keys.join(', ')}');
+      return null;
+    }
+  }
+  
+  /// Parse timestamp with robust handling of different formats
+  DateTime _parseTimestamp(String timestamp) {
+    try {
+      // Handle malformed timestamps missing 'Z' suffix
+      if (timestamp.endsWith('.000') && !timestamp.endsWith('Z')) {
+        // Add 'Z' suffix for UTC timezone
+        timestamp = '${timestamp}Z';
+      } else if (!timestamp.endsWith('Z') && !timestamp.contains('+') && !timestamp.contains('-', 10)) {
+        // If no timezone indicator, assume UTC and add 'Z'
+        timestamp = '${timestamp}Z';
+      }
+      
+      return DateTime.parse(timestamp);
+    } catch (e) {
+      print('ARCX Import: ⚠️ Failed to parse timestamp "$timestamp": $e');
+      // Fallback to current time if parsing fails
+      return DateTime.now();
+    }
+  }
+
+  /// Parse media timestamp with robust handling (can be null)
+  DateTime _parseMediaTimestamp(String? timestamp) {
+    if (timestamp == null || timestamp.isEmpty) {
+      return DateTime.now();
+    }
+    try {
+      return _parseTimestamp(timestamp);
+    } catch (e) {
+      print('ARCX Import: ⚠️ Failed to parse media timestamp "$timestamp": $e, using current time');
+      return DateTime.now();
     }
   }
 
@@ -490,3 +798,4 @@ class ARCXImportService {
     return mcpId;
   }
 }
+

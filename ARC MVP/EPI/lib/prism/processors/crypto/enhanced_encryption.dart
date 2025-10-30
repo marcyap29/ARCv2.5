@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:math';
 import 'dart:typed_data';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:cryptography/cryptography.dart';
 
 /// Enhanced encryption service with DEK/KEK architecture and key rotation
 class EnhancedEncryptionService {
@@ -96,7 +97,7 @@ class EnhancedEncryptionService {
     return dekInfo;
   }
 
-  /// Encrypt DEK with KEK
+  /// Encrypt DEK with KEK using AES-256-GCM
   static Future<EncryptedDEK> _encryptDEKWithKEK(Uint8List plainDEK) async {
     final kekBase64 = await _secureStorage.read(key: _kekKeyId);
     if (kekBase64 == null) {
@@ -104,20 +105,24 @@ class EnhancedEncryptionService {
     }
     
     final kek = base64.decode(kekBase64);
-    final iv = _generateRandomBytes(_ivLengthBytes);
+    final algorithm = AesGcm.with256bits();
+    final secretKey = SecretKey(kek);
+    final nonce = algorithm.newNonce();
     
-    // Simple XOR-based encryption (placeholder for AES-GCM)
-    final encrypted = _xorEncrypt(plainDEK, kek, iv);
-    final tag = _generateRandomBytes(_tagLengthBytes); // Placeholder MAC
+    final secretBox = await algorithm.encrypt(
+      plainDEK,
+      secretKey: secretKey,
+      nonce: nonce,
+    );
     
     return EncryptedDEK(
-      ciphertext: encrypted,
-      iv: iv,
-      tag: tag,
+      ciphertext: Uint8List.fromList(secretBox.cipherText),
+      iv: Uint8List.fromList(secretBox.nonce),
+      tag: Uint8List.fromList(secretBox.mac.bytes),
     );
   }
 
-  /// Decrypt DEK with KEK
+  /// Decrypt DEK with KEK using AES-256-GCM
   static Future<Uint8List> _decryptDEKWithKEK(EncryptedDEK encryptedDEK) async {
     final kekBase64 = await _secureStorage.read(key: _kekKeyId);
     if (kekBase64 == null) {
@@ -125,9 +130,20 @@ class EnhancedEncryptionService {
     }
     
     final kek = base64.decode(kekBase64);
+    final algorithm = AesGcm.with256bits();
+    final secretKey = SecretKey(kek);
     
-    // Simple XOR-based decryption (placeholder for AES-GCM)
-    return _xorDecrypt(encryptedDEK.ciphertext, kek, encryptedDEK.iv);
+    // Rebuild SecretBox from stored values
+    final secretBox = SecretBox(
+      encryptedDEK.ciphertext,
+      nonce: encryptedDEK.iv,
+      mac: Mac(encryptedDEK.tag),
+    );
+    
+    return Uint8List.fromList(await algorithm.decrypt(
+      secretBox,
+      secretKey: secretKey,
+    ));
   }
 
   /// Store DEK information
@@ -181,7 +197,7 @@ class EnhancedEncryptionService {
     print('EnhancedEncryptionService: Scheduled re-encryption task $taskId');
   }
 
-  /// Encrypt data with content-specific DEK
+  /// Encrypt data with content-specific DEK using AES-256-GCM
   static Future<EnhancedEncryptedData> encrypt(
     Uint8List plaintext,
     String contentId,
@@ -190,18 +206,24 @@ class EnhancedEncryptionService {
       final dekInfo = await _getOrCreateDEK(contentId);
       final plainDEK = await _decryptDEKWithKEK(dekInfo.encryptedDEK);
       
-      final iv = _generateRandomBytes(_ivLengthBytes);
-      final encrypted = _xorEncrypt(plaintext, plainDEK, iv);
-      final tag = _generateRandomBytes(_tagLengthBytes); // Placeholder MAC
+      final algorithm = AesGcm.with256bits();
+      final secretKey = SecretKey(plainDEK);
+      final nonce = algorithm.newNonce();
+      
+      final secretBox = await algorithm.encrypt(
+        plaintext,
+        secretKey: secretKey,
+        nonce: nonce,
+      );
       
       // Update last used timestamp
       final updatedDEK = dekInfo.copyWith(lastUsed: DateTime.now());
       await _storeDEK(contentId, updatedDEK);
       
       return EnhancedEncryptedData(
-        ciphertext: encrypted,
-        iv: iv,
-        tag: tag,
+        ciphertext: Uint8List.fromList(secretBox.cipherText),
+        iv: Uint8List.fromList(secretBox.nonce),
+        tag: Uint8List.fromList(secretBox.mac.bytes),
         keyId: dekInfo.keyId,
         algorithm: 'AES-GCM',
       );
@@ -210,7 +232,7 @@ class EnhancedEncryptionService {
     }
   }
 
-  /// Decrypt data using specified key ID
+  /// Decrypt data using specified key ID with AES-256-GCM
   static Future<Uint8List> decrypt(
     EnhancedEncryptedData encryptedData,
     String contentId,
@@ -224,14 +246,46 @@ class EnhancedEncryptionService {
         final oldDEK = await _findDEKByKeyId(encryptedData.keyId);
         if (oldDEK != null) {
           final plainDEK = await _decryptDEKWithKEK(oldDEK.encryptedDEK);
-          return _xorDecrypt(encryptedData.ciphertext, plainDEK, encryptedData.iv);
+          
+          // Use AES-256-GCM for proper decryption
+          final algorithm = AesGcm.with256bits();
+          final secretKey = SecretKey(plainDEK);
+          final nonce = encryptedData.iv;
+          final mac = Mac(encryptedData.tag);
+          
+          final secretBox = SecretBox(
+            encryptedData.ciphertext,
+            nonce: nonce,
+            mac: mac,
+          );
+          
+          return Uint8List.fromList(await algorithm.decrypt(
+            secretBox,
+            secretKey: secretKey,
+          ));
         } else {
           throw EncryptionException('Key not found: ${encryptedData.keyId}');
         }
       }
       
       final plainDEK = await _decryptDEKWithKEK(dekInfo.encryptedDEK);
-      return _xorDecrypt(encryptedData.ciphertext, plainDEK, encryptedData.iv);
+      
+      // Use AES-256-GCM for proper decryption
+      final algorithm = AesGcm.with256bits();
+      final secretKey = SecretKey(plainDEK);
+      final nonce = encryptedData.iv;
+      final mac = Mac(encryptedData.tag);
+      
+      final secretBox = SecretBox(
+        encryptedData.ciphertext,
+        nonce: nonce,
+        mac: mac,
+      );
+      
+      return Uint8List.fromList(await algorithm.decrypt(
+        secretBox,
+        secretKey: secretKey,
+      ));
     } catch (e) {
       throw EncryptionException('Failed to decrypt data: $e');
     }
@@ -321,34 +375,6 @@ class EnhancedEncryptionService {
     return bytes;
   }
 
-  /// Simple XOR encryption (placeholder for AES-GCM)
-  static Uint8List _xorEncrypt(Uint8List plaintext, Uint8List key, Uint8List iv) {
-    final keyStream = _generateKeyStream(key, iv, plaintext.length);
-    final encrypted = Uint8List(plaintext.length);
-    
-    for (int i = 0; i < plaintext.length; i++) {
-      encrypted[i] = plaintext[i] ^ keyStream[i];
-    }
-    
-    return encrypted;
-  }
-
-  /// Simple XOR decryption (placeholder for AES-GCM)
-  static Uint8List _xorDecrypt(Uint8List ciphertext, Uint8List key, Uint8List iv) {
-    return _xorEncrypt(ciphertext, key, iv); // XOR is symmetric
-  }
-
-  /// Generate key stream for XOR operation
-  static Uint8List _generateKeyStream(Uint8List key, Uint8List iv, int length) {
-    final keyStream = Uint8List(length);
-    final combined = Uint8List.fromList([...key, ...iv]);
-    
-    for (int i = 0; i < length; i++) {
-      keyStream[i] = combined[i % combined.length] ^ (i & 0xFF);
-    }
-    
-    return keyStream;
-  }
 
   /// Get encryption status and statistics
   static Future<EncryptionStats> getStats() async {

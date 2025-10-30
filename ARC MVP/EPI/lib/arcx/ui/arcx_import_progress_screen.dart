@@ -10,7 +10,7 @@ import 'package:provider/provider.dart';
 import 'package:archive/archive.dart';
 import '../../shared/app_colors.dart';
 import '../../shared/text_style.dart';
-import '../../arc/core/journal_repository.dart';
+import 'package:my_app/arc/core/journal_repository.dart';
 import '../services/arcx_import_service.dart';
 import '../models/arcx_result.dart';
 

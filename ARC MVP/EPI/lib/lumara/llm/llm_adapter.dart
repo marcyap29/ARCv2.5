@@ -245,6 +245,16 @@ class LLMAdapter implements ModelAdapter {
     }
   }
 
+  /// Check if a model is available (downloaded)
+  static Future<bool> isModelAvailable(String modelId) async {
+    try {
+      return await _nativeApi.isModelDownloaded(modelId);
+    } catch (e) {
+      debugPrint('[LLMAdapter] Error checking model availability: $e');
+      return false;
+    }
+  }
+
   @override
   Stream<String> realize({
     required String task,
