@@ -315,43 +315,87 @@ class McpPackImportService {
           }
           
           // IMPORTANT: Always import the entry, even if media items failed
-          print('📝 Creating journal entry ${entryJson['id']} with ${mediaItems.length}/${mediaData.length} media items');
+          final entryId = entryJson['id'] as String? ?? 'unknown';
+          print('📝 Creating journal entry $entryId with ${mediaItems.length}/${mediaData.length} media items');
+          
+          // Special logging for entries 23, 24, 25
+          if (entryId.contains('da055a24') || entryId.contains('ee12c32f') || entryId.contains('f25f9d72')) {
+            print('🔍 DEBUG: Processing entry $entryId (entry 23/24/25)');
+            print('   Media items processed: ${mediaItems.length}');
+            print('   Media items data: ${mediaData.length}');
+            for (int i = 0; i < mediaItems.length; i++) {
+              print('   Media[$i]: id=${mediaItems[i].id}, uri=${mediaItems[i].uri}');
+            }
+          }
 
           // Create journal entry
-          final journalEntry = JournalEntry(
-            id: entryJson['id'] as String,
-            title: _generateTitle(entryJson['content'] as String? ?? ''),
-            content: entryJson['content'] as String? ?? '',
-            createdAt: _parseTimestamp(entryJson['timestamp'] as String),
-            updatedAt: _parseTimestamp(entryJson['timestamp'] as String),
-            media: mediaItems,
-            tags: (entryJson['keywords'] as List<dynamic>? ?? []).cast<String>(),
-            keywords: (entryJson['keywords'] as List<dynamic>? ?? []).cast<String>(),
-            mood: entryJson['emotion'] as String? ?? 'Neutral',
-            emotion: entryJson['emotion'] as String?,
-            emotionReason: entryJson['emotionReason'] as String?,
-            metadata: {
-              'imported_from_mcp': true,
-              'original_mcp_id': entryJson['id'],
-              'import_timestamp': DateTime.now().toIso8601String(),
-              'phase': entryJson['phase'],
-              ...?entryJson['metadata'] as Map<String, dynamic>?,
-            },
-          );
+          JournalEntry journalEntry;
+          try {
+            journalEntry = JournalEntry(
+              id: entryId,
+              title: _generateTitle(entryJson['content'] as String? ?? ''),
+              content: entryJson['content'] as String? ?? '',
+              createdAt: _parseTimestamp(entryJson['timestamp'] as String),
+              updatedAt: _parseTimestamp(entryJson['timestamp'] as String),
+              media: mediaItems,
+              tags: (entryJson['keywords'] as List<dynamic>? ?? []).cast<String>(),
+              keywords: (entryJson['keywords'] as List<dynamic>? ?? []).cast<String>(),
+              mood: entryJson['emotion'] as String? ?? 'Neutral',
+              emotion: entryJson['emotion'] as String?,
+              emotionReason: entryJson['emotionReason'] as String?,
+              metadata: {
+                'imported_from_mcp': true,
+                'original_mcp_id': entryId,
+                'import_timestamp': DateTime.now().toIso8601String(),
+                'phase': entryJson['phase'],
+                ...?entryJson['metadata'] as Map<String, dynamic>?,
+              },
+            );
+            print('✅ Successfully created JournalEntry object for $entryId');
+          } catch (e, stackTrace) {
+            print('❌ ERROR: Failed to create JournalEntry object for $entryId: $e');
+            print('   Stack trace: $stackTrace');
+            rethrow; // Re-throw to be caught by outer try-catch
+          }
 
           // Save to journal repository
           if (_journalRepo != null) {
             try {
+              // Special logging for entries 23, 24, 25
+              if (entryId.contains('da055a24') || entryId.contains('ee12c32f') || entryId.contains('f25f9d72')) {
+                print('🔍 DEBUG: About to save entry $entryId to repository');
+                print('   Entry has ${journalEntry.media.length} media items');
+              }
+              
               await _journalRepo!.createJournalEntry(journalEntry);
               entriesImported++;
+              
+              // Special logging for entries 23, 24, 25
+              if (entryId.contains('da055a24') || entryId.contains('ee12c32f') || entryId.contains('f25f9d72')) {
+                print('🔍 DEBUG: Successfully saved entry $entryId to repository');
+              }
+              
               print('✅ Successfully imported entry ${journalEntry.id}: ${journalEntry.title} (${mediaItems.length} media items)');
             } catch (e, stackTrace) {
               print('❌ ERROR: Failed to save entry ${journalEntry.id} to repository: $e');
               print('   Stack trace: $stackTrace');
+              
+              // Special logging for entries 23, 24, 25
+              if (entryId.contains('da055a24') || entryId.contains('ee12c32f') || entryId.contains('f25f9d72')) {
+                print('🔍 DEBUG: Entry $entryId FAILED to save - this is entry 23/24/25!');
+                print('   Exception type: ${e.runtimeType}');
+                print('   Exception message: $e');
+              }
+              
               // Continue processing other entries even if this one fails
             }
           } else {
             print('⚠️ Warning: No journal repository available, skipping entry ${journalEntry.id}');
+            
+            // Special logging for entries 23, 24, 25
+            if (entryId.contains('da055a24') || entryId.contains('ee12c32f') || entryId.contains('f25f9d72')) {
+              print('🔍 DEBUG: Entry $entryId skipped - NO JOURNAL REPOSITORY!');
+            }
           }
 
         } catch (e, stackTrace) {
