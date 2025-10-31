@@ -292,12 +292,32 @@ class McpPackExportService {
     final mediaType = media.type; // image, video, audio, file
 
     // Check if this is a permanent file path
-    if (media.uri.startsWith('/') && !media.uri.startsWith('ph://')) {
-      // This is a permanent file path
+    // Try file path first if it doesn't start with ph://, placeholder://, or mcp://
+    final isUriScheme = media.uri.startsWith('ph://') || 
+                       media.uri.startsWith('placeholder://') || 
+                       media.uri.startsWith('mcp://') ||
+                       media.uri.startsWith('file://');
+    
+    if (!isUriScheme) {
+      // This is a file path (absolute or relative)
       final file = File(media.uri);
       if (await file.exists()) {
         originalBytes = await file.readAsBytes();
         originalFormat = _getFileExtension(media.uri);
+        print('McpPackExportService: ✓ Got bytes from file path: ${media.uri} (${originalBytes.length} bytes)');
+      } else {
+        print('McpPackExportService: ⚠️ File does not exist: ${media.uri}');
+      }
+    } else if (media.uri.startsWith('file://')) {
+      // Handle file:// URI scheme
+      final filePath = media.uri.replaceFirst('file://', '');
+      final file = File(filePath);
+      if (await file.exists()) {
+        originalBytes = await file.readAsBytes();
+        originalFormat = _getFileExtension(filePath);
+        print('McpPackExportService: ✓ Got bytes from file:// URI: $filePath (${originalBytes.length} bytes)');
+      } else {
+        print('McpPackExportService: ⚠️ File does not exist: $filePath');
       }
     } else if (PhotoBridge.isPhotoLibraryUri(media.uri)) {
       // Get bytes from photo library (for photos and videos)

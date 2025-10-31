@@ -59,9 +59,35 @@ class ARCXExportService {
           bundleId: 'arcx_${DateTime.now().millisecondsSinceEpoch}',
           outputPath: path.join(tempDir.path, 'mcp.zip'),
         );
+        // Determine if we should include photos by checking entries directly
+        // (McpPackExportService reads from entry.media, not from mediaFiles parameter)
+        // The mediaFiles parameter is used for other purposes, but photos are read from entry.media
+        final hasPhotosInEntries = journalEntries.any((entry) => 
+          entry.media.any((m) => m.type == MediaType.image)
+        );
+        
+        print('ARCX Export: Checking for photos...');
+        print('  - Entries with photos: $hasPhotosInEntries');
+        print('  - Total entries: ${journalEntries.length}');
+        print('  - Entries with media: ${journalEntries.where((e) => e.media.isNotEmpty).length}');
+        print('  - Total media files passed: ${mediaFiles?.length ?? 0}');
+        
+        // Use hasPhotosInEntries as primary check - this is what McpPackExportService actually uses
+        final shouldIncludePhotos = hasPhotosInEntries || (mediaFiles != null && mediaFiles.isNotEmpty);
+        
+        if (!shouldIncludePhotos && journalEntries.isNotEmpty) {
+          print('ARCX Export: ⚠️ WARNING - No photos found but entries exist. Checking first entry media...');
+          if (journalEntries.first.media.isNotEmpty) {
+            print('ARCX Export: First entry has ${journalEntries.first.media.length} media items');
+            for (final media in journalEntries.first.media) {
+              print('ARCX Export:   - Media ID: ${media.id}, Type: ${media.type}, URI: ${media.uri}');
+            }
+          }
+        }
+        
         final mcpResult = await mcpPackService.exportJournal(
           entries: journalEntries,
-          includePhotos: mediaFiles != null && mediaFiles.isNotEmpty,
+          includePhotos: shouldIncludePhotos,
           reducePhotoSize: false,
         );
         
@@ -88,6 +114,10 @@ class ARCXExportService {
                 await extractedDir.create(recursive: true);
               }
               await File(extractedPath).writeAsBytes(file.content);
+              // Debug: Log photo file extractions
+              if (file.name.contains('media/photos/') || file.name.contains('photos/')) {
+                print('ARCX Export: Extracted photo file: ${file.name} -> ${extractedPath}');
+              }
             }
           }
           
@@ -185,8 +215,14 @@ class ARCXExportService {
           }
           
           // Read photo metadata from individual JSON files
-          final photoDir = Directory(path.join(nodesDir.path, 'media', 'photo'));
+          // Try both 'photo' (singular) and 'photos' (plural) directories for compatibility
+          var photoDir = Directory(path.join(nodesDir.path, 'media', 'photos'));
+          if (!await photoDir.exists()) {
+            photoDir = Directory(path.join(nodesDir.path, 'media', 'photo'));
+          }
+          
           if (await photoDir.exists()) {
+            print('ARCX Export: Reading photo nodes from: ${photoDir.path}');
             final photoEntries = await photoDir.list().toList();
             for (final entry in photoEntries) {
               if (entry is File && entry.path.endsWith('.json')) {
@@ -203,6 +239,40 @@ class ARCXExportService {
                 photoNodes.add(json);
               }
             }
+            print('ARCX Export: Found ${photoNodes.length} photo nodes in ${photoDir.path}');
+          } else {
+            print('ARCX Export: ⚠️ Photo directory not found at ${photoDir.path}');
+            // Try searching recursively for photo node JSON files
+            print('ARCX Export: Searching for photo nodes recursively...');
+            final allFiles = await nodesDir.list(recursive: true).toList();
+            int foundNodes = 0;
+            for (final file in allFiles) {
+              if (file is File && 
+                  file.path.contains('media') && 
+                  file.path.endsWith('.json') &&
+                  (file.path.contains('photo') || file.path.contains('image'))) {
+                try {
+                  var json = jsonDecode(await file.readAsString()) as Map<String, dynamic>;
+                  final kind = json['kind'] as String? ?? json['type'] as String?;
+                  if (kind == 'photo' || kind == 'image') {
+                    if (removePii) {
+                      json = _removePiiFromPhotoNode(json);
+                    }
+                    if (dateOnlyTimestamps) {
+                      json = _clampTimestampsInPhotoNode(json);
+                    }
+                    if (!includePhotoLabels) {
+                      json = _stripPhotoLabelsFromPhotoNode(json);
+                    }
+                    photoNodes.add(json);
+                    foundNodes++;
+                  }
+                } catch (e) {
+                  print('ARCX Export: Error parsing photo node at ${file.path}: $e');
+                }
+              }
+            }
+            print('ARCX Export: Found $foundNodes photo nodes via recursive search');
           }
           
           print('ARCX Export: Extracted ${journalNodes.length} journal nodes, ${photoNodes.length} photo nodes');
@@ -266,12 +336,38 @@ class ARCXExportService {
           // Copy photo file if filename is available
           final filename = node['filename'] as String?;
           if (filename != null) {
-            final sourcePhotoFile = File(path.join(tempDir.path, 'media', 'photos', filename));
+            // Try multiple possible locations for source photo file
+            // 1. mcp/media/photos/ (if extracted from ZIP with mcp/ prefix)
+            var sourcePhotoFile = File(path.join(tempDir.path, 'mcp', 'media', 'photos', filename));
+            // 2. media/photos/ (if extracted without mcp/ prefix)
+            if (!await sourcePhotoFile.exists()) {
+              sourcePhotoFile = File(path.join(tempDir.path, 'media', 'photos', filename));
+            }
+            // 3. Check if extracted files are in a different structure
+            if (!await sourcePhotoFile.exists()) {
+              // Search for the file recursively in tempDir
+              final allFiles = await tempDir.list(recursive: true).toList();
+              for (final file in allFiles) {
+                if (file is File && path.basename(file.path) == filename) {
+                  sourcePhotoFile = file;
+                  print('ARCX Export: Found photo file at: ${file.path}');
+                  break;
+                }
+              }
+            }
+            
             if (await sourcePhotoFile.exists()) {
               final destPhotoFile = File(path.join(payloadPhotosDir.path, filename));
               await sourcePhotoFile.copy(destPhotoFile.path);
-              print('ARCX Export: Copied photo file: $filename');
+              print('ARCX Export: ✓ Copied photo file: $filename (${await sourcePhotoFile.length()} bytes)');
+            } else {
+              print('ARCX Export: ⚠️ Photo file not found: $filename');
+              print('ARCX Export:   Checked locations:');
+              print('ARCX Export:     1. ${path.join(tempDir.path, "mcp", "media", "photos", filename)}');
+              print('ARCX Export:     2. ${path.join(tempDir.path, "media", "photos", filename)}');
             }
+          } else {
+            print('ARCX Export: ⚠️ Photo node ${nodeId} has no filename field');
           }
         }
 

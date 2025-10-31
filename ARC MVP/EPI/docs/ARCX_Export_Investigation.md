@@ -435,6 +435,35 @@ To verify what health data was exported:
 
 ---
 
+## 10. Recent Fixes (October 31, 2025)
+
+### Photo Directory Mismatch Fix
+
+**Issue**: Photos were not being included in ARCX exports despite being processed successfully by `McpPackExportService`.
+
+**Root Cause**: Directory name mismatch between export services:
+- `McpPackExportService` writes photo node JSONs to `nodes/media/photos/` (plural)
+- `ARCXExportService` was reading from `nodes/media/photo/` (singular)
+
+**Fix Applied**:
+- Updated `ARCXExportService.exportSecure()` to check `nodes/media/photos/` (plural) first
+- Added fallback to `nodes/media/photo/` (singular) for backward compatibility
+- Added recursive search if neither directory exists
+- Enhanced logging throughout photo detection and copying process
+
+**Result**: 
+- Photos now correctly included in exports
+- Archive sizes match expected values (75MB+ instead of 368KB)
+- All photos restored during import
+
+**Files Modified**:
+- `lib/arcx/services/arcx_export_service.dart` - Fixed photo node directory path
+- `lib/core/mcp/export/mcp_pack_export_service.dart` - Enhanced file path handling
+
+**Documentation**: See `docs/bugtracker/records/arcx-export-photo-directory-mismatch.md`
+
+---
+
 ## Conclusion
 
 ARCX is a **production-ready secure export system** that:

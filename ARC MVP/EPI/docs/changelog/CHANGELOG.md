@@ -1,5 +1,65 @@
 # EPI ARC MVP - Changelog
 
+## [Unreleased] - 2025-10-31
+
+### **Photo Gallery Scroll Feature** - October 31, 2025
+
+#### Major Features
+- **Multi-Photo Gallery Navigation**: Horizontal swiping between photos in journal entries
+  - Smooth PageView-based navigation with independent zoom per photo
+  - Photo counter display in AppBar (e.g., "3 / 7")
+  - Per-photo TransformationController for independent pinch-to-zoom states
+- **Enhanced Photo Opening**: Improved photo viewer integration
+  - Automatically collects all photos from journal entry
+  - Opens at clicked photo's position in gallery
+  - Graceful fallback for entries with no attachments
+
+#### Technical Improvements
+- **Photo Path Resolution**: Fixed path matching inconsistencies
+  - Normalized `file://` URI prefixes for robust comparison
+  - Added fuzzy filename matching as fallback
+  - Enhanced error handling with graceful degradation
+- **Photo Library Support**: Improved `ph://` URI handling
+  - Loads full-resolution images from photo library
+  - Maintains compatibility with both file paths and library URIs
+
+#### Bug Fixes
+- **Photo Linking After ARCX Import**: Fixed broken photo links after importing archives
+  - Path normalization for consistent matching
+  - Fuzzy matching fallback for path variations
+  - Enhanced error handling in `_getPhotoAnalysisText()`
+
+#### Files Modified
+- `lib/ui/journal/widgets/full_screen_photo_viewer.dart` - Added PageView and gallery support
+- `lib/ui/journal/journal_screen.dart` - Enhanced photo opening logic
+
+#### Files Added
+- `docs/features/PHOTO_GALLERY_SCROLL.md` - Complete feature documentation
+
+### **ARCX Export Photo Fix** - October 31, 2025
+
+#### Critical Bug Fix
+- **Photo Directory Mismatch**: Fixed ARCX export failing to include photos
+  - Problem: `McpPackExportService` writes to `nodes/media/photos/` (plural) but `ARCXExportService` read from `nodes/media/photo/` (singular)
+  - Solution: Updated to check both directory names with proper fallback
+  - Result: Photos now correctly included in exports (75MB+ archives instead of 368KB)
+
+#### Technical Improvements
+- **Enhanced Photo Detection**: Improved photo node discovery
+  - Checks plural directory first, falls back to singular
+  - Added recursive search if directories don't exist
+  - Extensive debug logging for troubleshooting
+- **Photo File Copying**: Improved file location detection
+  - Checks multiple possible extraction paths
+  - Recursive search for photo files during packaging
+
+#### Files Modified
+- `lib/arcx/services/arcx_export_service.dart` - Fixed photo directory path
+- `lib/core/mcp/export/mcp_pack_export_service.dart` - Enhanced file path handling
+
+#### Files Added
+- `docs/bugtracker/records/arcx-export-photo-directory-mismatch.md` - Bug fix documentation
+
 ## [Unreleased] - 2025-02-XX
 ### **LUMARA Rich Context Expansion Questions** - February 2025
 

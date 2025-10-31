@@ -1,10 +1,11 @@
 # Bug Tracker - Current Status
 
-**Last Updated:** October 29, 2025
-**Branch:** aurora
-**Status:** Production Ready ✅ - ARCX Image Loading Fixed, Secure Archive System Complete, MediaItem Adapter Registration Fixed, Photo Duplication Fixed, Infinite Rebuild Loop Fixed, Hive Initialization Order Fixed, Insights Tab UI Enhancements Complete
+**Last Updated:** October 31, 2025
+**Branch:** photo-gallery-scroll
+**Status:** Production Ready ✅ - ARCX Export Photo Fix, Photo Gallery Scroll Feature Complete, ARCX Image Loading Fixed, Secure Archive System Complete, MediaItem Adapter Registration Fixed, Photo Duplication Fixed, Infinite Rebuild Loop Fixed, Hive Initialization Order Fixed, Insights Tab UI Enhancements Complete
 
 ## Records Index
+- [ARCX Export Photo Directory Mismatch](./records/arcx-export-photo-directory-mismatch.md)
 - [Timeline Infinite Rebuild Loop](./records/timeline-infinite-rebuild-loop.md)
 - [Hive Initialization Order Errors](./records/hive-initialization-order.md)
 - [Photo Duplication in View Entry](./records/photo-duplication-view-entry.md)
@@ -29,6 +30,46 @@
 - Historical notes moved to `docs/bugtracker/archive/` (including legacy `Bug_Tracker Files/`).
 
 ## 📊 Current Status
+
+### 🐛 ARCX Export Photo Directory Mismatch Fix (October 31, 2025)
+**Fixed critical bug where photos were not included in ARCX exports:**
+- **Problem**: ARCX exports were failing to include photos even though `McpPackExportService` processed them successfully. Archives were only ~368KB instead of 75MB+.
+- **Root Cause**: Directory name mismatch - `McpPackExportService` writes to `nodes/media/photos/` (plural) but `ARCXExportService` was reading from `nodes/media/photo/` (singular).
+- **Impact**: 
+  - Photo exports failed silently (0 photos exported)
+  - Users lost photo data in exports
+  - Archives were significantly smaller than expected
+- **Solution**: 
+  - Updated `ARCXExportService` to check `nodes/media/photos/` (plural) first
+  - Added fallback to `nodes/media/photo/` (singular) for compatibility
+  - Added recursive search if directories don't exist
+  - Enhanced logging throughout photo detection and copying
+- **Technical Fix**:
+  - Modified `lib/arcx/services/arcx_export_service.dart` to check both directory names
+  - Added extensive debug logging to trace photo node discovery
+  - Improved photo file location detection during packaging phase
+- **Files Modified**: 
+  - `lib/arcx/services/arcx_export_service.dart`
+- **Status**: PRODUCTION READY ✅
+- **Testing**: Exports now correctly include all photos. Archive sizes match expected values (75MB+ for entries with photos).
+
+### ✨ Photo Gallery Scroll Feature (October 31, 2025)
+**Enhanced photo gallery with horizontal swiping between multiple images:**
+- **Feature**: Users can now swipe left/right between photos in the same journal entry
+- **Implementation**: 
+  - Refactored `FullScreenPhotoViewer` to use `PageView.builder` for horizontal swiping
+  - Added per-photo `TransformationController` for independent zoom states
+  - Added photo counter in AppBar (e.g., "2 / 5")
+  - Maintained backward compatibility with single-photo use cases
+- **Photo Linking Fix**: 
+  - Fixed path matching inconsistency after ARCX import
+  - Added path normalization for `file://` URI prefixes
+  - Implemented fuzzy filename matching as fallback
+  - Enhanced error handling with graceful fallbacks
+- **Files Modified**: 
+  - `lib/ui/journal/widgets/full_screen_photo_viewer.dart` - Added PageView and gallery support
+  - `lib/ui/journal/journal_screen.dart` - Enhanced photo opening logic with path resolution
+- **Status**: PRODUCTION READY ✅
 
 ### ✨ Insights Tab UI Enhancements (October 29, 2025)
 **Enhanced Insights dashboard with comprehensive information cards:**

@@ -2283,10 +2283,18 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
         return;
       }
       
-      // Find the index of the current photo
+      // Normalize the input imagePath for comparison (remove file:// prefix if present)
+      String normalizedInputPath = imagePath.replaceFirst('file://', '');
+      
+      // Find the index of the current photo by comparing paths (handle both original and resolved paths)
       int currentIndex = 0;
       for (int i = 0; i < photoAttachments.length; i++) {
-        if (photoAttachments[i].imagePath == imagePath) {
+        String attachmentPath = photoAttachments[i].imagePath;
+        String normalizedAttachmentPath = attachmentPath.replaceFirst('file://', '');
+        
+        // Match by exact path or normalized path
+        if (photoAttachments[i].imagePath == imagePath || 
+            normalizedAttachmentPath == normalizedInputPath) {
           currentIndex = i;
           break;
         }
@@ -2303,11 +2311,24 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
           if (fullImagePath != null) {
             actualImagePath = fullImagePath;
           }
+        } else {
+          // For file paths, normalize them (remove file:// prefix)
+          actualImagePath = attachment.imagePath.replaceFirst('file://', '');
+        }
+        
+        // Safely get analysis text - handle errors gracefully
+        String? analysisText;
+        try {
+          analysisText = _getPhotoAnalysisText(attachment.imagePath);
+        } catch (e) {
+          debugPrint('Warning: Could not get analysis text for ${attachment.imagePath}: $e');
+          // Use altText as fallback if available
+          analysisText = attachment.altText;
         }
         
         photos.add(PhotoData(
           imagePath: actualImagePath,
-          analysisText: _getPhotoAnalysisText(attachment.imagePath),
+          analysisText: analysisText,
         ));
       }
       
@@ -2366,13 +2387,39 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
   /// Get analysis text for a photo attachment
   String? _getPhotoAnalysisText(String imagePath) {
     try {
+      // Normalize path for comparison (remove file:// prefix)
+      String normalizedPath = imagePath.replaceFirst('file://', '');
+      
       // Find the matching PhotoAttachment from entry state
-      final photoAttachment = _entryState.attachments
-          .whereType<PhotoAttachment>()
-          .firstWhere(
-            (attachment) => attachment.imagePath == imagePath,
-            orElse: () => throw StateError('Photo not found'),
-          );
+      PhotoAttachment? photoAttachment;
+      try {
+        photoAttachment = _entryState.attachments
+            .whereType<PhotoAttachment>()
+            .firstWhere(
+              (attachment) {
+                String attachmentPath = attachment.imagePath.replaceFirst('file://', '');
+                return attachment.imagePath == imagePath || attachmentPath == normalizedPath;
+              },
+            );
+      } catch (e) {
+        // If exact match fails, try fuzzy matching on filename
+        final filename = imagePath.split('/').last;
+        try {
+          photoAttachment = _entryState.attachments
+              .whereType<PhotoAttachment>()
+              .firstWhere((attachment) {
+                final attachmentFilename = attachment.imagePath.split('/').last;
+                return attachmentFilename == filename;
+              });
+        } catch (e2) {
+          // No matching photo found by filename either
+          photoAttachment = null;
+        }
+      }
+      
+      if (photoAttachment == null) {
+        return null; // Return null instead of throwing
+      }
 
       final analysis = photoAttachment.analysisResult;
       // Use altText (3-5 keywords) instead of full summary
