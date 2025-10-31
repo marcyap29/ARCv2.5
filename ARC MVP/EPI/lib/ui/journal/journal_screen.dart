@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 import 'package:crypto/crypto.dart';
 import 'package:flutter/material.dart';
@@ -2705,6 +2706,23 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
     return buffer.toString().trim();
   }
 
+  /// Build phase hint JSON for ArcLLM
+  String? _buildPhaseHintJson() {
+    final phase = _entryState.phase ?? 'Discovery';
+    return jsonEncode({
+      'current_phase': phase,
+      'current_phase_source': 'entry_state',
+      'confidence': 1.0,
+    });
+  }
+
+  /// Build keywords JSON for ArcLLM
+  String? _buildKeywordsJson() {
+    if (_manualKeywords.isEmpty) return null;
+    final uniqueKeywords = _manualKeywords.take(10).toSet().toList();
+    return jsonEncode({'keywords': uniqueKeywords});
+  }
+
   void _insertAISuggestion(String suggestion) {
     // Add as inline reflection block instead of inserting into text
     final block = InlineBlock(
@@ -2788,39 +2806,43 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
 
   Future<void> _onRegenerateReflection(int index) async {
     final block = _entryState.blocks[index];
+    
+    // Show loading indicator
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Row(
+            children: [
+              SizedBox(
+                width: 16,
+                height: 16,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+              SizedBox(width: 12),
+              Text('LUMARA is thinking...'),
+            ],
+          ),
+          duration: Duration(seconds: 2),
+        ),
+      );
+    }
+
     try {
-      // Get user ID from user profile
-      Box<UserProfile> userBox;
-      if (Hive.isBoxOpen('user_profile')) {
-        userBox = Hive.box<UserProfile>('user_profile');
-      } else {
-        userBox = await Hive.openBox<UserProfile>('user_profile');
-      }
-      final userProfile = userBox.get('profile');
-      final userId = userProfile?.id ?? 'default';
+      // Build context from progressive memory loader
+      final loadedEntries = _memoryLoader.getLoadedEntries();
+      final entryText = _buildJournalContext(loadedEntries);
+      final phaseHint = _buildPhaseHintJson();
+      final keywordsJson = _buildKeywordsJson();
       
-      // If no user profile exists, create a default one
-      if (userProfile == null) {
-        final defaultProfile = UserProfile(
-          id: 'user_${DateTime.now().millisecondsSinceEpoch}',
-          name: 'User',
-          email: '',
-          createdAt: DateTime.now(),
-          preferences: const {},
-          onboardingCompleted: false,
-          onboardingCurrentSeason: 'Discovery',
-          currentPhase: 'Discovery',
-          lastPhaseChangeAt: DateTime.now(),
-        );
-        await userBox.put('profile', defaultProfile);
-        print('DEBUG: Created default user profile with ID: ${defaultProfile.id}');
-      }
+      // Map intent to user prompt
+      final userIntent = _mapIntentToUserPrompt(block.intent);
       
-      final newReflection = await _lumaraApi.generatePromptedReflection(
-        entryText: _entryState.text,
-        intent: block.intent,
-        phase: _entryState.phase,
-        userId: userId,
+      // Use ArcLLM with Gemini for reflection
+      final newReflection = await _arcLLM.chat(
+        userIntent: userIntent,
+        entryText: entryText,
+        phaseHintJson: phaseHint,
+        lastKeywordsJson: keywordsJson,
       );
 
       setState(() {
@@ -2832,18 +2854,61 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
           phase: block.phase,
         );
       });
+      
+      _analytics.logLumaraEvent('inline_reflection_regenerated');
     } catch (e) {
       _analytics.log('lumara_regenerate_error', {'error': e.toString()});
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error regenerating reflection: ${e.toString()}'),
+            backgroundColor: Theme.of(context).colorScheme.error,
+          ),
+        );
+      }
     }
   }
 
   Future<void> _onSoftenReflection(int index) async {
     final block = _entryState.blocks[index];
+    
+    // Show loading indicator
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Row(
+            children: [
+              SizedBox(
+                width: 16,
+                height: 16,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+              SizedBox(width: 12),
+              Text('LUMARA is softening the tone...'),
+            ],
+          ),
+          duration: Duration(seconds: 2),
+        ),
+      );
+    }
+
     try {
-      final softerReflection = await _lumaraApi.generateSofterReflection(
-        entryText: _entryState.text,
-        intent: block.intent,
-        phase: _entryState.phase,
+      // Build context from progressive memory loader
+      final loadedEntries = _memoryLoader.getLoadedEntries();
+      final entryText = _buildJournalContext(loadedEntries);
+      final phaseHint = _buildPhaseHintJson();
+      final keywordsJson = _buildKeywordsJson();
+      
+      // Use softer tone prompt
+      final userIntent = 'Soften the tone and make this reflection more gentle, warm, and supportive. Keep the same intent but use more compassionate and encouraging language.';
+      
+      // Use ArcLLM with Gemini for softer reflection
+      final softerReflection = await _arcLLM.chat(
+        userIntent: userIntent,
+        entryText: entryText,
+        phaseHintJson: phaseHint,
+        lastKeywordsJson: keywordsJson,
       );
 
       setState(() {
@@ -2855,18 +2920,61 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
           phase: block.phase,
         );
       });
+      
+      _analytics.logLumaraEvent('inline_reflection_softened');
     } catch (e) {
       _analytics.log('lumara_soften_error', {'error': e.toString()});
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error softening reflection: ${e.toString()}'),
+            backgroundColor: Theme.of(context).colorScheme.error,
+          ),
+        );
+      }
     }
   }
 
   Future<void> _onMoreDepthReflection(int index) async {
     final block = _entryState.blocks[index];
+    
+    // Show loading indicator
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Row(
+            children: [
+              SizedBox(
+                width: 16,
+                height: 16,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+              SizedBox(width: 12),
+              Text('LUMARA is going deeper...'),
+            ],
+          ),
+          duration: Duration(seconds: 2),
+        ),
+      );
+    }
+
     try {
-      final deeperReflection = await _lumaraApi.generateDeeperReflection(
-        entryText: _entryState.text,
-        intent: block.intent,
-        phase: _entryState.phase,
+      // Build context from progressive memory loader
+      final loadedEntries = _memoryLoader.getLoadedEntries();
+      final entryText = _buildJournalContext(loadedEntries);
+      final phaseHint = _buildPhaseHintJson();
+      final keywordsJson = _buildKeywordsJson();
+      
+      // Use deeper analysis prompt
+      final userIntent = 'Provide deeper analysis and more profound insight into this reflection. Explore underlying patterns, connections, and deeper meanings.';
+      
+      // Use ArcLLM with Gemini for deeper reflection
+      final deeperReflection = await _arcLLM.chat(
+        userIntent: userIntent,
+        entryText: entryText,
+        phaseHintJson: phaseHint,
+        lastKeywordsJson: keywordsJson,
       );
 
       setState(() {
@@ -2878,8 +2986,19 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
           phase: block.phase,
         );
       });
+      
+      _analytics.logLumaraEvent('inline_reflection_deepened');
     } catch (e) {
       _analytics.log('lumara_depth_error', {'error': e.toString()});
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error deepening reflection: ${e.toString()}'),
+            backgroundColor: Theme.of(context).colorScheme.error,
+          ),
+        );
+      }
     }
   }
 
@@ -2909,42 +3028,44 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
 
   /// Handle LUMARA suggestion selection
   Future<void> _handleLumaraSuggestion(String suggestion) async {
+    // Show loading indicator
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Row(
+            children: [
+              SizedBox(
+                width: 16,
+                height: 16,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+              SizedBox(width: 12),
+              Text('LUMARA is thinking...'),
+            ],
+          ),
+          duration: Duration(seconds: 2),
+        ),
+      );
+    }
+
     try {
       _analytics.logLumaraEvent('suggestion_selected', data: {'intent': suggestion});
       
-      // Get user ID from user profile
-      Box<UserProfile> userBox;
-      if (Hive.isBoxOpen('user_profile')) {
-        userBox = Hive.box<UserProfile>('user_profile');
-      } else {
-        userBox = await Hive.openBox<UserProfile>('user_profile');
-      }
-      final userProfile = userBox.get('profile');
-      final userId = userProfile?.id ?? 'default';
+      // Build context from progressive memory loader
+      final loadedEntries = _memoryLoader.getLoadedEntries();
+      final entryText = _buildJournalContext(loadedEntries);
+      final phaseHint = _buildPhaseHintJson();
+      final keywordsJson = _buildKeywordsJson();
       
-      // If no user profile exists, create a default one
-      if (userProfile == null) {
-        final defaultProfile = UserProfile(
-          id: 'user_${DateTime.now().millisecondsSinceEpoch}',
-          name: 'User',
-          email: '',
-          createdAt: DateTime.now(),
-          preferences: const {},
-          onboardingCompleted: false,
-          onboardingCurrentSeason: 'Discovery',
-          currentPhase: 'Discovery',
-          lastPhaseChangeAt: DateTime.now(),
-        );
-        await userBox.put('profile', defaultProfile);
-        print('DEBUG: Created default user profile with ID: ${defaultProfile.id}');
-      }
+      // Map suggestion to user prompt
+      final userIntent = _mapSuggestionToUserPrompt(suggestion);
       
-      // Generate reflection using LUMARA inline API
-      final reflection = await _lumaraApi.generatePromptedReflection(
-        entryText: _entryState.text,
-        intent: suggestion,
-        phase: _entryState.phase,
-        userId: userId,
+      // Use ArcLLM with Gemini for reflection
+      final reflection = await _arcLLM.chat(
+        userIntent: userIntent,
+        entryText: entryText,
+        phaseHintJson: phaseHint,
+        lastKeywordsJson: keywordsJson,
       );
       
       // Insert the reflection into the text
@@ -2985,6 +3106,57 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
           ),
         );
       }
+    }
+  }
+
+  /// Map intent string to user prompt for ArcLLM
+  String _mapIntentToUserPrompt(String intent) {
+    switch (intent.toLowerCase()) {
+      case 'ideas':
+      case 'suggestideas':
+        return 'Suggest some ideas';
+      case 'think':
+      case 'thinkthrough':
+        return 'Help me think through this';
+      case 'perspective':
+      case 'differentperspective':
+        return 'Offer a different perspective';
+      case 'next':
+      case 'nextsteps':
+        return 'Suggest next steps';
+      case 'analyze':
+      case 'analyze_further':
+        return 'Analyze further';
+      default:
+        return 'reflect';
+    }
+  }
+
+  /// Map suggestion string to user prompt for ArcLLM
+  String _mapSuggestionToUserPrompt(String suggestion) {
+    switch (suggestion.toLowerCase()) {
+      case 'suggestideas':
+      case 'suggest_ideas':
+      case 'ideas':
+        return 'Suggest some ideas';
+      case 'thinkthrough':
+      case 'think_through':
+      case 'think':
+        return 'Help me think through this';
+      case 'differentperspective':
+      case 'different_perspective':
+      case 'perspective':
+        return 'Offer a different perspective';
+      case 'nextsteps':
+      case 'next_steps':
+      case 'next':
+        return 'Suggest next steps';
+      case 'analyzefurther':
+      case 'analyze_further':
+      case 'analyze':
+        return 'Analyze further';
+      default:
+        return suggestion; // Use as-is if not recognized
     }
   }
 
