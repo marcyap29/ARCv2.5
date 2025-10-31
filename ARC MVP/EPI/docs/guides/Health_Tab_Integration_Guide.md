@@ -57,6 +57,12 @@ Accessible via the Settings icon in the header, provides:
 - Distance is captured from workout metadata when available
 - Daily distance will be 0 if no workouts with distance data exist
 
+### Metrics Not Available (health plugin v10.2.0)
+- **VO2 Max**: Not supported in current health plugin version
+- **Stand Time**: Not supported in current health plugin version
+
+These metrics have been removed from the app UI and data models. If you need these metrics, you would need to upgrade to a newer version of the health plugin or implement custom native code to access them via HealthKit directly.
+
 ## Data Flow
 
 ### 1. Import Process
@@ -100,10 +106,8 @@ Each day produces one JSONL line with type `health.timeslice.daily`:
     "resting_hr": {"value": 58, "unit": "bpm"},
     "avg_hr": {"value": 72, "unit": "bpm"},
     "hrv_sdnn": {"value": 42, "unit": "ms"},
-    "vo2max": {"value": null, "unit": "ml/(kg·min)"},
     "cardio_recovery_1min": {"value": null, "unit": "bpm"},
     "sleep_total_minutes": 420,
-    "stand_minutes": 0,
     "weight": {"value": 75.5, "unit": "kg"},
     "workouts": [
       {
@@ -139,7 +143,6 @@ Health streams feed into PRISM Joiner (`lib/prism/pipelines/prism_joiner.dart`):
   - `readiness_hint`: Recovery/readiness score (0-1)
   - `activity_balance`: Active vs resting energy ratio
   - `workout_count`, `workout_minutes`, `workout_energy_kcal`
-  - `stand_minutes`
 
 ### 4. ATLAS & VEIL Enrichment
 PRISM Joiner enriches daily fusion with:
@@ -150,11 +153,18 @@ Outputs:
 - `mcp/fusions/daily/YYYY-MM.jsonl` - Daily fusion with all features
 - `mcp/policies/veil/YYYY-MM.jsonl` - VEIL policies for LUMARA
 
-### 5. ARCX Export/Import
-Health streams are included in ARCX archives:
-- **Export**: `mcp/streams/health/*.jsonl` files copied to `payload/streams/health/`
+### 5. ARCX Export/Import (Filtered)
+Health streams are included in ARCX archives with intelligent filtering:
+- **Export**: Only exports health data for dates that have journal entries
+- **Filtering**: Extracts entry dates and filters health JSONL files to include only relevant days
+- **Associations**: Creates bidirectional links between journal entries and health metrics
 - **Import**: Health streams restored to `Documents/mcp/streams/health/` in append mode
-- All health metrics preserved in encrypted, signed archives
+- **Benefits**: Reduces archive size and ensures only relevant health data is exported
+- **Metrics**: Each journal entry includes a health association with:
+  - Date of health data
+  - Stream reference (path to JSONL file)
+  - List of included metrics (steps, heart rate, sleep, etc.)
+  - Association timestamp
 
 ## File Structure
 
@@ -218,7 +228,10 @@ Documents/mcp/
 2. View time-series charts for:
    - Steps, Active/Basal Energy, Sleep
    - Resting HR, Average HR, HRV
-   - VO₂max, Stand minutes
+3. Each chart includes:
+   - Statistics (min, max, average)
+   - Date labels on x-axis
+   - Value tooltips on tap
 
 ### Running PRISM Joiner
 ```dart
@@ -235,12 +248,17 @@ This creates:
 
 ## Technical Details
 
-### NumericHealthValue Handling
-The `health` package wraps numeric values in `NumericHealthValue` objects. The service uses `_getNumericValue()` helper to safely extract values:
+### NumericHealthValue Handling (FIXED)
+The `health` package v10.2.0 wraps numeric values in `NumericHealthValue` objects with format: `"NumericHealthValue - numericValue: 877.0"`. 
+
+The service uses `_getNumericValue()` helper to safely extract values:
 1. Check if value is directly `num` (int/double)
-2. Try `toString()` and parse to double
-3. Try dynamic access to `numericValue` property
-4. Return null if extraction fails
+2. Try direct parsing via `toString()` for backward compatibility  
+3. **Parse NumericHealthValue format** using regex: `numericValue:\s*([\d.-]+)`
+4. Try dynamic access to `numericValue` property as fallback
+5. Return null if all extraction methods fail
+
+**Key Fix (Jan 2025)**: Added regex parsing for the new NumericHealthValue format which resolved the issue where health data was silently failing to import despite HealthKit returning data.
 
 ### Error Handling
 - Missing HealthKit types: Falls back to minimal set (steps, active energy, heart rate)
@@ -312,10 +330,28 @@ Expanded read types include:
 - Check ARCX payload structure in manifest
 - Health streams import to append mode (preserves existing data)
 
+## Recent Fixes (January 2025)
+
+### NumericHealthValue Parsing Fix
+- **Issue**: Health data import was silently failing with health plugin v10.2.0
+- **Root Cause**: Plugin changed from returning raw numbers to `NumericHealthValue` objects with string format
+- **Fix**: Added regex parsing to extract numeric values from format: `"NumericHealthValue - numericValue: 877.0"`
+- **Impact**: All health metrics now import correctly from HealthKit
+
+### VO2 Max and Stand Time Removal
+- **Issue**: App referenced `HealthDataType.VO2_MAX` and `HealthDataType.APPLE_STAND_TIME` which don't exist in v10.2.0
+- **Fix**: Removed all references from UI, data models, and export code
+- **Impact**: App builds successfully and displays only supported metrics
+
+### Filtered Health Export
+- **Feature**: Health data now only exports for dates with journal entries
+- **Implementation**: Extracts journal entry dates and filters health JSONL files accordingly
+- **Benefits**: Reduced archive size, clearer data associations
+
 ## Future Enhancements
 
-- [ ] VO₂max support when iOS 17+ types available
-- [ ] Stand time support when iOS 16+ types available  
+- [ ] VO₂max support (requires health plugin upgrade or custom native code)
+- [ ] Stand time support (requires health plugin upgrade or custom native code)
 - [ ] Heart rate recovery (1-minute) from workouts
 - [ ] Enhanced workout metadata extraction
 - [ ] Health trends and anomaly detection

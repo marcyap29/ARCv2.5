@@ -40,7 +40,6 @@ class HealthMetrics {
   final int? exerciseMinutes;
   final double? activeEnergyKcal;
   final double? restingEnergyKcal;
-  final double? vo2max;
   final double? weightKg;
   final List<Map<String, dynamic>> workouts;
 
@@ -52,7 +51,6 @@ class HealthMetrics {
     this.exerciseMinutes,
     this.activeEnergyKcal,
     this.restingEnergyKcal,
-    this.vo2max,
     this.weightKg,
     List<Map<String, dynamic>>? workouts,
   }) : workouts = workouts ?? const [];
@@ -66,7 +64,6 @@ class HealthMetrics {
       "exercise_minutes": exerciseMinutes,
       "active_energy_kcal": activeEnergyKcal,
       "resting_energy_kcal": restingEnergyKcal,
-      "vo2max_ml_kg_min": vo2max,
       "weight_kg": weightKg,
       "workouts": workouts,
     }..removeWhere((k, v) => v == null);

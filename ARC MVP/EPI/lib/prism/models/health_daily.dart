@@ -7,12 +7,10 @@ class HealthDaily {
   int exerciseMin = 0;
   double? restingHr;
   double? hrvSdnn;
-  double? vo2max;
   double? cardioRecovery1Min; // bpm drop after 1 min
   int sleepMin = 0;
   double? weightKg;
   double? avgHr; // average HR during the day (from samples)
-  int standMin = 0;
 
   final List<Map<String, dynamic>> workouts = []; // see encoder
 

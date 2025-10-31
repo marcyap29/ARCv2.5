@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:my_app/prism/services/health_service.dart';
-import 'package:path_provider/path_provider.dart';
+import 'package:my_app/mcp/mcp_fs.dart';
 import 'package:health/health.dart';
 
 class HealthSettingsDialog extends StatefulWidget {
@@ -16,11 +16,6 @@ class _HealthSettingsDialogState extends State<HealthSettingsDialog> {
   bool _importing = false;
   String? _importStatus;
 
-  Future<Directory> _getMcpRoot() async {
-    final appDir = await getApplicationDocumentsDirectory();
-    return Directory('${appDir.path}/mcp');
-  }
-
   Future<void> _importHealth({required int daysBack}) async {
     setState(() {
       _importing = true;
@@ -28,10 +23,14 @@ class _HealthSettingsDialogState extends State<HealthSettingsDialog> {
     });
 
     try {
-      final mcpRoot = await _getMcpRoot();
-      await mcpRoot.create(recursive: true);
-
       final health = Health();
+
+      // Check if HealthKit is available on this platform
+      debugPrint('🔍 Health Import Debug - Checking HealthKit availability...');
+      // Note: HealthKit is always available on iOS, unlike Android Health Connect
+      final isIOS = Platform.isIOS;
+      debugPrint('🔍 Health Import Debug - Platform is iOS: $isIOS');
+
       final granted = await health.requestAuthorization([
         HealthDataType.STEPS,
         HealthDataType.ACTIVE_ENERGY_BURNED,
@@ -61,29 +60,61 @@ class _HealthSettingsDialogState extends State<HealthSettingsDialog> {
 
       final ingest = HealthIngest(health);
       final uid = 'user_${DateTime.now().millisecondsSinceEpoch}';
+
+      // Debug: Log import attempt details
+      debugPrint('🔍 Health Import Debug - Starting import for $daysBack days');
+      debugPrint('🔍 Health Import Debug - UID: $uid');
+      debugPrint('🔍 Health Import Debug - Platform: ${Platform.operatingSystem}');
+      debugPrint('🔍 Health Import Debug - Environment: ${Platform.environment}');
+
       final lines = await ingest.importDays(daysBack: daysBack, uid: uid);
+
+      // Debug: Log import results
+      debugPrint('🔍 Health Import Debug - Import completed. Lines returned: ${lines.length}');
+      if (lines.isEmpty) {
+        debugPrint('❌ Health Import Debug - NO DATA RETURNED from HealthIngest.importDays()');
+        debugPrint('❌ This means either:');
+        debugPrint('❌ 1. HealthKit returned 0 data points');
+        debugPrint('❌ 2. Running on iOS Simulator (HealthKit not supported)');
+        debugPrint('❌ 3. Apple Health app has no data for requested types');
+        debugPrint('❌ 4. Date range has no data');
+      }
 
       if (lines.isNotEmpty) {
         final first = (lines.first['timeslice'] as Map)['start'] as String;
         final monthKey = first.substring(0, 7);
-        final file = File('${mcpRoot.path}/streams/health/$monthKey.jsonl');
-        await file.create(recursive: true);
+        final file = await McpFs.healthMonth(monthKey);
+        debugPrint('Writing health data to: ${file.path}');
         final sink = file.openWrite(mode: FileMode.append);
         for (final m in lines) {
           sink.writeln(jsonEncode(m));
         }
         await sink.close();
+        debugPrint('Wrote ${lines.length} health data lines to ${file.path}');
       }
 
       setState(() {
-        _importStatus = 'Successfully imported ${lines.length} days';
+        if (lines.isEmpty) {
+          _importStatus = 'Import completed - No health data found';
+        } else {
+          _importStatus = 'Successfully imported ${lines.length} days';
+        }
         _importing = false;
       });
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Successfully imported ${lines.length} days of health data')),
-        );
+        if (lines.isEmpty) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Import completed - No health data found. Check debug logs for details.'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Successfully imported ${lines.length} days of health data')),
+          );
+        }
       }
     } catch (e) {
       setState(() {

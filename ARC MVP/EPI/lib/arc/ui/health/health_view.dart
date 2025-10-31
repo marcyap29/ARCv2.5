@@ -13,6 +13,7 @@ class HealthView extends StatefulWidget {
 
 class _HealthViewState extends State<HealthView> {
   int _selected = 0; // 0: Health Insights, 1: Analytics
+  final _healthSummaryKey = GlobalKey<State<HealthSummaryBody>>();
 
   void _showInfoDialog(BuildContext context) {
     showDialog(
@@ -75,11 +76,16 @@ class _HealthViewState extends State<HealthView> {
             IconButton(
               icon: const Icon(Icons.settings),
               tooltip: 'Health Settings',
-              onPressed: () {
-                showDialog(
+              onPressed: () async {
+                await showDialog(
                   context: context,
                   builder: (context) => const HealthSettingsDialog(),
                 );
+                // Refresh health summary after dialog closes
+                final state = _healthSummaryKey.currentState;
+                if (state is RefreshableHealthSummary) {
+                  state.refreshHealthData();
+                }
               },
             ),
           ],
@@ -98,7 +104,7 @@ class _HealthViewState extends State<HealthView> {
             physics: const BouncingScrollPhysics(),
             children: [
               // Show the Health Summary content directly in the Health Insights tab
-              const HealthSummaryBody(pointerJson: {}),
+              HealthSummaryBody(key: _healthSummaryKey, pointerJson: const {}),
               // Render Analytics content directly within the Health tab
               const AnalyticsContent(),
             ],

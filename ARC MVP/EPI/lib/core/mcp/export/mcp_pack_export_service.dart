@@ -56,12 +56,16 @@ class McpPackExportService {
       await Directory(path.join(mcpDir.path, 'media', 'photos')).create(recursive: true);
       await Directory(path.join(mcpDir.path, 'streams', 'health')).create(recursive: true);
       
-      // Copy health streams from app documents if they exist
+      // Extract journal entry dates for health filtering
+      final journalDates = _extractJournalEntryDates(entries);
+      print('📦 MCP Export: Found ${journalDates.length} unique journal entry dates');
+
+      // Copy health streams from app documents if they exist - filtered by journal entry dates
       final sourceAppDir = await getApplicationDocumentsDirectory();
       final sourceHealthDir = Directory(path.join(sourceAppDir.path, 'mcp', 'streams', 'health'));
       if (await sourceHealthDir.exists()) {
-        print('📦 MCP Export: Copying health streams...');
-        await _copyHealthStreams(sourceHealthDir, Directory(path.join(mcpDir.path, 'streams', 'health')));
+        print('📦 MCP Export: Copying filtered health streams for journal dates...');
+        await _copyFilteredHealthStreams(sourceHealthDir, Directory(path.join(mcpDir.path, 'streams', 'health')), journalDates);
       }
       
       // Process each entry
@@ -209,7 +213,23 @@ class McpPackExportService {
       print('McpPackExportService: Skipping photos for entry ${entry.id} (includePhotos=false)');
     }
 
-    // Create processed entry with properly formatted timestamp
+    // Create health association for this entry's date
+    final entryDate = '${entry.createdAt.year.toString().padLeft(4, '0')}-'
+                     '${entry.createdAt.month.toString().padLeft(2, '0')}-'
+                     '${entry.createdAt.day.toString().padLeft(2, '0')}';
+
+    final healthAssociation = {
+      'date': entryDate,
+      'health_data_available': true,
+      'stream_reference': 'streams/health/${entryDate.substring(0, 7)}.jsonl',
+      'metrics_included': [
+        'steps', 'active_energy', 'resting_energy', 'sleep_total_minutes',
+        'resting_hr', 'avg_hr', 'hrv_sdnn'
+      ],
+      'association_created_at': DateTime.now().toUtc().toIso8601String(),
+    };
+
+    // Create processed entry with properly formatted timestamp and health association
     final processedEntry = {
       'id': entry.id,
       'timestamp': _formatTimestamp(entry.createdAt),
@@ -220,6 +240,7 @@ class McpPackExportService {
       'phase': entry.phase,
       'keywords': entry.keywords,
       'metadata': entry.metadata,
+      'health_association': healthAssociation,
     };
 
     // Write entry JSON
@@ -315,22 +336,81 @@ class McpPackExportService {
     return mediaNode;
   }
 
-  /// Copy health stream JSONL files from source to destination
-  Future<void> _copyHealthStreams(Directory sourceDir, Directory destDir) async {
+
+  /// Extract unique dates from journal entries
+  Set<String> _extractJournalEntryDates(List<JournalEntry> entries) {
+    final dates = <String>{};
+    for (final entry in entries) {
+      // Convert DateTime to YYYY-MM-DD format for matching with health data
+      final dateKey = '${entry.createdAt.year.toString().padLeft(4, '0')}-'
+                     '${entry.createdAt.month.toString().padLeft(2, '0')}-'
+                     '${entry.createdAt.day.toString().padLeft(2, '0')}';
+      dates.add(dateKey);
+    }
+    return dates;
+  }
+
+  /// Copy health stream JSONL files filtered by journal entry dates
+  Future<void> _copyFilteredHealthStreams(Directory sourceDir, Directory destDir, Set<String> journalDates) async {
     if (!await sourceDir.exists()) return;
-    
+
     int fileCount = 0;
+    int totalLines = 0;
+    int filteredLines = 0;
+
     await for (final entity in sourceDir.list()) {
       if (entity is File && entity.path.endsWith('.jsonl')) {
         final filename = path.basename(entity.path);
         final destFile = File(path.join(destDir.path, filename));
-        await entity.copy(destFile.path);
-        fileCount++;
-        print('📦 MCP Export: Copied health stream: $filename');
+
+        // Read source file and filter lines by journal entry dates
+        final sourceLines = await entity.readAsLines();
+        final filteredHealthData = <String>[];
+
+        for (final line in sourceLines) {
+          if (line.trim().isEmpty) continue;
+          totalLines++;
+
+          try {
+            final json = jsonDecode(line) as Map<String, dynamic>;
+            final timeslice = json['timeslice'] as Map<String, dynamic>?;
+            final startStr = timeslice?['start'] as String?;
+
+            if (startStr != null) {
+              // Extract date from timeslice start (format: YYYY-MM-DDTHH:MM:SSZ)
+              final date = startStr.substring(0, 10); // Extract YYYY-MM-DD part
+
+              if (journalDates.contains(date)) {
+                // Add health pointer/association to the health data
+                final enhancedJson = Map<String, dynamic>.from(json);
+                enhancedJson['journal_association'] = {
+                  'date': date,
+                  'has_journal_entry': true,
+                  'exported_at': DateTime.now().toUtc().toIso8601String(),
+                };
+
+                filteredHealthData.add(jsonEncode(enhancedJson));
+                filteredLines++;
+              }
+            }
+          } catch (e) {
+            print('📦 MCP Export: Warning - Could not parse health data line: $e');
+          }
+        }
+
+        // Write filtered data if any lines matched
+        if (filteredHealthData.isNotEmpty) {
+          await destFile.writeAsString(filteredHealthData.join('\n') + '\n');
+          fileCount++;
+          print('📦 MCP Export: Filtered health stream: $filename (${filteredHealthData.length} lines)');
+        }
       }
     }
+
     if (fileCount > 0) {
-      print('📦 MCP Export: ✓ Copied $fileCount health stream file(s)');
+      print('📦 MCP Export: ✓ Copied $fileCount filtered health file(s) ($filteredLines/$totalLines lines)');
+    } else {
+      print('📦 MCP Export: ✓ No health data matched journal entry dates');
     }
   }
 

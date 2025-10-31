@@ -38,10 +38,10 @@ class HealthKitManager {
         s.insert(HKObjectType.categoryType(forIdentifier: .sleepAnalysis)!)
         s.insert(HKObjectType.quantityType(forIdentifier: .restingHeartRate)!)
         s.insert(HKObjectType.quantityType(forIdentifier: .heartRateVariabilitySDNN)!)
-        s.insert(HKObjectType.quantityType(forIdentifier: .vo2Max)!)
         s.insert(HKObjectType.quantityType(forIdentifier: .activeEnergyBurned)!)
         s.insert(HKObjectType.quantityType(forIdentifier: .appleExerciseTime)!)
         s.insert(HKObjectType.quantityType(forIdentifier: .distanceWalkingRunning)!)
+        // Note: vo2Max requires iOS 17+ and specific devices (Apple Watch)
         return s
     }
 
@@ -122,8 +122,8 @@ class HealthService {
       HealthDataType.ACTIVE_ENERGY_BURNED,
       HealthDataType.EXERCISE_TIME,
       HealthDataType.DISTANCE_DELTA,
-      HealthDataType.VO2MAX,
       HealthDataType.RESTING_HEART_RATE,
+      // Note: VO2MAX and APPLE_STAND_TIME not available in health plugin v10.2.0
     ];
     return await _health.requestAuthorization(types);
   }
@@ -180,3 +180,6 @@ Future<void> onConnectPressed() async {
 - [ ] App shows steps and latest HR without relaunch.
 - [ ] Deny → Open Settings works and reads after enabling.
 - [ ] App listed under Health → Apps with toggles.
+
+
+
