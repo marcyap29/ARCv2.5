@@ -530,6 +530,16 @@ Production-ready multimodal processing with comprehensive photo analysis:
 
 ## 📚 Documentation Structure
 
+### ✨ [Features](./features/)
+Feature documentation and implementation guides
+- **JOURNAL_VERSIONING_SYSTEM.md** - Complete versioning and draft system documentation
+  - Immutable version history
+  - Single-draft-per-entry invariant
+  - Content-hash autosave
+  - Media and AI integration
+  - Conflict resolution
+  - Migration support
+
 ### 📋 [Project](./project/)
 Core project documentation and briefs
 - **PROJECT_BRIEF.md** - Main project overview and current status

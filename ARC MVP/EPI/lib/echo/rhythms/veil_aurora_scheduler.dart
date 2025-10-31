@@ -5,6 +5,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as path;
 import '../../core/mcp/export/chat_mcp_exporter.dart';
 import '../../core/mcp/models/mcp_schemas.dart';
+import '../../core/services/keyword_cleanup_service.dart';
 
 /// VEIL/AURORA rhythm scheduler for nightly tasks
 class VeilAuroraScheduler {
@@ -67,6 +68,9 @@ class VeilAuroraScheduler {
       
       // 5. Adapter updates (future-proofing)
       await _checkAdapterUpdates();
+      
+      // 6. Keyword cleanup - remove duplicates across all entries
+      await _cleanupKeywords();
       
       print('VEIL/AURORA Scheduler: Nightly tasks completed successfully');
     } catch (e) {
@@ -257,6 +261,25 @@ class VeilAuroraScheduler {
       
     } catch (e) {
       print('VEIL/AURORA: Error checking adapter updates - $e');
+    }
+  }
+
+  /// Clean up duplicate keywords across all journal entries
+  static Future<void> _cleanupKeywords() async {
+    try {
+      print('VEIL/AURORA: Starting keyword cleanup...');
+      
+      final cleanupService = KeywordCleanupService.instance;
+      final fixedCount = await cleanupService.cleanupAllEntries();
+      
+      if (fixedCount > 0) {
+        print('VEIL/AURORA: Keyword cleanup completed - fixed $fixedCount entries');
+      } else {
+        print('VEIL/AURORA: Keyword cleanup completed - no duplicates found');
+      }
+      
+    } catch (e) {
+      print('VEIL/AURORA: Error during keyword cleanup - $e');
     }
   }
 

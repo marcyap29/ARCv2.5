@@ -1024,6 +1024,8 @@ class McpImportService {
           'original_mcp_id': node.id,
           'import_timestamp': DateTime.now().toIso8601String(),
           'phase_hint': node.phaseHint,
+          // Preserve original metadata from MCP (including inlineBlocks from LUMARA)
+          ...?node.metadata,
         },
       );
     } catch (e) {

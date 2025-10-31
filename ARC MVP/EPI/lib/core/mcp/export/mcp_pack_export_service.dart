@@ -5,6 +5,7 @@ import 'package:my_app/models/journal_entry_model.dart';
 import 'package:my_app/data/models/media_item.dart';
 import 'package:my_app/platform/photo_bridge.dart';
 import 'package:my_app/core/mcp/utils/image_processing.dart' show sha256Hex, reencodeFull;
+import 'package:my_app/lumara/chat/chat_repo.dart';
 import 'package:archive/archive.dart';
 import 'package:archive/archive_io.dart';
 import 'package:path/path.dart' as path;
@@ -16,20 +17,26 @@ class McpPackExportService {
   final String _bundleId;
   final String _outputPath;
   final bool _isDebugMode;
+  final ChatRepo? _chatRepo;
 
   McpPackExportService({
     required String bundleId,
     required String outputPath,
     bool isDebugMode = false,
+    ChatRepo? chatRepo,
   }) : _bundleId = bundleId,
        _outputPath = outputPath,
-       _isDebugMode = isDebugMode;
+       _isDebugMode = isDebugMode,
+       _chatRepo = chatRepo;
 
   /// Export journal entries to MCP package format
   Future<McpExportResult> exportJournal({
     required List<JournalEntry> entries,
     bool includePhotos = true,
     bool reducePhotoSize = false,
+    bool includeChats = false,
+    bool includeArchivedChats = false,
+    Set<String>? chatDatesFilter, // Optional: filter chats by journal entry dates
   }) async {
     Directory? tempDir;
     try {
@@ -53,6 +60,8 @@ class McpPackExportService {
       // Create MCP directory structure
       await Directory(path.join(mcpDir.path, 'nodes', 'journal')).create(recursive: true);
       await Directory(path.join(mcpDir.path, 'nodes', 'media', 'photo')).create(recursive: true);
+      await Directory(path.join(mcpDir.path, 'nodes', 'chat', 'session')).create(recursive: true);
+      await Directory(path.join(mcpDir.path, 'nodes', 'chat', 'message')).create(recursive: true);
       await Directory(path.join(mcpDir.path, 'media', 'photos')).create(recursive: true);
       await Directory(path.join(mcpDir.path, 'streams', 'health')).create(recursive: true);
       
@@ -82,6 +91,20 @@ class McpPackExportService {
         totalPhotos += media.where((m) => m['kind'] == 'photo').length;
       }
 
+      // Export chat data if requested
+      int chatSessionCount = 0;
+      int chatMessageCount = 0;
+      if (includeChats && _chatRepo != null) {
+        try {
+          final chatData = await _exportChatData(mcpDir, includeArchivedChats, chatDatesFilter);
+          chatSessionCount = chatData['sessionCount'] as int;
+          chatMessageCount = chatData['messageCount'] as int;
+          print('📱 MCP Export: Exported $chatSessionCount chat sessions, $chatMessageCount messages');
+        } catch (e) {
+          print('⚠️ MCP Export: Failed to export chat data: $e');
+        }
+      }
+
       // Create manifest
       final manifest = McpManifest.journal(
         entryCount: entries.length,
@@ -90,6 +113,9 @@ class McpPackExportService {
           'bundle_id': _bundleId,
           'include_photos': includePhotos,
           'reduce_photo_size': reducePhotoSize,
+          'include_chats': includeChats,
+          'chat_session_count': chatSessionCount,
+          'chat_message_count': chatMessageCount,
         },
       );
       
@@ -115,6 +141,8 @@ class McpPackExportService {
           outputPath: _outputPath,
           totalEntries: entries.length,
           totalPhotos: totalPhotos,
+          totalChatSessions: chatSessionCount,
+          totalChatMessages: chatMessageCount,
           isDebugMode: true,
         );
       } else {
@@ -138,6 +166,8 @@ class McpPackExportService {
           outputPath: _outputPath,
           totalEntries: entries.length,
           totalPhotos: totalPhotos,
+          totalChatSessions: chatSessionCount,
+          totalChatMessages: chatMessageCount,
           isDebugMode: false,
         );
       }
@@ -250,7 +280,7 @@ class McpPackExportService {
     return processedEntry;
   }
 
-  /// Process a single media item
+  /// Process a single media item (photos, videos, audio, files)
   Future<Map<String, dynamic>?> _processMediaItem(
     MediaItem media,
     Directory mcpDir,
@@ -259,6 +289,7 @@ class McpPackExportService {
     // Get original bytes from file path
     Uint8List? originalBytes;
     String? originalFormat;
+    final mediaType = media.type; // image, video, audio, file
 
     // Check if this is a permanent file path
     if (media.uri.startsWith('/') && !media.uri.startsWith('ph://')) {
@@ -269,27 +300,40 @@ class McpPackExportService {
         originalFormat = _getFileExtension(media.uri);
       }
     } else if (PhotoBridge.isPhotoLibraryUri(media.uri)) {
-      // Get bytes from photo library (fallback for old entries)
+      // Get bytes from photo library (for photos and videos)
       final localId = PhotoBridge.extractLocalIdentifier(media.uri);
       if (localId != null) {
-        final photoData = await PhotoBridge.getPhotoBytes(localId);
-        if (photoData != null) {
-          originalBytes = photoData['bytes'] as Uint8List;
-          originalFormat = photoData['ext'] as String;
+        if (mediaType == MediaType.image) {
+          final photoData = await PhotoBridge.getPhotoBytes(localId);
+          if (photoData != null) {
+            originalBytes = photoData['bytes'] as Uint8List;
+            originalFormat = photoData['ext'] as String;
+          }
+        } else if (mediaType == MediaType.video) {
+          // For videos from photo library, we need to handle differently
+          // Try to get the file path directly if possible
+          try {
+            final file = File(media.uri);
+            if (await file.exists()) {
+              originalBytes = await file.readAsBytes();
+              originalFormat = _getFileExtension(media.uri);
+            }
+          } catch (e) {
+            print('McpPackExportService: Could not read video from photo library URI: $e');
+          }
         }
       }
     }
 
     if (originalBytes == null) {
-      print('McpPackExportService: ⚠️ Could not get bytes for media ${media.id} (URI: ${media.uri})');
-      print('McpPackExportService: URI starts with /: ${media.uri.startsWith('/')}');
-      print('McpPackExportService: URI is photo library: ${PhotoBridge.isPhotoLibraryUri(media.uri)}');
+      print('McpPackExportService: ⚠️ Could not get bytes for media ${media.id} (URI: ${media.uri}, Type: ${mediaType.name})');
       // Don't return null - return a placeholder so the entry knows it had media
       return {
         'id': media.id,
-        'kind': 'photo',
+        'kind': mediaType.name, // 'photo', 'video', 'audio', 'file'
+        'type': mediaType.name,
         'originalPath': media.uri,
-        'error': 'Could not read photo bytes',
+        'error': 'Could not read media bytes',
       };
     }
 
@@ -301,36 +345,68 @@ class McpPackExportService {
       sha = sha256Hex(originalBytes);
     }
 
-    // Process photo based on size reduction setting
-    Uint8List finalBytes = originalBytes;
-    if (reducePhotoSize) {
-      final reencoded = reencodeFull(originalBytes, maxEdge: 1920, quality: 85);
-      finalBytes = reencoded.bytes;
+    // Determine media directory and file extension based on type
+    String mediaSubDir;
+    String defaultExt;
+    switch (mediaType) {
+      case MediaType.video:
+        mediaSubDir = 'videos';
+        defaultExt = 'mp4';
+        break;
+      case MediaType.audio:
+        mediaSubDir = 'audio';
+        defaultExt = 'm4a';
+        break;
+      case MediaType.file:
+        mediaSubDir = 'files';
+        defaultExt = originalFormat ?? 'bin';
+        break;
+      case MediaType.image:
+        mediaSubDir = 'photos';
+        defaultExt = 'jpg';
+        break;
     }
 
-    // Add photo to media directory
-    final photoFileName = '$sha.${originalFormat ?? 'jpg'}';
-    final photoFile = File(path.join(mcpDir.path, 'media', 'photos', photoFileName));
-    await photoFile.writeAsBytes(finalBytes);
+    // Process photo based on size reduction setting (only for images)
+    Uint8List finalBytes = originalBytes;
+    bool wasReduced = false;
+    if (mediaType == MediaType.image && reducePhotoSize) {
+      final reencoded = reencodeFull(originalBytes, maxEdge: 1920, quality: 85);
+      finalBytes = reencoded.bytes;
+      wasReduced = true;
+    }
+
+    // Add media to appropriate directory
+    final mediaFileName = '$sha.${originalFormat ?? defaultExt}';
+    final mediaSubDirectory = Directory(path.join(mcpDir.path, 'media', mediaSubDir));
+    await mediaSubDirectory.create(recursive: true);
+    final mediaFile = File(path.join(mediaSubDirectory.path, mediaFileName));
+    await mediaFile.writeAsBytes(finalBytes);
     
-    print('📸 Added photo: $photoFileName');
+    print('📹 Added ${mediaType.name}: $mediaFileName (${originalBytes.length} bytes)');
 
     // Create media node JSON
     final mediaNode = {
       'id': media.id,
-      'kind': 'photo',
+      'kind': mediaType.name, // 'photo', 'video', 'audio', 'file'
+      'type': mediaType.name,
       'sha256': sha,
-      'filename': photoFileName,
+      'filename': mediaFileName,
       'createdAt': media.createdAt.toIso8601String(),
-      'altText': media.altText,
-      'ocrText': media.ocrText,
-      'analysisData': media.analysisData,
       'originalPath': media.uri,
-      'reduced': reducePhotoSize,
+      if (media.duration != null) 'duration': media.duration!.inSeconds,
+      if (media.sizeBytes != null) 'sizeBytes': media.sizeBytes,
+      if (media.altText != null) 'altText': media.altText,
+      if (media.ocrText != null) 'ocrText': media.ocrText,
+      if (media.transcript != null) 'transcript': media.transcript,
+      if (media.analysisData != null) 'analysisData': media.analysisData,
+      if (mediaType == MediaType.image && wasReduced) 'reduced': true,
     };
 
-    // Write media node JSON
-    final mediaNodeFile = File(path.join(mcpDir.path, 'nodes', 'media', 'photo', '${media.id}.json'));
+    // Write media node JSON to appropriate directory
+    final mediaNodeSubDir = Directory(path.join(mcpDir.path, 'nodes', 'media', mediaSubDir));
+    await mediaNodeSubDir.create(recursive: true);
+    final mediaNodeFile = File(path.join(mediaNodeSubDir.path, '${media.id}.json'));
     await mediaNodeFile.writeAsString(jsonEncode(mediaNode));
 
     return mediaNode;
@@ -434,6 +510,111 @@ class McpPackExportService {
     return path.substring(lastDot + 1).toLowerCase();
   }
 
+  /// Export chat data (sessions and messages)
+  Future<Map<String, int>> _exportChatData(
+    Directory mcpDir,
+    bool includeArchived,
+    Set<String>? datesFilter,
+  ) async {
+    if (_chatRepo == null) return {'sessionCount': 0, 'messageCount': 0};
+
+    try {
+      // Get all sessions
+      final sessions = await _chatRepo!.listAll(includeArchived: includeArchived);
+      final edges = <Map<String, dynamic>>[];
+      int messageCount = 0;
+      int sessionCount = 0;
+
+      for (final session in sessions) {
+        // Filter by date if datesFilter is provided (match session created date)
+        if (datesFilter != null) {
+          final sessionDate = '${session.createdAt.year.toString().padLeft(4, '0')}-'
+                            '${session.createdAt.month.toString().padLeft(2, '0')}-'
+                            '${session.createdAt.day.toString().padLeft(2, '0')}';
+          if (!datesFilter.contains(sessionDate)) {
+            continue;
+          }
+        }
+
+        // Get messages for this session
+        final messages = await _chatRepo!.getMessages(session.id);
+        
+        // Filter messages by date if datesFilter is provided
+        final filteredMessages = datesFilter != null
+            ? messages.where((msg) {
+                final msgDate = '${msg.createdAt.year.toString().padLeft(4, '0')}-'
+                              '${msg.createdAt.month.toString().padLeft(2, '0')}-'
+                              '${msg.createdAt.day.toString().padLeft(2, '0')}';
+                return datesFilter.contains(msgDate);
+              }).toList()
+            : messages;
+
+        if (filteredMessages.isEmpty && datesFilter != null) {
+          continue; // Skip session if no messages match date filter
+        }
+
+        // Create session node
+        final sessionNode = {
+          'id': 'session:${session.id}',
+          'type': 'ChatSession',
+          'title': session.subject,
+          'createdAt': _formatTimestamp(session.createdAt),
+          'tags': session.tags,
+          'isArchived': session.isArchived,
+          'isPinned': session.isPinned,
+        };
+        final sessionFile = File(path.join(mcpDir.path, 'nodes', 'chat', 'session', '${session.id}.json'));
+        await sessionFile.writeAsString(jsonEncode(sessionNode));
+        sessionCount++;
+
+        // Create message nodes and edges
+        for (int i = 0; i < filteredMessages.length; i++) {
+          final message = filteredMessages[i];
+          final messageNode = {
+            'id': 'message:${message.id}',
+            'type': 'ChatMessage',
+            'role': message.role,
+            'text': message.content,
+            'createdAt': _formatTimestamp(message.createdAt),
+          };
+          final messageFile = File(path.join(mcpDir.path, 'nodes', 'chat', 'message', '${message.id}.json'));
+          await messageFile.writeAsString(jsonEncode(messageNode));
+          messageCount++;
+
+          // Create contains edge
+          edges.add({
+            'source': 'session:${session.id}',
+            'target': 'message:${message.id}',
+            'relation': 'contains',
+            'timestamp': _formatTimestamp(message.createdAt),
+            'order': i,
+          });
+        }
+      }
+
+      // Write edges file if any edges exist (append if file already exists)
+      if (edges.isNotEmpty) {
+        final edgesFile = File(path.join(mcpDir.path, 'edges.jsonl'));
+        final existingEdges = <String>[];
+        
+        // Read existing edges if file exists
+        if (await edgesFile.exists()) {
+          existingEdges.addAll(await edgesFile.readAsLines());
+        }
+        
+        // Add new edges
+        final edgesLines = edges.map((e) => jsonEncode(e)).toList();
+        final allEdges = [...existingEdges, ...edgesLines];
+        await edgesFile.writeAsString(allEdges.join('\n') + '\n');
+      }
+
+      return {'sessionCount': sessionCount, 'messageCount': messageCount};
+    } catch (e) {
+      print('❌ Chat export failed: $e');
+      return {'sessionCount': 0, 'messageCount': 0};
+    }
+  }
+
   /// Format timestamp to ensure consistent ISO 8601 format with Z suffix
   String _formatTimestamp(DateTime dateTime) {
     // Ensure the timestamp is in UTC and has the Z suffix
@@ -455,6 +636,8 @@ class McpExportResult {
   final String? outputPath;
   final int totalEntries;
   final int totalPhotos;
+  final int totalChatSessions;
+  final int totalChatMessages;
   final bool isDebugMode;
   final String? error;
 
@@ -463,6 +646,8 @@ class McpExportResult {
     this.outputPath,
     required this.totalEntries,
     required this.totalPhotos,
+    this.totalChatSessions = 0,
+    this.totalChatMessages = 0,
     required this.isDebugMode,
     this.error,
   });

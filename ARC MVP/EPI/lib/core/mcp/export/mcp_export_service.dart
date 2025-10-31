@@ -240,6 +240,7 @@ class McpExportService {
           userId: null, // JournalEntry doesn't have userId in the real model
         ),
         // Add metadata to preserve additional journal entry fields
+        // Merge with existing metadata to preserve LUMARA blocks and other custom metadata
         metadata: {
           'journal_entry': {
             'id': entry.id,
@@ -265,7 +266,9 @@ class McpExportService {
             'exported_at': DateTime.now().toIso8601String(),
             'content_length': entry.content.length,
             'has_full_content': true,
-          }
+          },
+          // Preserve original entry metadata (including inlineBlocks from LUMARA)
+          ...?entry.metadata,
         },
       );
 

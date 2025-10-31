@@ -65,16 +65,16 @@ class McpPackImportService {
       // Clear media cache for this import
       clearMediaCache();
 
-      // Import photos first
-      final photoMapping = await _importPhotos(mcpDir);
-      print('📸 Imported ${photoMapping.length} photos');
+      // Import all media (photos, videos, audio, files) first
+      final mediaMapping = await _importAllMedia(mcpDir);
+      print('📸 Imported ${mediaMapping.length} media items (photos, videos, audio, files)');
 
       // Load photo metadata files for enhanced matching
       final photoMetadataMap = await _loadPhotoMetadata(mcpDir);
       print('📋 Loaded ${photoMetadataMap.length} photo metadata files');
 
       // Import journal entries
-      final entriesImported = await _importJournalEntries(mcpDir, photoMapping, photoMetadataMap);
+      final entriesImported = await _importJournalEntries(mcpDir, mediaMapping, photoMetadataMap);
       print('📝 Imported $entriesImported journal entries');
       
       // Log media cache statistics
@@ -94,7 +94,7 @@ class McpPackImportService {
       return McpImportResult(
         success: true,
         totalEntries: entriesImported,
-        totalPhotos: photoMapping.length,
+        totalPhotos: mediaMapping.length, // Includes photos, videos, audio, files
         manifest: manifest,
       );
 
@@ -109,40 +109,64 @@ class McpPackImportService {
     }
   }
 
-  /// Import photos from MCP package to app storage
-  Future<Map<String, String>> _importPhotos(Directory mcpDir) async {
-    final photoMapping = <String, String>{};
+  /// Import all media (photos, videos, audio, files) from MCP package to app storage
+  Future<Map<String, String>> _importAllMedia(Directory mcpDir) async {
+    final mediaMapping = <String, String>{};
     
-    final photosDir = Directory(path.join(mcpDir.path, 'media', 'photos'));
-    if (!await photosDir.exists()) {
-      print('⚠️ No photos directory found');
-      return photoMapping;
-    }
-
     // Get app documents directory for permanent storage
     final appDir = await getApplicationDocumentsDirectory();
-    final permanentPhotosDir = Directory(path.join(appDir.path, 'photos'));
-    await permanentPhotosDir.create(recursive: true);
+    
+    // Import photos
+    await _importMediaType(mcpDir, appDir, 'photos', 'photos', mediaMapping);
+    
+    // Import videos
+    await _importMediaType(mcpDir, appDir, 'videos', 'videos', mediaMapping);
+    
+    // Import audio
+    await _importMediaType(mcpDir, appDir, 'audio', 'audio', mediaMapping);
+    
+    // Import files
+    await _importMediaType(mcpDir, appDir, 'files', 'files', mediaMapping);
 
-    await for (final photoFile in photosDir.list()) {
-      if (photoFile is File) {
+    return mediaMapping;
+  }
+
+  /// Import a specific media type from MCP package
+  Future<void> _importMediaType(
+    Directory mcpDir,
+    Directory appDir,
+    String sourceSubDir,
+    String targetSubDir,
+    Map<String, String> mediaMapping,
+  ) async {
+    final sourceDir = Directory(path.join(mcpDir.path, 'media', sourceSubDir));
+    if (!await sourceDir.exists()) {
+      return; // Directory doesn't exist, skip silently
+    }
+
+    final permanentDir = Directory(path.join(appDir.path, targetSubDir));
+    await permanentDir.create(recursive: true);
+
+    await for (final mediaFile in sourceDir.list()) {
+      if (mediaFile is File) {
         try {
-          // Copy photo to permanent storage
-          final fileName = path.basename(photoFile.path);
-          final permanentPath = path.join(permanentPhotosDir.path, fileName);
-          await photoFile.copy(permanentPath);
+          // Copy media file to permanent storage
+          final fileName = path.basename(mediaFile.path);
+          final permanentPath = path.join(permanentDir.path, fileName);
+          await mediaFile.copy(permanentPath);
           
           // Map filename to permanent path
-          photoMapping[fileName] = permanentPath;
+          mediaMapping[fileName] = permanentPath;
           
-          print('📸 Copied photo: $fileName');
+          final icon = sourceSubDir == 'videos' ? '📹' : 
+                      sourceSubDir == 'audio' ? '🎵' :
+                      sourceSubDir == 'files' ? '📄' : '📸';
+          print('$icon Copied $sourceSubDir: $fileName');
         } catch (e) {
-          print('⚠️ Failed to copy photo ${photoFile.path}: $e');
+          print('⚠️ Failed to copy $sourceSubDir ${mediaFile.path}: $e');
         }
       }
     }
-
-    return photoMapping;
   }
 
   /// Load photo metadata files from nodes/media/photo directory
@@ -447,19 +471,58 @@ class McpPackImportService {
         }
       }
 
+      // Extract media type FIRST (support multiple field names: 'kind', 'type', default to 'image')
+      // Must extract early as it's used in URI determination
+      MediaType mediaType = MediaType.image;
+      final kindStr = mediaJson['kind'] as String?;
+      final typeStr = mediaJson['type'] as String?;
+      if (kindStr != null) {
+        switch (kindStr.toLowerCase()) {
+          case 'video':
+            mediaType = MediaType.video;
+            break;
+          case 'audio':
+            mediaType = MediaType.audio;
+            break;
+          case 'file':
+            mediaType = MediaType.file;
+            break;
+          case 'image':
+          case 'photo':
+            mediaType = MediaType.image;
+            break;
+        }
+      } else if (typeStr != null) {
+        switch (typeStr.toLowerCase()) {
+          case 'video':
+            mediaType = MediaType.video;
+            break;
+          case 'audio':
+            mediaType = MediaType.audio;
+            break;
+          case 'file':
+            mediaType = MediaType.file;
+            break;
+          case 'image':
+          case 'photo':
+            mediaType = MediaType.image;
+            break;
+        }
+      }
+
       // Try to get permanent path from mapping
       String? permanentPath;
       if (filename != null && filename.isNotEmpty) {
         permanentPath = photoMapping[filename];
-      if (permanentPath == null) {
+        if (permanentPath == null) {
           // Try matching by SHA-256 if filename doesn't match
           final sha256 = mediaJson['sha256'] as String?;
           if (sha256 != null && sha256.isNotEmpty) {
-            // Look for photo file that matches SHA-256
+            // Look for media file that matches SHA-256
             for (final entry in photoMapping.entries) {
               if (entry.key.contains(sha256.substring(0, 8))) {
                 permanentPath = entry.value;
-                print('🔗 Matched photo by SHA-256 prefix: ${sha256.substring(0, 8)}...');
+                print('🔗 Matched media by SHA-256 prefix: ${sha256.substring(0, 8)}...');
                 break;
               }
             }
@@ -485,15 +548,31 @@ class McpPackImportService {
           // Fallback 2: Try to construct from filename if available
           if (filename != null && filename.isNotEmpty) {
             final appDir = await getApplicationDocumentsDirectory();
-            final photosDir = Directory(path.join(appDir.path, 'photos'));
-            final constructedPath = path.join(photosDir.path, filename);
+            // Check appropriate directory based on media type
+            String mediaSubDir;
+            switch (mediaType) {
+              case MediaType.video:
+                mediaSubDir = 'videos';
+                break;
+              case MediaType.audio:
+                mediaSubDir = 'audio';
+                break;
+              case MediaType.file:
+                mediaSubDir = 'files';
+                break;
+              case MediaType.image:
+                mediaSubDir = 'photos';
+                break;
+            }
+            final mediaDir = Directory(path.join(appDir.path, mediaSubDir));
+            final constructedPath = path.join(mediaDir.path, filename);
             if (await File(constructedPath).exists()) {
               finalUri = constructedPath;
-              print('   Found photo at constructed path: $constructedPath');
+              print('   Found media at constructed path: $constructedPath');
             } else {
               // Last resort: placeholder URI
               finalUri = 'placeholder://$mediaId';
-              print('⚠️ Could not find photo file, using placeholder: $finalUri');
+              print('⚠️ Could not find media file, using placeholder: $finalUri');
             }
           } else {
             // Last resort: placeholder URI
@@ -512,19 +591,42 @@ class McpPackImportService {
         analysisData = {'features': mediaJson['features']};
       }
 
+      // Extract duration (for video/audio)
+      Duration? duration;
+      if (mediaJson['duration'] != null) {
+        final dur = mediaJson['duration'];
+        if (dur is int) {
+          duration = Duration(seconds: dur);
+        } else if (dur is String) {
+          duration = Duration(seconds: int.tryParse(dur) ?? 0);
+        }
+      }
+
+      // Extract sizeBytes
+      int? sizeBytes = mediaJson['sizeBytes'] as int?;
+      if (sizeBytes == null) {
+        sizeBytes = mediaJson['size_bytes'] as int?;
+      }
+      if (sizeBytes == null && mediaJson['size'] != null) {
+        sizeBytes = mediaJson['size'] as int?;
+      }
+
       return MediaItem(
         id: mediaId,
-        type: MediaType.image,
+        type: mediaType, // Use detected type (image, video, audio, file)
         uri: finalUri,
         createdAt: _parseMediaTimestamp(
           mediaJson['createdAt'] as String? ?? 
           mediaJson['created_at'] as String?
         ),
+        duration: duration,
+        sizeBytes: sizeBytes,
         analysisData: analysisData,
         altText: mediaJson['altText'] as String? ?? 
                  mediaJson['alt_text'] as String?,
         ocrText: mediaJson['ocrText'] as String? ?? 
                  mediaJson['ocr_text'] as String?,
+        transcript: mediaJson['transcript'] as String?,
         sha256: mediaJson['sha256'] as String?,
       );
     } catch (e, stackTrace) {

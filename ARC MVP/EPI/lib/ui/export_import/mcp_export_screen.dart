@@ -13,6 +13,7 @@ import '../../core/mcp/export/mcp_pack_export_service.dart';
 import '../../utils/file_utils.dart';
 import '../../arcx/services/arcx_export_service.dart';
 import '../../arcx/models/arcx_result.dart';
+import 'package:my_app/lumara/chat/chat_repo_impl.dart';
 
 /// MCP Export Screen - Create MCP Package (.mcpkg)
 class McpExportScreen extends StatefulWidget {
@@ -35,6 +36,15 @@ class _McpExportScreenState extends State<McpExportScreen> {
   // Export format selection
   String _exportFormat = 'legacy'; // 'legacy' or 'secure'
   
+  // Chat export settings
+  bool _includeChats = false;
+  bool _includeArchivedChats = false;
+  
+  // Multi-select for entries
+  bool _useMultiSelect = false;
+  Set<String> _selectedEntryIds = {};
+  List<JournalEntry> _allEntries = [];
+  
   // ARCX redaction settings (only visible when secure format is selected)
   bool _includePhotoLabels = false;
   bool _dateOnlyTimestamps = false;
@@ -54,6 +64,7 @@ class _McpExportScreenState extends State<McpExportScreen> {
     try {
       final journalRepo = context.read<JournalRepository>();
       final entries = await journalRepo.getAllJournalEntries();
+      _allEntries = entries;
       
       int photoCount = 0;
       for (final entry in entries) {
@@ -84,13 +95,36 @@ class _McpExportScreenState extends State<McpExportScreen> {
     });
 
     try {
-      // Get journal entries
+      // Get journal entries (either selected or all)
       final journalRepo = context.read<JournalRepository>();
-      final entries = await journalRepo.getAllJournalEntries();
-
-      if (entries.isEmpty) {
-        _showErrorDialog('No entries to export');
-        return;
+      List<JournalEntry> entries;
+      
+      if (_useMultiSelect && _selectedEntryIds.isNotEmpty) {
+        // Export only selected entries
+        final allEntries = await journalRepo.getAllJournalEntries();
+        entries = allEntries.where((e) => _selectedEntryIds.contains(e.id)).toList();
+        
+        if (entries.isEmpty) {
+          _showErrorDialog('No entries selected for export');
+          return;
+        }
+      } else {
+        // Export all entries
+        entries = await journalRepo.getAllJournalEntries();
+        
+        if (entries.isEmpty) {
+          _showErrorDialog('No entries to export');
+          return;
+        }
+      }
+      
+      // Extract dates from selected entries for filtering associated data
+      final selectedDates = <String>{};
+      for (final entry in entries) {
+        final date = '${entry.createdAt.year.toString().padLeft(4, '0')}-'
+                     '${entry.createdAt.month.toString().padLeft(2, '0')}-'
+                     '${entry.createdAt.day.toString().padLeft(2, '0')}';
+        selectedDates.add(date);
       }
 
       // Create progress notifier
@@ -151,11 +185,20 @@ class _McpExportScreenState extends State<McpExportScreen> {
         final fileName = FileUtils.generateMcpPackageName('journal_export');
         final tempFilePath = path.join(tempDir.path, fileName);
 
+        // Get ChatRepo instance
+        final chatRepo = ChatRepoImpl.instance;
+        try {
+          await chatRepo.initialize();
+        } catch (e) {
+          print('Warning: Could not initialize ChatRepo: $e');
+        }
+
         // Create export service
         final exportService = McpPackExportService(
           bundleId: 'export_${DateTime.now().millisecondsSinceEpoch}',
           outputPath: tempFilePath,
           isDebugMode: false,
+          chatRepo: _includeChats ? chatRepo : null,
         );
 
         // Export
@@ -163,6 +206,9 @@ class _McpExportScreenState extends State<McpExportScreen> {
           entries: entries,
           includePhotos: _includePhotos,
           reducePhotoSize: _reducePhotoSize,
+          includeChats: _includeChats,
+          includeArchivedChats: _includeArchivedChats,
+          chatDatesFilter: _useMultiSelect && _includeChats ? selectedDates : null,
         );
 
         // Hide progress dialog
@@ -249,8 +295,13 @@ class _McpExportScreenState extends State<McpExportScreen> {
               style: bodyStyle(context),
             ),
             const SizedBox(height: 16),
-            _buildSummaryRow('Entries exported:', '$_entryCount'),
-            _buildSummaryRow('Photos exported:', '$_photoCount'),
+            _buildSummaryRow('Entries exported:', '${result.totalEntries}'),
+            _buildSummaryRow('Photos exported:', '${result.totalPhotos}'),
+            if (result.totalChatSessions > 0 || result.totalChatMessages > 0) ...[
+              const SizedBox(height: 8),
+              _buildSummaryRow('Chat sessions:', '${result.totalChatSessions}'),
+              _buildSummaryRow('Chat messages:', '${result.totalChatMessages}'),
+            ],
             const SizedBox(height: 16),
             Text(
               'Tap "Share" to save the file to your device.',
@@ -826,6 +877,125 @@ class _McpExportScreenState extends State<McpExportScreen> {
               ),
             ],
 
+            // Chat export option
+            const SizedBox(height: 8),
+            _buildOptionTile(
+              title: 'Include chat histories',
+              subtitle: 'Export chat sessions and messages',
+              value: _includeChats,
+              onChanged: (value) {
+                setState(() {
+                  _includeChats = value;
+                });
+              },
+            ),
+
+            // Include archived chats (only if chats are enabled)
+            if (_includeChats) ...[
+              const SizedBox(height: 8),
+              _buildOptionTile(
+                title: 'Include archived chats',
+                subtitle: 'Export archived chat sessions as well',
+                value: _includeArchivedChats,
+                onChanged: (value) {
+                  setState(() {
+                    _includeArchivedChats = value;
+                  });
+                },
+              ),
+            ],
+
+            // Multi-select option
+            const SizedBox(height: 8),
+            _buildOptionTile(
+              title: 'Select specific entries',
+              subtitle: 'Choose which entries to export (default: all entries)',
+              value: _useMultiSelect,
+              onChanged: (value) {
+                setState(() {
+                  _useMultiSelect = value;
+                  if (!value) {
+                    _selectedEntryIds.clear(); // Clear selection when disabled
+                  }
+                });
+              },
+            ),
+
+            // Entry selection list (shown when multi-select is enabled)
+            if (_useMultiSelect) ...[
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.05),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.white.withOpacity(0.1)),
+                ),
+                constraints: const BoxConstraints(maxHeight: 300),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Select Entries (${_selectedEntryIds.length}/${_allEntries.length})',
+                          style: heading3Style(context),
+                        ),
+                        if (_selectedEntryIds.length > 0)
+                          TextButton(
+                            onPressed: () {
+                              setState(() {
+                                _selectedEntryIds.clear();
+                              });
+                            },
+                            child: const Text('Clear'),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Expanded(
+                      child: ListView.builder(
+                        itemCount: _allEntries.length,
+                        itemBuilder: (context, index) {
+                          final entry = _allEntries[index];
+                          final isSelected = _selectedEntryIds.contains(entry.id);
+                          final dateStr = '${entry.createdAt.month}/${entry.createdAt.day}/${entry.createdAt.year}';
+                          final preview = entry.content.length > 50 
+                              ? '${entry.content.substring(0, 50)}...' 
+                              : entry.content;
+                          
+                          return CheckboxListTile(
+                            value: isSelected,
+                            onChanged: (value) {
+                              setState(() {
+                                if (value == true) {
+                                  _selectedEntryIds.add(entry.id);
+                                } else {
+                                  _selectedEntryIds.remove(entry.id);
+                                }
+                              });
+                            },
+                            title: Text(
+                              dateStr,
+                              style: bodyStyle(context).copyWith(fontWeight: FontWeight.bold),
+                            ),
+                            subtitle: Text(
+                              preview,
+                              style: bodyStyle(context).copyWith(fontSize: 12),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            dense: true,
+                          );
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+
             const SizedBox(height: 24),
 
             // Summary
@@ -847,8 +1017,15 @@ class _McpExportScreenState extends State<McpExportScreen> {
               ),
               child: Column(
                 children: [
-                  _buildSummaryRow('Entries:', '$_entryCount'),
+                  _buildSummaryRow(
+                    'Entries:', 
+                    _useMultiSelect && _selectedEntryIds.isNotEmpty
+                        ? '${_selectedEntryIds.length} selected'
+                        : '$_entryCount (all)',
+                  ),
                   _buildSummaryRow('Photos:', '$_photoCount'),
+                  if (_includeChats)
+                    _buildSummaryRow('Chats:', 'Will be included'),
                   _buildSummaryRow('Estimated size:', _estimatedSize),
                 ],
               ),

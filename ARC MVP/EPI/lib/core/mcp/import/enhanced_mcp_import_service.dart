@@ -96,6 +96,10 @@ class EnhancedMcpImportService {
     int draftEntriesImported = 0;
     int lumaraEnhancedImported = 0;
 
+    // First pass: Import sessions and track their IDs (MCP ID -> Created Session ID)
+    final sessionMap = <String, String>{};
+    final messageNodes = <Map<String, dynamic>>[];
+
     for (int i = 0; i < lines.length; i++) {
       try {
         final line = lines[i].trim();
@@ -106,12 +110,16 @@ class EnhancedMcpImportService {
 
         switch (nodeType) {
           case 'ChatSession':
-            await _importChatSession(nodeData);
-            chatSessionsImported++;
+            final sessionId = await _importChatSession(nodeData);
+            if (sessionId != null) {
+              final mcpSessionId = nodeData['id'] as String? ?? '';
+              sessionMap[mcpSessionId] = sessionId;
+              chatSessionsImported++;
+            }
             break;
           case 'ChatMessage':
-            await _importChatMessage(nodeData);
-            chatMessagesImported++;
+            // Collect messages for second pass (after sessions are imported)
+            messageNodes.add(nodeData);
             break;
           case 'DraftEntry':
             await _importDraftEntry(nodeData);
@@ -133,6 +141,21 @@ class EnhancedMcpImportService {
       }
     }
 
+    // Second pass: Import messages and link them to sessions using edges
+    for (final messageData in messageNodes) {
+      try {
+        final imported = await _importChatMessage(messageData, bundleDir, sessionMap);
+        if (imported) {
+          chatMessagesImported++;
+        }
+      } catch (e) {
+        print('❌ Enhanced Import: Error importing chat message: $e');
+        if (options.strictMode) {
+          throw Exception('Failed to import chat message: $e');
+        }
+      }
+    }
+
     return EnhancedImportData(
       chatSessionsImported: chatSessionsImported,
       chatMessagesImported: chatMessagesImported,
@@ -142,10 +165,11 @@ class EnhancedMcpImportService {
   }
 
   /// Import chat session
-  Future<void> _importChatSession(Map<String, dynamic> nodeData) async {
+  /// Returns the created session ID, or null if import failed
+  Future<String?> _importChatSession(Map<String, dynamic> nodeData) async {
     if (chatRepo == null) {
       print('⚠️ Chat Import: ChatRepo not available, skipping chat session');
-      return;
+      return null;
     }
 
     try {
@@ -170,27 +194,37 @@ class EnhancedMcpImportService {
           }
         }
       }
-      print('✅ Chat Import: Imported chat session: ${sessionNode.title}');
+      print('✅ Chat Import: Imported chat session: ${sessionNode.title} (ID: $sessionId)');
+      return sessionId;
 
     } catch (e) {
       print('❌ Chat Import: Failed to import chat session: $e');
+      return null;
     }
   }
 
   /// Import chat message
-  Future<void> _importChatMessage(Map<String, dynamic> nodeData) async {
+  /// Returns true if message was successfully imported, false otherwise
+  Future<bool> _importChatMessage(
+    Map<String, dynamic> nodeData,
+    Directory bundleDir,
+    Map<String, String> sessionMap,
+  ) async {
     if (chatRepo == null) {
       print('⚠️ Chat Import: ChatRepo not available, skipping chat message');
-      return;
+      return false;
     }
 
     try {
       final messageNode = ChatMessageNode.fromJson(nodeData);
+      final messageNodeId = nodeData['id'] as String? ?? '';
       
-      // Find or create session for this message
-      // Note: We need the sessionId - this should be tracked during import
-      // For now, we'll need to extract it from messageNode or use a placeholder
-      String sessionId = ''; // TODO: Extract from messageNode or track during import
+      // Find the session this message belongs to by looking at edges
+      final sessionId = await _findSessionForMessage(bundleDir, messageNodeId, sessionMap);
+      if (sessionId == null) {
+        print('⚠️ Chat Import: No session found for message ${messageNodeId} - skipping');
+        return false;
+      }
       
       // Add message using repo API
       await chatRepo!.addMessage(
@@ -199,11 +233,61 @@ class EnhancedMcpImportService {
         content: messageNode.text,
       );
       final textPreview = messageNode.text.length < 50 ? messageNode.text : messageNode.text.substring(0, 50);
-      print('✅ Chat Import: Imported chat message: $textPreview...');
+      print('✅ Chat Import: Imported chat message to session $sessionId: $textPreview...');
+      return true;
 
     } catch (e) {
       print('❌ Chat Import: Failed to import chat message: $e');
+      return false;
     }
+  }
+
+  /// Find the session ID for a message by looking at contains edges
+  Future<String?> _findSessionForMessage(
+    Directory bundleDir,
+    String messageNodeId,
+    Map<String, String> sessionMap,
+  ) async {
+    final edgesFile = File('${bundleDir.path}/edges.jsonl');
+    if (!await edgesFile.exists()) {
+      return null;
+    }
+
+    try {
+      final lines = await edgesFile.readAsLines();
+      for (final line in lines) {
+        if (line.trim().isEmpty) continue;
+        try {
+          final edgeData = jsonDecode(line) as Map<String, dynamic>;
+          final source = edgeData['source'] as String?;
+          final target = edgeData['target'] as String?;
+          final relation = edgeData['relation'] as String?;
+
+          // Look for contains relationship where target is our message
+          if (relation == 'contains' && target == messageNodeId && source != null) {
+            // The source should be a session node ID
+            final sessionId = sessionMap[source];
+            if (sessionId != null) {
+              return sessionId;
+            }
+            // Also try with 'session:' prefix
+            if (source.startsWith('session:')) {
+              final sessionId2 = sessionMap[source.substring(8)]; // Remove 'session:' prefix
+              if (sessionId2 != null) {
+                return sessionId2;
+              }
+            }
+          }
+        } catch (e) {
+          // Skip malformed edges
+          continue;
+        }
+      }
+    } catch (e) {
+      print('⚠️ Chat Import: Error reading edges file: $e');
+    }
+
+    return null;
   }
 
   /// Import draft entry
