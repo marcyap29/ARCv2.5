@@ -6,6 +6,8 @@ import 'package:my_app/shared/text_style.dart';
 import 'package:my_app/models/user_profile_model.dart';
 import 'package:my_app/shared/ui/settings/sync_settings_section.dart';
 import 'package:my_app/shared/ui/settings/music_control_section.dart';
+import 'package:my_app/shared/ui/settings/first_responder_settings_section.dart';
+import 'package:my_app/shared/ui/settings/coach_mode_settings_section.dart';
 import 'package:my_app/shared/ui/settings/mcp_bundle_health_view.dart';
 import 'package:my_app/shared/ui/settings/privacy_settings_view.dart';
 import 'package:my_app/shared/ui/settings/memory_mode_settings_view.dart';
@@ -295,6 +297,53 @@ class _SettingsViewState extends State<SettingsView> {
 
             const SizedBox(height: 32),
 
+            // First Responder Settings Section
+            const FirstResponderSettingsSection(),
+
+            const SizedBox(height: 32),
+
+            // Coach Mode Settings Section
+            const CoachModeSettingsSection(),
+
+            const SizedBox(height: 32),
+
+            // Export & Backup Section
+            _buildSection(
+              context,
+              title: 'Export & Backup',
+              children: [
+                _buildSettingsTile(
+                  context,
+                  title: 'Import/Export Data',
+                  subtitle: 'Export, import, and organize your journal data',
+                  icon: Icons.dashboard,
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => McpManagementScreen(
+                          journalRepository: context.read<JournalRepository>(),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+                _buildSettingsTile(
+                  context,
+                  title: 'Bundle Health Check',
+                  subtitle: 'Validate and repair backup files',
+                  icon: Icons.health_and_safety,
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const McpBundleHealthView()),
+                    );
+                  },
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 32),
             // LUMARA Settings Section
             _buildSection(
               context,
