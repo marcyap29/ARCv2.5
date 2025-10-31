@@ -433,9 +433,10 @@ Resolved multiple critical UI/UX issues affecting core journal functionality:
 
 *For detailed technical information, see [UI_UX_FIXES_JAN_2025.md](../bugtracker/UI_UX_FIXES_JAN_2025.md)*
 
-**LUMARA In-Journal Integration v2.1 & Draft Management**
+**LUMARA In-Journal Integration v2.3 & Draft Management**
 
-Enhanced LUMARA AI assistant with Abstract Register Rule and comprehensive draft management:
+Enhanced LUMARA AI assistant with Rich Context Expansion Questions, Abstract Register Rule, and comprehensive draft management:
+- **Rich Context Expansion Questions (v2.3)** - First activation gathers mood, phase, circadian profile, recent chats, and media for personalized questions
 - **ECHO-Based Responses** - Structured 2-4 sentence reflections following Empathize, Clarify, Highlight, Open pattern
 - **Abstract Register Detection** - Automatically detects and adapts to abstract vs concrete writing styles
 - **Adaptive Clarify Questions** - 2 questions for abstract register (conceptual + emotional), 1 for concrete

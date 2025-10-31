@@ -183,6 +183,20 @@ class ScoringInput {
 - Phase transition recognition
 - Contextual phase-aware responses
 
+## Related Features
+
+### LUMARA v2.3 - Rich Context Expansion Questions
+
+In February 2025, LUMARA v2.2 was enhanced with **Rich Context Expansion Questions** (v2.3), which gathers comprehensive contextual information for the first in-journal activation:
+
+- **Mood & Emotion**: Extracted from current entry
+- **Circadian Profile**: Time window, chronotype, rhythm coherence via AURORA
+- **Recent Chats**: Conversation summaries for continuity
+- **Media Attachments**: OCR text and transcripts from photos/videos
+- **Earlier Entries**: Historical context via ProgressiveMemoryLoader
+
+This enhancement makes expansion questions significantly more personalized and contextually relevant. See [LUMARA_RICH_CONTEXT_EXPANSION.md](./LUMARA_RICH_CONTEXT_EXPANSION.md) for complete documentation.
+
 ## Testing Scenarios
 
 ### 1. Question Bias Testing

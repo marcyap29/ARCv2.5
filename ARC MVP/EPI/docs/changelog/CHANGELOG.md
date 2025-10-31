@@ -1,6 +1,47 @@
 # EPI ARC MVP - Changelog
 
 ## [Unreleased] - 2025-02-XX
+### **LUMARA Rich Context Expansion Questions** - February 2025
+
+#### Major Features
+- **Rich Context Gathering**: Comprehensive context collection for first LUMARA activation
+  - Mood and emotion from current entry
+  - Circadian profile (time window, chronotype, rhythm coherence) via AURORA
+  - Recent chat sessions (up to 5 with message summaries)
+  - Media attachments with OCR text and transcripts
+  - Earlier entries via ProgressiveMemoryLoader
+- **Context-Aware Expansion Questions**: Personalized questions based on:
+  - Current mood and emotional state
+  - Circadian rhythm patterns and fragmentation status
+  - Recent conversation topics
+  - Visual/audio content from media attachments
+  - Historical patterns from earlier entries
+- **First vs. Subsequent Activation**: Differentiated behavior
+  - First activation: Full ECHO structure with rich context expansion questions
+  - Subsequent activations: Brief 1-2 sentence reflections (150 char limit)
+- **Enhanced API Integration**: Extended `EnhancedLumaraApi.generatePromptedReflection()`
+  - New parameters: `mood`, `chronoContext`, `chatContext`, `mediaContext`
+  - Context-aware prompt construction
+  - Personalized question generation
+
+#### Technical Improvements
+- **`_buildRichContext()` Method**: New context gathering method in `journal_screen.dart`
+  - Integrates CircadianProfileService for rhythm analysis
+  - Uses ChatRepo for conversation continuity
+  - Leverages MediaConversionUtils for multimodal context
+  - Builds comprehensive context map
+- **Enhanced Prompt Building**: Context-aware prompt construction in `enhanced_lumara_api.dart`
+  - Incorporates mood, phase, circadian context
+  - Includes historical entries and recent chats
+  - Integrates media descriptions and content
+
+#### Files Modified
+- `lib/ui/journal/journal_screen.dart` - Added rich context gathering
+- `lib/lumara/services/enhanced_lumara_api.dart` - Extended with context parameters
+
+#### Files Added
+- `docs/features/LUMARA_RICH_CONTEXT_EXPANSION.md` - Complete feature documentation
+
 ### **Journal Versioning & Draft System** - February 2025
 
 #### Major Features
