@@ -91,6 +91,11 @@ class EnhancedLumaraApi {
     required String intent,
     String? phase,
     String? userId,
+    bool includeExpansionQuestions = false,
+    String? mood,
+    Map<String, dynamic>? chronoContext,
+    String? chatContext,
+    String? mediaContext,
   }) async {
     try {
       if (!_initialized) {
@@ -162,17 +167,63 @@ class EnhancedLumaraApi {
         print('LUMARA Enhanced API: Using LLM provider: ${_llmProvider!.name}');
         print('LUMARA: Using LLM provider: ${_llmProvider!.name}');
         try {
-          String userPrompt;
+          // Build rich context string
+          final contextParts = <String>[];
+          contextParts.add('Current entry: "$entryText"');
+          
+          // Add mood/emotion context
+          if (mood != null && mood.isNotEmpty) {
+            contextParts.add('Mood: $mood');
+          }
+          
+          // Add phase context
+          if (phase != null && phase.isNotEmpty) {
+            contextParts.add('Phase: $phase');
+          }
+          
+          // Add circadian context
+          if (chronoContext != null) {
+            final window = chronoContext['window'] ?? 'unknown';
+            final chronotype = chronoContext['chronotype'] ?? 'unknown';
+            final rhythmScore = chronoContext['rhythmScore'] ?? 0.0;
+            final isFragmented = chronoContext['isFragmented'] ?? false;
+            contextParts.add('Circadian context: Time window: $window, Chronotype: $chronotype, Rhythm coherence: ${(rhythmScore * 100).toStringAsFixed(0)}%${isFragmented ? ' (fragmented)' : ''}');
+          }
+          
+          // Add earlier entries context
           if (matches.isNotEmpty) {
-            // Use historical context if available
-            print('LUMARA Enhanced API: Using ${matches.length} historical matches');
-            userPrompt = 'Current entry: "$entryText"\n\nHistorical context: ${matches.map((m) => 'From ${m.approxDate?.year}: ${m.excerpt}').join('\n')}\n\nCRITICAL: Generate 1-2 sentences maximum (150 characters total) that connect their current thoughts to their past experiences. Be brief and profound.';
-            print('LUMARA: Generating response with ${matches.length} historical matches');
+            contextParts.add('Historical context from earlier entries: ${matches.map((m) => 'From ${m.approxDate?.year}: ${m.excerpt}').join('\n')}');
+          }
+          
+          // Add chat context
+          if (chatContext != null && chatContext.isNotEmpty) {
+            contextParts.add('\n$chatContext');
+          }
+          
+          // Add media context
+          if (mediaContext != null && mediaContext.isNotEmpty) {
+            contextParts.add('\n$mediaContext');
+          }
+          
+          String userPrompt;
+          if (includeExpansionQuestions) {
+            // For first activation, allow full ECHO structure with expansion questions
+            final baseContext = contextParts.join('\n\n');
+            print('LUMARA Enhanced API: First activation with rich context - using full ECHO structure');
+            userPrompt = '$baseContext\n\nFollow the ECHO structure (Empathize → Clarify → Highlight → Open) and include 1-2 clarifying expansion questions that help deepen the reflection. Consider the mood, phase, circadian context, recent chats, and any media when crafting questions that feel personally relevant and timely. Be thoughtful and allow for meaningful engagement.';
           } else {
-            // Generate fresh reflection without historical context
-            print('LUMARA Enhanced API: No historical context - new user');
-            userPrompt = 'Current entry: "$entryText"\n\nCRITICAL: Generate 1-2 sentences maximum (150 characters total). Be brief and profound. Focus on the current entry. Be warm, encouraging, and thought-provoking.';
-            print('LUMARA: Generating response without historical context (new user)');
+            // For subsequent activations, keep brief
+            if (matches.isNotEmpty) {
+              // Use historical context if available
+              print('LUMARA Enhanced API: Using ${matches.length} historical matches');
+              userPrompt = 'Current entry: "$entryText"\n\nHistorical context: ${matches.map((m) => 'From ${m.approxDate?.year}: ${m.excerpt}').join('\n')}\n\nCRITICAL: Generate 1-2 sentences maximum (150 characters total) that connect their current thoughts to their past experiences. Be brief and profound.';
+              print('LUMARA: Generating response with ${matches.length} historical matches');
+            } else {
+              // Generate fresh reflection without historical context
+              print('LUMARA Enhanced API: No historical context - new user');
+              userPrompt = 'Current entry: "$entryText"\n\nCRITICAL: Generate 1-2 sentences maximum (150 characters total). Be brief and profound. Focus on the current entry. Be warm, encouraging, and thought-provoking.';
+              print('LUMARA: Generating response without historical context (new user)');
+            }
           }
           
           print('LUMARA Enhanced API: Calling generateResponse()...');

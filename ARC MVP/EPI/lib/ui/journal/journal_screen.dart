@@ -44,6 +44,9 @@ import 'widgets/full_screen_photo_viewer.dart';
 import '../../ui/widgets/location_picker_dialog.dart';
 import 'drafts_screen.dart';
 import 'package:my_app/models/journal_entry_model.dart';
+import 'package:my_app/lumara/chat/chat_repo_impl.dart';
+import 'package:my_app/lumara/chat/chat_models.dart';
+import 'package:my_app/aurora/services/circadian_profile_service.dart';
 
 /// Main journal screen with integrated LUMARA companion and OCR scanning
 class JournalScreen extends StatefulWidget {
@@ -447,17 +450,36 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
       // Build context from progressive memory loader (current year only)
       final loadedEntries = _memoryLoader.getLoadedEntries();
       
-      // Build entry text from loaded journal entries
-      final entryText = _buildJournalContext(loadedEntries);
+      // Build comprehensive context with mood, phase, chrono profile, chats, and media
+      final richContext = await _buildRichContext(loadedEntries, userProfile);
       final phaseHint = _entryState.phase ?? 'Discovery';
       
-      // Use ArcLLM with progressive memory for reflection
-      final reflection = await _arcLLM.chat(
-        userIntent: 'reflect',
-        entryText: entryText,
-        phaseHintJson: phaseHint,
-        lastKeywordsJson: '',
-      );
+      // Check if this is the first LUMARA activation (no existing blocks)
+      final isFirstActivation = _entryState.blocks.isEmpty;
+      
+      String reflection;
+      if (isFirstActivation) {
+        // For first activation, use EnhancedLumaraApi to get full ECHO structure with expansion questions
+        reflection = await _enhancedLumaraApi.generatePromptedReflection(
+          entryText: richContext['entryText'] ?? '',
+          intent: 'journal',
+          phase: phaseHint,
+          userId: userProfile?.id,
+          includeExpansionQuestions: true,
+          mood: richContext['mood'],
+          chronoContext: richContext['chronoContext'],
+          chatContext: richContext['chatContext'],
+          mediaContext: richContext['mediaContext'],
+        );
+      } else {
+        // For subsequent activations, use the brief ArcLLM format
+        reflection = await _arcLLM.chat(
+          userIntent: 'reflect',
+          entryText: richContext['entryText'] ?? '',
+          phaseHintJson: phaseHint,
+          lastKeywordsJson: '',
+        );
+      }
 
       // Insert the reflection directly into the text
       _insertAISuggestion(reflection);
@@ -2688,6 +2710,103 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
     }
     
     return buffer.toString().trim();
+  }
+
+  /// Build rich context including mood, phase, chrono profile, chats, and media
+  Future<Map<String, dynamic>> _buildRichContext(
+    List<JournalEntry> loadedEntries,
+    UserProfile? userProfile,
+  ) async {
+    final context = <String, dynamic>{};
+    
+    // Build entry text from loaded journal entries
+    context['entryText'] = _buildJournalContext(loadedEntries);
+    
+    // Get mood/emotion from current entry or widget
+    String? mood;
+    String? emotion;
+    if (widget.selectedEmotion != null) {
+      emotion = widget.selectedEmotion;
+    } else if (widget.existingEntry != null) {
+      emotion = widget.existingEntry!.emotion;
+      mood = widget.existingEntry!.mood;
+    }
+    context['mood'] = mood;
+    context['emotion'] = emotion;
+    
+    // Compute circadian context from all entries
+    final circadianService = CircadianProfileService();
+    final allEntries = _journalRepository.getAllJournalEntries();
+    final chronoContext = await circadianService.compute(allEntries);
+    context['chronoContext'] = {
+      'window': chronoContext.window,
+      'chronotype': chronoContext.chronotype,
+      'rhythmScore': chronoContext.rhythmScore,
+      'isFragmented': chronoContext.isFragmented,
+      'isCoherent': chronoContext.isCoherent,
+    };
+    
+    // Gather recent chat sessions and messages
+    String? chatContext;
+    try {
+      final chatRepo = ChatRepoImpl.instance;
+      await chatRepo.initialize();
+      final recentSessions = await chatRepo.listActive();
+      
+      if (recentSessions.isNotEmpty) {
+        final chatBuffer = StringBuffer();
+        chatBuffer.writeln('Recent chat sessions:');
+        for (final session in recentSessions.take(5)) {
+          final messages = await chatRepo.getMessages(session.id, lazy: false);
+          chatBuffer.writeln('Session: "${session.subject}" (${session.createdAt.toString().split(' ')[0]}):');
+          for (final msg in messages.take(3)) {
+            chatBuffer.writeln('  ${msg.role}: ${msg.content.substring(0, msg.content.length > 100 ? 100 : msg.content.length)}${msg.content.length > 100 ? '...' : ''}');
+          }
+          chatBuffer.writeln('---');
+        }
+        chatContext = chatBuffer.toString().trim();
+      }
+    } catch (e) {
+      print('LUMARA: Error gathering chat context: $e');
+    }
+    context['chatContext'] = chatContext;
+    
+    // Gather media information from current entry
+    String? mediaContext;
+    final mediaItems = <MediaItem>[];
+    
+    // From existing entry media
+    if (widget.existingEntry != null && widget.existingEntry!.media.isNotEmpty) {
+      mediaItems.addAll(widget.existingEntry!.media);
+    }
+    
+    // From current state attachments - convert to MediaItems
+    if (_entryState.attachments.isNotEmpty) {
+      final convertedMedia = MediaConversionUtils.attachmentsToMediaItems(_entryState.attachments);
+      mediaItems.addAll(convertedMedia);
+    }
+    
+    if (mediaItems.isNotEmpty) {
+      final mediaBuffer = StringBuffer();
+      mediaBuffer.writeln('Media in this entry:');
+      for (final media in mediaItems) {
+        mediaBuffer.write('  - ${media.type.name}');
+        if (media.altText != null && media.altText!.isNotEmpty) {
+          mediaBuffer.write(': ${media.altText!.substring(0, media.altText!.length > 80 ? 80 : media.altText!.length)}');
+        }
+        if (media.ocrText != null && media.ocrText!.isNotEmpty) {
+          mediaBuffer.write(' [OCR: ${media.ocrText!.substring(0, media.ocrText!.length > 60 ? 60 : media.ocrText!.length)}...]');
+        }
+        if (media.transcript != null && media.transcript!.isNotEmpty) {
+          mediaBuffer.write(' [Transcript: ${media.transcript!.substring(0, media.transcript!.length > 60 ? 60 : media.transcript!.length)}...]');
+        }
+        mediaBuffer.writeln();
+      }
+      mediaContext = mediaBuffer.toString().trim();
+    }
+    context['mediaContext'] = mediaContext;
+    
+    return context;
   }
 
   /// Build phase hint JSON for ArcLLM

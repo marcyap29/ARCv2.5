@@ -112,7 +112,7 @@ class McpPackImportService {
   /// Import all media (photos, videos, audio, files) from MCP package to app storage
   Future<Map<String, String>> _importAllMedia(Directory mcpDir) async {
     final mediaMapping = <String, String>{};
-    
+
     // Get app documents directory for permanent storage
     final appDir = await getApplicationDocumentsDirectory();
     
@@ -514,7 +514,7 @@ class McpPackImportService {
       String? permanentPath;
       if (filename != null && filename.isNotEmpty) {
         permanentPath = photoMapping[filename];
-        if (permanentPath == null) {
+      if (permanentPath == null) {
           // Try matching by SHA-256 if filename doesn't match
           final sha256 = mediaJson['sha256'] as String?;
           if (sha256 != null && sha256.isNotEmpty) {

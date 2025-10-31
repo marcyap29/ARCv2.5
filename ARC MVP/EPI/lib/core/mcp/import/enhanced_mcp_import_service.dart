@@ -114,7 +114,7 @@ class EnhancedMcpImportService {
             if (sessionId != null) {
               final mcpSessionId = nodeData['id'] as String? ?? '';
               sessionMap[mcpSessionId] = sessionId;
-              chatSessionsImported++;
+            chatSessionsImported++;
             }
             break;
           case 'ChatMessage':

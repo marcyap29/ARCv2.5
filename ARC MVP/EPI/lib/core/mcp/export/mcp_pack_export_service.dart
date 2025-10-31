@@ -304,10 +304,10 @@ class McpPackExportService {
       final localId = PhotoBridge.extractLocalIdentifier(media.uri);
       if (localId != null) {
         if (mediaType == MediaType.image) {
-          final photoData = await PhotoBridge.getPhotoBytes(localId);
-          if (photoData != null) {
-            originalBytes = photoData['bytes'] as Uint8List;
-            originalFormat = photoData['ext'] as String;
+        final photoData = await PhotoBridge.getPhotoBytes(localId);
+        if (photoData != null) {
+          originalBytes = photoData['bytes'] as Uint8List;
+          originalFormat = photoData['ext'] as String;
           }
         } else if (mediaType == MediaType.video) {
           // For videos from photo library, we need to handle differently
