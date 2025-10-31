@@ -1105,72 +1105,64 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    // Primary action row - optimized layout
+                    // Primary action row - optimized layout with even spacing
                     Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                       children: [
-                        // Left side: Media buttons (compact)
-                        Expanded(
-                          flex: 3,
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.start,
-                            children: [
-                              // Add photo button
-                              IconButton(
-                                onPressed: _handlePhotoGallery,
-                                icon: const Icon(Icons.add_photo_alternate, size: 18),
-                                tooltip: 'Add Photo',
-                                padding: const EdgeInsets.all(4),
-                                constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
-                              ),
-                              
-                              // Add camera button
-                              IconButton(
-                                onPressed: _handleCamera,
-                                icon: const Icon(Icons.camera_alt, size: 18),
-                                tooltip: 'Take Photo',
-                                padding: const EdgeInsets.all(4),
-                                constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
-                              ),
-                              
-                              // Add video button
-                              IconButton(
-                                onPressed: _handleVideoGallery,
-                                icon: const Icon(Icons.videocam, size: 18),
-                                tooltip: 'Add Video',
-                                padding: const EdgeInsets.all(4),
-                                constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
-                              ),
-                              
-                              // Add voice button
-                              IconButton(
-                                onPressed: _handleMicrophone,
-                                icon: const Icon(Icons.mic, size: 18),
-                                tooltip: 'Add Voice Note',
-                                padding: const EdgeInsets.all(4),
-                                constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
-                              ),
-                              
-                              // Keyword toggle button
-                              IconButton(
-                                onPressed: _toggleKeywordsDiscovered,
-                                icon: Icon(
-                                  _showKeywordsDiscovered ? Icons.label_off : Icons.label,
-                                  size: 18,
-                                ),
-                                tooltip: _showKeywordsDiscovered ? 'Hide Keywords' : 'Show Keywords',
-                                padding: const EdgeInsets.all(4),
-                                constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
-                                style: IconButton.styleFrom(
-                                  backgroundColor: _showKeywordsDiscovered 
-                                    ? theme.colorScheme.primary.withOpacity(0.2)
-                                    : null,
-                                ),
-                              ),
-                            ],
+                        // Add photo button
+                        IconButton(
+                          onPressed: _handlePhotoGallery,
+                          icon: const Icon(Icons.add_photo_alternate, size: 18),
+                          tooltip: 'Add Photo',
+                          padding: const EdgeInsets.all(4),
+                          constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
+                        ),
+                        
+                        // Add camera button
+                        IconButton(
+                          onPressed: _handleCamera,
+                          icon: const Icon(Icons.camera_alt, size: 18),
+                          tooltip: 'Take Photo',
+                          padding: const EdgeInsets.all(4),
+                          constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
+                        ),
+                        
+                        // Add video button
+                        IconButton(
+                          onPressed: _handleVideoGallery,
+                          icon: const Icon(Icons.videocam, size: 18),
+                          tooltip: 'Add Video',
+                          padding: const EdgeInsets.all(4),
+                          constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
+                        ),
+                        
+                        // Add voice button
+                        IconButton(
+                          onPressed: _handleMicrophone,
+                          icon: const Icon(Icons.mic, size: 18),
+                          tooltip: 'Add Voice Note',
+                          padding: const EdgeInsets.all(4),
+                          constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
+                        ),
+                        
+                        // Keyword toggle button
+                        IconButton(
+                          onPressed: _toggleKeywordsDiscovered,
+                          icon: Icon(
+                            _showKeywordsDiscovered ? Icons.label_off : Icons.label,
+                            size: 18,
+                          ),
+                          tooltip: _showKeywordsDiscovered ? 'Hide Keywords' : 'Show Keywords',
+                          padding: const EdgeInsets.all(4),
+                          constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
+                          style: IconButton.styleFrom(
+                            backgroundColor: _showKeywordsDiscovered 
+                              ? theme.colorScheme.primary.withOpacity(0.2)
+                              : null,
                           ),
                         ),
                         
-                        // Center: LUMARA button (compact)
+                        // LUMARA button
                         IconButton(
                           onPressed: _onLumaraFabTapped,
                           icon: Icon(
@@ -1194,24 +1186,16 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
                           ),
                         ),
                         
-                        // Right side: Continue button (flexible)
-                        Expanded(
-                          flex: 2,
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.end,
-                            children: [
-                              ElevatedButton(
-                                onPressed: _entryState.text.isNotEmpty ? _onContinue : null,
-                                style: ElevatedButton.styleFrom(
-                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                  minimumSize: const Size(0, 28),
-                                ),
-                                child: const Text(
-                                  'Continue',
-                                  style: TextStyle(fontSize: 12),
-                                ),
-                              ),
-                            ],
+                        // Continue button
+                        ElevatedButton(
+                          onPressed: _entryState.text.isNotEmpty ? _onContinue : null,
+                          style: ElevatedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            minimumSize: const Size(0, 28),
+                          ),
+                          child: const Text(
+                            'Continue',
+                            style: TextStyle(fontSize: 12),
                           ),
                         ),
                       ],
@@ -3156,7 +3140,8 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
       case 'analyze':
         return 'Analyze further';
       default:
-        return suggestion; // Use as-is if not recognized
+        // Try to use as-is, might be a natural language prompt
+        return suggestion;
     }
   }
 
