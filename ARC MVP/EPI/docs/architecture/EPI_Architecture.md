@@ -61,15 +61,27 @@
   │       ├── ReflectiveNode conversion
   │       └── Backward compatibility with legacy formats
 ├── Phase Timeline UI
-│   ├── PhaseAnalysisView (ENHANCED - January 22, 2025)
+│   ├── PhaseAnalysisView (ENHANCED - January 30, 2025)
 │   │   ├── Main orchestration hub for phase analysis workflow
-│   │   ├── Four-tab interface (Timeline, Analysis, SENTINEL, Overview)
+│   │   ├── Four-tab interface (ARCForms, Timeline, Analysis, SENTINEL)
 │   │   ├── Journal repository integration
 │   │   ├── Entry validation (minimum 5 entries required)
 │   │   ├── Phase regime creation and persistence
-│   │   ├── Automatic timeline refresh after approval
-│   │   ├── Phase statistics display
-│   │   └── SENTINEL emotional risk analysis integration
+│   │   ├── Comprehensive refresh system after RIVET Sweep
+│   │   │   ├── Phase Statistics card refresh
+│   │   │   ├── Phase Change Readiness card refresh
+│   │   │   ├── Sentinel analysis refresh
+│   │   │   ├── Phase Regimes reload
+│   │   │   ├── ARCForms visualization refresh
+│   │   │   ├── Themes analysis refresh
+│   │   │   ├── Tone analysis refresh
+│   │   │   ├── Stable themes refresh
+│   │   │   └── Patterns analysis refresh
+│   │   ├── Dual entry points for phase analysis
+│   │   │   ├── Main Analysis tab "Run Phase Analysis" button
+│   │   │   └── ARCForms tab refresh button
+│   │   ├── GlobalKey integration for component refresh
+│   │   └── Unified user experience across all analysis components
   │   ├── RivetSweepWizard (ENHANCED - January 22, 2025)
   │   │   ├── Three-tab UI (Overview, Review, Timeline)
   │   │   ├── Segmented review workflow (auto-assign, review, low-confidence)
@@ -180,20 +192,40 @@
              ├── Reloads phase data with _loadPhaseData()
              └── Shows success message with regime count
 
-  5. Timeline Display
+  5. Comprehensive Component Refresh
+     └── PhaseAnalysisView._refreshAllPhaseComponents()
+         ├── Reloads phase data (Phase Regimes and Statistics)
+         ├── Refreshes ARCForms visualizations
+         ├── Refreshes Sentinel analysis
+         ├── Triggers rebuild of all analysis components:
+         │   ├── Phase Statistics card
+         │   ├── Phase Change Readiness card
+         │   ├── Themes analysis
+         │   ├── Tone analysis
+         │   ├── Stable themes
+         │   └── Patterns analysis
+         └── Shows success message: "All phase components refreshed successfully"
+
+  6. Timeline Display
      └── PhaseAnalysisView updates UI
+         ├── ARCForms Tab: Updated constellation visualizations
          ├── Timeline Tab: Shows phase bands with PhaseTimelineView
-         ├── Analysis Tab: Shows phase statistics
+         ├── Analysis Tab: Shows refreshed phase statistics and analysis
          │   ├── Total regime count
-         │   └── Breakdown by phase label
-         └── Overview Tab: Phase information and help
+         │   ├── Breakdown by phase label
+         │   ├── Updated themes and patterns
+         │   └── Refreshed readiness indicators
+         └── SENTINEL Tab: Updated emotional risk analysis
 
   Key Architecture Decisions:
   ├── Minimum 5 Entries: Ensures meaningful statistical analysis
   ├── Three Confidence Levels: Balances automation with user control
   ├── Callback Pattern: Decouples wizard from persistence logic
   ├── Manual Override Support: User retains final control over labels
-  ├── Automatic Refresh: Timeline updates immediately after approval
+  ├── Comprehensive Refresh: All analysis components update after RIVET Sweep
+  ├── Dual Entry Points: Phase analysis available from Analysis tab and ARCForms tab
+  ├── GlobalKey Integration: Enables programmatic refresh of child components
+  ├── Unified User Experience: Consistent behavior across all analysis views
   └── User-Friendly Errors: Clear messaging for insufficient data
 
   Data Flow:

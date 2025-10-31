@@ -31,6 +31,7 @@ class _PhaseAnalysisViewState extends State<PhaseAnalysisView>
   bool _isLoading = true;
   String? _error;
   final GlobalKey<State<SimplifiedArcformView3D>> _arcformsKey = GlobalKey<State<SimplifiedArcformView3D>>();
+  final GlobalKey<State<SentinelAnalysisView>> _sentinelKey = GlobalKey<State<SentinelAnalysisView>>();
 
   @override
   void initState() {
@@ -103,6 +104,9 @@ class _PhaseAnalysisViewState extends State<PhaseAnalysisView>
       if (mounted) {
         // Show RIVET Sweep wizard
         await _showRivetSweepWizard(result);
+        
+        // After wizard completion, refresh all phase components
+        await _refreshAllPhaseComponents();
       }
     } catch (e) {
       if (mounted) {
@@ -129,8 +133,7 @@ class _PhaseAnalysisViewState extends State<PhaseAnalysisView>
         onApprove: (approvedProposals, overrides) async {
           Navigator.of(context).pop();
           await _createPhaseRegimes(approvedProposals, overrides);
-          // Phase Analysis completed - refresh ARCForms
-          _refreshArcforms();
+          // ARCForms will be refreshed by the calling function
         },
         onSkip: () {
           Navigator.of(context).pop();
@@ -316,6 +319,16 @@ List<PhaseSegmentProposal> proposals,
             },
             tooltip: 'Phase Help',
           ),
+          IconButton(
+            icon: const Icon(Icons.clean_hands),
+            onPressed: _cleanupDuplicates,
+            tooltip: 'Clean Up Duplicates',
+          ),
+          IconButton(
+            icon: const Icon(Icons.auto_awesome),
+            onPressed: _runRivetSweep,
+            tooltip: 'Run Phase Analysis (also available in ARCForms tab)',
+          ),
         ],
         bottom: TabBar(
           controller: _tabController,
@@ -355,7 +368,7 @@ List<PhaseSegmentProposal> proposals,
           _buildAnalysisTab(),
 
           // SENTINEL Tab
-          const SentinelAnalysisView(),
+          SentinelAnalysisView(key: _sentinelKey),
         ],
       ),
     );
@@ -780,25 +793,14 @@ List<PhaseSegmentProposal> proposals,
                   ),
                 ),
               ),
-              // Small refresh button for phase updates
+              // Refresh button with RIVET Sweep functionality
               IconButton(
                 icon: const Icon(Icons.refresh),
                 iconSize: 18,
-                tooltip: 'Refresh phase data',
+                tooltip: 'Run Phase Analysis & Refresh',
                 onPressed: () async {
-                  // Reload phase data from UserProfile and regimes
-                  await _loadPhaseData();
-                  // Refresh ARCForms
-                  _refreshArcforms();
-                  
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Phase data refreshed'),
-                        duration: Duration(seconds: 1),
-                      ),
-                    );
-                  }
+                  // Run RIVET Sweep for phase analysis (includes comprehensive refresh)
+                  await _runRivetSweep();
                 },
               ),
               ElevatedButton.icon(
@@ -842,6 +844,62 @@ List<PhaseSegmentProposal> proposals,
       (state as dynamic).refreshSnapshots();
       // Also update the phase if it has changed
       (state as dynamic).updatePhase(_phaseIndex?.currentRegime?.label.name);
+    }
+  }
+
+  /// Comprehensive refresh of all phase-related components after RIVET Sweep
+  Future<void> _refreshAllPhaseComponents() async {
+    try {
+      // 1. Reload phase data (includes Phase Regimes and Phase Statistics)
+      await _loadPhaseData();
+      
+      // 2. Refresh ARCForms
+      _refreshArcforms();
+      
+      // 3. Refresh Sentinel Analysis
+      _refreshSentinelAnalysis();
+      
+      // 4. Trigger comprehensive rebuild of all analysis components
+      setState(() {
+        // This will trigger rebuild of:
+        // - Phase Statistics card (_buildPhaseStats)
+        // - Phase Change Readiness Card
+        // - Themes analysis
+        // - Tone analysis  
+        // - Stable themes
+        // - Patterns analysis
+        // - All other analysis components in the Analysis tab
+      });
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('All phase components refreshed successfully'),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Refresh failed: $e'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    }
+  }
+
+  /// Refresh Sentinel Analysis component
+  void _refreshSentinelAnalysis() {
+    // Call refresh method on the Sentinel view
+    final state = _sentinelKey.currentState;
+    if (state != null && state.mounted) {
+      // Call the _runAnalysis method on SentinelAnalysisView
+      (state as dynamic)._runAnalysis();
     }
   }
 
