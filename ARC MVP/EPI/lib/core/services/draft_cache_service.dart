@@ -4,9 +4,15 @@
 /// when users switch away, shut down, or experience app crashes.
 
 import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
+import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
 import 'package:hive/hive.dart';
+import 'package:path/path.dart' as path;
+import 'package:path_provider/path_provider.dart';
 import 'package:my_app/data/models/media_item.dart';
+import 'journal_version_service.dart' show JournalVersionService, DraftAIContent, DraftMediaItem, ConflictInfo;
 
 /// Represents a cached journal draft with all associated data
 class JournalDraft {
@@ -19,6 +25,7 @@ class JournalDraft {
   final DateTime lastModified;
   final Map<String, dynamic> metadata;
   final String? linkedEntryId; // ID of the original entry this draft is linked to (for editing existing entries)
+  final List<Map<String, dynamic>> lumaraBlocks; // LUMARA inline reflection blocks
 
   JournalDraft({
     required this.id,
@@ -30,6 +37,7 @@ class JournalDraft {
     required this.lastModified,
     this.metadata = const {},
     this.linkedEntryId,
+    this.lumaraBlocks = const [],
   });
 
   Map<String, dynamic> toJson() {
@@ -52,6 +60,7 @@ class JournalDraft {
       'lastModified': lastModified.millisecondsSinceEpoch,
       'metadata': metadata,
       'linkedEntryId': linkedEntryId,
+      'lumaraBlocks': lumaraBlocks, // Persist LUMARA blocks
     };
   }
 
@@ -80,6 +89,7 @@ class JournalDraft {
       lastModified: DateTime.fromMillisecondsSinceEpoch(json['lastModified'] as int),
       metadata: Map<String, dynamic>.from(json['metadata'] as Map? ?? {}),
       linkedEntryId: json['linkedEntryId'] as String?,
+      lumaraBlocks: (json['lumaraBlocks'] as List?)?.cast<Map<String, dynamic>>() ?? [],
     );
   }
 
@@ -91,6 +101,7 @@ class JournalDraft {
     DateTime? lastModified,
     Map<String, dynamic>? metadata,
     String? linkedEntryId,
+    List<Map<String, dynamic>>? lumaraBlocks,
   }) {
     return JournalDraft(
       id: id,
@@ -102,6 +113,7 @@ class JournalDraft {
       lastModified: lastModified ?? DateTime.now(),
       metadata: metadata ?? this.metadata,
       linkedEntryId: linkedEntryId ?? this.linkedEntryId,
+      lumaraBlocks: lumaraBlocks ?? this.lumaraBlocks,
     );
   }
 
@@ -140,9 +152,19 @@ class DraftCacheService {
 
   Box? _box;
   Timer? _autoSaveTimer;
+  Timer? _debounceTimer;
   JournalDraft? _currentDraft;
   bool _isInitialized = false;
   bool _isInitializing = false;
+  
+  // Content hash tracking for autosave
+  String? _lastContentHash;
+  DateTime? _lastWriteTime;
+  static const Duration _debounceDelay = Duration(seconds: 5);
+  static const Duration _throttleMinInterval = Duration(seconds: 30);
+  
+  // Version service integration
+  final JournalVersionService _versionService = JournalVersionService.instance;
 
   /// Initialize the draft cache service
   Future<void> initialize() async {
@@ -184,37 +206,75 @@ class DraftCacheService {
     await _cleanupOldDrafts();
   }
 
-  /// Create a new draft session or reuse existing one
+  /// Create a new draft session or reuse existing one (single-draft-per-entry invariant)
   Future<String> createDraft({
     String? initialEmotion,
     String? initialReason,
     String initialContent = '',
     List<MediaItem> initialMedia = const [],
     String? linkedEntryId, // ID of the original entry this draft is linked to
+    String? baseVersionId, // If editing an old version, reference the base version
   }) async {
     await _ensureInitialized();
 
-    // If editing an existing entry, check if there's already a draft for it
+    // SINGLE-DRAFT INVARIANT: If editing an existing entry, check for existing draft
     if (linkedEntryId != null) {
+      // First check MCP version service
+      final mcpDraft = await _versionService.getDraft(linkedEntryId);
+      if (mcpDraft != null) {
+        // Reuse existing MCP draft
+        debugPrint('DraftCacheService: Found existing MCP draft for entry $linkedEntryId');
+        
+        // Also check Hive for legacy compatibility
+        final hiveDraft = await getDraftByLinkedEntryId(linkedEntryId);
+        if (hiveDraft != null && mcpDraft.content == hiveDraft.content) {
+          // Use Hive draft (has LUMARA blocks)
+          _currentDraft = hiveDraft;
+        } else {
+          // Create new Hive draft from MCP draft
+          final now = DateTime.now();
+          final mediaItems = await _convertDraftMediaToMediaItems(mcpDraft.media, linkedEntryId);
+          _currentDraft = JournalDraft(
+            id: 'draft_${now.millisecondsSinceEpoch}',
+            content: mcpDraft.content,
+            mediaItems: mediaItems,
+            createdAt: mcpDraft.createdAt,
+            lastModified: mcpDraft.updatedAt,
+            linkedEntryId: linkedEntryId,
+            metadata: mcpDraft.metadata,
+          );
+        }
+        
+        _lastContentHash = mcpDraft.contentHash;
+        await _saveDraft(_currentDraft!);
+        return _currentDraft!.id;
+      }
+
+      // Check Hive for legacy drafts
       final existingDraft = await getDraftByLinkedEntryId(linkedEntryId);
       if (existingDraft != null) {
-        debugPrint('DraftCacheService: Found existing draft ${existingDraft.id} for entry $linkedEntryId');
+        debugPrint('DraftCacheService: Found existing Hive draft ${existingDraft.id} for entry $linkedEntryId');
         _currentDraft = existingDraft.copyWith(
           lastModified: DateTime.now(),
           content: initialContent.isNotEmpty ? initialContent : existingDraft.content,
           mediaItems: initialMedia.isNotEmpty ? List.from(initialMedia) : existingDraft.mediaItems,
         );
+        _lastContentHash = _computeContentHash(_currentDraft!.content);
         await _saveDraft(_currentDraft!);
         return _currentDraft!.id;
       }
+
+      // Note: baseVersionId handling is done by caller when editing old versions
+      // If baseVersionId is null, we're editing the latest (or creating new)
     }
 
-    // If we already have a current draft with the same linkedEntryId, reuse it
+    // If we already have a current draft with the same linkedEntryId, reuse it (single-draft invariant)
     if (_currentDraft != null && _currentDraft!.linkedEntryId == linkedEntryId) {
       debugPrint('DraftCacheService: Reusing existing draft ${_currentDraft!.id}');
       return _currentDraft!.id;
     }
 
+    // Create new draft
     final now = DateTime.now();
     final draftId = 'draft_${now.millisecondsSinceEpoch}';
 
@@ -227,39 +287,182 @@ class DraftCacheService {
       createdAt: now,
       lastModified: now,
       linkedEntryId: linkedEntryId,
+      lumaraBlocks: const [],
+      metadata: baseVersionId != null ? {'baseVersionId': baseVersionId} : {},
     );
 
+    _lastContentHash = _computeContentHash(initialContent);
     await _saveDraft(_currentDraft!);
-    // _startAutoSave(); // Disabled: No more automatic saving every few seconds
+
+    // Also create MCP draft if linked
+    if (linkedEntryId != null) {
+      try {
+        await _versionService.saveDraft(
+          entryId: linkedEntryId,
+          content: initialContent,
+          media: initialMedia,
+          ai: [], // No AI content initially
+          metadata: _currentDraft!.metadata,
+          baseVersionId: baseVersionId,
+        );
+      } catch (e) {
+        debugPrint('DraftCacheService: Error creating MCP draft: $e');
+      }
+    }
 
     debugPrint('DraftCacheService: Created new draft $draftId${linkedEntryId != null ? ' (linked to entry $linkedEntryId)' : ''}');
     return draftId;
   }
 
-  /// Update the current draft content
-  Future<void> updateDraftContent(String content) async {
+  /// Compute content hash
+  String _computeContentHash(String content) {
+    final bytes = utf8.encode(content);
+    final digest = sha256.convert(bytes);
+    return digest.toString();
+  }
+
+  /// Update the current draft content with debounce and hash checking
+  Future<void> updateDraftContent(String content, {List<Map<String, dynamic>>? lumaraBlocks, bool immediate = false}) async {
     if (_currentDraft == null) return;
+
+    final newHash = _computeContentHash(content);
+    
+    // Skip if content hasn't changed
+    if (newHash == _lastContentHash && !immediate) {
+      return;
+    }
+
+    // Cancel existing debounce timer
+    _debounceTimer?.cancel();
+
+    if (immediate) {
+      // Save immediately (e.g., on blur, on exit)
+      await _performDraftWrite(content, lumaraBlocks, newHash);
+    } else {
+      // Debounce: schedule save after delay
+      _debounceTimer = Timer(_debounceDelay, () async {
+        await _performDraftWrite(content, lumaraBlocks, newHash);
+      });
+    }
+  }
+
+  /// Perform the actual draft write with throttle check
+  Future<void> _performDraftWrite(String content, List<Map<String, dynamic>>? lumaraBlocks, String contentHash) async {
+    // Throttle: ensure minimum interval between writes
+    final now = DateTime.now();
+    if (_lastWriteTime != null && now.difference(_lastWriteTime!) < _throttleMinInterval) {
+      debugPrint('DraftCacheService: Throttled write (min interval not met)');
+      return;
+    }
+
+    // Skip if hash unchanged (double-check after debounce)
+    if (contentHash == _lastContentHash) {
+      debugPrint('DraftCacheService: Content hash unchanged, skipping write');
+      return;
+    }
 
     _currentDraft = _currentDraft!.copyWith(
       content: content,
       lastModified: DateTime.now(),
+      lumaraBlocks: lumaraBlocks ?? _currentDraft!.lumaraBlocks,
     );
 
-    // Save immediately to ensure the 30-second timer updates the same draft
+    // Save to Hive (legacy)
     await _saveDraft(_currentDraft!);
+
+    // Also save to MCP version service if linked to an entry
+    if (_currentDraft!.linkedEntryId != null) {
+      try {
+        final mediaItems = _currentDraft!.mediaItems;
+        final aiContent = _convertLumaraBlocksToAIContent(lumaraBlocks);
+        await _versionService.saveDraft(
+          entryId: _currentDraft!.linkedEntryId!,
+          content: content,
+          media: mediaItems,
+          ai: aiContent,
+          metadata: _currentDraft!.metadata,
+        );
+      } catch (e) {
+        debugPrint('DraftCacheService: Error saving to version service: $e');
+      }
+    }
+
+    _lastContentHash = contentHash;
+    _lastWriteTime = now;
+    debugPrint('DraftCacheService: Draft written (hash: ${contentHash.substring(0, 8)}...)');
   }
 
-  /// Update the current draft content and media items
-  Future<void> updateDraftContentAndMedia(String content, List<MediaItem> mediaItems) async {
+  /// Update the current draft content and media items with hash checking
+  Future<void> updateDraftContentAndMedia(String content, List<MediaItem> mediaItems, {List<Map<String, dynamic>>? lumaraBlocks, bool immediate = false}) async {
     if (_currentDraft == null) return;
+
+    final newHash = _computeContentHash(content);
+    
+    // Skip if content hasn't changed
+    if (newHash == _lastContentHash && !immediate) {
+      return;
+    }
+
+    // Cancel existing debounce timer
+    _debounceTimer?.cancel();
+
+    if (immediate) {
+      await _performDraftWriteWithMedia(content, mediaItems, lumaraBlocks, newHash);
+    } else {
+      _debounceTimer = Timer(_debounceDelay, () async {
+        await _performDraftWriteWithMedia(content, mediaItems, lumaraBlocks, newHash);
+      });
+    }
+  }
+
+  /// Perform draft write with media
+  Future<void> _performDraftWriteWithMedia(
+    String content,
+    List<MediaItem> mediaItems,
+    List<Map<String, dynamic>>? lumaraBlocks,
+    String contentHash,
+  ) async {
+    // Throttle check
+    final now = DateTime.now();
+    if (_lastWriteTime != null && now.difference(_lastWriteTime!) < _throttleMinInterval) {
+      debugPrint('DraftCacheService: Throttled write (min interval not met)');
+      return;
+    }
+
+    // Hash check
+    if (contentHash == _lastContentHash) {
+      debugPrint('DraftCacheService: Content hash unchanged, skipping write');
+      return;
+    }
 
     _currentDraft = _currentDraft!.copyWith(
       content: content,
       mediaItems: mediaItems,
       lastModified: DateTime.now(),
+      lumaraBlocks: lumaraBlocks ?? _currentDraft!.lumaraBlocks,
     );
 
     await _saveDraft(_currentDraft!);
+
+    // Also save to MCP version service if linked
+    if (_currentDraft!.linkedEntryId != null) {
+      try {
+        final aiContent = _convertLumaraBlocksToAIContent(lumaraBlocks);
+        await _versionService.saveDraft(
+          entryId: _currentDraft!.linkedEntryId!,
+          content: content,
+          media: mediaItems,
+          ai: aiContent,
+          metadata: _currentDraft!.metadata,
+        );
+      } catch (e) {
+        debugPrint('DraftCacheService: Error saving to version service: $e');
+      }
+    }
+
+    _lastContentHash = contentHash;
+    _lastWriteTime = now;
+    debugPrint('DraftCacheService: Draft with media written (hash: ${contentHash.substring(0, 8)}...)');
   }
 
   /// Add media item to the current draft
@@ -446,12 +649,10 @@ class DraftCacheService {
     await deleteDrafts([draftId]);
   }
 
-  /// Discard the current draft
-  Future<void> discardDraft() async {
-    await _clearCurrentDraft();
-    _stopAutoSave();
-    _currentDraft = null;
-    debugPrint('DraftCacheService: Discarded current draft');
+  /// Discard the current draft (legacy method - kept for compatibility, use discardDraft() below)
+  @Deprecated('Use discardDraft() which handles both Hive and MCP drafts')
+  Future<void> discardCurrentDraft() async {
+    await discardDraft();
   }
 
   /// Get draft history for recovery purposes
@@ -523,6 +724,184 @@ class DraftCacheService {
   void _stopAutoSave() {
     _autoSaveTimer?.cancel();
     _autoSaveTimer = null;
+    _debounceTimer?.cancel();
+    _debounceTimer = null;
+  }
+
+  /// Publish current draft (save as version, update latest, clear draft)
+  Future<void> publishDraft({
+    String? phase,
+    Map<String, dynamic>? sentiment,
+  }) async {
+    if (_currentDraft == null || _currentDraft!.linkedEntryId == null) {
+      throw StateError('Cannot publish: no draft linked to an entry');
+    }
+
+    try {
+      final aiContent = _convertLumaraBlocksToAIContent(_currentDraft!.lumaraBlocks);
+      await _versionService.publish(
+        entryId: _currentDraft!.linkedEntryId!,
+        content: _currentDraft!.content,
+        media: _currentDraft!.mediaItems,
+        ai: aiContent,
+        metadata: _currentDraft!.metadata,
+        phase: phase,
+        sentiment: sentiment,
+      );
+
+      // Clear Hive draft
+      await completeDraft();
+      _lastContentHash = null;
+      _lastWriteTime = null;
+
+      debugPrint('DraftCacheService: Published draft for entry ${_currentDraft!.linkedEntryId}');
+    } catch (e) {
+      debugPrint('DraftCacheService: Error publishing draft: $e');
+      rethrow;
+    }
+  }
+
+  /// Save version (creates new version, keeps draft open)
+  Future<void> saveVersion({
+    String? phase,
+    Map<String, dynamic>? sentiment,
+  }) async {
+    if (_currentDraft == null || _currentDraft!.linkedEntryId == null) {
+      throw StateError('Cannot save version: no draft linked to an entry');
+    }
+
+    try {
+      final baseVersionId = _currentDraft!.metadata['baseVersionId'] as String?;
+      final aiContent = _convertLumaraBlocksToAIContent(_currentDraft!.lumaraBlocks);
+      
+      await _versionService.saveVersion(
+        entryId: _currentDraft!.linkedEntryId!,
+        content: _currentDraft!.content,
+        media: _currentDraft!.mediaItems,
+        ai: aiContent,
+        metadata: _currentDraft!.metadata,
+        baseVersionId: baseVersionId,
+        phase: phase,
+        sentiment: sentiment,
+      );
+
+      debugPrint('DraftCacheService: Saved version for entry ${_currentDraft!.linkedEntryId} (draft remains open)');
+    } catch (e) {
+      debugPrint('DraftCacheService: Error saving version: $e');
+      rethrow;
+    }
+  }
+
+  /// Discard draft (delete draft.json, keep versions)
+  Future<void> discardDraft() async {
+    if (_currentDraft?.linkedEntryId != null) {
+      try {
+        await _versionService.discardDraft(_currentDraft!.linkedEntryId!);
+      } catch (e) {
+        debugPrint('DraftCacheService: Error discarding MCP draft: $e');
+      }
+    }
+
+    await _clearCurrentDraft();
+    _stopAutoSave();
+    _currentDraft = null;
+    _lastContentHash = null;
+    _lastWriteTime = null;
+    debugPrint('DraftCacheService: Discarded draft');
+  }
+
+  /// Check for conflicts with remote changes
+  Future<ConflictInfo?> checkConflict() async {
+    if (_currentDraft?.linkedEntryId == null) return null;
+    
+    try {
+      return await _versionService.checkConflict(_currentDraft!.linkedEntryId!);
+    } catch (e) {
+      debugPrint('DraftCacheService: Error checking conflict: $e');
+      return null;
+    }
+  }
+
+  /// Convert LUMARA blocks (from journal_entry_state.dart) to DraftAIContent
+  List<DraftAIContent> _convertLumaraBlocksToAIContent(
+    List<Map<String, dynamic>>? lumaraBlocks,
+  ) {
+    if (lumaraBlocks == null || lumaraBlocks.isEmpty) return [];
+
+    return lumaraBlocks.map((blockJson) {
+      return DraftAIContent(
+        id: JournalVersionService.generateUlid(),
+        role: 'assistant',
+        scope: 'inline',
+        purpose: blockJson['intent'] as String? ?? 'reflection',
+        text: blockJson['content'] as String? ?? '',
+        createdAt: blockJson['timestamp'] != null
+            ? DateTime.fromMillisecondsSinceEpoch(blockJson['timestamp'] as int)
+            : DateTime.now(),
+        models: {
+          'name': 'LUMARA',
+          'params': {},
+        },
+        provenance: {
+          'source': 'in-journal',
+          'trace_id': blockJson['type'] as String? ?? 'inline_reflection',
+        },
+      );
+    }).toList();
+  }
+
+  /// Convert DraftMediaItem list to MediaItem list (for Hive compatibility)
+  Future<List<MediaItem>> _convertDraftMediaToMediaItems(
+    List<DraftMediaItem> draftMedia,
+    String entryId,
+  ) async {
+    final mediaItems = <MediaItem>[];
+    
+    try {
+      final appDir = await getApplicationDocumentsDirectory();
+      final entryDir = Directory(path.join(appDir.path, 'mcp', 'entries', entryId));
+      
+      for (final draftMediaItem in draftMedia) {
+        // Resolve relative path to absolute path
+        final mediaPath = draftMediaItem.path.startsWith('draft_media/')
+            ? path.join(entryDir.path, draftMediaItem.path)
+            : draftMediaItem.path;
+        
+        final mediaFile = File(mediaPath);
+        if (!await mediaFile.exists()) {
+          debugPrint('DraftCacheService: Media file not found: $mediaPath');
+          continue;
+        }
+
+        // Determine MediaType from kind
+        final mediaType = draftMediaItem.kind == 'video'
+            ? MediaType.video
+            : draftMediaItem.kind == 'audio'
+                ? MediaType.audio
+                : MediaType.image;
+
+        final duration = draftMediaItem.durationMs != null
+            ? Duration(milliseconds: draftMediaItem.durationMs!)
+            : null;
+
+        mediaItems.add(MediaItem(
+          id: draftMediaItem.id,
+          uri: mediaPath,
+          type: mediaType,
+          duration: duration,
+          sizeBytes: await mediaFile.length(),
+          createdAt: draftMediaItem.createdAt,
+          sha256: draftMediaItem.sha256,
+          thumbUri: draftMediaItem.thumb != null
+              ? path.join(path.dirname(mediaPath), draftMediaItem.thumb!)
+              : null,
+        ));
+      }
+    } catch (e) {
+      debugPrint('DraftCacheService: Error converting draft media: $e');
+    }
+
+    return mediaItems;
   }
 
   Future<void> _cleanupOldDrafts() async {

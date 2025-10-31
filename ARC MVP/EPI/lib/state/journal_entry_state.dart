@@ -36,7 +36,7 @@ class JournalEntryState {
   String text = '';
   String? phase; // Discovery, Recovery, Breakthrough, Consolidation
   final List<InlineBlock> blocks = [];
-  final List<dynamic> attachments = []; // Can contain ScanAttachment or PhotoAttachment
+  final List<dynamic> attachments = []; // Can contain ScanAttachment, PhotoAttachment, or VideoAttachment
 
   /// Whether to show LUMARA nudge animation
   bool get showLumaraNudge => text.trim().length >= 30;
@@ -55,6 +55,11 @@ class JournalEntryState {
 
   /// Add a scan attachment
   void addAttachment(ScanAttachment attachment) {
+    attachments.add(attachment);
+  }
+
+  /// Add a video attachment
+  void addVideoAttachment(VideoAttachment attachment) {
     attachments.add(attachment);
   }
 
@@ -168,6 +173,86 @@ class PhotoAttachment {
       insertionPosition: insertionPosition ?? this.insertionPosition,
       photoId: photoId ?? this.photoId,
       sha256: sha256 ?? this.sha256,
+    );
+  }
+}
+
+/// Video attachment for video files
+class VideoAttachment {
+  final String type; // 'video'
+  final String videoPath;
+  final int timestamp;
+  final String? altText; // Descriptive text for accessibility
+  final int? insertionPosition; // Character position in text where video was added
+  final String? videoId; // Unique ID for text placeholder reference
+  final String? sha256; // SHA-256 hash for content-addressed linking
+  final Duration? duration; // Video duration if available
+  final int? sizeBytes; // File size in bytes if available
+  final String? thumbnailPath; // Path to thumbnail image if available
+
+  VideoAttachment({
+    required this.type,
+    required this.videoPath,
+    required this.timestamp,
+    this.altText,
+    this.insertionPosition,
+    this.videoId,
+    this.sha256,
+    this.duration,
+    this.sizeBytes,
+    this.thumbnailPath,
+  });
+
+  Map<String, dynamic> toJson() => {
+    'type': type,
+    'videoPath': videoPath,
+    'timestamp': timestamp,
+    'altText': altText,
+    'insertionPosition': insertionPosition,
+    'videoId': videoId,
+    'sha256': sha256,
+    'duration': duration?.inSeconds,
+    'sizeBytes': sizeBytes,
+    'thumbnailPath': thumbnailPath,
+  };
+
+  factory VideoAttachment.fromJson(Map<String, dynamic> json) => VideoAttachment(
+    type: json['type'] as String,
+    videoPath: json['videoPath'] as String,
+    timestamp: json['timestamp'] as int,
+    altText: json['altText'] as String?,
+    insertionPosition: json['insertionPosition'] as int?,
+    videoId: json['videoId'] as String?,
+    sha256: json['sha256'] as String?,
+    duration: json['duration'] != null ? Duration(seconds: json['duration'] as int) : null,
+    sizeBytes: json['sizeBytes'] as int?,
+    thumbnailPath: json['thumbnailPath'] as String?,
+  );
+
+  /// Create a copy with updated fields
+  VideoAttachment copyWith({
+    String? type,
+    String? videoPath,
+    int? timestamp,
+    String? altText,
+    int? insertionPosition,
+    String? videoId,
+    String? sha256,
+    Duration? duration,
+    int? sizeBytes,
+    String? thumbnailPath,
+  }) {
+    return VideoAttachment(
+      type: type ?? this.type,
+      videoPath: videoPath ?? this.videoPath,
+      timestamp: timestamp ?? this.timestamp,
+      altText: altText ?? this.altText,
+      insertionPosition: insertionPosition ?? this.insertionPosition,
+      videoId: videoId ?? this.videoId,
+      sha256: sha256 ?? this.sha256,
+      duration: duration ?? this.duration,
+      sizeBytes: sizeBytes ?? this.sizeBytes,
+      thumbnailPath: thumbnailPath ?? this.thumbnailPath,
     );
   }
 }

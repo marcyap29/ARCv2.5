@@ -167,6 +167,29 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
       _editableTime = TimeOfDay.fromDateTime(widget.existingEntry!.createdAt);
       _editableLocation = widget.existingEntry!.location;
       
+      // Load existing keywords for display in editor
+      if (widget.existingEntry!.keywords.isNotEmpty) {
+        _manualKeywords = List.from(widget.existingEntry!.keywords);
+        // Auto-show keywords section when editing existing entry with keywords
+        _showKeywordsDiscovered = true;
+      }
+      
+      // Restore LUMARA blocks from metadata if present
+      if (widget.existingEntry!.metadata != null) {
+        final inlineBlocks = widget.existingEntry!.metadata!['inlineBlocks'] as List?;
+        if (inlineBlocks != null && inlineBlocks.isNotEmpty) {
+          for (final blockJson in inlineBlocks) {
+            try {
+              final block = InlineBlock.fromJson(Map<String, dynamic>.from(blockJson));
+              _entryState.addReflection(block);
+            } catch (e) {
+              debugPrint('JournalScreen: Error loading LUMARA block: $e');
+            }
+          }
+          debugPrint('JournalScreen: Restored ${_entryState.blocks.length} LUMARA blocks from metadata');
+        }
+      }
+      
       // Initialize text controllers
       _locationController = TextEditingController(text: _editableLocation ?? '');
       
@@ -214,7 +237,8 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
           ? MediaConversionUtils.attachmentsToMediaItems(_entryState.attachments)
           : const <MediaItem>[];
       
-      _draftCache.updateDraftContentAndMedia(_entryState.text, mediaItems);
+      final blocksJson = _entryState.blocks.map((b) => b.toJson()).toList();
+      _draftCache.updateDraftContentAndMedia(_entryState.text, mediaItems, lumaraBlocks: blocksJson);
       _draftCache.saveCurrentDraftImmediately();
     }
     
@@ -243,9 +267,10 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
             ? MediaConversionUtils.attachmentsToMediaItems(_entryState.attachments)
             : const <MediaItem>[];
         
-        _draftCache.updateDraftContentAndMedia(_entryState.text, mediaItems);
+        final blocksJson = _entryState.blocks.map((b) => b.toJson()).toList();
+        _draftCache.updateDraftContentAndMedia(_entryState.text, mediaItems, lumaraBlocks: blocksJson);
         _draftCache.saveCurrentDraftImmediately();
-        debugPrint('JournalScreen: App lifecycle changed to $state - saved draft $_currentDraftId');
+        debugPrint('JournalScreen: App lifecycle changed to $state - saved draft $_currentDraftId with ${blocksJson.length} blocks');
       }
     } else {
       debugPrint('JournalScreen: App lifecycle changed to $state (no auto-save)');
@@ -1022,8 +1047,8 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        // Photo selection controls (show at top when there are photos)
-                        if (_entryState.attachments.any((attachment) => attachment is PhotoAttachment)) ...[
+                        // Photo/video selection controls (show at top when there are photos or videos)
+                        if (_entryState.attachments.any((attachment) => attachment is PhotoAttachment || attachment is VideoAttachment)) ...[
                           _buildPhotoSelectionControls(),
                           const SizedBox(height: 16),
                         ],
@@ -1102,6 +1127,15 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
                                 onPressed: _handleCamera,
                                 icon: const Icon(Icons.camera_alt, size: 18),
                                 tooltip: 'Take Photo',
+                                padding: const EdgeInsets.all(4),
+                                constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
+                              ),
+                              
+                              // Add video button
+                              IconButton(
+                                onPressed: _handleVideoGallery,
+                                icon: const Icon(Icons.videocam, size: 18),
+                                tooltip: 'Add Video',
                                 padding: const EdgeInsets.all(4),
                                 constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
                               ),
@@ -1227,6 +1261,20 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
             _textController.text = draft.content;
             _entryState.text = draft.content;
             
+            // Restore LUMARA blocks from draft
+            _entryState.blocks.clear();
+            if (draft.lumaraBlocks.isNotEmpty) {
+              for (final blockJson in draft.lumaraBlocks) {
+                try {
+                  final block = InlineBlock.fromJson(Map<String, dynamic>.from(blockJson));
+                  _entryState.addReflection(block);
+                } catch (e) {
+                  debugPrint('JournalScreen: Error loading LUMARA block from draft: $e');
+                }
+              }
+              debugPrint('JournalScreen: Restored ${_entryState.blocks.length} LUMARA blocks from draft');
+            }
+            
             // Convert draft media items to attachments
             if (draft.mediaItems.isNotEmpty) {
               final attachments = MediaConversionUtils.mediaItemsToAttachments(draft.mediaItems);
@@ -1328,7 +1376,8 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
           ? MediaConversionUtils.attachmentsToMediaItems(_entryState.attachments)
           : const <MediaItem>[];
       
-      await _draftCache.updateDraftContentAndMedia(_entryState.text, mediaItems);
+      final blocksJson = _entryState.blocks.map((b) => b.toJson()).toList();
+      await _draftCache.updateDraftContentAndMedia(_entryState.text, mediaItems, lumaraBlocks: blocksJson);
       await _draftCache.saveCurrentDraftImmediately();
       return true;
     } else if (result == 'discard') {
@@ -1489,7 +1538,7 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
     );
   }
 
-  /// Build content showing photos and reflections (without duplicating text)
+  /// Build content showing photos, videos, and reflections (without duplicating text)
   List<Widget> _buildInterleavedContent(ThemeData theme) {
     final widgets = <Widget>[];
 
@@ -1498,7 +1547,12 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
         .whereType<PhotoAttachment>()
         .toList();
 
-    // Sort by insertion position if available, otherwise by timestamp
+    // Get all video attachments
+    final videoAttachments = _entryState.attachments
+        .whereType<VideoAttachment>()
+        .toList();
+
+    // Sort photos by insertion position if available, otherwise by timestamp
     photoAttachments.sort((a, b) {
       if (a.insertionPosition != null && b.insertionPosition != null) {
         return a.insertionPosition!.compareTo(b.insertionPosition!);
@@ -1512,9 +1566,28 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
       }
     });
 
+    // Sort videos by insertion position if available, otherwise by timestamp
+    videoAttachments.sort((a, b) {
+      if (a.insertionPosition != null && b.insertionPosition != null) {
+        return a.insertionPosition!.compareTo(b.insertionPosition!);
+      } else if (a.insertionPosition != null) {
+        return -1;
+      } else if (b.insertionPosition != null) {
+        return 1;
+      } else {
+        return a.timestamp.compareTo(b.timestamp);
+      }
+    });
+
     // Show photos as a clean grid of thumbnails
     if (photoAttachments.isNotEmpty) {
       widgets.add(_buildPhotoThumbnailGrid(photoAttachments, theme));
+      widgets.add(const SizedBox(height: 16));
+    }
+
+    // Show videos as a grid
+    if (videoAttachments.isNotEmpty) {
+      widgets.add(_buildVideoThumbnailGrid(videoAttachments, theme));
       widgets.add(const SizedBox(height: 16));
     }
 
@@ -1591,6 +1664,218 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
       onChanged: (value) {
         // Store continuation text - you might want to add this to block metadata
       },
+    );
+  }
+
+  /// Build a grid of video thumbnails
+  Widget _buildVideoThumbnailGrid(List<VideoAttachment> videos, ThemeData theme) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.3),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: theme.colorScheme.outline.withOpacity(0.2),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.videocam,
+                size: 18,
+                color: theme.colorScheme.primary,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                'Videos (${videos.length})',
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          // Show videos as a grid wrap
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: videos.map((video) => _buildVideoThumbnailCard(video, theme)).toList(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Build individual video thumbnail card for grid display
+  Widget _buildVideoThumbnailCard(VideoAttachment video, ThemeData theme) {
+    // Find the index of this video in the attachments list
+    final videoIndex = _entryState.attachments.indexOf(video);
+    final isSelected = _selectedPhotoIndices.contains(videoIndex);
+    
+    return GestureDetector(
+      onTap: () {
+        if (_isPhotoSelectionMode) {
+          setState(() {
+            if (isSelected) {
+              _selectedPhotoIndices.remove(videoIndex);
+            } else {
+              _selectedPhotoIndices.add(videoIndex);
+            }
+          });
+        } else {
+          _playVideo(video.videoPath);
+        }
+      },
+      onLongPress: () {
+        if (!_isPhotoSelectionMode) {
+          _showVideoContextMenu(video, videoIndex);
+        }
+      },
+      child: Container(
+        width: 100,
+        height: 100,
+        decoration: BoxDecoration(
+          color: isSelected 
+              ? theme.colorScheme.primary.withOpacity(0.3)
+              : theme.colorScheme.surfaceContainerHighest,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: isSelected 
+                ? theme.colorScheme.primary 
+                : theme.colorScheme.outline.withOpacity(0.3),
+            width: isSelected ? 2 : 1,
+          ),
+        ),
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            // Video thumbnail placeholder or icon
+            Center(
+              child: Icon(
+                Icons.play_circle_outline,
+                size: 40,
+                color: theme.colorScheme.primary,
+              ),
+            ),
+            // Duration overlay if available
+            if (video.duration != null)
+              Positioned(
+                bottom: 4,
+                right: 4,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withOpacity(0.7),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Text(
+                    _formatDuration(video.duration!),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ),
+            // Selection indicator
+            if (isSelected)
+              Positioned(
+                top: 4,
+                right: 4,
+                child: Container(
+                  width: 20,
+                  height: 20,
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.primary,
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.check,
+                    color: Colors.white,
+                    size: 14,
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Format duration for display
+  String _formatDuration(Duration duration) {
+    final hours = duration.inHours;
+    final minutes = duration.inMinutes.remainder(60);
+    final seconds = duration.inSeconds.remainder(60);
+    
+    if (hours > 0) {
+      return '${hours}:${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
+    } else {
+      return '${minutes}:${seconds.toString().padLeft(2, '0')}';
+    }
+  }
+
+  /// Play video
+  void _playVideo(String videoPath) {
+    // TODO: Implement video player - can use video_player package
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Playing video: ${videoPath.split('/').last}'),
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
+
+  /// Show context menu for a video (long-press)
+  void _showVideoContextMenu(VideoAttachment video, int videoIndex) {
+    showModalBottomSheet(
+      context: context,
+      builder: (context) => Container(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.play_arrow),
+              title: const Text('Play Video'),
+              onTap: () {
+                Navigator.of(context).pop();
+                _playVideo(video.videoPath);
+              },
+            ),
+            ListTile(
+              leading: Icon(Icons.delete, color: Theme.of(context).colorScheme.error),
+              title: Text('Delete Video', style: TextStyle(color: Theme.of(context).colorScheme.error)),
+              onTap: () {
+                Navigator.of(context).pop();
+                _deleteSingleVideo(videoIndex);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Delete a single video
+  void _deleteSingleVideo(int videoIndex) {
+    if (videoIndex >= _entryState.attachments.length) return;
+    if (_entryState.attachments[videoIndex] is! VideoAttachment) return;
+    
+    setState(() {
+      _entryState.attachments.removeAt(videoIndex);
+      _selectedPhotoIndices.remove(videoIndex);
+    });
+    
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Video deleted'),
+        duration: Duration(seconds: 2),
+      ),
     );
   }
 
@@ -2748,18 +3033,21 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
     // Cancel existing timer
     _autoSaveTimer?.cancel();
     
-    // Update the draft content in the cache service
-    _draftCache.updateDraftContent(content);
+    // Convert blocks to JSON for persistence
+    final blocksJson = _entryState.blocks.map((b) => b.toJson()).toList();
+    
+    // Update the draft content in the cache service with LUMARA blocks
+    _draftCache.updateDraftContent(content, lumaraBlocks: blocksJson);
     
     // Also update media items if we have attachments
     if (_entryState.attachments.isNotEmpty) {
       final mediaItems = MediaConversionUtils.attachmentsToMediaItems(_entryState.attachments);
-      _draftCache.updateDraftContentAndMedia(content, mediaItems);
+      _draftCache.updateDraftContentAndMedia(content, mediaItems, lumaraBlocks: blocksJson);
     } else {
-      _draftCache.updateDraftContent(content);
+      _draftCache.updateDraftContent(content, lumaraBlocks: blocksJson);
       }
     
-    debugPrint('JournalScreen: Draft content updated and saved to cache');
+    debugPrint('JournalScreen: Draft content updated with ${blocksJson.length} LUMARA blocks');
   }
 
   /// Navigate to drafts screen
@@ -2852,6 +3140,90 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Failed to select photos: $e'),
+          backgroundColor: Theme.of(context).colorScheme.error,
+        ),
+      );
+    }
+  }
+
+  /// Handle video selection from gallery
+  Future<void> _handleVideoGallery() async {
+    try {
+      _analytics.logJournalEvent('video_button_pressed');
+      print('DEBUG: Requesting photo library permissions for video...');
+      
+      // Request permissions first
+      final hasPermissions = await PhotoLibraryService.requestPermissions();
+      if (!hasPermissions) {
+        print('DEBUG: Photo library permissions denied');
+        _showPermissionDeniedDialog();
+        return;
+      }
+      
+      print('DEBUG: Photo library permissions granted, opening video picker');
+      final XFile? video = await _imagePicker.pickVideo(source: ImageSource.gallery);
+      if (video != null) {
+        print('DEBUG: Selected video: ${video.path}');
+        await _processVideo(video.path);
+      } else {
+        print('DEBUG: No video selected');
+      }
+    } catch (e) {
+      print('DEBUG: Video picker error: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to select video: $e'),
+          backgroundColor: Theme.of(context).colorScheme.error,
+        ),
+      );
+    }
+  }
+
+  /// Process a selected video file
+  Future<void> _processVideo(String videoPath) async {
+    try {
+      print('DEBUG: Processing video: $videoPath');
+      
+      // Get video file info if possible
+      final videoFile = File(videoPath);
+      int? sizeBytes;
+      if (await videoFile.exists()) {
+        sizeBytes = await videoFile.length();
+      }
+
+      // Create a VideoAttachment directly
+      final videoAttachment = VideoAttachment(
+        type: 'video',
+        videoPath: videoPath,
+        timestamp: DateTime.now().millisecondsSinceEpoch,
+        videoId: DateTime.now().millisecondsSinceEpoch.toString(),
+        sizeBytes: sizeBytes,
+        altText: 'Video: ${videoPath.split('/').last}',
+      );
+
+      setState(() {
+        _entryState.addVideoAttachment(videoAttachment);
+      });
+      
+      // Update draft if exists
+      if (_currentDraftId != null) {
+        final mediaItems = MediaConversionUtils.attachmentsToMediaItems(_entryState.attachments);
+        final blocksJson = _entryState.blocks.map((b) => b.toJson()).toList();
+        await _draftCache.updateDraftContentAndMedia(_entryState.text, mediaItems, lumaraBlocks: blocksJson);
+      }
+      
+      print('DEBUG: Video added to entry');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Video added to entry'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+    } catch (e) {
+      print('DEBUG: Error processing video: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to process video: $e'),
           backgroundColor: Theme.of(context).colorScheme.error,
         ),
       );

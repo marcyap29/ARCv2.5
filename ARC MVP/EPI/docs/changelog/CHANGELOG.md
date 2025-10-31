@@ -1,5 +1,79 @@
 # EPI ARC MVP - Changelog
 
+## [Unreleased] - 2025-02-XX
+### **Journal Versioning & Draft System** - February 2025
+
+#### Major Features
+- **Immutable Version History**: Complete version tracking with revision numbers
+  - Each save creates immutable `v/{rev}.json` version
+  - Linear version history preserved forever
+  - Media snapshotted to `v/{rev}_media/` directories
+- **Single-Draft Per Entry**: Enforced invariant prevents duplicate drafts
+  - One entry = at most one live draft
+  - Draft reused on navigation and app lifecycle changes
+  - Automatic draft recovery and consolidation
+- **Content-Hash Autosave**: Intelligent saving with hash-based change detection
+  - SHA-256 hash over: text + sorted(media SHA256s) + sorted(AI IDs)
+  - Debounce: 5 seconds after last keystroke
+  - Throttle: Minimum 30 seconds between writes
+  - Skips writes when content unchanged
+- **Media & AI Integration**: Full support in drafts and versions
+  - Media files stored in `draft_media/` during editing
+  - Media snapshotted on version save
+  - LUMARA AI blocks as `DraftAIContent` in drafts
+  - Media deduplication by SHA256 hash
+- **Conflict Resolution**: Multi-device synchronization
+  - Conflict detection via content hash and timestamp comparison
+  - Three resolution options: Keep Local, Keep Remote, Merge
+  - Media merged by SHA256 (automatic deduplication)
+  - Conflict resolution dialog with user feedback
+- **Migration Support**: Legacy data migration
+  - Automatic consolidation of duplicate draft files
+  - Migration of media from `/photos/` and `attachments/` to `draft_media/`
+  - Path updates in draft JSON files
+  - SHA256 computation for legacy media
+
+#### UI/UX Improvements
+- **Version Status Bar**: Rich draft status display
+  - Shows: word count, media count, AI count
+  - Base revision info (when editing old versions)
+  - Last saved time with relative formatting
+  - Example: "Working draft • 250 words • 3 media • 2 AI • last saved 5m ago"
+- **Conflict Resolution Dialog**: Clear conflict handling
+  - Shows local vs remote update times
+  - Three action buttons with clear labels
+  - User feedback on resolution choice
+
+#### Technical Improvements
+- **MCP File Structure**: Standardized storage layout
+  - `/mcp/entries/{entry_id}/draft.json` - Current draft
+  - `/mcp/entries/{entry_id}/draft_media/` - Draft media files
+  - `/mcp/entries/{entry_id}/latest.json` - Latest version pointer
+  - `/mcp/entries/{entry_id}/v/{rev}.json` - Immutable versions
+  - `/mcp/entries/{entry_id}/v/{rev}_media/` - Version media snapshots
+- **Service Architecture**: Clean separation of concerns
+  - `JournalVersionService`: Version and draft management
+  - `DraftCacheService`: Draft caching with autosave
+  - Extension methods for conflict resolution
+- **Type Safety**: Comprehensive data models
+  - `DraftMediaItem`: Media reference with metadata
+  - `DraftAIContent`: AI block representation
+  - `ConflictInfo`: Conflict detection data
+  - `MigrationResult`: Migration statistics
+
+#### Files Added
+- `lib/core/services/journal_version_service.dart` - Core versioning service
+- `lib/ui/journal/widgets/version_status_bar.dart` - Status display widget
+- `lib/ui/journal/widgets/conflict_resolution_dialog.dart` - Conflict UI
+- `docs/features/JOURNAL_VERSIONING_SYSTEM.md` - Complete system documentation
+- `docs/status/JOURNAL_VERSIONING_IMPLEMENTATION_FEB_2025.md` - Implementation summary
+
+#### Files Modified
+- `lib/core/services/draft_cache_service.dart` - Integrated with versioning
+- `lib/arc/core/journal_capture_cubit.dart` - Conflict detection
+- `lib/arc/core/journal_capture_state.dart` - Added conflict state
+- `lib/ui/journal/journal_screen.dart` - Version status integration
+
 ## [Unreleased] - 2025-01-XX
 ### **Health Tab Full Integration** - January 2025
 

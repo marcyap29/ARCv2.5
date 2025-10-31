@@ -1,6 +1,7 @@
 import 'package:equatable/equatable.dart';
 import 'package:my_app/mode/first_responder/fr_settings_cubit.dart';
 import 'package:my_app/core/services/draft_cache_service.dart';
+import 'package:my_app/core/services/journal_version_service.dart';
 import 'package:my_app/data/models/media_item.dart';
 
 abstract class JournalCaptureState extends Equatable {
@@ -156,4 +157,15 @@ class JournalCaptureMediaRemoved extends JournalCaptureState {
 
   @override
   List<Object> get props => [mediaItem];
+}
+
+class JournalCaptureConflictDetected extends JournalCaptureState {
+  final ConflictInfo conflict;
+
+  const JournalCaptureConflictDetected({
+    required this.conflict,
+  });
+
+  @override
+  List<Object> get props => [conflict];
 }

@@ -31,12 +31,14 @@ import 'package:hive/hive.dart';
 import 'package:my_app/mode/first_responder/fr_mode_suggestion_service.dart';
 import 'package:my_app/mode/first_responder/fr_settings_cubit.dart';
 import 'package:my_app/core/services/draft_cache_service.dart';
+import 'package:my_app/core/services/journal_version_service.dart';
 import 'package:my_app/platform/photo_bridge.dart';
 
 class JournalCaptureCubit extends Cubit<JournalCaptureState> {
   final JournalRepository _journalRepository;
   final SyncService _syncService = SyncService();
   final DraftCacheService _draftCache = DraftCacheService.instance;
+  final JournalVersionService _versionService = JournalVersionService.instance;
   String _draftContent = '';
   String? _currentDraftId;
   List<MediaItem> _draftMediaItems = [];
@@ -315,8 +317,38 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
         media: media ?? [], // Include media items
       );
 
+      // Check for conflicts before saving
+      final conflict = await _versionService.checkConflict(entry.id);
+      if (conflict != null) {
+        emit(JournalCaptureConflictDetected(conflict: conflict));
+        return; // Stop save, let user resolve conflict
+      }
+
       // Save the entry first
       await _journalRepository.createJournalEntry(entry);
+
+      // Publish draft if one exists (promotes to latest version)
+      final draft = _draftCache.getCurrentDraft();
+      if (draft != null && draft.linkedEntryId == entry.id) {
+        await _draftCache.publishDraft(
+          phase: phase,
+        );
+        await _draftCache.completeDraft();
+      } else {
+        // New entry - create first version
+        await _versionService.publish(
+          entryId: entry.id,
+          content: content,
+          media: media ?? [],
+          metadata: {
+            'mood': mood,
+            'emotion': emotion,
+            'emotionReason': emotionReason,
+            'keywords': selectedKeywords?.join(',') ?? '',
+          },
+          phase: phase,
+        );
+      }
 
       // Emit saved state immediately - don't wait for background processing
       emit(JournalCaptureSaved());
@@ -608,11 +640,43 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
           ? {'inlineBlocks': blocks}
           : existingEntry.metadata;
       
+      // Prevent keyword duplication - merge with existing keywords, remove duplicates
+      final existingKeywords = List<String>.from(existingEntry.keywords);
+      final newKeywords = List<String>.from(selectedKeywords);
+      final mergedKeywords = <String>{};
+      
+      // Add existing keywords first
+      for (final keyword in existingKeywords) {
+        mergedKeywords.add(keyword.trim().toLowerCase());
+      }
+      
+      // Add new keywords, converting to lowercase for comparison
+      for (final keyword in newKeywords) {
+        final normalized = keyword.trim().toLowerCase();
+        if (!mergedKeywords.contains(normalized)) {
+          mergedKeywords.add(normalized);
+        }
+      }
+      
+      // Convert back to original case from new keywords where possible, otherwise use existing
+      final finalKeywords = <String>[];
+      for (final normalized in mergedKeywords) {
+        // Try to preserve original case from new keywords
+        final originalKeyword = newKeywords.firstWhere(
+          (k) => k.trim().toLowerCase() == normalized,
+          orElse: () => existingKeywords.firstWhere(
+            (k) => k.trim().toLowerCase() == normalized,
+            orElse: () => normalized,
+          ),
+        );
+        finalKeywords.add(originalKeyword);
+      }
+      
       // Create updated entry
       final updatedEntry = existingEntry.copyWith(
         content: content,
         mood: mood,
-        keywords: selectedKeywords,
+        keywords: finalKeywords, // Use deduplicated keywords
         emotion: emotion,
         emotionReason: emotionReason,
         createdAt: newCreatedAt,
