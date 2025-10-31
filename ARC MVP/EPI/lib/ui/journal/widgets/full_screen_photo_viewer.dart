@@ -1,148 +1,211 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 
+/// Photo data model for gallery viewer
+class PhotoData {
+  final String imagePath;
+  final String? analysisText;
+
+  PhotoData({
+    required this.imagePath,
+    this.analysisText,
+  });
+}
+
 /// Full-screen photo viewer for journal attachments
 ///
 /// Displays photos in an immersive full-screen view with:
 /// - Pinch-to-zoom functionality
 /// - Pan/drag to explore zoomed images
+/// - Horizontal swipe to navigate between images
 /// - Smooth animations and transitions
 /// - Close button with safe area compliance
 class FullScreenPhotoViewer extends StatefulWidget {
-  final String imagePath;
-  final String? analysisText;
+  final List<PhotoData> photos;
+  final int initialIndex;
 
   const FullScreenPhotoViewer({
     super.key,
-    required this.imagePath,
-    this.analysisText,
+    required this.photos,
+    this.initialIndex = 0,
   });
+
+  /// Convenience constructor for single photo (backward compatibility)
+  factory FullScreenPhotoViewer.single({
+    required String imagePath,
+    String? analysisText,
+  }) {
+    return FullScreenPhotoViewer(
+      photos: [PhotoData(imagePath: imagePath, analysisText: analysisText)],
+      initialIndex: 0,
+    );
+  }
 
   @override
   State<FullScreenPhotoViewer> createState() => _FullScreenPhotoViewerState();
 }
 
 class _FullScreenPhotoViewerState extends State<FullScreenPhotoViewer> {
-  final TransformationController _transformationController = TransformationController();
+  late PageController _pageController;
+  late int _currentIndex;
+  final Map<int, TransformationController> _transformationControllers = {};
   bool _showAnalysis = false;
 
   @override
+  void initState() {
+    super.initState();
+    _currentIndex = widget.initialIndex.clamp(0, widget.photos.length - 1);
+    _pageController = PageController(initialPage: _currentIndex);
+    // Initialize transformation controller for initial page
+    _transformationControllers[_currentIndex] = TransformationController();
+  }
+
+  @override
   void dispose() {
-    _transformationController.dispose();
+    _pageController.dispose();
+    // Dispose all transformation controllers
+    for (final controller in _transformationControllers.values) {
+      controller.dispose();
+    }
     super.dispose();
+  }
+
+  TransformationController _getTransformationController(int index) {
+    if (!_transformationControllers.containsKey(index)) {
+      _transformationControllers[index] = TransformationController();
+    }
+    return _transformationControllers[index]!;
+  }
+
+  void _onPageChanged(int index) {
+    setState(() {
+      _currentIndex = index;
+      _showAnalysis = false; // Hide analysis when switching images
+    });
   }
 
   @override
   Widget build(BuildContext context) {
-    // Check if photo file exists
-    final photoExists = File(widget.imagePath).existsSync();
+    final currentPhoto = widget.photos[_currentIndex];
+    final photoExists = File(currentPhoto.imagePath).existsSync();
 
     return Scaffold(
       backgroundColor: Colors.black,
       body: SafeArea(
         child: Stack(
           children: [
-            // Photo with pinch-to-zoom or fallback message
-            Center(
-              child: photoExists
-                  ? InteractiveViewer(
-                      transformationController: _transformationController,
-                      minScale: 0.5,
-                      maxScale: 4.0,
-                      child: Image.file(
-                        File(widget.imagePath),
-                        fit: BoxFit.contain,
-                        errorBuilder: (context, error, stackTrace) {
-                          return Container(
-                            color: Colors.grey[900],
-                            child: Center(
+            // PageView for swiping between photos
+            PageView.builder(
+              controller: _pageController,
+              onPageChanged: _onPageChanged,
+              itemCount: widget.photos.length,
+              itemBuilder: (context, index) {
+                final photo = widget.photos[index];
+                final photoExists = File(photo.imagePath).existsSync();
+                final transformationController = _getTransformationController(index);
+
+                return Center(
+                  child: photoExists
+                      ? InteractiveViewer(
+                          transformationController: transformationController,
+                          minScale: 0.5,
+                          maxScale: 4.0,
+                          child: Image.file(
+                            File(photo.imagePath),
+                            fit: BoxFit.contain,
+                            errorBuilder: (context, error, stackTrace) {
+                              return Container(
+                                color: Colors.grey[900],
+                                child: Center(
+                                  child: Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Icon(
+                                        Icons.broken_image,
+                                        size: 64,
+                                        color: Colors.grey[600],
+                                      ),
+                                      const SizedBox(height: 16),
+                                      Text(
+                                        'Unable to load image',
+                                        style: TextStyle(
+                                          color: Colors.grey[400],
+                                          fontSize: 16,
+                                        ),
+                                      ),
+                                      if (photo.analysisText != null && photo.analysisText!.isNotEmpty) ...[
+                                        const SizedBox(height: 24),
+                                        Padding(
+                                          padding: const EdgeInsets.symmetric(horizontal: 32),
+                                          child: Text(
+                                            photo.analysisText!,
+                                            style: TextStyle(
+                                              color: Colors.grey[500],
+                                              fontSize: 14,
+                                            ),
+                                            textAlign: TextAlign.center,
+                                            maxLines: 5,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ),
+                                      ],
+                                    ],
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                        )
+                      : Container(
+                          color: Colors.grey[900],
+                          child: Center(
+                            child: Padding(
+                              padding: const EdgeInsets.all(32),
                               child: Column(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
                                   Icon(
-                                    Icons.broken_image,
-                                    size: 64,
+                                    Icons.broken_image_outlined,
+                                    size: 80,
                                     color: Colors.grey[600],
                                   ),
-                                  const SizedBox(height: 16),
+                                  const SizedBox(height: 24),
                                   Text(
-                                    'Unable to load image',
+                                    'Photo no longer available',
                                     style: TextStyle(
-                                      color: Colors.grey[400],
-                                      fontSize: 16,
+                                      color: Colors.grey[300],
+                                      fontSize: 20,
+                                      fontWeight: FontWeight.w600,
                                     ),
                                   ),
-                                  if (widget.analysisText != null && widget.analysisText!.isNotEmpty) ...[
-                                    const SizedBox(height: 24),
-                                    Padding(
-                                      padding: const EdgeInsets.symmetric(horizontal: 32),
-                                      child: Text(
-                                        widget.analysisText!,
-                                        style: TextStyle(
-                                          color: Colors.grey[500],
-                                          fontSize: 14,
-                                        ),
-                                        textAlign: TextAlign.center,
-                                        maxLines: 5,
-                                        overflow: TextOverflow.ellipsis,
+                                  if (photo.analysisText != null && photo.analysisText!.isNotEmpty) ...[
+                                    const SizedBox(height: 16),
+                                    Text(
+                                      'Photo description:',
+                                      style: TextStyle(
+                                        color: Colors.grey[400],
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w500,
                                       ),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      photo.analysisText!,
+                                      style: TextStyle(
+                                        color: Colors.grey[500],
+                                        fontSize: 14,
+                                        height: 1.5,
+                                      ),
+                                      textAlign: TextAlign.center,
                                     ),
                                   ],
                                 ],
                               ),
                             ),
-                          );
-                        },
-                      ),
-                    )
-                  : Container(
-                      color: Colors.grey[900],
-                      child: Center(
-                        child: Padding(
-                          padding: const EdgeInsets.all(32),
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(
-                                Icons.broken_image_outlined,
-                                size: 80,
-                                color: Colors.grey[600],
-                              ),
-                              const SizedBox(height: 24),
-                              Text(
-                                'Photo no longer available',
-                                style: TextStyle(
-                                  color: Colors.grey[300],
-                                  fontSize: 20,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                              if (widget.analysisText != null && widget.analysisText!.isNotEmpty) ...[
-                                const SizedBox(height: 16),
-                                Text(
-                                  'Photo description:',
-                                  style: TextStyle(
-                                    color: Colors.grey[400],
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                                const SizedBox(height: 8),
-                                Text(
-                                  widget.analysisText!,
-                                  style: TextStyle(
-                                    color: Colors.grey[500],
-                                    fontSize: 14,
-                                    height: 1.5,
-                                  ),
-                                  textAlign: TextAlign.center,
-                                ),
-                              ],
-                            ],
                           ),
                         ),
-                      ),
-                    ),
+                );
+              },
             ),
 
             // Top bar with close button and info toggle
@@ -175,8 +238,22 @@ class _FullScreenPhotoViewerState extends State<FullScreenPhotoViewer> {
                       ),
                     ),
 
+                    // Photo counter (if multiple photos)
+                    if (widget.photos.length > 1)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        child: Text(
+                          '${_currentIndex + 1} / ${widget.photos.length}',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+
                     // Info toggle (if analysis text available)
-                    if (widget.analysisText != null && widget.analysisText!.isNotEmpty)
+                    if (currentPhoto.analysisText != null && currentPhoto.analysisText!.isNotEmpty)
                       IconButton(
                         onPressed: () {
                           setState(() {
@@ -199,7 +276,7 @@ class _FullScreenPhotoViewerState extends State<FullScreenPhotoViewer> {
             ),
 
             // Analysis overlay (bottom)
-            if (_showAnalysis && widget.analysisText != null)
+            if (_showAnalysis && currentPhoto.analysisText != null)
               Positioned(
                 bottom: 0,
                 left: 0,
@@ -245,7 +322,7 @@ class _FullScreenPhotoViewerState extends State<FullScreenPhotoViewer> {
                         ),
                         const SizedBox(height: 12),
                         Text(
-                          widget.analysisText!,
+                          currentPhoto.analysisText!,
                           style: TextStyle(
                             color: Colors.white.withOpacity(0.85),
                             fontSize: 14,

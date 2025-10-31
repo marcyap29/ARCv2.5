@@ -40,7 +40,7 @@ import '../../core/mcp/orchestrator/ios_vision_orchestrator.dart';
 import 'widgets/lumara_suggestion_sheet.dart';
 import 'widgets/inline_reflection_block.dart';
 // import '../../features/timeline/widgets/entry_content_renderer.dart'; // TODO: EntryContentRenderer not yet implemented
-import 'widgets/full_screen_photo_viewer.dart';
+import 'widgets/full_screen_photo_viewer.dart' show FullScreenPhotoViewer, PhotoData;
 import '../../ui/widgets/location_picker_dialog.dart';
 import 'drafts_screen.dart';
 import 'package:my_app/models/journal_entry_model.dart';
@@ -474,11 +474,11 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
       } else {
         // For subsequent activations, use the brief ArcLLM format
         reflection = await _arcLLM.chat(
-          userIntent: 'reflect',
+        userIntent: 'reflect',
           entryText: richContext['entryText'] ?? '',
-          phaseHintJson: phaseHint,
-          lastKeywordsJson: '',
-        );
+        phaseHintJson: phaseHint,
+        lastKeywordsJson: '',
+      );
       }
 
       // Insert the reflection directly into the text
@@ -1130,24 +1130,24 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
                     // Primary action row - optimized layout with even spacing
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                      children: [
-                        // Add photo button
-                        IconButton(
-                          onPressed: _handlePhotoGallery,
-                          icon: const Icon(Icons.add_photo_alternate, size: 18),
-                          tooltip: 'Add Photo',
-                          padding: const EdgeInsets.all(4),
-                          constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
-                        ),
-                        
-                        // Add camera button
-                        IconButton(
-                          onPressed: _handleCamera,
-                          icon: const Icon(Icons.camera_alt, size: 18),
-                          tooltip: 'Take Photo',
-                          padding: const EdgeInsets.all(4),
-                          constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
-                        ),
+                            children: [
+                              // Add photo button
+                              IconButton(
+                                onPressed: _handlePhotoGallery,
+                                icon: const Icon(Icons.add_photo_alternate, size: 18),
+                                tooltip: 'Add Photo',
+                                padding: const EdgeInsets.all(4),
+                                constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
+                              ),
+                              
+                              // Add camera button
+                              IconButton(
+                                onPressed: _handleCamera,
+                                icon: const Icon(Icons.camera_alt, size: 18),
+                                tooltip: 'Take Photo',
+                                padding: const EdgeInsets.all(4),
+                                constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
+                              ),
                         
                         // Add video button
                         IconButton(
@@ -1157,30 +1157,30 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
                           padding: const EdgeInsets.all(4),
                           constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
                         ),
-                        
-                        // Add voice button
-                        IconButton(
-                          onPressed: _handleMicrophone,
-                          icon: const Icon(Icons.mic, size: 18),
-                          tooltip: 'Add Voice Note',
-                          padding: const EdgeInsets.all(4),
-                          constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
-                        ),
-                        
-                        // Keyword toggle button
-                        IconButton(
-                          onPressed: _toggleKeywordsDiscovered,
-                          icon: Icon(
-                            _showKeywordsDiscovered ? Icons.label_off : Icons.label,
-                            size: 18,
-                          ),
-                          tooltip: _showKeywordsDiscovered ? 'Hide Keywords' : 'Show Keywords',
-                          padding: const EdgeInsets.all(4),
-                          constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
-                          style: IconButton.styleFrom(
-                            backgroundColor: _showKeywordsDiscovered 
-                              ? theme.colorScheme.primary.withOpacity(0.2)
-                              : null,
+                              
+                              // Add voice button
+                              IconButton(
+                                onPressed: _handleMicrophone,
+                                icon: const Icon(Icons.mic, size: 18),
+                                tooltip: 'Add Voice Note',
+                                padding: const EdgeInsets.all(4),
+                                constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
+                              ),
+                              
+                              // Keyword toggle button
+                              IconButton(
+                                onPressed: _toggleKeywordsDiscovered,
+                                icon: Icon(
+                                  _showKeywordsDiscovered ? Icons.label_off : Icons.label,
+                                  size: 18,
+                                ),
+                                tooltip: _showKeywordsDiscovered ? 'Hide Keywords' : 'Show Keywords',
+                                padding: const EdgeInsets.all(4),
+                                constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
+                                style: IconButton.styleFrom(
+                                  backgroundColor: _showKeywordsDiscovered 
+                                    ? theme.colorScheme.primary.withOpacity(0.2)
+                                    : null,
                           ),
                         ),
                         
@@ -1209,18 +1209,18 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
                         ),
                         
                         // Continue button
-                        ElevatedButton(
-                          onPressed: _entryState.text.isNotEmpty ? _onContinue : null,
-                          style: ElevatedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                            minimumSize: const Size(0, 28),
-                          ),
-                          child: const Text(
-                            'Continue',
-                            style: TextStyle(fontSize: 12),
-                          ),
-                        ),
-                      ],
+                              ElevatedButton(
+                                onPressed: _entryState.text.isNotEmpty ? _onContinue : null,
+                                style: ElevatedButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                  minimumSize: const Size(0, 28),
+                                ),
+                                child: const Text(
+                                  'Continue',
+                                  style: TextStyle(fontSize: 12),
+                                ),
+                              ),
+                            ],
                     ),
                   ],
                 ),
@@ -2254,23 +2254,69 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
 
   void _openPhotoInGallery(String imagePath) async {
     try {
-      String actualImagePath = imagePath;
+      // Get all photo attachments from entry state
+      final photoAttachments = _entryState.attachments
+          .whereType<PhotoAttachment>()
+          .toList();
       
-      // If this is a photo library ID, load the full resolution image
-      if (imagePath.startsWith('ph://')) {
-        final fullImagePath = await PhotoLibraryService.loadPhotoFromLibrary(imagePath);
-        if (fullImagePath == null) {
-          throw Exception('Failed to load photo from photo library');
+      if (photoAttachments.isEmpty) {
+        // Fallback: if no attachments found, show single photo
+        String actualImagePath = imagePath;
+        
+        // If this is a photo library ID, load the full resolution image
+        if (imagePath.startsWith('ph://')) {
+          final fullImagePath = await PhotoLibraryService.loadPhotoFromLibrary(imagePath);
+          if (fullImagePath == null) {
+            throw Exception('Failed to load photo from photo library');
+          }
+          actualImagePath = fullImagePath;
         }
-        actualImagePath = fullImagePath;
+        
+        await Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (context) => FullScreenPhotoViewer.single(
+              imagePath: actualImagePath,
+              analysisText: _getPhotoAnalysisText(imagePath),
+            ),
+          ),
+        );
+        return;
       }
       
-      // Open full-screen photo viewer in-app
+      // Find the index of the current photo
+      int currentIndex = 0;
+      for (int i = 0; i < photoAttachments.length; i++) {
+        if (photoAttachments[i].imagePath == imagePath) {
+          currentIndex = i;
+          break;
+        }
+      }
+      
+      // Build list of PhotoData objects with resolved paths
+      final List<PhotoData> photos = [];
+      for (final attachment in photoAttachments) {
+        String actualImagePath = attachment.imagePath;
+        
+        // If this is a photo library ID, load the full resolution image
+        if (attachment.imagePath.startsWith('ph://')) {
+          final fullImagePath = await PhotoLibraryService.loadPhotoFromLibrary(attachment.imagePath);
+          if (fullImagePath != null) {
+            actualImagePath = fullImagePath;
+          }
+        }
+        
+        photos.add(PhotoData(
+          imagePath: actualImagePath,
+          analysisText: _getPhotoAnalysisText(attachment.imagePath),
+        ));
+      }
+      
+      // Open full-screen photo viewer with gallery support
       await Navigator.of(context).push(
         MaterialPageRoute(
           builder: (context) => FullScreenPhotoViewer(
-            imagePath: actualImagePath,
-            analysisText: _getPhotoAnalysisText(imagePath),
+            photos: photos,
+            initialIndex: currentIndex,
           ),
         ),
       );
