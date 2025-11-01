@@ -12,10 +12,32 @@ class HealthDetailScreen extends StatefulWidget {
   State<HealthDetailScreen> createState() => _HealthDetailScreenState();
 }
 
+/// Extracted body widget for use in tabs (without Scaffold)
+class HealthDetailScreenBody extends StatefulWidget {
+  final String? monthKey;
+  final int daysBack;
+  const HealthDetailScreenBody({super.key, this.monthKey, this.daysBack = 30});
+
+  @override
+  State<HealthDetailScreenBody> createState() => _HealthDetailScreenBodyState();
+}
+
 class _HealthDetailScreenState extends State<HealthDetailScreen> {
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Health Detail')),
+      body: HealthDetailScreenBody(
+        monthKey: widget.monthKey,
+        daysBack: widget.daysBack,
+      ),
+    );
+  }
+}
+
+class _HealthDetailScreenBodyState extends State<HealthDetailScreenBody> {
   List<Map<String, dynamic>> _days = [];
   bool _loading = true;
-  String _log = '';
 
   @override
   void initState() {
@@ -29,7 +51,6 @@ class _HealthDetailScreenState extends State<HealthDetailScreen> {
   Future<void> _load() async {
     setState(() {
       _loading = true;
-      _log = '';
     });
 
     try {
@@ -41,15 +62,25 @@ class _HealthDetailScreenState extends State<HealthDetailScreen> {
       final months = widget.monthKey != null
           ? <String>{widget.monthKey!}
           : <String>{_monthKeyUtc(start), _monthKeyUtc(now)};
+      
+      // Add all months in between to ensure we don't miss data
+      if (widget.monthKey == null && months.length == 2) {
+        final monthList = months.toList()..sort();
+        final startMonth = DateTime.parse('${monthList[0]}-01');
+        final endMonth = DateTime.parse('${monthList[1]}-01');
+        months.clear();
+        var current = DateTime.utc(startMonth.year, startMonth.month, 1);
+        while (!current.isAfter(endMonth)) {
+          months.add(_monthKeyUtc(current));
+          current = DateTime.utc(current.year, current.month + 1, 1);
+        }
+      }
 
       final loaded = <Map<String, dynamic>>[];
-      final logLines = <String>[];
 
       for (final m in months) {
         final file = await McpFs.healthMonth(m);
-        logLines.add('Looking for ${file.path}');
         if (!await file.exists()) {
-          logLines.add('  (missing)');
           continue;
         }
 
@@ -58,7 +89,6 @@ class _HealthDetailScreenState extends State<HealthDetailScreen> {
             .transform(utf8.decoder)
             .transform(const LineSplitter());
         
-        int lineCount = 0;
         await for (final line in stream) {
           if (line.trim().isEmpty) continue;
           try {
@@ -69,17 +99,16 @@ class _HealthDetailScreenState extends State<HealthDetailScreen> {
             if (startIso.isEmpty) continue;
             
             final day = DateTime.parse(startIso);
-            if (widget.monthKey == null && (day.isBefore(start) || day.isAfter(now))) {
+            // Use inclusive date range - include days that fall within the range
+            if (widget.monthKey == null && (day.isBefore(start.subtract(const Duration(seconds: 1))) || day.isAfter(now.add(const Duration(days: 1))))) {
               continue;
             }
             
             loaded.add(obj);
-            lineCount++;
           } catch (_) {
             // ignore malformed lines
           }
         }
-        logLines.add('  loaded $lineCount lines from this file');
       }
 
       loaded.sort((a, b) {
@@ -91,14 +120,12 @@ class _HealthDetailScreenState extends State<HealthDetailScreen> {
       setState(() {
         _days = loaded.take(90).toList(); // cap for safety
         _loading = false;
-        _log = logLines.join('\n');
       });
     } catch (e) {
       debugPrint('Error loading health data: $e');
       setState(() {
         _days = [];
         _loading = false;
-        _log = 'Error: $e';
       });
     }
   }
@@ -305,10 +332,7 @@ class _HealthDetailScreenState extends State<HealthDetailScreen> {
   @override
   Widget build(BuildContext context) {
     if (_loading) {
-      return Scaffold(
-        appBar: AppBar(title: const Text('Health Detail')),
-        body: const Center(child: CircularProgressIndicator()),
-      );
+      return const Center(child: CircularProgressIndicator());
     }
 
     final n = _days.length;
@@ -323,47 +347,44 @@ class _HealthDetailScreenState extends State<HealthDetailScreen> {
     final avghr = listOf('avg_hr');
     final hrv = listOf('hrv_sdnn');
 
-    return Scaffold(
-      appBar: AppBar(title: const Text('Health Detail')),
-      body: n == 0
-          ? ListView(
-              padding: const EdgeInsets.all(16),
-              children: [
-                const Text('No data available'),
-                const SizedBox(height: 8),
-                Text(
-                  _log.isEmpty ? 'No health data files found.' : _log,
-                  style: const TextStyle(fontFamily: 'monospace', fontSize: 12),
-                ),
-              ],
-            )
-          : ListView(
-              padding: const EdgeInsets.all(12),
-              children: [
-                Text('Loaded $n day(s)', style: Theme.of(context).textTheme.labelLarge),
-                const SizedBox(height: 8),
-                _chart('Steps', steps, unit: ' steps', aggregationType: 'total'),
-                _chart('Active Energy', active, unit: ' kcal'),
-                _chart('Basal Energy', basal, unit: ' kcal'),
-                _chart('Sleep', sleep, unit: ' min'),
-                _chart('Resting Heart Rate', rhr, unit: ' bpm'),
-                _chart('Average Heart Rate', avghr, unit: ' bpm'),
-                _chart('Heart Rate Variability', hrv, unit: ' ms'),
-                const SizedBox(height: 12),
-                ExpansionTile(
-                  title: Text('Debug log'),
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.all(12.0),
-                      child: Text(
-                        _log.isEmpty ? 'No debug info' : _log,
-                        style: const TextStyle(fontFamily: 'monospace', fontSize: 11),
-                      ),
-                    )
-                  ],
-                ),
-              ],
-            ),
+    if (n == 0) {
+      return ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          const Text(
+            'No data available',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w500),
+          ),
+          const SizedBox(height: 12),
+          const Text(
+            'Health data files were not found. To view health analytics:',
+            style: TextStyle(fontSize: 14),
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            '1. Go to Health tab → Settings icon\n'
+            '2. Import health data (30, 60, or 90 days)\n'
+            '3. Ensure Apple Health integration is enabled\n'
+            '4. Wait for data to sync',
+            style: TextStyle(fontSize: 13, height: 1.5),
+          ),
+        ],
+      );
+    }
+
+    return ListView(
+      padding: const EdgeInsets.all(12),
+      children: [
+        Text('Loaded $n day(s)', style: Theme.of(context).textTheme.labelLarge),
+        const SizedBox(height: 8),
+        _chart('Steps', steps, unit: ' steps', aggregationType: 'total'),
+        _chart('Active Energy', active, unit: ' kcal'),
+        _chart('Basal Energy', basal, unit: ' kcal'),
+        _chart('Sleep', sleep, unit: ' min'),
+        _chart('Resting Heart Rate', rhr, unit: ' bpm'),
+        _chart('Average Heart Rate', avghr, unit: ' bpm'),
+        _chart('Heart Rate Variability', hrv, unit: ' ms'),
+      ],
     );
   }
 }

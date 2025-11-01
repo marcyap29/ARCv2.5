@@ -316,13 +316,42 @@ class _AnalyticsContentState extends State<AnalyticsContent> {
     _insightCubit = widget.insightCubit;
     _scrollController = widget.scrollController ?? ScrollController();
     // If no cubit exists (embedded), try to create one via callback
-    widget.onCreateCubit?.call();
+    if (widget.onCreateCubit != null) {
+      widget.onCreateCubit?.call();
+    } else {
+      // If embedded without callback, initialize cubit directly after frame
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _initializeInsightCubit();
+      });
+    }
+  }
+
+  void _initializeInsightCubit() {
+    if (_insightCubit != null) return; // Already initialized
+    
+    try {
+      final cubit = InsightCubitFactory.create(
+        journalRepository: context.read(),
+        rivetProvider: context.read(),
+        userId: 'default_user',
+      );
+      cubit.generateInsights();
+      setState(() {
+        _insightCubit = cubit;
+      });
+    } catch (e) {
+      debugPrint('Error initializing InsightCubit in AnalyticsContent: $e');
+    }
   }
 
   @override
   void dispose() {
     if (widget.scrollController == null) {
       _scrollController?.dispose();
+    }
+    // Only dispose cubit if we created it ourselves (not passed from parent)
+    if (widget.insightCubit == null && _insightCubit != null) {
+      _insightCubit?.close();
     }
     super.dispose();
   }

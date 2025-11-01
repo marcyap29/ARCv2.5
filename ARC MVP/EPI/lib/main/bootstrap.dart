@@ -24,6 +24,7 @@ import 'package:my_app/core/services/audio_service.dart';
 import 'package:my_app/lumara/llm/model_progress_service.dart';
 import 'package:my_app/lumara/llm/bridge.pigeon.dart' as pigeon;
 import 'package:my_app/lumara/chat/chat_models.dart';
+import 'package:my_app/lumara/chat/chat_category_models.dart';
 
 import 'package:my_app/shared/app_colors.dart';
 import 'package:my_app/shared/text_style.dart';
@@ -224,6 +225,19 @@ void _registerHiveAdapters() {
     if (!Hive.isAdapterRegistered(70)) {
       Hive.registerAdapter(ChatMessageAdapter());
       logger.d('✅ Registered ChatMessageAdapter (ID: 70)');
+    }
+    // Chat category adapters
+    if (!Hive.isAdapterRegistered(72)) {
+      Hive.registerAdapter(ChatCategoryAdapter());
+      logger.d('✅ Registered ChatCategoryAdapter (ID: 72)');
+    }
+    if (!Hive.isAdapterRegistered(73)) {
+      Hive.registerAdapter(ChatSessionCategoryAdapter());
+      logger.d('✅ Registered ChatSessionCategoryAdapter (ID: 73)');
+    }
+    if (!Hive.isAdapterRegistered(74)) {
+      Hive.registerAdapter(ChatExportDataAdapter());
+      logger.d('✅ Registered ChatExportDataAdapter (ID: 74)');
     }
     
     // Verify MediaItemAdapter is registered

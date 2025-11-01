@@ -312,38 +312,30 @@ class HealthIngest {
   static num? _getNumericValue(HealthDataPoint p) {
     final value = p.value;
 
-    // Debug: Log what we're trying to extract
-    debugPrint('🔍 _getNumericValue Debug - Type: ${p.type}, Value: $value (${value.runtimeType})');
-
     if (value == null) {
-      debugPrint('❌ _getNumericValue Debug - Value is null');
       return null;
     }
 
     // Try direct num cast first
     try {
       if (value is int || value is double) {
-        debugPrint('✅ _getNumericValue Debug - Direct cast successful: $value');
         return value as num;
       }
-    } catch (e) {
-      debugPrint('❌ _getNumericValue Debug - Direct cast failed: $e');
+    } catch (_) {
+      // Continue to other extraction methods
     }
 
     // Handle NumericHealthValue wrapper - parse from toString() format
     // Format: "NumericHealthValue - numericValue: 877.0"
     try {
       final str = value.toString().trim();
-      debugPrint('🔍 _getNumericValue Debug - toString(): "$str"');
       if (str.isEmpty) {
-        debugPrint('❌ _getNumericValue Debug - Empty string after toString()');
         return null;
       }
 
       // Try direct parse first (for backward compatibility)
       final directParsed = double.tryParse(str);
       if (directParsed != null) {
-        debugPrint('✅ _getNumericValue Debug - Direct parsed: $directParsed');
         return directParsed;
       }
 
@@ -354,15 +346,12 @@ class HealthIngest {
         if (numericStr != null) {
           final parsed = double.tryParse(numericStr);
           if (parsed != null) {
-            debugPrint('✅ _getNumericValue Debug - Extracted from NumericHealthValue: $parsed');
             return parsed;
           }
         }
       }
-
-      debugPrint('❌ _getNumericValue Debug - Failed to parse: "$str"');
-    } catch (e) {
-      debugPrint('❌ _getNumericValue Debug - toString() parsing failed: $e');
+    } catch (_) {
+      // Continue to dynamic access method
     }
 
     // Try dynamic access to numericValue property
@@ -370,25 +359,19 @@ class HealthIngest {
       final dynamicValue = value as dynamic;
       if (_hasProperty(dynamicValue, 'numericValue')) {
         final numericVal = dynamicValue.numericValue;
-        debugPrint('🔍 _getNumericValue Debug - Found numericValue property: $numericVal');
         if (numericVal != null) {
           if (numericVal is num) {
-            debugPrint('✅ _getNumericValue Debug - numericValue is num: $numericVal');
             return numericVal;
           }
           final str = numericVal.toString();
           final result = double.tryParse(str);
-          debugPrint('🔍 _getNumericValue Debug - Parsed numericValue toString: $result');
           return result;
         }
-      } else {
-        debugPrint('❌ _getNumericValue Debug - No numericValue property found');
       }
-    } catch (e) {
-      debugPrint('❌ _getNumericValue Debug - Dynamic access failed: $e');
+    } catch (_) {
+      // All extraction methods failed
     }
 
-    debugPrint('❌ _getNumericValue Debug - ALL EXTRACTION METHODS FAILED for ${p.type}');
     return null;
   }
   

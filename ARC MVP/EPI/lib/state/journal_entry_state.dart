@@ -5,6 +5,7 @@ class InlineBlock {
   final String content;
   final int timestamp;
   final String? phase; // Discovery, Recovery, Breakthrough, Consolidation
+  final String? userComment; // User's comment/continuation text after the reflection
 
   InlineBlock({
     required this.type,
@@ -12,6 +13,7 @@ class InlineBlock {
     required this.content,
     required this.timestamp,
     this.phase,
+    this.userComment,
   });
 
   Map<String, dynamic> toJson() => {
@@ -20,6 +22,7 @@ class InlineBlock {
     'content': content,
     'timestamp': timestamp,
     'phase': phase,
+    'userComment': userComment,
   };
 
   factory InlineBlock.fromJson(Map<String, dynamic> json) => InlineBlock(
@@ -28,7 +31,27 @@ class InlineBlock {
     content: json['content'] as String,
     timestamp: json['timestamp'] as int,
     phase: json['phase'] as String?,
+    userComment: json['userComment'] as String?,
   );
+
+  /// Create a copy with updated fields
+  InlineBlock copyWith({
+    String? type,
+    String? intent,
+    String? content,
+    int? timestamp,
+    String? phase,
+    String? userComment,
+  }) {
+    return InlineBlock(
+      type: type ?? this.type,
+      intent: intent ?? this.intent,
+      content: content ?? this.content,
+      timestamp: timestamp ?? this.timestamp,
+      phase: phase ?? this.phase,
+      userComment: userComment ?? this.userComment,
+    );
+  }
 }
 
 /// State management for journal entries with inline LUMARA integration

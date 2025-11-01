@@ -38,9 +38,11 @@ class _HealthSummaryBodyState extends State<HealthSummaryBody> with WidgetsBindi
   bool _loadingSummary = true;
 
   String _currentMonthKeyUtc() {
-    final now = DateTime.now().toUtc();
+    // Use local time for month key calculation - user's timezone
+    final now = DateTime.now();
     return '${now.year}-${now.month.toString().padLeft(2, '0')}';
   }
+
 
   @override
   void initState() {
@@ -75,40 +77,86 @@ class _HealthSummaryBodyState extends State<HealthSummaryBody> with WidgetsBindi
   Future<void> _loadImportedSummary() async {
     setState(() => _loadingSummary = true);
     try {
-      final appDir = await getApplicationDocumentsDirectory();
-      final monthKey = _currentMonthKeyUtc();
-      final file = File('${appDir.path}/mcp/streams/health/$monthKey.jsonl');
-
-      // Debug: Log file path and existence
-      debugPrint('🔍 Health Detail Debug - Looking for file: ${file.path}');
-      debugPrint('🔍 Health Detail Debug - Month key: $monthKey');
-
-      if (!await file.exists()) {
-        debugPrint('❌ Health Detail Debug - MCP file does NOT exist!');
-        setState(() {
-          _importedSummary = null;
-          _loadingSummary = false;
-        });
-        return;
+      // Use local time for user-facing date calculations
+      final nowLocal = DateTime.now();
+      final startLocal = DateTime(nowLocal.year, nowLocal.month, nowLocal.day)
+          .subtract(const Duration(days: 6)); // Last 7 days
+      
+      // Convert to UTC for comparing with stored health data (which uses UTC)
+      final nowUtc = nowLocal.toUtc();
+      final startUtc = startLocal.toUtc();
+      
+      // Health data files are organized by UTC month (from ISO date strings)
+      // Check months based on both local and UTC to handle timezone edge cases
+      final monthsToCheck = <String>{};
+      
+      // Add months based on UTC dates (how files are actually organized)
+      final startUtcMonthKey = '${startUtc.year.toString().padLeft(4, '0')}-${startUtc.month.toString().padLeft(2, '0')}';
+      final nowUtcMonthKey = '${nowUtc.year.toString().padLeft(4, '0')}-${nowUtc.month.toString().padLeft(2, '0')}';
+      monthsToCheck.add(startUtcMonthKey);
+      monthsToCheck.add(nowUtcMonthKey);
+      
+      // Also check adjacent months for timezone edge cases
+      // (e.g., if it's late at night PST, it might be next day UTC)
+      final prevMonthUtc = DateTime.utc(startUtc.year, startUtc.month - 1 <= 0 ? 12 : startUtc.month - 1);
+      if (startUtc.month == 1) {
+        monthsToCheck.add('${startUtc.year - 1}-12'); // Previous year December
+      } else {
+        monthsToCheck.add('${prevMonthUtc.year.toString().padLeft(4, '0')}-${prevMonthUtc.month.toString().padLeft(2, '0')}');
+      }
+      
+      final nextMonthUtc = DateTime.utc(nowUtc.year, nowUtc.month + 1 > 12 ? 1 : nowUtc.month + 1);
+      if (nowUtc.month == 12) {
+        monthsToCheck.add('${nowUtc.year + 1}-01'); // Next year January
+      } else {
+        monthsToCheck.add('${nextMonthUtc.year.toString().padLeft(4, '0')}-${nextMonthUtc.month.toString().padLeft(2, '0')}');
       }
 
-      debugPrint('✅ Health Detail Debug - MCP file exists!');
-
-      final lines = await file.readAsLines();
-      debugPrint('🔍 Health Detail Debug - Read ${lines.length} lines from MCP file');
+      debugPrint('🔍 Health Detail Debug - User local time: $nowLocal (PST/PST-8)');
+      debugPrint('🔍 Health Detail Debug - UTC time: $nowUtc');
+      debugPrint('🔍 Health Detail Debug - Checking months (UTC-based): $monthsToCheck');
+      debugPrint('🔍 Health Detail Debug - Date range (local): ${startLocal.toIso8601String()} to ${nowLocal.toIso8601String()}');
+      debugPrint('🔍 Health Detail Debug - Date range (UTC): ${startUtc.toIso8601String()}Z to ${nowUtc.toIso8601String()}Z');
 
       final days = <Map<String, dynamic>>[];
-      for (final line in lines) {
-        if (line.trim().isEmpty) continue;
-        try {
-          final obj = jsonDecode(line) as Map<String, dynamic>;
-          debugPrint('🔍 Health Detail Debug - Parsed object type: ${obj['type']}');
-          if (obj['type'] == 'health.timeslice.daily') {
-            days.add(obj);
-            debugPrint('✅ Health Detail Debug - Added valid health day object');
+      final appDir = await getApplicationDocumentsDirectory();
+      
+      for (final monthKey in monthsToCheck) {
+        final file = File('${appDir.path}/mcp/streams/health/$monthKey.jsonl');
+        debugPrint('🔍 Health Detail Debug - Looking for file: ${file.path}');
+
+        if (!await file.exists()) {
+          debugPrint('⚠️ Health Detail Debug - File does not exist for month: $monthKey');
+          continue;
+        }
+
+        debugPrint('✅ Health Detail Debug - MCP file exists for month: $monthKey');
+        final lines = await file.readAsLines();
+        debugPrint('🔍 Health Detail Debug - Read ${lines.length} lines from $monthKey.jsonl');
+
+        for (final line in lines) {
+          if (line.trim().isEmpty) continue;
+          try {
+            final obj = jsonDecode(line) as Map<String, dynamic>;
+            if (obj['type'] == 'health.timeslice.daily') {
+              // Filter by date range (compare in UTC for consistency with stored data)
+              final startIso = (obj['timeslice']?['start'] as String?) ?? '';
+              if (startIso.isNotEmpty) {
+                try {
+                  final day = DateTime.parse(startIso).toUtc();
+                  // Include days that fall within the last 7 days (based on local time)
+                  if (day.isAfter(startUtc.subtract(const Duration(seconds: 1))) && 
+                      day.isBefore(nowUtc.add(const Duration(days: 1)))) {
+                    days.add(obj);
+                  }
+                } catch (e) {
+                  debugPrint('⚠️ Health Detail Debug - Failed to parse date: $e');
+                }
+              }
+            }
+          } catch (e) {
+            debugPrint('❌ Health Detail Debug - Failed to parse line: $e');
           }
-        } catch (e) {
-          debugPrint('❌ Health Detail Debug - Failed to parse line: $e');
         }
       }
 
@@ -136,6 +184,9 @@ class _HealthSummaryBodyState extends State<HealthSummaryBody> with WidgetsBindi
       double? avgRestingHr;
       double? avgHr;
       double? avgHrv;
+      int rhrCount = 0; // Count days with resting HR data
+      int hrCount = 0;  // Count days with avg HR data
+      int hrvCount = 0; // Count days with HRV data
 
       for (final day in recentDays) {
         final m = day['metrics'] as Map<String, dynamic>;
@@ -155,19 +206,32 @@ class _HealthSummaryBodyState extends State<HealthSummaryBody> with WidgetsBindi
         workoutCount += ((m['workouts'] as List?)?.length ?? 0);
         
         final rhr = _getMetricValue(m, 'resting_hr');
-        if (rhr != null) avgRestingHr = (avgRestingHr ?? 0) + rhr;
+        if (rhr != null) {
+          avgRestingHr = (avgRestingHr ?? 0) + rhr;
+          rhrCount++;
+          debugPrint('🔍 Health Detail Debug - Found resting_hr: $rhr (count: $rhrCount)');
+        }
         
         final hr = _getMetricValue(m, 'avg_hr');
-        if (hr != null) avgHr = (avgHr ?? 0) + hr;
+        if (hr != null) {
+          avgHr = (avgHr ?? 0) + hr;
+          hrCount++;
+          debugPrint('🔍 Health Detail Debug - Found avg_hr: $hr (count: $hrCount)');
+        }
         
         final hrv = _getMetricValue(m, 'hrv_sdnn');
-        if (hrv != null) avgHrv = (avgHrv ?? 0) + hrv;
+        if (hrv != null) {
+          avgHrv = (avgHrv ?? 0) + hrv;
+          hrvCount++;
+          debugPrint('🔍 Health Detail Debug - Found hrv_sdnn: $hrv (count: $hrvCount)');
+        }
       }
 
       final dayCount = recentDays.length;
 
       debugPrint('🔍 Health Detail Debug - Final aggregated totals:');
       debugPrint('🔍 Health Detail Debug - Days: $dayCount, Steps: $totalSteps, Active: $totalActiveEnergy, Basal: $totalBasalEnergy');
+      debugPrint('🔍 Health Detail Debug - HR metrics counts: RHR=$rhrCount, AvgHR=$hrCount, HRV=$hrvCount');
 
       setState(() {
         _importedSummary = {
@@ -178,9 +242,10 @@ class _HealthSummaryBodyState extends State<HealthSummaryBody> with WidgetsBindi
           'total_exercise_min': totalExerciseMin,
           'avg_sleep_min': totalSleepMin / dayCount,
           'workout_count': workoutCount,
-          'avg_resting_hr': avgRestingHr != null ? avgRestingHr / dayCount : null,
-          'avg_hr': avgHr != null ? avgHr / dayCount : null,
-          'avg_hrv': avgHrv != null ? avgHrv / dayCount : null,
+          // Only calculate average if we have at least one day with data, divide by actual count
+          'avg_resting_hr': avgRestingHr != null && rhrCount > 0 ? avgRestingHr / rhrCount : null,
+          'avg_hr': avgHr != null && hrCount > 0 ? avgHr / hrCount : null,
+          'avg_hrv': avgHrv != null && hrvCount > 0 ? avgHrv / hrvCount : null,
         };
         _loadingSummary = false;
       });
@@ -194,8 +259,49 @@ class _HealthSummaryBodyState extends State<HealthSummaryBody> with WidgetsBindi
 
   num? _getMetricValue(Map<String, dynamic> metrics, String key) {
     final m = metrics[key];
-    if (m is Map && m['value'] != null) return m['value'] as num;
-    if (m is num) return m;
+    
+    // Debug logging
+    debugPrint('🔍 _getMetricValue Debug - Looking for key: $key, found: ${m.runtimeType}, value: $m');
+    
+    if (m == null) {
+      debugPrint('❌ _getMetricValue Debug - Key $key not found in metrics');
+      return null;
+    }
+    
+    // Try Map with 'value' key (standard format: {"value": X, "unit": "..."})
+    if (m is Map) {
+      final value = m['value'];
+      // If value is null, that's valid - return null (metric not available for this day)
+      if (value == null) {
+        debugPrint('ℹ️ _getMetricValue Debug - Map has null value for $key (metric not available)');
+        return null;
+      }
+      // If value exists and is numeric, return it
+      if (value is num) {
+        debugPrint('✅ _getMetricValue Debug - Extracted from Map: $value');
+        return value;
+      }
+      debugPrint('⚠️ _getMetricValue Debug - Map has value but it\'s not numeric: ${value.runtimeType}');
+    }
+    
+    // Try direct num value
+    if (m is num) {
+      debugPrint('✅ _getMetricValue Debug - Direct num value: $m');
+      return m;
+    }
+    
+    // Try to parse if it's a string representation
+    if (m is String) {
+      try {
+        final parsed = num.parse(m);
+        debugPrint('✅ _getMetricValue Debug - Parsed from string: $parsed');
+        return parsed;
+      } catch (e) {
+        debugPrint('❌ _getMetricValue Debug - Failed to parse string: $e');
+      }
+    }
+    
+    debugPrint('❌ _getMetricValue Debug - Unknown format for key $key: ${m.runtimeType}');
     return null;
   }
 
@@ -229,13 +335,16 @@ class _HealthSummaryBodyState extends State<HealthSummaryBody> with WidgetsBindi
                       IconButton(
                         icon: const Icon(Icons.show_chart),
                         onPressed: () {
-                          Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder: (_) => HealthDetailScreen(monthKey: _currentMonthKeyUtc()),
+                          // Navigate to Details tab - this is handled by the parent HealthView
+                          // We can't directly control tabs from here, so we'll just show a message
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Switch to the Details tab to view charts'),
+                              duration: Duration(seconds: 2),
                             ),
                           );
                         },
-                        tooltip: 'View detailed charts',
+                        tooltip: 'View detailed charts (Details tab)',
                       ),
                     ],
                   ),
@@ -247,24 +356,6 @@ class _HealthSummaryBodyState extends State<HealthSummaryBody> with WidgetsBindi
             },
         ),
         const SizedBox(height: 12),
-
-        // Clear "View Detailed Charts" button
-        ElevatedButton.icon(
-          onPressed: () {
-            Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (_) => HealthDetailScreen(monthKey: _currentMonthKeyUtc()),
-              ),
-            );
-          },
-          icon: const Icon(Icons.show_chart),
-          label: const Text('View Detailed Charts'),
-          style: ElevatedButton.styleFrom(
-            padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
-            minimumSize: const Size(double.infinity, 48),
-          ),
-        ),
-        const SizedBox(height: 16),
 
         // Health Summary Card (aggregated from imported data)
         _buildSummaryCard(context),

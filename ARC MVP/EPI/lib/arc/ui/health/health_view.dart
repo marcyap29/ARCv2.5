@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:my_app/insights/analytics_page.dart';
 import 'package:my_app/arc/ui/health/health_detail_view.dart';
 import 'package:my_app/arc/ui/health/health_settings_dialog.dart';
+import 'package:my_app/ui/health/health_detail_screen.dart';
 import 'package:my_app/shared/app_colors.dart';
 
 class HealthView extends StatefulWidget {
@@ -12,7 +13,7 @@ class HealthView extends StatefulWidget {
 }
 
 class _HealthViewState extends State<HealthView> {
-  int _selected = 0; // 0: Health Insights, 1: Analytics
+  int _selected = 0; // 0: Overview, 1: Details, 2: Analytics
   final _healthSummaryKey = GlobalKey<State<HealthSummaryBody>>();
 
   void _showInfoDialog(BuildContext context) {
@@ -27,12 +28,22 @@ class _HealthViewState extends State<HealthView> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Health Insights',
+                'Overview',
                 style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
               ),
               SizedBox(height: 8),
               Text(
-                'View your daily health summary including steps, heart rate, and a 7-day overview. Tap the chart icon to see detailed metrics over time with interactive charts.',
+                'View your daily health summary including steps, heart rate, and a 7-day overview.',
+                style: TextStyle(fontSize: 14),
+              ),
+              SizedBox(height: 16),
+              Text(
+                'Details',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+              ),
+              SizedBox(height: 8),
+              Text(
+                'See detailed metrics over time with interactive charts for steps, energy, sleep, heart rate, and more.',
                 style: TextStyle(fontSize: 14),
               ),
               SizedBox(height: 16),
@@ -61,7 +72,7 @@ class _HealthViewState extends State<HealthView> {
   @override
   Widget build(BuildContext context) {
     return DefaultTabController(
-      length: 2,
+      length: 3,
       initialIndex: _selected,
       child: Scaffold(
         appBar: AppBar(
@@ -93,7 +104,8 @@ class _HealthViewState extends State<HealthView> {
             isScrollable: true,
             onTap: (i) => setState(() => _selected = i),
             tabs: const [
-              Tab(icon: Icon(Icons.favorite_outline, size: 20), text: 'Health Insights'),
+              Tab(icon: Icon(Icons.favorite_outline, size: 20), text: 'Overview'),
+              Tab(icon: Icon(Icons.show_chart, size: 20), text: 'Details'),
               Tab(icon: Icon(Icons.stacked_line_chart, size: 20), text: 'Analytics'),
             ],
           ),
@@ -103,8 +115,10 @@ class _HealthViewState extends State<HealthView> {
           child: TabBarView(
             physics: const BouncingScrollPhysics(),
             children: [
-              // Show the Health Summary content directly in the Health Insights tab
+              // Show the Health Summary content directly in the Overview tab
               HealthSummaryBody(key: _healthSummaryKey, pointerJson: const {}),
+              // Show the Health Detail Screen in the Details tab
+              const _HealthDetailsTab(),
               // Render Analytics content directly within the Health tab
               const AnalyticsContent(),
             ],
@@ -115,4 +129,20 @@ class _HealthViewState extends State<HealthView> {
   }
 }
 
+/// Wrapper widget for Health Details tab content
+class _HealthDetailsTab extends StatefulWidget {
+  const _HealthDetailsTab();
+
+  @override
+  State<_HealthDetailsTab> createState() => _HealthDetailsTabState();
+}
+
+class _HealthDetailsTabState extends State<_HealthDetailsTab> {
+  @override
+  Widget build(BuildContext context) {
+    // Use HealthDetailScreen but without the Scaffold (since we're in a TabBarView)
+    // We need to extract just the body content
+    return const HealthDetailScreenBody(daysBack: 30);
+  }
+}
 

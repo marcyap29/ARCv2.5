@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 
 /// LUMARA intent types for different reflection styles
+/// Maps to v2.3 ConversationMode
 enum LumaraIntent { 
-  ideas, 
-  think, 
-  perspective, 
-  next, 
-  analyze 
+  ideas,      // Maps to ConversationMode.ideas
+  think,      // Maps to ConversationMode.think
+  perspective, // Maps to ConversationMode.perspective
+  next,       // Maps to ConversationMode.nextSteps
+  analyze,    // Maps to ConversationMode.reflectDeeply (More Depth)
 }
 
 typedef OnIntent = void Function(LumaraIntent intent);
@@ -41,9 +42,9 @@ class LumaraSuggestionSheet extends StatelessWidget {
         Icons.navigate_next,
       ),
       _SuggestionItem(
-        'Analyze further',
+        'Reflect more deeply',
         LumaraIntent.analyze,
-        Icons.analytics,
+        Icons.insights,
       ),
     ];
 

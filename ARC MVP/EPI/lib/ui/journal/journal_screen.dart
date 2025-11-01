@@ -18,6 +18,7 @@ import '../../telemetry/analytics.dart';
 import '../../services/periodic_discovery_service.dart';
 import '../../services/lumara/lumara_inline_api.dart';
 import 'package:my_app/lumara/services/enhanced_lumara_api.dart';
+import 'package:my_app/lumara/models/lumara_reflection_options.dart' as lumara_models;
 import 'package:my_app/lumara/services/progressive_memory_loader.dart';
 import 'package:my_app/lumara/ui/lumara_settings_screen.dart';
 import '../../models/user_profile_model.dart';
@@ -104,6 +105,9 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
   // Text controllers for metadata editing
   late TextEditingController _locationController;
   
+  // Text controllers for continuation fields (one per block)
+  final Map<int, TextEditingController> _continuationControllers = {};
+  
   // UI state management
   bool _showKeywordsDiscovered = false;
   bool _showLumaraBox = false;
@@ -182,10 +186,27 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
       if (widget.existingEntry!.metadata != null) {
         final inlineBlocks = widget.existingEntry!.metadata!['inlineBlocks'] as List?;
         if (inlineBlocks != null && inlineBlocks.isNotEmpty) {
-          for (final blockJson in inlineBlocks) {
+          for (int i = 0; i < inlineBlocks.length; i++) {
+            final blockJson = inlineBlocks[i];
             try {
               final block = InlineBlock.fromJson(Map<String, dynamic>.from(blockJson));
               _entryState.addReflection(block);
+              
+              // Create and initialize continuation controller for this block
+              final controller = TextEditingController(text: block.userComment ?? '');
+              _continuationControllers[i] = controller;
+              controller.addListener(() {
+                // Save comment to block when text changes
+                if (i < _entryState.blocks.length) {
+                  _entryState.blocks[i] = _entryState.blocks[i].copyWith(
+                    userComment: controller.text.trim().isEmpty ? null : controller.text.trim(),
+                  );
+                  // Mark as modified
+                  _hasBeenModified = true;
+                  // Auto-save draft with updated blocks
+                  _updateDraftContent(_entryState.text);
+                }
+              });
             } catch (e) {
               debugPrint('JournalScreen: Error loading LUMARA block: $e');
             }
@@ -248,6 +269,12 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
     
     _textController.dispose();
     _scrollController.dispose();
+    
+    // Dispose all continuation controllers
+    for (final controller in _continuationControllers.values) {
+      controller.dispose();
+    }
+    _continuationControllers.clear();
     _keywordController.dispose();
     _locationController.dispose();
     
@@ -1270,11 +1297,35 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
             
             // Restore LUMARA blocks from draft
             _entryState.blocks.clear();
+            // Clean up existing controllers
+            for (final controller in _continuationControllers.values) {
+              controller.dispose();
+            }
+            _continuationControllers.clear();
+            
             if (draft.lumaraBlocks.isNotEmpty) {
-              for (final blockJson in draft.lumaraBlocks) {
+              for (int i = 0; i < draft.lumaraBlocks.length; i++) {
+                final blockJson = draft.lumaraBlocks[i];
                 try {
                   final block = InlineBlock.fromJson(Map<String, dynamic>.from(blockJson));
                   _entryState.addReflection(block);
+                  
+                  // Create and initialize continuation controller for this block
+                  final controller = TextEditingController(text: block.userComment ?? '');
+                  _continuationControllers[i] = controller;
+                  controller.addListener(() {
+                    // Save comment to block when text changes
+                    if (i < _entryState.blocks.length) {
+                      setState(() {
+                        _entryState.blocks[i] = _entryState.blocks[i].copyWith(
+                          userComment: controller.text.trim().isEmpty ? null : controller.text.trim(),
+                        );
+                        _hasBeenModified = true;
+                      });
+                      // Auto-save draft with updated blocks
+                      _updateDraftContent(_entryState.text);
+                    }
+                  });
                 } catch (e) {
                   debugPrint('JournalScreen: Error loading LUMARA block from draft: $e');
                 }
@@ -1602,6 +1653,26 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
     for (int index = 0; index < _entryState.blocks.length; index++) {
       final block = _entryState.blocks[index];
       
+      // Ensure we have a controller for this block
+      if (!_continuationControllers.containsKey(index)) {
+        final controller = TextEditingController(text: block.userComment ?? '');
+        _continuationControllers[index] = controller;
+        controller.addListener(() {
+          // Save comment to block when text changes
+          if (index < _entryState.blocks.length) {
+            setState(() {
+              _entryState.blocks[index] = _entryState.blocks[index].copyWith(
+                userComment: controller.text.trim().isEmpty ? null : controller.text.trim(),
+              );
+              // Mark as modified
+              _hasBeenModified = true;
+            });
+            // Auto-save draft with updated blocks
+            _updateDraftContent(_entryState.text);
+          }
+        });
+      }
+      
       // Add the reflection block
       widgets.add(InlineReflectionBlock(
         content: block.content,
@@ -1610,13 +1681,13 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
         onRegenerate: () => _onRegenerateReflection(index),
         onSoften: () => _onSoftenReflection(index),
         onMoreDepth: () => _onMoreDepthReflection(index),
-        onContinueWithLumara: _onContinueWithLumara,
+        onContinueWithLumara: () => _onContinueWithLumara(index),
         onDelete: () => _onDeleteReflection(index),
       ));
       
       // Add a text field below each reflection to continue the conversation
       widgets.add(const SizedBox(height: 8));
-      widgets.add(_buildContinuationField(theme));
+      widgets.add(_buildContinuationField(theme, index));
       widgets.add(const SizedBox(height: 16));
     }
 
@@ -1624,10 +1695,15 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
   }
   
   /// Build continuation text field for user to respond after LUMARA reflection
-  Widget _buildContinuationField(ThemeData theme) {
-    // This is a simplified TextField for continuation
-    // In a full implementation, you'd need to manage separate controllers for each continuation
+  Widget _buildContinuationField(ThemeData theme, int blockIndex) {
+    final controller = _continuationControllers[blockIndex];
+    if (controller == null) {
+      // Should not happen, but handle gracefully
+      return const SizedBox.shrink();
+    }
+    
     return TextField(
+      controller: controller,
       maxLines: null,
       textCapitalization: TextCapitalization.sentences,
       style: theme.textTheme.bodyMedium?.copyWith(
@@ -1668,9 +1744,6 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
         fillColor: theme.colorScheme.surfaceContainerHighest.withOpacity(0.2),
         contentPadding: const EdgeInsets.all(12),
       ),
-      onChanged: (value) {
-        // Store continuation text - you might want to add this to block metadata
-      },
     );
   }
 
@@ -2929,8 +3002,26 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
       phase: _entryState.phase,
     );
     
+    final newBlockIndex = _entryState.blocks.length;
     setState(() {
       _entryState.blocks.add(block);
+    });
+    
+    // Create controller for the new block
+    final controller = TextEditingController();
+    _continuationControllers[newBlockIndex] = controller;
+    controller.addListener(() {
+      // Save comment to block when text changes
+      if (newBlockIndex < _entryState.blocks.length) {
+        setState(() {
+          _entryState.blocks[newBlockIndex] = _entryState.blocks[newBlockIndex].copyWith(
+            userComment: controller.text.trim().isEmpty ? null : controller.text.trim(),
+          );
+          _hasBeenModified = true;
+        });
+        // Auto-save draft with updated blocks
+        _updateDraftContent(_textController.text);
+      }
     });
     
     // Auto-save the updated content
@@ -3026,28 +3117,41 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
     try {
       // Build context from progressive memory loader
       final loadedEntries = _memoryLoader.getLoadedEntries();
-      final entryText = _buildJournalContext(loadedEntries);
-      final phaseHint = _buildPhaseHintJson();
-      final keywordsJson = _buildKeywordsJson();
+      final richContext = await _buildRichContext(loadedEntries, null);
+      final entryText = _entryState.text;
+      final phaseHint = _entryState.phase;
       
-      // Map intent to user prompt
-      final userIntent = _mapIntentToUserPrompt(block.intent);
-      
-      // Use ArcLLM with Gemini for reflection
-      final newReflection = await _arcLLM.chat(
-        userIntent: userIntent,
+      // Use EnhancedLumaraApi v2.3 with regenerate option
+      final newReflection = await _enhancedLumaraApi.generatePromptedReflection(
         entryText: entryText,
-        phaseHintJson: phaseHint,
-        lastKeywordsJson: keywordsJson,
+        intent: 'journal',
+        phase: phaseHint,
+        userId: null,
+        mood: richContext['mood'],
+        chronoContext: richContext['chronoContext'],
+        chatContext: richContext['chatContext'],
+        mediaContext: richContext['mediaContext'],
+        options: lumara_models.LumaraReflectionOptions(
+          regenerate: true,
+          toneMode: lumara_models.ToneMode.normal,
+          preferQuestionExpansion: false,
+        ),
       );
+
+      // Extract just the reflection text (remove "✨ Reflection\n\n" prefix if present)
+      String reflectionText = newReflection;
+      if (reflectionText.startsWith('✨ Reflection\n\n')) {
+        reflectionText = reflectionText.substring('✨ Reflection\n\n'.length);
+      }
 
       setState(() {
         _entryState.blocks[index] = InlineBlock(
           type: block.type,
           intent: block.intent,
-          content: newReflection,
+          content: reflectionText,
           timestamp: DateTime.now().millisecondsSinceEpoch,
           phase: block.phase,
+          userComment: block.userComment, // Preserve user comment when regenerating
         );
       });
       
@@ -3092,28 +3196,41 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
     try {
       // Build context from progressive memory loader
       final loadedEntries = _memoryLoader.getLoadedEntries();
-      final entryText = _buildJournalContext(loadedEntries);
-      final phaseHint = _buildPhaseHintJson();
-      final keywordsJson = _buildKeywordsJson();
+      final richContext = await _buildRichContext(loadedEntries, null);
+      final entryText = _entryState.text;
+      final phaseHint = _entryState.phase;
       
-      // Use softer tone prompt
-      final userIntent = 'Soften the tone and make this reflection more gentle, warm, and supportive. Keep the same intent but use more compassionate and encouraging language.';
-      
-      // Use ArcLLM with Gemini for softer reflection
-      final softerReflection = await _arcLLM.chat(
-        userIntent: userIntent,
+      // Use EnhancedLumaraApi v2.3 with soft tone option
+      final softerReflection = await _enhancedLumaraApi.generatePromptedReflection(
         entryText: entryText,
-        phaseHintJson: phaseHint,
-        lastKeywordsJson: keywordsJson,
+        intent: 'journal',
+        phase: phaseHint,
+        userId: null,
+        mood: richContext['mood'],
+        chronoContext: richContext['chronoContext'],
+        chatContext: richContext['chatContext'],
+        mediaContext: richContext['mediaContext'],
+        options: lumara_models.LumaraReflectionOptions(
+          toneMode: lumara_models.ToneMode.soft,
+          regenerate: false,
+          preferQuestionExpansion: false,
+        ),
       );
+
+      // Extract just the reflection text (remove "✨ Reflection\n\n" prefix if present)
+      String reflectionText = softerReflection;
+      if (reflectionText.startsWith('✨ Reflection\n\n')) {
+        reflectionText = reflectionText.substring('✨ Reflection\n\n'.length);
+      }
 
       setState(() {
         _entryState.blocks[index] = InlineBlock(
           type: block.type,
           intent: block.intent,
-          content: softerReflection,
+          content: reflectionText,
           timestamp: DateTime.now().millisecondsSinceEpoch,
           phase: block.phase,
+          userComment: block.userComment, // Preserve user comment when softening
         );
       });
       
@@ -3158,28 +3275,41 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
     try {
       // Build context from progressive memory loader
       final loadedEntries = _memoryLoader.getLoadedEntries();
-      final entryText = _buildJournalContext(loadedEntries);
-      final phaseHint = _buildPhaseHintJson();
-      final keywordsJson = _buildKeywordsJson();
+      final richContext = await _buildRichContext(loadedEntries, null);
+      final entryText = _entryState.text;
+      final phaseHint = _entryState.phase;
       
-      // Use deeper analysis prompt
-      final userIntent = 'Provide deeper analysis and more profound insight into this reflection. Explore underlying patterns, connections, and deeper meanings.';
-      
-      // Use ArcLLM with Gemini for deeper reflection
-      final deeperReflection = await _arcLLM.chat(
-        userIntent: userIntent,
+      // Use EnhancedLumaraApi v2.3 with More Depth option
+      final deeperReflection = await _enhancedLumaraApi.generatePromptedReflection(
         entryText: entryText,
-        phaseHintJson: phaseHint,
-        lastKeywordsJson: keywordsJson,
+        intent: 'journal',
+        phase: phaseHint,
+        userId: null,
+        mood: richContext['mood'],
+        chronoContext: richContext['chronoContext'],
+        chatContext: richContext['chatContext'],
+        mediaContext: richContext['mediaContext'],
+        options: lumara_models.LumaraReflectionOptions(
+          preferQuestionExpansion: true, // More depth
+          toneMode: lumara_models.ToneMode.normal,
+          regenerate: false,
+        ),
       );
+
+      // Extract just the reflection text (remove "✨ Reflection\n\n" prefix if present)
+      String reflectionText = deeperReflection;
+      if (reflectionText.startsWith('✨ Reflection\n\n')) {
+        reflectionText = reflectionText.substring('✨ Reflection\n\n'.length);
+      }
 
       setState(() {
         _entryState.blocks[index] = InlineBlock(
           type: block.type,
           intent: block.intent,
-          content: deeperReflection,
+          content: reflectionText,
           timestamp: DateTime.now().millisecondsSinceEpoch,
           phase: block.phase,
+          userComment: block.userComment, // Preserve user comment when adding depth
         );
       });
       
@@ -3201,11 +3331,30 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
   void _onDeleteReflection(int index) {
     setState(() {
       _entryState.blocks.removeAt(index);
+      
+      // Clean up controller for deleted block
+      final controller = _continuationControllers.remove(index);
+      controller?.dispose();
+      
+      // Rebuild controllers map for remaining blocks
+      // We need to shift indices since we removed one
+      final oldControllers = Map<int, TextEditingController>.from(_continuationControllers);
+      _continuationControllers.clear();
+      for (final entry in oldControllers.entries) {
+        if (entry.key > index) {
+          // Shift index down by 1
+          _continuationControllers[entry.key - 1] = entry.value;
+        } else if (entry.key < index) {
+          // Keep same index
+          _continuationControllers[entry.key] = entry.value;
+        }
+        // entry.key == index is deleted, so skip it
+      }
     });
     _analytics.logLumaraEvent('inline_reflection_deleted');
   }
 
-  void _onContinueWithLumara() {
+  void _onContinueWithLumara([int? blockIndex]) {
     _analytics.logLumaraEvent('continue_with_lumara_opened_chat');
     
     // Show LUMARA suggestion sheet for in-context integration
@@ -3214,16 +3363,36 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
       isScrollControlled: true,
       builder: (context) => LumaraSuggestionSheet(
         onSelect: (intent) async {
-          // Convert LumaraIntent to string for the API
-          final suggestion = intent.name;
-          await _handleLumaraSuggestion(suggestion);
+          // Map LumaraIntent to ConversationMode
+          lumara_models.ConversationMode? conversationMode;
+          switch (intent) {
+            case LumaraIntent.ideas:
+              conversationMode = lumara_models.ConversationMode.ideas;
+              break;
+            case LumaraIntent.think:
+              conversationMode = lumara_models.ConversationMode.think;
+              break;
+            case LumaraIntent.perspective:
+              conversationMode = lumara_models.ConversationMode.perspective;
+              break;
+            case LumaraIntent.next:
+              conversationMode = lumara_models.ConversationMode.nextSteps;
+              break;
+            case LumaraIntent.analyze:
+              conversationMode = lumara_models.ConversationMode.reflectDeeply;
+              break;
+          }
+          await _handleLumaraContinuation(conversationMode, blockIndex);
         },
       ),
     );
   }
 
-  /// Handle LUMARA suggestion selection
-  Future<void> _handleLumaraSuggestion(String suggestion) async {
+  /// Handle LUMARA continuation with conversation mode (v2.3)
+  Future<void> _handleLumaraContinuation(
+    lumara_models.ConversationMode? conversationMode,
+    int? blockIndex,
+  ) async {
     // Show loading indicator
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -3245,55 +3414,77 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
     }
 
     try {
-      _analytics.logLumaraEvent('suggestion_selected', data: {'intent': suggestion});
+      _analytics.logLumaraEvent('continuation_selected', data: {'mode': conversationMode?.name});
       
       // Build context from progressive memory loader
       final loadedEntries = _memoryLoader.getLoadedEntries();
-      final entryText = _buildJournalContext(loadedEntries);
-      final phaseHint = _buildPhaseHintJson();
-      final keywordsJson = _buildKeywordsJson();
+      final richContext = await _buildRichContext(loadedEntries, null);
+      final entryText = _entryState.text;
+      final phaseHint = _entryState.phase;
       
-      // Map suggestion to user prompt
-      final userIntent = _mapSuggestionToUserPrompt(suggestion);
-      
-      // Use ArcLLM with Gemini for reflection
-      final reflection = await _arcLLM.chat(
-        userIntent: userIntent,
+      // Use EnhancedLumaraApi v2.3 with conversation mode
+      final reflection = await _enhancedLumaraApi.generatePromptedReflection(
         entryText: entryText,
-        phaseHintJson: phaseHint,
-        lastKeywordsJson: keywordsJson,
+        intent: 'journal',
+        phase: phaseHint,
+        userId: null,
+        mood: richContext['mood'],
+        chronoContext: richContext['chronoContext'],
+        chatContext: richContext['chatContext'],
+        mediaContext: richContext['mediaContext'],
+        options: lumara_models.LumaraReflectionOptions(
+          conversationMode: conversationMode,
+          toneMode: lumara_models.ToneMode.normal,
+          regenerate: false,
+          preferQuestionExpansion: conversationMode == lumara_models.ConversationMode.reflectDeeply,
+        ),
+      );
+
+      // Extract just the reflection text (remove "✨ Reflection\n\n" prefix if present)
+      String reflectionText = reflection;
+      if (reflectionText.startsWith('✨ Reflection\n\n')) {
+        reflectionText = reflectionText.substring('✨ Reflection\n\n'.length);
+      }
+      
+      // Add as new inline reflection block
+      final block = InlineBlock(
+        type: 'reflection',
+        intent: conversationMode?.name ?? 'reflect',
+        content: reflectionText,
+        timestamp: DateTime.now().millisecondsSinceEpoch,
+        phase: _entryState.phase,
       );
       
-      // Insert the reflection into the text
-      final currentText = _textController.text;
-      final cursorPosition = _textController.selection.baseOffset;
-      
-      // Insert reflection at cursor position or end of text
-      final insertPosition = (cursorPosition >= 0 && cursorPosition <= currentText.length) 
-          ? cursorPosition 
-          : currentText.length;
-      final newText = '${currentText.substring(0, insertPosition)}\n\n$reflection\n\n${currentText.substring(insertPosition)}';
-      
-      // Update text controller and state
-      _textController.text = newText;
-      _textController.selection = TextSelection.collapsed(
-        offset: insertPosition + reflection.length + 4, // Position after inserted text
-      );
-      
-      // Update entry state
+      final newBlockIndex = _entryState.blocks.length;
       setState(() {
-        _entryState.text = newText;
+        _entryState.blocks.add(block);
+      });
+      
+      // Create controller for the new block
+      final controller = TextEditingController();
+      _continuationControllers[newBlockIndex] = controller;
+      controller.addListener(() {
+        // Save comment to block when text changes
+        if (newBlockIndex < _entryState.blocks.length) {
+          setState(() {
+            _entryState.blocks[newBlockIndex] = _entryState.blocks[newBlockIndex].copyWith(
+              userComment: controller.text.trim().isEmpty ? null : controller.text.trim(),
+            );
+            _hasBeenModified = true;
+          });
+          // Auto-save draft with updated blocks
+          _updateDraftContent(_textController.text);
+        }
       });
       
       // Auto-save the updated content
-      _updateDraftContent(newText);
+      _updateDraftContent(_textController.text);
       
-      _analytics.logLumaraEvent('inline_reflection_inserted', data: {'intent': suggestion});
+      _analytics.logLumaraEvent('inline_reflection_continuation', data: {'mode': conversationMode?.name});
       
     } catch (e) {
-      _analytics.log('lumara_suggestion_error', {'error': e.toString()});
+      _analytics.log('lumara_continuation_error', {'error': e.toString()});
       
-      // Show error message to user
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(

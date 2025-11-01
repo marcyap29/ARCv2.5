@@ -5,6 +5,7 @@ import 'dart:async';
 import 'dart:math';
 import '../../telemetry/analytics.dart';
 import '../models/reflective_node.dart';
+import '../models/lumara_reflection_options.dart' as models;
 import 'reflective_node_storage.dart';
 import 'mcp_bundle_parser.dart';
 import 'semantic_similarity_service.dart';
@@ -86,12 +87,50 @@ class EnhancedLumaraApi {
   }
 
   /// Generate a prompted reflection with multimodal context
+  /// Supports v2.3 options: toneMode, conversationMode, regenerate, preferQuestionExpansion
   Future<String> generatePromptedReflection({
     required String entryText,
     required String intent,
     String? phase,
     String? userId,
     bool includeExpansionQuestions = false,
+    String? mood,
+    Map<String, dynamic>? chronoContext,
+    String? chatContext,
+    String? mediaContext,
+    // New v2.3 options
+    models.LumaraReflectionOptions? options,
+  }) async {
+    // Convert legacy parameters to options if needed
+    final reflectionOptions = options ?? models.LumaraReflectionOptions(
+      preferQuestionExpansion: includeExpansionQuestions,
+      toneMode: models.ToneMode.normal,
+      regenerate: false,
+      conversationMode: null,
+    );
+    
+    return generatePromptedReflectionV23(
+      request: models.LumaraReflectionRequest(
+        userText: entryText,
+        phaseHint: _parsePhaseHintToV23(phase),
+        entryType: _parseEntryType(intent),
+        priorKeywords: [],
+        matchedNodeHints: [],
+        mediaCandidates: [],
+        options: reflectionOptions,
+      ),
+      userId: userId,
+      mood: mood,
+      chronoContext: chronoContext,
+      chatContext: chatContext,
+      mediaContext: mediaContext,
+    );
+  }
+
+  /// Generate a prompted reflection using v2.3 unified request model
+  Future<String> generatePromptedReflectionV23({
+    required models.LumaraReflectionRequest request,
+    String? userId,
     String? mood,
     Map<String, dynamic>? chronoContext,
     String? chatContext,
@@ -107,11 +146,15 @@ class EnhancedLumaraApi {
       if (_lastRequestTime != null && 
           now.difference(_lastRequestTime!) < _minRequestInterval) {
         print('LUMARA: Rate limiting - too many requests, using fallback');
-        return _generateIntelligentFallback(entryText, [], _parsePhaseHint(phase));
+        return _generateIntelligentFallback(
+          request.userText, 
+          [], 
+          _convertFromV23PhaseHint(request.phaseHint),
+        );
       }
       _lastRequestTime = now;
       
-      final currentPhase = _parsePhaseHint(phase);
+      final currentPhase = _convertFromV23PhaseHint(request.phaseHint);
       
       // 1. Retrieve all candidate nodes
       final allNodes = _storage.getAllNodes(
@@ -122,7 +165,7 @@ class EnhancedLumaraApi {
       // 2. Score and rank by similarity
       final scored = <({double score, ReflectiveNode node})>[];
       for (final node in allNodes) {
-        final score = _similarity.scoreNode(entryText, node, currentPhase);
+        final score = _similarity.scoreNode(request.userText, node, currentPhase);
         if (score > 0.55) {  // threshold
           scored.add((score: score, node: node));
         }
@@ -145,15 +188,15 @@ class EnhancedLumaraApi {
       
       // 4. Generate prompts
       final prompts = _promptGen.generatePrompts(
-        currentEntry: entryText,
+        currentEntry: request.userText,
         matches: matches,
-        intent: intent,
+        intent: request.entryType.name,
         currentPhase: currentPhase,
       );
       
       // 5. Build response
       final response = ReflectivePromptResponse(
-        contextSummary: entryText.substring(0, min(200, entryText.length)),
+        contextSummary: request.userText.substring(0, min(200, request.userText.length)),
         matchedNodes: matches,
         reflectivePrompts: prompts,
         crossModalPatterns: _detectCrossModalPatterns(matches),
@@ -161,70 +204,93 @@ class EnhancedLumaraApi {
       );
       
       // 6. Generate Gemini response if LLM provider is available
-      print('LUMARA Enhanced API: LLM Provider available: ${_llmProvider != null}');
+      print('LUMARA Enhanced API v2.3: LLM Provider available: ${_llmProvider != null}');
+      print('LUMARA v2.3 Options: toneMode=${request.options.toneMode.name}, regenerate=${request.options.regenerate}, preferQuestionExpansion=${request.options.preferQuestionExpansion}, conversationMode=${request.options.conversationMode?.name}');
       
       if (_llmProvider != null) {
-        print('LUMARA Enhanced API: Using LLM provider: ${_llmProvider!.name}');
-        print('LUMARA: Using LLM provider: ${_llmProvider!.name}');
+        print('LUMARA Enhanced API v2.3: Using LLM provider: ${_llmProvider!.name}');
         try {
           String userPrompt;
-          if (includeExpansionQuestions) {
-            // For first activation, build rich context and allow full ECHO structure
-            final contextParts = <String>[];
-            contextParts.add('Current entry: "$entryText"');
-            
-            // Add mood/emotion context
-            if (mood != null && mood.isNotEmpty) {
-              contextParts.add('Mood: $mood');
-            }
-            
-            // Add phase context
-            if (phase != null && phase.isNotEmpty) {
-              contextParts.add('Phase: $phase');
-            }
-            
-            // Add circadian context
-            if (chronoContext != null) {
-              final window = chronoContext['window'] ?? 'unknown';
-              final chronotype = chronoContext['chronotype'] ?? 'unknown';
-              final rhythmScore = chronoContext['rhythmScore'] ?? 0.0;
-              final isFragmented = chronoContext['isFragmented'] ?? false;
-              contextParts.add('Circadian context: Time window: $window, Chronotype: $chronotype, Rhythm coherence: ${(rhythmScore * 100).toStringAsFixed(0)}%${isFragmented ? ' (fragmented)' : ''}');
-            }
-            
-            // Add earlier entries context
-            if (matches.isNotEmpty) {
-              contextParts.add('Historical context from earlier entries: ${matches.map((m) => 'From ${m.approxDate?.year}: ${m.excerpt}').join('\n')}');
-            }
-            
-            // Add chat context
-            if (chatContext != null && chatContext.isNotEmpty) {
-              contextParts.add('\n$chatContext');
-            }
-            
-            // Add media context
-            if (mediaContext != null && mediaContext.isNotEmpty) {
-              contextParts.add('\n$mediaContext');
-            }
-            
-            final baseContext = contextParts.join('\n\n');
-            print('LUMARA Enhanced API: First activation with rich context - using full ECHO structure');
-            userPrompt = '$baseContext\n\nFollow the ECHO structure (Empathize → Clarify → Highlight → Open) and include 1-2 clarifying expansion questions that help deepen the reflection. Consider the mood, phase, circadian context, recent chats, and any media when crafting questions that feel personally relevant and timely. Be thoughtful and allow for meaningful engagement.';
-          } else {
-            // For subsequent activations, keep brief (no rich context needed)
-            if (matches.isNotEmpty) {
-              print('LUMARA Enhanced API: Using ${matches.length} historical matches');
-              userPrompt = 'Current entry: "$entryText"\n\nHistorical context: ${matches.map((m) => 'From ${m.approxDate?.year}: ${m.excerpt}').join('\n')}\n\nCRITICAL: Generate 1-2 sentences maximum (150 characters total) that connect their current thoughts to their past experiences. Be brief and profound.';
-              print('LUMARA: Generating response with ${matches.length} historical matches');
-            } else {
-              print('LUMARA Enhanced API: No historical context - new user');
-              userPrompt = 'Current entry: "$entryText"\n\nCRITICAL: Generate 1-2 sentences maximum (150 characters total). Be brief and profound. Focus on the current entry. Be warm, encouraging, and thought-provoking.';
-              print('LUMARA: Generating response without historical context (new user)');
-            }
+          
+          // Build context based on options
+          final contextParts = <String>[];
+          contextParts.add('Current entry: "${request.userText}"');
+          
+          // Add mood/emotion context
+          if (mood != null && mood.isNotEmpty) {
+            contextParts.add('Mood: $mood');
           }
           
-          print('LUMARA Enhanced API: Calling generateResponse()...');
-          // Use the new in-journal ECHO prompt
+          // Add phase context
+          if (request.phaseHint != null) {
+            contextParts.add('Phase: ${request.phaseHint!.name}');
+          }
+          
+          // Add circadian context
+          if (chronoContext != null) {
+            final window = chronoContext['window'] ?? 'unknown';
+            final chronotype = chronoContext['chronotype'] ?? 'unknown';
+            final rhythmScore = chronoContext['rhythmScore'] ?? 0.0;
+            final isFragmented = chronoContext['isFragmented'] ?? false;
+            contextParts.add('Circadian context: Time window: $window, Chronotype: $chronotype, Rhythm coherence: ${(rhythmScore * 100).toStringAsFixed(0)}%${isFragmented ? ' (fragmented)' : ''}');
+          }
+          
+          // Add earlier entries context
+          if (matches.isNotEmpty) {
+            contextParts.add('Historical context from earlier entries: ${matches.map((m) => 'From ${m.approxDate?.year}: ${m.excerpt}').join('\n')}');
+          }
+          
+          // Add chat context
+          if (chatContext != null && chatContext.isNotEmpty) {
+            contextParts.add('\n$chatContext');
+          }
+          
+          // Add media context
+          if (mediaContext != null && mediaContext.isNotEmpty) {
+            contextParts.add('\n$mediaContext');
+          }
+          
+          final baseContext = contextParts.join('\n\n');
+          
+          // Build prompt based on options
+          if (request.options.conversationMode != null) {
+            // Continuation dialogue mode
+            final mode = request.options.conversationMode!;
+            String modeInstruction = '';
+            switch (mode) {
+              case models.ConversationMode.ideas:
+                modeInstruction = 'Expand Open step into 2–3 practical but gentle suggestions drawn from user\'s past successful patterns. Tone: Warm, creative.';
+                break;
+              case models.ConversationMode.think:
+                modeInstruction = 'Generate logical scaffolding (mini reflection framework: What → Why → What now). Tone: Structured, steady.';
+                break;
+              case models.ConversationMode.perspective:
+                modeInstruction = 'Reframe context using contrastive reasoning (e.g., "Another way to see this might be…"). Tone: Cognitive reframing.';
+                break;
+              case models.ConversationMode.nextSteps:
+                modeInstruction = 'Provide small, phase-appropriate actions (Discovery → explore; Recovery → rest). Tone: Pragmatic, grounded.';
+                break;
+              case models.ConversationMode.reflectDeeply:
+                modeInstruction = 'Invoke More Depth pipeline, reusing current reflection and adding a new Clarify + Open pair. Tone: Introspective.';
+                break;
+            }
+            userPrompt = '$baseContext\n\n$modeInstruction Follow the ECHO structure (Empathize → Clarify → Highlight → Open).';
+          } else if (request.options.regenerate) {
+            // Regenerate: different rhetorical focus
+            userPrompt = '$baseContext\n\nRebuild reflection from same input with different rhetorical focus. Randomly vary Highlight and Open. Keep empathy level constant. Follow ECHO structure.';
+          } else if (request.options.toneMode == models.ToneMode.soft) {
+            // Soften tone
+            userPrompt = '$baseContext\n\nRewrite in gentler, slower rhythm. Reduce question count to 1. Add permission language ("It\'s okay if this takes time."). Apply tone-softening rule for Recovery/Consolidation even if phase is unknown. Follow ECHO structure.';
+          } else if (request.options.preferQuestionExpansion) {
+            // More depth
+            userPrompt = '$baseContext\n\nExpand Clarify and Highlight steps for richer introspection. Add 1 additional reflective link. Follow ECHO structure with deeper exploration.';
+          } else {
+            // Default: first activation with rich context
+            userPrompt = '$baseContext\n\nFollow the ECHO structure (Empathize → Clarify → Highlight → Open) and include 1-2 clarifying expansion questions that help deepen the reflection. Consider the mood, phase, circadian context, recent chats, and any media when crafting questions that feel personally relevant and timely. Be thoughtful and allow for meaningful engagement.';
+          }
+          
+          print('LUMARA Enhanced API v2.3: Calling generateResponse()...');
+          // Use the consolidated v2.3 in-journal prompt
           final context = {
             'systemPrompt': LumaraPrompts.inJournalPrompt,
             'userPrompt': userPrompt,
@@ -253,8 +319,8 @@ class EnhancedLumaraApi {
           if (geminiResponse == null) {
             throw Exception('Failed to generate response after $maxRetries retries');
           }
-          print('LUMARA Enhanced API: ✓ generateResponse completed');
-          print('LUMARA Enhanced API: Response length: ${geminiResponse.length}');
+          print('LUMARA Enhanced API v2.3: ✓ generateResponse completed');
+          print('LUMARA Enhanced API v2.3: Response length: ${geminiResponse.length}');
           
           // Score the response using the scoring heuristic
           final priorKeywords = matches
@@ -264,10 +330,10 @@ class EnhancedLumaraApi {
           final matchedHints = matches.take(1).map((m) => m.id).toList();
           
           final scoringInput = scoring.ScoringInput(
-            userText: entryText,
+            userText: request.userText,
             candidate: geminiResponse,
             phaseHint: _convertToScoringPhaseHint(currentPhase),
-            entryType: _convertToScoringEntryType(intent),
+            entryType: _convertToScoringEntryType(request.entryType.name),
             priorKeywords: priorKeywords,
             matchedNodeHints: matchedHints,
           );
@@ -275,7 +341,7 @@ class EnhancedLumaraApi {
           var scoredResponse = geminiResponse;
           final breakdown = scoring.LumaraResponseScoring.scoreLumaraResponse(scoringInput);
           
-          print('🌼 LUMARA Response Scoring: resonance=${breakdown.resonance.toStringAsFixed(2)}, empathy=${breakdown.empathy.toStringAsFixed(2)}, depth=${breakdown.depth.toStringAsFixed(2)}, agency=${breakdown.agency.toStringAsFixed(2)}');
+          print('🌼 LUMARA Response Scoring v2.3: resonance=${breakdown.resonance.toStringAsFixed(2)}, empathy=${breakdown.empathy.toStringAsFixed(2)}, depth=${breakdown.depth.toStringAsFixed(2)}, agency=${breakdown.agency.toStringAsFixed(2)}');
           
           // If below threshold, auto-fix
           if (breakdown.resonance < scoring.minResonance) {
@@ -283,7 +349,7 @@ class EnhancedLumaraApi {
             scoredResponse = scoring.LumaraResponseScoring.autoTightenToEcho(geminiResponse);
             final fixedBreakdown = scoring.LumaraResponseScoring.scoreLumaraResponse(
               scoring.ScoringInput(
-                userText: entryText,
+                userText: request.userText,
                 candidate: scoredResponse,
                 phaseHint: _convertToScoringPhaseHint(currentPhase),
                 priorKeywords: priorKeywords,
@@ -295,10 +361,14 @@ class EnhancedLumaraApi {
           
           final formatted = '✨ Reflection\n\n$scoredResponse';
           
-          _analytics.logLumaraEvent('reflection_generated', data: {
+          _analytics.logLumaraEvent('reflection_generated_v23', data: {
             'matches': matches.length,
             'top_similarity': matches.isNotEmpty ? matches.first.similarity : 0,
             'gemini_generated': true,
+            'toneMode': request.options.toneMode.name,
+            'regenerate': request.options.regenerate,
+            'preferQuestionExpansion': request.options.preferQuestionExpansion,
+            'conversationMode': request.options.conversationMode?.name,
           });
           
           return formatted;
@@ -309,7 +379,7 @@ class EnhancedLumaraApi {
           // Check if it's a Gemini API overload error
           if (e.toString().contains('503') || e.toString().contains('overloaded') || e.toString().contains('UNAVAILABLE')) {
             print('LUMARA: Gemini API overloaded - using intelligent fallback');
-            return _generateIntelligentFallback(entryText, matches, currentPhase);
+            return _generateIntelligentFallback(request.userText, matches, currentPhase);
           }
           
           // Fall through to template-based response for other errors
@@ -321,18 +391,49 @@ class EnhancedLumaraApi {
       // 7. Format template-based response for display
       final formatted = _formatter.formatResponse(response);
       
-      _analytics.logLumaraEvent('reflection_generated', data: {
+      _analytics.logLumaraEvent('reflection_generated_v23', data: {
         'matches': matches.length,
         'top_similarity': matches.isNotEmpty ? matches.first.similarity : 0,
         'gemini_generated': false,
+        'toneMode': request.options.toneMode.name,
+        'regenerate': request.options.regenerate,
+        'preferQuestionExpansion': request.options.preferQuestionExpansion,
+        'conversationMode': request.options.conversationMode?.name,
       });
       
       return formatted;
       
     } catch (e) {
       print('LUMARA: Reflection generation error: $e');
-      return await _generateFallbackResponse(intent, phase);
+      return await _generateFallbackResponse(request.entryType.name, request.phaseHint?.name);
     }
+  }
+
+  /// Helper: Convert v2.3 PhaseHint to internal PhaseHint
+  PhaseHint? _convertFromV23PhaseHint(models.PhaseHint? phase) {
+    if (phase == null) return null;
+    // PhaseHint enum names should match between models
+    return PhaseHint.values.firstWhere(
+      (e) => e.name == phase.name,
+      orElse: () => PhaseHint.discovery,
+    );
+  }
+
+  /// Helper: Parse phase string to v2.3 PhaseHint
+  models.PhaseHint? _parsePhaseHintToV23(String? phase) {
+    if (phase == null) return null;
+    return models.PhaseHint.values.firstWhere(
+      (e) => e.name == phase.toLowerCase(),
+      orElse: () => models.PhaseHint.discovery,
+    );
+  }
+
+  /// Helper: Parse entry type string to v2.3 EntryType
+  models.EntryType _parseEntryType(String intent) {
+    return models.EntryType.values.firstWhere(
+      (e) => e.name == intent.toLowerCase(),
+      orElse: () => models.EntryType.journal,
+    );
   }
 
   PhaseHint? _parsePhaseHint(String? phase) {
