@@ -108,6 +108,10 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
   // Text controllers for continuation fields (one per block)
   final Map<int, TextEditingController> _continuationControllers = {};
   
+  // Track loading states for LUMARA reflections (by block index)
+  final Map<int, bool> _lumaraLoadingStates = {};
+  final Map<int, String?> _lumaraLoadingMessages = {};
+  
   // UI state management
   bool _showKeywordsDiscovered = false;
   bool _showLumaraBox = false;
@@ -1236,8 +1240,9 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
                         ),
                         
                         // Continue button
+                              // Enable if entry has user text OR LUMARA blocks (allow entries that start with reflections)
                               ElevatedButton(
-                                onPressed: _entryState.text.isNotEmpty ? _onContinue : null,
+                                onPressed: (_entryState.text.trim().isNotEmpty || _entryState.blocks.isNotEmpty) ? _onContinue : null,
                                 style: ElevatedButton.styleFrom(
                                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                                   minimumSize: const Size(0, 28),
@@ -1393,7 +1398,10 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
     }
     
     // Check if there's any content to save
-    final hasContent = _entryState.text.trim().isNotEmpty || _entryState.attachments.isNotEmpty;
+    // Allow entries that start with LUMARA reflections (blocks) even if no user text
+    final hasContent = _entryState.text.trim().isNotEmpty || 
+                       _entryState.attachments.isNotEmpty || 
+                       _entryState.blocks.isNotEmpty;
     
     if (!hasContent) {
       // No content, allow navigation
@@ -1678,6 +1686,8 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
         content: block.content,
         intent: block.intent,
         phase: block.phase,
+        isLoading: _lumaraLoadingStates[index] ?? false,
+        loadingMessage: _lumaraLoadingMessages[index],
         onRegenerate: () => _onRegenerateReflection(index),
         onSoften: () => _onSoftenReflection(index),
         onMoreDepth: () => _onMoreDepthReflection(index),
@@ -3094,25 +3104,11 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
   Future<void> _onRegenerateReflection(int index) async {
     final block = _entryState.blocks[index];
     
-    // Show loading indicator
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Row(
-            children: [
-              SizedBox(
-                width: 16,
-                height: 16,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              ),
-              SizedBox(width: 12),
-              Text('LUMARA is thinking...'),
-            ],
-          ),
-          duration: Duration(seconds: 2),
-        ),
-      );
-    }
+    // Set loading state
+    setState(() {
+      _lumaraLoadingStates[index] = true;
+      _lumaraLoadingMessages[index] = 'Regenerating reflection...';
+    });
 
     try {
       // Build context from progressive memory loader
@@ -3153,11 +3149,20 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
           phase: block.phase,
           userComment: block.userComment, // Preserve user comment when regenerating
         );
+        // Clear loading state
+        _lumaraLoadingStates[index] = false;
+        _lumaraLoadingMessages[index] = null;
       });
       
       _analytics.logLumaraEvent('inline_reflection_regenerated');
     } catch (e) {
       _analytics.log('lumara_regenerate_error', {'error': e.toString()});
+      
+      setState(() {
+        // Clear loading state on error
+        _lumaraLoadingStates[index] = false;
+        _lumaraLoadingMessages[index] = null;
+      });
       
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -3173,25 +3178,11 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
   Future<void> _onSoftenReflection(int index) async {
     final block = _entryState.blocks[index];
     
-    // Show loading indicator
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Row(
-            children: [
-              SizedBox(
-                width: 16,
-                height: 16,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              ),
-              SizedBox(width: 12),
-              Text('LUMARA is softening the tone...'),
-            ],
-          ),
-          duration: Duration(seconds: 2),
-        ),
-      );
-    }
+    // Set loading state
+    setState(() {
+      _lumaraLoadingStates[index] = true;
+      _lumaraLoadingMessages[index] = 'Softening the tone...';
+    });
 
     try {
       // Build context from progressive memory loader
@@ -3232,11 +3223,20 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
           phase: block.phase,
           userComment: block.userComment, // Preserve user comment when softening
         );
+        // Clear loading state
+        _lumaraLoadingStates[index] = false;
+        _lumaraLoadingMessages[index] = null;
       });
       
       _analytics.logLumaraEvent('inline_reflection_softened');
     } catch (e) {
       _analytics.log('lumara_soften_error', {'error': e.toString()});
+      
+      setState(() {
+        // Clear loading state on error
+        _lumaraLoadingStates[index] = false;
+        _lumaraLoadingMessages[index] = null;
+      });
       
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -3252,25 +3252,11 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
   Future<void> _onMoreDepthReflection(int index) async {
     final block = _entryState.blocks[index];
     
-    // Show loading indicator
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Row(
-            children: [
-              SizedBox(
-                width: 16,
-                height: 16,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              ),
-              SizedBox(width: 12),
-              Text('LUMARA is going deeper...'),
-            ],
-          ),
-          duration: Duration(seconds: 2),
-        ),
-      );
-    }
+    // Set loading state
+    setState(() {
+      _lumaraLoadingStates[index] = true;
+      _lumaraLoadingMessages[index] = 'Going deeper into reflection...';
+    });
 
     try {
       // Build context from progressive memory loader
@@ -3311,11 +3297,20 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
           phase: block.phase,
           userComment: block.userComment, // Preserve user comment when adding depth
         );
+        // Clear loading state
+        _lumaraLoadingStates[index] = false;
+        _lumaraLoadingMessages[index] = null;
       });
       
       _analytics.logLumaraEvent('inline_reflection_deepened');
     } catch (e) {
       _analytics.log('lumara_depth_error', {'error': e.toString()});
+      
+      setState(() {
+        // Clear loading state on error
+        _lumaraLoadingStates[index] = false;
+        _lumaraLoadingMessages[index] = null;
+      });
       
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -3393,25 +3388,45 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
     lumara_models.ConversationMode? conversationMode,
     int? blockIndex,
   ) async {
-    // Show loading indicator
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Row(
-            children: [
-              SizedBox(
-                width: 16,
-                height: 16,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              ),
-              SizedBox(width: 12),
-              Text('LUMARA is thinking...'),
-            ],
-          ),
-          duration: Duration(seconds: 2),
-        ),
-      );
+    // Get loading message based on conversation mode
+    String loadingMessage;
+    switch (conversationMode) {
+      case lumara_models.ConversationMode.ideas:
+        loadingMessage = 'Generating ideas...';
+        break;
+      case lumara_models.ConversationMode.think:
+        loadingMessage = 'Thinking this through...';
+        break;
+      case lumara_models.ConversationMode.perspective:
+        loadingMessage = 'Offering a different perspective...';
+        break;
+      case lumara_models.ConversationMode.nextSteps:
+        loadingMessage = 'Suggesting next steps...';
+        break;
+      case lumara_models.ConversationMode.reflectDeeply:
+        loadingMessage = 'Reflecting more deeply...';
+        break;
+      default:
+        loadingMessage = 'LUMARA is thinking...';
     }
+
+    // Create placeholder block to show loading state
+    final placeholderBlock = InlineBlock(
+      type: 'reflection',
+      intent: conversationMode?.name ?? 'reflect',
+      content: '', // Empty content will be replaced
+      timestamp: DateTime.now().millisecondsSinceEpoch,
+      phase: _entryState.phase,
+    );
+    
+    final newBlockIndex = _entryState.blocks.length;
+    
+    // Set loading state and add placeholder block
+    setState(() {
+      _lumaraLoadingStates[newBlockIndex] = true;
+      _lumaraLoadingMessages[newBlockIndex] = loadingMessage;
+      _entryState.blocks.add(placeholderBlock);
+    });
 
     try {
       _analytics.logLumaraEvent('continuation_selected', data: {'mode': conversationMode?.name});
@@ -3446,7 +3461,7 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
         reflectionText = reflectionText.substring('✨ Reflection\n\n'.length);
       }
       
-      // Add as new inline reflection block
+      // Update the placeholder block with actual content
       final block = InlineBlock(
         type: 'reflection',
         intent: conversationMode?.name ?? 'reflect',
@@ -3455,9 +3470,11 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
         phase: _entryState.phase,
       );
       
-      final newBlockIndex = _entryState.blocks.length;
       setState(() {
-        _entryState.blocks.add(block);
+        _entryState.blocks[newBlockIndex] = block;
+        // Clear loading state for this block
+        _lumaraLoadingStates[newBlockIndex] = false;
+        _lumaraLoadingMessages[newBlockIndex] = null;
       });
       
       // Create controller for the new block
@@ -3484,6 +3501,15 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
       
     } catch (e) {
       _analytics.log('lumara_continuation_error', {'error': e.toString()});
+      
+      setState(() {
+        // Remove placeholder block and clear loading state on error
+        if (newBlockIndex < _entryState.blocks.length) {
+          _entryState.blocks.removeAt(newBlockIndex);
+        }
+        _lumaraLoadingStates[newBlockIndex] = false;
+        _lumaraLoadingMessages[newBlockIndex] = null;
+      });
       
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

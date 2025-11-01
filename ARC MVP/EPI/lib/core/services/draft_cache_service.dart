@@ -117,7 +117,9 @@ class JournalDraft {
     );
   }
 
-  bool get isEmpty => content.trim().isEmpty && mediaItems.isEmpty;
+  // Consider draft empty only if there's no text, no media, and no LUMARA blocks
+  // This allows entries that start with LUMARA reflections to be saved
+  bool get isEmpty => content.trim().isEmpty && mediaItems.isEmpty && lumaraBlocks.isEmpty;
   bool get hasContent => !isEmpty;
 
   /// Get a summary of the draft for display purposes

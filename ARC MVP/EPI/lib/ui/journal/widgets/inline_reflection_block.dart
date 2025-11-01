@@ -5,6 +5,8 @@ class InlineReflectionBlock extends StatelessWidget {
   final String content;
   final String intent; // ideas | think | perspective | next | analyze
   final String? phase; // e.g., "Recovery"
+  final bool isLoading; // Whether LUMARA is currently generating insights
+  final String? loadingMessage; // Optional loading message
   final VoidCallback onRegenerate;
   final VoidCallback onSoften;
   final VoidCallback onMoreDepth;
@@ -16,6 +18,8 @@ class InlineReflectionBlock extends StatelessWidget {
     required this.content,
     required this.intent,
     this.phase,
+    this.isLoading = false,
+    this.loadingMessage,
     required this.onRegenerate,
     required this.onSoften,
     required this.onMoreDepth,
@@ -96,44 +100,75 @@ class InlineReflectionBlock extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 8),
-            // Reflection content (different color to distinguish from user text)
-            Text(
-              content,
-              style: theme.textTheme.bodyMedium?.copyWith(
-                height: 1.4,
-                color: theme.colorScheme.secondary, // Different color for LUMARA text
-                fontStyle: FontStyle.italic, // Italic to further distinguish
+            // Reflection content or loading indicator
+            if (isLoading)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                child: Row(
+                  children: [
+                    SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2.5,
+                        valueColor: AlwaysStoppedAnimation<Color>(
+                          theme.colorScheme.primary,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        loadingMessage ?? 'LUMARA is developing insights...',
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: theme.colorScheme.secondary,
+                          fontStyle: FontStyle.italic,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              )
+            else ...[
+              // Reflection content (different color to distinguish from user text)
+              Text(
+                content,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  height: 1.4,
+                  color: theme.colorScheme.secondary, // Different color for LUMARA text
+                  fontStyle: FontStyle.italic, // Italic to further distinguish
+                ),
               ),
-            ),
-            const SizedBox(height: 12),
-            // Action buttons
-            Wrap(
-              spacing: 8,
-              runSpacing: 4,
-              children: [
-                _ActionButton(
-                  label: 'Regenerate',
-                  icon: Icons.refresh,
-                  onPressed: onRegenerate,
-                ),
-                _ActionButton(
-                  label: 'Soften tone',
-                  icon: Icons.favorite_outline,
-                  onPressed: onSoften,
-                ),
-                _ActionButton(
-                  label: 'More depth',
-                  icon: Icons.insights,
-                  onPressed: onMoreDepth,
-                ),
-                _ActionButton(
-                  label: 'Continue with LUMARA',
-                  icon: Icons.chat,
-                  onPressed: onContinueWithLumara,
-                  isPrimary: true,
-                ),
-              ],
-            ),
+              const SizedBox(height: 12),
+              // Action buttons
+              Wrap(
+                spacing: 8,
+                runSpacing: 4,
+                children: [
+                  _ActionButton(
+                    label: 'Regenerate',
+                    icon: Icons.refresh,
+                    onPressed: isLoading ? () {} : onRegenerate,
+                  ),
+                  _ActionButton(
+                    label: 'Soften tone',
+                    icon: Icons.favorite_outline,
+                    onPressed: isLoading ? () {} : onSoften,
+                  ),
+                  _ActionButton(
+                    label: 'More depth',
+                    icon: Icons.insights,
+                    onPressed: isLoading ? () {} : onMoreDepth,
+                  ),
+                  _ActionButton(
+                    label: 'Continue with LUMARA',
+                    icon: Icons.chat,
+                    onPressed: isLoading ? () {} : onContinueWithLumara,
+                    isPrimary: true,
+                  ),
+                ],
+              ),
+            ],
           ],
         ),
       ),
