@@ -12,7 +12,7 @@ Progress indicators provide real-time visual feedback during LUMARA cloud API ca
 
 ### In-Journal LUMARA Progress Indicators
 
-Real-time progress messages displayed within reflection blocks during API calls:
+Real-time progress messages and visual meters displayed within reflection blocks during API calls:
 
 1. **Context Preparation** → "Preparing context..."
 2. **History Analysis** → "Analyzing your journal history..."
@@ -21,11 +21,18 @@ Real-time progress messages displayed within reflection blocks during API calls:
 5. **Retry (if needed)** → "Retrying API... (X/2)"
 6. **Finalization** → "Finalizing insights..."
 
+**Visual Progress Meter:**
+- Circular progress spinner (20x20px) with primary theme color
+- Linear progress bar (4px height) below spinner and message
+- Status message displayed alongside spinner
+- Progress meter provides continuous visual feedback during API calls
+
 ### LUMARA Chat Progress Indicators
 
-Visual progress indicator shown at the bottom of chat interface when processing messages:
+Visual progress indicator with meter shown at the bottom of chat interface when processing messages:
 
 - Circular progress spinner with primary theme color
+- Linear progress bar below spinner and message
 - Status message: "LUMARA is thinking..."
 - Automatically displays when `isProcessing` state is active
 - Dismisses when response is received
@@ -33,6 +40,15 @@ Visual progress indicator shown at the bottom of chat interface when processing 
 ## Technical Implementation
 
 ### Architecture
+
+#### Direct Gemini API Integration (No Fallbacks)
+
+**Critical Change**: In-journal LUMARA now uses Gemini API directly via `geminiSend()`, identical to main LUMARA chat. **ALL hardcoded fallback messages have been removed**.
+
+- **No Hardcoded Responses**: In-journal LUMARA no longer falls back to template-based or intelligent fallback responses
+- **Direct API Calls**: Uses `geminiSend()` function directly (same protocol as main chat)
+- **Error Propagation**: If Gemini API fails, errors are thrown immediately - no automated fallback messages
+- **Consistent Behavior**: In-journal and chat LUMARA now have identical API call behavior
 
 #### Progress Callback System
 
@@ -46,7 +62,11 @@ Future<String> generatePromptedReflection({
   onProgress?.call('Preparing context...');
   // ... processing ...
   onProgress?.call('Calling cloud API...');
-  // ... API call ...
+  // Direct Gemini API call via geminiSend() - no fallbacks
+  final response = await geminiSend(
+    system: LumaraPrompts.inJournalPrompt,
+    user: userPrompt,
+  );
   onProgress?.call('Processing response...');
   // ... finalization ...
 }
@@ -72,18 +92,35 @@ Future<String> generatePromptedReflection({
 **Location**: `lib/lumara/ui/lumara_assistant_screen.dart`
 
 - **State Management**: Uses `LumaraAssistantCubit` with `isProcessing` boolean flag
-- **Visual Indicator**: Conditional rendering of progress indicator based on `isProcessing` state
-- **Auto-Dismiss**: Progress indicator automatically hides when response is received
+- **Visual Indicator**: Conditional rendering of progress indicator with meter based on `isProcessing` state
+- **Auto-Dismiss**: Progress indicator and meter automatically hide when response is received
 
 **Implementation**:
 ```dart
 if (state is LumaraAssistantLoaded && state.isProcessing) {
   return Padding(
     padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
-    child: Row(
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        CircularProgressIndicator(...),
-        Text('LUMARA is thinking...'),
+        Row(
+          children: [
+            CircularProgressIndicator(...), // Spinner
+            Expanded(
+              child: Text('LUMARA is thinking...'),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        // Progress meter
+        LinearProgressIndicator(
+          minHeight: 4,
+          borderRadius: BorderRadius.circular(2),
+          valueColor: AlwaysStoppedAnimation<Color>(
+            theme.colorScheme.primary,
+          ),
+          backgroundColor: theme.colorScheme.surfaceContainerHighest,
+        ),
       ],
     ),
   );
@@ -151,33 +188,35 @@ Future<String> generatePromptedReflectionV23({
 
 **Location**: `lib/ui/journal/widgets/inline_reflection_block.dart`
 
-The `InlineReflectionBlock` widget displays progress indicators when `isLoading` is true:
+The `InlineReflectionBlock` widget displays progress indicators with a progress meter when `isLoading` is true:
 
 ```dart
 if (isLoading)
   Padding(
     padding: const EdgeInsets.symmetric(vertical: 16),
-    child: Row(
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        SizedBox(
-          width: 20,
-          height: 20,
-          child: CircularProgressIndicator(
-            strokeWidth: 2.5,
-            valueColor: AlwaysStoppedAnimation<Color>(
-              theme.colorScheme.primary,
+        Row(
+          children: [
+            CircularProgressIndicator(...), // Spinner
+            Expanded(
+              child: Text(
+                loadingMessage ?? 'LUMARA is thinking...',
+                style: ...,
+              ),
             ),
-          ),
+          ],
         ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Text(
-            loadingMessage ?? 'LUMARA is developing insights...',
-            style: theme.textTheme.bodyMedium?.copyWith(
-              color: theme.colorScheme.secondary,
-              fontStyle: FontStyle.italic,
-            ),
+        const SizedBox(height: 12),
+        // Progress meter
+        LinearProgressIndicator(
+          minHeight: 4,
+          borderRadius: BorderRadius.circular(2),
+          valueColor: AlwaysStoppedAnimation<Color>(
+            theme.colorScheme.primary,
           ),
+          backgroundColor: theme.colorScheme.surfaceContainerHighest,
         ),
       ],
     ),
@@ -185,8 +224,9 @@ if (isLoading)
 ```
 
 **Properties**:
-- `isLoading: bool` - Controls visibility of progress indicator
+- `isLoading: bool` - Controls visibility of progress indicator and meter
 - `loadingMessage: String?` - Custom progress message to display
+- **Progress Meter**: LinearProgressIndicator provides continuous visual feedback
 
 ## User Experience
 
@@ -201,9 +241,11 @@ if (isLoading)
 ### Visual Design
 
 - **Circular Progress Indicator**: 20x20px spinner with primary theme color
+- **Linear Progress Meter**: 4px height progress bar with rounded corners
 - **Progress Messages**: Secondary text color with italic font style
 - **Non-Blocking**: Progress indicators don't prevent user interaction with other parts of the UI
 - **Consistent**: Same visual style across in-journal and chat interfaces
+- **Dual Visual Feedback**: Spinner + progress meter provides comprehensive loading indication
 
 ## Provider Prioritization
 

@@ -5,13 +5,15 @@
 ### **LUMARA Progress Indicators** - February 2025
 
 #### Major Features
-- **In-Journal Progress Indicators**: Real-time progress messages during reflection generation
+- **In-Journal Progress Indicators**: Real-time progress messages and meters during reflection generation
   - Shows stages: "Preparing context...", "Analyzing your journal history...", "Calling cloud API...", "Processing response...", "Finalizing insights..."
   - Progress updates for all reflection actions (regenerate, soften tone, more depth, continuation)
-  - Circular progress spinner with contextual messages in reflection blocks
+  - Circular progress spinner + linear progress meter with contextual messages in reflection blocks
   - Loading state tracking per block index with dynamic message updates
-- **LUMARA Chat Progress Indicators**: Visual feedback during chat API calls
+  - Visual progress meter (LinearProgressIndicator) provides continuous feedback
+- **LUMARA Chat Progress Indicators**: Visual feedback with progress meter during chat API calls
   - "LUMARA is thinking..." indicator with circular spinner
+  - Linear progress meter below spinner for continuous visual feedback
   - Automatically appears during message processing and dismisses on response
   - Non-blocking UI that allows interaction with other parts of the app
 - **Gemini API Prioritization**: Explicit Gemini prioritization for in-journal insights
@@ -21,10 +23,19 @@
   - Generic progress messages work for all providers (e.g., "Calling cloud API...")
 
 #### Technical Improvements
+- **Direct Gemini API Integration**: In-journal LUMARA now uses Gemini API directly (BREAKING CHANGE)
+  - **Removed ALL hardcoded fallback messages** - in-journal LUMARA now behaves like main chat
+  - Uses `geminiSend()` function directly - same protocol as main LUMARA chat
+  - No template-based responses, no intelligent fallbacks, no hardcoded messages
+  - Errors propagate immediately - user must configure Gemini API key for in-journal LUMARA to work
 - **Progress Callback System**: Unified progress reporting across all LUMARA API calls
   - Optional `onProgress` callback in all reflection generation methods
   - Real-time UI updates during API processing stages
   - Retry attempt visibility ("Retrying API... (X/2)")
+- **Progress Meters**: Visual progress bars added to all LUMARA loading states
+  - LinearProgressIndicator (4px height) below spinner and message
+  - Provides continuous visual feedback during API calls
+  - Consistent design across in-journal and chat interfaces
 - **State Management**: Enhanced loading state tracking
   - `Map<int, bool> _lumaraLoadingStates` for per-block loading state
   - `Map<int, String?> _lumaraLoadingMessages` for dynamic progress messages
@@ -32,7 +43,7 @@
 - **Error Handling**: Improved error communication
   - Progress indicators show retry attempts clearly
   - Loading states cleared on errors
-  - Provider unavailability handled gracefully
+  - API errors propagate immediately (no fallbacks)
 
 #### Files Modified
 - `lib/lumara/services/enhanced_lumara_api.dart` - Added progress callback system to all reflection methods
