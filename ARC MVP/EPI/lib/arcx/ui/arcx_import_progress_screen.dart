@@ -35,6 +35,8 @@ class _ARCXImportProgressScreenState extends State<ARCXImportProgressScreen> {
   String? _error;
   int? _entriesImported;
   int? _photosImported;
+  int? _chatSessionsImported;
+  int? _chatMessagesImported;
   String? _password;
 
   @override
