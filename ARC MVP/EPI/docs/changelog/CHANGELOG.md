@@ -1,5 +1,49 @@
 # EPI ARC MVP - Changelog
 
+## [Unreleased] - February 2025
+
+### **LUMARA Progress Indicators** - February 2025
+
+#### Major Features
+- **In-Journal Progress Indicators**: Real-time progress messages during reflection generation
+  - Shows stages: "Preparing context...", "Analyzing your journal history...", "Calling Gemini API...", "Processing response...", "Finalizing insights..."
+  - Progress updates for all reflection actions (regenerate, soften tone, more depth, continuation)
+  - Circular progress spinner with contextual messages in reflection blocks
+  - Loading state tracking per block index with dynamic message updates
+- **LUMARA Chat Progress Indicators**: Visual feedback during chat API calls
+  - "LUMARA is thinking..." indicator with circular spinner
+  - Automatically appears during message processing and dismisses on response
+  - Non-blocking UI that allows interaction with other parts of the app
+- **Gemini API Prioritization**: Explicit Gemini prioritization for in-journal insights
+  - Gemini selected first when available and configured
+  - Enhanced logging shows provider name during API calls
+  - Clear fallback chain: Gemini → Other Cloud APIs → Internal Models
+  - Progress messages show actual provider name (e.g., "Calling Google Gemini API...")
+
+#### Technical Improvements
+- **Progress Callback System**: Unified progress reporting across all LUMARA API calls
+  - Optional `onProgress` callback in all reflection generation methods
+  - Real-time UI updates during API processing stages
+  - Retry attempt visibility ("Retrying Gemini API... (X/2)")
+- **State Management**: Enhanced loading state tracking
+  - `Map<int, bool> _lumaraLoadingStates` for per-block loading state
+  - `Map<int, String?> _lumaraLoadingMessages` for dynamic progress messages
+  - First activation progress tracking with placeholder block index (-1)
+- **Error Handling**: Improved error communication
+  - Progress indicators show retry attempts clearly
+  - Loading states cleared on errors
+  - Provider unavailability handled gracefully
+
+#### Files Modified
+- `lib/lumara/services/enhanced_lumara_api.dart` - Added progress callback system to all reflection methods
+- `lib/ui/journal/journal_screen.dart` - Integrated progress tracking in all reflection actions
+- `lib/ui/journal/widgets/inline_reflection_block.dart` - Added progress indicator UI with loading states
+- `lib/lumara/ui/lumara_assistant_screen.dart` - Added chat progress indicator
+- `lib/lumara/config/api_config.dart` - Enhanced Gemini prioritization in provider selection
+
+#### Files Added
+- `docs/features/LUMARA_PROGRESS_INDICATORS.md` - Complete feature documentation
+
 ## [Unreleased] - 2025-10-31
 
 ### **Photo Gallery Scroll Feature** - October 31, 2025
