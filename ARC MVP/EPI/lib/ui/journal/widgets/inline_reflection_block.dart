@@ -100,31 +100,46 @@ class InlineReflectionBlock extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 8),
-            // Reflection content or loading indicator
+            // Reflection content or loading indicator with progress meter
             if (isLoading)
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 16),
-                child: Row(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2.5,
-                        valueColor: AlwaysStoppedAnimation<Color>(
-                          theme.colorScheme.primary,
+                    Row(
+                      children: [
+                        SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2.5,
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              theme.colorScheme.primary,
+                            ),
+                          ),
                         ),
-                      ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            loadingMessage ?? 'LUMARA is thinking...',
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              color: theme.colorScheme.secondary,
+                              fontStyle: FontStyle.italic,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        loadingMessage ?? 'LUMARA is developing insights...',
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          color: theme.colorScheme.secondary,
-                          fontStyle: FontStyle.italic,
-                        ),
+                    const SizedBox(height: 12),
+                    // Progress meter
+                    LinearProgressIndicator(
+                      minHeight: 4,
+                      borderRadius: BorderRadius.circular(2),
+                      valueColor: AlwaysStoppedAnimation<Color>(
+                        theme.colorScheme.primary,
                       ),
+                      backgroundColor: theme.colorScheme.surfaceContainerHighest,
                     ),
                   ],
                 ),

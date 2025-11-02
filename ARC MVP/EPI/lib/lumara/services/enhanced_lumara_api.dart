@@ -16,6 +16,7 @@ import '../llm/llm_provider.dart';
 import '../config/api_config.dart';
 import 'lumara_response_scoring.dart' as scoring;
 import '../prompts/lumara_prompts.dart';
+import '../../../services/gemini_send.dart';
 
 /// Enhanced LUMARA API with multimodal reflection
 class EnhancedLumaraApi {
@@ -23,15 +24,10 @@ class EnhancedLumaraApi {
   final ReflectiveNodeStorage _storage = ReflectiveNodeStorage();
   final SemanticSimilarityService _similarity = SemanticSimilarityService();
   final ReflectivePromptGenerator _promptGen = ReflectivePromptGenerator();
-  final LumaraResponseFormatter _formatter = LumaraResponseFormatter();
   
-  // LLM Provider for Gemini responses
+  // LLM Provider tracking (for logging only - we use geminiSend directly)
   LLMProviderBase? _llmProvider;
   LumaraAPIConfig? _apiConfig;
-  
-  // Rate limiting
-  DateTime? _lastRequestTime;
-  static const Duration _minRequestInterval = Duration(seconds: 3);
   
   bool _initialized = false;
 
@@ -145,18 +141,7 @@ class EnhancedLumaraApi {
         await initialize();
       }
       
-      // Rate limiting check
-      final now = DateTime.now();
-      if (_lastRequestTime != null && 
-          now.difference(_lastRequestTime!) < _minRequestInterval) {
-        print('LUMARA: Rate limiting - too many requests, using fallback');
-        return _generateIntelligentFallback(
-          request.userText, 
-          [], 
-          _convertFromV23PhaseHint(request.phaseHint),
-        );
-      }
-      _lastRequestTime = now;
+      // Go directly to Gemini API like main chat - no rate limiting, no fallbacks
       
       final currentPhase = _convertFromV23PhaseHint(request.phaseHint);
       
@@ -209,13 +194,12 @@ class EnhancedLumaraApi {
         nextStepSuggestions: _generateNextSteps(matches),
       );
       
-      // 6. Generate Gemini response if LLM provider is available
-      print('LUMARA Enhanced API v2.3: LLM Provider available: ${_llmProvider != null}');
+      // 6. Always use Gemini API directly - no fallbacks, no hard-coded messages
+      print('LUMARA Enhanced API v2.3: Calling Gemini API directly (no fallbacks)');
       print('LUMARA v2.3 Options: toneMode=${request.options.toneMode.name}, regenerate=${request.options.regenerate}, preferQuestionExpansion=${request.options.preferQuestionExpansion}, conversationMode=${request.options.conversationMode?.name}');
       
-      if (_llmProvider != null) {
-        print('LUMARA Enhanced API v2.3: Using LLM provider: ${_llmProvider!.name}');
-        try {
+      // Always call Gemini API - same as main LUMARA chat
+      try {
           String userPrompt;
           
           // Build context based on options
@@ -295,51 +279,57 @@ class EnhancedLumaraApi {
             userPrompt = '$baseContext\n\nFollow the ECHO structure (Empathize → Clarify → Highlight → Open) and include 1-2 clarifying expansion questions that help deepen the reflection. Consider the mood, phase, circadian context, recent chats, and any media when crafting questions that feel personally relevant and timely. Be thoughtful and allow for meaningful engagement.';
           }
           
-          // Verify we're using Gemini API
-          if (_llmProvider == null) {
-            throw StateError('No LLM provider available - please configure Gemini API key in Settings');
-          }
-          
-          print('LUMARA Enhanced API v2.3: Using ${_llmProvider!.name} for reflection generation');
-          print('LUMARA Enhanced API v2.3: Calling generateResponse()...');
+          // Use Gemini API directly via geminiSend() - same as main LUMARA chat
+          print('LUMARA Enhanced API v2.3: Calling Gemini API directly (same as main chat)');
+          print('LUMARA Enhanced API v2.3: System prompt length: ${LumaraPrompts.inJournalPrompt.length}');
+          print('LUMARA Enhanced API v2.3: User prompt length: ${userPrompt.length}');
           
           onProgress?.call('Calling cloud API...');
           
-          // Use the consolidated v2.3 in-journal prompt
-          final context = {
-            'systemPrompt': LumaraPrompts.inJournalPrompt,
-            'userPrompt': userPrompt,
-          };
-          
-          // Generate primary response with retry logic (using Gemini API)
+          // Call Gemini API directly - no fallbacks, no hard-coded responses
           String? geminiResponse;
           int retryCount = 0;
           const maxRetries = 2;
           
-          while (retryCount <= maxRetries) {
+          while (retryCount <= maxRetries && geminiResponse == null) {
             try {
-              geminiResponse = await _llmProvider!.generateResponse(context);
-              print('LUMARA: ${_llmProvider!.name} API response received (length: ${geminiResponse.length})');
+              // Direct Gemini API call - same protocol as main LUMARA chat
+              geminiResponse = await geminiSend(
+                system: LumaraPrompts.inJournalPrompt,
+                user: userPrompt,
+                jsonExpected: false,
+              );
+              
+              print('LUMARA: Gemini API response received (length: ${geminiResponse.length})');
               onProgress?.call('Processing response...');
               break; // Success, exit retry loop
             } catch (e) {
               retryCount++;
-              if (retryCount > maxRetries || 
-                  (!e.toString().contains('503') && !e.toString().contains('overloaded'))) {
-                print('LUMARA: ${_llmProvider!.name} API error: $e');
-                rethrow; // Re-throw if not a retryable error or max retries reached
+              if (retryCount > maxRetries) {
+                print('LUMARA: Gemini API error after $maxRetries retries: $e');
+                // Re-throw the error - no fallbacks, user needs to configure API key
+                rethrow;
+              }
+              // Only retry on 503/overloaded errors
+              if (!e.toString().contains('503') && 
+                  !e.toString().contains('overloaded') && 
+                  !e.toString().contains('UNAVAILABLE')) {
+                print('LUMARA: Gemini API error (non-retryable): $e');
+                // Re-throw immediately for non-retryable errors (like API key missing)
+                rethrow;
               }
               onProgress?.call('Retrying API... ($retryCount/$maxRetries)');
-              print('LUMARA: ${_llmProvider!.name} API retry $retryCount/$maxRetries - waiting 2 seconds...');
+              print('LUMARA: Gemini API retry $retryCount/$maxRetries - waiting 2 seconds...');
               await Future.delayed(const Duration(seconds: 2));
             }
           }
           
           if (geminiResponse == null) {
-            throw Exception('Failed to generate response after $maxRetries retries');
+            throw Exception('Failed to generate response from Gemini API');
           }
+          
           onProgress?.call('Finalizing insights...');
-          print('LUMARA Enhanced API v2.3: ✓ generateResponse completed');
+          print('LUMARA Enhanced API v2.3: ✓ Gemini API call completed');
           print('LUMARA Enhanced API v2.3: Response length: ${geminiResponse.length}');
           
           // Score the response using the scoring heuristic
@@ -392,40 +382,15 @@ class EnhancedLumaraApi {
           });
           
           return formatted;
-        } catch (e) {
-          print('LUMARA Enhanced API: ✗ Error generating response: $e');
-          print('LUMARA: Error generating Gemini response: $e');
-          
-          // Check if it's a Gemini API overload error
-          if (e.toString().contains('503') || e.toString().contains('overloaded') || e.toString().contains('UNAVAILABLE')) {
-            print('LUMARA: Gemini API overloaded - using intelligent fallback');
-            return _generateIntelligentFallback(request.userText, matches, currentPhase);
-          }
-          
-          // Fall through to template-based response for other errors
-        }
-      } else {
-        print('LUMARA Enhanced API: ✗ No LLM provider available - falling back to template');
+      } catch (e) {
+        print('LUMARA Enhanced API: ✗ Error calling Gemini API: $e');
+        // No fallbacks - rethrow the error so user knows API call failed
+        // Same behavior as main LUMARA chat - no hard-coded responses
+        rethrow;
       }
-      
-      // 7. Format template-based response for display
-      final formatted = _formatter.formatResponse(response);
-      
-      _analytics.logLumaraEvent('reflection_generated_v23', data: {
-        'matches': matches.length,
-        'top_similarity': matches.isNotEmpty ? matches.first.similarity : 0,
-        'gemini_generated': false,
-        'toneMode': request.options.toneMode.name,
-        'regenerate': request.options.regenerate,
-        'preferQuestionExpansion': request.options.preferQuestionExpansion,
-        'conversationMode': request.options.conversationMode?.name,
-      });
-      
-      return formatted;
-      
     } catch (e) {
-      print('LUMARA: Reflection generation error: $e');
-      return await _generateFallbackResponse(request.entryType.name, request.phaseHint?.name);
+      print('LUMARA Enhanced API: ✗ Fatal error: $e');
+      rethrow;
     }
   }
 
@@ -532,105 +497,7 @@ class EnhancedLumaraApi {
     return suggestions;
   }
 
-  /// Generate intelligent fallback when Gemini API is overloaded
-  String _generateIntelligentFallback(String entryText, List<MatchedNode> matches, PhaseHint? currentPhase) {
-    // Detect abstract register for appropriate response structure
-    final isAbstract = scoring.LumaraResponseScoring.detectAbstractRegister(entryText);
-    
-    // Calculate question allowance based on phase and entry type
-    final scoringPhase = _convertToScoringPhaseHint(currentPhase);
-    final scoringEntryType = _convertToScoringEntryType('journal'); // Default to journal for fallback
-    final qAllowance = scoring.questionAllowance(scoringPhase, scoringEntryType, isAbstract);
-    
-    // Generate ECHO-based response using template logic
-    String empathize;
-    List<String> clarify;
-    String highlight;
-    String open;
-    
-    // Empathize - mirror the tone
-    if (isAbstract) {
-      empathize = "This feels like a moment of reflection and scope where something meaningful is shifting.";
-    } else {
-      empathize = "This feels like a moment of strong emotion where something important is happening.";
-    }
-    
-    // Clarify - adaptive questions based on allowance
-    clarify = [];
-    if (qAllowance >= 1) {
-      clarify.add(isAbstract
-          ? "What aspect of this experience feels most real to you right now?"
-          : "What part of this feels most present for you now?");
-    }
-    if (qAllowance >= 2) {
-      clarify.add(isAbstract
-          ? "And what emotion sits beneath the perspective you're describing?"
-          : "Would naming the feeling make this clearer?");
-    }
-    
-    // Highlight - use matches if available
-    if (matches.isNotEmpty) {
-      highlight = "You've reflected on similar themes before — like ${matches.first.excerpt?.substring(0, 50) ?? 'your previous entries'}.";
-    } else {
-      highlight = "Your writing shows awareness developing through these moments.";
-    }
-    
-    // Open - phase-aware ending
-    switch (currentPhase) {
-      case PhaseHint.recovery:
-        open = "Would it help to rest with this feeling for now, or note one gentle step forward?";
-        break;
-      case PhaseHint.breakthrough:
-        open = "What truth do you want to carry from this realization into your next phase?";
-        break;
-      case PhaseHint.transition:
-      case PhaseHint.consolidation:
-        open = "Would clarifying one anchor or value help guide your next move?";
-        break;
-      default:
-        open = "Would it help to explore what this is teaching you, or pause and return later?";
-    }
-    
-    // Combine into ECHO response
-    final response = [empathize, ...clarify, highlight, open].join(' ');
-    
-    return '✨ Reflection\n\n$response';
-  }
-
-  Future<String> _generateFallbackResponse(String intent, String? phase) async {
-    // Use Gemini to generate contextual response even without historical data
-    if (_llmProvider != null) {
-      try {
-        final context = {
-          'systemPrompt': 'You are LUMARA, a reflective AI partner. Generate thoughtful, personalized reflection prompts that help users explore their current thoughts and feelings. Be warm, insightful, and encouraging. When users have limited journal history, explain that LUMARA becomes more helpful with more entries and encourage continued journaling.',
-          'userPrompt': 'Generate 2-3 reflective prompts for someone who is journaling. Focus on self-discovery, growth, and understanding their current moment. Make them personal and thought-provoking. Also include a gentle note that LUMARA will become more personalized and insightful as they write more entries and build a richer journal history.',
-        };
-        
-        final response = await _llmProvider!.generateResponse(context);
-        
-        // Format the response with sparkle icon
-        return '✨ Reflection\n\n$response';
-      } catch (e) {
-        print('LUMARA: Error generating Gemini fallback response: $e');
-        // Fall through to hardcoded response
-      }
-    }
-    
-    // Hardcoded fallback only if Gemini fails
-    return '''
-✨ Reflection
-
-What feels most important in this moment?
-
----
-
-If you could speak to yourself a year from now, what would you want them to know about today?
-
----
-
-*Note: As you write more entries, LUMARA will become more personalized and insightful by drawing from your growing journal history. Keep writing to unlock deeper reflections!*
-''';
-  }
+  // All hardcoded fallback methods removed - we only use Gemini API directly (same as main LUMARA chat)
 
   /// Get status for compatibility with existing code
   Map<String, dynamic> getStatus() {
