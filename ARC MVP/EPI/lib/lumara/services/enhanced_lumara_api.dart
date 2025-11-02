@@ -10,7 +10,6 @@ import 'reflective_node_storage.dart';
 import 'mcp_bundle_parser.dart';
 import 'semantic_similarity_service.dart';
 import 'reflective_prompt_generator.dart';
-import 'lumara_response_formatter.dart';
 import '../llm/llm_provider_factory.dart';
 import '../llm/llm_provider.dart';
 import '../config/api_config.dart';
@@ -177,24 +176,7 @@ class EnhancedLumaraApi {
         excerpt: _similarity.gatherText(item.node).substring(0, min(200, _similarity.gatherText(item.node).length)),
       )).toList();
       
-      // 4. Generate prompts
-      final prompts = _promptGen.generatePrompts(
-        currentEntry: request.userText,
-        matches: matches,
-        intent: request.entryType.name,
-        currentPhase: currentPhase,
-      );
-      
-      // 5. Build response
-      final response = ReflectivePromptResponse(
-        contextSummary: request.userText.substring(0, min(200, request.userText.length)),
-        matchedNodes: matches,
-        reflectivePrompts: prompts,
-        crossModalPatterns: _detectCrossModalPatterns(matches),
-        nextStepSuggestions: _generateNextSteps(matches),
-      );
-      
-      // 6. Always use Gemini API directly - no fallbacks, no hard-coded messages
+      // 4. Always use Gemini API directly - no fallbacks, no hard-coded messages
       print('LUMARA Enhanced API v2.3: Calling Gemini API directly (no fallbacks)');
       print('LUMARA v2.3 Options: toneMode=${request.options.toneMode.name}, regenerate=${request.options.regenerate}, preferQuestionExpansion=${request.options.preferQuestionExpansion}, conversationMode=${request.options.conversationMode?.name}');
       
@@ -472,30 +454,7 @@ class EnhancedLumaraApi {
     }
   }
 
-  List<String> _detectCrossModalPatterns(List<MatchedNode> matches) {
-    final patterns = <String>[];
-    
-    if (matches.length > 1) {
-      final types = matches.map((m) => m.sourceType).toSet();
-      if (types.length > 1) {
-        patterns.add('Cross-modal resonance detected between ${types.map((t) => t.name).join(' and ')}');
-      }
-    }
-    
-    return patterns;
-  }
-
-  List<String> _generateNextSteps(List<MatchedNode> matches) {
-    final suggestions = <String>[];
-    
-    if (matches.isNotEmpty) {
-      suggestions.add('Consider revisiting your top matched entry to see what resonates now.');
-    }
-    
-    suggestions.add('If energy is low, try recording a voice note to capture your current tone.');
-
-    return suggestions;
-  }
+  // Removed unused helper methods - we use Gemini API directly now
 
   // All hardcoded fallback methods removed - we only use Gemini API directly (same as main LUMARA chat)
 
