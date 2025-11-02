@@ -5,7 +5,30 @@
 
 This directory contains comprehensive documentation for the EPI (Evolving Personal Intelligence) project - an 8-module intelligent journaling system built with Flutter.
 
-## 🆕 Latest Updates (October 29, 2025)
+## 🆕 Latest Updates (February 2025)
+
+### ✨ **LUMARA Progress Indicators** - February 2025
+
+#### **Real-Time API Progress Feedback** ✅
+- **In-Journal Progress Indicators**: Real-time progress messages during reflection generation
+  - Shows stages: "Preparing context...", "Analyzing your journal history...", "Calling cloud API...", "Processing response...", "Finalizing insights..."
+  - Progress updates for all reflection actions (regenerate, soften tone, more depth, continuation)
+  - Circular progress spinner with contextual messages in reflection blocks
+- **LUMARA Chat Progress Indicators**: Visual feedback during chat API calls
+  - "LUMARA is thinking..." indicator with circular spinner
+  - Automatically appears during message processing and dismisses on response
+- **Provider-Agnostic Messages**: Generic progress messages work for all cloud API providers
+  - "Calling cloud API..." works for Gemini, OpenAI, Anthropic, etc.
+  - "Retrying API... (X/2)" shows retry attempts clearly
+- **Files Modified**: 
+  - `lib/lumara/services/enhanced_lumara_api.dart` - Added progress callback system
+  - `lib/ui/journal/journal_screen.dart` - Integrated progress tracking
+  - `lib/ui/journal/widgets/inline_reflection_block.dart` - Added progress UI
+  - `lib/lumara/ui/lumara_assistant_screen.dart` - Added chat progress indicator
+- **Documentation**: 
+  - `docs/features/LUMARA_PROGRESS_INDICATORS.md` - Complete feature documentation
+
+## 🆕 Previous Updates (October 29, 2025)
 
 ### ✨ **Insights Tab UI Enhancements** - October 29, 2025
 
