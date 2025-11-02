@@ -264,6 +264,18 @@ class EnhancedMcpImportResult {
 }
 ```
 
+**Chat Import Flow:**
+1. **First Pass**: Import chat sessions from `nodes.jsonl`, creating sessions and mapping MCP IDs to new session IDs
+2. **Category Import**: Import categories from `edges.jsonl` (if EnhancedChatRepo available)
+3. **Second Pass**: Import chat messages, linking them to sessions using `contains` edges
+4. **Third Pass**: Assign categories to sessions using `belongs_to_category` edges
+5. **Result**: All chat data restored with proper relationships and categories
+
+**Supported Import Formats:**
+- **Enhanced MCP Format**: `nodes.jsonl` with ChatSession/ChatMessage nodes and `edges.jsonl` for relationships
+- **ARCX Secure Archives**: Extracted payload checked for `nodes.jsonl` and imported via `EnhancedMcpImportService`
+- **JSON Export Format**: Direct import via `EnhancedChatRepo.importData()` from `ChatExportData` JSON files
+
 ### Node Factory
 
 ```dart

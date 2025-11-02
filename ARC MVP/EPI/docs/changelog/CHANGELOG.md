@@ -2,6 +2,31 @@
 
 ## [Unreleased] - February 2025
 
+### **Chat Import Fixes** - February 2025
+
+#### Critical Bug Fixes
+- **JSON Chat Import**: Fixed `importData()` method in `EnhancedChatRepoImpl` to actually import sessions and messages
+  - **Previous Issue**: Only imported categories, not actual chat data
+  - **Fixed**: Now creates sessions, maps IDs, and imports all messages in chronological order
+  - Properly handles pinned/archived sessions and preserves message ordering
+  - Full session properties (subject, tags, archived, pinned) are restored
+- **ARCX Chat Import**: Added chat import support to ARCX secure archive import
+  - **Previous Issue**: ARCX imports only handled journal entries, not chats
+  - **Fixed**: Added `ChatRepo` parameter to `ARCXImportService`
+  - Checks for `nodes.jsonl` in extracted payload and imports chats via `EnhancedMcpImportService`
+  - Updated UI to display chat session and message import counts
+  - Supports Enhanced MCP format with `nodes.jsonl` (standard MCP export format)
+
+#### Files Modified
+- `lib/lumara/chat/enhanced_chat_repo_impl.dart` - Implemented full session/message import in `importData()`
+- `lib/arcx/services/arcx_import_service.dart` - Added ChatRepo parameter and chat import logic
+- `lib/arcx/models/arcx_result.dart` - Added `chatSessionsImported` and `chatMessagesImported` fields
+- `lib/arcx/ui/arcx_import_progress_screen.dart` - Added ChatRepo initialization and chat count display
+
+#### Import Flow
+1. **JSON Import**: `ChatExportImportScreen` → `EnhancedChatRepo.importData()` → Creates sessions and messages
+2. **ARCX Import**: `ARCXImportProgressScreen` → `ARCXImportService.importSecure()` → Extracts payload → `EnhancedMcpImportService.importBundle()` → Imports chats from `nodes.jsonl`
+
 ### **LUMARA Progress Indicators** - February 2025
 
 #### Major Features

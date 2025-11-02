@@ -7,6 +7,25 @@ This directory contains comprehensive documentation for the EPI (Evolving Person
 
 ## 🆕 Latest Updates (February 2025)
 
+### 🐛 **Chat Import Fixes** - February 2025
+
+#### **Critical Import Bug Fixes** ✅
+- **JSON Chat Import Fixed**: `importData()` now actually imports sessions and messages (was only importing categories)
+  - Creates sessions with proper ID mapping (original → new)
+  - Imports all messages in chronological order
+  - Preserves session properties (pinned, archived, tags)
+  - Full chat restoration from JSON export files
+- **ARCX Chat Import Added**: ARCX secure archive imports now include chat data
+  - Added `ChatRepo` support to `ARCXImportService`
+  - Imports chats from `nodes.jsonl` using `EnhancedMcpImportService`
+  - UI displays chat session and message counts in import summary
+  - Supports Enhanced MCP format with full chat restoration
+- **Files Modified**:
+  - `lib/lumara/chat/enhanced_chat_repo_impl.dart` - Full session/message import implementation
+  - `lib/arcx/services/arcx_import_service.dart` - Chat import integration
+  - `lib/arcx/models/arcx_result.dart` - Chat count fields added
+  - `lib/arcx/ui/arcx_import_progress_screen.dart` - Chat count display
+
 ### ✨ **LUMARA Progress Indicators** - February 2025
 
 #### **Real-Time API Progress Feedback with Visual Meters** ✅
