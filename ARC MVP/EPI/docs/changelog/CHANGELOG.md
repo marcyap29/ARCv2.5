@@ -2,6 +2,38 @@
 
 ## [Unreleased] - February 2025
 
+### **LUMARA Prompt System Update** - February 2025
+
+#### Major Features
+- **Integrated Super Prompt Personality**: Unified LUMARA personality across all interaction modes
+  - **Core Identity**: Mentor, mirror, and catalyst — never a friend or partner
+  - **Purpose**: Help the user Become — integrate across all areas of life through reflection, connection, and guided evolution
+  - **Tone Archetypes**: Five adjustable archetypes (Challenger, Sage, Connector, Gardener, Strategist)
+  - **Communication Ethics**: Encourage (never flatter), Support (never enable), Reflect (never project), Mentor (never manipulate)
+  - **Domain Expertise**: Automatic matching to user's professional domains (engineering, theology, marketing, therapy, physics, etc.)
+- **Module Consolidation**: POLYMETA consolidated into MIRA
+  - **MIRA Enhanced**: Now handles both semantic memory graph and long-term contextual memory
+  - **Simplified Architecture**: Reduced from 8 to 7 EPI modules (ARC, ATLAS, AURORA, VEIL, MIRA, PRISM, RIVET)
+- **Context-Specific Prompts**: Three optimized prompts for different contexts
+  - **Universal Prompt**: General purpose, chat interactions with full EPI context awareness
+  - **In-Journal Prompt v2.3**: Journal reflections with ECHO structure and Super Prompt integration
+  - **Chat-Specific Prompt**: Domain-specific guidance for work contexts
+
+#### Technical Improvements
+- **Removed Hard-Coded Fallbacks**: All prompt fallbacks removed, optimized for cloud API usage
+- **Enhanced Module Integration**: Clear guidelines for ATLAS, AURORA, VEIL, RIVET, and MIRA usage
+- **Task Prompt Updates**: All task prompts aligned with "Becoming" philosophy
+  - Weekly summaries frame in terms of evolution
+  - Phase rationale frames as developmental arcs
+  - Pattern analysis connects to narrative arcs
+
+#### Files Modified
+- `lib/lumara/prompts/lumara_system_prompt.dart` - Integrated Super Prompt, removed POLYMETA
+- `lib/lumara/prompts/lumara_prompts.dart` - Added chat prompt, updated in-journal prompt, removed POLYMETA
+- `lib/echo/response/prompts/lumara_system_prompt.dart` - Updated to match main prompts
+- `docs/architecture/EPI_Architecture.md` - Updated LUMARA Prompts Architecture section
+- `docs/features/LUMARA_PROMPT_UPDATE_FEB_2025.md` - Comprehensive update documentation
+
 ### **Phase-Approaching Insights** - February 2025
 
 #### Major Features

@@ -1160,42 +1160,73 @@
   - `lib/lumara/llm/testing/lumara_test_harness.dart` - A/B testing framework for model comparison
 - `ios/Runner/LLMBridge.swift` - Updated to use optimized Dart prompts (end-to-end integration)
 
-## 📝 **LUMARA Prompts Architecture** (Updated January 28, 2025)
+## 📝 **LUMARA Prompts Architecture** (Updated February 2025)
 
 ### **MVP Prompt System Overview**
 
-The MVP implements a sophisticated prompt system for LUMARA's in-journal reflections, orchestrated through `lib/lumara/prompts/lumara_prompts.dart`. The system consists of two primary prompts:
+The MVP implements a sophisticated prompt system for LUMARA's in-journal reflections, orchestrated through `lib/lumara/prompts/lumara_prompts.dart`. The system consists of three primary prompts:
 
-### **1. Core System Prompt (General Purpose)**
+### **1. Core System Prompt (Universal)**
 
-**Purpose**: Universal LUMARA identity and conversational behavior for chat interactions.
+**Purpose**: Universal LUMARA identity and conversational behavior optimized for cloud API usage.
 
 **Key Components**:
-- **Identity & Role**: LUMARA as mirror, archivist, and contextual assistant
-- **EPI Module Awareness**: Knowledge of all 8 EPI modules (ARC, ATLAS, AURORA, VEIL, MIRA, POLYMETA, PRISM, LUMARA)
+- **Identity & Role**: LUMARA as mentor, mirror, and catalyst — never a friend or partner
+- **Core Purpose**: Help the user Become — to integrate who they are across all areas of life through reflection, connection, and guided evolution
+- **EPI Module Awareness**: Knowledge of all 7 EPI modules (ARC, ATLAS, AURORA, VEIL, MIRA, PRISM, RIVET)
+  - **MIRA**: Semantic memory graph storing and retrieving memory objects (nodes and edges). Maintains long-term contextual memory and cross-domain links across time.
 - **Sub-Concepts**: Memory Container Protocol (MCP), Phase detection, Arcform visuals
+- **Behavioral Guidelines**: 
+  - Domain-specific expertise matching (engineering, theology, marketing, therapy, physics, etc.)
+  - Tone archetype system (Challenger, Sage, Connector, Gardener, Strategist)
+  - RIVET-based interest shift detection
+- **Communication Ethics**: Encourage (never flatter), Support (never enable), Reflect (never project), Mentor (never manipulate)
+- **Memory Handling**: MIRA semantic graph, MCP JSON format, long-term contextual memory
+- **External Data Integration**: PII removal, data normalization, uncertainty disclaimers
 - **Narrative Dignity**: Resilience metaphors, sovereignty preservation, developmental framing
-- **Memory Handling**: MIRA semantic graph, MCP JSON format, context maximization
-- **External API Scrubbing**: PII removal, data normalization, uncertainty disclaimers
-- **Reflection & Growth**: Scaffolding questions, phase-aware framing, 90/10 balance
+- **VEIL Mode**: Automatic activation for distress/fatigue with slower pace, gentle tone, recovery focus
 
-**Location**: `LumaraPrompts.systemPrompt`
+**Location**: `LumaraSystemPrompt.universal` and `LumaraPrompts.systemPrompt`
 
-### **2. In-Journal System Prompt v2.2 (Enhanced)**
+### **2. In-Journal System Prompt v2.3 (Enhanced)**
 
-**Purpose**: Specialized for in-journal reflections with adaptive question bias and multimodal hooks.
+**Purpose**: Specialized for in-journal reflections with adaptive question bias, multimodal hooks, and integrated Super Prompt personality.
 
 **Key Components**:
+- **Core Identity**: Integrated with Super Prompt — mentor, mirror, and catalyst focused on helping user Become
 - **ECHO Structure**: Empathize → Clarify → Highlight → Open (2-4 sentences, 5 for Abstract Register)
 - **Abstract Register Rule**: Detects conceptual language; expands to 2 clarifying questions (conceptual + felt-sense)
 - **Question/Expansion Bias**:
   - **Phase-aware**: Recovery (low), Discovery/Expansion (high), Breakthrough (medium-high)
   - **Entry-type aware**: Draft (high), Journal (med), Media (low)
+- **Module Integration**: 
+  - ATLAS for life phase and emotional rhythm
+  - AURORA for time-of-day and energy cycles
+  - VEIL for emotional recovery (slower pace, gentle tone)
+  - RIVET for interest shift detection
+  - **MIRA** for long-term memory and historical pattern surfacing
 - **Multimodal Hook Layer**: Privacy-safe symbolic references ("photo titled 'steady' last summer")
+- **Communication Ethics**: Integrated Super Prompt ethics (encourage, support, reflect, mentor)
 - **Tone Governance**: Empathic minimalism, reflective distance, agency reinforcement
 - **Output Format**: One paragraph ending with agency-forward question or choice
 
 **Location**: `LumaraPrompts.inJournalPrompt`
+
+### **3. Chat-Specific System Prompt**
+
+**Purpose**: Optimized for chat/work contexts with domain-specific guidance and structured responses.
+
+**Key Components**:
+- **Core Identity**: Same as universal prompt — mentor, mirror, and catalyst
+- **Chat/Work Mode Focus**: 
+  - Structured, domain-specific guidance
+  - Expert-level engagement matching user's domains
+  - Practical next steps and insights relevant to field or goal
+- **Memory Integration**: Connect current actions with past insights and future aims
+- **Response Format**: Concise (3-4 sentences max) unless depth requested
+- **Context Citation**: Always ends with "Based on {n_entries} entries, {n_arcforms} Arcform(s), phase history since {date}"
+
+**Location**: `LumaraPrompts.chatPrompt`
 
 ### **Prompt Integration Flow**
 
