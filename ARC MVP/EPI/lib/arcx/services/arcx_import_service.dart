@@ -13,17 +13,25 @@ import 'package:path_provider/path_provider.dart';
 import 'package:my_app/models/journal_entry_model.dart';
 import 'package:my_app/data/models/media_item.dart';
 import 'package:my_app/arc/core/journal_repository.dart';
+import 'package:my_app/lumara/chat/chat_repo.dart';
+import 'package:my_app/core/mcp/import/enhanced_mcp_import_service.dart';
+import 'package:my_app/core/mcp/import/mcp_import_service.dart';
 import 'arcx_crypto_service.dart';
 import '../models/arcx_manifest.dart';
 import '../models/arcx_result.dart';
 
 class ARCXImportService {
   final JournalRepository? _journalRepo;
+  final ChatRepo? _chatRepo;
   
   // Media deduplication cache - maps URI to MediaItem to prevent duplicates
   final Map<String, MediaItem> _mediaCache = {};
   
-  ARCXImportService({JournalRepository? journalRepo}) : _journalRepo = journalRepo;
+  ARCXImportService({
+    JournalRepository? journalRepo,
+    ChatRepo? chatRepo,
+  }) : _journalRepo = journalRepo,
+       _chatRepo = chatRepo;
   
   /// Clear the media cache (call before starting a new import)
   void clearMediaCache() {
@@ -387,6 +395,45 @@ class ARCXImportService {
         
         print('ARCX Import: ✓ Conversion complete');
         
+        // Step 12: Import chat data if nodes.jsonl exists (Enhanced MCP format)
+        int chatSessionsImported = 0;
+        int chatMessagesImported = 0;
+        
+        final nodesJsonlFile = File(path.join(payloadDir.path, 'nodes.jsonl'));
+        if (await nodesJsonlFile.exists() && _chatRepo != null) {
+          try {
+            print('ARCX Import: Step 12 - Importing chat data from nodes.jsonl...');
+            
+            // Use EnhancedMcpImportService to import chats
+            final enhancedImportService = EnhancedMcpImportService(
+              chatRepo: _chatRepo,
+            );
+            
+            final chatImportResult = await enhancedImportService.importBundle(
+              payloadDir,
+              McpImportOptions(
+                strictMode: false,
+                maxErrors: 100,
+              ),
+            );
+            
+            chatSessionsImported = chatImportResult.chatSessionsImported;
+            chatMessagesImported = chatImportResult.chatMessagesImported;
+            
+            print('✅ ARCX Import: Imported $chatSessionsImported chat sessions, $chatMessagesImported chat messages');
+          } catch (e) {
+            print('⚠️ ARCX Import: Failed to import chat data: $e');
+            // Don't fail the entire import if chat import fails
+          }
+        } else {
+          if (!await nodesJsonlFile.exists()) {
+            print('ARCX Import: No nodes.jsonl found - skipping chat import');
+          }
+          if (_chatRepo == null) {
+            print('ARCX Import: No ChatRepo available - skipping chat import');
+          }
+        }
+        
         if (dryRun) {
           print('ARCX Import: Dry run - no data merged');
         } else {
@@ -396,6 +443,8 @@ class ARCXImportService {
         return ARCXImportResult.success(
           entriesImported: entriesImported,
           photosImported: photosImported,
+          chatSessionsImported: chatSessionsImported,
+          chatMessagesImported: chatMessagesImported,
           warnings: warnings.isEmpty ? null : warnings,
         );
         

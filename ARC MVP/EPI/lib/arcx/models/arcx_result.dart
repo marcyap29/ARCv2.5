@@ -50,6 +50,8 @@ class ARCXImportResult {
   final String? error;
   final int? entriesImported;
   final int? photosImported;
+  final int? chatSessionsImported;
+  final int? chatMessagesImported;
   final List<String>? warnings;
   
   ARCXImportResult({
@@ -57,18 +59,24 @@ class ARCXImportResult {
     this.error,
     this.entriesImported,
     this.photosImported,
+    this.chatSessionsImported,
+    this.chatMessagesImported,
     this.warnings,
   });
   
   factory ARCXImportResult.success({
     int? entriesImported,
     int? photosImported,
+    int? chatSessionsImported,
+    int? chatMessagesImported,
     List<String>? warnings,
   }) {
     return ARCXImportResult(
       success: true,
       entriesImported: entriesImported,
       photosImported: photosImported,
+      chatSessionsImported: chatSessionsImported,
+      chatMessagesImported: chatMessagesImported,
       warnings: warnings,
     );
   }

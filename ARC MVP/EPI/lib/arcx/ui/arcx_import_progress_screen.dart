@@ -11,6 +11,7 @@ import 'package:archive/archive.dart';
 import '../../shared/app_colors.dart';
 import '../../shared/text_style.dart';
 import 'package:my_app/arc/core/journal_repository.dart';
+import 'package:my_app/lumara/chat/chat_repo_impl.dart';
 import '../services/arcx_import_service.dart';
 import '../models/arcx_result.dart';
 
@@ -169,7 +170,14 @@ class _ARCXImportProgressScreenState extends State<ARCXImportProgressScreen> {
       
       // Get the journal repository from context
       final journalRepo = context.read<JournalRepository>();
-      final importService = ARCXImportService(journalRepo: journalRepo);
+      // Get ChatRepo instance
+      final chatRepo = ChatRepoImpl.instance;
+      await chatRepo.initialize();
+      
+      final importService = ARCXImportService(
+        journalRepo: journalRepo,
+        chatRepo: chatRepo,
+      );
       
       setState(() => _status = 'Decrypting...');
       
@@ -186,6 +194,8 @@ class _ARCXImportProgressScreenState extends State<ARCXImportProgressScreen> {
           _status = 'Done';
           _entriesImported = result.entriesImported;
           _photosImported = result.photosImported;
+          _chatSessionsImported = result.chatSessionsImported;
+          _chatMessagesImported = result.chatMessagesImported;
         });
         
         // Show success dialog
@@ -312,6 +322,10 @@ class _ARCXImportProgressScreenState extends State<ARCXImportProgressScreen> {
             const SizedBox(height: 16),
             _buildSummaryRow('Entries restored:', '${result.entriesImported ?? 0}'),
             _buildSummaryRow('Photos restored:', '${result.photosImported ?? 0}'),
+            if ((result.chatSessionsImported ?? 0) > 0 || (result.chatMessagesImported ?? 0) > 0) ...[
+              _buildSummaryRow('Chat sessions:', '${result.chatSessionsImported ?? 0}'),
+              _buildSummaryRow('Chat messages:', '${result.chatMessagesImported ?? 0}'),
+            ],
             _buildSummaryRow('Missing/corrupted:', '0'),
             const SizedBox(height: 8),
             Text(
