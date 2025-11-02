@@ -9,24 +9,32 @@ This directory contains comprehensive documentation for the EPI (Evolving Person
 
 ### ✨ **LUMARA Progress Indicators** - February 2025
 
-#### **Real-Time API Progress Feedback** ✅
-- **In-Journal Progress Indicators**: Real-time progress messages during reflection generation
+#### **Real-Time API Progress Feedback with Visual Meters** ✅
+- **In-Journal Progress Indicators**: Real-time progress messages and visual meters during reflection generation
   - Shows stages: "Preparing context...", "Analyzing your journal history...", "Calling cloud API...", "Processing response...", "Finalizing insights..."
   - Progress updates for all reflection actions (regenerate, soften tone, more depth, continuation)
-  - Circular progress spinner with contextual messages in reflection blocks
-- **LUMARA Chat Progress Indicators**: Visual feedback during chat API calls
+  - **Circular progress spinner (20x20px) + Linear progress meter (4px height)** with contextual messages in reflection blocks
+  - Dual visual feedback provides comprehensive loading indication
+- **LUMARA Chat Progress Indicators**: Visual feedback with progress meter during chat API calls
   - "LUMARA is thinking..." indicator with circular spinner
+  - **Linear progress meter below spinner** for continuous visual feedback
   - Automatically appears during message processing and dismisses on response
+- **Direct Gemini API Integration** (BREAKING CHANGE): In-journal LUMARA now uses Gemini API directly
+  - **Removed ALL hardcoded fallback messages** - in-journal LUMARA behaves exactly like main chat
+  - Uses `geminiSend()` function directly (same protocol as main LUMARA chat)
+  - No template-based responses, no intelligent fallbacks, no hardcoded messages
+  - Errors propagate immediately - user must configure Gemini API key for in-journal LUMARA to work
 - **Provider-Agnostic Messages**: Generic progress messages work for all cloud API providers
   - "Calling cloud API..." works for Gemini, OpenAI, Anthropic, etc.
   - "Retrying API... (X/2)" shows retry attempts clearly
 - **Files Modified**: 
-  - `lib/lumara/services/enhanced_lumara_api.dart` - Added progress callback system
+  - `lib/lumara/services/enhanced_lumara_api.dart` - Added progress callback system, removed all hardcoded fallbacks
   - `lib/ui/journal/journal_screen.dart` - Integrated progress tracking
-  - `lib/ui/journal/widgets/inline_reflection_block.dart` - Added progress UI
-  - `lib/lumara/ui/lumara_assistant_screen.dart` - Added chat progress indicator
+  - `lib/ui/journal/widgets/inline_reflection_block.dart` - Added progress meter UI
+  - `lib/lumara/ui/lumara_assistant_screen.dart` - Added chat progress meter
 - **Documentation**: 
   - `docs/features/LUMARA_PROGRESS_INDICATORS.md` - Complete feature documentation
+  - `docs/changelog/CHANGELOG.md` - Breaking changes documented
 
 ## 🆕 Previous Updates (October 29, 2025)
 
