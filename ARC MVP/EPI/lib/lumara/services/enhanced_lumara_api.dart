@@ -88,6 +88,7 @@ class EnhancedLumaraApi {
 
   /// Generate a prompted reflection with multimodal context
   /// Supports v2.3 options: toneMode, conversationMode, regenerate, preferQuestionExpansion
+  /// [onProgress] callback is called with progress messages during API calls
   Future<String> generatePromptedReflection({
     required String entryText,
     required String intent,
@@ -100,6 +101,7 @@ class EnhancedLumaraApi {
     String? mediaContext,
     // New v2.3 options
     models.LumaraReflectionOptions? options,
+    void Function(String message)? onProgress,
   }) async {
     // Convert legacy parameters to options if needed
     final reflectionOptions = options ?? models.LumaraReflectionOptions(
@@ -124,6 +126,7 @@ class EnhancedLumaraApi {
       chronoContext: chronoContext,
       chatContext: chatContext,
       mediaContext: mediaContext,
+      onProgress: onProgress,
     );
   }
 
@@ -135,6 +138,7 @@ class EnhancedLumaraApi {
     Map<String, dynamic>? chronoContext,
     String? chatContext,
     String? mediaContext,
+    void Function(String message)? onProgress,
   }) async {
     try {
       if (!_initialized) {
@@ -157,12 +161,14 @@ class EnhancedLumaraApi {
       final currentPhase = _convertFromV23PhaseHint(request.phaseHint);
       
       // 1. Retrieve all candidate nodes
+      onProgress?.call('Preparing context...');
       final allNodes = _storage.getAllNodes(
         userId: userId ?? 'default',
         maxYears: 5,
       );
       
       // 2. Score and rank by similarity
+      onProgress?.call('Analyzing your journal history...');
       final scored = <({double score, ReflectiveNode node})>[];
       for (final node in allNodes) {
         final score = _similarity.scoreNode(request.userText, node, currentPhase);
@@ -289,14 +295,23 @@ class EnhancedLumaraApi {
             userPrompt = '$baseContext\n\nFollow the ECHO structure (Empathize → Clarify → Highlight → Open) and include 1-2 clarifying expansion questions that help deepen the reflection. Consider the mood, phase, circadian context, recent chats, and any media when crafting questions that feel personally relevant and timely. Be thoughtful and allow for meaningful engagement.';
           }
           
+          // Verify we're using Gemini API
+          if (_llmProvider == null) {
+            throw StateError('No LLM provider available - please configure Gemini API key in Settings');
+          }
+          
+          print('LUMARA Enhanced API v2.3: Using ${_llmProvider!.name} for reflection generation');
           print('LUMARA Enhanced API v2.3: Calling generateResponse()...');
+          
+          onProgress?.call('Calling cloud API...');
+          
           // Use the consolidated v2.3 in-journal prompt
           final context = {
             'systemPrompt': LumaraPrompts.inJournalPrompt,
             'userPrompt': userPrompt,
           };
           
-          // Generate primary response with retry logic
+          // Generate primary response with retry logic (using Gemini API)
           String? geminiResponse;
           int retryCount = 0;
           const maxRetries = 2;
@@ -304,14 +319,18 @@ class EnhancedLumaraApi {
           while (retryCount <= maxRetries) {
             try {
               geminiResponse = await _llmProvider!.generateResponse(context);
+              print('LUMARA: ${_llmProvider!.name} API response received (length: ${geminiResponse.length})');
+              onProgress?.call('Processing response...');
               break; // Success, exit retry loop
             } catch (e) {
               retryCount++;
               if (retryCount > maxRetries || 
                   (!e.toString().contains('503') && !e.toString().contains('overloaded'))) {
+                print('LUMARA: ${_llmProvider!.name} API error: $e');
                 rethrow; // Re-throw if not a retryable error or max retries reached
               }
-              print('LUMARA: Gemini API retry $retryCount/$maxRetries - waiting 2 seconds...');
+              onProgress?.call('Retrying API... ($retryCount/$maxRetries)');
+              print('LUMARA: ${_llmProvider!.name} API retry $retryCount/$maxRetries - waiting 2 seconds...');
               await Future.delayed(const Duration(seconds: 2));
             }
           }
@@ -319,6 +338,7 @@ class EnhancedLumaraApi {
           if (geminiResponse == null) {
             throw Exception('Failed to generate response after $maxRetries retries');
           }
+          onProgress?.call('Finalizing insights...');
           print('LUMARA Enhanced API v2.3: ✓ generateResponse completed');
           print('LUMARA Enhanced API v2.3: Response length: ${geminiResponse.length}');
           

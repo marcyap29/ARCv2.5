@@ -265,12 +265,43 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
                     itemCount: state.messages.length,
                     itemBuilder: (context, index) {
                       final message = state.messages[index];
-                      return _buildMessageBubble(message);
-                    },
-                  );
-                }
+                    return _buildMessageBubble(message);
+                  },
+                );
+              }
+              
+              // Show progress indicator when processing
+              if (state is LumaraAssistantLoaded && state.isProcessing) {
+                return Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
+                  child: Row(
+                    children: [
+                      SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2.5,
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                            Theme.of(context).colorScheme.primary,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          'LUMARA is thinking...',
+                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color: Theme.of(context).colorScheme.secondary,
+                            fontStyle: FontStyle.italic,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }
                 
-                return const SizedBox.shrink();
+              return const SizedBox.shrink();
               },
             ),
           ),

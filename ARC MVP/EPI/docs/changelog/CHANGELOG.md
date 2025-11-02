@@ -6,7 +6,7 @@
 
 #### Major Features
 - **In-Journal Progress Indicators**: Real-time progress messages during reflection generation
-  - Shows stages: "Preparing context...", "Analyzing your journal history...", "Calling Gemini API...", "Processing response...", "Finalizing insights..."
+  - Shows stages: "Preparing context...", "Analyzing your journal history...", "Calling cloud API...", "Processing response...", "Finalizing insights..."
   - Progress updates for all reflection actions (regenerate, soften tone, more depth, continuation)
   - Circular progress spinner with contextual messages in reflection blocks
   - Loading state tracking per block index with dynamic message updates
@@ -18,13 +18,13 @@
   - Gemini selected first when available and configured
   - Enhanced logging shows provider name during API calls
   - Clear fallback chain: Gemini → Other Cloud APIs → Internal Models
-  - Progress messages show actual provider name (e.g., "Calling Google Gemini API...")
+  - Generic progress messages work for all providers (e.g., "Calling cloud API...")
 
 #### Technical Improvements
 - **Progress Callback System**: Unified progress reporting across all LUMARA API calls
   - Optional `onProgress` callback in all reflection generation methods
   - Real-time UI updates during API processing stages
-  - Retry attempt visibility ("Retrying Gemini API... (X/2)")
+  - Retry attempt visibility ("Retrying API... (X/2)")
 - **State Management**: Enhanced loading state tracking
   - `Map<int, bool> _lumaraLoadingStates` for per-block loading state
   - `Map<int, String?> _lumaraLoadingMessages` for dynamic progress messages

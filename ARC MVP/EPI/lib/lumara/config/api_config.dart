@@ -392,10 +392,18 @@ class LumaraAPIConfig {
       _prefs?.remove('manual_provider');
     }
 
-    // Preference order: Cloud APIs first, then internal models
+    // Preference order: Gemini first (explicit), then other Cloud APIs, then internal models
+    // Explicitly prioritize Gemini for in-journal insights
+    final geminiConfig = _configs[LLMProvider.gemini];
+    if (geminiConfig != null && geminiConfig.isAvailable) {
+      return geminiConfig;
+    }
+
+    // Fallback to other external/cloud APIs if Gemini not available
     final external = available.where((c) => !c.isInternal).toList();
     if (external.isNotEmpty) return external.first;
 
+    // Finally, internal models as last resort
     final internal = available.where((c) => c.isInternal && _isValidInternalModel(c)).toList();
     if (internal.isNotEmpty) return internal.first;
 

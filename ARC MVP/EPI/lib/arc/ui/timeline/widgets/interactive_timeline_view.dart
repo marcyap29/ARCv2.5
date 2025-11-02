@@ -622,7 +622,8 @@ class InteractiveTimelineViewState extends State<InteractiveTimelineView>
             }
           }
           
-          // Navigate to journal screen with full entry for viewing (read-only)
+          // Navigate to journal screen with full entry for viewing (read-only by default)
+          // User can click Edit button to switch to edit mode
           Navigator.of(context).push(
             MaterialPageRoute(
               builder: (context) => JournalScreen(
@@ -630,7 +631,7 @@ class InteractiveTimelineViewState extends State<InteractiveTimelineView>
                 selectedEmotion: fullEntry.emotion,
                 selectedReason: fullEntry.emotionReason,
                 existingEntry: fullEntry, // Pass the full entry with media
-                isViewOnly: true, // Set to view-only mode to prevent draft creation
+                isViewOnly: true, // Open in view-only mode (safer default)
               ),
             ),
           );

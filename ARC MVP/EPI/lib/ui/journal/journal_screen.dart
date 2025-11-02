@@ -56,6 +56,7 @@ class JournalScreen extends StatefulWidget {
   final String? initialContent;
   final JournalEntry? existingEntry; // For loading existing entries with media
   final bool isViewOnly; // New parameter to distinguish viewing vs editing
+  final bool openAsEdit; // Flag to indicate entry is opened directly for editing (no initial draft)
   
   const JournalScreen({
     super.key,
@@ -64,6 +65,7 @@ class JournalScreen extends StatefulWidget {
     this.initialContent,
     this.existingEntry,
     this.isViewOnly = false, // Default to editing mode for backward compatibility
+    this.openAsEdit = false, // Default to false - will create draft normally
   });
 
   @override
@@ -296,8 +298,11 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
     if (state == AppLifecycleState.paused || 
         state == AppLifecycleState.inactive || 
         state == AppLifecycleState.detached) {
-      if (_currentDraftId != null && (!widget.isViewOnly || _isEditMode)) {
-        // Update draft with current content and media
+      // If editing existing entry and no draft exists yet, create one now
+      if (widget.existingEntry != null && _currentDraftId == null && (!widget.isViewOnly || _isEditMode)) {
+        _createDraftOnAppPause();
+      } else if (_currentDraftId != null && (!widget.isViewOnly || _isEditMode)) {
+        // Update existing draft with current content and media
         final mediaItems = _entryState.attachments.isNotEmpty
             ? MediaConversionUtils.attachmentsToMediaItems(_entryState.attachments)
             : const <MediaItem>[];
@@ -309,6 +314,34 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
       }
     } else {
       debugPrint('JournalScreen: App lifecycle changed to $state (no auto-save)');
+    }
+  }
+
+  /// Create a draft when app pauses during direct entry editing
+  Future<void> _createDraftOnAppPause() async {
+    try {
+      if (widget.existingEntry == null) return;
+      
+      await _draftCache.initialize();
+      final mediaItems = _entryState.attachments.isNotEmpty
+          ? MediaConversionUtils.attachmentsToMediaItems(_entryState.attachments)
+          : const <MediaItem>[];
+      
+      final blocksJson = _entryState.blocks.map((b) => b.toJson()).toList();
+      
+      _currentDraftId = await _draftCache.createDraft(
+        initialEmotion: widget.selectedEmotion,
+        initialReason: widget.selectedReason,
+        initialContent: _entryState.text,
+        initialMedia: mediaItems,
+        linkedEntryId: widget.existingEntry!.id,
+      );
+      
+      await _draftCache.updateDraftContentAndMedia(_entryState.text, mediaItems, lumaraBlocks: blocksJson);
+      await _draftCache.saveCurrentDraftImmediately();
+      debugPrint('JournalScreen: Created draft $_currentDraftId on app pause for entry ${widget.existingEntry!.id}');
+    } catch (e) {
+      debugPrint('JournalScreen: Failed to create draft on app pause: $e');
     }
   }
 
@@ -488,6 +521,14 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
       // Check if this is the first LUMARA activation (no existing blocks)
       final isFirstActivation = _entryState.blocks.isEmpty;
       
+      // Create a placeholder block index for first activation progress tracking
+      final firstActivationBlockIndex = -1; // Use -1 to indicate first activation
+      if (isFirstActivation) {
+        _lumaraLoadingStates[firstActivationBlockIndex] = true;
+        _lumaraLoadingMessages[firstActivationBlockIndex] = 'Preparing context...';
+        if (mounted) setState(() {});
+      }
+      
       String reflection;
       if (isFirstActivation) {
         // For first activation, use EnhancedLumaraApi to get full ECHO structure with expansion questions
@@ -501,7 +542,22 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
           chronoContext: richContext['chronoContext'],
           chatContext: richContext['chatContext'],
           mediaContext: richContext['mediaContext'],
+          onProgress: (message) {
+            if (mounted) {
+              setState(() {
+                _lumaraLoadingMessages[firstActivationBlockIndex] = message;
+              });
+            }
+          },
         );
+        
+        // Clear loading state for first activation
+        if (mounted) {
+          setState(() {
+            _lumaraLoadingStates.remove(firstActivationBlockIndex);
+            _lumaraLoadingMessages.remove(firstActivationBlockIndex);
+          });
+        }
       } else {
         // For subsequent activations, use the brief ArcLLM format
         reflection = await _arcLLM.chat(
@@ -719,15 +775,18 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
     // Sort indices in descending order to avoid index shifting issues
     final sortedIndices = _selectedPhotoIndices.toList()..sort((a, b) => b.compareTo(a));
     
-    // Collect photo IDs to remove from content
-    final photoIdsToRemove = <String>[];
+    // Count photos vs videos for message
+    int photoCount = 0;
+    int videoCount = 0;
     
     setState(() {
       for (final index in sortedIndices) {
         if (index < _entryState.attachments.length) {
           final attachment = _entryState.attachments[index];
-          if (attachment is PhotoAttachment && attachment.photoId != null) {
-            photoIdsToRemove.add(attachment.photoId!);
+          if (attachment is PhotoAttachment) {
+            photoCount++;
+          } else if (attachment is VideoAttachment) {
+            videoCount++;
           }
           _entryState.attachments.removeAt(index);
         }
@@ -736,12 +795,23 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
       _isPhotoSelectionMode = false;
     });
 
-    // No text placeholders to remove - photos are displayed as separate thumbnails
+    // Update draft if exists
+    if (_currentDraftId != null && (!widget.isViewOnly || _isEditMode)) {
+      final mediaItems = MediaConversionUtils.attachmentsToMediaItems(_entryState.attachments);
+      final blocksJson = _entryState.blocks.map((b) => b.toJson()).toList();
+      _draftCache.updateDraftContentAndMedia(_entryState.text, mediaItems, lumaraBlocks: blocksJson);
+    }
+
+    // Build confirmation message
+    final List<String> parts = [];
+    if (photoCount > 0) parts.add('$photoCount photo${photoCount == 1 ? '' : 's'}');
+    if (videoCount > 0) parts.add('$videoCount video${videoCount == 1 ? '' : 's'}');
+    final message = 'Deleted ${parts.join(' and ')}';
 
     // Show confirmation
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('Deleted ${sortedIndices.length} photo(s)'),
+        content: Text(message),
         duration: const Duration(seconds: 2),
       ),
     );
@@ -785,6 +855,13 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
     setState(() {
       _entryState.attachments.removeAt(photoIndex);
     });
+
+    // Update draft if exists
+    if (_currentDraftId != null && (!widget.isViewOnly || _isEditMode)) {
+      final mediaItems = MediaConversionUtils.attachmentsToMediaItems(_entryState.attachments);
+      final blocksJson = _entryState.blocks.map((b) => b.toJson()).toList();
+      _draftCache.updateDraftContentAndMedia(_entryState.text, mediaItems, lumaraBlocks: blocksJson);
+    }
 
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
@@ -1961,6 +2038,13 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
       _selectedPhotoIndices.remove(videoIndex);
     });
     
+    // Update draft if exists
+    if (_currentDraftId != null && (!widget.isViewOnly || _isEditMode)) {
+      final mediaItems = MediaConversionUtils.attachmentsToMediaItems(_entryState.attachments);
+      final blocksJson = _entryState.blocks.map((b) => b.toJson()).toList();
+      _draftCache.updateDraftContentAndMedia(_entryState.text, mediaItems, lumaraBlocks: blocksJson);
+    }
+    
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Text('Video deleted'),
@@ -3132,6 +3216,13 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
           toneMode: lumara_models.ToneMode.normal,
           preferQuestionExpansion: false,
         ),
+        onProgress: (message) {
+          if (mounted) {
+            setState(() {
+              _lumaraLoadingMessages[index] = message;
+            });
+          }
+        },
       );
 
       // Extract just the reflection text (remove "✨ Reflection\n\n" prefix if present)
@@ -3206,6 +3297,13 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
           regenerate: false,
           preferQuestionExpansion: false,
         ),
+        onProgress: (message) {
+          if (mounted) {
+            setState(() {
+              _lumaraLoadingMessages[index] = message;
+            });
+          }
+        },
       );
 
       // Extract just the reflection text (remove "✨ Reflection\n\n" prefix if present)
@@ -3280,6 +3378,13 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
           toneMode: lumara_models.ToneMode.normal,
           regenerate: false,
         ),
+        onProgress: (message) {
+          if (mounted) {
+            setState(() {
+              _lumaraLoadingMessages[index] = message;
+            });
+          }
+        },
       );
 
       // Extract just the reflection text (remove "✨ Reflection\n\n" prefix if present)
@@ -3453,6 +3558,13 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
           regenerate: false,
           preferQuestionExpansion: conversationMode == lumara_models.ConversationMode.reflectDeeply,
         ),
+        onProgress: (message) {
+          if (mounted) {
+            setState(() {
+              _lumaraLoadingMessages[newBlockIndex] = message;
+            });
+          }
+        },
       );
 
       // Extract just the reflection text (remove "✨ Reflection\n\n" prefix if present)
@@ -3579,6 +3691,13 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
     try {
       await _draftCache.initialize();
       
+      // Skip draft creation when editing existing entries - drafts created on app lifecycle only
+      // This prevents drafts from being created immediately when editing
+      if (widget.existingEntry != null && (_isEditMode || !widget.isViewOnly)) {
+        debugPrint('JournalScreen: Editing existing entry - no draft created initially (will create on app pause)');
+        return;
+      }
+      
       // Only create a draft if user is actively writing/editing (not just viewing)
       if (!widget.isViewOnly || _isEditMode) {
         // Link draft to existing entry if we're editing one
@@ -3606,8 +3725,16 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
       _isEditMode = true;
     });
     
-    // Initialize draft cache now that we're editing
-    _initializeDraftCache();
+    // When switching to edit mode on an existing entry, don't create draft initially
+    // Draft will be created on app lifecycle events (pause/resume) or crashes
+    if (widget.existingEntry != null) {
+      debugPrint('JournalScreen: Switched to edit mode for existing entry - no draft created initially');
+      // Just initialize the cache without creating a draft
+      _draftCache.initialize();
+    } else {
+      // For new entries, create draft normally
+      _initializeDraftCache();
+    }
     
     debugPrint('JournalScreen: Switched to edit mode');
   }

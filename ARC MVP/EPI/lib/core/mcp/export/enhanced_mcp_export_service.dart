@@ -13,6 +13,7 @@ import 'ndjson_writer.dart';
 import 'manifest_builder.dart';
 import 'checksum_utils.dart';
 import 'package:my_app/lumara/chat/chat_repo.dart';
+import 'package:my_app/lumara/chat/enhanced_chat_repo.dart';
 import 'package:my_app/models/journal_entry_model.dart';
 import 'package:my_app/data/models/media_item.dart';
 import 'package:my_app/core/services/draft_cache_service.dart';
@@ -169,6 +170,41 @@ class EnhancedMcpExportService {
       // Get all chat sessions
       final sessions = await chatRepo!.listAll();
       
+      // Check if we have EnhancedChatRepo to export categories
+      final enhancedRepo = chatRepo is EnhancedChatRepo ? chatRepo as EnhancedChatRepo : null;
+      final categoryMap = <String, String>{}; // categoryId -> MCP node ID
+      
+      // Export categories if EnhancedChatRepo is available
+      if (enhancedRepo != null) {
+        try {
+          final categories = await enhancedRepo.getCategories();
+          for (final category in categories) {
+            // Create category node (stored in metadata)
+            final categoryNodeId = 'cat_${category.id}';
+            categoryMap[category.id] = categoryNodeId;
+            // Store category data in node metadata for import
+            final categoryNode = McpNodeFactory.createEdge(
+              source: categoryNodeId,
+              target: categoryNodeId, // Self-reference to store category data
+              relation: 'category_metadata',
+              timestamp: category.createdAt != null ? category.createdAt! : DateTime.now(),
+              metadata: {
+                'category_id': category.id,
+                'name': category.name,
+                'description': category.description,
+                'color': category.color,
+                'icon': category.icon,
+                'sort_order': category.sortOrder,
+              },
+            );
+            edges.add(categoryNode);
+          }
+          print('📁 Chat Export: Exported ${categories.length} categories');
+        } catch (e) {
+          print('⚠️ Chat Export: Failed to export categories: $e');
+        }
+      }
+      
       for (final session in sessions) {
         // Skip archived sessions if not requested
         if (session.isArchived && !includeArchived) continue;
@@ -176,6 +212,28 @@ class EnhancedMcpExportService {
         // Create chat session node
         final sessionNode = McpNodeFactory.fromLumaraChatSession(session);
         nodes.add(sessionNode);
+
+        // Export category assignment if EnhancedChatRepo is available
+        if (enhancedRepo != null) {
+          try {
+            final sessionCategory = await enhancedRepo.getSessionCategory(session.id);
+            if (sessionCategory != null) {
+              final categoryNodeId = categoryMap[sessionCategory.id];
+              if (categoryNodeId != null) {
+                // Create edge linking session to category
+                final categoryEdge = McpNodeFactory.createEdge(
+                  source: sessionNode.id,
+                  target: categoryNodeId,
+                  relation: 'belongs_to_category',
+                  timestamp: DateTime.now(),
+                );
+                edges.add(categoryEdge);
+              }
+            }
+          } catch (e) {
+            print('⚠️ Chat Export: Failed to export category for session ${session.id}: $e');
+          }
+        }
 
         // Get messages for this session
         final messages = await chatRepo!.getMessages(session.id);

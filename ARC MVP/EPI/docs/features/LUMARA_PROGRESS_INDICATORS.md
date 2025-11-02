@@ -16,9 +16,9 @@ Real-time progress messages displayed within reflection blocks during API calls:
 
 1. **Context Preparation** → "Preparing context..."
 2. **History Analysis** → "Analyzing your journal history..."
-3. **API Call** → "Calling Gemini API..." (shows actual provider name)
+3. **API Call** → "Calling cloud API..."
 4. **Response Processing** → "Processing response..."
-5. **Retry (if needed)** → "Retrying Gemini API... (X/2)"
+5. **Retry (if needed)** → "Retrying API... (X/2)"
 6. **Finalization** → "Finalizing insights..."
 
 ### LUMARA Chat Progress Indicators
@@ -45,7 +45,7 @@ Future<String> generatePromptedReflection({
 }) async {
   onProgress?.call('Preparing context...');
   // ... processing ...
-  onProgress?.call('Calling ${_llmProvider!.name} API...');
+  onProgress?.call('Calling cloud API...');
   // ... API call ...
   onProgress?.call('Processing response...');
   // ... finalization ...
@@ -113,7 +113,7 @@ Future<String> generatePromptedReflectionV23({
   // Progress reporting at key stages:
   onProgress?.call('Preparing context...');
   onProgress?.call('Analyzing your journal history...');
-  onProgress?.call('Calling ${_llmProvider!.name} API...');
+  onProgress?.call('Calling cloud API...');
   onProgress?.call('Processing response...');
   onProgress?.call('Finalizing insights...');
 }
@@ -129,15 +129,15 @@ Future<String> generatePromptedReflectionV23({
    - Triggered during similarity scoring and node ranking
    - Indicates semantic search phase
 
-3. **API Call** (`onProgress?.call('Calling ${_llmProvider!.name} API...')`)
+3. **API Call** (`onProgress?.call('Calling cloud API...')`)
    - Triggered before making HTTP request to cloud API
-   - Shows which provider is being used (Gemini, OpenAI, etc.)
+   - Generic message that works for all providers (Gemini, OpenAI, Anthropic, etc.)
 
 4. **Response Processing** (`onProgress?.call('Processing response...')`)
    - Triggered after receiving API response
    - Indicates response parsing and formatting phase
 
-5. **Retry** (`onProgress?.call('Retrying ${_llmProvider!.name} API... (X/2)')`)
+5. **Retry** (`onProgress?.call('Retrying API... (X/2)')`)
    - Triggered when API call fails and retry is attempted
    - Shows retry attempt number (up to 2 retries)
 
@@ -276,7 +276,7 @@ All chat messages trigger progress indicators:
 ### API Failures
 
 When API calls fail:
-- Progress messages show retry attempts: "Retrying Gemini API... (1/2)"
+- Progress messages show retry attempts: "Retrying API... (1/2)"
 - After max retries, progress indicator is cleared
 - Error message is displayed to user
 - Loading state is reset
@@ -294,7 +294,7 @@ When no provider is available:
 1. Tap LUMARA FAB button
 2. ✅ Progress shows: "Preparing context..."
 3. ✅ Progress updates: "Analyzing your journal history..."
-4. ✅ Progress updates: "Calling Gemini API..."
+4. ✅ Progress updates: "Calling cloud API..."
 5. ✅ Progress updates: "Processing response..."
 6. ✅ Progress updates: "Finalizing insights..."
 7. ✅ Reflection appears with loading cleared
@@ -313,14 +313,14 @@ When no provider is available:
 
 ### Test 4: Retry Handling
 1. Trigger API call with network issues
-2. ✅ Progress shows: "Retrying Gemini API... (1/2)"
-3. ✅ Progress shows: "Retrying Gemini API... (2/2)" if needed
+2. ✅ Progress shows: "Retrying API... (1/2)"
+3. ✅ Progress shows: "Retrying API... (2/2)" if needed
 4. ✅ Error shown if all retries fail
 
 ### Test 5: Provider Selection
 1. Configure multiple providers (Gemini, OpenAI)
-2. ✅ Progress shows: "Calling Google Gemini API..." (prioritized)
-3. ✅ Falls back to other provider if Gemini unavailable
+2. ✅ Progress shows: "Calling cloud API..." (generic for all providers)
+3. ✅ Falls back to other provider if primary unavailable
 
 ## Files Modified
 

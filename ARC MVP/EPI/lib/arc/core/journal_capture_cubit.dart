@@ -32,6 +32,7 @@ import 'package:my_app/mode/first_responder/fr_mode_suggestion_service.dart';
 import 'package:my_app/mode/first_responder/fr_settings_cubit.dart';
 import 'package:my_app/core/services/draft_cache_service.dart';
 import 'package:my_app/core/services/journal_version_service.dart';
+import 'package:my_app/core/services/photo_library_service.dart';
 import 'package:my_app/platform/photo_bridge.dart';
 
 class JournalCaptureCubit extends Cubit<JournalCaptureState> {
@@ -382,10 +383,11 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
         }
       }
       
-      // Process photos to permanent storage before saving entry
+      // Process photos and videos to permanent storage before saving entry
       List<MediaItem> processedMedia = [];
       if (media != null && media.isNotEmpty) {
         for (final mediaItem in media) {
+          // Process photos
           if (mediaItem.type == MediaType.image && !mediaItem.uri.contains('/photos/')) {
             // Get photo bytes from ph:// URI or file path
             Uint8List? bytes;
@@ -440,14 +442,106 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
               print('ERROR: Could not get bytes for photo ${mediaItem.id}, keeping original URI');
               processedMedia.add(mediaItem);
             }
+          } 
+          // Process videos
+          else if (mediaItem.type == MediaType.video && !mediaItem.uri.contains('/videos/')) {
+            try {
+              final videoFile = File(mediaItem.uri);
+              if (await videoFile.exists()) {
+                // Compute hash of video file
+                final bytes = await videoFile.readAsBytes();
+                final digest = sha256.convert(bytes);
+                final hash = digest.toString();
+                
+                // Determine file extension from original file
+                final extension = mediaItem.uri.split('.').last.toLowerCase();
+                final videoExtension = ['mp4', 'mov', 'avi', 'mkv'].contains(extension) ? extension : 'mp4';
+                
+                final appDir = await getApplicationDocumentsDirectory();
+                final fileName = '$hash.$videoExtension';
+                final permanentDir = '${appDir.path}/videos';
+                await Directory(permanentDir).create(recursive: true);
+                final permanentPath = '$permanentDir/$fileName';
+                
+                // Copy video file to permanent storage
+                await videoFile.copy(permanentPath);
+                
+                // Create new MediaItem with permanent path
+                final processedItem = mediaItem.copyWith(
+                  uri: permanentPath,
+                  sha256: hash,
+                );
+                
+                processedMedia.add(processedItem);
+                print('DEBUG: Saved video to permanent storage: $permanentPath');
+              } else {
+                print('ERROR: Video file does not exist: ${mediaItem.uri}');
+                // Keep original media item if file doesn't exist
+                processedMedia.add(mediaItem);
+              }
+            } catch (e) {
+              print('ERROR: Failed to save video to permanent storage: $e');
+              // Keep original media item if saving fails
+              processedMedia.add(mediaItem);
+            }
           } else {
-            // Already in permanent storage or not a photo
+            // Already in permanent storage or not a photo/video
             processedMedia.add(mediaItem);
           }
         }
       }
       
-      final now = DateTime.now();
+      // Extract photo dates and adjust entry date to match latest photo
+      DateTime entryDate = DateTime.now();
+      Duration? dateOffset;
+      final photoDates = <DateTime>[];
+      
+      // Extract dates from photos
+      for (final mediaItem in processedMedia) {
+        if (mediaItem.type == MediaType.image) {
+          DateTime? photoDate;
+          
+          // Try to get date from photo metadata if available
+          if (mediaItem.uri.startsWith('ph://')) {
+            try {
+              final metadata = await PhotoLibraryService.getPhotoMetadata(mediaItem.uri);
+              if (metadata?.creationDate != null) {
+                photoDate = metadata!.creationDate!;
+                photoDates.add(photoDate);
+              }
+            } catch (e) {
+              print('DEBUG: Could not get photo metadata for ${mediaItem.uri}: $e');
+            }
+          }
+          
+          // Fallback to mediaItem.createdAt if no metadata
+          if (photoDate == null && mediaItem.createdAt != null) {
+            photoDate = mediaItem.createdAt!;
+            photoDates.add(photoDate);
+          }
+        }
+      }
+      
+      // If we have photo dates, use the latest one as entry date
+      if (photoDates.isNotEmpty) {
+        photoDates.sort((a, b) => b.compareTo(a)); // Latest first
+        final latestPhotoDateUtc = photoDates.first;
+        
+        // Convert photo date from UTC to local time (iOS returns dates in UTC)
+        // DateTime.parse from ISO8601 may preserve UTC, so convert to local
+        final latestPhotoDateLocal = latestPhotoDateUtc.isUtc 
+            ? latestPhotoDateUtc.toLocal() 
+            : latestPhotoDateUtc;
+        
+        final originalEntryDate = DateTime.now(); // Already in local time
+        dateOffset = latestPhotoDateLocal.difference(originalEntryDate);
+        entryDate = latestPhotoDateLocal;
+        
+        print('DEBUG: Photo date (UTC): $latestPhotoDateUtc');
+        print('DEBUG: Photo date (local): $latestPhotoDateLocal');
+        print('DEBUG: Adjusted entry date to match latest photo: $entryDate (offset: ${dateOffset.inHours} hours ${dateOffset.inMinutes.remainder(60)} minutes)');
+      }
+      
       // Save LUMARA blocks to metadata
       final metadata = blocks != null && blocks.isNotEmpty
           ? {'inlineBlocks': blocks}
@@ -457,8 +551,8 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
         id: const Uuid().v4(),
         title: _generateTitle(content),
         content: content,
-        createdAt: now,
-        updatedAt: now,
+        createdAt: entryDate,
+        updatedAt: entryDate,
         tags: const [],
         mood: mood,
         audioUri: _audioPath,
@@ -473,6 +567,40 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
 
       // Save the entry first
       await _journalRepository.createJournalEntry(entry);
+
+      // Adjust dates of other entries by the same offset if we have one
+      if (dateOffset != null && dateOffset != Duration.zero) {
+        try {
+          final allEntries = _journalRepository.getAllJournalEntries();
+          // Exclude the entry we just created
+          final otherEntries = allEntries.where((e) => e.id != entry.id).toList();
+          
+          for (final otherEntry in otherEntries) {
+            final newDate = otherEntry.createdAt.add(dateOffset);
+            final updatedEntry = JournalEntry(
+              id: otherEntry.id,
+              title: otherEntry.title,
+              content: otherEntry.content,
+              createdAt: newDate,
+              updatedAt: otherEntry.updatedAt,
+              tags: otherEntry.tags,
+              mood: otherEntry.mood,
+              audioUri: otherEntry.audioUri,
+              keywords: otherEntry.keywords,
+              emotion: otherEntry.emotion,
+              emotionReason: otherEntry.emotionReason,
+              media: otherEntry.media,
+              sageAnnotation: otherEntry.sageAnnotation,
+              metadata: otherEntry.metadata,
+            );
+            await _journalRepository.updateJournalEntry(updatedEntry);
+          }
+          print('DEBUG: Adjusted ${otherEntries.length} entries by offset ${dateOffset.inHours} hours');
+        } catch (e) {
+          print('ERROR: Failed to adjust other entry dates: $e');
+          // Continue even if this fails - the main entry is saved
+        }
+      }
 
       // Emit saved state immediately - don't wait for background processing
       emit(JournalCaptureSaved());
