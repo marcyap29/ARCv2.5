@@ -138,6 +138,13 @@ class RivetService {
     _eventHistory.add(event);
     _stateHistory.add(updatedState);
 
+    // Calculate phase transition insights
+    final transitionInsights = _calculatePhaseTransitionInsights(
+      currentPhase: event.refPhase,
+      eventHistory: _eventHistory,
+      updatedState: updatedState,
+    );
+
     // Log gate decision for debugging
     print('DEBUG RIVET: ALIGN=${newAlign.toStringAsFixed(3)}, '
           'TRACE=${newTrace.toStringAsFixed(3)}, '
@@ -149,6 +156,7 @@ class RivetService {
       open: gateOpen,
       stateAfter: updatedState,
       whyNot: whyNot,
+      transitionInsights: transitionInsights,
     );
   }
   
@@ -264,5 +272,160 @@ class RivetService {
   /// Get gate explanation (alias for getStatusSummary)
   String getGateExplanation() {
     return getStatusSummary();
+  }
+
+  /// Calculate phase transition insights from event history
+  PhaseTransitionInsights? _calculatePhaseTransitionInsights({
+    required String currentPhase,
+    required List<RivetEvent> eventHistory,
+    required RivetState updatedState,
+  }) {
+    if (eventHistory.length < 3) {
+      // Need at least a few events to detect transitions
+      return null;
+    }
+
+    // Analyze phase distribution in recent events
+    final recentEvents = eventHistory.length > 10 
+        ? eventHistory.sublist(eventHistory.length - 10) 
+        : eventHistory;
+    
+    final phaseCounts = <String, int>{};
+    final phaseConfidences = <String, List<double>>{};
+    
+    for (final event in recentEvents) {
+      final pred = event.predPhase;
+      phaseCounts[pred] = (phaseCounts[pred] ?? 0) + 1;
+      
+      // Calculate confidence based on alignment with ref phase
+      final confidence = (pred == event.refPhase) ? 1.0 : 0.5;
+      phaseConfidences[pred] = (phaseConfidences[pred] ?? [])..add(confidence);
+    }
+
+    // Find most common approaching phase (different from current)
+    String? approachingPhase;
+    double maxApproachConfidence = 0.0;
+    
+    for (final entry in phaseCounts.entries) {
+      if (entry.key != currentPhase) {
+        final avgConfidence = phaseConfidences[entry.key] != null
+            ? phaseConfidences[entry.key]!.reduce((a, b) => a + b) / phaseConfidences[entry.key]!.length
+            : 0.5;
+        final approachScore = (entry.value / recentEvents.length) * avgConfidence;
+        
+        if (approachScore > maxApproachConfidence) {
+          maxApproachConfidence = approachScore;
+          approachingPhase = entry.key;
+        }
+      }
+    }
+
+    // Calculate shift percentage based on recent trends
+    double shiftPercentage = 0.0;
+    TransitionDirection direction = TransitionDirection.stable;
+    
+    if (approachingPhase != null) {
+      // Compare early vs recent events in window
+      final midPoint = recentEvents.length ~/ 2;
+      final earlyPhases = recentEvents.sublist(0, midPoint).map((e) => e.predPhase).toList();
+      final recentPhases = recentEvents.sublist(midPoint).map((e) => e.predPhase).toList();
+      
+      final earlyApproachCount = earlyPhases.where((p) => p == approachingPhase).length;
+      final recentApproachCount = recentPhases.where((p) => p == approachingPhase).length;
+      
+      final earlyPercent = earlyPhases.isEmpty ? 0.0 : (earlyApproachCount / earlyPhases.length) * 100;
+      final recentPercent = recentPhases.isEmpty ? 0.0 : (recentApproachCount / recentPhases.length) * 100;
+      
+      shiftPercentage = (recentPercent - earlyPercent).abs();
+      direction = recentPercent > earlyPercent 
+          ? TransitionDirection.toward 
+          : (recentPercent < earlyPercent ? TransitionDirection.away : TransitionDirection.stable);
+    }
+
+    // Generate measurable signs
+    final measurableSigns = _generateMeasurableSigns(
+      currentPhase: currentPhase,
+      approachingPhase: approachingPhase,
+      shiftPercentage: shiftPercentage,
+      direction: direction,
+      updatedState: updatedState,
+      phaseCounts: phaseCounts,
+    );
+
+    // Calculate contributing metrics
+    final contributingMetrics = <String, double>{
+      'align_score': updatedState.align,
+      'trace_score': updatedState.trace,
+      'sustainment': updatedState.sustainCount / W.toDouble(),
+      'phase_diversity': phaseCounts.length.toDouble(),
+      'transition_momentum': shiftPercentage / 100.0,
+    };
+
+    // Transition confidence based on ALIGN, TRACE, and phase consistency
+    final transitionConfidence = (updatedState.align * 0.4 + 
+                                  updatedState.trace * 0.3 + 
+                                  (approachingPhase != null ? maxApproachConfidence : 0.0) * 0.3).clamp(0.0, 1.0);
+
+    return PhaseTransitionInsights(
+      currentPhase: currentPhase,
+      approachingPhase: approachingPhase,
+      shiftPercentage: shiftPercentage,
+      measurableSigns: measurableSigns,
+      transitionConfidence: transitionConfidence,
+      direction: direction,
+      contributingMetrics: contributingMetrics,
+    );
+  }
+
+  /// Generate measurable signs of intelligence growing
+  List<String> _generateMeasurableSigns({
+    required String currentPhase,
+    String? approachingPhase,
+    required double shiftPercentage,
+    required TransitionDirection direction,
+    required RivetState updatedState,
+    required Map<String, int> phaseCounts,
+  }) {
+    final signs = <String>[];
+    
+    // Primary shift sign
+    if (approachingPhase != null && shiftPercentage > 5.0) {
+      final percentage = shiftPercentage.toStringAsFixed(0);
+      signs.add('Your reflection patterns have shifted $percentage% toward $approachingPhase.');
+    }
+
+    // ALIGN-based signs
+    if (updatedState.align > 0.7) {
+      final alignPercent = (updatedState.align * 100).toStringAsFixed(0);
+      signs.add('Phase predictions align $alignPercent% with your confirmed experiences.');
+    }
+
+    // TRACE-based signs
+    if (updatedState.trace > 0.6) {
+      final tracePercent = (updatedState.trace * 100).toStringAsFixed(0);
+      signs.add('Evidence accumulation is $tracePercent% complete for phase validation.');
+    }
+
+    // Phase diversity signs
+    if (phaseCounts.length >= 3) {
+      signs.add('Your patterns show engagement across ${phaseCounts.length} different phase contexts.');
+    }
+
+    // Sustainment signs
+    if (updatedState.sustainCount >= W - 1) {
+      signs.add('Phase indicators have been consistent across ${updatedState.sustainCount} recent entries.');
+    }
+
+    // Keyword novelty (if we can track it)
+    if (updatedState.sawIndependentInWindow) {
+      signs.add('Recent reflections show independent validation across different contexts.');
+    }
+
+    // Transition momentum
+    if (direction == TransitionDirection.toward && shiftPercentage > 10.0) {
+      signs.add('Transition momentum toward $approachingPhase is building with ${shiftPercentage.toStringAsFixed(0)}% shift.');
+    }
+
+    return signs;
   }
 }

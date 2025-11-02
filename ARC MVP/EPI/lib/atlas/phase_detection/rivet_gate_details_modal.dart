@@ -10,6 +10,7 @@ class RivetGateDetailsModal extends StatelessWidget {
   final double alignThreshold;
   final double traceThreshold;
   final int sustainTarget;
+  final PhaseTransitionInsights? transitionInsights;
 
   const RivetGateDetailsModal({
     super.key,
@@ -17,6 +18,7 @@ class RivetGateDetailsModal extends StatelessWidget {
     this.alignThreshold = 0.6,
     this.traceThreshold = 0.6,
     this.sustainTarget = 2,
+    this.transitionInsights,
   });
 
   @override
@@ -169,6 +171,73 @@ class RivetGateDetailsModal extends StatelessWidget {
                 ],
               ),
             ),
+            
+            // Phase transition insights (if available)
+            if (transitionInsights != null) ...[
+              const SizedBox(height: 24),
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.purple.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: Colors.purple.withOpacity(0.3),
+                  ),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons.trending_up,
+                          color: Colors.purple,
+                          size: 20,
+                        ),
+                        const SizedBox(width: 12),
+                        Text(
+                          'Phase Transition Insights',
+                          style: bodyStyle(context).copyWith(
+                            color: Colors.purple,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      transitionInsights!.getPrimaryInsight(),
+                      style: bodyStyle(context).copyWith(
+                        color: kcPrimaryTextColor,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    if (transitionInsights!.measurableSigns.isNotEmpty) ...[
+                      const SizedBox(height: 12),
+                      ...transitionInsights!.measurableSigns.take(3).map((sign) => Padding(
+                        padding: const EdgeInsets.only(bottom: 8),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text('• ', style: TextStyle(color: Colors.purple)),
+                            Expanded(
+                              child: Text(
+                                sign,
+                                style: bodyStyle(context).copyWith(
+                                  color: kcSecondaryTextColor,
+                                  fontSize: 13,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      )),
+                    ],
+                  ],
+                ),
+              ),
+            ],
             
             // Nudge footer (only when held/almost)
             if (!ready) ...[

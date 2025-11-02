@@ -199,8 +199,22 @@ class SentinelRiskDetector {
     // Generate recommendations
     final recommendations = _generateRecommendations(riskLevel, patterns, metrics);
 
-    // Generate summary with source breakdown
+    // Generate summary with source breakdown and phase-approaching context
     final summary = _generateSummaryWithSources(riskLevel, riskScore, patterns, metrics, filteredEntries);
+    
+    // Add phase-approaching insights to analysis
+    final phaseInsights = _analyzePhaseTransitions(filteredEntries, riskScore);
+    if (phaseInsights.isNotEmpty) {
+      metrics['phase_transition_insights'] = phaseInsights;
+      
+      // Add phase-aware recommendations
+      final phaseRecommendations = _generatePhaseAwareRecommendations(
+        riskLevel, 
+        patterns, 
+        phaseInsights,
+      );
+      recommendations.addAll(phaseRecommendations);
+    }
 
     return SentinelAnalysis(
       riskLevel: riskLevel,
@@ -1220,5 +1234,160 @@ class SentinelRiskDetector {
     buffer.writeln('  • High Confidence Entries: ${(highConfidenceRatio * 100).toStringAsFixed(1)}%');
 
     return buffer.toString();
+  }
+
+  /// Analyze phase transitions in context of emotional risk
+  static Map<String, dynamic> _analyzePhaseTransitions(
+    List<ReflectiveEntryData> entries,
+    double riskScore,
+  ) {
+    if (entries.isEmpty) return {};
+
+    // Track phase distribution
+    final phaseCounts = <String, int>{};
+    final phaseRiskScores = <String, List<double>>{};
+    
+    for (final entry in entries) {
+      final phase = entry.phase;
+      phaseCounts[phase] = (phaseCounts[phase] ?? 0) + 1;
+      
+      // Calculate risk per phase (based on keyword amplitudes)
+      final entryRisk = entry.keywords.isEmpty 
+          ? 0.0 
+          : entry.keywords.map((kw) {
+              final amp = EnhancedKeywordExtractor.emotionAmplitudeMap[kw.toLowerCase()] ?? 0.0;
+              return amp;
+            }).reduce((a, b) => a > b ? a : b);
+      
+      phaseRiskScores[phase] = (phaseRiskScores[phase] ?? [])..add(entryRisk);
+    }
+
+    // Find current and approaching phases
+    String? currentPhase;
+    String? approachingPhase;
+    int maxCount = 0;
+    
+    for (final entry in phaseCounts.entries) {
+      if (entry.value > maxCount) {
+        maxCount = entry.value;
+        currentPhase = entry.key;
+      }
+    }
+
+    // Find phase with increasing risk/activity (approaching phase)
+    double maxApproachScore = 0.0;
+    for (final entry in phaseCounts.entries) {
+      if (entry.key != currentPhase && phaseRiskScores[entry.key] != null) {
+        final avgRisk = phaseRiskScores[entry.key]!.reduce((a, b) => a + b) / 
+                       phaseRiskScores[entry.key]!.length;
+        final approachScore = (entry.value / entries.length) * avgRisk;
+        
+        if (approachScore > maxApproachScore) {
+          maxApproachScore = approachScore;
+          approachingPhase = entry.key;
+        }
+      }
+    }
+
+    // Calculate shift percentage
+    double shiftPercentage = 0.0;
+    final measurableSigns = <String>[];
+    
+    if (approachingPhase != null && currentPhase != null) {
+      final approachCount = phaseCounts[approachingPhase] ?? 0;
+      
+      if (entries.length > 5) {
+        // Compare early vs recent entries
+        final midPoint = entries.length ~/ 2;
+        final earlyCurrentCount = entries.sublist(0, midPoint)
+            .where((e) => e.phase == currentPhase).length;
+        final recentApproachCount = entries.sublist(midPoint)
+            .where((e) => e.phase == approachingPhase).length;
+        
+        final earlyCurrentPercent = earlyCurrentCount / midPoint;
+        final recentApproachPercent = recentApproachCount / (entries.length - midPoint);
+        
+        shiftPercentage = (recentApproachPercent - (1 - earlyCurrentPercent)) * 100;
+      } else {
+        // Simple percentage based on counts
+        shiftPercentage = (approachCount / entries.length) * 100;
+      }
+
+      // Generate measurable signs
+      if (shiftPercentage > 5.0) {
+        measurableSigns.add(
+          'Your reflection patterns have shifted ${shiftPercentage.toStringAsFixed(0)}% toward $approachingPhase.');
+      }
+      
+      // Phase-specific risk insights
+      if (riskScore > 0.5) {
+        final riskPercent = (riskScore * 100).toStringAsFixed(0);
+        measurableSigns.add(
+          'Elevated emotional intensity ($riskPercent%%) observed during transition toward $approachingPhase.');
+      }
+      
+      // Phase-emotion alignment insights
+      if (approachingPhase == 'Recovery' && riskScore > 0.4) {
+        measurableSigns.add(
+          'Recovery phase indicators align with elevated distress signals—appropriate for healing phase.');
+      } else if (approachingPhase == 'Expansion' && riskScore > 0.6) {
+        measurableSigns.add(
+          'High emotional intensity during Expansion transition suggests need for balance.');
+      }
+    }
+
+    return {
+      'current_phase': currentPhase,
+      'approaching_phase': approachingPhase,
+      'shift_percentage': shiftPercentage.abs(),
+      'phase_risk_alignment': riskScore,
+      'measurable_signs': measurableSigns,
+      'phase_distribution': phaseCounts,
+    };
+  }
+
+  /// Generate phase-aware recommendations based on risk and phase context
+  static List<String> _generatePhaseAwareRecommendations(
+    RiskLevel riskLevel,
+    List<RiskPattern> patterns,
+    Map<String, dynamic> phaseInsights,
+  ) {
+    final recommendations = <String>[];
+    
+    final approachingPhase = phaseInsights['approaching_phase'] as String?;
+    final shiftPercentage = (phaseInsights['shift_percentage'] as num?)?.toDouble() ?? 0.0;
+    final measurableSigns = phaseInsights['measurable_signs'] as List<dynamic>? ?? [];
+    
+    if (approachingPhase != null && shiftPercentage > 10.0) {
+      recommendations.add(
+        '📊 Phase Transition: You\'re ${shiftPercentage.toStringAsFixed(0)}% toward $approachingPhase phase.');
+      
+      // Phase-specific guidance
+      switch (approachingPhase) {
+        case 'Recovery':
+          if (riskLevel == RiskLevel.elevated || riskLevel == RiskLevel.high) {
+            recommendations.add(
+              '🛡️ Recovery phase with elevated distress: Prioritize self-care and consider professional support.');
+          }
+          break;
+        case 'Expansion':
+          if (riskLevel == RiskLevel.moderate || riskLevel == RiskLevel.elevated) {
+            recommendations.add(
+              '⚡ Expansion transition with stress: Balance growth goals with emotional sustainability.');
+          }
+          break;
+        case 'Transition':
+          recommendations.add(
+            '🔄 Transition phase detected: Expect uncertainty and allow space for change.');
+          break;
+      }
+      
+      // Add measurable signs as context
+      if (measurableSigns.isNotEmpty) {
+        recommendations.add('💡 Insight: ${measurableSigns[0]}');
+      }
+    }
+    
+    return recommendations;
   }
 }

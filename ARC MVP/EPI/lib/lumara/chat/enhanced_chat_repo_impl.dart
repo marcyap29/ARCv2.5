@@ -275,8 +275,77 @@ class EnhancedChatRepoImpl implements EnhancedChatRepo {
       await _sessionCategoryBox.put(sessionCategory.sessionId, sessionCategory);
     }
     
-    // Import sessions and messages would be handled by the base repo
-    // This is a simplified implementation
+    // Import sessions and messages
+    print('📱 Chat Import: Importing ${data.sessions.length} sessions, ${data.messages.length} messages');
+    
+    // Map to track original session IDs to new session IDs
+    final sessionIdMap = <String, String>{};
+    
+    // First, import all sessions
+    for (final session in data.sessions) {
+      try {
+        // Create new session with same subject and tags
+        final newSessionId = await _baseRepo.createSession(
+          subject: session.subject,
+          tags: session.tags,
+        );
+        
+        // Map original ID to new ID
+        sessionIdMap[session.id] = newSessionId;
+        
+        // Set additional properties if needed
+        if (session.isPinned) {
+          await _baseRepo.pinSession(newSessionId, true);
+        }
+        if (session.isArchived) {
+          await _baseRepo.archiveSession(newSessionId, true);
+        }
+        
+        print('✅ Chat Import: Imported session "${session.subject}" (${session.id} -> $newSessionId)');
+      } catch (e) {
+        print('❌ Chat Import: Failed to import session "${session.subject}": $e');
+      }
+    }
+    
+    // Then, import all messages (grouped by session)
+    final messagesBySession = <String, List<ChatMessage>>{};
+    for (final message in data.messages) {
+      if (!messagesBySession.containsKey(message.sessionId)) {
+        messagesBySession[message.sessionId] = [];
+      }
+      messagesBySession[message.sessionId]!.add(message);
+    }
+    
+    // Import messages for each session in order
+    for (final entry in messagesBySession.entries) {
+      final originalSessionId = entry.key;
+      final newSessionId = sessionIdMap[originalSessionId];
+      
+      if (newSessionId == null) {
+        print('⚠️ Chat Import: No mapped session ID for $originalSessionId, skipping ${entry.value.length} messages');
+        continue;
+      }
+      
+      // Sort messages by creation time to maintain order
+      entry.value.sort((a, b) => a.createdAt.compareTo(b.createdAt));
+      
+      // Import messages in order
+      for (final message in entry.value) {
+        try {
+          await _baseRepo.addMessage(
+            sessionId: newSessionId,
+            role: message.role,
+            content: message.content,
+          );
+        } catch (e) {
+          print('❌ Chat Import: Failed to import message to session $newSessionId: $e');
+        }
+      }
+      
+      print('✅ Chat Import: Imported ${entry.value.length} messages to session $newSessionId');
+    }
+    
+    print('✅ Chat Import: Import complete - ${sessionIdMap.length} sessions, ${data.messages.length} messages');
   }
 
   @override

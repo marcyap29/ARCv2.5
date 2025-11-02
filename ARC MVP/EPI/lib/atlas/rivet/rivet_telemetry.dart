@@ -51,6 +51,17 @@ class RivetTelemetry {
       if (!decision.open && decision.whyNot != null) {
         print('RIVET REASON: ${decision.whyNot}');
       }
+
+      // Log phase transition insights
+      if (decision.transitionInsights != null) {
+        final insights = decision.transitionInsights!;
+        print('RIVET PHASE INSIGHTS: ${insights.getPrimaryInsight()}');
+        if (insights.measurableSigns.isNotEmpty) {
+          for (final sign in insights.measurableSigns.take(2)) {
+            print('  • $sign');
+          }
+        }
+      }
     }
   }
 
