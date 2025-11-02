@@ -1,10 +1,11 @@
 # Bug Tracker - Current Status
 
-**Last Updated:** October 31, 2025
-**Branch:** photo-gallery-scroll
-**Status:** Production Ready ✅ - ARCX Export Photo Fix, Photo Gallery Scroll Feature Complete, ARCX Image Loading Fixed, Secure Archive System Complete, MediaItem Adapter Registration Fixed, Photo Duplication Fixed, Infinite Rebuild Loop Fixed, Hive Initialization Order Fixed, Insights Tab UI Enhancements Complete
+**Last Updated:** November 2, 2025
+**Branch:** phase-analysis-updates
+**Status:** Production Ready ✅ - ARCX Import Date Preservation Fix, LUMARA Navigation Enhancement, Phase Transition UI Fixes, Settings Cleanup, Export/Import Chat Support Complete
 
 ## Records Index
+- [ARCX Import Date Preservation Fix](./records/arcx-import-date-preservation.md)
 - [ARCX Export Photo Directory Mismatch](./records/arcx-export-photo-directory-mismatch.md)
 - [Timeline Infinite Rebuild Loop](./records/timeline-infinite-rebuild-loop.md)
 - [Hive Initialization Order Errors](./records/hive-initialization-order.md)
@@ -30,6 +31,31 @@
 - Historical notes moved to `docs/bugtracker/archive/` (including legacy `Bug_Tracker Files/`).
 
 ## 📊 Current Status
+
+### 🐛 ARCX Import Date Preservation Fix (November 2, 2025)
+**Fixed critical issue where ARCX imports were changing entry creation dates:**
+- **Problem**: Import service was falling back to `DateTime.now()` when timestamp parsing failed, corrupting entry dates
+- **Root Cause**: 
+  - Timestamp parsing failures silently used current time instead of preserving original dates
+  - No duplicate detection - existing entries were overwritten with potentially different dates
+- **Impact**: 
+  - Entry dates were being changed during import
+  - Chronological order became incorrect after imports
+  - Original entry timestamps were lost
+- **Solution**: 
+  - Enhanced timestamp parsing with multiple fallback strategies
+  - Removed `DateTime.now()` fallback for entry dates (preserves data integrity)
+  - Added duplicate entry detection - skips existing entries to preserve original dates
+  - Entries with unparseable timestamps are skipped rather than imported with wrong dates
+  - Comprehensive logging for debugging timestamp issues
+- **Technical Fix**:
+  - Modified `_parseTimestamp()` to never use `DateTime.now()` as fallback
+  - Added duplicate detection before importing entries
+  - Enhanced error handling to skip entries with invalid timestamps
+- **Files Modified**: 
+  - `lib/arcx/services/arcx_import_service.dart`
+- **Status**: PRODUCTION READY ✅
+- **Testing**: ARCX archives validated - both exports use full timestamp precision. Import service now preserves original dates correctly.
 
 ### 🐛 ARCX Export Photo Directory Mismatch Fix (October 31, 2025)
 **Fixed critical bug where photos were not included in ARCX exports:**

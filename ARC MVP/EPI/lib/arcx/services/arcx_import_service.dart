@@ -299,9 +299,24 @@ class ARCXImportService {
             
             if (!dryRun && _journalRepo != null) {
               try {
-              await _journalRepo!.createJournalEntry(entry);
+                // Check if entry already exists - skip to preserve original dates
+                final existingEntry = _journalRepo!.getJournalEntryById(entry.id);
+                if (existingEntry != null) {
+                  print('ARCX Import: ⚠️ Entry ${entry.id} already exists - SKIPPING to preserve original dates');
+                  print('   Existing createdAt: ${existingEntry.createdAt}');
+                  print('   Would import createdAt: ${entry.createdAt}');
+                  print('   Skipping to prevent date changes');
+                  warnings.add('Entry ${entry.id} already exists - skipped to preserve dates');
+                  // Don't count as imported - we skipped it
+                  continue;
+                }
+                
+                // New entry - save with imported dates from export
+                await _journalRepo!.createJournalEntry(entry);
                 entriesImported++;
-                print('ARCX Import: ✓ Saved entry ${entry.id}: ${entry.title} (${entry.media.length} media items)');
+                print('ARCX Import: ✓ Saved new entry ${entry.id}: ${entry.title}');
+                print('   CreatedAt: ${entry.createdAt} (from export timestamp)');
+                print('   Media items: ${entry.media.length}');
               } catch (e, stackTrace) {
                 print('ARCX Import: ✗ Failed to save entry ${entry.id} to repository: $e');
                 print('   Stack trace: $stackTrace');
@@ -521,8 +536,13 @@ class ARCXImportService {
       // Extract fields directly from the node
       final content = nodeJson['content'] as String? ?? '';
       final timestamp = nodeJson['timestamp'] as String;
+      
+      print('ARCX Import: Entry $originalId - Extracted timestamp from export: "$timestamp"');
+      
       final createdAt = _parseTimestamp(timestamp);
       final updatedAt = createdAt; // Use same timestamp
+      
+      print('ARCX Import: Entry $originalId - Parsed dates: createdAt=$createdAt, updatedAt=$updatedAt');
       
       // Extract optional fields
       final emotion = nodeJson['emotion'] as String?;
@@ -829,33 +849,64 @@ class ARCXImportService {
   }
   
   /// Parse timestamp with robust handling of different formats
+  /// CRITICAL: Never fallback to DateTime.now() - this would change entry dates
   DateTime _parseTimestamp(String timestamp) {
+    final originalTimestamp = timestamp;
     try {
+      // Log the original timestamp for debugging
+      print('ARCX Import: Parsing timestamp: "$timestamp"');
+      
       // Handle malformed timestamps missing 'Z' suffix
       if (timestamp.endsWith('.000') && !timestamp.endsWith('Z')) {
         // Add 'Z' suffix for UTC timezone
         timestamp = '${timestamp}Z';
+        print('ARCX Import: Added Z suffix: "$timestamp"');
       } else if (!timestamp.endsWith('Z') && !timestamp.contains('+') && !timestamp.contains('-', 10)) {
-        // If no timezone indicator, assume UTC and add 'Z'
-        timestamp = '${timestamp}Z';
+        // Check if it has timezone offset (contains '-' after position 10, which is the date part)
+        final hasOffset = timestamp.length > 10 && 
+                         (timestamp.contains('+', 10) || timestamp.contains('-', 10));
+        if (!hasOffset) {
+          // If no timezone indicator, assume UTC and add 'Z'
+          timestamp = '${timestamp}Z';
+          print('ARCX Import: Added Z suffix (no timezone): "$timestamp"');
+        }
       }
       
-      return DateTime.parse(timestamp);
+      final parsed = DateTime.parse(timestamp);
+      print('ARCX Import: ✓ Successfully parsed timestamp "$originalTimestamp" -> $parsed (UTC: ${parsed.isUtc})');
+      return parsed;
     } catch (e) {
-      print('ARCX Import: ⚠️ Failed to parse timestamp "$timestamp": $e');
-      // Fallback to current time if parsing fails
-      return DateTime.now();
+      print('ARCX Import: ❌ CRITICAL: Failed to parse timestamp "$originalTimestamp": $e');
+      print('   This will cause dates to be incorrect!');
+      // Try to extract at least the date portion even if time parsing fails
+      try {
+        // Try parsing just the date part (YYYY-MM-DD)
+        if (originalTimestamp.length >= 10) {
+          final datePart = originalTimestamp.substring(0, 10);
+          final dateOnly = DateTime.parse('${datePart}T00:00:00Z');
+          print('ARCX Import: ⚠️ Falling back to date-only: $dateOnly (time set to midnight UTC)');
+          return dateOnly;
+        }
+      } catch (e2) {
+        print('ARCX Import: ❌ Could not extract date from "$originalTimestamp": $e2');
+      }
+      // LAST RESORT: Throw an error instead of using DateTime.now()
+      // This will cause the entry to be skipped rather than imported with wrong date
+      throw Exception('Cannot parse timestamp "$originalTimestamp": $e. Entry will be skipped to preserve data integrity.');
     }
   }
 
   /// Parse media timestamp with robust handling (can be null)
+  /// Note: Media timestamps can fallback to DateTime.now() as they're optional metadata
   DateTime _parseMediaTimestamp(String? timestamp) {
     if (timestamp == null || timestamp.isEmpty) {
+      // Media timestamp is optional, so using current time is acceptable
       return DateTime.now();
     }
     try {
       return _parseTimestamp(timestamp);
     } catch (e) {
+      // Media timestamps are less critical than entry dates
       print('ARCX Import: ⚠️ Failed to parse media timestamp "$timestamp": $e, using current time');
       return DateTime.now();
     }

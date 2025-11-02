@@ -10,7 +10,6 @@ import '../chat/ui/enhanced_chats_screen.dart';
 import '../chat/enhanced_chat_repo_impl.dart';
 import '../chat/chat_repo_impl.dart';
 import 'lumara_quick_palette.dart';
-import 'simple_lumara_settings_screen.dart';
 import 'lumara_onboarding_screen.dart';
 import 'lumara_settings_welcome_screen.dart';
 import 'lumara_settings_screen.dart';
@@ -345,7 +344,7 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
               _buildScopeChip('Phase', state.scope.phase, () {
                 context.read<LumaraAssistantCubit>().toggleScope('phase');
               }),
-              _buildScopeChip('Arcforms', state.scope.arcforms, () {
+              _buildScopeChip('ARCForms', state.scope.arcforms, () {
                 context.read<LumaraAssistantCubit>().toggleScope('arcforms');
               }),
               _buildScopeChip('Voice', state.scope.voice, () {
@@ -353,6 +352,12 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
               }),
               _buildScopeChip('Media', state.scope.media, () {
                 context.read<LumaraAssistantCubit>().toggleScope('media');
+              }),
+              _buildScopeChip('Drafts', state.scope.drafts, () {
+                context.read<LumaraAssistantCubit>().toggleScope('drafts');
+              }),
+              _buildScopeChip('Chats', state.scope.chats, () {
+                context.read<LumaraAssistantCubit>().toggleScope('chats');
               }),
             ],
           ),

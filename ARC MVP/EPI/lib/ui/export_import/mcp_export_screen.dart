@@ -299,8 +299,10 @@ class _McpExportScreenState extends State<McpExportScreen> {
             _buildSummaryRow('Photos exported:', '${result.totalPhotos}'),
             if (result.totalChatSessions > 0 || result.totalChatMessages > 0) ...[
               const SizedBox(height: 8),
-              _buildSummaryRow('Chat sessions:', '${result.totalChatSessions}'),
-              _buildSummaryRow('Chat messages:', '${result.totalChatMessages}'),
+              _buildSummaryRow('Chats exported:', '${result.totalChatSessions} sessions, ${result.totalChatMessages} messages'),
+            ] else ...[
+              const SizedBox(height: 8),
+              _buildSummaryRow('Chats exported:', '0'),
             ],
             const SizedBox(height: 16),
             Text(

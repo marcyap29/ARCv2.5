@@ -6,7 +6,10 @@ import 'dart:io';
 import '../../shared/app_colors.dart';
 import '../../shared/text_style.dart';
 import 'package:my_app/arc/core/journal_repository.dart';
-import '../../core/mcp/import/mcp_pack_import_service.dart';
+import '../../core/mcp/import/mcp_pack_import_service.dart' show McpPackImportService, McpImportResult;
+import '../../core/mcp/import/enhanced_mcp_import_service.dart';
+import '../../core/mcp/import/mcp_import_service.dart' show McpImportOptions;
+import '../../lumara/chat/chat_repo_impl.dart';
 import '../../utils/file_utils.dart';
 import 'package:my_app/arc/ui/timeline/timeline_cubit.dart';
 import '../../arcx/ui/arcx_import_progress_screen.dart';
@@ -104,16 +107,55 @@ class _McpImportScreenState extends State<McpImportScreen> {
         // Show progress dialog
         _showProgressDialog();
 
-        // Import
+        // Import basic journal data
         final importResult = await importService.importFromPath(_selectedPath!);
 
         // Hide progress dialog
         Navigator.of(context).pop();
 
         if (importResult.success) {
+          // Also import chats if nodes.jsonl exists (Enhanced MCP format)
+          int chatSessionsImported = 0;
+          int chatMessagesImported = 0;
+          
+          try {
+            final tempDir = Directory.systemTemp;
+            final extractedDirs = tempDir.listSync()
+                .whereType<Directory>()
+                .where((dir) => dir.path.contains('mcp_import_'))
+                .toList();
+            
+            if (extractedDirs.isNotEmpty) {
+              // Use the most recent extracted directory
+              final bundleDir = extractedDirs.last;
+              final nodesFile = File('${bundleDir.path}/nodes.jsonl');
+              
+              if (await nodesFile.exists()) {
+                // Get chat repo - use singleton base repo
+                final baseChatRepo = ChatRepoImpl.instance;
+                await baseChatRepo.initialize();
+                
+                final enhancedImportService = EnhancedMcpImportService(
+                  chatRepo: baseChatRepo,
+                );
+                
+                final enhancedResult = await enhancedImportService.importBundle(
+                  bundleDir,
+                  McpImportOptions(strictMode: false, maxErrors: 100),
+                );
+                
+                chatSessionsImported = enhancedResult.chatSessionsImported;
+                chatMessagesImported = enhancedResult.chatMessagesImported;
+              }
+            }
+          } catch (e) {
+            print('⚠️ MCP Import: Failed to import chats: $e');
+            // Don't fail the entire import if chat import fails
+          }
+          
           // Refresh timeline to show imported entries
           context.read<TimelineCubit>().reloadAllEntries();
-          _showSuccessDialog(importResult);
+          _showSuccessDialog(importResult, chatSessionsImported: chatSessionsImported, chatMessagesImported: chatMessagesImported);
         } else {
           _showErrorDialog(importResult.error ?? 'Import failed');
         }
@@ -157,7 +199,7 @@ class _McpImportScreenState extends State<McpImportScreen> {
     );
   }
 
-  void _showSuccessDialog(McpImportResult result) {
+  void _showSuccessDialog(McpImportResult result, {int chatSessionsImported = 0, int chatMessagesImported = 0}) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -179,6 +221,13 @@ class _McpImportScreenState extends State<McpImportScreen> {
             const SizedBox(height: 16),
             _buildSummaryRow('Entries restored:', '${result.totalEntries}'),
             _buildSummaryRow('Photos restored:', '${result.totalPhotos}'),
+            if (chatSessionsImported > 0 || chatMessagesImported > 0) ...[
+              const SizedBox(height: 8),
+              _buildSummaryRow('Chats imported:', '$chatSessionsImported sessions, $chatMessagesImported messages'),
+            ] else ...[
+              const SizedBox(height: 8),
+              _buildSummaryRow('Chats imported:', '0'),
+            ],
             _buildSummaryRow('Missing/corrupted:', '0'),
             if (result.manifest != null) ...[
               const SizedBox(height: 8),

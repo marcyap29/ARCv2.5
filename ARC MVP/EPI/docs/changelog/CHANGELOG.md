@@ -1,6 +1,67 @@
 # EPI ARC MVP - Changelog
 
-## [Unreleased] - February 2025
+## [Unreleased] - November 2, 2025
+
+### **ARCX Import Date Preservation Fix** - November 2, 2025
+
+#### Critical Bug Fix
+- **Date Preservation**: Fixed critical issue where ARCX imports were changing entry creation dates
+  - **Problem**: Import service was falling back to `DateTime.now()` when timestamp parsing failed, corrupting entry dates
+  - **Solution**: Improved timestamp parsing with multiple fallback strategies, and throw errors instead of using current time
+  - **Duplicate Detection**: Added logic to skip existing entries during import to preserve original dates
+  - **Data Integrity**: Entries with unparseable timestamps are now skipped rather than imported with wrong dates
+- **Enhanced Timestamp Parsing**:
+  - Added robust parsing with multiple fallback attempts
+  - Attempts to extract at least date portion (YYYY-MM-DD) before failing
+  - Comprehensive logging for debugging timestamp issues
+  - Never uses `DateTime.now()` as fallback for entry dates (preserves data integrity)
+- **Duplicate Entry Handling**:
+  - Checks if entry already exists before importing
+  - Skips existing entries to preserve original creation dates
+  - Logs warnings when duplicates are detected
+- **Enhanced Logging**:
+  - Detailed logging for timestamp extraction and parsing
+  - Logs original timestamps from exports
+  - Logs parsing results and any failures
+  - Helps identify timestamp format issues during import
+
+#### Files Modified
+- `lib/arcx/services/arcx_import_service.dart` - Fixed timestamp parsing, added duplicate detection, enhanced logging
+
+### **UI/UX Improvements** - November 2, 2025
+
+#### Major Features
+- **LUMARA Main Screen Navigation**: Added complete navigation options to main LUMARA screen
+  - Added "Drafts" and "Chats" scope chips (previously only in Chat History window)
+  - Main screen now has all 7 navigation options: Journal, Phase, ARCForms, Voice, Media, Drafts, Chats
+  - Consistent navigation experience across all LUMARA interfaces
+- **Phase Transition Detection Card**: Fixed UI and text consistency
+  - Changed title from "Rivet: Phase Transition Detection" to "Phase Transition Detection"
+  - Reduced font size to fit better in card
+  - Fixed contradictory text about transition direction (toward vs away)
+  - Ensured measurable signs consistently reflect transition direction
+- **Settings Tab Cleanup**: Removed redundant UI/UX elements
+  - Removed duplicate "Export & Backup" section
+  - Removed "Import/Export Data" and "Bundle Health Check" cards (redundant with top section)
+  - Removed "Index & Analyze Data" card (redundant with Phase tab functionality)
+
+#### Export/Import Enhancements
+- **MCP Export Enhancement**: Chat histories now included in exports
+  - Added chat session and message counts to export success dialog
+  - Displays "Chats exported: X sessions, Y messages" on successful export
+- **MCP Import Enhancement**: Chat histories now imported from archives
+  - Confirms and imports all chat histories from MCP files
+  - Added chat import counts to import success dialog
+  - Displays "Chats imported: X sessions, Y messages" on successful import
+  - Works with both legacy .zip and enhanced MCP bundles
+
+#### Files Modified
+- `lib/lumara/ui/lumara_assistant_screen.dart` - Added Drafts and Chats navigation chips
+- `lib/ui/phase/phase_change_readiness_card.dart` - Fixed title and font size
+- `lib/atlas/rivet/rivet_service.dart` - Fixed contradictory transition direction text
+- `lib/shared/ui/settings/settings_view.dart` - Removed redundant cards/sections
+- `lib/ui/export_import/mcp_export_screen.dart` - Added chat export counts
+- `lib/ui/export_import/mcp_import_screen.dart` - Added chat import functionality and counts
 
 ### **LUMARA Prompt System Update** - February 2025
 
