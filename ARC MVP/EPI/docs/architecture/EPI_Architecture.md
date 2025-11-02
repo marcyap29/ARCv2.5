@@ -1796,6 +1796,12 @@ Source Weighting → Different confidence levels (journal=1.0, draft=0.6, chat=0
 - ✅ **Unified Analysis Service**: Comprehensive analysis across all reflective sources
 - ✅ **Phase Inference**: Automatic phase detection from content and context
 - ✅ **Confidence Scoring**: Dynamic confidence calculation based on content quality
+- ✅ **Phase Transition Insights**: New PhaseTransitionInsights model providing measurable signs of intelligence growing (February 2025)
+  - Calculates shift percentages toward approaching phases (e.g., "Your reflection patterns have shifted 12% toward Expansion")
+  - Tracks transition direction (toward/away/stable) and confidence scores
+  - Generates human-readable measurable signs based on ALIGN, TRACE, and phase patterns
+  - Includes contributing metrics breakdown for transparency
+- ✅ **Enhanced Gate Decisions**: RivetGateDecision now includes transitionInsights field
 - ✅ **Backward Compatibility**: Existing journal-only workflows remain unchanged
 - ✅ **Deterministic Recompute**: True undo-on-delete behavior with O(n) performance
 - ✅ **Pure Reducer Pattern**: RivetReducer provides deterministic state computation
@@ -1866,6 +1872,11 @@ Unified Recommendations → Combined insights from all reflective sources
 - ✅ **Weighted Pattern Detection**: Source-aware clustering, persistent distress, and escalation detection
 - ✅ **Enhanced Metrics**: Source breakdown, confidence metrics, and data quality indicators
 - ✅ **Unified Recommendations**: Combined recommendations from all reflective sources
+- ✅ **Phase Transition Analysis**: Phase-approaching insights integrated into risk analysis (February 2025)
+  - Analyzes phase transitions in context of emotional risk patterns
+  - Generates phase-aware recommendations with transition percentages
+  - Provides measurable signs during phase transitions (e.g., "Elevated emotional intensity (65%) observed during transition toward Recovery")
+  - Includes phase-specific guidance for Recovery, Expansion, and Transition phases
 - ✅ **Backward Compatibility**: Existing `analyzeJournalRisk` method preserved
 - ✅ **Risk Level Classifications**: Minimal, Low, Moderate, Elevated, High, Severe
 - ✅ **Temporal Analysis**: Day, 3-day, week, month time windows

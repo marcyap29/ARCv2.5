@@ -1,11 +1,36 @@
 # EPI Documentation
 
-**Last Updated:** October 29, 2025
+**Last Updated:** February 2025
 **Status:** Production Ready ✅ - ARCX Secure Archive System Complete with iOS Integration, Critical Bug Fixes Applied
 
 This directory contains comprehensive documentation for the EPI (Evolving Personal Intelligence) project - an 8-module intelligent journaling system built with Flutter.
 
 ## 🆕 Latest Updates (February 2025)
+
+### 🎯 **Phase-Approaching Insights** - February 2025
+
+#### **Measurable Signs of Intelligence Growing** ✅
+- **RIVET Phase Transition Insights**: Enhanced RIVET system now provides detailed phase-approaching metrics
+  - Shows measurable signs like "Your reflection patterns have shifted 12% toward Expansion"
+  - Displays phase transition percentages and confidence scores
+  - Calculates shift direction (toward/away/stable) from current phase
+  - Tracks contributing metrics: alignment score, evidence trace, phase diversity
+  - **PhaseTransitionInsights Model**: New data structure capturing transition details
+- **ATLAS Phase Insights**: ATLAS engine generates activity-based phase transition predictions
+  - Calculates transition probabilities between phases
+  - Provides phase-specific measurable signs based on readiness, stress, and activity levels
+  - Shows shift percentages toward approaching phases (e.g., "Your readiness signals have increased to 75%")
+- **SENTINEL Phase Context**: SENTINEL risk analysis now includes phase-approaching context
+  - Analyzes phase transitions in context of emotional risk
+  - Generates phase-aware recommendations with transition percentages
+  - Provides measurable signs during phase transitions
+- **Enhanced Phase Change Readiness Card**: Completely redesigned UI/UX with phase insights
+  - Modern gradient card design with visual metrics display
+  - **RIVET Insights Section**: Purple/indigo gradient section showing transition detection
+  - **ATLAS Insights Section**: Orange/amber gradient section for activity-based insights
+  - Key metrics cards: Alignment, Evidence, Entries with progress indicators
+  - Enhanced requirements checklist with visual status badges
+  - Info button opens detailed RIVET modal with full transition insights
 
 ### 🐛 **Chat Import Fixes** - February 2025
 

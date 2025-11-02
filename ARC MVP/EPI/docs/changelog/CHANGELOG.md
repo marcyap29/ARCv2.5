@@ -2,6 +2,60 @@
 
 ## [Unreleased] - February 2025
 
+### **Phase-Approaching Insights** - February 2025
+
+#### Major Features
+- **RIVET Phase Transition Insights**: Enhanced RIVET service with measurable phase transition tracking
+  - **PhaseTransitionInsights Model**: New data structure tracking current/approaching phases, shift percentages, and measurable signs
+  - **Transition Direction**: Tracks whether user is moving toward, away from, or stable relative to approaching phase
+  - **Measurable Signs Generation**: Creates human-readable insights like "Your reflection patterns have shifted 12% toward Expansion"
+  - **Contributing Metrics**: Tracks alignment score, evidence trace, phase diversity, and transition momentum
+  - **Enhanced Gate Decisions**: RivetGateDecision now includes transitionInsights field for comprehensive phase analysis
+- **ATLAS Phase Insights**: ATLAS engine generates activity-based phase transition predictions
+  - **Transition Probability Calculation**: Calculates likelihood of transitioning to each phase based on readiness, stress, and activity
+  - **Phase-Specific Insights**: Generates measurable signs tailored to each phase (Expansion, Breakthrough, Recovery, etc.)
+  - **Activity-Based Predictions**: Uses steps, readiness, and stress metrics to predict phase transitions
+  - **Phase Insights Data**: Returns structured insights with current phase, approaching phase, shift percentage, and measurable signs
+- **SENTINEL Phase Context**: SENTINEL risk analysis enhanced with phase-approaching insights
+  - **Phase Transition Analysis**: Analyzes phase transitions in context of emotional risk patterns
+  - **Phase-Aware Recommendations**: Generates recommendations that consider phase context (e.g., "Recovery phase with elevated distress")
+  - **Transition Sign Detection**: Identifies measurable signs during phase transitions with risk context
+  - **Risk-Phase Alignment**: Provides insights on how emotional intensity aligns with phase transitions
+
+#### UI/UX Improvements
+- **Enhanced Phase Change Readiness Card**: Complete redesign with modern gradient design
+  - **Visual Metrics Display**: Three metric cards showing Alignment, Evidence, and Entries with progress bars
+  - **RIVET Insights Section**: Dedicated section with purple/indigo gradient displaying phase transition detection
+  - **ATLAS Insights Section**: Dedicated section with orange/amber gradient for activity-based insights
+  - **Enhanced Progress Display**: Linear progress bar with contextual status messages
+  - **Improved Requirements Checklist**: Four requirements with icons, status badges, and visual completion states
+  - **Info Button Integration**: Opens detailed RIVET modal with full transition insights
+  - **Gradient Backgrounds**: Color-coded gradients (green/teal when ready, blue/indigo when tracking)
+  - **Modern Card Design**: Rounded corners, shadows, and improved spacing throughout
+
+#### Technical Improvements
+- **Transition Insight Calculation**: Algorithms to calculate shift percentages from event history
+  - Compares early vs recent phase patterns to determine transition momentum
+  - Identifies most likely approaching phase based on phase distribution
+  - Calculates transition confidence from ALIGN, TRACE, and phase consistency
+- **Phase Pattern Analysis**: Enhanced pattern detection for phase transitions
+  - Tracks phase distribution across recent events
+  - Detects phase shifts over time windows
+  - Generates measurable signs based on multiple metrics
+- **Telemetry Enhancement**: RIVET telemetry now logs phase transition insights
+  - Logs primary insight messages
+  - Tracks measurable signs for debugging
+  - Provides comprehensive phase transition visibility
+
+#### Files Modified
+- `lib/atlas/rivet/rivet_models.dart` - Added PhaseTransitionInsights model and TransitionDirection enum
+- `lib/atlas/rivet/rivet_service.dart` - Added _calculatePhaseTransitionInsights() and _generateMeasurableSigns() methods
+- `lib/prism/engines/atlas_engine.dart` - Added _calculateTransitionProbabilities() and _generatePhaseApproachingInsights() methods
+- `lib/prism/extractors/sentinel_risk_detector.dart` - Added _analyzePhaseTransitions() and _generatePhaseAwareRecommendations() methods
+- `lib/ui/phase/phase_change_readiness_card.dart` - Complete redesign with phase insights display
+- `lib/atlas/phase_detection/rivet_gate_details_modal.dart` - Added transition insights display section
+- `lib/atlas/rivet/rivet_telemetry.dart` - Enhanced logging for phase transition insights
+
 ### **Chat Import Fixes** - February 2025
 
 #### Critical Bug Fixes
