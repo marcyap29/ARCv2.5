@@ -456,12 +456,14 @@ class _PhaseChangeReadinessCardState extends State<PhaseChangeReadinessCard> {
                 ),
               ),
               const SizedBox(width: 12),
-              Text(
-                'RIVET: Phase Transition Detected',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.purple.shade800,
+              Flexible(
+                child: Text(
+                  'Phase Transition Detection',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.purple.shade800,
+                  ),
                 ),
               ),
             ],

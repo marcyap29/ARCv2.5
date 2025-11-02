@@ -388,10 +388,20 @@ class RivetService {
   }) {
     final signs = <String>[];
     
-    // Primary shift sign
+    // Primary shift sign (respect direction)
     if (approachingPhase != null && shiftPercentage > 5.0) {
       final percentage = shiftPercentage.toStringAsFixed(0);
-      signs.add('Your reflection patterns have shifted $percentage% toward $approachingPhase.');
+      switch (direction) {
+        case TransitionDirection.toward:
+          signs.add('Your reflection patterns have shifted $percentage% toward $approachingPhase.');
+          break;
+        case TransitionDirection.away:
+          signs.add('Your reflection patterns have shifted $percentage% away from $approachingPhase.');
+          break;
+        case TransitionDirection.stable:
+          // Don't add a shift message if stable
+          break;
+      }
     }
 
     // ALIGN-based signs
@@ -421,7 +431,7 @@ class RivetService {
       signs.add('Recent reflections show independent validation across different contexts.');
     }
 
-    // Transition momentum
+    // Transition momentum (only for toward direction to avoid redundancy with primary sign)
     if (direction == TransitionDirection.toward && shiftPercentage > 10.0) {
       signs.add('Transition momentum toward $approachingPhase is building with ${shiftPercentage.toStringAsFixed(0)}% shift.');
     }
