@@ -238,13 +238,37 @@ class GraphUtils {
   }
 
   static List<Connection> _generateTransitionConnections(List<ConstellationNode> nodes) {
-    // Transition: Sparse connections, mostly linear
+    // Transition: Bridge pattern - emphasize connections across bridge
     final connections = <Connection>[];
-    for (int i = 0; i < nodes.length - 1; i++) {
-      if (i % 2 == 0) { // Every other connection
-        connections.add(Connection(i, i + 1));
-      }
+    
+    // Split nodes: left cluster (40%), bridge (20%), right cluster (40%)
+    final leftCount = (nodes.length * 0.4).round();
+    final bridgeCount = (nodes.length * 0.2).round();
+    final rightStart = leftCount + bridgeCount;
+    
+    // Connect within left cluster (sparse)
+    for (int i = 0; i < leftCount - 1; i += 2) {
+      connections.add(Connection(i, i + 1));
     }
+    
+    // Bridge connections - connect bridge nodes sequentially (emphasizes bridge)
+    for (int i = leftCount; i < leftCount + bridgeCount - 1; i++) {
+      connections.add(Connection(i, i + 1));
+    }
+    
+    // Connect bridge to clusters
+    if (bridgeCount > 0 && leftCount > 0) {
+      connections.add(Connection(leftCount - 1, leftCount)); // Left to bridge
+    }
+    if (bridgeCount > 0 && rightStart < nodes.length) {
+      connections.add(Connection(leftCount + bridgeCount - 1, rightStart)); // Bridge to right
+    }
+    
+    // Connect within right cluster (sparse)
+    for (int i = rightStart; i < nodes.length - 1; i += 2) {
+      connections.add(Connection(i, i + 1));
+    }
+    
     return connections;
   }
 
@@ -254,23 +278,50 @@ class GraphUtils {
   }
 
   static List<Connection> _generateRecoveryConnections(List<ConstellationNode> nodes) {
-    // Recovery: Very sparse connections, mostly isolated
+    // Recovery: Ascending spiral - connect nodes sequentially along spiral
     final connections = <Connection>[];
-    for (int i = 0; i < nodes.length - 1; i += 3) { // Every third connection
+    
+    // Connect nodes in spiral sequence (very sparse - healing is fragile)
+    for (int i = 0; i < nodes.length - 1; i += 2) { // Every other connection
       connections.add(Connection(i, i + 1));
     }
+    
+    // Also connect some nodes across spiral turns (creates upward flow)
+    for (int i = 0; i < nodes.length - 3; i += 3) {
+      connections.add(Connection(i, i + 2));
+    }
+    
     return connections;
   }
 
   static List<Connection> _generateBreakthroughConnections(List<ConstellationNode> nodes) {
-    // Breakthrough: Clustered connections
+    // Breakthrough: Supernova - connect center to rays, and nodes along each ray
     final connections = <Connection>[];
-    const clusterSize = 3;
+    const rayCount = 8;
     
-    for (int i = 0; i < nodes.length; i += clusterSize) {
-      final clusterEnd = math.min(i + clusterSize, nodes.length);
-      for (int j = i; j < clusterEnd - 1; j++) {
-        connections.add(Connection(j, j + 1));
+    if (nodes.isEmpty) return connections;
+    
+    // Connect center (index 0) to first node of each ray
+    for (int i = 1; i < math.min(rayCount + 1, nodes.length); i++) {
+      connections.add(Connection(0, i));
+    }
+    
+    // Connect nodes along each ray (sequential connections along rays)
+    for (int i = 1; i < nodes.length - 1; i++) {
+      // Determine which ray this node belongs to
+      final rayIndex = (i - 1) % rayCount;
+      
+      // Find next node on same ray (if exists)
+      final nextRayIndex = (i) % rayCount;
+      if (rayIndex == nextRayIndex) {
+        connections.add(Connection(i, i + 1));
+      }
+    }
+    
+    // Connect some nodes across rays (creates burst connections)
+    for (int i = 1; i < nodes.length - rayCount; i += rayCount) {
+      for (int j = 0; j < rayCount - 1 && i + j + 1 < nodes.length; j++) {
+        connections.add(Connection(i + j, i + j + 1));
       }
     }
     

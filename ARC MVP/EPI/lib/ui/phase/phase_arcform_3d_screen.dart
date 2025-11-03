@@ -84,6 +84,7 @@ class _PhaseArcform3DScreenState extends State<PhaseArcform3DScreen> {
       final edges = generateEdges(
         nodes: nodes,
         rng: rng,
+        phase: phase,
         maxEdgesPerNode: 4,
         maxDistance: 1.4,
       );

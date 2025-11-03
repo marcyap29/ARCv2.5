@@ -312,7 +312,7 @@ class ARCXImportService {
                 }
                 
                 // New entry - save with imported dates from export
-                await _journalRepo!.createJournalEntry(entry);
+              await _journalRepo!.createJournalEntry(entry);
                 entriesImported++;
                 print('ARCX Import: ✓ Saved new entry ${entry.id}: ${entry.title}');
                 print('   CreatedAt: ${entry.createdAt} (from export timestamp)');
@@ -866,8 +866,8 @@ class ARCXImportService {
         final hasOffset = timestamp.length > 10 && 
                          (timestamp.contains('+', 10) || timestamp.contains('-', 10));
         if (!hasOffset) {
-          // If no timezone indicator, assume UTC and add 'Z'
-          timestamp = '${timestamp}Z';
+        // If no timezone indicator, assume UTC and add 'Z'
+        timestamp = '${timestamp}Z';
           print('ARCX Import: Added Z suffix (no timezone): "$timestamp"');
         }
       }

@@ -4,10 +4,12 @@ import 'package:hive/hive.dart';
 import 'package:my_app/arc/ui/arcforms/arcform_renderer_cubit.dart';
 import 'package:my_app/arc/ui/arcforms/arcform_renderer_state.dart';
 // import 'package:my_app/arc/ui/arcforms/widgets/arcform_layout.dart';
-import 'package:my_app/arc/ui/arcforms/widgets/simple_3d_arcform.dart';
+// Removed: simple_3d_arcform.dart - replaced with unified Arcform3D
 import 'package:my_app/arc/ui/arcforms/arcform_mvp_implementation.dart';
 import 'package:my_app/arc/ui/arcforms/services/emotional_valence_service.dart';
-import 'package:my_app/arc/ui/arcforms/constellation/constellation_arcform_renderer.dart';
+import 'package:my_app/arc/ui/arcforms/constellation/constellation_arcform_renderer.dart'; // Needed for AtlasPhase enum
+import 'package:my_app/arcform/services/unified_constellation_service.dart';
+import 'package:my_app/arcform/render/arcform_renderer_3d.dart';
 import 'package:my_app/shared/ui/onboarding/phase_celebration_view.dart';
 import 'package:my_app/services/user_phase_service.dart';
 import 'package:my_app/services/arcform_export_service.dart';
@@ -243,7 +245,7 @@ class _ArcformRendererViewContentState extends State<ArcformRendererViewContent>
                         const SizedBox(width: 4),
                         Flexible(
                           child: Text(
-                            rendererMode == ArcformRendererMode.constellation ? 'Constellation' : 'Molecule 3D',
+                            '3D Constellation', // Both modes now use unified 3D system
                             style: captionStyle(context).copyWith(
                               color: phaseColor,
                               fontSize: 10,
@@ -442,7 +444,7 @@ class _ArcformRendererViewContentState extends State<ArcformRendererViewContent>
       // Show feedback
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Switched to ${newMode == ArcformRendererMode.constellation ? 'Constellation' : 'Molecule 3D'} mode'),
+          content: Text('Switched to ${newMode == ArcformRendererMode.constellation ? 'Constellation (Labels)' : '3D View'} mode'),
           backgroundColor: kcPrimaryColor,
           duration: const Duration(seconds: 2),
         ),
@@ -888,53 +890,7 @@ class _ArcformRendererViewContentState extends State<ArcformRendererViewContent>
                         padding: const EdgeInsets.only(top: 4, bottom: 70), // Reduced top padding to move interface higher and bottom padding for navigation bar
                         child: RepaintBoundary(
                           key: _arcformRepaintBoundaryKey,
-                          child: state.rendererMode == ArcformRendererMode.constellation
-                              ? ConstellationArcformRenderer(
-                                  phase: _convertToAtlasPhase(state.selectedGeometry),
-                                  keywords: _convertNodesToKeywords(state.nodes),
-                                  palette: EmotionPalette.defaultPalette,
-                                  seed: 42,
-                                  onNodeTapped: (nodeId) {
-                                    // Find the node by ID and show dialog
-                                    final node = state.nodes.firstWhere(
-                                      (n) => n.id == nodeId,
-                                      orElse: () => state.nodes.first,
-                                    );
-                                    _showKeywordDialog(context, node.label);
-                                  },
-                                  onExport: () => _exportArcform(context, state),
-                                )
-                              : Simple3DArcform(
-                                  nodes: state.nodes,
-                                  edges: state.edges,
-                                  onNodeMoved: (nodeId, x, y) {
-                                    context
-                                        .read<ArcformRendererCubit>()
-                                        .updateNodePosition(nodeId, x, y);
-                                  },
-                                  onNodeTapped: (keyword) {
-                                    _showKeywordDialog(context, keyword);
-                                  },
-                                  selectedGeometry: _convertToArcformGeometry(state.selectedGeometry),
-                                  onGeometryChanged: (geometry) {
-                                    // Only refresh the cache when exploring different phases
-                                    _refreshPhaseFromCache();
-                                  },
-                                  // New parameters for phase selection
-                                  showGeometrySelector: _showGeometrySelector,
-                                  previewPhase: _previewPhase,
-                                  onPhasePreview: (phase) => _handlePhasePreview(phase),
-                                  onSavePhase: _savePhase,
-                                  onCancelPreview: _hideGeometrySelectorDialog,
-                                  // on3DToggle removed - not supported by Simple3DArcform
-                                  onExport: () => _exportArcform(context, state),
-                                  onAutoRotate: () {
-                                    // This will be handled by the Simple3DArcform widget
-                                  },
-                                  onResetView: () {
-                                    // This will be handled by the Simple3DArcform widget
-                                  },
-                                ),
+                          child: _buildUnifiedArcform3D(state, context),
                         ),
                       ),
                     ),
@@ -947,6 +903,47 @@ class _ArcformRendererViewContentState extends State<ArcformRendererViewContent>
 
         return const Center(child: Text('Unknown state'));
       },
+    );
+  }
+
+  /// Build unified Arcform3D widget for both constellation and 3D modes
+  /// This replaces both ConstellationArcformRenderer (2D) and Simple3DArcform (old 3D)
+  /// Now everything uses Arcform3D with layouts_3d.dart (the good system with twinkling, nebula, etc.)
+  Widget _buildUnifiedArcform3D(ArcformRendererLoaded state, BuildContext context) {
+    final service = UnifiedConstellationService();
+    
+    // Extract keywords from nodes
+    final keywords = state.nodes.map((node) => node.label).toList();
+    
+    if (keywords.isEmpty) {
+      return const Center(
+        child: Text(
+          'No keywords available',
+          style: TextStyle(color: Colors.white70),
+        ),
+      );
+    }
+    
+    // Generate constellation data using unified service (layouts_3d.dart)
+    final constellationData = service.generateConstellation(
+      keywords: keywords,
+      phase: state.currentPhase,
+      seed: 42,
+    );
+    
+    // Render with Arcform3D - the unified 3D system with:
+    // - Twinkling nodes (_MolecularNodeWidget)
+    // - Nebula background (_NebulaGlowPainter)
+    // - Constellation lines (_ConstellationLinesPainter)
+    // - Phase-optimized camera angles
+    // - Manual 3D rotation/zoom controls
+    return Arcform3D(
+      nodes: constellationData.nodes,
+      edges: constellationData.edges,
+      phase: constellationData.phase,
+      skin: constellationData.skin,
+      showNebula: true,
+      enableLabels: state.rendererMode == ArcformRendererMode.constellation, // Show labels in constellation mode
     );
   }
 

@@ -145,13 +145,16 @@ class ConstellationLayoutService {
       case AtlasPhase.expansion:
         return _generateFlowerPositions(count, random);
       case AtlasPhase.transition:
-        return _generateBranchPositions(count, random);
+        print('🌟 Constellation: Generating BRIDGE positions for Transition phase');
+        return _generateBridgePositions(count, random);
       case AtlasPhase.consolidation:
         return _generateWeavePositions(count, random);
       case AtlasPhase.recovery:
-        return _generateGlowCorePositions(count, random);
+        print('🌟 Constellation: Generating ASCENDING SPIRAL positions for Recovery phase');
+        return _generateAscendingSpiralPositions(count, random);
       case AtlasPhase.breakthrough:
-        return _generateFractalPositions(count, random);
+        print('🌟 Constellation: Generating SUPERNOVA positions for Breakthrough phase');
+        return _generateSupernovaPositions(count, random);
     }
   }
 
@@ -225,29 +228,46 @@ class ConstellationLayoutService {
     return positions;
   }
 
-  /// Generate branch positions for Transition phase
-  List<Offset> _generateBranchPositions(int count, math.Random random) {
+  /// Generate gateway/bridge positions for Transition phase
+  /// Creates two clusters (departure/destination) connected by a bridge
+  List<Offset> _generateBridgePositions(int count, math.Random random) {
+    print('🌉 Generating BRIDGE pattern: $count nodes');
     final positions = <Offset>[];
-    const mainBranches = 3;
-    const maxRadius = 140.0;
+    const leftClusterCenter = Offset(-80.0, 0.0);
+    const rightClusterCenter = Offset(80.0, 0.0);
+    const clusterRadius = 50.0;
+    const bridgeWidth = 30.0;
+    const bridgeHeight = 40.0;
     
-    for (int i = 0; i < count; i++) {
-      final branchIndex = i % mainBranches;
-      final branchAngle = (branchIndex / mainBranches) * 2 * math.pi;
-      
-      // Create longer arcs with side shoots
-      final t = random.nextDouble();
-      final radius = t * maxRadius;
-      
-      // Add side shoot variation
-      final sideShoot = random.nextDouble() > 0.7;
-      final angle = sideShoot 
-          ? branchAngle + (random.nextDouble() - 0.5) * 1.0
-          : branchAngle;
-      
-      final x = radius * math.cos(angle);
-      final y = radius * math.sin(angle);
-      
+    // Split nodes: 40% left cluster, 40% right cluster, 20% bridge
+    final leftCount = (count * 0.4).round();
+    final rightCount = (count * 0.4).round();
+    final bridgeCount = count - leftCount - rightCount;
+    
+    // Left cluster (departure state) - semicircle on left
+    for (int i = 0; i < leftCount; i++) {
+      final angle = (i / leftCount) * math.pi + math.pi / 2; // Semicircle (90° to 270°)
+      final radius = (random.nextDouble() * 0.7 + 0.3) * clusterRadius;
+      final x = leftClusterCenter.dx + radius * math.cos(angle);
+      final y = leftClusterCenter.dy + radius * math.sin(angle);
+      positions.add(Offset(x, y));
+    }
+    
+    // Bridge nodes - arch connecting the two clusters
+    for (int i = 0; i < bridgeCount; i++) {
+      final t = bridgeCount > 1 ? i / (bridgeCount - 1) : 0.5; // 0 to 1, or 0.5 if only one node
+      // Create arch shape: x varies linearly, y follows parabolic arch
+      final x = -bridgeWidth + t * (bridgeWidth * 2);
+      final y = -bridgeHeight * (t * (1 - t)) * 4; // Parabolic arch (inverted)
+      positions.add(Offset(x, y));
+    }
+    
+    // Right cluster (destination state) - semicircle on right
+    for (int i = 0; i < rightCount; i++) {
+      final angle = (i / rightCount) * math.pi - math.pi / 2; // Semicircle (-90° to 90°)
+      final radius = (random.nextDouble() * 0.7 + 0.3) * clusterRadius;
+      final x = rightClusterCenter.dx + radius * math.cos(angle);
+      final y = rightClusterCenter.dy + radius * math.sin(angle);
       positions.add(Offset(x, y));
     }
     
@@ -277,59 +297,73 @@ class ConstellationLayoutService {
     return positions;
   }
 
-  /// Generate glow core positions for Recovery phase
-  List<Offset> _generateGlowCorePositions(int count, math.Random random) {
+  /// Generate ascending spiral positions for Recovery phase
+  /// Creates upward-winding spiral suggesting gradual healing and restoration
+  List<Offset> _generateAscendingSpiralPositions(int count, math.Random random) {
+    print('🌀 Generating ASCENDING SPIRAL pattern: $count nodes');
     final positions = <Offset>[];
-    const coreRadius = 30.0;
     const maxRadius = 120.0;
+    const verticalSpread = 80.0; // How much upward movement
+    const turns = 1.8; // Number of spiral turns
     
     for (int i = 0; i < count; i++) {
-      if (i == 0) {
-        // Bright centroid
-        positions.add(Offset.zero);
-      } else {
-        // Sparse dim outliers
-        final angle = random.nextDouble() * 2 * math.pi;
-        final radius = coreRadius + random.nextDouble() * (maxRadius - coreRadius);
-        
-        final x = radius * math.cos(angle);
-        final y = radius * math.sin(angle);
-        
-        positions.add(Offset(x, y));
-      }
+      final t = i / (count - 1); // Normalized position (0 to 1)
+      
+      // Spiral angle - winds multiple times
+      final angle = t * turns * 2 * math.pi;
+      
+      // Radius expands as spiral winds upward
+      final radius = t * maxRadius;
+      
+      // Horizontal position from spiral
+      final x = radius * math.cos(angle);
+      
+      // Vertical position: moves upward as spiral expands (healing progression)
+      // Start at base, move upward
+      final y = -verticalSpread * (1 - t) + t * verticalSpread * 0.3;
+      
+      // Add small random variation for organic feel
+      final jitterX = (random.nextDouble() - 0.5) * 8.0;
+      final jitterY = (random.nextDouble() - 0.5) * 8.0;
+      
+      positions.add(Offset(x + jitterX, y + jitterY));
     }
     
     return positions;
   }
 
-  /// Generate fractal positions for Breakthrough phase
-  List<Offset> _generateFractalPositions(int count, math.Random random) {
+  /// Generate supernova/starburst positions for Breakthrough phase
+  /// Creates central core with radiating rays suggesting explosive clarity
+  List<Offset> _generateSupernovaPositions(int count, math.Random random) {
+    print('⭐ Generating SUPERNOVA pattern: $count nodes');
     final positions = <Offset>[];
-    const clusters = 3;
-    const clusterRadius = 60.0;
-    const maxRadius = 130.0;
+    const rayCount = 8; // Number of rays
+    const minRadius = 40.0;
+    const maxRadius = 140.0;
     
-    for (int i = 0; i < count; i++) {
-      final clusterIndex = i % clusters;
-      final clusterAngle = (clusterIndex / clusters) * 2 * math.pi;
+    // Central core node (breakthrough moment)
+    positions.add(Offset.zero);
+    
+    // Remaining nodes distributed along rays
+    for (int i = 1; i < count; i++) {
+      // Choose which ray (distribute evenly across rays)
+      final rayIndex = (i - 1) % rayCount;
+      final rayAngle = (rayIndex / rayCount) * 2 * math.pi;
       
-      // Create clustered bursts
-      final clusterCenter = Offset(
-        clusterRadius * math.cos(clusterAngle),
-        clusterRadius * math.sin(clusterAngle),
-      );
-      
-      // Add short bridges between clusters
+      // Distance along ray - use power distribution for more nodes near center
+      // (creates burst effect with concentration at center)
       final t = random.nextDouble();
-      final radius = t * (maxRadius - clusterRadius);
+      final power = math.pow(t, 0.6).toDouble(); // Bias toward center
+      final radius = minRadius + power * (maxRadius - minRadius);
       
-      final angle = random.nextDouble() * 2 * math.pi;
-      final offset = Offset(
-        radius * math.cos(angle),
-        radius * math.sin(angle),
-      );
+      // Add some spread perpendicular to ray for width
+      final perpendicularSpread = (random.nextDouble() - 0.5) * 20.0;
+      final perpAngle = rayAngle + math.pi / 2;
       
-      positions.add(clusterCenter + offset);
+      final x = radius * math.cos(rayAngle) + perpendicularSpread * math.cos(perpAngle);
+      final y = radius * math.sin(rayAngle) + perpendicularSpread * math.sin(perpAngle);
+      
+      positions.add(Offset(x, y));
     }
     
     return positions;

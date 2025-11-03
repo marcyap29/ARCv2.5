@@ -12,13 +12,13 @@ class PolarMasks {
       case AtlasPhase.expansion:
         return _getFlowerRadialBias(numPoints);
       case AtlasPhase.transition:
-        return _getBranchRadialBias(numPoints);
+        return _getBridgeRadialBias(numPoints);
       case AtlasPhase.consolidation:
         return _getWeaveRadialBias(numPoints);
       case AtlasPhase.recovery:
-        return _getGlowCoreRadialBias(numPoints);
+        return _getAscendingSpiralRadialBias(numPoints);
       case AtlasPhase.breakthrough:
-        return _getFractalRadialBias(numPoints);
+        return _getSupernovaRadialBias(numPoints);
     }
   }
 
@@ -30,13 +30,13 @@ class PolarMasks {
       case AtlasPhase.expansion:
         return _getFlowerAngularBias(numPoints);
       case AtlasPhase.transition:
-        return _getBranchAngularBias(numPoints);
+        return _getBridgeAngularBias(numPoints);
       case AtlasPhase.consolidation:
         return _getWeaveAngularBias(numPoints);
       case AtlasPhase.recovery:
-        return _getGlowCoreAngularBias(numPoints);
+        return _getAscendingSpiralAngularBias(numPoints);
       case AtlasPhase.breakthrough:
-        return _getFractalAngularBias(numPoints);
+        return _getSupernovaAngularBias(numPoints);
     }
   }
 
@@ -131,36 +131,47 @@ class PolarMasks {
     return bias;
   }
 
-  // Transition / Branch: a few longer arcs with side shoots and higher sparsity
-  static List<double> _getBranchRadialBias(int numPoints) {
+  // Transition / Bridge: two clusters (left/right) with central bridge
+  static List<double> _getBridgeRadialBias(int numPoints) {
     final bias = <double>[];
-    const mainBranches = 3;
     
     for (int i = 0; i < numPoints; i++) {
-      final angle = (i / numPoints) * 2 * math.pi;
-      // Create main branch structure
-      final branchAngle = (angle % (2 * math.pi / mainBranches)) * mainBranches;
-      final branchStrength = math.cos(branchAngle) * 0.4 + 0.6;
+      final t = i / (numPoints - 1);
       
-      // Add sparsity variation
-      final sparsity = math.sin(angle * 2) * 0.3 + 0.7;
-      
-      bias.add(branchStrength * sparsity);
+      // Two clusters: left (0-0.4), bridge (0.4-0.6), right (0.6-1.0)
+      if (t < 0.4) {
+        // Left cluster - tighter radius
+        final clusterT = t / 0.4;
+        bias.add(0.5 + clusterT * 0.3);
+      } else if (t < 0.6) {
+        // Bridge - centered, moderate radius
+        bias.add(0.6);
+      } else {
+        // Right cluster - tighter radius
+        final clusterT = (t - 0.6) / 0.4;
+        bias.add(0.5 + clusterT * 0.3);
+      }
     }
     
     return bias;
   }
 
-  static List<double> _getBranchAngularBias(int numPoints) {
+  static List<double> _getBridgeAngularBias(int numPoints) {
     final bias = <double>[];
-    const mainBranches = 3;
     
     for (int i = 0; i < numPoints; i++) {
-      final angle = (i / numPoints) * 2 * math.pi;
-      // Concentrate on main branch directions
-      final branchAngle = (angle % (2 * math.pi / mainBranches)) * mainBranches;
-      final concentration = (math.cos(branchAngle)).abs() * 0.6 + 0.4;
-      bias.add(concentration);
+      final t = i / (numPoints - 1);
+      
+      // Left cluster: semicircle on left (90° to 270°)
+      if (t < 0.4) {
+        bias.add(1.0); // Full angular spread for semicircle
+      } else if (t < 0.6) {
+        // Bridge: horizontal emphasis
+        bias.add(0.7);
+      } else {
+        // Right cluster: semicircle on right (-90° to 90°)
+        bias.add(1.0); // Full angular spread for semicircle
+      }
     }
     
     return bias;
@@ -194,75 +205,67 @@ class PolarMasks {
     return bias;
   }
 
-  // Recovery / Glow Core: bright centroid with sparse dim outliers
-  static List<double> _getGlowCoreRadialBias(int numPoints) {
+  // Recovery / Ascending Spiral: upward-winding spiral
+  static List<double> _getAscendingSpiralRadialBias(int numPoints) {
+    final bias = <double>[];
+    
+    for (int i = 0; i < numPoints; i++) {
+      final t = i / (numPoints - 1);
+      // Spiral expands outward as it winds
+      // Start tight, expand gradually
+      final spiralExpansion = t * 0.8 + 0.2;
+      bias.add(spiralExpansion);
+    }
+    
+    return bias;
+  }
+
+  static List<double> _getAscendingSpiralAngularBias(int numPoints) {
+    final bias = <double>[];
+    
+    for (int i = 0; i < numPoints; i++) {
+      // Maintain consistent angular progression for spiral
+      // Spiral winds in golden angle pattern
+      bias.add(1.0);
+    }
+    
+    return bias;
+  }
+
+  // Breakthrough / Supernova: central core with radiating rays
+  static List<double> _getSupernovaRadialBias(int numPoints) {
     final bias = <double>[];
     
     for (int i = 0; i < numPoints; i++) {
       if (i == 0) {
-        // Bright centroid
-        bias.add(0.1);
+        // Central core - minimal radius
+        bias.add(0.05);
       } else {
-        // Sparse dim outliers
         final t = i / (numPoints - 1);
-        final outlierBias = math.pow(t, 2) * 0.8 + 0.2;
-        bias.add(outlierBias);
+        // Power distribution: more nodes near center (burst effect)
+        final powerBias = math.pow(t, 0.6).toDouble();
+        bias.add(powerBias * 0.8 + 0.2);
       }
     }
     
     return bias;
   }
 
-  static List<double> _getGlowCoreAngularBias(int numPoints) {
+  static List<double> _getSupernovaAngularBias(int numPoints) {
     final bias = <double>[];
+    const rayCount = 8;
     
     for (int i = 0; i < numPoints; i++) {
       if (i == 0) {
-        // Centroid has no angular bias
+        // Central core - no angular bias
         bias.add(1.0);
       } else {
-        // Outliers have random angular distribution
-        bias.add(0.5 + math.sin(i * 1.7) * 0.3);
+        final angle = (i / numPoints) * 2 * math.pi;
+        // Concentrate on ray directions (every 45 degrees)
+        final rayAngle = (angle % (2 * math.pi / rayCount)) * rayCount;
+        final rayConcentration = (math.cos(rayAngle)).abs() * 0.8 + 0.2;
+        bias.add(rayConcentration);
       }
-    }
-    
-    return bias;
-  }
-
-  // Breakthrough / Fractal: clustered bursts with short bridges
-  static List<double> _getFractalRadialBias(int numPoints) {
-    final bias = <double>[];
-    const clusters = 3;
-    
-    for (int i = 0; i < numPoints; i++) {
-      final angle = (i / numPoints) * 2 * math.pi;
-      // Create cluster centers
-      final clusterAngle = (angle % (2 * math.pi / clusters)) * clusters;
-      final clusterStrength = math.cos(clusterAngle) * 0.5 + 0.5;
-      
-      // Add burst variation
-      final burst = math.sin(angle * 3) * 0.2 + 0.8;
-      
-      bias.add(clusterStrength * burst);
-    }
-    
-    return bias;
-  }
-
-  static List<double> _getFractalAngularBias(int numPoints) {
-    final bias = <double>[];
-    const clusters = 3;
-    
-    for (int i = 0; i < numPoints; i++) {
-      final angle = (i / numPoints) * 2 * math.pi;
-      // Concentrate on cluster directions
-      final clusterAngle = (angle % (2 * math.pi / clusters)) * clusters;
-      final concentration = (math.cos(clusterAngle)).abs() * 0.7 + 0.3;
-      
-      // Add fractal variation
-      final fractal = math.sin(angle * 5) * 0.1 + 0.9;
-      
-      bias.add(concentration * fractal);
     }
     
     return bias;

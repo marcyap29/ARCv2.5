@@ -459,10 +459,10 @@ class _PhaseChangeReadinessCardState extends State<PhaseChangeReadinessCard> {
               Flexible(
                 child: Text(
                   'Phase Transition Detection',
-                  style: TextStyle(
+                style: TextStyle(
                     fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.purple.shade800,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.purple.shade800,
                   ),
                 ),
               ),

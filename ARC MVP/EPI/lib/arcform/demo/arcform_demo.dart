@@ -32,6 +32,7 @@ class ArcformDemo {
     final edges = generateEdges(
       nodes: nodes,
       rng: rng,
+      phase: 'Discovery', // Demo uses Discovery phase
       maxEdgesPerNode: 3,
       maxDistance: 1.2,
     );
@@ -65,6 +66,7 @@ class ArcformDemo {
     final edges = generateEdges(
       nodes: nodes,
       rng: rng,
+      phase: phase,
       maxEdgesPerNode: 3,
       maxDistance: 1.2,
     );
@@ -205,6 +207,7 @@ class ArcformDemo {
     final edges = generateEdges(
       nodes: nodes,
       rng: rng,
+      phase: phase,
       maxEdgesPerNode: 3,
       maxDistance: 1.2,
     );

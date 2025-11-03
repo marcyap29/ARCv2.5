@@ -447,6 +447,7 @@ class _SimplifiedArcformView3DState extends State<SimplifiedArcformView3D> {
       final edges = generateEdges(
         nodes: nodes,
         rng: rng,
+        phase: phase,
         maxEdgesPerNode: 3,
         maxDistance: 1.2,
       );
@@ -513,6 +514,7 @@ class _SimplifiedArcformView3DState extends State<SimplifiedArcformView3D> {
       final edges = generateEdges(
         nodes: nodes,
         rng: rng,
+        phase: phase,
         maxEdgesPerNode: 4,
         maxDistance: 1.4,
       );

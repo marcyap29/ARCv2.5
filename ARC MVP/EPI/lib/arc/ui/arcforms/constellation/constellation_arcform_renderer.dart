@@ -296,7 +296,10 @@ class _ConstellationArcformRendererState extends State<ConstellationArcformRende
         oldWidget.keywords != widget.keywords ||
         oldWidget.seed != widget.seed) {
       print('DEBUG: Constellation widget updated, regenerating...');
-      _generateConstellation();
+      setState(() {
+        _isInitialized = false;
+        _generateConstellation();
+      });
     }
   }
 

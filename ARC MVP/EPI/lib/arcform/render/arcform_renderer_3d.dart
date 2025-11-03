@@ -90,11 +90,11 @@ class _Arcform3DState extends State<Arcform3D> {
         break;
 
       case 'transition':
-        // BRANCHES: Straight-on view to see "reaching fingers" from side
-        _rotationX = 0.1;   // Very slight angle
-        _rotationY = 0.0;   // No rotation - see fingers reaching horizontally
+        // CYLINDER: Side view to see cylinder structure clearly
+        _rotationX = 0.0;   // Straight side view
+        _rotationY = math.pi / 4;   // 45-degree rotation to see rings
         _rotationZ = 0.0;
-        _zoom = 2.8;        // Good distance to see full reach
+        _zoom = 2.5;        // Good distance to see full cylinder
         break;
 
       case 'consolidation':
@@ -106,19 +106,19 @@ class _Arcform3DState extends State<Arcform3D> {
         break;
 
       case 'recovery':
-        // CLUSTER: Close view to see cluster detail
-        _rotationX = 0.2;   // Very slight angle
-        _rotationY = 0.1;   // Minimal rotation
+        // SIMPLE PYRAMID: Angled view to see pyramid structure clearly
+        _rotationX = 0.3;   // Angled down to see pyramid
+        _rotationY = math.pi / 6;   // 30-degree rotation to see structure
         _rotationZ = 0.0;
-        _zoom = 2.5;        // Closer to see cluster detail
+        _zoom = 2.3;        // Good distance to see full pyramid
         break;
 
       case 'breakthrough':
-        // BURST: Angled view to see radial explosion pattern
-        _rotationX = 0.6;   // Higher angle looking down
-        _rotationY = 0.4;   // Some rotation for full radial view
+        // 5-POINTED STAR: Top-down view to see star shape clearly
+        _rotationX = 0.5;   // Angled down to see star from above
+        _rotationY = 0.0;   // Straight-on to see star shape
         _rotationZ = 0.0;
-        _zoom = 4.5;        // Far back to see full starburst
+        _zoom = 2.4;        // Good distance to see full star
         break;
 
       default:
@@ -1186,15 +1186,11 @@ class _ConstellationLinesPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final center = Offset(size.width / 2, size.height / 2);
 
-    // Create a map for quick star lookup by label
-    final starByLabel = {for (var star in stars) star.label: star};
-
     // Draw constellation connecting lines
+    // Edges already contain the correct 3D positions as Vector3
     for (final edge in edges) {
-      final sourceStar = starByLabel[edge.start.toString()];
-      final targetStar = starByLabel[edge.end.toString()];
-
-      if (sourceStar == null || targetStar == null) continue;
+      // edge.start and edge.end are already Vector3 positions, not labels
+      // No lookup needed - use positions directly
 
       // Apply 3D rotation to both endpoints with Z rotation
       // First apply Z rotation around the Z-axis for start point
@@ -1241,8 +1237,8 @@ class _ConstellationLinesPainter extends CustomPainter {
       final distanceOpacity = (1.0 - (distance / 400).clamp(0.0, 0.8));
       final baseOpacity = (depthOpacity * distanceOpacity * 0.8).clamp(0.15, 0.8); // Increased opacity
 
-      // Create gradient line color based on connected stars
-      final blendedColor = Color.lerp(sourceStar.color, targetStar.color, 0.5) ?? edge.color;
+      // Use edge color directly (already blended in _buildScene)
+      final blendedColor = edge.color;
 
       // Draw enhanced constellation line with layered glow effect
       final outerGlowPaint = Paint()

@@ -393,7 +393,7 @@ class RivetService {
       final percentage = shiftPercentage.toStringAsFixed(0);
       switch (direction) {
         case TransitionDirection.toward:
-          signs.add('Your reflection patterns have shifted $percentage% toward $approachingPhase.');
+      signs.add('Your reflection patterns have shifted $percentage% toward $approachingPhase.');
           break;
         case TransitionDirection.away:
           signs.add('Your reflection patterns have shifted $percentage% away from $approachingPhase.');
