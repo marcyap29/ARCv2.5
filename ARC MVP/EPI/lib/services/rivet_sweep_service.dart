@@ -7,6 +7,7 @@ import 'package:my_app/models/journal_entry_model.dart';
 import 'phase_index.dart';
 // import 'semantic_similarity_service.dart'; // TODO: Implement or use existing
 import 'analytics_service.dart';
+import 'package:my_app/arc/ui/arcforms/phase_recommender.dart';
 
 class RivetSweepService {
   // final SemanticSimilarityService _similarityService; // TODO: Implement
@@ -305,32 +306,214 @@ class RivetSweepService {
   }
 
   /// Infer phases for segments using RIVET classifier
+  /// Analyzes all entries in each segment and detects trends across consecutive entries
   Future<List<PhaseSegmentProposal>> _inferSegmentPhases(List<EntrySegment> segments) async {
     final proposals = <PhaseSegmentProposal>[];
     
     for (final segment in segments) {
-      // This would use your existing RIVET classifier
-      // For now, return placeholder based on content analysis
-      final content = segment.entries.map((e) => e.content).join(' ');
-      final keywords = segment.entries.expand((e) => e.keywords).toList();
+      if (segment.entries.isEmpty) continue;
       
-      // Simple heuristic-based phase inference
-      final phase = _inferPhaseFromContent(content, keywords);
-      final confidence = _calculateConfidence(content, keywords);
+      // Sort entries chronologically to analyze trends
+      final sortedEntries = List<JournalEntry>.from(segment.entries)
+        ..sort((a, b) => a.createdAt.compareTo(b.createdAt));
+      
+      // Analyze phase trends across consecutive entries in this segment
+      final phaseTrends = _analyzePhaseTrends(sortedEntries);
+      
+      // Determine the dominant phase for this segment based on trends
+      final dominantPhase = _determineDominantPhase(phaseTrends, sortedEntries);
+      final confidence = _calculateTrendConfidence(phaseTrends, sortedEntries);
+      
+      // Aggregate content and keywords from all entries in segment
+      final content = sortedEntries.map((e) => e.content).join(' ');
+      final keywords = sortedEntries.expand((e) => e.keywords).toList();
       
       proposals.add(PhaseSegmentProposal(
         start: segment.start,
         end: segment.end,
-        proposedLabel: phase,
+        proposedLabel: dominantPhase,
         confidence: confidence,
-        signals: {}, // Would include actual signal data
-        entryIds: segment.entries.map((e) => e.id).toList(),
+        signals: {
+          'entry_count': sortedEntries.length.toDouble(),
+          'trend_strength': phaseTrends['trend_strength'] ?? 0.0,
+          'phase_consistency': phaseTrends['consistency'] ?? 0.0,
+        },
+        entryIds: sortedEntries.map((e) => e.id).toList(),
         summary: _generateSummary(content),
         topKeywords: _extractTopKeywords(keywords),
       ));
     }
     
     return proposals;
+  }
+
+  /// Analyze phase trends across consecutive entries to detect patterns
+  /// Returns a map with phase distribution and trend strength
+  Map<String, dynamic> _analyzePhaseTrends(List<JournalEntry> entries) {
+    if (entries.isEmpty) {
+      return {'trend_strength': 0.0, 'consistency': 0.0};
+    }
+
+    // Get phase recommendations for each entry using PhaseRecommender
+    final phaseCounts = <PhaseLabel, int>{};
+    final consecutivePatterns = <PhaseLabel, int>{}; // Track consecutive same-phase entries
+    
+    PhaseLabel? lastPhase;
+    int consecutiveCount = 0;
+    int totalConsecutive = 0;
+
+    for (final entry in entries) {
+      final recommendedPhaseStr = PhaseRecommender.recommend(
+        emotion: entry.emotion ?? '',
+        reason: entry.emotionReason ?? '',
+        text: entry.content,
+        selectedKeywords: entry.keywords,
+      );
+      
+      // Convert string to PhaseLabel enum
+      final recommendedPhase = _stringToPhaseLabel(recommendedPhaseStr);
+      
+      // Count phase occurrences
+      phaseCounts[recommendedPhase] = (phaseCounts[recommendedPhase] ?? 0) + 1;
+      
+      // Track consecutive patterns
+      if (lastPhase == recommendedPhase) {
+        consecutiveCount++;
+      } else {
+        if (consecutiveCount > 1 && lastPhase != null) {
+          consecutivePatterns[lastPhase] = 
+              (consecutivePatterns[lastPhase] ?? 0) + consecutiveCount;
+          totalConsecutive += consecutiveCount;
+        }
+        consecutiveCount = 1;
+        lastPhase = recommendedPhase;
+      }
+    }
+    
+    // Handle final consecutive pattern
+    if (consecutiveCount > 1 && lastPhase != null) {
+      consecutivePatterns[lastPhase] = 
+          (consecutivePatterns[lastPhase] ?? 0) + consecutiveCount;
+      totalConsecutive += consecutiveCount;
+    }
+
+    // Calculate consistency (how many entries show the same phase)
+    final maxCount = phaseCounts.values.isNotEmpty 
+        ? phaseCounts.values.reduce((a, b) => a > b ? a : b) 
+        : 0;
+    final consistency = entries.isEmpty ? 0.0 : (maxCount / entries.length);
+    
+    // Calculate trend strength (based on consecutive patterns)
+    final trendStrength = entries.isEmpty 
+        ? 0.0 
+        : (totalConsecutive / entries.length).clamp(0.0, 1.0);
+
+    return {
+      'phase_counts': phaseCounts,
+      'consecutive_patterns': consecutivePatterns,
+      'trend_strength': trendStrength,
+      'consistency': consistency,
+      'total_entries': entries.length,
+    };
+  }
+
+  /// Convert string phase name to PhaseLabel enum
+  PhaseLabel _stringToPhaseLabel(String phaseStr) {
+    final normalized = phaseStr.toLowerCase().trim();
+    switch (normalized) {
+      case 'discovery':
+        return PhaseLabel.discovery;
+      case 'expansion':
+        return PhaseLabel.expansion;
+      case 'transition':
+        return PhaseLabel.transition;
+      case 'consolidation':
+        return PhaseLabel.consolidation;
+      case 'recovery':
+        return PhaseLabel.recovery;
+      case 'breakthrough':
+        return PhaseLabel.breakthrough;
+      default:
+        return PhaseLabel.discovery; // Default fallback
+    }
+  }
+
+  /// Determine the dominant phase for a segment based on trends
+  PhaseLabel _determineDominantPhase(
+    Map<String, dynamic> trends,
+    List<JournalEntry> entries,
+  ) {
+    final phaseCounts = trends['phase_counts'] as Map<PhaseLabel, int>?;
+    
+    if (phaseCounts == null || phaseCounts.isEmpty) {
+      // Fallback to content-based inference
+      final content = entries.map((e) => e.content).join(' ');
+      final keywords = entries.expand((e) => e.keywords).toList();
+      return _inferPhaseFromContent(content, keywords);
+    }
+
+    // Find phase with highest count
+    PhaseLabel? dominantPhase;
+    int maxCount = 0;
+    
+    for (final entry in phaseCounts.entries) {
+      if (entry.value > maxCount) {
+        maxCount = entry.value;
+        dominantPhase = entry.key;
+      }
+    }
+
+    // Also consider consecutive patterns - if a phase appears in long streaks, boost it
+    final consecutivePatterns = trends['consecutive_patterns'] as Map<PhaseLabel, int>?;
+    if (consecutivePatterns != null && consecutivePatterns.isNotEmpty) {
+      int maxConsecutive = 0;
+      PhaseLabel? consecutivePhase;
+      
+      for (final entry in consecutivePatterns.entries) {
+        if (entry.value > maxConsecutive) {
+          maxConsecutive = entry.value;
+          consecutivePhase = entry.key;
+        }
+      }
+      
+      // If consecutive pattern is strong (3+ entries in a row), prefer it
+      if (maxConsecutive >= 3 && consecutivePhase != null) {
+        // Boost confidence for phases with strong consecutive patterns
+        final consecutiveRatio = maxConsecutive / entries.length;
+        if (consecutiveRatio > 0.3) { // 30% or more entries in consecutive pattern
+          dominantPhase = consecutivePhase;
+        }
+      }
+    }
+
+    return dominantPhase ?? PhaseLabel.discovery;
+  }
+
+  /// Calculate confidence based on trend analysis
+  double _calculateTrendConfidence(
+    Map<String, dynamic> trends,
+    List<JournalEntry> entries,
+  ) {
+    if (entries.isEmpty) return 0.0;
+
+    final consistency = trends['consistency'] as double? ?? 0.0;
+    final trendStrength = trends['trend_strength'] as double? ?? 0.0;
+    
+    // Confidence increases with:
+    // 1. High consistency (most entries show same phase)
+    // 2. Strong trend strength (consecutive patterns)
+    // 3. More entries in segment (more data = higher confidence)
+    
+    final entryCountScore = min(entries.length / 10.0, 1.0); // More entries = better
+    final consistencyScore = consistency;
+    final trendScore = trendStrength;
+    
+    // Weighted combination
+    final confidence = (consistencyScore * 0.5 + 
+                        trendScore * 0.3 + 
+                        entryCountScore * 0.2).clamp(0.0, 1.0);
+    
+    return confidence;
   }
 
   /// Apply hysteresis and minimum dwell constraints
@@ -459,17 +642,6 @@ class RivetSweepService {
     }
     
     return PhaseLabel.discovery; // Default
-  }
-
-  double _calculateConfidence(String content, List<String> keywords) {
-    // Simple confidence calculation based on content length and keyword diversity
-    final contentLength = content.length;
-    final keywordDiversity = keywords.toSet().length;
-    
-    final lengthScore = min(contentLength / 1000.0, 1.0);
-    final diversityScore = min(keywordDiversity / 10.0, 1.0);
-    
-    return (lengthScore + diversityScore) / 2.0;
   }
 
   String _generateSummary(String content) {

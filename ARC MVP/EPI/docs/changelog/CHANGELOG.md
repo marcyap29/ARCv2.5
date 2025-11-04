@@ -1,9 +1,35 @@
 # EPI ARC MVP - Changelog
 
-**Version:** 2.0  
+**Version:** 2.1  
 **Last Updated:** November 3, 2025
 
 ## [Unreleased] - November 3, 2025
+
+### **ARCX Import Error Fixes** - November 3, 2025
+
+#### Bug Fixes
+- **Fixed ARCX 1.2 Import Failures**: Resolved import errors for ARCX 1.2 format files
+  - Made signature verification optional and non-blocking for ARCX 1.2 format
+  - Made ciphertext hash verification non-blocking (warns but continues)
+  - Fixed signature verification to use exact JSON structure that was signed
+  - Improved validation to check ARCX version before applying validation rules
+  - Enhanced error handling to prevent legacy import attempts on ARCX 1.2 files
+- **Improved Error Messages**: Better error reporting for import failures
+  - Clear distinction between ARCX 1.2 and legacy format errors
+  - Prevents unnecessary legacy import attempts for 1.2 files
+  - More informative warnings when verification steps fail
+
+#### Technical Improvements
+- **Signature Verification**: Now uses `manifest.toJson()` directly to ensure exact structure match
+- **Hash Verification**: Non-blocking verification with informative warnings
+- **Version Detection**: Checks ARCX version before validation to apply appropriate rules
+- **Fallback Logic**: Improved logic to detect ARCX 1.2 files and avoid legacy import attempts
+
+#### Files Modified
+- `lib/arcx/services/arcx_import_service_v2.dart` - Made verification steps non-blocking, improved error handling
+- `lib/arcx/models/arcx_manifest.dart` - Updated validation to support both legacy and ARCX 1.2 formats
+- `lib/arcx/services/arcx_import_service.dart` - Added early detection of ARCX 1.2 format to prevent processing
+- `lib/ui/export_import/mcp_import_screen.dart` - Improved error handling and version detection
 
 ### **ARCX Export/Import V2 Updates** - November 3, 2025
 

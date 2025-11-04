@@ -4,7 +4,12 @@
 import 'package:flutter/material.dart';
 import 'package:my_app/atlas/rivet/rivet_models.dart';
 import 'package:my_app/atlas/rivet/rivet_provider.dart';
+import 'package:my_app/atlas/rivet/rivet_service.dart';
 import 'package:my_app/atlas/phase_detection/rivet_gate_details_modal.dart';
+import 'package:my_app/arc/core/journal_repository.dart';
+import 'package:my_app/services/user_phase_service.dart';
+import 'package:my_app/arc/ui/arcforms/phase_recommender.dart';
+import 'package:uuid/uuid.dart';
 
 class PhaseChangeReadinessCard extends StatefulWidget {
   const PhaseChangeReadinessCard({super.key});
@@ -31,43 +36,53 @@ class _PhaseChangeReadinessCardState extends State<PhaseChangeReadinessCard> {
     });
 
     try {
-      final rivetProvider = RivetProvider();
       const userId = 'default_user';
 
-      if (!rivetProvider.isAvailable) {
-        await rivetProvider.initialize(userId);
-      }
-
-      // Get RIVET state
-      final state = await rivetProvider.safeGetState(userId);
+      // Rebuild RIVET state from all journal entries to ensure entries loaded from documents are included
+      final rebuilt = await _rebuildRivetStateFromAllEntries(userId);
       
-      if (state != null && rivetProvider.service != null) {
-        rivetProvider.service!.updateState(state);
+      if (rebuilt != null) {
+        final rivetProvider = RivetProvider();
         
-        // Calculate transition insights from event history
-        final service = rivetProvider.service!;
-        final eventHistory = service.eventHistory;
+        if (!rivetProvider.isAvailable) {
+          await rivetProvider.initialize(userId);
+        }
+
+        // Update the service with the rebuilt state
+        if (rivetProvider.service != null) {
+          rivetProvider.service!.updateState(rebuilt.state);
+        }
         
+        // Calculate transition insights from rebuilt event history
         PhaseTransitionInsights? insights;
-        if (eventHistory.isNotEmpty) {
+        if (rebuilt.events.isNotEmpty) {
           // Get the last event's phase
-          final lastEvent = eventHistory.last;
+          final lastEvent = rebuilt.events.last;
           // Calculate insights using the service's internal method
           // Since it's private, we'll create a simplified version
           insights = _calculateTransitionInsights(
             currentPhase: lastEvent.refPhase,
-            eventHistory: eventHistory,
-            updatedState: state,
+            eventHistory: rebuilt.events,
+            updatedState: rebuilt.state,
           );
         }
         
         setState(() {
-          _rivetState = state;
+          _rivetState = rebuilt.state;
           _rivetInsights = insights;
         });
       } else {
+        // Fallback: try to get state from storage
+        final rivetProvider = RivetProvider();
+        
+        if (!rivetProvider.isAvailable) {
+          await rivetProvider.initialize(userId);
+        }
+
+        final state = await rivetProvider.safeGetState(userId);
+        
         setState(() {
-          _rivetState = const RivetState(
+          _rivetState = state ?? const RivetState(
             align: 0,
             trace: 0,
             sustainCount: 0,
@@ -83,6 +98,7 @@ class _PhaseChangeReadinessCardState extends State<PhaseChangeReadinessCard> {
         _isLoading = false;
       });
     } catch (e) {
+      print('ERROR: Failed to load readiness data: $e');
       setState(() {
         _rivetState = const RivetState(
           align: 0,
@@ -92,6 +108,75 @@ class _PhaseChangeReadinessCardState extends State<PhaseChangeReadinessCard> {
         );
         _isLoading = false;
       });
+    }
+  }
+
+  /// Rebuild RIVET state from all journal entries to ensure all entries are counted
+  /// Returns both the state and event history for insights calculation
+  Future<({RivetState state, List<RivetEvent> events})?> _rebuildRivetStateFromAllEntries(String userId) async {
+    try {
+      final journalRepository = JournalRepository();
+      final allEntries = journalRepository.getAllJournalEntriesSync();
+
+      if (allEntries.isEmpty) {
+        // No entries = return initial state
+        return (
+          state: const RivetState(
+            align: 0,
+            trace: 0,
+            sustainCount: 0,
+            sawIndependentInWindow: false,
+          ),
+          events: <RivetEvent>[],
+        );
+      }
+
+      // Create fresh RIVET service and process all entries
+      final rivetService = RivetService();
+      final events = <RivetEvent>[];
+      RivetEvent? lastEvent;
+
+      // Sort entries chronologically
+      final sortedEntries = allEntries.toList()
+        ..sort((a, b) => a.createdAt.compareTo(b.createdAt));
+
+      // Get current phase once (assumes it doesn't change during processing)
+      final currentPhase = await UserPhaseService.getCurrentPhase();
+
+      for (final entry in sortedEntries) {
+        final recommendedPhase = PhaseRecommender.recommend(
+          emotion: entry.emotion ?? '',
+          reason: entry.emotionReason ?? '',
+          text: entry.content,
+          selectedKeywords: entry.keywords,
+        );
+
+        // Create RIVET event
+        final rivetEvent = RivetEvent(
+          eventId: const Uuid().v4(),
+          date: entry.createdAt,
+          source: EvidenceSource.text,
+          keywords: entry.keywords.toSet(),
+          predPhase: recommendedPhase,
+          refPhase: currentPhase,
+          tolerance: const {},
+        );
+
+        // Process through RIVET service
+        rivetService.ingest(rivetEvent, lastEvent: lastEvent);
+        events.add(rivetEvent);
+        lastEvent = rivetEvent;
+      }
+
+      print('DEBUG: Rebuilt RIVET state from ${sortedEntries.length} entries - '
+            'ALIGN: ${(rivetService.state.align * 100).toInt()}%, '
+            'TRACE: ${(rivetService.state.trace * 100).toInt()}%, '
+            'Sustain: ${rivetService.state.sustainCount}');
+
+      return (state: rivetService.state, events: events);
+    } catch (e) {
+      print('ERROR: Failed to rebuild RIVET state: $e');
+      return null;
     }
   }
 
@@ -220,18 +305,13 @@ class _PhaseChangeReadinessCardState extends State<PhaseChangeReadinessCard> {
 
     return Card(
       elevation: 4,
+      color: Colors.black87,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       margin: const EdgeInsets.symmetric(horizontal: 4),
       child: Container(
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(20),
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: isReady
-                ? [Colors.green.shade50, Colors.teal.shade50]
-                : [Colors.blue.shade50, Colors.indigo.shade50],
-          ),
+          color: Colors.black87,
         ),
         child: Padding(
           padding: const EdgeInsets.all(24.0),
@@ -269,7 +349,7 @@ class _PhaseChangeReadinessCardState extends State<PhaseChangeReadinessCard> {
                           'Phase Transition Readiness',
                           style: Theme.of(context).textTheme.titleLarge?.copyWith(
                             fontWeight: FontWeight.bold,
-                            color: Colors.grey[800],
+                            color: Colors.white,
                             fontSize: 20,
                           ),
                         ),
@@ -279,13 +359,53 @@ class _PhaseChangeReadinessCardState extends State<PhaseChangeReadinessCard> {
                               ? 'Ready for phase transition'
                               : 'Tracking transition patterns',
                           style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: Colors.grey[600],
+                            color: Colors.grey[300],
                             fontSize: 13,
                           ),
                         ),
                       ],
                     ),
                   ),
+                  // Refresh button
+                  Container(
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: Colors.white.withOpacity(0.8),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.grey.withOpacity(0.2),
+                          blurRadius: 4,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: IconButton(
+                      icon: _isLoading
+                          ? SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                valueColor: AlwaysStoppedAnimation<Color>(
+                                  Colors.blue.shade600,
+                                ),
+                              ),
+                            )
+                          : Icon(
+                              Icons.refresh,
+                              color: Colors.blue.shade600,
+                              size: 20,
+                            ),
+                      onPressed: _isLoading ? null : _loadAllData,
+                      tooltip: 'Refresh readiness data',
+                      padding: const EdgeInsets.all(8),
+                      constraints: const BoxConstraints(
+                        minWidth: 36,
+                        minHeight: 36,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
                   IconButton(
                     icon: Icon(Icons.info_outline, color: Colors.blue.shade600),
                     onPressed: _showRivetDetails,
@@ -398,7 +518,7 @@ class _PhaseChangeReadinessCardState extends State<PhaseChangeReadinessCard> {
             label,
             style: TextStyle(
               fontSize: 11,
-              color: Colors.grey[600],
+              color: Colors.grey[300],
             ),
           ),
           const SizedBox(height: 8),
@@ -634,7 +754,7 @@ class _PhaseChangeReadinessCardState extends State<PhaseChangeReadinessCard> {
               style: TextStyle(
                 fontSize: 15,
                 fontWeight: FontWeight.w600,
-                color: Colors.grey[700],
+                color: Colors.white,
               ),
             ),
             Text(
@@ -658,18 +778,18 @@ class _PhaseChangeReadinessCardState extends State<PhaseChangeReadinessCard> {
           ),
         ),
         const SizedBox(height: 8),
-        Text(
-          isReady
-              ? '✨ Ready to explore a new phase!'
-              : qualifyingEntries >= 1
-                  ? '📈 Almost there - keep journaling!'
-                  : '📝 Building your phase profile...',
-          style: TextStyle(
-            fontSize: 13,
-            color: Colors.grey[600],
-            fontStyle: FontStyle.italic,
+          Text(
+            isReady
+                ? '✨ Ready to explore a new phase!'
+                : qualifyingEntries >= 1
+                    ? '📈 Almost there - keep journaling!'
+                    : '📝 Building your phase profile...',
+            style: TextStyle(
+              fontSize: 13,
+              color: Colors.grey[300],
+              fontStyle: FontStyle.italic,
+            ),
           ),
-        ),
       ],
     );
   }
@@ -678,9 +798,9 @@ class _PhaseChangeReadinessCardState extends State<PhaseChangeReadinessCard> {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Colors.grey[900],
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey[200]!),
+        border: Border.all(color: Colors.grey[700]!),
         boxShadow: [
           BoxShadow(
             color: Colors.grey.withOpacity(0.05),
@@ -701,7 +821,7 @@ class _PhaseChangeReadinessCardState extends State<PhaseChangeReadinessCard> {
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
-                  color: Colors.grey[800],
+                  color: Colors.white,
                 ),
               ),
             ],
@@ -745,13 +865,13 @@ class _PhaseChangeReadinessCardState extends State<PhaseChangeReadinessCard> {
         Container(
           padding: const EdgeInsets.all(6),
           decoration: BoxDecoration(
-            color: isComplete ? Colors.green.shade50 : Colors.grey[100],
+            color: isComplete ? Colors.green.withOpacity(0.2) : Colors.grey[800],
             borderRadius: BorderRadius.circular(8),
           ),
           child: Icon(
             icon,
             size: 18,
-            color: isComplete ? Colors.green.shade700 : Colors.grey[400],
+            color: isComplete ? Colors.green.shade400 : Colors.grey[400],
           ),
         ),
         const SizedBox(width: 12),
@@ -760,7 +880,7 @@ class _PhaseChangeReadinessCardState extends State<PhaseChangeReadinessCard> {
             title,
             style: TextStyle(
               fontSize: 14,
-              color: isComplete ? Colors.grey[800] : Colors.grey[600],
+              color: isComplete ? Colors.white : Colors.grey[300],
               fontWeight: isComplete ? FontWeight.w500 : FontWeight.normal,
             ),
           ),
@@ -768,7 +888,7 @@ class _PhaseChangeReadinessCardState extends State<PhaseChangeReadinessCard> {
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
           decoration: BoxDecoration(
-            color: isComplete ? Colors.green.shade50 : Colors.grey[100],
+            color: isComplete ? Colors.green.withOpacity(0.2) : Colors.grey[800],
             borderRadius: BorderRadius.circular(12),
           ),
           child: Text(
@@ -776,7 +896,7 @@ class _PhaseChangeReadinessCardState extends State<PhaseChangeReadinessCard> {
             style: TextStyle(
               fontSize: 12,
               fontWeight: FontWeight.w600,
-              color: isComplete ? Colors.green.shade700 : Colors.grey[600],
+              color: isComplete ? Colors.green.shade400 : Colors.grey[300],
             ),
           ),
         ),

@@ -319,16 +319,6 @@ List<PhaseSegmentProposal> proposals,
             },
             tooltip: 'Phase Help',
           ),
-          IconButton(
-            icon: const Icon(Icons.clean_hands),
-            onPressed: _cleanupDuplicates,
-            tooltip: 'Clean Up Duplicates',
-          ),
-          IconButton(
-            icon: const Icon(Icons.auto_awesome),
-            onPressed: _runRivetSweep,
-            tooltip: 'Run Phase Analysis (also available in ARCForms tab)',
-          ),
         ],
         bottom: TabBar(
           controller: _tabController,
@@ -391,11 +381,46 @@ List<PhaseSegmentProposal> proposals,
                     children: [
                       Icon(Icons.auto_awesome, color: Colors.blue),
                       const SizedBox(width: 8),
-                      const Text(
-                        'Phase Analysis',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
+                      const Expanded(
+                        child: Text(
+                          'Phase Analysis',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                      // Refresh button
+                      Container(
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: Colors.grey[200],
+                        ),
+                        child: IconButton(
+                          icon: _isLoading
+                              ? SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    valueColor: AlwaysStoppedAnimation<Color>(
+                                      Colors.blue,
+                                    ),
+                                  ),
+                                )
+                              : const Icon(
+                                  Icons.refresh,
+                                  size: 20,
+                                ),
+                          onPressed: _isLoading ? null : () async {
+                            await _runRivetSweep();
+                          },
+                          tooltip: 'Refresh Phase Analysis',
+                          padding: const EdgeInsets.all(8),
+                          constraints: const BoxConstraints(
+                            minWidth: 36,
+                            minHeight: 36,
+                          ),
                         ),
                       ),
                     ],
