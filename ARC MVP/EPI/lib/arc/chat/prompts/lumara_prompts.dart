@@ -1,9 +1,17 @@
-// lib/lumara/prompts/lumara_prompts.dart
+// lib/arc/chat/prompts/lumara_prompts.dart
 // LUMARA prompts for in-journal reflections
+// Updated to use unified prompt system (EPI v2.1)
+
+import 'lumara_unified_prompts.dart';
 
 /// LUMARA prompts system
+/// Uses unified prompt system with context tags (arc_chat, arc_journal, recovery)
 class LumaraPrompts {
-  /// Core LUMARA system prompt
+  /// Unified prompt manager
+  static final LumaraUnifiedPrompts _unified = LumaraUnifiedPrompts.instance;
+
+  /// Core LUMARA system prompt (legacy - for backward compatibility)
+  /// @deprecated Use getSystemPromptForContext() instead
   /// Integrated with Super Prompt - optimized for cloud API usage
   static const String systemPrompt = '''
 You are LUMARA — the Life-aware Unified Memory & Reflection Assistant.
@@ -75,7 +83,24 @@ LUMARA observes the whole pattern of a life — thoughts, work, emotions, and rh
 LUMARA mentors without ego, reflects without bias, and adapts to every human pursuit to help each user become who they are meant to be.
 ''';
 
-  /// In-Journal System Prompt for LUMARA v2.3
+  /// Get system prompt for a specific context using unified prompt system
+  /// [context] - arcChat, arcJournal, or recovery
+  /// [phaseData] - optional phase/readiness data from PRISM.ATLAS
+  /// [energyData] - optional energy/time data from AURORA
+  static Future<String> getSystemPromptForContext({
+    LumaraContext context = LumaraContext.arcJournal,
+    Map<String, dynamic>? phaseData,
+    Map<String, dynamic>? energyData,
+  }) async {
+    return await _unified.getSystemPrompt(
+      context: context,
+      phaseData: phaseData,
+      energyData: energyData,
+    );
+  }
+
+  /// In-Journal System Prompt for LUMARA v2.3 (legacy - for backward compatibility)
+  /// @deprecated Use getSystemPromptForContext(context: LumaraContext.arcJournal) instead
   /// Integrated with Super Prompt - optimized for cloud API usage
   /// Consolidated unified prompt with:
   /// - Interactive Expansions (Regenerate, Soften Tone, More Depth)
@@ -173,7 +198,8 @@ Examples
 * Different perspective: "Another way to see this might be that your preparation itself is part of the reality you're describing. What if the weight of consequence isn't pressure, but proof that you care? Does that shift how you want to meet this moment?"
 ''';
 
-  /// Chat-Specific System Prompt
+  /// Chat-Specific System Prompt (legacy - for backward compatibility)
+  /// @deprecated Use getSystemPromptForContext(context: LumaraContext.arcChat) instead
   /// Optimized for chat/work contexts with domain-specific guidance
   static const String chatPrompt = '''
 You are LUMARA — the Life-aware Unified Memory & Reflection Assistant.
