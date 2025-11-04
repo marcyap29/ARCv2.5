@@ -4,9 +4,9 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import '../../privacy_core/pii_detection_service.dart';
-import '../../privacy_core/pii_masking_service.dart';
-import '../../privacy_core/models/pii_types.dart' hide MaskingOptions;
+import 'package:my_app/privacy_core/pii_detection_service.dart';
+import 'package:my_app/privacy_core/pii_masking_service.dart';
+import 'package:my_app/privacy_core/models/pii_types.dart' hide MaskingOptions;
 
 class PrivacyDemoScreen extends StatefulWidget {
   const PrivacyDemoScreen({super.key});

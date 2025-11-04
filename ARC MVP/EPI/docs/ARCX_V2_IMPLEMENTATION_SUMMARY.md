@@ -1,8 +1,22 @@
 # ARCX V2 Implementation Summary
 
 **Version:** 1.2.1  
-**Last Updated:** November 3, 2025  
+**Last Updated:** January 2025  
 **Status:** ✅ Complete - Production Ready
+
+## Recent Updates (January 2025)
+
+### Media Import Display Fix
+- **Issue**: Imported media was correctly saved to database but not displaying in journal UI
+- **Root Cause**: `MediaConversionUtils` only converted images with `analysisData`, but imported media often lacks this field
+- **Fix**: Updated conversion logic to handle all `MediaType.image` items regardless of `analysisData`
+- **Files Modified**: `lib/ui/journal/media_conversion_utils.dart`
+
+### Legacy Format Support Enhancement
+- Enhanced ARCX V2 import to support legacy embedded media formats
+- Added metadata fallback locations: `metadata.media`, `metadata.journal_entry.media`, `metadata.photos`
+- Improved photo mapping to check multiple directory structures
+- **Files Modified**: `lib/arcx/services/arcx_import_service_v2.dart`
 
 ## Overview
 

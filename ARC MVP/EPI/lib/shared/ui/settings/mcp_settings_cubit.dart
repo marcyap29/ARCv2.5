@@ -1,7 +1,9 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'dart:io';
 import 'dart:convert';
+import 'dart:typed_data';
 import 'package:path/path.dart' as path;
+import 'package:crypto/crypto.dart';
 import 'package:my_app/polymeta/store/mcp/import/mcp_import_service.dart';
 import 'package:my_app/polymeta/store/mcp/models/mcp_schemas.dart';
 import 'package:my_app/arc/core/journal_repository.dart';
@@ -11,6 +13,8 @@ import 'package:my_app/polymeta/mira_service.dart';
 import 'package:my_app/polymeta/core/schema.dart';
 import 'package:my_app/polymeta/core/ids.dart';
 import 'package:my_app/data/models/media_item.dart';
+import 'package:my_app/platform/photo_bridge.dart';
+import 'package:my_app/core/services/photo_library_service.dart';
 
 /// State for MCP settings operations
 class McpSettingsState {
@@ -99,11 +103,36 @@ class McpSettingsCubit extends Cubit<McpSettingsState> {
       // Get all journal entries
       final journalEntries = _journalRepository.getAllJournalEntries();
 
-      // Debug logging
+      // Debug logging - specifically check for media
       print('🔍 MCP Export Debug: Found ${journalEntries.length} journal entries');
+      int entriesWithMedia = 0;
+      int totalMediaItems = 0;
+      for (int i = 0; i < journalEntries.length; i++) {
+        final entry = journalEntries[i];
+        if (entry.media.isNotEmpty) {
+          entriesWithMedia++;
+          totalMediaItems += entry.media.length;
+          print('🔍 Entry $i (ID: ${entry.id}): HAS ${entry.media.length} media items');
+          for (int j = 0; j < entry.media.length; j++) {
+            final media = entry.media[j];
+            print('  📷 Media $j: id=${media.id}, type=${media.type.name}, uri=${media.uri}');
+          }
+        }
+      }
+      print('🔍 MCP Export Debug: $entriesWithMedia entries have media, $totalMediaItems total media items');
+      
+      if (entriesWithMedia == 0) {
+        print('⚠️ MCP Export Debug: WARNING - No entries have media items!');
+        print('⚠️ This could mean:');
+        print('  1. Entries were saved before media support was added');
+        print('  2. Media items are stored separately and need to be loaded differently');
+        print('  3. Media URIs exist but aren\'t in the media list');
+      }
+      
+      // Debug first few entries in detail
       for (int i = 0; i < journalEntries.length && i < 3; i++) {
         final entry = journalEntries[i];
-        print('🔍 Entry $i: id=${entry.id}, content length=${entry.content.length}, keywords=${entry.keywords.length}');
+        print('🔍 Entry $i: id=${entry.id}, content length=${entry.content.length}, keywords=${entry.keywords.length}, media=${entry.media.length}');
         print('🔍 Entry $i SAGE: ${entry.sageAnnotation != null ? "present" : "null"}');
       }
 
@@ -144,6 +173,13 @@ class McpSettingsCubit extends Cubit<McpSettingsState> {
         includeEvents: false,
       );
       print('🔍 MCP export completed, result dir: ${resultDir.path}');
+
+      // Copy photos to export directory
+      emit(state.copyWith(
+        currentOperation: 'Copying photos...',
+        progress: 0.85,
+      ));
+      await _copyPhotosToExport(resultDir, journalEntries);
 
       // After export, verify the nodes.jsonl file contains media
       await _verifyExportMedia(resultDir);
@@ -549,6 +585,166 @@ class McpSettingsCubit extends Cubit<McpSettingsState> {
   int _getWordCount(String? text) {
     if (text == null || text.isEmpty) return 0;
     return text.split(RegExp(r'\s+')).where((word) => word.isNotEmpty).length;
+  }
+
+  /// Copy photos from journal entries to the export directory
+  Future<void> _copyPhotosToExport(Directory exportDir, List<model.JournalEntry> entries) async {
+    try {
+      // Create media/photos directory structure
+      final photosDir = Directory(path.join(exportDir.path, 'media', 'photos'));
+      await photosDir.create(recursive: true);
+      
+      print('📷 MCP Export: Starting photo copy to ${photosDir.path}');
+      print('📷 MCP Export: Processing ${entries.length} entries');
+      
+      // Count total media items first
+      int totalMediaItems = 0;
+      int entriesWithMedia = 0;
+      for (final entry in entries) {
+        if (entry.media.isNotEmpty) {
+          entriesWithMedia++;
+          totalMediaItems += entry.media.length;
+          print('📷 MCP Export: Entry ${entry.id} has ${entry.media.length} media items');
+        }
+      }
+      print('📷 MCP Export: Found $entriesWithMedia entries with media, $totalMediaItems total media items');
+      
+      if (totalMediaItems == 0) {
+        print('⚠️ MCP Export: No media items found in any entries. Entries may not have media saved in database.');
+        return;
+      }
+      
+      int photosCopied = 0;
+      int photosSkipped = 0;
+      final processedMediaIds = <String>{}; // Track processed media to avoid duplicates
+      
+      // Collect all media items from all entries
+      for (final entry in entries) {
+        if (entry.media.isEmpty) {
+          continue; // Skip entries without media
+        }
+        
+        print('📷 MCP Export: Processing entry ${entry.id} with ${entry.media.length} media items');
+        for (final media in entry.media) {
+          // Skip if we've already processed this media item
+          if (processedMediaIds.contains(media.id)) {
+            continue;
+          }
+          processedMediaIds.add(media.id);
+          
+          try {
+            print('📷 MCP Export: Processing media ${media.id} - type: ${media.type.name}, URI: ${media.uri}');
+            
+            // Get media bytes - handle all media types
+            Uint8List? mediaBytes;
+            String? fileExtension;
+            
+            // Try multiple methods to get media bytes
+            if (media.uri.startsWith('ph://')) {
+              // Photo library URI - use PhotoBridge (for images)
+              final localId = PhotoBridge.extractLocalIdentifier(media.uri);
+              if (localId != null) {
+                if (media.type == MediaType.image) {
+                  final photoData = await PhotoBridge.getPhotoBytes(localId);
+                  if (photoData != null) {
+                    mediaBytes = photoData['bytes'] as Uint8List;
+                    fileExtension = (photoData['ext'] as String?) ?? 'jpg';
+                    print('📷 MCP Export: Got photo bytes via PhotoBridge for ${media.id}');
+                  }
+                }
+              }
+              
+              // Fallback: try PhotoLibraryService thumbnail (for images)
+              if (mediaBytes == null && media.type == MediaType.image) {
+                try {
+                  final thumbnailPath = await PhotoLibraryService.getPhotoThumbnail(media.uri, size: 1920);
+                  if (thumbnailPath != null) {
+                    final thumbFile = File(thumbnailPath);
+                    if (await thumbFile.exists()) {
+                      mediaBytes = await thumbFile.readAsBytes();
+                      fileExtension = 'jpg';
+                      print('📷 MCP Export: Got photo bytes via PhotoLibraryService for ${media.id}');
+                    }
+                  }
+                } catch (e) {
+                  print('⚠️ MCP Export: PhotoLibraryService thumbnail failed for ${media.uri}: $e');
+                }
+              }
+            } else {
+              // Try direct file path (works for all media types)
+              final file = File(media.uri);
+              if (await file.exists()) {
+                mediaBytes = await file.readAsBytes();
+                final ext = path.extension(media.uri).replaceFirst('.', '');
+                fileExtension = ext.isNotEmpty ? ext : (media.type == MediaType.image ? 'jpg' : 
+                                                         media.type == MediaType.video ? 'mp4' :
+                                                         media.type == MediaType.audio ? 'm4a' : 'bin');
+                print('📷 MCP Export: Got ${media.type.name} bytes from file for ${media.id}');
+              } else {
+                print('⚠️ MCP Export: File does not exist at ${media.uri}');
+              }
+            }
+            
+            if (mediaBytes == null || mediaBytes.isEmpty) {
+              print('⚠️ MCP Export: Could not get media bytes for ${media.id} (type: ${media.type.name}, URI: ${media.uri})');
+              photosSkipped++;
+              continue;
+            }
+            
+            // Determine media subdirectory based on type
+            String mediaSubDir;
+            switch (media.type) {
+              case MediaType.image:
+                mediaSubDir = 'photos';
+                break;
+              case MediaType.video:
+                mediaSubDir = 'videos';
+                break;
+              case MediaType.audio:
+                mediaSubDir = 'audio';
+                break;
+              case MediaType.file:
+                mediaSubDir = 'files';
+                break;
+            }
+            
+            // Create subdirectory if needed
+            final mediaTypeDir = Directory(path.join(exportDir.path, 'media', mediaSubDir));
+            await mediaTypeDir.create(recursive: true);
+            
+            // Generate filename using SHA-256 hash
+            String filename;
+            if (media.sha256 != null && media.sha256!.isNotEmpty) {
+              filename = '${media.sha256}.${fileExtension ?? "bin"}';
+            } else {
+              final hash = sha256.convert(mediaBytes).toString();
+              filename = '$hash.${fileExtension ?? "bin"}';
+            }
+            
+            // Write media file
+            final mediaFile = File(path.join(mediaTypeDir.path, filename));
+            if (!await mediaFile.exists()) {
+              await mediaFile.writeAsBytes(mediaBytes);
+              photosCopied++;
+              print('✅ MCP Export: Copied ${media.type.name} ${media.id} to $mediaSubDir/$filename (${mediaBytes.length} bytes)');
+            } else {
+              print('📷 MCP Export: ${media.type.name} $filename already exists, skipping duplicate');
+            }
+            
+          } catch (e, stackTrace) {
+            print('⚠️ MCP Export: Error copying ${media.type.name} ${media.id}: $e');
+            print('⚠️ MCP Export: Stack trace: $stackTrace');
+            photosSkipped++;
+          }
+        }
+      }
+      
+      print('📷 MCP Export: Media copy complete - $photosCopied files copied, $photosSkipped skipped');
+      
+    } catch (e) {
+      print('⚠️ MCP Export: Error during photo copy: $e');
+      // Don't fail the entire export if photo copy fails
+    }
   }
 
   /// Verify that the exported nodes.jsonl file contains media data

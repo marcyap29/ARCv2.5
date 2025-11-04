@@ -4,7 +4,7 @@
 
 import 'dart:convert';
 import 'package:crypto/crypto.dart';
-import 'package:my_app/echo/privacy_core/models/pii_types.dart';
+import 'package:my_app/privacy_core/models/pii_types.dart';
 
 enum SensitivityLevel {
   strict,   // Aggressive detection, may have false positives

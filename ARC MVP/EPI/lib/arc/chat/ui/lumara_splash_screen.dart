@@ -4,7 +4,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'widgets/lumara_icon.dart';
-import '../../shared/ui/home/home_view.dart';
+import 'package:my_app/shared/ui/home/home_view.dart';
 
 /// Splash screen with LUMARA symbol and ARC label
 class LumaraSplashScreen extends StatefulWidget {
@@ -36,7 +36,7 @@ class _LumaraSplashScreenState extends State<LumaraSplashScreen> {
     _timer?.cancel();
     Navigator.of(context).pushReplacement(
       MaterialPageRoute(
-        builder: (context) => const HomeView(),
+        builder: (context) => HomeView(),
       ),
     );
   }

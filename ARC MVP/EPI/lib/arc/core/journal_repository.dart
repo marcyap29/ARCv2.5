@@ -72,6 +72,16 @@ class JournalRepository {
       if (savedEntry != null) {
         print('🔍 JournalRepository: Verification - Entry ${entry.id} found in database');
         print('🔍 JournalRepository: Verification - Saved entry media count: ${savedEntry.media.length}');
+        if (savedEntry.media.length != entry.media.length) {
+          print('❌ JournalRepository: CRITICAL - Media count mismatch! Saved: ${entry.media.length}, Retrieved: ${savedEntry.media.length}');
+          if (savedEntry.media.isEmpty && entry.media.isNotEmpty) {
+            print('❌ JournalRepository: Media list was lost during save/retrieve!');
+            print('   Original media IDs: ${entry.media.map((m) => m.id).toList()}');
+          }
+        }
+        if (savedEntry.media.isNotEmpty) {
+          print('🔍 JournalRepository: First saved media item: id=${savedEntry.media.first.id}, type=${savedEntry.media.first.type}, uri=${savedEntry.media.first.uri}');
+        }
       } else {
         print('🔍 JournalRepository: ERROR - Entry ${entry.id} not found in database after save');
       }
@@ -85,6 +95,15 @@ class JournalRepository {
   List<JournalEntry> getAllJournalEntries() {
     try {
       print('🔍 JournalRepository: getAllJournalEntries called');
+      
+      // Ensure MediaItem adapter is registered before loading entries
+      _ensureMediaItemAdapter();
+      if (!Hive.isAdapterRegistered(11)) {
+        print('❌ JournalRepository: CRITICAL - MediaItemAdapter (ID: 11) is NOT registered when loading entries!');
+      } else {
+        print('✅ JournalRepository: Verified MediaItemAdapter (ID: 11) is registered when loading');
+      }
+      
       if (Hive.isBoxOpen(_boxName)) {
         final box = Hive.box<JournalEntry>(_boxName);
         print('🔍 JournalRepository: Box $_boxName is open, retrieving entries...');
@@ -95,6 +114,16 @@ class JournalRepository {
         for (int i = 0; i < entries.length; i++) {
           final entry = entries[i];
           print('🔍 JournalRepository: Entry $i - ID: ${entry.id}, Content: ${entry.content.substring(0, entry.content.length > 50 ? 50 : entry.content.length)}..., Media: ${entry.media.length}');
+          if (entry.media.isNotEmpty) {
+            print('🔍 JournalRepository: Entry ${entry.id} has ${entry.media.length} media items:');
+            for (int j = 0; j < entry.media.length && j < 3; j++) {
+              final media = entry.media[j];
+              print('  Media $j: id=${media.id}, type=${media.type.name}, uri=${media.uri.substring(0, media.uri.length > 60 ? 60 : media.uri.length)}...');
+            }
+            if (entry.media.length > 3) {
+              print('  ... and ${entry.media.length - 3} more');
+            }
+          }
         }
         
         return entries;

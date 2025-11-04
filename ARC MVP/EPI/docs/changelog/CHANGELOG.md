@@ -1,7 +1,27 @@
 # EPI ARC MVP - Changelog
 
 **Version:** 2.1  
-**Last Updated:** November 3, 2025
+**Last Updated:** January 2025
+
+## [Unreleased] - January 2025
+
+### **MCP Media Import Display Fix** - January 2025
+
+#### Bug Fixes
+- **Fixed Media Display in Journal Screen**: Resolved issue where imported media from ARCX files was not displaying despite being correctly imported and persisted
+  - Root cause: `MediaConversionUtils.mediaItemsToAttachments()` only converted images with `analysisData`
+  - Solution: Changed conversion logic to convert all `MediaType.image` items to `PhotoAttachment`, regardless of `analysisData`
+  - Imported media from ARCX exports typically lacks `analysisData`, causing them to be skipped during UI conversion
+
+#### Technical Improvements
+- **Enhanced Media Conversion**: Updated `mediaItemsToAttachments()` and `mediaItemToAttachment()` to handle all image types
+- **Improved Logging**: Added comprehensive logging in `JournalRepository` to verify media persistence
+- **Legacy Format Support**: Enhanced ARCX V2 import to support legacy embedded media formats with metadata fallbacks
+
+#### Files Modified
+- `lib/ui/journal/media_conversion_utils.dart` - Fixed media conversion to handle all images
+- `lib/arc/core/journal_repository.dart` - Added enhanced logging for media persistence debugging
+- `lib/arcx/services/arcx_import_service_v2.dart` - Enhanced legacy media format support
 
 ## [Unreleased] - November 3, 2025
 
