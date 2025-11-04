@@ -1,7 +1,28 @@
 # EPI ARC MVP - Changelog
 
 **Version:** 2.1  
-**Last Updated:** January 2025
+**Last Updated:** November 2025
+
+## [Unreleased] - November 2025
+
+### **LUMARA Unified Prompt System** - November 2025
+
+Unified all LUMARA assistant prompts under a single, architecture-aligned system (EPI v2.1) with context-aware behavior for ARC Chat, ARC In-Journal, and VEIL/Recovery modes.
+
+**See:** [LUMARA_UNIFIED_PROMPTS_NOV_2025.md](./LUMARA_UNIFIED_PROMPTS_NOV_2025.md) for complete details.
+
+#### Key Features
+- Context-aware prompts: `arc_chat`, `arc_journal`, `recovery`
+- Phase and energy data integration
+- Unified prompt infrastructure (JSON profile + condensed runtime prompt)
+- VEIL-EDGE integration with unified prompts
+- Backward compatible with existing code
+
+#### Files Added
+- `lib/arc/chat/prompts/lumara_profile.json` - Full system configuration
+- `lib/arc/chat/prompts/lumara_system_compact.txt` - Condensed runtime prompt
+- `lib/arc/chat/prompts/lumara_unified_prompts.dart` - Unified prompt manager
+- `lib/arc/chat/prompts/README_UNIFIED_PROMPTS.md` - Usage documentation
 
 ## [Unreleased] - January 2025
 
