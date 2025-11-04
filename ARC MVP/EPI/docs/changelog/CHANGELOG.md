@@ -1,5 +1,58 @@
 # EPI ARC MVP - Changelog
 
+**Version:** 2.0  
+**Last Updated:** November 3, 2025
+
+## [Unreleased] - November 3, 2025
+
+### **ARCX Export/Import V2 Updates** - November 3, 2025
+
+#### Major Features
+- **Two-Archive Export Strategy**: New export option for managing large archives
+  - Entries+Chats together (compressed) in one archive
+  - Media separately (uncompressed) in another archive
+  - Prevents unwieldy archive sizes as media grows over years
+  - Both archives share same export ID for matching during import
+- **Date Range Filtering**: Export only entries/chats/media from specific date ranges
+  - Options: All entries, Last 6 months, Last year, Custom date range
+  - Reduces archive size by filtering to relevant time periods
+  - Applies to entries, chats, and media based on creation dates
+- **Export Strategy Selection**: Three export strategies available
+  - All together (single archive)
+  - Separate groups (3 archives: Entries, Chats, Media)
+  - Entries+Chats together, Media separate (2 archives) - NEW
+- **Backward Compatibility**: Automatic fallback for older ARCX formats
+  - Detects ARCX 1.0 and 1.1 formats automatically
+  - Falls back to legacy import service when V2 service detects older format
+  - Seamless import experience for all ARCX versions
+  - Enhanced separated package detection for both 2-archive and 3-archive formats
+
+#### Technical Improvements
+- **Compression Control**: Media archives can be uncompressed for faster access
+  - Entries+Chats archive: compressed (default)
+  - Media archive: uncompressed (configurable)
+- **Enhanced Package Detection**: Improved detection of separated packages
+  - Detects base export ID (handles suffixes like -entries-chats, -media)
+  - Supports both 2-archive and 3-archive formats
+  - Automatic import order determination (Media → Entries+Chats or Media → Entries → Chats)
+- **UI Simplification**: Removed redundant export options
+  - Removed "Include photos" (always included via links)
+  - Removed "Reduce photo size" (not used in V2)
+  - Removed "Include chat histories" (always included)
+  - Streamlined export options to strategy and date range only
+
+#### Files Modified
+- `lib/arcx/services/arcx_export_service_v2.dart` - Added strategy enum, date filtering, 2-archive export
+- `lib/ui/export_import/mcp_export_screen.dart` - Added strategy selector, date range picker, removed redundant options
+- `lib/ui/export_import/mcp_import_screen.dart` - Enhanced package detection, added legacy fallback
+- `lib/arcx/services/arcx_import_service_v2.dart` - Version detection and error handling
+
+#### Version Compatibility
+- **ARCX 1.2**: Full support with all new features
+- **ARCX 1.1**: Backward compatible via legacy import service
+- **ARCX 1.0**: Backward compatible via legacy import service
+- **Legacy MCP (.zip)**: Still supported via McpPackImportService
+
 ## [Unreleased] - November 2, 2025
 
 ### **ARCX Import Date Preservation Fix** - November 2, 2025
