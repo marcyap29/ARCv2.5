@@ -13,6 +13,7 @@ import '../../shared/text_style.dart';
 import 'package:my_app/arc/core/journal_repository.dart';
 import 'package:my_app/lumara/chat/chat_repo_impl.dart';
 import '../services/arcx_import_service.dart';
+import '../services/arcx_import_service_v2.dart';
 import '../models/arcx_result.dart';
 
 class ARCXImportProgressScreen extends StatefulWidget {
@@ -176,6 +177,59 @@ class _ARCXImportProgressScreenState extends State<ARCXImportProgressScreen> {
       final chatRepo = ChatRepoImpl.instance;
       await chatRepo.initialize();
       
+      // Try V2 import service first (for ARCX 1.2 format)
+      // If it fails, fall back to legacy import service
+      try {
+        final importServiceV2 = ARCXImportServiceV2(
+          journalRepo: journalRepo,
+          chatRepo: chatRepo,
+        );
+        
+        setState(() => _status = 'Decrypting...');
+        
+        final v2Result = await importServiceV2.import(
+          arcxPath: widget.arcxPath,
+          options: ARCXImportOptions(
+            validateChecksums: true,
+            dedupeMedia: true,
+            skipExisting: true,
+            resolveLinks: true,
+          ),
+          password: _password,
+          onProgress: (message) {
+            if (mounted) {
+              setState(() => _status = message);
+            }
+          },
+        );
+        
+        // Convert V2 result to display format
+        if (v2Result.success) {
+          setState(() {
+            _isLoading = false;
+            _status = 'Done';
+            _entriesImported = v2Result.entriesImported;
+            _photosImported = v2Result.mediaImported;
+            _chatSessionsImported = v2Result.chatsImported;
+            _chatMessagesImported = 0; // V2 doesn't track message count separately
+          });
+          
+          // Show success dialog for V2
+          await Future.delayed(const Duration(seconds: 1));
+          if (mounted) {
+            Navigator.of(context).pop();
+            _showImportCompleteDialogV2(v2Result);
+          }
+          return;
+        } else {
+          // V2 failed, try legacy
+          print('ARCX Import: V2 import failed, trying legacy: ${v2Result.error}');
+        }
+      } catch (e) {
+        print('ARCX Import: V2 import error, trying legacy: $e');
+      }
+      
+      // Fall back to legacy import service
       final importService = ARCXImportService(
         journalRepo: journalRepo,
         chatRepo: chatRepo,
@@ -298,6 +352,64 @@ class _ARCXImportProgressScreenState extends State<ARCXImportProgressScreen> {
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  void _showImportCompleteDialogV2(ARCXImportResultV2 result) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Row(
+          children: [
+            const Icon(Icons.check_circle, color: Colors.green),
+            const SizedBox(width: 8),
+            Text('Import Complete', style: heading2Style(context)),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Your data has been successfully restored!',
+              style: bodyStyle(context),
+            ),
+            const SizedBox(height: 16),
+            _buildSummaryRow('Entries restored:', '${result.entriesImported}'),
+            _buildSummaryRow('Media restored:', '${result.mediaImported}'),
+            if (result.chatsImported > 0)
+              _buildSummaryRow('Chat sessions:', '${result.chatsImported}'),
+            if (result.warnings != null && result.warnings!.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Text(
+                'Warnings:',
+                style: bodyStyle(context).copyWith(fontWeight: FontWeight.bold, color: Colors.orange),
+              ),
+              ...result.warnings!.map((w) => Padding(
+                padding: const EdgeInsets.only(left: 8, top: 4),
+                child: Text('• $w', style: bodyStyle(context).copyWith(fontSize: 12, color: Colors.orange)),
+              )),
+            ],
+            const SizedBox(height: 8),
+            Text(
+              'Package info:',
+              style: bodyStyle(context).copyWith(fontWeight: FontWeight.bold),
+            ),
+            _buildSummaryRow('Format:', 'arcx'),
+            _buildSummaryRow('Version:', '1.2'),
+            _buildSummaryRow('Type:', 'secure'),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop(); // Close dialog
+              Navigator.of(context).pop(); // Go back to previous screen
+            },
+            child: const Text('Done'),
+          ),
+        ],
       ),
     );
   }

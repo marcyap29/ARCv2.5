@@ -9,11 +9,10 @@ import '../../shared/text_style.dart';
 import 'package:my_app/arc/core/journal_repository.dart';
 import 'package:my_app/models/journal_entry_model.dart';
 import 'package:my_app/data/models/media_item.dart';
-import '../../core/mcp/export/mcp_pack_export_service.dart';
 import '../../utils/file_utils.dart';
-import '../../arcx/services/arcx_export_service.dart';
-import '../../arcx/models/arcx_result.dart';
+import '../../arcx/services/arcx_export_service_v2.dart';
 import 'package:my_app/lumara/chat/chat_repo_impl.dart';
+import 'package:intl/intl.dart';
 
 /// MCP Export Screen - Create MCP Package (.mcpkg)
 class McpExportScreen extends StatefulWidget {
@@ -24,20 +23,14 @@ class McpExportScreen extends StatefulWidget {
 }
 
 class _McpExportScreenState extends State<McpExportScreen> {
-  bool _includePhotos = true;
-  bool _reducePhotoSize = false;
   bool _isExporting = false;
-  String? _exportPath;
   int _entryCount = 0;
   int _photoCount = 0;
   String _estimatedSize = 'Calculating...';
-  String _progressMessage = 'Preparing export...'; // Progress message
   
-  // Export format selection
-  String _exportFormat = 'legacy'; // 'legacy' or 'secure'
+  // Always using ARCX secure format (per spec - .zip option removed)
   
   // Chat export settings
-  bool _includeChats = false;
   bool _includeArchivedChats = false;
   
   // Multi-select for entries
@@ -53,6 +46,15 @@ class _McpExportScreenState extends State<McpExportScreen> {
   // Password-based encryption (only for .arcx format)
   bool _usePasswordEncryption = false;
   String? _exportPassword;
+  
+  // ARCX V2 export options
+  ARCXExportStrategy _exportStrategy = ARCXExportStrategy.together; // Export strategy
+  int _mediaPackTargetSizeMB = 200; // Target size for media packs in MB
+  
+  // Date range filtering
+  String _dateRangeSelection = 'all'; // 'all', 'last6months', 'lastyear', 'custom'
+  DateTime? _customStartDate;
+  DateTime? _customEndDate;
 
   @override
   void initState() {
@@ -133,7 +135,8 @@ class _McpExportScreenState extends State<McpExportScreen> {
       // Show progress dialog
       _showProgressDialog(progressNotifier);
 
-      if (_exportFormat == 'secure') {
+      // Always use ARCX secure format (per spec - .zip option removed)
+      {
         // Secure .arcx export
         final outputDir = await getApplicationDocumentsDirectory();
         final exportsDir = Directory(path.join(outputDir.path, 'Exports'));
@@ -141,23 +144,87 @@ class _McpExportScreenState extends State<McpExportScreen> {
           await exportsDir.create(recursive: true);
         }
 
-        // Collect photo media items from journal entries
+        // Collect photo media items from journal entries (always included)
         final photoMedia = <MediaItem>[];
-        if (_includePhotos) {
-          for (final entry in entries) {
-            photoMedia.addAll(entry.media.where((m) => m.type == MediaType.image));
-          }
+        for (final entry in entries) {
+          photoMedia.addAll(entry.media.where((m) => m.type == MediaType.image));
         }
 
-        // Call ARCX export service with progress callback
-        final arcxExport = ARCXExportService();
-        final result = await arcxExport.exportSecure(
+        // Use ARCX Export Service V2 (new specification)
+        final chatRepo = ChatRepoImpl.instance;
+        try {
+          await chatRepo.initialize();
+        } catch (e) {
+          print('Warning: Could not initialize ChatRepo: $e');
+        }
+        
+        final arcxExportV2 = ARCXExportServiceV2(
+          journalRepo: journalRepo,
+          chatRepo: chatRepo,
+        );
+        
+        // Build selection from entries
+        final entryIds = entries.map((e) => e.id).toList();
+        final mediaIds = photoMedia.map((m) => m.id).toList();
+        
+        // Get chat thread IDs (always included, filtered by date range)
+        final chatThreadIds = <String>[];
+        final allChats = await chatRepo.listAll(includeArchived: _includeArchivedChats);
+        // Filter chats by selected dates if dates are available
+        if (selectedDates.isNotEmpty) {
+          for (final chat in allChats) {
+            final chatDate = '${chat.createdAt.year.toString().padLeft(4, '0')}-'
+                           '${chat.createdAt.month.toString().padLeft(2, '0')}-'
+                           '${chat.createdAt.day.toString().padLeft(2, '0')}';
+            if (selectedDates.contains(chatDate)) {
+              chatThreadIds.add(chat.id);
+            }
+          }
+        } else {
+          chatThreadIds.addAll(allChats.map((c) => c.id));
+        }
+        
+        // Calculate date range based on selection
+        DateTime? startDate;
+        DateTime? endDate;
+        final now = DateTime.now();
+        
+        switch (_dateRangeSelection) {
+          case 'last6months':
+            startDate = DateTime(now.year, now.month - 6, now.day);
+            break;
+          case 'lastyear':
+            startDate = DateTime(now.year - 1, now.month, now.day);
+            break;
+          case 'custom':
+            startDate = _customStartDate;
+            endDate = _customEndDate;
+            break;
+          case 'all':
+          default:
+            // No date filtering
+            break;
+        }
+        
+        final result = await arcxExportV2.export(
+          selection: ARCXExportSelection(
+            entryIds: entryIds,
+            chatThreadIds: chatThreadIds,
+            mediaIds: mediaIds,
+            startDate: startDate,
+            endDate: endDate,
+          ),
+          options: ARCXExportOptions(
+            strategy: _exportStrategy,
+            mediaPackTargetSizeMB: _mediaPackTargetSizeMB,
+            encrypt: true,
+            compression: 'auto',
+            dedupeMedia: true,
+            includeChecksums: true,
+            startDate: startDate,
+            endDate: endDate,
+          ),
           outputDir: exportsDir,
-          journalEntries: entries,
-          mediaFiles: _includePhotos ? photoMedia : null,
-          includePhotoLabels: _includePhotoLabels,
-          dateOnlyTimestamps: _dateOnlyTimestamps,
-          removePii: _removePii,
           password: _usePasswordEncryption ? _exportPassword : null,
           onProgress: (message) {
             if (mounted) {
@@ -172,55 +239,9 @@ class _McpExportScreenState extends State<McpExportScreen> {
         }
 
         if (result.success) {
-          setState(() {
-            _exportPath = result.arcxPath;
-          });
-          _showArcSuccessDialog(result);
+          _showArcSuccessDialogV2(result);
         } else {
           _showErrorDialog(result.error ?? 'ARCX export failed');
-        }
-      } else {
-        // Legacy MCP export
-        final tempDir = await getTemporaryDirectory();
-        final fileName = FileUtils.generateMcpPackageName('journal_export');
-        final tempFilePath = path.join(tempDir.path, fileName);
-
-        // Get ChatRepo instance
-        final chatRepo = ChatRepoImpl.instance;
-        try {
-          await chatRepo.initialize();
-        } catch (e) {
-          print('Warning: Could not initialize ChatRepo: $e');
-        }
-
-        // Create export service
-        final exportService = McpPackExportService(
-          bundleId: 'export_${DateTime.now().millisecondsSinceEpoch}',
-          outputPath: tempFilePath,
-          isDebugMode: false,
-          chatRepo: _includeChats ? chatRepo : null,
-        );
-
-        // Export
-        final exportResult = await exportService.exportJournal(
-          entries: entries,
-          includePhotos: _includePhotos,
-          reducePhotoSize: _reducePhotoSize,
-          includeChats: _includeChats,
-          includeArchivedChats: _includeArchivedChats,
-          chatDatesFilter: _useMultiSelect && _includeChats ? selectedDates : null,
-        );
-
-        // Hide progress dialog
-        Navigator.of(context).pop();
-
-        if (exportResult.success) {
-          setState(() {
-            _exportPath = exportResult.outputPath;
-          });
-          _showSuccessDialog(exportResult);
-        } else {
-          _showErrorDialog(exportResult.error ?? 'Export failed');
         }
       }
 
@@ -248,9 +269,7 @@ class _McpExportScreenState extends State<McpExportScreen> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  _exportFormat == 'secure' 
-                    ? 'Creating Secure Archive...'
-                    : 'Creating MCP Package...',
+                  'Creating Secure Archive...',
                   style: heading3Style(context),
                 ),
                 const SizedBox(height: 16),
@@ -268,65 +287,6 @@ class _McpExportScreenState extends State<McpExportScreen> {
             ),
           );
         },
-      ),
-    );
-  }
-
-  void _showSuccessDialog(McpExportResult result) async {
-    // First show the success dialog
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Row(
-          children: [
-            const Icon(Icons.check_circle, color: Colors.green),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text('Export Complete', style: heading2Style(context)),
-            ),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Your MCP Package was created successfully!',
-              style: bodyStyle(context),
-            ),
-            const SizedBox(height: 16),
-            _buildSummaryRow('Entries exported:', '${result.totalEntries}'),
-            _buildSummaryRow('Photos exported:', '${result.totalPhotos}'),
-            if (result.totalChatSessions > 0 || result.totalChatMessages > 0) ...[
-              const SizedBox(height: 8),
-              _buildSummaryRow('Chats exported:', '${result.totalChatSessions} sessions, ${result.totalChatMessages} messages'),
-            ] else ...[
-              const SizedBox(height: 8),
-              _buildSummaryRow('Chats exported:', '0'),
-            ],
-            const SizedBox(height: 16),
-            Text(
-              'Tap "Share" to save the file to your device.',
-              style: bodyStyle(context).copyWith(
-                fontStyle: FontStyle.italic,
-                color: kcSecondaryTextColor,
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              Navigator.of(context).pop(); // Close dialog first
-              await _shareMcpPackage(result.outputPath!);
-            },
-            child: const Text('Share'),
-          ),
-        ],
       ),
     );
   }
@@ -369,101 +329,44 @@ class _McpExportScreenState extends State<McpExportScreen> {
     }
   }
 
-  void _showArcSuccessDialog(ARCXExportResult result) async {
-    // First show the success dialog
+  void _showArcSuccessDialogV2(ARCXExportResultV2 result) async {
+    // Show success dialog for V2 export
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Row(
+        title: const Row(
           children: [
-            const Icon(Icons.check_circle, color: Colors.green),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text('Secure Archive Created', style: heading2Style(context)),
-            ),
+            Icon(Icons.check_circle, color: Colors.green),
+            SizedBox(width: 8),
+            Text('Export Complete'),
           ],
         ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              'Archive encrypted',
-              style: bodyStyle(context).copyWith(fontSize: 14),
-              textAlign: TextAlign.center,
-            ),
+            Text('Successfully exported ${result.entriesExported} entries, ${result.chatsExported} chats, and ${result.mediaExported} media items.'),
             const SizedBox(height: 16),
-            _buildSummaryRow('Entries exported:', '$_entryCount'),
-            _buildSummaryRow('Photos exported:', '$_photoCount'),
-            const SizedBox(height: 16),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.blue[50],
-                borderRadius: BorderRadius.circular(8),
+            if (result.arcxPath != null)
+              Text(
+                'Location: ${path.basename(result.arcxPath!)}',
+                style: const TextStyle(fontSize: 12, color: Colors.grey),
               ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'File created:',
-                    style: bodyStyle(context).copyWith(fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 4),
-                  _buildFilePath('📦 Archive', result.arcxPath!),
-                ],
-              ),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'Encrypted with AES-256-GCM • Signed with Ed25519',
-              style: bodyStyle(context).copyWith(
-                fontStyle: FontStyle.italic,
-                color: kcSecondaryTextColor,
-                fontSize: 11,
-              ),
-              textAlign: TextAlign.center,
-            ),
           ],
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Cancel'),
+            child: const Text('OK'),
           ),
-          ElevatedButton(
-            onPressed: () async {
-              // Store messenger reference before async operations
-              final messenger = mounted ? ScaffoldMessenger.of(context) : null;
-              
-              Navigator.of(context).pop(); // Close dialog first
-              
-              // Share the single .arcx file
-              await Share.shareXFiles(
-                [XFile(result.arcxPath!)],
-                text: 'Secure Archive - $_entryCount entries, $_photoCount photos',
-                subject: 'Encrypted Journal Export',
-              );
-              
-              // Show confirmation after successful share (only if still mounted)
-              if (mounted && messenger != null && messenger.mounted) {
-                messenger.showSnackBar(
-                  SnackBar(
-                    content: const Row(
-                      children: [
-                        Icon(Icons.check_circle, color: Colors.white),
-                        SizedBox(width: 8),
-                        Text('Secure archive saved successfully!'),
-                      ],
-                    ),
-                    backgroundColor: Colors.green,
-                    duration: const Duration(seconds: 2),
-                  ),
-                );
-              }
-            },
-            child: const Text('Share File'),
-          ),
+          if (result.arcxPath != null)
+            ElevatedButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                _shareMcpPackage(result.arcxPath!);
+              },
+              child: const Text('Share'),
+            ),
         ],
       ),
     );
@@ -679,51 +582,39 @@ class _McpExportScreenState extends State<McpExportScreen> {
 
             const SizedBox(height: 24),
 
-            // Export format selection
-            Text(
-              'Export Format',
-              style: heading2Style(context).copyWith(
-                color: kcPrimaryTextColor,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            const SizedBox(height: 12),
-            
+            // Export format - ARCX is now the only format (per spec)
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.05),
+                color: Colors.green.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.white.withOpacity(0.1)),
+                border: Border.all(color: Colors.green.withOpacity(0.3)),
               ),
-              child: Column(
+              child: Row(
                 children: [
-                  _buildFormatOption(
-                    value: 'legacy',
-                    groupValue: _exportFormat,
-                    title: 'Legacy MCP (.zip)',
-                    subtitle: 'Unencrypted package for compatibility',
-                    icon: Icons.archive,
-                    color: Colors.blue,
-                    onChanged: (value) {
-                      setState(() {
-                        _exportFormat = value!;
-                      });
-                    },
-                  ),
-                  const Divider(height: 24),
-                  _buildFormatOption(
-                    value: 'secure',
-                    groupValue: _exportFormat,
-                    title: 'Secure Archive (.arcx)',
-                    subtitle: 'Encrypted with AES-256-GCM and Ed25519 signing',
-                    icon: Icons.lock,
-                    color: Colors.green,
-                    onChanged: (value) {
-                      setState(() {
-                        _exportFormat = value!;
-                      });
-                    },
+                  const Icon(Icons.lock, color: Colors.green, size: 24),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Secure Archive (.arcx)',
+                          style: heading3Style(context).copyWith(
+                            color: Colors.green,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Encrypted with AES-256-GCM and Ed25519 signing',
+                          style: bodyStyle(context).copyWith(
+                            color: kcSecondaryTextColor,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ],
               ),
@@ -731,8 +622,8 @@ class _McpExportScreenState extends State<McpExportScreen> {
 
             const SizedBox(height: 24),
 
-            // Redaction settings (only for secure format)
-            if (_exportFormat == 'secure') ...[
+            // Redaction settings (ARCX format only)
+            ...[
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
@@ -838,6 +729,77 @@ class _McpExportScreenState extends State<McpExportScreen> {
                 ),
               ),
               const SizedBox(height: 24),
+              
+              // ARCX V2 Advanced Options
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.05),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.white.withOpacity(0.1)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Advanced Export Options',
+                      style: heading3Style(context).copyWith(
+                        color: kcPrimaryTextColor,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      'Export Strategy',
+                      style: bodyStyle(context).copyWith(
+                        color: kcPrimaryTextColor,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    _buildStrategySelector(),
+                    const SizedBox(height: 16),
+                    Text(
+                      'Date Range',
+                      style: bodyStyle(context).copyWith(
+                        color: kcPrimaryTextColor,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    _buildDateRangeSelector(),
+                    const SizedBox(height: 16),
+                    Text(
+                      'Media pack target size: ${_mediaPackTargetSizeMB} MB',
+                      style: bodyStyle(context).copyWith(
+                        color: kcPrimaryTextColor,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Slider(
+                      value: _mediaPackTargetSizeMB.toDouble(),
+                      min: 50,
+                      max: 500,
+                      divisions: 9, // 50, 100, 150, ..., 500
+                      label: '${_mediaPackTargetSizeMB} MB',
+                      onChanged: (value) {
+                        setState(() {
+                          _mediaPackTargetSizeMB = value.round();
+                        });
+                      },
+                    ),
+                    Text(
+                      'Media will be split into packs of approximately ${_mediaPackTargetSizeMB} MB each',
+                      style: bodyStyle(context).copyWith(
+                        color: kcSecondaryTextColor,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 24),
             ],
 
             // Options
@@ -850,62 +812,17 @@ class _McpExportScreenState extends State<McpExportScreen> {
             ),
             const SizedBox(height: 12),
 
-            // Include photos option
+            // Include archived chats option
             _buildOptionTile(
-              title: 'Include photos',
-              subtitle: 'Export all photos with your entries',
-              value: _includePhotos,
+              title: 'Include archived chats',
+              subtitle: 'Export archived chat sessions as well',
+              value: _includeArchivedChats,
               onChanged: (value) {
                 setState(() {
-                  _includePhotos = value;
-                });
-                _loadJournalStats(); // Recalculate size
-              },
-            ),
-
-            // Reduce photo size option
-            if (_includePhotos) ...[
-              const SizedBox(height: 8),
-              _buildOptionTile(
-                title: 'Reduce photo size',
-                subtitle: 'Compress photos to save space (recommended)',
-                value: _reducePhotoSize,
-                onChanged: (value) {
-                  setState(() {
-                    _reducePhotoSize = value;
-                  });
-                  _loadJournalStats(); // Recalculate size
-                },
-              ),
-            ],
-
-            // Chat export option
-            const SizedBox(height: 8),
-            _buildOptionTile(
-              title: 'Include chat histories',
-              subtitle: 'Export chat sessions and messages',
-              value: _includeChats,
-              onChanged: (value) {
-                setState(() {
-                  _includeChats = value;
+                  _includeArchivedChats = value;
                 });
               },
             ),
-
-            // Include archived chats (only if chats are enabled)
-            if (_includeChats) ...[
-              const SizedBox(height: 8),
-              _buildOptionTile(
-                title: 'Include archived chats',
-                subtitle: 'Export archived chat sessions as well',
-                value: _includeArchivedChats,
-                onChanged: (value) {
-                  setState(() {
-                    _includeArchivedChats = value;
-                  });
-                },
-              ),
-            ],
 
             // Multi-select option
             const SizedBox(height: 8),
@@ -1026,8 +943,7 @@ class _McpExportScreenState extends State<McpExportScreen> {
                         : '$_entryCount (all)',
                   ),
                   _buildSummaryRow('Photos:', '$_photoCount'),
-                  if (_includeChats)
-                    _buildSummaryRow('Chats:', 'Will be included'),
+                  _buildSummaryRow('Chats:', 'Will be included'),
                   _buildSummaryRow('Estimated size:', _estimatedSize),
                 ],
               ),
@@ -1064,11 +980,9 @@ class _McpExportScreenState extends State<McpExportScreen> {
                           Text('Creating Package...'),
                         ],
                       )
-                    : Text(
-                        _exportFormat == 'secure' 
-                          ? 'Create Secure Archive (.arcx)'
-                          : 'Create MCP Package (.zip)',
-                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                    : const Text(
+                        'Create Secure Archive (.arcx)',
+                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                       ),
               ),
             ),
@@ -1103,65 +1017,167 @@ class _McpExportScreenState extends State<McpExportScreen> {
     );
   }
 
-  Widget _buildFormatOption({
-    required String value,
-    required String? groupValue,
-    required String title,
-    required String subtitle,
-    required IconData icon,
-    required Color color,
-    required ValueChanged<String?> onChanged,
-  }) {
-    final isSelected = groupValue == value;
-    
-    return InkWell(
-      onTap: () => onChanged(value),
-      child: Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: isSelected ? color.withOpacity(0.1) : Colors.transparent,
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(
-            color: isSelected ? color : Colors.white.withOpacity(0.1),
-            width: isSelected ? 2 : 1,
+  Widget _buildStrategySelector() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.05),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.white.withOpacity(0.1)),
+      ),
+      child: Column(
+        children: [
+          RadioListTile<ARCXExportStrategy>(
+            title: Text('All together', style: bodyStyle(context)),
+            subtitle: Text('Single archive with all entries, chats, and media', style: bodyStyle(context).copyWith(fontSize: 12)),
+            value: ARCXExportStrategy.together,
+            groupValue: _exportStrategy,
+            onChanged: (value) {
+              setState(() {
+                _exportStrategy = value!;
+              });
+            },
+            activeColor: kcAccentColor,
           ),
-        ),
-        child: Row(
-          children: [
-            Radio<String>(
-              value: value,
-              groupValue: groupValue,
-              onChanged: onChanged,
-              activeColor: color,
-            ),
-            const SizedBox(width: 12),
-            Icon(icon, color: color, size: 28),
-            const SizedBox(width: 12),
-            Expanded(
+          RadioListTile<ARCXExportStrategy>(
+            title: Text('Separate groups (3 archives)', style: bodyStyle(context)),
+            subtitle: Text('Entries, Chats, and Media as separate packages', style: bodyStyle(context).copyWith(fontSize: 12)),
+            value: ARCXExportStrategy.separateGroups,
+            groupValue: _exportStrategy,
+            onChanged: (value) {
+              setState(() {
+                _exportStrategy = value!;
+              });
+            },
+            activeColor: kcAccentColor,
+          ),
+          RadioListTile<ARCXExportStrategy>(
+            title: Text('Entries+Chats together, Media separate (2 archives)', style: bodyStyle(context)),
+            subtitle: Text('Compressed entries/chats archive + uncompressed media archive', style: bodyStyle(context).copyWith(fontSize: 12)),
+            value: ARCXExportStrategy.entriesChatsTogetherMediaSeparate,
+            groupValue: _exportStrategy,
+            onChanged: (value) {
+              setState(() {
+                _exportStrategy = value!;
+              });
+            },
+            activeColor: kcAccentColor,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDateRangeSelector() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.05),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.white.withOpacity(0.1)),
+      ),
+      child: Column(
+        children: [
+          RadioListTile<String>(
+            title: Text('All entries', style: bodyStyle(context)),
+            value: 'all',
+            groupValue: _dateRangeSelection,
+            onChanged: (value) {
+              setState(() {
+                _dateRangeSelection = value!;
+              });
+            },
+            activeColor: kcAccentColor,
+          ),
+          RadioListTile<String>(
+            title: Text('Last 6 months', style: bodyStyle(context)),
+            value: 'last6months',
+            groupValue: _dateRangeSelection,
+            onChanged: (value) {
+              setState(() {
+                _dateRangeSelection = value!;
+              });
+            },
+            activeColor: kcAccentColor,
+          ),
+          RadioListTile<String>(
+            title: Text('Last year', style: bodyStyle(context)),
+            value: 'lastyear',
+            groupValue: _dateRangeSelection,
+            onChanged: (value) {
+              setState(() {
+                _dateRangeSelection = value!;
+              });
+            },
+            activeColor: kcAccentColor,
+          ),
+          RadioListTile<String>(
+            title: Text('Custom date range', style: bodyStyle(context)),
+            value: 'custom',
+            groupValue: _dateRangeSelection,
+            onChanged: (value) {
+              setState(() {
+                _dateRangeSelection = value!;
+              });
+            },
+            activeColor: kcAccentColor,
+          ),
+          if (_dateRangeSelection == 'custom') ...[
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    title,
-                    style: heading3Style(context).copyWith(
-                      color: isSelected ? color : kcPrimaryTextColor,
-                      fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                  ListTile(
+                    title: Text('Start Date', style: bodyStyle(context).copyWith(fontSize: 14)),
+                    subtitle: Text(
+                      _customStartDate != null
+                          ? DateFormat('yyyy-MM-dd').format(_customStartDate!)
+                          : 'Not set',
+                      style: bodyStyle(context).copyWith(fontSize: 12),
                     ),
+                    trailing: const Icon(Icons.calendar_today, size: 20),
+                    onTap: () async {
+                      final date = await showDatePicker(
+                        context: context,
+                        initialDate: _customStartDate ?? DateTime.now(),
+                        firstDate: DateTime(2000),
+                        lastDate: DateTime.now(),
+                      );
+                      if (date != null) {
+                        setState(() {
+                          _customStartDate = date;
+                        });
+                      }
+                    },
                   ),
-                  const SizedBox(height: 4),
-                  Text(
-                    subtitle,
-                    style: bodyStyle(context).copyWith(
-                      color: kcSecondaryTextColor,
-                      fontSize: 12,
+                  ListTile(
+                    title: Text('End Date', style: bodyStyle(context).copyWith(fontSize: 14)),
+                    subtitle: Text(
+                      _customEndDate != null
+                          ? DateFormat('yyyy-MM-dd').format(_customEndDate!)
+                          : 'Not set',
+                      style: bodyStyle(context).copyWith(fontSize: 12),
                     ),
+                    trailing: const Icon(Icons.calendar_today, size: 20),
+                    onTap: () async {
+                      final date = await showDatePicker(
+                        context: context,
+                        initialDate: _customEndDate ?? DateTime.now(),
+                        firstDate: _customStartDate ?? DateTime(2000),
+                        lastDate: DateTime.now(),
+                      );
+                      if (date != null) {
+                        setState(() {
+                          _customEndDate = date;
+                        });
+                      }
+                    },
                   ),
                 ],
               ),
             ),
           ],
-        ),
+        ],
       ),
     );
   }
+
 }

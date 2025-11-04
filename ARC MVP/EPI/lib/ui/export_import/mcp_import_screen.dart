@@ -3,6 +3,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:path/path.dart' as path;
 import 'dart:io';
+import 'dart:convert';
+import 'package:archive/archive.dart';
 import '../../shared/app_colors.dart';
 import '../../shared/text_style.dart';
 import 'package:my_app/arc/core/journal_repository.dart';
@@ -13,6 +15,8 @@ import '../../lumara/chat/chat_repo_impl.dart';
 import '../../utils/file_utils.dart';
 import 'package:my_app/arc/ui/timeline/timeline_cubit.dart';
 import '../../arcx/ui/arcx_import_progress_screen.dart';
+import '../../arcx/services/arcx_import_service_v2.dart';
+import '../../arcx/services/arcx_import_service.dart';
 
 /// MCP Import Screen - Restore from MCP Package (.zip) or Secure Archive (.arcx)
 class McpImportScreen extends StatefulWidget {
@@ -25,29 +29,45 @@ class McpImportScreen extends StatefulWidget {
 class _McpImportScreenState extends State<McpImportScreen> {
   bool _isImporting = false;
   String? _selectedPath;
+  List<String> _selectedPaths = [];
   String? _detectedFormat;
+  bool _isSeparatedPackage = false;
+  Map<String, String> _detectedGroups = {}; // groupType -> filePath
 
   Future<void> _selectMcpFile() async {
     try {
       final result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
         allowedExtensions: ['zip', 'mcpkg', 'arcx'],
-        allowMultiple: false,
+        allowMultiple: true, // Allow multiple files for separated packages
       );
 
       if (result != null && result.files.isNotEmpty) {
-        final file = result.files.first;
+        final files = result.files.where((f) => f.path != null).map((f) => f.path!).toList();
+        
+        // Check if these are .arcx files (separated packages)
+        final arcxFiles = files.where((p) => p.endsWith('.arcx')).toList();
+        
+        if (arcxFiles.isNotEmpty) {
+          // Try to detect separated packages
+          await _detectSeparatedPackages(arcxFiles);
+        }
+        
         String? format;
-        if (file.path!.endsWith('.arcx')) {
+        if (files.any((p) => p.endsWith('.arcx'))) {
           format = 'Secure Archive (.arcx)';
-        } else if (FileUtils.isMcpPackage(file.path!)) {
+          if (files.length > 1) {
+            format = '${files.length} Secure Archives (.arcx) - Separated Packages';
+          }
+        } else if (files.any((p) => FileUtils.isMcpPackage(p))) {
           format = 'MCP Package (.zip)';
         } else {
           format = 'Unknown';
         }
         
         setState(() {
-          _selectedPath = file.path;
+          _selectedPaths = files;
+          _selectedPath = files.length == 1 ? files.first : null;
           _detectedFormat = format;
         });
       }
@@ -55,19 +75,143 @@ class _McpImportScreenState extends State<McpImportScreen> {
       _showErrorDialog('Failed to select file: $e');
     }
   }
+  
+  Future<void> _detectSeparatedPackages(List<String> arcxFiles) async {
+    try {
+      final detectedGroups = <String, String>{};
+      final exportIds = <String>[];
+      final baseExportIds = <String>{}; // Base export IDs (without suffixes like -entries-chats, -media)
+      
+      for (final filePath in arcxFiles) {
+        try {
+          final file = File(filePath);
+          if (!await file.exists()) continue;
+          
+          // Extract manifest to check scope
+          final arcxZip = await file.readAsBytes();
+          final zipDecoder = ZipDecoder();
+          final archive = zipDecoder.decodeBytes(arcxZip);
+          
+          ArchiveFile? manifestFile;
+          for (final f in archive) {
+            if (f.name == 'manifest.json') {
+              manifestFile = f;
+              break;
+            }
+          }
+          
+          if (manifestFile != null) {
+            final manifestJson = jsonDecode(utf8.decode(manifestFile.content as List<int>)) as Map<String, dynamic>;
+            final scope = manifestJson['scope'] as Map<String, dynamic>?;
+            final exportId = manifestJson['export_id'] as String?;
+            
+            if (exportId != null) {
+              exportIds.add(exportId);
+              
+              // Extract base export ID (remove suffixes like -entries-chats, -media, -entries, -chats)
+              String baseExportId = exportId;
+              if (exportId.contains('-entries-chats')) {
+                baseExportId = exportId.replaceAll('-entries-chats', '');
+              } else if (exportId.contains('-media')) {
+                baseExportId = exportId.replaceAll('-media', '');
+              } else if (exportId.contains('-entries')) {
+                baseExportId = exportId.replaceAll('-entries', '');
+              } else if (exportId.contains('-chats')) {
+                baseExportId = exportId.replaceAll('-chats', '');
+              }
+              baseExportIds.add(baseExportId);
+              
+              // Check if this is a separated package (separate_groups flag or has suffix indicating separation)
+              final isSeparated = (scope != null && scope['separate_groups'] == true) ||
+                                  exportId.contains('-entries-chats') ||
+                                  exportId.contains('-media') ||
+                                  exportId.contains('-entries') ||
+                                  exportId.contains('-chats');
+              
+              if (isSeparated) {
+                // Determine group type from export ID suffix, scope, or file name
+                final fileName = path.basename(filePath).toLowerCase();
+                String groupType = 'Unknown';
+                
+                // Check export ID suffix first (most reliable)
+                if (exportId.contains('-entries-chats')) {
+                  groupType = 'Entries+Chats';
+                } else if (exportId.contains('-media')) {
+                  groupType = 'Media';
+                } else if (exportId.contains('-entries')) {
+                  groupType = 'Entries';
+                } else if (exportId.contains('-chats')) {
+                  groupType = 'Chats';
+                } else if (scope != null) {
+                  // Fall back to scope counts
+                  if (scope['entries_count'] != null && (scope['entries_count'] as int) > 0) {
+                    if (scope['chats_count'] != null && (scope['chats_count'] as int) > 0) {
+                      groupType = 'Entries+Chats';
+                    } else {
+                      groupType = 'Entries';
+                    }
+                  } else if (scope['chats_count'] != null && (scope['chats_count'] as int) > 0) {
+                    groupType = 'Chats';
+                  } else if (scope['media_count'] != null && (scope['media_count'] as int) > 0) {
+                    groupType = 'Media';
+                  }
+                }
+                
+                // Final fallback to file name
+                if (groupType == 'Unknown') {
+                  if (fileName.contains('entries') && fileName.contains('chat')) {
+                    groupType = 'Entries+Chats';
+                  } else if (fileName.contains('entries') || fileName.contains('entry')) {
+                    groupType = 'Entries';
+                  } else if (fileName.contains('chats') || fileName.contains('chat')) {
+                    groupType = 'Chats';
+                  } else if (fileName.contains('media')) {
+                    groupType = 'Media';
+                  }
+                }
+                
+                if (groupType != 'Unknown') {
+                  detectedGroups[groupType] = filePath;
+                }
+              }
+            }
+          }
+        } catch (e) {
+          print('Warning: Could not read manifest from $filePath: $e');
+        }
+      }
+      
+      // Check if all files share the same base exportId (they're from the same export)
+      // This handles both 3-archive format (same exportId) and 2-archive format (base exportId with suffixes)
+      if (baseExportIds.length == 1 && detectedGroups.length > 1) {
+        setState(() {
+          _isSeparatedPackage = true;
+          _detectedGroups = detectedGroups;
+        });
+      }
+    } catch (e) {
+      print('Warning: Could not detect separated packages: $e');
+    }
+  }
 
 
   Future<void> _importMcpData() async {
-    if (_isImporting || _selectedPath == null) return;
+    if (_isImporting || (_selectedPath == null && _selectedPaths.isEmpty)) return;
 
     setState(() {
       _isImporting = true;
     });
 
     try {
-      // Check file type
-      if (_selectedPath!.endsWith('.arcx')) {
-        // Secure .arcx import - navigate to progress screen
+      // Check if we have separated packages
+      if (_isSeparatedPackage && _detectedGroups.isNotEmpty) {
+        // Import separated packages in order: Media → Entries → Chats
+        await _importSeparatedPackages();
+      } else if (_selectedPaths.isNotEmpty && _selectedPaths.any((p) => p.endsWith('.arcx'))) {
+        // Multiple .arcx files but not detected as separated - import them all
+        await _importMultipleArcFiles(_selectedPaths);
+      } else if (_selectedPath != null && _selectedPath!.endsWith('.arcx')) {
+        // Single .arcx import - navigate to progress screen
         final arcxFile = File(_selectedPath!);
         if (!await arcxFile.exists()) {
           _showErrorDialog('ARCX file not found');
@@ -171,6 +315,394 @@ class _McpImportScreenState extends State<McpImportScreen> {
         _isImporting = false;
       });
     }
+  }
+
+  /// Import separated packages in order: Media → Entries → Chats
+  Future<void> _importSeparatedPackages() async {
+    final journalRepo = context.read<JournalRepository>();
+    final chatRepo = ChatRepoImpl.instance;
+    await chatRepo.initialize();
+    
+    final importService = ARCXImportServiceV2(
+      journalRepo: journalRepo,
+      chatRepo: chatRepo,
+    );
+    
+    // Import in order: Media → Entries → Chats (or Media → Entries+Chats for 2-archive format)
+    // Determine import order based on detected groups
+    final importOrder = <String>[];
+    if (_detectedGroups.containsKey('Media')) {
+      importOrder.add('Media');
+    }
+    // Handle 2-archive format (Entries+Chats together)
+    if (_detectedGroups.containsKey('Entries+Chats')) {
+      importOrder.add('Entries+Chats');
+    } else {
+      // Handle 3-archive format (separate)
+      if (_detectedGroups.containsKey('Entries')) {
+        importOrder.add('Entries');
+      }
+      if (_detectedGroups.containsKey('Chats')) {
+        importOrder.add('Chats');
+      }
+    }
+    
+    int totalEntries = 0;
+    int totalChats = 0;
+    int totalMedia = 0;
+    final warnings = <String>[];
+    
+    // Show progress dialog
+    final importOrderText = importOrder.join(' → ');
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const CircularProgressIndicator(),
+            const SizedBox(height: 16),
+            Text(
+              'Importing Separated Packages...',
+              style: heading3Style(context),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Importing in order: $importOrderText',
+              style: bodyStyle(context),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      ),
+    );
+    
+    try {
+      for (final groupType in importOrder) {
+        final filePath = _detectedGroups[groupType];
+        if (filePath == null || !await File(filePath).exists()) {
+          warnings.add('$groupType package not found');
+          continue;
+        }
+        
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Importing $groupType...'),
+            duration: const Duration(seconds: 2),
+          ),
+        );
+        
+        try {
+          // Try V2 import service first
+          final result = await importService.import(
+            arcxPath: filePath,
+            options: ARCXImportOptions(
+              validateChecksums: true,
+              dedupeMedia: true,
+              skipExisting: true,
+              resolveLinks: true, // Important for separated packages
+            ),
+            password: null, // TODO: Support password if needed
+            onProgress: (message) {
+              print('ARCX Import ($groupType): $message');
+            },
+          );
+          
+          if (result.success) {
+            totalEntries += result.entriesImported;
+            totalChats += result.chatsImported;
+            totalMedia += result.mediaImported;
+            if (result.warnings != null && result.warnings!.isNotEmpty) {
+              warnings.addAll(result.warnings!);
+            }
+          } else {
+            // V2 failed, try legacy service
+            print('ARCX Import: V2 import failed for $groupType, trying legacy: ${result.error}');
+            final legacyCounts = await _tryLegacyImport(filePath, groupType, warnings);
+            if (legacyCounts != null) {
+              totalEntries += legacyCounts['entries'] ?? 0;
+              totalChats += legacyCounts['chats'] ?? 0;
+              totalMedia += legacyCounts['media'] ?? 0;
+            }
+          }
+        } catch (e) {
+          // Check if it's a version format error
+          final errorMsg = e.toString();
+          if (errorMsg.contains('ARCX 1.2 format') || errorMsg.contains('legacy import service')) {
+            print('ARCX Import: Older format detected for $groupType, falling back to legacy service');
+            final legacyCounts = await _tryLegacyImport(filePath, groupType, warnings);
+            if (legacyCounts != null) {
+              totalEntries += legacyCounts['entries'] ?? 0;
+              totalChats += legacyCounts['chats'] ?? 0;
+              totalMedia += legacyCounts['media'] ?? 0;
+            }
+          } else {
+            warnings.add('Failed to import $groupType: $e');
+          }
+        }
+      }
+      
+      // Hide progress dialog
+      if (mounted) {
+        Navigator.of(context).pop();
+      }
+      
+      // Refresh timeline
+      context.read<TimelineCubit>().reloadAllEntries();
+      
+      // Show success dialog
+      _showSeparatedImportSuccessDialog(
+        entriesImported: totalEntries,
+        chatsImported: totalChats,
+        mediaImported: totalMedia,
+        warnings: warnings,
+      );
+    } catch (e) {
+      if (mounted) {
+        Navigator.of(context).pop(); // Hide progress dialog
+      }
+      _showErrorDialog('Import failed: $e');
+    }
+  }
+  
+  /// Import multiple ARCX files (not necessarily separated)
+  Future<void> _importMultipleArcFiles(List<String> filePaths) async {
+    final journalRepo = context.read<JournalRepository>();
+    final chatRepo = ChatRepoImpl.instance;
+    await chatRepo.initialize();
+    
+    final importService = ARCXImportServiceV2(
+      journalRepo: journalRepo,
+      chatRepo: chatRepo,
+    );
+    
+    int totalEntries = 0;
+    int totalChats = 0;
+    int totalMedia = 0;
+    final warnings = <String>[];
+    
+    // Show progress dialog
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const CircularProgressIndicator(),
+            const SizedBox(height: 16),
+            Text(
+              'Importing ${filePaths.length} Archives...',
+              style: heading3Style(context),
+            ),
+          ],
+        ),
+      ),
+    );
+    
+    try {
+      for (final filePath in filePaths) {
+        if (!await File(filePath).exists()) {
+          warnings.add('File not found: ${path.basename(filePath)}');
+          continue;
+        }
+        
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Importing ${path.basename(filePath)}...'),
+            duration: const Duration(seconds: 2),
+          ),
+        );
+        
+        try {
+          // Try V2 import service first
+          final result = await importService.import(
+            arcxPath: filePath,
+            options: ARCXImportOptions(
+              validateChecksums: true,
+              dedupeMedia: true,
+              skipExisting: true,
+              resolveLinks: true,
+            ),
+            password: null,
+            onProgress: (message) {
+              print('ARCX Import: $message');
+            },
+          );
+          
+          if (result.success) {
+            totalEntries += result.entriesImported;
+            totalChats += result.chatsImported;
+            totalMedia += result.mediaImported;
+            if (result.warnings != null && result.warnings!.isNotEmpty) {
+              warnings.addAll(result.warnings!);
+            }
+          } else {
+            // V2 failed, try legacy service
+            print('ARCX Import: V2 import failed for ${path.basename(filePath)}, trying legacy: ${result.error}');
+            final legacyCounts = await _tryLegacyImport(filePath, path.basename(filePath), warnings);
+            if (legacyCounts != null) {
+              totalEntries += legacyCounts['entries'] ?? 0;
+              totalChats += legacyCounts['chats'] ?? 0;
+              totalMedia += legacyCounts['media'] ?? 0;
+            }
+          }
+        } catch (e) {
+          // Check if it's a version format error
+          final errorMsg = e.toString();
+          if (errorMsg.contains('ARCX 1.2 format') || errorMsg.contains('legacy import service')) {
+            print('ARCX Import: Older format detected for ${path.basename(filePath)}, falling back to legacy service');
+            final legacyCounts = await _tryLegacyImport(filePath, path.basename(filePath), warnings);
+            if (legacyCounts != null) {
+              totalEntries += legacyCounts['entries'] ?? 0;
+              totalChats += legacyCounts['chats'] ?? 0;
+              totalMedia += legacyCounts['media'] ?? 0;
+            }
+          } else {
+            warnings.add('Failed to import ${path.basename(filePath)}: $e');
+          }
+        }
+      }
+      
+      // Hide progress dialog
+      if (mounted) {
+        Navigator.of(context).pop();
+      }
+      
+      // Refresh timeline
+      context.read<TimelineCubit>().reloadAllEntries();
+      
+      // Show success dialog
+      _showSeparatedImportSuccessDialog(
+        entriesImported: totalEntries,
+        chatsImported: totalChats,
+        mediaImported: totalMedia,
+        warnings: warnings,
+      );
+    } catch (e) {
+      if (mounted) {
+        Navigator.of(context).pop();
+      }
+      _showErrorDialog('Import failed: $e');
+    }
+  }
+  
+  /// Try legacy import service for older ARCX formats
+  /// Returns a map with counts if successful, null otherwise
+  Future<Map<String, int>?> _tryLegacyImport(String filePath, String groupType, List<String> warnings) async {
+    try {
+      final journalRepo = context.read<JournalRepository>();
+      final chatRepo = ChatRepoImpl.instance;
+      await chatRepo.initialize();
+      
+      final legacyImportService = ARCXImportService(
+        journalRepo: journalRepo,
+        chatRepo: chatRepo,
+      );
+      
+      print('ARCX Import: Attempting legacy import for $groupType');
+      
+      final legacyResult = await legacyImportService.importSecure(
+        arcxPath: filePath,
+        manifestPath: null,
+        dryRun: false,
+        password: null, // TODO: Support password if needed
+      );
+      
+      if (legacyResult.success) {
+        // Successfully imported with legacy service
+        print('ARCX Import: Legacy service successfully imported $groupType');
+        return {
+          'entries': legacyResult.entriesImported ?? 0,
+          'chats': legacyResult.chatSessionsImported ?? 0,
+          'media': legacyResult.photosImported ?? 0,
+        };
+      } else {
+        warnings.add('Legacy import also failed for $groupType: ${legacyResult.error}');
+        return null;
+      }
+    } catch (e) {
+      warnings.add('Legacy import error for $groupType: $e');
+      return null;
+    }
+  }
+  
+  void _showSeparatedImportSuccessDialog({
+    required int entriesImported,
+    required int chatsImported,
+    required int mediaImported,
+    required List<String> warnings,
+  }) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Row(
+          children: [
+            const Icon(Icons.check_circle, color: Colors.green),
+            const SizedBox(width: 8),
+            Text('Import Complete', style: heading2Style(context)),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Successfully imported separated packages!',
+              style: bodyStyle(context),
+            ),
+            const SizedBox(height: 16),
+            _buildSummaryRow('Entries imported:', '$entriesImported'),
+            _buildSummaryRow('Chats imported:', '$chatsImported'),
+            _buildSummaryRow('Media imported:', '$mediaImported'),
+            if (warnings.isNotEmpty) ...[
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.orange.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Warnings:',
+                      style: bodyStyle(context).copyWith(fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 4),
+                    ...warnings.take(5).map((w) => Padding(
+                      padding: const EdgeInsets.only(bottom: 4),
+                      child: Text(
+                        '• $w',
+                        style: bodyStyle(context).copyWith(fontSize: 12),
+                      ),
+                    )),
+                    if (warnings.length > 5)
+                      Text(
+                        '... and ${warnings.length - 5} more',
+                        style: bodyStyle(context).copyWith(fontSize: 12),
+                      ),
+                  ],
+                ),
+              ),
+            ],
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              Navigator.of(context).pop(); // Go back to previous screen
+            },
+            child: const Text('Done'),
+          ),
+        ],
+      ),
+    );
   }
 
   void _showProgressDialog() {
@@ -336,6 +868,14 @@ class _McpImportScreenState extends State<McpImportScreen> {
                       fontSize: 14,
                     ),
                   ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'You can select multiple .arcx files to restore separated packages (Entries, Chats, Media). The system will automatically detect and import them in the correct order.',
+                    style: bodyStyle(context).copyWith(
+                      color: kcSecondaryTextColor,
+                      fontSize: 14,
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -354,14 +894,14 @@ class _McpImportScreenState extends State<McpImportScreen> {
 
             // Package file selection
             _buildSelectionTile(
-              title: 'Select Package File',
-              subtitle: 'Choose a .zip (MCP) or .arcx (Secure Archive) file to restore from',
+              title: 'Select Package File(s)',
+              subtitle: 'Choose .zip (MCP) or .arcx (Secure Archive) files. Select multiple .arcx files for separated packages.',
               icon: Icons.file_present,
               onTap: _selectMcpFile,
             ),
 
             // Selected file info
-            if (_selectedPath != null) ...[
+            if (_selectedPath != null || _selectedPaths.isNotEmpty) ...[
               const SizedBox(height: 16),
               Container(
                 padding: const EdgeInsets.all(16),
@@ -389,13 +929,89 @@ class _McpImportScreenState extends State<McpImportScreen> {
                       ],
                     ),
                     const SizedBox(height: 8),
-                    Text(
-                      path.basename(_selectedPath!),
-                      style: bodyStyle(context).copyWith(
-                        color: kcSecondaryTextColor,
-                        fontSize: 14,
+                    if (_selectedPath != null)
+                      Text(
+                        path.basename(_selectedPath!),
+                        style: bodyStyle(context).copyWith(
+                          color: kcSecondaryTextColor,
+                          fontSize: 14,
+                        ),
+                      )
+                    else if (_selectedPaths.isNotEmpty)
+                      ..._selectedPaths.map((p) => Padding(
+                        padding: const EdgeInsets.only(bottom: 4),
+                        child: Text(
+                          path.basename(p),
+                          style: bodyStyle(context).copyWith(
+                            color: kcSecondaryTextColor,
+                            fontSize: 14,
+                          ),
+                        ),
+                      )),
+                    if (_isSeparatedPackage && _detectedGroups.isNotEmpty) ...[
+                      const SizedBox(height: 12),
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.blue.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                const Icon(Icons.link, color: Colors.blue, size: 16),
+                                const SizedBox(width: 8),
+                                Text(
+                                  'Separated Packages Detected',
+                                  style: bodyStyle(context).copyWith(
+                                    color: Colors.blue,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            ..._detectedGroups.entries.map((entry) => Padding(
+                              padding: const EdgeInsets.only(bottom: 4),
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    entry.key == 'Media' ? Icons.image
+                                    : entry.key == 'Entries+Chats' ? Icons.library_books
+                                    : entry.key == 'Entries' ? Icons.article
+                                    : Icons.chat,
+                                    size: 16,
+                                    color: kcSecondaryTextColor,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      '${entry.key}: ${path.basename(entry.value)}',
+                                      style: bodyStyle(context).copyWith(
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            )),
+                            const SizedBox(height: 4),
+                            Text(
+                              _detectedGroups.containsKey('Entries+Chats')
+                                  ? 'Will import in order: Media → Entries+Chats'
+                                  : 'Will import in order: Media → Entries → Chats',
+                              style: bodyStyle(context).copyWith(
+                                fontSize: 11,
+                                fontStyle: FontStyle.italic,
+                                color: kcSecondaryTextColor,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
+                    ],
                   ],
                 ),
               ),
@@ -407,7 +1023,7 @@ class _McpImportScreenState extends State<McpImportScreen> {
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
-                onPressed: (_isImporting || _selectedPath == null) ? null : _importMcpData,
+                onPressed: (_isImporting || (_selectedPath == null && _selectedPaths.isEmpty)) ? null : _importMcpData,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: kcAccentColor,
                   foregroundColor: Colors.white,
@@ -433,9 +1049,11 @@ class _McpImportScreenState extends State<McpImportScreen> {
                         ],
                       )
                     : Text(
-                        _selectedPath == null 
+                        (_selectedPath == null && _selectedPaths.isEmpty)
                             ? 'Select MCP Package First'
-                            : 'Restore from MCP Package',
+                            : _isSeparatedPackage
+                                ? 'Restore Separated Packages'
+                                : 'Restore from MCP Package',
                         style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                       ),
               ),
