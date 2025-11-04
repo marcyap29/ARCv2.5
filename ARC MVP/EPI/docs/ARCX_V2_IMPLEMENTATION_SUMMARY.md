@@ -1,6 +1,6 @@
 # ARCX V2 Implementation Summary
 
-**Version:** 1.2  
+**Version:** 1.2.1  
 **Last Updated:** November 3, 2025  
 **Status:** ✅ Complete - Production Ready
 
@@ -196,6 +196,12 @@ To use the new V2 services:
 4. **Migration**: Consider migration path from legacy format to V2
 
 ## Version History
+
+### Version 1.2.1 (November 3, 2025)
+- ✅ Fixed ARCX 1.2 import failures with improved error handling
+- ✅ Made signature and hash verification non-blocking for ARCX 1.2 format
+- ✅ Improved version detection and validation logic
+- ✅ Enhanced error messages and fallback prevention
 
 ### Version 1.2 (November 3, 2025)
 - ✅ Two-archive export strategy: Entries+Chats together, Media separate

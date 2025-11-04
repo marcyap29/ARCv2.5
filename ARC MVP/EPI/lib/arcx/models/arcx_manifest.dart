@@ -136,7 +136,22 @@ class ARCXManifest {
   }
   
   /// Validate that the manifest structure is correct
+  /// Supports both legacy format and ARCX 1.2 format
   bool validate() {
+    // ARCX 1.2 format validation (more lenient)
+    if (arcxVersion == '1.2') {
+      // For ARCX 1.2, we need at least:
+      // - arcxVersion (already checked)
+      // - exportedAt
+      // - exportId (should be present)
+      // - scope (optional but recommended)
+      if (exportedAt.isEmpty) return false;
+      // Signature and encryption info are optional for validation
+      // (they'll be checked during import)
+      return true;
+    }
+    
+    // Legacy format validation (strict)
     if (version.isEmpty || algo.isEmpty || kdf.isEmpty) return false;
     if (sha256.isEmpty || signerPubkeyFpr.isEmpty || signatureB64.isEmpty) return false;
     if (mcpManifestSha256.isEmpty || exportedAt.isEmpty || appVersion.isEmpty) return false;

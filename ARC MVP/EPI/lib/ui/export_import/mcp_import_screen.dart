@@ -418,19 +418,48 @@ class _McpImportScreenState extends State<McpImportScreen> {
               warnings.addAll(result.warnings!);
             }
           } else {
-            // V2 failed, try legacy service
-            print('ARCX Import: V2 import failed for $groupType, trying legacy: ${result.error}');
-            final legacyCounts = await _tryLegacyImport(filePath, groupType, warnings);
-            if (legacyCounts != null) {
-              totalEntries += legacyCounts['entries'] ?? 0;
-              totalChats += legacyCounts['chats'] ?? 0;
-              totalMedia += legacyCounts['media'] ?? 0;
+            // V2 failed - check if it's a 1.2 format file before trying legacy
+            bool isArc12 = false;
+            try {
+              final arcxFile = File(filePath);
+              final arcxZip = await arcxFile.readAsBytes();
+              final zipDecoder = ZipDecoder();
+              final archive = zipDecoder.decodeBytes(arcxZip);
+              
+              for (final file in archive) {
+                if (file.name == 'manifest.json') {
+                  final manifestJson = jsonDecode(utf8.decode(file.content as List<int>)) as Map<String, dynamic>;
+                  final arcxVersion = manifestJson['arcx_version'] as String?;
+                  if (arcxVersion == '1.2') {
+                    isArc12 = true;
+                    break;
+                  }
+                }
+              }
+            } catch (_) {
+              // Couldn't check version
+            }
+            
+            if (isArc12) {
+              // This is a 1.2 file, V2 should have handled it - don't try legacy
+              warnings.add('Failed to import $groupType (ARCX 1.2 format): ${result.error}. This may indicate a corrupted archive or unsupported export options.');
+            } else {
+              // Not a 1.2 file, try legacy service
+              print('ARCX Import: V2 import failed for $groupType, trying legacy: ${result.error}');
+              final legacyCounts = await _tryLegacyImport(filePath, groupType, warnings);
+              if (legacyCounts != null) {
+                totalEntries += legacyCounts['entries'] ?? 0;
+                totalChats += legacyCounts['chats'] ?? 0;
+                totalMedia += legacyCounts['media'] ?? 0;
+              }
             }
           }
         } catch (e) {
           // Check if it's a version format error
           final errorMsg = e.toString();
+          // Only fall back to legacy if it's explicitly NOT ARCX 1.2 format
           if (errorMsg.contains('ARCX 1.2 format') || errorMsg.contains('legacy import service')) {
+            // This means V2 detected an older format (not 1.2), so try legacy
             print('ARCX Import: Older format detected for $groupType, falling back to legacy service');
             final legacyCounts = await _tryLegacyImport(filePath, groupType, warnings);
             if (legacyCounts != null) {
@@ -439,7 +468,29 @@ class _McpImportScreenState extends State<McpImportScreen> {
               totalMedia += legacyCounts['media'] ?? 0;
             }
           } else {
-            warnings.add('Failed to import $groupType: $e');
+            // V2 failed for other reasons - don't try legacy if it's a 1.2 format file
+            // Check if it's actually a 1.2 format file first
+            try {
+              final arcxFile = File(filePath);
+              final arcxZip = await arcxFile.readAsBytes();
+              final zipDecoder = ZipDecoder();
+              final archive = zipDecoder.decodeBytes(arcxZip);
+              
+              for (final file in archive) {
+                if (file.name == 'manifest.json') {
+                  final manifestJson = jsonDecode(utf8.decode(file.content as List<int>)) as Map<String, dynamic>;
+                  final arcxVersion = manifestJson['arcx_version'] as String?;
+                  if (arcxVersion == '1.2') {
+                    // This is a 1.2 file, V2 should have handled it
+                    warnings.add('Failed to import $groupType (ARCX 1.2 format): $e. This may indicate a corrupted archive or unsupported export options.');
+                    break;
+                  }
+                }
+              }
+            } catch (_) {
+              // Couldn't check version, just report the error
+              warnings.add('Failed to import $groupType: $e');
+            }
           }
         }
       }
@@ -541,19 +592,48 @@ class _McpImportScreenState extends State<McpImportScreen> {
               warnings.addAll(result.warnings!);
             }
           } else {
-            // V2 failed, try legacy service
-            print('ARCX Import: V2 import failed for ${path.basename(filePath)}, trying legacy: ${result.error}');
-            final legacyCounts = await _tryLegacyImport(filePath, path.basename(filePath), warnings);
-            if (legacyCounts != null) {
-              totalEntries += legacyCounts['entries'] ?? 0;
-              totalChats += legacyCounts['chats'] ?? 0;
-              totalMedia += legacyCounts['media'] ?? 0;
+            // V2 failed - check if it's a 1.2 format file before trying legacy
+            bool isArc12 = false;
+            try {
+              final arcxFile = File(filePath);
+              final arcxZip = await arcxFile.readAsBytes();
+              final zipDecoder = ZipDecoder();
+              final archive = zipDecoder.decodeBytes(arcxZip);
+              
+              for (final file in archive) {
+                if (file.name == 'manifest.json') {
+                  final manifestJson = jsonDecode(utf8.decode(file.content as List<int>)) as Map<String, dynamic>;
+                  final arcxVersion = manifestJson['arcx_version'] as String?;
+                  if (arcxVersion == '1.2') {
+                    isArc12 = true;
+                    break;
+                  }
+                }
+              }
+            } catch (_) {
+              // Couldn't check version
+            }
+            
+            if (isArc12) {
+              // This is a 1.2 file, V2 should have handled it - don't try legacy
+              warnings.add('Failed to import ${path.basename(filePath)} (ARCX 1.2 format): ${result.error}. This may indicate a corrupted archive or unsupported export options.');
+            } else {
+              // Not a 1.2 file, try legacy service
+              print('ARCX Import: V2 import failed for ${path.basename(filePath)}, trying legacy: ${result.error}');
+              final legacyCounts = await _tryLegacyImport(filePath, path.basename(filePath), warnings);
+              if (legacyCounts != null) {
+                totalEntries += legacyCounts['entries'] ?? 0;
+                totalChats += legacyCounts['chats'] ?? 0;
+                totalMedia += legacyCounts['media'] ?? 0;
+              }
             }
           }
         } catch (e) {
           // Check if it's a version format error
           final errorMsg = e.toString();
+          // Only fall back to legacy if it's explicitly NOT ARCX 1.2 format
           if (errorMsg.contains('ARCX 1.2 format') || errorMsg.contains('legacy import service')) {
+            // This means V2 detected an older format (not 1.2), so try legacy
             print('ARCX Import: Older format detected for ${path.basename(filePath)}, falling back to legacy service');
             final legacyCounts = await _tryLegacyImport(filePath, path.basename(filePath), warnings);
             if (legacyCounts != null) {
@@ -562,7 +642,28 @@ class _McpImportScreenState extends State<McpImportScreen> {
               totalMedia += legacyCounts['media'] ?? 0;
             }
           } else {
-            warnings.add('Failed to import ${path.basename(filePath)}: $e');
+            // V2 failed for other reasons - check if it's a 1.2 format file
+            try {
+              final arcxFile = File(filePath);
+              final arcxZip = await arcxFile.readAsBytes();
+              final zipDecoder = ZipDecoder();
+              final archive = zipDecoder.decodeBytes(arcxZip);
+              
+              for (final file in archive) {
+                if (file.name == 'manifest.json') {
+                  final manifestJson = jsonDecode(utf8.decode(file.content as List<int>)) as Map<String, dynamic>;
+                  final arcxVersion = manifestJson['arcx_version'] as String?;
+                  if (arcxVersion == '1.2') {
+                    // This is a 1.2 file, V2 should have handled it
+                    warnings.add('Failed to import ${path.basename(filePath)} (ARCX 1.2 format): $e. This may indicate a corrupted archive or unsupported export options.');
+                    break;
+                  }
+                }
+              }
+            } catch (_) {
+              // Couldn't check version, just report the error
+              warnings.add('Failed to import ${path.basename(filePath)}: $e');
+            }
           }
         }
       }

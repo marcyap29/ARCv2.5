@@ -95,8 +95,13 @@ class ARCXImportService {
       final manifestJson = jsonDecode(utf8.decode(manifestFile.content as List<int>)) as Map<String, dynamic>;
       final manifest = ARCXManifest.fromJson(manifestJson);
       
+      // Check if this is ARCX 1.2 format - legacy service can't handle it
+      if (manifest.arcxVersion == '1.2') {
+        throw Exception('This archive uses ARCX 1.2 format. Please use the V2 import service. The V2 service should have automatically detected and handled this format.');
+      }
+      
       if (!manifest.validate()) {
-        throw Exception('Invalid manifest structure');
+        throw Exception('Invalid manifest structure. This archive may be corrupted or in an unsupported format.');
       }
       
       print('ARCX Import: ✓ Manifest validated');
