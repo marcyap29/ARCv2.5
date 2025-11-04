@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:uuid/uuid.dart';
-import 'package:my_app/atlas/rivet/rivet_models.dart';
-import 'package:my_app/atlas/rivet/rivet_service.dart';
+import 'package:my_app/prism/atlas/rivet/rivet_models.dart';
+import 'package:my_app/prism/atlas/rivet/rivet_service.dart';
 
 void main() {
   group('RivetService Tests', () {

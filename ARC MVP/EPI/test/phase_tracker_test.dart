@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hive/hive.dart';
-import 'package:my_app/atlas/phase_detection/phase_tracker.dart';
-import 'package:my_app/atlas/phase_detection/phase_history_repository.dart';
+import 'package:my_app/prism/atlas/phase/phase_tracker.dart';
+import 'package:my_app/prism/atlas/phase/phase_history_repository.dart';
 import 'package:my_app/models/user_profile_model.dart';
 
 void main() {

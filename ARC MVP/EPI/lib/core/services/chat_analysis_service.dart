@@ -3,8 +3,8 @@ import '../models/reflective_entry_data.dart';
 import 'package:my_app/atlas/rivet/rivet_models.dart';
 import '../../prism/extractors/sentinel_risk_detector.dart';
 import '../../prism/extractors/enhanced_keyword_extractor.dart';
-import 'package:my_app/lumara/chat/chat_models.dart';
-import 'package:my_app/lumara/chat/content_parts.dart';
+import 'package:my_app/arc/chat/chat/chat_models.dart';
+import 'package:my_app/arc/chat/chat/content_parts.dart';
 
 /// Service for analyzing LUMARA chat conversations through RIVET and SENTINEL
 class ChatAnalysisService {

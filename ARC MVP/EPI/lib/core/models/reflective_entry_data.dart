@@ -1,5 +1,5 @@
 import 'package:equatable/equatable.dart';
-import '../../atlas/rivet/rivet_models.dart';
+import '../../prism/atlas/rivet/rivet_models.dart';
 
 /// Unified data model for reflective analysis across all input sources
 /// Supports journal entries, drafts, and LUMARA chat conversations

@@ -1,53 +1,44 @@
 import '../../state/feature_flags.dart';
+import '../../privacy_core/pii_detection_service.dart';
+import '../../privacy_core/pii_masking_service.dart' show PIIMaskingService, MaskingOptions;
+import '../../privacy_core/models/pii_types.dart' show PIIType;
 
 /// PII scrubbing service for protecting user privacy in external API calls
+/// Uses unified PIIMaskingService for consistent PII handling
 class PiiScrubber {
-  static final List<RegExp> _patterns = [
-    // Email addresses
-    RegExp(r'\b[\w\.-]+@[\w\.-]+\.\w+\b'),
-    // Phone numbers (various formats)
-    RegExp(r'\+?\d[\d \-\(\)]{7,}\d'),
-    // Social Security Numbers (US format)
-    RegExp(r'\b\d{3}-\d{2}-\d{4}\b'),
-    // Credit card numbers (basic pattern)
-    RegExp(r'\b\d{4}[\s-]?\d{4}[\s-]?\d{4}[\s-]?\d{4}\b'),
-    // Addresses (basic street address pattern)
-    RegExp(r'\b\d+\s+[A-Za-z\s]+(?:Street|St|Avenue|Ave|Road|Rd|Drive|Dr|Lane|Ln|Boulevard|Blvd)\b'),
-    // Names (basic pattern - very conservative)
-    RegExp(r'\b[A-Z][a-z]+\s+[A-Z][a-z]+\b'),
-  ];
+  static final PIIDetectionService _detectionService = PIIDetectionService();
+  static final PIIMaskingService _maskingService = PIIMaskingService(_detectionService);
 
-  /// Scrub PII from text using deterministic placeholders
+  /// Scrub PII from text using unified masking service
+  /// Uses deterministic placeholders compatible with RIVET requirements
   static String rivetScrub(String text) {
     if (!FeatureFlags.piiScrubbing) return text;
     
-    var scrubbed = text;
+    // Use unified masking service with simple placeholder options
+    const options = MaskingOptions(
+      preserveStructure: false, // Simple placeholders for RIVET
+      consistentMapping: true,
+      reversibleMasking: false,
+      hashEmails: false,
+      customTokens: {
+        // Use simple placeholders matching original behavior
+        PIIType.email: '[EMAIL]',
+        PIIType.phone: '[PHONE]',
+        PIIType.ssn: '[SSN]',
+        PIIType.creditCard: '[CARD]',
+        PIIType.address: '[ADDRESS]',
+        PIIType.name: '[NAME]',
+      },
+    );
     
-    for (int i = 0; i < _patterns.length; i++) {
-      final pattern = _patterns[i];
-      final placeholder = _getPlaceholder(i);
-      scrubbed = scrubbed.replaceAll(pattern, placeholder);
-    }
-    
-    return scrubbed.trim();
+    final result = _maskingService.maskText(text, options: options);
+    return result.maskedText.trim();
   }
 
-  /// Get deterministic placeholder for pattern index
-  static String _getPlaceholder(int patternIndex) {
-    const placeholders = [
-      '[EMAIL]',
-      '[PHONE]',
-      '[SSN]',
-      '[CARD]',
-      '[ADDRESS]',
-      '[NAME]',
-    ];
-    return placeholders[patternIndex % placeholders.length];
-  }
-
-  /// Check if text contains potential PII
+  /// Check if text contains potential PII using unified detection service
   static bool containsPii(String text) {
-    return _patterns.any((pattern) => pattern.hasMatch(text));
+    final result = _detectionService.detectPII(text);
+    return result.hasPII;
   }
 
   /// Get metadata for external API calls

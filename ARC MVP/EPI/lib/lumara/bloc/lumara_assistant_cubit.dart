@@ -1,25 +1,25 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:my_app/lumara/data/context_scope.dart';
-import 'package:my_app/lumara/data/context_provider.dart';
-import 'package:my_app/lumara/data/models/lumara_message.dart';
-import 'package:my_app/lumara/llm/llm_adapter.dart';
-import 'package:my_app/lumara/llm/rule_based_adapter.dart'; // For InsightKind enum
+import 'package:my_app/arc/chat/data/context_scope.dart';
+import 'package:my_app/arc/chat/data/context_provider.dart';
+import 'package:my_app/arc/chat/data/models/lumara_message.dart';
+import 'package:my_app/arc/chat/llm/llm_adapter.dart';
+import 'package:my_app/arc/chat/llm/rule_based_adapter.dart'; // For InsightKind enum
 import 'package:my_app/services/gemini_send.dart';
 import 'package:my_app/services/llm_bridge_adapter.dart';
 import '../services/enhanced_lumara_api.dart';
 import '../services/progressive_memory_loader.dart';
 import '../config/api_config.dart';
-import 'package:my_app/mira/memory/enhanced_mira_memory_service.dart';
-import 'package:my_app/mira/memory/enhanced_memory_schema.dart';
-import 'package:my_app/mira/mira_service.dart';
+import 'package:my_app/polymeta/memory/enhanced_mira_memory_service.dart';
+import 'package:my_app/polymeta/memory/enhanced_memory_schema.dart';
+import 'package:my_app/polymeta/mira_service.dart';
 import '../../telemetry/analytics.dart';
 import '../chat/chat_repo.dart';
 import '../chat/chat_repo_impl.dart';
 import '../chat/chat_models.dart';
 import '../chat/quickanswers_router.dart';
-import 'package:my_app/mira/adapters/mira_basics_adapters.dart';
+import 'package:my_app/polymeta/adapters/mira_basics_adapters.dart';
 import 'package:my_app/arc/core/journal_repository.dart';
 
 /// LUMARA Assistant Cubit State

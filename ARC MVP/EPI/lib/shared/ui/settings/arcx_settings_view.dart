@@ -11,7 +11,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as path;
 import 'package:my_app/shared/app_colors.dart';
 import 'package:my_app/shared/text_style.dart';
-import 'package:my_app/arcx/services/arcx_migration_service.dart';
+import 'package:my_app/polymeta/store/arcx/services/arcx_migration_service.dart';
 
 class ARCXSettingsView extends StatefulWidget {
   const ARCXSettingsView({super.key});

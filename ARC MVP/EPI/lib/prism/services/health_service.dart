@@ -7,7 +7,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:collection/collection.dart';
 import 'package:my_app/prism/models/health_daily.dart';
 import 'package:my_app/prism/models/health_summary.dart';
-import 'package:my_app/mcp/mcp_fs.dart';
+import 'package:my_app/polymeta/store/mcp/mcp_fs.dart';
 
 class HealthService {
   static const MethodChannel _channel = MethodChannel('epi.healthkit/bridge');

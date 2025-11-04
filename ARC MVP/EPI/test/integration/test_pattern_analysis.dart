@@ -1,5 +1,5 @@
 // Test script to debug pattern analysis service
-import 'package:my_app/atlas/phase_detection/pattern_analysis_service.dart';
+import 'package:my_app/prism/atlas/phase/pattern_analysis_service.dart';
 import 'package:my_app/arc/core/journal_repository.dart';
 
 void main() async {

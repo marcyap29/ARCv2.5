@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:my_app/lumara/chat/privacy_redactor.dart';
+import 'package:my_app/arc/chat/chat/privacy_redactor.dart';
 
 void main() {
   group('ChatPrivacyRedactor Tests', () {

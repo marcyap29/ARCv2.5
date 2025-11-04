@@ -2,9 +2,9 @@
 // Privacy Settings UI for user-configurable PII protection
 
 import 'package:flutter/material.dart';
-import 'package:my_app/privacy_core/privacy_settings_service.dart';
-import 'package:my_app/privacy_core/pii_detection_service.dart';
-import 'package:my_app/privacy_core/models/pii_types.dart';
+import 'package:my_app/echo/privacy_core/privacy_settings_service.dart';
+import 'package:my_app/echo/privacy_core/pii_detection_service.dart';
+import 'package:my_app/echo/privacy_core/models/pii_types.dart';
 import 'package:my_app/arc/privacy/privacy_demo_screen.dart';
 
 class PrivacySettingsView extends StatefulWidget {

@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:my_app/lumara/services/enhanced_lumara_api.dart';
+import 'package:my_app/arc/chat/services/enhanced_lumara_api.dart';
 import '../../../telemetry/analytics.dart';
 
 enum LumaraIntent {

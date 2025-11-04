@@ -1,5 +1,5 @@
 import '../models/reflective_entry_data.dart';
-import 'package:my_app/atlas/rivet/rivet_models.dart';
+import 'package:my_app/prism/atlas/rivet/rivet_models.dart';
 import '../../prism/extractors/sentinel_risk_detector.dart';
 import '../../prism/extractors/enhanced_keyword_extractor.dart';
 

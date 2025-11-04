@@ -2,11 +2,11 @@
 // View for managing and resolving memory conflicts
 
 import 'package:flutter/material.dart';
-import 'package:my_app/mira/memory/enhanced_mira_memory_service.dart';
-import 'package:my_app/mira/memory/conflict_resolution_service.dart';
-import 'package:my_app/mira/memory/enhanced_memory_schema.dart';
-import 'package:my_app/mira/mira_service.dart';
-import 'package:my_app/lumara/widgets/conflict_resolution_dialog.dart';
+import 'package:my_app/polymeta/memory/enhanced_mira_memory_service.dart';
+import 'package:my_app/polymeta/memory/conflict_resolution_service.dart';
+import 'package:my_app/polymeta/memory/enhanced_memory_schema.dart';
+import 'package:my_app/polymeta/mira_service.dart';
+import 'package:my_app/arc/chat/widgets/conflict_resolution_dialog.dart';
 
 class ConflictManagementView extends StatefulWidget {
   const ConflictManagementView({super.key});

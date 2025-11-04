@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:my_app/arc/ui/quick_journal_entry_widget.dart';
-import 'package:my_app/core/mcp/models/mcp_schemas.dart';
+import 'package:my_app/polymeta/store/mcp/models/mcp_schemas.dart';
 
 /// iOS Widget Extension - Native iOS widget for home screen
 class IOSWidgetExtension {

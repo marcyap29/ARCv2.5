@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 import 'dart:async';
-import 'model_adapter.dart';
+import '../../../../core/llm/model_adapter.dart';
 
 /// Ollama adapter for local model inference
 class OllamaAdapter implements ModelAdapter {

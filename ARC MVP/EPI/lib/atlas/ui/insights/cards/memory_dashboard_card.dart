@@ -2,8 +2,8 @@
 // Memory dashboard card for MIRA insights screen
 
 import 'package:flutter/material.dart';
-import 'package:my_app/mira/memory/enhanced_mira_memory_service.dart';
-import 'package:my_app/mira/mira_service.dart';
+import 'package:my_app/polymeta/memory/enhanced_mira_memory_service.dart';
+import 'package:my_app/polymeta/mira_service.dart';
 // Memory snapshot management accessible through settings
 
 class MemoryDashboardCard extends StatefulWidget {

@@ -4,13 +4,42 @@ import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as path;
 
 /// ECHO configuration manager
+///
+/// Manages configuration for the ECHO (Response Control, LLM Interface, Safety & Privacy) module.
+/// This singleton provides centralized configuration for:
+/// - LLM provider selection (Rule-based, Llama, Ollama, OpenAI, Mistral)
+/// - Provider-specific options (model paths, API keys, temperature, etc.)
+/// - Feature flags (RIVET Lite, VEIL/AURORA scheduler)
+///
+/// ## Architecture Context
+/// Part of the ECHO module, which consolidates response control, LLM interfaces,
+/// and privacy/safety features. Previously Privacy Core was separate.
+///
+/// ## Configuration Storage
+/// Configuration is persisted to `echo.config.json` in the application documents directory.
+/// This allows users to customize LLM settings across app restarts.
+///
+/// ## Usage
+/// ```dart
+/// // Initialize (typically done at app startup)
+/// await EchoConfig.instance.initialize();
+///
+/// // Switch providers
+/// await EchoConfig.instance.switchProvider(
+///   ProviderType.ollama,
+///   options: {'model': 'llama3.2:3b'},
+/// );
+/// ```
 class EchoConfig {
   static EchoConfig? _instance;
   static EchoConfig get instance => _instance ??= EchoConfig._();
   
   EchoConfig._();
 
+  /// Current configuration data
   EchoConfigData _config = EchoConfigData.defaultConfig();
+  
+  /// Initialization flag to prevent duplicate initialization
   bool _isInitialized = false;
 
   /// Initialize ECHO configuration

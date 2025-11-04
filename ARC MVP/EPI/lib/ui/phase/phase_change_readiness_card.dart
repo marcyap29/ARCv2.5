@@ -2,10 +2,10 @@
 // Phase Change Readiness Card - Enhanced with RIVET & ATLAS Phase-Approaching Insights
 
 import 'package:flutter/material.dart';
-import 'package:my_app/atlas/rivet/rivet_models.dart';
-import 'package:my_app/atlas/rivet/rivet_provider.dart';
-import 'package:my_app/atlas/rivet/rivet_service.dart';
-import 'package:my_app/atlas/phase_detection/rivet_gate_details_modal.dart';
+import 'package:my_app/prism/atlas/rivet/rivet_models.dart';
+import 'package:my_app/prism/atlas/rivet/rivet_provider.dart';
+import 'package:my_app/prism/atlas/rivet/rivet_service.dart';
+import 'package:my_app/prism/atlas/phase/rivet_gate_details_modal.dart';
 import 'package:my_app/arc/core/journal_repository.dart';
 import 'package:my_app/services/user_phase_service.dart';
 import 'package:my_app/arc/ui/arcforms/phase_recommender.dart';

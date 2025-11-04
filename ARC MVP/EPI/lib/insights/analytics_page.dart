@@ -1,9 +1,9 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:my_app/atlas/phase_detection/cards/aurora_card.dart';
-import 'package:my_app/atlas/phase_detection/cards/veil_card.dart';
-import 'package:my_app/atlas/phase_detection/your_patterns_view.dart';
+import 'package:my_app/prism/atlas/phase/cards/aurora_card.dart';
+import 'package:my_app/prism/atlas/phase/cards/veil_card.dart';
+import 'package:my_app/prism/atlas/phase/your_patterns_view.dart';
 import 'package:my_app/ui/veil/veil_policy_card.dart';
 import 'package:my_app/insights/insight_cubit.dart';
 import 'package:my_app/insights/widgets/insight_card_widget.dart';

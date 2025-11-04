@@ -17,13 +17,13 @@ import '../widgets/discovery_popup.dart';
 import '../../telemetry/analytics.dart';
 import '../../services/periodic_discovery_service.dart';
 import '../../services/lumara/lumara_inline_api.dart';
-import 'package:my_app/lumara/services/enhanced_lumara_api.dart';
-import 'package:my_app/lumara/models/lumara_reflection_options.dart' as lumara_models;
-import 'package:my_app/lumara/services/progressive_memory_loader.dart';
-import 'package:my_app/lumara/ui/lumara_settings_screen.dart';
+import 'package:my_app/arc/chat/services/enhanced_lumara_api.dart';
+import 'package:my_app/arc/chat/models/lumara_reflection_options.dart' as lumara_models;
+import 'package:my_app/arc/chat/services/progressive_memory_loader.dart';
+import 'package:my_app/arc/chat/ui/lumara_settings_screen.dart';
 import '../../models/user_profile_model.dart';
 import 'package:hive/hive.dart';
-import 'package:my_app/lumara/config/api_config.dart';
+import 'package:my_app/arc/chat/config/api_config.dart';
 import '../../services/llm_bridge_adapter.dart';
 import '../../services/gemini_send.dart';
 // import '../../services/ocr/ocr_service.dart'; // TODO: OCR service not yet implemented
@@ -45,8 +45,8 @@ import 'widgets/full_screen_photo_viewer.dart' show FullScreenPhotoViewer, Photo
 import '../../ui/widgets/location_picker_dialog.dart';
 import 'drafts_screen.dart';
 import 'package:my_app/models/journal_entry_model.dart';
-import 'package:my_app/lumara/chat/chat_repo_impl.dart';
-import 'package:my_app/lumara/chat/chat_models.dart';
+import 'package:my_app/arc/chat/chat/chat_repo_impl.dart';
+import 'package:my_app/arc/chat/chat/chat_models.dart';
 import 'package:my_app/aurora/services/circadian_profile_service.dart';
 
 /// Main journal screen with integrated LUMARA companion and OCR scanning

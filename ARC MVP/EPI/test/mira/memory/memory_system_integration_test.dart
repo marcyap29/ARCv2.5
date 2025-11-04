@@ -3,13 +3,13 @@
 // Real-world testing against the integrated LUMARA system
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:my_app/lumara/bloc/lumara_assistant_cubit.dart';
-import 'package:my_app/lumara/data/context_provider.dart';
-import 'package:my_app/lumara/data/context_scope.dart';
-import 'package:my_app/lumara/data/models/lumara_message.dart';
-import 'package:my_app/mira/memory/enhanced_mira_memory_service.dart';
-import 'package:my_app/mira/memory/enhanced_memory_schema.dart';
-import 'package:my_app/mira/mira_service.dart';
+import 'package:my_app/arc/chat/bloc/lumara_assistant_cubit.dart';
+import 'package:my_app/arc/chat/data/context_provider.dart';
+import 'package:my_app/arc/chat/data/context_scope.dart';
+import 'package:my_app/arc/chat/data/models/lumara_message.dart';
+import 'package:my_app/polymeta/memory/enhanced_mira_memory_service.dart';
+import 'package:my_app/polymeta/memory/enhanced_memory_schema.dart';
+import 'package:my_app/polymeta/mira_service.dart';
 import 'golden_prompts_harness.dart';
 
 void main() {

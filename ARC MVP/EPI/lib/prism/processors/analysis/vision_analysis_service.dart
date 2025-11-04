@@ -4,7 +4,7 @@ import 'dart:typed_data';
 // import 'package:google_mlkit_face_detection/google_mlkit_face_detection.dart';
 import 'package:image/image.dart' as img;
 import '../pointer/pointer_models.dart';
-import 'package:my_app/lumara/llm/bridge.pigeon.dart';
+import 'package:my_app/arc/chat/llm/bridge.pigeon.dart';
 
 // Stub classes for ML Kit functionality
 class TextRecognizer {

@@ -8,8 +8,8 @@ import 'package:my_app/arc/ui/arcforms/arcform_renderer_state.dart';
 import 'package:my_app/arc/ui/arcforms/arcform_mvp_implementation.dart';
 import 'package:my_app/arc/ui/arcforms/services/emotional_valence_service.dart';
 import 'package:my_app/arc/ui/arcforms/constellation/constellation_arcform_renderer.dart'; // Needed for AtlasPhase enum
-import 'package:my_app/arcform/services/unified_constellation_service.dart';
-import 'package:my_app/arcform/render/arcform_renderer_3d.dart';
+import 'package:my_app/arc/arcform/services/unified_constellation_service.dart';
+import 'package:my_app/arc/arcform/render/arcform_renderer_3d.dart';
 import 'package:my_app/shared/ui/onboarding/phase_celebration_view.dart';
 import 'package:my_app/services/user_phase_service.dart';
 import 'package:my_app/services/arcform_export_service.dart';

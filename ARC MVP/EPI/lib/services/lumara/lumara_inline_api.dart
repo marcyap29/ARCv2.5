@@ -1,7 +1,7 @@
 import 'dart:async';
 import '../../telemetry/analytics.dart';
 import 'pii_scrub.dart';
-import 'package:my_app/lumara/services/enhanced_lumara_api.dart';
+import 'package:my_app/arc/chat/services/enhanced_lumara_api.dart';
 
 /// LUMARA inline API for generating contextual reflections within journal entries
 /// This is now a compatibility layer that redirects to EnhancedLumaraApi

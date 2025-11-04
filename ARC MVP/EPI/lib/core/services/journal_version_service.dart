@@ -11,7 +11,7 @@ import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as path;
 import 'package:path_provider/path_provider.dart';
 import 'package:my_app/data/models/media_item.dart';
-import 'package:my_app/lumara/chat/ulid.dart' as ulid;
+import 'package:my_app/arc/chat/chat/ulid.dart' as ulid;
 
 /// Represents an immutable version of a journal entry
 class JournalVersion {

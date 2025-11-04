@@ -16,15 +16,15 @@ import 'package:my_app/arc/core/media/media_strip.dart';
 import 'package:my_app/arc/core/media/media_preview_dialog.dart';
 import 'package:my_app/arc/core/media/ocr_text_insert_dialog.dart';
 import 'package:my_app/core/services/media_store.dart';
-import 'package:my_app/core/mcp/orchestrator/ios_vision_orchestrator.dart';
+import 'package:my_app/polymeta/store/mcp/orchestrator/ios_vision_orchestrator.dart';
 import 'package:my_app/mode/first_responder/fr_mode_suggestion_service.dart';
 import 'package:my_app/arc/ui/widgets/draft_recovery_dialog.dart';
 
 // Import the Multimodal MCP Orchestrator
-import 'package:my_app/core/mcp/orchestrator/multimodal_orchestrator_bloc.dart';
-import 'package:my_app/core/mcp/orchestrator/multimodal_orchestrator_commands.dart';
-import 'package:my_app/core/mcp/orchestrator/ui/multimodal_ui_components.dart';
-import 'package:my_app/core/mcp/models/mcp_schemas.dart';
+import 'package:my_app/polymeta/store/mcp/orchestrator/multimodal_orchestrator_bloc.dart';
+import 'package:my_app/polymeta/store/mcp/orchestrator/multimodal_orchestrator_commands.dart';
+import 'package:my_app/polymeta/store/mcp/orchestrator/ui/multimodal_ui_components.dart';
+import 'package:my_app/polymeta/store/mcp/models/mcp_schemas.dart';
 
 class JournalCaptureView extends StatefulWidget {
   final String? initialEmotion;

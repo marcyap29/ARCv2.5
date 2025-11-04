@@ -2,14 +2,14 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'dart:io';
 import 'dart:convert';
 import 'package:path/path.dart' as path;
-import 'package:my_app/core/mcp/import/mcp_import_service.dart';
-import 'package:my_app/core/mcp/models/mcp_schemas.dart';
+import 'package:my_app/polymeta/store/mcp/import/mcp_import_service.dart';
+import 'package:my_app/polymeta/store/mcp/models/mcp_schemas.dart';
 import 'package:my_app/arc/core/journal_repository.dart';
 import 'package:my_app/services/phase_regime_service.dart';
 import 'package:my_app/models/journal_entry_model.dart' as model;
-import 'package:my_app/mira/mira_service.dart';
-import 'package:my_app/mira/core/schema.dart';
-import 'package:my_app/mira/core/ids.dart';
+import 'package:my_app/polymeta/mira_service.dart';
+import 'package:my_app/polymeta/core/schema.dart';
+import 'package:my_app/polymeta/core/ids.dart';
 import 'package:my_app/data/models/media_item.dart';
 
 /// State for MCP settings operations

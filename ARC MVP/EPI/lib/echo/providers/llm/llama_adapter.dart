@@ -2,7 +2,7 @@ import 'dart:io';
 import 'dart:convert';
 import 'dart:async';
 import 'package:path/path.dart' as path;
-import 'model_adapter.dart';
+import '../../../../core/llm/model_adapter.dart';
 
 /// Llama.cpp adapter for on-device inference
 class LlamaAdapter implements ModelAdapter {

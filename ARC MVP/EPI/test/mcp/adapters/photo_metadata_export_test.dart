@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:my_app/core/mcp/adapters/journal_entry_projector.dart';
+import 'package:my_app/polymeta/store/mcp/adapters/journal_entry_projector.dart';
 import 'package:my_app/data/models/media_item.dart';
 import 'package:my_app/data/models/photo_metadata.dart';
 

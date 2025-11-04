@@ -1,5 +1,5 @@
 import '../models/reflective_entry_data.dart';
-import 'package:my_app/atlas/rivet/rivet_models.dart';
+import 'package:my_app/prism/atlas/rivet/rivet_models.dart';
 import '../../prism/extractors/sentinel_risk_detector.dart';
 
 /// Unified service for analyzing all reflective inputs (journal entries, drafts, chats)

@@ -2,7 +2,7 @@
 // Golden contract tests for MCP bundle format stability
 
 import 'package:test/test.dart';
-import 'package:my_app/core/mcp/bundle_doctor/bundle_doctor.dart';
+import 'package:my_app/polymeta/store/mcp/bundle_doctor/bundle_doctor.dart';
 
 void main() {
   group('Golden Contract Tests', () {

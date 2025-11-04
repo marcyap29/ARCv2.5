@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter/services.dart';
-import 'package:my_app/core/mcp/import/mcp_import_service.dart';
+import 'package:my_app/polymeta/store/mcp/import/mcp_import_service.dart';
 import 'package:my_app/core/services/photo_library_service.dart';
 import 'package:my_app/data/models/photo_metadata.dart';
 
