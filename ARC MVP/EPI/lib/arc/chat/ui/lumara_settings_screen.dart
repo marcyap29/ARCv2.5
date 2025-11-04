@@ -6,7 +6,7 @@ import 'package:flutter/material.dart';
 import '../config/api_config.dart';
 import '../services/enhanced_lumara_api.dart';
 import '../services/download_state_service.dart';
-import '../../telemetry/analytics.dart';
+import 'package:my_app/telemetry/analytics.dart';
 import '../llm/bridge.pigeon.dart';
 
 /// LUMARA settings screen for API key management and provider selection

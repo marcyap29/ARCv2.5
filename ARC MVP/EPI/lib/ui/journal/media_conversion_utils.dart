@@ -80,7 +80,9 @@ class MediaConversionUtils {
   static dynamic mediaItemToAttachment(MediaItem mediaItem) {
     if (mediaItem.type == MediaType.video) {
       return mediaItemToVideoAttachment(mediaItem);
-    } else if (isPhotoMediaItem(mediaItem)) {
+    } else if (mediaItem.type == MediaType.image) {
+      // Convert all images to PhotoAttachment, even if they don't have analysisData
+      // This ensures imported media without analysis data still displays correctly
       return mediaItemToPhotoAttachment(mediaItem);
     } else if (isScanMediaItem(mediaItem)) {
       return mediaItemToScanAttachment(mediaItem);
@@ -123,7 +125,9 @@ class MediaConversionUtils {
     for (final mediaItem in mediaItems) {
       if (mediaItem.type == MediaType.video) {
         attachments.add(mediaItemToVideoAttachment(mediaItem));
-      } else if (isPhotoMediaItem(mediaItem)) {
+      } else if (mediaItem.type == MediaType.image) {
+        // Convert all images to PhotoAttachment, even if they don't have analysisData
+        // This ensures imported media without analysis data still displays correctly
         attachments.add(mediaItemToPhotoAttachment(mediaItem));
       } else if (mediaItem.ocrText != null && mediaItem.ocrText!.isNotEmpty) {
         attachments.add(mediaItemToScanAttachment(mediaItem));

@@ -11,7 +11,7 @@ import 'package:my_app/arc/core/journal_repository.dart';
 import '../../core/mcp/import/mcp_pack_import_service.dart' show McpPackImportService, McpImportResult;
 import '../../core/mcp/import/enhanced_mcp_import_service.dart';
 import '../../core/mcp/import/mcp_import_service.dart' show McpImportOptions;
-import '../../lumara/chat/chat_repo_impl.dart';
+import 'package:my_app/arc/chat/chat/chat_repo_impl.dart';
 import '../../utils/file_utils.dart';
 import 'package:my_app/arc/ui/timeline/timeline_cubit.dart';
 import '../../arcx/ui/arcx_import_progress_screen.dart';

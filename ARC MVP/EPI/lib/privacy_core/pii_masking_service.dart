@@ -5,7 +5,7 @@
 import 'dart:convert';
 import 'package:crypto/crypto.dart';
 import 'pii_detection_service.dart';
-import 'models/pii_types.dart';
+import 'package:my_app/privacy_core/models/pii_types.dart';
 
 class MaskingResult {
   final String maskedText;

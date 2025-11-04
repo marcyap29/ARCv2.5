@@ -3,7 +3,7 @@
 
 import 'dart:async';
 import 'dart:math';
-import '../../telemetry/analytics.dart';
+import 'package:my_app/telemetry/analytics.dart';
 import '../models/reflective_node.dart';
 import '../models/lumara_reflection_options.dart' as models;
 import 'reflective_node_storage.dart';

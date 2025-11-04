@@ -45,6 +45,9 @@ class ARCXImportServiceV2 {
   // Media deduplication cache - maps content_hash to MediaItem
   final Map<String, MediaItem> _mediaCache = {};
   
+  // Media ID cache - maps media ID to MediaItem (for quick lookup)
+  final Map<String, MediaItem> _mediaByIdCache = {};
+  
   // Link resolution tracking
   final Map<String, String> _entryIdMap = {}; // old_id -> new_id
   final Map<String, String> _chatIdMap = {}; // old_id -> new_id
@@ -60,6 +63,7 @@ class ARCXImportServiceV2 {
   /// Clear caches (call before starting a new import)
   void clearCaches() {
     _mediaCache.clear();
+    _mediaByIdCache.clear();
     _entryIdMap.clear();
     _chatIdMap.clear();
     _mediaIdMap.clear();
@@ -244,6 +248,7 @@ class ARCXImportServiceV2 {
           entriesImported = await _importEntries(
             entriesDir: entriesDir,
             options: options,
+            payloadDir: payloadDir,
             onProgress: onProgress,
           );
         }
@@ -422,8 +427,11 @@ class ARCXImportServiceV2 {
             if (options.dedupeMedia) {
               final contentHash = mediaItemData['sha256'] as String?;
               if (contentHash != null && _mediaCache.containsKey(contentHash)) {
-                print('ARCX Import V2: ♻️ Skipping duplicate media: $fileName');
-                _mediaIdMap[mediaItemData['id'] as String] = _mediaCache[contentHash]!.id;
+                final existingMedia = _mediaCache[contentHash]!;
+                print('ARCX Import V2: ♻️ Skipping duplicate media: $fileName (using existing: ${existingMedia.id})');
+                _mediaIdMap[mediaItemData['id'] as String] = existingMedia.id;
+                // Ensure it's in the ID cache too
+                _mediaByIdCache[existingMedia.id] = existingMedia;
                 continue;
               }
             }
@@ -433,16 +441,39 @@ class ARCXImportServiceV2 {
             await entity.copy(destFile.path);
             
             // Create MediaItem
+            final originalMediaId = mediaItemData['id'] as String?;
             final mediaItem = _createMediaItemFromJson(mediaItemData, destFile.path);
             if (mediaItem != null) {
-              // Cache for deduplication
+              // Cache for deduplication by content hash
               final contentHash = mediaItemData['sha256'] as String?;
               if (contentHash != null && options.dedupeMedia) {
                 _mediaCache[contentHash] = mediaItem;
               }
               
-              _mediaIdMap[mediaItemData['id'] as String] = mediaItem.id;
+              // Cache by media ID for quick lookup during entry import
+              _mediaByIdCache[mediaItem.id] = mediaItem;
+              
+              // Map original media ID to MediaItem ID
+              // Since we preserve the original ID in MediaItem, this should be a 1:1 mapping
+              // But we still track it for link resolution
+              if (originalMediaId != null && originalMediaId.isNotEmpty) {
+                _mediaIdMap[originalMediaId] = mediaItem.id;
+                // If IDs match, the mapping is redundant but harmless
+                if (originalMediaId != mediaItem.id) {
+                  print('ARCX Import V2: ✓ Mapped media ID: $originalMediaId -> ${mediaItem.id}');
+                } else {
+                  print('ARCX Import V2: ✓ Media ID preserved: ${mediaItem.id}');
+                }
+              } else {
+                // Fallback: use the created ID as both key and value
+                _mediaIdMap[mediaItem.id] = mediaItem.id;
+                print('ARCX Import V2: ⚠️ Media item created without original ID: ${mediaItem.id}');
+              }
+              
+              print('ARCX Import V2: ✓ Cached media ${mediaItem.id} (original: $originalMediaId, hash: $contentHash, file: $fileName)');
               imported++;
+            } else {
+              print('ARCX Import V2: ⚠️ Failed to create MediaItem for $fileName');
             }
             
           } catch (e) {
@@ -468,10 +499,80 @@ class ARCXImportServiceV2 {
     return imported;
   }
   
+  /// Photo mapping cache for embedded media format (legacy support)
+  Map<String, String>? _cachedPhotoMapping;
+  Directory? _cachedPayloadDir;
+  
+  /// Build photo mapping from media packs (for legacy embedded media support)
+  /// This matches the legacy ARCX import service behavior for finding photos
+  Future<Map<String, String>> _buildPhotoMapping(Directory payloadDir) async {
+    // Return cached mapping if available and payload dir hasn't changed
+    if (_cachedPhotoMapping != null && _cachedPayloadDir == payloadDir) {
+      return _cachedPhotoMapping!;
+    }
+    
+    final photoMapping = <String, String>{};
+    
+    // Try ARCX V2 format: Media/packs/pack-XXX/ (new format)
+    final photosDirV2 = Directory(path.join(payloadDir.path, 'Media', 'packs'));
+    if (await photosDirV2.exists()) {
+      await for (final packDir in photosDirV2.list()) {
+        if (packDir is Directory) {
+          await for (final file in packDir.list()) {
+            if (file is File) {
+              final fileName = path.basename(file.path);
+              photoMapping[fileName] = file.path;
+            }
+          }
+        }
+      }
+    }
+    
+    // Try ARCX V1 format: Media/photos/ (older format)
+    final photosDirV1 = Directory(path.join(payloadDir.path, 'Media', 'photos'));
+    if (await photosDirV1.exists()) {
+      await for (final file in photosDirV1.list()) {
+        if (file is File) {
+          final fileName = path.basename(file.path);
+          photoMapping[fileName] = file.path;
+        }
+      }
+    }
+    
+    // Try legacy MCP format: media/photos/ (even older format)
+    final photosDirLegacy = Directory(path.join(payloadDir.path, 'media', 'photos'));
+    if (await photosDirLegacy.exists()) {
+      await for (final file in photosDirLegacy.list()) {
+        if (file is File) {
+          final fileName = path.basename(file.path);
+          photoMapping[fileName] = file.path;
+        }
+      }
+    }
+    
+    // Try legacy MCP format: nodes/media/photo/ (metadata location, but also check for actual files)
+    final photosDirMCP = Directory(path.join(payloadDir.path, 'nodes', 'media', 'photo'));
+    if (await photosDirMCP.exists()) {
+      await for (final file in photosDirMCP.list()) {
+        if (file is File && !file.path.endsWith('.json')) {
+          // Skip JSON metadata files, only include actual photo files
+          final fileName = path.basename(file.path);
+          photoMapping[fileName] = file.path;
+        }
+      }
+    }
+    
+    print('ARCX Import V2: Built photo mapping with ${photoMapping.length} files from payload directory');
+    _cachedPhotoMapping = photoMapping;
+    _cachedPayloadDir = payloadDir;
+    return photoMapping;
+  }
+  
   /// Import entries from /Entries/{yyyy}/{mm}/{dd}/
   Future<int> _importEntries({
     required Directory entriesDir,
     required ARCXImportOptions options,
+    required Directory payloadDir, // Add payloadDir parameter
     Function(String)? onProgress,
   }) async {
     if (_journalRepo == null) {
@@ -503,8 +604,8 @@ class ARCXImportServiceV2 {
           
           onProgress?.call('Importing entry $processed...');
           
-          // Convert to JournalEntry
-          final entry = await _convertEntryJsonToJournalEntry(entryJson);
+          // Convert to JournalEntry (pass payloadDir for embedded media support)
+          final entry = await _convertEntryJsonToJournalEntry(entryJson, payloadDir);
           if (entry != null) {
             await _journalRepo!.createJournalEntry(entry);
             _entryIdMap[entryId] = entry.id;
@@ -628,39 +729,165 @@ class ARCXImportServiceV2 {
   }
   
   /// Convert entry JSON to JournalEntry
-  Future<JournalEntry?> _convertEntryJsonToJournalEntry(Map<String, dynamic> entryJson) async {
+  Future<JournalEntry?> _convertEntryJsonToJournalEntry(
+    Map<String, dynamic> entryJson,
+    Directory payloadDir,
+  ) async {
     try {
       final entryId = entryJson['id'] as String;
       final title = entryJson['title'] as String? ?? 'Imported Entry';
       final content = entryJson['content'] as String? ?? '';
       final createdAt = DateTime.parse(entryJson['created_at'] as String);
       
-      // Resolve media links
-      final mediaIds = (entryJson['links'] as Map<String, dynamic>?)?['media_ids'] as List<dynamic>? ?? [];
+      // Resolve media links - support both ARCX V2 format (links.media_ids) and legacy format (embedded media)
       final mediaItems = <MediaItem>[];
       
-      for (final mediaId in mediaIds) {
-        final resolvedId = _mediaIdMap[mediaId as String];
-        if (resolvedId != null) {
-            // Find media item by resolved ID
-            try {
-              final mediaItem = _mediaCache.values.firstWhere(
-                (item) => item.id == resolvedId,
-              );
-              mediaItems.add(mediaItem);
-            } catch (_) {
-            _missingLinks['media'] ??= [];
-            if (!(_missingLinks['media'] as List).contains(mediaId)) {
-              (_missingLinks['media'] as List).add(mediaId);
-            }
-          }
-        } else {
-          _missingLinks['media'] ??= [];
-          if (!(_missingLinks['media'] as List).contains(mediaId)) {
-            (_missingLinks['media'] as List).add(mediaId);
+      // Try ARCX V2 format first (links.media_ids)
+      final mediaIds = (entryJson['links'] as Map<String, dynamic>?)?['media_ids'] as List<dynamic>? ?? [];
+      
+      // Try legacy format (embedded media array) with multiple fallback locations
+      // This matches the legacy ARCX import service behavior
+      List<dynamic>? embeddedMedia = entryJson['media'] as List<dynamic>?;
+      
+      // Fallback 1: Check metadata.media
+      if (embeddedMedia == null || embeddedMedia.isEmpty) {
+        final metadata = entryJson['metadata'] as Map<String, dynamic>?;
+        if (metadata != null) {
+          embeddedMedia = metadata['media'] as List<dynamic>?;
+        }
+      }
+      
+      // Fallback 2: Check metadata.journal_entry.media
+      if (embeddedMedia == null || embeddedMedia.isEmpty) {
+        final metadata = entryJson['metadata'] as Map<String, dynamic>?;
+        if (metadata != null) {
+          final journalEntryMeta = metadata['journal_entry'] as Map<String, dynamic>?;
+          if (journalEntryMeta != null) {
+            embeddedMedia = journalEntryMeta['media'] as List<dynamic>?;
           }
         }
       }
+      
+      // Fallback 3: Check metadata.photos (convert to media format)
+      if (embeddedMedia == null || embeddedMedia.isEmpty) {
+        final metadata = entryJson['metadata'] as Map<String, dynamic>?;
+        if (metadata != null) {
+          final photosData = metadata['photos'] as List<dynamic>?;
+          if (photosData != null && photosData.isNotEmpty) {
+            // Convert photos array to media format (like legacy service does)
+            embeddedMedia = photosData.map((photo) {
+              if (photo is Map<String, dynamic>) {
+                return {
+                  'id': photo['id'] ?? photo['placeholder_id'] ?? '',
+                  'filename': photo['filename'],
+                  'originalPath': photo['uri'] ?? photo['path'],
+                  'createdAt': photo['createdAt'] ?? photo['created_at'],
+                  'analysisData': photo['analysisData'] ?? photo['analysis_data'],
+                  'altText': photo['altText'] ?? photo['alt_text'],
+                  'ocrText': photo['ocrText'] ?? photo['ocr_text'],
+                  'sha256': photo['sha256'],
+                  'content_type': 'image/jpeg', // Default for photos
+                };
+              }
+              return photo;
+            }).toList();
+          }
+        }
+      }
+      
+      embeddedMedia ??= [];
+      
+      print('ARCX Import V2: Entry ${entryId} - V2 links: ${mediaIds.length}, embedded media: ${embeddedMedia.length}');
+      
+      // Debug: Log what we found in the entry JSON for entries with no media detected
+      if (mediaIds.isEmpty && embeddedMedia.isEmpty) {
+        print('ARCX Import V2: 🔍 DEBUG Entry ${entryId} media detection:');
+        print('  - entryJson keys: ${entryJson.keys.toList()}');
+        print('  - entryJson["media"]: ${entryJson.containsKey("media") ? (entryJson["media"] is List ? "List(${entryJson["media"]})" : entryJson["media"]) : "not found"}');
+        print('  - entryJson["links"]: ${entryJson.containsKey("links") ? entryJson["links"] : "not found"}');
+        if (entryJson.containsKey('metadata')) {
+          final metadata = entryJson['metadata'] as Map<String, dynamic>?;
+          if (metadata != null) {
+            print('  - metadata keys: ${metadata.keys.toList()}');
+            print('  - metadata["media"]: ${metadata.containsKey("media") ? (metadata["media"] is List ? "List(${metadata["media"]})" : metadata["media"]) : "not found"}');
+            if (metadata.containsKey("journal_entry")) {
+              final jeMeta = metadata["journal_entry"] as Map<String, dynamic>?;
+              print('  - metadata["journal_entry"]: ${jeMeta != null ? (jeMeta.containsKey("media") ? "found with media" : "found without media") : "null"}');
+            }
+            print('  - metadata["photos"]: ${metadata.containsKey("photos") ? (metadata["photos"] is List ? "List(${metadata["photos"]})" : metadata["photos"]) : "not found"}');
+          } else {
+            print('  - metadata: null');
+          }
+        } else {
+          print('  - metadata: not found');
+        }
+      }
+      
+      // Process ARCX V2 format (links-based)
+      if (mediaIds.isNotEmpty) {
+        for (final mediaId in mediaIds) {
+          final mediaIdStr = mediaId as String;
+          final resolvedId = _mediaIdMap[mediaIdStr];
+          
+          if (resolvedId != null) {
+            // Find media item by resolved ID in the ID cache
+            final mediaItem = _mediaByIdCache[resolvedId];
+            if (mediaItem != null) {
+              mediaItems.add(mediaItem);
+              print('ARCX Import V2: ✓ Resolved media link: $mediaIdStr -> ${mediaItem.id}');
+            } else {
+              print('ARCX Import V2: ⚠️ Media ID $resolvedId not found in cache (original: $mediaIdStr)');
+              _missingLinks['media'] ??= [];
+              if (!(_missingLinks['media'] as List).contains(mediaIdStr)) {
+                (_missingLinks['media'] as List).add(mediaIdStr);
+              }
+            }
+          } else {
+            print('ARCX Import V2: ⚠️ Media ID $mediaIdStr not found in media ID map');
+            _missingLinks['media'] ??= [];
+            if (!(_missingLinks['media'] as List).contains(mediaIdStr)) {
+              (_missingLinks['media'] as List).add(mediaIdStr);
+            }
+          }
+        }
+      }
+      
+      // Process legacy format (embedded media) - only if no V2 links found
+      if (mediaIds.isEmpty && embeddedMedia.isNotEmpty) {
+        print('ARCX Import V2: Using legacy embedded media format for entry ${entryId}');
+        print('ARCX Import V2: Found ${embeddedMedia.length} embedded media items');
+        
+        // Build photo mapping from media directory (similar to old ARCX import)
+        final photoMapping = await _buildPhotoMapping(payloadDir);
+        print('ARCX Import V2: Built photo mapping with ${photoMapping.length} files');
+        
+        // Process each embedded media item
+        for (int i = 0; i < embeddedMedia.length; i++) {
+          final mediaJson = embeddedMedia[i];
+          if (mediaJson is Map<String, dynamic>) {
+            try {
+              print('ARCX Import V2: Processing embedded media item $i: ${mediaJson.keys.toList()}');
+              // Create MediaItem from embedded JSON (similar to old ARCX import)
+              final mediaItem = await _createMediaItemFromEmbeddedJson(mediaJson, entryId, photoMapping);
+              if (mediaItem != null) {
+                // Cache by ID for deduplication
+                _mediaByIdCache[mediaItem.id] = mediaItem;
+                mediaItems.add(mediaItem);
+                print('ARCX Import V2: ✓ Created media from embedded format: ${mediaItem.id}');
+              } else {
+                print('ARCX Import V2: ⚠️ Failed to create MediaItem from embedded media $i');
+              }
+            } catch (e, stackTrace) {
+              print('ARCX Import V2: ⚠️ Error processing embedded media $i: $e');
+              print('ARCX Import V2: Stack trace: $stackTrace');
+            }
+          } else {
+            print('ARCX Import V2: ⚠️ Embedded media item $i is not a Map: ${mediaJson.runtimeType}');
+          }
+        }
+      }
+      
+      print('ARCX Import V2: Entry ${entryId} resolved ${mediaItems.length} media items (${mediaIds.length} from links, ${embeddedMedia.length} embedded)');
       
       return JournalEntry(
         id: entryId,
@@ -770,10 +997,123 @@ class ARCXImportServiceV2 {
     }
   }
   
+  /// Create MediaItem from embedded JSON (legacy format support)
+  Future<MediaItem?> _createMediaItemFromEmbeddedJson(
+    Map<String, dynamic> mediaJson,
+    String entryId,
+    Map<String, String> photoMapping,
+  ) async {
+    try {
+      // Extract media ID
+      final mediaId = mediaJson['id'] as String? ?? _uuid.v4();
+      
+      // Try to find filename
+      String? filename = mediaJson['filename'] as String?;
+      if (filename == null || filename.isEmpty) {
+        filename = mediaJson['file_name'] as String? ?? mediaJson['name'] as String?;
+      }
+      
+      // Resolve file path with multiple fallbacks (matching legacy service behavior)
+      String? filePath;
+      
+      // Try 1: Photo mapping by filename
+      if (filename != null && filename.isNotEmpty) {
+        filePath = photoMapping[filename];
+        if (filePath != null) {
+          print('ARCX Import V2: ✓ Found file in mapping: $filename -> $filePath');
+        }
+      }
+      
+      // Try 2: SHA-256 prefix matching in photo mapping (legacy service behavior)
+      if (filePath == null) {
+        final sha256 = mediaJson['sha256'] as String?;
+        if (sha256 != null && sha256.isNotEmpty) {
+          for (final entry in photoMapping.entries) {
+            if (entry.key.contains(sha256.substring(0, 8))) {
+              filePath = entry.value;
+              print('ARCX Import V2: ✓ Found file by SHA-256 prefix: ${sha256.substring(0, 8)}... -> $filePath');
+              break;
+            }
+          }
+        }
+      }
+      
+      // Try 3: originalPath, uri, or path from JSON
+      if (filePath == null) {
+        filePath = mediaJson['originalPath'] as String? ?? 
+                   mediaJson['uri'] as String? ?? 
+                   mediaJson['path'] as String?;
+        if (filePath != null) {
+          print('ARCX Import V2: ✓ Using originalPath from JSON: $filePath');
+        }
+      }
+      
+      // Try 4: Construct path from filename in app documents directory
+      if (filePath == null && filename != null && filename.isNotEmpty) {
+        final appDir = await getApplicationDocumentsDirectory();
+        final photosDir = Directory(path.join(appDir.path, 'photos'));
+        final constructedPath = path.join(photosDir.path, filename);
+        final file = File(constructedPath);
+        if (await file.exists()) {
+          filePath = constructedPath;
+          print('ARCX Import V2: ✓ Found file in constructed path: $filePath');
+        }
+      }
+      
+      if (filePath == null || filePath.isEmpty) {
+        print('ARCX Import V2: ⚠️ Could not resolve path for embedded media ${mediaId}');
+        print('  - Filename: $filename');
+        print('  - Photo mapping size: ${photoMapping.length}');
+        print('  - originalPath: ${mediaJson['originalPath']}');
+        print('  - uri: ${mediaJson['uri']}');
+        print('  - path: ${mediaJson['path']}');
+        return null;
+      }
+      
+      // Determine media type
+      final contentType = mediaJson['content_type'] as String? ?? 'image/jpeg';
+      MediaType mediaType;
+      if (contentType.startsWith('image/')) {
+        mediaType = MediaType.image;
+      } else if (contentType.startsWith('video/')) {
+        mediaType = MediaType.video;
+      } else if (contentType.startsWith('audio/')) {
+        mediaType = MediaType.audio;
+      } else {
+        mediaType = MediaType.file;
+      }
+      
+      // Parse timestamp
+      final createdAtStr = mediaJson['created_at'] as String? ?? mediaJson['createdAt'] as String?;
+      final createdAt = createdAtStr != null ? DateTime.parse(createdAtStr) : DateTime.now();
+      
+      return MediaItem(
+        id: mediaId,
+        type: mediaType,
+        uri: filePath,
+        createdAt: createdAt,
+        sha256: mediaJson['sha256'] as String?,
+        altText: mediaJson['altText'] as String? ?? mediaJson['alt_text'] as String?,
+        ocrText: mediaJson['ocrText'] as String? ?? mediaJson['ocr_text'] as String?,
+        analysisData: mediaJson['analysisData'] as Map<String, dynamic>? ?? mediaJson['analysis_data'] as Map<String, dynamic>?,
+      );
+    } catch (e) {
+      print('ARCX Import V2: ⚠️ Error creating MediaItem from embedded JSON: $e');
+      return null;
+    }
+  }
+  
   /// Create MediaItem from JSON
   MediaItem? _createMediaItemFromJson(Map<String, dynamic> mediaJson, String filePath) {
     try {
-      final mediaId = mediaJson['id'] as String? ?? _uuid.v4();
+      // CRITICAL: Preserve original media ID from export to maintain link consistency
+      // The ID from the export MUST be preserved so links.media_ids can resolve correctly
+      final mediaId = mediaJson['id'] as String?;
+      if (mediaId == null || mediaId.isEmpty) {
+        print('ARCX Import V2: ⚠️ Media JSON missing ID - cannot create MediaItem without ID');
+        return null; // Don't create MediaItem without ID - it won't link properly
+      }
+      
       final createdAtStr = mediaJson['created_at'] as String?;
       final createdAt = createdAtStr != null ? DateTime.parse(createdAtStr) : DateTime.now();
       
@@ -790,8 +1130,10 @@ class ARCXImportServiceV2 {
         mediaType = MediaType.file;
       }
       
+      // CRITICAL: Use the original exported ID - this ensures links.media_ids can resolve
+      // The MediaItem.id MUST match the ID in links.media_ids for the link to work
       return MediaItem(
-        id: mediaId,
+        id: mediaId, // Preserve original ID from export
         type: mediaType,
         uri: filePath,
         createdAt: createdAt,

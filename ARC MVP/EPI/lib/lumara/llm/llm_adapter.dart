@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:crypto/crypto.dart' as crypto;
-import 'model_adapter.dart';
+import 'package:my_app/core/llm/model_adapter.dart';
 import 'bridge.pigeon.dart' as pigeon;
 import 'model_progress_service.dart';
 import 'prompts/lumara_prompt_assembler.dart';

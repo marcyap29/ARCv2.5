@@ -4,7 +4,7 @@
 import 'package:flutter/material.dart';
 import '../../prism/extractors/sentinel_risk_detector.dart';
 import '../../core/models/reflective_entry_data.dart';
-import '../../atlas/rivet/rivet_models.dart';
+import 'package:my_app/prism/atlas/rivet/rivet_models.dart';
 import 'package:my_app/arc/core/journal_repository.dart';
 import 'sentinel_pattern_card.dart';
 import 'phase_help_screen.dart';

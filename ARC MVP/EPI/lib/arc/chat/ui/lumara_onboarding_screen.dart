@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'lumara_settings_screen.dart';
 import 'widgets/lumara_icon.dart';
-import '../../shared/ui/home/home_view.dart';
+import 'package:my_app/shared/ui/home/home_view.dart';
 
 /// LUMARA onboarding screen shown when no AI provider is configured
 class LumaraOnboardingScreen extends StatelessWidget {
@@ -195,7 +195,7 @@ class LumaraOnboardingScreen extends StatelessWidget {
       // Navigate to HomeView, replacing the onboarding screen
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(
-          builder: (context) => const HomeView(),
+          builder: (context) => HomeView(),
         ),
       );
     }
