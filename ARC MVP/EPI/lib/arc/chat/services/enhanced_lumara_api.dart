@@ -15,6 +15,7 @@ import '../llm/llm_provider.dart';
 import '../config/api_config.dart';
 import 'lumara_response_scoring.dart' as scoring;
 import '../prompts/lumara_prompts.dart';
+import '../prompts/lumara_unified_prompts.dart' show LumaraContext;
 import '../../../services/gemini_send.dart';
 
 /// Enhanced LUMARA API with multimodal reflection
@@ -263,7 +264,26 @@ class EnhancedLumaraApi {
           
           // Use Gemini API directly via geminiSend() - same as main LUMARA chat
           print('LUMARA Enhanced API v2.3: Calling Gemini API directly (same as main chat)');
-          print('LUMARA Enhanced API v2.3: System prompt length: ${LumaraPrompts.inJournalPrompt.length}');
+          
+          // Use unified prompt system with context tag (arc_journal)
+          // Falls back to legacy prompt if unified system fails
+          String systemPrompt;
+          try {
+            // Extract phase from request.phaseHint or currentPhase
+            final phaseName = request.phaseHint?.name ?? currentPhase;
+            systemPrompt = await LumaraPrompts.getSystemPromptForContext(
+              context: LumaraContext.arcJournal,
+              phaseData: phaseName != null ? {'phase': phaseName} : null,
+              energyData: chronoContext,
+            );
+            print('LUMARA Enhanced API v2.3: Using unified prompt system (arc_journal context)');
+          } catch (e) {
+            // Fallback to legacy prompt for backward compatibility
+            systemPrompt = LumaraPrompts.inJournalPrompt;
+            print('LUMARA Enhanced API v2.3: Using legacy prompt (unified system unavailable)');
+          }
+          
+          print('LUMARA Enhanced API v2.3: System prompt length: ${systemPrompt.length}');
           print('LUMARA Enhanced API v2.3: User prompt length: ${userPrompt.length}');
           
           onProgress?.call('Calling cloud API...');
@@ -277,7 +297,7 @@ class EnhancedLumaraApi {
             try {
               // Direct Gemini API call - same protocol as main LUMARA chat
               geminiResponse = await geminiSend(
-                system: LumaraPrompts.inJournalPrompt,
+                system: systemPrompt,
                 user: userPrompt,
                 jsonExpected: false,
               );

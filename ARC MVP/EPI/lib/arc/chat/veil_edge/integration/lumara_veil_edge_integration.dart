@@ -2,6 +2,7 @@
 /// 
 /// Integrates VEIL-EDGE with the existing LUMARA chat system to provide
 /// phase-reactive restorative responses.
+/// Updated to use unified LUMARA prompt system (EPI v2.1)
 
 import 'dart:async';
 import 'dart:convert';
@@ -9,7 +10,9 @@ import '../../chat/chat_models.dart';
 import '../../chat/chat_repo.dart';
 import '../models/veil_edge_models.dart';
 import '../services/veil_edge_service.dart';
-import '../../../aurora/models/circadian_context.dart';
+import '../../../../aurora/models/circadian_context.dart';
+import '../../prompts/lumara_unified_prompts.dart' show LumaraUnifiedPrompts, LumaraContext;
+import '../../../../services/gemini_send.dart';
 
 /// Integration service for LUMARA and VEIL-EDGE
 class LumaraVeilEdgeIntegration {
@@ -52,12 +55,13 @@ class LumaraVeilEdgeIntegration {
       // Get circadian context for enhanced response
       final circadianContext = await _veilEdgeService.getCurrentCircadianContext();
       
-      // Generate LUMARA response using VEIL-EDGE prompts with circadian guidance
+      // Generate LUMARA response using unified prompts with VEIL-EDGE routing
       final lumaraResponse = await _generateLumaraResponseWithCircadian(
         routeResult: routeResult,
         signals: signals,
         userMessage: userMessage,
         circadianContext: circadianContext,
+        atlas: atlas, // Pass AtlasState for phase context
       );
       
       // Create chat message
@@ -159,30 +163,113 @@ class LumaraVeilEdgeIntegration {
     );
   }
 
-  /// Generate LUMARA response using VEIL-EDGE prompts with circadian guidance
+  /// Generate LUMARA response using unified prompts with VEIL-EDGE routing
+  /// Uses unified prompt system with recovery context and phase/energy data
   Future<String> _generateLumaraResponseWithCircadian({
     required VeilEdgeRouteResult routeResult,
     required UserSignals signals,
     required String userMessage,
     required CircadianContext circadianContext,
+    AtlasState? atlas,
   }) async {
-    // Generate prompt using VEIL-EDGE with circadian context
-    final prompt = _veilEdgeService.generatePromptWithCircadian(
-      routeResult: routeResult,
-      signals: signals,
-      circadianContext: circadianContext,
-      additionalVariables: {
-        'user_message': userMessage,
-        'timestamp': DateTime.now().toIso8601String(),
-        'circadian_window': circadianContext.window,
-        'chronotype': circadianContext.chronotype,
-        'rhythm_score': circadianContext.rhythmScore.toString(),
-      },
-    );
+    try {
+      // Get unified system prompt with recovery context
+      // Extract phase data from AtlasState or routeResult
+      final phaseName = _extractPhaseFromRouteResult(routeResult, atlas);
+      final readiness = atlas?.confidence ?? 0.5;
+      
+      final systemPrompt = await LumaraUnifiedPrompts.instance.getSystemPrompt(
+        context: LumaraContext.recovery,
+        phaseData: {
+          'phase': phaseName,
+          'readiness': readiness,
+        },
+        energyData: {
+          'level': _extractEnergyLevel(circadianContext),
+          'timeOfDay': circadianContext.window,
+        },
+      );
+      
+      // Build user prompt incorporating VEIL-EDGE routing context
+      final userPrompt = _buildUserPromptWithVeilContext(
+        userMessage: userMessage,
+        routeResult: routeResult,
+        signals: signals,
+        circadianContext: circadianContext,
+      );
+      
+      // Call LLM with unified prompt system
+      final response = await geminiSend(
+        system: systemPrompt,
+        user: userPrompt,
+        jsonExpected: false,
+      );
+      
+      return response.trim();
+      
+    } catch (e) {
+      // Fallback to formatted response if LLM call fails
+      print('VEIL-EDGE: LLM call failed, using fallback: $e');
+      final prompt = _veilEdgeService.generatePromptWithCircadian(
+        routeResult: routeResult,
+        signals: signals,
+        circadianContext: circadianContext,
+        additionalVariables: {
+          'user_message': userMessage,
+          'timestamp': DateTime.now().toIso8601String(),
+        },
+      );
+      return _formatLumaraResponseWithCircadian(prompt, routeResult, circadianContext);
+    }
+  }
+  
+  /// Extract phase name from route result or Atlas state
+  String _extractPhaseFromRouteResult(VeilEdgeRouteResult routeResult, AtlasState? atlas) {
+    // Map phase groups to ATLAS phases
+    final phaseGroup = routeResult.phaseGroup;
+    if (phaseGroup.startsWith('R-')) return 'Recovery';
+    if (phaseGroup.startsWith('T-')) return 'Transition';
+    if (phaseGroup.startsWith('D-')) return 'Discovery';
+    if (phaseGroup.startsWith('C-')) return 'Consolidation';
     
-    // In a real implementation, this would call the LLM
-    // For now, return a formatted response with circadian awareness
-    return _formatLumaraResponseWithCircadian(prompt, routeResult, circadianContext);
+    // Fallback to Atlas phase if available
+    return atlas?.phase ?? 'Recovery';
+  }
+  
+  /// Extract energy level from circadian context
+  String _extractEnergyLevel(CircadianContext circadianContext) {
+    final score = circadianContext.rhythmScore;
+    if (score >= 0.7) return 'high';
+    if (score >= 0.4) return 'medium';
+    return 'low';
+  }
+  
+  /// Build user prompt incorporating VEIL-EDGE routing context
+  String _buildUserPromptWithVeilContext({
+    required String userMessage,
+    required VeilEdgeRouteResult routeResult,
+    required UserSignals signals,
+    required CircadianContext circadianContext,
+  }) {
+    final buffer = StringBuffer();
+    
+    // Add user message
+    buffer.writeln(userMessage);
+    buffer.writeln();
+    
+    // Add VEIL-EDGE context
+    buffer.writeln('Context:');
+    buffer.writeln('- Phase group: ${routeResult.phaseGroup}');
+    buffer.writeln('- Variant: ${routeResult.variant}');
+    buffer.writeln('- Blocks: ${routeResult.blocks.join(", ")}');
+    buffer.writeln('- Circadian window: ${circadianContext.window}');
+    buffer.writeln('- Rhythm score: ${circadianContext.rhythmScore.toStringAsFixed(2)}');
+    
+    if (signals.feelings.isNotEmpty) {
+      buffer.writeln('- Detected feelings: ${signals.feelings.join(", ")}');
+    }
+    
+    return buffer.toString();
   }
 
   /// Format the VEIL-EDGE prompt as a LUMARA response with circadian awareness
@@ -281,7 +368,7 @@ class LumaraVeilEdgeIntegration {
         sentinelState: routeResult.metadata['sentinel_state'] as String? ?? 'ok',
       );
       
-      await _veilEdgeService.processLog(log);
+      _veilEdgeService.processLog(log);
     } catch (e) {
       // Log error but don't fail the main flow
       print('VEIL-EDGE: Failed to process log: $e');
