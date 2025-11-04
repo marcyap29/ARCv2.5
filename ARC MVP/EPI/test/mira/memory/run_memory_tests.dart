@@ -8,8 +8,8 @@ import 'enhanced_memory_test_suite.dart' as enhanced_tests;
 import 'golden_prompts_harness.dart';
 import 'memory_system_integration_test.dart' as integration_tests;
 import 'security_red_team_tests.dart' as security_tests;
-import 'package:my_app/mira/memory/enhanced_mira_memory_service.dart';
-import 'package:my_app/mira/mira_service.dart';
+import 'package:my_app/polymeta/memory/enhanced_mira_memory_service.dart';
+import 'package:my_app/polymeta/mira_service.dart';
 
 void main() async {
   group('Enhanced MIRA Memory System - Complete Test Suite', () {

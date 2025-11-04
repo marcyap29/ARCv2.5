@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-// import 'package:my_app/core/mcp/migration/photo_migration_service.dart'; // TODO: Not yet implemented
+// import 'package:my_app/polymeta/store/mcp/migration/photo_migration_service.dart'; // TODO: Not yet implemented
 import 'package:my_app/arc/core/journal_repository.dart';
 
 /// Placeholder classes for photo migration (to be implemented)

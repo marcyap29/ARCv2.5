@@ -1,5 +1,5 @@
-import 'package:my_app/lumara/chat/content_parts.dart';
-import 'package:my_app/lumara/chat/chat_models.dart';
+import 'package:my_app/arc/chat/chat/content_parts.dart';
+import 'package:my_app/arc/chat/chat/chat_models.dart';
 import 'ocp_services.dart';
 
 /// Multimodal processor for chat messages

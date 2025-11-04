@@ -2,9 +2,9 @@
 // Memory mode settings UI for configuring how LUMARA uses memories
 
 import 'package:flutter/material.dart';
-import 'package:my_app/mira/memory/memory_mode_service.dart';
-import 'package:my_app/mira/memory/enhanced_memory_schema.dart';
-import 'package:my_app/mira/memory/lifecycle_management_service.dart';
+import 'package:my_app/polymeta/memory/memory_mode_service.dart';
+import 'package:my_app/polymeta/memory/enhanced_memory_schema.dart';
+import 'package:my_app/polymeta/memory/lifecycle_management_service.dart';
 
 /// Settings screen for memory retrieval modes
 class MemoryModeSettingsView extends StatefulWidget {

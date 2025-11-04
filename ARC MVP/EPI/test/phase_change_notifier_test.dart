@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:my_app/atlas/phase_detection/phase_change_notifier.dart';
+import 'package:my_app/prism/atlas/phase/phase_change_notifier.dart';
 
 void main() {
   group('PhaseChangeNotifier', () {

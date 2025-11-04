@@ -1,8 +1,8 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hive/hive.dart';
 // import 'package:hive_test/hive_test.dart';
-import 'package:my_app/lumara/chat/chat_models.dart';
-import 'package:my_app/lumara/chat/chat_repo_impl.dart';
+import 'package:my_app/arc/chat/chat/chat_models.dart';
+import 'package:my_app/arc/chat/chat/chat_repo_impl.dart';
 
 void main() {
   group('ChatRepo Tests', () {

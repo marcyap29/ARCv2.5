@@ -5,7 +5,7 @@ import 'package:my_app/arc/core/journal_capture_state.dart';
 import 'package:my_app/arc/core/journal_repository.dart';
 import 'package:my_app/models/journal_entry_model.dart';
 import 'package:my_app/models/user_profile_model.dart';
-import 'package:my_app/atlas/phase_detection/phase_history_repository.dart';
+import 'package:my_app/prism/atlas/phase/phase_history_repository.dart';
 
 void main() {
   group('Journal Capture Phase Stability Integration', () {

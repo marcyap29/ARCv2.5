@@ -13,7 +13,7 @@ import 'safety/rivet_lite_validator.dart';
 import 'voice/lumara_voice_controller.dart';
 import 'prompts/echo_system_prompt.dart';
 import 'models/data/context_provider.dart';
-import 'package:my_app/mira/mira_service.dart';
+import 'package:my_app/polymeta/mira_service.dart';
 
 /// Core ECHO service for generating contextual, dignified responses
 class EchoService {

@@ -10,14 +10,14 @@ import 'package:my_app/shared/tab_bar.dart';
 // AURORA card removed - was just a placeholder
 import 'package:my_app/services/user_phase_service.dart';
 import 'package:my_app/shared/ui/settings/settings_view.dart';
-import 'package:my_app/lumara/ui/lumara_assistant_screen.dart';
+import 'package:my_app/arc/chat/ui/lumara_assistant_screen.dart';
 import 'package:my_app/services/analytics_service.dart';
 import 'package:my_app/core/services/audio_service.dart';
 import 'package:my_app/mode/first_responder/widgets/fr_status_indicator.dart';
 import 'package:my_app/mode/coach/widgets/coach_mode_status_indicator.dart';
-import 'package:my_app/lumara/bloc/lumara_assistant_cubit.dart';
-import 'package:my_app/lumara/data/context_provider.dart';
-import 'package:my_app/lumara/data/context_scope.dart';
+import 'package:my_app/arc/chat/bloc/lumara_assistant_cubit.dart';
+import 'package:my_app/arc/chat/data/context_provider.dart';
+import 'package:my_app/arc/chat/data/context_scope.dart';
 import 'package:my_app/core/app_flags.dart';
 import 'package:flutter/foundation.dart';
 import 'package:my_app/core/services/photo_library_service.dart';

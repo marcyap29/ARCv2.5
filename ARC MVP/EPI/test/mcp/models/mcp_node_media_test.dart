@@ -1,6 +1,6 @@
 // Test to verify McpNode.fromJson captures root-level media field
 import 'package:flutter_test/flutter_test.dart';
-import 'package:my_app/core/mcp/models/mcp_schemas.dart';
+import 'package:my_app/polymeta/store/mcp/models/mcp_schemas.dart';
 
 void main() {
   group('McpNode.fromJson media field capture', () {

@@ -1,4 +1,4 @@
-import 'package:my_app/atlas/phase_detection/phase_scoring.dart';
+import 'package:my_app/prism/atlas/phase/phase_scoring.dart';
 
 class PhaseRecommender {
   static bool _lastRecommendationWasKeywordBased = false;

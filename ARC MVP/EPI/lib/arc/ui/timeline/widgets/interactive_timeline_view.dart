@@ -16,14 +16,14 @@ import 'package:my_app/arc/core/journal_repository.dart';
 import 'package:my_app/shared/app_colors.dart';
 import 'package:my_app/shared/text_style.dart';
 import 'package:my_app/shared/ui/onboarding/phase_quiz_prompt_view.dart';
-import 'package:my_app/atlas/rivet/rivet_provider.dart';
-import 'package:my_app/atlas/rivet/rivet_models.dart';
+import 'package:my_app/prism/atlas/rivet/rivet_provider.dart';
+import 'package:my_app/prism/atlas/rivet/rivet_models.dart';
 import 'package:my_app/core/services/draft_cache_service.dart';
-import 'package:my_app/atlas/rivet/rivet_service.dart';
+import 'package:my_app/prism/atlas/rivet/rivet_service.dart';
 import 'package:hive/hive.dart';
 import 'package:my_app/services/user_phase_service.dart';
 import 'package:my_app/arc/ui/arcforms/phase_recommender.dart';
-import 'package:my_app/mira/mira_service.dart';
+import 'package:my_app/polymeta/mira_service.dart';
 import 'package:uuid/uuid.dart';
 import 'dart:math' as math;
 

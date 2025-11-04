@@ -2,7 +2,7 @@
 // Simple test to verify QwenAdapter integration
 
 import 'package:flutter/material.dart';
-import 'package:my_app/lumara/llm/qwen_adapter.dart';
+import 'package:my_app/arc/chat/llm/qwen_adapter.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();

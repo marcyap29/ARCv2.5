@@ -3,7 +3,7 @@
 
 import 'package:my_app/arc/core/journal_repository.dart';
 import 'package:my_app/models/journal_entry_model.dart';
-import 'package:my_app/atlas/phase_detection/your_patterns_view.dart';
+import 'package:my_app/prism/atlas/phase/your_patterns_view.dart';
 import 'package:my_app/utils/text_processing.dart';
 import 'package:my_app/utils/co_occurrence_calculator.dart';
 import 'package:my_app/services/user_phase_service.dart';

@@ -5,7 +5,7 @@
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:my_app/policy/transition_policy.dart';
-// import 'package:my_app/atlas/phase_detection/phase_tracker.dart';
+// import 'package:my_app/prism/atlas/phase/phase_tracker.dart';
 // import 'package:my_app/atlas/rivet/rivet_models.dart';
 import 'package:my_app/prism/extractors/sentinel_risk_detector.dart';
 

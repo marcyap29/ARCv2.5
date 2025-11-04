@@ -2,7 +2,7 @@ import 'dart:io';
 import 'dart:typed_data';
 import 'dart:math';
 import '../pointer/pointer_models.dart';
-import 'package:my_app/lumara/llm/bridge.pigeon.dart';
+import 'package:my_app/arc/chat/llm/bridge.pigeon.dart';
 
 /// Result of audio transcription
 class AudioTranscript {

@@ -9,9 +9,9 @@ import 'package:my_app/services/phase_index.dart';
 import 'package:my_app/services/phase_regime_service.dart';
 import 'package:my_app/services/analytics_service.dart';
 import 'package:my_app/services/rivet_sweep_service.dart';
-import 'package:my_app/core/mcp/export/mcp_export_service.dart';
-import 'package:my_app/lumara/services/mcp_bundle_parser.dart';
-import 'package:my_app/lumara/models/reflective_node.dart';
+import 'package:my_app/polymeta/store/mcp/export/mcp_export_service.dart';
+import 'package:my_app/arc/chat/services/mcp_bundle_parser.dart';
+import 'package:my_app/arc/chat/models/reflective_node.dart';
 
 class MockAnalyticsService implements AnalyticsService {
   @override

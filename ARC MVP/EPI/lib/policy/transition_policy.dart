@@ -10,8 +10,8 @@
 /// full telemetry for debugging and transparency.
 
 import 'dart:math' as math;
-import 'package:my_app/atlas/phase_detection/phase_tracker.dart';
-import 'package:my_app/atlas/rivet/rivet_models.dart';
+import 'package:my_app/prism/atlas/phase/phase_tracker.dart';
+import 'package:my_app/prism/atlas/rivet/rivet_models.dart';
 import 'package:my_app/prism/extractors/sentinel_risk_detector.dart';
 
 /// Transition decision outcomes

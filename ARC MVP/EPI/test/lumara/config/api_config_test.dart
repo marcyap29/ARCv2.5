@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:my_app/lumara/config/api_config.dart';
+import 'package:my_app/arc/chat/config/api_config.dart';
 
 void main() {
   group('LumaraAPIConfig Model Registry', () {

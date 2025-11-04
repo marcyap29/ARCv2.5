@@ -4,7 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
 // import 'package:record/record.dart';  // Temporarily disabled
 import 'package:path/path.dart' as path;
-import 'package:my_app/lumara/llm/bridge.pigeon.dart';
+import 'package:my_app/arc/chat/llm/bridge.pigeon.dart';
 
 /// P28: Voice Debrief Service
 /// Handles voice recording, transcription, and storage for debrief sessions

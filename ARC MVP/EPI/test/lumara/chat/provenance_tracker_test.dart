@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:my_app/lumara/chat/provenance_tracker.dart';
+import 'package:my_app/arc/chat/chat/provenance_tracker.dart';
 
 void main() {
   group('ChatProvenanceTracker Tests', () {

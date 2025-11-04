@@ -3,11 +3,11 @@ import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hive/hive.dart';
 // import 'package:hive_test/hive_test.dart';
-import 'package:my_app/lumara/chat/chat_models.dart';
-import 'package:my_app/lumara/chat/chat_repo_impl.dart';
-import 'package:my_app/lumara/chat/privacy_redactor.dart';
-import 'package:my_app/lumara/chat/provenance_tracker.dart';
-import 'package:my_app/core/mcp/export/chat_exporter.dart';
+import 'package:my_app/arc/chat/chat/chat_models.dart';
+import 'package:my_app/arc/chat/chat/chat_repo_impl.dart';
+import 'package:my_app/arc/chat/chat/privacy_redactor.dart';
+import 'package:my_app/arc/chat/chat/provenance_tracker.dart';
+import 'package:my_app/polymeta/store/mcp/export/chat_exporter.dart';
 
 void main() {
   group('ChatMcpExporter Tests', () {

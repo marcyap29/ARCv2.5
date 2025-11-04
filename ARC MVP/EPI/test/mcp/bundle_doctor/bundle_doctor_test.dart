@@ -2,8 +2,8 @@
 // Comprehensive tests for MCP Bundle Doctor
 
 import 'package:test/test.dart';
-import 'package:my_app/core/mcp/bundle_doctor/bundle_doctor.dart';
-import 'package:my_app/core/mcp/bundle_doctor/mcp_models.dart';
+import 'package:my_app/polymeta/store/mcp/bundle_doctor/bundle_doctor.dart';
+import 'package:my_app/polymeta/store/mcp/bundle_doctor/mcp_models.dart';
 
 void main() {
   group('Bundle Doctor', () {

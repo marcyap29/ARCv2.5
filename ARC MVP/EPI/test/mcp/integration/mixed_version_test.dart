@@ -1,14 +1,14 @@
 import 'dart:io';
 import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:my_app/core/mcp/adapters/from_mira.dart';
-import 'package:my_app/core/mcp/import/mcp_import_service.dart';
-import 'package:my_app/core/mcp/export/chat_exporter.dart';
-import 'package:my_app/mira/core/schema.dart';
-import 'package:my_app/mira/nodes/chat_session_node.dart';
-import 'package:my_app/mira/nodes/chat_message_node.dart';
-import 'package:my_app/mira/edges/contains_edge.dart';
-import 'package:my_app/lumara/chat/chat_models.dart';
+import 'package:my_app/polymeta/store/mcp/adapters/from_mira.dart';
+import 'package:my_app/polymeta/store/mcp/import/mcp_import_service.dart';
+import 'package:my_app/polymeta/store/mcp/export/chat_exporter.dart';
+import 'package:my_app/polymeta/core/schema.dart';
+import 'package:my_app/polymeta/nodes/chat_session_node.dart';
+import 'package:my_app/polymeta/nodes/chat_message_node.dart';
+import 'package:my_app/polymeta/edges/contains_edge.dart';
+import 'package:my_app/arc/chat/chat/chat_models.dart';
 
 void main() {
   group('Mixed Version MCP Tests', () {

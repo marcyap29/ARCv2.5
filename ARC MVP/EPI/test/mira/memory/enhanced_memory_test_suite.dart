@@ -3,19 +3,19 @@
 // Based on the testable contract specification
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:my_app/mira/memory/enhanced_mira_memory_service.dart';
-import 'package:my_app/mira/memory/enhanced_memory_schema.dart';
-import 'package:my_app/mira/memory/conflict_resolution_service.dart';
-import 'package:my_app/mira/mira_service.dart';
-import 'package:my_app/mira/core/mira_repo.dart';
-import 'package:my_app/mira/core/schema.dart';
-import 'package:my_app/mira/core/flags.dart';
-import 'package:my_app/lumara/chat/chat_repo.dart';
+import 'package:my_app/polymeta/memory/enhanced_mira_memory_service.dart';
+import 'package:my_app/polymeta/memory/enhanced_memory_schema.dart';
+import 'package:my_app/polymeta/memory/conflict_resolution_service.dart';
+import 'package:my_app/polymeta/mira_service.dart';
+import 'package:my_app/polymeta/core/mira_repo.dart';
+import 'package:my_app/polymeta/core/schema.dart';
+import 'package:my_app/polymeta/core/flags.dart';
+import 'package:my_app/arc/chat/chat/chat_repo.dart';
 import 'package:my_app/arc/core/journal_repository.dart';
-import 'package:my_app/core/mcp/export/mcp_export_service.dart';
-import 'package:my_app/core/mcp/import/mcp_import_service.dart';
-import 'package:my_app/core/mcp/import/manifest_reader.dart';
-import 'package:my_app/core/mcp/bundle/reader.dart';
+import 'package:my_app/polymeta/store/mcp/export/mcp_export_service.dart';
+import 'package:my_app/polymeta/store/mcp/import/mcp_import_service.dart';
+import 'package:my_app/polymeta/store/mcp/import/manifest_reader.dart';
+import 'package:my_app/polymeta/store/mcp/bundle/reader.dart';
 import 'package:my_app/models/journal_entry_model.dart';
 import 'package:my_app/data/models/media_item.dart';
 import 'package:my_app/services/phase_index.dart';

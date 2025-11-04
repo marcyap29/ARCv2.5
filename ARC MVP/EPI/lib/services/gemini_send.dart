@@ -5,7 +5,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:my_app/services/llm_bridge_adapter.dart';
-import 'package:my_app/lumara/config/api_config.dart';
+import 'package:my_app/arc/chat/config/api_config.dart';
 
 /// Sends a single-turn request to Gemini with an optional system instruction.
 /// Returns the concatenated text from candidates[0].content.parts[].text.
