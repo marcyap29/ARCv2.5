@@ -6,15 +6,18 @@
 
 ## Overview
 
-This directory contains the unified LUMARA prompt system that consolidates all assistant prompts under a single, architecture-aligned configuration. The system supports both:
+This directory contains the unified LUMARA prompt system that consolidates all assistant prompts under a single, architecture-aligned configuration. The system supports three tiers:
 
 1. **Full JSON Profile** (`lumara_profile.json`) - For development, auditing, and configuration
 2. **Condensed Runtime Prompt** (`lumara_system_compact.txt`) - For production inference (< 1000 tokens)
+3. **Micro Prompt** (`lumara_system_micro.txt`) - For emergency/fallback use (< 300 tokens)
 
 ## Files
 
-- `lumara_profile.json` - Full system configuration with all behavior settings, archetypes, and module handoffs
-- `lumara_system_compact.txt` - Condensed prompt string for runtime use
+- `lumara_profile.json` - Full system configuration with all behavior settings, archetypes, Expert Mentor Mode, Decision Clarity Mode, and module handoffs
+- `decision_brief_template.md` - Decision Brief template with BAH vs BAE framework
+- `lumara_system_compact.txt` - Condensed prompt string for runtime use (< 1000 tokens)
+- `lumara_system_micro.txt` - Micro prompt for emergency/fallback use (< 300 tokens)
 - `lumara_unified_prompts.dart` - Dart class that loads and manages the unified prompts
 - `lumara_prompts.dart` - Updated to use unified system (backward compatible)
 - `lumara_system_prompt.dart` - Updated to use unified system (backward compatible)
@@ -74,6 +77,93 @@ The prompts are aligned with EPI v2.1 modules:
 3. **Deepen** - Invite confirmation, then explore what matters
 4. **Integrate** - Offer synthesis or next right step
 
+## Expert Mentor Mode
+
+LUMARA can activate **Expert Mentor Mode** when users request domain expertise or task help. This mode adds expert-level guidance while maintaining LUMARA's core ethics and interpretive stance.
+
+### Activation Cues
+
+- **Explicit**: "act as...", "teach me...", "help me do..."
+- **Implicit**: Technical or craft questions requiring domain authority
+
+### Available Personas
+
+- **Faith / Biblical Scholar** - Christian theology, exegesis, spiritual practices
+- **Systems Engineer** - Requirements, CONOPS, SysML/MBSE, verification/validation
+- **Marketing Lead** - Positioning, ICPs, funnels, messaging, analytics
+- **Generic Expert** - Any requested domain (with safety boundaries)
+
+### Protocol
+
+1. **Scope/Criteria** - Confirm what to deliver; note constraints
+2. **Explain & Decide** - Present concise, accurate guidance with options
+3. **Do the Work** - Provide usable artifacts (plans, templates, checklists, code)
+4. **Coach Forward** - Suggest 1-3 next steps; invite calibration
+
+### Quality Standards
+
+- Prefer primary/authoritative sources; cite when claims are nontrivial
+- Layered outputs: summary → steps → details → references
+- Match pacing/volume to PRISM readiness; switch to VEIL cadence when needed
+
+## Decision Clarity Mode
+
+LUMARA can activate **Decision Clarity Mode** when users need help choosing between options or making complex decisions. This mode uses a structured framework to surface values, score options, and recommend paths.
+
+### Activation Cues
+
+- **Explicit**: "help me decide", "should I", "choose between"
+- **Implicit**: User describes options or trade-offs without clear decision criteria
+- **Context**: Uncertainty about a choice with multiple viable paths
+
+### Protocol
+
+1. **Narrative Preamble** - Lead with conversational transition: acknowledge the crossroads, frame as choice between trajectories of becoming, surface 3-5 core values from context (POLYMETA/prior reflections), connect to Becoming, set expectation for Decision Brief, invite readiness. Use measured, compassionate tone.
+2. **Frame the Decision** - Name what's at stake; identify core values in tension
+3. **List Options** - Capture all viable paths (including status quo and hybrid options)
+4. **Define Criteria** - Extract 3-5 decision factors from user's values and constraints
+5. **Score Options** - Evaluate each option across two dimensions: Becoming Alignment (values/long-term coherence) and Practical Viability (utility/constraints/risk), scored 1-10 per dimension
+6. **Synthesize** - Highlight path that best honors Becoming; name trade-offs explicitly. If dimensions diverge, surface tension and help user choose which matters more
+7. **Invite Calibration** - Check alignment with user's intuition; adjust criteria if needed
+
+### Scoring Framework
+
+Each option is evaluated across two dimensions (scored 1-10):
+
+**Becoming Alignment**
+- How well the option aligns with the user's aspirational values and Becoming trajectory
+- Focus: Who the user wants to become; long-term coherence; values alignment; identity congruence
+
+**Practical Viability**
+- The option's utility given current constraints and practical realities
+- Focus: Practical outcomes; resource constraints; risk mitigation; short-term feasibility; execution readiness
+
+**When Dimensions Diverge**: If Becoming Alignment and Practical Viability scores differ significantly, surface the tension explicitly and help user choose which dimension matters more for this decision.
+
+### Output Format
+
+**Full Decision Brief** includes:
+- Decision Context
+- Options (with descriptions)
+- Criteria (3-5 factors)
+- Scorecard (Becoming Alignment vs Practical Viability scores, 1-10 per option)
+- Synthesis (recommended path with trade-offs)
+- Next Steps (1-3 concrete actions)
+
+**Mini Template** (one-screen mobile):
+```
+Decision: [name]
+Options: [A, B, C]
+Top Criterion: [value]
+Becoming: [Option] ([score]/10)
+Practical: [Option] ([score]/10)
+Recommendation: [path] | Trade-off: [gain] vs [risk]
+```
+
+### Template
+
+See `decision_brief_template.md` for a complete template with example.
+
 ## Module Handoffs
 
 The prompt system includes hooks for:
@@ -118,9 +208,13 @@ To migrate existing code:
 
 ## Token Limits
 
-- **Condensed prompt**: < 1000 tokens (optimized for production)
-- **Full JSON profile**: For development/auditing only
-- **Runtime usage**: Always use condensed prompt
+| Prompt Type | Token Limit | Use Case |
+|------------|-------------|----------|
+| **Micro Prompt** | < 300 tokens | Emergency/fallback, mobile truncation, offline |
+| **Condensed Prompt** | < 1000 tokens | Production runtime (ARC Chat, ARC Journal) |
+| **Full JSON Profile** | N/A | Development/auditing/configuration only |
+
+**Runtime usage**: Always use condensed prompt for production. Micro prompt is only for edge cases.
 
 ## Testing
 
@@ -128,7 +222,7 @@ The unified system includes embedded fallbacks if files cannot be loaded. This e
 
 ## Version History
 
-- **v2.1** (Nov 2025) - Unified prompt system with context tags
+- **v2.1** (Nov 2025) - Unified prompt system with context tags, Expert Mentor Mode, and Decision Clarity Mode
 - **v2.0** - Initial EPI v2.1 consolidation
 - **v1.x** - Legacy prompt system
 

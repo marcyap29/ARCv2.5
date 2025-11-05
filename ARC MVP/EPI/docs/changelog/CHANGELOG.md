@@ -5,24 +5,35 @@
 
 ## [Unreleased] - November 2025
 
-### **LUMARA Unified Prompt System** - November 2025
+### **LUMARA Unified Prompt System v2.1** - November 2025
 
-Unified all LUMARA assistant prompts under a single, architecture-aligned system (EPI v2.1) with context-aware behavior for ARC Chat, ARC In-Journal, and VEIL/Recovery modes.
+Unified all LUMARA assistant prompts under a single, architecture-aligned system (EPI v2.1) with context-aware behavior for ARC Chat, ARC In-Journal, and VEIL/Recovery modes, plus Expert Mentor Mode and Decision Clarity Mode.
 
 **See:** [LUMARA_UNIFIED_PROMPTS_NOV_2025.md](./LUMARA_UNIFIED_PROMPTS_NOV_2025.md) for complete details.
 
 #### Key Features
 - Context-aware prompts: `arc_chat`, `arc_journal`, `recovery`
 - Phase and energy data integration
-- Unified prompt infrastructure (JSON profile + condensed runtime prompt)
+- Unified prompt infrastructure (JSON profile + condensed runtime prompt + micro prompt)
 - VEIL-EDGE integration with unified prompts
+- **Expert Mentor Mode**: On-demand domain expertise (faith, systems engineering, marketing, generic)
+- **Decision Clarity Mode**: Structured decision-making with Becoming Alignment vs Practical Viability scoring
 - Backward compatible with existing code
 
 #### Files Added
-- `lib/arc/chat/prompts/lumara_profile.json` - Full system configuration
-- `lib/arc/chat/prompts/lumara_system_compact.txt` - Condensed runtime prompt
+- `lib/arc/chat/prompts/lumara_profile.json` - Full system configuration with Expert Mentor and Decision Clarity modes
+- `lib/arc/chat/prompts/lumara_system_compact.txt` - Condensed runtime prompt (< 1000 tokens)
+- `lib/arc/chat/prompts/lumara_system_micro.txt` - Micro prompt for emergency/fallback (< 300 tokens)
 - `lib/arc/chat/prompts/lumara_unified_prompts.dart` - Unified prompt manager
+- `lib/arc/chat/prompts/decision_brief_template.md` - Decision Brief template with scoring framework
 - `lib/arc/chat/prompts/README_UNIFIED_PROMPTS.md` - Usage documentation
+
+#### Files Modified
+- `lib/arc/chat/prompts/lumara_prompts.dart` - Updated to use unified system (backward compatible)
+- `lib/arc/chat/prompts/lumara_system_prompt.dart` - Updated to use unified system (backward compatible)
+- `lib/arc/chat/services/enhanced_lumara_api.dart` - Uses unified prompts with context tags
+- `lib/arc/chat/veil_edge/integration/lumara_veil_edge_integration.dart` - Integrated with unified prompts
+- `pubspec.yaml` - Added `assets/prompts/` directory
 
 ## [Unreleased] - January 2025
 
