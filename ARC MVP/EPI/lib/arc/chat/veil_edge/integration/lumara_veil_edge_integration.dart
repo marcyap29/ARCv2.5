@@ -210,13 +210,13 @@ class LumaraVeilEdgeIntegration {
     } catch (e) {
       // Fallback to formatted response if LLM call fails
       print('VEIL-EDGE: LLM call failed, using fallback: $e');
-      final prompt = _veilEdgeService.generatePromptWithCircadian(
-        routeResult: routeResult,
-        signals: signals,
-        circadianContext: circadianContext,
-        additionalVariables: {
-          'user_message': userMessage,
-          'timestamp': DateTime.now().toIso8601String(),
+    final prompt = _veilEdgeService.generatePromptWithCircadian(
+      routeResult: routeResult,
+      signals: signals,
+      circadianContext: circadianContext,
+      additionalVariables: {
+        'user_message': userMessage,
+        'timestamp': DateTime.now().toIso8601String(),
         },
       );
       return _formatLumaraResponseWithCircadian(prompt, routeResult, circadianContext);
