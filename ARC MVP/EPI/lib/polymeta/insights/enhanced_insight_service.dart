@@ -2,7 +2,7 @@ import 'package:my_app/arc/chat/chat/chat_repo.dart';
 import '../../insights/models/insight_card.dart';
 import '../../insights/insight_service.dart';
 import 'package:my_app/arc/core/journal_repository.dart';
-import '../../atlas/rivet/rivet_provider.dart';
+import 'package:my_app/prism/atlas/rivet/rivet_provider.dart';
 import 'chat_metrics_service.dart';
 
 /// Enhanced insight service that combines journal and chat insights

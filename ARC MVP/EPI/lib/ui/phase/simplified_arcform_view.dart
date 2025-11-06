@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:hive/hive.dart';
 import '../../shared/app_colors.dart';
 import '../../shared/text_style.dart';
-import '../../arcform/models/arcform_models.dart';
-import '../../arcform/layouts/layouts_3d.dart';
-import '../../arcform/render/arcform_renderer_3d.dart';
+import 'package:my_app/arc/arcform/models/arcform_models.dart';
+import 'package:my_app/arc/arcform/layouts/layouts_3d.dart';
+import 'package:my_app/arc/arcform/render/arcform_renderer_3d.dart';
 import 'phase_arcform_3d_screen.dart';
 
 /// Simplified ARCForms view - read-only constellation display

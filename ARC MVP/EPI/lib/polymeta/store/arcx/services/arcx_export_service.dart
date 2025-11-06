@@ -13,7 +13,7 @@ import 'package:path/path.dart' as path;
 import 'package:path_provider/path_provider.dart';
 import 'package:my_app/models/journal_entry_model.dart';
 import 'package:my_app/data/models/media_item.dart';
-import '../../core/mcp/export/mcp_pack_export_service.dart';
+import 'package:my_app/polymeta/store/mcp/export/mcp_pack_export_service.dart';
 import 'arcx_crypto_service.dart';
 import 'arcx_redaction_service.dart';
 import '../models/arcx_manifest.dart';

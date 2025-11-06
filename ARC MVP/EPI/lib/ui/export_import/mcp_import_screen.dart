@@ -8,15 +8,15 @@ import 'package:archive/archive.dart';
 import '../../shared/app_colors.dart';
 import '../../shared/text_style.dart';
 import 'package:my_app/arc/core/journal_repository.dart';
-import '../../core/mcp/import/mcp_pack_import_service.dart' show McpPackImportService, McpImportResult;
-import '../../core/mcp/import/enhanced_mcp_import_service.dart';
-import '../../core/mcp/import/mcp_import_service.dart' show McpImportOptions;
+import 'package:my_app/polymeta/store/mcp/import/mcp_pack_import_service.dart' show McpPackImportService, McpImportResult;
+import 'package:my_app/polymeta/store/mcp/import/enhanced_mcp_import_service.dart';
+import 'package:my_app/polymeta/store/mcp/import/mcp_import_service.dart' show McpImportOptions;
 import 'package:my_app/arc/chat/chat/chat_repo_impl.dart';
 import '../../utils/file_utils.dart';
 import 'package:my_app/arc/ui/timeline/timeline_cubit.dart';
-import '../../arcx/ui/arcx_import_progress_screen.dart';
-import '../../arcx/services/arcx_import_service_v2.dart';
-import '../../arcx/services/arcx_import_service.dart';
+import 'package:my_app/polymeta/store/arcx/ui/arcx_import_progress_screen.dart';
+import 'package:my_app/polymeta/store/arcx/services/arcx_import_service_v2.dart';
+import 'package:my_app/polymeta/store/arcx/services/arcx_import_service.dart';
 
 /// MCP Import Screen - Restore from MCP Package (.zip) or Secure Archive (.arcx)
 class McpImportScreen extends StatefulWidget {

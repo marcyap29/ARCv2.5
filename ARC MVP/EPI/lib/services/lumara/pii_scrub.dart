@@ -1,7 +1,7 @@
 import '../../state/feature_flags.dart';
-import '../../privacy_core/pii_detection_service.dart';
-import '../../privacy_core/pii_masking_service.dart' show PIIMaskingService, MaskingOptions;
-import '../../privacy_core/models/pii_types.dart' show PIIType;
+import 'package:my_app/echo/privacy_core/pii_detection_service.dart';
+import 'package:my_app/echo/privacy_core/pii_masking_service.dart' show PIIMaskingService, MaskingOptions;
+import 'package:my_app/echo/privacy_core/models/pii_types.dart' show PIIType;
 
 /// PII scrubbing service for protecting user privacy in external API calls
 /// Uses unified PIIMaskingService for consistent PII handling

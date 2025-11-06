@@ -3,14 +3,20 @@
 
 export 'arc/arc_module.dart';
 export 'prism/prism_module.dart';
-export 'atlas/atlas_module.dart' hide RivetConfig;
-export 'mira/mira_integration.dart';
+// ATLAS is now part of PRISM, accessed via prism/atlas/
+export 'polymeta/mira_integration.dart';
 export 'aurora/aurora_module.dart';
-export 'veil/veil_module.dart';
-export 'privacy_core/privacy_core_module.dart';
+// VEIL is now part of AURORA, accessed via aurora/regimens/veil/
+export 'echo/echo_module.dart';
+// Privacy Core is now part of ECHO, accessed via echo/privacy_core/
 
 /// EPI Module Orchestrator
-/// Coordinates all six core modules of the Evolving Personal Intelligence system
+/// Coordinates all five core modules of the Evolving Personal Intelligence system:
+/// - ARC: Journaling app & main UX (includes LUMARA + ARCFORM)
+/// - PRISM: Multimodal perception & analysis (includes ATLAS)
+/// - POLYMETA: Memory graph, recall, encryption, data container (includes MIRA + MCP + ARCX)
+/// - AURORA: Circadian orchestration & job scheduling (includes VEIL)
+/// - ECHO: Response control, LLM interface, safety & privacy (includes Privacy Core)
 class EPIModule {
   static void initialize() {
     // Initialize all EPI modules

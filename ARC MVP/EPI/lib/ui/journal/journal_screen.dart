@@ -16,7 +16,7 @@ import '../widgets/keywords_discovered_widget.dart';
 import '../widgets/discovery_popup.dart';
 import '../../telemetry/analytics.dart';
 import '../../services/periodic_discovery_service.dart';
-import '../../services/lumara/lumara_inline_api.dart';
+import 'package:my_app/services/lumara/lumara_inline_api.dart';
 import 'package:my_app/arc/chat/services/enhanced_lumara_api.dart';
 import 'package:my_app/arc/chat/models/lumara_reflection_options.dart' as lumara_models;
 import 'package:my_app/arc/chat/services/progressive_memory_loader.dart';
@@ -37,7 +37,7 @@ import 'package:my_app/core/services/draft_cache_service.dart';
 import 'package:my_app/core/services/photo_library_service.dart';
 import 'package:my_app/data/models/media_item.dart';
 import 'media_conversion_utils.dart';
-import '../../core/mcp/orchestrator/ios_vision_orchestrator.dart';
+import 'package:my_app/polymeta/store/mcp/orchestrator/ios_vision_orchestrator.dart';
 import 'widgets/lumara_suggestion_sheet.dart';
 import 'widgets/inline_reflection_block.dart';
 // import '../../features/timeline/widgets/entry_content_renderer.dart'; // TODO: EntryContentRenderer not yet implemented

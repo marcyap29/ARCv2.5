@@ -4,7 +4,7 @@
 /// to the user's current developmental phase while maintaining dignity
 library;
 
-import '../../atlas/phase_detection/pattern_analysis_service.dart';
+import 'package:my_app/prism/atlas/phase/pattern_analysis_service.dart';
 import '../voice/lumara_voice_controller.dart';
 import 'package:my_app/arc/core/journal_repository.dart';
 

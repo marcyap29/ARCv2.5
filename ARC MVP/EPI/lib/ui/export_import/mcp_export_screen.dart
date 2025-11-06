@@ -10,7 +10,7 @@ import 'package:my_app/arc/core/journal_repository.dart';
 import 'package:my_app/models/journal_entry_model.dart';
 import 'package:my_app/data/models/media_item.dart';
 import '../../utils/file_utils.dart';
-import '../../arcx/services/arcx_export_service_v2.dart';
+import 'package:my_app/polymeta/store/arcx/services/arcx_export_service_v2.dart';
 import 'package:my_app/arc/chat/chat/chat_repo_impl.dart';
 import 'package:intl/intl.dart';
 
