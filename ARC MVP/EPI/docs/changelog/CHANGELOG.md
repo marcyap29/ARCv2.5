@@ -1,14 +1,14 @@
 # EPI ARC MVP - Changelog
 
 **Version:** 2.1  
-**Last Updated:** November 2025
+**Last Updated:** November 6, 2025
 
-## [Unreleased] - November 2025
+## [2.1.0] - November 6, 2025
 
-### **Feedback Updates v1** - November 2025
+### **Feedback Updates v1** - Complete
 
 #### User Experience Improvements
-- **Chat Text Input Fix**: Fixed text box cut-off issue - text input now expands properly with `minLines: 1` and `maxLines: null`
+- **Chat Text Input Fix**: Fixed text box cut-off issue - text input now expands properly with `minLines: 1` and `maxLines: 5`
 - **Chat Message Editing**: Added ability to edit and resubmit chat messages (ChatGPT-style)
   - Edit button on user messages
   - Cancels editing and removes subsequent messages before resubmitting
@@ -19,8 +19,10 @@
   - Uses Flutter Clipboard API
 - **Journal Entry Titles**: Added optional title field for journal entries
   - Title input in keyword analysis view
+  - Title editing in journal screen for existing entries
   - Falls back to auto-generated title if not provided
   - Persisted in JournalEntry model
+  - Titles displayed in timeline and journal views
 - **Auto-Generated Chat Subjects**: Chat sessions now generate topic-based subjects instead of date-based
   - Uses keyword extraction from first message
   - More meaningful subject lines for chat history
@@ -56,17 +58,27 @@
   - Fixed `timestamp_parser.dart` and `title_generator.dart` import paths in `mcp_pack_import_service.dart`
   - Added `deleteMessage` method to `ChatRepo` interface and implementations
   - Replaced missing `AuroraCard` and `VeilCard` widgets with placeholder containers
+- **RenderFlex Overflow**: Fixed 5-pixel overflow in LUMARA assistant screen
+  - Limited TextField maxLines to 5 to prevent excessive growth
+  - Wrapped message input in Flexible widget to allow shrinking when space is limited
+- **Dart Compilation Errors**: Fixed critical test compilation errors
+  - Added missing `deleteMessage` method to MockChatRepo test class
+  - Fixed redundant null check in journal_capture_cubit
 
 #### Files Modified
-- `lib/arc/chat/ui/lumara_assistant_screen.dart` - Chat editing, copy, text input fix
+- `lib/arc/chat/ui/lumara_assistant_screen.dart` - Chat editing, copy, text input fix, overflow fix
 - `lib/arc/chat/chat/ui/session_view.dart` - Chat editing, copy, text input fix
 - `lib/arc/chat/bloc/lumara_assistant_cubit.dart` - Edit/resubmit logic, topic-based subjects
 - `lib/arc/core/widgets/keyword_analysis_view.dart` - Title input, keyword autocomplete
-- `lib/arc/core/journal_capture_cubit.dart` - Title support in save/update
+- `lib/arc/core/journal_capture_cubit.dart` - Title support in save/update, null check fix
 - `lib/arc/ui/arcforms/widgets/arcform_legend_widget.dart` - New legend widget
 - `lib/arc/ui/arcforms/arcform_renderer_view.dart` - Legend integration, refresh button
 - `lib/arc/ui/arcforms/constellation/constellation_layout_service.dart` - Breakthrough star pattern
 - `lib/arc/ui/arcforms/constellation/graph_utils.dart` - Breakthrough connections
+- `lib/arc/ui/timeline/timeline_entry_model.dart` - Added title field
+- `lib/arc/ui/timeline/timeline_cubit.dart` - Title support in timeline entries
+- `lib/arc/ui/timeline/widgets/interactive_timeline_view.dart` - Title display in timeline
+- `lib/ui/journal/journal_screen.dart` - Title editing, display
 - `lib/polymeta/store/arcx/services/arcx_import_service_v2.dart` - Media linking fix
 - `lib/arc/core/journal_repository.dart` - Media adapter registration fix
 - `lib/arc/chat/chat/chat_repo.dart` - Added deleteMessage method
@@ -77,6 +89,9 @@
 - `lib/polymeta/mira_basics.dart` - Fixed import paths
 - `lib/polymeta/store/mcp/import/mcp_pack_import_service.dart` - Fixed import paths
 - `lib/insights/analytics_page.dart` - Fixed missing widget imports
+- `test/mcp/chat_mcp_test.dart` - Added deleteMessage to mock
+
+## [Unreleased] - November 2025
 
 ### **LUMARA Unified Prompt System v2.1** - November 2025
 
