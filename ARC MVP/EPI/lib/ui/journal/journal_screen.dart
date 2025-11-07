@@ -106,6 +106,7 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
   
   // Text controllers for metadata editing
   late TextEditingController _locationController;
+  final TextEditingController _titleController = TextEditingController();
   
   // Text controllers for continuation fields (one per block)
   final Map<int, TextEditingController> _continuationControllers = {};
@@ -180,6 +181,11 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
       _editableDate = widget.existingEntry!.createdAt;
       _editableTime = TimeOfDay.fromDateTime(widget.existingEntry!.createdAt);
       _editableLocation = widget.existingEntry!.location;
+      
+      // Initialize title controller with existing entry title
+      if (widget.existingEntry!.title.isNotEmpty) {
+        _titleController.text = widget.existingEntry!.title;
+      }
       
       // Load existing keywords for display in editor
       if (widget.existingEntry!.keywords.isNotEmpty) {
@@ -283,6 +289,7 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
     _continuationControllers.clear();
     _keywordController.dispose();
     _locationController.dispose();
+    _titleController.dispose();
     
     // Clean up thumbnails when journal screen is closed
     _thumbnailCache.clearAllThumbnails();
@@ -1046,7 +1053,9 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
             initialEmotion: widget.selectedEmotion,
             initialReason: widget.selectedReason,
             manualKeywords: _manualKeywords,
-            existingEntry: widget.existingEntry,
+            existingEntry: widget.existingEntry != null
+                ? widget.existingEntry!.copyWith(title: _titleController.text.trim())
+                : null,
             selectedDate: _editableDate,
             selectedTime: _editableTime,
             selectedLocation: _editableLocation,
@@ -1184,17 +1193,29 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
                           const SizedBox(height: 16),
                         ],
 
-                        // Entry title (if present) - show above content for existing entries
-                        if (widget.existingEntry != null && 
-                            widget.existingEntry!.title.isNotEmpty) ...[
+                        // Entry title - editable for existing entries, always show field
+                        if (widget.existingEntry != null) ...[
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                            child: Text(
-                              widget.existingEntry!.title,
+                            child: TextField(
+                              controller: _titleController,
+                              decoration: InputDecoration(
+                                labelText: 'Title',
+                                hintText: 'Give your entry a title...',
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                enabled: !widget.isViewOnly || _isEditMode,
+                              ),
                               style: theme.textTheme.headlineSmall?.copyWith(
                                 fontWeight: FontWeight.bold,
                                 color: theme.colorScheme.onSurface,
                               ),
+                              onChanged: (_) {
+                                setState(() {
+                                  _hasBeenModified = true;
+                                });
+                              },
                             ),
                           ),
                           const SizedBox(height: 8),
