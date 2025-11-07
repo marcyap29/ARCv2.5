@@ -321,8 +321,10 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
             ),
           ),
           
-          // Message input
-          _buildMessageInput(),
+          // Message input - wrap in Flexible to prevent overflow
+          Flexible(
+            child: _buildMessageInput(),
+          ),
         ],
       ),
     ),
@@ -655,7 +657,7 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
                     ),
                   ),
                   minLines: 1,
-                  maxLines: null,
+                  maxLines: 5, // Limit to 5 lines to prevent overflow
                   textCapitalization: TextCapitalization.sentences,
                   onSubmitted: (_) => _sendCurrentMessage(),
                 ),
