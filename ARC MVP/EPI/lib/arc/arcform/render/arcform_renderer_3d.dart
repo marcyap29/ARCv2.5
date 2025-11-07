@@ -492,18 +492,6 @@ class _ConstellationPainter extends CustomPainter {
 
     // Draw constellation connecting lines - subtle and colorful
     for (final edge in edges) {
-      // Find the corresponding stars for this edge
-      _Star? startStar;
-      _Star? endStar;
-      
-      // Find stars by matching positions (with small tolerance)
-      for (final star in stars) {
-        final startDist = (star.position - edge.start).length;
-        final endDist = (star.position - edge.end).length;
-        if (startDist < 0.1) startStar = star;
-        if (endDist < 0.1) endStar = star;
-      }
-      
       // Apply proper 3D perspective projection with Z-depth
       final startPerspective = 1.0 / (1.0 + edge.start.z * 0.1);
       final endPerspective = 1.0 / (1.0 + edge.end.z * 0.1);
@@ -514,32 +502,6 @@ class _ConstellationPainter extends CustomPainter {
       final endProj = Offset(
         center.dx + edge.end.x * scale * endPerspective,
         center.dy - edge.end.y * scale * endPerspective,
-      );
-      
-      // Calculate direction vector and adjust endpoints to node edges
-      final direction = endProj - startProj;
-      final distance = direction.distance;
-      final directionNormalized = distance > 0 
-          ? Offset(direction.dx / distance, direction.dy / distance)
-          : Offset.zero;
-      
-      // Calculate node radii accounting for perspective and glow
-      // For breakthrough phase, use tighter connection (closer to node edge)
-      final startNodeRadius = startStar != null 
-          ? (startStar.size * startPerspective * 1.2) // Closer to edge (was 4.0 for outer glow)
-          : 0.0;
-      final endNodeRadius = endStar != null
-          ? (endStar.size * endPerspective * 1.2) // Closer to edge (was 4.0 for outer glow)
-          : 0.0;
-      
-      // Adjust start and end points to be at the edge of nodes
-      final adjustedStart = startProj + Offset(
-        directionNormalized.dx * startNodeRadius,
-        directionNormalized.dy * startNodeRadius,
-      );
-      final adjustedEnd = endProj - Offset(
-        directionNormalized.dx * endNodeRadius,
-        directionNormalized.dy * endNodeRadius,
       );
 
       // Create enhanced gradient effect with more vibrant colors
@@ -554,7 +516,7 @@ class _ConstellationPainter extends CustomPainter {
         ..style = PaintingStyle.stroke
         ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3);
 
-      canvas.drawLine(adjustedStart, adjustedEnd, outerLinePaint);
+      canvas.drawLine(startProj, endProj, outerLinePaint);
 
       // Inner glow line
       final innerGlowPaint = Paint()
@@ -563,7 +525,7 @@ class _ConstellationPainter extends CustomPainter {
         ..style = PaintingStyle.stroke
         ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 1.5);
 
-      canvas.drawLine(adjustedStart, adjustedEnd, innerGlowPaint);
+      canvas.drawLine(startProj, endProj, innerGlowPaint);
 
       // Main constellation line (core)
       final mainLinePaint = Paint()
@@ -571,7 +533,7 @@ class _ConstellationPainter extends CustomPainter {
         ..strokeWidth = (1.0 + edge.weight * 1.0).clamp(0.5, 2.5) // Slightly thicker core
         ..style = PaintingStyle.stroke;
 
-      canvas.drawLine(adjustedStart, adjustedEnd, mainLinePaint);
+      canvas.drawLine(startProj, endProj, mainLinePaint);
 
       // Inner bright line for definition
       final innerLinePaint = Paint()
@@ -579,7 +541,7 @@ class _ConstellationPainter extends CustomPainter {
         ..strokeWidth = 0.3 + edge.weight * 0.3
         ..style = PaintingStyle.stroke;
 
-      canvas.drawLine(adjustedStart, adjustedEnd, innerLinePaint);
+      canvas.drawLine(startProj, endProj, innerLinePaint);
     }
 
     // Draw stars with depth sorting for proper 3D layering

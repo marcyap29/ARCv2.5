@@ -44,8 +44,12 @@ class ConstellationLayoutService {
       final keyword = primaryKeywords[i];
       final pos = primaryPositions[i];
       
-      // For breakthrough phase, skip collision avoidance to preserve perfect star shape
-      final finalPos = (phase == AtlasPhase.breakthrough) ? pos : _avoidCollisions(pos, nodes, math.Random(seed + i));
+      // For breakthrough phase, skip collision avoidance to preserve star structure
+      // The star pattern positions are carefully calculated and should not be modified
+      final random = math.Random(seed + i);
+      final finalPos = (phase == AtlasPhase.breakthrough) 
+          ? pos  // Use exact position for breakthrough star structure
+          : _avoidCollisions(pos, nodes, random);
       
       // Calculate node properties
       final normalizedScore = _normalizeScore(keyword.score);
@@ -340,8 +344,7 @@ class ConstellationLayoutService {
   }
 
   /// Generate supernova/starburst positions for Breakthrough phase
-  /// Creates perfect 3-ring star structure: 1 center + 5 middle + 5 outer = 11 nodes
-  /// Center at origin, middle ring at radius 80, outer ring at radius 160
+  /// Creates 3-ring star structure: 1 center + 5 middle + 5 outer = 11 nodes
   List<Offset> _generateSupernovaPositions(int count, math.Random random) {
     print('⭐ Generating SUPERNOVA pattern: $count nodes (3-ring star)');
     final positions = <Offset>[];
@@ -349,39 +352,34 @@ class ConstellationLayoutService {
     // Force exactly 11 nodes for breakthrough star structure
     final nodeCount = math.min(count, 11);
     
-    // 1. Center node (index 0) - at origin
+    // 1. Center node (index 0)
     positions.add(Offset.zero);
     
     if (nodeCount < 2) return positions;
     
-    // 2. Middle ring: 5 nodes at radius 80, separated by exactly 72 degrees
-    // Starting angle offset by -90 degrees so first node is at top (12 o'clock)
-    const middleRadius = 80.0;
-    const angleStep = 2 * math.pi / 5; // 72 degrees
-    const startAngle = -math.pi / 2; // Start at top (-90 degrees)
+    // 2. Middle ring: 5 nodes at radius ~60, separated by 72 degrees
+    const middleRadius = 60.0;
+    const middleAngleStep = 2 * math.pi / 5; // 72 degrees
     
     for (int i = 0; i < 5 && positions.length < nodeCount; i++) {
-      final angle = startAngle + (i * angleStep);
+      final angle = i * middleAngleStep;
       final x = middleRadius * math.cos(angle);
       final y = middleRadius * math.sin(angle);
       positions.add(Offset(x, y));
-      print('⭐ Middle ring node $i: angle=${(angle * 180 / math.pi).toStringAsFixed(1)}°, pos=(${x.toStringAsFixed(1)}, ${y.toStringAsFixed(1)})');
     }
     
     if (positions.length >= nodeCount) return positions;
     
-    // 3. Outer ring: 5 nodes at radius 160, separated by exactly 72 degrees (aligned with middle ring)
-    const outerRadius = 160.0;
+    // 3. Outer ring: 5 nodes at radius ~120, separated by 72 degrees (aligned with middle ring)
+    const outerRadius = 120.0;
     
     for (int i = 0; i < 5 && positions.length < nodeCount; i++) {
-      final angle = startAngle + (i * angleStep); // Same 72-degree spacing, aligned with middle
+      final angle = i * middleAngleStep; // Same 72-degree spacing
       final x = outerRadius * math.cos(angle);
       final y = outerRadius * math.sin(angle);
       positions.add(Offset(x, y));
-      print('⭐ Outer ring node $i: angle=${(angle * 180 / math.pi).toStringAsFixed(1)}°, pos=(${x.toStringAsFixed(1)}, ${y.toStringAsFixed(1)})');
     }
     
-    print('⭐ SUPERNOVA: Generated ${positions.length} positions (expected 11)');
     return positions;
   }
 
