@@ -6,7 +6,7 @@
 import 'dart:convert';
 import 'package:my_app/core/prompts_arc.dart';
 import 'package:my_app/arc/chat/llm/prompt_templates.dart';
-import '../mira/mira_service.dart';
+import 'package:my_app/polymeta/mira_service.dart';
 
 typedef LLMInvocation = Future<String> Function({
   required String system,

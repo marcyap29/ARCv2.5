@@ -24,8 +24,10 @@ class ConstellationLayoutService {
     final sortedKeywords = List<KeywordScore>.from(keywords)
       ..sort((a, b) => b.score.compareTo(a.score));
 
-    // Take top 5-10 keywords as primaries
-    final primaryKeywords = sortedKeywords.take(10).toList();
+    // Take top keywords as primaries
+    // For breakthrough phase, use exactly 11 nodes (1 center + 5 middle + 5 outer)
+    final keywordCount = phase == AtlasPhase.breakthrough ? 11 : 10;
+    final primaryKeywords = sortedKeywords.take(keywordCount).toList();
     final remainingKeywords = sortedKeywords.skip(10).take(10).toList();
 
     final nodes = <ConstellationNode>[];
@@ -104,9 +106,15 @@ class ConstellationLayoutService {
 
     final edges = <ConstellationEdge>[];
 
-    // Use k-NN to find connections
-    final k = _getKForPhase(phase, nodes.length);
-    final connections = GraphUtils.findKNearestNeighbors(nodes, k);
+    // For breakthrough phase, use star pattern connections instead of k-NN
+    List<Connection> connections;
+    if (phase == AtlasPhase.breakthrough) {
+      connections = GraphUtils.generatePhaseConnections(nodes, phase);
+    } else {
+      // Use k-NN to find connections for other phases
+      final k = _getKForPhase(phase, nodes.length);
+      connections = GraphUtils.findKNearestNeighbors(nodes, k);
+    }
 
     // Create edges with weights based on distance and phase rules
     for (final connection in connections) {
@@ -333,36 +341,39 @@ class ConstellationLayoutService {
   }
 
   /// Generate supernova/starburst positions for Breakthrough phase
-  /// Creates central core with radiating rays suggesting explosive clarity
+  /// Creates 3-ring star structure: 1 center + 5 middle + 5 outer = 11 nodes
   List<Offset> _generateSupernovaPositions(int count, math.Random random) {
-    print('⭐ Generating SUPERNOVA pattern: $count nodes');
+    print('⭐ Generating SUPERNOVA pattern: $count nodes (3-ring star)');
     final positions = <Offset>[];
-    const rayCount = 8; // Number of rays
-    const minRadius = 40.0;
-    const maxRadius = 140.0;
     
-    // Central core node (breakthrough moment)
+    // Force exactly 11 nodes for breakthrough star structure
+    final nodeCount = math.min(count, 11);
+    
+    // 1. Center node (index 0)
     positions.add(Offset.zero);
     
-    // Remaining nodes distributed along rays
-    for (int i = 1; i < count; i++) {
-      // Choose which ray (distribute evenly across rays)
-      final rayIndex = (i - 1) % rayCount;
-      final rayAngle = (rayIndex / rayCount) * 2 * math.pi;
-      
-      // Distance along ray - use power distribution for more nodes near center
-      // (creates burst effect with concentration at center)
-      final t = random.nextDouble();
-      final power = math.pow(t, 0.6).toDouble(); // Bias toward center
-      final radius = minRadius + power * (maxRadius - minRadius);
-      
-      // Add some spread perpendicular to ray for width
-      final perpendicularSpread = (random.nextDouble() - 0.5) * 20.0;
-      final perpAngle = rayAngle + math.pi / 2;
-      
-      final x = radius * math.cos(rayAngle) + perpendicularSpread * math.cos(perpAngle);
-      final y = radius * math.sin(rayAngle) + perpendicularSpread * math.sin(perpAngle);
-      
+    if (nodeCount < 2) return positions;
+    
+    // 2. Middle ring: 5 nodes at radius ~60, separated by 72 degrees
+    const middleRadius = 60.0;
+    const middleAngleStep = 2 * math.pi / 5; // 72 degrees
+    
+    for (int i = 0; i < 5 && positions.length < nodeCount; i++) {
+      final angle = i * middleAngleStep;
+      final x = middleRadius * math.cos(angle);
+      final y = middleRadius * math.sin(angle);
+      positions.add(Offset(x, y));
+    }
+    
+    if (positions.length >= nodeCount) return positions;
+    
+    // 3. Outer ring: 5 nodes at radius ~120, separated by 72 degrees (aligned with middle ring)
+    const outerRadius = 120.0;
+    
+    for (int i = 0; i < 5 && positions.length < nodeCount; i++) {
+      final angle = i * middleAngleStep; // Same 72-degree spacing
+      final x = outerRadius * math.cos(angle);
+      final y = outerRadius * math.sin(angle);
       positions.add(Offset(x, y));
     }
     

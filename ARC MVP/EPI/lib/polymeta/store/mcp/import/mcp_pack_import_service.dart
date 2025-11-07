@@ -7,8 +7,8 @@ import '../models/mcp_manifest.dart';
 import 'package:my_app/models/journal_entry_model.dart';
 import 'package:my_app/data/models/media_item.dart';
 import 'package:my_app/arc/core/journal_repository.dart';
-import '../../utils/timestamp_parser.dart';
-import '../../utils/title_generator.dart';
+import 'package:my_app/core/utils/timestamp_parser.dart';
+import 'package:my_app/core/utils/title_generator.dart';
 
 /// MCP Pack Import Service for .zip files only
 class McpPackImportService {

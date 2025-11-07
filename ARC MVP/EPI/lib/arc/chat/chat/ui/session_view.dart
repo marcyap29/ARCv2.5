@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:my_app/arc/chat/chat/chat_models.dart';
 import 'package:my_app/arc/chat/chat/chat_repo.dart';
 import '../../bloc/lumara_assistant_cubit.dart';
@@ -59,6 +60,7 @@ class _SessionViewState extends State<SessionView> {
   bool _isLoading = true;
   String? _error;
   bool _isSending = false;
+  String? _editingMessageId; // Track which message is being edited
   
   LumaraAssistantCubit? _lumaraCubit;
   LumaraScope _scope = LumaraScope.defaultScope;
@@ -134,11 +136,17 @@ class _SessionViewState extends State<SessionView> {
     });
 
     try {
-      // Set the current chat session ID in LUMARA cubit
-      _lumaraCubit!.currentChatSessionId = widget.sessionId;
-      
-      // Send message through LUMARA assistant
-      await _lumaraCubit!.sendMessage(content);
+      // If editing, remove messages after the edited one
+      if (_editingMessageId != null) {
+        _resubmitMessage(_editingMessageId!, content);
+        _editingMessageId = null;
+      } else {
+        // Set the current chat session ID in LUMARA cubit
+        _lumaraCubit!.currentChatSessionId = widget.sessionId;
+        
+        // Send message through LUMARA assistant
+        await _lumaraCubit!.sendMessage(content);
+      }
       
       _messageController.clear();
       await _loadSession();
@@ -158,6 +166,70 @@ class _SessionViewState extends State<SessionView> {
         _isSending = false;
       });
     }
+  }
+
+  void _startEditingMessage(ChatMessage message) {
+    setState(() {
+      _editingMessageId = message.id;
+      _messageController.text = message.textContent;
+    });
+    // Scroll to input field
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _scrollToBottom();
+    });
+  }
+
+  void _cancelEditing() {
+    setState(() {
+      _editingMessageId = null;
+      _messageController.clear();
+    });
+  }
+
+  void _resubmitMessage(String messageId, String newText) async {
+    // Find the index of the message being edited
+    final messageIndex = _messages.indexWhere((m) => m.id == messageId);
+    if (messageIndex == -1) return;
+
+    // Remove all messages from this one onwards (including the assistant response)
+    final messagesToKeep = _messages.sublist(0, messageIndex);
+    
+    // Update the message with new text (create a new message with updated content)
+    final updatedMessage = ChatMessage.createText(
+      sessionId: widget.sessionId,
+      role: MessageRole.user,
+      content: newText,
+    );
+    
+    // Update local messages list
+    setState(() {
+      _messages = [...messagesToKeep, updatedMessage];
+    });
+
+    // Delete messages from database after the edited one
+    try {
+      for (int i = messageIndex; i < _messages.length; i++) {
+        await widget.chatRepo.deleteMessage(_messages[i].id);
+      }
+    } catch (e) {
+      print('Error deleting messages: $e');
+    }
+
+    // Set the current chat session ID in LUMARA cubit
+    _lumaraCubit!.currentChatSessionId = widget.sessionId;
+    
+    // Send the edited message
+    await _lumaraCubit!.sendMessage(newText);
+  }
+
+  void _copyMessage(String text) {
+    Clipboard.setData(ClipboardData(text: text));
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Message copied to clipboard'),
+        duration: Duration(seconds: 2),
+      ),
+    );
   }
 
   void _scrollToBottom() {
@@ -350,12 +422,58 @@ class _SessionViewState extends State<SessionView> {
                 color: isUser ? Colors.blue[500] : Colors.grey[100],
                 borderRadius: BorderRadius.circular(18),
               ),
-              child: Text(
-                message.textContent,
-                style: TextStyle(
-                  color: isUser ? Colors.white : Colors.black87,
-                  fontSize: 16,
-                ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    message.textContent,
+                    style: TextStyle(
+                      color: isUser ? Colors.white : Colors.black87,
+                      fontSize: 16,
+                    ),
+                  ),
+                  
+                  // Action buttons for user messages (edit/copy)
+                  if (isUser && !isSystem) ...[
+                    const SizedBox(height: 8),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        IconButton(
+                          icon: Icon(Icons.edit, size: 16, color: Colors.white.withOpacity(0.8)),
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(),
+                          onPressed: () => _startEditingMessage(message),
+                          tooltip: 'Edit',
+                        ),
+                        IconButton(
+                          icon: Icon(Icons.copy, size: 16, color: Colors.white.withOpacity(0.8)),
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(),
+                          onPressed: () => _copyMessage(message.textContent),
+                          tooltip: 'Copy',
+                        ),
+                      ],
+                    ),
+                  ],
+                  
+                  // Copy button for assistant messages
+                  if (!isUser && !isSystem) ...[
+                    const SizedBox(height: 8),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        IconButton(
+                          icon: Icon(Icons.copy, size: 16, color: Colors.grey[600]),
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(),
+                          onPressed: () => _copyMessage(message.textContent),
+                          tooltip: 'Copy',
+                        ),
+                      ],
+                    ),
+                  ],
+                ],
               ),
             ),
           ),
@@ -373,6 +491,8 @@ class _SessionViewState extends State<SessionView> {
   }
 
   Widget _buildMessageInput() {
+    final isEditing = _editingMessageId != null;
+    
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
       decoration: BoxDecoration(
@@ -381,47 +501,83 @@ class _SessionViewState extends State<SessionView> {
           top: BorderSide(color: Colors.grey[300]!),
         ),
       ),
-      child: Row(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          IconButton(
-            icon: const Icon(Icons.mic),
-            onPressed: () {
-              // TODO: Implement voice input
-            },
-          ),
-          Expanded(
-            child: TextField(
-              controller: _messageController,
-              decoration: InputDecoration(
-                hintText: 'Ask LUMARA anything...',
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(24),
-                ),
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 12,
+          if (isEditing)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              decoration: BoxDecoration(
+                color: Colors.blue[50],
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.edit, size: 16, color: Colors.blue[700]),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Editing message',
+                      style: TextStyle(
+                        color: Colors.blue[700],
+                        fontSize: 12,
+                      ),
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: _cancelEditing,
+                    child: Text(
+                      'Cancel',
+                      style: TextStyle(color: Colors.blue[700], fontSize: 12),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          Row(
+            children: [
+              IconButton(
+                icon: const Icon(Icons.mic),
+                onPressed: () {
+                  // TODO: Implement voice input
+                },
+              ),
+              Expanded(
+                child: TextField(
+                  controller: _messageController,
+                  decoration: InputDecoration(
+                    hintText: isEditing ? 'Edit your message...' : 'Ask LUMARA anything...',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(24),
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 12,
+                    ),
+                  ),
+                  minLines: 1,
+                  maxLines: null,
+                  textCapitalization: TextCapitalization.sentences,
+                  onSubmitted: (_) => _sendMessage(),
                 ),
               ),
-              maxLines: null,
-              textCapitalization: TextCapitalization.sentences,
-              onSubmitted: (_) => _sendMessage(),
-            ),
-          ),
-          IconButton(
-            icon: _isSending
-                ? const SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Icon(Icons.send),
-            onPressed: _isSending ? null : _sendMessage,
-          ),
-          IconButton(
-            icon: const Icon(Icons.palette),
-            onPressed: () {
-              // TODO: Implement quick palette
-            },
+              IconButton(
+                icon: _isSending
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.send),
+                onPressed: _isSending ? null : _sendMessage,
+              ),
+              IconButton(
+                icon: const Icon(Icons.palette),
+                onPressed: () {
+                  // TODO: Implement quick palette
+                },
+              ),
+            ],
           ),
         ],
       ),

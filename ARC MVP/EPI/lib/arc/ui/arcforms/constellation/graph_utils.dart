@@ -295,33 +295,57 @@ class GraphUtils {
   }
 
   static List<Connection> _generateBreakthroughConnections(List<ConstellationNode> nodes) {
-    // Breakthrough: Supernova - connect center to rays, and nodes along each ray
+    // Breakthrough: 3-ring star structure
+    // 1 center (0) + 5 middle (1-5) + 5 outer (6-10) = 11 nodes total
     final connections = <Connection>[];
-    const rayCount = 8;
     
     if (nodes.isEmpty) return connections;
     
-    // Connect center (index 0) to first node of each ray
-    for (int i = 1; i < math.min(rayCount + 1, nodes.length); i++) {
-      connections.add(Connection(0, i));
+    const centerIndex = 0;
+    const middleStartIndex = 1;
+    const middleEndIndex = 5;
+    const outerStartIndex = 6;
+    const outerEndIndex = 10;
+    
+    // 1. Center node: 5 connections to middle ring nodes, 72 degrees apart
+    for (int i = middleStartIndex; i <= middleEndIndex && i < nodes.length; i++) {
+      connections.add(Connection(centerIndex, i));
     }
     
-    // Connect nodes along each ray (sequential connections along rays)
-    for (int i = 1; i < nodes.length - 1; i++) {
-      // Determine which ray this node belongs to
-      final rayIndex = (i - 1) % rayCount;
+    // 2. Middle ring nodes (1-5): Each has 3 connections
+    //    - 1 to center (already done above)
+    //    - 2 to closest outer nodes (same angle + 2 positions away for ~120 degrees)
+    for (int i = middleStartIndex; i <= middleEndIndex && i < nodes.length; i++) {
+      final middleIndex = i - middleStartIndex; // 0-4
       
-      // Find next node on same ray (if exists)
-      final nextRayIndex = (i) % rayCount;
-      if (rayIndex == nextRayIndex) {
-        connections.add(Connection(i, i + 1));
+      // Connection to outer node at same angle (index 6-10 correspond to middle 1-5)
+      final sameAngleOuter = middleIndex + outerStartIndex;
+      if (sameAngleOuter <= outerEndIndex && sameAngleOuter < nodes.length) {
+        connections.add(Connection(i, sameAngleOuter));
+      }
+      
+      // Connection to outer node 2 positions away (144 degrees, closest to 120 degrees)
+      // For 5 nodes: 2 positions = 144 degrees (closest to 120 degrees)
+      final nextOuterIndex = ((middleIndex + 2) % 5) + outerStartIndex;
+      if (nextOuterIndex <= outerEndIndex && nextOuterIndex < nodes.length) {
+        connections.add(Connection(i, nextOuterIndex));
       }
     }
     
-    // Connect some nodes across rays (creates burst connections)
-    for (int i = 1; i < nodes.length - rayCount; i += rayCount) {
-      for (int j = 0; j < rayCount - 1 && i + j + 1 < nodes.length; j++) {
-        connections.add(Connection(i + j, i + j + 1));
+    // 3. Outer ring nodes (6-10): Each has 2 connections to adjacent nodes (72 degrees apart)
+    for (int i = outerStartIndex; i <= outerEndIndex && i < nodes.length; i++) {
+      final outerIndex = i - outerStartIndex; // 0-4
+      
+      // Connect to next adjacent outer node (72 degrees)
+      final nextOuter = ((outerIndex + 1) % 5) + outerStartIndex;
+      if (nextOuter <= outerEndIndex && nextOuter < nodes.length) {
+        connections.add(Connection(i, nextOuter));
+      }
+      
+      // Connect to previous adjacent outer node (72 degrees)
+      final prevOuter = ((outerIndex - 1 + 5) % 5) + outerStartIndex;
+      if (prevOuter >= outerStartIndex && prevOuter < nodes.length) {
+        connections.add(Connection(i, prevOuter));
       }
     }
     
@@ -367,3 +391,4 @@ class _Edge {
 
   const _Edge(this.from, this.to, this.weight);
 }
+

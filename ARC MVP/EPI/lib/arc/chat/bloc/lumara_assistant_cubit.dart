@@ -988,6 +988,28 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
     
     emit(currentState.copyWith(messages: messages));
   }
+
+  /// Edit and resubmit a message (removes messages after the edited one)
+  void editAndResubmitMessage(String messageId, String newText) {
+    final currentState = state;
+    if (currentState is! LumaraAssistantLoaded) return;
+
+    // Find the index of the message being edited
+    final messageIndex = currentState.messages.indexWhere((m) => m.id == messageId);
+    if (messageIndex == -1) return;
+
+    // Remove all messages from this one onwards (including the assistant response)
+    final messagesToKeep = currentState.messages.sublist(0, messageIndex);
+    
+    // Update the message with new text
+    final updatedMessages = [
+      ...messagesToKeep,
+      currentState.messages[messageIndex].copyWith(content: newText),
+    ];
+
+    // Update state to remove assistant response
+    emit(currentState.copyWith(messages: updatedMessages));
+  }
   
   /// Start a new chat (saves current chat to history, then clears UI)
   Future<void> startNewChat() async {
@@ -1443,22 +1465,10 @@ Your exported MCP bundle can be imported into any MCP-compatible system, ensurin
     return sessionId;
   }
 
-  /// Generate subject from first message in "subject-year_month_day" format
+  /// Generate subject from first message based on topic
   String generateSubject(String message) {
-    final now = DateTime.now();
-    final dateStr = '${now.year}_${now.month.toString().padLeft(2, '0')}_${now.day.toString().padLeft(2, '0')}';
-    
-    // Extract key words from message
-    final words = message
-      .toLowerCase()
-      .replaceAll(RegExp(r'[^\w\s]'), '')
-      .split(RegExp(r'\s+'))
-      .where((word) => word.length > 3)
-      .take(3)
-      .toList();
-    
-    final subject = words.isNotEmpty ? words.join('-') : 'chat';
-    return '$subject-$dateStr';
+    // Use ChatSession's topic-based subject generation
+    return ChatSession.generateSubject(message);
   }
 
   /// Add message to current chat session

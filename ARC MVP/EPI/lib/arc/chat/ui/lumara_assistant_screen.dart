@@ -28,6 +28,7 @@ class LumaraAssistantScreen extends StatefulWidget {
 class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
+  String? _editingMessageId; // Track which message is being edited
 
   @override
   void initState() {
@@ -454,6 +455,7 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
 
   Widget _buildMessageBubble(LumaraMessage message) {
     final isUser = message.role == LumaraMessageRole.user;
+    final isEditing = _editingMessageId == message.id;
     
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
@@ -488,6 +490,47 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
                       fontSize: 16,
                     ),
                   ),
+                  
+                  // Action buttons for user messages (edit/copy)
+                  if (isUser) ...[
+                    const Gap(8),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        IconButton(
+                          icon: Icon(Icons.edit, size: 16, color: Colors.white.withOpacity(0.8)),
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(),
+                          onPressed: () => _startEditingMessage(message),
+                          tooltip: 'Edit',
+                        ),
+                        IconButton(
+                          icon: Icon(Icons.copy, size: 16, color: Colors.white.withOpacity(0.8)),
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(),
+                          onPressed: () => _copyMessage(message.content),
+                          tooltip: 'Copy',
+                        ),
+                      ],
+                    ),
+                  ],
+                  
+                  // Copy button for assistant messages
+                  if (!isUser) ...[
+                    const Gap(8),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        IconButton(
+                          icon: Icon(Icons.copy, size: 16, color: Colors.grey[600]),
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(),
+                          onPressed: () => _copyMessage(message.content),
+                          tooltip: 'Copy',
+                        ),
+                      ],
+                    ),
+                  ],
                   
                   // Attribution display for assistant messages
                   if (!isUser && message.attributionTraces != null && message.attributionTraces!.isNotEmpty) ...[
@@ -542,6 +585,8 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
   }
 
   Widget _buildMessageInput() {
+    final isEditing = _editingMessageId != null;
+    
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 16), // Reduced top padding for more chat space
       decoration: BoxDecoration(
@@ -550,44 +595,80 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
           top: BorderSide(color: Colors.grey[300]!),
         ),
       ),
-      child: Row(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          IconButton(
-            icon: const Icon(Icons.mic),
-            onPressed: () {
-              // TODO: Implement voice input
-            },
-          ),
-          IconButton(
-            icon: const Icon(Icons.favorite),
-            tooltip: 'Health',
-            onPressed: _showHealthPreview,
-          ),
-          Expanded(
-            child: TextField(
-              controller: _messageController,
-              decoration: InputDecoration(
-                hintText: 'Ask LUMARA anything...',
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(24),
-                ),
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 12,
+          if (isEditing)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              decoration: BoxDecoration(
+                color: Colors.blue[50],
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.edit, size: 16, color: Colors.blue[700]),
+                  const Gap(8),
+                  Expanded(
+                    child: Text(
+                      'Editing message',
+                      style: TextStyle(
+                        color: Colors.blue[700],
+                        fontSize: 12,
+                      ),
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: _cancelEditing,
+                    child: Text(
+                      'Cancel',
+                      style: TextStyle(color: Colors.blue[700], fontSize: 12),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          Row(
+            children: [
+              IconButton(
+                icon: const Icon(Icons.mic),
+                onPressed: () {
+                  // TODO: Implement voice input
+                },
+              ),
+              IconButton(
+                icon: const Icon(Icons.favorite),
+                tooltip: 'Health',
+                onPressed: _showHealthPreview,
+              ),
+              Expanded(
+                child: TextField(
+                  controller: _messageController,
+                  decoration: InputDecoration(
+                    hintText: isEditing ? 'Edit your message...' : 'Ask LUMARA anything...',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(24),
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 12,
+                    ),
+                  ),
+                  minLines: 1,
+                  maxLines: null,
+                  textCapitalization: TextCapitalization.sentences,
+                  onSubmitted: (_) => _sendCurrentMessage(),
                 ),
               ),
-              maxLines: null,
-              textCapitalization: TextCapitalization.sentences,
-              onSubmitted: (_) => _sendCurrentMessage(),
-            ),
-          ),
-          IconButton(
-            icon: const Icon(Icons.send),
-            onPressed: _sendCurrentMessage,
-          ),
-          IconButton(
-            icon: const Icon(Icons.palette),
-            onPressed: () => _showQuickPalette(),
+              IconButton(
+                icon: const Icon(Icons.send),
+                onPressed: _sendCurrentMessage,
+              ),
+              IconButton(
+                icon: const Icon(Icons.palette),
+                onPressed: () => _showQuickPalette(),
+              ),
+            ],
           ),
         ],
       ),
@@ -597,9 +678,56 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
   void _sendCurrentMessage() {
     final text = _messageController.text.trim();
     if (text.isNotEmpty) {
-      _sendMessage(text);
+      if (_editingMessageId != null) {
+        _resubmitMessage(_editingMessageId!, text);
+      } else {
+        _sendMessage(text);
+      }
       _messageController.clear();
+      _editingMessageId = null;
     }
+  }
+
+  void _startEditingMessage(LumaraMessage message) {
+    setState(() {
+      _editingMessageId = message.id;
+      _messageController.text = message.content;
+    });
+    // Scroll to input field
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_scrollController.hasClients) {
+        _scrollController.animateTo(
+          _scrollController.position.maxScrollExtent,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOut,
+        );
+      }
+    });
+  }
+
+  void _cancelEditing() {
+    setState(() {
+      _editingMessageId = null;
+      _messageController.clear();
+    });
+  }
+
+  void _resubmitMessage(String messageId, String newText) {
+    // Update the cubit to remove messages after the edited one
+    context.read<LumaraAssistantCubit>().editAndResubmitMessage(messageId, newText);
+    
+    // Send the edited message
+    _sendMessage(newText);
+  }
+
+  void _copyMessage(String text) {
+    Clipboard.setData(ClipboardData(text: text));
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Message copied to clipboard'),
+        duration: Duration(seconds: 2),
+      ),
+    );
   }
 
   void _showHealthPreview() async {

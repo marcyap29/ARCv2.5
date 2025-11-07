@@ -1,8 +1,8 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:my_app/prism/atlas/phase/cards/aurora_card.dart';
-import 'package:my_app/prism/atlas/phase/cards/veil_card.dart';
+// import 'package:my_app/prism/atlas/phase/cards/aurora_card.dart'; // Removed - file doesn't exist
+// import 'package:my_app/prism/atlas/phase/cards/veil_card.dart'; // Removed - file doesn't exist
 import 'package:my_app/prism/atlas/phase/your_patterns_view.dart';
 import 'package:my_app/ui/veil/veil_policy_card.dart';
 import 'package:my_app/insights/insight_cubit.dart';
@@ -109,14 +109,36 @@ class _AnalyticsPageState extends State<AnalyticsPage> with WidgetsBindingObserv
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            AuroraCard(),
+            // AuroraCard placeholder - card removed
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: kcSurfaceAltColor,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: kcBorderColor),
+              ),
+              child: const Center(
+                child: Text('AURORA card coming soon'),
+              ),
+            ),
           ],
         );
       case 2:
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            VeilCard(),
+            // VeilCard placeholder - card removed
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: kcSurfaceAltColor,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: kcBorderColor),
+              ),
+              child: const Center(
+                child: Text('VEIL card coming soon'),
+              ),
+            ),
             VeilPolicyCard(),
           ],
         );
@@ -440,14 +462,36 @@ class _AnalyticsContentState extends State<AnalyticsContent> {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            AuroraCard(),
+            // AuroraCard placeholder - card removed
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: kcSurfaceAltColor,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: kcBorderColor),
+              ),
+              child: const Center(
+                child: Text('AURORA card coming soon'),
+              ),
+            ),
           ],
         );
       case 2:
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            VeilCard(),
+            // VeilCard placeholder - card removed
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: kcSurfaceAltColor,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: kcBorderColor),
+              ),
+              child: const Center(
+                child: Text('VEIL card coming soon'),
+              ),
+            ),
             VeilPolicyCard(),
           ],
         );

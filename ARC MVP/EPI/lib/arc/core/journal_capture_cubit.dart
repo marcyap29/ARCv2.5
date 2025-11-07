@@ -373,6 +373,7 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
     BuildContext? context,
     List<MediaItem>? media,
     List<Map<String, dynamic>>? blocks,
+    String? title,
   }) async {
     try {
       print('DEBUG: JournalCaptureCubit.saveEntryWithKeywords - Media count: ${media?.length ?? 0}');
@@ -549,7 +550,7 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
       
       final entry = JournalEntry(
         id: const Uuid().v4(),
-        title: _generateTitle(content),
+        title: title?.trim().isNotEmpty == true ? title!.trim() : _generateTitle(content),
         content: content,
         createdAt: entryDate,
         updatedAt: entryDate,
@@ -724,6 +725,7 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
     BuildContext? context,
     List<MediaItem>? media,
     List<Map<String, dynamic>>? blocks,
+    String? title,
   }) async {
     try {
       print('DEBUG: JournalCaptureCubit.updateEntryWithKeywords - Existing media count: ${existingEntry.media.length}');
@@ -802,6 +804,7 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
       
       // Create updated entry
       final updatedEntry = existingEntry.copyWith(
+        title: title?.trim().isNotEmpty == true ? title!.trim() : existingEntry.title,
         content: content,
         mood: mood,
         keywords: finalKeywords, // Use deduplicated keywords

@@ -15,6 +15,7 @@ import 'package:my_app/services/user_phase_service.dart';
 import 'package:my_app/services/arcform_export_service.dart';
 import 'package:my_app/shared/app_colors.dart';
 import 'package:my_app/shared/text_style.dart';
+import 'package:my_app/arc/ui/arcforms/widgets/arcform_legend_widget.dart';
 
 class ArcformRendererView extends StatelessWidget {
   const ArcformRendererView({super.key});
@@ -260,6 +261,52 @@ class _ArcformRendererViewContentState extends State<ArcformRendererViewContent>
                 ),
               ),
               const SizedBox(width: 8),
+              // Refresh button
+              GestureDetector(
+                onTap: () {
+                  final cubit = context.read<ArcformRendererCubit>();
+                  // Force regeneration by reinitializing
+                  cubit.initialize();
+                },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: kcSurfaceAltColor,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: phaseColor.withOpacity(0.3),
+                      width: 1,
+                    ),
+                  ),
+                  child: Icon(
+                    Icons.refresh,
+                    color: phaseColor,
+                    size: 16,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              // Legend/Guide button
+              GestureDetector(
+                onTap: () => _showLegendDialog(context),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: kcSurfaceAltColor,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: phaseColor.withOpacity(0.3),
+                      width: 1,
+                    ),
+                  ),
+                  child: Icon(
+                    Icons.help_outline,
+                    color: phaseColor,
+                    size: 16,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
               // Phase change button
               GestureDetector(
                 onTap: () => rendererMode == ArcformRendererMode.constellation 
@@ -450,6 +497,20 @@ class _ArcformRendererViewContentState extends State<ArcformRendererViewContent>
         ),
       );
     }
+  }
+
+  void _showLegendDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      barrierColor: Colors.black.withOpacity(0.7),
+      builder: (context) => Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: const EdgeInsets.all(16),
+        child: SingleChildScrollView(
+          child: ArcformLegendWidget(),
+        ),
+      ),
+    );
   }
 
   void _showGeometrySelectorDialog() {

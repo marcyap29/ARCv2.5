@@ -269,6 +269,32 @@ class ChatRepoImpl implements ChatRepo {
   }
 
   @override
+  Future<void> deleteMessage(String messageId) async {
+    _ensureInitialized();
+
+    final message = _messagesBox!.get(messageId);
+    if (message == null) {
+      print('ChatRepo: Message $messageId not found, skipping deletion');
+      return;
+    }
+
+    // Delete the message
+    await _messagesBox!.delete(messageId);
+
+    // Update session message count
+    final session = await getSession(message.sessionId);
+    if (session != null) {
+      final updatedSession = session.copyWith(
+        messageCount: (session.messageCount - 1).clamp(0, double.infinity).toInt(),
+        updatedAt: DateTime.now(),
+      );
+      await _sessionsBox!.put(message.sessionId, updatedSession);
+    }
+
+    print('ChatRepo: Deleted message $messageId');
+  }
+
+  @override
   Future<void> addTags(String sessionId, List<String> tags) async {
     _ensureInitialized();
 

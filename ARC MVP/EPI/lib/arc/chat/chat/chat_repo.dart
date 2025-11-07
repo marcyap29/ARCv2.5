@@ -42,6 +42,9 @@ abstract class ChatRepo {
   /// Delete a session and all its messages
   Future<void> deleteSession(String sessionId);
 
+  /// Delete a single message by ID
+  Future<void> deleteMessage(String messageId);
+
   /// Add tags to a session
   Future<void> addTags(String sessionId, List<String> tags);
 

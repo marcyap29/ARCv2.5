@@ -21,15 +21,12 @@ class EntryContentRenderer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ConstrainedBox(
-      constraints: const BoxConstraints(
-        maxHeight: 300, // Limit height to prevent overflow
-      ),
-      child: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: _buildContentWithInlinePhotos(context),
-        ),
+    // Remove maxHeight constraint to allow photos to display fully
+    // The SingleChildScrollView will handle overflow
+    return SingleChildScrollView(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: _buildContentWithInlinePhotos(context),
       ),
     );
   }
@@ -37,6 +34,15 @@ class EntryContentRenderer extends StatelessWidget {
   /// Build content with inline photo thumbnails
   List<Widget> _buildContentWithInlinePhotos(BuildContext context) {
     final widgets = <Widget>[];
+    
+    // Debug logging
+    print('🖼️ EntryContentRenderer: Building content with ${mediaItems.length} media items');
+    if (mediaItems.isNotEmpty) {
+      for (int i = 0; i < mediaItems.length; i++) {
+        final media = mediaItems[i];
+        print('🖼️ EntryContentRenderer: Media $i - id=${media.id}, type=${media.type.name}, uri=${media.uri}');
+      }
+    }
     
     // Simply render the text content without parsing PHOTO tags
     // Photos are now displayed separately as thumbnails below the text
@@ -46,8 +52,11 @@ class EntryContentRenderer extends StatelessWidget {
     
     // Add photo thumbnails below the text if any exist
     if (mediaItems.isNotEmpty) {
+      print('🖼️ EntryContentRenderer: Adding photo thumbnail grid with ${mediaItems.length} items');
       widgets.add(const SizedBox(height: 16));
       widgets.add(_buildPhotoThumbnailGrid(context));
+    } else {
+      print('🖼️ EntryContentRenderer: No media items to display');
     }
     
     return widgets;
@@ -55,10 +64,18 @@ class EntryContentRenderer extends StatelessWidget {
 
   /// Build photo thumbnail grid
   Widget _buildPhotoThumbnailGrid(BuildContext context) {
+    print('🖼️ EntryContentRenderer: Building thumbnail grid for ${mediaItems.length} items');
+    if (mediaItems.isEmpty) {
+      print('🖼️ EntryContentRenderer: WARNING - mediaItems is empty in _buildPhotoThumbnailGrid');
+      return const SizedBox.shrink();
+    }
     return Wrap(
       spacing: 8,
       runSpacing: 8,
-      children: mediaItems.map((mediaItem) => _buildPhotoWidget(context, mediaItem)).toList(),
+      children: mediaItems.map((mediaItem) {
+        print('🖼️ EntryContentRenderer: Creating widget for media: ${mediaItem.id}, uri: ${mediaItem.uri}');
+        return _buildPhotoWidget(context, mediaItem);
+      }).toList(),
     );
   }
 
@@ -120,8 +137,11 @@ class EntryContentRenderer extends StatelessWidget {
 
   /// Build thumbnail image from MediaItem (smaller for grid layout)
   Widget _buildThumbnailImage(MediaItem mediaItem) {
+    print('🖼️ EntryContentRenderer: Building thumbnail for media: id=${mediaItem.id}, uri=${mediaItem.uri}, type=${mediaItem.type.name}');
+    
     // Check if MCP media (content-addressed)
     if (mediaItem.isMcpMedia && mediaItem.sha256 != null) {
+      print('🖼️ EntryContentRenderer: Detected MCP media with sha256: ${mediaItem.sha256}');
       return FutureBuilder<Uint8List?>(
         future: MediaResolverService.instance.resolver?.loadThumbnail(mediaItem.sha256!),
         builder: (context, snapshot) {
@@ -174,9 +194,16 @@ class EntryContentRenderer extends StatelessWidget {
       );
     } else if (mediaItem.uri.startsWith('ph://')) {
       // Load thumbnail from photo library
+      print('🖼️ EntryContentRenderer: Loading photo library thumbnail for: ${mediaItem.uri}');
       return FutureBuilder<String?>(
         future: PhotoLibraryService.getPhotoThumbnail(mediaItem.uri, size: 160),
         builder: (context, snapshot) {
+          if (snapshot.hasError) {
+            print('🖼️ EntryContentRenderer: ERROR loading photo library thumbnail: ${snapshot.error}');
+          }
+          if (snapshot.hasData) {
+            print('🖼️ EntryContentRenderer: Photo library thumbnail loaded: ${snapshot.data}');
+          }
           if (snapshot.connectionState == ConnectionState.waiting) {
             return Container(
               width: 80,
@@ -210,13 +237,20 @@ class EntryContentRenderer extends StatelessWidget {
       );
     } else {
       // Assume local file path
+      print('🖼️ EntryContentRenderer: Loading local file: ${mediaItem.uri}');
+      final file = File(mediaItem.uri);
+      if (!file.existsSync()) {
+        print('🖼️ EntryContentRenderer: WARNING - File does not exist: ${mediaItem.uri}');
+      }
       return Image.file(
-        File(mediaItem.uri),
+        file,
         width: 80,
         height: 80,
         fit: BoxFit.cover,
         cacheWidth: 160, // Optimize for performance
         errorBuilder: (context, error, stackTrace) {
+          print('🖼️ EntryContentRenderer: ERROR loading image file: $error');
+          print('🖼️ EntryContentRenderer: Stack trace: $stackTrace');
           return _buildPlaceholderImage();
         },
       );

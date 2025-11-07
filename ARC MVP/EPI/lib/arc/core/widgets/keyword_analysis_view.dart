@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:my_app/arc/core/keyword_extraction_cubit.dart';
 import 'package:my_app/arc/core/keyword_extraction_state.dart';
 import 'package:my_app/arc/core/journal_capture_cubit.dart';
+import 'package:my_app/arc/core/journal_repository.dart';
 import 'package:my_app/arc/ui/timeline/timeline_cubit.dart';
 import 'package:my_app/models/journal_entry_model.dart';
 import 'package:my_app/data/models/media_item.dart';
@@ -50,10 +51,25 @@ class _KeywordAnalysisViewState extends State<KeywordAnalysisView>
   late AnimationController _progressController;
   late Animation<double> _progressAnimation;
   final TextEditingController _keywordController = TextEditingController();
+  final TextEditingController _titleController = TextEditingController();
+  final JournalRepository _journalRepository = JournalRepository();
+  List<String> _pastKeywords = [];
+  List<String> _filteredSuggestions = [];
 
   @override
   void initState() {
     super.initState();
+    
+    // Initialize title controller with existing entry title if available
+    if (widget.existingEntry != null && widget.existingEntry!.title.isNotEmpty) {
+      _titleController.text = widget.existingEntry!.title;
+    }
+    
+    // Load past keywords for autocomplete
+    _loadPastKeywords();
+    
+    // Listen to keyword controller changes for autocomplete
+    _keywordController.addListener(_onKeywordTextChanged);
     
     // Initialize progress animation
     _progressController = AnimationController(
@@ -74,10 +90,59 @@ class _KeywordAnalysisViewState extends State<KeywordAnalysisView>
     _progressController.forward();
   }
 
+  Future<void> _loadPastKeywords() async {
+    try {
+      final entries = _journalRepository.getAllJournalEntries();
+      final allKeywords = <String>{};
+      
+      for (final entry in entries) {
+        allKeywords.addAll(entry.keywords);
+      }
+      
+      setState(() {
+        _pastKeywords = allKeywords.toList()..sort();
+      });
+    } catch (e) {
+      debugPrint('Error loading past keywords: $e');
+    }
+  }
+
+  void _onKeywordTextChanged() {
+    final text = _keywordController.text.toLowerCase();
+    if (text.isEmpty) {
+      setState(() {
+        _filteredSuggestions = [];
+      });
+      return;
+    }
+
+    // Find the last word being typed (after comma or at start)
+    final parts = text.split(',');
+    final currentWord = parts.last.trim();
+    
+    if (currentWord.isEmpty) {
+      setState(() {
+        _filteredSuggestions = [];
+      });
+      return;
+    }
+
+    // Filter past keywords that start with current word
+    final suggestions = _pastKeywords
+        .where((keyword) => keyword.toLowerCase().startsWith(currentWord))
+        .take(5)
+        .toList();
+
+    setState(() {
+      _filteredSuggestions = suggestions;
+    });
+  }
+
   @override
   void dispose() {
     _progressController.dispose();
     _keywordController.dispose();
+    _titleController.dispose();
     super.dispose();
   }
 
@@ -151,6 +216,7 @@ class _KeywordAnalysisViewState extends State<KeywordAnalysisView>
         context: context,
         media: widget.mediaItems, // Pass media items
         blocks: widget.lumaraBlocks, // Pass LUMARA blocks
+        title: _titleController.text.trim(),
       );
       
       // Show success message with keyword count
@@ -186,6 +252,7 @@ class _KeywordAnalysisViewState extends State<KeywordAnalysisView>
         context: context,
         media: widget.mediaItems, // Pass media items
         blocks: widget.lumaraBlocks, // Pass LUMARA blocks
+        title: _titleController.text.trim(),
       );
     
     // Show success message with keyword count
@@ -354,6 +421,28 @@ class _KeywordAnalysisViewState extends State<KeywordAnalysisView>
                 ),
               ],
             ),
+          ),
+          const SizedBox(height: 24),
+          
+          // Title input field
+          Text(
+            'Entry Title (Optional)',
+            style: heading2Style(context),
+          ),
+          const SizedBox(height: 8),
+          TextField(
+            controller: _titleController,
+            decoration: InputDecoration(
+              hintText: 'Give your entry a title...',
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 12,
+              ),
+            ),
+            style: bodyStyle(context),
           ),
           const SizedBox(height: 24),
           
@@ -755,55 +844,111 @@ class _KeywordAnalysisViewState extends State<KeywordAnalysisView>
             ],
           ),
           const SizedBox(height: 12.0),
-          Row(
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Expanded(
-                child: TextField(
-                  controller: _keywordController,
-                  textCapitalization: TextCapitalization.words,
-                  decoration: InputDecoration(
-                    hintText: 'Enter keywords separated by commas',
-                    hintStyle: TextStyle(
-                      color: theme.colorScheme.outline.withOpacity(0.7),
-                    ),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8.0),
-                      borderSide: BorderSide(
-                        color: theme.colorScheme.outline.withOpacity(0.5),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _keywordController,
+                      textCapitalization: TextCapitalization.words,
+                      decoration: InputDecoration(
+                        hintText: 'Enter keywords separated by commas',
+                        hintStyle: TextStyle(
+                          color: theme.colorScheme.outline.withOpacity(0.7),
+                        ),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8.0),
+                          borderSide: BorderSide(
+                            color: theme.colorScheme.outline.withOpacity(0.5),
+                          ),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8.0),
+                          borderSide: BorderSide(
+                            color: theme.colorScheme.outline.withOpacity(0.5),
+                          ),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8.0),
+                          borderSide: BorderSide(
+                            color: theme.colorScheme.primary,
+                          ),
+                        ),
                       ),
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8.0),
-                      borderSide: BorderSide(
-                        color: theme.colorScheme.outline.withOpacity(0.5),
-                      ),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8.0),
-                      borderSide: BorderSide(
-                        color: theme.colorScheme.primary,
-                      ),
+                      onSubmitted: (_) => _addManualKeywords(),
                     ),
                   ),
-                ),
+                  const SizedBox(width: 12.0),
+                  ElevatedButton(
+                    onPressed: _addManualKeywords,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: theme.colorScheme.primary,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8.0),
+                      ),
+                    ),
+                    child: const Text('Add'),
+                  ),
+                ],
               ),
-              const SizedBox(width: 12.0),
-              ElevatedButton(
-                onPressed: _addManualKeywords,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: theme.colorScheme.primary,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
+              // Autocomplete suggestions
+              if (_filteredSuggestions.isNotEmpty) ...[
+                const SizedBox(height: 8.0),
+                Container(
+                  constraints: const BoxConstraints(maxHeight: 150),
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.surface,
                     borderRadius: BorderRadius.circular(8.0),
+                    border: Border.all(
+                      color: theme.colorScheme.outline.withOpacity(0.3),
+                    ),
+                  ),
+                  child: ListView.builder(
+                    shrinkWrap: true,
+                    itemCount: _filteredSuggestions.length,
+                    itemBuilder: (context, index) {
+                      final suggestion = _filteredSuggestions[index];
+                      return ListTile(
+                        dense: true,
+                        title: Text(
+                          suggestion,
+                          style: theme.textTheme.bodySmall,
+                        ),
+                        onTap: () {
+                          _selectSuggestion(suggestion);
+                        },
+                      );
+                    },
                   ),
                 ),
-                child: const Text('Add'),
-              ),
+              ],
             ],
           ),
         ],
       ),
     );
+  }
+
+  void _selectSuggestion(String suggestion) {
+    final text = _keywordController.text;
+    final parts = text.split(',');
+    if (parts.length > 1) {
+      // Replace the last part with the suggestion
+      parts[parts.length - 1] = suggestion;
+      _keywordController.text = parts.join(', ') + ', ';
+    } else {
+      // Replace entire text with suggestion
+      _keywordController.text = '$suggestion, ';
+    }
+    _keywordController.selection = TextSelection.fromPosition(
+      TextPosition(offset: _keywordController.text.length),
+    );
+    setState(() {
+      _filteredSuggestions = [];
+    });
   }
 
   void _addManualKeywords() {
@@ -815,6 +960,7 @@ class _KeywordAnalysisViewState extends State<KeywordAnalysisView>
         widget.manualKeywords?.addAll(keywords);
       });
       _keywordController.clear();
+      _filteredSuggestions = [];
     }
   }
 

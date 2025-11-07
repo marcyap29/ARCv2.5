@@ -82,6 +82,10 @@ class EnhancedChatRepoImpl implements EnhancedChatRepo {
       _baseRepo.deleteSession(sessionId);
 
   @override
+  Future<void> deleteMessage(String messageId) =>
+      _baseRepo.deleteMessage(messageId);
+
+  @override
   Future<void> addTags(String sessionId, List<String> tags) =>
       _baseRepo.addTags(sessionId, tags);
 

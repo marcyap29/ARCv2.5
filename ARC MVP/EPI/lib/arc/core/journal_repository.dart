@@ -148,6 +148,14 @@ class JournalRepository {
 
   // Synchronous version for backward compatibility
   List<JournalEntry> getAllJournalEntriesSync() {
+    // Ensure MediaItem adapter is registered before loading entries
+    _ensureMediaItemAdapter();
+    if (!Hive.isAdapterRegistered(11)) {
+      print('❌ JournalRepository: CRITICAL - MediaItemAdapter (ID: 11) is NOT registered when loading entries synchronously!');
+    } else {
+      print('✅ JournalRepository: Verified MediaItemAdapter (ID: 11) is registered when loading synchronously');
+    }
+    
     if (!Hive.isBoxOpen(_boxName)) {
       return const [];
     }
@@ -156,7 +164,27 @@ class JournalRepository {
     for (final key in box.keys) {
       final e = box.get(key);
       if (e == null) continue;
-      entries.add(_normalize(e));
+      
+      // Debug: Check media before normalization
+      if (e.media.isNotEmpty) {
+        print('🔍 JournalRepository: Entry ${e.id} has ${e.media.length} media items BEFORE normalization');
+        for (int j = 0; j < e.media.length && j < 3; j++) {
+          final media = e.media[j];
+          print('  Media $j: id=${media.id}, type=${media.type.name}, uri=${media.uri.substring(0, media.uri.length > 60 ? 60 : media.uri.length)}...');
+        }
+      }
+      
+      final normalized = _normalize(e);
+      
+      // Debug: Check media after normalization
+      if (normalized.media.length != e.media.length) {
+        print('❌ JournalRepository: CRITICAL - Media count changed during normalization! Before: ${e.media.length}, After: ${normalized.media.length}');
+      }
+      if (normalized.media.isNotEmpty) {
+        print('🔍 JournalRepository: Entry ${normalized.id} has ${normalized.media.length} media items AFTER normalization');
+      }
+      
+      entries.add(normalized);
     }
     return entries;
   }
@@ -177,6 +205,14 @@ class JournalRepository {
         }
       }
 
+      // Ensure media list is properly preserved (create new list to avoid reference issues)
+      final mediaList = List<MediaItem>.from(e.media);
+      
+      // Debug: Log media preservation
+      if (e.media.isNotEmpty && mediaList.isEmpty) {
+        print('❌ JournalRepository: CRITICAL - Media list was lost during normalization! Original count: ${e.media.length}');
+      }
+
       // Create a new entry with normalized data
       return JournalEntry(
         id: e.id,
@@ -187,7 +223,7 @@ class JournalRepository {
         tags: e.tags,
         mood: e.mood,
         audioUri: e.audioUri,
-        media: e.media,
+        media: mediaList, // Use preserved media list
         keywords: e.keywords,
         sageAnnotation: sageAnnotation,
         emotion: e.emotion,
