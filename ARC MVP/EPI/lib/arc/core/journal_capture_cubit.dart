@@ -516,8 +516,8 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
           }
           
           // Fallback to mediaItem.createdAt if no metadata
-          if (photoDate == null && mediaItem.createdAt != null) {
-            photoDate = mediaItem.createdAt!;
+          if (photoDate == null) {
+            photoDate = mediaItem.createdAt;
             photoDates.add(photoDate);
           }
         }

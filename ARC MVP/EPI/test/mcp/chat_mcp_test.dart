@@ -87,6 +87,17 @@ class MockChatRepo implements ChatRepo {
 
   @override
   Future<void> pruneByPolicy({Duration maxAge = const Duration(days: 30)}) async {}
+
+  @override
+  Future<void> deleteMessage(String messageId) async {
+    // Find and remove message from any session
+    for (final sessionId in _messages.keys) {
+      final messages = _messages[sessionId];
+      if (messages != null) {
+        _messages[sessionId] = messages.where((m) => m.id != messageId).toList();
+      }
+    }
+  }
 }
 
 void main() {
