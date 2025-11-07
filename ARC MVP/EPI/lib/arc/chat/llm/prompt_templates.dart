@@ -66,7 +66,8 @@ DATA HANDLING RULES:
 - NEVER change phases - if asked, explain current evidence and point to Phase Confirmation dialog
 - PHASE PRIORITY: The current phase is ALWAYS what the user has set in their Phase tab, not what you infer from entries
 - Phase history from entries shows past phases and transitions, but current phase comes from user settings
-- Always end with: "Based on {n_entries} entries, {n_arcforms} Arcform(s), phase history since {date}"
+- Always end with: "Based on {n_entries} entries, current phase: {phase_name}, phase history since {date}"
+- Focus on phases, not Arcforms. The phase information shows the user's developmental journey.
 - Be supportive, accurate, and evidence-based
 - Keep responses concise (3-4 sentences max)
 - Cite specific evidence when making claims
@@ -88,21 +89,21 @@ Close with a single, concrete option the user can accept or decline. Keep it kin
       {
         'facts': '{"avgValence": 0.65, "topTerms": [["clarity", 0.18], ["focus", 0.16]], "n": 8, "notableDays": ["Tue", "Fri"]}',
         'snippets': '["I finally outlined the plan", "Felt lighter after deciding to pause"]',
-        'response': 'Your week showed positive momentum with an average valence of 0.65. Key themes of clarity and focus emerged, particularly on Tuesday and Friday when you made important decisions. The sense of progress is evident in your reflections. Based on 8 entries, 2 Arcform(s), phase history since 2024-01-01.'
+        'response': 'Your week showed positive momentum with an average valence of 0.65. Key themes of clarity and focus emerged, particularly on Tuesday and Friday when you made important decisions. The sense of progress is evident in your reflections. Based on 8 entries, current phase: Expansion, phase history since 2024-01-01.'
       }
     ],
     'rising_patterns': [
       {
         'facts': '{"topTerms": [["growth", 0.22], ["insight", 0.19], ["reflection", 0.17]], "deltaTerms": [["growth", 0.08], ["insight", 0.05]]}',
         'snippets': '["I\'m seeing patterns I never noticed before", "Each day brings new understanding"]',
-        'response': 'Growth and insight are rising strongly in your recent entries, with growth up 8% and insight up 5%. Your reflection practice is deepening, showing increased self-awareness. These patterns suggest you\'re entering a more conscious phase of development. Based on 12 entries, 3 Arcform(s), phase history since 2024-01-01.'
+        'response': 'Growth and insight are rising strongly in your recent entries, with growth up 8% and insight up 5%. Your reflection practice is deepening, showing increased self-awareness. These patterns suggest you\'re entering a more conscious phase of development. Based on 12 entries, current phase: Transition, phase history since 2024-01-01.'
       }
     ],
     'phase_rationale': [
       {
         'facts': '{"currentPhase": "Integration", "phaseScore": 0.78, "alignScore": 0.82, "traceScore": 0.74, "windowW": 7}',
         'snippets': '["I feel like things are coming together", "The pieces are starting to make sense"]',
-        'response': 'You\'re in the Integration phase with 78% confidence. Your ALIGN score of 0.82 shows strong pattern recognition, while TRACE score of 0.74 indicates good continuity over the 7-day window. Your recent entries about "things coming together" align perfectly with this developmental stage. Based on 15 entries, 4 Arcform(s), phase history since 2024-01-01.'
+        'response': 'You\'re in the Consolidation phase with 78% confidence. Your ALIGN score of 0.82 shows strong pattern recognition, while TRACE score of 0.74 indicates good continuity over the 7-day window. Your recent entries about "things coming together" align perfectly with this developmental stage. Based on 15 entries, current phase: Consolidation, phase history since 2024-01-01.'
       }
     ]
   };

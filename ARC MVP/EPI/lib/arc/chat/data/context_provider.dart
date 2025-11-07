@@ -23,7 +23,27 @@ class ContextWindow {
   
   /// Get a summary of the context
   String get summary {
-    return 'Based on $totalEntries journal entries, $totalArcforms Arcform(s), phase history since ${startDate.toIso8601String().split('T')[0]}.';
+    // Get phase information from nodes
+    final phaseNodes = nodes.where((n) => n['type'] == 'phase' || n['type'] == 'phase_history').toList();
+    final currentPhaseNode = phaseNodes.firstWhere(
+      (n) => n['meta']?['current'] == true,
+      orElse: () => {},
+    );
+    final currentPhase = currentPhaseNode['text'] as String? ?? 'Discovery';
+    
+    // Count unique phases in history
+    final uniquePhases = phaseNodes
+        .where((n) => n['meta']?['current'] != true)
+        .map((n) => n['text'] as String?)
+        .where((p) => p != null)
+        .toSet()
+        .length;
+    
+    if (uniquePhases > 0) {
+      return 'Based on $totalEntries entries, current phase: $currentPhase, $uniquePhases phase${uniquePhases > 1 ? 's' : ''} in history since ${startDate.toIso8601String().split('T')[0]}.';
+    } else {
+      return 'Based on $totalEntries entries, current phase: $currentPhase, phase history since ${startDate.toIso8601String().split('T')[0]}.';
+    }
   }
 }
 

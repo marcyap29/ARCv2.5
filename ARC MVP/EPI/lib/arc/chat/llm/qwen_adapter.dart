@@ -270,12 +270,12 @@ $taskPrompt''';
     
     // Add source attribution
     final nEntries = facts['journal_entries'] ?? 0;
-    final nArcforms = facts['arcforms'] ?? 0;
+    final currentPhase = facts['current_phase'] ?? 'Discovery';
     final phaseStart = facts['current_phase_start'] ?? 'unknown date';
     
     enhanced.writeln();
     enhanced.writeln();
-    enhanced.write('Based on $nEntries journal entries, $nArcforms Arcform(s), phase history since $phaseStart.');
+    enhanced.write('Based on $nEntries entries, current phase: $currentPhase, phase history since $phaseStart.');
     
     return enhanced.toString();
   }
