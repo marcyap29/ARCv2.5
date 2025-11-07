@@ -20,7 +20,7 @@ int _getOptimalNodeCount(String phase) {
     case 'recovery':
       return 8; // Tight cluster is clear with fewer nodes
     case 'breakthrough':
-      return 12; // Simplified: 1 center + 11 star points (5 outer + 5 valleys + 1 circled)
+      return 11; // Perfect 3-ring star: 1 center + 5 middle + 5 outer
     default:
       return 10; // Balanced sphere
   }
@@ -400,9 +400,10 @@ List<ArcNode3D> _layoutAscendingSpiral(
   return nodes;
 }
 
-/// Breakthrough: 5-Pointed Star - Classic star shape with center and radiating points
+/// Breakthrough: Perfect 3-Ring Star Structure
 /// Visual metaphor: Sudden explosive clarity, the "ah-ha!" moment
-/// Structure: Central node + 5 star points (10 nodes for classic star) + additional nodes along rays
+/// Structure: 1 center + 5 middle ring + 5 outer ring = 11 nodes total
+/// Center at origin, middle at radius 1.0, outer at radius 2.0, all 72° apart
 List<ArcNode3D> _layoutSupernova(
   List<String> keywords,
   Map<String, double> weights,
@@ -410,64 +411,40 @@ List<ArcNode3D> _layoutSupernova(
   Seeded rng,
 ) {
   final nodes = <ArcNode3D>[];
-  final count = keywords.length;
+  final count = math.min(keywords.length, 11); // Force exactly 11 nodes
   
-  // Classic 5-pointed star: need 10 nodes (center + 5 outer points + 5 inner valley points)
-  // For a 5-pointed star, we alternate between outer points and inner valleys
-  const outerRadius = 2.0; // Outer star points
-  const innerRadius = 0.8; // Inner valley points
+  print('⭐ Breakthrough: Creating 3-ring star with $count nodes');
+  
+  // 3-ring star structure parameters
+  const middleRadius = 1.0; // Middle ring radius
+  const outerRadius = 2.0;   // Outer ring radius
+  const angleStep = 2 * math.pi / 5; // 72 degrees between nodes
+  const startAngle = -math.pi / 2; // Start at top (12 o'clock)
   
   int idx = 0;
   
-  // 1. Center node (star center)
+  // 1. Center node (index 0) - at origin
   if (idx < count) {
     final keyword = keywords[idx++];
     nodes.add(ArcNode3D(
       id: keyword,
       label: keyword,
-      x: 0,
-      y: 0,
-      z: 0,
-      weight: (weights[keyword] ?? 0.5) * 1.3, // Larger center
+      x: 0.0,
+      y: 0.0,
+      z: 0.0,
+      weight: (weights[keyword] ?? 0.5) * 1.3, // Larger center node
       valence: valences[keyword] ?? 0.0,
     ));
+    print('⭐ Center node: $keyword at (0, 0, 0)');
   }
   
-  // Simplified: 12 points total - 1 center + 11 star points
-  // 11 star points = 5 outer points + 5 valleys + 1 circled area node
-  
-  // Star structure: 5 outer points + 5 inner valleys
-  // Star points are at: 90° (top), 162°, 234°, 306°, 18°
-  // Valleys are between points
-  final starAngles = [
-    (90.0 - 90.0) * math.pi / 180.0,   // 0° (top outer point)
-    (126.0 - 90.0) * math.pi / 180.0,  // 36° (valley)
-    (162.0 - 90.0) * math.pi / 180.0,  // 72° (outer point)
-    (198.0 - 90.0) * math.pi / 180.0,  // 108° (valley)
-    (234.0 - 90.0) * math.pi / 180.0,  // 144° (outer point)
-    (270.0 - 90.0) * math.pi / 180.0,  // 180° (valley)
-    (306.0 - 90.0) * math.pi / 180.0,  // 216° (outer point)
-    (342.0 - 90.0) * math.pi / 180.0,  // 252° (valley)
-    (18.0 - 90.0) * math.pi / 180.0,   // -72° (outer point)
-    (54.0 - 90.0) * math.pi / 180.0,   // -36° (valley)
-  ];
-  
-  // Calculate circled area position (enso center) - between Awakening (0°) and Liberation (72°)
-  final ensoAngle = (starAngles[1] + starAngles[2]) / 2; // Average = 36°
-  final ensoRadius = (outerRadius + innerRadius) / 2 * 0.7;
-  final circledAreaX = ensoRadius * math.cos(ensoAngle);
-  final circledAreaY = ensoRadius * math.sin(ensoAngle);
-  
-  // Place 10 star points (alternating outer points and valleys)
-  for (int i = 0; i < 10 && idx < count; i++) {
+  // 2. Middle ring: 5 nodes at radius 1.0, 72° apart (indices 1-5)
+  for (int i = 0; i < 5 && idx < count; i++) {
     final keyword = keywords[idx++];
-    final angle = starAngles[i];
-    final isOuterPoint = (i % 2) == 0; // Even indices = outer points, odd = valleys
-    final radius = isOuterPoint ? outerRadius : innerRadius;
-    
-    final x = radius * math.cos(angle);
-    final y = radius * math.sin(angle);
-    final z = rng.nextRange(-0.1, 0.1);
+    final angle = startAngle + (i * angleStep);
+    final x = middleRadius * math.cos(angle);
+    final y = middleRadius * math.sin(angle);
+    final z = rng.nextRange(-0.05, 0.05); // Small z variation
     
     nodes.add(ArcNode3D(
       id: keyword,
@@ -478,26 +455,31 @@ List<ArcNode3D> _layoutSupernova(
       weight: weights[keyword] ?? 0.5,
       valence: valences[keyword] ?? 0.0,
     ));
+    print('⭐ Middle[$i]: $keyword at angle ${(angle * 180 / math.pi).toStringAsFixed(1)}°, pos=(${x.toStringAsFixed(2)}, ${y.toStringAsFixed(2)})');
   }
   
-  // Place circled area node (11th point) - enso center
-  if (idx < count) {
+  // 3. Outer ring: 5 nodes at radius 2.0, 72° apart, aligned with middle (indices 6-10)
+  for (int i = 0; i < 5 && idx < count; i++) {
     final keyword = keywords[idx++];
-    final z = rng.nextRange(-0.1, 0.1);
+    final angle = startAngle + (i * angleStep); // Same angle as middle ring
+    final x = outerRadius * math.cos(angle);
+    final y = outerRadius * math.sin(angle);
+    final z = rng.nextRange(-0.05, 0.05); // Small z variation
     
     nodes.add(ArcNode3D(
       id: keyword,
       label: keyword,
-      x: circledAreaX,
-      y: circledAreaY,
+      x: x,
+      y: y,
       z: z,
-      weight: (weights[keyword] ?? 0.5) * 1.1,
+      weight: weights[keyword] ?? 0.5,
       valence: valences[keyword] ?? 0.0,
     ));
-    print('✨ Placed node "${keyword}" in circled area (enso center) at ($circledAreaX, $circledAreaY)');
+    print('⭐ Outer[$i]: $keyword at angle ${(angle * 180 / math.pi).toStringAsFixed(1)}°, pos=(${x.toStringAsFixed(2)}, ${y.toStringAsFixed(2)})');
   }
 
-  print('⭐ Created Breakthrough simplified star: $count nodes (center: 1, star points: 10, circled area: 1, total: 12)');
+  print('⭐ Breakthrough: Created perfect 3-ring star with ${nodes.length} nodes');
+  print('⭐ Structure: 1 center + ${nodes.length > 1 ? 5 : 0} middle + ${nodes.length > 6 ? 5 : 0} outer');
   return nodes;
 }
 
