@@ -495,14 +495,48 @@ class _ConstellationPainter extends CustomPainter {
       // Apply proper 3D perspective projection with Z-depth
       final startPerspective = 1.0 / (1.0 + edge.start.z * 0.1);
       final endPerspective = 1.0 / (1.0 + edge.end.z * 0.1);
-      final startProj = Offset(
+      
+      // Project center positions
+      final startCenter = Offset(
         center.dx + edge.start.x * scale * startPerspective,
         center.dy - edge.start.y * scale * startPerspective,
       );
-      final endProj = Offset(
+      final endCenter = Offset(
         center.dx + edge.end.x * scale * endPerspective,
         center.dy - edge.end.y * scale * endPerspective,
       );
+      
+      // Calculate direction vector and distance
+      final directionVector = endCenter - startCenter;
+      final distance = directionVector.distance;
+      
+      // Find corresponding stars to get their sizes
+      final startStar = stars.firstWhere(
+        (s) => (s.position.x - edge.start.x).abs() < 0.01 && 
+               (s.position.y - edge.start.y).abs() < 0.01 &&
+               (s.position.z - edge.start.z).abs() < 0.01,
+        orElse: () => stars.first,
+      );
+      final endStar = stars.firstWhere(
+        (s) => (s.position.x - edge.end.x).abs() < 0.01 && 
+               (s.position.y - edge.end.y).abs() < 0.01 &&
+               (s.position.z - edge.end.z).abs() < 0.01,
+        orElse: () => stars.last,
+      );
+      
+      // Calculate node radii with perspective
+      final startRadius = (startStar.size * startPerspective) / 2;
+      final endRadius = (endStar.size * endPerspective) / 2;
+      
+      // Calculate connection points at edges of nodes
+      final direction = distance > 0 
+          ? Offset(directionVector.dx / distance, directionVector.dy / distance)
+          : Offset.zero;
+      
+      // Start point: edge of source node (offset outward from center)
+      final startProj = startCenter + Offset(direction.dx * startRadius, direction.dy * startRadius);
+      // End point: edge of target node (offset inward from center)
+      final endProj = endCenter - Offset(direction.dx * endRadius, direction.dy * endRadius);
 
       // Create enhanced gradient effect with more vibrant colors
       final baseOpacity = (0.5 + edge.weight * 0.5).clamp(0.3, 0.9); // Increased base opacity
