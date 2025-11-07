@@ -281,6 +281,8 @@ class _Arcform3DState extends State<Arcform3D> {
               widget.skin.lineAlphaBase,
             ),
             weight: edge.weight,
+            startStar: sourceStar, // Store reference for edge connection calculation
+            endStar: targetStar, // Store reference for edge connection calculation
           ));
         }
       }
@@ -433,12 +435,16 @@ class _Edge {
   final vm.Vector3 end;
   final Color color;
   final double weight;
+  final _Star? startStar; // Reference to source star for size calculation
+  final _Star? endStar; // Reference to target star for size calculation
 
   _Edge({
     required this.start,
     required this.end,
     required this.color,
     required this.weight,
+    this.startStar,
+    this.endStar,
   });
 }
 
@@ -510,18 +516,28 @@ class _ConstellationPainter extends CustomPainter {
       final directionVector = endCenter - startCenter;
       final distance = directionVector.distance;
       
-      // Find corresponding stars to get their sizes
-      final startStar = stars.firstWhere(
+      // Use stored star references if available, otherwise find by position
+      final startStar = edge.startStar ?? stars.firstWhere(
         (s) => (s.position.x - edge.start.x).abs() < 0.01 && 
                (s.position.y - edge.start.y).abs() < 0.01 &&
                (s.position.z - edge.start.z).abs() < 0.01,
-        orElse: () => stars.first,
+        orElse: () => stars.isNotEmpty ? stars.first : _Star(
+          position: vm.Vector3.zero(),
+          color: Colors.white,
+          size: 10.0,
+          label: '',
+        ),
       );
-      final endStar = stars.firstWhere(
+      final endStar = edge.endStar ?? stars.firstWhere(
         (s) => (s.position.x - edge.end.x).abs() < 0.01 && 
                (s.position.y - edge.end.y).abs() < 0.01 &&
                (s.position.z - edge.end.z).abs() < 0.01,
-        orElse: () => stars.last,
+        orElse: () => stars.isNotEmpty ? stars.last : _Star(
+          position: vm.Vector3.zero(),
+          color: Colors.white,
+          size: 10.0,
+          label: '',
+        ),
       );
       
       // Calculate node radii with perspective
