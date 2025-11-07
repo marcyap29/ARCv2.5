@@ -161,29 +161,34 @@ class _HealthDetailsTabState extends State<_HealthDetailsTab> {
       children: [
         // Days selector
         Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           color: Theme.of(context).scaffoldBackgroundColor,
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text(
-                'Time Range:',
-                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
-              ),
-              SegmentedButton<int>(
-                segments: const [
-                  ButtonSegment(value: 30, label: Text('30 Days')),
-                  ButtonSegment(value: 60, label: Text('60 Days')),
-                  ButtonSegment(value: 90, label: Text('90 Days')),
-                ],
-                selected: {widget.daysBack},
-                onSelectionChanged: (Set<int> selected) {
-                  if (selected.isNotEmpty) {
-                    widget.onDaysChanged(selected.first);
-                  }
-                },
-              ),
-            ],
+          child: SafeArea(
+            bottom: false,
+            child: Row(
+              children: [
+                const Text(
+                  'Time Range:',
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: SegmentedButton<int>(
+                    segments: const [
+                      ButtonSegment(value: 30, label: Text('30')),
+                      ButtonSegment(value: 60, label: Text('60')),
+                      ButtonSegment(value: 90, label: Text('90')),
+                    ],
+                    selected: {widget.daysBack},
+                    onSelectionChanged: (Set<int> selected) {
+                      if (selected.isNotEmpty) {
+                        widget.onDaysChanged(selected.first);
+                      }
+                    },
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
         // Health detail content
