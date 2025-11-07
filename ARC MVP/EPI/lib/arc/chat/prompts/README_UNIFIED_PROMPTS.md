@@ -108,54 +108,113 @@ LUMARA can activate **Expert Mentor Mode** when users request domain expertise o
 
 ## Decision Clarity Mode
 
-LUMARA can activate **Decision Clarity Mode** when users need help choosing between options or making complex decisions. This mode uses a structured framework to surface values, score options, and recommend paths.
+LUMARA can activate **Decision Clarity Mode** when users need help choosing between options or making complex decisions. This mode uses an intelligent selector to route between analytical, attuned, or blended approaches, applying a shared Viability–Meaning–Trajectory framework.
 
 ### Activation Cues
 
 - **Explicit**: "help me decide", "should I", "choose between"
 - **Implicit**: User describes options or trade-offs without clear decision criteria
 - **Context**: Uncertainty about a choice with multiple viable paths
+- **Signals**: Ambivalence, conflicting values, major life transition context
 
-### Protocol
+### Intelligent Mode Selector
 
-1. **Narrative Preamble** - Lead with conversational transition: acknowledge the crossroads, frame as choice between trajectories of becoming, surface 3-5 core values from context (POLYMETA/prior reflections), connect to Becoming, set expectation for Decision Brief, invite readiness. Use measured, compassionate tone.
-2. **Frame the Decision** - Name what's at stake; identify core values in tension
-3. **List Options** - Capture all viable paths (including status quo and hybrid options)
-4. **Define Criteria** - Extract 3-5 decision factors from user's values and constraints
-5. **Score Options** - Evaluate each option across two dimensions: Becoming Alignment (values/long-term coherence) and Practical Viability (utility/constraints/risk), scored 1-10 per dimension
-6. **Synthesize** - Highlight path that best honors Becoming; name trade-offs explicitly. If dimensions diverge, surface tension and help user choose which matters more
-7. **Invite Calibration** - Check alignment with user's intuition; adjust criteria if needed
+The Decision Mode Selector automatically routes to the optimal mode based on context analysis:
 
-### Scoring Framework
+**Input Signals:**
+- Phase (ATLAS phase: Discovery, Expansion, Transition, Consolidation, Recovery, Breakthrough)
+- Emotion intensity (0.0-1.0, aggregated from entries/drafts/chats/voice, POLYMETA emotional valence)
+- Stakes score (0.0-1.0, impact on identity/career/relationships)
+- Ambiguity score (0.0-1.0, uncertainty/option spread)
+- Time pressure (0.0-1.0, deadline proximity)
+- Memory relevance (0.0-1.0, POLYMETA similarity to past decisions)
+- Therapeutic depth (1-3, from Therapeutic Presence depth slider if active)
+- Keywords (salient tokens from recent context, POLYMETA memory nodes)
+- POLYMETA context (similar decisions, value evolution, phase history)
 
-Each option is evaluated across two dimensions (scored 1-10):
+**Routing Logic:**
+1. Calculate base context score using phase weights, keyword boosts, memory relevance
+2. Apply modifiers (time pressure, therapeutic depth, similar decision patterns)
+3. Calculate confidence and attuned_ratio (0.0-1.0)
+4. Select mode:
+   - **Attuned Mode** (attuned_ratio ≥ 0.65): High emotional weight, Transition/Recovery phases
+   - **Blended Mode** (0.35 ≤ attuned_ratio < 0.65): Moderate emotional weight, balanced approach
+   - **Base Mode** (attuned_ratio < 0.35): Low emotion + high time pressure, analytical focus
 
-**Becoming Alignment**
-- How well the option aligns with the user's aspirational values and Becoming trajectory
-- Focus: Who the user wants to become; long-term coherence; values alignment; identity congruence
+**Enhanced Features:**
+- POLYMETA memory integration (similar past decisions boost attuned score)
+- Therapeutic Presence depth slider integration
+- Confidence scoring for routing decisions
+- Adaptive learning from user feedback
+- Mode blending for nuanced responses
 
-**Practical Viability**
-- The option's utility given current constraints and practical realities
-- Focus: Practical outcomes; resource constraints; risk mitigation; short-term feasibility; execution readiness
+### Shared Framework: Viability–Meaning–Trajectory
 
-**When Dimensions Diverge**: If Becoming Alignment and Practical Viability scores differ significantly, surface the tension explicitly and help user choose which dimension matters more for this decision.
+All modes use the same analytical framework:
+
+**1. Viability**
+- Definition: What works in practice — feasibility, risk, leverage, and external advantage
+- Focus Areas: Realistic outcomes, compound advantage, risk mitigation, resource constraints, execution readiness
+- Questions: What are realistic outcomes? Which compounds advantage? What risks/constraints exist?
+
+**2. Meaning**
+- Definition: What aligns with the user's identity, values, and developmental phase
+- Focus Areas: Identity congruence, values alignment, long-term motivation, emotional truth, developmental coherence
+- Questions: Which reflects who you're becoming? Which sustains motivation? What emotional signals appear?
+
+**3. Trajectory**
+- Definition: Where each path leads over time — forward momentum and reversibility
+- Focus Areas: 1/3/5-year implications, optionality preservation, door-opening/closing, narrative arc, developmental vector
+- Questions: What are 1/3/5-year implications? Which preserves optionality? Which opens/closes doors?
+
+### Mode Descriptions
+
+**Base Mode (Analytical)**
+- Tone: Calm, logical, reality-anchored
+- Approach: Skip attunement, apply shared framework directly
+- Best for: Low emotion + high time pressure scenarios
+- Output: Viability Analysis → Meaning Analysis → Trajectory Analysis → Comparative Table → Synthesis
+
+**Attuned Mode (Hybrid)**
+- Tone: Grounded, empathic, reality-anchored
+- Workflow: (1) Phase/Context Awareness, (2) POLYMETA Integration, (3) Context Parsing, (4) Attunement Reflection (2-4 sentences), (5) Transition Phrase, (6) Shared Framework (tailored to phase), (7) Synthesis
+- Best for: High emotion, Transition/Recovery phases, when Therapeutic Presence is active
+- Output: Attunement Reflection → Viability Analysis → Meaning Analysis → Trajectory Analysis → Comparative Table → Synthesis
+
+**Blended Mode (Hybrid Ratio)**
+- Approach: Combines attunement and analysis based on calculated ratio
+- If attuned_ratio > 0.5: Brief attunement (2-3 sentences) then full analysis
+- If attuned_ratio ≤ 0.5: Brief acknowledgment (1 sentence) then analysis with occasional check-ins
+- Output: Calibrated attunement → Full framework analysis → Synthesis
 
 ### Output Format
 
-**Full Decision Brief** includes:
-- Decision Context
-- Options (with descriptions)
-- Criteria (3-5 factors)
-- Scorecard (Becoming Alignment vs Practical Viability scores, 1-10 per option)
-- Synthesis (recommended path with trade-offs)
-- Next Steps (1-3 concrete actions)
+**Decision Brief** includes:
+- Attunement Reflection (if Attuned or Blended mode)
+- Viability Analysis (pros/cons with clear reasoning)
+- Meaning Analysis (alignment with values and growth)
+- Trajectory Analysis (1/3/5-year implications)
+- Comparative Summary Table (Option A vs Option B across dimensions)
+- Synthesis Statement (clear recommendation with developmental insight)
+- Offer: 1-year projection simulation or POLYMETA memory exploration
+
+**Comparative Table Template:**
+| Dimension | Option A | Option B |
+|-----------|----------|----------|
+| Viability | [analysis] | [analysis] |
+| Meaning | [analysis] | [analysis] |
+| Trajectory | [analysis] | [analysis] |
+| Signal | [summary] | [summary] |
 
 **Mini Template** (one-screen mobile):
 ```
 Decision: [name]
 Options: [A, B, C]
 Top Criterion: [value]
-Becoming: [Option] ([score]/10)
+Viability: [Option] ([score]/10)
+Meaning: [Option] ([score]/10)
+Trajectory: [Option] ([score]/10)
+Recommendation: [path]
 Practical: [Option] ([score]/10)
 Recommendation: [path] | Trade-off: [gain] vs [risk]
 ```

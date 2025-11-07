@@ -1,7 +1,53 @@
 # EPI ARC MVP - Changelog
 
-**Version:** 2.1.1  
-**Last Updated:** November 7, 2025
+**Version:** 2.1.2  
+**Last Updated:** January 2025
+
+## [2.1.2] - January 2025
+
+### **Decision Clarity Mode Enhancement** - Complete
+
+#### Intelligent Mode Selector
+- **Enhanced Decision Mode Selector**: Upgraded from binary routing to intelligent multi-mode selection
+  - **POLYMETA Memory Integration**: Selector now considers similar past decisions, value evolution, and phase history
+  - **Therapeutic Presence Integration**: Reads depth slider (1-3) and adjusts routing accordingly
+  - **Blended Mode**: New hybrid mode that combines attunement and analysis based on calculated ratio (0.35-0.65)
+  - **Confidence Scoring**: Calculates routing confidence for better mode selection decisions
+  - **Adaptive Learning**: Tracks user feedback and adjusts thresholds over time based on preferences
+  - **Enhanced Routing Logic**: Multi-step calculation with memory boosts, therapeutic depth modifiers, and pattern recognition
+
+#### Consolidated Framework
+- **Shared Viability–Meaning–Trajectory Framework**: Eliminated duplication by creating single shared framework
+  - Both base and attuned modes now reference the same framework
+  - Unified guiding questions and focus areas
+  - Consistent output format across all modes
+  - Reduced code duplication and improved maintainability
+
+#### Mode Enhancements
+- **Base Mode (Analytical)**: Optimized for clear, logical analysis when emotional weight is low
+  - References shared framework
+  - POLYMETA memory pattern integration
+  - Best for low emotion + high time pressure scenarios
+- **Attuned Mode (Hybrid)**: Enhanced with POLYMETA context integration
+  - 7-step workflow including POLYMETA memory review
+  - Phase-aware tone adjustment
+  - Similar decision pattern recognition
+  - Value evolution tracking
+- **Blended Mode (New)**: Hybrid approach based on attuned_ratio
+  - If ratio > 0.5: brief attunement then full analysis
+  - If ratio ≤ 0.5: brief acknowledgment then analysis with occasional check-ins
+
+#### Expanded Capabilities
+- **Enhanced Input Signals**: Added memory_relevance, therapeutic_depth, polymeta_context
+- **Expanded Keyword Boosts**: Added uncertain, torn, stuck keywords
+- **Improved Phase Weights**: Adjusted for better sensitivity (Transition 0.75, Recovery 0.70)
+- **Unified Activation**: Single activation section with expanded triggers including implicit signals
+
+#### Files Modified
+- `lib/arc/chat/prompts/lumara_profile.json` - Complete Decision Clarity Mode restructure
+- `lib/arc/chat/prompts/lumara_system_compact.txt` - Updated compact prompt with enhancements
+- `docs/changelog/CHANGELOG.md` - This changelog entry
+- `lib/arc/chat/prompts/README_UNIFIED_PROMPTS.md` - Updated documentation
 
 ## [2.1.1] - November 7, 2025
 
