@@ -284,15 +284,18 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
           }
         }
         
+        // Append phase information from attribution traces to response
+        final enhancedResponse = _appendPhaseInfoFromAttributions(response, attributionTraces ?? [], context);
+        
         // Record assistant response in MCP memory
-        await _recordAssistantMessage(response);
+        await _recordAssistantMessage(enhancedResponse);
         
         // Add assistant response to chat session
-        await _addToChatSession(response, 'assistant');
+        await _addToChatSession(enhancedResponse, 'assistant');
         
         // Add assistant response to UI with attribution traces
         final assistantMessage = LumaraMessage.assistant(
-          content: response,
+          content: enhancedResponse,
           attributionTraces: attributionTraces ?? [],
         );
         
@@ -340,16 +343,25 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
           print('LUMARA Debug: [On-Device] SUCCESS - Response length: ${responseData['content'].length}');
           print('LUMARA Debug: [On-Device] Attribution traces: ${responseData['attributionTraces']?.length ?? 0}');
 
+          // Get context for phase info
+          final context = await _contextProvider.buildContext();
+          final attributionTraces = responseData['attributionTraces'] as List<AttributionTrace>? ?? [];
+          final enhancedContent = _appendPhaseInfoFromAttributions(
+            responseData['content'],
+            attributionTraces,
+            context,
+          );
+
           // Record assistant response in MCP memory
-          await _recordAssistantMessage(responseData['content']);
+          await _recordAssistantMessage(enhancedContent);
 
           // Add assistant response to chat session
-          await _addToChatSession(responseData['content'], 'assistant');
+          await _addToChatSession(enhancedContent, 'assistant');
 
           // Add assistant response to UI with attribution traces
           final assistantMessage = LumaraMessage.assistant(
-            content: responseData['content'],
-            attributionTraces: responseData['attributionTraces'] ?? [],
+            content: enhancedContent,
+            attributionTraces: attributionTraces,
           );
           final finalMessages = [...updatedMessages, assistantMessage];
 
@@ -399,18 +411,26 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
         print('LUMARA Debug: Generated response length: ${responseData['content'].length}');
         print('LUMARA Debug: Attribution traces in response: ${responseData['attributionTraces']?.length ?? 0}');
 
+        // Get context for phase info
+        final context = await _contextProvider.buildContext();
+        final attributionTraces = responseData['attributionTraces'] as List<AttributionTrace>? ?? [];
+        final enhancedContent = _appendPhaseInfoFromAttributions(
+          responseData['content'],
+          attributionTraces,
+          context,
+        );
+
         // Record assistant response in MCP memory
-        await _recordAssistantMessage(responseData['content']);
+        await _recordAssistantMessage(enhancedContent);
 
         // Add assistant response to chat session
-        await _addToChatSession(responseData['content'], 'assistant');
+        await _addToChatSession(enhancedContent, 'assistant');
 
         // Add assistant response to UI with attribution traces
-        final attributionTraces = responseData['attributionTraces'] as List<AttributionTrace>?;
-        print('LUMARA Debug: Creating assistant message with ${attributionTraces?.length ?? 0} attribution traces');
+        print('LUMARA Debug: Creating assistant message with ${attributionTraces.length} attribution traces');
 
         final assistantMessage = LumaraMessage.assistant(
-          content: responseData['content'],
+          content: enhancedContent,
           attributionTraces: attributionTraces,
         );
         final finalMessages = [...updatedMessages, assistantMessage];
@@ -505,8 +525,10 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
 
           final traces = memoryResult.attributions;
           
+          // Append phase information from attribution traces
+          final enhancedResponse = _appendPhaseInfoFromAttributions(response, traces, context);
           return {
-            'content': response,
+            'content': enhancedResponse,
             'attributionTraces': traces,
           };
         } catch (e) {
@@ -514,8 +536,10 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
         }
       }
 
+      // Append phase information even without attribution traces
+      final enhancedResponse = _appendPhaseInfoFromAttributions(response, [], context);
       return {
-        'content': response,
+        'content': enhancedResponse,
         'attributionTraces': <AttributionTrace>[],
       };
     } catch (e, stackTrace) {
@@ -610,8 +634,10 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
             }
 
             debugPrint('LUMARA Debug: ========== GEMINI API PATH COMPLETED ==========');
+            // Append phase information from attribution traces
+            final enhancedResponse = _appendPhaseInfoFromAttributions(response, traces, context);
             return {
-              'content': response,
+              'content': enhancedResponse,
               'attributionTraces': traces,
             };
           } catch (e) {
@@ -620,8 +646,10 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
         }
 
         debugPrint('LUMARA Debug: ========== GEMINI API PATH COMPLETED ==========');
+        // Append phase information even without attribution traces
+        final enhancedResponse = _appendPhaseInfoFromAttributions(response, [], context);
         return {
-          'content': response,
+          'content': enhancedResponse,
           'attributionTraces': <AttributionTrace>[],
         };
       }
@@ -780,11 +808,19 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
         }
       }
 
+      // Get context for phase info
+      final context = await _contextProvider.buildContext();
+      final enhancedContent = _appendPhaseInfoFromAttributions(
+        finalContent,
+        attributionTraces ?? [],
+        context,
+      );
+
       // Record assistant response in MCP memory
-      await _recordAssistantMessage(finalContent);
+      await _recordAssistantMessage(enhancedContent);
 
       // Add assistant response to chat session
-      await _addToChatSession(finalContent, 'assistant');
+      await _addToChatSession(enhancedContent, 'assistant');
 
       // Update final message with attribution traces
       if (state is LumaraAssistantLoaded) {
@@ -792,8 +828,8 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
         if (currentMessages.isNotEmpty) {
           final lastIndex = currentMessages.length - 1;
           final finalMessage = currentMessages[lastIndex].copyWith(
-            content: finalContent,
-            attributionTraces: attributionTraces,
+            content: enhancedContent,
+            attributionTraces: attributionTraces ?? [],
           );
 
           final finalMessages = [
@@ -1120,6 +1156,54 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
     }
 
     return jsonEncode(phaseContext);
+  }
+
+  /// Append phase information from attribution traces to response
+  String _appendPhaseInfoFromAttributions(
+    String response,
+    List<AttributionTrace> attributionTraces,
+    ContextWindow context,
+  ) {
+    // Check if response already ends with phase info (to avoid duplicating)
+    if (response.contains('Based on') && response.contains('phase history')) {
+      return response; // Already has phase info
+    }
+    
+    // Get current phase from context
+    final currentPhaseNodes = context.nodes
+        .where((n) => n['type'] == 'phase' && n['meta']?['current'] == true)
+        .toList();
+    final currentPhase = currentPhaseNodes.isNotEmpty
+        ? (currentPhaseNodes.first['text'] as String? ?? 'Discovery')
+        : 'Discovery';
+    
+    // Extract unique phases from attribution traces
+    final phasesFromTraces = attributionTraces
+        .where((trace) => trace.phaseContext != null && trace.phaseContext!.isNotEmpty)
+        .map((trace) => trace.phaseContext!)
+        .toSet()
+        .toList();
+    
+    // Count entries from context
+    final entryCount = context.totalEntries;
+    
+    // Calculate days since start date
+    final daysSince = DateTime.now().difference(context.startDate).inDays;
+    
+    // Build phase citation
+    String phaseCitation;
+    if (phasesFromTraces.isNotEmpty && phasesFromTraces.length > 1) {
+      phaseCitation = 'Based on $entryCount entries, current phase: $currentPhase, ${phasesFromTraces.length} phases in history since ${daysSince} days ago.';
+    } else {
+      phaseCitation = 'Based on $entryCount entries, current phase: $currentPhase, phase history since ${daysSince} days ago.';
+    }
+    
+    // Append if not already present
+    if (!response.trim().endsWith(phaseCitation.trim())) {
+      return '$response\n\n$phaseCitation';
+    }
+    
+    return response;
   }
 
   /// Build keywords context for ArcLLM
