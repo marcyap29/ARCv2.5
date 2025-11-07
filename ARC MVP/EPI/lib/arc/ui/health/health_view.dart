@@ -14,7 +14,9 @@ class HealthView extends StatefulWidget {
 
 class _HealthViewState extends State<HealthView> {
   int _selected = 0; // 0: Overview, 1: Details, 2: Analytics
+  int _daysBack = 30; // 30, 60, or 90 days for health details
   final _healthSummaryKey = GlobalKey<State<HealthSummaryBody>>();
+  final _healthDetailsKey = GlobalKey<State<HealthDetailScreenBody>>();
 
   void _showInfoDialog(BuildContext context) {
     showDialog(
@@ -118,7 +120,15 @@ class _HealthViewState extends State<HealthView> {
               // Show the Health Summary content directly in the Overview tab
               HealthSummaryBody(key: _healthSummaryKey, pointerJson: const {}),
               // Show the Health Detail Screen in the Details tab
-              const _HealthDetailsTab(),
+              _HealthDetailsTab(
+                key: _healthDetailsKey,
+                daysBack: _daysBack,
+                onDaysChanged: (days) {
+                  setState(() {
+                    _daysBack = days;
+                  });
+                },
+              ),
               // Render Analytics content directly within the Health tab
               const AnalyticsContent(),
             ],
@@ -131,7 +141,14 @@ class _HealthViewState extends State<HealthView> {
 
 /// Wrapper widget for Health Details tab content
 class _HealthDetailsTab extends StatefulWidget {
-  const _HealthDetailsTab();
+  final int daysBack;
+  final ValueChanged<int> onDaysChanged;
+  
+  const _HealthDetailsTab({
+    super.key,
+    required this.daysBack,
+    required this.onDaysChanged,
+  });
 
   @override
   State<_HealthDetailsTab> createState() => _HealthDetailsTabState();
@@ -140,9 +157,44 @@ class _HealthDetailsTab extends StatefulWidget {
 class _HealthDetailsTabState extends State<_HealthDetailsTab> {
   @override
   Widget build(BuildContext context) {
-    // Use HealthDetailScreen but without the Scaffold (since we're in a TabBarView)
-    // We need to extract just the body content
-    return const HealthDetailScreenBody(daysBack: 30);
+    return Column(
+      children: [
+        // Days selector
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          color: Theme.of(context).scaffoldBackgroundColor,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                'Time Range:',
+                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+              ),
+              SegmentedButton<int>(
+                segments: const [
+                  ButtonSegment(value: 30, label: Text('30 Days')),
+                  ButtonSegment(value: 60, label: Text('60 Days')),
+                  ButtonSegment(value: 90, label: Text('90 Days')),
+                ],
+                selected: {widget.daysBack},
+                onSelectionChanged: (Set<int> selected) {
+                  if (selected.isNotEmpty) {
+                    widget.onDaysChanged(selected.first);
+                  }
+                },
+              ),
+            ],
+          ),
+        ),
+        // Health detail content
+        Expanded(
+          child: HealthDetailScreenBody(
+            key: ValueKey(widget.daysBack), // Force rebuild when daysBack changes
+            daysBack: widget.daysBack,
+          ),
+        ),
+      ],
+    );
   }
 }
 

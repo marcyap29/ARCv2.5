@@ -118,7 +118,24 @@ class _HealthDetailScreenBodyState extends State<HealthDetailScreenBody> {
       });
 
       setState(() {
-        _days = loaded.take(90).toList(); // cap for safety
+        // Filter to only include days within the requested range
+        final now = DateTime.now().toUtc();
+        final start = DateTime.utc(now.year, now.month, now.day)
+            .subtract(Duration(days: widget.daysBack - 1));
+        
+        final filtered = loaded.where((day) {
+          try {
+            final startIso = (day['timeslice']?['start'] as String?) ?? '';
+            if (startIso.isEmpty) return false;
+            final dayDate = DateTime.parse(startIso).toUtc();
+            return dayDate.isAfter(start.subtract(const Duration(seconds: 1))) &&
+                   dayDate.isBefore(now.add(const Duration(days: 1)));
+          } catch (_) {
+            return false;
+          }
+        }).toList();
+        
+        _days = filtered;
         _loading = false;
       });
     } catch (e) {
