@@ -8,6 +8,7 @@ import 'package:my_app/models/journal_entry_model.dart';
 import 'package:my_app/arc/core/journal_repository.dart';
 import 'package:my_app/arc/core/sage_annotation_model.dart';
 import 'package:my_app/models/arcform_snapshot_model.dart';
+import 'package:my_app/models/arcform_snapshot_model.g.dart';
 import 'package:my_app/arc/ui/arcforms/arcform_mvp_implementation.dart';
 import 'package:my_app/arc/ui/arcforms/phase_recommender.dart';
 import 'package:my_app/services/analytics_service.dart';
@@ -905,10 +906,7 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
       );
 
       // Save the snapshot to Hive
-      if (!Hive.isBoxOpen('arcform_snapshots')) {
-        await Hive.openBox<ArcformSnapshot>('arcform_snapshots');
-      }
-      final snapshotBox = Hive.box<ArcformSnapshot>('arcform_snapshots');
+      final snapshotBox = await _ensureArcformSnapshotBox();
       await snapshotBox.put(snapshot.id, snapshot);
       
       // Enqueue arcform for sync
@@ -927,6 +925,22 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
     } catch (e) {
       print('Arcform snapshot creation failed: $e');
     }
+  }
+
+  /// Ensure ArcformSnapshot adapter is registered and box is open
+  Future<Box<ArcformSnapshot>> _ensureArcformSnapshotBox() async {
+    // Ensure adapter is registered before opening box
+    if (!Hive.isAdapterRegistered(2)) {
+      Hive.registerAdapter(ArcformSnapshotAdapter());
+      print('DEBUG: Registered ArcformSnapshotAdapter (ID: 2)');
+    }
+    
+    // Open box if not already open
+    if (!Hive.isBoxOpen('arcform_snapshots')) {
+      await Hive.openBox<ArcformSnapshot>('arcform_snapshots');
+    }
+    
+    return Hive.box<ArcformSnapshot>('arcform_snapshots');
   }
 
   void _createArcformSnapshotWithPhase(JournalEntry entry, String phase, bool userConsentedPhase) async {
@@ -964,10 +978,7 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
       );
 
       // Save the snapshot to Hive
-      if (!Hive.isBoxOpen('arcform_snapshots')) {
-        await Hive.openBox<ArcformSnapshot>('arcform_snapshots');
-      }
-      final snapshotBox = Hive.box<ArcformSnapshot>('arcform_snapshots');
+      final snapshotBox = await _ensureArcformSnapshotBox();
       await snapshotBox.put(snapshot.id, snapshot);
       
       print('Phase-aware Arcform created: $phase (${arcform.geometry.name}) with ${arcform.keywords.length} keywords');
@@ -1239,10 +1250,7 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
       );
 
       // Save the snapshot to Hive
-      if (!Hive.isBoxOpen('arcform_snapshots')) {
-        await Hive.openBox<ArcformSnapshot>('arcform_snapshots');
-      }
-      final snapshotBox = Hive.box<ArcformSnapshot>('arcform_snapshots');
+      final snapshotBox = await _ensureArcformSnapshotBox();
       await snapshotBox.put(snapshot.id, snapshot);
       
       // Track analytics for user-selected phase
@@ -1304,10 +1312,7 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
       );
 
       // Save the snapshot to Hive
-      if (!Hive.isBoxOpen('arcform_snapshots')) {
-        await Hive.openBox<ArcformSnapshot>('arcform_snapshots');
-      }
-      final snapshotBox = Hive.box<ArcformSnapshot>('arcform_snapshots');
+      final snapshotBox = await _ensureArcformSnapshotBox();
       await snapshotBox.put(snapshot.id, snapshot);
       
       // Track analytics for auto-accepted geometry
@@ -1370,10 +1375,7 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
       );
 
       // Save the snapshot to Hive
-      if (!Hive.isBoxOpen('arcform_snapshots')) {
-        await Hive.openBox<ArcformSnapshot>('arcform_snapshots');
-      }
-      final snapshotBox = Hive.box<ArcformSnapshot>('arcform_snapshots');
+      final snapshotBox = await _ensureArcformSnapshotBox();
       await snapshotBox.put(snapshot.id, snapshot);
       
       // Track analytics for manual geometry override

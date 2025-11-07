@@ -76,7 +76,17 @@ class RivetBox {
       }
       
       final box = Hive.box(eventsBoxName);
-      final userEvents = (box.get(userId, defaultValue: <Map<String, dynamic>>[]) as List).cast<Map<String, dynamic>>();
+      final rawEvents = box.get(userId, defaultValue: <dynamic>[]);
+      
+      // Safely convert to List<Map<String, dynamic>>
+      final userEvents = <Map<String, dynamic>>[];
+      if (rawEvents is List) {
+        for (final item in rawEvents) {
+          if (item is Map) {
+            userEvents.add(_asStringMapOrNull(item));
+          }
+        }
+      }
       
       userEvents.add(event.toJson());
       
@@ -100,11 +110,28 @@ class RivetBox {
       }
       
       final box = Hive.box(eventsBoxName);
-      final userEvents = (box.get(userId, defaultValue: <Map<String, dynamic>>[]) as List).cast<Map<String, dynamic>>();
+      final rawEvents = box.get(userId, defaultValue: <dynamic>[]);
+      
+      // Safely convert to List<Map<String, dynamic>>
+      final userEvents = <Map<String, dynamic>>[];
+      if (rawEvents is List) {
+        for (final item in rawEvents) {
+          if (item is Map) {
+            userEvents.add(_asStringMapOrNull(item));
+          }
+        }
+      }
       
       final events = userEvents
-          .cast<Map<String, dynamic>>()
-          .map((data) => RivetEvent.fromJson(data))
+          .map((data) {
+            try {
+              return RivetEvent.fromJson(data);
+            } catch (e) {
+              print('WARNING: Failed to parse RIVET event: $e');
+              return null;
+            }
+          })
+          .whereType<RivetEvent>()
           .toList();
       
       // Return most recent events first
