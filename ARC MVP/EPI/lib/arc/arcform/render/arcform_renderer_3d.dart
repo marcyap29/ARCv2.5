@@ -91,7 +91,7 @@ class _Arcform3DState extends State<Arcform3D> {
         _rotationX = 0.3;
         _rotationY = 0.2;
         _rotationZ = 0.0;
-        _zoom = 3.0;
+        _zoom = baseZoom ?? 2.5;
         break;
 
       case 'transition':
@@ -99,7 +99,7 @@ class _Arcform3DState extends State<Arcform3D> {
         _rotationX = 0.0;   // Straight side view
         _rotationY = math.pi / 4;   // 45-degree rotation to see rings
         _rotationZ = 0.0;
-        _zoom = 2.5;        // Good distance to see full cylinder
+        _zoom = baseZoom ?? 2.2;        // Zoom out more for card previews
         break;
 
       case 'consolidation':
@@ -107,7 +107,7 @@ class _Arcform3DState extends State<Arcform3D> {
         _rotationX = 0.4;   // Slight tilt to show depth
         _rotationY = 0.3;   // Some rotation to see 3D structure
         _rotationZ = 0.0;
-        _zoom = 4.0;        // Further out to see complete sphere structure
+        _zoom = baseZoom ?? 3.5;        // Zoom out more for card previews
         break;
 
       case 'recovery':
@@ -115,7 +115,7 @@ class _Arcform3DState extends State<Arcform3D> {
         _rotationX = 0.3;   // Angled down to see pyramid
         _rotationY = math.pi / 6;   // 30-degree rotation to see structure
         _rotationZ = 0.0;
-        _zoom = 2.3;        // Good distance to see full pyramid
+        _zoom = baseZoom ?? 2.0;        // Zoom out more for card previews
         break;
 
       case 'breakthrough':
@@ -123,7 +123,7 @@ class _Arcform3DState extends State<Arcform3D> {
         _rotationX = 0.5;   // Angled down to see star from above
         _rotationY = 0.0;   // Straight-on to see star shape
         _rotationZ = 0.0;
-        _zoom = 2.4;        // Good distance to see full star
+        _zoom = baseZoom ?? 2.1;        // Zoom out more for card previews
         break;
 
       default:
@@ -131,7 +131,7 @@ class _Arcform3DState extends State<Arcform3D> {
         _rotationX = 0.2;
         _rotationY = 0.0;
         _rotationZ = 0.0;
-        _zoom = 3.5;
+        _zoom = baseZoom ?? 3.0;
     }
 
     print('📷 Camera set for ${widget.phase}: rotX=$_rotationX, rotY=$_rotationY, zoom=$_zoom');
