@@ -265,7 +265,7 @@ class _SimplifiedArcformView3DState extends State<SimplifiedArcformView3D> {
               
               // 3D Constellation Preview
               Container(
-                height: 150,
+                height: 200, // Increased from 150 to show full ARCform
                 width: double.infinity,
                 decoration: BoxDecoration(
                   color: kcBackgroundColor,
@@ -284,6 +284,7 @@ class _SimplifiedArcformView3DState extends State<SimplifiedArcformView3D> {
                             skin: arcformData.skin,
                             showNebula: true,
                             enableLabels: true, // Enable keyword labels
+                            initialZoom: 2.0, // Zoom out more for card preview to show full ARCform
                           ),
                         )
                       : Center(

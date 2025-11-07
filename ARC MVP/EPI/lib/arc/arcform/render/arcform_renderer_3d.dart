@@ -19,6 +19,7 @@ class Arcform3D extends StatefulWidget {
   final ArcformSkin skin;
   final bool showNebula;
   final bool enableLabels;
+  final double? initialZoom; // Optional initial zoom level (for card previews)
 
   const Arcform3D({
     super.key,
@@ -28,6 +29,7 @@ class Arcform3D extends StatefulWidget {
     required this.skin,
     this.showNebula = true,
     this.enableLabels = false,
+    this.initialZoom,
   });
 
   @override
@@ -71,13 +73,16 @@ class _Arcform3DState extends State<Arcform3D> {
 
   /// Set camera angle optimized for the current phase's shape
   void _setCameraForPhase() {
+    // Use initialZoom if provided (for card previews), otherwise use phase-specific defaults
+    final baseZoom = widget.initialZoom;
+    
     switch (widget.phase.toLowerCase()) {
       case 'discovery':
         // HELIX: Side view to show helix structure clearly
         _rotationX = 0.0;   // No X rotation for straight side view
         _rotationY = math.pi / 4;   // 45-degree Y rotation to see helix from side
         _rotationZ = math.pi / 2;   // 90-degree Z rotation for proper helix orientation
-        _zoom = 3.0;        // Good zoom level to see full helix
+        _zoom = baseZoom ?? 2.2;        // Zoom out more for card previews to show full helix
         break;
 
       case 'exploration':
