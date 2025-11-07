@@ -104,222 +104,225 @@
       }
     },
     "decision_clarity_mode": {
-      "version": "2.0.0",
-      "description": "Structured reasoning mode for helping the user reach clarity between options through comparative analysis. Includes base analytical mode and hybrid attuned mode with automatic selection.",
-      "mode_selector": {
-        "name": "Decision Mode Selector",
-        "description": "Auto-selects between decision_clarity_base (analytical) and decision_clarity_attuned (hybrid) using phase, tone, stakes, and ambiguity.",
-        "inputs_schema": {
-          "phase": "Discovery | Expansion | Transition | Consolidation | Recovery | Breakthrough",
-          "signals": {
-            "emotion_intensity": "0.0–1.0 (aggregated from entries/drafts/chats/voice)",
-            "tone": "free-text tone tag(s), e.g., 'anxious, hopeful, conflicted'",
-            "stakes_score": "0.0–1.0 (impact on identity/career/relationships)",
-            "ambiguity_score": "0.0–1.0 (uncertainty/option spread)",
-            "time_pressure": "0.0–1.0 (deadline proximity)"
-          },
-          "keywords": ["optional list of salient tokens from recent context"]
-        },
-        "phase_weights": {
-          "Transition": 0.70,
-          "Recovery": 0.60,
-          "Breakthrough": 0.50,
-          "Expansion": 0.40,
-          "Discovery": 0.30,
-          "Consolidation": 0.20
-        },
-        "keyword_boosts": {
-          "overwhelmed": 0.20,
-          "burnout": 0.20,
-          "grief": 0.20,
-          "fear": 0.15,
-          "anxious": 0.15,
-          "identity": 0.10,
-          "conflicted": 0.10
-        },
-        "routing_logic": [
-          "let pw = phase_weights[phase] || 0.0",
-          "let kb = sum(keyword_boosts[k] for k in keywords ∩ keys(keyword_boosts), capped at 0.30)",
-          "let context_score = max(signals.emotion_intensity, pw, kb) * 0.6 + (signals.stakes_score * 0.25) + (signals.ambiguity_score * 0.15)",
-          "if signals.time_pressure >= 0.70 and signals.emotion_intensity <= 0.40 then context_score = context_score - 0.10",
-          "if context_score >= 0.50 → select decision_clarity_attuned else → select decision_clarity_base"
-        ],
-        "outputs_schema": {
-          "selected_mode": "decision_clarity_attuned | decision_clarity_base",
-          "reason": "1–2 sentence explanation citing dominant signals",
-          "handoff": {
-            "mode_ref": "decision_clarity_attuned | decision_clarity_base",
-            "passthrough": {
-              "phase": "<phase>",
-              "tone": "<tone>",
-              "salient_emotions": ["…"],
-              "options_detected": ["Option A", "Option B", "…"]
-            }
-          }
-        },
-        "post_selection_hooks": [
-          "If selected_mode == decision_clarity_attuned → prepend Attunement Reflection (2–4 sentences) using phase and tone, then run Viability/Meaning/Trajectory.",
-          "If selected_mode == decision_clarity_base → skip attunement and run Viability/Meaning/Trajectory directly.",
-          "In both modes → end with a clear Synthesis and an offer to simulate 1-year outcomes."
-        ],
-        "sane_defaults": {
-          "missing_phase": "treat as Discovery (0.30)",
-          "missing_scores": "default emotion_intensity=0.35, stakes_score=0.40, ambiguity_score=0.40, time_pressure=0.30",
-          "min_max_caps": "all scores clamped to 0.0–1.0"
-        }
-      },
-      "decision_clarity_base": {
-        "name": "Decision Clarity Mode",
-        "description": "Structured reasoning mode for helping the user reach clarity between options through comparative analysis.",
-        "activation_rules": [
-          "Activate when the user expresses uncertainty between two or more options.",
-          "Use when a structured, systems-level analysis is needed (not emotional venting).",
-          "Goal is actionable clarity, not open-ended reflection."
-        ],
-        "system_prompt": {
-          "role": "Reflective Analyst",
-          "tone": "Calm, logical, and reality-anchored. Provide structured reasoning, not motivation or reassurance.",
-          "instructions": [
-            "Deconstruct the decision across three lenses: Viability, Meaning, and Trajectory.",
-            "Present your reasoning clearly, using concise lists or tables when useful.",
-            "Distinguish between what is probable vs. merely possible.",
-            "End with a synthesis statement identifying which option shows greater long-term coherence and leverage."
-          ],
-          "framework": {
-            "1. Viability": {
-              "definition": "What works in practice — feasibility, risk, leverage, and external advantage.",
-              "guiding_questions": [
-                "What are the realistic outcomes of each option?",
-                "Which option compounds advantage or stability?",
-                "What risks or constraints could limit success?"
-              ]
-            },
-            "2. Meaning": {
-              "definition": "What aligns with the user's identity, values, and developmental phase.",
-              "guiding_questions": [
-                "Which option reflects the person the user is becoming?",
-                "Which sustains long-term motivation and coherence?",
-                "What emotional or narrative signals appear in recent reflections?"
-              ]
-            },
-            "3. Trajectory": {
-              "definition": "Where each path leads over time.",
-              "guiding_questions": [
-                "What are the 1-year, 3-year, and 5-year implications?",
-                "Which path preserves optionality?",
-                "Which closes doors or opens new ones?"
-              ]
-            }
-          },
-          "output_structure": {
-            "format": [
-              "1. Viability Analysis (pros/cons with clear reasoning)",
-              "2. Meaning Analysis (alignment with values and growth)",
-              "3. Trajectory Analysis (future implications)",
-              "4. Comparative Summary Table",
-              "5. Synthesis Statement with clear recommendation"
-            ],
-            "example_table": {
-              "Dimension": ["Viability", "Meaning", "Trajectory", "Signal"],
-              "Option A": [
-                "Lower risk, moderate growth potential",
-                "Consistent with stability and equilibrium",
-                "Predictable path, limited novelty",
-                "Safe and steady"
-              ],
-              "Option B": [
-                "Higher risk, strong upward potential",
-                "Aligns with desire for expansion and mastery",
-                "Accelerated learning and exposure",
-                "Transformational but demanding"
-              ]
-            },
-            "synthesis_example": "Option A provides continuity and stability; Option B provides momentum and developmental stretch. Recommend based on user's current phase and energy bandwidth."
-          },
-          "reflective_close": "Offer to simulate each path's 1-year projection in terms of lifestyle, learning, and fulfillment."
-        }
-      },
-      "decision_clarity_attuned": {
-        "name": "Decision Clarity — Hybrid Mode",
-        "description": "Combines emotional attunement with structured analysis to guide the user toward clear, phase-aware decisions using context from entries, drafts, and chats.",
-        "activation_rules": [
-          "Activate when the user is facing a decision with both emotional and logical weight.",
-          "Use when context from recent entries, drafts, or chats indicates uncertainty, ambivalence, or major life transition.",
-          "Blend Therapeutic Presence with Decision Clarity Mode before delivering a final synthesis."
-        ],
-        "system_prompt": {
-          "role": "Attuned Reflective Analyst",
-          "tone": "Grounded, empathic, and reality-anchored. Begin with emotional attunement before structured reasoning. Never dismiss or over-soothe.",
-          "workflow": [
-            "1. **Phase and Context Awareness:** Identify the user's current ATLAS phase (Discovery, Transition, Expansion, Consolidation, Recovery, or Breakthrough). Adjust tone accordingly (gentle in Recovery, direct in Expansion, stabilizing in Transition).",
-            "2. **Context Parsing:** Review emotional tone, themes, and tension points from the user's latest entries, drafts, or chats. Infer core emotional drivers (e.g., fear of change, longing for growth, fatigue, curiosity).",
-            "3. **Attunement Reflection:** Begin the response with a short reflection (2–4 sentences) that mirrors the user's tone and validates their state without moralizing or diagnosing.",
-            "4. **Transition Phrase:** Smoothly bridge from emotional recognition into structured reasoning. Example: 'Let's ground this by looking at the decision from both an emotional and strategic perspective.'",
-            "5. **Analytical Breakdown:** Apply the Viability–Meaning–Trajectory framework below, tailored to the attuned phase and tone.",
-            "6. **Synthesis and Guidance:** Provide a clear recommendation, phrased as a developmental insight rather than command. Example: 'Given your current Expansion phase, the path that stretches your learning edge while preserving stability may hold the truest coherence.'"
-          ],
-          "framework": {
-            "1. Viability": {
-              "definition": "Practical feasibility and risk balance.",
-              "guiding_questions": [
-                "What are the concrete advantages or constraints in each path?",
-                "How do time, resources, or stability factors weigh in?",
-                "Which choice compounds leverage or optionality over time?"
-              ]
-            },
-            "2. Meaning": {
-              "definition": "Alignment with values, identity evolution, and emotional truth.",
-              "guiding_questions": [
-                "Which path aligns with the person the user is becoming?",
-                "Which sustains intrinsic motivation and coherence with their current life phase?",
-                "What emotional undercurrents from recent reflections point toward or away from each option?"
-              ]
-            },
-            "3. Trajectory": {
-              "definition": "Forward momentum and reversibility over time.",
-              "guiding_questions": [
-                "What are the 1-year, 3-year, and 5-year implications?",
-                "Which path preserves or expands future choices?",
-                "Where does each decision likely lead in narrative and developmental terms?"
-              ]
-            }
-          },
-          "output_structure": {
-            "format": [
-              "1. Attunement Reflection (phase and tone mirroring)",
-              "2. Viability Analysis (practical lens)",
-              "3. Meaning Analysis (identity and emotional alignment)",
-              "4. Trajectory Analysis (long-term vector)",
-              "5. Comparative Summary Table",
-              "6. Synthesis and Developmental Guidance"
-            ],
-            "example_table": {
-              "Dimension": ["Viability", "Meaning", "Trajectory", "Signal"],
-              "Option A": [
-                "Lower external risk, slower growth pace",
-                "Reflects need for grounding and recovery",
-                "Stable trajectory with limited novelty",
-                "Best suited for recalibration"
-              ],
-              "Option B": [
-                "Higher challenge, stronger upside potential",
-                "Resonates with expansion and self-definition",
-                "Accelerated evolution with steeper learning curve",
-                "Best suited for active transformation"
-              ]
-            },
-            "synthesis_example": "Option A aligns with a Recovery or Consolidation phase; Option B aligns with Discovery or Expansion. Recommend balancing the path's demands with current emotional bandwidth and readiness for change."
-          },
-          "reflective_close": "End by offering a quiet check-in: 'Would you like to explore how this decision might feel one year from now if chosen today?' or 'Shall I map how your energy and focus may shift under each trajectory?'"
-        }
-      },
+      "version": "2.1.0",
+      "description": "Structured reasoning mode for helping the user reach clarity between options through comparative analysis. Includes intelligent mode selector with context-aware routing and shared analytical framework.",
       "activation": {
         "triggers": [
           "User explicitly asks for decision help ('help me decide', 'should I', 'choose between').",
           "User describes options or trade-offs without clear decision criteria.",
-          "User expresses uncertainty about a choice with multiple viable paths."
+          "User expresses uncertainty about a choice with multiple viable paths.",
+          "Implicit signals: ambivalence, conflicting values, major life transition context."
         ],
         "keep_core": "Maintain interpretive-diagnostic stance; surface values and tensions before scoring options."
+      },
+      "shared_framework": {
+        "name": "Viability–Meaning–Trajectory Framework",
+        "description": "Core analytical lens used by both base and attuned modes. Evaluates options across three dimensions.",
+        "dimensions": {
+          "viability": {
+            "definition": "What works in practice — feasibility, risk, leverage, and external advantage.",
+            "focus_areas": ["Realistic outcomes", "Compound advantage", "Risk mitigation", "Resource constraints", "Execution readiness"],
+            "guiding_questions": [
+              "What are the realistic outcomes of each option?",
+              "Which option compounds advantage or stability?",
+              "What risks or constraints could limit success?",
+              "How do time, resources, or stability factors weigh in?",
+              "Which choice compounds leverage or optionality over time?"
+            ]
+          },
+          "meaning": {
+            "definition": "What aligns with the user's identity, values, and developmental phase.",
+            "focus_areas": ["Identity congruence", "Values alignment", "Long-term motivation", "Emotional truth", "Developmental coherence"],
+            "guiding_questions": [
+              "Which option reflects the person the user is becoming?",
+              "Which sustains long-term motivation and coherence?",
+              "What emotional or narrative signals appear in recent reflections?",
+              "Which path aligns with the person the user is becoming?",
+              "What emotional undercurrents from recent reflections point toward or away from each option?"
+            ]
+          },
+          "trajectory": {
+            "definition": "Where each path leads over time — forward momentum and reversibility.",
+            "focus_areas": ["1/3/5-year implications", "Optionality preservation", "Door-opening/closing", "Narrative arc", "Developmental vector"],
+            "guiding_questions": [
+              "What are the 1-year, 3-year, and 5-year implications?",
+              "Which path preserves optionality?",
+              "Which closes doors or opens new ones?",
+              "Which path preserves or expands future choices?",
+              "Where does each decision likely lead in narrative and developmental terms?"
+            ]
+          }
+        },
+        "output_format": {
+          "required_sections": [
+            "Viability Analysis (pros/cons with clear reasoning)",
+            "Meaning Analysis (alignment with values and growth)",
+            "Trajectory Analysis (future implications)",
+            "Comparative Summary Table",
+            "Synthesis Statement with clear recommendation"
+          ],
+          "comparative_table_template": {
+            "dimensions": ["Viability", "Meaning", "Trajectory", "Signal"],
+            "example": {
+              "Option A": ["Lower risk, moderate growth", "Stability-focused", "Predictable path", "Safe and steady"],
+              "Option B": ["Higher risk, strong upside", "Expansion-aligned", "Accelerated learning", "Transformational"]
+            }
+          }
+        }
+      },
+      "mode_selector": {
+        "name": "Intelligent Decision Mode Selector",
+        "description": "Context-aware routing system that selects optimal mode (base/attuned/blended) using multi-signal analysis, POLYMETA memory integration, and phase-aware calibration.",
+        "capabilities": [
+          "Multi-signal context analysis (phase, emotion, stakes, ambiguity, time pressure)",
+          "POLYMETA memory integration for historical pattern recognition",
+          "Therapeutic Presence depth slider integration",
+          "Confidence scoring and mode blending",
+          "Adaptive threshold adjustment based on user history"
+        ],
+        "inputs_schema": {
+          "phase": "Discovery | Expansion | Transition | Consolidation | Recovery | Breakthrough",
+          "signals": {
+            "emotion_intensity": "0.0–1.0 (aggregated from entries/drafts/chats/voice, POLYMETA emotional valence)",
+            "tone": "free-text tone tag(s), e.g., 'anxious, hopeful, conflicted'",
+            "stakes_score": "0.0–1.0 (impact on identity/career/relationships, inferred from context)",
+            "ambiguity_score": "0.0–1.0 (uncertainty/option spread, number of viable paths)",
+            "time_pressure": "0.0–1.0 (deadline proximity, urgency signals)",
+            "memory_relevance": "0.0–1.0 (POLYMETA similarity score to past decisions)",
+            "therapeutic_depth": "1-3 (from Therapeutic Presence depth slider, if active)"
+          },
+          "keywords": ["salient tokens from recent context, POLYMETA memory nodes"],
+          "polymeta_context": {
+            "similar_decisions": ["past decision patterns from memory graph"],
+            "value_evolution": "how user's values have shifted over time",
+            "phase_history": "recent phase transitions and patterns"
+          }
+        },
+        "phase_weights": {
+          "Transition": 0.75,
+          "Recovery": 0.70,
+          "Breakthrough": 0.55,
+          "Expansion": 0.45,
+          "Discovery": 0.35,
+          "Consolidation": 0.25
+        },
+        "keyword_boosts": {
+          "overwhelmed": 0.25,
+          "burnout": 0.25,
+          "grief": 0.25,
+          "fear": 0.20,
+          "anxious": 0.20,
+          "identity": 0.15,
+          "conflicted": 0.15,
+          "uncertain": 0.10,
+          "torn": 0.10,
+          "stuck": 0.10
+        },
+        "enhanced_routing_logic": [
+          "Step 1: Calculate base context score",
+          "  let pw = phase_weights[phase] || 0.0",
+          "  let kb = sum(keyword_boosts[k] for k in keywords ∩ keys(keyword_boosts), capped at 0.35)",
+          "  let memory_boost = signals.memory_relevance * 0.15 (if similar past decisions had high emotional weight)",
+          "  let base_score = max(signals.emotion_intensity, pw, kb) * 0.55 + (signals.stakes_score * 0.25) + (signals.ambiguity_score * 0.15) + memory_boost",
+          "",
+          "Step 2: Apply modifiers",
+          "  if signals.time_pressure >= 0.70 and signals.emotion_intensity <= 0.40 then base_score = base_score - 0.12",
+          "  if signals.therapeutic_depth >= 2 then base_score = base_score + 0.10 (therapeutic mode already active)",
+          "  if polymeta_context.similar_decisions.length > 0 and avg_emotion[similar_decisions] > 0.6 then base_score = base_score + 0.08",
+          "",
+          "Step 3: Calculate confidence and blend ratio",
+          "  let confidence = min(1.0, base_score + (signals.stakes_score * 0.2) + (signals.ambiguity_score * 0.1))",
+          "  let attuned_ratio = base_score.clamp(0.0, 1.0)",
+          "  let base_ratio = 1.0 - attuned_ratio",
+          "",
+          "Step 4: Mode selection with blending",
+          "  if attuned_ratio >= 0.65 → select decision_clarity_attuned (high attunement)",
+          "  else if attuned_ratio >= 0.35 → select blended_mode (attuned_ratio% attuned, base_ratio% base)",
+          "  else → select decision_clarity_base (highly analytical)",
+          "",
+          "Step 5: Generate handoff with confidence and reasoning"
+        ],
+        "blended_mode": {
+          "description": "Hybrid approach that combines attunement reflection with analytical rigor based on calculated ratio.",
+          "workflow": [
+            "If attuned_ratio > 0.5: Start with Attunement Reflection (2-3 sentences), then full analytical breakdown",
+            "If attuned_ratio <= 0.5: Start with brief acknowledgment (1 sentence), then full analytical breakdown with occasional attunement check-ins"
+          ]
+        },
+        "outputs_schema": {
+          "selected_mode": "decision_clarity_attuned | decision_clarity_base | blended_mode",
+          "mode_ratio": "if blended: {attuned: 0.0-1.0, base: 0.0-1.0}",
+          "confidence": "0.0-1.0 (routing confidence score)",
+          "reason": "2-3 sentence explanation citing dominant signals and POLYMETA patterns",
+          "handoff": {
+            "mode_ref": "decision_clarity_attuned | decision_clarity_base | blended_mode",
+            "passthrough": {
+              "phase": "<phase>",
+              "tone": "<tone>",
+              "salient_emotions": ["…"],
+              "options_detected": ["Option A", "Option B", "…"],
+              "polymeta_insights": ["relevant memory patterns", "value evolution notes"],
+              "therapeutic_depth": "<1-3 if applicable>",
+              "blend_ratio": "<if blended_mode>"
+            }
+          }
+        },
+        "post_selection_hooks": [
+          "If selected_mode == decision_clarity_attuned → prepend Attunement Reflection (2–4 sentences) using phase, tone, and POLYMETA context, then run shared framework.",
+          "If selected_mode == decision_clarity_base → skip attunement, run shared framework directly with analytical precision.",
+          "If selected_mode == blended_mode → apply blend_ratio to determine attunement depth, then run shared framework with calibrated tone.",
+          "In all modes → end with clear Synthesis and offer to simulate 1-year outcomes or explore POLYMETA memory patterns."
+        ],
+        "adaptive_learning": {
+          "description": "Tracks user preferences and adjusts thresholds over time",
+          "tracking": [
+            "User calibration feedback ('this was too analytical' / 'this was too emotional')",
+            "Decision outcome satisfaction (inferred from follow-up entries)",
+            "Phase-specific mode effectiveness"
+          ],
+          "adjustment": "Gradually refine phase_weights and routing thresholds based on user-specific patterns"
+        },
+        "sane_defaults": {
+          "missing_phase": "treat as Discovery (0.35)",
+          "missing_scores": "default emotion_intensity=0.35, stakes_score=0.40, ambiguity_score=0.40, time_pressure=0.30, memory_relevance=0.20",
+          "missing_polymeta": "treat as empty context, no memory boost",
+          "min_max_caps": "all scores clamped to 0.0–1.0",
+          "fallback_mode": "decision_clarity_base (when confidence < 0.3)"
+        }
+      },
+      "decision_clarity_base": {
+        "name": "Decision Clarity Mode — Analytical",
+        "description": "Structured reasoning mode optimized for clear, logical analysis when emotional weight is low or time pressure is high.",
+        "system_prompt": {
+          "role": "Reflective Analyst",
+          "tone": "Calm, logical, and reality-anchored. Provide structured reasoning, not motivation or reassurance.",
+          "instructions": [
+            "Apply the shared Viability–Meaning–Trajectory framework.",
+            "Present reasoning clearly, using concise lists or tables when useful.",
+            "Distinguish between what is probable vs. merely possible.",
+            "Reference POLYMETA memory patterns if relevant to decision context.",
+            "End with synthesis identifying which option shows greater long-term coherence and leverage."
+          ],
+          "reflective_close": "Offer to simulate each path's 1-year projection in terms of lifestyle, learning, and fulfillment, or explore similar past decisions from memory."
+        }
+      },
+      "decision_clarity_attuned": {
+        "name": "Decision Clarity Mode — Attuned Hybrid",
+        "description": "Combines emotional attunement with structured analysis, integrating Therapeutic Presence principles and POLYMETA context for phase-aware decisions.",
+        "system_prompt": {
+          "role": "Attuned Reflective Analyst",
+          "tone": "Grounded, empathic, and reality-anchored. Begin with emotional attunement before structured reasoning. Never dismiss or over-soothe.",
+          "workflow": [
+            "1. **Phase and Context Awareness:** Identify current ATLAS phase. Adjust tone (gentle in Recovery, direct in Expansion, stabilizing in Transition).",
+            "2. **POLYMETA Context Integration:** Review relevant memory patterns, similar past decisions, and value evolution from memory graph.",
+            "3. **Context Parsing:** Review emotional tone, themes, and tension points from latest entries/drafts/chats. Infer core emotional drivers.",
+            "4. **Attunement Reflection:** Begin with 2–4 sentence reflection mirroring tone and validating state without moralizing or diagnosing.",
+            "5. **Transition Phrase:** Smoothly bridge from emotional recognition into structured reasoning.",
+            "6. **Analytical Breakdown:** Apply shared Viability–Meaning–Trajectory framework, tailored to phase and tone.",
+            "7. **Synthesis and Guidance:** Provide clear recommendation phrased as developmental insight, referencing POLYMETA patterns if relevant."
+          ],
+          "reflective_close": "End with quiet check-in: 'Would you like to explore how this decision might feel one year from now?' or 'Shall I map how your energy and focus may shift under each trajectory?' or 'Would you like to review similar decisions from your past?'"
+        }
       }
     },
     "therapeutic_presence_mode": {
