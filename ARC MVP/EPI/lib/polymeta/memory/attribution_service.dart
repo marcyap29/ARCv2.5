@@ -138,6 +138,7 @@ class AttributionService {
     required String relation,
     double confidence = 1.0,
     String? reasoning,
+    String? phaseContext,
   }) {
     return AttributionTrace(
       nodeRef: nodeRef,
@@ -145,6 +146,7 @@ class AttributionService {
       confidence: confidence,
       timestamp: DateTime.now().toUtc(),
       reasoning: reasoning,
+      phaseContext: phaseContext,
     );
   }
 

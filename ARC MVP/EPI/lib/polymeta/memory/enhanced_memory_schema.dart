@@ -204,6 +204,7 @@ class AttributionTrace {
   final double confidence;
   final DateTime timestamp;
   final String? reasoning;
+  final String? phaseContext; // ATLAS phase when memory node was created
 
   const AttributionTrace({
     required this.nodeRef,
@@ -211,6 +212,7 @@ class AttributionTrace {
     required this.confidence,
     required this.timestamp,
     this.reasoning,
+    this.phaseContext,
   });
 
   Map<String, dynamic> toJson() => {
@@ -219,6 +221,7 @@ class AttributionTrace {
     'confidence': confidence,
     'timestamp': timestamp.toIso8601String(),
     'reasoning': reasoning,
+    'phase_context': phaseContext,
   };
 
   factory AttributionTrace.fromJson(Map<String, dynamic> json) {
@@ -228,6 +231,7 @@ class AttributionTrace {
       confidence: json['confidence'].toDouble(),
       timestamp: DateTime.parse(json['timestamp']),
       reasoning: json['reasoning'],
+      phaseContext: json['phase_context'],
     );
   }
 }

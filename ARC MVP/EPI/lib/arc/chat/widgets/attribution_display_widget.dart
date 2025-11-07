@@ -169,6 +169,28 @@ class _AttributionDisplayWidgetState extends State<AttributionDisplayWidget> {
             ),
           ),
           
+          // Phase context (if available)
+          if (trace.phaseContext != null && trace.phaseContext!.isNotEmpty) ...[
+            const SizedBox(height: 4),
+            Row(
+              children: [
+                Icon(
+                  Icons.auto_awesome,
+                  size: 12,
+                  color: _getPhaseColor(trace.phaseContext!),
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  'Phase: ${trace.phaseContext}',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: _getPhaseColor(trace.phaseContext!),
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+          ],
+          
           // Reasoning (if available)
           if (trace.reasoning != null) ...[
             const SizedBox(height: 4),
@@ -230,8 +252,12 @@ class _AttributionDisplayWidgetState extends State<AttributionDisplayWidget> {
 
   Widget _buildSummaryStats() {
     final relationCounts = <String, int>{};
+    final phaseCounts = <String, int>{};
     for (final trace in widget.traces) {
       relationCounts[trace.relation] = (relationCounts[trace.relation] ?? 0) + 1;
+      if (trace.phaseContext != null && trace.phaseContext!.isNotEmpty) {
+        phaseCounts[trace.phaseContext!] = (phaseCounts[trace.phaseContext!] ?? 0) + 1;
+      }
     }
 
     return Container(
@@ -250,6 +276,7 @@ class _AttributionDisplayWidgetState extends State<AttributionDisplayWidget> {
             ),
           ),
           const SizedBox(height: 4),
+          // Relation counts
           ...relationCounts.entries.map((entry) => Padding(
             padding: const EdgeInsets.only(bottom: 2),
             child: Row(
@@ -267,6 +294,36 @@ class _AttributionDisplayWidgetState extends State<AttributionDisplayWidget> {
               ],
             ),
           )),
+          // Phase counts (if any)
+          if (phaseCounts.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Text(
+              'Phases',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 4),
+            ...phaseCounts.entries.map((entry) => Padding(
+              padding: const EdgeInsets.only(bottom: 2),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.auto_awesome,
+                    size: 12,
+                    color: _getPhaseColor(entry.key),
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    '${entry.key}: ${entry.value}',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: _getPhaseColor(entry.key),
+                    ),
+                  ),
+                ],
+              ),
+            )),
+          ],
         ],
       ),
     );
@@ -316,5 +373,24 @@ class _AttributionDisplayWidgetState extends State<AttributionDisplayWidget> {
     return relation.replaceAll('_', ' ').split(' ').map((word) => 
       word.isNotEmpty ? word[0].toUpperCase() + word.substring(1) : word
     ).join(' ');
+  }
+
+  Color _getPhaseColor(String phase) {
+    switch (phase.toLowerCase()) {
+      case 'discovery':
+        return Colors.blue;
+      case 'expansion':
+        return Colors.green;
+      case 'transition':
+        return Colors.orange;
+      case 'consolidation':
+        return Colors.purple;
+      case 'recovery':
+        return Colors.teal;
+      case 'breakthrough':
+        return Colors.amber;
+      default:
+        return Colors.grey;
+    }
   }
 }

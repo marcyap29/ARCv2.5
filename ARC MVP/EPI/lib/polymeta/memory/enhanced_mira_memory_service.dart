@@ -215,9 +215,10 @@ class EnhancedMiraMemoryService {
         relation: relation,
         confidence: confidence,
         reasoning: reasoning,
+        phaseContext: node.phaseContext, // Include phase context from node
       );
 
-      print('LUMARA Debug:   - Created trace: ${trace.nodeRef}, ${trace.relation}, ${trace.confidence}');
+      print('LUMARA Debug:   - Created trace: ${trace.nodeRef}, ${trace.relation}, ${trace.confidence}, phase: ${trace.phaseContext ?? "none"}');
       attributionTraces.add(trace);
     }
 
@@ -332,6 +333,7 @@ class EnhancedMiraMemoryService {
         reasoning: includeReasoningDetails
             ? _generateResponseReasoning(node, content)
             : null,
+        phaseContext: node.phaseContext, // Include phase context from node
       )
     ).toList();
 

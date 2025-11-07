@@ -21,6 +21,10 @@ class _LumaraSettingsViewState extends State<LumaraSettingsView> {
   bool _crossModalEnabled = true;
   bool _isInitialized = false;
   int _nodeCount = 0;
+  
+  // Therapeutic Presence settings
+  bool _therapeuticPresenceEnabled = true;
+  int _therapeuticDepthLevel = 2; // 1=Light, 2=Moderate, 3=Deep
 
   @override
   void initState() {
@@ -43,7 +47,120 @@ class _LumaraSettingsViewState extends State<LumaraSettingsView> {
       'lookbackYears': _lookbackYears,
       'maxMatches': _maxMatches,
       'crossModalEnabled': _crossModalEnabled,
+      'therapeuticPresenceEnabled': _therapeuticPresenceEnabled,
+      'therapeuticDepthLevel': _therapeuticDepthLevel,
     });
+  }
+  
+  Widget _buildDepthSliderTile(BuildContext context) {
+    final depthLabels = ['Light', 'Moderate', 'Deep'];
+    final depthDescriptions = [
+      'Supportive and encouraging',
+      'Reflective and insight-oriented',
+      'Exploratory and emotionally resonant',
+    ];
+    
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8, top: 8),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.05),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: Colors.white.withValues(alpha: 0.1),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.psychology,
+                color: kcAccentColor,
+                size: 24,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Depth Level',
+                      style: heading3Style(context).copyWith(
+                        color: kcPrimaryTextColor,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    Text(
+                      depthDescriptions[_therapeuticDepthLevel - 1],
+                      style: bodyStyle(context).copyWith(
+                        color: kcSecondaryTextColor,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: kcAccentColor.withValues(alpha: 0.2),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  depthLabels[_therapeuticDepthLevel - 1],
+                  style: bodyStyle(context).copyWith(
+                    color: kcAccentColor,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Slider(
+            value: _therapeuticDepthLevel.toDouble(),
+            min: 1,
+            max: 3,
+            divisions: 2,
+            activeColor: kcAccentColor,
+            inactiveColor: Colors.grey.withValues(alpha: 0.3),
+            label: depthLabels[_therapeuticDepthLevel - 1],
+            onChanged: (value) {
+              setState(() {
+                _therapeuticDepthLevel = value.round();
+              });
+              _saveSettings();
+            },
+          ),
+          const SizedBox(height: 8),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: depthLabels.asMap().entries.map((entry) {
+              final index = entry.key;
+              final label = entry.value;
+              final isSelected = _therapeuticDepthLevel == index + 1;
+              return GestureDetector(
+                onTap: () {
+                  setState(() {
+                    _therapeuticDepthLevel = index + 1;
+                  });
+                  _saveSettings();
+                },
+                child: Text(
+                  label,
+                  style: bodyStyle(context).copyWith(
+                    color: isSelected ? kcAccentColor : kcSecondaryTextColor,
+                    fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                    fontSize: 12,
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+        ],
+      ),
+    );
   }
 
 
@@ -142,6 +259,31 @@ class _LumaraSettingsViewState extends State<LumaraSettingsView> {
                     _saveSettings();
                   },
                 ),
+              ],
+            ),
+
+            const SizedBox(height: 32),
+
+            // Therapeutic Presence Settings Section
+            _buildSection(
+              context,
+              title: 'Therapeutic Presence',
+              children: [
+                _buildSwitchTile(
+                  context,
+                  title: 'Enable Therapeutic Presence',
+                  subtitle: 'Warm, reflective support for journaling and emotional processing',
+                  value: _therapeuticPresenceEnabled,
+                  onChanged: (value) {
+                    setState(() {
+                      _therapeuticPresenceEnabled = value;
+                    });
+                    _saveSettings();
+                  },
+                ),
+                if (_therapeuticPresenceEnabled) ...[
+                  _buildDepthSliderTile(context),
+                ],
               ],
             ),
 
