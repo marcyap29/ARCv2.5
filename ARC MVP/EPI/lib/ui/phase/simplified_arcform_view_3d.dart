@@ -284,7 +284,7 @@ class _SimplifiedArcformView3DState extends State<SimplifiedArcformView3D> {
                             skin: arcformData.skin,
                             showNebula: true,
                             enableLabels: true, // Enable keyword labels
-                            initialZoom: 2.0, // Zoom out more for card preview to show full ARCform
+                            initialZoom: 1.5, // Zoom out further for card preview to show full ARCform
                           ),
                         )
                       : Center(

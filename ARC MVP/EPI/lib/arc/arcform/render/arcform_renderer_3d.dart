@@ -82,7 +82,7 @@ class _Arcform3DState extends State<Arcform3D> {
         _rotationX = 0.0;   // No X rotation for straight side view
         _rotationY = math.pi / 4;   // 45-degree Y rotation to see helix from side
         _rotationZ = math.pi / 2;   // 90-degree Z rotation for proper helix orientation
-        _zoom = baseZoom ?? 2.2;        // Zoom out more for card previews to show full helix
+        _zoom = baseZoom ?? 1.8;        // Zoom out more for card previews to show full helix
         break;
 
       case 'exploration':
