@@ -5,6 +5,79 @@
 
 ## [Unreleased] - November 2025
 
+### **Feedback Updates v1** - November 2025
+
+#### User Experience Improvements
+- **Chat Text Input Fix**: Fixed text box cut-off issue - text input now expands properly with `minLines: 1` and `maxLines: null`
+- **Chat Message Editing**: Added ability to edit and resubmit chat messages (ChatGPT-style)
+  - Edit button on user messages
+  - Cancels editing and removes subsequent messages before resubmitting
+  - Works in both LUMARA assistant screen and chat session view
+- **Copy/Paste Support**: Added copy functionality for chat messages
+  - Copy button on all messages (user and assistant)
+  - Shows snackbar confirmation when copied
+  - Uses Flutter Clipboard API
+- **Journal Entry Titles**: Added optional title field for journal entries
+  - Title input in keyword analysis view
+  - Falls back to auto-generated title if not provided
+  - Persisted in JournalEntry model
+- **Auto-Generated Chat Subjects**: Chat sessions now generate topic-based subjects instead of date-based
+  - Uses keyword extraction from first message
+  - More meaningful subject lines for chat history
+- **Keyword Autocomplete**: Manual keyword input now suggests past keywords
+  - Loads all keywords from existing journal entries
+  - Filters suggestions as user types
+  - Tap to select suggestion
+- **ARCform Legend**: Added help guide for interpreting ARCform visualizations
+  - Explains colors (positive/negative/neutral emotions)
+  - Explains emotional intensity (valence values)
+  - Explains node size (keyword importance/weight)
+  - Explains connections (edge weights/thickness)
+  - Accessible via help button in ARCform renderer
+
+#### ARCform Improvements
+- **Breakthrough Star Pattern**: Fixed 3-ring star structure for breakthrough phase
+  - 1 center node with 5 connections (72° apart)
+  - 5 middle ring nodes, each with 3 connections (1 to center, 2 to outer)
+  - 5 outer ring nodes, each with 2 connections to adjacent nodes (72° apart)
+  - Cleaner visual pattern with proper connection topology
+- **ARCform Refresh**: Added refresh button to force regeneration of ARCform visualization
+
+#### Bug Fixes
+- **ARCX Import Media Linking**: Fixed critical issue where media items weren't being linked to journal entries
+  - Root cause: Media items only cached when deduplication enabled, causing link resolution failures
+  - Solution: Always cache media items by ID for link resolution, even when deduplication disabled
+  - Added embedded media fallback: Checks `entry.media`, `metadata.media`, `metadata.journal_entry.media`, `metadata.photos`
+  - Improved media lookup with direct ID access and fallback search
+  - Media items now properly linked during import (98 items successfully linked in test)
+- **Build Errors**: Fixed import path errors and missing method implementations
+  - Fixed `mira_service.dart` import path in `llm_bridge_adapter.dart`
+  - Fixed `llm_adapter.dart` import path in `mira_basics.dart`
+  - Fixed `timestamp_parser.dart` and `title_generator.dart` import paths in `mcp_pack_import_service.dart`
+  - Added `deleteMessage` method to `ChatRepo` interface and implementations
+  - Replaced missing `AuroraCard` and `VeilCard` widgets with placeholder containers
+
+#### Files Modified
+- `lib/arc/chat/ui/lumara_assistant_screen.dart` - Chat editing, copy, text input fix
+- `lib/arc/chat/chat/ui/session_view.dart` - Chat editing, copy, text input fix
+- `lib/arc/chat/bloc/lumara_assistant_cubit.dart` - Edit/resubmit logic, topic-based subjects
+- `lib/arc/core/widgets/keyword_analysis_view.dart` - Title input, keyword autocomplete
+- `lib/arc/core/journal_capture_cubit.dart` - Title support in save/update
+- `lib/arc/ui/arcforms/widgets/arcform_legend_widget.dart` - New legend widget
+- `lib/arc/ui/arcforms/arcform_renderer_view.dart` - Legend integration, refresh button
+- `lib/arc/ui/arcforms/constellation/constellation_layout_service.dart` - Breakthrough star pattern
+- `lib/arc/ui/arcforms/constellation/graph_utils.dart` - Breakthrough connections
+- `lib/polymeta/store/arcx/services/arcx_import_service_v2.dart` - Media linking fix
+- `lib/arc/core/journal_repository.dart` - Media adapter registration fix
+- `lib/arc/chat/chat/chat_repo.dart` - Added deleteMessage method
+- `lib/arc/chat/chat/chat_repo_impl.dart` - deleteMessage implementation
+- `lib/arc/chat/chat/enhanced_chat_repo.dart` - deleteMessage delegate
+- `lib/arc/chat/chat/enhanced_chat_repo_impl.dart` - deleteMessage delegate
+- `lib/services/llm_bridge_adapter.dart` - Fixed import paths
+- `lib/polymeta/mira_basics.dart` - Fixed import paths
+- `lib/polymeta/store/mcp/import/mcp_pack_import_service.dart` - Fixed import paths
+- `lib/insights/analytics_page.dart` - Fixed missing widget imports
+
 ### **LUMARA Unified Prompt System v2.1** - November 2025
 
 Unified all LUMARA assistant prompts under a single, architecture-aligned system (EPI v2.1) with context-aware behavior for ARC Chat, ARC In-Journal, and VEIL/Recovery modes, plus Expert Mentor Mode and Decision Clarity Mode.

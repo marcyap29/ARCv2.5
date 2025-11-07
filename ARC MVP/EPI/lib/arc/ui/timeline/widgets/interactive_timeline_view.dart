@@ -480,6 +480,21 @@ class InteractiveTimelineViewState extends State<InteractiveTimelineView>
                 ],
               ),
 
+              // Entry title (if present)
+              if (entry.title != null && entry.title!.isNotEmpty) ...[
+                const SizedBox(height: 8),
+                Text(
+                  entry.title!,
+                  style: bodyStyle(context).copyWith(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: kcPrimaryTextColor,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+
               const SizedBox(height: 8),
 
               // Entry content preview
@@ -749,6 +764,22 @@ class InteractiveTimelineViewState extends State<InteractiveTimelineView>
                 : kcSecondaryTextColor.withOpacity(0.6),
           ),
         ),
+
+        // Entry title (if present)
+        if (entry.title != null && entry.title!.isNotEmpty) ...[
+          const SizedBox(height: 12),
+          Text(
+            entry.title!,
+            style: bodyStyle(context).copyWith(
+              fontSize: 20,
+              fontWeight: FontWeight.w700,
+              color: isCurrentEntry
+                  ? kcPrimaryTextColor
+                  : kcPrimaryTextColor.withOpacity(0.9),
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ],
 
         const SizedBox(height: 12),
 

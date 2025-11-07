@@ -6,6 +6,7 @@ class TimelineEntry extends Equatable {
   final String date;
   final String monthYear;
   final String preview;
+  final String? title; // Optional title for the entry
   final bool hasArcform;
   final List<String> keywords;
   final String? phase; // ATLAS phase at time of entry
@@ -18,6 +19,7 @@ class TimelineEntry extends Equatable {
     required this.date,
     required this.monthYear,
     required this.preview,
+    this.title,
     required this.hasArcform,
     this.keywords = const [],
     this.phase,
@@ -27,5 +29,5 @@ class TimelineEntry extends Equatable {
   });
 
   @override
-  List<Object?> get props => [id, date, monthYear, preview, hasArcform, keywords, phase, geometry, media, createdAt];
+  List<Object?> get props => [id, date, monthYear, preview, title, hasArcform, keywords, phase, geometry, media, createdAt];
 }

@@ -1,18 +1,36 @@
 # ARCX V2 Implementation Summary
 
-**Version:** 1.2.1  
-**Last Updated:** January 2025  
+**Version:** 1.2.2  
+**Last Updated:** November 2025  
 **Status:** ✅ Complete - Production Ready
 
-## Recent Updates (January 2025)
+## Recent Updates (November 2025)
 
-### Media Import Display Fix
+### Media Linking Fix - Critical Bug Fix
+- **Issue**: Media items were imported successfully but not linked to journal entries during ARCX import
+- **Root Cause**: 
+  - Media items were only cached when deduplication was enabled AND SHA256 hash was present
+  - Link resolution couldn't find media items that weren't in cache
+  - V2 service only checked `links.media_ids` format, missing embedded media arrays
+- **Fix**: 
+  - Always cache media items by ID for link resolution (even when deduplication disabled)
+  - Added embedded media fallback: `_extractEmbeddedMediaData()` checks multiple locations:
+    - `entry.media`
+    - `metadata.media`
+    - `metadata.journal_entry.media`
+    - `metadata.photos` (converted to media format)
+  - Improved media lookup with direct ID access and fallback search
+  - Creates MediaItems from embedded data if files exist in photos directory
+- **Result**: Media items now properly linked to entries during import (tested with 98 media items)
+- **Files Modified**: `lib/polymeta/store/arcx/services/arcx_import_service_v2.dart`
+
+### Media Import Display Fix (January 2025)
 - **Issue**: Imported media was correctly saved to database but not displaying in journal UI
 - **Root Cause**: `MediaConversionUtils` only converted images with `analysisData`, but imported media often lacks this field
 - **Fix**: Updated conversion logic to handle all `MediaType.image` items regardless of `analysisData`
 - **Files Modified**: `lib/ui/journal/media_conversion_utils.dart`
 
-### Legacy Format Support Enhancement
+### Legacy Format Support Enhancement (January 2025)
 - Enhanced ARCX V2 import to support legacy embedded media formats
 - Added metadata fallback locations: `metadata.media`, `metadata.journal_entry.media`, `metadata.photos`
 - Improved photo mapping to check multiple directory structures
@@ -210,6 +228,13 @@ To use the new V2 services:
 4. **Migration**: Consider migration path from legacy format to V2
 
 ## Version History
+
+### Version 1.2.2 (November 6, 2025)
+- ✅ Fixed critical media linking bug - media items now properly linked to journal entries during import
+- ✅ Added embedded media fallback support for backward compatibility
+- ✅ Always cache media items by ID for reliable link resolution
+- ✅ Improved media lookup with direct ID access and fallback search
+- ✅ Tested with 98 media items - all successfully linked to entries
 
 ### Version 1.2.1 (November 3, 2025)
 - ✅ Fixed ARCX 1.2 import failures with improved error handling

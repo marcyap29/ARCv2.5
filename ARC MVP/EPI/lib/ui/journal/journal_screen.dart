@@ -1184,6 +1184,22 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
                           const SizedBox(height: 16),
                         ],
 
+                        // Entry title (if present) - show above content for existing entries
+                        if (widget.existingEntry != null && 
+                            widget.existingEntry!.title.isNotEmpty) ...[
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                            child: Text(
+                              widget.existingEntry!.title,
+                              style: theme.textTheme.headlineSmall?.copyWith(
+                                fontWeight: FontWeight.bold,
+                                color: theme.colorScheme.onSurface,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                        ],
+
                         // Metadata editing section (only for existing entries)
                         if (widget.existingEntry != null) ...[
                           _buildMetadataEditingSection(theme),

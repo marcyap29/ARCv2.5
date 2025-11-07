@@ -349,6 +349,7 @@ class TimelineCubit extends Cubit<TimelineState> {
         id: entry.id,
         date: _formatDate(entry.createdAt),
         monthYear: _formatMonthYear(entry.createdAt),
+        title: entry.title.isNotEmpty ? entry.title : null,
         preview: entry.content.isNotEmpty
             ? entry.content
             : 'Entry with Arcform snapshot', // Fallback if no content
