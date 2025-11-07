@@ -1,7 +1,79 @@
 # EPI ARC MVP - Changelog
 
-**Version:** 2.1  
-**Last Updated:** November 6, 2025
+**Version:** 2.1.1  
+**Last Updated:** November 7, 2025
+
+## [2.1.1] - November 7, 2025
+
+### **Therapeutic Integration & Bug Fixes** - Complete
+
+#### Memory Attribution & Phase Tracking
+- **Phase Information in Attributions**: Enhanced memory attribution system to include phase context
+  - Added `phaseContext` field to `AttributionTrace` schema
+  - Attribution traces now include ATLAS phase when memory node was created
+  - Phase information displayed in attribution widget with color-coded phase indicators
+  - Summary statistics show phase counts and distribution
+- **Phase-Focused Context Citations**: Fixed confusing "0 Arcform(s)" text in LUMARA responses
+  - Updated context provider to generate phase-focused summaries
+  - Responses now show: "Based on X entries, current phase: {phase}, phase history since Y days ago"
+  - Updated all prompt templates to focus on phases instead of Arcforms
+  - Programmatically extracts phase information from attribution traces and appends to responses
+
+#### Therapeutic Presence Mode
+- **Therapeutic Presence Integration**: Added comprehensive therapeutic capabilities to LUMARA
+  - Integrated full JSON prompt architecture for Therapeutic Presence mode
+  - Added depth slider UI controls (Light, Moderate, Deep) in LUMARA settings
+  - Mode activation based on context (journaling, emotional processing, decision clarity)
+  - Safety boundaries and crisis detection built-in
+  - Auto-grounding and pacing controls
+
+#### Health Tab Enhancements
+- **30/60/90 Day Selector**: Added time range selector to Health Details tab
+  - SegmentedButton control to select 30, 60, or 90 days
+  - Dynamic filtering of health data based on selected range
+  - Proper date range calculation and month loading
+  - Fixed issue where 90-day imports only showed 30 days
+- **Health UI Improvements**: Fixed pixel overflow in time range selector
+  - Made SegmentedButton expandable with Expanded widget
+  - Shortened button labels ("30", "60", "90") for better fit
+  - Added SafeArea wrapper to prevent overflow
+  - Reduced padding for more compact layout
+
+#### ARCform Visualization Improvements
+- **Discovery ARCform Preview Zoom**: Fixed ARCform preview to show full structure
+  - Increased preview container height from 150px to 200px
+  - Added `initialZoom` parameter to Arcform3D widget for card previews
+  - Set zoom level to 1.5 for card previews (zoomed out more)
+  - Adjusted Discovery phase default zoom from 3.0 to 1.8
+  - Full helix/V-shape structure now visible in Phase Analysis cards
+
+#### Bug Fixes
+- **RIVET Events Type Casting**: Fixed type casting errors when loading/saving RIVET events
+  - Updated `saveEvent()` and `loadEvents()` to safely convert `Map<dynamic, dynamic>` to `Map<String, dynamic>`
+  - Used `_asStringMapOrNull()` helper for safe conversion
+  - Added error handling for individual event parsing failures
+- **ArcformSnapshot Adapter Registration**: Fixed "Cannot write, unknown type: ArcformSnapshot" error
+  - Created `_ensureArcformSnapshotBox()` helper method
+  - Checks if adapter is registered before opening box
+  - Registers adapter if missing (ID: 2)
+  - Updated all 5 places where arcform_snapshots box is opened
+
+#### Files Modified
+- `lib/arc/chat/bloc/lumara_assistant_cubit.dart` - Phase info extraction, Therapeutic Presence
+- `lib/polymeta/memory/enhanced_memory_schema.dart` - Added phaseContext to AttributionTrace
+- `lib/polymeta/memory/attribution_service.dart` - Phase context support
+- `lib/polymeta/memory/enhanced_mira_memory_service.dart` - Phase context in traces
+- `lib/arc/chat/widgets/attribution_display_widget.dart` - Phase display in UI
+- `lib/arc/chat/data/context_provider.dart` - Phase-focused summaries
+- `lib/arc/chat/prompts/lumara_profile.json` - Therapeutic Presence mode
+- `lib/arc/chat/prompts/lumara_system_compact.txt` - Therapeutic Presence integration
+- `lib/shared/ui/settings/lumara_settings_view.dart` - Depth slider UI controls
+- `lib/arc/ui/health/health_view.dart` - Time range selector, overflow fix
+- `lib/ui/health/health_detail_screen.dart` - Dynamic date filtering
+- `lib/arc/arcform/render/arcform_renderer_3d.dart` - initialZoom parameter, Discovery zoom
+- `lib/ui/phase/simplified_arcform_view_3d.dart` - Preview zoom and height adjustments
+- `lib/prism/atlas/rivet/rivet_storage.dart` - Type casting fixes
+- `lib/arc/core/journal_capture_cubit.dart` - ArcformSnapshot adapter helper
 
 ## [2.1.0] - November 6, 2025
 

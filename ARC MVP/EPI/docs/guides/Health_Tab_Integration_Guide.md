@@ -24,7 +24,14 @@ The Health Tab provides comprehensive health data visualization and analysis by:
    - Chart icon to view detailed metrics over time
    - Info card with helpful tips
 
-2. **Analytics**
+2. **Details**
+   - Interactive charts for steps, energy, sleep, heart rate, HRV, and more
+   - **Time Range Selector**: Choose to view 30, 60, or 90 days of data
+   - SegmentedButton control at top of Details tab
+   - Automatically filters and displays data for selected time range
+   - Shows all imported data when 90-day range is selected
+
+3. **Analytics**
    - Deep dive into health analytics, trends, and patterns
 
 ### Settings Dialog
