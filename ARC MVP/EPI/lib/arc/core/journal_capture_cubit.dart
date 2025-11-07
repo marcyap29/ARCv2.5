@@ -8,7 +8,6 @@ import 'package:my_app/models/journal_entry_model.dart';
 import 'package:my_app/arc/core/journal_repository.dart';
 import 'package:my_app/arc/core/sage_annotation_model.dart';
 import 'package:my_app/models/arcform_snapshot_model.dart';
-import 'package:my_app/models/arcform_snapshot_model.g.dart';
 import 'package:my_app/arc/ui/arcforms/arcform_mvp_implementation.dart';
 import 'package:my_app/arc/ui/arcforms/phase_recommender.dart';
 import 'package:my_app/services/analytics_service.dart';
