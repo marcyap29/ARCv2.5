@@ -805,12 +805,21 @@ bool _shouldSkipEdge(ArcNode3D node1, ArcNode3D node2) {
 }
 
 /// Structure: Center → all points, connect outer points and valleys to form star outline
+/// Breakthrough: Perfect 3-Ring Star - connect according to 3-ring structure
+/// Structure: 1 center (0) + 5 middle (1-5) + 5 outer (6-10) = 11 nodes
+/// Connections:
+/// - Center → all 5 middle nodes (72° separation)
+/// - Each middle → center + 2 outer nodes (same angle + 2 positions away)
+/// - Each outer → 2 adjacent outer nodes (72° apart)
 List<ArcEdge3D> _generateSupernovaEdges(List<ArcNode3D> nodes) {
   final edges = <ArcEdge3D>[];
-  if (nodes.length < 2) return edges;
+  if (nodes.length < 11) {
+    print('⚠️ Breakthrough: Expected 11 nodes, got ${nodes.length}');
+    return edges;
+  }
   
-  // Helper to safely add an edge only if it's not the forbidden connection
-  void addEdgeIfValid(ArcNode3D source, ArcNode3D target, double weight) {
+  // Helper to safely add an edge
+  void addEdge(ArcNode3D source, ArcNode3D target, double weight) {
     if (!_shouldSkipEdge(source, target)) {
       edges.add(ArcEdge3D(
         sourceId: source.id,
@@ -820,63 +829,62 @@ List<ArcEdge3D> _generateSupernovaEdges(List<ArcNode3D> nodes) {
     }
   }
   
-  // Simplified structure: 12 nodes total
-  // 0 = center
-  // 1-10 = star points (alternating: outer point, valley, outer point, valley...)
-  // 11 = circled area node (enso center)
+  const centerIndex = 0;
+  const middleStartIndex = 1;
+  const middleEndIndex = 5;
+  const outerStartIndex = 6;
+  const outerEndIndex = 10;
   
-  final center = nodes[0];
+  final center = nodes[centerIndex];
   
-  // 1. Connect center to all star points (outer points only, for clarity)
-  for (int i = 1; i <= 10 && i < nodes.length; i += 2) { // Outer points are at odd indices (1, 3, 5, 7, 9)
-    addEdgeIfValid(center, nodes[i], 1.0);
+  print('⭐ Breakthrough: Generating edges for ${nodes.length} nodes');
+  
+  // 1. Center node (index 0): Connect to all 5 middle ring nodes
+  for (int i = middleStartIndex; i <= middleEndIndex; i++) {
+    addEdge(center, nodes[i], 1.0);
+    print('⭐ Center -> Middle[$i]');
   }
   
-  // 2. Connect star outline: connect points in sequence to form star
-  // Connect outer point → valley → next outer point
-  for (int i = 1; i < 10 && i + 1 < nodes.length; i++) {
-    addEdgeIfValid(nodes[i], nodes[i + 1], 0.9);
-  }
-  // Close the star (connect last point back to first)
-  if (nodes.length > 10) {
-    addEdgeIfValid(nodes[9], nodes[1], 0.9);
-  }
-  
-  // 3. Connect center to valleys as well (creates full star structure)
-  for (int i = 2; i <= 10 && i < nodes.length; i += 2) { // Valleys are at even indices (2, 4, 6, 8, 10)
-    addEdgeIfValid(center, nodes[i], 0.8);
-  }
-  
-  // 4. Connect circled area node (index 11) to center and nearby star points
-  if (nodes.length > 11) {
-    final circledNode = nodes[11]; // The circled area node (enso center)
+  // 2. Middle ring nodes (indices 1-5): Each has 3 connections
+  //    - 1 to center (already created above)
+  //    - 2 to outer ring nodes:
+  //      a) Outer node at same angle (directly outward)
+  //      b) Outer node 2 positions away (~120° separation)
+  for (int i = middleStartIndex; i <= middleEndIndex; i++) {
+    final middleRingIndex = i - middleStartIndex; // 0-4
     
-    // Connect to center
-    addEdgeIfValid(center, circledNode, 0.9);
+    // Connection a: Outer node at same angle
+    final sameAngleOuter = outerStartIndex + middleRingIndex;
+    if (sameAngleOuter <= outerEndIndex) {
+      addEdge(nodes[i], nodes[sameAngleOuter], 0.9);
+      print('⭐ Middle[$i] -> Outer[$sameAngleOuter] (same angle)');
+    }
     
-    // Connect to nearby star points (Awakening index 1, Liberation index 2, Transcendence index 6)
-    // Also connect to adjacent points in the star pattern
-    final nearbyIndices = [1, 2, 6, 3, 5]; // Awakening, Liberation, Transcendence, and adjacent points
-    for (final i in nearbyIndices) {
-      if (i < nodes.length && i <= 10) {
-        addEdgeIfValid(circledNode, nodes[i], 0.85);
-      }
+    // Connection b: Outer node 2 positions away (144° = closest to 120°)
+    final nextOuterIndex = outerStartIndex + ((middleRingIndex + 2) % 5);
+    if (nextOuterIndex <= outerEndIndex) {
+      addEdge(nodes[i], nodes[nextOuterIndex], 0.85);
+      print('⭐ Middle[$i] -> Outer[$nextOuterIndex] (2 positions away, ~120°)');
     }
   }
   
-  // Final safety check: Remove any edges that connect awakening and evolution
-  // This catches any edges that might have been created despite the filters
-  edges.removeWhere((edge) {
-    final sourceNode = nodes.firstWhere((n) => n.id == edge.sourceId, orElse: () => nodes[0]);
-    final targetNode = nodes.firstWhere((n) => n.id == edge.targetId, orElse: () => nodes[0]);
-    if (_shouldSkipEdge(sourceNode, targetNode)) {
-      print('🚫 Removing forbidden edge: ${sourceNode.label} -> ${targetNode.label}');
-      return true;
-    }
-    return false;
-  });
+  // 3. Outer ring nodes (indices 6-10): Each has 2 connections to adjacent outer nodes
+  for (int i = outerStartIndex; i <= outerEndIndex; i++) {
+    final outerRingIndex = i - outerStartIndex; // 0-4
+    
+    // Connect to next adjacent outer node (clockwise, 72°)
+    final nextOuter = outerStartIndex + ((outerRingIndex + 1) % 5);
+    addEdge(nodes[i], nodes[nextOuter], 0.8);
+    print('⭐ Outer[$i] -> Outer[$nextOuter] (adjacent, +72°)');
+    
+    // Connect to previous adjacent outer node (counter-clockwise, 72°)
+    final prevOuter = outerStartIndex + ((outerRingIndex - 1 + 5) % 5);
+    addEdge(nodes[i], nodes[prevOuter], 0.8);
+    print('⭐ Outer[$i] -> Outer[$prevOuter] (adjacent, -72°)');
+  }
   
-  print('✅ Generated ${edges.length} edges for Breakthrough phase');
+  print('⭐ Breakthrough: Generated ${edges.length} edges');
+  print('⭐ Expected: 5 (center->middle) + 10 (middle->outer) + 10 (outer->outer) = 25 connections');
   
   return edges;
 }
