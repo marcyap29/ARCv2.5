@@ -295,11 +295,14 @@ class GraphUtils {
   }
 
   static List<Connection> _generateBreakthroughConnections(List<ConstellationNode> nodes) {
-    // Breakthrough: 3-ring star structure
-    // 1 center (0) + 5 middle (1-5) + 5 outer (6-10) = 11 nodes total
+    // Breakthrough: Perfect 3-ring star structure
+    // Structure: 1 center (index 0) + 5 middle (indices 1-5) + 5 outer (indices 6-10) = 11 nodes
     final connections = <Connection>[];
     
-    if (nodes.isEmpty) return connections;
+    if (nodes.length < 11) {
+      print('⚠️ Breakthrough: Expected 11 nodes, got ${nodes.length}');
+      return connections;
+    }
     
     const centerIndex = 0;
     const middleStartIndex = 1;
@@ -307,47 +310,57 @@ class GraphUtils {
     const outerStartIndex = 6;
     const outerEndIndex = 10;
     
-    // 1. Center node: 5 connections to middle ring nodes, 72 degrees apart
-    for (int i = middleStartIndex; i <= middleEndIndex && i < nodes.length; i++) {
+    print('⭐ Breakthrough: Generating connections for ${nodes.length} nodes');
+    
+    // 1. Center node (index 0): Connect to all 5 middle ring nodes
+    //    These connections are separated by 72 degrees
+    for (int i = middleStartIndex; i <= middleEndIndex; i++) {
       connections.add(Connection(centerIndex, i));
+      print('⭐ Center -> Middle[$i]');
     }
     
-    // 2. Middle ring nodes (1-5): Each has 3 connections
-    //    - 1 to center (already done above)
-    //    - 2 to closest outer nodes (same angle + 2 positions away for ~120 degrees)
-    for (int i = middleStartIndex; i <= middleEndIndex && i < nodes.length; i++) {
-      final middleIndex = i - middleStartIndex; // 0-4
+    // 2. Middle ring nodes (indices 1-5): Each has 3 connections total
+    //    - 1 connection to center (already created above)
+    //    - 2 connections to outer ring nodes:
+    //      a) Outer node at same angle (directly outward)
+    //      b) Outer node 2 positions away (for ~120 degree separation)
+    for (int i = middleStartIndex; i <= middleEndIndex; i++) {
+      final middleRingIndex = i - middleStartIndex; // 0-4 (position in middle ring)
       
-      // Connection to outer node at same angle (index 6-10 correspond to middle 1-5)
-      final sameAngleOuter = middleIndex + outerStartIndex;
-      if (sameAngleOuter <= outerEndIndex && sameAngleOuter < nodes.length) {
+      // Connection a: Outer node at same angle (directly outward from middle)
+      final sameAngleOuter = outerStartIndex + middleRingIndex;
+      if (sameAngleOuter <= outerEndIndex) {
         connections.add(Connection(i, sameAngleOuter));
+        print('⭐ Middle[$i] -> Outer[$sameAngleOuter] (same angle)');
       }
       
-      // Connection to outer node 2 positions away (144 degrees, closest to 120 degrees)
-      // For 5 nodes: 2 positions = 144 degrees (closest to 120 degrees)
-      final nextOuterIndex = ((middleIndex + 2) % 5) + outerStartIndex;
-      if (nextOuterIndex <= outerEndIndex && nextOuterIndex < nodes.length) {
+      // Connection b: Outer node 2 positions away (144 degrees = closest to 120 degrees)
+      // For 5 nodes arranged in a circle: +2 positions = 144 degrees
+      final nextOuterIndex = outerStartIndex + ((middleRingIndex + 2) % 5);
+      if (nextOuterIndex <= outerEndIndex) {
         connections.add(Connection(i, nextOuterIndex));
+        print('⭐ Middle[$i] -> Outer[$nextOuterIndex] (2 positions away, ~120°)');
       }
     }
     
-    // 3. Outer ring nodes (6-10): Each has 2 connections to adjacent nodes (72 degrees apart)
-    for (int i = outerStartIndex; i <= outerEndIndex && i < nodes.length; i++) {
-      final outerIndex = i - outerStartIndex; // 0-4
+    // 3. Outer ring nodes (indices 6-10): Each has 2 connections to adjacent outer nodes
+    //    Adjacent nodes are 72 degrees apart (next and previous in the ring)
+    for (int i = outerStartIndex; i <= outerEndIndex; i++) {
+      final outerRingIndex = i - outerStartIndex; // 0-4 (position in outer ring)
       
-      // Connect to next adjacent outer node (72 degrees)
-      final nextOuter = ((outerIndex + 1) % 5) + outerStartIndex;
-      if (nextOuter <= outerEndIndex && nextOuter < nodes.length) {
-        connections.add(Connection(i, nextOuter));
-      }
+      // Connect to next adjacent outer node (clockwise, 72 degrees)
+      final nextOuter = outerStartIndex + ((outerRingIndex + 1) % 5);
+      connections.add(Connection(i, nextOuter));
+      print('⭐ Outer[$i] -> Outer[$nextOuter] (adjacent, +72°)');
       
-      // Connect to previous adjacent outer node (72 degrees)
-      final prevOuter = ((outerIndex - 1 + 5) % 5) + outerStartIndex;
-      if (prevOuter >= outerStartIndex && prevOuter < nodes.length) {
-        connections.add(Connection(i, prevOuter));
-      }
+      // Connect to previous adjacent outer node (counter-clockwise, 72 degrees)
+      final prevOuter = outerStartIndex + ((outerRingIndex - 1 + 5) % 5);
+      connections.add(Connection(i, prevOuter));
+      print('⭐ Outer[$i] -> Outer[$prevOuter] (adjacent, -72°)');
     }
+    
+    print('⭐ Breakthrough: Generated ${connections.length} connections');
+    print('⭐ Expected: 5 (center->middle) + 10 (middle->outer) + 10 (outer->outer) = 25 connections');
     
     return connections;
   }
