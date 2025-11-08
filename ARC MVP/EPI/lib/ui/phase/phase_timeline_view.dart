@@ -36,9 +36,38 @@ class _PhaseTimelineViewState extends State<PhaseTimelineView> {
     });
   }
 
+  @override
+  void didUpdateWidget(PhaseTimelineView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // If phaseIndex changed (check by comparing regime counts or IDs), recalculate visible range
+    final oldRegimes = oldWidget.phaseIndex.allRegimes;
+    final newRegimes = widget.phaseIndex.allRegimes;
+    
+    // Check if regimes changed by comparing counts or first regime ID
+    final regimesChanged = oldRegimes.length != newRegimes.length ||
+        (oldRegimes.isNotEmpty && newRegimes.isNotEmpty && 
+         oldRegimes.first.id != newRegimes.first.id);
+    
+    if (regimesChanged) {
+      print('DEBUG: PhaseTimelineView - Regimes changed, recalculating visible range');
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          _adjustVisibleRange();
+        }
+      });
+    }
+  }
+
   void _adjustVisibleRange() {
     final regimes = widget.phaseIndex.allRegimes;
-    if (regimes.isEmpty) return;
+    if (regimes.isEmpty) {
+      // Reset to default range if no regimes
+      setState(() {
+        _visibleStart = DateTime.now().subtract(const Duration(days: 365));
+        _visibleEnd = DateTime.now().add(const Duration(days: 30));
+      });
+      return;
+    }
 
     // Find the earliest and latest regime dates
     DateTime? earliestStart;

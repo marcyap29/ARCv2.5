@@ -347,6 +347,7 @@ List<PhaseSegmentProposal> proposals,
           // Timeline Tab
           _phaseIndex != null
               ? PhaseTimelineView(
+                  key: ValueKey('phase_timeline_${_phaseIndex!.allRegimes.length}_${_phaseIndex!.allRegimes.isNotEmpty ? _phaseIndex!.allRegimes.first.id : 'empty'}'),
                   phaseIndex: _phaseIndex!,
                   onRegimeTap: (regime) {
                     _showRegimeDetails(regime);
