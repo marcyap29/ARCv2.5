@@ -741,8 +741,36 @@ class _PhaseChangeReadinessCardState extends State<PhaseChangeReadinessCard> {
   }
 
   Widget _buildEnhancedProgressDisplay(bool isReady, int qualifyingEntries) {
-    final progress = isReady ? 1.0 : (qualifyingEntries / 2.0).clamp(0.0, 0.95);
-    final color = isReady ? Colors.green : (qualifyingEntries >= 1 ? Colors.orange : Colors.blue);
+    // Calculate progress based on multiple factors, not just consecutive qualifying entries
+    double progress = 0.0;
+    if (isReady) {
+      progress = 1.0;
+    } else if (_rivetState != null) {
+      // Progress is based on:
+      // 1. ALIGN progress (40% weight) - how close to 0.6 threshold
+      // 2. TRACE progress (40% weight) - how close to 0.6 threshold  
+      // 3. Sustainment progress (20% weight) - consecutive qualifying entries / 2
+      final alignProgress = (_rivetState!.align / 0.6).clamp(0.0, 1.0);
+      final traceProgress = (_rivetState!.trace / 0.6).clamp(0.0, 1.0);
+      final sustainProgress = (qualifyingEntries / 2.0).clamp(0.0, 1.0);
+      
+      progress = (alignProgress * 0.4 + traceProgress * 0.4 + sustainProgress * 0.2).clamp(0.0, 0.95);
+      
+      print('DEBUG: Readiness Progress - ALIGN: ${(_rivetState!.align * 100).toInt()}% (progress: ${(alignProgress * 100).toInt()}%), '
+            'TRACE: ${(_rivetState!.trace * 100).toInt()}% (progress: ${(traceProgress * 100).toInt()}%), '
+            'Sustain: $qualifyingEntries/2 (progress: ${(sustainProgress * 100).toInt()}%), '
+            'Overall: ${(progress * 100).toInt()}%');
+    } else {
+      // Fallback: use qualifying entries if no RIVET state
+      progress = (qualifyingEntries / 2.0).clamp(0.0, 0.95);
+      print('DEBUG: Readiness Progress - No RIVET state, using sustain count: $qualifyingEntries/2 = ${(progress * 100).toInt()}%');
+    }
+    
+    final color = isReady 
+        ? Colors.green 
+        : (progress >= 0.5 
+            ? Colors.orange 
+            : (progress >= 0.25 ? Colors.blue : Colors.grey));
 
     return Column(
       children: [
