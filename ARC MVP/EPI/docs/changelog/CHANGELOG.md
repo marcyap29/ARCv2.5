@@ -1,7 +1,25 @@
 # EPI ARC MVP - Changelog
 
-**Version:** 2.1.3  
+**Version:** 2.1.4  
 **Last Updated:** January 2025
+
+## [2.1.4] - January 2025
+
+### **Startup Logo Update** - Complete
+
+#### Branding Enhancement
+- **ARC Logo Integration**: Replaced LUMARA icon with official ARC logo at startup
+  - Startup splash screen now displays ARC-Logo-White.png
+  - Black background to match white logo design
+  - Responsive sizing (60% of screen width, min 200px, max 400px)
+  - Maintains 3-second auto-navigation and tap-to-skip functionality
+  - Logo properly centered and scaled for all device sizes
+
+#### Files Modified
+- `lib/arc/chat/ui/lumara_splash_screen.dart` - Updated to display ARC logo image
+- `pubspec.yaml` - Added assets/images/ directory
+- `assets/images/ARC-Logo-White.png` - Added official ARC logo asset
+- `docs/changelog/CHANGELOG.md` - This changelog entry
 
 ## [2.1.3] - January 2025
 
