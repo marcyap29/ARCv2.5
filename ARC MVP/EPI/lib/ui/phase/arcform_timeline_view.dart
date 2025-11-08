@@ -10,6 +10,7 @@ import 'package:my_app/arc/arcform/models/arcform_models.dart';
 import 'package:my_app/arc/arcform/layouts/layouts_3d.dart';
 import 'package:my_app/arc/arcform/render/arcform_renderer_3d.dart';
 import 'package:my_app/arc/arcform/util/seeded.dart';
+import 'phase_arcform_3d_screen.dart';
 
 /// ARCForm Timeline View - Shows historical ARCForms for each phase regime
 class ArcformTimelineView extends StatefulWidget {
@@ -26,15 +27,52 @@ class ArcformTimelineView extends StatefulWidget {
 
 class _ArcformTimelineViewState extends State<ArcformTimelineView> {
   final Map<String, Arcform3DData?> _arcformCache = {};
+  final ScrollController _scrollController = ScrollController();
+  bool _canScrollDown = false;
+  bool _canScrollUp = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController.addListener(_onScroll);
+    // Check scrollability after first frame
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && _scrollController.hasClients) {
+        _onScroll();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _scrollController.removeListener(_onScroll);
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _onScroll() {
+    if (!_scrollController.hasClients) return;
+    
+    final canScrollDown = _scrollController.position.pixels < 
+        _scrollController.position.maxScrollExtent - 10;
+    final canScrollUp = _scrollController.position.pixels > 10;
+    
+    if (canScrollDown != _canScrollDown || canScrollUp != _canScrollUp) {
+      setState(() {
+        _canScrollDown = canScrollDown;
+        _canScrollUp = canScrollUp;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final regimes = widget.phaseIndex.allRegimes;
     
-    // Sort regimes by start date (oldest first)
+    // Sort regimes by start date (newest first)
     final sortedRegimes = List<PhaseRegime>.from(regimes)
-      ..sort((a, b) => a.start.compareTo(b.start));
+      ..sort((a, b) => b.start.compareTo(a.start));
 
     return Card(
       child: Padding(
@@ -56,8 +94,42 @@ class _ArcformTimelineViewState extends State<ArcformTimelineView> {
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
+                if (sortedRegimes.isNotEmpty)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.primary.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      '${sortedRegimes.length} ${sortedRegimes.length == 1 ? 'phase' : 'phases'}',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.primary,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 11,
+                      ),
+                    ),
+                  ),
               ],
             ),
+            if (sortedRegimes.isNotEmpty && sortedRegimes.length > 1)
+              Padding(
+                padding: const EdgeInsets.only(top: 8.0),
+                child: Row(
+                  children: [
+                    Icon(Icons.swipe_vertical, size: 14, color: Colors.grey[600]),
+                    const SizedBox(width: 4),
+                    Text(
+                      'Scroll to view all phases',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: Colors.grey[600],
+                        fontSize: 11,
+                        fontStyle: FontStyle.italic,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             const SizedBox(height: 16),
             if (sortedRegimes.isEmpty)
               Padding(
@@ -70,16 +142,79 @@ class _ArcformTimelineViewState extends State<ArcformTimelineView> {
                 ),
               )
             else
-              ConstrainedBox(
-                constraints: const BoxConstraints(maxHeight: 280),
-                child: ListView.builder(
-                  shrinkWrap: true,
-                  itemCount: sortedRegimes.length,
-                  itemBuilder: (context, index) {
-                    final regime = sortedRegimes[index];
-                    return _buildArcformTimelineItem(theme, regime, index == sortedRegimes.length - 1);
-                  },
-                ),
+              Stack(
+                children: [
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(maxHeight: 280),
+                    child: ListView.builder(
+                      controller: _scrollController,
+                      shrinkWrap: true,
+                      itemCount: sortedRegimes.length,
+                      padding: const EdgeInsets.only(bottom: 8),
+                      itemBuilder: (context, index) {
+                        final regime = sortedRegimes[index];
+                        // First item (index 0) is the newest/current phase
+                        return _buildArcformTimelineItem(theme, regime, index == 0);
+                      },
+                    ),
+                  ),
+                  // Fade gradient at bottom to indicate more content
+                  if (_canScrollDown)
+                    Positioned(
+                      bottom: 0,
+                      left: 0,
+                      right: 0,
+                      child: Container(
+                        height: 40,
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            colors: [
+                              Colors.transparent,
+                              theme.cardColor.withOpacity(0.9),
+                              theme.cardColor,
+                            ],
+                          ),
+                        ),
+                        child: Center(
+                          child: Icon(
+                            Icons.keyboard_arrow_down,
+                            color: theme.colorScheme.primary.withOpacity(0.6),
+                            size: 24,
+                          ),
+                        ),
+                      ),
+                    ),
+                  // Fade gradient at top to indicate scrollable up
+                  if (_canScrollUp)
+                    Positioned(
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      child: Container(
+                        height: 40,
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.bottomCenter,
+                            end: Alignment.topCenter,
+                            colors: [
+                              Colors.transparent,
+                              theme.cardColor.withOpacity(0.9),
+                              theme.cardColor,
+                            ],
+                          ),
+                        ),
+                        child: Center(
+                          child: Icon(
+                            Icons.keyboard_arrow_up,
+                            color: theme.colorScheme.primary.withOpacity(0.6),
+                            size: 24,
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
               ),
           ],
         ),
@@ -97,23 +232,39 @@ class _ArcformTimelineViewState extends State<ArcformTimelineView> {
       builder: (context, snapshot) {
         final arcform = snapshot.data;
         
-        return Container(
-          margin: const EdgeInsets.only(bottom: 16.0),
-          decoration: BoxDecoration(
-            border: Border(
-              left: BorderSide(color: color, width: 4),
-            ),
-            color: color.withOpacity(0.05),
-            borderRadius: const BorderRadius.only(
-              topRight: Radius.circular(8),
-              bottomRight: Radius.circular(8),
-            ),
+        return InkWell(
+          onTap: () {
+            // Navigate to 3D ARCForm view using the same architecture as the ARCForms tab
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (context) => PhaseArcform3DScreen(
+                  phase: phaseName,
+                  title: '$phaseName Phase - 3D Constellation View',
+                ),
+              ),
+            );
+          },
+          borderRadius: const BorderRadius.only(
+            topRight: Radius.circular(8),
+            bottomRight: Radius.circular(8),
           ),
-          child: Padding(
-            padding: const EdgeInsets.all(12.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
+          child: Container(
+            margin: const EdgeInsets.only(bottom: 16.0),
+            decoration: BoxDecoration(
+              border: Border(
+                left: BorderSide(color: color, width: 4),
+              ),
+              color: color.withOpacity(0.05),
+              borderRadius: const BorderRadius.only(
+                topRight: Radius.circular(8),
+                bottomRight: Radius.circular(8),
+              ),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(12.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
                 // Phase header
                 Row(
                   children: [
@@ -148,6 +299,12 @@ class _ArcformTimelineViewState extends State<ArcformTimelineView> {
                           ),
                         ),
                       ),
+                    const SizedBox(width: 8),
+                    Icon(
+                      Icons.open_in_new,
+                      size: 16,
+                      color: theme.colorScheme.primary.withOpacity(0.6),
+                    ),
                   ],
                 ),
                 const SizedBox(height: 8),
@@ -234,6 +391,7 @@ class _ArcformTimelineViewState extends State<ArcformTimelineView> {
               ],
             ),
           ),
+        ),
         );
       },
     );

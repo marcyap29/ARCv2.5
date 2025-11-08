@@ -592,7 +592,8 @@ class PhaseRegimeService {
 
   /// Update hashtags for entries in a regime
   /// Removes old phase hashtags and adds the new phase hashtag
-  Future<int> updateHashtagsForRegime(PhaseRegime regime, {PhaseLabel? oldLabel}) async {
+  /// If oldRegime is provided, removes hashtags from entries that are no longer in the regime
+  Future<int> updateHashtagsForRegime(PhaseRegime regime, {PhaseLabel? oldLabel, PhaseRegime? oldRegime}) async {
     try {
       final journalRepo = JournalRepository();
       final entries = _getEntriesInDateRange(regime.start, regime.end);
@@ -658,6 +659,41 @@ class PhaseRegimeService {
         } catch (e) {
           print('DEBUG: Error updating entry ${entry.id}: $e');
         }
+      }
+      
+      // If oldRegime is provided, remove hashtags from entries that are no longer in the regime
+      if (oldRegime != null) {
+        final oldEntries = _getEntriesInDateRange(oldRegime.start, oldRegime.end);
+        final newEntryIds = entries.map((e) => e.id).toSet();
+        
+        int removedCount = 0;
+        for (final oldEntry in oldEntries) {
+          // Skip if entry is still in the new regime
+          if (newEntryIds.contains(oldEntry.id)) continue;
+          
+          try {
+            final phaseName = _getPhaseLabelName(oldRegime.label).toLowerCase();
+            final oldHashtag = '#$phaseName';
+            final contentLower = oldEntry.content.toLowerCase();
+            
+            if (contentLower.contains(oldHashtag)) {
+              // Remove old hashtag
+              final regex = RegExp(RegExp.escape(oldHashtag), caseSensitive: false);
+              final updatedContent = oldEntry.content.replaceAll(regex, '').trim();
+              
+              final updatedEntry = oldEntry.copyWith(
+                content: updatedContent,
+                updatedAt: DateTime.now(),
+              );
+              await journalRepo.updateJournalEntry(updatedEntry);
+              removedCount++;
+            }
+          } catch (e) {
+            print('DEBUG: Error removing hashtag from entry ${oldEntry.id}: $e');
+          }
+        }
+        
+        print('DEBUG: Removed hashtags from $removedCount entries that are no longer in regime');
       }
       
       print('DEBUG: Successfully updated hashtags for $updatedCount/${entries.length} entries');

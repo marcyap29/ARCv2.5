@@ -106,7 +106,7 @@ class _PhaseTimelineViewState extends State<PhaseTimelineView> {
       print('DEBUG: PhaseTimelineView.build() - Visible range: $_visibleStart to $_visibleEnd');
       print('DEBUG: PhaseTimelineView.build() - PhaseIndex: ${widget.phaseIndex}');
       for (final regime in regimes) {
-        print('DEBUG: Regime - ${regime.label.name}: ${regime.start} to ${regime.end ?? 'ongoing'}');
+        print('DEBUG: Regime - ${_getPhaseLabelName(regime.label)}: ${regime.start} to ${regime.end ?? 'ongoing'}');
       }
 
       return SingleChildScrollView(
@@ -115,13 +115,9 @@ class _PhaseTimelineViewState extends State<PhaseTimelineView> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           mainAxisSize: MainAxisSize.min,
           children: [
-            _buildTimelineHeader(theme),
+            _buildCombinedTimelineCard(theme, regimes),
             const SizedBox(height: 12),
             _buildPhaseLegend(theme),
-            const SizedBox(height: 12),
-            _buildTimelineVisualization(theme, regimes),
-            const SizedBox(height: 12),
-            _buildRegimeList(theme, regimes),
             const SizedBox(height: 12),
             ConstrainedBox(
               constraints: const BoxConstraints(maxHeight: 400),
@@ -164,12 +160,14 @@ class _PhaseTimelineViewState extends State<PhaseTimelineView> {
     }
   }
 
-  Widget _buildTimelineHeader(ThemeData theme) {
+  Widget _buildCombinedTimelineCard(ThemeData theme, List<PhaseRegime> regimes) {
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Header section (from Phase Timeline card)
             Row(
               children: [
                 Icon(Icons.timeline, color: theme.colorScheme.primary),
@@ -178,34 +176,161 @@ class _PhaseTimelineViewState extends State<PhaseTimelineView> {
                   'Phase Timeline',
                   style: theme.textTheme.headlineSmall,
                 ),
-                const Spacer(),
-                _buildCurrentPhaseChip(theme),
               ],
             ),
             const SizedBox(height: 16),
             _buildTimelineStats(theme),
+            const SizedBox(height: 16),
+            const Divider(),
+            const SizedBox(height: 16),
+            // Timeline Visualization section
+            Row(
+              children: [
+                Icon(Icons.view_timeline, color: theme.colorScheme.primary, size: 20),
+                const SizedBox(width: 8),
+                Text(
+                  'Timeline Visualization',
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            // Timeline visualization content
+            if (regimes.isEmpty)
+              Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(32.0),
+                  child: Column(
+                    children: [
+                      Icon(Icons.info_outline, size: 48, color: Colors.grey),
+                      const SizedBox(height: 16),
+                      Text(
+                        'No phase regimes yet',
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          color: Colors.grey,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Run Phase Analysis to detect phases automatically',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: Colors.grey,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
+                  ),
+                ),
+              )
+            else ...[
+              _buildTimelineAxis(theme),
+              const SizedBox(height: 8),
+              Container(
+                height: 120,
+                decoration: BoxDecoration(
+                  border: Border.all(color: theme.dividerColor),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: CustomPaint(
+                    painter: PhaseTimelinePainter(
+                      regimes: regimes,
+                      visibleStart: _visibleStart,
+                      visibleEnd: _visibleEnd,
+                      zoomLevel: _zoomLevel,
+                      theme: theme,
+                    ),
+                    child: GestureDetector(
+                      onTapDown: (details) => _handleTimelineTap(details, regimes),
+                      child: Container(
+                        width: double.infinity,
+                        height: 120,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
+              _buildTimelineLabels(theme),
+            ],
+            const SizedBox(height: 16),
+            const Divider(),
+            const SizedBox(height: 16),
+            // Phase Regimes List section
+            Row(
+              children: [
+                Icon(Icons.list, color: theme.colorScheme.primary, size: 20),
+                const SizedBox(width: 8),
+                Text(
+                  'Phase Regimes (${regimes.length})',
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            // Regime list
+            ..._buildRegimeListItems(regimes, theme),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildCurrentPhaseChip(ThemeData theme) {
-    final currentRegime = widget.phaseIndex.currentRegime;
-    if (currentRegime == null) {
-      return const Chip(
-        label: Text('No Phase'),
-        backgroundColor: Colors.grey,
+  List<Widget> _buildRegimeListItems(List<PhaseRegime> regimes, ThemeData theme) {
+    if (regimes.isEmpty) {
+      return [
+        Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Center(
+            child: Column(
+              children: [
+                Icon(Icons.info_outline, size: 32, color: Colors.grey),
+                const SizedBox(height: 8),
+                Text(
+                  'No phase regimes yet',
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: Colors.grey,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ];
+    }
+
+    final sortedRegimes = List<PhaseRegime>.from(regimes)
+      ..sort((a, b) => b.start.compareTo(a.start)); // Newest first
+
+    final items = <Widget>[];
+    for (final regime in sortedRegimes.take(10)) {
+      items.add(_buildRegimeCard(regime, theme));
+    }
+    
+    if (regimes.length > 10) {
+      items.add(
+        Padding(
+          padding: const EdgeInsets.only(top: 8.0),
+          child: Center(
+            child: Text(
+              '+ ${regimes.length - 10} more regimes',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: Colors.grey,
+              ),
+            ),
+          ),
+        ),
       );
     }
     
-    return Chip(
-      label: Text(currentRegime.label.name.toUpperCase()),
-      backgroundColor: _getPhaseColor(currentRegime.label).withOpacity(0.2),
-      side: BorderSide(color: _getPhaseColor(currentRegime.label)),
-      onDeleted: () => _showPhaseChangeDialog(),
-    );
+    return items;
   }
+
 
   Widget _buildTimelineStats(ThemeData theme) {
     final stats = widget.phaseIndex.stats;
@@ -335,112 +460,6 @@ class _PhaseTimelineViewState extends State<PhaseTimelineView> {
     );
   }
 
-  Widget _buildTimelineVisualization(ThemeData theme, List<PhaseRegime> regimes) {
-    if (regimes.isEmpty) {
-      return Card(
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Icon(Icons.view_timeline, color: theme.colorScheme.primary, size: 20),
-                  const SizedBox(width: 8),
-                  Text(
-                    'Timeline Visualization',
-                    style: theme.textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              Center(
-                child: Padding(
-                  padding: const EdgeInsets.all(32.0),
-                  child: Column(
-                    children: [
-                      Icon(Icons.info_outline, size: 48, color: Colors.grey),
-                      const SizedBox(height: 16),
-                      Text(
-                        'No phase regimes yet',
-                        style: theme.textTheme.titleMedium?.copyWith(
-                          color: Colors.grey,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'Run Phase Analysis to detect phases automatically',
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: Colors.grey,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
-
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(Icons.view_timeline, color: theme.colorScheme.primary, size: 20),
-                const SizedBox(width: 8),
-                Text(
-                  'Timeline Visualization',
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            _buildTimelineAxis(theme),
-            const SizedBox(height: 8),
-            Container(
-              height: 120,
-              decoration: BoxDecoration(
-                border: Border.all(color: theme.dividerColor),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(8),
-                child: CustomPaint(
-                  painter: PhaseTimelinePainter(
-                    regimes: regimes,
-                    visibleStart: _visibleStart,
-                    visibleEnd: _visibleEnd,
-                    zoomLevel: _zoomLevel,
-                    theme: theme,
-                  ),
-                  child: GestureDetector(
-                    onTapDown: (details) => _handleTimelineTap(details, regimes),
-                    child: Container(
-                      width: double.infinity,
-                      height: 120,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(height: 8),
-            _buildTimelineLabels(theme),
-          ],
-        ),
-      ),
-    );
-  }
 
   Widget _buildTimelineAxis(ThemeData theme) {
     return Row(
@@ -515,76 +534,6 @@ class _PhaseTimelineViewState extends State<PhaseTimelineView> {
     );
   }
 
-  Widget _buildRegimeList(ThemeData theme, List<PhaseRegime> regimes) {
-    if (regimes.isEmpty) {
-      return Card(
-        child: Padding(
-          padding: const EdgeInsets.all(32.0),
-          child: Center(
-            child: Column(
-              children: [
-                Icon(Icons.info_outline, size: 48, color: Colors.grey),
-                const SizedBox(height: 16),
-                Text(
-                  'No phase regimes yet',
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    color: Colors.grey,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Run Phase Analysis to detect phases automatically',
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: Colors.grey,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      );
-    }
-
-    final sortedRegimes = List<PhaseRegime>.from(regimes)
-      ..sort((a, b) => b.start.compareTo(a.start)); // Newest first
-
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(Icons.list, color: theme.colorScheme.primary, size: 20),
-                const SizedBox(width: 8),
-                Text(
-                  'Phase Regimes (${regimes.length})',
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            ...sortedRegimes.take(10).map((regime) => _buildRegimeCard(regime, theme)),
-            if (regimes.length > 10)
-              Padding(
-                padding: const EdgeInsets.only(top: 8.0),
-                child: Center(
-                  child: Text(
-                    '+ ${regimes.length - 10} more regimes',
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: Colors.grey,
-                    ),
-                  ),
-                ),
-              ),
-          ],
-        ),
-      ),
-    );
-  }
 
   Widget _buildRegimeCard(PhaseRegime regime, ThemeData theme) {
     final color = _getPhaseColor(regime.label);
@@ -628,7 +577,7 @@ class _PhaseTimelineViewState extends State<PhaseTimelineView> {
         title: Row(
           children: [
             Text(
-              regime.label.name.toUpperCase(),
+              _getPhaseLabelName(regime.label).toUpperCase(),
               style: theme.textTheme.bodyMedium?.copyWith(
                 fontWeight: FontWeight.bold,
                 color: color,
@@ -725,6 +674,15 @@ class _PhaseTimelineViewState extends State<PhaseTimelineView> {
                 label: const Text('Change Phase'),
               ),
             ),
+            const SizedBox(height: 8),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: _showAddRegimeDialog,
+                icon: const Icon(Icons.add_circle_outline, size: 18),
+                label: const Text('Add New Regime'),
+              ),
+            ),
           ],
         ),
       ),
@@ -764,6 +722,14 @@ class _PhaseTimelineViewState extends State<PhaseTimelineView> {
               style: Theme.of(context).textTheme.headlineSmall,
             ),
             const SizedBox(height: 16),
+            ListTile(
+              leading: const Icon(Icons.calendar_today),
+              title: const Text('Edit Dates'),
+              onTap: () {
+                Navigator.pop(context);
+                _showEditDatesDialog(regime);
+              },
+            ),
             ListTile(
               leading: const Icon(Icons.edit),
               title: const Text('Relabel'),
@@ -863,28 +829,385 @@ class _PhaseTimelineViewState extends State<PhaseTimelineView> {
     );
   }
 
-  void _showSplitDialog(PhaseRegime regime) {
-    // This would show a date picker for split point
+  void _showEditDatesDialog(PhaseRegime regime) {
+    DateTime startDate = regime.start;
+    DateTime? endDate = regime.end;
+    bool isOngoing = regime.isOngoing;
+
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Split Phase'),
-        content: const Text('Date picker for split point would go here'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('Edit Regime Dates'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('Start Date:', style: TextStyle(fontWeight: FontWeight.bold)),
+                const SizedBox(height: 8),
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: Text(_formatDate(startDate)),
+                  trailing: const Icon(Icons.calendar_today),
+                  onTap: () async {
+                    final picked = await showDatePicker(
+                      context: context,
+                      initialDate: startDate,
+                      firstDate: DateTime(2020),
+                      lastDate: DateTime.now().add(const Duration(days: 365)),
+                    );
+                    if (picked != null) {
+                      setDialogState(() {
+                        startDate = picked;
+                      });
+                    }
+                  },
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    Checkbox(
+                      value: !isOngoing,
+                      onChanged: (value) {
+                        setDialogState(() {
+                          isOngoing = value == false;
+                          if (isOngoing) {
+                            endDate = null;
+                          } else if (endDate == null) {
+                            endDate = DateTime.now();
+                          }
+                        });
+                      },
+                    ),
+                    const Text('Set end date'),
+                  ],
+                ),
+                if (!isOngoing) ...[
+                  const SizedBox(height: 8),
+                  const Text('End Date:', style: TextStyle(fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 8),
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: Text(endDate != null ? _formatDate(endDate!) : 'Select date'),
+                    trailing: const Icon(Icons.calendar_today),
+                    onTap: () async {
+                      final picked = await showDatePicker(
+                        context: context,
+                        initialDate: endDate ?? DateTime.now(),
+                        firstDate: startDate,
+                        lastDate: DateTime.now().add(const Duration(days: 365)),
+                      );
+                      if (picked != null) {
+                        setDialogState(() {
+                          endDate = picked;
+                        });
+                      }
+                    },
+                  ),
+                ],
+              ],
+            ),
           ),
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              // Implement split logic
-            },
-            child: const Text('Split'),
-          ),
-        ],
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(context);
+                _editRegimeDates(regime, startDate, isOngoing ? null : endDate);
+              },
+              child: const Text('Save'),
+            ),
+          ],
+        ),
       ),
     );
+  }
+
+  void _showAddRegimeDialog() {
+    PhaseLabel selectedPhase = PhaseLabel.discovery;
+    DateTime startDate = DateTime.now().subtract(const Duration(days: 30));
+    DateTime? endDate;
+    bool isOngoing = true;
+
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('Add New Regime'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('Phase:', style: TextStyle(fontWeight: FontWeight.bold)),
+                const SizedBox(height: 8),
+                ...PhaseLabel.values.map((label) => RadioListTile<PhaseLabel>(
+                  title: Text(_getPhaseLabelName(label).toUpperCase()),
+                  value: label,
+                  groupValue: selectedPhase,
+                  onChanged: (value) {
+                    if (value != null) {
+                      setDialogState(() {
+                        selectedPhase = value;
+                      });
+                    }
+                  },
+                  contentPadding: EdgeInsets.zero,
+                )),
+                const SizedBox(height: 16),
+                const Text('Start Date:', style: TextStyle(fontWeight: FontWeight.bold)),
+                const SizedBox(height: 8),
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: Text(_formatDate(startDate)),
+                  trailing: const Icon(Icons.calendar_today),
+                  onTap: () async {
+                    final picked = await showDatePicker(
+                      context: context,
+                      initialDate: startDate,
+                      firstDate: DateTime(2020),
+                      lastDate: DateTime.now().add(const Duration(days: 365)),
+                    );
+                    if (picked != null) {
+                      setDialogState(() {
+                        startDate = picked;
+                      });
+                    }
+                  },
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    Checkbox(
+                      value: !isOngoing,
+                      onChanged: (value) {
+                        setDialogState(() {
+                          isOngoing = value == false;
+                          if (isOngoing) {
+                            endDate = null;
+                          } else if (endDate == null) {
+                            endDate = DateTime.now();
+                          }
+                        });
+                      },
+                    ),
+                    const Text('Set end date'),
+                  ],
+                ),
+                if (!isOngoing) ...[
+                  const SizedBox(height: 8),
+                  const Text('End Date:', style: TextStyle(fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 8),
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: Text(endDate != null ? _formatDate(endDate!) : 'Select date'),
+                    trailing: const Icon(Icons.calendar_today),
+                    onTap: () async {
+                      final picked = await showDatePicker(
+                        context: context,
+                        initialDate: endDate ?? DateTime.now(),
+                        firstDate: startDate,
+                        lastDate: DateTime.now().add(const Duration(days: 365)),
+                      );
+                      if (picked != null) {
+                        setDialogState(() {
+                          endDate = picked;
+                        });
+                      }
+                    },
+                  ),
+                ],
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(context);
+                _addNewRegime(selectedPhase, startDate, isOngoing ? null : endDate);
+              },
+              child: const Text('Add Regime'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showSplitDialog(PhaseRegime regime) {
+    DateTime splitDate = regime.start.add(Duration(
+      days: regime.duration.inDays ~/ 2,
+    ));
+    PhaseLabel newPhaseLabel = regime.label;
+
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('Split Phase'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Current Phase: ${_getPhaseLabelName(regime.label).toUpperCase()}',
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+                Text(
+                  '${_formatDate(regime.start)} - ${regime.end != null ? _formatDate(regime.end!) : "Ongoing"}',
+                  style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                ),
+                const SizedBox(height: 16),
+                const Divider(),
+                const SizedBox(height: 16),
+                const Text('Split Date:', style: TextStyle(fontWeight: FontWeight.bold)),
+                const SizedBox(height: 8),
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: Text(_formatDate(splitDate)),
+                  subtitle: Text(
+                    'This phase will end on this date',
+                    style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                  ),
+                  trailing: const Icon(Icons.calendar_today),
+                  onTap: () async {
+                    final picked = await showDatePicker(
+                      context: context,
+                      initialDate: splitDate,
+                      firstDate: regime.start,
+                      lastDate: regime.end ?? DateTime.now(),
+                    );
+                    if (picked != null) {
+                      setDialogState(() {
+                        splitDate = picked;
+                      });
+                    }
+                  },
+                ),
+                const SizedBox(height: 16),
+                const Text('New Phase After Split:', style: TextStyle(fontWeight: FontWeight.bold)),
+                const SizedBox(height: 8),
+                ...PhaseLabel.values.map((label) => RadioListTile<PhaseLabel>(
+                  title: Text(_getPhaseLabelName(label).toUpperCase()),
+                  value: label,
+                  groupValue: newPhaseLabel,
+                  onChanged: (value) {
+                    if (value != null) {
+                      setDialogState(() {
+                        newPhaseLabel = value;
+                      });
+                    }
+                  },
+                  contentPadding: EdgeInsets.zero,
+                )),
+                const SizedBox(height: 8),
+                Text(
+                  'The phase from ${_formatDate(splitDate)} onwards will be ${_getPhaseLabelName(newPhaseLabel).toUpperCase()}',
+                  style: TextStyle(fontSize: 12, color: Colors.grey[600], fontStyle: FontStyle.italic),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(context);
+                _splitRegime(regime, splitDate, newPhaseLabel);
+              },
+              child: const Text('Split Phase'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _splitRegime(PhaseRegime regime, DateTime splitDate, PhaseLabel newPhaseLabel) async {
+    try {
+      // Get PhaseRegimeService
+      final analyticsService = AnalyticsService();
+      final rivetSweepService = RivetSweepService(analyticsService);
+      final phaseRegimeService = PhaseRegimeService(analyticsService, rivetSweepService);
+      await phaseRegimeService.initialize();
+
+      // Validate split date
+      if (splitDate.isBefore(regime.start) || 
+          (regime.end != null && splitDate.isAfter(regime.end!))) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Split date must be within the phase date range'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+
+      // Split the regime
+      final splitRegimes = await phaseRegimeService.splitRegime(regime.id, splitDate);
+      
+      if (splitRegimes.length > 1) {
+        // Update the second regime with new label
+        final updatedRegime = splitRegimes[1].copyWith(
+          label: newPhaseLabel,
+          source: PhaseSource.user,
+          updatedAt: DateTime.now(),
+        );
+        
+        // Count entries that would be affected
+        final entryCount = phaseRegimeService.countEntriesForRegime(updatedRegime);
+        
+        // Show confirmation dialog for hashtag update
+        final shouldUpdateHashtags = await _showHashtagUpdateConfirmation(
+          'Split Phase',
+          'This will split ${_getPhaseLabelName(regime.label).toUpperCase()} phase at ${_formatDate(splitDate)}.\n\n'
+          'Phase before split: ${_getPhaseLabelName(regime.label).toUpperCase()}\n'
+          'Phase after split: ${_getPhaseLabelName(newPhaseLabel).toUpperCase()}\n\n'
+          'Would you like to update hashtags in ${entryCount > 0 ? "$entryCount entries" : "entries"}?',
+          entryCount,
+        );
+        
+        if (shouldUpdateHashtags == null) return; // User cancelled
+        
+        await phaseRegimeService.updateRegime(
+          updatedRegime,
+          updateHashtags: shouldUpdateHashtags == true,
+          oldLabel: regime.label,
+        );
+        
+        // Refresh UI
+        if (mounted) {
+          setState(() {});
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Phase split at ${_formatDate(splitDate)}'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to split phase: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   Future<void> _changeCurrentPhase(PhaseLabel newLabel) async {
@@ -1019,6 +1342,124 @@ class _PhaseTimelineViewState extends State<PhaseTimelineView> {
     
     final nextRegime = regimes[regimeIndex + 1];
     
+    // Show confirmation dialog with both regimes clearly displayed
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Merge Phases'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'You are about to merge these two phases:',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 16),
+              // First regime
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: _getPhaseColor(regime.label).withOpacity(0.1),
+                  border: Border.all(color: _getPhaseColor(regime.label)),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          width: 12,
+                          height: 12,
+                          decoration: BoxDecoration(
+                            color: _getPhaseColor(regime.label),
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          _getPhaseLabelName(regime.label).toUpperCase(),
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      '${_formatDate(regime.start)} - ${regime.end != null ? _formatDate(regime.end!) : "Ongoing"}',
+                      style: TextStyle(fontSize: 12, color: Colors.grey[700]),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
+              // Arrow indicator
+              Center(
+                child: Icon(Icons.arrow_downward, color: Colors.grey[400]),
+              ),
+              const SizedBox(height: 12),
+              // Second regime
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: _getPhaseColor(nextRegime.label).withOpacity(0.1),
+                  border: Border.all(color: _getPhaseColor(nextRegime.label)),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          width: 12,
+                          height: 12,
+                          decoration: BoxDecoration(
+                            color: _getPhaseColor(nextRegime.label),
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          _getPhaseLabelName(nextRegime.label).toUpperCase(),
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      '${_formatDate(nextRegime.start)} - ${nextRegime.end != null ? _formatDate(nextRegime.end!) : "Ongoing"}',
+                      style: TextStyle(fontSize: 12, color: Colors.grey[700]),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              const Divider(),
+              const SizedBox(height: 8),
+              Text(
+                'Result: A single ${_getPhaseLabelName(regime.label).toUpperCase()} phase from ${_formatDate(regime.start)} to ${nextRegime.end != null ? _formatDate(nextRegime.end!) : "Ongoing"}',
+                style: TextStyle(fontSize: 12, color: Colors.grey[600], fontStyle: FontStyle.italic),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Merge Phases'),
+          ),
+        ],
+      ),
+    );
+    
+    if (confirmed != true) return; // User cancelled
+    
     try {
       // Get PhaseRegimeService
       final analyticsService = AnalyticsService();
@@ -1036,7 +1477,7 @@ class _PhaseTimelineViewState extends State<PhaseTimelineView> {
         // Show confirmation dialog for hashtag update
         final shouldUpdateHashtags = await _showHashtagUpdateConfirmation(
           'Merge Phases',
-          'This will merge ${_getPhaseLabelName(regime.label).toUpperCase()} and ${_getPhaseLabelName(nextRegime.label).toUpperCase()} phases.\n\n'
+          'Phases merged successfully.\n\n'
           'Would you like to update hashtags in ${entryCount > 0 ? "$entryCount entries" : "entries"}?',
           entryCount,
         );
@@ -1050,7 +1491,7 @@ class _PhaseTimelineViewState extends State<PhaseTimelineView> {
           setState(() {});
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Phases merged'),
+              content: Text('Phases merged successfully'),
               backgroundColor: Colors.green,
             ),
           );
@@ -1079,6 +1520,78 @@ class _PhaseTimelineViewState extends State<PhaseTimelineView> {
       return;
     }
     
+    DateTime endDate = DateTime.now();
+    
+    // Show dialog to confirm end date
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('End Phase'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Current Phase: ${_getPhaseLabelName(regime.label).toUpperCase()}',
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+                Text(
+                  'Started: ${_formatDate(regime.start)}',
+                  style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                ),
+                const SizedBox(height: 16),
+                const Divider(),
+                const SizedBox(height: 16),
+                const Text('End Date:', style: TextStyle(fontWeight: FontWeight.bold)),
+                const SizedBox(height: 8),
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: Text(_formatDate(endDate)),
+                  subtitle: const Text(
+                    'Select the date when this phase ended',
+                    style: TextStyle(fontSize: 12, color: Colors.grey),
+                  ),
+                  trailing: const Icon(Icons.calendar_today),
+                  onTap: () async {
+                    final picked = await showDatePicker(
+                      context: context,
+                      initialDate: endDate,
+                      firstDate: regime.start,
+                      lastDate: DateTime.now(),
+                    );
+                    if (picked != null) {
+                      setDialogState(() {
+                        endDate = picked;
+                      });
+                    }
+                  },
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Duration: ${endDate.difference(regime.start).inDays} days',
+                  style: TextStyle(fontSize: 12, color: Colors.grey[600], fontStyle: FontStyle.italic),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('End Phase'),
+            ),
+          ],
+        ),
+      ),
+    );
+    
+    if (confirmed != true) return; // User cancelled
+    
     try {
       // Get PhaseRegimeService
       final analyticsService = AnalyticsService();
@@ -1088,7 +1601,7 @@ class _PhaseTimelineViewState extends State<PhaseTimelineView> {
       
       // End the regime
       final endedRegime = regime.copyWith(
-        end: DateTime.now(),
+        end: endDate,
         updatedAt: DateTime.now(),
       );
       await phaseRegimeService.updateRegime(endedRegime);
@@ -1098,7 +1611,7 @@ class _PhaseTimelineViewState extends State<PhaseTimelineView> {
         setState(() {});
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Phase ended'),
+            content: Text('Phase ended on ${_formatDate(endDate)}'),
             backgroundColor: Colors.green,
           ),
         );
@@ -1159,6 +1672,167 @@ class _PhaseTimelineViewState extends State<PhaseTimelineView> {
 
   String _getPhaseLabelName(PhaseLabel label) {
     return label.toString().split('.').last;
+  }
+
+  Future<void> _editRegimeDates(PhaseRegime regime, DateTime newStart, DateTime? newEnd) async {
+    // Validate dates
+    if (newEnd != null && newEnd.isBefore(newStart)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('End date must be after start date'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    try {
+      // Get PhaseRegimeService
+      final analyticsService = AnalyticsService();
+      final rivetSweepService = RivetSweepService(analyticsService);
+      final phaseRegimeService = PhaseRegimeService(analyticsService, rivetSweepService);
+      await phaseRegimeService.initialize();
+
+      // Check if dates changed
+      final datesChanged = regime.start != newStart || regime.end != newEnd;
+      if (!datesChanged) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('No changes made'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+        return;
+      }
+
+      // Count entries that would be affected by the new date range
+      final newRegime = regime.copyWith(
+        start: newStart,
+        end: newEnd,
+        updatedAt: DateTime.now(),
+      );
+      final entryCount = phaseRegimeService.countEntriesForRegime(newRegime);
+
+      // Show confirmation dialog for hashtag updates
+      final shouldUpdateHashtags = await _showHashtagUpdateConfirmation(
+        'Edit Regime Dates',
+        'This will change the date range from ${_formatDate(regime.start)} - ${regime.end != null ? _formatDate(regime.end!) : "Ongoing"} to ${_formatDate(newStart)} - ${newEnd != null ? _formatDate(newEnd) : "Ongoing"}.\n\n'
+        'Would you like to update hashtags in ${entryCount > 0 ? "$entryCount entries" : "entries"}?',
+        entryCount,
+      );
+
+      if (shouldUpdateHashtags == null) return; // User cancelled
+
+      // Update regime dates
+      if (shouldUpdateHashtags) {
+        // Update hashtags, handling entries that moved in/out of the regime
+        await phaseRegimeService.updateHashtagsForRegime(
+          newRegime,
+          oldRegime: regime,
+        );
+      }
+      
+      await phaseRegimeService.updateRegime(
+        newRegime,
+        updateHashtags: false, // We already handled hashtags above
+      );
+
+      // Refresh UI
+      if (mounted) {
+        setState(() {});
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Regime dates updated'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to update dates: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _addNewRegime(PhaseLabel phaseLabel, DateTime startDate, DateTime? endDate) async {
+    // Validate dates
+    if (endDate != null && endDate.isBefore(startDate)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('End date must be after start date'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    try {
+      // Get PhaseRegimeService
+      final analyticsService = AnalyticsService();
+      final rivetSweepService = RivetSweepService(analyticsService);
+      final phaseRegimeService = PhaseRegimeService(analyticsService, rivetSweepService);
+      await phaseRegimeService.initialize();
+
+      // Count entries that would be affected
+      final tempRegime = PhaseRegime(
+        id: 'temp',
+        label: phaseLabel,
+        start: startDate,
+        end: endDate,
+        source: PhaseSource.user,
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+      );
+      final entryCount = phaseRegimeService.countEntriesForRegime(tempRegime);
+
+      // Show confirmation dialog for hashtag updates
+      final shouldUpdateHashtags = await _showHashtagUpdateConfirmation(
+        'Add New Regime',
+        'This will create a new ${_getPhaseLabelName(phaseLabel).toUpperCase()} phase from ${_formatDate(startDate)} to ${endDate != null ? _formatDate(endDate) : "Ongoing"}.\n\n'
+        'Would you like to update hashtags in ${entryCount > 0 ? "$entryCount entries" : "entries"}?',
+        entryCount,
+      );
+
+      if (shouldUpdateHashtags == null) return; // User cancelled
+
+      // Create new regime
+      final newRegime = await phaseRegimeService.createRegime(
+        label: phaseLabel,
+        start: startDate,
+        end: endDate,
+        source: PhaseSource.user,
+      );
+
+      // Update hashtags if requested
+      if (shouldUpdateHashtags) {
+        await phaseRegimeService.updateHashtagsForRegime(newRegime);
+      }
+
+      // Refresh UI
+      if (mounted) {
+        setState(() {});
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('New ${_getPhaseLabelName(phaseLabel).toUpperCase()} regime added'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to add regime: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   void _showDeleteConfirmation(PhaseRegime regime) {
@@ -1291,9 +1965,10 @@ class PhaseTimelinePainter extends CustomPainter {
       
       // Draw regime label
       if (width > 60) {
+        final phaseName = regime.label.toString().split('.').last.toUpperCase();
         final textPainter = TextPainter(
           text: TextSpan(
-            text: regime.label.name.toUpperCase(),
+            text: phaseName,
             style: theme.textTheme.bodySmall?.copyWith(
               color: Colors.white,
               fontWeight: FontWeight.bold,

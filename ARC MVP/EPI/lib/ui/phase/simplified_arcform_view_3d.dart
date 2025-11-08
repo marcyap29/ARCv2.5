@@ -364,14 +364,14 @@ class _SimplifiedArcformView3DState extends State<SimplifiedArcformView3D> {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3), // Reduced padding
                     decoration: BoxDecoration(
-                      color: kcPrimaryColor.withOpacity(0.1),
+                      color: _getPhaseColor(phaseHint).withOpacity(0.1),
                       borderRadius: BorderRadius.circular(10), // Reduced from 12
-                      border: Border.all(color: kcPrimaryColor.withOpacity(0.3)),
+                      border: Border.all(color: _getPhaseColor(phaseHint).withOpacity(0.3)),
                     ),
                     child: Text(
                       phaseHint.toUpperCase(),
                       style: TextStyle(
-                        color: kcPrimaryColor,
+                        color: _getPhaseColor(phaseHint),
                         fontSize: 9, // Reduced from 10
                         fontWeight: FontWeight.bold,
                       ),
@@ -389,7 +389,7 @@ class _SimplifiedArcformView3DState extends State<SimplifiedArcformView3D> {
                 decoration: BoxDecoration(
                   color: kcBackgroundColor,
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: kcSecondaryColor.withOpacity(0.3)),
+                  border: Border.all(color: _getPhaseColor(phaseHint).withOpacity(0.5)),
                 ),
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(8),
@@ -470,14 +470,14 @@ class _SimplifiedArcformView3DState extends State<SimplifiedArcformView3D> {
                   children: keywords.take(6).map((keyword) => Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
-                      color: kcPrimaryColor.withOpacity(0.1),
+                      color: _getPhaseColor(phaseHint).withOpacity(0.1),
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: kcPrimaryColor.withOpacity(0.3)),
+                      border: Border.all(color: _getPhaseColor(phaseHint).withOpacity(0.3)),
                     ),
                     child: Text(
                       keyword,
                       style: TextStyle(
-                        color: kcPrimaryColor,
+                        color: _getPhaseColor(phaseHint),
                         fontSize: 11,
                         fontWeight: FontWeight.w500,
                       ),
@@ -1066,6 +1066,7 @@ class _SimplifiedArcformView3DState extends State<SimplifiedArcformView3D> {
 
   /// Build a small chip showing a phase preview
   Widget _buildPhasePreviewChip(String phase) {
+    final phaseColor = _getPhaseColor(phase);
     return GestureDetector(
       onTap: () {
         // Navigate to this phase's full 3D view
@@ -1074,9 +1075,9 @@ class _SimplifiedArcformView3DState extends State<SimplifiedArcformView3D> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(
-          color: kcBackgroundColor,
+          color: phaseColor.withOpacity(0.1),
           borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: kcSecondaryColor.withOpacity(0.3)),
+          border: Border.all(color: phaseColor.withOpacity(0.5)),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -1084,14 +1085,14 @@ class _SimplifiedArcformView3DState extends State<SimplifiedArcformView3D> {
             // Phase icon (different for each phase type)
             Icon(
               _getPhaseIcon(phase),
-              color: kcPrimaryColor.withOpacity(0.7),
+              color: phaseColor,
               size: 16,
             ),
             const SizedBox(width: 6),
             Text(
               phase,
               style: TextStyle(
-                color: kcPrimaryColor,
+                color: phaseColor,
                 fontSize: 12,
                 fontWeight: FontWeight.w500,
               ),
@@ -1119,6 +1120,26 @@ class _SimplifiedArcformView3DState extends State<SimplifiedArcformView3D> {
         return Icons.auto_awesome;
       default:
         return Icons.auto_awesome_outlined;
+    }
+  }
+
+  /// Get color for phase name (matches Phase Legend colors)
+  Color _getPhaseColor(String phase) {
+    switch (phase.toLowerCase()) {
+      case 'discovery':
+        return Colors.blue;
+      case 'expansion':
+        return Colors.green;
+      case 'transition':
+        return Colors.orange;
+      case 'consolidation':
+        return Colors.purple;
+      case 'recovery':
+        return Colors.red;
+      case 'breakthrough':
+        return Colors.amber;
+      default:
+        return kcPrimaryColor;
     }
   }
 

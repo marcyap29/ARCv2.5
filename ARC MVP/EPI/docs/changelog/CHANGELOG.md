@@ -1,7 +1,37 @@
 # EPI ARC MVP - Changelog
 
-**Version:** 2.1.4  
-**Last Updated:** January 2025
+**Version:** 2.1.5  
+**Last Updated:** November 7, 2025
+
+## [2.1.5] - November 7, 2025
+
+### **ARCForm Timeline & Color Consistency** - Complete
+
+#### ARCForm Timeline Navigation
+- **Clickable ARCForm Timeline Items**: Made ARCForm timeline items clickable to navigate to full 3D view
+  - Tapping any ARCForm in the timeline opens the full-screen 3D ARCForm viewer
+  - Uses the same `PhaseArcform3DScreen` architecture as the "3D View" button
+  - Added visual indicator (open_in_new icon) to show items are clickable
+  - Consistent navigation pattern across the app
+
+#### Phase Color Consistency
+- **Phase Legend Color Integration**: Updated all phase-related UI elements to use Phase Legend colors
+  - Current phase chip/badge now uses phase-specific color (blue for Discovery, orange for Transition, etc.)
+  - ARCForm preview container border matches the current phase color
+  - Phase Elements keyword chips use the phase color
+  - "Other Phase Shapes" chips each display with their respective phase colors:
+    - Discovery: Blue
+    - Expansion: Green
+    - Transition: Orange
+    - Consolidation: Purple
+    - Recovery: Red
+    - Breakthrough: Amber
+  - All colors match the Phase Legend for visual consistency
+
+#### Files Modified
+- `lib/ui/phase/arcform_timeline_view.dart` - Added clickable navigation to 3D view, added open_in_new icon
+- `lib/ui/phase/simplified_arcform_view_3d.dart` - Added `_getPhaseColor()` helper method, updated all phase-related UI elements to use phase colors
+- `docs/changelog/CHANGELOG.md` - This changelog entry
 
 ## [2.1.4] - January 2025
 
