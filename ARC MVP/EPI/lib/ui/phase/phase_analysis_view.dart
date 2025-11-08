@@ -30,13 +30,22 @@ class _PhaseAnalysisViewState extends State<PhaseAnalysisView>
   PhaseIndex? _phaseIndex;
   bool _isLoading = true;
   String? _error;
-  final GlobalKey<State<SimplifiedArcformView3D>> _arcformsKey = GlobalKey<State<SimplifiedArcformView3D>>();
   final GlobalKey<State<SentinelAnalysisView>> _sentinelKey = GlobalKey<State<SentinelAnalysisView>>();
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 4, vsync: this);
+    // Add listener to refresh ARCForms when switching to that tab
+    _tabController.addListener(() {
+      if (_tabController.index == 0 && mounted) {
+        // ARCForms tab is selected (index 0)
+        print('DEBUG: ARCForms tab selected, refreshing...');
+        setState(() {
+          // Force rebuild to ensure current phase is shown
+        });
+      }
+    });
     _loadPhaseData();
   }
 
@@ -68,10 +77,30 @@ class _PhaseAnalysisViewState extends State<PhaseAnalysisView>
       final phaseRegimeService = PhaseRegimeService(analyticsService, rivetSweepService);
       await phaseRegimeService.initialize();
       
+      // Backfill Discovery regime if needed (for entries before first detected regime)
+      final journalRepo = JournalRepository();
+      await _backfillDiscoveryRegime(phaseRegimeService, journalRepo);
+      
+      // Reload phaseIndex after backfill to ensure it's up to date
+      await phaseRegimeService.initialize();
       _phaseIndex = phaseRegimeService.phaseIndex;
+      
+      print('DEBUG: _loadPhaseData - Total regimes after backfill: ${_phaseIndex?.allRegimes.length ?? 0}');
+      for (final regime in _phaseIndex?.allRegimes ?? []) {
+        print('DEBUG: _loadPhaseData - Regime: ${_getPhaseLabelName(regime.label)} from ${regime.start} to ${regime.end ?? 'ongoing'}');
+      }
+      
+      final currentRegime = _phaseIndex?.currentRegime;
+      final currentPhaseName = currentRegime != null ? _getPhaseLabelName(currentRegime.label) : 'none';
+      print('DEBUG: _loadPhaseData - Current phase determined: $currentPhaseName (ID: ${currentRegime?.id})');
 
       setState(() {
         _isLoading = false;
+      });
+      
+      // Refresh ARCForms to show updated phase
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _refreshArcforms();
       });
     } catch (e) {
       setState(() {
@@ -176,16 +205,39 @@ List<PhaseSegmentProposal> proposals,
         ..sort((a, b) => a.start.compareTo(b.start)); // Sort chronologically
 
       // Create phase regimes from approved proposals (in chronological order)
-      for (final proposal in finalProposals) {
+      for (int i = 0; i < finalProposals.length; i++) {
+        final proposal = finalProposals[i];
+        final isLastProposal = i == finalProposals.length - 1;
+        
+        // If this is the last proposal and it ends today (or very recently), make it ongoing
+        // This handles the case where Transition (or any phase) starts today
+        DateTime? regimeEnd = proposal.end;
+        if (isLastProposal) {
+          final now = DateTime.now();
+          final daysSinceEnd = now.difference(proposal.end).inDays;
+          // If the proposal ends within the last 2 days, consider it ongoing
+          if (daysSinceEnd <= 2) {
+            regimeEnd = null; // Ongoing
+            print('DEBUG: Making last proposal (${_getPhaseLabelName(proposal.proposedLabel)}) ongoing - ended ${daysSinceEnd} days ago');
+          }
+        }
+        
         await phaseRegimeService.createRegime(
           label: proposal.proposedLabel,
           start: proposal.start,
-          end: proposal.end,
+          end: regimeEnd,
           source: PhaseSource.rivet,
           confidence: proposal.confidence,
           anchors: proposal.entryIds,
         );
+        
+        // Add phase hashtags to entries in this regime for future reconstruction
+        await _addPhaseHashtagsToEntries(proposal.entryIds, proposal.proposedLabel);
       }
+
+      // Backfill Discovery regime for any unphased entries before the first regime
+      final journalRepo = JournalRepository();
+      await _backfillDiscoveryRegime(phaseRegimeService, journalRepo);
 
       // Save the analysis date
       await phaseRegimeService.setLastAnalysisDate(DateTime.now());
@@ -218,46 +270,6 @@ List<PhaseSegmentProposal> proposals,
     }
   }
 
-  Future<void> _cleanupDuplicates() async {
-    try {
-      setState(() {
-        _isLoading = true;
-      });
-
-      final analyticsService = AnalyticsService();
-      final rivetSweepService = RivetSweepService(analyticsService);
-      final phaseRegimeService = PhaseRegimeService(analyticsService, rivetSweepService);
-      await phaseRegimeService.initialize();
-
-      final removedCount = await phaseRegimeService.removeDuplicates();
-
-      // Reload phase data to show cleaned up regimes
-      await _loadPhaseData();
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Cleaned up $removedCount duplicate phase regimes'),
-            backgroundColor: removedCount > 0 ? Colors.orange : Colors.green,
-            duration: const Duration(seconds: 3),
-          ),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to cleanup duplicates: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    } finally {
-      setState(() {
-        _isLoading = false;
-      });
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -343,6 +355,7 @@ List<PhaseSegmentProposal> proposals,
           // Timeline Tab
           _phaseIndex != null
               ? PhaseTimelineView(
+                  key: ValueKey('phase_timeline_${_phaseIndex!.allRegimes.length}_${_phaseIndex!.allRegimes.isNotEmpty ? _phaseIndex!.allRegimes.first.id : 'empty'}'),
                   phaseIndex: _phaseIndex!,
                   onRegimeTap: (regime) {
                     _showRegimeDetails(regime);
@@ -351,8 +364,28 @@ List<PhaseSegmentProposal> proposals,
                     _handleRegimeAction(regime, action);
                   },
                 )
-              : const Center(
-                  child: Text('No phase data available'),
+              : Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(32.0),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.info_outline, size: 64, color: Colors.grey),
+                        const SizedBox(height: 16),
+                        Text(
+                          'No phase data available',
+                          style: Theme.of(context).textTheme.titleLarge,
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Run Phase Analysis to detect phases',
+                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color: Colors.grey,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
 
           // Analysis Tab
@@ -720,6 +753,153 @@ List<PhaseSegmentProposal> proposals,
     );
   }
 
+  /// Backfill Discovery regime for entries before the first detected regime
+  Future<void> _backfillDiscoveryRegime(
+    PhaseRegimeService phaseRegimeService,
+    JournalRepository journalRepo,
+  ) async {
+    try {
+      final allEntries = journalRepo.getAllJournalEntriesSync();
+      if (allEntries.isEmpty) return;
+
+      final regimes = phaseRegimeService.phaseIndex.allRegimes;
+      if (regimes.isEmpty) {
+        // No regimes at all - create Discovery regime from first entry to now
+        final firstEntry = allEntries.reduce((a, b) => 
+          a.createdAt.isBefore(b.createdAt) ? a : b);
+        
+        await phaseRegimeService.createRegime(
+          label: PhaseLabel.discovery,
+          start: firstEntry.createdAt,
+          end: null, // Ongoing until another phase is detected
+          source: PhaseSource.rivet,
+          confidence: 0.5, // Lower confidence for backfilled Discovery
+        );
+        print('DEBUG: Created backfilled Discovery regime from ${firstEntry.createdAt}');
+        return;
+      }
+
+      // Sort regimes by start date
+      final sortedRegimes = List.from(regimes)..sort((a, b) => a.start.compareTo(b.start));
+      final firstRegime = sortedRegimes.first;
+      
+      // Determine the cutoff date: use the first regime's END date if it has one,
+      // otherwise use its START date (for ongoing regimes, we want Discovery before they started)
+      // But if the regime has ended, we want Discovery for all entries before it ended
+      final cutoffDate = firstRegime.end ?? firstRegime.start;
+      
+      // Find entries before the cutoff date (end of first regime, or start if ongoing)
+      final entriesBeforeCutoff = allEntries
+          .where((entry) => entry.createdAt.isBefore(cutoffDate))
+          .toList();
+
+      print('DEBUG: _backfillDiscoveryRegime - First regime: ${_getPhaseLabelName(firstRegime.label)} from ${firstRegime.start} to ${firstRegime.end ?? 'ongoing'}');
+      print('DEBUG: _backfillDiscoveryRegime - Cutoff date: $cutoffDate');
+      print('DEBUG: _backfillDiscoveryRegime - Found ${entriesBeforeCutoff.length} entries before cutoff date');
+      print('DEBUG: _backfillDiscoveryRegime - Total entries: ${allEntries.length}, First entry date: ${allEntries.isNotEmpty ? allEntries.reduce((a, b) => a.createdAt.isBefore(b.createdAt) ? a : b).createdAt : 'none'}');
+
+      if (entriesBeforeCutoff.isNotEmpty) {
+        // Create Discovery regime for entries before cutoff date
+        final discoveryStart = entriesBeforeCutoff
+            .reduce((a, b) => a.createdAt.isBefore(b.createdAt) ? a : b)
+            .createdAt;
+        
+        // Check if a Discovery regime already exists that covers this period
+        final existingDiscovery = regimes.where((r) => 
+          r.label == PhaseLabel.discovery && 
+          r.start.isBefore(discoveryStart.add(const Duration(seconds: 1))) &&
+          (r.end == null || r.end!.isAfter(discoveryStart.subtract(const Duration(seconds: 1)))) &&
+          (r.end == null || r.end!.isAtSameMomentAs(cutoffDate) || (r.end!.isAfter(cutoffDate.subtract(const Duration(seconds: 1)))))
+        ).isEmpty;
+        
+        print('DEBUG: _backfillDiscoveryRegime - Discovery start: $discoveryStart, Cutoff date: $cutoffDate');
+        print('DEBUG: _backfillDiscoveryRegime - Existing Discovery regimes: ${regimes.where((r) => r.label == PhaseLabel.discovery).length}');
+        
+        if (existingDiscovery) {
+          try {
+            final discoveryEntryIds = entriesBeforeCutoff.map((e) => e.id).toList();
+            await phaseRegimeService.createRegime(
+              label: PhaseLabel.discovery,
+              start: discoveryStart,
+              end: cutoffDate,
+              source: PhaseSource.rivet,
+              confidence: 0.5, // Lower confidence for backfilled Discovery
+              anchors: discoveryEntryIds,
+            );
+            print('✅ Created backfilled Discovery regime from $discoveryStart to $cutoffDate (${entriesBeforeCutoff.length} entries)');
+            
+            // Add phase hashtags to Discovery entries for future reconstruction
+            await _addPhaseHashtagsToEntries(discoveryEntryIds, PhaseLabel.discovery);
+            
+            // Reload phaseIndex after creating Discovery regime
+            await phaseRegimeService.initialize();
+          } catch (e) {
+            print('❌ ERROR creating Discovery regime: $e');
+          }
+        } else {
+          print('DEBUG: Discovery regime already exists for this period, skipping');
+        }
+      } else {
+        print('DEBUG: No entries found before cutoff date, skipping Discovery backfill');
+      }
+    } catch (e) {
+      print('DEBUG: Error backfilling Discovery regime: $e');
+    }
+  }
+
+  /// Helper to get PhaseLabel name (works with all Dart versions)
+  String _getPhaseLabelName(PhaseLabel label) {
+    // Use toString().split('.').last which works in all Dart versions
+    // e.g., "PhaseLabel.discovery" -> "discovery"
+    return label.toString().split('.').last;
+  }
+
+  /// Add phase hashtags to entries retroactively when phases are detected
+  Future<void> _addPhaseHashtagsToEntries(List<String> entryIds, PhaseLabel phaseLabel) async {
+    try {
+      final journalRepo = JournalRepository();
+      final phaseName = _getPhaseLabelName(phaseLabel).toLowerCase();
+      final hashtag = '#$phaseName';
+      
+      print('DEBUG: Adding phase hashtag $hashtag to ${entryIds.length} entries');
+      
+      int updatedCount = 0;
+      for (final entryId in entryIds) {
+        try {
+          final entry = journalRepo.getJournalEntryById(entryId);
+          if (entry == null) {
+            print('DEBUG: Entry $entryId not found, skipping');
+            continue;
+          }
+          
+          // Check if hashtag already exists (case-insensitive)
+          final contentLower = entry.content.toLowerCase();
+          if (contentLower.contains(hashtag)) {
+            print('DEBUG: Entry $entryId already has hashtag $hashtag, skipping');
+            continue;
+          }
+          
+          // Add hashtag to content
+          final updatedContent = '${entry.content} $hashtag';
+          final updatedEntry = entry.copyWith(
+            content: updatedContent,
+            updatedAt: DateTime.now(),
+          );
+          
+          await journalRepo.updateJournalEntry(updatedEntry);
+          updatedCount++;
+          print('DEBUG: Added hashtag $hashtag to entry $entryId');
+        } catch (e) {
+          print('DEBUG: Error updating entry $entryId: $e');
+        }
+      }
+      
+      print('DEBUG: Successfully added phase hashtags to $updatedCount/${entryIds.length} entries');
+    } catch (e) {
+      print('DEBUG: Error adding phase hashtags to entries: $e');
+    }
+  }
+
   /// Get journal entry count
   Future<int> _getJournalEntryCount() async {
     try {
@@ -744,12 +924,15 @@ List<PhaseSegmentProposal> proposals,
               children: [
                 Icon(Icons.auto_awesome, color: Colors.blue[700]),
                 const SizedBox(width: 8),
-                Text(
-                  'Building Your Phase Timeline',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.blue[700],
+                Expanded(
+                  child: Text(
+                    'Building Your Phase Timeline',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.blue[700],
+                    ),
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
               ],
@@ -852,9 +1035,36 @@ List<PhaseSegmentProposal> proposals,
         ),
         // Simplified view below
         Expanded(
-          child: SimplifiedArcformView3D(
-            key: _arcformsKey,
-            currentPhase: _phaseIndex?.currentRegime?.label.name,
+          child: Builder(
+            builder: (context) {
+              // Get current phase - prioritize currentRegime, fallback to most recent regime
+              String? currentPhaseName;
+              if (_phaseIndex?.currentRegime != null) {
+                currentPhaseName = _getPhaseLabelName(_phaseIndex!.currentRegime!.label);
+                print('DEBUG: phase_analysis_view - Using currentRegime: $currentPhaseName');
+              } else if (_phaseIndex?.allRegimes.isNotEmpty == true) {
+                // No current ongoing regime, use most recent one
+                final sortedRegimes = List.from(_phaseIndex!.allRegimes)..sort((a, b) => b.start.compareTo(a.start));
+                currentPhaseName = _getPhaseLabelName(sortedRegimes.first.label);
+                print('DEBUG: phase_analysis_view - No current regime, using most recent: $currentPhaseName');
+              } else {
+                print('DEBUG: phase_analysis_view - No regimes found, passing null');
+              }
+              
+              print('DEBUG: phase_analysis_view - Passing currentPhase to SimplifiedArcformView3D: $currentPhaseName');
+              print('DEBUG: phase_analysis_view - currentRegime ID: ${_phaseIndex?.currentRegime?.id}');
+              print('DEBUG: phase_analysis_view - Total regimes: ${_phaseIndex?.allRegimes.length ?? 0}');
+              
+              // Create a unique key that includes both the regime ID and phase name to force rebuild
+              final regimeId = _phaseIndex?.currentRegime?.id ?? 'none';
+              final phaseName = currentPhaseName ?? 'none';
+              final uniqueKey = 'arcform_${regimeId}_$phaseName';
+              
+              return SimplifiedArcformView3D(
+                key: ValueKey(uniqueKey),
+                currentPhase: currentPhaseName,
+              );
+            },
           ),
         ),
       ],
@@ -864,12 +1074,11 @@ List<PhaseSegmentProposal> proposals,
 
   /// Refresh ARCForms when phase changes occur
   void _refreshArcforms() {
-    // Call refresh method on the ARCForms view
-    final state = _arcformsKey.currentState;
-    if (state != null && state.mounted) {
-      (state as dynamic).refreshSnapshots();
-      // Also update the phase if it has changed
-      (state as dynamic).updatePhase(_phaseIndex?.currentRegime?.label.name);
+    // Force rebuild by updating state - the ValueKey will ensure widget rebuilds
+    if (mounted) {
+      setState(() {
+        // Trigger rebuild - the ValueKey on SimplifiedArcformView3D will force recreation
+      });
     }
   }
 

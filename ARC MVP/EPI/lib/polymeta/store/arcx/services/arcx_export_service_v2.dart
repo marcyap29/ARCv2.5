@@ -16,6 +16,8 @@ import 'package:path_provider/path_provider.dart';
 import 'package:uuid/uuid.dart';
 import 'package:my_app/models/journal_entry_model.dart';
 import 'package:my_app/data/models/media_item.dart';
+import 'package:my_app/platform/photo_bridge.dart';
+import 'package:my_app/core/services/photo_library_service.dart';
 import 'package:my_app/arc/chat/chat/chat_repo.dart';
 import 'package:my_app/arc/chat/chat/chat_models.dart';
 import 'package:my_app/arc/core/journal_repository.dart';
@@ -967,14 +969,83 @@ class ARCXExportServiceV2 {
       onProgress?.call('Exporting media ${i + 1}/${media.length}...');
       
       try {
-        // Read media file
+        // Read media file with multiple fallback methods
+        Uint8List? mediaBytes;
+        
+        // Try 1: Direct file path
         final mediaFile = File(mediaItem.uri);
-        if (!await mediaFile.exists()) {
-          print('ARCX Export V2: Media file not found: ${mediaItem.uri}');
+        if (await mediaFile.exists()) {
+          try {
+            mediaBytes = await mediaFile.readAsBytes();
+            print('ARCX Export V2: ✓ Got bytes from file path: ${mediaItem.uri} (${mediaBytes.length} bytes)');
+          } catch (e) {
+            print('ARCX Export V2: ⚠️ Error reading file ${mediaItem.uri}: $e');
+          }
+        }
+        
+        // Try 2: Photo library URI (ph://)
+        if (mediaBytes == null && PhotoBridge.isPhotoLibraryUri(mediaItem.uri)) {
+          final localId = PhotoBridge.extractLocalIdentifier(mediaItem.uri);
+          if (localId != null && mediaItem.type == MediaType.image) {
+            final photoData = await PhotoBridge.getPhotoBytes(localId);
+            if (photoData != null) {
+              mediaBytes = photoData['bytes'] as Uint8List;
+              print('ARCX Export V2: ✓ Got bytes from PhotoBridge for ph:// URI (${mediaBytes.length} bytes)');
+            } else {
+              // Fallback: Try PhotoLibraryService thumbnail
+              print('ARCX Export V2: PhotoBridge returned null, trying PhotoLibraryService...');
+              try {
+                final thumbnailPath = await PhotoLibraryService.getPhotoThumbnail(mediaItem.uri, size: 1920);
+                if (thumbnailPath != null) {
+                  final thumbFile = File(thumbnailPath);
+                  if (await thumbFile.exists()) {
+                    mediaBytes = await thumbFile.readAsBytes();
+                    print('ARCX Export V2: ✓ Got bytes from PhotoLibraryService thumbnail (${mediaBytes.length} bytes)');
+                  }
+                }
+              } catch (e) {
+                print('ARCX Export V2: ⚠️ PhotoLibraryService thumbnail failed: $e');
+              }
+            }
+          }
+        }
+        
+        // Try 3: Search in Documents/photos directory
+        if (mediaBytes == null && mediaItem.type == MediaType.image) {
+          try {
+            final appDir = await getApplicationDocumentsDirectory();
+            final photosDir = Directory(path.join(appDir.path, 'photos'));
+            if (await photosDir.exists()) {
+              // Try to find by filename
+              final fileName = path.basename(mediaItem.uri);
+              final possibleFile = File(path.join(photosDir.path, fileName));
+              if (await possibleFile.exists()) {
+                mediaBytes = await possibleFile.readAsBytes();
+                print('ARCX Export V2: ✓ Found photo in Documents/photos: $fileName (${mediaBytes.length} bytes)');
+              } else {
+                // Try searching by media ID
+                final files = await photosDir.list().toList();
+                for (final file in files) {
+                  if (file is File && file.path.contains(mediaItem.id)) {
+                    mediaBytes = await file.readAsBytes();
+                    print('ARCX Export V2: ✓ Found photo by ID search: ${file.path} (${mediaBytes.length} bytes)');
+                    break;
+                  }
+                }
+              }
+            }
+          } catch (e) {
+            print('ARCX Export V2: ⚠️ Fallback photo search failed: $e');
+          }
+        }
+        
+        // If still no bytes, skip this media item
+        if (mediaBytes == null) {
+          print('ARCX Export V2: ⚠️ Could not get bytes for media ${mediaItem.id} (URI: ${mediaItem.uri}, Type: ${mediaItem.type})');
+          print('ARCX Export V2: ⚠️ This photo will NOT be included in the export');
           continue;
         }
         
-        final mediaBytes = await mediaFile.readAsBytes();
         final mediaHash = sha256.convert(mediaBytes).toString();
         
         // Deduplicate if enabled

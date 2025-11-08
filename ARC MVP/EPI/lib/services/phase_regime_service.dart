@@ -5,6 +5,7 @@ import 'package:hive/hive.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/phase_models.dart';
 import 'package:my_app/models/journal_entry_model.dart';
+import 'package:my_app/arc/core/journal_repository.dart';
 import 'phase_index.dart';
 import 'rivet_sweep_service.dart';
 import 'analytics_service.dart';
@@ -66,6 +67,11 @@ class PhaseRegimeService {
     return phaseIndex.phaseFor(timestamp);
   }
 
+  /// Helper to get PhaseLabel name (works with all Dart versions)
+  String _getPhaseLabelName(PhaseLabel label) {
+    return label.toString().split('.').last;
+  }
+
   /// Create a new phase regime
   Future<PhaseRegime> createRegime({
     required PhaseLabel label,
@@ -86,7 +92,7 @@ class PhaseRegimeService {
     for (final overlappingRegime in overlappingRegimes) {
       // If the overlapping regime is ongoing and starts before the new regime
       if (overlappingRegime.isOngoing && overlappingRegime.start.isBefore(start)) {
-        print('🔄 Ending ongoing regime ${overlappingRegime.label.name} at ${start} to make way for ${label.name}');
+        print('🔄 Ending ongoing regime ${_getPhaseLabelName(overlappingRegime.label)} at ${start} to make way for ${_getPhaseLabelName(label)}');
         final endedRegime = overlappingRegime.copyWith(
           end: start,
           updatedAt: DateTime.now(),
@@ -94,7 +100,7 @@ class PhaseRegimeService {
         await updateRegime(endedRegime);
       } else if (overlappingRegime.isOngoing && overlappingRegime.start.isAtSameMomentAs(start)) {
         // If they start at the same time, update the existing regime instead
-        print('🔄 Updating existing regime ${overlappingRegime.label.name} to ${label.name}');
+        print('🔄 Updating existing regime ${_getPhaseLabelName(overlappingRegime.label)} to ${_getPhaseLabelName(label)}');
         final updatedRegime = overlappingRegime.copyWith(
           label: label,
           source: source,
@@ -106,14 +112,14 @@ class PhaseRegimeService {
         return updatedRegime;
       } else if (!overlappingRegime.isOngoing) {
         // If there's an exact overlap with a completed regime, skip creating a duplicate
-        print('⚠️ Skipping phase regime creation: overlaps with completed regime ${overlappingRegime.label.name}');
-        AnalyticsService.trackEvent('phase_regime.duplicate_skipped', properties: {
-          'label': label.name,
-          'source': source.name,
-          'existing_id': overlappingRegime.id,
-          'existing_label': overlappingRegime.label.name,
-        });
-        return overlappingRegime;
+        print('⚠️ Skipping phase regime creation: overlaps with completed regime ${_getPhaseLabelName(overlappingRegime.label)}');
+      AnalyticsService.trackEvent('phase_regime.duplicate_skipped', properties: {
+        'label': _getPhaseLabelName(label),
+        'source': source.toString().split('.').last,
+        'existing_id': overlappingRegime.id,
+        'existing_label': _getPhaseLabelName(overlappingRegime.label),
+      });
+      return overlappingRegime;
       }
     }
 
@@ -133,11 +139,11 @@ class PhaseRegimeService {
     await _regimesBox?.put(regime.id, regime);
     _loadPhaseIndex(); // Reload phase index to ensure currentRegime is updated
     
-    print('✅ Created phase regime: ${regime.label.name} (${regime.start} - ${regime.end ?? 'ongoing'})');
+    print('✅ Created phase regime: ${_getPhaseLabelName(regime.label)} (${regime.start} - ${regime.end ?? 'ongoing'})');
     
     AnalyticsService.trackEvent('phase_regime.created', properties: {
-      'label': label.name,
-      'source': source.name,
+      'label': _getPhaseLabelName(label),
+      'source': source.toString().split('.').last,
       'duration_days': regime.duration.inDays,
     });
 
@@ -145,14 +151,33 @@ class PhaseRegimeService {
   }
 
   /// Update a phase regime
-  Future<void> updateRegime(PhaseRegime regime) async {
+  /// If updateHashtags is true and the label changed, updates hashtags in entries
+  Future<void> updateRegime(PhaseRegime regime, {bool updateHashtags = false, PhaseLabel? oldLabel}) async {
+    // Check if label changed
+    PhaseLabel? previousLabel;
+    if (updateHashtags && oldLabel != null) {
+      previousLabel = oldLabel;
+    } else if (updateHashtags) {
+      // Try to get the old regime to compare labels
+      final oldRegime = _regimesBox?.get(regime.id);
+      if (oldRegime != null && oldRegime.label != regime.label) {
+        previousLabel = oldRegime.label;
+      }
+    }
+    
     final updatedRegime = regime.copyWith(updatedAt: DateTime.now());
     await _regimesBox?.put(regime.id, updatedRegime);
     _loadPhaseIndex(); // Reload phase index to ensure currentRegime is updated
     
+    // Update hashtags if requested and label changed
+    if (updateHashtags && previousLabel != null && previousLabel != regime.label) {
+      await updateHashtagsForRegime(updatedRegime, oldLabel: previousLabel);
+    }
+    
         AnalyticsService.trackEvent('phase_regime.updated', properties: {
       'regime_id': regime.id,
-      'label': regime.label.name,
+      'label': _getPhaseLabelName(regime.label),
+      'hashtags_updated': updateHashtags && previousLabel != null && previousLabel != regime.label,
     });
   }
 
@@ -186,8 +211,8 @@ class PhaseRegimeService {
         if (hasOverlap) {
           // Keep the first one (earlier start time), remove the second
           duplicatesToRemove.add(regime2.id);
-          print('🗑️ Marking duplicate for removal: ${regime2.label.name} (${regime2.start} - ${regime2.end ?? 'ongoing'})');
-          print('   Keeping: ${regime1.label.name} (${regime1.start} - ${regime1.end ?? 'ongoing'})');
+          print('🗑️ Marking duplicate for removal: ${_getPhaseLabelName(regime2.label)} (${regime2.start} - ${regime2.end ?? 'ongoing'})');
+          print('   Keeping: ${_getPhaseLabelName(regime1.label)} (${regime1.start} - ${regime1.end ?? 'ongoing'})');
         }
       }
     }
@@ -242,7 +267,8 @@ class PhaseRegimeService {
   }
 
   /// Change current phase
-  Future<PhaseRegime> changeCurrentPhase(PhaseLabel newLabel) async {
+  /// If updateHashtags is true, updates hashtags for entries in the new regime
+  Future<PhaseRegime> changeCurrentPhase(PhaseLabel newLabel, {bool updateHashtags = false}) async {
     final now = DateTime.now();
     final currentRegime = phaseIndex.currentRegime;
     
@@ -256,15 +282,23 @@ class PhaseRegimeService {
     }
     
     // Create new regime
-    return await createRegime(
+    final newRegime = await createRegime(
       label: newLabel,
       start: now,
       source: PhaseSource.user,
     );
+    
+    // Update hashtags if requested
+    if (updateHashtags) {
+      await updateHashtagsForRegime(newRegime);
+    }
+    
+    return newRegime;
   }
 
   /// Backdate phase change
-  Future<PhaseRegime> backdatePhaseChange(PhaseLabel newLabel, DateTime backdateTo) async {
+  /// If updateHashtags is true, updates hashtags for entries in the affected regime(s)
+  Future<PhaseRegime> backdatePhaseChange(PhaseLabel newLabel, DateTime backdateTo, {bool updateHashtags = false}) async {
     // Find regime containing the backdate time
     final existingRegime = phaseIndex.regimeFor(backdateTo);
     
@@ -279,17 +313,24 @@ class PhaseRegimeService {
           source: PhaseSource.user,
           updatedAt: DateTime.now(),
         );
-        await updateRegime(updatedRegime);
+        await updateRegime(updatedRegime, updateHashtags: updateHashtags, oldLabel: existingRegime.label);
         return updatedRegime;
       }
     }
     
     // Create new regime if no existing regime found
-    return await createRegime(
+    final newRegime = await createRegime(
       label: newLabel,
       start: backdateTo,
       source: PhaseSource.user,
     );
+    
+    // Update hashtags if requested
+    if (updateHashtags) {
+      await updateHashtagsForRegime(newRegime);
+    }
+    
+    return newRegime;
   }
 
   /// Run RIVET Sweep if needed
@@ -438,7 +479,7 @@ class PhaseRegimeService {
       
       await _regimesBox?.put(regime.id, regime);
       importedCount++;
-      print('✅ Imported phase regime: ${regime.label.name} (${regime.start} - ${regime.end ?? 'ongoing'})');
+      print('✅ Imported phase regime: ${_getPhaseLabelName(regime.label)} (${regime.start} - ${regime.end ?? 'ongoing'})');
     }
     
     _loadPhaseIndex();
@@ -530,5 +571,136 @@ class PhaseRegimeService {
       'legacy_phases': phaseGroups.length,
       'total_entries': entries.length,
     });
+  }
+
+  /// Get entries within a date range
+  List<JournalEntry> _getEntriesInDateRange(DateTime start, DateTime? end) {
+    final journalRepo = JournalRepository();
+    final allEntries = journalRepo.getAllJournalEntriesSync();
+    final endDate = end ?? DateTime.now();
+    
+    return allEntries.where((entry) {
+      return entry.createdAt.isAfter(start.subtract(const Duration(seconds: 1))) &&
+             entry.createdAt.isBefore(endDate.add(const Duration(seconds: 1)));
+    }).toList();
+  }
+
+  /// Count entries that would be affected by a regime change
+  int countEntriesForRegime(PhaseRegime regime) {
+    return _getEntriesInDateRange(regime.start, regime.end).length;
+  }
+
+  /// Update hashtags for entries in a regime
+  /// Removes old phase hashtags and adds the new phase hashtag
+  /// If oldRegime is provided, removes hashtags from entries that are no longer in the regime
+  Future<int> updateHashtagsForRegime(PhaseRegime regime, {PhaseLabel? oldLabel, PhaseRegime? oldRegime}) async {
+    try {
+      final journalRepo = JournalRepository();
+      final entries = _getEntriesInDateRange(regime.start, regime.end);
+      final newPhaseName = _getPhaseLabelName(regime.label).toLowerCase();
+      final newHashtag = '#$newPhaseName';
+      
+      // Get all possible phase hashtags to remove
+      final allPhaseHashtags = PhaseLabel.values.map((label) => 
+        '#${_getPhaseLabelName(label).toLowerCase()}'
+      ).toList();
+      
+      // If oldLabel is provided, prioritize removing that one
+      final oldHashtag = oldLabel != null ? '#${_getPhaseLabelName(oldLabel).toLowerCase()}' : null;
+      
+      print('DEBUG: Updating hashtags for regime ${regime.id} (${newPhaseName})');
+      print('DEBUG: Found ${entries.length} entries in date range');
+      
+      int updatedCount = 0;
+      for (final entry in entries) {
+        try {
+          String updatedContent = entry.content;
+          bool contentChanged = false;
+          
+          // Remove old phase hashtags
+          if (oldHashtag != null) {
+            // Remove the specific old hashtag
+            final oldHashtagLower = oldHashtag.toLowerCase();
+            final contentLower = updatedContent.toLowerCase();
+            if (contentLower.contains(oldHashtagLower)) {
+              // Remove hashtag (case-insensitive, but preserve original case)
+              final regex = RegExp(RegExp.escape(oldHashtag), caseSensitive: false);
+              updatedContent = updatedContent.replaceAll(regex, '').trim();
+              contentChanged = true;
+            }
+          } else {
+            // Remove all phase hashtags if no specific old label
+            for (final hashtag in allPhaseHashtags) {
+              if (hashtag == newHashtag) continue; // Don't remove the new one
+              final regex = RegExp(RegExp.escape(hashtag), caseSensitive: false);
+              if (regex.hasMatch(updatedContent)) {
+                updatedContent = updatedContent.replaceAll(regex, '').trim();
+                contentChanged = true;
+              }
+            }
+          }
+          
+          // Add new hashtag if not already present
+          final contentLower = updatedContent.toLowerCase();
+          if (!contentLower.contains(newHashtag)) {
+            updatedContent = '$updatedContent $newHashtag'.trim();
+            contentChanged = true;
+          }
+          
+          // Update entry if content changed
+          if (contentChanged) {
+            final updatedEntry = entry.copyWith(
+              content: updatedContent,
+              updatedAt: DateTime.now(),
+            );
+            await journalRepo.updateJournalEntry(updatedEntry);
+            updatedCount++;
+          }
+        } catch (e) {
+          print('DEBUG: Error updating entry ${entry.id}: $e');
+        }
+      }
+      
+      // If oldRegime is provided, remove hashtags from entries that are no longer in the regime
+      if (oldRegime != null) {
+        final oldEntries = _getEntriesInDateRange(oldRegime.start, oldRegime.end);
+        final newEntryIds = entries.map((e) => e.id).toSet();
+        
+        int removedCount = 0;
+        for (final oldEntry in oldEntries) {
+          // Skip if entry is still in the new regime
+          if (newEntryIds.contains(oldEntry.id)) continue;
+          
+          try {
+            final phaseName = _getPhaseLabelName(oldRegime.label).toLowerCase();
+            final oldHashtag = '#$phaseName';
+            final contentLower = oldEntry.content.toLowerCase();
+            
+            if (contentLower.contains(oldHashtag)) {
+              // Remove old hashtag
+              final regex = RegExp(RegExp.escape(oldHashtag), caseSensitive: false);
+              final updatedContent = oldEntry.content.replaceAll(regex, '').trim();
+              
+              final updatedEntry = oldEntry.copyWith(
+                content: updatedContent,
+                updatedAt: DateTime.now(),
+              );
+              await journalRepo.updateJournalEntry(updatedEntry);
+              removedCount++;
+            }
+          } catch (e) {
+            print('DEBUG: Error removing hashtag from entry ${oldEntry.id}: $e');
+          }
+        }
+        
+        print('DEBUG: Removed hashtags from $removedCount entries that are no longer in regime');
+      }
+      
+      print('DEBUG: Successfully updated hashtags for $updatedCount/${entries.length} entries');
+      return updatedCount;
+    } catch (e) {
+      print('DEBUG: Error updating hashtags for regime: $e');
+      return 0;
+    }
   }
 }

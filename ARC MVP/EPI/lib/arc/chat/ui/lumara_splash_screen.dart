@@ -1,12 +1,11 @@
 // lib/lumara/ui/lumara_splash_screen.dart
-// LUMARA splash screen shown on app launch
+// ARC splash screen shown on app launch
 
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'widgets/lumara_icon.dart';
 import 'package:my_app/shared/ui/home/home_view.dart';
 
-/// Splash screen with LUMARA symbol and ARC label
+/// Splash screen with ARC logo
 class LumaraSplashScreen extends StatefulWidget {
   const LumaraSplashScreen({super.key});
 
@@ -49,42 +48,22 @@ class _LumaraSplashScreenState extends State<LumaraSplashScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
     return Scaffold(
-      backgroundColor: theme.scaffoldBackgroundColor,
+      backgroundColor: Colors.black, // Black background for white logo
       body: GestureDetector(
         onTap: _navigateToMainMenu, // Tap anywhere to skip
         child: SafeArea(
           child: LayoutBuilder(
             builder: (context, constraints) {
-              // Calculate icon size based on screen width (use 40% of screen width, min 200px)
-              final iconSize = (constraints.maxWidth * 0.4).clamp(200.0, 600.0);
+              // Calculate logo size based on screen width (use 60% of screen width, min 200px, max 400px)
+              final logoSize = (constraints.maxWidth * 0.6).clamp(200.0, 400.0);
               
               return Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    // Large LUMARA symbol (responsive - 40% of screen width)
-                    LumaraIcon(
-                      size: iconSize,
-                      color: theme.colorScheme.primary,
-                      strokeWidth: (iconSize / 100).clamp(2.0, 6.0),
-                    ),
-                    
-                    const SizedBox(height: 32),
-                    
-                    // ARC label
-                    Text(
-                      'ARC',
-                      style: theme.textTheme.displayLarge?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        color: theme.colorScheme.primary,
-                        letterSpacing: 4.0,
-                      ),
-                    ),
-                  ],
+                child: Image.asset(
+                  'assets/images/ARC-Logo-White.png',
+                  width: logoSize,
+                  height: logoSize,
+                  fit: BoxFit.contain,
                 ),
               );
             },

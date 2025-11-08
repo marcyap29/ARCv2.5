@@ -101,6 +101,7 @@ flutter:
     - assets/models/
     - assets/textures/
     - assets/prompts/
+    - assets/images/
 
 
 flutter_launcher_icons:

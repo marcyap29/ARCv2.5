@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:my_app/models/journal_entry_model.dart';
 import 'package:my_app/data/models/media_item.dart';
 import 'package:my_app/platform/photo_bridge.dart';
+import 'package:my_app/core/services/photo_library_service.dart';
 import 'package:my_app/polymeta/store/mcp/utils/image_processing.dart' show sha256Hex, reencodeFull;
 import 'package:my_app/arc/chat/chat/chat_repo.dart';
 import 'package:archive/archive.dart';
@@ -218,26 +219,21 @@ class McpPackExportService {
             processedMedia.add(processedMediaItem);
             print('McpPackExportService: ✓ Successfully processed media ${media.id}');
           } else {
-            print('McpPackExportService: ⚠️ Failed to process media ${media.id} (returned null)');
-            // Still add a placeholder so the entry knows it had media
-            processedMedia.add({
-              'id': media.id,
-              'kind': 'photo',
-              'originalPath': media.uri,
-              'error': 'Could not process media file',
-            });
+            print('McpPackExportService: ⚠️ Failed to process media ${media.id} - photo will NOT be included in export');
+            print('McpPackExportService:   URI: ${media.uri}');
+            print('McpPackExportService:   Type: ${media.type}');
+            // Don't add placeholder - let the export continue without this photo
+            // The entry will still have its media metadata, but the actual photo file won't be included
           }
-        } catch (e) {
-          print('McpPackExportService: Error processing media ${media.id}: $e');
-          // Add a placeholder for failed media
-          processedMedia.add({
-            'id': media.id,
-            'kind': 'photo',
-            'originalPath': media.uri,
-            'error': e.toString(),
-          });
+        } catch (e, stackTrace) {
+          print('McpPackExportService: ✗ Error processing media ${media.id}: $e');
+          print('McpPackExportService: Stack trace: $stackTrace');
+          // Don't add placeholder - let the export continue without this photo
         }
       }
+      final successfulCount = processedMedia.length;
+      final failedCount = entry.media.length - successfulCount;
+      print('McpPackExportService: Entry ${entry.id} - Successfully processed: $successfulCount, Failed: $failedCount');
       print('McpPackExportService: Entry ${entry.id} will have ${processedMedia.length} media items in export');
     } else {
       print('McpPackExportService: Skipping photos for entry ${entry.id} (includePhotos=false)');
@@ -302,20 +298,46 @@ class McpPackExportService {
       // This is a file path (absolute or relative)
       final file = File(media.uri);
       if (await file.exists()) {
+        try {
         originalBytes = await file.readAsBytes();
         originalFormat = _getFileExtension(media.uri);
         print('McpPackExportService: ✓ Got bytes from file path: ${media.uri} (${originalBytes.length} bytes)');
+        } catch (e) {
+          print('McpPackExportService: ⚠️ Error reading file ${media.uri}: $e');
+        }
       } else {
         print('McpPackExportService: ⚠️ File does not exist: ${media.uri}');
+        // Try to find the file by basename in Documents/photos directory
+        if (mediaType == MediaType.image && media.uri.contains('/photos/')) {
+          try {
+            final appDir = await getApplicationDocumentsDirectory();
+            final photosDir = Directory(path.join(appDir.path, 'photos'));
+            if (await photosDir.exists()) {
+              final fileName = path.basename(media.uri);
+              final possibleFile = File(path.join(photosDir.path, fileName));
+              if (await possibleFile.exists()) {
+                originalBytes = await possibleFile.readAsBytes();
+                originalFormat = _getFileExtension(fileName);
+                print('McpPackExportService: ✓ Found photo in Documents/photos: $fileName (${originalBytes.length} bytes)');
+              }
+            }
+          } catch (e) {
+            print('McpPackExportService: ⚠️ Error searching for photo in Documents/photos: $e');
+          }
+        }
       }
     } else if (media.uri.startsWith('file://')) {
       // Handle file:// URI scheme
       final filePath = media.uri.replaceFirst('file://', '');
       final file = File(filePath);
       if (await file.exists()) {
+        try {
         originalBytes = await file.readAsBytes();
         originalFormat = _getFileExtension(filePath);
         print('McpPackExportService: ✓ Got bytes from file:// URI: $filePath (${originalBytes.length} bytes)');
+        } catch (e) {
+          print('McpPackExportService: ⚠️ Error reading file:// URI $filePath: $e');
+        }
       } else {
         print('McpPackExportService: ⚠️ File does not exist: $filePath');
       }
@@ -328,6 +350,23 @@ class McpPackExportService {
         if (photoData != null) {
           originalBytes = photoData['bytes'] as Uint8List;
           originalFormat = photoData['ext'] as String;
+            print('McpPackExportService: ✓ Got bytes from PhotoBridge for ph:// URI (${originalBytes.length} bytes)');
+          } else {
+            // Fallback: Try PhotoLibraryService thumbnail
+            print('McpPackExportService: PhotoBridge returned null, trying PhotoLibraryService...');
+            try {
+              final thumbnailPath = await PhotoLibraryService.getPhotoThumbnail(media.uri, size: 1920);
+              if (thumbnailPath != null) {
+                final thumbFile = File(thumbnailPath);
+                if (await thumbFile.exists()) {
+                  originalBytes = await thumbFile.readAsBytes();
+                  originalFormat = 'jpg';
+                  print('McpPackExportService: ✓ Got bytes from PhotoLibraryService thumbnail (${originalBytes.length} bytes)');
+                }
+              }
+            } catch (e) {
+              print('McpPackExportService: ⚠️ PhotoLibraryService thumbnail failed: $e');
+            }
           }
         } else if (mediaType == MediaType.video) {
           // For videos from photo library, we need to handle differently
@@ -345,16 +384,42 @@ class McpPackExportService {
       }
     }
 
+    // Final fallback: If still no bytes and this is an image, try to find it in Documents/photos
+    if (originalBytes == null && mediaType == MediaType.image) {
+      try {
+        final appDir = await getApplicationDocumentsDirectory();
+        final photosDir = Directory(path.join(appDir.path, 'photos'));
+        if (await photosDir.exists()) {
+          // Try to find by media ID or filename
+          final fileName = path.basename(media.uri);
+          final possibleFile = File(path.join(photosDir.path, fileName));
+          if (await possibleFile.exists()) {
+            originalBytes = await possibleFile.readAsBytes();
+            originalFormat = _getFileExtension(fileName);
+            print('McpPackExportService: ✓ Found photo via fallback search: $fileName (${originalBytes.length} bytes)');
+          } else {
+            // Try searching by media ID
+            final files = await photosDir.list().toList();
+            for (final file in files) {
+              if (file is File && file.path.contains(media.id)) {
+                originalBytes = await file.readAsBytes();
+                originalFormat = _getFileExtension(file.path);
+                print('McpPackExportService: ✓ Found photo by ID search: ${file.path} (${originalBytes.length} bytes)');
+                break;
+              }
+            }
+          }
+        }
+      } catch (e) {
+        print('McpPackExportService: ⚠️ Fallback photo search failed: $e');
+      }
+    }
+
     if (originalBytes == null) {
       print('McpPackExportService: ⚠️ Could not get bytes for media ${media.id} (URI: ${media.uri}, Type: ${mediaType.name})');
-      // Don't return null - return a placeholder so the entry knows it had media
-      return {
-        'id': media.id,
-        'kind': mediaType.name, // 'photo', 'video', 'audio', 'file'
-        'type': mediaType.name,
-        'originalPath': media.uri,
-        'error': 'Could not read media bytes',
-      };
+      print('McpPackExportService: ⚠️ This photo will NOT be included in the export');
+      // Return null so the caller knows this photo failed and can handle it appropriately
+      return null;
     }
 
     // Use existing SHA-256 hash if available, otherwise compute it

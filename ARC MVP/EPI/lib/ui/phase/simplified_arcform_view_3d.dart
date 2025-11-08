@@ -48,9 +48,119 @@ class _SimplifiedArcformView3DState extends State<SimplifiedArcformView3D> {
       // Discover which phases the user has experienced
       await _discoverUserPhases();
 
-      // Generate a single constellation for the current phase (user's actual phase)
-      final currentPhase = widget.currentPhase ?? 'Discovery';
-      final constellation = await _generatePhaseConstellation(currentPhase, isUserPhase: true);
+      // Get the current phase - prioritize widget.currentPhase if provided
+      String currentPhase = widget.currentPhase ?? '';
+      print('DEBUG: SimplifiedArcformView3D - widget.currentPhase: ${widget.currentPhase}');
+
+      // If widget.currentPhase is provided, use it (it comes from phase_analysis_view which has the correct current phase)
+      if (currentPhase.isNotEmpty) {
+        print('DEBUG: Using widget.currentPhase: $currentPhase');
+      } else {
+        // Fallback: try to get current phase from phase regimes
+        try {
+          final analyticsService = AnalyticsService();
+          final rivetSweepService = RivetSweepService(analyticsService);
+          final phaseRegimeService = PhaseRegimeService(analyticsService, rivetSweepService);
+          await phaseRegimeService.initialize();
+
+          final currentRegime = phaseRegimeService.phaseIndex.currentRegime;
+          print('DEBUG: currentRegime from phaseIndex: ${currentRegime?.label.toString().split('.').last ?? 'null'}');
+          
+          if (currentRegime != null) {
+            currentPhase = currentRegime.label.toString().split('.').last;
+            print('DEBUG: Using current phase from phaseIndex: $currentPhase');
+          } else {
+            // Get the most recent regime if no current ongoing regime
+            final allRegimes = phaseRegimeService.phaseIndex.allRegimes;
+            if (allRegimes.isNotEmpty) {
+              final sortedRegimes = List.from(allRegimes)..sort((a, b) => b.start.compareTo(a.start));
+              final mostRecentRegime = sortedRegimes.first;
+              currentPhase = mostRecentRegime.label.toString().split('.').last;
+              print('DEBUG: No current ongoing regime, using most recent regime: $currentPhase');
+            } else {
+              currentPhase = 'Discovery';
+              print('DEBUG: No regimes found, defaulting to Discovery');
+            }
+          }
+        } catch (e) {
+          print('DEBUG: Error getting current phase from phaseIndex: $e');
+          // Fallback to Discovery
+          if (currentPhase.isEmpty) {
+            currentPhase = 'Discovery';
+          }
+        }
+      }
+
+      // Ensure we have a phase
+      if (currentPhase.isEmpty) {
+        currentPhase = 'Discovery';
+        print('DEBUG: Final fallback to Discovery');
+      }
+      
+      print('DEBUG: Final currentPhase determined: $currentPhase');
+      
+      print('DEBUG: Generating ARCForm for phase: $currentPhase');
+      
+      // Determine if this is user's actual phase by checking if there are entries for it
+      final isUserPhase = await _hasEntriesForPhase(currentPhase);
+      
+      print('DEBUG: Generating ARCForm for phase: $currentPhase, isUserPhase: $isUserPhase');
+      print('DEBUG: User experienced phases: $_userExperiencedPhases');
+      
+      // If Discovery phase and no regime found, check if there are entries before first regime
+      if (currentPhase.toLowerCase() == 'discovery' && !isUserPhase) {
+        try {
+          final journalRepo = JournalRepository();
+          final allEntries = journalRepo.getAllJournalEntriesSync();
+          
+          if (allEntries.isNotEmpty) {
+            final analyticsService = AnalyticsService();
+            final rivetSweepService = RivetSweepService(analyticsService);
+            final phaseRegimeService = PhaseRegimeService(analyticsService, rivetSweepService);
+            await phaseRegimeService.initialize();
+            
+            final regimes = phaseRegimeService.phaseIndex.allRegimes;
+            if (regimes.isNotEmpty) {
+              final sortedRegimes = List.from(regimes)..sort((a, b) => a.start.compareTo(b.start));
+              final firstRegime = sortedRegimes.first;
+              
+              final entriesBeforeFirstRegime = allEntries
+                  .where((entry) => entry.createdAt.isBefore(firstRegime.start))
+                  .toList();
+              
+              if (entriesBeforeFirstRegime.isNotEmpty) {
+                print('DEBUG: Found ${entriesBeforeFirstRegime.length} entries before first regime - using user keywords for Discovery');
+                // Force use of user keywords for Discovery
+                final constellation = await _generatePhaseConstellation(currentPhase, isUserPhase: true);
+                // ... rest of the code
+                setState(() {
+                  if (constellation != null) {
+                    final snapshot = {
+                      'id': constellation.id,
+                      'title': constellation.title,
+                      'phaseHint': constellation.phase,
+                      'keywords': constellation.nodes.map((node) => node.label).toList(),
+                      'createdAt': constellation.createdAt.toIso8601String(),
+                      'content': constellation.content,
+                      'arcformData': constellation.toJson(),
+                    };
+                    _snapshots = [snapshot];
+                  } else {
+                    _snapshots = [];
+                  }
+                  _isLoading = false;
+                });
+                return;
+              }
+            }
+          }
+        } catch (e) {
+          print('DEBUG: Error checking entries before first regime: $e');
+        }
+      }
+      
+      // Generate a single constellation for the current phase
+      final constellation = await _generatePhaseConstellation(currentPhase, isUserPhase: isUserPhase);
 
       setState(() {
         if (constellation != null) {
@@ -101,7 +211,7 @@ class _SimplifiedArcformView3DState extends State<SimplifiedArcformView3D> {
         await phaseRegimeService.initialize();
         
         final regimePhases = phaseRegimeService.phaseIndex.allRegimes
-            .map((regime) => regime.label.name)
+            .map((regime) => regime.label.toString().split('.').last)
             .toSet();
         phases.addAll(regimePhases);
         
@@ -137,7 +247,16 @@ class _SimplifiedArcformView3DState extends State<SimplifiedArcformView3D> {
   @override
   void didUpdateWidget(SimplifiedArcformView3D oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.currentPhase != widget.currentPhase) {
+    final oldPhase = oldWidget.currentPhase ?? '';
+    final newPhase = widget.currentPhase ?? '';
+    print('DEBUG: SimplifiedArcformView3D - didUpdateWidget called');
+    print('DEBUG: SimplifiedArcformView3D - oldPhase: $oldPhase, newPhase: $newPhase');
+    if (oldPhase != newPhase) {
+      print('DEBUG: SimplifiedArcformView3D - Phase changed from $oldPhase to $newPhase, reloading snapshots');
+      _loadSnapshots();
+    } else if (oldWidget.key != widget.key) {
+      // Key changed, force reload even if phase name is the same (might be a different regime)
+      print('DEBUG: SimplifiedArcformView3D - Key changed, forcing reload');
       _loadSnapshots();
     }
   }
@@ -245,14 +364,14 @@ class _SimplifiedArcformView3DState extends State<SimplifiedArcformView3D> {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3), // Reduced padding
                     decoration: BoxDecoration(
-                      color: kcPrimaryColor.withOpacity(0.1),
+                      color: _getPhaseColor(phaseHint).withOpacity(0.1),
                       borderRadius: BorderRadius.circular(10), // Reduced from 12
-                      border: Border.all(color: kcPrimaryColor.withOpacity(0.3)),
+                      border: Border.all(color: _getPhaseColor(phaseHint).withOpacity(0.3)),
                     ),
                     child: Text(
                       phaseHint.toUpperCase(),
                       style: TextStyle(
-                        color: kcPrimaryColor,
+                        color: _getPhaseColor(phaseHint),
                         fontSize: 9, // Reduced from 10
                         fontWeight: FontWeight.bold,
                       ),
@@ -270,7 +389,7 @@ class _SimplifiedArcformView3DState extends State<SimplifiedArcformView3D> {
                 decoration: BoxDecoration(
                   color: kcBackgroundColor,
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: kcSecondaryColor.withOpacity(0.3)),
+                  border: Border.all(color: _getPhaseColor(phaseHint).withOpacity(0.5)),
                 ),
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(8),
@@ -351,14 +470,14 @@ class _SimplifiedArcformView3DState extends State<SimplifiedArcformView3D> {
                   children: keywords.take(6).map((keyword) => Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
-                      color: kcPrimaryColor.withOpacity(0.1),
+                      color: _getPhaseColor(phaseHint).withOpacity(0.1),
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: kcPrimaryColor.withOpacity(0.3)),
+                      border: Border.all(color: _getPhaseColor(phaseHint).withOpacity(0.3)),
                     ),
                     child: Text(
                       keyword,
                       style: TextStyle(
-                        color: kcPrimaryColor,
+                        color: _getPhaseColor(phaseHint),
                         fontSize: 11,
                         fontWeight: FontWeight.w500,
                       ),
@@ -538,10 +657,82 @@ class _SimplifiedArcformView3DState extends State<SimplifiedArcformView3D> {
     }
   }
 
+  /// Check if user has journal entries for a given phase
+  Future<bool> _hasEntriesForPhase(String phase) async {
+    try {
+      final journalRepo = JournalRepository();
+      final allEntries = journalRepo.getAllJournalEntriesSync();
+      
+      if (allEntries.isEmpty) {
+        print('DEBUG: _hasEntriesForPhase($phase) - No entries found');
+        return false;
+      }
+      
+      // Try to get phase regime for this phase
+      try {
+        final analyticsService = AnalyticsService();
+        final rivetSweepService = RivetSweepService(analyticsService);
+        final phaseRegimeService = PhaseRegimeService(analyticsService, rivetSweepService);
+        await phaseRegimeService.initialize();
+        
+        final allRegimes = phaseRegimeService.phaseIndex.allRegimes;
+        print('DEBUG: _hasEntriesForPhase($phase) - Total regimes: ${allRegimes.length}');
+        
+        // Find regime for this phase
+        final regimes = allRegimes
+            .where((r) => r.label.toString().split('.').last.toLowerCase() == phase.toLowerCase())
+            .toList();
+        
+        print('DEBUG: _hasEntriesForPhase($phase) - Found ${regimes.length} regimes for this phase');
+        
+        if (regimes.isNotEmpty) {
+          // Check if there are entries in this regime's timeframe
+          for (final regime in regimes) {
+            final regimeStart = regime.start;
+            final regimeEnd = regime.end ?? DateTime.now();
+            
+            final entriesInRegime = allEntries
+                .where((entry) => entry.createdAt.isAfter(regimeStart.subtract(const Duration(days: 1))) && 
+                                  entry.createdAt.isBefore(regimeEnd.add(const Duration(days: 1))))
+                .toList();
+            
+            if (entriesInRegime.isNotEmpty) {
+              print('DEBUG: _hasEntriesForPhase($phase) - Found ${entriesInRegime.length} entries in regime (${regimeStart} to ${regimeEnd})');
+              return true;
+            }
+          }
+        }
+        
+        // Special case for Discovery: check if there are entries before the first regime
+        if (phase.toLowerCase() == 'discovery' && allRegimes.isNotEmpty) {
+          final sortedRegimes = List.from(allRegimes)..sort((a, b) => a.start.compareTo(b.start));
+          final firstRegime = sortedRegimes.first;
+          
+          final entriesBeforeFirstRegime = allEntries
+              .where((entry) => entry.createdAt.isBefore(firstRegime.start))
+              .toList();
+          
+          if (entriesBeforeFirstRegime.isNotEmpty) {
+            print('DEBUG: _hasEntriesForPhase($phase) - Found ${entriesBeforeFirstRegime.length} entries before first regime (${firstRegime.start})');
+            return true;
+          }
+        }
+      } catch (e) {
+        print('DEBUG: Error checking phase regime for $phase: $e');
+      }
+      
+      // Fallback: check if phase is in experienced phases
+      final inExperiencedPhases = _userExperiencedPhases.contains(phase.toLowerCase());
+      print('DEBUG: _hasEntriesForPhase($phase) - Fallback check: inExperiencedPhases=$inExperiencedPhases');
+      return inExperiencedPhases;
+    } catch (e) {
+      print('ERROR: Failed to check entries for phase $phase: $e');
+      return false;
+    }
+  }
+
     /// Get actual keywords from user's journal entries for their current phase
     Future<List<String>> _getActualPhaseKeywords(String phase) async {
-        const int targetNodeCount = 20; // Maintain consistent 20-node structure
-
         try {
           // Get actual keywords from user's journal entries
           final journalRepo = JournalRepository();
@@ -555,7 +746,7 @@ class _SimplifiedArcformView3DState extends State<SimplifiedArcformView3D> {
 
           // Get emotion keywords that match this phase (or any phase if no match)
           final phaseMatchedKeywords = nodes
-              .where((node) => node.phase?.toLowerCase() == phase.toLowerCase())
+              .where((node) => node.phase.toLowerCase() == phase.toLowerCase())
               .map((node) => node.label)
               .toList();
 
@@ -577,21 +768,46 @@ class _SimplifiedArcformView3DState extends State<SimplifiedArcformView3D> {
             final phaseRegimeService = PhaseRegimeService(analyticsService, rivetSweepService);
             await phaseRegimeService.initialize();
             
-            // Get current phase regime
-            final currentRegime = phaseRegimeService.phaseIndex.currentRegime;
+            // Find regime(s) for the requested phase (not just current)
+            final phaseRegimes = phaseRegimeService.phaseIndex.allRegimes
+                .where((r) => r.label.toString().split('.').last.toLowerCase() == phase.toLowerCase())
+                .toList();
             
-            if (currentRegime != null && currentRegime.label.name.toLowerCase() == phase.toLowerCase()) {
-              // Use the current phase regime's date range
-              final regimeStart = currentRegime.start;
-              final regimeEnd = currentRegime.end ?? DateTime.now();
-              
-              journalTexts = allEntries
-                  .where((entry) => entry.createdAt.isAfter(regimeStart) && 
-                                    entry.createdAt.isBefore(regimeEnd))
-                  .map((entry) => entry.content)
-                  .toList();
+            if (phaseRegimes.isNotEmpty) {
+              // Use entries from all regimes of this phase
+              for (final regime in phaseRegimes) {
+                final regimeStart = regime.start;
+                final regimeEnd = regime.end ?? DateTime.now();
+                
+                final entriesInRegime = allEntries
+                    .where((entry) => entry.createdAt.isAfter(regimeStart.subtract(const Duration(days: 1))) && 
+                                      entry.createdAt.isBefore(regimeEnd.add(const Duration(days: 1))))
+                    .map((entry) => entry.content)
+                    .toList();
+                
+                journalTexts.addAll(entriesInRegime);
+              }
                   
-              print('DEBUG: Found ${journalTexts.length} entries in current phase regime (${regimeStart} to ${regimeEnd})');
+              print('DEBUG: Found ${journalTexts.length} entries in $phase phase regime(s)');
+            } else if (phase.toLowerCase() == 'discovery') {
+              // Special case for Discovery: get entries before first regime
+              final allRegimes = phaseRegimeService.phaseIndex.allRegimes;
+              if (allRegimes.isNotEmpty) {
+                final sortedRegimes = List.from(allRegimes)..sort((a, b) => a.start.compareTo(b.start));
+                final firstRegime = sortedRegimes.first;
+                
+                final entriesBeforeFirstRegime = allEntries
+                    .where((entry) => entry.createdAt.isBefore(firstRegime.start))
+                    .map((entry) => entry.content)
+                    .toList();
+                
+                journalTexts.addAll(entriesBeforeFirstRegime);
+                print('DEBUG: Found ${journalTexts.length} entries before first regime for Discovery phase');
+              } else {
+                // No regimes at all - use all entries
+                journalTexts = allEntries.map((entry) => entry.content).toList();
+                print('DEBUG: No regimes found - using all ${journalTexts.length} entries for Discovery');
+              }
             } else {
               // Fallback: get recent entries (last 30 days)
               final recentCutoff = DateTime.now().subtract(const Duration(days: 30));
@@ -850,6 +1066,7 @@ class _SimplifiedArcformView3DState extends State<SimplifiedArcformView3D> {
 
   /// Build a small chip showing a phase preview
   Widget _buildPhasePreviewChip(String phase) {
+    final phaseColor = _getPhaseColor(phase);
     return GestureDetector(
       onTap: () {
         // Navigate to this phase's full 3D view
@@ -858,9 +1075,9 @@ class _SimplifiedArcformView3DState extends State<SimplifiedArcformView3D> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(
-          color: kcBackgroundColor,
+          color: phaseColor.withOpacity(0.1),
           borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: kcSecondaryColor.withOpacity(0.3)),
+          border: Border.all(color: phaseColor.withOpacity(0.5)),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -868,14 +1085,14 @@ class _SimplifiedArcformView3DState extends State<SimplifiedArcformView3D> {
             // Phase icon (different for each phase type)
             Icon(
               _getPhaseIcon(phase),
-              color: kcPrimaryColor.withOpacity(0.7),
+              color: phaseColor,
               size: 16,
             ),
             const SizedBox(width: 6),
             Text(
               phase,
               style: TextStyle(
-                color: kcPrimaryColor,
+                color: phaseColor,
                 fontSize: 12,
                 fontWeight: FontWeight.w500,
               ),
@@ -903,6 +1120,26 @@ class _SimplifiedArcformView3DState extends State<SimplifiedArcformView3D> {
         return Icons.auto_awesome;
       default:
         return Icons.auto_awesome_outlined;
+    }
+  }
+
+  /// Get color for phase name (matches Phase Legend colors)
+  Color _getPhaseColor(String phase) {
+    switch (phase.toLowerCase()) {
+      case 'discovery':
+        return Colors.blue;
+      case 'expansion':
+        return Colors.green;
+      case 'transition':
+        return Colors.orange;
+      case 'consolidation':
+        return Colors.purple;
+      case 'recovery':
+        return Colors.red;
+      case 'breakthrough':
+        return Colors.amber;
+      default:
+        return kcPrimaryColor;
     }
   }
 
