@@ -187,6 +187,10 @@ List<PhaseSegmentProposal> proposals,
         );
       }
 
+      // Backfill Discovery regime for any unphased entries before the first regime
+      final journalRepo = JournalRepository();
+      await _backfillDiscoveryRegime(phaseRegimeService, journalRepo);
+
       // Save the analysis date
       await phaseRegimeService.setLastAnalysisDate(DateTime.now());
 
@@ -718,6 +722,62 @@ List<PhaseSegmentProposal> proposals,
         );
       },
     );
+  }
+
+  /// Backfill Discovery regime for entries before the first detected regime
+  Future<void> _backfillDiscoveryRegime(
+    PhaseRegimeService phaseRegimeService,
+    JournalRepository journalRepo,
+  ) async {
+    try {
+      final allEntries = journalRepo.getAllJournalEntriesSync();
+      if (allEntries.isEmpty) return;
+
+      final regimes = phaseRegimeService.phaseIndex.allRegimes;
+      if (regimes.isEmpty) {
+        // No regimes at all - create Discovery regime from first entry to now
+        final firstEntry = allEntries.reduce((a, b) => 
+          a.createdAt.isBefore(b.createdAt) ? a : b);
+        
+        await phaseRegimeService.createRegime(
+          label: PhaseLabel.discovery,
+          start: firstEntry.createdAt,
+          end: null, // Ongoing until another phase is detected
+          source: PhaseSource.rivet,
+          confidence: 0.5, // Lower confidence for backfilled Discovery
+        );
+        print('DEBUG: Created backfilled Discovery regime from ${firstEntry.createdAt}');
+        return;
+      }
+
+      // Sort regimes by start date
+      final sortedRegimes = List.from(regimes)..sort((a, b) => a.start.compareTo(b.start));
+      final firstRegime = sortedRegimes.first;
+      
+      // Find entries before the first regime
+      final entriesBeforeFirstRegime = allEntries
+          .where((entry) => entry.createdAt.isBefore(firstRegime.start))
+          .toList();
+
+      if (entriesBeforeFirstRegime.isNotEmpty) {
+        // Create Discovery regime for entries before first detected regime
+        final discoveryStart = entriesBeforeFirstRegime
+            .reduce((a, b) => a.createdAt.isBefore(b.createdAt) ? a : b)
+            .createdAt;
+        
+        await phaseRegimeService.createRegime(
+          label: PhaseLabel.discovery,
+          start: discoveryStart,
+          end: firstRegime.start,
+          source: PhaseSource.rivet,
+          confidence: 0.5, // Lower confidence for backfilled Discovery
+          anchors: entriesBeforeFirstRegime.map((e) => e.id).toList(),
+        );
+        print('DEBUG: Created backfilled Discovery regime from $discoveryStart to ${firstRegime.start} (${entriesBeforeFirstRegime.length} entries)');
+      }
+    } catch (e) {
+      print('DEBUG: Error backfilling Discovery regime: $e');
+    }
   }
 
   /// Get journal entry count

@@ -4,6 +4,7 @@
 import 'package:flutter/material.dart';
 import 'package:my_app/models/phase_models.dart';
 import 'package:my_app/services/phase_index.dart';
+import 'arcform_timeline_view.dart';
 
 class PhaseTimelineView extends StatefulWidget {
   final PhaseIndex phaseIndex;
@@ -30,6 +31,12 @@ class _PhaseTimelineViewState extends State<PhaseTimelineView> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final regimes = widget.phaseIndex.allRegimes;
+    
+    // Debug: Log regimes for troubleshooting
+    print('DEBUG: PhaseTimelineView - Total regimes: ${regimes.length}');
+    for (final regime in regimes) {
+      print('DEBUG: Regime - ${regime.label.name}: ${regime.start} to ${regime.end ?? 'ongoing'}');
+    }
 
     return Column(
       children: [
@@ -45,6 +52,13 @@ class _PhaseTimelineViewState extends State<PhaseTimelineView> {
                 _buildTimelineVisualization(theme, regimes),
                 const SizedBox(height: 16),
                 _buildRegimeList(theme, regimes),
+                const SizedBox(height: 16),
+                SizedBox(
+                  height: 400,
+                  child: ArcformTimelineView(
+                    phaseIndex: widget.phaseIndex,
+                  ),
+                ),
                 const SizedBox(height: 16),
                 _buildTimelineControls(theme),
               ],
