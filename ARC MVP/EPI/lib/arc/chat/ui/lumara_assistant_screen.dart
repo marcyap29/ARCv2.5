@@ -28,12 +28,21 @@ class LumaraAssistantScreen extends StatefulWidget {
 class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
+  final FocusNode _inputFocusNode = FocusNode();
   String? _editingMessageId; // Track which message is being edited
+  bool _isInputVisible = true; // Track input visibility
 
   @override
   void initState() {
     super.initState();
     _checkAIConfigurationAndInitialize();
+    _inputFocusNode.addListener(_onInputFocusChange);
+  }
+
+  void _onInputFocusChange() {
+    setState(() {
+      _isInputVisible = _inputFocusNode.hasFocus || _messageController.text.isNotEmpty;
+    });
   }
 
   Future<void> _checkAIConfigurationAndInitialize() async {
@@ -87,6 +96,8 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
   void dispose() {
     _messageController.dispose();
     _scrollController.dispose();
+    _inputFocusNode.removeListener(_onInputFocusChange);
+    _inputFocusNode.dispose();
     super.dispose();
   }
 
@@ -109,6 +120,13 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
     
     // Also try to remove focus from any text field
     FocusManager.instance.primaryFocus?.unfocus();
+    
+    // Hide input area when dismissing keyboard
+    setState(() {
+      if (_messageController.text.isEmpty) {
+        _isInputVisible = false;
+      }
+    });
   }
 
   @override
@@ -149,7 +167,7 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
       ),
               body: GestureDetector(
                 onTap: () {
-                  // Dismiss keyboard when tapping outside text field
+                  // Dismiss keyboard and hide input when tapping conversation area
                   _dismissKeyboard();
                 },
                 behavior: HitTestBehavior.opaque,
@@ -160,7 +178,12 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
 
                     // Messages list
                     Expanded(
-            child: BlocConsumer<LumaraAssistantCubit, LumaraAssistantState>(
+            child: GestureDetector(
+              onTap: () {
+                // Hide input when tapping conversation area
+                _dismissKeyboard();
+              },
+              child: BlocConsumer<LumaraAssistantCubit, LumaraAssistantState>(
               listener: (context, state) {
                 // Don't auto-scroll - keep user at top to see responses as they appear
                 // if (state is LumaraAssistantLoaded) {
@@ -319,12 +342,12 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
               return const SizedBox.shrink();
               },
             ),
+            ),
           ),
           
-          // Message input - wrap in Flexible to prevent overflow
-          Flexible(
-            child: _buildMessageInput(),
-          ),
+          // Message input - show/hide based on visibility state
+          if (_isInputVisible)
+            _buildMessageInput(),
         ],
       ),
     ),
@@ -457,7 +480,6 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
 
   Widget _buildMessageBubble(LumaraMessage message) {
     final isUser = message.role == LumaraMessageRole.user;
-    final isEditing = _editingMessageId == message.id;
     
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
@@ -590,7 +612,7 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
     final isEditing = _editingMessageId != null;
     
     return Container(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 16), // Reduced top padding for more chat space
+      padding: const EdgeInsets.fromLTRB(12, 6, 12, 8), // Reduced padding for smaller size
       decoration: BoxDecoration(
         color: Theme.of(context).scaffoldBackgroundColor,
         border: Border(
@@ -633,41 +655,58 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
           Row(
             children: [
               IconButton(
-                icon: const Icon(Icons.mic),
+                icon: const Icon(Icons.mic, size: 20),
+                padding: const EdgeInsets.all(8),
+                constraints: const BoxConstraints(),
                 onPressed: () {
+                  // Show input when mic is tapped
+                  setState(() => _isInputVisible = true);
+                  _inputFocusNode.requestFocus();
                   // TODO: Implement voice input
                 },
               ),
               IconButton(
-                icon: const Icon(Icons.favorite),
+                icon: const Icon(Icons.favorite, size: 20),
+                padding: const EdgeInsets.all(8),
+                constraints: const BoxConstraints(),
                 tooltip: 'Health',
                 onPressed: _showHealthPreview,
               ),
               Expanded(
                 child: TextField(
                   controller: _messageController,
+                  focusNode: _inputFocusNode,
                   decoration: InputDecoration(
                     hintText: isEditing ? 'Edit your message...' : 'Ask LUMARA anything...',
                     border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(24),
+                      borderRadius: BorderRadius.circular(20),
                     ),
                     contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 12,
+                      horizontal: 12,
+                      vertical: 8,
                     ),
+                    isDense: true,
                   ),
                   minLines: 1,
-                  maxLines: 5, // Limit to 5 lines to prevent overflow
+                  maxLines: null, // Allow unlimited expansion based on text input
                   textCapitalization: TextCapitalization.sentences,
                   onSubmitted: (_) => _sendCurrentMessage(),
+                  onTap: () {
+                    // Ensure input is visible when tapped
+                    setState(() => _isInputVisible = true);
+                  },
                 ),
               ),
               IconButton(
-                icon: const Icon(Icons.send),
+                icon: const Icon(Icons.send, size: 20),
+                padding: const EdgeInsets.all(8),
+                constraints: const BoxConstraints(),
                 onPressed: _sendCurrentMessage,
               ),
               IconButton(
-                icon: const Icon(Icons.palette),
+                icon: const Icon(Icons.palette, size: 20),
+                padding: const EdgeInsets.all(8),
+                constraints: const BoxConstraints(),
                 onPressed: () => _showQuickPalette(),
               ),
             ],
@@ -687,6 +726,11 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
       }
       _messageController.clear();
       _editingMessageId = null;
+      // Hide input after sending if empty
+      setState(() {
+        _isInputVisible = false;
+      });
+      _dismissKeyboard();
     }
   }
 

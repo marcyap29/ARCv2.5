@@ -34,6 +34,8 @@ import 'package:my_app/core/services/draft_cache_service.dart';
 import 'package:my_app/core/services/journal_version_service.dart';
 import 'package:my_app/core/services/photo_library_service.dart';
 import 'package:my_app/platform/photo_bridge.dart';
+import 'package:my_app/services/phase_regime_service.dart';
+import 'package:my_app/services/rivet_sweep_service.dart';
 
 class JournalCaptureCubit extends Cubit<JournalCaptureState> {
   final JournalRepository _journalRepository;
@@ -546,6 +548,38 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
         print('DEBUG: Adjusted entry date to match latest photo: $entryDate (offset: ${dateOffset.inHours} hours ${dateOffset.inMinutes.remainder(60)} minutes)');
       }
       
+      // Get current phase from PhaseRegimeService (not UserPhaseService)
+      String currentPhase = 'Discovery'; // Default fallback
+      try {
+        final analyticsService = AnalyticsService();
+        final rivetSweepService = RivetSweepService(analyticsService);
+        final phaseRegimeService = PhaseRegimeService(analyticsService, rivetSweepService);
+        await phaseRegimeService.initialize();
+        
+        final currentRegime = phaseRegimeService.phaseIndex.currentRegime;
+        if (currentRegime != null) {
+          // Get phase name from PhaseLabel enum
+          currentPhase = currentRegime.label.toString().split('.').last;
+          print('DEBUG: saveEntryWithKeywords - Using current phase from PhaseRegimeService: $currentPhase');
+        } else {
+          // No current regime, try most recent regime
+          final allRegimes = phaseRegimeService.phaseIndex.allRegimes;
+          if (allRegimes.isNotEmpty) {
+            final sortedRegimes = List.from(allRegimes)..sort((a, b) => b.start.compareTo(a.start));
+            final mostRecentRegime = sortedRegimes.first;
+            currentPhase = mostRecentRegime.label.toString().split('.').last;
+            print('DEBUG: saveEntryWithKeywords - No current regime, using most recent: $currentPhase');
+          } else {
+            print('DEBUG: saveEntryWithKeywords - No regimes found, defaulting to Discovery');
+          }
+        }
+      } catch (e) {
+        print('DEBUG: saveEntryWithKeywords - Error getting current phase: $e, defaulting to Discovery');
+      }
+      
+      // Add phase hashtag to content if not already present
+      final contentWithHashtag = _addPhaseHashtagToContent(content, currentPhase);
+      
       // Save LUMARA blocks to metadata
       final metadata = blocks != null && blocks.isNotEmpty
           ? {'inlineBlocks': blocks}
@@ -553,8 +587,8 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
       
       final entry = JournalEntry(
         id: const Uuid().v4(),
-        title: title?.trim().isNotEmpty == true ? title!.trim() : _generateTitle(content),
-        content: content,
+        title: title?.trim().isNotEmpty == true ? title!.trim() : _generateTitle(contentWithHashtag),
+        content: contentWithHashtag,
         createdAt: entryDate,
         updatedAt: entryDate,
         tags: const [],
@@ -636,11 +670,14 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
     List<MediaItem>? media,
   }) async {
     try {
+      // Add phase hashtag to content if not already present
+      final contentWithHashtag = _addPhaseHashtagToContent(content, phase);
+      
       final now = DateTime.now();
       final entry = JournalEntry(
         id: const Uuid().v4(),
-        title: _generateTitle(content),
-        content: content,
+        title: _generateTitle(contentWithHashtag),
+        content: contentWithHashtag,
         createdAt: now,
         updatedAt: now,
         tags: const [],
@@ -681,11 +718,14 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
     List<MediaItem>? media,
   }) async {
     try {
+      // Add phase hashtag to content if not already present (even for proposed phase)
+      final contentWithHashtag = _addPhaseHashtagToContent(content, proposedPhase);
+      
       final now = DateTime.now();
       final entry = JournalEntry(
         id: const Uuid().v4(),
-        title: _generateTitle(content),
-        content: content,
+        title: _generateTitle(contentWithHashtag),
+        content: contentWithHashtag,
         createdAt: now,
         updatedAt: now,
         tags: const [],
