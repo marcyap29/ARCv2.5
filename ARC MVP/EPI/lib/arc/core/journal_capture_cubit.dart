@@ -297,16 +297,19 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
     List<MediaItem>? media,
   }) async {
     try {
+      // Add phase hashtag to content if not already present
+      final contentWithHashtag = _addPhaseHashtagToContent(content, phase);
+      
       // Use selected keywords if provided, otherwise extract from content
       final keywords = selectedKeywords?.isNotEmpty == true 
           ? selectedKeywords! 
-          : SimpleKeywordExtractor.extractKeywords(content);
+          : SimpleKeywordExtractor.extractKeywords(contentWithHashtag);
       
       final now = DateTime.now();
       final entry = JournalEntry(
         id: const Uuid().v4(),
-        title: _generateTitle(content),
-        content: content,
+        title: _generateTitle(contentWithHashtag),
+        content: contentWithHashtag,
         createdAt: now,
         updatedAt: now,
         tags: const [],
@@ -339,7 +342,7 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
         // New entry - create first version
         await _versionService.publish(
           entryId: entry.id,
-          content: content,
+          content: contentWithHashtag,
           media: media ?? [],
           metadata: {
             'mood': mood,
@@ -1415,6 +1418,25 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
     } catch (e) {
       print('Proposed-phase Arcform creation failed: $e');
     }
+  }
+
+  /// Add phase hashtag to content if not already present
+  String _addPhaseHashtagToContent(String content, String phase) {
+    // Normalize phase name to lowercase for comparison
+    final phaseLower = phase.toLowerCase();
+    final hashtag = '#$phaseLower';
+    
+    // Check if hashtag already exists in content (case-insensitive)
+    final contentLower = content.toLowerCase();
+    if (contentLower.contains(hashtag)) {
+      print('DEBUG: Phase hashtag $hashtag already present in content');
+      return content; // Return original content if hashtag already exists
+    }
+    
+    // Add hashtag at the end of content
+    final contentWithHashtag = '$content $hashtag';
+    print('DEBUG: Added phase hashtag $hashtag to entry content');
+    return contentWithHashtag;
   }
 
   String _generateTitle(String content) {

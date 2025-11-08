@@ -780,11 +780,11 @@ class _PhaseChangeReadinessCardState extends State<PhaseChangeReadinessCard> {
           children: [
             Flexible(
               child: Text(
-                'Readiness Progress',
-                style: TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.white,
+              'Readiness Progress',
+              style: TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+                color: Colors.white,
                 ),
                 overflow: TextOverflow.ellipsis,
               ),
@@ -850,11 +850,11 @@ class _PhaseChangeReadinessCardState extends State<PhaseChangeReadinessCard> {
               const SizedBox(width: 10),
               Expanded(
                 child: Text(
-                  'Validation Requirements',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
+                'Validation Requirements',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
                   ),
                   overflow: TextOverflow.ellipsis,
                 ),

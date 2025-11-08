@@ -299,9 +299,9 @@ class McpPackExportService {
       final file = File(media.uri);
       if (await file.exists()) {
         try {
-          originalBytes = await file.readAsBytes();
-          originalFormat = _getFileExtension(media.uri);
-          print('McpPackExportService: ✓ Got bytes from file path: ${media.uri} (${originalBytes.length} bytes)');
+        originalBytes = await file.readAsBytes();
+        originalFormat = _getFileExtension(media.uri);
+        print('McpPackExportService: ✓ Got bytes from file path: ${media.uri} (${originalBytes.length} bytes)');
         } catch (e) {
           print('McpPackExportService: ⚠️ Error reading file ${media.uri}: $e');
         }
@@ -332,9 +332,9 @@ class McpPackExportService {
       final file = File(filePath);
       if (await file.exists()) {
         try {
-          originalBytes = await file.readAsBytes();
-          originalFormat = _getFileExtension(filePath);
-          print('McpPackExportService: ✓ Got bytes from file:// URI: $filePath (${originalBytes.length} bytes)');
+        originalBytes = await file.readAsBytes();
+        originalFormat = _getFileExtension(filePath);
+        print('McpPackExportService: ✓ Got bytes from file:// URI: $filePath (${originalBytes.length} bytes)');
         } catch (e) {
           print('McpPackExportService: ⚠️ Error reading file:// URI $filePath: $e');
         }
@@ -346,10 +346,10 @@ class McpPackExportService {
       final localId = PhotoBridge.extractLocalIdentifier(media.uri);
       if (localId != null) {
         if (mediaType == MediaType.image) {
-          final photoData = await PhotoBridge.getPhotoBytes(localId);
-          if (photoData != null) {
-            originalBytes = photoData['bytes'] as Uint8List;
-            originalFormat = photoData['ext'] as String;
+        final photoData = await PhotoBridge.getPhotoBytes(localId);
+        if (photoData != null) {
+          originalBytes = photoData['bytes'] as Uint8List;
+          originalFormat = photoData['ext'] as String;
             print('McpPackExportService: ✓ Got bytes from PhotoBridge for ph:// URI (${originalBytes.length} bytes)');
           } else {
             // Fallback: Try PhotoLibraryService thumbnail

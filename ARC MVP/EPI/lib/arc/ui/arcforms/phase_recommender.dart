@@ -13,6 +13,14 @@ class PhaseRecommender {
     final r = reason.toLowerCase();
     final t = text.toLowerCase();
     
+    // FIRST: Check for explicit phase hashtags in content (highest priority)
+    final phaseHashtag = _extractPhaseHashtag(text);
+    if (phaseHashtag != null) {
+      print('DEBUG: PhaseRecommender - Found explicit phase hashtag: $phaseHashtag');
+      _lastRecommendationWasKeywordBased = false;
+      return phaseHashtag;
+    }
+    
     // Keyword-based phase detection (prioritized when keywords are available)
     if (selectedKeywords != null && selectedKeywords.isNotEmpty) {
       final keywordPhase = _getPhaseFromKeywords(selectedKeywords);
@@ -115,6 +123,23 @@ class PhaseRecommender {
   
   /// Check if the last recommendation was based on keywords
   static bool get wasLastRecommendationKeywordBased => _lastRecommendationWasKeywordBased;
+
+  /// Extract phase hashtag from text (e.g., #discovery, #transition)
+  static String? _extractPhaseHashtag(String text) {
+    // Match hashtags followed by phase names (case-insensitive)
+    final hashtagPattern = RegExp(r'#(discovery|expansion|transition|consolidation|recovery|breakthrough)', caseSensitive: false);
+    final match = hashtagPattern.firstMatch(text);
+    
+    if (match != null) {
+      final phaseName = match.group(1)?.toLowerCase();
+      if (phaseName != null) {
+        // Capitalize first letter to match expected format
+        return phaseName[0].toUpperCase() + phaseName.substring(1);
+      }
+    }
+    
+    return null;
+  }
 
   /// Determine phase based on selected keywords using semantic mapping
   static String? _getPhaseFromKeywords(List<String> keywords) {

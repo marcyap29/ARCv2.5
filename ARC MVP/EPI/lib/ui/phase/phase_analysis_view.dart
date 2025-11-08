@@ -205,15 +205,34 @@ List<PhaseSegmentProposal> proposals,
         ..sort((a, b) => a.start.compareTo(b.start)); // Sort chronologically
 
       // Create phase regimes from approved proposals (in chronological order)
-      for (final proposal in finalProposals) {
+      for (int i = 0; i < finalProposals.length; i++) {
+        final proposal = finalProposals[i];
+        final isLastProposal = i == finalProposals.length - 1;
+        
+        // If this is the last proposal and it ends today (or very recently), make it ongoing
+        // This handles the case where Transition (or any phase) starts today
+        DateTime? regimeEnd = proposal.end;
+        if (isLastProposal) {
+          final now = DateTime.now();
+          final daysSinceEnd = now.difference(proposal.end).inDays;
+          // If the proposal ends within the last 2 days, consider it ongoing
+          if (daysSinceEnd <= 2) {
+            regimeEnd = null; // Ongoing
+            print('DEBUG: Making last proposal (${_getPhaseLabelName(proposal.proposedLabel)}) ongoing - ended ${daysSinceEnd} days ago');
+          }
+        }
+        
         await phaseRegimeService.createRegime(
           label: proposal.proposedLabel,
           start: proposal.start,
-          end: proposal.end,
+          end: regimeEnd,
           source: PhaseSource.rivet,
           confidence: proposal.confidence,
           anchors: proposal.entryIds,
         );
+        
+        // Add phase hashtags to entries in this regime for future reconstruction
+        await _addPhaseHashtagsToEntries(proposal.entryIds, proposal.proposedLabel);
       }
 
       // Backfill Discovery regime for any unphased entries before the first regime
@@ -764,43 +783,53 @@ List<PhaseSegmentProposal> proposals,
       final sortedRegimes = List.from(regimes)..sort((a, b) => a.start.compareTo(b.start));
       final firstRegime = sortedRegimes.first;
       
-      // Find entries before the first regime
-      final entriesBeforeFirstRegime = allEntries
-          .where((entry) => entry.createdAt.isBefore(firstRegime.start))
+      // Determine the cutoff date: use the first regime's END date if it has one,
+      // otherwise use its START date (for ongoing regimes, we want Discovery before they started)
+      // But if the regime has ended, we want Discovery for all entries before it ended
+      final cutoffDate = firstRegime.end ?? firstRegime.start;
+      
+      // Find entries before the cutoff date (end of first regime, or start if ongoing)
+      final entriesBeforeCutoff = allEntries
+          .where((entry) => entry.createdAt.isBefore(cutoffDate))
           .toList();
 
-      print('DEBUG: _backfillDiscoveryRegime - Found ${entriesBeforeFirstRegime.length} entries before first regime (${_getPhaseLabelName(firstRegime.label)} starting ${firstRegime.start})');
+      print('DEBUG: _backfillDiscoveryRegime - First regime: ${_getPhaseLabelName(firstRegime.label)} from ${firstRegime.start} to ${firstRegime.end ?? 'ongoing'}');
+      print('DEBUG: _backfillDiscoveryRegime - Cutoff date: $cutoffDate');
+      print('DEBUG: _backfillDiscoveryRegime - Found ${entriesBeforeCutoff.length} entries before cutoff date');
       print('DEBUG: _backfillDiscoveryRegime - Total entries: ${allEntries.length}, First entry date: ${allEntries.isNotEmpty ? allEntries.reduce((a, b) => a.createdAt.isBefore(b.createdAt) ? a : b).createdAt : 'none'}');
 
-      if (entriesBeforeFirstRegime.isNotEmpty) {
-        // Create Discovery regime for entries before first detected regime
-        final discoveryStart = entriesBeforeFirstRegime
+      if (entriesBeforeCutoff.isNotEmpty) {
+        // Create Discovery regime for entries before cutoff date
+        final discoveryStart = entriesBeforeCutoff
             .reduce((a, b) => a.createdAt.isBefore(b.createdAt) ? a : b)
             .createdAt;
         
         // Check if a Discovery regime already exists that covers this period
-        // More flexible check - just see if any Discovery regime covers the start date
         final existingDiscovery = regimes.where((r) => 
           r.label == PhaseLabel.discovery && 
           r.start.isBefore(discoveryStart.add(const Duration(seconds: 1))) &&
           (r.end == null || r.end!.isAfter(discoveryStart.subtract(const Duration(seconds: 1)))) &&
-          (r.end == null || r.end!.isAtSameMomentAs(firstRegime.start) || r.end!.isAfter(firstRegime.start.subtract(const Duration(seconds: 1))))
+          (r.end == null || r.end!.isAtSameMomentAs(cutoffDate) || (r.end!.isAfter(cutoffDate.subtract(const Duration(seconds: 1)))))
         ).isEmpty;
         
-        print('DEBUG: _backfillDiscoveryRegime - Discovery start: $discoveryStart, First regime start: ${firstRegime.start}');
+        print('DEBUG: _backfillDiscoveryRegime - Discovery start: $discoveryStart, Cutoff date: $cutoffDate');
         print('DEBUG: _backfillDiscoveryRegime - Existing Discovery regimes: ${regimes.where((r) => r.label == PhaseLabel.discovery).length}');
         
         if (existingDiscovery) {
           try {
+            final discoveryEntryIds = entriesBeforeCutoff.map((e) => e.id).toList();
             await phaseRegimeService.createRegime(
               label: PhaseLabel.discovery,
               start: discoveryStart,
-              end: firstRegime.start,
+              end: cutoffDate,
               source: PhaseSource.rivet,
               confidence: 0.5, // Lower confidence for backfilled Discovery
-              anchors: entriesBeforeFirstRegime.map((e) => e.id).toList(),
+              anchors: discoveryEntryIds,
             );
-            print('✅ Created backfilled Discovery regime from $discoveryStart to ${firstRegime.start} (${entriesBeforeFirstRegime.length} entries)');
+            print('✅ Created backfilled Discovery regime from $discoveryStart to $cutoffDate (${entriesBeforeCutoff.length} entries)');
+            
+            // Add phase hashtags to Discovery entries for future reconstruction
+            await _addPhaseHashtagsToEntries(discoveryEntryIds, PhaseLabel.discovery);
             
             // Reload phaseIndex after creating Discovery regime
             await phaseRegimeService.initialize();
@@ -811,7 +840,7 @@ List<PhaseSegmentProposal> proposals,
           print('DEBUG: Discovery regime already exists for this period, skipping');
         }
       } else {
-        print('DEBUG: No entries found before first regime, skipping Discovery backfill');
+        print('DEBUG: No entries found before cutoff date, skipping Discovery backfill');
       }
     } catch (e) {
       print('DEBUG: Error backfilling Discovery regime: $e');
@@ -823,6 +852,52 @@ List<PhaseSegmentProposal> proposals,
     // Use toString().split('.').last which works in all Dart versions
     // e.g., "PhaseLabel.discovery" -> "discovery"
     return label.toString().split('.').last;
+  }
+
+  /// Add phase hashtags to entries retroactively when phases are detected
+  Future<void> _addPhaseHashtagsToEntries(List<String> entryIds, PhaseLabel phaseLabel) async {
+    try {
+      final journalRepo = JournalRepository();
+      final phaseName = _getPhaseLabelName(phaseLabel).toLowerCase();
+      final hashtag = '#$phaseName';
+      
+      print('DEBUG: Adding phase hashtag $hashtag to ${entryIds.length} entries');
+      
+      int updatedCount = 0;
+      for (final entryId in entryIds) {
+        try {
+          final entry = journalRepo.getJournalEntryById(entryId);
+          if (entry == null) {
+            print('DEBUG: Entry $entryId not found, skipping');
+            continue;
+          }
+          
+          // Check if hashtag already exists (case-insensitive)
+          final contentLower = entry.content.toLowerCase();
+          if (contentLower.contains(hashtag)) {
+            print('DEBUG: Entry $entryId already has hashtag $hashtag, skipping');
+            continue;
+          }
+          
+          // Add hashtag to content
+          final updatedContent = '${entry.content} $hashtag';
+          final updatedEntry = entry.copyWith(
+            content: updatedContent,
+            updatedAt: DateTime.now(),
+          );
+          
+          await journalRepo.updateJournalEntry(updatedEntry);
+          updatedCount++;
+          print('DEBUG: Added hashtag $hashtag to entry $entryId');
+        } catch (e) {
+          print('DEBUG: Error updating entry $entryId: $e');
+        }
+      }
+      
+      print('DEBUG: Successfully added phase hashtags to $updatedCount/${entryIds.length} entries');
+    } catch (e) {
+      print('DEBUG: Error adding phase hashtags to entries: $e');
+    }
   }
 
   /// Get journal entry count

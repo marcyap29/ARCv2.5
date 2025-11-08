@@ -363,12 +363,23 @@ class RivetSweepService {
     int totalConsecutive = 0;
 
     for (final entry in entries) {
-      final recommendedPhaseStr = PhaseRecommender.recommend(
-        emotion: entry.emotion ?? '',
-        reason: entry.emotionReason ?? '',
-        text: entry.content,
-        selectedKeywords: entry.keywords,
-      );
+      // Check for explicit phase hashtag first (highest priority)
+      String? recommendedPhaseStr;
+      
+      // Extract phase hashtag from content if present
+      final phaseHashtag = _extractPhaseHashtag(entry.content);
+      if (phaseHashtag != null) {
+        recommendedPhaseStr = phaseHashtag;
+        print('DEBUG: RIVET Sweep - Entry ${entry.id} has explicit phase hashtag: $phaseHashtag');
+      } else {
+        // Use PhaseRecommender for phase detection
+        recommendedPhaseStr = PhaseRecommender.recommend(
+          emotion: entry.emotion ?? '',
+          reason: entry.emotionReason ?? '',
+          text: entry.content,
+          selectedKeywords: entry.keywords,
+        );
+      }
       
       // Convert string to PhaseLabel enum
       final recommendedPhase = _stringToPhaseLabel(recommendedPhaseStr);
@@ -415,6 +426,23 @@ class RivetSweepService {
       'consistency': consistency,
       'total_entries': entries.length,
     };
+  }
+
+  /// Extract phase hashtag from text (e.g., #discovery, #transition)
+  String? _extractPhaseHashtag(String text) {
+    // Match hashtags followed by phase names (case-insensitive)
+    final hashtagPattern = RegExp(r'#(discovery|expansion|transition|consolidation|recovery|breakthrough)', caseSensitive: false);
+    final match = hashtagPattern.firstMatch(text);
+    
+    if (match != null) {
+      final phaseName = match.group(1)?.toLowerCase();
+      if (phaseName != null) {
+        // Capitalize first letter to match expected format
+        return phaseName[0].toUpperCase() + phaseName.substring(1);
+      }
+    }
+    
+    return null;
   }
 
   /// Convert string phase name to PhaseLabel enum
