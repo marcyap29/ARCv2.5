@@ -193,6 +193,17 @@ class InteractiveTimelineViewState extends State<InteractiveTimelineView>
             );
           }
 
+          // Handle TimelineInitial state - load entries automatically
+          if (state is TimelineInitial) {
+            // Trigger load on first build
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (mounted) {
+                context.read<TimelineCubit>().loadEntries();
+              }
+            });
+            return const Center(child: CircularProgressIndicator());
+          }
+
           return Container();
         },
       ),

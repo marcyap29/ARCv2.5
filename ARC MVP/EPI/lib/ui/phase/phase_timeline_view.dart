@@ -28,12 +28,49 @@ class _PhaseTimelineViewState extends State<PhaseTimelineView> {
   double _zoomLevel = 1.0;
 
   @override
+  void initState() {
+    super.initState();
+    // Adjust visible range based on actual regime dates
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _adjustVisibleRange();
+    });
+  }
+
+  void _adjustVisibleRange() {
+    final regimes = widget.phaseIndex.allRegimes;
+    if (regimes.isEmpty) return;
+
+    // Find the earliest and latest regime dates
+    DateTime? earliestStart;
+    DateTime? latestEnd;
+
+    for (final regime in regimes) {
+      if (earliestStart == null || regime.start.isBefore(earliestStart)) {
+        earliestStart = regime.start;
+      }
+      final regimeEnd = regime.end ?? DateTime.now();
+      if (latestEnd == null || regimeEnd.isAfter(latestEnd)) {
+        latestEnd = regimeEnd;
+      }
+    }
+
+    if (earliestStart != null && latestEnd != null) {
+      // Add padding before and after
+      setState(() {
+        _visibleStart = earliestStart!.subtract(const Duration(days: 30));
+        _visibleEnd = latestEnd!.add(const Duration(days: 30));
+      });
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final regimes = widget.phaseIndex.allRegimes;
     
     // Debug: Log regimes for troubleshooting
     print('DEBUG: PhaseTimelineView - Total regimes: ${regimes.length}');
+    print('DEBUG: Visible range: $_visibleStart to $_visibleEnd');
     for (final regime in regimes) {
       print('DEBUG: Regime - ${regime.label.name}: ${regime.start} to ${regime.end ?? 'ongoing'}');
     }
@@ -241,6 +278,57 @@ class _PhaseTimelineViewState extends State<PhaseTimelineView> {
   }
 
   Widget _buildTimelineVisualization(ThemeData theme, List<PhaseRegime> regimes) {
+    if (regimes.isEmpty) {
+      return Card(
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(Icons.view_timeline, color: theme.colorScheme.primary, size: 20),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Timeline Visualization',
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(32.0),
+                  child: Column(
+                    children: [
+                      Icon(Icons.info_outline, size: 48, color: Colors.grey),
+                      const SizedBox(height: 16),
+                      Text(
+                        'No phase regimes yet',
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          color: Colors.grey,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Run Phase Analysis to detect phases automatically',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: Colors.grey,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16.0),
