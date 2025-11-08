@@ -5,6 +5,7 @@ import 'package:hive/hive.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/phase_models.dart';
 import 'package:my_app/models/journal_entry_model.dart';
+import 'package:my_app/arc/core/journal_repository.dart';
 import 'phase_index.dart';
 import 'rivet_sweep_service.dart';
 import 'analytics_service.dart';
@@ -150,14 +151,33 @@ class PhaseRegimeService {
   }
 
   /// Update a phase regime
-  Future<void> updateRegime(PhaseRegime regime) async {
+  /// If updateHashtags is true and the label changed, updates hashtags in entries
+  Future<void> updateRegime(PhaseRegime regime, {bool updateHashtags = false, PhaseLabel? oldLabel}) async {
+    // Check if label changed
+    PhaseLabel? previousLabel;
+    if (updateHashtags && oldLabel != null) {
+      previousLabel = oldLabel;
+    } else if (updateHashtags) {
+      // Try to get the old regime to compare labels
+      final oldRegime = _regimesBox?.get(regime.id);
+      if (oldRegime != null && oldRegime.label != regime.label) {
+        previousLabel = oldRegime.label;
+      }
+    }
+    
     final updatedRegime = regime.copyWith(updatedAt: DateTime.now());
     await _regimesBox?.put(regime.id, updatedRegime);
     _loadPhaseIndex(); // Reload phase index to ensure currentRegime is updated
     
+    // Update hashtags if requested and label changed
+    if (updateHashtags && previousLabel != null && previousLabel != regime.label) {
+      await updateHashtagsForRegime(updatedRegime, oldLabel: previousLabel);
+    }
+    
         AnalyticsService.trackEvent('phase_regime.updated', properties: {
       'regime_id': regime.id,
       'label': _getPhaseLabelName(regime.label),
+      'hashtags_updated': updateHashtags && previousLabel != null && previousLabel != regime.label,
     });
   }
 
@@ -247,7 +267,8 @@ class PhaseRegimeService {
   }
 
   /// Change current phase
-  Future<PhaseRegime> changeCurrentPhase(PhaseLabel newLabel) async {
+  /// If updateHashtags is true, updates hashtags for entries in the new regime
+  Future<PhaseRegime> changeCurrentPhase(PhaseLabel newLabel, {bool updateHashtags = false}) async {
     final now = DateTime.now();
     final currentRegime = phaseIndex.currentRegime;
     
@@ -261,15 +282,23 @@ class PhaseRegimeService {
     }
     
     // Create new regime
-    return await createRegime(
+    final newRegime = await createRegime(
       label: newLabel,
       start: now,
       source: PhaseSource.user,
     );
+    
+    // Update hashtags if requested
+    if (updateHashtags) {
+      await updateHashtagsForRegime(newRegime);
+    }
+    
+    return newRegime;
   }
 
   /// Backdate phase change
-  Future<PhaseRegime> backdatePhaseChange(PhaseLabel newLabel, DateTime backdateTo) async {
+  /// If updateHashtags is true, updates hashtags for entries in the affected regime(s)
+  Future<PhaseRegime> backdatePhaseChange(PhaseLabel newLabel, DateTime backdateTo, {bool updateHashtags = false}) async {
     // Find regime containing the backdate time
     final existingRegime = phaseIndex.regimeFor(backdateTo);
     
@@ -284,17 +313,24 @@ class PhaseRegimeService {
           source: PhaseSource.user,
           updatedAt: DateTime.now(),
         );
-        await updateRegime(updatedRegime);
+        await updateRegime(updatedRegime, updateHashtags: updateHashtags, oldLabel: existingRegime.label);
         return updatedRegime;
       }
     }
     
     // Create new regime if no existing regime found
-    return await createRegime(
+    final newRegime = await createRegime(
       label: newLabel,
       start: backdateTo,
       source: PhaseSource.user,
     );
+    
+    // Update hashtags if requested
+    if (updateHashtags) {
+      await updateHashtagsForRegime(newRegime);
+    }
+    
+    return newRegime;
   }
 
   /// Run RIVET Sweep if needed
@@ -535,5 +571,100 @@ class PhaseRegimeService {
       'legacy_phases': phaseGroups.length,
       'total_entries': entries.length,
     });
+  }
+
+  /// Get entries within a date range
+  List<JournalEntry> _getEntriesInDateRange(DateTime start, DateTime? end) {
+    final journalRepo = JournalRepository();
+    final allEntries = journalRepo.getAllJournalEntriesSync();
+    final endDate = end ?? DateTime.now();
+    
+    return allEntries.where((entry) {
+      return entry.createdAt.isAfter(start.subtract(const Duration(seconds: 1))) &&
+             entry.createdAt.isBefore(endDate.add(const Duration(seconds: 1)));
+    }).toList();
+  }
+
+  /// Count entries that would be affected by a regime change
+  int countEntriesForRegime(PhaseRegime regime) {
+    return _getEntriesInDateRange(regime.start, regime.end).length;
+  }
+
+  /// Update hashtags for entries in a regime
+  /// Removes old phase hashtags and adds the new phase hashtag
+  Future<int> updateHashtagsForRegime(PhaseRegime regime, {PhaseLabel? oldLabel}) async {
+    try {
+      final journalRepo = JournalRepository();
+      final entries = _getEntriesInDateRange(regime.start, regime.end);
+      final newPhaseName = _getPhaseLabelName(regime.label).toLowerCase();
+      final newHashtag = '#$newPhaseName';
+      
+      // Get all possible phase hashtags to remove
+      final allPhaseHashtags = PhaseLabel.values.map((label) => 
+        '#${_getPhaseLabelName(label).toLowerCase()}'
+      ).toList();
+      
+      // If oldLabel is provided, prioritize removing that one
+      final oldHashtag = oldLabel != null ? '#${_getPhaseLabelName(oldLabel).toLowerCase()}' : null;
+      
+      print('DEBUG: Updating hashtags for regime ${regime.id} (${newPhaseName})');
+      print('DEBUG: Found ${entries.length} entries in date range');
+      
+      int updatedCount = 0;
+      for (final entry in entries) {
+        try {
+          String updatedContent = entry.content;
+          bool contentChanged = false;
+          
+          // Remove old phase hashtags
+          if (oldHashtag != null) {
+            // Remove the specific old hashtag
+            final oldHashtagLower = oldHashtag.toLowerCase();
+            final contentLower = updatedContent.toLowerCase();
+            if (contentLower.contains(oldHashtagLower)) {
+              // Remove hashtag (case-insensitive, but preserve original case)
+              final regex = RegExp(RegExp.escape(oldHashtag), caseSensitive: false);
+              updatedContent = updatedContent.replaceAll(regex, '').trim();
+              contentChanged = true;
+            }
+          } else {
+            // Remove all phase hashtags if no specific old label
+            for (final hashtag in allPhaseHashtags) {
+              if (hashtag == newHashtag) continue; // Don't remove the new one
+              final regex = RegExp(RegExp.escape(hashtag), caseSensitive: false);
+              if (regex.hasMatch(updatedContent)) {
+                updatedContent = updatedContent.replaceAll(regex, '').trim();
+                contentChanged = true;
+              }
+            }
+          }
+          
+          // Add new hashtag if not already present
+          final contentLower = updatedContent.toLowerCase();
+          if (!contentLower.contains(newHashtag)) {
+            updatedContent = '$updatedContent $newHashtag'.trim();
+            contentChanged = true;
+          }
+          
+          // Update entry if content changed
+          if (contentChanged) {
+            final updatedEntry = entry.copyWith(
+              content: updatedContent,
+              updatedAt: DateTime.now(),
+            );
+            await journalRepo.updateJournalEntry(updatedEntry);
+            updatedCount++;
+          }
+        } catch (e) {
+          print('DEBUG: Error updating entry ${entry.id}: $e');
+        }
+      }
+      
+      print('DEBUG: Successfully updated hashtags for $updatedCount/${entries.length} entries');
+      return updatedCount;
+    } catch (e) {
+      print('DEBUG: Error updating hashtags for regime: $e');
+      return 0;
+    }
   }
 }

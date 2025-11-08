@@ -4,6 +4,9 @@
 import 'package:flutter/material.dart';
 import 'package:my_app/models/phase_models.dart';
 import 'package:my_app/services/phase_index.dart';
+import 'package:my_app/services/phase_regime_service.dart';
+import 'package:my_app/services/analytics_service.dart';
+import 'package:my_app/services/rivet_sweep_service.dart';
 import 'arcform_timeline_view.dart';
 
 class PhaseTimelineView extends StatefulWidget {
@@ -757,7 +760,7 @@ class _PhaseTimelineViewState extends State<PhaseTimelineView> {
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
-              'Phase: ${regime.label.name.toUpperCase()}',
+              'Phase: ${_getPhaseLabelName(regime.label).toUpperCase()}',
               style: Theme.of(context).textTheme.headlineSmall,
             ),
             const SizedBox(height: 16),
@@ -819,7 +822,7 @@ class _PhaseTimelineViewState extends State<PhaseTimelineView> {
             const Text('Select a new phase:'),
             const SizedBox(height: 16),
             ...PhaseLabel.values.map((label) => ListTile(
-              title: Text(label.name.toUpperCase()),
+              title: Text(_getPhaseLabelName(label).toUpperCase()),
               leading: Icon(
                 Icons.circle,
                 color: _getPhaseColor(label),
@@ -843,7 +846,7 @@ class _PhaseTimelineViewState extends State<PhaseTimelineView> {
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: PhaseLabel.values.map((label) => ListTile(
-            title: Text(label.name.toUpperCase()),
+            title: Text(_getPhaseLabelName(label).toUpperCase()),
             leading: Radio<PhaseLabel>(
               value: label,
               groupValue: regime.label,
@@ -884,24 +887,278 @@ class _PhaseTimelineViewState extends State<PhaseTimelineView> {
     );
   }
 
-  void _changeCurrentPhase(PhaseLabel newLabel) {
-    // End current regime and start new one
-    // Implementation would go here
+  Future<void> _changeCurrentPhase(PhaseLabel newLabel) async {
+    try {
+      // Get PhaseRegimeService
+      final analyticsService = AnalyticsService();
+      final rivetSweepService = RivetSweepService(analyticsService);
+      final phaseRegimeService = PhaseRegimeService(analyticsService, rivetSweepService);
+      await phaseRegimeService.initialize();
+      
+      // For changing current phase, new entries will automatically get hashtags
+      // We don't need to update existing entries since they're in the old regime
+      // Show a simple confirmation dialog
+      final shouldUpdateHashtags = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Change Current Phase'),
+          content: Text(
+            'This will change your current phase to ${_getPhaseLabelName(newLabel).toUpperCase()}.\n\n'
+            'New journal entries will automatically include the #${_getPhaseLabelName(newLabel).toLowerCase()} hashtag.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('Change Phase'),
+            ),
+          ],
+        ),
+      );
+      
+      if (shouldUpdateHashtags == false) return; // User cancelled
+      
+      // Change phase (no need to update hashtags since new regime starts now with no entries yet)
+      await phaseRegimeService.changeCurrentPhase(newLabel, updateHashtags: false);
+      
+      // Refresh UI
+      if (mounted) {
+        setState(() {});
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Phase changed to ${_getPhaseLabelName(newLabel).toUpperCase()}'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to change phase: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
-  void _relabelRegime(PhaseRegime regime, PhaseLabel newLabel) {
-    // Update regime label
-    // Implementation would go here
+  Future<void> _relabelRegime(PhaseRegime regime, PhaseLabel newLabel) async {
+    if (regime.label == newLabel) return; // No change needed
+    
+    try {
+      // Get PhaseRegimeService
+      final analyticsService = AnalyticsService();
+      final rivetSweepService = RivetSweepService(analyticsService);
+      final phaseRegimeService = PhaseRegimeService(analyticsService, rivetSweepService);
+      await phaseRegimeService.initialize();
+      
+      // Count entries that would be affected
+      final entryCount = phaseRegimeService.countEntriesForRegime(regime);
+      
+      // Show confirmation dialog
+      final shouldUpdateHashtags = await _showHashtagUpdateConfirmation(
+        'Relabel Phase',
+        'This will change the phase label from ${_getPhaseLabelName(regime.label).toUpperCase()} to ${_getPhaseLabelName(newLabel).toUpperCase()}.\n\n'
+        'Would you like to update hashtags in ${entryCount > 0 ? "$entryCount entries" : "entries"}?',
+        entryCount,
+      );
+      
+      if (shouldUpdateHashtags == null) return; // User cancelled
+      
+      // Update regime
+      final updatedRegime = regime.copyWith(
+        label: newLabel,
+        source: PhaseSource.user,
+        updatedAt: DateTime.now(),
+      );
+      await phaseRegimeService.updateRegime(
+        updatedRegime,
+        updateHashtags: shouldUpdateHashtags,
+        oldLabel: regime.label,
+      );
+      
+      // Refresh UI
+      if (mounted) {
+        setState(() {});
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Phase relabeled to ${_getPhaseLabelName(newLabel).toUpperCase()}'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to relabel phase: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
-  void _mergeWithNext(PhaseRegime regime) {
-    // Merge with next regime
-    // Implementation would go here
+  Future<void> _mergeWithNext(PhaseRegime regime) async {
+    // Find next regime
+    final regimes = widget.phaseIndex.allRegimes;
+    final regimeIndex = regimes.indexWhere((r) => r.id == regime.id);
+    if (regimeIndex == -1 || regimeIndex >= regimes.length - 1) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No next regime to merge with'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+    
+    final nextRegime = regimes[regimeIndex + 1];
+    
+    try {
+      // Get PhaseRegimeService
+      final analyticsService = AnalyticsService();
+      final rivetSweepService = RivetSweepService(analyticsService);
+      final phaseRegimeService = PhaseRegimeService(analyticsService, rivetSweepService);
+      await phaseRegimeService.initialize();
+      
+      // Merge regimes
+      final mergedRegime = await phaseRegimeService.mergeRegimes(regime.id, nextRegime.id);
+      
+      if (mergedRegime != null) {
+        // Count entries that would be affected
+        final entryCount = phaseRegimeService.countEntriesForRegime(mergedRegime);
+        
+        // Show confirmation dialog for hashtag update
+        final shouldUpdateHashtags = await _showHashtagUpdateConfirmation(
+          'Merge Phases',
+          'This will merge ${_getPhaseLabelName(regime.label).toUpperCase()} and ${_getPhaseLabelName(nextRegime.label).toUpperCase()} phases.\n\n'
+          'Would you like to update hashtags in ${entryCount > 0 ? "$entryCount entries" : "entries"}?',
+          entryCount,
+        );
+        
+        if (shouldUpdateHashtags == true) {
+          await phaseRegimeService.updateHashtagsForRegime(mergedRegime);
+        }
+        
+        // Refresh UI
+        if (mounted) {
+          setState(() {});
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Phases merged'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to merge phases: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
-  void _endPhaseHere(PhaseRegime regime) {
-    // End the regime at current time
-    // Implementation would go here
+  Future<void> _endPhaseHere(PhaseRegime regime) async {
+    if (!regime.isOngoing) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('This phase is already ended'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+    
+    try {
+      // Get PhaseRegimeService
+      final analyticsService = AnalyticsService();
+      final rivetSweepService = RivetSweepService(analyticsService);
+      final phaseRegimeService = PhaseRegimeService(analyticsService, rivetSweepService);
+      await phaseRegimeService.initialize();
+      
+      // End the regime
+      final endedRegime = regime.copyWith(
+        end: DateTime.now(),
+        updatedAt: DateTime.now(),
+      );
+      await phaseRegimeService.updateRegime(endedRegime);
+      
+      // Refresh UI
+      if (mounted) {
+        setState(() {});
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Phase ended'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to end phase: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  /// Show confirmation dialog for hashtag updates
+  /// Returns true if user wants to update hashtags, false if not, null if cancelled
+  Future<bool?> _showHashtagUpdateConfirmation(String title, String message, int entryCount) async {
+    if (entryCount == 0) {
+      // No entries to update, skip confirmation
+      return false;
+    }
+    
+    return showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(title),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(message),
+            const SizedBox(height: 16),
+            const Text(
+              'Updating hashtags will modify the content of your journal entries to reflect the phase change.',
+              style: TextStyle(fontSize: 12, fontStyle: FontStyle.italic),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Skip'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(null),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Update Hashtags'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _getPhaseLabelName(PhaseLabel label) {
+    return label.toString().split('.').last;
   }
 
   void _showDeleteConfirmation(PhaseRegime regime) {
@@ -910,7 +1167,7 @@ class _PhaseTimelineViewState extends State<PhaseTimelineView> {
       builder: (context) => AlertDialog(
         title: const Text('Delete Phase'),
         content: Text(
-          'Are you sure you want to delete this ${regime.label.name.toUpperCase()} phase?\n\n'
+          'Are you sure you want to delete this ${_getPhaseLabelName(regime.label).toUpperCase()} phase?\n\n'
           'This action cannot be undone.',
         ),
         actions: [
@@ -931,29 +1188,39 @@ class _PhaseTimelineViewState extends State<PhaseTimelineView> {
     );
   }
 
-  void _deleteRegime(PhaseRegime regime) {
+  Future<void> _deleteRegime(PhaseRegime regime) async {
     try {
-      // Remove the regime from the phase index using its ID
-      widget.phaseIndex.removeRegime(regime.id);
+      // Get PhaseRegimeService
+      final analyticsService = AnalyticsService();
+      final rivetSweepService = RivetSweepService(analyticsService);
+      final phaseRegimeService = PhaseRegimeService(analyticsService, rivetSweepService);
+      await phaseRegimeService.initialize();
+      
+      // Delete the regime
+      await phaseRegimeService.deleteRegime(regime.id);
       
       // Show success message
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('${regime.label.name.toUpperCase()} phase deleted'),
-          backgroundColor: Colors.green,
-        ),
-      );
-      
-      // Refresh the UI
-      setState(() {});
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('${_getPhaseLabelName(regime.label).toUpperCase()} phase deleted'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        
+        // Refresh the UI
+        setState(() {});
+      }
     } catch (e) {
       // Show error message
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Failed to delete phase: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to delete phase: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
