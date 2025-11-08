@@ -24,6 +24,7 @@ class KeywordAnalysisView extends StatefulWidget {
   final String? selectedLocation;
   final List<MediaItem>? mediaItems; // Media items from journal screen
   final List<Map<String, dynamic>>? lumaraBlocks; // LUMARA inline blocks
+  final String? title; // Title from journal screen
   
   const KeywordAnalysisView({
     super.key,
@@ -40,6 +41,7 @@ class KeywordAnalysisView extends StatefulWidget {
     this.selectedLocation,
     this.mediaItems,
     this.lumaraBlocks,
+    this.title,
   });
 
   @override
@@ -60,8 +62,10 @@ class _KeywordAnalysisViewState extends State<KeywordAnalysisView>
   void initState() {
     super.initState();
     
-    // Initialize title controller with existing entry title if available
-    if (widget.existingEntry != null && widget.existingEntry!.title.isNotEmpty) {
+    // Initialize title controller with title from journal screen, existing entry, or leave empty
+    if (widget.title != null && widget.title!.isNotEmpty) {
+      _titleController.text = widget.title!;
+    } else if (widget.existingEntry != null && widget.existingEntry!.title.isNotEmpty) {
       _titleController.text = widget.existingEntry!.title;
     }
     

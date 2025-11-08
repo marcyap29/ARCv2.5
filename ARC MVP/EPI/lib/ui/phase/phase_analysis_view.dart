@@ -172,9 +172,10 @@ List<PhaseSegmentProposal> proposals,
           );
         }
         return proposal;
-      }).toList();
+      }).toList()
+        ..sort((a, b) => a.start.compareTo(b.start)); // Sort chronologically
 
-      // Create phase regimes from approved proposals
+      // Create phase regimes from approved proposals (in chronological order)
       for (final proposal in finalProposals) {
         await phaseRegimeService.createRegime(
           label: proposal.proposedLabel,

@@ -1070,6 +1070,7 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
               return mediaItems;
             })(),
             lumaraBlocks: _entryState.blocks.map((b) => b.toJson()).toList(),
+            title: _titleController.text.trim().isNotEmpty ? _titleController.text.trim() : null,
             ),
           );
         },
@@ -1193,33 +1194,31 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
                           const SizedBox(height: 16),
                         ],
 
-                        // Entry title - editable for existing entries, always show field
-                        if (widget.existingEntry != null) ...[
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                            child: TextField(
-                              controller: _titleController,
-                              decoration: InputDecoration(
-                                labelText: 'Title',
-                                hintText: 'Give your entry a title...',
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                enabled: !widget.isViewOnly || _isEditMode,
+                        // Entry title - always show field for new and existing entries
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                          child: TextField(
+                            controller: _titleController,
+                            decoration: InputDecoration(
+                              labelText: 'Title',
+                              hintText: 'Give your entry a title...',
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
                               ),
-                              style: theme.textTheme.headlineSmall?.copyWith(
-                                fontWeight: FontWeight.bold,
-                                color: theme.colorScheme.onSurface,
-                              ),
-                              onChanged: (_) {
-                                setState(() {
-                                  _hasBeenModified = true;
-                                });
-                              },
+                              enabled: widget.existingEntry == null || !widget.isViewOnly || _isEditMode,
                             ),
+                            style: theme.textTheme.headlineSmall?.copyWith(
+                              fontWeight: FontWeight.bold,
+                              color: theme.colorScheme.onSurface,
+                            ),
+                            onChanged: (_) {
+                              setState(() {
+                                _hasBeenModified = true;
+                              });
+                            },
                           ),
-                          const SizedBox(height: 8),
-                        ],
+                        ),
+                        const SizedBox(height: 8),
 
                         // Metadata editing section (only for existing entries)
                         if (widget.existingEntry != null) ...[

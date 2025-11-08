@@ -1,7 +1,44 @@
 # EPI ARC MVP - Changelog
 
-**Version:** 2.1.2  
+**Version:** 2.1.3  
 **Last Updated:** January 2025
+
+## [2.1.3] - January 2025
+
+### **Journaling & Phase Management Enhancements** - Complete
+
+#### Journaling Title Field
+- **Title Field for New Entries**: Added title input field to journaling screen for all entries (new and existing)
+  - Title field now always visible at the top of the journal screen
+  - Title is passed through to keyword analysis screen and saved with entries
+  - Supports both new entry creation and existing entry editing
+  - Title persists through the save workflow
+
+#### Phase Display & Timeline Fixes
+- **Current Phase Display Update**: Fixed phase display to show the latest detected phase
+  - Phase tab now correctly displays the current phase from phase analysis (e.g., "Transition" instead of stale "Discovery")
+  - Phase index reloads after creating/updating regimes to ensure current phase is accurate
+  - Fixed issue where phase analysis detected new phases but display remained on old phase
+
+- **Timeline Visualization Enhancement**: Fixed timeline to show multiple phase bars with durations
+  - Timeline now displays all historical phases, not just the current one
+  - When phase analysis detects a new phase, previous ongoing phases are properly ended
+  - Each phase regime shows its duration and time period
+  - Multiple phase bars visible simultaneously showing phase transitions over time
+
+#### Phase Regime Management
+- **Smart Regime Creation**: Enhanced phase regime creation to handle overlaps properly
+  - When creating new regimes, ongoing overlapping regimes are automatically ended
+  - Regimes are created in chronological order to ensure proper phase transitions
+  - Phase index reloads after regime updates to maintain accuracy
+  - Prevents duplicate regimes and ensures clean phase timeline
+
+#### Files Modified
+- `lib/ui/journal/journal_screen.dart` - Added title field for all entries
+- `lib/arc/core/widgets/keyword_analysis_view.dart` - Added title parameter support
+- `lib/services/phase_regime_service.dart` - Enhanced regime creation and phase index reloading
+- `lib/ui/phase/phase_analysis_view.dart` - Added chronological sorting of proposals
+- `docs/changelog/CHANGELOG.md` - This changelog entry
 
 ## [2.1.2] - January 2025
 

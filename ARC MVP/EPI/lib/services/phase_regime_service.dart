@@ -75,35 +75,46 @@ class PhaseRegimeService {
     double? confidence,
     List<String> anchors = const [],
   }) async {
-    // Check for duplicates by time overlap
+    // Find overlapping regimes and end any ongoing ones before creating the new regime
     final existingRegimes = allRegimes;
-    final hasOverlap = existingRegimes.any((existing) {
+    final overlappingRegimes = existingRegimes.where((existing) {
       return existing.start.isBefore(end ?? DateTime.now()) &&
              (existing.end == null || existing.end!.isAfter(start));
-    });
+    }).toList();
     
-    if (hasOverlap) {
-      print('⚠️ Skipping phase regime creation: overlaps with existing regime');
-      print('   New: ${label.name} (${start} - ${end ?? 'ongoing'})');
-      print('   Existing: ${existingRegimes.where((r) => 
-        r.start.isBefore(end ?? DateTime.now()) &&
-        (r.end == null || r.end!.isAfter(start))
-      ).map((r) => '${r.label.name} (${r.start} - ${r.end ?? 'ongoing'})').join(', ')}');
-      
-      // Return the existing overlapping regime instead of creating a new one
-      final overlappingRegime = existingRegimes.firstWhere((r) => 
-        r.start.isBefore(end ?? DateTime.now()) &&
-        (r.end == null || r.end!.isAfter(start))
-      );
-      
-      AnalyticsService.trackEvent('phase_regime.duplicate_skipped', properties: {
-        'label': label.name,
-        'source': source.name,
-        'existing_id': overlappingRegime.id,
-        'existing_label': overlappingRegime.label.name,
-      });
-      
-      return overlappingRegime;
+    // End any ongoing regimes that overlap with the new regime's start time
+    for (final overlappingRegime in overlappingRegimes) {
+      // If the overlapping regime is ongoing and starts before the new regime
+      if (overlappingRegime.isOngoing && overlappingRegime.start.isBefore(start)) {
+        print('🔄 Ending ongoing regime ${overlappingRegime.label.name} at ${start} to make way for ${label.name}');
+        final endedRegime = overlappingRegime.copyWith(
+          end: start,
+          updatedAt: DateTime.now(),
+        );
+        await updateRegime(endedRegime);
+      } else if (overlappingRegime.isOngoing && overlappingRegime.start.isAtSameMomentAs(start)) {
+        // If they start at the same time, update the existing regime instead
+        print('🔄 Updating existing regime ${overlappingRegime.label.name} to ${label.name}');
+        final updatedRegime = overlappingRegime.copyWith(
+          label: label,
+          source: source,
+          confidence: confidence,
+          anchors: anchors,
+          updatedAt: DateTime.now(),
+        );
+        await updateRegime(updatedRegime);
+        return updatedRegime;
+      } else if (!overlappingRegime.isOngoing) {
+        // If there's an exact overlap with a completed regime, skip creating a duplicate
+        print('⚠️ Skipping phase regime creation: overlaps with completed regime ${overlappingRegime.label.name}');
+        AnalyticsService.trackEvent('phase_regime.duplicate_skipped', properties: {
+          'label': label.name,
+          'source': source.name,
+          'existing_id': overlappingRegime.id,
+          'existing_label': overlappingRegime.label.name,
+        });
+        return overlappingRegime;
+      }
     }
 
     final regime = PhaseRegime(
@@ -120,7 +131,7 @@ class PhaseRegimeService {
     );
 
     await _regimesBox?.put(regime.id, regime);
-    _phaseIndex?.addRegime(regime);
+    _loadPhaseIndex(); // Reload phase index to ensure currentRegime is updated
     
     print('✅ Created phase regime: ${regime.label.name} (${regime.start} - ${regime.end ?? 'ongoing'})');
     
@@ -137,7 +148,7 @@ class PhaseRegimeService {
   Future<void> updateRegime(PhaseRegime regime) async {
     final updatedRegime = regime.copyWith(updatedAt: DateTime.now());
     await _regimesBox?.put(regime.id, updatedRegime);
-    _phaseIndex?.updateRegime(updatedRegime);
+    _loadPhaseIndex(); // Reload phase index to ensure currentRegime is updated
     
         AnalyticsService.trackEvent('phase_regime.updated', properties: {
       'regime_id': regime.id,
