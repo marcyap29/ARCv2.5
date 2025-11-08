@@ -309,8 +309,8 @@ class _ArcformTimelineViewState extends State<ArcformTimelineView> {
           .toList();
       
       if (regimeEntries.isEmpty) {
-        print('DEBUG: No entries found for regime ${regime.label.name}');
-        return [];
+        print('DEBUG: No entries found for regime ${regime.label.name}, using hardcoded keywords');
+        return _getHardcodedPhaseKeywords(regime.label.name);
       }
 
       // Get all keywords from entries in this regime
@@ -356,6 +356,59 @@ class _ArcformTimelineViewState extends State<ArcformTimelineView> {
     } catch (e) {
       print('ERROR: Failed to get keywords for regime: $e');
       return [];
+    }
+  }
+
+  List<String> _getHardcodedPhaseKeywords(String phase) {
+    switch (phase.toLowerCase()) {
+      case 'discovery':
+        return [
+          'growth', 'insight', 'learning', 'curiosity', 'exploration',
+          'discovery', 'wonder', 'creativity', 'innovation', 'breakthrough',
+          'transformation', 'journey', 'adventure', 'possibility', 'potential',
+          'excitement', 'enthusiasm', 'energy', 'inspiration', 'vision'
+        ];
+      case 'expansion':
+        return [
+          'expansion', 'growth', 'opportunity', 'success', 'achievement',
+          'progress', 'momentum', 'confidence', 'strength', 'power',
+          'ambition', 'drive', 'determination', 'focus', 'clarity',
+          'vision', 'purpose', 'direction', 'leadership', 'influence'
+        ];
+      case 'transition':
+        return [
+          'change', 'transition', 'shift', 'adaptation', 'flexibility',
+          'uncertainty', 'anxiety', 'hope', 'anticipation', 'preparation',
+          'letting go', 'moving forward', 'new beginnings', 'closure',
+          'reflection', 'integration', 'balance', 'harmony', 'patience', 'trust'
+        ];
+      case 'consolidation':
+        return [
+          'stability', 'consolidation', 'integration', 'synthesis', 'wholeness',
+          'completion', 'mastery', 'expertise', 'wisdom', 'understanding',
+          'peace', 'contentment', 'satisfaction', 'fulfillment', 'gratitude',
+          'appreciation', 'celebration', 'joy', 'serenity', 'tranquility'
+        ];
+      case 'recovery':
+        return [
+          'healing', 'recovery', 'restoration', 'renewal', 'rebirth',
+          'gentleness', 'self-care', 'compassion', 'patience', 'acceptance',
+          'forgiveness', 'release', 'letting go', 'peace', 'tranquility',
+          'serenity', 'calm', 'stillness', 'rest', 'nurturing'
+        ];
+      case 'breakthrough':
+        return [
+          'breakthrough', 'revelation', 'epiphany', 'awakening', 'enlightenment',
+          'transcendence', 'liberation', 'freedom', 'clarity', 'understanding',
+          'wisdom', 'transformation', 'evolution', 'ascension', 'elevation',
+          'illumination', 'realization', 'insight', 'clarity', 'vision'
+        ];
+      default:
+        return [
+          'balance', 'harmony', 'equilibrium', 'stability', 'peace',
+          'contentment', 'satisfaction', 'well-being', 'health', 'vitality',
+          'growth', 'progress', 'development', 'evolution', 'transformation'
+        ];
     }
   }
 
