@@ -48,36 +48,41 @@ class _SimplifiedArcformView3DState extends State<SimplifiedArcformView3D> {
       // Discover which phases the user has experienced
       await _discoverUserPhases();
 
-      // Get the actual current phase from phase regimes if not provided
-      String currentPhase = widget.currentPhase ?? '';
-      
-      // If currentPhase is null or empty, try to get it from phase regimes
-      if (currentPhase.isEmpty) {
-        try {
-          final analyticsService = AnalyticsService();
-          final rivetSweepService = RivetSweepService(analyticsService);
-          final phaseRegimeService = PhaseRegimeService(analyticsService, rivetSweepService);
-          await phaseRegimeService.initialize();
-          
-          final currentRegime = phaseRegimeService.phaseIndex.currentRegime;
-          if (currentRegime != null) {
-            currentPhase = currentRegime.label.name;
-            print('DEBUG: Using current phase from phaseIndex: $currentPhase');
-          } else {
-            // Fallback to Discovery if no current regime found
-            currentPhase = 'Discovery';
-            print('DEBUG: No current regime found, defaulting to Discovery');
+          // Get the actual current phase from phase regimes if not provided
+          String currentPhase = widget.currentPhase ?? '';
+
+          // Always try to get current phase from phase regimes (most accurate)
+          try {
+            final analyticsService = AnalyticsService();
+            final rivetSweepService = RivetSweepService(analyticsService);
+            final phaseRegimeService = PhaseRegimeService(analyticsService, rivetSweepService);
+            await phaseRegimeService.initialize();
+
+            final currentRegime = phaseRegimeService.phaseIndex.currentRegime;
+            if (currentRegime != null) {
+              currentPhase = currentRegime.label.name;
+              print('DEBUG: Using current phase from phaseIndex: $currentPhase');
+            } else {
+              // Only use widget.currentPhase if no current regime found
+              if (currentPhase.isEmpty) {
+                currentPhase = 'Discovery';
+                print('DEBUG: No current regime found, defaulting to Discovery');
+              } else {
+                print('DEBUG: No current regime found, using widget.currentPhase: $currentPhase');
+              }
+            }
+          } catch (e) {
+            print('DEBUG: Error getting current phase from phaseIndex: $e');
+            // Fallback to widget.currentPhase or Discovery
+            if (currentPhase.isEmpty) {
+              currentPhase = 'Discovery';
+            }
           }
-        } catch (e) {
-          print('DEBUG: Error getting current phase from phaseIndex: $e');
-          currentPhase = 'Discovery'; // Fallback
-        }
-      }
-      
-      // Ensure we have a phase
-      if (currentPhase.isEmpty) {
-        currentPhase = 'Discovery';
-      }
+
+          // Ensure we have a phase
+          if (currentPhase.isEmpty) {
+            currentPhase = 'Discovery';
+          }
       
       print('DEBUG: Generating ARCForm for phase: $currentPhase');
       

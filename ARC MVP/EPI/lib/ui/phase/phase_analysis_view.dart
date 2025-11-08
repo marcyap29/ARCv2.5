@@ -68,6 +68,10 @@ class _PhaseAnalysisViewState extends State<PhaseAnalysisView>
       final phaseRegimeService = PhaseRegimeService(analyticsService, rivetSweepService);
       await phaseRegimeService.initialize();
       
+      // Backfill Discovery regime if needed (for entries before first detected regime)
+      final journalRepo = JournalRepository();
+      await _backfillDiscoveryRegime(phaseRegimeService, journalRepo);
+      
       _phaseIndex = phaseRegimeService.phaseIndex;
 
       setState(() {

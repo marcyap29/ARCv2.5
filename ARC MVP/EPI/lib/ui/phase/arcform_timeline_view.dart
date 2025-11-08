@@ -74,7 +74,8 @@ class _ArcformTimelineViewState extends State<ArcformTimelineView> {
                 ),
               )
             else
-              Expanded(
+              SizedBox(
+                height: 400, // Fixed height to prevent overflow
                 child: ListView.builder(
                   itemCount: sortedRegimes.length,
                   itemBuilder: (context, index) {
@@ -249,18 +250,11 @@ class _ArcformTimelineViewState extends State<ArcformTimelineView> {
     }
 
     try {
-      setState(() {
-        _isLoading = true;
-      });
-
       // Get keywords for this phase regime
       final keywords = await _getKeywordsForRegime(regime);
       
       if (keywords.isEmpty) {
         _arcformCache[cacheKey] = null;
-        setState(() {
-          _isLoading = false;
-        });
         return null;
       }
 
@@ -299,17 +293,10 @@ class _ArcformTimelineViewState extends State<ArcformTimelineView> {
       );
 
       _arcformCache[cacheKey] = arcform;
-      setState(() {
-        _isLoading = false;
-      });
-      
       return arcform;
     } catch (e) {
       print('ERROR: Failed to generate ARCForm for regime ${regime.id}: $e');
       _arcformCache[cacheKey] = null;
-      setState(() {
-        _isLoading = false;
-      });
       return null;
     }
   }
