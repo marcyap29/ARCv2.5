@@ -1,7 +1,55 @@
 # EPI ARC MVP - Changelog
 
-**Version:** 2.1.5  
+**Version:** 2.1.6  
 **Last Updated:** November 7, 2025
+
+## [2.1.6] - November 7, 2025
+
+### **LUMARA Chat UI Improvements & Phase Hashtag Fixes** - Complete
+
+#### LUMARA Chat Interface Enhancements
+- **Reduced Text Input Size**: Made the text input area more compact and space-efficient
+  - Reduced padding from `16, 8, 16, 16` to `12, 6, 12, 8`
+  - Made icon buttons smaller (`size: 20`) with tighter padding
+  - Added `isDense: true` to TextField for more compact appearance
+  - Reduced content padding in TextField for better space utilization
+
+- **Show/Hide Input Functionality**: Added ability to hide input area when not in use
+  - Input area hides when tapping conversation area (if input is empty)
+  - Input shows when tapping text field, microphone button, or when focused
+  - Input automatically shows when there's text content
+  - Improved focus management with `FocusNode` tracking
+
+- **Dynamic Text Expansion**: Text input expands based on content length
+  - Changed `maxLines: 3` to `maxLines: null` to allow unlimited expansion
+  - Text field grows vertically as users type longer messages
+  - Maintains compact default size while allowing expansion when needed
+
+#### Phase Hashtag System Fixes
+- **Correct Phase Detection**: Fixed phase hashtag to use `PhaseRegimeService` instead of `UserPhaseService`
+  - Now correctly detects current phase from phase regimes
+  - Checks `phaseIndex.currentRegime` first for ongoing phases
+  - Falls back to most recent regime if no current ongoing regime
+  - Only defaults to "Discovery" if no regimes exist
+
+- **Universal Phase Support**: All phase types now correctly supported
+  - Discovery: `#discovery`
+  - Expansion: `#expansion`
+  - Transition: `#transition`
+  - Consolidation: `#consolidation`
+  - Recovery: `#recovery`
+  - Breakthrough: `#breakthrough`
+  - Phase hashtags are added automatically when saving entries
+
+- **Enhanced Entry Saving**: Added phase hashtag support to `saveEntryWithKeywords` method
+  - Phase hashtags now added to all entry save paths
+  - Prevents duplicate hashtags (case-insensitive check)
+  - Includes debug logging for phase detection troubleshooting
+
+#### Files Modified
+- `lib/arc/chat/ui/lumara_assistant_screen.dart` - Reduced input size, added show/hide functionality, improved focus management
+- `lib/arc/core/journal_capture_cubit.dart` - Fixed phase detection to use PhaseRegimeService, added phase hashtag to saveEntryWithKeywords
+- `docs/changelog/CHANGELOG.md` - This changelog entry
 
 ## [2.1.5] - November 7, 2025
 
