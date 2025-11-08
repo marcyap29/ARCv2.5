@@ -66,6 +66,11 @@ class PhaseRegimeService {
     return phaseIndex.phaseFor(timestamp);
   }
 
+  /// Helper to get PhaseLabel name (works with all Dart versions)
+  String _getPhaseLabelName(PhaseLabel label) {
+    return label.toString().split('.').last;
+  }
+
   /// Create a new phase regime
   Future<PhaseRegime> createRegime({
     required PhaseLabel label,
@@ -86,7 +91,7 @@ class PhaseRegimeService {
     for (final overlappingRegime in overlappingRegimes) {
       // If the overlapping regime is ongoing and starts before the new regime
       if (overlappingRegime.isOngoing && overlappingRegime.start.isBefore(start)) {
-        print('🔄 Ending ongoing regime ${overlappingRegime.label.name} at ${start} to make way for ${label.name}');
+        print('🔄 Ending ongoing regime ${_getPhaseLabelName(overlappingRegime.label)} at ${start} to make way for ${_getPhaseLabelName(label)}');
         final endedRegime = overlappingRegime.copyWith(
           end: start,
           updatedAt: DateTime.now(),
@@ -94,7 +99,7 @@ class PhaseRegimeService {
         await updateRegime(endedRegime);
       } else if (overlappingRegime.isOngoing && overlappingRegime.start.isAtSameMomentAs(start)) {
         // If they start at the same time, update the existing regime instead
-        print('🔄 Updating existing regime ${overlappingRegime.label.name} to ${label.name}');
+        print('🔄 Updating existing regime ${_getPhaseLabelName(overlappingRegime.label)} to ${_getPhaseLabelName(label)}');
         final updatedRegime = overlappingRegime.copyWith(
           label: label,
           source: source,
@@ -106,12 +111,12 @@ class PhaseRegimeService {
         return updatedRegime;
       } else if (!overlappingRegime.isOngoing) {
         // If there's an exact overlap with a completed regime, skip creating a duplicate
-        print('⚠️ Skipping phase regime creation: overlaps with completed regime ${overlappingRegime.label.name}');
+        print('⚠️ Skipping phase regime creation: overlaps with completed regime ${_getPhaseLabelName(overlappingRegime.label)}');
       AnalyticsService.trackEvent('phase_regime.duplicate_skipped', properties: {
-        'label': label.name,
-        'source': source.name,
+        'label': _getPhaseLabelName(label),
+        'source': source.toString().split('.').last,
         'existing_id': overlappingRegime.id,
-        'existing_label': overlappingRegime.label.name,
+        'existing_label': _getPhaseLabelName(overlappingRegime.label),
       });
       return overlappingRegime;
       }
@@ -133,11 +138,11 @@ class PhaseRegimeService {
     await _regimesBox?.put(regime.id, regime);
     _loadPhaseIndex(); // Reload phase index to ensure currentRegime is updated
     
-    print('✅ Created phase regime: ${regime.label.name} (${regime.start} - ${regime.end ?? 'ongoing'})');
+    print('✅ Created phase regime: ${_getPhaseLabelName(regime.label)} (${regime.start} - ${regime.end ?? 'ongoing'})');
     
     AnalyticsService.trackEvent('phase_regime.created', properties: {
-      'label': label.name,
-      'source': source.name,
+      'label': _getPhaseLabelName(label),
+      'source': source.toString().split('.').last,
       'duration_days': regime.duration.inDays,
     });
 
@@ -152,7 +157,7 @@ class PhaseRegimeService {
     
         AnalyticsService.trackEvent('phase_regime.updated', properties: {
       'regime_id': regime.id,
-      'label': regime.label.name,
+      'label': _getPhaseLabelName(regime.label),
     });
   }
 
@@ -186,8 +191,8 @@ class PhaseRegimeService {
         if (hasOverlap) {
           // Keep the first one (earlier start time), remove the second
           duplicatesToRemove.add(regime2.id);
-          print('🗑️ Marking duplicate for removal: ${regime2.label.name} (${regime2.start} - ${regime2.end ?? 'ongoing'})');
-          print('   Keeping: ${regime1.label.name} (${regime1.start} - ${regime1.end ?? 'ongoing'})');
+          print('🗑️ Marking duplicate for removal: ${_getPhaseLabelName(regime2.label)} (${regime2.start} - ${regime2.end ?? 'ongoing'})');
+          print('   Keeping: ${_getPhaseLabelName(regime1.label)} (${regime1.start} - ${regime1.end ?? 'ongoing'})');
         }
       }
     }
@@ -438,7 +443,7 @@ class PhaseRegimeService {
       
       await _regimesBox?.put(regime.id, regime);
       importedCount++;
-      print('✅ Imported phase regime: ${regime.label.name} (${regime.start} - ${regime.end ?? 'ongoing'})');
+      print('✅ Imported phase regime: ${_getPhaseLabelName(regime.label)} (${regime.start} - ${regime.end ?? 'ongoing'})');
     }
     
     _loadPhaseIndex();

@@ -770,6 +770,7 @@ List<PhaseSegmentProposal> proposals,
           .toList();
 
       print('DEBUG: _backfillDiscoveryRegime - Found ${entriesBeforeFirstRegime.length} entries before first regime (${_getPhaseLabelName(firstRegime.label)} starting ${firstRegime.start})');
+      print('DEBUG: _backfillDiscoveryRegime - Total entries: ${allEntries.length}, First entry date: ${allEntries.isNotEmpty ? allEntries.reduce((a, b) => a.createdAt.isBefore(b.createdAt) ? a : b).createdAt : 'none'}');
 
       if (entriesBeforeFirstRegime.isNotEmpty) {
         // Create Discovery regime for entries before first detected regime
@@ -777,23 +778,35 @@ List<PhaseSegmentProposal> proposals,
             .reduce((a, b) => a.createdAt.isBefore(b.createdAt) ? a : b)
             .createdAt;
         
-        // Check if a Discovery regime already exists for this period
+        // Check if a Discovery regime already exists that covers this period
+        // More flexible check - just see if any Discovery regime covers the start date
         final existingDiscovery = regimes.where((r) => 
           r.label == PhaseLabel.discovery && 
-          r.start == discoveryStart && 
-          r.end == firstRegime.start
+          r.start.isBefore(discoveryStart.add(const Duration(seconds: 1))) &&
+          (r.end == null || r.end!.isAfter(discoveryStart.subtract(const Duration(seconds: 1)))) &&
+          (r.end == null || r.end!.isAtSameMomentAs(firstRegime.start) || r.end!.isAfter(firstRegime.start.subtract(const Duration(seconds: 1))))
         ).isEmpty;
         
+        print('DEBUG: _backfillDiscoveryRegime - Discovery start: $discoveryStart, First regime start: ${firstRegime.start}');
+        print('DEBUG: _backfillDiscoveryRegime - Existing Discovery regimes: ${regimes.where((r) => r.label == PhaseLabel.discovery).length}');
+        
         if (existingDiscovery) {
-          await phaseRegimeService.createRegime(
-            label: PhaseLabel.discovery,
-            start: discoveryStart,
-            end: firstRegime.start,
-            source: PhaseSource.rivet,
-            confidence: 0.5, // Lower confidence for backfilled Discovery
-            anchors: entriesBeforeFirstRegime.map((e) => e.id).toList(),
-          );
-          print('DEBUG: Created backfilled Discovery regime from $discoveryStart to ${firstRegime.start} (${entriesBeforeFirstRegime.length} entries)');
+          try {
+            await phaseRegimeService.createRegime(
+              label: PhaseLabel.discovery,
+              start: discoveryStart,
+              end: firstRegime.start,
+              source: PhaseSource.rivet,
+              confidence: 0.5, // Lower confidence for backfilled Discovery
+              anchors: entriesBeforeFirstRegime.map((e) => e.id).toList(),
+            );
+            print('✅ Created backfilled Discovery regime from $discoveryStart to ${firstRegime.start} (${entriesBeforeFirstRegime.length} entries)');
+            
+            // Reload phaseIndex after creating Discovery regime
+            await phaseRegimeService.initialize();
+          } catch (e) {
+            print('❌ ERROR creating Discovery regime: $e');
+          }
         } else {
           print('DEBUG: Discovery regime already exists for this period, skipping');
         }
