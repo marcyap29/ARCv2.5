@@ -94,45 +94,70 @@ class _PhaseTimelineViewState extends State<PhaseTimelineView> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final regimes = widget.phaseIndex.allRegimes;
-    
-    // Debug: Log regimes for troubleshooting
-    print('DEBUG: PhaseTimelineView - Total regimes: ${regimes.length}');
-    print('DEBUG: Visible range: $_visibleStart to $_visibleEnd');
-    for (final regime in regimes) {
-      print('DEBUG: Regime - ${regime.label.name}: ${regime.start} to ${regime.end ?? 'ongoing'}');
-    }
+    try {
+      final theme = Theme.of(context);
+      final regimes = widget.phaseIndex.allRegimes;
+      
+      // Debug: Log regimes for troubleshooting
+      print('DEBUG: PhaseTimelineView.build() - Total regimes: ${regimes.length}');
+      print('DEBUG: PhaseTimelineView.build() - Visible range: $_visibleStart to $_visibleEnd');
+      print('DEBUG: PhaseTimelineView.build() - PhaseIndex: ${widget.phaseIndex}');
+      for (final regime in regimes) {
+        print('DEBUG: Regime - ${regime.label.name}: ${regime.start} to ${regime.end ?? 'ongoing'}');
+      }
 
-    return Column(
-      children: [
-        Expanded(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              children: [
-                _buildTimelineHeader(theme),
-                const SizedBox(height: 16),
-                _buildPhaseLegend(theme),
-                const SizedBox(height: 16),
-                _buildTimelineVisualization(theme, regimes),
-                const SizedBox(height: 16),
-                _buildRegimeList(theme, regimes),
-                const SizedBox(height: 16),
-                SizedBox(
-                  height: 400,
-                  child: ArcformTimelineView(
-                    phaseIndex: widget.phaseIndex,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                _buildTimelineControls(theme),
-              ],
+      return SingleChildScrollView(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            _buildTimelineHeader(theme),
+            const SizedBox(height: 16),
+            _buildPhaseLegend(theme),
+            const SizedBox(height: 16),
+            _buildTimelineVisualization(theme, regimes),
+            const SizedBox(height: 16),
+            _buildRegimeList(theme, regimes),
+            const SizedBox(height: 16),
+            SizedBox(
+              height: 400,
+              child: ArcformTimelineView(
+                phaseIndex: widget.phaseIndex,
+              ),
             ),
+            const SizedBox(height: 16),
+            _buildTimelineControls(theme),
+          ],
+        ),
+      );
+    } catch (e, stackTrace) {
+      print('ERROR: PhaseTimelineView.build() failed: $e');
+      print('ERROR: Stack trace: $stackTrace');
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.error_outline, size: 48, color: Colors.red),
+              const SizedBox(height: 16),
+              Text(
+                'Error loading timeline',
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                e.toString(),
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: Colors.grey,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ],
           ),
         ),
-      ],
-    );
+      );
+    }
   }
 
   Widget _buildTimelineHeader(ThemeData theme) {
