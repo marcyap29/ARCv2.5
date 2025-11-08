@@ -1195,30 +1195,30 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
                         ],
 
                         // Entry title - always show field for new and existing entries
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                          child: TextField(
-                            controller: _titleController,
-                            decoration: InputDecoration(
-                              labelText: 'Title',
-                              hintText: 'Give your entry a title...',
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                            child: TextField(
+                              controller: _titleController,
+                              decoration: InputDecoration(
+                                labelText: 'Title',
+                                hintText: 'Give your entry a title...',
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
                               enabled: widget.existingEntry == null || !widget.isViewOnly || _isEditMode,
+                              ),
+                              style: theme.textTheme.headlineSmall?.copyWith(
+                                fontWeight: FontWeight.bold,
+                                color: theme.colorScheme.onSurface,
+                              ),
+                              onChanged: (_) {
+                                setState(() {
+                                  _hasBeenModified = true;
+                                });
+                              },
                             ),
-                            style: theme.textTheme.headlineSmall?.copyWith(
-                              fontWeight: FontWeight.bold,
-                              color: theme.colorScheme.onSurface,
-                            ),
-                            onChanged: (_) {
-                              setState(() {
-                                _hasBeenModified = true;
-                              });
-                            },
                           ),
-                        ),
-                        const SizedBox(height: 8),
+                          const SizedBox(height: 8),
 
                         // Metadata editing section (only for existing entries)
                         if (widget.existingEntry != null) ...[

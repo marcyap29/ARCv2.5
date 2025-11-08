@@ -30,13 +30,22 @@ class _PhaseAnalysisViewState extends State<PhaseAnalysisView>
   PhaseIndex? _phaseIndex;
   bool _isLoading = true;
   String? _error;
-  final GlobalKey<State<SimplifiedArcformView3D>> _arcformsKey = GlobalKey<State<SimplifiedArcformView3D>>();
   final GlobalKey<State<SentinelAnalysisView>> _sentinelKey = GlobalKey<State<SentinelAnalysisView>>();
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 4, vsync: this);
+    // Add listener to refresh ARCForms when switching to that tab
+    _tabController.addListener(() {
+      if (_tabController.index == 0 && mounted) {
+        // ARCForms tab is selected (index 0)
+        print('DEBUG: ARCForms tab selected, refreshing...');
+        setState(() {
+          // Force rebuild to ensure current phase is shown
+        });
+      }
+    });
     _loadPhaseData();
   }
 
@@ -72,10 +81,26 @@ class _PhaseAnalysisViewState extends State<PhaseAnalysisView>
       final journalRepo = JournalRepository();
       await _backfillDiscoveryRegime(phaseRegimeService, journalRepo);
       
+      // Reload phaseIndex after backfill to ensure it's up to date
+      await phaseRegimeService.initialize();
       _phaseIndex = phaseRegimeService.phaseIndex;
+      
+      print('DEBUG: _loadPhaseData - Total regimes after backfill: ${_phaseIndex?.allRegimes.length ?? 0}');
+      for (final regime in _phaseIndex?.allRegimes ?? []) {
+        print('DEBUG: _loadPhaseData - Regime: ${_getPhaseLabelName(regime.label)} from ${regime.start} to ${regime.end ?? 'ongoing'}');
+      }
+      
+      final currentRegime = _phaseIndex?.currentRegime;
+      final currentPhaseName = currentRegime != null ? _getPhaseLabelName(currentRegime.label) : 'none';
+      print('DEBUG: _loadPhaseData - Current phase determined: $currentPhaseName (ID: ${currentRegime?.id})');
 
       setState(() {
         _isLoading = false;
+      });
+      
+      // Refresh ARCForms to show updated phase
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _refreshArcforms();
       });
     } catch (e) {
       setState(() {
@@ -226,46 +251,6 @@ List<PhaseSegmentProposal> proposals,
     }
   }
 
-  Future<void> _cleanupDuplicates() async {
-    try {
-      setState(() {
-        _isLoading = true;
-      });
-
-      final analyticsService = AnalyticsService();
-      final rivetSweepService = RivetSweepService(analyticsService);
-      final phaseRegimeService = PhaseRegimeService(analyticsService, rivetSweepService);
-      await phaseRegimeService.initialize();
-
-      final removedCount = await phaseRegimeService.removeDuplicates();
-
-      // Reload phase data to show cleaned up regimes
-      await _loadPhaseData();
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Cleaned up $removedCount duplicate phase regimes'),
-            backgroundColor: removedCount > 0 ? Colors.orange : Colors.green,
-            duration: const Duration(seconds: 3),
-          ),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to cleanup duplicates: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    } finally {
-      setState(() {
-        _isLoading = false;
-      });
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -784,25 +769,47 @@ List<PhaseSegmentProposal> proposals,
           .where((entry) => entry.createdAt.isBefore(firstRegime.start))
           .toList();
 
+      print('DEBUG: _backfillDiscoveryRegime - Found ${entriesBeforeFirstRegime.length} entries before first regime (${_getPhaseLabelName(firstRegime.label)} starting ${firstRegime.start})');
+
       if (entriesBeforeFirstRegime.isNotEmpty) {
         // Create Discovery regime for entries before first detected regime
         final discoveryStart = entriesBeforeFirstRegime
             .reduce((a, b) => a.createdAt.isBefore(b.createdAt) ? a : b)
             .createdAt;
         
-        await phaseRegimeService.createRegime(
-          label: PhaseLabel.discovery,
-          start: discoveryStart,
-          end: firstRegime.start,
-          source: PhaseSource.rivet,
-          confidence: 0.5, // Lower confidence for backfilled Discovery
-          anchors: entriesBeforeFirstRegime.map((e) => e.id).toList(),
-        );
-        print('DEBUG: Created backfilled Discovery regime from $discoveryStart to ${firstRegime.start} (${entriesBeforeFirstRegime.length} entries)');
+        // Check if a Discovery regime already exists for this period
+        final existingDiscovery = regimes.where((r) => 
+          r.label == PhaseLabel.discovery && 
+          r.start == discoveryStart && 
+          r.end == firstRegime.start
+        ).isEmpty;
+        
+        if (existingDiscovery) {
+          await phaseRegimeService.createRegime(
+            label: PhaseLabel.discovery,
+            start: discoveryStart,
+            end: firstRegime.start,
+            source: PhaseSource.rivet,
+            confidence: 0.5, // Lower confidence for backfilled Discovery
+            anchors: entriesBeforeFirstRegime.map((e) => e.id).toList(),
+          );
+          print('DEBUG: Created backfilled Discovery regime from $discoveryStart to ${firstRegime.start} (${entriesBeforeFirstRegime.length} entries)');
+        } else {
+          print('DEBUG: Discovery regime already exists for this period, skipping');
+        }
+      } else {
+        print('DEBUG: No entries found before first regime, skipping Discovery backfill');
       }
     } catch (e) {
       print('DEBUG: Error backfilling Discovery regime: $e');
     }
+  }
+
+  /// Helper to get PhaseLabel name (works with all Dart versions)
+  String _getPhaseLabelName(PhaseLabel label) {
+    // Use toString().split('.').last which works in all Dart versions
+    // e.g., "PhaseLabel.discovery" -> "discovery"
+    return label.toString().split('.').last;
   }
 
   /// Get journal entry count
@@ -829,12 +836,15 @@ List<PhaseSegmentProposal> proposals,
               children: [
                 Icon(Icons.auto_awesome, color: Colors.blue[700]),
                 const SizedBox(width: 8),
-                Text(
-                  'Building Your Phase Timeline',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.blue[700],
+                Expanded(
+                  child: Text(
+                    'Building Your Phase Timeline',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.blue[700],
+                    ),
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
               ],
@@ -937,9 +947,36 @@ List<PhaseSegmentProposal> proposals,
         ),
         // Simplified view below
         Expanded(
-          child: SimplifiedArcformView3D(
-            key: _arcformsKey,
-            currentPhase: _phaseIndex?.currentRegime?.label.name,
+          child: Builder(
+            builder: (context) {
+              // Get current phase - prioritize currentRegime, fallback to most recent regime
+              String? currentPhaseName;
+              if (_phaseIndex?.currentRegime != null) {
+                currentPhaseName = _getPhaseLabelName(_phaseIndex!.currentRegime!.label);
+                print('DEBUG: phase_analysis_view - Using currentRegime: $currentPhaseName');
+              } else if (_phaseIndex?.allRegimes.isNotEmpty == true) {
+                // No current ongoing regime, use most recent one
+                final sortedRegimes = List.from(_phaseIndex!.allRegimes)..sort((a, b) => b.start.compareTo(a.start));
+                currentPhaseName = _getPhaseLabelName(sortedRegimes.first.label);
+                print('DEBUG: phase_analysis_view - No current regime, using most recent: $currentPhaseName');
+              } else {
+                print('DEBUG: phase_analysis_view - No regimes found, passing null');
+              }
+              
+              print('DEBUG: phase_analysis_view - Passing currentPhase to SimplifiedArcformView3D: $currentPhaseName');
+              print('DEBUG: phase_analysis_view - currentRegime ID: ${_phaseIndex?.currentRegime?.id}');
+              print('DEBUG: phase_analysis_view - Total regimes: ${_phaseIndex?.allRegimes.length ?? 0}');
+              
+              // Create a unique key that includes both the regime ID and phase name to force rebuild
+              final regimeId = _phaseIndex?.currentRegime?.id ?? 'none';
+              final phaseName = currentPhaseName ?? 'none';
+              final uniqueKey = 'arcform_${regimeId}_$phaseName';
+              
+              return SimplifiedArcformView3D(
+                key: ValueKey(uniqueKey),
+                currentPhase: currentPhaseName,
+              );
+            },
           ),
         ),
       ],
@@ -949,12 +986,11 @@ List<PhaseSegmentProposal> proposals,
 
   /// Refresh ARCForms when phase changes occur
   void _refreshArcforms() {
-    // Call refresh method on the ARCForms view
-    final state = _arcformsKey.currentState;
-    if (state != null && state.mounted) {
-      (state as dynamic).refreshSnapshots();
-      // Also update the phase if it has changed
-      (state as dynamic).updatePhase(_phaseIndex?.currentRegime?.label.name);
+    // Force rebuild by updating state - the ValueKey will ensure widget rebuilds
+    if (mounted) {
+      setState(() {
+        // Trigger rebuild - the ValueKey on SimplifiedArcformView3D will force recreation
+      });
     }
   }
 

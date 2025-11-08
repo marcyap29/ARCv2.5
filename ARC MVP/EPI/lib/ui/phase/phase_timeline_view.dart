@@ -95,9 +95,9 @@ class _PhaseTimelineViewState extends State<PhaseTimelineView> {
   @override
   Widget build(BuildContext context) {
     try {
-      final theme = Theme.of(context);
-      final regimes = widget.phaseIndex.allRegimes;
-      
+    final theme = Theme.of(context);
+    final regimes = widget.phaseIndex.allRegimes;
+
       // Debug: Log regimes for troubleshooting
       print('DEBUG: PhaseTimelineView.build() - Total regimes: ${regimes.length}');
       print('DEBUG: PhaseTimelineView.build() - Visible range: $_visibleStart to $_visibleEnd');
@@ -110,22 +110,23 @@ class _PhaseTimelineViewState extends State<PhaseTimelineView> {
         padding: const EdgeInsets.all(16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
+          mainAxisSize: MainAxisSize.min,
           children: [
             _buildTimelineHeader(theme),
-            const SizedBox(height: 16),
+            const SizedBox(height: 12),
             _buildPhaseLegend(theme),
-            const SizedBox(height: 16),
+            const SizedBox(height: 12),
             _buildTimelineVisualization(theme, regimes),
-            const SizedBox(height: 16),
+            const SizedBox(height: 12),
             _buildRegimeList(theme, regimes),
-            const SizedBox(height: 16),
-            SizedBox(
-              height: 400,
+            const SizedBox(height: 12),
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxHeight: 400),
               child: ArcformTimelineView(
                 phaseIndex: widget.phaseIndex,
               ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 12),
             _buildTimelineControls(theme),
           ],
         ),
@@ -152,11 +153,11 @@ class _PhaseTimelineViewState extends State<PhaseTimelineView> {
                   color: Colors.grey,
                 ),
                 textAlign: TextAlign.center,
-              ),
-            ],
+        ),
+      ],
           ),
         ),
-      );
+    );
     }
   }
 
@@ -678,36 +679,48 @@ class _PhaseTimelineViewState extends State<PhaseTimelineView> {
   Widget _buildTimelineControls(ThemeData theme) {
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Row(
+        padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 12.0),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            IconButton(
-              onPressed: _zoomOut,
-              icon: const Icon(Icons.zoom_out),
-              tooltip: 'Zoom Out',
+            Row(
+              children: [
+                IconButton(
+                  onPressed: _zoomOut,
+                  icon: const Icon(Icons.zoom_out),
+                  tooltip: 'Zoom Out',
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                ),
+                Expanded(
+                  child: Slider(
+                    value: _zoomLevel,
+                    min: 0.1,
+                    max: 3.0,
+                    onChanged: (value) {
+                      setState(() {
+                        _zoomLevel = value;
+                      });
+                    },
+                  ),
+                ),
+                IconButton(
+                  onPressed: _zoomIn,
+                  icon: const Icon(Icons.zoom_in),
+                  tooltip: 'Zoom In',
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                ),
+              ],
             ),
-            Expanded(
-              child: Slider(
-                value: _zoomLevel,
-                min: 0.1,
-                max: 3.0,
-                onChanged: (value) {
-                  setState(() {
-                    _zoomLevel = value;
-                  });
-                },
+            const SizedBox(height: 8),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: _showPhaseChangeDialog,
+                icon: const Icon(Icons.add, size: 18),
+                label: const Text('Change Phase'),
               ),
-            ),
-            IconButton(
-              onPressed: _zoomIn,
-              icon: const Icon(Icons.zoom_in),
-              tooltip: 'Zoom In',
-            ),
-            const SizedBox(width: 16),
-            ElevatedButton.icon(
-              onPressed: _showPhaseChangeDialog,
-              icon: const Icon(Icons.add),
-              label: const Text('Change Phase'),
             ),
           ],
         ),

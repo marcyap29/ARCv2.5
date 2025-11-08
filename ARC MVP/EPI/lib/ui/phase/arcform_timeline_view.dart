@@ -41,15 +41,19 @@ class _ArcformTimelineViewState extends State<ArcformTimelineView> {
         padding: const EdgeInsets.all(16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
           children: [
             Row(
               children: [
                 Icon(Icons.auto_awesome, color: theme.colorScheme.primary, size: 20),
                 const SizedBox(width: 8),
-                Text(
-                  'ARCForm Timeline',
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
+                Expanded(
+                  child: Text(
+                    'ARCForm Timeline',
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
               ],
@@ -66,9 +70,10 @@ class _ArcformTimelineViewState extends State<ArcformTimelineView> {
                 ),
               )
             else
-              SizedBox(
-                height: 400, // Fixed height to prevent overflow
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxHeight: 280),
                 child: ListView.builder(
+                  shrinkWrap: true,
                   itemCount: sortedRegimes.length,
                   itemBuilder: (context, index) {
                     final regime = sortedRegimes[index];
@@ -83,7 +88,7 @@ class _ArcformTimelineViewState extends State<ArcformTimelineView> {
   }
 
   Widget _buildArcformTimelineItem(ThemeData theme, PhaseRegime regime, bool isCurrent) {
-    final phaseName = regime.label.name;
+    final phaseName = _getPhaseLabelName(regime.label);
     final color = _getPhaseColor(regime.label);
     final duration = regime.duration;
     
@@ -251,7 +256,7 @@ class _ArcformTimelineViewState extends State<ArcformTimelineView> {
       }
 
       // Create skin for this phase
-      final phaseName = regime.label.name;
+      final phaseName = _getPhaseLabelName(regime.label);
       final skin = ArcformSkin.forUser('user', 'regime_${regime.id}');
 
       // Generate 3D layout
@@ -309,8 +314,8 @@ class _ArcformTimelineViewState extends State<ArcformTimelineView> {
           .toList();
       
       if (regimeEntries.isEmpty) {
-        print('DEBUG: No entries found for regime ${regime.label.name}, using hardcoded keywords');
-        return _getHardcodedPhaseKeywords(regime.label.name);
+        print('DEBUG: No entries found for regime ${_getPhaseLabelName(regime.label)}, using hardcoded keywords');
+        return _getHardcodedPhaseKeywords(_getPhaseLabelName(regime.label));
       }
 
       // Get all keywords from entries in this regime
@@ -336,7 +341,7 @@ class _ArcformTimelineViewState extends State<ArcformTimelineView> {
           .where((kw) => kw.isNotEmpty)
           .toList();
 
-      print('DEBUG: Found ${topKeywords.length} top keywords for ${regime.label.name} phase');
+      print('DEBUG: Found ${topKeywords.length} top keywords for ${_getPhaseLabelName(regime.label)} phase');
       
       // Also get aggregated keywords from entry content
       final journalTexts = regimeEntries.map((e) => e.content).toList();
@@ -410,6 +415,10 @@ class _ArcformTimelineViewState extends State<ArcformTimelineView> {
           'growth', 'progress', 'development', 'evolution', 'transformation'
         ];
     }
+  }
+
+  String _getPhaseLabelName(PhaseLabel label) {
+    return label.toString().split('.').last;
   }
 
   Color _getPhaseColor(PhaseLabel label) {

@@ -107,13 +107,13 @@ class PhaseRegimeService {
       } else if (!overlappingRegime.isOngoing) {
         // If there's an exact overlap with a completed regime, skip creating a duplicate
         print('⚠️ Skipping phase regime creation: overlaps with completed regime ${overlappingRegime.label.name}');
-        AnalyticsService.trackEvent('phase_regime.duplicate_skipped', properties: {
-          'label': label.name,
-          'source': source.name,
-          'existing_id': overlappingRegime.id,
-          'existing_label': overlappingRegime.label.name,
-        });
-        return overlappingRegime;
+      AnalyticsService.trackEvent('phase_regime.duplicate_skipped', properties: {
+        'label': label.name,
+        'source': source.name,
+        'existing_id': overlappingRegime.id,
+        'existing_label': overlappingRegime.label.name,
+      });
+      return overlappingRegime;
       }
     }
 

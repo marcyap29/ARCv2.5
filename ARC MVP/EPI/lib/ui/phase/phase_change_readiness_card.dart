@@ -773,16 +773,20 @@ class _PhaseChangeReadinessCardState extends State<PhaseChangeReadinessCard> {
             : (progress >= 0.25 ? Colors.blue : Colors.grey));
 
     return Column(
+      mainAxisSize: MainAxisSize.min,
       children: [
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(
-              'Readiness Progress',
-              style: TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w600,
-                color: Colors.white,
+            Flexible(
+              child: Text(
+                'Readiness Progress',
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.white,
+                ),
+                overflow: TextOverflow.ellipsis,
               ),
             ),
             Text(
@@ -844,12 +848,15 @@ class _PhaseChangeReadinessCardState extends State<PhaseChangeReadinessCard> {
             children: [
               Icon(Icons.checklist, color: Colors.blue.shade600, size: 22),
               const SizedBox(width: 10),
-              Text(
-                'Validation Requirements',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
+              Expanded(
+                child: Text(
+                  'Validation Requirements',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
             ],
