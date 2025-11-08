@@ -26,7 +26,6 @@ class ArcformTimelineView extends StatefulWidget {
 
 class _ArcformTimelineViewState extends State<ArcformTimelineView> {
   final Map<String, Arcform3DData?> _arcformCache = {};
-  bool _isLoading = false;
 
   @override
   Widget build(BuildContext context) {
@@ -56,14 +55,7 @@ class _ArcformTimelineViewState extends State<ArcformTimelineView> {
               ],
             ),
             const SizedBox(height: 16),
-            if (_isLoading)
-              const Center(
-                child: Padding(
-                  padding: EdgeInsets.all(16.0),
-                  child: CircularProgressIndicator(),
-                ),
-              )
-            else if (sortedRegimes.isEmpty)
+            if (sortedRegimes.isEmpty)
               Padding(
                 padding: const EdgeInsets.all(16.0),
                 child: Text(
