@@ -16,6 +16,13 @@ import 'lumara_settings_screen.dart';
 import '../widgets/attribution_display_widget.dart';
 import 'package:my_app/polymeta/memory/enhanced_memory_schema.dart';
 import '../config/api_config.dart';
+import '../voice/voice_chat_service.dart';
+import 'voice_chat_panel.dart';
+import '../voice/voice_permissions.dart';
+import '../data/context_provider.dart';
+import '../data/context_scope.dart';
+import '../services/enhanced_lumara_api.dart';
+import '../../../telemetry/analytics.dart';
 
 /// Main LUMARA Assistant screen
 class LumaraAssistantScreen extends StatefulWidget {
@@ -31,12 +38,17 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
   final FocusNode _inputFocusNode = FocusNode();
   String? _editingMessageId; // Track which message is being edited
   bool _isInputVisible = true; // Track input visibility
+  
+  // Voice chat service
+  VoiceChatService? _voiceChatService;
+  String? _partialTranscript;
 
   @override
   void initState() {
     super.initState();
     _checkAIConfigurationAndInitialize();
     _inputFocusNode.addListener(_onInputFocusChange);
+    _initializeVoiceChat();
   }
 
   void _onInputFocusChange() {
@@ -98,7 +110,109 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
     _scrollController.dispose();
     _inputFocusNode.removeListener(_onInputFocusChange);
     _inputFocusNode.dispose();
+    _voiceChatService?.dispose();
     super.dispose();
+  }
+
+  /// Initialize voice chat service
+  Future<void> _initializeVoiceChat() async {
+    try {
+      final cubit = context.read<LumaraAssistantCubit>();
+      final contextProvider = ContextProvider(LumaraScope.defaultScope);
+      
+      // Get EnhancedLumaraApi from cubit (access via private field workaround)
+      // For now, create a new instance
+      final enhancedApi = EnhancedLumaraApi(Analytics());
+      await enhancedApi.initialize();
+      
+      _voiceChatService = VoiceChatService(
+        lumaraApi: enhancedApi,
+        journalCubit: null, // Not needed for chat screen
+        chatCubit: cubit,
+        contextProvider: contextProvider,
+      );
+      
+      final initialized = await _voiceChatService!.initialize();
+      if (!initialized && mounted) {
+        debugPrint('Voice chat initialization failed - permissions may be denied');
+      }
+      
+      // Listen to partial transcript stream
+      _voiceChatService!.partialTranscriptStream.listen((transcript) {
+        if (mounted) {
+          setState(() {
+            _partialTranscript = transcript;
+          });
+        }
+      });
+    } catch (e) {
+      debugPrint('Error initializing voice chat: $e');
+    }
+  }
+
+  /// Show voice chat panel
+  void _showVoiceChatPanel() {
+    if (_voiceChatService == null || _voiceChatService!.controller == null) {
+      // Request permissions first
+      _requestVoicePermissions();
+      return;
+    }
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        decoration: BoxDecoration(
+          color: Theme.of(context).scaffoldBackgroundColor,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.of(context).viewInsets.bottom,
+        ),
+        child: VoiceChatPanel(
+          controller: _voiceChatService!.controller!,
+          diagnostics: _voiceChatService!.diagnostics,
+          partialTranscript: _partialTranscript,
+        ),
+      ),
+    );
+  }
+
+  /// Request voice permissions
+  Future<void> _requestVoicePermissions() async {
+    final permState = await VoicePermissions.request();
+    if (permState == VoicePermState.allGranted) {
+      await _initializeVoiceChat();
+      if (_voiceChatService != null && _voiceChatService!.controller != null) {
+        _showVoiceChatPanel();
+      }
+    } else if (permState == VoicePermState.permanentlyDenied) {
+      if (mounted) {
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Microphone Permission Required'),
+            content: const Text(
+              'Voice chat requires microphone permission. Please enable it in Settings.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('Cancel'),
+              ),
+              TextButton(
+                onPressed: () {
+                  Navigator.of(context).pop();
+                  VoicePermissions.openSettings();
+                },
+                child: const Text('Open Settings'),
+              ),
+            ],
+          ),
+        );
+      }
+    }
   }
 
   void _scrollToBottom() {
@@ -662,7 +776,8 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
                   // Show input when mic is tapped
                   setState(() => _isInputVisible = true);
                   _inputFocusNode.requestFocus();
-                  // TODO: Implement voice input
+                  // Show voice chat panel
+                  _showVoiceChatPanel();
                 },
               ),
               IconButton(

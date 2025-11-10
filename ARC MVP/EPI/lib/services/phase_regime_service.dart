@@ -9,6 +9,8 @@ import 'package:my_app/arc/core/journal_repository.dart';
 import 'phase_index.dart';
 import 'rivet_sweep_service.dart';
 import 'analytics_service.dart';
+import 'package:my_app/prism/pipelines/prism_joiner.dart';
+import 'package:my_app/polymeta/store/mcp/mcp_fs.dart';
 
 class PhaseRegimeService {
   static const String _regimesBoxName = 'phase_regimes';
@@ -139,6 +141,9 @@ class PhaseRegimeService {
     await _regimesBox?.put(regime.id, regime);
     _loadPhaseIndex(); // Reload phase index to ensure currentRegime is updated
     
+    // Trigger VEIL policy generation when new regime is created
+    _triggerVeilPolicyGeneration();
+    
     print('✅ Created phase regime: ${_getPhaseLabelName(regime.label)} (${regime.start} - ${regime.end ?? 'ongoing'})');
     
     AnalyticsService.trackEvent('phase_regime.created', properties: {
@@ -173,6 +178,9 @@ class PhaseRegimeService {
     if (updateHashtags && previousLabel != null && previousLabel != regime.label) {
       await updateHashtagsForRegime(updatedRegime, oldLabel: previousLabel);
     }
+    
+    // Trigger VEIL policy generation when regime changes
+    _triggerVeilPolicyGeneration();
     
         AnalyticsService.trackEvent('phase_regime.updated', properties: {
       'regime_id': regime.id,
@@ -238,6 +246,10 @@ class PhaseRegimeService {
     for (final regime in regimes) {
       await _regimesBox?.put(regime.id, regime);
     }
+    _loadPhaseIndex();
+    
+    // Trigger VEIL policy generation when regime is split
+    _triggerVeilPolicyGeneration();
     
         AnalyticsService.trackEvent('phase_regime.split', properties: {
       'regime_id': regimeId,
@@ -255,6 +267,10 @@ class PhaseRegimeService {
     if (mergedRegime != null) {
       await _regimesBox?.put(mergedRegime.id, mergedRegime);
       await _regimesBox?.delete(rightId);
+      _loadPhaseIndex();
+      
+      // Trigger VEIL policy generation when regimes are merged
+      _triggerVeilPolicyGeneration();
       
           AnalyticsService.trackEvent('phase_regime.merged', properties: {
         'left_id': leftId,
@@ -330,7 +346,29 @@ class PhaseRegimeService {
       await updateHashtagsForRegime(newRegime);
     }
     
+    // Trigger VEIL policy generation when phase is backdated
+    _triggerVeilPolicyGeneration();
+    
     return newRegime;
+  }
+
+  /// Trigger VEIL policy generation in the background when phase regimes change
+  /// This runs asynchronously and doesn't block the calling operation
+  void _triggerVeilPolicyGeneration() {
+    // Run in background without blocking
+    Future.microtask(() async {
+      try {
+        print('DEBUG: Phase regime changed - triggering VEIL policy generation');
+        final mcpRoot = await McpFs.base();
+        final joiner = PrismJoiner(mcpRoot);
+        // Generate policies for last 30 days to ensure current day is covered
+        await joiner.joinRange(daysBack: 30);
+        print('DEBUG: VEIL policy generation completed after phase regime change');
+      } catch (e) {
+        // Log error but don't throw - policy generation failure shouldn't block regime changes
+        print('DEBUG: Error generating VEIL policies after regime change: $e');
+      }
+    });
   }
 
   /// Run RIVET Sweep if needed

@@ -1,12 +1,11 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-// import 'package:my_app/prism/atlas/phase/cards/aurora_card.dart'; // Removed - file doesn't exist
-// import 'package:my_app/prism/atlas/phase/cards/veil_card.dart'; // Removed - file doesn't exist
 import 'package:my_app/prism/atlas/phase/your_patterns_view.dart';
 import 'package:my_app/ui/veil/veil_policy_card.dart';
 import 'package:my_app/insights/insight_cubit.dart';
-import 'package:my_app/insights/widgets/insight_card_widget.dart';
+import 'package:my_app/insights/widgets/aurora_card.dart';
+import 'package:my_app/insights/widgets/veil_card.dart';
 import 'package:my_app/shared/text_style.dart';
 import 'package:my_app/shared/ui/qa/qa_screen.dart';
 import 'package:my_app/shared/app_colors.dart';
@@ -22,9 +21,6 @@ class AnalyticsPage extends StatefulWidget {
 class _AnalyticsPageState extends State<AnalyticsPage> with WidgetsBindingObserver {
   InsightCubit? _insightCubit;
   final ScrollController _scrollController = ScrollController();
-  final GlobalKey _patternsAnchor = GlobalKey();
-  final GlobalKey _themesAnchor = GlobalKey();
-  int _selectedSection = 0;
 
   @override
   void initState() {
@@ -58,12 +54,6 @@ class _AnalyticsPageState extends State<AnalyticsPage> with WidgetsBindingObserv
     } catch (_) {}
   }
 
-  void _onSelectSection(int index) {
-    setState(() {
-      _selectedSection = index;
-    });
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -89,228 +79,6 @@ class _AnalyticsPageState extends State<AnalyticsPage> with WidgetsBindingObserv
         insightCubit: _insightCubit,
         scrollController: _scrollController,
         onCreateCubit: _initializeInsightCubit,
-      ),
-    );
-  }
-
-  Widget _buildSelectedSection(BuildContext context) {
-    switch (_selectedSection) {
-      case 0:
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              key: _patternsAnchor,
-              child: _buildMiraGraphCard(context),
-            ),
-          ],
-        );
-      case 1:
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // AuroraCard placeholder - card removed
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: kcSurfaceAltColor,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: kcBorderColor),
-              ),
-              child: const Center(
-                child: Text('AURORA card coming soon'),
-              ),
-            ),
-          ],
-        );
-      case 2:
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // VeilCard placeholder - card removed
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: kcSurfaceAltColor,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: kcBorderColor),
-              ),
-              child: const Center(
-                child: Text('VEIL card coming soon'),
-              ),
-            ),
-            VeilPolicyCard(),
-          ],
-        );
-      case 3:
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              key: _themesAnchor,
-              child: _buildInsightsSection(),
-            ),
-          ],
-        );
-      default:
-        return const SizedBox.shrink();
-    }
-  }
-
-  Widget _buildMiraGraphCard(BuildContext context) {
-    return GestureDetector(
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => const YourPatternsView(),
-          ),
-        );
-      },
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: kcSurfaceAltColor,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: kcBorderColor,
-          ),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-          children: [
-            _buildMiniRadialIcon(),
-            const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-            Text(
-              'Patterns',
-              style: heading2Style(context).copyWith(fontSize: 18),
-            ),
-                      Text(
-                        'Keyword & emotion visualization',
-                        style: bodyStyle(context).copyWith(
-                          fontSize: 11,
-                          color: kcPrimaryTextColor.withOpacity(0.6),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-            Icon(
-              Icons.arrow_forward_ios,
-              size: 16,
-              color: kcPrimaryTextColor.withOpacity(0.6),
-            ),
-          ],
-        ),
-            const SizedBox(height: 12),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: kcSurfaceColor,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'How it works',
-                    style: bodyStyle(context).copyWith(
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                      color: kcPrimaryTextColor.withOpacity(0.9),
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    'Analyzes your journal entries to identify recurring keywords, emotions, and their connections. Keywords show frequency, emotional tone, and associated phases.',
-                    style: bodyStyle(context).copyWith(
-                      fontSize: 11,
-                      color: kcPrimaryTextColor.withOpacity(0.7),
-                      height: 1.3,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildMiniRadialIcon() {
-    return Container(
-      width: 24,
-      height: 24,
-      decoration: const BoxDecoration(
-        color: Colors.transparent,
-        shape: BoxShape.circle,
-      ),
-      child: CustomPaint(
-        painter: _MiniRadialPainter(),
-      ),
-    );
-  }
-
-  Widget _buildInsightsSection() {
-    if (_insightCubit == null) {
-      return Container(
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: kcSurfaceAltColor,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: kcBorderColor),
-        ),
-        child: const Center(child: CircularProgressIndicator()),
-      );
-    }
-
-    return BlocProvider<InsightCubit>.value(
-      value: _insightCubit!,
-      child: BlocBuilder<InsightCubit, InsightState>(
-        builder: (context, state) {
-          if (state is InsightInitial || state is InsightLoading) {
-            return Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: kcSurfaceAltColor,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: kcBorderColor),
-              ),
-              child: const Center(child: CircularProgressIndicator()),
-            );
-          }
-          if (state is InsightLoaded) {
-            return InsightCardsList(
-              cards: state.cards,
-              onCardTap: (card) {},
-            );
-          }
-          if (state is InsightError) {
-            return Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: Colors.red.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: Colors.red.withOpacity(0.3)),
-              ),
-              child: Column(
-                children: const [
-                  Icon(Icons.error_outline, color: Colors.red, size: 32),
-                  SizedBox(height: 8),
-                  Text('Unable to load analytics', style: TextStyle(color: Colors.red)),
-                ],
-              ),
-            );
-          }
-          return const SizedBox.shrink();
-        },
       ),
     );
   }
@@ -401,8 +169,6 @@ class _AnalyticsContentState extends State<AnalyticsContent> {
                   _buildPhaseStyleTab('AURORA', Icons.brightness_auto, 1),
                   const SizedBox(width: 8),
                   _buildPhaseStyleTab('VEIL', Icons.visibility_off, 2),
-                  const SizedBox(width: 8),
-                  _buildPhaseStyleTab('Themes', Icons.category, 3),
                 ],
               ),
             ),
@@ -462,44 +228,16 @@ class _AnalyticsContentState extends State<AnalyticsContent> {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // AuroraCard placeholder - card removed
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: kcSurfaceAltColor,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: kcBorderColor),
-              ),
-              child: const Center(
-                child: Text('AURORA card coming soon'),
-              ),
-            ),
+            const AuroraCard(),
           ],
         );
       case 2:
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // VeilCard placeholder - card removed
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: kcSurfaceAltColor,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: kcBorderColor),
-              ),
-              child: const Center(
-                child: Text('VEIL card coming soon'),
-              ),
-            ),
+            const VeilCard(),
+            const SizedBox(height: 16),
             VeilPolicyCard(),
-          ],
-        );
-      case 3:
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildInsightsSection(),
           ],
         );
       default:
@@ -608,62 +346,6 @@ class _AnalyticsContentState extends State<AnalyticsContent> {
     );
   }
 
-  Widget _buildInsightsSection() {
-    final cubit = _insightCubit ?? widget.insightCubit;
-    if (cubit == null) {
-      return Container(
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: kcSurfaceAltColor,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: kcBorderColor),
-        ),
-        child: const Center(child: CircularProgressIndicator()),
-      );
-    }
-    return BlocProvider<InsightCubit>.value(
-      value: cubit,
-      child: BlocBuilder<InsightCubit, InsightState>(
-        builder: (context, state) {
-          if (state is InsightInitial || state is InsightLoading) {
-            return Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: kcSurfaceAltColor,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: kcBorderColor),
-              ),
-              child: const Center(child: CircularProgressIndicator()),
-            );
-          }
-          if (state is InsightLoaded) {
-            return InsightCardsList(
-              cards: state.cards,
-              onCardTap: (card) {},
-            );
-          }
-          if (state is InsightError) {
-            return Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: Colors.red.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: Colors.red.withOpacity(0.3)),
-              ),
-              child: Column(
-                children: const [
-                  Icon(Icons.error_outline, color: Colors.red, size: 32),
-                  SizedBox(height: 8),
-                  Text('Unable to load analytics', style: TextStyle(color: Colors.red)),
-                ],
-              ),
-            );
-          }
-          return const SizedBox.shrink();
-        },
-      ),
-    );
-  }
 }
 
 class _MiniRadialPainter extends CustomPainter {

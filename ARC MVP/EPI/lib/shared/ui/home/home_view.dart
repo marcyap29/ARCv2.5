@@ -23,6 +23,8 @@ import 'package:flutter/foundation.dart';
 import 'package:my_app/core/services/photo_library_service.dart';
 import 'dart:math' as math;
 import 'package:my_app/arc/ui/health/health_view.dart';
+import 'package:my_app/services/journal_session_cache.dart';
+import 'package:my_app/ui/journal/journal_screen.dart';
 
 // Debug flag for showing RIVET engineering labels
 const bool kShowRivetDebugLabels = false;
@@ -45,7 +47,7 @@ class _HomeViewState extends State<HomeView> {
     const baseTabs = [
       TabItem(icon: Icons.auto_graph, text: 'Phase'),
       TabItem(icon: Icons.timeline, text: 'Timeline'),
-      TabItem(icon: Icons.favorite, text: 'Health'),
+      TabItem(icon: Icons.favorite, text: 'Insights'),
       TabItem(icon: Icons.settings, text: 'Settings'),
     ];
 
@@ -62,9 +64,9 @@ class _HomeViewState extends State<HomeView> {
   }
 
   List<String> get _tabNames {
-    const baseNames = ['Phase', 'Timeline', 'Health', 'Settings'];
+    const baseNames = ['Phase', 'Timeline', 'Insights', 'Settings'];
     if (AppFlags.isLumaraEnabled) {
-      return ['Phase', 'Timeline', 'LUMARA', 'Health', 'Settings'];
+      return ['Phase', 'Timeline', 'LUMARA', 'Insights', 'Settings'];
     }
     return baseNames;
   }
@@ -231,6 +233,17 @@ class _HomeViewState extends State<HomeView> {
                   _homeCubit.changeTab(index);
                   // No special action on Health tab select (handled in Health/Analytics pages)
                 },
+                onNewJournalPressed: AppFlags.isLumaraEnabled ? () async {
+                  // Clear any existing session cache to ensure fresh start
+                  await JournalSessionCache.clearSession();
+                  
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const JournalScreen(),
+                    ),
+                  );
+                } : null,
               ),
             // Write button is now integrated into the elevated tab bar design
             );

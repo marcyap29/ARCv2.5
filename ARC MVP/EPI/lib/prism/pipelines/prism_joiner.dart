@@ -77,6 +77,7 @@ class PrismJoiner {
     final hrv = _mVal('hrv_sdnn');
     final rec1m = _mVal('cardio_recovery_1min');
     final sleepMin = (metrics['sleep_total_minutes'] ?? 0) as int;
+    final standMin = _mVal('stand_minutes') ?? 0;
     final workouts = (metrics['workouts'] as List?)?.cast<Map<String, dynamic>>() ?? const [];
 
     // Simple derived from health

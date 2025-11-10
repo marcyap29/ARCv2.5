@@ -48,6 +48,9 @@ import 'package:my_app/models/journal_entry_model.dart';
 import 'package:my_app/arc/chat/chat/chat_repo_impl.dart';
 import 'package:my_app/arc/chat/chat/chat_models.dart';
 import 'package:my_app/aurora/services/circadian_profile_service.dart';
+import 'package:my_app/arc/chat/voice/voice_chat_service.dart';
+import 'package:my_app/arc/chat/ui/voice_chat_panel.dart';
+import 'package:my_app/arc/chat/voice/voice_permissions.dart';
 
 /// Main journal screen with integrated LUMARA companion and OCR scanning
 class JournalScreen extends StatefulWidget {
@@ -138,6 +141,10 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
   // Draft count for badge display
   int _draftCount = 0;
 
+  // Voice chat service
+  VoiceChatService? _voiceChatService;
+  String? _partialTranscript;
+
   @override
   void initState() {
     super.initState();
@@ -146,6 +153,7 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
     _memoryLoader = ProgressiveMemoryLoader(_journalRepository);
     _arcLLM = provideArcLLM();
     _initializeLumara();
+    _initializeVoiceChat();
     // _ocrService = StubOcrService(_analytics); // TODO: OCR service not yet implemented
     
     // Initialize enhanced OCP services
@@ -300,6 +308,11 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     super.didChangeAppLifecycleState(state);
+    
+    // When app resumes, refresh permission status (user might have granted in settings)
+    if (state == AppLifecycleState.resumed) {
+      _refreshPermissionStatus();
+    }
     
     // Save draft when app goes to background, becomes inactive, or is detached (2, 2a requirement)
     if (state == AppLifecycleState.paused || 
@@ -1302,11 +1315,11 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
                           constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
                         ),
                               
-                              // Add voice button
+                              // Add voice button - opens voice chat panel with speech-to-text
                               IconButton(
                                 onPressed: _handleMicrophone,
                                 icon: const Icon(Icons.mic, size: 18),
-                                tooltip: 'Add Voice Note',
+                                tooltip: 'Voice Chat (Speech-to-Text)',
                                 padding: const EdgeInsets.all(4),
                                 constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
                               ),
@@ -4015,46 +4028,89 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
     try {
       _analytics.logJournalEvent('voice_button_pressed');
       
-      // Check current permission status
-      var status = await Permission.microphone.status;
-      print('DEBUG: Microphone permission status: $status');
+      // Force refresh permission status (in case user just granted it in settings)
+      // permission_handler might cache the status, so we'll check multiple times
+      PermissionStatus micStatus = await Permission.microphone.status;
+      print('DEBUG: Initial microphone status = $micStatus');
+      print('DEBUG: isGranted = ${micStatus.isGranted}');
+      print('DEBUG: isDenied = ${micStatus.isDenied}');
+      print('DEBUG: isPermanentlyDenied = ${micStatus.isPermanentlyDenied}');
+      print('DEBUG: isLimited = ${micStatus.isLimited}');
+      print('DEBUG: isRestricted = ${micStatus.isRestricted}');
       
-      if (status.isDenied) {
-        // Request permission
-        print('DEBUG: Requesting microphone permission...');
-        status = await Permission.microphone.request();
-        print('DEBUG: Permission request result: $status');
-        
-        // If still denied after request, show explanation
-        if (status.isDenied) {
-          _showPermissionExplanationDialog();
-          return;
+      // Double-check by requesting (this won't show dialog if already granted)
+      // But first, let's try a fresh status check
+      await Future.delayed(const Duration(milliseconds: 100)); // Small delay
+      micStatus = await Permission.microphone.status;
+      print('DEBUG: After delay, microphone status = $micStatus');
+      
+      if (micStatus.isGranted) {
+        print('DEBUG: ✅ Microphone IS granted, proceeding directly...');
+        // Permissions granted - initialize voice chat if needed and show panel
+        if (_voiceChatService == null) {
+          await _initializeVoiceChat();
         }
+        if (_voiceChatService != null && _voiceChatService!.controller != null) {
+          _showVoiceChatPanel();
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Voice chat service is not available. Please try again.'),
+            ),
+          );
+        }
+        return;
       }
       
-      if (status.isPermanentlyDenied) {
-        // Show dialog to go to settings
-        print('DEBUG: Permission permanently denied, showing settings dialog');
+      // Microphone not granted - check if permanently denied
+      if (micStatus.isPermanentlyDenied) {
+        print('DEBUG: Microphone permanently denied, showing settings dialog');
         _showPermissionDialog();
         return;
       }
       
-      if (status.isGranted) {
-        // Permission granted - show recording interface
-        print('DEBUG: Permission granted, showing recording dialog');
-        _showVoiceRecordingDialog();
+      // Request microphone permission
+      print('DEBUG: Requesting microphone permission...');
+      final requestedStatus = await Permission.microphone.request();
+      print('DEBUG: Microphone request result = $requestedStatus');
+      print('DEBUG: Requested isGranted = ${requestedStatus.isGranted}');
+      
+      // Check again after request (sometimes status updates async)
+      await Future.delayed(const Duration(milliseconds: 200));
+      final finalStatus = await Permission.microphone.status;
+      print('DEBUG: Final microphone status after request = $finalStatus');
+      
+      if (finalStatus.isGranted || requestedStatus.isGranted) {
+        print('DEBUG: ✅ Microphone granted after request, proceeding...');
+        // Permissions granted - initialize voice chat if needed and show panel
+        if (_voiceChatService == null) {
+          await _initializeVoiceChat();
+        }
+        if (_voiceChatService != null && _voiceChatService!.controller != null) {
+          _showVoiceChatPanel();
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Voice chat service is not available. Please try again.'),
+            ),
+          );
+        }
+      } else if (finalStatus.isPermanentlyDenied || requestedStatus.isPermanentlyDenied) {
+        print('DEBUG: Microphone permanently denied after request');
+        _showPermissionDialog();
       } else {
-        // Permission denied
-        print('DEBUG: Permission denied, showing error message');
+        print('DEBUG: ❌ Microphone permission still not granted');
+        print('DEBUG: Final status details: isGranted=${finalStatus.isGranted}, isDenied=${finalStatus.isDenied}, isPermanentlyDenied=${finalStatus.isPermanentlyDenied}');
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Microphone permission is required for voice recording. Current status: $status'),
-            duration: const Duration(seconds: 3),
+            content: Text('Microphone permission is required. Current status: $finalStatus'),
+            duration: const Duration(seconds: 4),
           ),
         );
       }
-    } catch (e) {
+    } catch (e, stackTrace) {
       print('DEBUG: Microphone error: $e');
+      print('DEBUG: Stack trace: $stackTrace');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Failed to access microphone: $e'),
@@ -4122,20 +4178,91 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
     );
   }
 
-  void _showVoiceRecordingDialog() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Voice Recording'),
-        content: const Text(
-          'Voice recording feature is coming soon! For now, you can type your thoughts.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('OK'),
+  /// Refresh permission status (called when app resumes from settings)
+  Future<void> _refreshPermissionStatus() async {
+    try {
+      final micStatus = await Permission.microphone.status;
+      print('DEBUG: App resumed - microphone status = $micStatus');
+      
+      // If permissions are now granted and service wasn't initialized, initialize it
+      if (micStatus.isGranted && _voiceChatService == null) {
+        print('DEBUG: Permissions now granted, initializing voice chat service...');
+        await _initializeVoiceChat();
+      }
+    } catch (e) {
+      print('DEBUG: Error refreshing permission status: $e');
+    }
+  }
+
+  /// Initialize voice chat service
+  Future<void> _initializeVoiceChat() async {
+    try {
+      final journalCubit = context.read<JournalCaptureCubit>();
+      _voiceChatService = VoiceChatService(
+        lumaraApi: _enhancedLumaraApi,
+        journalCubit: journalCubit,
+        chatCubit: null, // Not needed for journal screen
+        contextProvider: null, // Not needed for journal screen
+      );
+      
+      final initialized = await _voiceChatService!.initialize();
+      if (!initialized && mounted) {
+        debugPrint('Voice chat initialization failed - permissions may be denied');
+        // Show helpful message
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Voice chat initialization failed. Please check microphone permissions.'),
+            duration: Duration(seconds: 3),
           ),
-        ],
+        );
+      }
+      
+      // Listen to partial transcript stream
+      _voiceChatService!.partialTranscriptStream.listen((transcript) {
+        if (mounted) {
+          setState(() {
+            _partialTranscript = transcript;
+          });
+        }
+      });
+    } catch (e) {
+      debugPrint('Error initializing voice chat: $e');
+    }
+  }
+
+  void _showVoiceRecordingDialog() {
+    // Check permissions first
+    _handleMicrophone();
+  }
+
+  /// Show voice chat panel as bottom sheet
+  void _showVoiceChatPanel() {
+    if (_voiceChatService == null || _voiceChatService!.controller == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Voice chat is not available. Please check permissions.'),
+        ),
+      );
+      return;
+    }
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        decoration: BoxDecoration(
+          color: Theme.of(context).scaffoldBackgroundColor,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.of(context).viewInsets.bottom,
+        ),
+        child: VoiceChatPanel(
+          controller: _voiceChatService!.controller!,
+          diagnostics: _voiceChatService!.diagnostics,
+          partialTranscript: _partialTranscript,
+        ),
       ),
     );
   }

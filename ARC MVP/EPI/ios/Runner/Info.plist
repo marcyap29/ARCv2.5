@@ -29,7 +29,9 @@
 	<key>NSCameraUsageDescription</key>
 	<string>This app needs access to camera to take photos for your journal entries.</string>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>This app needs access to microphone to record audio for your journal entries.</string>
+	<string>Needed for voice chat.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>Needed for transcription.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>This app needs access to photo library to select photos for your journal entries.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>

@@ -28,6 +28,7 @@ class _TimelineViewContentState extends State<TimelineViewContent> {
   final ScrollController _scrollController = ScrollController();
   late TimelineCubit _timelineCubit;
   final GlobalKey<InteractiveTimelineViewState> _timelineViewKey = GlobalKey<InteractiveTimelineViewState>();
+  final TextEditingController _searchController = TextEditingController();
   
   // Selection state - will be synced with InteractiveTimelineView
   bool _isSelectionMode = false;
@@ -39,6 +40,10 @@ class _TimelineViewContentState extends State<TimelineViewContent> {
     super.initState();
     _timelineCubit = context.read<TimelineCubit>();
     _scrollController.addListener(_onScroll);
+    // Sync search controller with state
+    _searchController.addListener(() {
+      // Controller updates are handled by onChanged callback
+    });
     // Refresh timeline when view is first shown to ensure latest data
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _timelineCubit.refreshEntries();
@@ -49,6 +54,7 @@ class _TimelineViewContentState extends State<TimelineViewContent> {
   void dispose() {
     _scrollController.removeListener(_onScroll);
     _scrollController.dispose();
+    _searchController.dispose();
     super.dispose();
   }
 
@@ -229,6 +235,7 @@ class _TimelineViewContentState extends State<TimelineViewContent> {
           ),
           body: Column(
             children: [
+              _buildSearchBar(state),
               _buildFilterButtons(state),
               Expanded(
                 child: InteractiveTimelineView(
@@ -252,6 +259,79 @@ class _TimelineViewContentState extends State<TimelineViewContent> {
           ),
         );
       },
+    );
+  }
+
+  Widget _buildSearchBar(TimelineState state) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      decoration: BoxDecoration(
+        color: kcSurfaceAltColor,
+        border: Border(
+          bottom: BorderSide(
+            color: kcBorderColor.withOpacity(0.2),
+            width: 1,
+          ),
+        ),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: BlocBuilder<TimelineCubit, TimelineState>(
+              builder: (context, timelineState) {
+                final currentQuery = timelineState is TimelineLoaded 
+                    ? timelineState.searchQuery 
+                    : '';
+                
+                // Sync controller with state if they differ
+                if (_searchController.text != currentQuery) {
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    if (_searchController.text != currentQuery) {
+                      _searchController.text = currentQuery;
+                    }
+                  });
+                }
+                
+                return TextField(
+                  controller: _searchController,
+                  decoration: InputDecoration(
+                    hintText: 'Search entries...',
+                    prefixIcon: const Icon(Icons.search, color: kcPrimaryTextColor),
+                    suffixIcon: _searchController.text.isNotEmpty
+                        ? IconButton(
+                            icon: const Icon(Icons.clear, color: kcPrimaryTextColor),
+                            onPressed: () {
+                              _searchController.clear();
+                              _timelineCubit.setSearchQuery('');
+                            },
+                          )
+                        : null,
+                filled: true,
+                fillColor: kcSurfaceColor,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: kcBorderColor),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: kcBorderColor),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: kcPrimaryColor, width: 2),
+                ),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  ),
+                  style: const TextStyle(color: kcPrimaryTextColor),
+                  onChanged: (value) {
+                    _timelineCubit.setSearchQuery(value);
+                  },
+                );
+              },
+            ),
+          ),
+        ],
+      ),
     );
   }
 

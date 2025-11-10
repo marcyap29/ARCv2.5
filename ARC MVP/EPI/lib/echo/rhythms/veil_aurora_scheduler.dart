@@ -6,6 +6,8 @@ import 'package:path/path.dart' as path;
 import 'package:my_app/polymeta/store/mcp/export/chat_mcp_exporter.dart';
 import 'package:my_app/polymeta/store/mcp/models/mcp_schemas.dart';
 import '../../core/services/keyword_cleanup_service.dart';
+import 'package:my_app/prism/pipelines/prism_joiner.dart';
+import 'package:my_app/polymeta/store/mcp/mcp_fs.dart';
 
 /// VEIL/AURORA rhythm scheduler for nightly tasks
 class VeilAuroraScheduler {
@@ -199,11 +201,18 @@ class VeilAuroraScheduler {
   /// Integrate PRISM extracts into reflective updates
   static Future<void> _integratePrismExtracts() async {
     try {
-      // This would integrate PRISM analysis results into the user's reflective data
-      // For now, just log the action
-      print('VEIL/AURORA: Integrating PRISM extracts into reflective updates');
+      print('VEIL/AURORA: Starting PRISM integration and VEIL policy generation');
       
-      // TODO: Implement actual PRISM integration
+      // Get MCP root directory
+      final mcpRoot = await McpFs.base();
+      
+      // Run PrismJoiner to generate daily fusions and VEIL policies
+      final joiner = PrismJoiner(mcpRoot);
+      await joiner.joinRange(daysBack: 30);
+      
+      print('VEIL/AURORA: PRISM integration completed - VEIL policies generated');
+      
+      // TODO: Additional PRISM integration tasks
       // - Process accumulated PRISM summaries
       // - Update user profile with insights
       // - Generate reflective prompts based on patterns

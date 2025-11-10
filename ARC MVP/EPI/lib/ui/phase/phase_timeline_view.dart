@@ -1043,94 +1043,16 @@ class _PhaseTimelineViewState extends State<PhaseTimelineView> {
   }
 
   void _showSplitDialog(PhaseRegime regime) {
-    DateTime splitDate = regime.start.add(Duration(
-      days: regime.duration.inDays ~/ 2,
-    ));
-    PhaseLabel newPhaseLabel = regime.label;
-
     showDialog(
       context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
-          title: const Text('Split Phase'),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Current Phase: ${_getPhaseLabelName(regime.label).toUpperCase()}',
-                  style: const TextStyle(fontWeight: FontWeight.bold),
-                ),
-                Text(
-                  '${_formatDate(regime.start)} - ${regime.end != null ? _formatDate(regime.end!) : "Ongoing"}',
-                  style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-                ),
-                const SizedBox(height: 16),
-                const Divider(),
-                const SizedBox(height: 16),
-                const Text('Split Date:', style: TextStyle(fontWeight: FontWeight.bold)),
-                const SizedBox(height: 8),
-                ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: Text(_formatDate(splitDate)),
-                  subtitle: Text(
-                    'This phase will end on this date',
-                    style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-                  ),
-                  trailing: const Icon(Icons.calendar_today),
-                  onTap: () async {
-                    final picked = await showDatePicker(
-                      context: context,
-                      initialDate: splitDate,
-                      firstDate: regime.start,
-                      lastDate: regime.end ?? DateTime.now(),
-                    );
-                    if (picked != null) {
-                      setDialogState(() {
-                        splitDate = picked;
-                      });
-                    }
-                  },
-                ),
-                const SizedBox(height: 16),
-                const Text('New Phase After Split:', style: TextStyle(fontWeight: FontWeight.bold)),
-                const SizedBox(height: 8),
-                ...PhaseLabel.values.map((label) => RadioListTile<PhaseLabel>(
-                  title: Text(_getPhaseLabelName(label).toUpperCase()),
-                  value: label,
-                  groupValue: newPhaseLabel,
-                  onChanged: (value) {
-                    if (value != null) {
-                      setDialogState(() {
-                        newPhaseLabel = value;
-                      });
-                    }
-                  },
-                  contentPadding: EdgeInsets.zero,
-                )),
-                const SizedBox(height: 8),
-                Text(
-                  'The phase from ${_formatDate(splitDate)} onwards will be ${_getPhaseLabelName(newPhaseLabel).toUpperCase()}',
-                  style: TextStyle(fontSize: 12, color: Colors.grey[600], fontStyle: FontStyle.italic),
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.pop(context);
-                _splitRegime(regime, splitDate, newPhaseLabel);
-              },
-              child: const Text('Split Phase'),
-            ),
-          ],
-        ),
+      builder: (context) => _SplitPhaseDialog(
+        regime: regime,
+        onSplit: (splitDate, newPhaseLabel) {
+          Navigator.pop(context);
+          _splitRegime(regime, splitDate, newPhaseLabel);
+        },
+        getPhaseLabelName: _getPhaseLabelName,
+        formatDate: _formatDate,
       ),
     );
   }
@@ -1726,9 +1648,11 @@ class _PhaseTimelineViewState extends State<PhaseTimelineView> {
       // Update regime dates
       if (shouldUpdateHashtags) {
         // Update hashtags, handling entries that moved in/out of the regime
+        // Pass oldLabel to ensure proper hashtag replacement
         await phaseRegimeService.updateHashtagsForRegime(
           newRegime,
-          oldRegime: regime,
+          oldLabel: regime.label, // Ensure old hashtags are removed
+          oldRegime: regime, // Handle entries that moved in/out of date range
         );
       }
       
@@ -1920,6 +1844,121 @@ class _PhaseTimelineViewState extends State<PhaseTimelineView> {
       PhaseLabel.breakthrough: Colors.amber,
     };
     return colors[label] ?? Colors.grey;
+  }
+}
+
+/// Dialog for splitting a phase regime
+class _SplitPhaseDialog extends StatefulWidget {
+  final PhaseRegime regime;
+  final Function(DateTime, PhaseLabel) onSplit;
+  final String Function(PhaseLabel) getPhaseLabelName;
+  final String Function(DateTime) formatDate;
+
+  const _SplitPhaseDialog({
+    required this.regime,
+    required this.onSplit,
+    required this.getPhaseLabelName,
+    required this.formatDate,
+  });
+
+  @override
+  State<_SplitPhaseDialog> createState() => _SplitPhaseDialogState();
+}
+
+class _SplitPhaseDialogState extends State<_SplitPhaseDialog> {
+  late DateTime _splitDate;
+  late PhaseLabel _newPhaseLabel;
+
+  @override
+  void initState() {
+    super.initState();
+    _splitDate = widget.regime.start.add(Duration(
+      days: widget.regime.duration.inDays ~/ 2,
+    ));
+    _newPhaseLabel = widget.regime.label;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Split Phase'),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Current Phase: ${widget.getPhaseLabelName(widget.regime.label).toUpperCase()}',
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
+            Text(
+              '${widget.formatDate(widget.regime.start)} - ${widget.regime.end != null ? widget.formatDate(widget.regime.end!) : "Ongoing"}',
+              style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+            ),
+            const SizedBox(height: 16),
+            const Divider(),
+            const SizedBox(height: 16),
+            const Text('Split Date:', style: TextStyle(fontWeight: FontWeight.bold)),
+            const SizedBox(height: 8),
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              title: Text(widget.formatDate(_splitDate)),
+              subtitle: Text(
+                'This phase will end on this date',
+                style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+              ),
+              trailing: const Icon(Icons.calendar_today),
+              onTap: () async {
+                final picked = await showDatePicker(
+                  context: context,
+                  initialDate: _splitDate,
+                  firstDate: widget.regime.start,
+                  lastDate: widget.regime.end ?? DateTime.now(),
+                );
+                if (picked != null) {
+                  setState(() {
+                    _splitDate = picked;
+                  });
+                }
+              },
+            ),
+            const SizedBox(height: 16),
+            const Text('New Phase After Split:', style: TextStyle(fontWeight: FontWeight.bold)),
+            const SizedBox(height: 8),
+            ...PhaseLabel.values.map((label) => RadioListTile<PhaseLabel>(
+              title: Text(widget.getPhaseLabelName(label).toUpperCase()),
+              value: label,
+              groupValue: _newPhaseLabel,
+              onChanged: (value) {
+                if (value != null) {
+                  setState(() {
+                    _newPhaseLabel = value;
+                  });
+                }
+              },
+              contentPadding: EdgeInsets.zero,
+            )),
+            const SizedBox(height: 8),
+            Text(
+              'The phase from ${widget.formatDate(_splitDate)} onwards will be ${widget.getPhaseLabelName(_newPhaseLabel).toUpperCase()}',
+              style: TextStyle(fontSize: 12, color: Colors.grey[600], fontStyle: FontStyle.italic),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancel'),
+        ),
+        ElevatedButton(
+          onPressed: () {
+            widget.onSplit(_splitDate, _newPhaseLabel);
+          },
+          child: const Text('Split Phase'),
+        ),
+      ],
+    );
   }
 }
 

@@ -1,0 +1,142 @@
+import 'dart:io';
+import 'package:path_provider/path_provider.dart';
+import 'package:speech_to_text/speech_to_text.dart' as stt;
+import 'package:flutter_tts/flutter_tts.dart';
+
+class AudioIO {
+  final stt.SpeechToText _stt = stt.SpeechToText();
+  final FlutterTts _tts = FlutterTts();
+  bool _sttInitialized = false;
+  String? _tempAudioPath;
+  bool _isSpeaking = false;
+
+  /// Initialize speech-to-text
+  Future<bool> initializeSTT() async {
+    if (_sttInitialized) return true;
+    
+    final available = await _stt.initialize(
+      onError: (error) => print('STT Error: $error'),
+      onStatus: (status) => print('STT Status: $status'),
+    );
+    
+    _sttInitialized = available;
+    return available;
+  }
+
+  /// Initialize text-to-speech
+  Future<void> initializeTTS() async {
+    await _tts.setLanguage("en-US");
+    await _tts.setSpeechRate(0.5);
+    await _tts.setVolume(1.0);
+    await _tts.setPitch(1.0);
+  }
+
+  /// Start listening and return transcript stream
+  Future<void> startListening({
+    required Function(String partial) onPartialResult,
+    required Function(String finalResult) onFinalResult,
+    Function(String error)? onError,
+  }) async {
+    if (!_sttInitialized) {
+      final initialized = await initializeSTT();
+      if (!initialized) {
+        onError?.call('Speech recognition not available');
+        return;
+      }
+    }
+
+    await _stt.listen(
+      onResult: (result) {
+        if (result.finalResult) {
+          onFinalResult(result.recognizedWords);
+        } else {
+          onPartialResult(result.recognizedWords);
+        }
+      },
+      listenFor: const Duration(seconds: 30),
+      pauseFor: const Duration(seconds: 2),
+      partialResults: true,
+      localeId: "en_US",
+      onSoundLevelChange: null,
+      cancelOnError: true,
+      listenMode: stt.ListenMode.confirmation,
+    );
+  }
+
+  /// Stop listening and get final transcript
+  Future<String?> stopListening() async {
+    await _stt.stop();
+    // Note: final result comes via onFinalResult callback
+    return null;
+  }
+
+  /// Cancel listening
+  Future<void> cancelListening() async {
+    await _stt.cancel();
+  }
+
+  /// Speak text using TTS
+  Future<void> speak(String text, {
+    Function()? onStart,
+    Function()? onComplete,
+    Function(String)? onError,
+  }) async {
+    try {
+      _isSpeaking = true;
+      _tts.setCompletionHandler(() {
+        _isSpeaking = false;
+        onComplete?.call();
+      });
+
+      _tts.setErrorHandler((msg) {
+        _isSpeaking = false;
+        onError?.call(msg);
+      });
+
+      onStart?.call();
+      await _tts.speak(text);
+    } catch (e) {
+      _isSpeaking = false;
+      onError?.call(e.toString());
+    }
+  }
+
+  /// Stop TTS playback
+  Future<void> stopSpeaking() async {
+    _isSpeaking = false;
+    await _tts.stop();
+  }
+
+  /// Create temporary audio file path
+  Future<String> createTempAudioPath() async {
+    final dir = await getTemporaryDirectory();
+    final timestamp = DateTime.now().millisecondsSinceEpoch;
+    _tempAudioPath = '${dir.path}/voice_$timestamp.m4a';
+    return _tempAudioPath!;
+  }
+
+  /// Clean up temporary audio file
+  Future<void> cleanupTempAudio() async {
+    if (_tempAudioPath != null) {
+      try {
+        final file = File(_tempAudioPath!);
+        if (await file.exists()) {
+          await file.delete();
+        }
+      } catch (e) {
+        print('Error cleaning up temp audio: $e');
+      }
+      _tempAudioPath = null;
+    }
+  }
+
+  /// Check if STT is available
+  bool get isSTTAvailable => _sttInitialized;
+
+  /// Check if currently listening
+  bool get isListening => _stt.isListening;
+
+  /// Check if currently speaking
+  bool get isSpeaking => _isSpeaking;
+}
+

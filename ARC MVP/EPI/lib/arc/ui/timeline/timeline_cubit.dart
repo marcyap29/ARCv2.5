@@ -166,8 +166,59 @@ class TimelineCubit extends Cubit<TimelineState> {
       emit(const TimelineLoading());
       _currentPage = 0;
       _hasMore = true;
-      await _loadAllEntries(filter: filter);
+      await _loadAllEntries(filter: filter, searchQuery: currentState.searchQuery);
     }
+  }
+
+  /// Set search query and filter entries
+  Future<void> setSearchQuery(String query) async {
+    if (state is TimelineLoaded) {
+      final currentState = state as TimelineLoaded;
+      if (currentState.searchQuery == query) return;
+
+      // Reload all entries with the new search query
+      emit(const TimelineLoading());
+      _currentPage = 0;
+      _hasMore = true;
+      await _loadAllEntries(
+        filter: currentState.filter,
+        searchQuery: query,
+      );
+    }
+  }
+
+  /// Apply search filter to timeline entries
+  List<TimelineMonthGroup> _applySearchFilter(
+    List<TimelineMonthGroup> groups,
+    String query,
+  ) {
+    if (query.trim().isEmpty) {
+      return groups;
+    }
+
+    final searchLower = query.toLowerCase().trim();
+    return groups.map((group) {
+      final filteredEntries = group.entries.where((entry) {
+        // Search in preview text
+        if (entry.preview.toLowerCase().contains(searchLower)) {
+          return true;
+        }
+        // Search in title
+        if (entry.title != null && entry.title!.toLowerCase().contains(searchLower)) {
+          return true;
+        }
+        // Search in keywords
+        if (entry.keywords.any((keyword) => keyword.toLowerCase().contains(searchLower))) {
+          return true;
+        }
+        return false;
+      }).toList();
+
+      return TimelineMonthGroup(
+        month: group.month,
+        entries: filteredEntries,
+      );
+    }).where((group) => group.entries.isNotEmpty).toList();
   }
 
   Future<void> _loadEntries({TimelineFilter? filter}) async {
@@ -179,6 +230,7 @@ class TimelineCubit extends Cubit<TimelineState> {
               groupedEntries: [],
               filter: TimelineFilter.all,
               hasMore: true,
+              searchQuery: '',
             );
 
       final effectiveFilter = filter ?? currentState.filter;
@@ -207,13 +259,19 @@ class TimelineCubit extends Cubit<TimelineState> {
       }
       
       // For single scroll timeline, we don't need complex grouping
-      final groupedEntries = [TimelineMonthGroup(month: 'All', entries: allEntries)];
+      var groupedEntries = [TimelineMonthGroup(month: 'All', entries: allEntries)];
+
+      // Apply search filter if query exists
+      if (currentState.searchQuery.isNotEmpty) {
+        groupedEntries = _applySearchFilter(groupedEntries, currentState.searchQuery);
+      }
 
       print('DEBUG: TimelineCubit emitting TimelineLoaded with ${groupedEntries.length} groups');
       emit(TimelineLoaded(
         groupedEntries: groupedEntries,
         filter: effectiveFilter,
         hasMore: _hasMore,
+        searchQuery: currentState.searchQuery,
       ));
     } catch (e) {
       emit(const TimelineError(message: 'Failed to load timeline entries'));
@@ -221,8 +279,8 @@ class TimelineCubit extends Cubit<TimelineState> {
   }
 
   /// Load all entries without pagination (used when entry dates change)
-  Future<void> _loadAllEntries({TimelineFilter? filter}) async {
-    print('DEBUG: TimelineCubit._loadAllEntries() called with filter: $filter');
+  Future<void> _loadAllEntries({TimelineFilter? filter, String? searchQuery}) async {
+    print('DEBUG: TimelineCubit._loadAllEntries() called with filter: $filter, searchQuery: $searchQuery');
     try {
       final currentState = state is TimelineLoaded
           ? state as TimelineLoaded
@@ -230,9 +288,11 @@ class TimelineCubit extends Cubit<TimelineState> {
               groupedEntries: [],
               filter: TimelineFilter.all,
               hasMore: true,
+              searchQuery: '',
             );
 
       final effectiveFilter = filter ?? currentState.filter;
+      final effectiveSearchQuery = searchQuery ?? currentState.searchQuery;
 
       // Get all entries without pagination
       final allJournalEntries = _journalRepository.getAllJournalEntriesSync();
@@ -247,21 +307,27 @@ class TimelineCubit extends Cubit<TimelineState> {
           filteredEntries = allJournalEntries.where((e) => e.sageAnnotation != null).toList();
           break;
         case TimelineFilter.all:
-        default:
           filteredEntries = allJournalEntries;
+          break;
       }
 
       // Convert to timeline entries
       final allTimelineEntries = _mapToTimelineEntries(filteredEntries);
       
       // For single scroll timeline, we don't need complex grouping
-      final groupedEntries = [TimelineMonthGroup(month: 'All', entries: allTimelineEntries)];
+      var groupedEntries = [TimelineMonthGroup(month: 'All', entries: allTimelineEntries)];
+
+      // Apply search filter if query is provided
+      if (effectiveSearchQuery.isNotEmpty) {
+        groupedEntries = _applySearchFilter(groupedEntries, effectiveSearchQuery);
+      }
 
       print('DEBUG: TimelineCubit._loadAllEntries emitting TimelineLoaded with ${groupedEntries.length} groups');
       emit(TimelineLoaded(
         groupedEntries: groupedEntries,
         filter: effectiveFilter,
         hasMore: false, // No pagination when loading all entries
+        searchQuery: effectiveSearchQuery,
       ));
     } catch (e) {
       emit(const TimelineError(message: 'Failed to load all timeline entries'));

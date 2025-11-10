@@ -36,12 +36,14 @@ class TimelineLoaded extends TimelineState {
   final TimelineFilter filter;
   final bool hasMore;
   final int version; // Add version for stable hashing
+  final String searchQuery; // Search query for filtering entries
 
   const TimelineLoaded({
     required this.groupedEntries,
     required this.filter,
     required this.hasMore,
     this.version = 0,
+    this.searchQuery = '',
   });
 
   // Add stable hash for UI rebuilds
@@ -52,17 +54,19 @@ class TimelineLoaded extends TimelineState {
     TimelineFilter? filter,
     bool? hasMore,
     int? version,
+    String? searchQuery,
   }) {
     return TimelineLoaded(
       groupedEntries: groupedEntries ?? this.groupedEntries,
       filter: filter ?? this.filter,
       hasMore: hasMore ?? this.hasMore,
       version: version ?? this.version + 1,
+      searchQuery: searchQuery ?? this.searchQuery,
     );
   }
 
   @override
-  List<Object?> get props => [groupedEntries, filter, hasMore, version];
+  List<Object?> get props => [groupedEntries, filter, hasMore, version, searchQuery];
 }
 
 class TimelineEmpty extends TimelineState {
