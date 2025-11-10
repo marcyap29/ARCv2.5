@@ -14,7 +14,7 @@ class HealthDaily {
   double? weightKg;
   double? avgHr; // average HR during the day (from samples)
 
-  final List<Map<String, dynamic>> workouts = []; // see encoder
+  final List<Map<String, dynamic>> workouts = []; // 11e encoder
   final List<Medication> medications = []; // medications taken on this day
 
   HealthDaily(this.dayKey);
