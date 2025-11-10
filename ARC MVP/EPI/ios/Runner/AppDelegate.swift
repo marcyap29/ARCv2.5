@@ -46,7 +46,26 @@ import Photos
     
     NSLog("[AppDelegate] VisionApi registered via Pigeon ✅")
     
-    // HealthKit is handled by the 'health' plugin, no custom bridge needed
+    // Register HealthKit medications channel
+    let healthKitChannel = FlutterMethodChannel(name: "epi.healthkit/bridge", binaryMessenger: controller.binaryMessenger)
+    healthKitChannel.setMethodCallHandler { (call, result) in
+        if call.method == "fetchMedications" {
+            if #available(iOS 16.0, *) {
+                HealthKitManager.shared.fetchMedications { medications, error in
+                    if let error = error {
+                        result(FlutterError(code: "FETCH_FAILED", message: error.localizedDescription, details: nil))
+                    } else {
+                        result(medications)
+                    }
+                }
+            } else {
+                result(FlutterError(code: "UNSUPPORTED", message: "Medications require iOS 16.0 or later", details: nil))
+            }
+        } else {
+            result(FlutterMethodNotImplemented)
+        }
+    }
+    NSLog("[AppDelegate] HealthKit medications channel registered ✅")
 
     // Register PhotoLibraryService via MethodChannel
     let photoLibraryChannel = FlutterMethodChannel(name: "photo_library_service", binaryMessenger: controller.binaryMessenger)

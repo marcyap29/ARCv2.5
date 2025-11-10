@@ -1,3 +1,5 @@
+import 'package:my_app/prism/models/health_summary.dart';
+
 class HealthDaily {
   final String dayKey; // YYYY-MM-DD (UTC)
   int steps = 0;
@@ -13,6 +15,7 @@ class HealthDaily {
   double? avgHr; // average HR during the day (from samples)
 
   final List<Map<String, dynamic>> workouts = []; // see encoder
+  final List<Medication> medications = []; // medications taken on this day
 
   HealthDaily(this.dayKey);
 }

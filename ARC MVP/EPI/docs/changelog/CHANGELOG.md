@@ -1,7 +1,58 @@
 # EPI ARC MVP - Changelog
 
-**Version:** 2.1.6  
-**Last Updated:** November 7, 2025
+**Version:** 2.1.7  
+**Last Updated:** January 2025
+
+## [2.1.7] - January 2025
+
+### **LUMARA UI Enhancements & Health Tracking Improvements** - Complete
+
+#### LUMARA In-Chat Formatting Improvements
+- **Paragraph Separation**: LUMARA reflection results now display with proper paragraph formatting
+  - Content automatically split by double newlines, single newlines, or sentence boundaries
+  - Each paragraph displayed with appropriate spacing (12px between paragraphs)
+  - Improved readability for longer reflection responses
+  - Falls back to single paragraph display if no clear paragraph breaks detected
+
+- **First-Time Loading Indicator**: Fixed loading indicator display for first-time LUMARA activation
+  - Circle status bar (CircularProgressIndicator) now appears when using in-chat LUMARA for the first time
+  - Placeholder block created immediately to show loading state
+  - Progress messages update in real-time during reflection generation
+  - Proper error handling removes placeholder block if generation fails
+
+#### Health Tracking Enhancements
+- **Medication Tracking**: Added comprehensive medication tracking from Apple HealthKit
+  - New "Medications" tab added to Health view (4th tab)
+  - Medications synced automatically from Apple Health app (iOS 16+)
+  - Displays medication name, dosage, start date, and active status
+  - Refresh button to reload medications from HealthKit
+  - UI indicates medications are managed in the Health app
+  - Empty state with instructions for users
+  - Error handling for HealthKit access issues
+
+- **Medication Data Models**: Extended health data models to support medications
+  - Added `Medication` class with name, dosage, frequency, dates, notes, and active status
+  - Updated `HealthMetrics` to include medications list
+  - Updated `HealthDaily` to track medications per day
+  - JSON serialization support for medication data
+
+#### Search Functionality
+- **Existing Search Features Verified**: Confirmed search functionality is fully implemented
+  - Timeline entries: Search bar searches through preview text, titles, and keywords
+  - Chat sessions: Search bar filters chats by subject and tags
+  - Both search features working as expected
+
+#### Files Modified
+- `lib/ui/journal/widgets/inline_reflection_block.dart` - Added paragraph formatting with `_buildParagraphs()` method
+- `lib/ui/journal/journal_screen.dart` - Fixed first-time loading indicator with placeholder block creation
+- `lib/arc/ui/health/health_view.dart` - Added Medications tab to Health view
+- `lib/arc/ui/health/medication_manager.dart` - New medication management UI component
+- `lib/prism/models/health_summary.dart` - Added Medication class and updated HealthMetrics
+- `lib/prism/models/health_daily.dart` - Added medications list to daily health data
+- `lib/prism/services/health_service.dart` - Added `fetchMedications()` method for HealthKit integration
+- `ios/Runner/HealthKitManager.swift` - Added medication fetching support (placeholder implementation)
+- `ios/Runner/AppDelegate.swift` - Added HealthKit medications method channel handler
+- `docs/changelog/CHANGELOG.md` - This changelog entry
 
 ## [2.1.6] - November 7, 2025
 

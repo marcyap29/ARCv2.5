@@ -34,9 +34,6 @@ import 'package:my_app/core/services/draft_cache_service.dart';
 import 'package:my_app/core/services/journal_version_service.dart';
 import 'package:my_app/core/services/photo_library_service.dart';
 import 'package:my_app/platform/photo_bridge.dart';
-import 'package:my_app/services/phase_regime_service.dart';
-import 'package:my_app/services/rivet_sweep_service.dart';
-import 'package:my_app/models/phase_models.dart';
 
 class JournalCaptureCubit extends Cubit<JournalCaptureState> {
   final JournalRepository _journalRepository;
@@ -298,50 +295,20 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
     String? emotionReason,
     List<String>? selectedKeywords,
     List<MediaItem>? media,
-  }) async {
+    }) async {
     try {
-      // Check if entry date falls within a regime matching the provided phase
-      bool shouldAddHashtag = false;
       final entryDate = DateTime.now();
-      try {
-        final analyticsService = AnalyticsService();
-        final rivetSweepService = RivetSweepService(analyticsService);
-        final phaseRegimeService = PhaseRegimeService(analyticsService, rivetSweepService);
-        await phaseRegimeService.initialize();
-        
-        // Find the regime that contains the entry date
-        final regimeForDate = phaseRegimeService.phaseIndex.regimeFor(entryDate);
-        if (regimeForDate != null) {
-          final currentPhaseName = regimeForDate.label.toString().split('.').last.toLowerCase();
-          final providedPhaseName = phase.toLowerCase();
-          if (currentPhaseName == providedPhaseName) {
-            shouldAddHashtag = true;
-            print('DEBUG: saveEntryWithPhase - Entry date falls within regime matching provided phase: $phase');
-          } else {
-            print('DEBUG: saveEntryWithPhase - Entry date falls within regime ($currentPhaseName) that does not match provided phase ($providedPhaseName)');
-          }
-        } else {
-          print('DEBUG: saveEntryWithPhase - Entry date ($entryDate) does not fall within any regime, skipping phase hashtag');
-        }
-      } catch (e) {
-        print('DEBUG: saveEntryWithPhase - Error detecting regime: $e, skipping phase hashtag');
-      }
-      
-      // Add phase hashtag only if regime matches
-      final contentWithHashtag = shouldAddHashtag 
-          ? _addPhaseHashtagToContent(content, phase)
-          : content;
       
       // Use selected keywords if provided, otherwise extract from content
       final keywords = selectedKeywords?.isNotEmpty == true 
           ? selectedKeywords! 
-          : SimpleKeywordExtractor.extractKeywords(contentWithHashtag);
+          : SimpleKeywordExtractor.extractKeywords(content);
       
       final now = entryDate;
       final entry = JournalEntry(
         id: const Uuid().v4(),
-        title: _generateTitle(contentWithHashtag),
-        content: contentWithHashtag,
+        title: _generateTitle(content),
+        content: content,
         createdAt: now,
         updatedAt: now,
         tags: const [],
@@ -374,7 +341,7 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
         // New entry - create first version
         await _versionService.publish(
           entryId: entry.id,
-          content: contentWithHashtag,
+          content: content,
           media: media ?? [],
           metadata: {
             'mood': mood,
@@ -578,32 +545,6 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
         print('DEBUG: Adjusted entry date to match latest photo: $entryDate (offset: ${dateOffset.inHours} hours ${dateOffset.inMinutes.remainder(60)} minutes)');
       }
       
-      // Detect regime for entry date and add phase hashtag if entry date falls within regime
-      String? currentPhase;
-      try {
-        final analyticsService = AnalyticsService();
-        final rivetSweepService = RivetSweepService(analyticsService);
-        final phaseRegimeService = PhaseRegimeService(analyticsService, rivetSweepService);
-        await phaseRegimeService.initialize();
-        
-        // Find the regime that contains the entry date (not just the current ongoing one)
-        final regimeForDate = phaseRegimeService.phaseIndex.regimeFor(entryDate);
-        if (regimeForDate != null) {
-          // Entry date falls within a regime - get phase name from PhaseLabel enum
-          currentPhase = regimeForDate.label.toString().split('.').last;
-          print('DEBUG: saveEntryWithKeywords - Entry date ($entryDate) falls within regime: $currentPhase (regime: ${regimeForDate.start} to ${regimeForDate.end ?? "ongoing"})');
-        } else {
-          print('DEBUG: saveEntryWithKeywords - Entry date ($entryDate) does not fall within any regime, skipping phase hashtag');
-        }
-      } catch (e) {
-        print('DEBUG: saveEntryWithKeywords - Error detecting regime: $e, skipping phase hashtag');
-      }
-      
-      // Add phase hashtag only if regime was detected
-      final contentWithHashtag = currentPhase != null 
-          ? _addPhaseHashtagToContent(content, currentPhase)
-          : content;
-      
       // Save LUMARA blocks to metadata
       final metadata = blocks != null && blocks.isNotEmpty
           ? {'inlineBlocks': blocks}
@@ -611,8 +552,8 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
       
       final entry = JournalEntry(
         id: const Uuid().v4(),
-        title: title?.trim().isNotEmpty == true ? title!.trim() : _generateTitle(contentWithHashtag),
-        content: contentWithHashtag,
+        title: title?.trim().isNotEmpty == true ? title!.trim() : _generateTitle(content),
+        content: content,
         createdAt: entryDate,
         updatedAt: entryDate,
         tags: const [],
@@ -694,43 +635,12 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
     List<MediaItem>? media,
   }) async {
     try {
-      // Check if entry date falls within a regime matching the provided phase
-      bool shouldAddHashtag = false;
       final entryDate = DateTime.now();
-      try {
-        final analyticsService = AnalyticsService();
-        final rivetSweepService = RivetSweepService(analyticsService);
-        final phaseRegimeService = PhaseRegimeService(analyticsService, rivetSweepService);
-        await phaseRegimeService.initialize();
-        
-        // Find the regime that contains the entry date
-        final regimeForDate = phaseRegimeService.phaseIndex.regimeFor(entryDate);
-        if (regimeForDate != null) {
-          final currentPhaseName = regimeForDate.label.toString().split('.').last.toLowerCase();
-          final providedPhaseName = phase.toLowerCase();
-          if (currentPhaseName == providedPhaseName) {
-            shouldAddHashtag = true;
-            print('DEBUG: saveEntryWithPhaseAndGeometry - Entry date falls within regime matching provided phase: $phase');
-          } else {
-            print('DEBUG: saveEntryWithPhaseAndGeometry - Entry date falls within regime ($currentPhaseName) that does not match provided phase ($providedPhaseName)');
-          }
-        } else {
-          print('DEBUG: saveEntryWithPhaseAndGeometry - Entry date ($entryDate) does not fall within any regime, skipping phase hashtag');
-        }
-      } catch (e) {
-        print('DEBUG: saveEntryWithPhaseAndGeometry - Error detecting regime: $e, skipping phase hashtag');
-      }
-      
-      // Add phase hashtag only if regime matches
-      final contentWithHashtag = shouldAddHashtag 
-          ? _addPhaseHashtagToContent(content, phase)
-          : content;
-      
       final now = entryDate;
       final entry = JournalEntry(
         id: const Uuid().v4(),
-        title: _generateTitle(contentWithHashtag),
-        content: contentWithHashtag,
+        title: _generateTitle(content),
+        content: content,
         createdAt: now,
         updatedAt: now,
         tags: const [],
@@ -771,45 +681,12 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
     List<MediaItem>? media,
   }) async {
     try {
-      // For proposed phases, check if entry date falls within a regime that matches
-      // Proposed phases are future phases, so we check if user is transitioning to this phase
-      bool shouldAddHashtag = false;
       final entryDate = DateTime.now();
-      try {
-        final analyticsService = AnalyticsService();
-        final rivetSweepService = RivetSweepService(analyticsService);
-        final phaseRegimeService = PhaseRegimeService(analyticsService, rivetSweepService);
-        await phaseRegimeService.initialize();
-        
-        // Find the regime that contains the entry date
-        final regimeForDate = phaseRegimeService.phaseIndex.regimeFor(entryDate);
-        if (regimeForDate != null) {
-          final currentPhaseName = regimeForDate.label.toString().split('.').last.toLowerCase();
-          final proposedPhaseName = proposedPhase.toLowerCase();
-          // For proposed phases, add hashtag if it matches current regime
-          if (currentPhaseName == proposedPhaseName) {
-            shouldAddHashtag = true;
-            print('DEBUG: saveEntryWithProposedPhase - Entry date falls within regime matching proposed phase: $proposedPhase');
-          } else {
-            print('DEBUG: saveEntryWithProposedPhase - Entry date falls within regime ($currentPhaseName) that does not match proposed phase ($proposedPhaseName), skipping hashtag');
-          }
-        } else {
-          print('DEBUG: saveEntryWithProposedPhase - Entry date ($entryDate) does not fall within any regime, skipping phase hashtag');
-        }
-      } catch (e) {
-        print('DEBUG: saveEntryWithProposedPhase - Error detecting regime: $e, skipping phase hashtag');
-      }
-      
-      // Add phase hashtag only if regime matches
-      final contentWithHashtag = shouldAddHashtag 
-          ? _addPhaseHashtagToContent(content, proposedPhase)
-          : content;
-      
       final now = entryDate;
       final entry = JournalEntry(
         id: const Uuid().v4(),
-        title: _generateTitle(contentWithHashtag),
-        content: contentWithHashtag,
+        title: _generateTitle(content),
+        content: content,
         createdAt: now,
         updatedAt: now,
         tags: const [],
@@ -929,78 +806,10 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
         finalKeywords.add(originalKeyword);
       }
        
-      // Determine the entry date to use for phase regime detection
-      final entryDate = newCreatedAt;
-       
-      // Detect regime for entry date and update phase hashtag accordingly
-      String updatedContent = content;
-      try {
-        final analyticsService = AnalyticsService();
-        final rivetSweepService = RivetSweepService(analyticsService);
-        final phaseRegimeService = PhaseRegimeService(analyticsService, rivetSweepService);
-        await phaseRegimeService.initialize();
-        
-        // Find the regime that contains the entry date
-        final regimeForDate = phaseRegimeService.phaseIndex.regimeFor(entryDate);
-        if (regimeForDate != null) {
-          // Entry date falls within a regime - get phase name from PhaseLabel enum
-          final phaseName = regimeForDate.label.toString().split('.').last;
-          final phaseHashtag = '#${phaseName.toLowerCase()}';
-           
-          // Remove all existing phase hashtags first
-          final allPhaseHashtags = PhaseLabel.values.map((label) => 
-            '#${label.toString().split('.').last.toLowerCase()}'
-          ).toList();
-           
-          String cleanedContent = updatedContent;
-          for (final hashtag in allPhaseHashtags) {
-            // Replace hashtag case-insensitively (hashtags don't contain regex special chars)
-            final regex = RegExp(hashtag, caseSensitive: false);
-            cleanedContent = cleanedContent.replaceAll(regex, '').trim();
-          }
-           
-          // Add the correct phase hashtag if not already present
-          final contentLower = cleanedContent.toLowerCase();
-          if (!contentLower.contains(phaseHashtag)) {
-            updatedContent = '$cleanedContent $phaseHashtag'.trim();
-            print('DEBUG: updateEntryWithKeywords - Updated phase hashtag to $phaseHashtag for entry date ($entryDate)');
-          } else {
-            updatedContent = cleanedContent;
-            print('DEBUG: updateEntryWithKeywords - Phase hashtag $phaseHashtag already present, removed duplicates');
-          }
-        } else {
-          // Entry date doesn't fall within any regime - remove all phase hashtags
-          final allPhaseHashtags = PhaseLabel.values.map((label) => 
-            '#${label.toString().split('.').last.toLowerCase()}'
-          ).toList();
-           
-          String cleanedContent = updatedContent;
-          bool contentChanged = false;
-          for (final hashtag in allPhaseHashtags) {
-            // Replace hashtag case-insensitively (hashtags don't contain regex special chars)
-            final regex = RegExp(hashtag, caseSensitive: false);
-            if (regex.hasMatch(cleanedContent)) {
-              cleanedContent = cleanedContent.replaceAll(regex, '').trim();
-              contentChanged = true;
-            }
-          }
-           
-          if (contentChanged) {
-            updatedContent = cleanedContent;
-            print('DEBUG: updateEntryWithKeywords - Entry date ($entryDate) does not fall within any regime, removed phase hashtags');
-          } else {
-            print('DEBUG: updateEntryWithKeywords - Entry date ($entryDate) does not fall within any regime, no hashtags to remove');
-          }
-        }
-      } catch (e) {
-        print('DEBUG: updateEntryWithKeywords - Error detecting regime: $e, keeping content as-is');
-        // Keep content as-is if regime detection fails
-      }
-      
       // Create updated entry
       final updatedEntry = existingEntry.copyWith(
         title: title?.trim().isNotEmpty == true ? title!.trim() : existingEntry.title,
-        content: updatedContent,
+        content: content,
         mood: mood,
         keywords: finalKeywords, // Use deduplicated keywords
         emotion: emotion,
@@ -1612,24 +1421,6 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
     }
   }
 
-  /// Add phase hashtag to content if not already present (only if regime detected)
-  String _addPhaseHashtagToContent(String content, String phase) {
-    // Normalize phase name to lowercase for comparison
-    final phaseLower = phase.toLowerCase();
-    final hashtag = '#$phaseLower';
-    
-    // Check if hashtag already exists in content (case-insensitive)
-    final contentLower = content.toLowerCase();
-    if (contentLower.contains(hashtag)) {
-      print('DEBUG: Phase hashtag $hashtag already present in content');
-      return content; // Return original content if hashtag already exists
-    }
-    
-    // Add hashtag at the end of content
-    final contentWithHashtag = '$content $hashtag';
-    print('DEBUG: Added phase hashtag $hashtag to entry content (regime detected)');
-    return contentWithHashtag;
-  }
 
   String _generateTitle(String content) {
     // Simple title generation from first few words

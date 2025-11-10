@@ -146,14 +146,8 @@ class InlineReflectionBlock extends StatelessWidget {
               )
             else ...[
               // Reflection content (different color to distinguish from user text)
-              Text(
-                content,
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  height: 1.4,
-                  color: theme.colorScheme.secondary, // Different color for LUMARA text
-                  fontStyle: FontStyle.italic, // Italic to further distinguish
-                ),
-              ),
+              // Split content into paragraphs for better readability
+              ..._buildParagraphs(content, theme),
               const SizedBox(height: 12),
               // Action buttons
               Wrap(
@@ -188,6 +182,74 @@ class InlineReflectionBlock extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  /// Build paragraphs from content text
+  List<Widget> _buildParagraphs(String content, ThemeData theme) {
+    if (content.trim().isEmpty) {
+      return [const SizedBox.shrink()];
+    }
+
+    // Split by double newlines first (explicit paragraphs)
+    List<String> paragraphs = content.split('\n\n');
+    
+    // If no double newlines, try splitting by single newlines
+    if (paragraphs.length == 1) {
+      paragraphs = content.split('\n');
+    }
+    
+    // If still single paragraph, try splitting by sentence endings followed by space
+    if (paragraphs.length == 1) {
+      // Split by periods/exclamation/question marks followed by space and capital letter
+      final sentencePattern = RegExp(r'([.!?])\s+([A-Z])');
+      final matches = sentencePattern.allMatches(content);
+      
+      if (matches.length > 1) {
+        paragraphs = [];
+        int lastIndex = 0;
+        for (final match in matches) {
+          if (match.start > lastIndex) {
+            paragraphs.add(content.substring(lastIndex, match.start + 1).trim());
+            lastIndex = match.start + 1;
+          }
+        }
+        if (lastIndex < content.length) {
+          paragraphs.add(content.substring(lastIndex).trim());
+        }
+      }
+    }
+
+    // Filter out empty paragraphs and build widgets
+    final widgets = <Widget>[];
+    for (int i = 0; i < paragraphs.length; i++) {
+      final paragraph = paragraphs[i].trim();
+      if (paragraph.isNotEmpty) {
+        widgets.add(
+          Padding(
+            padding: EdgeInsets.only(bottom: i < paragraphs.length - 1 ? 12 : 0),
+            child: Text(
+              paragraph,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                height: 1.4,
+                color: theme.colorScheme.secondary,
+                fontStyle: FontStyle.italic,
+              ),
+            ),
+          ),
+        );
+      }
+    }
+
+    return widgets.isEmpty ? [
+      Text(
+        content,
+        style: theme.textTheme.bodyMedium?.copyWith(
+          height: 1.4,
+          color: theme.colorScheme.secondary,
+          fontStyle: FontStyle.italic,
+        ),
+      )
+    ] : widgets;
   }
 }
 

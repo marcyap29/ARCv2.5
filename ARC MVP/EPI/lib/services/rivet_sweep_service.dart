@@ -4,6 +4,7 @@
 import 'dart:math';
 import '../models/phase_models.dart';
 import 'package:my_app/models/journal_entry_model.dart';
+import 'package:my_app/arc/core/journal_repository.dart';
 import 'phase_index.dart';
 // import 'semantic_similarity_service.dart'; // TODO: Implement or use existing
 import 'analytics_service.dart';
@@ -98,6 +99,7 @@ class RivetSweepService {
     PhaseIndex phaseIndex,
   ) async {
     final regimes = <PhaseRegime>[];
+    final journalRepo = JournalRepository();
     
     for (final proposal in proposals) {
       final regime = PhaseRegime(
@@ -115,6 +117,9 @@ class RivetSweepService {
       
       regimes.add(regime);
       phaseIndex.addRegime(regime);
+      
+      // Add phase hashtags to entries in this regime
+      await _addPhaseHashtagsToEntries(proposal.entryIds, proposal.proposedLabel, journalRepo);
     }
 
         AnalyticsService.trackEvent('rivet_sweep.proposals_applied', properties: {
@@ -122,6 +127,72 @@ class RivetSweepService {
     });
 
     return regimes;
+  }
+
+  /// Add phase hashtags to entries retroactively when phases are detected
+  Future<void> _addPhaseHashtagsToEntries(
+    List<String> entryIds,
+    PhaseLabel phaseLabel,
+    JournalRepository journalRepo,
+  ) async {
+    try {
+      final phaseName = _getPhaseLabelName(phaseLabel).toLowerCase();
+      final hashtag = '#$phaseName';
+      
+      print('DEBUG: RIVET Sweep - Adding phase hashtag $hashtag to ${entryIds.length} entries');
+      
+      int updatedCount = 0;
+      for (final entryId in entryIds) {
+        try {
+          final entry = journalRepo.getJournalEntryById(entryId);
+          if (entry == null) {
+            print('DEBUG: RIVET Sweep - Entry $entryId not found, skipping');
+            continue;
+          }
+          
+          // Check if hashtag already exists (case-insensitive)
+          final contentLower = entry.content.toLowerCase();
+          if (contentLower.contains(hashtag)) {
+            print('DEBUG: RIVET Sweep - Entry $entryId already has hashtag $hashtag, skipping');
+            continue;
+          }
+          
+          // Remove any existing phase hashtags first
+          final allPhaseHashtags = PhaseLabel.values.map((label) => 
+            '#${_getPhaseLabelName(label).toLowerCase()}'
+          ).toList();
+          
+          String cleanedContent = entry.content;
+          for (final existingHashtag in allPhaseHashtags) {
+            if (existingHashtag == hashtag) continue; // Don't remove the one we're adding
+            final regex = RegExp(RegExp.escape(existingHashtag), caseSensitive: false);
+            cleanedContent = cleanedContent.replaceAll(regex, '').trim();
+          }
+          
+          // Add new hashtag to content
+          final updatedContent = '$cleanedContent $hashtag'.trim();
+          final updatedEntry = entry.copyWith(
+            content: updatedContent,
+            updatedAt: DateTime.now(),
+          );
+          
+          await journalRepo.updateJournalEntry(updatedEntry);
+          updatedCount++;
+          print('DEBUG: RIVET Sweep - Added hashtag $hashtag to entry $entryId');
+        } catch (e) {
+          print('DEBUG: RIVET Sweep - Error updating entry $entryId: $e');
+        }
+      }
+      
+      print('DEBUG: RIVET Sweep - Successfully added phase hashtags to $updatedCount/${entryIds.length} entries');
+    } catch (e) {
+      print('DEBUG: RIVET Sweep - Error adding phase hashtags to entries: $e');
+    }
+  }
+
+  /// Get phase label name as string
+  String _getPhaseLabelName(PhaseLabel label) {
+    return label.toString().split('.').last;
   }
 
   /// Aggregate daily signals from entries

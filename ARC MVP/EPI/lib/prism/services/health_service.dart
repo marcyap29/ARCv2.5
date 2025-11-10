@@ -65,6 +65,40 @@ class HealthService {
     return has ?? false;
   }
 
+  /// Fetch medications from HealthKit (iOS 16+)
+  Future<List<Medication>> fetchMedications() async {
+    if (!Platform.isIOS) {
+      return [];
+    }
+
+    try {
+      final result = await _channel.invokeMethod<List<dynamic>>('fetchMedications');
+      if (result == null) {
+        return [];
+      }
+
+      return result.map((json) {
+        final medMap = Map<String, dynamic>.from(json as Map);
+        return Medication(
+          name: medMap['name'] as String? ?? 'Unknown',
+          dosage: medMap['dosage'] as String?,
+          frequency: medMap['frequency'] as String?,
+          startDate: medMap['start_date'] != null
+              ? DateTime.parse(medMap['start_date'] as String).toLocal()
+              : null,
+          endDate: medMap['end_date'] != null
+              ? DateTime.parse(medMap['end_date'] as String).toLocal()
+              : null,
+          notes: medMap['notes'] as String?,
+          isActive: medMap['isActive'] as bool? ?? true,
+        );
+      }).toList();
+    } catch (e) {
+      debugPrint('Error fetching medications from HealthKit: $e');
+      return [];
+    }
+  }
+
   Future<HealthSummary?> fetchDailySummary({required DateTime day, required bool canShowInChat, required bool canShowValues}) async {
     final start = DateTime(day.year, day.month, day.day);
     final end = start.add(const Duration(days: 1)).subtract(const Duration(seconds: 1));
@@ -163,6 +197,7 @@ class HealthService {
       restingEnergyKcal: basalKcal,
       weightKg: weightKg,
       workouts: workouts,
+      medications: [], // Medications are managed separately via UI
     );
 
     final features = HealthFeatures(flags: []);

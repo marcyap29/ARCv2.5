@@ -34,6 +34,13 @@ The Health Tab provides comprehensive health data visualization and analysis by:
 3. **Analytics**
    - Deep dive into health analytics, trends, and patterns
 
+4. **Medications** (iOS 16+)
+   - Displays medications synced from Apple Health app
+   - Shows medication name, dosage, start date, and active status
+   - Refresh button to reload medications from HealthKit
+   - Medications are managed in the Apple Health app
+   - Empty state with instructions for adding medications
+
 ### Settings Dialog
 Accessible via the Settings icon in the header, provides:
 - **Import Health Data** section with three clear options:
@@ -58,6 +65,9 @@ Accessible via the Settings icon in the header, provides:
 - **Workouts**: Array of workout details:
   - Type, duration, energy, distance, average HR
   - Distance from workouts contributes to daily distance metric
+- **Medications**: List of medications tracked (iOS 16+)
+  - Synced from Apple Health app
+  - Includes name, dosage, frequency, start/end dates, notes, and active status
 
 ### Note on Distance
 - `DISTANCE_DELTA` is not available on iOS/Apple Health
@@ -181,14 +191,16 @@ lib/
 ├── arc/ui/health/
 │   ├── health_view.dart              # Main Health tab with tabs and settings
 │   ├── health_detail_view.dart       # Health Insights body content
-│   └── health_settings_dialog.dart   # Settings dialog with import controls
+│   ├── health_settings_dialog.dart   # Settings dialog with import controls
+│   └── medication_manager.dart       # Medications tab UI component
 ├── ui/health/
 │   └── health_detail_screen.dart     # Detailed charts view
 ├── prism/
 │   ├── models/
-│   │   └── health_daily.dart         # Daily aggregation model
+│   │   ├── health_daily.dart         # Daily aggregation model
+│   │   └── health_summary.dart       # Health metrics including medications
 │   ├── services/
-│   │   └── health_service.dart       # HealthIngest class + MCP writer
+│   │   └── health_service.dart       # HealthIngest class + MCP writer + medication fetching
 │   ├── pipelines/
 │   │   └── prism_joiner.dart        # Daily fusion joiner
 │   └── engines/
@@ -363,6 +375,9 @@ Expanded read types include:
 - [ ] Enhanced workout metadata extraction
 - [ ] Health trends and anomaly detection
 - [ ] Export health summaries as PDF reports
+- [x] Medication tracking from HealthKit (iOS 16+) - **Implemented January 2025**
+  - Currently displays medications synced from Health app
+  - Full HealthKit Medications API integration pending proper entitlements setup
 
 ## Related Documentation
 

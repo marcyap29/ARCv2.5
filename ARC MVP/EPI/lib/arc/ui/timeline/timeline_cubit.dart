@@ -366,28 +366,19 @@ class TimelineCubit extends Cubit<TimelineState> {
 
   List<TimelineEntry> _mapToTimelineEntries(List<JournalEntry> journalEntries) {
     return journalEntries.map((entry) {
-      // Priority 1: Check if entry has user-updated metadata (highest priority - user override)
+      // Priority 1: Extract phase from hashtag in content (highest priority)
       String? phase;
       String? geometry;
 
-      if (entry.metadata != null && entry.metadata!['updated_by_user'] == true) {
-        phase = entry.metadata!['phase'] as String?;
-        geometry = entry.metadata!['geometry'] as String?;
-        print('DEBUG: Entry ${entry.id} - Using user-updated metadata - Phase: $phase, Geometry: $geometry');
+      phase = _extractPhaseHashtag(entry.content);
+      if (phase != null) {
+        print('DEBUG: Entry ${entry.id} - Using phase from hashtag in content - Phase: $phase');
       }
 
-      // Priority 2: Use overall phase from arcform snapshots (authoritative source)
-      if (phase == null) {
-        phase = _getPhaseForEntry(entry);
-        geometry = _getGeometryForEntry(entry);
-        print('DEBUG: Entry ${entry.id} - Using overall phase from arcform snapshots - Phase: $phase, Geometry: $geometry');
-      }
-
-      // Priority 3: Final fallback to Discovery if no phase is found
-      // Note: We removed the unreliable keyword-based phase detection
+      // Priority 2: Final fallback to Discovery if no hashtag found
       if (phase == null) {
         phase = 'Discovery';
-        print('DEBUG: Entry ${entry.id} - No phase found, using default: $phase');
+        print('DEBUG: Entry ${entry.id} - No phase hashtag found, using default: $phase');
       }
 
       print('DEBUG: Entry ${entry.id} - Final phase: $phase, Media count: ${entry.media.length}');
@@ -491,6 +482,23 @@ class TimelineCubit extends Cubit<TimelineState> {
     return importantWords;
   }
 
+  /// Extract phase hashtag from text (e.g., #discovery, #transition)
+  String? _extractPhaseHashtag(String text) {
+    // Match hashtags followed by phase names (case-insensitive)
+    final hashtagPattern = RegExp(r'#(discovery|expansion|transition|consolidation|recovery|breakthrough)', caseSensitive: false);
+    final match = hashtagPattern.firstMatch(text);
+    
+    if (match != null) {
+      final phaseName = match.group(1)?.toLowerCase();
+      if (phaseName != null) {
+        // Capitalize first letter to match expected format
+        return phaseName[0].toUpperCase() + phaseName.substring(1);
+      }
+    }
+    
+    return null;
+  }
+
   static const _stopWords = {
     'that', 'this', 'with', 'have', 'will', 'been', 'from', 'they', 
     'know', 'want', 'good', 'much', 'some', 'time', 'very',
@@ -523,118 +531,6 @@ class TimelineCubit extends Cubit<TimelineState> {
       'December'
     ];
     return '${months[date.month - 1]} ${date.year}';
-  }
-
-  /// Get the geometry pattern that was active for a specific entry
-  String? _getGeometryForEntry(JournalEntry entry) {
-    try {
-      if (!Hive.isBoxOpen('arcform_snapshots')) {
-        return null;
-      }
-      
-      final box = Hive.box<ArcformSnapshot>('arcform_snapshots');
-      
-      // Find the closest arcform snapshot to this entry's creation time
-      ArcformSnapshot? closestSnapshot;
-      Duration? smallestDifference;
-      
-      for (final key in box.keys) {
-        final snapshot = box.get(key);
-        if (snapshot != null) {
-          final difference = entry.createdAt.difference(snapshot.timestamp).abs();
-          
-          // Only consider snapshots from before or around the same time as the entry
-          if (snapshot.timestamp.isBefore(entry.createdAt.add(const Duration(hours: 1)))) {
-            if (smallestDifference == null || difference < smallestDifference) {
-              smallestDifference = difference;
-              closestSnapshot = snapshot;
-            }
-          }
-        }
-      }
-      
-      if (closestSnapshot != null) {
-        return closestSnapshot.data['geometry'] as String?;
-      }
-      
-      return null;
-    } catch (e) {
-      return null;
-    }
-  }
-
-  /// Get the phase that was determined for a specific entry from arcform snapshots
-  String? _getPhaseForEntry(JournalEntry entry) {
-    try {
-      if (!Hive.isBoxOpen('arcform_snapshots')) {
-        return null;
-      }
-      
-      final box = Hive.box<ArcformSnapshot>('arcform_snapshots');
-      
-      // First, try to find a snapshot with matching arcformId
-      for (final key in box.keys) {
-        final snapshot = box.get(key);
-        if (snapshot != null && snapshot.arcformId == entry.id) {
-          // Try to get phase from the snapshot data
-          final phase = snapshot.data['phase'] as String?;
-          if (phase != null) {
-            print('DEBUG: Found phase for entry ${entry.id}: $phase');
-            return phase;
-          }
-          
-          // Fallback: determine phase from geometry if no explicit phase stored
-          final geometry = snapshot.data['geometry'] as String?;
-          if (geometry != null) {
-            final derivedPhase = _geometryToPhase(geometry);
-            print('DEBUG: Derived phase from geometry for entry ${entry.id}: $derivedPhase');
-            return derivedPhase;
-          }
-        }
-      }
-      
-      // If no exact match, find the closest arcform snapshot to this entry's creation time
-      ArcformSnapshot? closestSnapshot;
-      Duration? smallestDifference;
-      
-      for (final key in box.keys) {
-        final snapshot = box.get(key);
-        if (snapshot != null) {
-          final difference = entry.createdAt.difference(snapshot.timestamp).abs();
-          
-          // Only consider snapshots from before or around the same time as the entry
-          if (snapshot.timestamp.isBefore(entry.createdAt.add(const Duration(hours: 1)))) {
-            if (smallestDifference == null || difference < smallestDifference) {
-              smallestDifference = difference;
-              closestSnapshot = snapshot;
-            }
-          }
-        }
-      }
-      
-      if (closestSnapshot != null) {
-        // Try to get phase from the snapshot data
-        final phase = closestSnapshot.data['phase'] as String?;
-        if (phase != null) {
-          print('DEBUG: Found phase from closest snapshot for entry ${entry.id}: $phase');
-          return phase;
-        }
-        
-        // Fallback: determine phase from geometry if no explicit phase stored
-        final geometry = closestSnapshot.data['geometry'] as String?;
-        if (geometry != null) {
-          final derivedPhase = _geometryToPhase(geometry);
-          print('DEBUG: Derived phase from closest snapshot geometry for entry ${entry.id}: $derivedPhase');
-          return derivedPhase;
-        }
-      }
-      
-      print('DEBUG: No phase found for entry ${entry.id}');
-      return null;
-    } catch (e) {
-      print('DEBUG: Error getting phase for entry ${entry.id}: $e');
-      return null;
-    }
   }
 
   /// Convert geometry name to phase name

@@ -27,6 +27,12 @@ Real-time progress messages and visual meters displayed within reflection blocks
 - Status message displayed alongside spinner
 - Progress meter provides continuous visual feedback during API calls
 
+**First-Time Activation Fix (January 2025):**
+- Loading indicator now properly displays when using in-chat LUMARA for the first time
+- Placeholder block created immediately to show loading state
+- Circle status bar appears correctly during first reflection generation
+- Proper error handling removes placeholder block if generation fails
+
 ### LUMARA Chat Progress Indicators
 
 Visual progress indicator with meter shown at the bottom of chat interface when processing messages:

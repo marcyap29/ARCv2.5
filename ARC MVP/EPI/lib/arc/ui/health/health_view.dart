@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:my_app/insights/analytics_page.dart';
 import 'package:my_app/arc/ui/health/health_detail_view.dart';
 import 'package:my_app/arc/ui/health/health_settings_dialog.dart';
+import 'package:my_app/arc/ui/health/medication_manager.dart';
 import 'package:my_app/ui/health/health_detail_screen.dart';
 import 'package:my_app/shared/app_colors.dart';
 
@@ -74,7 +75,7 @@ class _HealthViewState extends State<HealthView> {
   @override
   Widget build(BuildContext context) {
     return DefaultTabController(
-      length: 3,
+      length: 4,
       initialIndex: _selected,
       child: Scaffold(
         appBar: AppBar(
@@ -109,6 +110,7 @@ class _HealthViewState extends State<HealthView> {
               Tab(icon: Icon(Icons.favorite_outline, size: 20), text: 'Overview'),
               Tab(icon: Icon(Icons.show_chart, size: 20), text: 'Details'),
               Tab(icon: Icon(Icons.stacked_line_chart, size: 20), text: 'Analytics'),
+              Tab(icon: Icon(Icons.medication_liquid, size: 20), text: 'Medications'),
             ],
           ),
         ),
@@ -131,6 +133,8 @@ class _HealthViewState extends State<HealthView> {
               ),
               // Render Analytics content directly within the Health tab
               const AnalyticsContent(),
+              // Medications tab
+              const MedicationManager(),
             ],
           ),
         ),

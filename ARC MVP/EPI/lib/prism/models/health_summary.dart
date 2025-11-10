@@ -42,6 +42,7 @@ class HealthMetrics {
   final double? restingEnergyKcal;
   final double? weightKg;
   final List<Map<String, dynamic>> workouts;
+  final List<Medication> medications;
 
   HealthMetrics({
     this.sleep,
@@ -53,7 +54,9 @@ class HealthMetrics {
     this.restingEnergyKcal,
     this.weightKg,
     List<Map<String, dynamic>>? workouts,
-  }) : workouts = workouts ?? const [];
+    List<Medication>? medications,
+  }) : workouts = workouts ?? const [],
+       medications = medications ?? const [];
 
   Map<String, dynamic> toJson() {
     return {
@@ -66,7 +69,8 @@ class HealthMetrics {
       "resting_energy_kcal": restingEnergyKcal,
       "weight_kg": weightKg,
       "workouts": workouts,
-    }..removeWhere((k, v) => v == null);
+      "medications": medications.map((m) => m.toJson()).toList(),
+    }..removeWhere((k, v) => v == null || (v is List && v.isEmpty));
   }
 }
 
@@ -150,6 +154,74 @@ class HealthLinkRecord {
       "linked_health_ids": linkedHealthIds,
       "explanations": explanations,
     };
+  }
+}
+
+class Medication {
+  final String name;
+  final String? dosage;
+  final String? frequency; // e.g., "daily", "twice daily", "as needed"
+  final DateTime? startDate;
+  final DateTime? endDate;
+  final String? notes;
+  final bool isActive;
+
+  Medication({
+    required this.name,
+    this.dosage,
+    this.frequency,
+    this.startDate,
+    this.endDate,
+    this.notes,
+    this.isActive = true,
+  });
+
+  Map<String, dynamic> toJson() {
+    return {
+      "name": name,
+      "dosage": dosage,
+      "frequency": frequency,
+      "start_date": startDate?.toUtc().toIso8601String(),
+      "end_date": endDate?.toUtc().toIso8601String(),
+      "notes": notes,
+      "is_active": isActive,
+    }..removeWhere((k, v) => v == null);
+  }
+
+  factory Medication.fromJson(Map<String, dynamic> json) {
+    return Medication(
+      name: json['name'] as String,
+      dosage: json['dosage'] as String?,
+      frequency: json['frequency'] as String?,
+      startDate: json['start_date'] != null 
+          ? DateTime.parse(json['start_date'] as String).toLocal()
+          : null,
+      endDate: json['end_date'] != null
+          ? DateTime.parse(json['end_date'] as String).toLocal()
+          : null,
+      notes: json['notes'] as String?,
+      isActive: json['is_active'] as bool? ?? true,
+    );
+  }
+
+  Medication copyWith({
+    String? name,
+    String? dosage,
+    String? frequency,
+    DateTime? startDate,
+    DateTime? endDate,
+    String? notes,
+    bool? isActive,
+  }) {
+    return Medication(
+      name: name ?? this.name,
+      dosage: dosage ?? this.dosage,
+      frequency: frequency ?? this.frequency,
+      startDate: startDate ?? this.startDate,
+      endDate: endDate ?? this.endDate,
+      notes: notes ?? this.notes,
+      isActive: isActive ?? this.isActive,
+    );
   }
 }
 
