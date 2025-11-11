@@ -1,8 +1,17 @@
 # MCP Export UI Integration Guide
 
+**Last Updated:** February 2025  
+**Version:** 2.0
+
 ## Overview
 
-The MCP (Memory Core Protocol) export UI provides a complete user experience for exporting journals and media packs.
+The MCP (Memory Core Protocol) export UI provides a complete user experience for exporting journals and media packs. The export has been simplified to use a single strategy that includes all entries, chats, and media in one archive.
+
+## Recent Changes (February 2025)
+
+- **Simplified Export Strategy**: Export now uses a single "All together" strategy (removed separate archive options)
+- **Simplified Date Range**: Only "All Entries" and "Custom Date Range" options available
+- **Improved Filtering**: Chats and media now correctly filtered by date range
 
 ---
 
@@ -268,6 +277,17 @@ final defaultThumbnailConfig = ThumbnailConfig(
 | Max Pack Size | 50MB - 500MB | 100MB | Maximum size per media pack archive |
 | JPEG Quality | 60% - 100% | 85% | Compression quality for images |
 | Strip EXIF | On/Off | On | Remove GPS and camera metadata |
+
+### Export Strategy
+
+**Current Implementation (v2.0):**
+- Single archive containing all entries, chats, and media
+- Date range filtering applies to all data types (entries, chats, media)
+- Simplified user experience with fewer choices
+
+**Date Range Options:**
+- **All Entries**: Export all entries, chats, and media regardless of date
+- **Custom Date Range**: Export only entries, chats, and media within selected date range
 
 ---
 

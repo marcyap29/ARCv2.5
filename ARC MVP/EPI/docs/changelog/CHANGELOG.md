@@ -1,7 +1,72 @@
 # EPI ARC MVP - Changelog
 
-**Version:** 2.1.7  
-**Last Updated:** January 2025
+**Version:** 2.1.8  
+**Last Updated:** February 2025
+
+## [2.1.8] - February 2025
+
+### **Export Simplification, Mobile Formatting, & Therapeutic Presence Mode** - Complete
+
+#### Export Simplification
+- **Removed Export Strategy Options**: Simplified export to single "All together" strategy
+  - Removed "Separate groups (3 archives)" option
+  - Removed "Entries+Chats together, Media separate (2 archives)" option
+  - Export now always creates single archive with all entries, chats, and media
+  - Reduces user confusion and simplifies export process
+
+- **Simplified Date Range Selection**: Streamlined date range options
+  - Removed "Last 6 months" option
+  - Removed "Last Year" option
+  - Now only "All Entries" and "Custom Date Range" options available
+  - Users can easily select any date range using custom option
+
+- **Improved Date Range Filtering**: Fixed filtering for chats and media
+  - Chats now properly included in exports
+  - Media and chats correctly filtered by selected date range
+  - Filtering independent of journal entry dates
+  - All data types (entries, chats, media) respect selected date range
+
+#### Mobile Formatting Improvements
+- **In-Journal LUMARA Reflection Formatting**: Enhanced paragraph formatting
+  - Added intelligent paragraph splitting for long responses
+  - Increased line height to 1.6 and font size to 15
+  - Increased paragraph spacing to 16px
+  - Improved readability on mobile devices
+
+- **Main Chat LUMARA Message Formatting**: Applied same formatting to chat
+  - Consistent paragraph formatting between journal and chat views
+  - Same typography improvements for better mobile readability
+
+- **Persistent Loading Indicator**: Improved user feedback
+  - Loading snackbar now persists until response arrives
+  - Automatically dismissed when response arrives or error occurs
+  - Better visibility during LUMARA reflection generation
+
+#### Therapeutic Presence Mode
+- **New Feature**: Emotionally intelligent journaling support for complex experiences
+  - 10 emotion categories: anger, grief, shame, fear, guilt, loneliness, confusion, hope, burnout, identity_violation
+  - 3 intensity levels: low, moderate, high
+  - 8 tone modes: Grounded Containment, Reflective Echo, Restorative Closure, Compassionate Mirror, Quiet Integration, Cognitive Grounding, Existential Steadiness, Restorative Neutrality
+  - Phase-aware adaptation based on ATLAS phase
+  - Context-aware responses considering past patterns and media indicators
+  - Therapeutic framework: Acknowledge → Reflect → Expand → Contain/Integrate
+  - Safeguards: Never roleplays, avoids moralizing, stays with user's reality
+
+#### Files Modified
+- `lib/ui/export_import/mcp_export_screen.dart` - Simplified export UI and improved date filtering
+- `lib/ui/journal/widgets/inline_reflection_block.dart` - Added paragraph formatting
+- `lib/arc/chat/ui/lumara_assistant_screen.dart` - Applied paragraph formatting to chat
+- `lib/ui/journal/journal_screen.dart` - Improved loading indicator persistence
+- `lib/arc/chat/prompts/lumara_unified_prompts.dart` - Added Therapeutic Presence Mode integration
+- `lib/arc/chat/prompts/lumara_therapeutic_presence.dart` - New Therapeutic Presence Mode system
+- `lib/arc/chat/prompts/lumara_therapeutic_presence_data.dart` - New Response Matrix Schema
+- `lib/arc/chat/prompts/README_PROMPT_ENCOURAGEMENT.md` - Updated with Therapeutic Presence Mode
+- `docs/changelog/CHANGELOG.md` - This changelog entry
+- `docs/features/EXPORT_SIMPLIFICATION_FEB_2025.md` - New feature documentation
+- `docs/features/MOBILE_FORMATTING_IMPROVEMENTS_FEB_2025.md` - New feature documentation
+- `docs/features/THERAPEUTIC_PRESENCE_MODE_FEB_2025.md` - New feature documentation
+- `docs/implementation/THERAPEUTIC_PRESENCE_IMPLEMENTATION_FEB_2025.md` - New implementation documentation
+- `docs/guides/UI_EXPORT_INTEGRATION_GUIDE.md` - Updated with simplified export options
 
 ## [2.1.7] - January 2025
 

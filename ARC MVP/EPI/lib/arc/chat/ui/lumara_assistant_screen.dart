@@ -621,13 +621,24 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    message.content,
-                    style: TextStyle(
-                      color: isUser ? Colors.white : Colors.black87,
-                      fontSize: 16,
+                  // Format content into paragraphs for better readability (especially for assistant messages)
+                  if (isUser)
+                    Text(
+                      message.content,
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                      ),
+                    )
+                  else
+                    ..._buildParagraphs(
+                      message.content,
+                      TextStyle(
+                        color: Colors.black87,
+                        fontSize: 16,
+                        height: 1.6, // Increased line height for better mobile readability
+                      ),
                     ),
-                  ),
                   
                   // Action buttons for user messages (edit/copy)
                   if (isUser) ...[
@@ -1013,6 +1024,76 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
     // TODO: Implement weight change logic
     // This would update the memory influence in real-time
     print('Weight changed for memory ${trace.nodeRef}: ${(newWeight * 100).toStringAsFixed(0)}%');
+  }
+
+  /// Build paragraphs from content text with improved mobile readability
+  List<Widget> _buildParagraphs(String content, TextStyle textStyle) {
+    if (content.trim().isEmpty) {
+      return [const SizedBox.shrink()];
+    }
+
+    // Split by double newlines first (explicit paragraphs)
+    List<String> paragraphs = content.split('\n\n');
+    
+    // Clean up paragraphs - remove single newlines within paragraphs
+    paragraphs = paragraphs.map((p) => p.replaceAll('\n', ' ').trim()).toList();
+    
+    // If no double newlines, try splitting by single newlines
+    if (paragraphs.length == 1 && content.contains('\n')) {
+      paragraphs = content.split('\n').map((p) => p.trim()).where((p) => p.isNotEmpty).toList();
+    }
+    
+    // If still single paragraph, try splitting by sentence endings for better readability
+    if (paragraphs.length == 1) {
+      // Split by periods/exclamation/question marks followed by space and capital letter
+      // This creates natural paragraph breaks for long responses
+      final sentencePattern = RegExp(r'([.!?])\s+([A-Z])');
+      final matches = sentencePattern.allMatches(content);
+      
+      if (matches.length >= 2) {
+        paragraphs = [];
+        int lastIndex = 0;
+        for (final match in matches) {
+          if (match.start > lastIndex) {
+            final sentence = content.substring(lastIndex, match.start + 1).trim();
+            if (sentence.isNotEmpty) {
+              paragraphs.add(sentence);
+            }
+            lastIndex = match.start + 1;
+          }
+        }
+        if (lastIndex < content.length) {
+          final remaining = content.substring(lastIndex).trim();
+          if (remaining.isNotEmpty) {
+            paragraphs.add(remaining);
+          }
+        }
+      }
+    }
+
+    // Filter out empty paragraphs and build widgets with improved spacing
+    final widgets = <Widget>[];
+    for (int i = 0; i < paragraphs.length; i++) {
+      final paragraph = paragraphs[i].trim();
+      if (paragraph.isNotEmpty) {
+        widgets.add(
+          Padding(
+            padding: EdgeInsets.only(bottom: i < paragraphs.length - 1 ? 12 : 0),
+            child: Text(
+              paragraph,
+              style: textStyle,
+            ),
+          ),
+        );
+      }
+    }
+
+    return widgets.isEmpty ? [
+      Text(
+        content,
+        style: textStyle,
+      )
+    ] : widgets;
   }
 
   /// Handle memory exclusion

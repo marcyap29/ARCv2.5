@@ -157,12 +157,50 @@ Each phase-emotion combination includes:
 
 ## Therapeutic Presence Mode
 
-**Note:** Therapeutic Presence Mode integration is planned for future implementation. This mode will provide specialized support for users journaling through emotionally complex experiences, with tone modes (Holding, Witnessing, Companioning, Grounding) and adaptive response logic based on emotional intensity and ATLAS phase.
+**Status:** ✅ **IMPLEMENTED** - Therapeutic Presence Mode v1.0 is now fully integrated.
+
+Therapeutic Presence Mode provides specialized support for users journaling through emotionally complex experiences (racism, grief, anger, burnout, shame, identity confusion, loneliness, existential uncertainty, etc.). The system uses 8 tone modes and adaptive response logic based on emotional intensity and ATLAS phase.
+
+### Features
+
+- **8 Tone Modes**: Grounded Containment, Reflective Echo, Restorative Closure, Compassionate Mirror, Quiet Integration, Cognitive Grounding, Existential Steadiness, Restorative Neutrality
+- **10 Emotion Categories**: anger, grief, shame, fear, guilt, loneliness, confusion, hope, burnout, identity_violation
+- **3 Intensity Levels**: low, moderate, high
+- **Response Framework**: Acknowledge → Reflect → Expand → Contain/Integrate
+- **Phase-Aware**: Adapts tone and prompts based on ATLAS phase
+- **Context-Aware**: References past entries, patterns, and media signals
+
+### Usage
+
+```dart
+import 'package:my_app/arc/chat/prompts/lumara_unified_prompts.dart';
+
+// Generate therapeutic response
+final response = await LumaraUnifiedPrompts.instance.generateTherapeuticResponse(
+  emotionCategory: 'grief',
+  intensity: 'high',
+  phase: 'recovery',
+  contextSignals: {'past_patterns': 'loss themes'},
+  isRecurrentTheme: true,
+);
+
+// Get therapeutic presence system prompt
+final therapeuticPrompt = await LumaraUnifiedPrompts.instance.getTherapeuticPresencePrompt(
+  phaseData: {'phase': 'Recovery', 'readiness': 0.6},
+  emotionData: {'category': 'grief', 'intensity': 'high'},
+);
+```
+
+### Tone Mode Selection Logic
+
+- **High Intensity** → Grounded Containment or Restorative Neutrality
+- **Low Intensity + Integrative Phase** → Quiet Integration
+- **Recurrent Themes** → Context echo with gentle reference to past entries
+- **Media Indicators** (tearful/shaky voice) → Softened tone + containment endings
 
 ## Future Enhancements
 
 Potential extensions:
-- Therapeutic Presence Mode implementation
 - Emotional subtype variations (e.g., anxious Discovery vs. inspired Discovery)
 - Confidence scoring for phase detection
 - Few-shot examples for LLM tuning
@@ -171,8 +209,10 @@ Potential extensions:
 
 ## Files
 
-- `lumara_prompt_encouragement.dart` - Main system class
-- `lumara_prompt_encouragement_data.dart` - Embedded data structures
+- `lumara_prompt_encouragement.dart` - Main system class for prompt encouragement
+- `lumara_prompt_encouragement_data.dart` - Embedded data structures (prompt library & emotion matrix)
+- `lumara_therapeutic_presence.dart` - Therapeutic Presence Mode system class
+- `lumara_therapeutic_presence_data.dart` - Response Matrix Schema and system prompt
 - `lumara_unified_prompts.dart` - Integration with unified prompt system
 - `README_PROMPT_ENCOURAGEMENT.md` - This documentation
 

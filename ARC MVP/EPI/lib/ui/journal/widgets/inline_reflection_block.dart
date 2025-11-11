@@ -184,7 +184,7 @@ class InlineReflectionBlock extends StatelessWidget {
     );
   }
 
-  /// Build paragraphs from content text
+  /// Build paragraphs from content text with improved mobile readability
   List<Widget> _buildParagraphs(String content, ThemeData theme) {
     if (content.trim().isEmpty) {
       return [const SizedBox.shrink()];
@@ -193,44 +193,55 @@ class InlineReflectionBlock extends StatelessWidget {
     // Split by double newlines first (explicit paragraphs)
     List<String> paragraphs = content.split('\n\n');
     
+    // Clean up paragraphs - remove single newlines within paragraphs
+    paragraphs = paragraphs.map((p) => p.replaceAll('\n', ' ').trim()).toList();
+    
     // If no double newlines, try splitting by single newlines
-    if (paragraphs.length == 1) {
-      paragraphs = content.split('\n');
+    if (paragraphs.length == 1 && content.contains('\n')) {
+      paragraphs = content.split('\n').map((p) => p.trim()).where((p) => p.isNotEmpty).toList();
     }
     
-    // If still single paragraph, try splitting by sentence endings followed by space
+    // If still single paragraph, try splitting by sentence endings for better readability
     if (paragraphs.length == 1) {
       // Split by periods/exclamation/question marks followed by space and capital letter
+      // This creates natural paragraph breaks for long responses
       final sentencePattern = RegExp(r'([.!?])\s+([A-Z])');
       final matches = sentencePattern.allMatches(content);
       
-      if (matches.length > 1) {
+      if (matches.length >= 2) {
         paragraphs = [];
         int lastIndex = 0;
         for (final match in matches) {
           if (match.start > lastIndex) {
-            paragraphs.add(content.substring(lastIndex, match.start + 1).trim());
+            final sentence = content.substring(lastIndex, match.start + 1).trim();
+            if (sentence.isNotEmpty) {
+              paragraphs.add(sentence);
+            }
             lastIndex = match.start + 1;
           }
         }
         if (lastIndex < content.length) {
-          paragraphs.add(content.substring(lastIndex).trim());
+          final remaining = content.substring(lastIndex).trim();
+          if (remaining.isNotEmpty) {
+            paragraphs.add(remaining);
+          }
         }
       }
     }
 
-    // Filter out empty paragraphs and build widgets
+    // Filter out empty paragraphs and build widgets with improved spacing
     final widgets = <Widget>[];
     for (int i = 0; i < paragraphs.length; i++) {
       final paragraph = paragraphs[i].trim();
       if (paragraph.isNotEmpty) {
         widgets.add(
           Padding(
-            padding: EdgeInsets.only(bottom: i < paragraphs.length - 1 ? 12 : 0),
+            padding: EdgeInsets.only(bottom: i < paragraphs.length - 1 ? 16 : 0),
             child: Text(
               paragraph,
               style: theme.textTheme.bodyMedium?.copyWith(
-                height: 1.4,
+                height: 1.6, // Increased line height for better mobile readability
+                fontSize: 15, // Slightly larger font for mobile
                 color: theme.colorScheme.secondary,
                 fontStyle: FontStyle.italic,
               ),
@@ -244,7 +255,8 @@ class InlineReflectionBlock extends StatelessWidget {
       Text(
         content,
         style: theme.textTheme.bodyMedium?.copyWith(
-          height: 1.4,
+          height: 1.6,
+          fontSize: 15,
           color: theme.colorScheme.secondary,
           fontStyle: FontStyle.italic,
         ),

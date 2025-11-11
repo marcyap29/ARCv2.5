@@ -5,12 +5,14 @@
 import 'dart:convert';
 import 'package:flutter/services.dart';
 import 'lumara_prompt_encouragement.dart';
+import 'lumara_therapeutic_presence.dart';
 
 /// Context tags for LUMARA prompts
 enum LumaraContext {
   arcChat,
   arcJournal,
   recovery,
+  therapeuticPresence,
 }
 
 /// Unified LUMARA prompt system
@@ -123,6 +125,15 @@ Goal: Stabilize, slow pace, and preserve dignity.
 Style: Short, grounded sentences; gentle invitations.
 Pace: Slower, more containment, fewer questions.
 ''';
+      case LumaraContext.therapeuticPresence:
+        return '''
+Context Mode: THERAPEUTIC_PRESENCE
+Goal: Emotionally intelligent journaling support for complex experiences.
+Style: Professional warmth, reflective containment, gentle precision.
+Tone: Therapeutic mirror — calm, grounded, reflective, attuned.
+Framework: Acknowledge → Reflect → Expand → Contain/Integrate
+Safeguards: Never roleplay, avoid moralizing, stay with user's reality.
+''';
     }
   }
 
@@ -217,6 +228,87 @@ Pace: Slower, more containment, fewer questions.
       emotion: emotionalState,
       recentPatterns: recentPatterns,
       recentTheme: recentTheme,
+    );
+  }
+
+  /// Get system prompt for Therapeutic Presence Mode
+  /// Includes full therapeutic presence guidance for emotionally complex experiences
+  Future<String> getTherapeuticPresencePrompt({
+    Map<String, dynamic>? phaseData,
+    Map<String, dynamic>? emotionData,
+  }) async {
+    final basePrompt = await getCondensedPrompt();
+    final therapeuticPrompt = LumaraTherapeuticPresence.instance.getSystemPrompt();
+    
+    // Add context-specific guidance
+    final contextGuidance = _getContextGuidance(LumaraContext.therapeuticPresence);
+    
+    // Add phase/emotion context if provided
+    String? phaseContext;
+    if (phaseData != null) {
+      phaseContext = 'Current phase: ${phaseData['phase'] ?? 'unknown'}. '
+          'Readiness: ${phaseData['readiness'] ?? 'unknown'}.';
+    }
+    
+    String? emotionContext;
+    if (emotionData != null) {
+      emotionContext = 'Emotion category: ${emotionData['category'] ?? 'unknown'}. '
+          'Intensity: ${emotionData['intensity'] ?? 'unknown'}.';
+    }
+
+    final parts = [
+      basePrompt,
+      '',
+      '=== THERAPEUTIC PRESENCE MODE ===',
+      therapeuticPrompt,
+      '',
+      contextGuidance,
+      if (phaseContext != null) phaseContext,
+      if (emotionContext != null) emotionContext,
+    ].where((s) => s.isNotEmpty).join('\n');
+
+    return parts;
+  }
+
+  /// Generate a therapeutic response using Therapeutic Presence Mode
+  Future<Map<String, dynamic>> generateTherapeuticResponse({
+    required String emotionCategory, // e.g., 'grief', 'anger', 'shame'
+    required String intensity, // 'low', 'moderate', 'high'
+    required String phase, // e.g., 'discovery', 'recovery'
+    Map<String, dynamic>? contextSignals,
+    bool isRecurrentTheme = false,
+    bool hasMediaIndicators = false,
+  }) async {
+    // Convert string inputs to enums
+    final therapeuticEmotion = LumaraTherapeuticPresence.emotionCategoryFromString(
+      emotionCategory,
+    );
+    final emotionIntensity = LumaraTherapeuticPresence.intensityFromString(
+      intensity,
+    );
+    
+    AtlasPhase? atlasPhase;
+    try {
+      atlasPhase = AtlasPhase.values.firstWhere(
+        (p) => p.name == phase.toLowerCase(),
+      );
+    } catch (e) {
+      atlasPhase = AtlasPhase.discovery; // Default fallback
+    }
+
+    if (therapeuticEmotion == null || emotionIntensity == null) {
+      throw ArgumentError(
+        'Invalid emotion category or intensity: $emotionCategory, $intensity',
+      );
+    }
+
+    return LumaraTherapeuticPresence.instance.generateTherapeuticResponse(
+      emotionCategory: therapeuticEmotion,
+      intensity: emotionIntensity,
+      atlasPhase: atlasPhase,
+      contextSignals: contextSignals,
+      isRecurrentTheme: isRecurrentTheme,
+      hasMediaIndicators: hasMediaIndicators,
     );
   }
 

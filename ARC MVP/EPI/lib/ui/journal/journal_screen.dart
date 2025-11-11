@@ -475,9 +475,11 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
 
       _analytics.logLumaraEvent('reflection_generated');
       
-      // Show loading indicator
+      // Show loading indicator - persist until response arrives
+      ScaffoldMessengerState? snackbarMessenger;
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        snackbarMessenger = ScaffoldMessenger.of(context);
+        snackbarMessenger.showSnackBar(
           SnackBar(
             content: Row(
               children: [
@@ -490,7 +492,7 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
                 Text('LUMARA is thinking...'),
               ],
             ),
-            duration: Duration(seconds: 2),
+            duration: Duration(days: 1), // Very long duration - will be dismissed manually
           ),
         );
       }
@@ -593,6 +595,9 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
           _lumaraLoadingStates.remove(blockIndex);
           _lumaraLoadingMessages.remove(blockIndex);
         });
+        
+        // Dismiss the snackbar now that response has arrived
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
       }
       
       // Create controller for the new block if it doesn't exist
@@ -628,6 +633,11 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
           _lumaraLoadingStates.remove(newBlockIndex);
           _lumaraLoadingMessages.remove(newBlockIndex);
         });
+      }
+      
+      // Dismiss the snackbar on error
+      if (mounted) {
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
       }
       
       _analytics.log('lumara_error', {'error': e.toString()});

@@ -52,7 +52,7 @@ class _McpExportScreenState extends State<McpExportScreen> {
   int _mediaPackTargetSizeMB = 200; // Target size for media packs in MB
   
   // Date range filtering
-  String _dateRangeSelection = 'all'; // 'all', 'last6months', 'lastyear', 'custom'
+  String _dateRangeSelection = 'all'; // 'all', 'custom'
   DateTime? _customStartDate;
   DateTime? _customEndDate;
 
@@ -119,15 +119,6 @@ class _McpExportScreenState extends State<McpExportScreen> {
         return;
         }
       }
-      
-      // Extract dates from selected entries for filtering associated data
-      final selectedDates = <String>{};
-      for (final entry in entries) {
-        final date = '${entry.createdAt.year.toString().padLeft(4, '0')}-'
-                     '${entry.createdAt.month.toString().padLeft(2, '0')}-'
-                     '${entry.createdAt.day.toString().padLeft(2, '0')}';
-        selectedDates.add(date);
-      }
 
       // Create progress notifier
       final progressNotifier = ValueNotifier<String>('Preparing export...');
@@ -144,11 +135,63 @@ class _McpExportScreenState extends State<McpExportScreen> {
           await exportsDir.create(recursive: true);
         }
 
-        // Collect photo media items from journal entries (always included)
-        final photoMedia = <MediaItem>[];
-        for (final entry in entries) {
-          photoMedia.addAll(entry.media.where((m) => m.type == MediaType.image));
+        // Calculate date range based on selection (for entries, chats, and media)
+        DateTime? startDate;
+        DateTime? endDate;
+        
+        switch (_dateRangeSelection) {
+          case 'custom':
+            startDate = _customStartDate;
+            endDate = _customEndDate;
+            break;
+          case 'all':
+          default:
+            // No date filtering
+            break;
         }
+        
+        // Filter entries by date range if specified
+        List<JournalEntry> filteredEntries = entries;
+        if (startDate != null || endDate != null) {
+          filteredEntries = entries.where((entry) {
+            if (startDate != null && entry.createdAt.isBefore(startDate)) return false;
+            if (endDate != null && entry.createdAt.isAfter(endDate)) return false;
+            return true;
+          }).toList();
+        }
+        
+        // Collect media items - filter by date range if custom date range is set
+        // This ensures media within the date range is included regardless of entry selection
+        final photoMedia = <MediaItem>[];
+        final mediaMap = <String, MediaItem>{};
+        
+        if (startDate != null || endDate != null) {
+          // When custom date range is set, load all entries and filter media by date range
+          try {
+            final allEntries = await journalRepo.getAllJournalEntries();
+            for (final entry in allEntries) {
+              // Check if entry is within date range
+              if (startDate != null && entry.createdAt.isBefore(startDate)) continue;
+              if (endDate != null && entry.createdAt.isAfter(endDate)) continue;
+              
+              // Include media from entries within date range
+              for (final mediaItem in entry.media.where((m) => m.type == MediaType.image)) {
+                mediaMap[mediaItem.id] = mediaItem;
+              }
+            }
+          } catch (e) {
+            print('Warning: Could not load all entries for media filtering: $e');
+          }
+        } else {
+          // When "All Entries" is selected (no date range), collect media from selected/filtered entries
+          for (final entry in filteredEntries) {
+            for (final mediaItem in entry.media.where((m) => m.type == MediaType.image)) {
+              mediaMap[mediaItem.id] = mediaItem;
+            }
+          }
+        }
+        
+        photoMedia.addAll(mediaMap.values);
 
         // Use ARCX Export Service V2 (new specification)
         final chatRepo = ChatRepoImpl.instance;
@@ -163,47 +206,27 @@ class _McpExportScreenState extends State<McpExportScreen> {
           chatRepo: chatRepo,
         );
         
-        // Build selection from entries
-        final entryIds = entries.map((e) => e.id).toList();
+        // Build selection from filtered entries
+        final entryIds = filteredEntries.map((e) => e.id).toList();
         final mediaIds = photoMedia.map((m) => m.id).toList();
         
-        // Get chat thread IDs (always included, filtered by date range)
+        // Get chat thread IDs - filter by date range selection and archived setting
         final chatThreadIds = <String>[];
-        final allChats = await chatRepo.listAll(includeArchived: _includeArchivedChats);
-        // Filter chats by selected dates if dates are available
-        if (selectedDates.isNotEmpty) {
+        try {
+          final allChats = await chatRepo.listAll(includeArchived: _includeArchivedChats);
+          
+          // Apply date range filtering to chats if date range is specified
           for (final chat in allChats) {
-            final chatDate = '${chat.createdAt.year.toString().padLeft(4, '0')}-'
-                           '${chat.createdAt.month.toString().padLeft(2, '0')}-'
-                           '${chat.createdAt.day.toString().padLeft(2, '0')}';
-            if (selectedDates.contains(chatDate)) {
-              chatThreadIds.add(chat.id);
-            }
+            // Skip if outside date range
+            if (startDate != null && chat.createdAt.isBefore(startDate)) continue;
+            if (endDate != null && chat.createdAt.isAfter(endDate)) continue;
+            
+            chatThreadIds.add(chat.id);
           }
-        } else {
-          chatThreadIds.addAll(allChats.map((c) => c.id));
-        }
-        
-        // Calculate date range based on selection
-        DateTime? startDate;
-        DateTime? endDate;
-        final now = DateTime.now();
-        
-        switch (_dateRangeSelection) {
-          case 'last6months':
-            startDate = DateTime(now.year, now.month - 6, now.day);
-            break;
-          case 'lastyear':
-            startDate = DateTime(now.year - 1, now.month, now.day);
-            break;
-          case 'custom':
-            startDate = _customStartDate;
-            endDate = _customEndDate;
-            break;
-          case 'all':
-          default:
-            // No date filtering
-            break;
+          
+          print('ARCX Export: Including ${chatThreadIds.length} chats (archived: $_includeArchivedChats, date range: ${startDate != null || endDate != null ? "filtered" : "all"})');
+        } catch (e) {
+          print('Warning: Could not load chats for export: $e');
         }
         
         final result = await arcxExportV2.export(
@@ -748,16 +771,6 @@ class _McpExportScreenState extends State<McpExportScreen> {
                         fontWeight: FontWeight.w600,
                       ),
                     ),
-                    const SizedBox(height: 12),
-                    Text(
-                      'Export Strategy',
-                      style: bodyStyle(context).copyWith(
-                        color: kcPrimaryTextColor,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    _buildStrategySelector(),
                     const SizedBox(height: 16),
                     Text(
                       'Date Range',
@@ -1017,56 +1030,6 @@ class _McpExportScreenState extends State<McpExportScreen> {
     );
   }
 
-  Widget _buildStrategySelector() {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.05),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.white.withOpacity(0.1)),
-      ),
-      child: Column(
-        children: [
-          RadioListTile<ARCXExportStrategy>(
-            title: Text('All together', style: bodyStyle(context)),
-            subtitle: Text('Single archive with all entries, chats, and media', style: bodyStyle(context).copyWith(fontSize: 12)),
-            value: ARCXExportStrategy.together,
-            groupValue: _exportStrategy,
-            onChanged: (value) {
-              setState(() {
-                _exportStrategy = value!;
-              });
-            },
-            activeColor: kcAccentColor,
-          ),
-          RadioListTile<ARCXExportStrategy>(
-            title: Text('Separate groups (3 archives)', style: bodyStyle(context)),
-            subtitle: Text('Entries, Chats, and Media as separate packages', style: bodyStyle(context).copyWith(fontSize: 12)),
-            value: ARCXExportStrategy.separateGroups,
-            groupValue: _exportStrategy,
-            onChanged: (value) {
-              setState(() {
-                _exportStrategy = value!;
-              });
-            },
-            activeColor: kcAccentColor,
-          ),
-          RadioListTile<ARCXExportStrategy>(
-            title: Text('Entries+Chats together, Media separate (2 archives)', style: bodyStyle(context)),
-            subtitle: Text('Compressed entries/chats archive + uncompressed media archive', style: bodyStyle(context).copyWith(fontSize: 12)),
-            value: ARCXExportStrategy.entriesChatsTogetherMediaSeparate,
-            groupValue: _exportStrategy,
-            onChanged: (value) {
-              setState(() {
-                _exportStrategy = value!;
-              });
-            },
-            activeColor: kcAccentColor,
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildDateRangeSelector() {
     return Container(
       decoration: BoxDecoration(
@@ -1079,28 +1042,6 @@ class _McpExportScreenState extends State<McpExportScreen> {
           RadioListTile<String>(
             title: Text('All entries', style: bodyStyle(context)),
             value: 'all',
-            groupValue: _dateRangeSelection,
-            onChanged: (value) {
-              setState(() {
-                _dateRangeSelection = value!;
-              });
-            },
-            activeColor: kcAccentColor,
-          ),
-          RadioListTile<String>(
-            title: Text('Last 6 months', style: bodyStyle(context)),
-            value: 'last6months',
-            groupValue: _dateRangeSelection,
-            onChanged: (value) {
-              setState(() {
-                _dateRangeSelection = value!;
-              });
-            },
-            activeColor: kcAccentColor,
-          ),
-          RadioListTile<String>(
-            title: Text('Last year', style: bodyStyle(context)),
-            value: 'lastyear',
             groupValue: _dateRangeSelection,
             onChanged: (value) {
               setState(() {
