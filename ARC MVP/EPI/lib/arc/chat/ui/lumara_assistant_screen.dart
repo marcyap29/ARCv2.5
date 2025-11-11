@@ -474,32 +474,42 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
         if (state is! LumaraAssistantLoaded) return const SizedBox.shrink();
         
         return Container(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-          child: Wrap(
-            spacing: 8,
-            children: [
-              _buildScopeChip('Journal', state.scope.journal, () {
-                context.read<LumaraAssistantCubit>().toggleScope('journal');
-              }),
-              _buildScopeChip('Phase', state.scope.phase, () {
-                context.read<LumaraAssistantCubit>().toggleScope('phase');
-              }),
-              _buildScopeChip('ARCForms', state.scope.arcforms, () {
-                context.read<LumaraAssistantCubit>().toggleScope('arcforms');
-              }),
-              _buildScopeChip('Voice', state.scope.voice, () {
-                context.read<LumaraAssistantCubit>().toggleScope('voice');
-              }),
-              _buildScopeChip('Media', state.scope.media, () {
-                context.read<LumaraAssistantCubit>().toggleScope('media');
-              }),
-              _buildScopeChip('Drafts', state.scope.drafts, () {
-                context.read<LumaraAssistantCubit>().toggleScope('drafts');
-              }),
-              _buildScopeChip('Chats', state.scope.chats, () {
-                context.read<LumaraAssistantCubit>().toggleScope('chats');
-              }),
-            ],
+          height: 36,
+          padding: const EdgeInsets.symmetric(vertical: 4),
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            child: Row(
+              children: [
+                _buildScopeChip('Journal', state.scope.journal, () {
+                  context.read<LumaraAssistantCubit>().toggleScope('journal');
+                }),
+                const SizedBox(width: 6),
+                _buildScopeChip('Phase', state.scope.phase, () {
+                  context.read<LumaraAssistantCubit>().toggleScope('phase');
+                }),
+                const SizedBox(width: 6),
+                _buildScopeChip('ARCForms', state.scope.arcforms, () {
+                  context.read<LumaraAssistantCubit>().toggleScope('arcforms');
+                }),
+                const SizedBox(width: 6),
+                _buildScopeChip('Voice', state.scope.voice, () {
+                  context.read<LumaraAssistantCubit>().toggleScope('voice');
+                }),
+                const SizedBox(width: 6),
+                _buildScopeChip('Media', state.scope.media, () {
+                  context.read<LumaraAssistantCubit>().toggleScope('media');
+                }),
+                const SizedBox(width: 6),
+                _buildScopeChip('Drafts', state.scope.drafts, () {
+                  context.read<LumaraAssistantCubit>().toggleScope('drafts');
+                }),
+                const SizedBox(width: 6),
+                _buildScopeChip('Chats', state.scope.chats, () {
+                  context.read<LumaraAssistantCubit>().toggleScope('chats');
+                }),
+              ],
+            ),
           ),
         );
       },
@@ -508,11 +518,17 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
 
   Widget _buildScopeChip(String label, bool isActive, VoidCallback onTap) {
     return FilterChip(
-      label: Text(label),
+      label: Text(
+        label,
+        style: const TextStyle(fontSize: 11),
+      ),
       selected: isActive,
       onSelected: (_) => onTap(),
       selectedColor: Colors.blue.withOpacity(0.2),
       checkmarkColor: Colors.blue,
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 0),
+      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      visualDensity: VisualDensity.compact,
     );
   }
 
@@ -799,28 +815,32 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
                 onPressed: _showHealthPreview,
               ),
               Expanded(
-                child: TextField(
-                  controller: _messageController,
-                  focusNode: _inputFocusNode,
-                  decoration: InputDecoration(
-                    hintText: isEditing ? 'Edit your message...' : 'Ask LUMARA anything...',
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(20),
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.vertical,
+                  child: TextField(
+                    controller: _messageController,
+                    focusNode: _inputFocusNode,
+                    decoration: InputDecoration(
+                      hintText: isEditing ? 'Edit your message...' : 'Ask LUMARA anything...',
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 8,
+                      ),
+                      isDense: true,
                     ),
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 8,
-                    ),
-                    isDense: true,
+                    minLines: 1,
+                    maxLines: 5, // Limit to 5 lines, then scroll
+                    textCapitalization: TextCapitalization.sentences,
+                    textInputAction: TextInputAction.newline,
+                    onSubmitted: (_) => _sendCurrentMessage(),
+                    onTap: () {
+                      // Ensure input is visible when tapped
+                      setState(() => _isInputVisible = true);
+                    },
                   ),
-                  minLines: 1,
-                  maxLines: null, // Allow unlimited expansion based on text input
-                  textCapitalization: TextCapitalization.sentences,
-                  onSubmitted: (_) => _sendCurrentMessage(),
-                  onTap: () {
-                    // Ensure input is visible when tapped
-                    setState(() => _isInputVisible = true);
-                  },
                 ),
               ),
               IconButton(
@@ -852,11 +872,11 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
       }
       _messageController.clear();
       _editingMessageId = null;
-      // Hide input after sending if empty
+      // Keep input visible after sending
       setState(() {
-        _isInputVisible = false;
+        _isInputVisible = true;
       });
-      _dismissKeyboard();
+      // Don't dismiss keyboard - keep it open for next message
     }
   }
 

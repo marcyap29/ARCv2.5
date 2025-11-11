@@ -14,19 +14,21 @@ class LumaraScope extends Equatable {
     this.journal = true,
     this.phase = true,
     this.arcforms = true,
-    this.voice = false,
-    this.media = false,
-    this.drafts = false,
-    this.chats = false,
+    this.voice = true,
+    this.media = true,
+    this.drafts = true,
+    this.chats = true,
   });
 
-  /// Default scope with journal, phase, and arcforms enabled
+  /// Default scope with all options enabled
   static const LumaraScope defaultScope = LumaraScope(
     journal: true,
     phase: true,
     arcforms: true,
-    voice: false,
-    media: false,
+    voice: true,
+    media: true,
+    drafts: true,
+    chats: true,
   );
 
   LumaraScope copyWith({
@@ -66,10 +68,10 @@ class LumaraScope extends Equatable {
       journal: json['journal'] as bool? ?? true,
       phase: json['phase'] as bool? ?? true,
       arcforms: json['arcforms'] as bool? ?? true,
-      voice: json['voice'] as bool? ?? false,
-      media: json['media'] as bool? ?? false,
-      drafts: json['drafts'] as bool? ?? false,
-      chats: json['chats'] as bool? ?? false,
+      voice: json['voice'] as bool? ?? true,
+      media: json['media'] as bool? ?? true,
+      drafts: json['drafts'] as bool? ?? true,
+      chats: json['chats'] as bool? ?? true,
     );
   }
 

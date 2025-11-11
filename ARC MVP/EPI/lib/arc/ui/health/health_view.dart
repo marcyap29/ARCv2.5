@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:my_app/insights/analytics_page.dart';
 import 'package:my_app/arc/ui/health/health_detail_view.dart';
 import 'package:my_app/arc/ui/health/health_settings_dialog.dart';
 import 'package:my_app/arc/ui/health/medication_manager.dart';
@@ -14,7 +13,7 @@ class HealthView extends StatefulWidget {
 }
 
 class _HealthViewState extends State<HealthView> {
-  int _selected = 0; // 0: Overview, 1: Details, 2: Analytics
+  String _selectedMainView = 'health'; // 'health' or 'medications'
   int _daysBack = 30; // 30, 60, or 90 days for health details
   final _healthSummaryKey = GlobalKey<State<HealthSummaryBody>>();
   final _healthDetailsKey = GlobalKey<State<HealthDetailScreenBody>>();
@@ -74,71 +73,149 @@ class _HealthViewState extends State<HealthView> {
 
   @override
   Widget build(BuildContext context) {
-    return DefaultTabController(
-      length: 4,
-      initialIndex: _selected,
-      child: Scaffold(
-        appBar: AppBar(
-          title: const Text('Health'),
-          centerTitle: true,
-          actions: [
-            IconButton(
-              icon: const Icon(Icons.info_outline),
-              tooltip: 'Health tab overview',
-              onPressed: () => _showInfoDialog(context),
-            ),
-            IconButton(
-              icon: const Icon(Icons.settings),
-              tooltip: 'Health Settings',
-              onPressed: () async {
-                await showDialog(
-                  context: context,
-                  builder: (context) => const HealthSettingsDialog(),
-                );
-                // Refresh health summary after dialog closes
-                final state = _healthSummaryKey.currentState;
-                if (state is RefreshableHealthSummary) {
-                  state.refreshHealthData();
-                }
-              },
-            ),
-          ],
-          bottom: TabBar(
-            isScrollable: true,
-            onTap: (i) => setState(() => _selected = i),
-            tabs: const [
-              Tab(icon: Icon(Icons.favorite_outline, size: 20), text: 'Overview'),
-              Tab(icon: Icon(Icons.show_chart, size: 20), text: 'Details'),
-              Tab(icon: Icon(Icons.stacked_line_chart, size: 20), text: 'Analytics'),
-              Tab(icon: Icon(Icons.medication_liquid, size: 20), text: 'Medications'),
-            ],
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Health'),
+        centerTitle: true,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.info_outline),
+            tooltip: 'Health tab overview',
+            onPressed: () => _showInfoDialog(context),
           ),
-        ),
-        body: Container(
-          color: kcBackgroundColor,
-          child: TabBarView(
-            physics: const BouncingScrollPhysics(),
-            children: [
-              // Show the Health Summary content directly in the Overview tab
-              HealthSummaryBody(key: _healthSummaryKey, pointerJson: const {}),
-              // Show the Health Detail Screen in the Details tab
-              _HealthDetailsTab(
-                key: _healthDetailsKey,
-                daysBack: _daysBack,
-                onDaysChanged: (days) {
+          IconButton(
+            icon: const Icon(Icons.settings),
+            tooltip: 'Health Settings',
+            onPressed: () async {
+              await showDialog(
+                context: context,
+                builder: (context) => const HealthSettingsDialog(),
+              );
+              // Refresh health summary after dialog closes
+              final state = _healthSummaryKey.currentState;
+              if (state is RefreshableHealthSummary) {
+                state.refreshHealthData();
+              }
+            },
+          ),
+        ],
+      ),
+      body: Container(
+        color: kcBackgroundColor,
+        child: Column(
+          children: [
+            // SegmentedButton for main view selection
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 4.0),
+              child: SegmentedButton<String>(
+                segments: const [
+                  ButtonSegment(
+                    value: 'health',
+                    label: Text('Health'),
+                    icon: Icon(Icons.favorite_outline, size: 18),
+                  ),
+                  ButtonSegment(
+                    value: 'medications',
+                    label: Text('Medications'),
+                    icon: Icon(Icons.medication_liquid, size: 18),
+                  ),
+                ],
+                selected: {_selectedMainView},
+                onSelectionChanged: (Set<String> selected) {
                   setState(() {
-                    _daysBack = days;
+                    _selectedMainView = selected.first;
                   });
                 },
               ),
-              // Render Analytics content directly within the Health tab
-              const AnalyticsContent(),
-              // Medications tab
-              const MedicationManager(),
-            ],
-          ),
+            ),
+            // Content based on selection
+            Expanded(
+              child: _selectedMainView == 'health'
+                  ? _buildCombinedHealthTab()
+                  : const MedicationManager(),
+            ),
+          ],
         ),
       ),
+    );
+  }
+
+  /// Combined Health Tab (Overview + Details)
+  /// Uses SegmentedButton instead of nested TabBar to avoid double navigation
+  Widget _buildCombinedHealthTab() {
+    return _CombinedHealthTabContent(
+      healthSummaryKey: _healthSummaryKey,
+      healthDetailsKey: _healthDetailsKey,
+      daysBack: _daysBack,
+      onDaysChanged: (days) {
+        setState(() {
+          _daysBack = days;
+        });
+      },
+    );
+  }
+}
+
+/// Combined Health Tab Content with SegmentedButton (no nested TabBar)
+class _CombinedHealthTabContent extends StatefulWidget {
+  final GlobalKey<State<HealthSummaryBody>> healthSummaryKey;
+  final GlobalKey<State<HealthDetailScreenBody>> healthDetailsKey;
+  final int daysBack;
+  final ValueChanged<int> onDaysChanged;
+
+  const _CombinedHealthTabContent({
+    required this.healthSummaryKey,
+    required this.healthDetailsKey,
+    required this.daysBack,
+    required this.onDaysChanged,
+  });
+
+  @override
+  State<_CombinedHealthTabContent> createState() => _CombinedHealthTabContentState();
+}
+
+class _CombinedHealthTabContentState extends State<_CombinedHealthTabContent> {
+  String _selectedView = 'overview';
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        // SegmentedButton instead of TabBar
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 4.0),
+          child: SegmentedButton<String>(
+            segments: const [
+              ButtonSegment(
+                value: 'overview',
+                label: Text('Overview'),
+                icon: Icon(Icons.favorite_outline, size: 18),
+              ),
+              ButtonSegment(
+                value: 'details',
+                label: Text('Details'),
+                icon: Icon(Icons.show_chart, size: 18),
+              ),
+            ],
+            selected: {_selectedView},
+            onSelectionChanged: (Set<String> selected) {
+              setState(() {
+                _selectedView = selected.first;
+              });
+            },
+          ),
+        ),
+        // Content based on selection
+        Expanded(
+          child: _selectedView == 'overview'
+              ? HealthSummaryBody(key: widget.healthSummaryKey, pointerJson: const {})
+              : _HealthDetailsTab(
+                  key: widget.healthDetailsKey,
+                  daysBack: widget.daysBack,
+                  onDaysChanged: widget.onDaysChanged,
+                ),
+        ),
+      ],
     );
   }
 }

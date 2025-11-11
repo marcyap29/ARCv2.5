@@ -65,3 +65,55 @@ TextStyle successStyle(BuildContext context) => const TextStyle(
       fontWeight: FontWeight.w500,
       color: kcSuccessColor,
     );
+
+// Enhanced Text Hierarchy Styles
+
+// Primary Actions (most prominent - buttons, CTAs)
+TextStyle primaryActionStyle(BuildContext context) => const TextStyle(
+      fontSize: 18,
+      fontWeight: FontWeight.w700,
+      color: kcPrimaryColor,
+      letterSpacing: 0.5,
+    );
+
+// Secondary Actions (less prominent actions)
+TextStyle secondaryActionStyle(BuildContext context) => TextStyle(
+      fontSize: 16,
+      fontWeight: FontWeight.w600,
+      color: kcAccentColor,
+    );
+
+// Critical Information (important but not action)
+TextStyle criticalInfoStyle(BuildContext context) => const TextStyle(
+      fontSize: 20,
+      fontWeight: FontWeight.w600,
+      color: kcPrimaryTextColor,
+    );
+
+// Section Headers (card titles, section titles)
+TextStyle sectionHeaderStyle(BuildContext context) => const TextStyle(
+      fontSize: 18,
+      fontWeight: FontWeight.w600,
+      color: kcPrimaryTextColor,
+    );
+
+// Body Text (standard information)
+TextStyle bodyTextStyle(BuildContext context) => TextStyle(
+      fontSize: 15,
+      fontWeight: FontWeight.w400,
+      color: kcPrimaryTextColor.withOpacity(0.9),
+    );
+
+// Supporting Text (less important info, descriptions)
+TextStyle supportingTextStyle(BuildContext context) => TextStyle(
+      fontSize: 13,
+      fontWeight: FontWeight.w400,
+      color: kcPrimaryTextColor.withOpacity(0.6),
+    );
+
+// Labels/Captions (metadata, timestamps, tags)
+TextStyle labelStyle(BuildContext context) => TextStyle(
+      fontSize: 12,
+      fontWeight: FontWeight.w500,
+      color: kcPrimaryTextColor.withOpacity(0.7),
+    );

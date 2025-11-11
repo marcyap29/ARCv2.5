@@ -48,6 +48,7 @@ import 'package:my_app/models/journal_entry_model.dart';
 import 'package:my_app/arc/chat/chat/chat_repo_impl.dart';
 import 'package:my_app/arc/chat/chat/chat_models.dart';
 import 'package:my_app/aurora/services/circadian_profile_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 /// Main journal screen with integrated LUMARA companion and OCR scanning
 class JournalScreen extends StatefulWidget {
@@ -159,6 +160,9 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
     _initProgressiveMemory();
     
     _analytics.logJournalEvent('opened');
+    
+    // Track journal mode entry and show prompt notice every 3-5 times
+    _trackJournalModeEntry();
     
     // Add lifecycle observer for app state changes
     WidgetsBinding.instance.addObserver(this);
@@ -421,11 +425,107 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
     }
   }
 
-  void _onLumaraFabTapped() {
+  void _onLumaraFabTapped() async {
     _analytics.logLumaraEvent('fab_tapped');
     
-    // Directly generate a reflection using LUMARA
+    // Check if entry is empty - if so, show confirmation dialog for journaling prompt
+    if (_entryState.text.trim().isEmpty) {
+      final shouldGetPrompt = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Get a Journaling Prompt?'),
+          content: const Text(
+            'Would you like LUMARA to suggest a writing prompt based on your entries, chats, drafts, media, and current phase?',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('No, thanks'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('Yes, please'),
+            ),
+          ],
+        ),
+      );
+      
+      if (shouldGetPrompt == true) {
+        await _generateJournalingPrompt();
+        return;
+      } else {
+        return; // User declined
+      }
+    }
+    
+    // If entry has text, directly generate a reflection using LUMARA
     _generateLumaraReflection();
+  }
+  
+  Future<void> _generateJournalingPrompt() async {
+    // TODO: Implement journaling prompt generation based on entries, chats, drafts, media, phase
+    // For now, show a placeholder message
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Journaling prompt feature coming soon!'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+    }
+  }
+  
+  /// Track when user enters journaling mode
+  Future<void> _trackJournalModeEntry() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final entryCount = prefs.getInt('journal_mode_entry_count') ?? 0;
+      final newCount = entryCount + 1;
+      await prefs.setInt('journal_mode_entry_count', newCount);
+      
+      // Show prompt notice every 3-5 times (randomized between 3-5)
+      if (newCount % 4 == 0 || (newCount >= 3 && newCount <= 5 && newCount % 3 == 0)) {
+        if (mounted) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            _showPromptNotice();
+          });
+        }
+      }
+    } catch (e) {
+      print('Error tracking journal mode entry: $e');
+    }
+  }
+  
+  /// Increment journal entry count when entry is saved
+  Future<void> _incrementJournalEntryCount() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final entryCount = prefs.getInt('journal_entry_saved_count') ?? 0;
+      await prefs.setInt('journal_entry_saved_count', entryCount + 1);
+    } catch (e) {
+      print('Error incrementing journal entry count: $e');
+    }
+  }
+  
+  /// Show notice about writing prompts
+  void _showPromptNotice() {
+    if (!mounted) return;
+    
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Need a Writing Prompt?'),
+        content: const Text(
+          'Press the LUMARA icon (🧠) to get personalized journaling prompts based on your entries, chats, drafts, media, and current phase.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Got it'),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _generateLumaraReflection() async {
@@ -1089,6 +1189,9 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
       'text_length': _entryState.text.length,
       'reflection_count': _entryState.blocks.length,
     });
+    
+    // Track journal entry completion
+    _incrementJournalEntryCount();
     
     // Navigate to keyword analysis
     Navigator.of(context).push<Map<String, dynamic>>(

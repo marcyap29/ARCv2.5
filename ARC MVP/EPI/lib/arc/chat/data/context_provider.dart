@@ -2,6 +2,9 @@ import 'package:my_app/arc/chat/data/context_scope.dart';
 import 'package:my_app/models/journal_entry_model.dart';
 import 'package:my_app/services/user_phase_service.dart';
 import 'package:my_app/arc/core/journal_repository.dart';
+import 'package:my_app/services/phase_regime_service.dart';
+import 'package:my_app/services/analytics_service.dart';
+import 'package:my_app/services/rivet_sweep_service.dart';
 
 /// Context window for LUMARA processing
 class ContextWindow {
@@ -153,8 +156,44 @@ class ContextProvider {
   
   /// Generate phase data using real journal entries
   Future<List<Map<String, dynamic>>> _generatePhaseData() async {
-    final currentPhase = await UserPhaseService.getCurrentPhase();
-    print('ContextProvider: Using actual current phase: $currentPhase');
+    // Try to get current phase from PhaseRegimeService first (most accurate)
+    String currentPhase = 'Discovery';
+    try {
+      final analyticsService = AnalyticsService();
+      final rivetSweepService = RivetSweepService(analyticsService);
+      final phaseRegimeService = PhaseRegimeService(analyticsService, rivetSweepService);
+      await phaseRegimeService.initialize();
+      
+      final currentRegime = phaseRegimeService.phaseIndex.currentRegime;
+      if (currentRegime != null) {
+        // Convert PhaseLabel enum to string (e.g., PhaseLabel.discovery -> "discovery")
+        currentPhase = currentRegime.label.toString().split('.').last;
+        // Capitalize first letter
+        currentPhase = currentPhase[0].toUpperCase() + currentPhase.substring(1);
+        print('ContextProvider: Using current phase from PhaseRegimeService: $currentPhase');
+      } else {
+        // Fallback: get most recent regime if no current ongoing regime
+        final allRegimes = phaseRegimeService.phaseIndex.allRegimes;
+        if (allRegimes.isNotEmpty) {
+          final sortedRegimes = List.from(allRegimes)..sort((a, b) => b.start.compareTo(a.start));
+          final mostRecentRegime = sortedRegimes.first;
+          currentPhase = mostRecentRegime.label.toString().split('.').last;
+          currentPhase = currentPhase[0].toUpperCase() + currentPhase.substring(1);
+          print('ContextProvider: No current regime, using most recent: $currentPhase');
+        } else {
+          // Final fallback to UserPhaseService
+          currentPhase = await UserPhaseService.getCurrentPhase();
+          print('ContextProvider: No regimes found, using UserPhaseService: $currentPhase');
+        }
+      }
+    } catch (e) {
+      print('ContextProvider: Error getting phase from PhaseRegimeService: $e');
+      // Fallback to UserPhaseService
+      currentPhase = await UserPhaseService.getCurrentPhase();
+      print('ContextProvider: Fallback to UserPhaseService: $currentPhase');
+    }
+    
+    print('ContextProvider: Final current phase: $currentPhase');
 
     final phaseNodes = <Map<String, dynamic>>[];
 

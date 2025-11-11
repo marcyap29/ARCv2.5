@@ -6,7 +6,6 @@ import 'package:my_app/arc/ui/timeline/timeline_cubit.dart';
 import 'package:my_app/shared/app_colors.dart';
 import 'package:my_app/shared/tab_bar.dart';
 import 'package:my_app/services/user_phase_service.dart';
-import 'package:my_app/shared/ui/settings/settings_view.dart';
 import 'package:my_app/services/analytics_service.dart';
 import 'package:my_app/core/services/audio_service.dart';
 import 'package:my_app/mode/first_responder/widgets/fr_status_indicator.dart';
@@ -16,6 +15,8 @@ import 'package:my_app/core/services/photo_library_service.dart';
 import 'dart:math' as math;
 import 'package:my_app/shared/ui/journal/unified_journal_view.dart';
 import 'package:my_app/shared/ui/insights/unified_insights_view.dart';
+import 'package:my_app/ui/journal/journal_screen.dart';
+import 'package:my_app/services/journal_session_cache.dart';
 
 // Debug flag for showing RIVET engineering labels
 const bool kShowRivetDebugLabels = false;
@@ -154,21 +155,7 @@ class _HomeViewState extends State<HomeView> {
               appBar: AppBar(
                 backgroundColor: kcBackgroundColor,
                 elevation: 0,
-                actions: [
-                  // Settings icon in app bar
-                  IconButton(
-                    icon: const Icon(Icons.settings, color: Colors.white),
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const SettingsView(),
-                        ),
-                      );
-                    },
-                    tooltip: 'Settings',
-                  ),
-                ],
+                // Settings moved to TabBar as a tab
               ),
               body: SafeArea(
                 child: Stack(
@@ -204,8 +191,18 @@ class _HomeViewState extends State<HomeView> {
 
                   _homeCubit.changeTab(index);
                 },
-                // No longer need onNewJournalPressed - handled in UnifiedJournalView
-                onNewJournalPressed: null,
+                showCenterButton: true,
+                onNewJournalPressed: () async {
+                  // Clear any existing session cache to ensure fresh start
+                  await JournalSessionCache.clearSession();
+                  
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const JournalScreen(),
+                    ),
+                  );
+                },
               ),
             );
           },

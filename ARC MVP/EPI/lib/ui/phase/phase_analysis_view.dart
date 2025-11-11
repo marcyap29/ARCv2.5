@@ -24,9 +24,8 @@ class PhaseAnalysisView extends StatefulWidget {
   State<PhaseAnalysisView> createState() => _PhaseAnalysisViewState();
 }
 
-class _PhaseAnalysisViewState extends State<PhaseAnalysisView>
-    with TickerProviderStateMixin {
-  late TabController _tabController;
+class _PhaseAnalysisViewState extends State<PhaseAnalysisView> {
+  String _selectedMainView = 'visualizations'; // 'visualizations' or 'analysis'
   PhaseIndex? _phaseIndex;
   bool _isLoading = true;
   String? _error;
@@ -35,24 +34,7 @@ class _PhaseAnalysisViewState extends State<PhaseAnalysisView>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 4, vsync: this);
-    // Add listener to refresh ARCForms when switching to that tab
-    _tabController.addListener(() {
-      if (_tabController.index == 0 && mounted) {
-        // ARCForms tab is selected (index 0)
-        print('DEBUG: ARCForms tab selected, refreshing...');
-        setState(() {
-          // Force rebuild to ensure current phase is shown
-        });
-      }
-    });
     _loadPhaseData();
-  }
-
-  @override
-  void dispose() {
-    _tabController.dispose();
-    super.dispose();
   }
 
   @override
@@ -333,68 +315,66 @@ List<PhaseSegmentProposal> proposals,
             tooltip: 'Phase Help',
           ),
         ],
-        bottom: TabBar(
-          controller: _tabController,
-          isScrollable: true,
-          labelStyle: const TextStyle(fontSize: 12),
-          unselectedLabelStyle: const TextStyle(fontSize: 11),
-          tabs: const [
-            Tab(icon: Icon(Icons.auto_awesome, size: 20), text: 'ARCForms'),
-            Tab(icon: Icon(Icons.timeline, size: 20), text: 'Timeline'),
-            Tab(icon: Icon(Icons.analytics, size: 20), text: 'Analysis'),
-            Tab(icon: Icon(Icons.shield, size: 20), text: 'SENTINEL'),
-          ],
-        ),
       ),
-      body: TabBarView(
-        controller: _tabController,
+      body: Column(
         children: [
-          // ARCForms Tab (moved to first position)
-          _buildArcformsTab(),
-
-          // Timeline Tab
-          _phaseIndex != null
-              ? PhaseTimelineView(
-                  key: ValueKey('phase_timeline_${_phaseIndex!.allRegimes.length}_${_phaseIndex!.allRegimes.isNotEmpty ? _phaseIndex!.allRegimes.first.id : 'empty'}'),
-                  phaseIndex: _phaseIndex!,
-                  onRegimeTap: (regime) {
-                    _showRegimeDetails(regime);
-                  },
-                  onRegimeAction: (regime, action) {
-                    _handleRegimeAction(regime, action);
-                  },
-                )
-              : Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(32.0),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.info_outline, size: 64, color: Colors.grey),
-                        const SizedBox(height: 16),
-                        Text(
-                          'No phase data available',
-                          style: Theme.of(context).textTheme.titleLarge,
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          'Run Phase Analysis to detect phases',
-                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: Colors.grey,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
+          // SegmentedButton for main view selection
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 4.0),
+            child: SegmentedButton<String>(
+              segments: const [
+                ButtonSegment(
+                  value: 'visualizations',
+                  label: Text('Visualizations'),
+                  icon: Icon(Icons.auto_awesome, size: 18),
                 ),
-
-          // Analysis Tab
-          _buildAnalysisTab(),
-
-          // SENTINEL Tab
-          SentinelAnalysisView(key: _sentinelKey),
+                ButtonSegment(
+                  value: 'analysis',
+                  label: Text('Analysis & Safety'),
+                  icon: Icon(Icons.analytics, size: 18),
+                ),
+              ],
+              selected: {_selectedMainView},
+              onSelectionChanged: (Set<String> selected) {
+                setState(() {
+                  _selectedMainView = selected.first;
+                  // Refresh ARCForms when switching to Visualizations
+                  if (_selectedMainView == 'visualizations') {
+                    print('DEBUG: Visualizations view selected, refreshing...');
+                    _refreshArcforms();
+                  }
+                });
+              },
+            ),
+          ),
+          // Content based on selection
+          Expanded(
+            child: _selectedMainView == 'visualizations'
+                ? _buildVisualizationsTab()
+                : _buildAnalysisAndSafetyTab(),
+          ),
         ],
       ),
+    );
+  }
+
+  /// Combined Visualizations Tab (ARCForms + Timeline)
+  /// Uses SegmentedButton instead of nested TabBar to avoid double navigation
+  Widget _buildVisualizationsTab() {
+    return _VisualizationsTabContent(
+      phaseIndex: _phaseIndex,
+      onRegimeTap: _showRegimeDetails,
+      onRegimeAction: _handleRegimeAction,
+      buildArcformsTab: _buildArcformsTab,
+    );
+  }
+
+  /// Combined Analysis & Safety Tab (Analysis + SENTINEL)
+  /// Uses SegmentedButton instead of nested TabBar to avoid double navigation
+  Widget _buildAnalysisAndSafetyTab() {
+    return _AnalysisAndSafetyTabContent(
+      buildAnalysisTab: _buildAnalysisTab,
+      sentinelKey: _sentinelKey,
     );
   }
 
@@ -1192,5 +1172,154 @@ List<PhaseSegmentProposal> proposals,
       ),
     );
     _loadPhaseData(); // Refresh the phase data
+  }
+}
+
+/// Visualizations Tab Content with SegmentedButton (no nested TabBar)
+class _VisualizationsTabContent extends StatefulWidget {
+  final PhaseIndex? phaseIndex;
+  final Function(PhaseRegime) onRegimeTap;
+  final Function(PhaseRegime, String) onRegimeAction;
+  final Widget Function() buildArcformsTab;
+
+  const _VisualizationsTabContent({
+    required this.phaseIndex,
+    required this.onRegimeTap,
+    required this.onRegimeAction,
+    required this.buildArcformsTab,
+  });
+
+  @override
+  State<_VisualizationsTabContent> createState() => _VisualizationsTabContentState();
+}
+
+class _VisualizationsTabContentState extends State<_VisualizationsTabContent> {
+  String _selectedView = 'arcforms';
+
+  Widget _buildTimelineContent() {
+    return widget.phaseIndex != null
+        ? PhaseTimelineView(
+            key: ValueKey('phase_timeline_${widget.phaseIndex!.allRegimes.length}_${widget.phaseIndex!.allRegimes.isNotEmpty ? widget.phaseIndex!.allRegimes.first.id : 'empty'}'),
+            phaseIndex: widget.phaseIndex!,
+            onRegimeTap: widget.onRegimeTap,
+            onRegimeAction: widget.onRegimeAction,
+          )
+        : Center(
+            child: Padding(
+              padding: const EdgeInsets.all(32.0),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.info_outline, size: 64, color: Colors.grey),
+                  const SizedBox(height: 16),
+                  Text(
+                    'No phase data available',
+                    style: Theme.of(context).textTheme.titleLarge,
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Run Phase Analysis to detect phases',
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: Colors.grey,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        // SegmentedButton instead of TabBar
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 4.0),
+          child: SegmentedButton<String>(
+            segments: const [
+              ButtonSegment(
+                value: 'arcforms',
+                label: Text('ARCForms'),
+                icon: Icon(Icons.auto_awesome, size: 18),
+              ),
+              ButtonSegment(
+                value: 'timeline',
+                label: Text('Timeline'),
+                icon: Icon(Icons.timeline, size: 18),
+              ),
+            ],
+            selected: {_selectedView},
+            onSelectionChanged: (Set<String> selected) {
+              setState(() {
+                _selectedView = selected.first;
+              });
+            },
+          ),
+        ),
+        // Content based on selection
+        Expanded(
+          child: _selectedView == 'arcforms'
+              ? widget.buildArcformsTab()
+              : _buildTimelineContent(),
+        ),
+      ],
+    );
+  }
+}
+
+/// Analysis & Safety Tab Content with SegmentedButton (no nested TabBar)
+class _AnalysisAndSafetyTabContent extends StatefulWidget {
+  final Widget Function() buildAnalysisTab;
+  final GlobalKey<State<SentinelAnalysisView>> sentinelKey;
+
+  const _AnalysisAndSafetyTabContent({
+    required this.buildAnalysisTab,
+    required this.sentinelKey,
+  });
+
+  @override
+  State<_AnalysisAndSafetyTabContent> createState() => _AnalysisAndSafetyTabContentState();
+}
+
+class _AnalysisAndSafetyTabContentState extends State<_AnalysisAndSafetyTabContent> {
+  String _selectedView = 'analysis';
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        // SegmentedButton instead of TabBar
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 4.0),
+          child: SegmentedButton<String>(
+            segments: const [
+              ButtonSegment(
+                value: 'analysis',
+                label: Text('Analysis'),
+                icon: Icon(Icons.analytics, size: 18),
+              ),
+              ButtonSegment(
+                value: 'sentinel',
+                label: Text('SENTINEL'),
+                icon: Icon(Icons.shield, size: 18),
+              ),
+            ],
+            selected: {_selectedView},
+            onSelectionChanged: (Set<String> selected) {
+              setState(() {
+                _selectedView = selected.first;
+              });
+            },
+          ),
+        ),
+        // Content based on selection
+        Expanded(
+          child: _selectedView == 'analysis'
+              ? widget.buildAnalysisTab()
+              : SentinelAnalysisView(key: widget.sentinelKey),
+        ),
+      ],
+    );
   }
 }

@@ -12,6 +12,7 @@ import 'package:my_app/core/app_flags.dart';
 import 'package:my_app/shared/app_colors.dart';
 import 'package:my_app/ui/journal/journal_screen.dart';
 import 'package:my_app/services/journal_session_cache.dart';
+import 'package:my_app/shared/ui/settings/settings_view.dart';
 
 class UnifiedJournalView extends StatefulWidget {
   const UnifiedJournalView({super.key});
@@ -24,13 +25,33 @@ class _UnifiedJournalViewState extends State<UnifiedJournalView>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
   LumaraAssistantCubit? _lumaraCubit;
+  int _previousIndex = 0;
 
   @override
   void initState() {
     super.initState();
-    // Tab controller length depends on whether LUMARA is enabled
-    final tabCount = AppFlags.isLumaraEnabled ? 2 : 1;
+    // Tab controller length: Timeline + LUMARA (if enabled) + Settings = 2 or 3
+    final tabCount = AppFlags.isLumaraEnabled ? 3 : 2;
     _tabController = TabController(length: tabCount, vsync: this);
+    _tabController.addListener(() {
+      // Navigate to Settings when Settings tab is selected
+      if (_tabController.index == tabCount - 1) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => const SettingsView(),
+          ),
+        ).then((_) {
+          // Return to previous tab after Settings is closed
+          if (mounted) {
+            _tabController.animateTo(_previousIndex);
+          }
+        });
+      } else {
+        // Track previous index (excluding Settings tab)
+        _previousIndex = _tabController.index;
+      }
+    });
     
     // Initialize LUMARA cubit if enabled
     if (AppFlags.isLumaraEnabled) {
@@ -63,16 +84,23 @@ class _UnifiedJournalViewState extends State<UnifiedJournalView>
                 unselectedLabelColor: Colors.grey,
                 indicatorColor: Colors.purple,
                 indicatorWeight: 3,
+                labelPadding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
+                labelStyle: const TextStyle(fontSize: 12),
+                unselectedLabelStyle: const TextStyle(fontSize: 12),
                 tabs: [
                   const Tab(
-                    icon: Icon(Icons.timeline, size: 24),
+                    icon: Icon(Icons.timeline, size: 18),
                     text: 'Timeline',
                   ),
                   if (AppFlags.isLumaraEnabled)
                     const Tab(
-                      icon: Icon(Icons.psychology, size: 24),
+                      icon: Icon(Icons.psychology, size: 18),
                       text: 'LUMARA',
                     ),
+                  const Tab(
+                    icon: Icon(Icons.settings, size: 18),
+                    text: 'Settings',
+                  ),
                 ],
               ),
             ),
@@ -80,6 +108,7 @@ class _UnifiedJournalViewState extends State<UnifiedJournalView>
             Expanded(
               child: TabBarView(
                 controller: _tabController,
+                physics: const NeverScrollableScrollPhysics(), // Disable swipe to prevent accessing Settings tab
                 children: AppFlags.isLumaraEnabled
                     ? [
                         // Timeline tab
@@ -89,34 +118,21 @@ class _UnifiedJournalViewState extends State<UnifiedJournalView>
                           value: _lumaraCubit!,
                           child: const LumaraAssistantScreen(),
                         ),
+                        // Settings placeholder (will navigate instead)
+                        const SizedBox.shrink(),
                       ]
                     : [
                         // Timeline tab only
                         const TimelineView(),
+                        // Settings placeholder (will navigate instead)
+                        const SizedBox.shrink(),
                       ],
               ),
             ),
           ],
         ),
       ),
-      // Floating action button for new journal entry
-      floatingActionButton: AppFlags.isLumaraEnabled
-          ? FloatingActionButton(
-              onPressed: () async {
-                // Clear any existing session cache to ensure fresh start
-                await JournalSessionCache.clearSession();
-                
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const JournalScreen(),
-                  ),
-                );
-              },
-              backgroundColor: Colors.purple,
-              child: const Icon(Icons.add, color: Colors.white),
-            )
-          : null,
+      // FAB moved to center of bottom navigation bar
     );
   }
 }
