@@ -4,6 +4,7 @@
 
 import 'dart:convert';
 import 'package:flutter/services.dart';
+import 'lumara_prompt_encouragement.dart';
 
 /// Context tags for LUMARA prompts
 enum LumaraContext {
@@ -104,6 +105,16 @@ Context Mode: ARC_JOURNAL
 Goal: Deepen self-understanding and longitudinal coherence.
 Style: Observation → Framing → Confirmation → Deepening
 Focus: pattern_mirroring (45%), value_tension (35%), memory_reference (20%)
+
+Journaling Guidance:
+When helping users write, especially those new to journaling or struggling with writer's block:
+- Use phase-aware prompts that match their ATLAS phase (Discovery, Expansion, Transition, Consolidation, Recovery, Breakthrough)
+- Consider emotional tone and recent patterns when generating prompts
+- Offer 1-2 tailored prompts, not a list dump
+- When user seems blocked, start with empathy or grounding question
+- When writing freely, shift to SAGE Echo mode after completion
+- Always affirm authenticity over productivity
+- Keep tone warm, steady, and non-clinical
 ''';
       case LumaraContext.recovery:
         return '''
@@ -153,6 +164,60 @@ Pace: Slower, more containment, fewer questions.
     final phrases = profile['system_persona']?['guidance_logic']?['stock_phrases'] as Map<String, dynamic>?;
     final phraseList = phrases?[type] as List<dynamic>?;
     return phraseList?.cast<String>() ?? [];
+  }
+
+  /// Get enhanced system prompt for journaling with prompt encouragement guidance
+  /// Includes reflective guidance for helping users write, especially when blocked
+  Future<String> getJournalingSystemPrompt({
+    Map<String, dynamic>? phaseData,
+    Map<String, dynamic>? energyData,
+  }) async {
+    final basePrompt = await getSystemPrompt(
+      context: LumaraContext.arcJournal,
+      phaseData: phaseData,
+      energyData: energyData,
+    );
+    
+    // Append the journaling-specific prompt encouragement guidance
+    return '$basePrompt\n\n${LumaraPromptEncouragement.journalingSystemPrompt}';
+  }
+
+  /// Generate a journaling encouragement prompt using the prompt encouragement system
+  Future<Map<String, dynamic>> generateJournalingPrompt({
+    required String phase, // e.g., 'discovery', 'expansion'
+    String? emotion, // e.g., 'curious', 'anxious'
+    Map<String, dynamic>? recentPatterns,
+    String? recentTheme,
+  }) async {
+    // Convert string phase to enum
+    AtlasPhase? atlasPhase;
+    try {
+      atlasPhase = AtlasPhase.values.firstWhere(
+        (p) => p.name == phase.toLowerCase(),
+      );
+    } catch (e) {
+      atlasPhase = AtlasPhase.discovery; // Default fallback
+    }
+
+    // Convert string emotion to enum if provided
+    EmotionalState? emotionalState;
+    if (emotion != null) {
+      try {
+        emotionalState = EmotionalState.values.firstWhere(
+          (e) => e.name == emotion.toLowerCase(),
+        );
+      } catch (e) {
+        // If emotion not found, leave as null
+        emotionalState = null;
+      }
+    }
+
+    return await LumaraPromptEncouragement.instance.generatePrompt(
+      phase: atlasPhase,
+      emotion: emotionalState,
+      recentPatterns: recentPatterns,
+      recentTheme: recentTheme,
+    );
   }
 
   /// Load the micro prompt (<300 tokens) for emergency/fallback use
