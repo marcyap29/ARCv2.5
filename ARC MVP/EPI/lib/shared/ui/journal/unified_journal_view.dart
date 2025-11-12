@@ -23,13 +23,16 @@ class _UnifiedJournalViewState extends State<UnifiedJournalView>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
   LumaraAssistantCubit? _lumaraCubit;
+  int _previousIndex = 0;
+  bool _isNavigatingToSettings = false;
 
   @override
   void initState() {
     super.initState();
-    // Tab controller length: Timeline + LUMARA (if enabled) = 1 or 2
-    final tabCount = AppFlags.isLumaraEnabled ? 2 : 1;
+    // Tab controller length: Timeline + LUMARA (if enabled) + Settings = 2 or 3
+    final tabCount = AppFlags.isLumaraEnabled ? 3 : 2;
     _tabController = TabController(length: tabCount, vsync: this);
+    _tabController.addListener(_handleTabChange);
     
     // Initialize LUMARA cubit if enabled
     if (AppFlags.isLumaraEnabled) {
@@ -40,8 +43,43 @@ class _UnifiedJournalViewState extends State<UnifiedJournalView>
     }
   }
 
+  void _handleTabChange() {
+    if (!mounted) return;
+    
+    final tabCount = AppFlags.isLumaraEnabled ? 3 : 2;
+    
+    // Navigate to Settings when Settings tab is selected
+    if (_tabController.index == tabCount - 1 && !_isNavigatingToSettings) {
+      _isNavigatingToSettings = true;
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => const SettingsView(),
+        ),
+      ).then((_) {
+        // Return to previous tab after Settings is closed
+        if (mounted) {
+          _isNavigatingToSettings = false;
+          // Temporarily remove listener to prevent triggering during animateTo
+          _tabController.removeListener(_handleTabChange);
+          _tabController.animateTo(_previousIndex);
+          // Re-add listener after animation
+          Future.delayed(const Duration(milliseconds: 300), () {
+            if (mounted) {
+              _tabController.addListener(_handleTabChange);
+            }
+          });
+        }
+      });
+    } else if (_tabController.index != tabCount - 1) {
+      // Track previous index (excluding Settings tab)
+      _previousIndex = _tabController.index;
+    }
+  }
+
   @override
   void dispose() {
+    _tabController.removeListener(_handleTabChange);
     _tabController.dispose();
     _lumaraCubit?.close();
     super.dispose();
@@ -50,30 +88,12 @@ class _UnifiedJournalViewState extends State<UnifiedJournalView>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        backgroundColor: kcBackgroundColor,
-        elevation: 0,
-        automaticallyImplyLeading: false,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.settings),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const SettingsView(),
-                ),
-              );
-            },
-            tooltip: 'Settings',
-          ),
-        ],
-      ),
       body: SafeArea(
         child: Column(
           children: [
             // Tab bar for Timeline and LUMARA
             Container(
+              padding: const EdgeInsets.only(top: 2.0), // Reduced top padding by 1/2 again (from 4.0 to 2.0)
               color: kcBackgroundColor,
               child: TabBar(
                 controller: _tabController,
@@ -81,7 +101,7 @@ class _UnifiedJournalViewState extends State<UnifiedJournalView>
                 unselectedLabelColor: Colors.grey,
                 indicatorColor: Colors.purple,
                 indicatorWeight: 3,
-                labelPadding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
+                labelPadding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 2.0), // Reduced vertical padding by 1/2 (from 4.0 to 2.0)
                 labelStyle: const TextStyle(fontSize: 12),
                 unselectedLabelStyle: const TextStyle(fontSize: 12),
                 tabs: [
@@ -94,6 +114,10 @@ class _UnifiedJournalViewState extends State<UnifiedJournalView>
                       icon: Icon(Icons.psychology, size: 18),
                       text: 'LUMARA',
                     ),
+                  const Tab(
+                    icon: Icon(Icons.settings, size: 18),
+                    text: 'Settings',
+                  ),
                 ],
               ),
             ),
@@ -101,6 +125,7 @@ class _UnifiedJournalViewState extends State<UnifiedJournalView>
             Expanded(
               child: TabBarView(
                 controller: _tabController,
+                physics: const NeverScrollableScrollPhysics(), // Disable swipe to prevent accessing Settings tab
                 children: AppFlags.isLumaraEnabled
                     ? [
                         // Timeline tab
@@ -110,10 +135,14 @@ class _UnifiedJournalViewState extends State<UnifiedJournalView>
                           value: _lumaraCubit!,
                           child: const LumaraAssistantScreen(),
                         ),
+                        // Settings placeholder (will navigate instead)
+                        const SizedBox.shrink(),
                       ]
                     : [
                         // Timeline tab only
                         const TimelineView(),
+                        // Settings placeholder (will navigate instead)
+                        const SizedBox.shrink(),
                       ],
               ),
             ),

@@ -25,7 +25,7 @@ class PhaseAnalysisView extends StatefulWidget {
 }
 
 class _PhaseAnalysisViewState extends State<PhaseAnalysisView> {
-  String _selectedView = 'arcforms'; // 'arcforms', 'timeline', 'analysis', or 'sentinel' - persists across rebuilds
+  String _selectedView = 'arcforms'; // 'arcforms', 'timeline', 'analysis', or 'sentinel' - flattened single-level navigation
   PhaseIndex? _phaseIndex;
   bool _isLoading = true;
   String? _error;
@@ -318,7 +318,7 @@ List<PhaseSegmentProposal> proposals,
       ),
       body: Column(
         children: [
-          // Single-level SegmentedButton for all views
+          // Flattened SegmentedButton - single row with all 4 options
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 4.0),
             child: SegmentedButton<String>(
@@ -326,22 +326,22 @@ List<PhaseSegmentProposal> proposals,
                 ButtonSegment(
                   value: 'arcforms',
                   label: Text('ARCForms'),
-                  icon: Icon(Icons.auto_awesome, size: 16),
+                  icon: Icon(Icons.auto_awesome, size: 18),
                 ),
                 ButtonSegment(
                   value: 'timeline',
                   label: Text('Timeline'),
-                  icon: Icon(Icons.timeline, size: 16),
+                  icon: Icon(Icons.timeline, size: 18),
                 ),
                 ButtonSegment(
                   value: 'analysis',
                   label: Text('Analysis'),
-                  icon: Icon(Icons.analytics, size: 16),
+                  icon: Icon(Icons.analytics, size: 18),
                 ),
                 ButtonSegment(
                   value: 'sentinel',
                   label: Text('SENTINEL'),
-                  icon: Icon(Icons.shield, size: 16),
+                  icon: Icon(Icons.shield, size: 18),
                 ),
               ],
               selected: {_selectedView},
@@ -366,7 +366,7 @@ List<PhaseSegmentProposal> proposals,
     );
   }
 
-  /// Build content based on selected view
+  /// Build content based on selected view (flattened navigation)
   Widget _buildContentForView(String view) {
     switch (view) {
       case 'arcforms':
@@ -1212,4 +1212,3 @@ List<PhaseSegmentProposal> proposals,
     _loadPhaseData(); // Refresh the phase data
   }
 }
-

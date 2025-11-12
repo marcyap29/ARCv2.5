@@ -18,15 +18,51 @@ class UnifiedInsightsView extends StatefulWidget {
 class _UnifiedInsightsViewState extends State<UnifiedInsightsView>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
+  int _previousIndex = 0;
+  bool _isNavigatingToSettings = false;
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this); // Phase + Health + Analytics
+    _tabController = TabController(length: 4, vsync: this); // Phase + Health + Analytics + Settings
+    _tabController.addListener(_handleTabChange);
+  }
+
+  void _handleTabChange() {
+    if (!mounted) return;
+    
+    // Navigate to Settings when Settings tab is selected
+    if (_tabController.index == 3 && !_isNavigatingToSettings) {
+      _isNavigatingToSettings = true;
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => const SettingsView(),
+        ),
+      ).then((_) {
+        // Return to previous tab after Settings is closed
+        if (mounted) {
+          _isNavigatingToSettings = false;
+          // Temporarily remove listener to prevent triggering during animateTo
+          _tabController.removeListener(_handleTabChange);
+          _tabController.animateTo(_previousIndex);
+          // Re-add listener after animation
+          Future.delayed(const Duration(milliseconds: 300), () {
+            if (mounted) {
+              _tabController.addListener(_handleTabChange);
+            }
+          });
+        }
+      });
+    } else if (_tabController.index != 3) {
+      // Track previous index (excluding Settings tab)
+      _previousIndex = _tabController.index;
+    }
   }
 
   @override
   void dispose() {
+    _tabController.removeListener(_handleTabChange);
     _tabController.dispose();
     super.dispose();
   }
@@ -34,25 +70,6 @@ class _UnifiedInsightsViewState extends State<UnifiedInsightsView>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        backgroundColor: kcBackgroundColor,
-        elevation: 0,
-        automaticallyImplyLeading: false,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.settings),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const SettingsView(),
-                ),
-              );
-            },
-            tooltip: 'Settings',
-          ),
-        ],
-      ),
       body: SafeArea(
         child: Column(
           children: [
@@ -82,6 +99,10 @@ class _UnifiedInsightsViewState extends State<UnifiedInsightsView>
                     icon: Icon(Icons.analytics, size: 18),
                     text: 'Analytics',
                   ),
+                  Tab(
+                    icon: Icon(Icons.settings, size: 18),
+                    text: 'Settings',
+                  ),
                 ],
               ),
             ),
@@ -89,6 +110,7 @@ class _UnifiedInsightsViewState extends State<UnifiedInsightsView>
             Expanded(
               child: TabBarView(
                 controller: _tabController,
+                physics: const NeverScrollableScrollPhysics(), // Disable swipe to prevent accessing Settings tab
                 children: const [
                   // Phase Analysis tab
                   PhaseAnalysisView(),
@@ -96,6 +118,8 @@ class _UnifiedInsightsViewState extends State<UnifiedInsightsView>
                   HealthView(),
                   // Analytics tab
                   AnalyticsPage(),
+                  // Settings placeholder (will navigate instead)
+                  SizedBox.shrink(),
                 ],
               ),
             ),
