@@ -89,11 +89,13 @@ class _UnifiedJournalViewState extends State<UnifiedJournalView>
   Widget build(BuildContext context) {
     return Scaffold(
       body: SafeArea(
+        top: false, // Remove top SafeArea padding to raise the tab bar
+        bottom: true, // Keep bottom SafeArea padding
         child: Column(
           children: [
             // Tab bar for Timeline and LUMARA
             Container(
-              padding: const EdgeInsets.only(top: 2.0), // Reduced top padding by 1/2 again (from 4.0 to 2.0)
+              padding: const EdgeInsets.only(top: 1.0), // Reduced top padding by 1/2 again (from 2.0 to 1.0)
               color: kcBackgroundColor,
               child: TabBar(
                 controller: _tabController,
@@ -101,7 +103,7 @@ class _UnifiedJournalViewState extends State<UnifiedJournalView>
                 unselectedLabelColor: Colors.grey,
                 indicatorColor: Colors.purple,
                 indicatorWeight: 3,
-                labelPadding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 2.0), // Reduced vertical padding by 1/2 (from 4.0 to 2.0)
+                labelPadding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 1.0), // Reduced vertical padding by 1/2 again (from 2.0 to 1.0)
                 labelStyle: const TextStyle(fontSize: 12),
                 unselectedLabelStyle: const TextStyle(fontSize: 12),
                 tabs: [
