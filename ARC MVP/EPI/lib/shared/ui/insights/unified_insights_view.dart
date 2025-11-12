@@ -75,35 +75,39 @@ class _UnifiedInsightsViewState extends State<UnifiedInsightsView>
           children: [
             // Tab bar for Phase, Health, and Analytics
             Container(
+              padding: const EdgeInsets.only(left: 6.0), // Add left padding to shift icons right
               color: kcBackgroundColor,
-              child: TabBar(
-                controller: _tabController,
-                isScrollable: true,
-                labelColor: Colors.white,
-                unselectedLabelColor: Colors.grey,
-                indicatorColor: Colors.purple,
-                indicatorWeight: 3,
-                labelPadding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
-                labelStyle: const TextStyle(fontSize: 13),
-                unselectedLabelStyle: const TextStyle(fontSize: 13),
-                tabs: const [
-                  Tab(
-                    icon: Icon(Icons.auto_awesome, size: 18),
-                    text: 'Phase',
-                  ),
-                  Tab(
-                    icon: Icon(Icons.favorite, size: 18),
-                    text: 'Health',
-                  ),
-                  Tab(
-                    icon: Icon(Icons.analytics, size: 18),
-                    text: 'Analytics',
-                  ),
-                  Tab(
-                    icon: Icon(Icons.settings, size: 18),
-                    text: 'Settings',
-                  ),
-                ],
+              child: SizedBox(
+                height: 36, // Reduced height for more compact bar
+                child: TabBar(
+                  controller: _tabController,
+                  isScrollable: true,
+                  labelColor: Colors.white,
+                  unselectedLabelColor: Colors.grey,
+                  indicatorColor: Colors.purple,
+                  indicatorWeight: 2, // Reduced from 3 to 2
+                  labelPadding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 0), // Removed vertical padding
+                  labelStyle: const TextStyle(fontSize: 13), // Increased from 11 to 13 for better readability
+                  unselectedLabelStyle: const TextStyle(fontSize: 13), // Increased from 11 to 13 for better readability
+                  tabs: const [
+                    Tab(
+                      icon: Icon(Icons.auto_awesome, size: 16), // Reduced from 18 to 16
+                      text: 'Phase',
+                    ),
+                    Tab(
+                      icon: Icon(Icons.favorite, size: 16), // Reduced from 18 to 16
+                      text: 'Health',
+                    ),
+                    Tab(
+                      icon: Icon(Icons.analytics, size: 16), // Reduced from 18 to 16
+                      text: 'Analytics',
+                    ),
+                    Tab(
+                      icon: Icon(Icons.settings, size: 16), // Reduced from 18 to 16
+                      text: 'Settings',
+                    ),
+                  ],
+                ),
               ),
             ),
             // Tab bar view content

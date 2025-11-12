@@ -34,6 +34,9 @@ class _TimelineViewContentState extends State<TimelineViewContent> {
   bool _isSelectionMode = false;
   int _selectedCount = 0;
   int _totalEntries = 0;
+  
+  // Search expansion state
+  bool _isSearchExpanded = false;
 
   @override
   void initState() {
@@ -215,6 +218,21 @@ class _TimelineViewContentState extends State<TimelineViewContent> {
                 onPressed: _showJumpToDateDialog,
                 tooltip: 'Jump to Date',
               ),
+              IconButton(
+                icon: Icon(_isSearchExpanded ? Icons.search_off : Icons.search),
+                onPressed: () {
+                  final wasExpanded = _isSearchExpanded;
+                  setState(() {
+                    _isSearchExpanded = !_isSearchExpanded;
+                  });
+                  // Clear search when collapsing
+                  if (wasExpanded) {
+                    _searchController.clear();
+                    _timelineCubit.setSearchQuery('');
+                  }
+                },
+                tooltip: _isSearchExpanded ? 'Hide Search' : 'Search Entries',
+              ),
                 IconButton(
                   icon: const Icon(Icons.checklist),
                   onPressed: () {
@@ -235,8 +253,19 @@ class _TimelineViewContentState extends State<TimelineViewContent> {
           ),
           body: Column(
             children: [
-              _buildSearchBar(state),
-              _buildFilterButtons(state),
+              // Animated search bar and filter chips - only show when expanded
+              AnimatedSize(
+                duration: const Duration(milliseconds: 300),
+                curve: Curves.easeInOut,
+                child: _isSearchExpanded
+                    ? Column(
+                        children: [
+                          _buildSearchBar(state),
+                          _buildFilterButtons(state),
+                        ],
+                      )
+                    : const SizedBox.shrink(),
+              ),
               Expanded(
                 child: InteractiveTimelineView(
                   key: _timelineViewKey,

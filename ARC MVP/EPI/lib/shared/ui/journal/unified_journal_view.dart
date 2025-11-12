@@ -95,32 +95,35 @@ class _UnifiedJournalViewState extends State<UnifiedJournalView>
           children: [
             // Tab bar for Timeline and LUMARA
             Container(
-              padding: const EdgeInsets.only(top: 1.0), // Reduced top padding by 1/2 again (from 2.0 to 1.0)
+              padding: EdgeInsets.zero, // Removed all padding
               color: kcBackgroundColor,
-              child: TabBar(
-                controller: _tabController,
-                labelColor: Colors.white,
-                unselectedLabelColor: Colors.grey,
-                indicatorColor: Colors.purple,
-                indicatorWeight: 3,
-                labelPadding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 1.0), // Reduced vertical padding by 1/2 again (from 2.0 to 1.0)
-                labelStyle: const TextStyle(fontSize: 12),
-                unselectedLabelStyle: const TextStyle(fontSize: 12),
-                tabs: [
-                  const Tab(
-                    icon: Icon(Icons.timeline, size: 18),
-                    text: 'Timeline',
-                  ),
-                  if (AppFlags.isLumaraEnabled)
+              child: SizedBox(
+                height: 36, // Reduced height for more compact bar
+                child: TabBar(
+                  controller: _tabController,
+                  labelColor: Colors.white,
+                  unselectedLabelColor: Colors.grey,
+                  indicatorColor: Colors.purple,
+                  indicatorWeight: 2, // Reduced from 3 to 2
+                  labelPadding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 0), // Removed vertical padding
+                  labelStyle: const TextStyle(fontSize: 13), // Increased from 11 to 13 for better readability
+                  unselectedLabelStyle: const TextStyle(fontSize: 13), // Increased from 11 to 13 for better readability
+                  tabs: [
                     const Tab(
-                      icon: Icon(Icons.psychology, size: 18),
-                      text: 'LUMARA',
+                      icon: Icon(Icons.timeline, size: 16), // Reduced from 18 to 16
+                      text: 'Timeline',
                     ),
-                  const Tab(
-                    icon: Icon(Icons.settings, size: 18),
-                    text: 'Settings',
-                  ),
-                ],
+                    if (AppFlags.isLumaraEnabled)
+                      const Tab(
+                        icon: Icon(Icons.psychology, size: 16), // Reduced from 18 to 16
+                        text: 'LUMARA',
+                      ),
+                    const Tab(
+                      icon: Icon(Icons.settings, size: 16), // Reduced from 18 to 16
+                      text: 'Settings',
+                    ),
+                  ],
+                ),
               ),
             ),
             // Tab bar view content

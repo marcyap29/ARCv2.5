@@ -29,7 +29,12 @@ class _CustomTabBarState extends State<CustomTabBar> {
     return Container(
       height: widget.height ?? 65,
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      padding: const EdgeInsets.only(
+        left: 8,
+        right: 8,
+        top: 2,
+        bottom: 12, // Increased bottom padding for better spacing
+      ),
       decoration: BoxDecoration(
         color: kcSurfaceAltColor,
         borderRadius: BorderRadius.circular(24),
