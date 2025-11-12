@@ -417,8 +417,20 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
             _buildApiKeysCard(theme),
             const SizedBox(height: 24),
 
-            // Actions
-            _buildActionButtons(theme),
+            // Clear All API Keys button
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: _clearAllApiKeys,
+                icon: const Icon(Icons.delete_outline, size: 18),
+                label: const Text('Clear All API Keys'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: theme.colorScheme.error,
+                  side: BorderSide(color: theme.colorScheme.error),
+                ),
+              ),
+            ),
           ],
         ),
       ),
@@ -534,8 +546,7 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
   Widget _buildProviderSelection(ThemeData theme) {
     final allProviders = _apiConfig.getAllProviders();
 
-    // Separate internal and external providers
-    final internalProviders = allProviders.where((p) => p.isInternal).toList();
+    // External providers only (internal models removed)
     final externalProviders = allProviders.where((p) => !p.isInternal).toList();
     
     return Card(
@@ -560,17 +571,6 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
             
             // Automatic Selection Toggle
             _buildAutomaticSelectionToggle(theme),
-            
-            const SizedBox(height: 24),
-            
-            // Internal Models Section
-            _buildProviderCategory(
-              theme: theme,
-              title: 'Internal Models',
-              subtitle: 'Privacy-first, on-device processing',
-              providers: internalProviders,
-              isInternal: true,
-            ),
             
             const SizedBox(height: 24),
             
@@ -1473,42 +1473,6 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
     );
   }
 
-  Widget _buildActionButtons(ThemeData theme) {
-    return Column(
-      children: [
-        Row(
-          children: [
-            Expanded(
-              child: OutlinedButton(
-                onPressed: _testConnection,
-                child: const Text('Test Connection'),
-              ),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: ElevatedButton(
-                onPressed: _saveSettings,
-                child: const Text('Save Settings'),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 16),
-        SizedBox(
-          width: double.infinity,
-          child: OutlinedButton.icon(
-            onPressed: _clearAllApiKeys,
-            icon: const Icon(Icons.delete_outline, size: 18),
-            label: const Text('Clear All API Keys'),
-            style: OutlinedButton.styleFrom(
-              foregroundColor: theme.colorScheme.error,
-              side: BorderSide(color: theme.colorScheme.error),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
 
   Future<void> _clearAllApiKeys() async {
     final confirmed = await showDialog<bool>(
@@ -1553,56 +1517,5 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
 
   // Removed auto-save on change - now using explicit Save button per field
 
-  Future<void> _testConnection() async {
-    final status = _lumaraApi.getStatus();
-    
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Current provider: ${status['currentProvider']}'),
-          backgroundColor: Colors.green,
-        ),
-      );
-    }
-  }
-
-  Future<void> _saveSettings() async {
-    // Save all API keys
-    for (final entry in _apiKeyControllers.entries) {
-      final provider = entry.key;
-      final controller = entry.value;
-      if (controller.text.isNotEmpty) {
-        await _apiConfig.updateApiKey(provider, controller.text);
-      }
-    }
-
-    // Force refresh provider availability after saving all keys
-    await _apiConfig.refreshProviderAvailability();
-
-    // Reinitialize to check if any provider is now available
-    await _apiConfig.initialize();
-    final bestProvider = _apiConfig.getBestProvider();
-    final isConfigured = bestProvider != null;
-
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(isConfigured
-              ? 'Settings saved! AI provider configured.'
-              : 'Settings saved successfully'),
-          backgroundColor: Colors.green,
-          duration: const Duration(seconds: 2),
-        ),
-      );
-
-      // If accessed from onboarding and now configured, offer to go back
-      if (isConfigured && ModalRoute.of(context)?.settings.arguments == 'fromOnboarding') {
-        await Future.delayed(const Duration(seconds: 1));
-        if (mounted) {
-          Navigator.pop(context, true);
-        }
-      }
-    }
-  }
 }
 

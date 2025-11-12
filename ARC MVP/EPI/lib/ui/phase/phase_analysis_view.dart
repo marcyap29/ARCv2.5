@@ -318,43 +318,25 @@ List<PhaseSegmentProposal> proposals,
       ),
       body: Column(
         children: [
-          // Flattened SegmentedButton - single row with all 4 options
+          // Horizontally scrollable button bar - single row with all 4 options
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 4.0),
-            child: SegmentedButton<String>(
-              segments: const [
-                ButtonSegment(
-                  value: 'arcforms',
-                  label: Text('ARCForms'),
-                  icon: Icon(Icons.auto_awesome, size: 18),
+            child: SizedBox(
+              height: 36, // Reduced height for compact bar
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: [
+                    _buildPhaseButton('arcforms', 'ARCForms', Icons.auto_awesome),
+                    const SizedBox(width: 8),
+                    _buildPhaseButton('timeline', 'Timeline', Icons.timeline),
+                    const SizedBox(width: 8),
+                    _buildPhaseButton('analysis', 'Analysis', Icons.analytics),
+                    const SizedBox(width: 8),
+                    _buildPhaseButton('sentinel', 'SENTINEL', Icons.shield),
+                  ],
                 ),
-                ButtonSegment(
-                  value: 'timeline',
-                  label: Text('Timeline'),
-                  icon: Icon(Icons.timeline, size: 18),
-                ),
-                ButtonSegment(
-                  value: 'analysis',
-                  label: Text('Analysis'),
-                  icon: Icon(Icons.analytics, size: 18),
-                ),
-                ButtonSegment(
-                  value: 'sentinel',
-                  label: Text('SENTINEL'),
-                  icon: Icon(Icons.shield, size: 18),
-                ),
-              ],
-              selected: {_selectedView},
-              onSelectionChanged: (Set<String> selected) {
-                setState(() {
-                  _selectedView = selected.first;
-                  // Refresh ARCForms when switching to ARCForms view
-                  if (_selectedView == 'arcforms') {
-                    print('DEBUG: ARCForms view selected, refreshing...');
-                    _refreshArcforms();
-                  }
-                });
-              },
+              ),
             ),
           ),
           // Content based on selection
@@ -362,6 +344,49 @@ List<PhaseSegmentProposal> proposals,
             child: _buildContentForView(_selectedView),
           ),
         ],
+      ),
+    );
+  }
+
+  /// Build phase navigation button
+  Widget _buildPhaseButton(String value, String label, IconData icon) {
+    final isSelected = _selectedView == value;
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          _selectedView = value;
+          // Refresh ARCForms when switching to ARCForms view
+          if (_selectedView == 'arcforms') {
+            print('DEBUG: ARCForms view selected, refreshing...');
+            _refreshArcforms();
+          }
+        });
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: isSelected ? Colors.purple.withOpacity(0.3) : Colors.grey.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: isSelected ? Colors.purple : Colors.grey.withOpacity(0.3),
+            width: isSelected ? 2 : 1,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 14, color: isSelected ? Colors.white : Colors.grey), // Reduced icon size
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 11, // Reduced font size
+                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+                color: isSelected ? Colors.white : Colors.grey,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

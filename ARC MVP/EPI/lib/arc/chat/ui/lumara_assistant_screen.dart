@@ -10,7 +10,6 @@ import '../chat/ui/enhanced_chats_screen.dart';
 import '../chat/enhanced_chat_repo_impl.dart';
 import '../chat/chat_repo_impl.dart';
 import 'lumara_quick_palette.dart';
-import 'lumara_onboarding_screen.dart';
 import 'lumara_settings_welcome_screen.dart';
 import 'lumara_settings_screen.dart';
 import '../widgets/attribution_display_widget.dart';
@@ -63,45 +62,11 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
     final apiConfig = LumaraAPIConfig.instance;
     await apiConfig.initialize();
 
-    final bestProvider = apiConfig.getBestProvider();
-
-    // Check if welcome screen has been shown
-    final prefs = await SharedPreferences.getInstance();
-    final welcomeShown = prefs.getBool('lumara_welcome_shown') ?? false;
-
-    if (!welcomeShown) {
-      // First time user - show Welcome to LUMARA screen
-      if (mounted) {
-        debugPrint('LUMARA Assistant: First time user, navigating to welcome screen');
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          Navigator.of(context, rootNavigator: true).push(
-            MaterialPageRoute(
-              builder: (context) => const LumaraOnboardingScreen(),
-            ),
-          ).then((_) {
-            // Mark welcome as shown after user completes onboarding
-            prefs.setBool('lumara_welcome_shown', true);
-            // Initialize LUMARA after welcome screen
-            final cubit = context.read<LumaraAssistantCubit>();
-            if (cubit.state is! LumaraAssistantLoaded) {
-              cubit.initializeLumara();
-            }
-          });
-        });
-      }
-    } else {
-      // Welcome already shown - initialize LUMARA directly
-      debugPrint('LUMARA Assistant: Welcome already shown, initializing directly');
-      final cubit = context.read<LumaraAssistantCubit>();
-      if (cubit.state is! LumaraAssistantLoaded) {
-        cubit.initializeLumara();
-      }
-    }
-    
-    // If no providers available, show a message instead of auto-downloading
-    if (bestProvider == null) {
-      debugPrint('LUMARA Assistant: No providers available - showing fallback message');
-      // The UI will show a message about no providers being available
+    // Initialize LUMARA directly (no splash page)
+    debugPrint('LUMARA Assistant: Initializing directly');
+    final cubit = context.read<LumaraAssistantCubit>();
+    if (cubit.state is! LumaraAssistantLoaded) {
+      cubit.initializeLumara();
     }
   }
 
@@ -288,9 +253,6 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
                 behavior: HitTestBehavior.opaque,
                 child: Column(
                   children: [
-                    // Scope chips
-                    _buildScopeChips(),
-
                     // Messages list
                     Expanded(
             child: GestureDetector(
@@ -385,7 +347,7 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
                                     context,
                                   MaterialPageRoute(
                                     builder: (context) => isConfigError
-                                        ? const LumaraOnboardingScreen()
+                                        ? const SizedBox.shrink()
                                             : const LumaraSettingsScreen(),
                                   ),
                                   );
@@ -481,69 +443,6 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
     );
   }
 
-  Widget _buildScopeChips() {
-    return BlocBuilder<LumaraAssistantCubit, LumaraAssistantState>(
-      builder: (context, state) {
-        if (state is! LumaraAssistantLoaded) return const SizedBox.shrink();
-        
-        return Container(
-          height: 36,
-          padding: const EdgeInsets.symmetric(vertical: 4),
-          child: SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            child: Row(
-              children: [
-                _buildScopeChip('Journal', state.scope.journal, () {
-                  context.read<LumaraAssistantCubit>().toggleScope('journal');
-                }),
-                const SizedBox(width: 6),
-                _buildScopeChip('Phase', state.scope.phase, () {
-                  context.read<LumaraAssistantCubit>().toggleScope('phase');
-                }),
-                const SizedBox(width: 6),
-                _buildScopeChip('ARCForms', state.scope.arcforms, () {
-                  context.read<LumaraAssistantCubit>().toggleScope('arcforms');
-                }),
-                const SizedBox(width: 6),
-                _buildScopeChip('Voice', state.scope.voice, () {
-                  context.read<LumaraAssistantCubit>().toggleScope('voice');
-                }),
-                const SizedBox(width: 6),
-                _buildScopeChip('Media', state.scope.media, () {
-                  context.read<LumaraAssistantCubit>().toggleScope('media');
-                }),
-                const SizedBox(width: 6),
-                _buildScopeChip('Drafts', state.scope.drafts, () {
-                  context.read<LumaraAssistantCubit>().toggleScope('drafts');
-                }),
-                const SizedBox(width: 6),
-                _buildScopeChip('Chats', state.scope.chats, () {
-                  context.read<LumaraAssistantCubit>().toggleScope('chats');
-                }),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildScopeChip(String label, bool isActive, VoidCallback onTap) {
-    return FilterChip(
-      label: Text(
-        label,
-        style: const TextStyle(fontSize: 11),
-      ),
-      selected: isActive,
-      onSelected: (_) => onTap(),
-      selectedColor: Colors.blue.withOpacity(0.2),
-      checkmarkColor: Colors.blue,
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 0),
-      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-      visualDensity: VisualDensity.compact,
-    );
-  }
 
   Widget _buildEmptyState() {
     return Center(
