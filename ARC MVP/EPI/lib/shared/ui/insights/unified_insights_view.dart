@@ -19,34 +19,50 @@ class _UnifiedInsightsViewState extends State<UnifiedInsightsView>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
   int _previousIndex = 0;
+  bool _isNavigatingToSettings = false;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 4, vsync: this); // Phase + Health + Analytics + Settings
-    _tabController.addListener(() {
-      // Navigate to Settings when Settings tab is selected
-      if (_tabController.index == 3) {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => const SettingsView(),
-          ),
-        ).then((_) {
-          // Return to previous tab after Settings is closed
-          if (mounted) {
-            _tabController.animateTo(_previousIndex);
-          }
-        });
-      } else {
-        // Track previous index (excluding Settings tab)
-        _previousIndex = _tabController.index;
-      }
-    });
+    _tabController.addListener(_handleTabChange);
+  }
+
+  void _handleTabChange() {
+    if (!mounted) return;
+    
+    // Navigate to Settings when Settings tab is selected
+    if (_tabController.index == 3 && !_isNavigatingToSettings) {
+      _isNavigatingToSettings = true;
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => const SettingsView(),
+        ),
+      ).then((_) {
+        // Return to previous tab after Settings is closed
+        if (mounted) {
+          _isNavigatingToSettings = false;
+          // Temporarily remove listener to prevent triggering during animateTo
+          _tabController.removeListener(_handleTabChange);
+          _tabController.animateTo(_previousIndex);
+          // Re-add listener after animation
+          Future.delayed(const Duration(milliseconds: 300), () {
+            if (mounted) {
+              _tabController.addListener(_handleTabChange);
+            }
+          });
+        }
+      });
+    } else if (_tabController.index != 3) {
+      // Track previous index (excluding Settings tab)
+      _previousIndex = _tabController.index;
+    }
   }
 
   @override
   void dispose() {
+    _tabController.removeListener(_handleTabChange);
     _tabController.dispose();
     super.dispose();
   }

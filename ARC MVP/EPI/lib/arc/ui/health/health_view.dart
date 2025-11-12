@@ -14,6 +14,7 @@ class HealthView extends StatefulWidget {
 
 class _HealthViewState extends State<HealthView> {
   String _selectedMainView = 'health'; // 'health' or 'medications'
+  String _selectedHealthView = 'overview'; // 'overview' or 'details' - persists across rebuilds
   int _daysBack = 30; // 30, 60, or 90 days for health details
   final _healthSummaryKey = GlobalKey<State<HealthSummaryBody>>();
   final _healthDetailsKey = GlobalKey<State<HealthDetailScreenBody>>();
@@ -147,9 +148,15 @@ class _HealthViewState extends State<HealthView> {
       healthSummaryKey: _healthSummaryKey,
       healthDetailsKey: _healthDetailsKey,
       daysBack: _daysBack,
+      selectedView: _selectedHealthView,
       onDaysChanged: (days) {
         setState(() {
           _daysBack = days;
+        });
+      },
+      onViewChanged: (String view) {
+        setState(() {
+          _selectedHealthView = view;
         });
       },
     );
@@ -161,13 +168,17 @@ class _CombinedHealthTabContent extends StatefulWidget {
   final GlobalKey<State<HealthSummaryBody>> healthSummaryKey;
   final GlobalKey<State<HealthDetailScreenBody>> healthDetailsKey;
   final int daysBack;
+  final String selectedView;
   final ValueChanged<int> onDaysChanged;
+  final ValueChanged<String> onViewChanged;
 
   const _CombinedHealthTabContent({
     required this.healthSummaryKey,
     required this.healthDetailsKey,
     required this.daysBack,
+    required this.selectedView,
     required this.onDaysChanged,
+    required this.onViewChanged,
   });
 
   @override
@@ -175,7 +186,6 @@ class _CombinedHealthTabContent extends StatefulWidget {
 }
 
 class _CombinedHealthTabContentState extends State<_CombinedHealthTabContent> {
-  String _selectedView = 'overview';
 
   @override
   Widget build(BuildContext context) {
@@ -197,17 +207,15 @@ class _CombinedHealthTabContentState extends State<_CombinedHealthTabContent> {
                 icon: Icon(Icons.show_chart, size: 18),
               ),
             ],
-            selected: {_selectedView},
+            selected: {widget.selectedView},
             onSelectionChanged: (Set<String> selected) {
-              setState(() {
-                _selectedView = selected.first;
-              });
+              widget.onViewChanged(selected.first);
             },
           ),
         ),
         // Content based on selection
         Expanded(
-          child: _selectedView == 'overview'
+          child: widget.selectedView == 'overview'
               ? HealthSummaryBody(key: widget.healthSummaryKey, pointerJson: const {})
               : _HealthDetailsTab(
                   key: widget.healthDetailsKey,

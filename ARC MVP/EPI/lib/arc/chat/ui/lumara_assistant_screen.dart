@@ -52,6 +52,7 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
   }
 
   void _onInputFocusChange() {
+    // Show input when it gains focus or has text
     setState(() {
       _isInputVisible = _inputFocusNode.hasFocus || _messageController.text.isNotEmpty;
     });
@@ -235,7 +236,7 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
     // Also try to remove focus from any text field
     FocusManager.instance.primaryFocus?.unfocus();
     
-    // Hide input area when dismissing keyboard
+    // Hide input area when dismissing keyboard (if text is empty)
     setState(() {
       if (_messageController.text.isEmpty) {
         _isInputVisible = false;
@@ -297,12 +298,21 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
                 // Hide input when tapping conversation area
                 _dismissKeyboard();
               },
+              onDoubleTap: () {
+                // Show input on double tap to make it easy to bring back
+                setState(() {
+                  _isInputVisible = true;
+                });
+                _inputFocusNode.requestFocus();
+              },
               child: BlocConsumer<LumaraAssistantCubit, LumaraAssistantState>(
               listener: (context, state) {
-                // Don't auto-scroll - keep user at top to see responses as they appear
-                // if (state is LumaraAssistantLoaded) {
-                //   _scrollToBottom();
-                // }
+                // Show input when LUMARA finishes responding
+                if (state is LumaraAssistantLoaded && !state.isProcessing) {
+                  setState(() {
+                    _isInputVisible = true;
+                  });
+                }
               },
               builder: (context, state) {
                 if (state is LumaraAssistantLoading) {
@@ -460,8 +470,11 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
           ),
           
           // Message input - show/hide based on visibility state
+          // Also show a button to bring it back if hidden
           if (_isInputVisible)
-            _buildMessageInput(),
+            _buildMessageInput()
+          else
+            _buildShowInputButton(),
         ],
       ),
     ),
@@ -796,18 +809,6 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
           Row(
             children: [
               IconButton(
-                icon: const Icon(Icons.mic, size: 20),
-                padding: const EdgeInsets.all(8),
-                constraints: const BoxConstraints(),
-                onPressed: () {
-                  // Show input when mic is tapped
-                  setState(() => _isInputVisible = true);
-                  _inputFocusNode.requestFocus();
-                  // Show voice chat panel
-                  _showVoiceChatPanel();
-                },
-              ),
-              IconButton(
                 icon: const Icon(Icons.favorite, size: 20),
                 padding: const EdgeInsets.all(8),
                 constraints: const BoxConstraints(),
@@ -858,6 +859,41 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
             ],
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildShowInputButton() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: GestureDetector(
+        onTap: () {
+          setState(() {
+            _isInputVisible = true;
+          });
+          _inputFocusNode.requestFocus();
+        },
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          decoration: BoxDecoration(
+            color: Colors.grey[800],
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: Colors.grey[600]!, width: 1),
+          ),
+          child: Row(
+            children: [
+              Icon(Icons.edit, size: 18, color: Colors.grey[400]),
+              const SizedBox(width: 8),
+              Text(
+                'Tap to ask LUMARA...',
+                style: TextStyle(
+                  color: Colors.grey[400],
+                  fontSize: 14,
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

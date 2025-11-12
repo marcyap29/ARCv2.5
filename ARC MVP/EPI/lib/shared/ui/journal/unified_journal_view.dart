@@ -10,8 +10,6 @@ import 'package:my_app/arc/chat/data/context_provider.dart';
 import 'package:my_app/arc/chat/data/context_scope.dart';
 import 'package:my_app/core/app_flags.dart';
 import 'package:my_app/shared/app_colors.dart';
-import 'package:my_app/ui/journal/journal_screen.dart';
-import 'package:my_app/services/journal_session_cache.dart';
 import 'package:my_app/shared/ui/settings/settings_view.dart';
 
 class UnifiedJournalView extends StatefulWidget {
@@ -26,6 +24,7 @@ class _UnifiedJournalViewState extends State<UnifiedJournalView>
   late TabController _tabController;
   LumaraAssistantCubit? _lumaraCubit;
   int _previousIndex = 0;
+  bool _isNavigatingToSettings = false;
 
   @override
   void initState() {
@@ -33,25 +32,7 @@ class _UnifiedJournalViewState extends State<UnifiedJournalView>
     // Tab controller length: Timeline + LUMARA (if enabled) + Settings = 2 or 3
     final tabCount = AppFlags.isLumaraEnabled ? 3 : 2;
     _tabController = TabController(length: tabCount, vsync: this);
-    _tabController.addListener(() {
-      // Navigate to Settings when Settings tab is selected
-      if (_tabController.index == tabCount - 1) {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => const SettingsView(),
-          ),
-        ).then((_) {
-          // Return to previous tab after Settings is closed
-          if (mounted) {
-            _tabController.animateTo(_previousIndex);
-          }
-        });
-      } else {
-        // Track previous index (excluding Settings tab)
-        _previousIndex = _tabController.index;
-      }
-    });
+    _tabController.addListener(_handleTabChange);
     
     // Initialize LUMARA cubit if enabled
     if (AppFlags.isLumaraEnabled) {
@@ -62,8 +43,43 @@ class _UnifiedJournalViewState extends State<UnifiedJournalView>
     }
   }
 
+  void _handleTabChange() {
+    if (!mounted) return;
+    
+    final tabCount = AppFlags.isLumaraEnabled ? 3 : 2;
+    
+    // Navigate to Settings when Settings tab is selected
+    if (_tabController.index == tabCount - 1 && !_isNavigatingToSettings) {
+      _isNavigatingToSettings = true;
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => const SettingsView(),
+        ),
+      ).then((_) {
+        // Return to previous tab after Settings is closed
+        if (mounted) {
+          _isNavigatingToSettings = false;
+          // Temporarily remove listener to prevent triggering during animateTo
+          _tabController.removeListener(_handleTabChange);
+          _tabController.animateTo(_previousIndex);
+          // Re-add listener after animation
+          Future.delayed(const Duration(milliseconds: 300), () {
+            if (mounted) {
+              _tabController.addListener(_handleTabChange);
+            }
+          });
+        }
+      });
+    } else if (_tabController.index != tabCount - 1) {
+      // Track previous index (excluding Settings tab)
+      _previousIndex = _tabController.index;
+    }
+  }
+
   @override
   void dispose() {
+    _tabController.removeListener(_handleTabChange);
     _tabController.dispose();
     _lumaraCubit?.close();
     super.dispose();

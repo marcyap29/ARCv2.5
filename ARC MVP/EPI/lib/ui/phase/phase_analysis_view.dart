@@ -26,6 +26,8 @@ class PhaseAnalysisView extends StatefulWidget {
 
 class _PhaseAnalysisViewState extends State<PhaseAnalysisView> {
   String _selectedMainView = 'visualizations'; // 'visualizations' or 'analysis'
+  String _selectedVisualizationView = 'arcforms'; // 'arcforms' or 'timeline' - persists across rebuilds
+  String _selectedAnalysisView = 'analysis'; // 'analysis' or 'sentinel' - persists across rebuilds
   PhaseIndex? _phaseIndex;
   bool _isLoading = true;
   String? _error;
@@ -366,6 +368,12 @@ List<PhaseSegmentProposal> proposals,
       onRegimeTap: _showRegimeDetails,
       onRegimeAction: _handleRegimeAction,
       buildArcformsTab: _buildArcformsTab,
+      selectedView: _selectedVisualizationView,
+      onViewChanged: (String view) {
+        setState(() {
+          _selectedVisualizationView = view;
+        });
+      },
     );
   }
 
@@ -375,6 +383,12 @@ List<PhaseSegmentProposal> proposals,
     return _AnalysisAndSafetyTabContent(
       buildAnalysisTab: _buildAnalysisTab,
       sentinelKey: _sentinelKey,
+      selectedView: _selectedAnalysisView,
+      onViewChanged: (String view) {
+        setState(() {
+          _selectedAnalysisView = view;
+        });
+      },
     );
   }
 
@@ -1181,12 +1195,16 @@ class _VisualizationsTabContent extends StatefulWidget {
   final Function(PhaseRegime) onRegimeTap;
   final Function(PhaseRegime, String) onRegimeAction;
   final Widget Function() buildArcformsTab;
+  final String selectedView;
+  final ValueChanged<String> onViewChanged;
 
   const _VisualizationsTabContent({
     required this.phaseIndex,
     required this.onRegimeTap,
     required this.onRegimeAction,
     required this.buildArcformsTab,
+    required this.selectedView,
+    required this.onViewChanged,
   });
 
   @override
@@ -1194,7 +1212,6 @@ class _VisualizationsTabContent extends StatefulWidget {
 }
 
 class _VisualizationsTabContentState extends State<_VisualizationsTabContent> {
-  String _selectedView = 'arcforms';
 
   Widget _buildTimelineContent() {
     return widget.phaseIndex != null
@@ -1249,17 +1266,15 @@ class _VisualizationsTabContentState extends State<_VisualizationsTabContent> {
                 icon: Icon(Icons.timeline, size: 18),
               ),
             ],
-            selected: {_selectedView},
+            selected: {widget.selectedView},
             onSelectionChanged: (Set<String> selected) {
-              setState(() {
-                _selectedView = selected.first;
-              });
+              widget.onViewChanged(selected.first);
             },
           ),
         ),
         // Content based on selection
         Expanded(
-          child: _selectedView == 'arcforms'
+          child: widget.selectedView == 'arcforms'
               ? widget.buildArcformsTab()
               : _buildTimelineContent(),
         ),
@@ -1272,10 +1287,14 @@ class _VisualizationsTabContentState extends State<_VisualizationsTabContent> {
 class _AnalysisAndSafetyTabContent extends StatefulWidget {
   final Widget Function() buildAnalysisTab;
   final GlobalKey<State<SentinelAnalysisView>> sentinelKey;
+  final String selectedView;
+  final ValueChanged<String> onViewChanged;
 
   const _AnalysisAndSafetyTabContent({
     required this.buildAnalysisTab,
     required this.sentinelKey,
+    required this.selectedView,
+    required this.onViewChanged,
   });
 
   @override
@@ -1283,7 +1302,6 @@ class _AnalysisAndSafetyTabContent extends StatefulWidget {
 }
 
 class _AnalysisAndSafetyTabContentState extends State<_AnalysisAndSafetyTabContent> {
-  String _selectedView = 'analysis';
 
   @override
   Widget build(BuildContext context) {
@@ -1305,17 +1323,15 @@ class _AnalysisAndSafetyTabContentState extends State<_AnalysisAndSafetyTabConte
                 icon: Icon(Icons.shield, size: 18),
               ),
             ],
-            selected: {_selectedView},
+            selected: {widget.selectedView},
             onSelectionChanged: (Set<String> selected) {
-              setState(() {
-                _selectedView = selected.first;
-              });
+              widget.onViewChanged(selected.first);
             },
           ),
         ),
         // Content based on selection
         Expanded(
-          child: _selectedView == 'analysis'
+          child: widget.selectedView == 'analysis'
               ? widget.buildAnalysisTab()
               : SentinelAnalysisView(key: widget.sentinelKey),
         ),
