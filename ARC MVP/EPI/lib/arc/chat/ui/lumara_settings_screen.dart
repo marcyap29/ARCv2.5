@@ -445,32 +445,22 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
   }
 
   Widget _buildContextScopeCard(ThemeData theme) {
-    // Try to get the cubit - if not available, show default scope
-    return Builder(
-      builder: (context) {
-        try {
-          // Check if cubit is available
-          final cubit = context.read<LumaraAssistantCubit>();
-          return BlocBuilder<LumaraAssistantCubit, LumaraAssistantState>(
-            bloc: cubit,
-            builder: (context, state) {
-              debugPrint('BlocBuilder rebuild - state: ${state.runtimeType}');
-              // Handle case where cubit might not be available or not loaded
-              LumaraScope scope;
-              try {
-                if (state is LumaraAssistantLoaded) {
-                  scope = state.scope;
-                  debugPrint('Current scope: journal=${scope.journal}, phase=${scope.phase}, arcforms=${scope.arcforms}, voice=${scope.voice}, media=${scope.media}, drafts=${scope.drafts}, chats=${scope.chats}');
-                } else {
-                  debugPrint('State is not LumaraAssistantLoaded, using default scope');
-                  // Use default scope if cubit is not loaded yet
-                  scope = LumaraScope.defaultScope;
-                }
-              } catch (e) {
-                // Fallback to default scope on error
-                debugPrint('Error getting scope from state: $e');
-                scope = LumaraScope.defaultScope;
-              }
+    return BlocBuilder<LumaraAssistantCubit, LumaraAssistantState>(
+      builder: (context, state) {
+        debugPrint('BlocBuilder rebuild - state: ${state.runtimeType}');
+        
+        // Get scope from state
+        LumaraScope scope;
+        if (state is LumaraAssistantLoaded) {
+          scope = state.scope;
+          debugPrint('Current scope: journal=${scope.journal}, phase=${scope.phase}, arcforms=${scope.arcforms}, voice=${scope.voice}, media=${scope.media}, drafts=${scope.drafts}, chats=${scope.chats}');
+        } else {
+          debugPrint('State is not LumaraAssistantLoaded, using default scope');
+          scope = LumaraScope.defaultScope;
+        }
+        
+        // Get cubit for toggle actions
+        final cubit = context.read<LumaraAssistantCubit>();
         
         return Card(
           child: Padding(
@@ -516,61 +506,25 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
                     _buildScopeChip(theme, 'Journal', scope.journal, () {
                       debugPrint('=== TOGGLE JOURNAL CALLED ===');
                       debugPrint('Current scope.journal: ${scope.journal}');
-                      debugPrint('Current state: ${cubit.state}');
-                      try {
-                        cubit.toggleScope('journal');
-                        debugPrint('After toggleScope call');
-                        debugPrint('New state: ${cubit.state}');
-                        if (cubit.state is LumaraAssistantLoaded) {
-                          final newState = cubit.state as LumaraAssistantLoaded;
-                          debugPrint('New scope.journal: ${newState.scope.journal}');
-                        }
-                      } catch (e, stackTrace) {
-                        debugPrint('Error toggling journal scope: $e');
-                        debugPrint('Stack trace: $stackTrace');
-                      }
+                      cubit.toggleScope('journal');
                     }),
                     _buildScopeChip(theme, 'Phase', scope.phase, () {
-                      try {
-                        cubit.toggleScope('phase');
-                      } catch (e) {
-                        debugPrint('Error toggling phase scope: $e');
-                      }
+                      cubit.toggleScope('phase');
                     }),
                     _buildScopeChip(theme, 'ARCForms', scope.arcforms, () {
-                      try {
-                        cubit.toggleScope('arcforms');
-                      } catch (e) {
-                        debugPrint('Error toggling arcforms scope: $e');
-                      }
+                      cubit.toggleScope('arcforms');
                     }),
                     _buildScopeChip(theme, 'Voice', scope.voice, () {
-                      try {
-                        cubit.toggleScope('voice');
-                      } catch (e) {
-                        debugPrint('Error toggling voice scope: $e');
-                      }
+                      cubit.toggleScope('voice');
                     }),
                     _buildScopeChip(theme, 'Media', scope.media, () {
-                      try {
-                        cubit.toggleScope('media');
-                      } catch (e) {
-                        debugPrint('Error toggling media scope: $e');
-                      }
+                      cubit.toggleScope('media');
                     }),
                     _buildScopeChip(theme, 'Drafts', scope.drafts, () {
-                      try {
-                        cubit.toggleScope('drafts');
-                      } catch (e) {
-                        debugPrint('Error toggling drafts scope: $e');
-                      }
+                      cubit.toggleScope('drafts');
                     }),
                     _buildScopeChip(theme, 'Chats', scope.chats, () {
-                      try {
-                        cubit.toggleScope('chats');
-                      } catch (e) {
-                        debugPrint('Error toggling chats scope: $e');
-                      }
+                      cubit.toggleScope('chats');
                     }),
                   ],
                 ),
@@ -605,94 +559,6 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
             ),
           ),
         );
-        },
-      );
-    } catch (e) {
-      // If cubit is not available in widget tree, show card without BlocBuilder
-      debugPrint('LumaraAssistantCubit not available in widget tree: $e');
-      final scope = LumaraScope.defaultScope;
-      return Card(
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Icon(
-                    Icons.search,
-                    color: theme.colorScheme.primary,
-                    size: 24,
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Context Sources',
-                          style: theme.textTheme.titleLarge?.copyWith(
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          'Control what data LUMARA can access when answering your questions',
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: theme.colorScheme.onSurfaceVariant,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  _buildScopeChip(theme, 'Journal', scope.journal, () {}),
-                  _buildScopeChip(theme, 'Phase', scope.phase, () {}),
-                  _buildScopeChip(theme, 'ARCForms', scope.arcforms, () {}),
-                  _buildScopeChip(theme, 'Voice', scope.voice, () {}),
-                  _buildScopeChip(theme, 'Media', scope.media, () {}),
-                  _buildScopeChip(theme, 'Drafts', scope.drafts, () {}),
-                  _buildScopeChip(theme, 'Chats', scope.chats, () {}),
-                ],
-              ),
-              const SizedBox(height: 12),
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: theme.colorScheme.primary.withOpacity(0.05),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.info_outline,
-                      color: theme.colorScheme.primary,
-                      size: 18,
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        'Enable the data sources you want LUMARA to consider. More sources provide richer context but may take longer to process.',
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      );
-        }
       },
     );
   }
