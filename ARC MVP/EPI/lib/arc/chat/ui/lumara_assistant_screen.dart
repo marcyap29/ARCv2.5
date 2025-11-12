@@ -953,6 +953,9 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
     // Dismiss keyboard first
     _dismissKeyboard();
     
+    // Get the cubit instance to pass to settings
+    final cubit = context.read<LumaraAssistantCubit>();
+    
     // Check if welcome screen should be shown
     final prefs = await SharedPreferences.getInstance();
     final welcomeShown = prefs.getBool('lumara_settings_welcome_shown') ?? false;
@@ -961,16 +964,22 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
       // First time - show welcome splash screen
       Navigator.of(context).push(
         MaterialPageRoute(
-          builder: (context) => const LumaraSettingsWelcomeScreen(),
+          builder: (context) => BlocProvider<LumaraAssistantCubit>.value(
+            value: cubit,
+            child: const LumaraSettingsWelcomeScreen(),
+          ),
         ),
       );
     } else {
-      // Navigate directly to settings screen
-    Navigator.of(context).push(
-      MaterialPageRoute(
-          builder: (context) => const LumaraSettingsScreen(),
-      ),
-    );
+      // Navigate directly to settings screen with the same cubit instance
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (context) => BlocProvider<LumaraAssistantCubit>.value(
+            value: cubit,
+            child: const LumaraSettingsScreen(),
+          ),
+        ),
+      );
     }
   }
 

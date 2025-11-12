@@ -252,8 +252,8 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
       try {
         print('LUMARA Debug: [Priority 1] Attempting Gemini with journal context...');
         
-        // Get context for Gemini
-        final context = await _contextProvider.buildContext();
+        // Get context for Gemini (using current scope from state)
+        final context = await _contextProvider.buildContext(scope: currentState.scope);
         final entryText = _buildEntryContext(context);
         final phaseHint = _buildPhaseHint(context);
         final keywords = _buildKeywordsContext(context);
@@ -343,8 +343,8 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
           print('LUMARA Debug: [On-Device] SUCCESS - Response length: ${responseData['content'].length}');
           print('LUMARA Debug: [On-Device] Attribution traces: ${responseData['attributionTraces']?.length ?? 0}');
 
-          // Get context for phase info
-          final context = await _contextProvider.buildContext();
+          // Get context for phase info (using current scope from state)
+          final context = await _contextProvider.buildContext(scope: currentState.scope);
           final attributionTraces = responseData['attributionTraces'] as List<AttributionTrace>? ?? [];
           final enhancedContent = _appendPhaseInfoFromAttributions(
             responseData['content'],
@@ -411,8 +411,8 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
         print('LUMARA Debug: Generated response length: ${responseData['content'].length}');
         print('LUMARA Debug: Attribution traces in response: ${responseData['attributionTraces']?.length ?? 0}');
 
-        // Get context for phase info
-        final context = await _contextProvider.buildContext();
+        // Get context for phase info (using current scope from state)
+        final context = await _contextProvider.buildContext(scope: currentState.scope);
         final attributionTraces = responseData['attributionTraces'] as List<AttributionTrace>? ?? [];
         final enhancedContent = _appendPhaseInfoFromAttributions(
           responseData['content'],
@@ -465,8 +465,8 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
   /// Process a message and generate response with attribution
   /// Priority: On-Device → Cloud API → Rule-Based (security-first)
   Future<Map<String, dynamic>> _processMessageWithAttribution(String text, LumaraScope scope) async {
-    // Get context
-    final context = await _contextProvider.buildContext();
+    // Get context (using provided scope)
+    final context = await _contextProvider.buildContext(scope: scope);
 
     // Determine task type based on query
     final task = _determineTaskType(text);
@@ -734,8 +734,8 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
     LumaraScope scope,
     List<LumaraMessage> baseMessages,
   ) async {
-    // Get context
-    final context = await _contextProvider.buildContext();
+    // Get context (using provided scope)
+    final context = await _contextProvider.buildContext(scope: scope);
 
     // Build context for streaming
     final entryText = _buildEntryContext(context);
@@ -808,8 +808,8 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
         }
       }
 
-      // Get context for phase info
-      final context = await _contextProvider.buildContext();
+      // Get context for phase info (using provided scope)
+      final context = await _contextProvider.buildContext(scope: scope);
       final enhancedContent = _appendPhaseInfoFromAttributions(
         finalContent,
         attributionTraces ?? [],
@@ -1008,7 +1008,10 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
         return;
     }
     
-    emit(currentState.copyWith(scope: newScope));
+    debugPrint('toggleScope: $scopeType - old: ${currentState.scope}, new: $newScope');
+    final newState = currentState.copyWith(scope: newScope);
+    emit(newState);
+    debugPrint('toggleScope: emitted new state with scope: ${newState.scope}');
   }
   
   /// Clear chat history
@@ -1240,8 +1243,8 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
       // Get user ID (simplified - in real implementation, get from user service)
       _userId = 'user_${DateTime.now().millisecondsSinceEpoch}';
 
-      // Get current phase from context
-      final context = await _contextProvider.buildContext();
+      // Get current phase from context (using default scope for initialization)
+      final context = await _contextProvider.buildContext(scope: LumaraScope.defaultScope);
       final currentPhase = _getCurrentPhaseFromContext(context);
       _currentPhase = currentPhase; // Store for later use
 

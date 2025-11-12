@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:my_app/shared/app_colors.dart';
 import 'package:my_app/shared/text_style.dart';
 import 'package:my_app/telemetry/analytics.dart';
-import 'package:my_app/arc/chat/bloc/lumara_assistant_cubit.dart';
 
 class LumaraSettingsView extends StatefulWidget {
   const LumaraSettingsView({super.key});
@@ -291,17 +289,6 @@ class _LumaraSettingsViewState extends State<LumaraSettingsView> {
 
             const SizedBox(height: 32),
 
-            // Context Scope Section
-            _buildSection(
-              context,
-              title: 'LUMARA',
-              children: [
-                _buildContextScopeCard(context),
-              ],
-            ),
-
-            const SizedBox(height: 32),
-
             // About LUMARA Section
             _buildSection(
               context,
@@ -362,139 +349,6 @@ class _LumaraSettingsViewState extends State<LumaraSettingsView> {
     );
   }
 
-  Widget _buildContextScopeCard(BuildContext context) {
-    return BlocBuilder<LumaraAssistantCubit, LumaraAssistantState>(
-      builder: (context, state) {
-        if (state is! LumaraAssistantLoaded) {
-          return const SizedBox.shrink();
-        }
-        
-        final scope = state.scope;
-        
-        return Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: Colors.purple.withValues(alpha: 0.1),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: Colors.purple.withValues(alpha: 0.3),
-            ),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Icon(
-                    Icons.search,
-                    color: Colors.purple,
-                    size: 24,
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Context Sources',
-                          style: heading3Style(context).copyWith(
-                            color: kcPrimaryTextColor,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          'Control what data LUMARA can access when answering your questions',
-                          style: bodyStyle(context).copyWith(
-                            color: kcSecondaryTextColor,
-                            fontSize: 13,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  _buildScopeChip(context, 'Journal', scope.journal, () {
-                    context.read<LumaraAssistantCubit>().toggleScope('journal');
-                  }),
-                  _buildScopeChip(context, 'Phase', scope.phase, () {
-                    context.read<LumaraAssistantCubit>().toggleScope('phase');
-                  }),
-                  _buildScopeChip(context, 'ARCForms', scope.arcforms, () {
-                    context.read<LumaraAssistantCubit>().toggleScope('arcforms');
-                  }),
-                  _buildScopeChip(context, 'Voice', scope.voice, () {
-                    context.read<LumaraAssistantCubit>().toggleScope('voice');
-                  }),
-                  _buildScopeChip(context, 'Media', scope.media, () {
-                    context.read<LumaraAssistantCubit>().toggleScope('media');
-                  }),
-                  _buildScopeChip(context, 'Drafts', scope.drafts, () {
-                    context.read<LumaraAssistantCubit>().toggleScope('drafts');
-                  }),
-                  _buildScopeChip(context, 'Chats', scope.chats, () {
-                    context.read<LumaraAssistantCubit>().toggleScope('chats');
-                  }),
-                ],
-              ),
-              const SizedBox(height: 12),
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.purple.withValues(alpha: 0.05),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.info_outline,
-                      color: Colors.purple,
-                      size: 18,
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        'Enable the data sources you want LUMARA to consider. More sources provide richer context but may take longer to process.',
-                        style: bodyStyle(context).copyWith(
-                          color: kcSecondaryTextColor,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildScopeChip(BuildContext context, String label, bool isActive, VoidCallback onTap) {
-    return FilterChip(
-      label: Text(
-        label,
-        style: TextStyle(
-          fontSize: 12,
-          fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
-        ),
-      ),
-      selected: isActive,
-      onSelected: (_) => onTap(),
-      selectedColor: Colors.purple.withValues(alpha: 0.2),
-      checkmarkColor: Colors.purple,
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-      visualDensity: VisualDensity.compact,
-    );
-  }
 
   Widget _buildInfoCard() {
     return Container(

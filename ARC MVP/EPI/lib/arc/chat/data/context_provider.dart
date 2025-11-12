@@ -58,10 +58,15 @@ class ContextProvider {
   ContextProvider(this._scope) : _journalRepository = JournalRepository();
   
   /// Build context window for LUMARA processing
+  /// [scope] - Optional scope to use. If provided, uses this scope instead of the stored scope.
   Future<ContextWindow> buildContext({
     int daysBack = 14,
     int maxEntries = 200,
+    LumaraScope? scope,
   }) async {
+    // Use provided scope or fall back to stored scope
+    final effectiveScope = scope ?? _scope;
+    
     final now = DateTime.now();
     final startDate = now.subtract(Duration(days: daysBack));
 
@@ -69,30 +74,30 @@ class ContextProvider {
     final edges = <Map<String, dynamic>>[];
 
     // Get real journal entries if journal scope is enabled
-    if (_scope.hasScope('journal')) {
+    if (effectiveScope.hasScope('journal')) {
       final realEntries = await _getRealJournalEntries(daysBack, maxEntries);
       nodes.addAll(realEntries);
     }
     
     // Real phase data if phase scope is enabled
-    if (_scope.hasScope('phase')) {
+    if (effectiveScope.hasScope('phase')) {
       final phaseData = await _generatePhaseData();
       nodes.addAll(phaseData);
     }
     
     // Mock arcform data if arcforms scope is enabled
-    if (_scope.hasScope('arcforms')) {
+    if (effectiveScope.hasScope('arcforms')) {
       final arcformData = await _generateMockArcformData();
       nodes.addAll(arcformData);
     }
     
     // Mock voice transcripts if voice scope is enabled
-    if (_scope.hasScope('voice')) {
+    if (effectiveScope.hasScope('voice')) {
       nodes.addAll(_generateMockVoiceData());
     }
     
     // Mock media captions if media scope is enabled
-    if (_scope.hasScope('media')) {
+    if (effectiveScope.hasScope('media')) {
       nodes.addAll(_generateMockMediaData());
     }
     

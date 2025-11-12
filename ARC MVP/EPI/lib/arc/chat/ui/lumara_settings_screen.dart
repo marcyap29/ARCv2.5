@@ -3,11 +3,14 @@
 
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import '../config/api_config.dart';
 import '../services/enhanced_lumara_api.dart';
 import '../services/download_state_service.dart';
 import 'package:my_app/telemetry/analytics.dart';
 import '../llm/bridge.pigeon.dart';
+import '../bloc/lumara_assistant_cubit.dart';
+import '../data/context_scope.dart';
 
 /// LUMARA settings screen for API key management and provider selection
 class LumaraSettingsScreen extends StatefulWidget {
@@ -409,6 +412,10 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
             _buildStatusCard(theme),
             const SizedBox(height: 24),
 
+            // Context Scope Section
+            _buildContextScopeCard(theme),
+            const SizedBox(height: 24),
+
             // Provider Selection (includes download button)
             _buildProviderSelection(theme),
             const SizedBox(height: 24),
@@ -429,6 +436,311 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
                   foregroundColor: theme.colorScheme.error,
                   side: BorderSide(color: theme.colorScheme.error),
                 ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildContextScopeCard(ThemeData theme) {
+    // Try to get the cubit - if not available, show default scope
+    return Builder(
+      builder: (context) {
+        try {
+          // Check if cubit is available
+          final cubit = context.read<LumaraAssistantCubit>();
+          return BlocBuilder<LumaraAssistantCubit, LumaraAssistantState>(
+            bloc: cubit,
+            builder: (context, state) {
+              debugPrint('BlocBuilder rebuild - state: ${state.runtimeType}');
+              // Handle case where cubit might not be available or not loaded
+              LumaraScope scope;
+              try {
+                if (state is LumaraAssistantLoaded) {
+                  scope = state.scope;
+                  debugPrint('Current scope: journal=${scope.journal}, phase=${scope.phase}, arcforms=${scope.arcforms}, voice=${scope.voice}, media=${scope.media}, drafts=${scope.drafts}, chats=${scope.chats}');
+                } else {
+                  debugPrint('State is not LumaraAssistantLoaded, using default scope');
+                  // Use default scope if cubit is not loaded yet
+                  scope = LumaraScope.defaultScope;
+                }
+              } catch (e) {
+                // Fallback to default scope on error
+                debugPrint('Error getting scope from state: $e');
+                scope = LumaraScope.defaultScope;
+              }
+        
+        return Card(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(
+                      Icons.search,
+                      color: theme.colorScheme.primary,
+                      size: 24,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Context Sources',
+                            style: theme.textTheme.titleLarge?.copyWith(
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Control what data LUMARA can access when answering your questions',
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: theme.colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    _buildScopeChip(theme, 'Journal', scope.journal, () {
+                      debugPrint('=== TOGGLE JOURNAL CALLED ===');
+                      debugPrint('Current scope.journal: ${scope.journal}');
+                      debugPrint('Current state: ${cubit.state}');
+                      try {
+                        cubit.toggleScope('journal');
+                        debugPrint('After toggleScope call');
+                        debugPrint('New state: ${cubit.state}');
+                        if (cubit.state is LumaraAssistantLoaded) {
+                          final newState = cubit.state as LumaraAssistantLoaded;
+                          debugPrint('New scope.journal: ${newState.scope.journal}');
+                        }
+                      } catch (e, stackTrace) {
+                        debugPrint('Error toggling journal scope: $e');
+                        debugPrint('Stack trace: $stackTrace');
+                      }
+                    }),
+                    _buildScopeChip(theme, 'Phase', scope.phase, () {
+                      try {
+                        cubit.toggleScope('phase');
+                      } catch (e) {
+                        debugPrint('Error toggling phase scope: $e');
+                      }
+                    }),
+                    _buildScopeChip(theme, 'ARCForms', scope.arcforms, () {
+                      try {
+                        cubit.toggleScope('arcforms');
+                      } catch (e) {
+                        debugPrint('Error toggling arcforms scope: $e');
+                      }
+                    }),
+                    _buildScopeChip(theme, 'Voice', scope.voice, () {
+                      try {
+                        cubit.toggleScope('voice');
+                      } catch (e) {
+                        debugPrint('Error toggling voice scope: $e');
+                      }
+                    }),
+                    _buildScopeChip(theme, 'Media', scope.media, () {
+                      try {
+                        cubit.toggleScope('media');
+                      } catch (e) {
+                        debugPrint('Error toggling media scope: $e');
+                      }
+                    }),
+                    _buildScopeChip(theme, 'Drafts', scope.drafts, () {
+                      try {
+                        cubit.toggleScope('drafts');
+                      } catch (e) {
+                        debugPrint('Error toggling drafts scope: $e');
+                      }
+                    }),
+                    _buildScopeChip(theme, 'Chats', scope.chats, () {
+                      try {
+                        cubit.toggleScope('chats');
+                      } catch (e) {
+                        debugPrint('Error toggling chats scope: $e');
+                      }
+                    }),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.primary.withOpacity(0.05),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.info_outline,
+                        color: theme.colorScheme.primary,
+                        size: 18,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Enable the data sources you want LUMARA to consider. More sources provide richer context but may take longer to process.',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+        },
+      );
+    } catch (e) {
+      // If cubit is not available in widget tree, show card without BlocBuilder
+      debugPrint('LumaraAssistantCubit not available in widget tree: $e');
+      final scope = LumaraScope.defaultScope;
+      return Card(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(
+                    Icons.search,
+                    color: theme.colorScheme.primary,
+                    size: 24,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Context Sources',
+                          style: theme.textTheme.titleLarge?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Control what data LUMARA can access when answering your questions',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  _buildScopeChip(theme, 'Journal', scope.journal, () {}),
+                  _buildScopeChip(theme, 'Phase', scope.phase, () {}),
+                  _buildScopeChip(theme, 'ARCForms', scope.arcforms, () {}),
+                  _buildScopeChip(theme, 'Voice', scope.voice, () {}),
+                  _buildScopeChip(theme, 'Media', scope.media, () {}),
+                  _buildScopeChip(theme, 'Drafts', scope.drafts, () {}),
+                  _buildScopeChip(theme, 'Chats', scope.chats, () {}),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.primary.withOpacity(0.05),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.info_outline,
+                      color: theme.colorScheme.primary,
+                      size: 18,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Enable the data sources you want LUMARA to consider. More sources provide richer context but may take longer to process.',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+        }
+      },
+    );
+  }
+
+  Widget _buildScopeChip(ThemeData theme, String label, bool isActive, VoidCallback onTap) {
+    return GestureDetector(
+      onTap: () {
+        debugPrint('Scope chip tapped: $label, current state: $isActive');
+        onTap();
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: isActive 
+              ? theme.colorScheme.primary.withOpacity(0.2)
+              : Colors.transparent,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: isActive 
+                ? theme.colorScheme.primary
+                : theme.colorScheme.outline.withOpacity(0.3),
+            width: isActive ? 1.5 : 1,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (isActive)
+              Icon(
+                Icons.check_circle,
+                size: 16,
+                color: theme.colorScheme.primary,
+              )
+            else
+              Icon(
+                Icons.circle_outlined,
+                size: 16,
+                color: theme.colorScheme.outline.withOpacity(0.5),
+              ),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
+                color: isActive 
+                    ? theme.colorScheme.primary
+                    : theme.colorScheme.onSurfaceVariant,
               ),
             ),
           ],
