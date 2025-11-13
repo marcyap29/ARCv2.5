@@ -994,10 +994,24 @@ class _McpBundleHealthViewState extends State<McpBundleHealthView> {
       // Create detailed repair summary
       final repairSummary = _createRepairSummary(originalFileName, fileName, repairResults);
       
+      // Get share position origin for iPad support
+      Rect? sharePositionOrigin;
+      if (mounted) {
+        final mediaQuery = MediaQuery.of(context);
+        final screenSize = mediaQuery.size;
+        sharePositionOrigin = Rect.fromLTWH(
+          screenSize.width / 2,
+          screenSize.height / 2,
+          1,
+          1,
+        );
+      }
+      
       await Share.shareXFiles(
         [XFile(repairedFile.path, mimeType: 'application/zip', name: fileName)],
         text: repairSummary,
         subject: 'Repaired MCP File',
+        sharePositionOrigin: sharePositionOrigin,
       );
       
       // Show helpful tip after sharing

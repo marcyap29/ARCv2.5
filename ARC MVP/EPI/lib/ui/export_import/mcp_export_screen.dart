@@ -342,10 +342,26 @@ class _McpExportScreenState extends State<McpExportScreen> {
       // Store messenger reference before async operation
       final messenger = mounted ? ScaffoldMessenger.of(context) : null;
       
+      // Get share position origin for iPad support
+      // On iPad, share sheet requires a non-zero position origin
+      Rect? sharePositionOrigin;
+      if (mounted) {
+        final mediaQuery = MediaQuery.of(context);
+        final screenSize = mediaQuery.size;
+        // Use center of screen as share position origin (required for iPad)
+        sharePositionOrigin = Rect.fromLTWH(
+          screenSize.width / 2,
+          screenSize.height / 2,
+          1,
+          1,
+        );
+      }
+      
       await Share.shareXFiles(
         [XFile(filePath)],
         text: 'MCP Package - $_entryCount entries, $_photoCount photos',
         subject: 'Journal Export - ${path.basename(filePath)}',
+        sharePositionOrigin: sharePositionOrigin,
       );
       
       // Show confirmation after successful share (only if still mounted)
