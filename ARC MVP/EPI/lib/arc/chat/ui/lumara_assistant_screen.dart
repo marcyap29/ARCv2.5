@@ -3,14 +3,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:gap/gap.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import '../bloc/lumara_assistant_cubit.dart';
 import '../data/models/lumara_message.dart';
 import '../chat/ui/enhanced_chats_screen.dart';
 import '../chat/enhanced_chat_repo_impl.dart';
 import '../chat/chat_repo_impl.dart';
 import 'lumara_quick_palette.dart';
-import 'lumara_settings_welcome_screen.dart';
 import 'lumara_settings_screen.dart';
 import '../widgets/attribution_display_widget.dart';
 import 'package:my_app/polymeta/memory/enhanced_memory_schema.dart';
@@ -328,30 +326,16 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
                                 const Gap(12),
                               ],
                               ElevatedButton(
-                                onPressed: () async {
-                                  // Check if welcome screen should be shown
-                                  final prefs = await SharedPreferences.getInstance();
-                                  final welcomeShown = prefs.getBool('lumara_settings_welcome_shown') ?? false;
-                                  
-                                  if (!welcomeShown && !isConfigError) {
-                                    // First time - show welcome splash screen
-                                    Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (context) => const LumaraSettingsWelcomeScreen(),
-                                      ),
-                                    );
-                                  } else {
-                                    // Navigate to appropriate screen
+                                onPressed: () {
+                                  // Navigate to appropriate screen
                                   Navigator.push(
                                     context,
-                                  MaterialPageRoute(
-                                    builder: (context) => isConfigError
-                                        ? const SizedBox.shrink()
-                                            : const LumaraSettingsScreen(),
-                                  ),
+                                    MaterialPageRoute(
+                                      builder: (context) => isConfigError
+                                          ? const SizedBox.shrink()
+                                              : const LumaraSettingsScreen(),
+                                    ),
                                   );
-                                  }
                                 },
                                 child: Text(isConfigError ? 'Set Up AI' : 'Settings'),
                               ),
@@ -949,38 +933,22 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
   }
 
 
-  void _showEnhancedSettings() async {
+  void _showEnhancedSettings() {
     // Dismiss keyboard first
     _dismissKeyboard();
     
     // Get the cubit instance to pass to settings
     final cubit = context.read<LumaraAssistantCubit>();
     
-    // Check if welcome screen should be shown
-    final prefs = await SharedPreferences.getInstance();
-    final welcomeShown = prefs.getBool('lumara_settings_welcome_shown') ?? false;
-    
-    if (!welcomeShown) {
-      // First time - show welcome splash screen
-      Navigator.of(context).push(
-        MaterialPageRoute(
-          builder: (context) => BlocProvider<LumaraAssistantCubit>.value(
-            value: cubit,
-            child: const LumaraSettingsWelcomeScreen(),
-          ),
+    // Navigate directly to settings screen with the same cubit instance
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => BlocProvider<LumaraAssistantCubit>.value(
+          value: cubit,
+          child: const LumaraSettingsScreen(),
         ),
-      );
-    } else {
-      // Navigate directly to settings screen with the same cubit instance
-      Navigator.of(context).push(
-        MaterialPageRoute(
-          builder: (context) => BlocProvider<LumaraAssistantCubit>.value(
-            value: cubit,
-            child: const LumaraSettingsScreen(),
-          ),
-        ),
-      );
-    }
+      ),
+    );
   }
 
   /// Handle attribution weight changes
