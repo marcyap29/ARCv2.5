@@ -42,6 +42,16 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
   // Timestamp of last refresh to prevent rapid successive refreshes
   DateTime? _lastRefreshTime;
   
+  // Reflection Settings state
+  double _similarityThreshold = 0.55;
+  int _lookbackYears = 5;
+  int _maxMatches = 5;
+  bool _crossModalEnabled = true;
+  
+  // Therapeutic Presence settings
+  bool _therapeuticPresenceEnabled = true;
+  int _therapeuticDepthLevel = 2; // 1=Light, 2=Moderate, 3=Deep
+  
   /// Safe progress calculation to prevent NaN and infinite values
   double _safeProgress(double progress) {
     if (progress.isNaN || !progress.isFinite) {
@@ -414,6 +424,14 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
 
             // Context Scope Section
             _buildContextScopeCard(theme),
+            const SizedBox(height: 24),
+
+            // Reflection Settings Section
+            _buildReflectionSettingsCard(theme),
+            const SizedBox(height: 24),
+
+            // Therapeutic Presence Section
+            _buildTherapeuticPresenceCard(theme),
             const SizedBox(height: 24),
 
             // Provider Selection (includes download button)
@@ -1694,6 +1712,346 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
   }
 
   // Removed auto-save on change - now using explicit Save button per field
+
+  Widget _buildReflectionSettingsCard(ThemeData theme) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  Icons.tune,
+                  color: theme.colorScheme.primary,
+                  size: 24,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  'Reflection Settings',
+                  style: theme.textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            _buildSliderTile(
+              theme,
+              title: 'Similarity Threshold',
+              subtitle: 'Minimum similarity score for matching entries (${_similarityThreshold.toStringAsFixed(2)})',
+              value: _similarityThreshold,
+              min: 0.1,
+              max: 1.0,
+              divisions: 18,
+              onChanged: (value) {
+                setState(() {
+                  _similarityThreshold = value;
+                });
+              },
+            ),
+            _buildSliderTile(
+              theme,
+              title: 'Lookback Period',
+              subtitle: 'Years of history to search ($_lookbackYears years)',
+              value: _lookbackYears.toDouble(),
+              min: 1,
+              max: 10,
+              divisions: 9,
+              onChanged: (value) {
+                setState(() {
+                  _lookbackYears = value.round();
+                });
+              },
+            ),
+            _buildSliderTile(
+              theme,
+              title: 'Max Matches',
+              subtitle: 'Maximum number of similar entries to find ($_maxMatches)',
+              value: _maxMatches.toDouble(),
+              min: 1,
+              max: 20,
+              divisions: 19,
+              onChanged: (value) {
+                setState(() {
+                  _maxMatches = value.round();
+                });
+              },
+            ),
+            _buildSwitchTile(
+              theme,
+              title: 'Cross-Modal Awareness',
+              subtitle: 'Include photos, audio, and video in reflection analysis',
+              value: _crossModalEnabled,
+              onChanged: (value) {
+                setState(() {
+                  _crossModalEnabled = value;
+                });
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTherapeuticPresenceCard(ThemeData theme) {
+    final depthLabels = ['Light', 'Moderate', 'Deep'];
+    final depthDescriptions = [
+      'Supportive and encouraging',
+      'Reflective and insight-oriented',
+      'Exploratory and emotionally resonant',
+    ];
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  Icons.psychology,
+                  color: theme.colorScheme.primary,
+                  size: 24,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  'Therapeutic Presence',
+                  style: theme.textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            _buildSwitchTile(
+              theme,
+              title: 'Enable Therapeutic Presence',
+              subtitle: 'Warm, reflective support for journaling and emotional processing',
+              value: _therapeuticPresenceEnabled,
+              onChanged: (value) {
+                setState(() {
+                  _therapeuticPresenceEnabled = value;
+                });
+              },
+            ),
+            if (_therapeuticPresenceEnabled) ...[
+              const SizedBox(height: 8),
+              Container(
+                margin: const EdgeInsets.only(top: 8),
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.surfaceVariant.withOpacity(0.3),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: theme.colorScheme.outline.withOpacity(0.2),
+                  ),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.psychology,
+                          color: theme.colorScheme.primary,
+                          size: 20,
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Depth Level',
+                                style: theme.textTheme.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              Text(
+                                depthDescriptions[_therapeuticDepthLevel - 1],
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  color: theme.colorScheme.onSurfaceVariant,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: theme.colorScheme.primary.withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            depthLabels[_therapeuticDepthLevel - 1],
+                            style: theme.textTheme.labelMedium?.copyWith(
+                              color: theme.colorScheme.primary,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    Slider(
+                      value: _therapeuticDepthLevel.toDouble(),
+                      min: 1,
+                      max: 3,
+                      divisions: 2,
+                      activeColor: theme.colorScheme.primary,
+                      inactiveColor: theme.colorScheme.outline.withOpacity(0.3),
+                      label: depthLabels[_therapeuticDepthLevel - 1],
+                      onChanged: (value) {
+                        setState(() {
+                          _therapeuticDepthLevel = value.round();
+                        });
+                      },
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: depthLabels.asMap().entries.map((entry) {
+                        final index = entry.key;
+                        final label = entry.value;
+                        final isSelected = _therapeuticDepthLevel == index + 1;
+                        return GestureDetector(
+                          onTap: () {
+                            setState(() {
+                              _therapeuticDepthLevel = index + 1;
+                            });
+                          },
+                          child: Text(
+                            label,
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: isSelected
+                                  ? theme.colorScheme.primary
+                                  : theme.colorScheme.onSurfaceVariant,
+                              fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                            ),
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSliderTile(
+    ThemeData theme, {
+    required String title,
+    required String subtitle,
+    required double value,
+    required double min,
+    required double max,
+    required int divisions,
+    required ValueChanged<double> onChanged,
+  }) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceVariant.withOpacity(0.3),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: theme.colorScheme.outline.withOpacity(0.2),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.tune,
+                color: theme.colorScheme.primary,
+                size: 20,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    Text(
+                      subtitle,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Slider(
+            value: value,
+            min: min,
+            max: max,
+            divisions: divisions,
+            activeColor: theme.colorScheme.primary,
+            inactiveColor: theme.colorScheme.outline.withOpacity(0.3),
+            onChanged: onChanged,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSwitchTile(
+    ThemeData theme, {
+    required String title,
+    required String subtitle,
+    required bool value,
+    required ValueChanged<bool> onChanged,
+  }) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceVariant.withOpacity(0.3),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: theme.colorScheme.outline.withOpacity(0.2),
+        ),
+      ),
+      child: SwitchListTile(
+        title: Text(
+          title,
+          style: theme.textTheme.titleMedium?.copyWith(
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        subtitle: Text(
+          subtitle,
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
+        ),
+        value: value,
+        onChanged: onChanged,
+        activeColor: theme.colorScheme.primary,
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 8,
+        ),
+      ),
+    );
+  }
 
 }
 
