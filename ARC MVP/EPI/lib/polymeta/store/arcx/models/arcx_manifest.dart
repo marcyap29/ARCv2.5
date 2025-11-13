@@ -197,12 +197,14 @@ class ARCXScope {
   final int entriesCount;
   final int chatsCount;
   final int mediaCount;
+  final int phaseRegimesCount;
   final bool separateGroups;
   
   ARCXScope({
     required this.entriesCount,
     required this.chatsCount,
     required this.mediaCount,
+    this.phaseRegimesCount = 0,
     required this.separateGroups,
   });
   
@@ -211,6 +213,7 @@ class ARCXScope {
       entriesCount: json['entries_count'] as int? ?? 0,
       chatsCount: json['chats_count'] as int? ?? 0,
       mediaCount: json['media_count'] as int? ?? 0,
+      phaseRegimesCount: json['phase_regimes_count'] as int? ?? 0,
       separateGroups: json['separate_groups'] as bool? ?? false,
     );
   }
@@ -220,6 +223,7 @@ class ARCXScope {
       'entries_count': entriesCount,
       'chats_count': chatsCount,
       'media_count': mediaCount,
+      'phase_regimes_count': phaseRegimesCount,
       'separate_groups': separateGroups,
     };
   }

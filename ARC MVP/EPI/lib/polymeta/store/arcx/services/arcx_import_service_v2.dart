@@ -16,6 +16,7 @@ import 'package:my_app/data/models/media_item.dart';
 import 'package:my_app/arc/core/journal_repository.dart';
 import 'package:my_app/arc/chat/chat/chat_repo.dart';
 import 'package:my_app/arc/chat/chat/chat_models.dart';
+import 'package:my_app/services/phase_regime_service.dart';
 import 'package:uuid/uuid.dart';
 import '../models/arcx_manifest.dart';
 import 'arcx_crypto_service.dart';
@@ -41,6 +42,7 @@ class ARCXImportOptions {
 class ARCXImportServiceV2 {
   final JournalRepository? _journalRepo;
   final ChatRepo? _chatRepo;
+  final PhaseRegimeService? _phaseRegimeService;
   
   // Media deduplication cache - maps content_hash to MediaItem
   final Map<String, MediaItem> _mediaCache = {};
@@ -54,8 +56,10 @@ class ARCXImportServiceV2 {
   ARCXImportServiceV2({
     JournalRepository? journalRepo,
     ChatRepo? chatRepo,
+    PhaseRegimeService? phaseRegimeService,
   }) : _journalRepo = journalRepo,
-       _chatRepo = chatRepo;
+       _chatRepo = chatRepo,
+       _phaseRegimeService = phaseRegimeService;
   
   /// Clear caches (call before starting a new import)
   void clearCaches() {
@@ -220,10 +224,11 @@ class ARCXImportServiceV2 {
           await _validateChecksums(payloadDir, manifest.checksumsInfo!.file);
         }
         
-        // Step 8: Import in order: Media first, then Entries, then Chats
+        // Step 8: Import in order: Media first, then Entries, then Chats, then Phase Regimes
         int mediaImported = 0;
         int entriesImported = 0;
         int chatsImported = 0;
+        int phaseRegimesImported = 0;
         final warnings = <String>[];
         
         // Import Media
@@ -259,6 +264,14 @@ class ARCXImportServiceV2 {
           );
         }
         
+        // Import Phase Regimes
+        if (_phaseRegimeService != null) {
+          phaseRegimesImported = await _importPhaseRegimes(
+            payloadDir: payloadDir,
+            onProgress: onProgress,
+          );
+        }
+        
         // Step 9: Resolve links
         if (options.resolveLinks) {
           onProgress?.call('Resolving links...');
@@ -278,6 +291,7 @@ class ARCXImportServiceV2 {
           entriesImported: entriesImported,
           chatsImported: chatsImported,
           mediaImported: mediaImported,
+          phaseRegimesImported: phaseRegimesImported,
           warnings: warnings.isEmpty ? null : warnings,
         );
         
@@ -528,6 +542,44 @@ class ARCXImportServiceV2 {
     return imported;
   }
   
+  /// Import phase regimes from PhaseRegimes/phase_regimes.json
+  Future<int> _importPhaseRegimes({
+    required Directory payloadDir,
+    Function(String)? onProgress,
+  }) async {
+    if (_phaseRegimeService == null) {
+      print('ARCX Import V2: ⚠️ No PhaseRegimeService available, skipping phase regimes');
+      return 0;
+    }
+    
+    final phaseRegimesDir = Directory(path.join(payloadDir.path, 'PhaseRegimes'));
+    if (!await phaseRegimesDir.exists()) {
+      print('ARCX Import V2: ⚠️ PhaseRegimes directory not found');
+      return 0;
+    }
+    
+    final phaseRegimesFile = File(path.join(phaseRegimesDir.path, 'phase_regimes.json'));
+    if (!await phaseRegimesFile.exists()) {
+      print('ARCX Import V2: ⚠️ phase_regimes.json not found');
+      return 0;
+    }
+    
+    try {
+      onProgress?.call('Importing phase regimes...');
+      final content = await phaseRegimesFile.readAsString();
+      final data = jsonDecode(content) as Map<String, dynamic>;
+      
+      await _phaseRegimeService!.importFromMcp(data);
+      
+      final regimes = data['phase_regimes'] as List? ?? [];
+      print('ARCX Import V2: ✓ Imported ${regimes.length} phase regimes');
+      return regimes.length;
+    } catch (e) {
+      print('ARCX Import V2: ⚠️ Error importing phase regimes: $e');
+      return 0;
+    }
+  }
+
   /// Import chats from /Chats/{yyyy}/{mm}/{dd}/
   Future<int> _importChats({
     required Directory chatsDir,
@@ -986,6 +1038,7 @@ class ARCXImportResultV2 {
   final int entriesImported;
   final int chatsImported;
   final int mediaImported;
+  final int phaseRegimesImported;
   final List<String>? warnings;
   final String? error;
   
@@ -994,6 +1047,7 @@ class ARCXImportResultV2 {
     this.entriesImported = 0,
     this.chatsImported = 0,
     this.mediaImported = 0,
+    this.phaseRegimesImported = 0,
     this.warnings,
     this.error,
   });
@@ -1002,6 +1056,7 @@ class ARCXImportResultV2 {
     int entriesImported = 0,
     int chatsImported = 0,
     int mediaImported = 0,
+    int phaseRegimesImported = 0,
     List<String>? warnings,
   }) {
     return ARCXImportResultV2(
@@ -1009,6 +1064,7 @@ class ARCXImportResultV2 {
       entriesImported: entriesImported,
       chatsImported: chatsImported,
       mediaImported: mediaImported,
+      phaseRegimesImported: phaseRegimesImported,
       warnings: warnings,
     );
   }

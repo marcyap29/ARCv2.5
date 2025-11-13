@@ -12,6 +12,9 @@ import 'package:my_app/shared/app_colors.dart';
 import 'package:my_app/shared/text_style.dart';
 import 'package:my_app/arc/core/journal_repository.dart';
 import 'package:my_app/arc/chat/chat/chat_repo_impl.dart';
+import 'package:my_app/services/phase_regime_service.dart';
+import 'package:my_app/services/rivet_sweep_service.dart';
+import 'package:my_app/services/analytics_service.dart';
 import '../services/arcx_import_service.dart';
 import '../services/arcx_import_service_v2.dart';
 import '../models/arcx_result.dart';
@@ -177,12 +180,26 @@ class _ARCXImportProgressScreenState extends State<ARCXImportProgressScreen> {
       final chatRepo = ChatRepoImpl.instance;
       await chatRepo.initialize();
       
+      // Initialize PhaseRegimeService for import
+      PhaseRegimeService? phaseRegimeService;
+      try {
+        final analyticsService = AnalyticsService();
+        final rivetSweepService = RivetSweepService(analyticsService);
+        phaseRegimeService = PhaseRegimeService(analyticsService, rivetSweepService);
+        await phaseRegimeService.initialize();
+        print('ARCX Import: PhaseRegimeService initialized');
+      } catch (e) {
+        print('Warning: Could not initialize PhaseRegimeService: $e');
+        // Continue import without phase regimes
+      }
+      
       // Try V2 import service first (for ARCX 1.2 format)
       // If it fails, fall back to legacy import service
       try {
         final importServiceV2 = ARCXImportServiceV2(
           journalRepo: journalRepo,
           chatRepo: chatRepo,
+          phaseRegimeService: phaseRegimeService,
         );
         
         setState(() => _status = 'Decrypting...');
@@ -380,6 +397,8 @@ class _ARCXImportProgressScreenState extends State<ARCXImportProgressScreen> {
             _buildSummaryRow('Media restored:', '${result.mediaImported}'),
             if (result.chatsImported > 0)
               _buildSummaryRow('Chat sessions:', '${result.chatsImported}'),
+            if (result.phaseRegimesImported > 0)
+              _buildSummaryRow('Phase regimes:', '${result.phaseRegimesImported}'),
             if (result.warnings != null && result.warnings!.isNotEmpty) ...[
               const SizedBox(height: 8),
               Text(

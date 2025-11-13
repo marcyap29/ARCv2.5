@@ -9,6 +9,7 @@ import 'dart:convert';
 import 'package:archive/archive.dart';
 import 'package:my_app/arc/core/journal_repository.dart';
 import 'package:my_app/arc/chat/chat/chat_repo.dart';
+import 'package:my_app/services/phase_regime_service.dart';
 import '../models/arcx_manifest.dart';
 import '../models/arcx_result.dart';
 import 'arcx_import_service.dart';
@@ -82,6 +83,7 @@ class UnifiedARCXImportResult {
 class UnifiedARCXImportService {
   final JournalRepository? _journalRepo;
   final ChatRepo? _chatRepo;
+  final PhaseRegimeService? _phaseRegimeService;
   
   ARCXImportService? _legacyService;
   ARCXImportServiceV2? _v2Service;
@@ -89,8 +91,10 @@ class UnifiedARCXImportService {
   UnifiedARCXImportService({
     JournalRepository? journalRepo,
     ChatRepo? chatRepo,
+    PhaseRegimeService? phaseRegimeService,
   }) : _journalRepo = journalRepo,
-       _chatRepo = chatRepo;
+       _chatRepo = chatRepo,
+       _phaseRegimeService = phaseRegimeService;
 
   /// Detect ARCX version from manifest
   Future<String?> _detectVersion(String arcxPath) async {
@@ -144,6 +148,7 @@ class UnifiedARCXImportService {
         _v2Service ??= ARCXImportServiceV2(
           journalRepo: _journalRepo,
           chatRepo: _chatRepo,
+          phaseRegimeService: _phaseRegimeService,
         );
         
         final v2Options = ARCXImportOptions(

@@ -21,6 +21,7 @@ import 'package:my_app/core/services/photo_library_service.dart';
 import 'package:my_app/arc/chat/chat/chat_repo.dart';
 import 'package:my_app/arc/chat/chat/chat_models.dart';
 import 'package:my_app/arc/core/journal_repository.dart';
+import 'package:my_app/services/phase_regime_service.dart';
 import '../models/arcx_manifest.dart';
 import 'arcx_crypto_service.dart';
 
@@ -82,12 +83,15 @@ class ARCXExportSelection {
 class ARCXExportServiceV2 {
   final JournalRepository? _journalRepo;
   final ChatRepo? _chatRepo;
+  final PhaseRegimeService? _phaseRegimeService;
   
   ARCXExportServiceV2({
     JournalRepository? journalRepo,
     ChatRepo? chatRepo,
+    PhaseRegimeService? phaseRegimeService,
   }) : _journalRepo = journalRepo,
-       _chatRepo = chatRepo;
+       _chatRepo = chatRepo,
+       _phaseRegimeService = phaseRegimeService;
   
   /// Export data to ARCX format
   Future<ARCXExportResultV2> export({
@@ -259,6 +263,13 @@ class ARCXExportServiceV2 {
         );
       }
       
+      // Export phase regimes
+      int phaseRegimesExported = 0;
+      if (_phaseRegimeService != null) {
+        onProgress?.call('Exporting phase regimes...');
+        phaseRegimesExported = await _exportPhaseRegimes(payloadDir);
+      }
+      
       // Generate checksums
       if (options.includeChecksums) {
         onProgress?.call('Generating checksums...');
@@ -272,6 +283,7 @@ class ARCXExportServiceV2 {
         entriesCount: entriesExported,
         chatsCount: chatsExported,
         mediaCount: mediaExported,
+        phaseRegimesCount: phaseRegimesExported,
         separateGroups: false,
         options: options,
       );
@@ -327,7 +339,7 @@ class ARCXExportServiceV2 {
     
     final results = <String>[];
     
-    // Export Entries
+    // Export Entries (includes phase regimes)
     if (entries.isNotEmpty) {
       onProgress?.call('Exporting ${entries.length} entries...');
       final entriesPath = await _exportSingleGroup(
@@ -342,6 +354,7 @@ class ARCXExportServiceV2 {
         outputDir: outputDir,
         password: password,
         onProgress: onProgress,
+        includePhaseRegimes: true, // Phase regimes included with entries
       );
       results.add(entriesPath);
     }
@@ -444,6 +457,13 @@ class ARCXExportServiceV2 {
           );
         }
         
+        // Export phase regimes (included with entries+chats archive)
+        int phaseRegimesExported = 0;
+        if (_phaseRegimeService != null) {
+          onProgress?.call('Exporting phase regimes...');
+          phaseRegimesExported = await _exportPhaseRegimes(payloadDir);
+        }
+        
         // Generate checksums
         if (options.includeChecksums) {
           await _generateChecksums(payloadDir);
@@ -467,6 +487,7 @@ class ARCXExportServiceV2 {
           entriesCount: entriesExported,
           chatsCount: chatsExported,
           mediaCount: 0, // Media is in separate archive
+          phaseRegimesCount: phaseRegimesExported,
           separateGroups: true, // Indicates this is part of a separated export
           options: entriesChatsOptions,
         );
@@ -550,6 +571,7 @@ class ARCXExportServiceV2 {
     required Directory outputDir,
     String? password,
     Function(String)? onProgress,
+    bool includePhaseRegimes = false,
   }) async {
     final appDocDir = await getApplicationDocumentsDirectory();
     final tempDir = Directory(path.join(appDocDir.path, 'arcx_export_${exportId}'));
@@ -561,6 +583,7 @@ class ARCXExportServiceV2 {
       int entriesExported = 0;
       int chatsExported = 0;
       int mediaExported = 0;
+      int phaseRegimesExported = 0;
       
       if (groupType == 'Entries' && entries.isNotEmpty) {
         entriesExported = await _exportEntries(
@@ -586,6 +609,12 @@ class ARCXExportServiceV2 {
         );
       }
       
+      // Export phase regimes if requested (typically with Entries group)
+      if (includePhaseRegimes && _phaseRegimeService != null) {
+        onProgress?.call('Exporting phase regimes...');
+        phaseRegimesExported = await _exportPhaseRegimes(payloadDir);
+      }
+      
       // Generate checksums
       if (options.includeChecksums) {
         await _generateChecksums(payloadDir);
@@ -598,6 +627,7 @@ class ARCXExportServiceV2 {
         entriesCount: entriesExported,
         chatsCount: chatsExported,
         mediaCount: mediaExported,
+        phaseRegimesCount: phaseRegimesExported,
         separateGroups: true,
         options: options,
       );
@@ -758,6 +788,7 @@ class ARCXExportServiceV2 {
     required int entriesCount,
     required int chatsCount,
     required int mediaCount,
+    int phaseRegimesCount = 0,
     required bool separateGroups,
     required ARCXExportOptions options,
   }) {
@@ -783,6 +814,7 @@ class ARCXExportServiceV2 {
         entriesCount: entriesCount,
         chatsCount: chatsCount,
         mediaCount: mediaCount,
+        phaseRegimesCount: phaseRegimesCount,
         separateGroups: separateGroups,
       ),
       encryptionInfo: ARCXEncryptionInfo(
@@ -1192,6 +1224,42 @@ class ARCXExportServiceV2 {
         return 'audio/m4a';
       case MediaType.file:
         return 'application/octet-stream';
+    }
+  }
+  
+  /// Export phase regimes to PhaseRegimes/phase_regimes.json
+  Future<int> _exportPhaseRegimes(Directory payloadDir) async {
+    try {
+      if (_phaseRegimeService == null) {
+        return 0;
+      }
+      
+      // Get all phase regimes
+      final regimes = _phaseRegimeService!.allRegimes;
+      
+      if (regimes.isEmpty) {
+        print('ARCX Export V2: No phase regimes to export');
+        return 0;
+      }
+      
+      // Create PhaseRegimes directory
+      final phaseRegimesDir = Directory(path.join(payloadDir.path, 'PhaseRegimes'));
+      await phaseRegimesDir.create(recursive: true);
+      
+      // Export phase regimes using the service's export method
+      final exportData = _phaseRegimeService!.exportForMcp();
+      
+      // Write phase_regimes.json
+      final phaseRegimesFile = File(path.join(phaseRegimesDir.path, 'phase_regimes.json'));
+      await phaseRegimesFile.writeAsString(
+        const JsonEncoder.withIndent('  ').convert(exportData)
+      );
+      
+      print('ARCX Export V2: Exported ${regimes.length} phase regimes');
+      return regimes.length;
+    } catch (e) {
+      print('ARCX Export V2: Error exporting phase regimes: $e');
+      return 0;
     }
   }
   
