@@ -241,12 +241,18 @@ class EnhancedMiraMemoryService {
       final reasoning = _generateRetrievalReasoning(node, query);
       print('LUMARA Debug:   - Reasoning: $reasoning');
 
+      // Create excerpt from node narrative (first 200 chars)
+      final excerpt = node.narrative.length > 200
+          ? '${node.narrative.substring(0, 200)}...'
+          : node.narrative;
+
       final trace = _attributionService.createTrace(
         nodeRef: node.id,
         relation: relation,
         confidence: confidence,
         reasoning: reasoning,
         phaseContext: node.phaseContext, // Include phase context from node
+        excerpt: excerpt, // Include excerpt for direct attribution
       );
 
       print('LUMARA Debug:   - Created trace: ${trace.nodeRef}, ${trace.relation}, ${trace.confidence}, phase: ${trace.phaseContext ?? "none"}');

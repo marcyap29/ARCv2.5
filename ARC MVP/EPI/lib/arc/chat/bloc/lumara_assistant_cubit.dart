@@ -22,6 +22,7 @@ import '../chat/quickanswers_router.dart';
 import 'package:my_app/polymeta/adapters/mira_basics_adapters.dart';
 import 'package:my_app/arc/core/journal_repository.dart';
 import '../services/lumara_reflection_settings_service.dart';
+import 'package:my_app/models/journal_entry_model.dart';
 
 /// LUMARA Assistant Cubit State
 abstract class LumaraAssistantState {}
@@ -88,9 +89,9 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
   late final ProgressiveMemoryLoader _memoryLoader;
   final JournalRepository _journalRepository = JournalRepository();
   
-  // Auto-save and compaction
-  static const int _maxMessagesBeforeCompaction = 50;
-  static const int _compactionThreshold = 100;
+  // Auto-save and compaction - Updated for 25-message summarization
+  static const int _maxMessagesBeforeCompaction = 25;
+  static const int _compactionThreshold = 25; // Summarize after 25 messages
   bool _isCompacting = false;
 
   LumaraAssistantCubit({
@@ -171,7 +172,7 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
   }
   
   /// Send a message to LUMARA
-  Future<void> sendMessage(String text) async {
+  Future<void> sendMessage(String text, {JournalEntry? currentEntry}) async {
     if (text.trim().isEmpty) return;
 
     final currentState = state;
@@ -255,7 +256,13 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
         
         // Get context for Gemini (using current scope from state)
         final context = await _contextProvider.buildContext(scope: currentState.scope);
-        final entryText = await _buildEntryContext(context, userQuery: text);
+        final contextResult = await _buildEntryContext(
+          context, 
+          userQuery: text,
+          currentEntry: currentEntry,
+        );
+        final entryText = contextResult['context'] as String;
+        final contextAttributionTraces = contextResult['attributionTraces'] as List<AttributionTrace>;
         final phaseHint = _buildPhaseHint(context);
         final keywords = _buildKeywordsContext(context);
         
@@ -269,24 +276,12 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
         
         print('LUMARA Debug: [Gemini] ✓ Response received, length: ${response.length}');
         
-        // Get attribution traces
-        List<AttributionTrace>? attributionTraces;
-        if (_memoryService != null) {
-          try {
-            final responseId = 'resp_${DateTime.now().millisecondsSinceEpoch}';
-            final memoryResult = await _memoryService!.retrieveMemories(
-              query: text,
-              domains: [MemoryDomain.personal, MemoryDomain.creative, MemoryDomain.learning],
-              responseId: responseId,
-            );
-            attributionTraces = memoryResult.attributions;
-          } catch (e) {
-            print('LUMARA Debug: Error retrieving attribution traces: $e');
-          }
-        }
+        // Use attribution traces from context building (the actual memory nodes used)
+        final attributionTraces = contextAttributionTraces;
+        print('LUMARA Debug: Using ${attributionTraces.length} attribution traces from context building');
         
         // Append phase information from attribution traces to response
-        final enhancedResponse = _appendPhaseInfoFromAttributions(response, attributionTraces ?? [], context);
+        final enhancedResponse = _appendPhaseInfoFromAttributions(response, attributionTraces, context);
         
         // Record assistant response in MCP memory
         await _recordAssistantMessage(enhancedResponse);
@@ -297,7 +292,7 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
         // Add assistant response to UI with attribution traces
         final assistantMessage = LumaraMessage.assistant(
           content: enhancedResponse,
-          attributionTraces: attributionTraces ?? [],
+          attributionTraces: attributionTraces,
         );
         
         // Check if we should suggest loading more history
@@ -340,7 +335,11 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
             print('LUMARA Debug: [On-Device] LLMAdapter available! Using on-device processing.');
 
           // Use non-streaming on-device processing
-          final responseData = await _processMessageWithAttribution(text, currentState.scope);
+          final responseData = await _processMessageWithAttribution(
+            text, 
+            currentState.scope,
+            currentEntry: currentEntry,
+          );
           print('LUMARA Debug: [On-Device] SUCCESS - Response length: ${responseData['content'].length}');
           print('LUMARA Debug: [On-Device] Attribution traces: ${responseData['attributionTraces']?.length ?? 0}');
 
@@ -465,7 +464,11 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
   
   /// Process a message and generate response with attribution
   /// Priority: On-Device → Cloud API → Rule-Based (security-first)
-  Future<Map<String, dynamic>> _processMessageWithAttribution(String text, LumaraScope scope) async {
+  Future<Map<String, dynamic>> _processMessageWithAttribution(
+    String text, 
+    LumaraScope scope, {
+    JournalEntry? currentEntry,
+  }) async {
     // Get context (using provided scope)
     final context = await _contextProvider.buildContext(scope: scope);
 
@@ -483,13 +486,20 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
       debugPrint('LUMARA Debug: ========== STARTING GEMINI PATH ==========');
       print('LUMARA Debug: [Gemini] Calling Gemini with journal context...');
       
-      final entryText = await _buildEntryContext(context, userQuery: text);
+      final contextResult = await _buildEntryContext(
+        context, 
+        userQuery: text,
+        currentEntry: currentEntry,
+      );
+      final entryText = contextResult['context'] as String;
+      final contextAttributionTraces = contextResult['attributionTraces'] as List<AttributionTrace>;
       final phaseHint = _buildPhaseHint(context);
       final keywords = _buildKeywordsContext(context);
       
       print('LUMARA Debug: [Gemini] Entry text length: ${entryText.length}');
       print('LUMARA Debug: [Gemini] Phase hint: $phaseHint');
       print('LUMARA Debug: [Gemini] Keywords: $keywords');
+      print('LUMARA Debug: [Gemini] Attribution traces from context: ${contextAttributionTraces.length}');
 
       // Use ArcLLM to call Gemini directly with journal context
       final response = await _arcLLM.chat(
@@ -501,47 +511,15 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
 
       print('LUMARA Debug: [Gemini] ✓ Response received, length: ${response.length}');
 
-      // Generate explainable response with attribution if memory service available
-      if (_memoryService != null) {
-        try {
-          final responseId = 'resp_${DateTime.now().millisecondsSinceEpoch}';
-          print('LUMARA Debug: [Enhanced API] Retrieving memories for query: "$text"');
-          
-          final memoryResult = await _memoryService!.retrieveMemories(
-            query: text,
-            domains: [MemoryDomain.personal, MemoryDomain.creative, MemoryDomain.learning],
-            responseId: responseId,
-          );
-          
-          print('LUMARA Debug: [Enhanced API] Retrieved ${memoryResult.nodes.length} memory nodes');
-          print('LUMARA Debug: [Enhanced API] Retrieved ${memoryResult.attributions.length} attribution traces from memory service');
-
-          if (memoryResult.nodes.isEmpty) {
-            print('LUMARA Debug: [Enhanced API] ⚠️ NO MEMORY NODES RETRIEVED');
-          } else {
-            for (final node in memoryResult.nodes) {
-              print('LUMARA Debug: [Enhanced API] Memory node - ID: ${node.id}');
-            }
-          }
-
-          final traces = memoryResult.attributions;
-          
-          // Append phase information from attribution traces
-          final enhancedResponse = _appendPhaseInfoFromAttributions(response, traces, context);
-          return {
-            'content': enhancedResponse,
-            'attributionTraces': traces,
-          };
-        } catch (e) {
-          print('LUMARA Memory: Error in memory attribution: $e');
-        }
-      }
-
-      // Append phase information even without attribution traces
-      final enhancedResponse = _appendPhaseInfoFromAttributions(response, [], context);
+      // Use attribution traces from context building (the actual memory nodes used)
+      final traces = contextAttributionTraces;
+      print('LUMARA Debug: [Enhanced API] Using ${traces.length} attribution traces from context building');
+      
+      // Append phase information from attribution traces
+      final enhancedResponse = _appendPhaseInfoFromAttributions(response, traces, context);
       return {
         'content': enhancedResponse,
-        'attributionTraces': <AttributionTrace>[],
+        'attributionTraces': traces,
       };
     } catch (e, stackTrace) {
       debugPrint('LUMARA Debug: [Enhanced API] ✗✗✗ EXCEPTION CAUGHT ✗✗✗');
@@ -577,13 +555,20 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
       
       debugPrint('LUMARA Debug: [Gemini] Step 3: Building context for ArcLLM...');
       // Build context for ArcLLM
-      final entryText = await _buildEntryContext(context, userQuery: text);
+      final contextResult = await _buildEntryContext(
+        context, 
+        userQuery: text,
+        currentEntry: currentEntry,
+      );
+      final entryText = contextResult['context'] as String;
+      final contextAttributionTraces = contextResult['attributionTraces'] as List<AttributionTrace>;
       final phaseHint = _buildPhaseHint(context);
       final keywords = _buildKeywordsContext(context);
       debugPrint('LUMARA Debug: [Gemini] Step 3: Context built');
       debugPrint('LUMARA Debug: [Gemini] Step 3: Entry text length: ${entryText.length}');
       debugPrint('LUMARA Debug: [Gemini] Step 3: Phase hint: $phaseHint');
       debugPrint('LUMARA Debug: [Gemini] Step 3: Keywords: $keywords');
+      debugPrint('LUMARA Debug: [Gemini] Step 3: Attribution traces from context: ${contextAttributionTraces.length}');
 
       debugPrint('LUMARA Debug: [Gemini] Step 4: Calling _arcLLM.chat()...');
       debugPrint('LUMARA Debug: [Gemini] Step 4: User intent: $text');
@@ -602,56 +587,19 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
       if (response.isNotEmpty) {
         debugPrint('LUMARA Debug: [Gemini] SUCCESS - Using Gemini response');
         
-        // Generate explainable response with attribution if memory service available
-        if (_memoryService != null) {
-          try {
-            debugPrint('LUMARA Debug: [Gemini] Step 5: Retrieving memories for attribution...');
-            final responseId = 'resp_${DateTime.now().millisecondsSinceEpoch}';
-            print('LUMARA Debug: Retrieving memories for query: "$text"');
-            
-            final memoryResult = await _memoryService!.retrieveMemories(
-              query: text,
-              domains: [MemoryDomain.personal, MemoryDomain.creative, MemoryDomain.learning],
-              responseId: responseId,
-            );
-            
-            print('LUMARA Debug: Retrieved ${memoryResult.nodes.length} memory nodes');
-            print('LUMARA Debug: Retrieved ${memoryResult.attributions.length} attribution traces from memory service');
-
-            if (memoryResult.nodes.isEmpty) {
-              print('LUMARA Debug: ⚠️ NO MEMORY NODES RETRIEVED - This is why no attribution data is generated');
-            } else {
-              for (final node in memoryResult.nodes) {
-                print('LUMARA Debug: Memory node - ID: ${node.id}, Content: ${node.narrative.substring(0, node.narrative.length > 50 ? 50 : node.narrative.length)}...');
-              }
-            }
-
-            // Use attribution traces directly from memory retrieval result
-            final traces = memoryResult.attributions;
-
-            print('LUMARA Debug: Using ${traces.length} attribution traces from memory retrieval');
-            for (final trace in traces) {
-              print('LUMARA Debug: Trace - ${trace.nodeRef}: ${trace.relation} (${(trace.confidence * 100).toInt()}%)');
-            }
-
-            debugPrint('LUMARA Debug: ========== GEMINI API PATH COMPLETED ==========');
-            // Append phase information from attribution traces
-            final enhancedResponse = _appendPhaseInfoFromAttributions(response, traces, context);
-            return {
-              'content': enhancedResponse,
-              'attributionTraces': traces,
-            };
-          } catch (e) {
-            print('LUMARA Memory: Error generating explainable response: $e');
-          }
+        // Use attribution traces from context building (the actual memory nodes used)
+        final traces = contextAttributionTraces;
+        print('LUMARA Debug: Using ${traces.length} attribution traces from context building');
+        for (final trace in traces) {
+          print('LUMARA Debug: Trace - ${trace.nodeRef}: ${trace.relation} (${(trace.confidence * 100).toInt()}%)');
         }
 
         debugPrint('LUMARA Debug: ========== GEMINI API PATH COMPLETED ==========');
-        // Append phase information even without attribution traces
-        final enhancedResponse = _appendPhaseInfoFromAttributions(response, [], context);
+        // Append phase information from attribution traces
+        final enhancedResponse = _appendPhaseInfoFromAttributions(response, traces, context);
         return {
           'content': enhancedResponse,
-          'attributionTraces': <AttributionTrace>[],
+          'attributionTraces': traces,
         };
       }
       
@@ -745,7 +693,13 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
       orElse: () => baseMessages.isNotEmpty ? baseMessages.last : LumaraMessage.user(content: ''),
     ).content;
     
-    final entryText = await _buildEntryContext(context, userQuery: userQuery);
+      final contextResult = await _buildEntryContext(
+        context, 
+        userQuery: userQuery,
+        currentEntry: null, // Streaming doesn't have current entry context
+      );
+      final entryText = contextResult['context'] as String;
+      final contextAttributionTraces = contextResult['attributionTraces'] as List<AttributionTrace>;
     final phaseHint = _buildPhaseHint(context);
     final keywords = _buildKeywordsContext(context);
 
@@ -754,6 +708,7 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
 
     print('LUMARA Debug: Starting streaming response...');
     print('LUMARA Debug: Using direct Gemini streaming with journal context');
+    print('LUMARA Debug: Attribution traces from context: ${contextAttributionTraces.length}');
 
     // Stream the response from Gemini with journal context
     final fullResponse = StringBuffer();
@@ -795,32 +750,16 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
 
       final finalContent = fullResponse.toString();
 
-      // Get attribution traces after streaming completes
-      List<AttributionTrace>? attributionTraces;
-      if (_memoryService != null) {
-        try {
-          final responseId = 'resp_${DateTime.now().millisecondsSinceEpoch}';
-          print('LUMARA Debug: Retrieving memories for attribution...');
-
-          final memoryResult = await _memoryService!.retrieveMemories(
-            query: text,
-            domains: [MemoryDomain.personal, MemoryDomain.creative, MemoryDomain.learning],
-            responseId: responseId,
-          );
-
-          attributionTraces = memoryResult.attributions;
-          print('LUMARA Debug: Retrieved ${attributionTraces.length} attribution traces');
-        } catch (e) {
-          print('LUMARA Debug: Error retrieving attribution traces: $e');
-        }
-      }
+      // Use attribution traces from context building (the actual memory nodes used)
+      final attributionTraces = contextAttributionTraces;
+      print('LUMARA Debug: Using ${attributionTraces.length} attribution traces from context building');
 
       // Get context for phase info (using provided scope)
-      final context = await _contextProvider.buildContext(scope: scope);
+      final contextForPhase = await _contextProvider.buildContext(scope: scope);
       final enhancedContent = _appendPhaseInfoFromAttributions(
         finalContent,
-        attributionTraces ?? [],
-        context,
+        attributionTraces,
+        contextForPhase,
       );
 
       // Record assistant response in MCP memory
@@ -836,7 +775,7 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
           final lastIndex = currentMessages.length - 1;
           final finalMessage = currentMessages[lastIndex].copyWith(
             content: enhancedContent,
-            attributionTraces: attributionTraces ?? [],
+            attributionTraces: attributionTraces,
           );
 
           final finalMessages = [
@@ -844,7 +783,7 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
             finalMessage,
           ];
 
-          print('LUMARA Debug: Streaming complete with ${attributionTraces?.length ?? 0} attribution traces');
+          print('LUMARA Debug: Streaming complete with ${attributionTraces.length} attribution traces');
 
           emit((state as LumaraAssistantLoaded).copyWith(
             messages: finalMessages,
@@ -1137,11 +1076,73 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
     return await _contextProvider.getContextSummary();
   }
 
-  /// Build entry context for ArcLLM
+  /// Build entry context for ArcLLM with weighted prioritization
   /// [userQuery] - Optional user query to find semantically relevant entries
-  Future<String> _buildEntryContext(ContextWindow context, {String? userQuery}) async {
+  /// [currentEntry] - Optional current journal entry (highest weight)
+  /// Returns a map with 'context' (String) and 'attributionTraces' (List<AttributionTrace>)
+  /// 
+  /// Weighting:
+  /// - Tier 1 (Highest): Current journal entry + media content
+  /// - Tier 2 (Medium): Recent LUMARA responses from same chat session
+  /// - Tier 3 (Lowest): Other earlier entries/chats
+  Future<Map<String, dynamic>> _buildEntryContext(
+    ContextWindow context, {
+    String? userQuery,
+    JournalEntry? currentEntry,
+  }) async {
     final buffer = StringBuffer();
     final Set<String> addedEntryIds = {}; // Track added entries to avoid duplicates
+    final List<AttributionTrace> attributionTraces = []; // Collect attribution traces from memory nodes used
+    
+    // TIER 1 (HIGHEST WEIGHT): Current journal entry + media content
+    if (currentEntry != null) {
+      print('LUMARA: [Tier 1] Adding current journal entry with highest weight');
+      buffer.writeln('=== CURRENT ENTRY (PRIMARY SOURCE) ===');
+      buffer.writeln(currentEntry.content);
+      
+      // Include media content (OCR, captions, transcripts)
+      if (currentEntry.media.isNotEmpty) {
+        buffer.writeln('\n=== MEDIA CONTENT FROM CURRENT ENTRY ===');
+        for (final mediaItem in currentEntry.media) {
+          if (mediaItem.ocrText != null && mediaItem.ocrText!.isNotEmpty) {
+            buffer.writeln('Photo OCR: ${mediaItem.ocrText}');
+          }
+          if (mediaItem.altText != null && mediaItem.altText!.isNotEmpty) {
+            buffer.writeln('Photo description: ${mediaItem.altText}');
+          }
+          if (mediaItem.transcript != null && mediaItem.transcript!.isNotEmpty) {
+            buffer.writeln('Audio/Video transcript: ${mediaItem.transcript}');
+          }
+        }
+      }
+      
+      buffer.writeln('---');
+      addedEntryIds.add(currentEntry.id);
+      print('LUMARA: [Tier 1] Added current entry ${currentEntry.id} with media content');
+    }
+    
+    // TIER 2 (MEDIUM WEIGHT): Recent LUMARA responses from same chat session
+    if (currentChatSessionId != null) {
+      try {
+        final sessionMessages = await _chatRepo.getMessages(currentChatSessionId!, lazy: false);
+        // Get recent assistant messages (last 5, excluding the current one being generated)
+        final recentAssistantMessages = sessionMessages
+            .where((m) => m.role == 'assistant')
+            .take(5)
+            .toList();
+        
+        if (recentAssistantMessages.isNotEmpty) {
+          print('LUMARA: [Tier 2] Adding ${recentAssistantMessages.length} recent LUMARA responses from same session');
+          buffer.writeln('\n=== RECENT LUMARA RESPONSES (SAME CONVERSATION) ===');
+          for (final msg in recentAssistantMessages.reversed) {
+            buffer.writeln('LUMARA: ${msg.textContent}');
+            buffer.writeln('---');
+          }
+        }
+      } catch (e) {
+        print('LUMARA: Error getting recent chat messages: $e');
+      }
+    }
     
     // If we have a query and memory service, use semantic search
     if (userQuery != null && userQuery.isNotEmpty && _memoryService != null) {
@@ -1171,6 +1172,10 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
         );
         
         print('LUMARA: Found ${memoryResult.nodes.length} semantically relevant nodes');
+        
+        // Store attribution traces from memory retrieval - these are the actual nodes used in context
+        attributionTraces.addAll(memoryResult.attributions);
+        print('LUMARA: Stored ${attributionTraces.length} attribution traces from memory nodes used in context');
         
         // Extract entry IDs from memory nodes and fetch full content
         for (final node in memoryResult.nodes) {
@@ -1245,9 +1250,30 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
       }
     }
     
+    // TIER 3 (LOWEST WEIGHT): Other earlier entries/chats from other sessions
+    // Include recent chat sessions for conversation continuity (but lower priority)
+    final chatNodes = context.nodes.where((n) => n['type'] == 'chat').toList();
+    if (chatNodes.isNotEmpty) {
+      print('LUMARA: [Tier 3] Adding ${chatNodes.length} recent chat sessions from other conversations');
+      buffer.writeln('\n=== OTHER CONVERSATIONS (LOWER PRIORITY) ===');
+      for (final chatNode in chatNodes) {
+        final chatText = chatNode['text'] as String?;
+        if (chatText != null && chatText.isNotEmpty) {
+          buffer.writeln(chatText);
+          buffer.writeln('---');
+        }
+      }
+    }
+    
     final result = buffer.toString().trim();
-    print('LUMARA: Built context with ${addedEntryIds.length} unique entries');
-    return result;
+    print('LUMARA: Built context with ${addedEntryIds.length} unique entries and ${chatNodes.length} chat sessions');
+    print('LUMARA: Returning ${attributionTraces.length} attribution traces from context building');
+    
+    // Return both context string and attribution traces
+    return {
+      'context': result,
+      'attributionTraces': attributionTraces,
+    };
   }
 
   /// Build phase hint for ArcLLM - uses actual current phase from context provider
@@ -1715,7 +1741,8 @@ Your exported MCP bundle can be imported into any MCP-compatible system, ensurin
     try {
       final messages = await _chatRepo.getMessages(currentChatSessionId!, lazy: false);
       
-      if (messages.length >= _compactionThreshold) {
+      // Check if we've hit exactly 25 messages (need to summarize and archive)
+      if (messages.length == _compactionThreshold) {
         await _compactConversation(messages);
       }
     } catch (e) {
@@ -1723,69 +1750,135 @@ Your exported MCP bundle can be imported into any MCP-compatible system, ensurin
     }
   }
 
-  /// Compact conversation by summarizing old messages
+  /// Compact conversation by summarizing first 25 messages and archiving them
   Future<void> _compactConversation(List<ChatMessage> messages) async {
     if (_isCompacting || currentChatSessionId == null) return;
     
     _isCompacting = true;
     
     try {
-      // Keep recent messages and create summary of older ones
-      final oldMessages = messages.take(messages.length - _maxMessagesBeforeCompaction).toList();
+      // Get the first 25 messages to summarize and archive
+      final messagesToArchive = messages.take(25).toList();
       
-      if (oldMessages.isEmpty) return;
+      if (messagesToArchive.isEmpty) return;
       
-      // Create summary of old messages
-      final summary = await _createConversationSummary(oldMessages);
+      // Emit a state to show popup/notice while summarizing
+      if (state is LumaraAssistantLoaded) {
+        final currentState = state as LumaraAssistantLoaded;
+        emit(currentState.copyWith(
+          isProcessing: true,
+        ));
+      }
+      
+      print('LUMARA Chat: Summarizing first 25 messages...');
+      
+      // Create summary of the first 25 messages using Gemini
+      final summary = await _createConversationSummaryWithLLM(messagesToArchive);
       
       // Create a summary message
       final summaryMessage = ChatMessage.createLegacy(
         sessionId: currentChatSessionId!,
         role: 'system',
-        content: summary,
+        content: '📝 **Conversation Summary** (First 25 messages archived)\n\n$summary',
       );
       
-      // Replace old messages with summary
-      await _replaceMessagesWithSummary(oldMessages, summaryMessage);
+      // Archive the first 25 messages by deleting them (they're preserved in MCP memory)
+      await _archiveMessages(messagesToArchive);
       
-      print('LUMARA Chat: Compacted conversation - ${oldMessages.length} messages summarized');
+      // Add the summary message at the beginning
+      await _chatRepo.addMessage(
+        sessionId: currentChatSessionId!,
+        role: 'system',
+        content: summaryMessage.textContent,
+      );
+      
+      print('LUMARA Chat: Archived ${messagesToArchive.length} messages and created summary');
+      
+      // Clear working memory context (reload context without archived messages)
+      // This happens automatically when we reload messages
       
       // Show notification to user
-      _showCompactionNotification(oldMessages.length);
+      _showCompactionNotification(messagesToArchive.length);
+      
+      // Resume processing
+      if (state is LumaraAssistantLoaded) {
+        final currentState = state as LumaraAssistantLoaded;
+        emit(currentState.copyWith(
+          isProcessing: false,
+        ));
+      }
       
     } catch (e) {
       print('LUMARA Chat: Error compacting conversation: $e');
+      if (state is LumaraAssistantLoaded) {
+        final currentState = state as LumaraAssistantLoaded;
+        emit(currentState.copyWith(
+          isProcessing: false,
+        ));
+      }
     } finally {
       _isCompacting = false;
     }
   }
+  
+  /// Create a summary using LLM (Gemini)
+  Future<String> _createConversationSummaryWithLLM(List<ChatMessage> messages) async {
+    try {
+      // Build conversation text
+      final conversationText = messages.map((m) {
+        final role = m.role == 'user' ? 'User' : 'Assistant';
+        return '$role: ${m.textContent}';
+      }).join('\n\n');
+      
+      // Use Gemini to create a concise summary
+      final summaryPrompt = '''Summarize the following conversation in 2-3 paragraphs, highlighting:
+1. Main topics discussed
+2. Key insights or decisions
+3. Important context for future messages
 
-  /// Create a summary of old messages
+Conversation:
+$conversationText
+
+Summary:''';
+      
+      final summary = await geminiSend(
+        system: 'You are a helpful assistant that creates concise conversation summaries.',
+        user: summaryPrompt,
+        jsonExpected: false,
+      );
+      
+      return summary.trim();
+    } catch (e) {
+      print('LUMARA Chat: Error creating LLM summary: $e');
+      // Fallback to simple summary
+      return _createConversationSummary(messages);
+    }
+  }
+  
+  /// Archive messages by deleting them (they're preserved in MCP memory system)
+  Future<void> _archiveMessages(List<ChatMessage> messages) async {
+    for (final message in messages) {
+      try {
+        await _chatRepo.deleteMessage(message.id);
+      } catch (e) {
+        print('LUMARA Chat: Error archiving message ${message.id}: $e');
+      }
+    }
+  }
+
+  /// Create a simple fallback summary of old messages
   Future<String> _createConversationSummary(List<ChatMessage> messages) async {
     // Group messages by role and create summary
     final userMessages = messages.where((m) => m.role == 'user').map((m) => m.textContent).toList();
     final assistantMessages = messages.where((m) => m.role == 'assistant').map((m) => m.textContent).toList();
     
-    return '''📝 **Conversation Summary** (${messages.length} messages compacted)
-
-**Key Topics Discussed:**
+    return '''**Key Topics Discussed:**
 ${userMessages.take(5).map((m) => '• ${m.length > 100 ? m.substring(0, 100) + '...' : m}').join('\n')}
 
 **Assistant Responses:**
 ${assistantMessages.take(3).map((m) => '• ${m.length > 150 ? m.substring(0, 150) + '...' : m}').join('\n')}
 
 *This conversation was automatically compacted to improve performance. The full conversation history is preserved in the MCP memory system.*''';
-  }
-
-  /// Replace old messages with summary
-  Future<void> _replaceMessagesWithSummary(List<ChatMessage> oldMessages, ChatMessage summaryMessage) async {
-    // This would need to be implemented in the ChatRepo
-    // For now, just add the summary message
-    await _chatRepo.addMessage(
-      sessionId: currentChatSessionId!,
-      role: 'system',
-      content: summaryMessage.textContent,
-    );
   }
 
   /// Load more history (2-3 years back)

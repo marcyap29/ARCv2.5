@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:my_app/polymeta/memory/enhanced_memory_schema.dart';
+import 'package:my_app/arc/chat/widgets/attribution_display_widget.dart';
 
 /// Inline reflection block that appears within journal entries
 class InlineReflectionBlock extends StatelessWidget {
@@ -12,6 +14,7 @@ class InlineReflectionBlock extends StatelessWidget {
   final VoidCallback onMoreDepth;
   final VoidCallback onContinueWithLumara;
   final VoidCallback onDelete;
+  final List<AttributionTrace>? attributionTraces; // Memory attribution traces
 
   const InlineReflectionBlock({
     super.key,
@@ -25,6 +28,7 @@ class InlineReflectionBlock extends StatelessWidget {
     required this.onMoreDepth,
     required this.onContinueWithLumara,
     required this.onDelete,
+    this.attributionTraces,
   });
 
   @override
@@ -148,6 +152,16 @@ class InlineReflectionBlock extends StatelessWidget {
               // Reflection content (different color to distinguish from user text)
               // Split content into paragraphs for better readability
               ..._buildParagraphs(content, theme),
+              
+              // Attribution display (if available)
+              if (attributionTraces != null && attributionTraces!.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                AttributionDisplayWidget(
+                  traces: attributionTraces!,
+                  responseId: 'journal_${DateTime.now().millisecondsSinceEpoch}',
+                ),
+              ],
+              
               const SizedBox(height: 12),
               // Action buttons
               Wrap(

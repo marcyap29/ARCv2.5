@@ -20,10 +20,17 @@ import '../data/context_provider.dart';
 import '../data/context_scope.dart';
 import '../services/enhanced_lumara_api.dart';
 import '../../../telemetry/analytics.dart';
+import 'package:my_app/models/journal_entry_model.dart';
+import 'package:my_app/arc/core/journal_repository.dart';
 
 /// Main LUMARA Assistant screen
 class LumaraAssistantScreen extends StatefulWidget {
-  const LumaraAssistantScreen({super.key});
+  final JournalEntry? currentEntry; // Optional current journal entry for weighted context
+  
+  const LumaraAssistantScreen({
+    super.key,
+    this.currentEntry,
+  });
 
   @override
   State<LumaraAssistantScreen> createState() => _LumaraAssistantScreenState();
@@ -35,6 +42,7 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
   final FocusNode _inputFocusNode = FocusNode();
   String? _editingMessageId; // Track which message is being edited
   bool _isInputVisible = true; // Track input visibility
+  JournalEntry? _currentEntry; // Store current entry for context
   
   // Voice chat service
   VoiceChatService? _voiceChatService;
@@ -43,9 +51,22 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
   @override
   void initState() {
     super.initState();
+    // Store current entry from widget
+    _currentEntry = widget.currentEntry;
     _checkAIConfigurationAndInitialize();
     _inputFocusNode.addListener(_onInputFocusChange);
     _initializeVoiceChat();
+  }
+  
+  @override
+  void didUpdateWidget(LumaraAssistantScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Update current entry if widget changed
+    if (widget.currentEntry != oldWidget.currentEntry) {
+      setState(() {
+        _currentEntry = widget.currentEntry;
+      });
+    }
   }
 
   void _onInputFocusChange() {
@@ -857,7 +878,42 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
   }
 
   void _sendMessage(String message) {
-    context.read<LumaraAssistantCubit>().sendMessage(message);
+    // Get current entry - prioritize widget's currentEntry, then try to get most recent entry
+    JournalEntry? entryToUse = _currentEntry;
+    
+    // If no entry provided, try to get the most recent entry as fallback
+    // This ensures we always have context from the user's journal
+    if (entryToUse == null) {
+      entryToUse = _getMostRecentEntry();
+      if (entryToUse != null) {
+        print('LUMARA: Using most recent entry ${entryToUse.id} as context');
+      }
+    } else {
+      print('LUMARA: Using provided current entry ${entryToUse.id} as context');
+    }
+    
+    // Note: If entryToUse is still null, sendMessage will work without current entry
+    // The weighted context system will still use recent LUMARA responses and other entries
+    context.read<LumaraAssistantCubit>().sendMessage(message, currentEntry: entryToUse);
+  }
+  
+  /// Get the most recent journal entry as fallback for context
+  /// This ensures LUMARA always has access to the user's latest journal content
+  JournalEntry? _getMostRecentEntry() {
+    try {
+      final journalRepository = JournalRepository();
+      final allEntries = journalRepository.getAllJournalEntries();
+      if (allEntries.isNotEmpty) {
+        // Sort by creation date, most recent first
+        allEntries.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+        final mostRecent = allEntries.first;
+        print('LUMARA: Found most recent entry: ${mostRecent.id} (${mostRecent.createdAt})');
+        return mostRecent;
+      }
+    } catch (e) {
+      print('LUMARA: Error getting most recent entry: $e');
+    }
+    return null;
   }
 
   void _startNewChat() async {

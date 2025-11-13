@@ -37,6 +37,7 @@ EPI is an AI-powered journaling companion that:
 - **Pattern Recognition**: Keyword extraction and phase detection
 - **3D Visualizations**: ARCForm constellations showing journal themes
 - **Privacy-First**: On-device processing with encryption
+- **PRISM Scrubbing**: PII scrubbing before cloud API calls with automatic restoration
 - **Data Portability**: MCP export/import for data portability
 
 ---
@@ -285,6 +286,13 @@ flutter test --coverage
 - Privacy guardrails
 - Content safety filtering
 - Dignity-preserving responses
+- PRISM data scrubbing (PII scrubbing before cloud API calls)
+
+**LUMARA Memory Attribution**
+- Specific excerpt attribution (exact 2-3 sentences from memory entries)
+- Weighted context prioritization (current entry → recent responses → other entries)
+- Draft entry support (unsaved content can be used as context)
+- Journal integration (attributions shown in inline reflections)
 
 ### Data Flow
 

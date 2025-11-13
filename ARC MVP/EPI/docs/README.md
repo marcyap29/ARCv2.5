@@ -79,7 +79,7 @@ Policy specifications:
 
 ## Version Information
 
-**Current Version:** 2.1.7  
+**Current Version:** 2.1.9  
 **Last Major Update:** January 2025
 
 See `changelog/CHANGELOG.md` for detailed version history.

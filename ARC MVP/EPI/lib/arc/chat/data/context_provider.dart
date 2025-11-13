@@ -5,6 +5,8 @@ import 'package:my_app/arc/core/journal_repository.dart';
 import 'package:my_app/services/phase_regime_service.dart';
 import 'package:my_app/services/analytics_service.dart';
 import 'package:my_app/services/rivet_sweep_service.dart';
+import '../chat/chat_repo.dart';
+import '../chat/chat_repo_impl.dart';
 
 /// Context window for LUMARA processing
 class ContextWindow {
@@ -54,8 +56,11 @@ class ContextWindow {
 class ContextProvider {
   final LumaraScope _scope;
   final JournalRepository _journalRepository;
+  final ChatRepo _chatRepo;
 
-  ContextProvider(this._scope) : _journalRepository = JournalRepository();
+  ContextProvider(this._scope) 
+      : _journalRepository = JournalRepository(),
+        _chatRepo = ChatRepoImpl.instance;
   
   /// Build context window for LUMARA processing
   /// [scope] - Optional scope to use. If provided, uses this scope instead of the stored scope.
@@ -101,6 +106,12 @@ class ContextProvider {
       nodes.addAll(_generateMockMediaData());
     }
     
+    // Add recent chat sessions for conversation continuity
+    if (effectiveScope.hasScope('chat') || effectiveScope.hasScope('journal')) {
+      final chatSessions = await _getRecentChatSessions(limit: 5);
+      nodes.addAll(chatSessions);
+    }
+    
     return ContextWindow(
       nodes: nodes,
       edges: edges,
@@ -109,6 +120,69 @@ class ContextProvider {
       startDate: startDate,
       endDate: now,
     );
+  }
+  
+  /// Get recent chat sessions for context
+  Future<List<Map<String, dynamic>>> _getRecentChatSessions({int limit = 25}) async {
+    final chatNodes = <Map<String, dynamic>>[];
+    
+    try {
+      final sessions = await _chatRepo.listActive();
+      // Sort by most recent (assuming sessions have updatedAt or similar)
+      sessions.sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
+      
+      // Get up to limit most recent sessions (max 25)
+      final sessionsToInclude = sessions.take(limit).toList();
+      
+      // Archive sessions after the 25th
+      if (sessions.length > 25) {
+        final sessionsToArchive = sessions.skip(25).toList();
+        for (final session in sessionsToArchive) {
+          try {
+            await _chatRepo.archiveSession(session.id, true);
+            print('ContextProvider: Archived session ${session.id} (${session.subject})');
+          } catch (e) {
+            print('ContextProvider: Error archiving session ${session.id}: $e');
+          }
+        }
+      }
+      
+      // Get up to limit most recent sessions
+      for (final session in sessionsToInclude) {
+        try {
+          // Get up to 25 messages from each session for context
+          final messages = await _chatRepo.getMessages(session.id, lazy: false);
+          final recentMessages = messages.take(25).toList();
+          
+          if (recentMessages.isNotEmpty) {
+            final messageText = recentMessages.map((m) {
+              final role = m.role == 'user' ? 'user' : 'assistant';
+              return '$role: ${m.content}';
+            }).join('\n');
+            
+            chatNodes.add({
+              'id': 'chat_${session.id}',
+              'type': 'chat',
+              'text': 'Session: "${session.subject}" (${session.updatedAt.toLocal().toString().split(' ')[0]}):\n$messageText',
+              'meta': {
+                'session_id': session.id,
+                'subject': session.subject,
+                'date': session.updatedAt.toIso8601String(),
+                'message_count': recentMessages.length,
+              },
+            });
+          }
+        } catch (e) {
+          print('ContextProvider: Error getting messages for session ${session.id}: $e');
+        }
+      }
+      
+      print('ContextProvider: Added ${chatNodes.length} recent chat sessions to context');
+    } catch (e) {
+      print('ContextProvider: Error getting recent chat sessions: $e');
+    }
+    
+    return chatNodes;
   }
   
   /// Get real journal entries from repository

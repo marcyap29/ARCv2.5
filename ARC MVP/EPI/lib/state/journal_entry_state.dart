@@ -1,3 +1,5 @@
+import 'package:my_app/polymeta/memory/enhanced_memory_schema.dart';
+
 /// Inline reflection block that appears within journal entries
 class InlineBlock {
   final String type; // 'inline_reflection'
@@ -6,6 +8,7 @@ class InlineBlock {
   final int timestamp;
   final String? phase; // Discovery, Recovery, Breakthrough, Consolidation
   final String? userComment; // User's comment/continuation text after the reflection
+  final List<AttributionTrace>? attributionTraces; // Memory attribution traces for this reflection
 
   InlineBlock({
     required this.type,
@@ -14,6 +17,7 @@ class InlineBlock {
     required this.timestamp,
     this.phase,
     this.userComment,
+    this.attributionTraces,
   });
 
   Map<String, dynamic> toJson() => {
@@ -23,6 +27,7 @@ class InlineBlock {
     'timestamp': timestamp,
     'phase': phase,
     'userComment': userComment,
+    'attributionTraces': attributionTraces?.map((t) => t.toJson()).toList(),
   };
 
   factory InlineBlock.fromJson(Map<String, dynamic> json) => InlineBlock(
@@ -32,6 +37,11 @@ class InlineBlock {
     timestamp: json['timestamp'] as int,
     phase: json['phase'] as String?,
     userComment: json['userComment'] as String?,
+    attributionTraces: json['attributionTraces'] != null
+        ? (json['attributionTraces'] as List)
+            .map((t) => AttributionTrace.fromJson(t as Map<String, dynamic>))
+            .toList()
+        : null,
   );
 
   /// Create a copy with updated fields
@@ -42,6 +52,7 @@ class InlineBlock {
     int? timestamp,
     String? phase,
     String? userComment,
+    List<AttributionTrace>? attributionTraces,
   }) {
     return InlineBlock(
       type: type ?? this.type,
@@ -50,6 +61,7 @@ class InlineBlock {
       timestamp: timestamp ?? this.timestamp,
       phase: phase ?? this.phase,
       userComment: userComment ?? this.userComment,
+      attributionTraces: attributionTraces ?? this.attributionTraces,
     );
   }
 }

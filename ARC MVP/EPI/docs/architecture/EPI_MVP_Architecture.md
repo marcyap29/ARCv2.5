@@ -502,8 +502,53 @@ lib/echo/
 - **On-Device Processing**: Primary AI processing happens on-device
 - **PII Detection**: Automatic detection of emails, phones, API keys, sensitive data
 - **Privacy Masking**: Real-time PII masking in user-facing content
+- **PRISM Scrubbing**: PII scrubbing before all cloud API calls with reversible restoration
 - **Encrypted Storage**: AES-256-GCM encryption for sensitive data
 - **Data Integrity**: Ed25519 signing for data verification
+
+### LUMARA Memory Attribution & Context
+
+The system implements specific attribution excerpts and weighted context prioritization:
+
+- **Specific Attribution Excerpts**: Attribution traces include the exact 2-3 sentences from memory entries used in responses
+- **Context-Based Attribution**: Attribution traces are captured from memory nodes actually used during context building
+- **Three-Tier Weighting**: Context sources are prioritized:
+  - **Tier 1 (Highest)**: Current journal entry + media content (OCR, captions, transcripts)
+  - **Tier 2 (Medium)**: Recent LUMARA responses from same chat session
+  - **Tier 3 (Lowest)**: Other earlier entries/chats
+- **Draft Entry Support**: Unsaved draft entries can be used as context, including current text, media, and metadata
+- **Integration Points**:
+  - `lib/arc/chat/bloc/lumara_assistant_cubit.dart`: Weighted context building, attribution from context
+  - `lib/polymeta/memory/enhanced_mira_memory_service.dart`: Excerpt extraction for attribution traces
+  - `lib/arc/chat/widgets/attribution_display_widget.dart`: Displays specific excerpts in UI
+  - `lib/ui/journal/journal_screen.dart`: Draft entry creation for context
+
+**Flow:**
+1. Context building retrieves memory nodes and extracts excerpts
+2. Attribution traces created with specific excerpts from nodes used
+3. Context built with three-tier weighting (current entry → recent responses → other entries)
+4. Response generated using weighted context
+5. Attribution displayed with specific source text
+
+### PRISM Data Scrubbing
+
+The system implements comprehensive PII scrubbing before any data is sent to cloud APIs:
+
+- **Pre-Cloud Scrubbing**: All user input and system prompts are scrubbed before sending to cloud APIs (Gemini)
+- **Reversible Mapping**: Scrubbed data uses reversible placeholders that can be restored after receiving responses
+- **Dart/Flutter Implementation**: `PiiScrubber.rivetScrubWithMapping()` scrubs data, `PiiScrubber.restore()` restores it
+- **iOS Implementation**: `PrismScrubber.scrub()` and `PrismScrubber.restore()` provide native scrubbing
+- **Scrubbed PII Types**: Emails, phone numbers, addresses, names, SSNs, credit cards, API keys, GPS coordinates
+- **Integration Points**: 
+  - `lib/services/gemini_send.dart`: Scrubs before API calls, restores after receiving
+  - `ios/CapabilityRouter.swift`: Native iOS scrubbing before cloud generation
+  - `lib/services/lumara/pii_scrub.dart`: Unified scrubbing service
+
+**Flow:**
+1. User input → PRISM scrubbing (PII replaced with placeholders)
+2. Scrubbed data → Cloud API (no PII leaves device)
+3. API response → PRISM restoration (placeholders restored to original PII)
+4. User receives response with original PII intact
 
 ### Security Features
 

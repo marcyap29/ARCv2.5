@@ -270,6 +270,86 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
     _checkForDiscovery();
   }
 
+  /// Get the current entry for context (either existing entry or create from draft state)
+  /// This allows LUMARA to use unsaved draft content as context
+  JournalEntry? _getCurrentEntryForContext() {
+    // If we have an existing entry, use it (may have been modified)
+    if (widget.existingEntry != null) {
+      // Create entry from current draft state (includes unsaved changes)
+      final now = DateTime.now();
+      final entryDate = _editableDate ?? now;
+      final entryTime = _editableTime ?? TimeOfDay.fromDateTime(now);
+      final combinedDateTime = DateTime(
+        entryDate.year,
+        entryDate.month,
+        entryDate.day,
+        entryTime.hour,
+        entryTime.minute,
+      );
+      
+      // Convert attachments to media items
+      final mediaItems = _entryState.attachments.isNotEmpty
+          ? MediaConversionUtils.attachmentsToMediaItems(_entryState.attachments)
+          : <MediaItem>[];
+      
+      // Merge with existing entry media if any
+      final allMedia = [
+        ...widget.existingEntry!.media,
+        ...mediaItems,
+      ];
+      
+      return widget.existingEntry!.copyWith(
+        content: _entryState.text.isNotEmpty ? _entryState.text : widget.existingEntry!.content,
+        title: _titleController.text.trim().isNotEmpty 
+            ? _titleController.text.trim() 
+            : widget.existingEntry!.title,
+        createdAt: combinedDateTime,
+        updatedAt: DateTime.now(),
+        media: allMedia,
+        location: _editableLocation ?? widget.existingEntry!.location,
+      );
+    }
+    
+    // If no existing entry, create a temporary entry from draft state
+    if (_entryState.text.trim().isNotEmpty) {
+      final now = DateTime.now();
+      final entryDate = _editableDate ?? now;
+      final entryTime = _editableTime ?? TimeOfDay.fromDateTime(now);
+      final combinedDateTime = DateTime(
+        entryDate.year,
+        entryDate.month,
+        entryDate.day,
+        entryTime.hour,
+        entryTime.minute,
+      );
+      
+      // Convert attachments to media items
+      final mediaItems = _entryState.attachments.isNotEmpty
+          ? MediaConversionUtils.attachmentsToMediaItems(_entryState.attachments)
+          : <MediaItem>[];
+      
+      // Create temporary entry from draft state
+      return JournalEntry(
+        id: 'draft_${DateTime.now().millisecondsSinceEpoch}', // Temporary ID for draft
+        title: _titleController.text.trim().isNotEmpty 
+            ? _titleController.text.trim() 
+            : 'Draft Entry',
+        content: _entryState.text,
+        createdAt: combinedDateTime,
+        updatedAt: DateTime.now(),
+        tags: const [],
+        mood: widget.selectedEmotion ?? 'Other',
+        media: mediaItems,
+        emotion: widget.selectedEmotion,
+        emotionReason: widget.selectedReason,
+        location: _editableLocation,
+        keywords: _manualKeywords,
+      );
+    }
+    
+    return null;
+  }
+
   @override
   void dispose() {
     // Remove lifecycle observer
@@ -677,6 +757,8 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
       }
       
       String reflection;
+      List<AttributionTrace>? attributionTraces;
+      
       if (isFirstActivation) {
         // For first activation, use EnhancedLumaraApi to get full ECHO structure with expansion questions
         reflection = await _enhancedLumaraApi.generatePromptedReflection(
@@ -697,6 +779,25 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
             }
           },
         );
+        
+        // Retrieve attribution traces for the reflection
+        if (_memoryService != null) {
+          try {
+            final responseId = 'journal_resp_${DateTime.now().millisecondsSinceEpoch}';
+            final entryText = richContext['entryText'] ?? '';
+            
+            final memoryResult = await _memoryService!.retrieveMemories(
+              query: entryText,
+              domains: [MemoryDomain.personal, MemoryDomain.creative, MemoryDomain.learning],
+              responseId: responseId,
+            );
+            
+            attributionTraces = memoryResult.attributions;
+            print('Journal: Retrieved ${attributionTraces.length} attribution traces for reflection');
+          } catch (e) {
+            print('Journal: Error retrieving attribution traces: $e');
+          }
+        }
       } else {
         // For subsequent activations, use the brief ArcLLM format
         reflection = await _arcLLM.chat(
@@ -707,11 +808,12 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
       );
       }
 
-      // Update the placeholder block with actual content and clear loading state
+      // Update the placeholder block with actual content, attributions, and clear loading state
       if (mounted) {
         setState(() {
           _entryState.blocks[blockIndex] = _entryState.blocks[blockIndex].copyWith(
             content: reflection,
+            attributionTraces: attributionTraces,
           );
           _lumaraLoadingStates.remove(blockIndex);
           _lumaraLoadingMessages.remove(blockIndex);
@@ -1238,9 +1340,7 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
             initialEmotion: widget.selectedEmotion,
             initialReason: widget.selectedReason,
             manualKeywords: _manualKeywords,
-            existingEntry: widget.existingEntry != null
-                ? widget.existingEntry!.copyWith(title: _titleController.text.trim())
-                : null,
+            existingEntry: _getCurrentEntryForContext(),
             selectedDate: _editableDate,
             selectedTime: _editableTime,
             selectedLocation: _editableLocation,
@@ -1976,6 +2076,7 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
         phase: block.phase,
         isLoading: _lumaraLoadingStates[index] ?? false,
         loadingMessage: _lumaraLoadingMessages[index],
+        attributionTraces: block.attributionTraces,
         onRegenerate: () => _onRegenerateReflection(index),
         onSoften: () => _onSoftenReflection(index),
         onMoreDepth: () => _onMoreDepthReflection(index),

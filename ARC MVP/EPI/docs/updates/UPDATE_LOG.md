@@ -7,6 +7,20 @@
 
 ## Update History
 
+### Version 2.1.9 (January 2025)
+
+#### LUMARA Memory Attribution & Weighted Context
+- ✅ Specific attribution excerpts showing exact 2-3 sentences from memory entries
+- ✅ Context-based attribution from memory nodes actually used
+- ✅ Three-tier weighted context prioritization (current entry → recent responses → other entries)
+- ✅ Draft entry support for unsaved content
+- ✅ Journal integration with attribution display
+
+#### PRISM Data Scrubbing & Restoration
+- ✅ Comprehensive PII scrubbing before cloud API calls
+- ✅ Reversible restoration of PII in responses
+- ✅ Dart/Flutter and iOS parity
+
 ### Version 1.0.0 (January 2025)
 
 #### Major Updates

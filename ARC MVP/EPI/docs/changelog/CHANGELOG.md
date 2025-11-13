@@ -5,6 +5,100 @@
 
 ## [2.1.9] - February 2025
 
+### **LUMARA Memory Attribution & Weighted Context** - Complete
+
+#### Specific Attribution Excerpts
+- **Direct Source Text**: Attribution traces now include the exact 2-3 sentences from memory entries used in responses
+- **Context-Based Attribution**: Attribution traces are captured from memory nodes actually used during context building, ensuring accuracy
+- **Excerpt Display**: UI shows specific source text under "Source:" label in attribution widgets
+- **Journal Integration**: In-journal LUMARA reflections also show specific attribution excerpts
+
+#### Weighted Context Prioritization
+- **Three-Tier System**: Context is weighted to prioritize the most relevant sources
+  - **Tier 1 (Highest Weight)**: Current journal entry + media content
+    - Entry text content
+    - Photo OCR text
+    - Photo descriptions/alt text
+    - Audio/video transcripts
+  - **Tier 2 (Medium Weight)**: Recent LUMARA responses from same chat session
+    - Last 5 assistant messages from current conversation
+    - Provides conversation continuity
+  - **Tier 3 (Lowest Weight)**: Other earlier entries/chats
+    - Semantic search results
+    - Recent entries from progressive loader
+    - Chat sessions from other conversations
+
+#### Draft Entry Support
+- **Unsaved Draft Context**: LUMARA can use unsaved draft entries as context
+- **Draft Entry Creation**: `_getCurrentEntryForContext()` creates temporary JournalEntry from draft state
+- **Includes All Draft Data**: Text, media attachments, title, date, time, location, emotion, keywords
+- **Seamless Integration**: Works automatically when navigating from journal screen to LUMARA chat
+
+#### Implementation Details
+- **Enhanced AttributionTrace**: Added `excerpt` field to store specific source text (first 200 chars)
+- **Context Building**: `_buildEntryContext()` now returns both context string and attribution traces
+- **Weighted Sections**: Context built with clear section markers for each tier
+- **Draft Handling**: Journal screen creates temporary entries from draft state for LUMARA context
+
+**Files Modified**:
+- `lib/polymeta/memory/enhanced_memory_schema.dart` - Added excerpt field to AttributionTrace
+- `lib/polymeta/memory/attribution_service.dart` - Updated to accept excerpt parameter
+- `lib/polymeta/memory/enhanced_mira_memory_service.dart` - Extracts excerpts when creating traces
+- `lib/arc/chat/widgets/attribution_display_widget.dart` - Displays excerpt in UI
+- `lib/arc/chat/bloc/lumara_assistant_cubit.dart` - Weighted context building, attribution from context
+- `lib/arc/chat/ui/lumara_assistant_screen.dart` - Draft entry support, most recent entry fallback
+- `lib/ui/journal/journal_screen.dart` - Draft entry creation for context
+- `lib/ui/journal/widgets/inline_reflection_block.dart` - Journal attribution display
+- `lib/state/journal_entry_state.dart` - Attribution traces in InlineBlock
+
+**Documentation**:
+- `docs/implementation/LUMARA_ATTRIBUTION_WEIGHTED_CONTEXT_JAN_2025.md` - Complete implementation guide
+
+---
+
+### **PRISM Data Scrubbing & Restoration** - Complete
+
+#### Cloud API Privacy Protection
+- **Pre-Cloud Scrubbing**: All user input and system prompts are scrubbed before sending to cloud APIs (Gemini)
+  - PII types scrubbed: emails, phone numbers, addresses, names, SSNs, credit cards, API keys, GPS coordinates
+  - Uses deterministic placeholders: `[EMAIL]`, `[PHONE]`, `[ADDRESS]`, `[NAME]`, `[SSN]`, `[CARD]`
+- **Reversible Restoration**: PII is restored in API responses after receiving
+  - Reversible mapping system stores placeholder → original value mappings
+  - Restoration happens automatically for both sync and streaming responses
+- **Dart/Flutter Integration**: Full PRISM scrubbing in `geminiSend()` and `geminiSendStream()`
+  - `PiiScrubber.rivetScrubWithMapping()` scrubs data with reversible mapping
+  - `PiiScrubber.restore()` restores original PII from scrubbed text
+  - Combined mapping handles PII in both user input and system prompts
+- **iOS Parity**: Dart implementation matches iOS `PrismScrubber` functionality
+  - Consistent behavior across platforms
+  - Same scrubbing patterns and restoration logic
+
+#### Implementation Details
+- **Enhanced PiiScrubber Service**: Added `ScrubbingResult` class and `rivetScrubWithMapping()` method
+- **Updated Gemini API Functions**: Both `geminiSend()` and `geminiSendStream()` now scrub before and restore after
+- **Streaming Support**: Each chunk is restored as it arrives from the API
+- **Backward Compatible**: Existing `rivetScrub()` method still works for non-cloud use cases
+- **Logging**: Scrubbing and restoration activity logged for debugging (no PII in logs)
+
+#### Security Benefits
+- **No PII Leaves Device**: All PII is scrubbed before cloud API calls
+- **Transparent to User**: PII is restored automatically, user sees original values
+- **Feature Flag Control**: Respects `FeatureFlags.piiScrubbing` flag
+- **Memory Safety**: Reversible mappings only stored in memory during API call
+
+**Files Modified**:
+- `lib/services/lumara/pii_scrub.dart` - Enhanced scrubbing service
+- `lib/services/gemini_send.dart` - Added scrubbing and restoration
+
+**Documentation**:
+- `docs/implementation/PRISM_SCRUBBING_IMPLEMENTATION_JAN_2025.md` - Complete implementation guide
+- `docs/architecture/EPI_MVP_Architecture.md` - Updated Security & Privacy section
+- `docs/status/STATUS.md` - Added to Recent Achievements
+
+---
+
+## [2.1.9] - February 2025
+
 ### **LUMARA Semantic Search with Reflection Settings** - Complete
 
 #### Semantic Memory Retrieval

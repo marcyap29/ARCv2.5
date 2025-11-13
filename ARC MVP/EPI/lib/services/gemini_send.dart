@@ -1,14 +1,17 @@
 // lib/services/gemini_send.dart
 // Minimal Gemini send() adapter for ArcLLM.
+// PRISM scrubbing and restoration enabled
 
 import 'dart:convert';
 import 'dart:io';
 
 import 'package:my_app/services/llm_bridge_adapter.dart';
 import 'package:my_app/arc/chat/config/api_config.dart';
+import 'package:my_app/services/lumara/pii_scrub.dart';
 
 /// Sends a single-turn request to Gemini with an optional system instruction.
 /// Returns the concatenated text from candidates[0].content.parts[].text.
+/// PRISM scrubbing is applied before sending, and responses are restored.
 Future<String> geminiSend({
   required String system,
   required String user,
@@ -33,6 +36,28 @@ Future<String> geminiSend({
     throw StateError('Gemini API key not configured. Please add your API key in LUMARA Settings.');
   }
 
+  // PRISM: Scrub PII from user input and system prompt before sending to cloud API
+  final userScrubResult = PiiScrubber.rivetScrubWithMapping(user);
+  final systemScrubResult = system.trim().isNotEmpty 
+      ? PiiScrubber.rivetScrubWithMapping(system) 
+      : ScrubbingResult(scrubbedText: system, reversibleMap: {}, findings: []);
+  
+  // Combine reversible maps (user + system)
+  final combinedReversibleMap = <String, String>{
+    ...userScrubResult.reversibleMap,
+    ...systemScrubResult.reversibleMap,
+  };
+  
+  if (userScrubResult.findings.isNotEmpty || systemScrubResult.findings.isNotEmpty) {
+    print('PRISM: Scrubbed PII before cloud API call');
+    if (userScrubResult.findings.isNotEmpty) {
+      print('PRISM: User text - Found ${userScrubResult.findings.length} PII items: ${userScrubResult.findings.join(", ")}');
+    }
+    if (systemScrubResult.findings.isNotEmpty) {
+      print('PRISM: System prompt - Found ${systemScrubResult.findings.length} PII items: ${systemScrubResult.findings.join(", ")}');
+    }
+  }
+
   final uri = Uri.parse(
     'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=$apiKey',
   );
@@ -40,18 +65,18 @@ Future<String> geminiSend({
   print('DEBUG GEMINI: Using endpoint: ${uri.toString().replaceAll(apiKey, '[API_KEY]')}');
 
   final body = {
-    if (system.trim().isNotEmpty)
+    if (systemScrubResult.scrubbedText.trim().isNotEmpty)
       'systemInstruction': {
         'role': 'system',
         'parts': [
-          {'text': system}
+          {'text': systemScrubResult.scrubbedText}
         ]
       },
     'contents': [
       {
         'role': 'user',
         'parts': [
-          {'text': user}
+          {'text': userScrubResult.scrubbedText}
         ]
       }
     ],
@@ -96,9 +121,17 @@ Future<String> geminiSend({
       if (t is String) buffer.write(t);
     }
 
-    final result = buffer.toString();
-    print('DEBUG GEMINI: Successfully parsed response, result length: ${result.length}');
-    return result;
+    final rawResult = buffer.toString();
+    
+    // PRISM: Restore original PII in the response
+    final restoredResult = PiiScrubber.restore(rawResult, combinedReversibleMap);
+    
+    if (restoredResult != rawResult) {
+      print('PRISM: Restored PII in response (restored ${combinedReversibleMap.length} items)');
+    }
+    
+    print('DEBUG GEMINI: Successfully parsed response, result length: ${restoredResult.length}');
+    return restoredResult;
   } catch (e) {
     print('DEBUG GEMINI: Error in geminiSend: $e');
     if (e is StateError) {
@@ -115,6 +148,7 @@ Future<String> geminiSend({
 
 /// Streams a single-turn request to Gemini with an optional system instruction.
 /// Yields text chunks as they arrive from the API.
+/// PRISM scrubbing is applied before sending, and each chunk is restored.
 Stream<String> geminiSendStream({
   required String system,
   required String user,
@@ -134,6 +168,28 @@ Stream<String> geminiSendStream({
     throw StateError('Gemini API key not configured. Please add your API key in LUMARA Settings.');
   }
 
+  // PRISM: Scrub PII from user input and system prompt before sending to cloud API
+  final userScrubResult = PiiScrubber.rivetScrubWithMapping(user);
+  final systemScrubResult = system.trim().isNotEmpty 
+      ? PiiScrubber.rivetScrubWithMapping(system) 
+      : ScrubbingResult(scrubbedText: system, reversibleMap: {}, findings: []);
+  
+  // Combine reversible maps (user + system)
+  final combinedReversibleMap = <String, String>{
+    ...userScrubResult.reversibleMap,
+    ...systemScrubResult.reversibleMap,
+  };
+  
+  if (userScrubResult.findings.isNotEmpty || systemScrubResult.findings.isNotEmpty) {
+    print('PRISM: Scrubbed PII before cloud API stream call');
+    if (userScrubResult.findings.isNotEmpty) {
+      print('PRISM: User text - Found ${userScrubResult.findings.length} PII items: ${userScrubResult.findings.join(", ")}');
+    }
+    if (systemScrubResult.findings.isNotEmpty) {
+      print('PRISM: System prompt - Found ${systemScrubResult.findings.length} PII items: ${systemScrubResult.findings.join(", ")}');
+    }
+  }
+
   final uri = Uri.parse(
     'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:streamGenerateContent?key=$apiKey&alt=sse',
   );
@@ -141,18 +197,18 @@ Stream<String> geminiSendStream({
   print('DEBUG GEMINI STREAM: Using streaming endpoint');
 
   final body = {
-    if (system.trim().isNotEmpty)
+    if (systemScrubResult.scrubbedText.trim().isNotEmpty)
       'systemInstruction': {
         'role': 'system',
         'parts': [
-          {'text': system}
+          {'text': systemScrubResult.scrubbedText}
         ]
       },
     'contents': [
       {
         'role': 'user',
         'parts': [
-          {'text': user}
+          {'text': userScrubResult.scrubbedText}
         ]
       }
     ],
@@ -198,7 +254,9 @@ Stream<String> geminiSendStream({
             for (final part in parts) {
               final text = part['text'] as String?;
               if (text != null && text.isNotEmpty) {
-                yield text;
+                // PRISM: Restore original PII in each chunk
+                final restoredText = PiiScrubber.restore(text, combinedReversibleMap);
+                yield restoredText;
               }
             }
           } catch (e) {
