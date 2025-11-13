@@ -25,6 +25,7 @@ class SemanticSimilarityService {
   }
   
   // Boost recent entries slightly
+  // [horizonYears] - Can be overridden by settings, default is 5
   double recencyBoost(DateTime? date, {int horizonYears = 5}) {
     if (date == null) return 1.0;
     

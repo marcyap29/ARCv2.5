@@ -21,6 +21,7 @@ import '../chat/chat_models.dart';
 import '../chat/quickanswers_router.dart';
 import 'package:my_app/polymeta/adapters/mira_basics_adapters.dart';
 import 'package:my_app/arc/core/journal_repository.dart';
+import '../services/lumara_reflection_settings_service.dart';
 
 /// LUMARA Assistant Cubit State
 abstract class LumaraAssistantState {}
@@ -254,7 +255,7 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
         
         // Get context for Gemini (using current scope from state)
         final context = await _contextProvider.buildContext(scope: currentState.scope);
-        final entryText = _buildEntryContext(context);
+        final entryText = await _buildEntryContext(context, userQuery: text);
         final phaseHint = _buildPhaseHint(context);
         final keywords = _buildKeywordsContext(context);
         
@@ -482,7 +483,7 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
       debugPrint('LUMARA Debug: ========== STARTING GEMINI PATH ==========');
       print('LUMARA Debug: [Gemini] Calling Gemini with journal context...');
       
-      final entryText = _buildEntryContext(context);
+      final entryText = await _buildEntryContext(context, userQuery: text);
       final phaseHint = _buildPhaseHint(context);
       final keywords = _buildKeywordsContext(context);
       
@@ -576,7 +577,7 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
       
       debugPrint('LUMARA Debug: [Gemini] Step 3: Building context for ArcLLM...');
       // Build context for ArcLLM
-      final entryText = _buildEntryContext(context);
+      final entryText = await _buildEntryContext(context, userQuery: text);
       final phaseHint = _buildPhaseHint(context);
       final keywords = _buildKeywordsContext(context);
       debugPrint('LUMARA Debug: [Gemini] Step 3: Context built');
@@ -738,7 +739,13 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
     final context = await _contextProvider.buildContext(scope: scope);
 
     // Build context for streaming
-    final entryText = _buildEntryContext(context);
+    // Extract user query from baseMessages (last user message)
+    final userQuery = baseMessages.lastWhere(
+      (m) => m.role == 'user',
+      orElse: () => baseMessages.isNotEmpty ? baseMessages.last : LumaraMessage.user(content: ''),
+    ).content;
+    
+    final entryText = await _buildEntryContext(context, userQuery: userQuery);
     final phaseHint = _buildPhaseHint(context);
     final keywords = _buildKeywordsContext(context);
 
@@ -1103,23 +1110,116 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
   }
 
   /// Build entry context for ArcLLM
-  String _buildEntryContext(ContextWindow context) {
-    // Use progressive memory loader to get entries from loaded years
-    final loadedEntries = _memoryLoader.getLoadedEntries();
-    
-    print('LUMARA: Building context from ${loadedEntries.length} loaded entries (years: ${_memoryLoader.getLoadedYears()})');
-    
-    if (loadedEntries.isEmpty) return '';
-
+  /// [userQuery] - Optional user query to find semantically relevant entries
+  Future<String> _buildEntryContext(ContextWindow context, {String? userQuery}) async {
     final buffer = StringBuffer();
-    for (final entry in loadedEntries.take(25)) {  // Use top 25 entries from loaded years
-      final text = entry.content;
-      if (text.isNotEmpty) {
-        buffer.writeln(text);
-        buffer.writeln('---');  // Add separator
+    final Set<String> addedEntryIds = {}; // Track added entries to avoid duplicates
+    
+    // If we have a query and memory service, use semantic search
+    if (userQuery != null && userQuery.isNotEmpty && _memoryService != null) {
+      try {
+        final settingsService = LumaraReflectionSettingsService.instance;
+        final similarityThreshold = await settingsService.getSimilarityThreshold();
+        final lookbackYears = await settingsService.getEffectiveLookbackYears();
+        final maxMatches = await settingsService.getEffectiveMaxMatches();
+        final therapeuticEnabled = await settingsService.isTherapeuticPresenceEnabled();
+        final therapeuticDepthLevel = therapeuticEnabled 
+            ? await settingsService.getTherapeuticDepthLevel() 
+            : null;
+        final crossModalEnabled = await settingsService.isCrossModalEnabled();
+        
+        print('LUMARA: Searching for relevant entries with query: "$userQuery"');
+        print('LUMARA: Settings - threshold: $similarityThreshold, lookback: $lookbackYears years, maxMatches: $maxMatches, depth: $therapeuticDepthLevel');
+        
+        final memoryResult = await _memoryService!.retrieveMemories(
+          query: userQuery,
+          domains: [MemoryDomain.personal, MemoryDomain.creative, MemoryDomain.learning],
+          limit: maxMatches,
+          similarityThreshold: similarityThreshold,
+          lookbackYears: lookbackYears,
+          maxMatches: maxMatches,
+          therapeuticDepthLevel: therapeuticDepthLevel,
+          crossModalEnabled: crossModalEnabled,
+        );
+        
+        print('LUMARA: Found ${memoryResult.nodes.length} semantically relevant nodes');
+        
+        // Extract entry IDs from memory nodes and fetch full content
+        for (final node in memoryResult.nodes) {
+          // Try to extract entry ID from node
+          // Entry nodes typically have their ID in the node.id or node.data
+          String? entryId;
+          
+          // Check if node.data contains entry reference
+          if (node.data.containsKey('original_entry_id')) {
+            entryId = node.data['original_entry_id'] as String?;
+          } else if (node.id.startsWith('entry:')) {
+            entryId = node.id.replaceFirst('entry:', '');
+          } else if (node.id.contains('_')) {
+            // Try to extract from ID format
+            final parts = node.id.split('_');
+            if (parts.length > 1) {
+              entryId = parts.last;
+            }
+          }
+          
+          // If we found an entry ID, try to get the full entry
+          if (entryId != null && !addedEntryIds.contains(entryId)) {
+            try {
+              final allEntries = _journalRepository.getAllJournalEntries();
+              final entry = allEntries.firstWhere(
+                (e) => e.id == entryId,
+                orElse: () => allEntries.first, // Fallback
+              );
+              
+              if (entry.content.isNotEmpty) {
+                buffer.writeln(entry.content);
+                buffer.writeln('---');
+                addedEntryIds.add(entryId);
+                print('LUMARA: Added entry $entryId from semantic search');
+              }
+            } catch (e) {
+              // If entry not found, use node narrative as fallback
+              if (node.narrative.isNotEmpty && !addedEntryIds.contains(node.id)) {
+                buffer.writeln(node.narrative);
+                buffer.writeln('---');
+                addedEntryIds.add(node.id);
+                print('LUMARA: Added node ${node.id} narrative as fallback');
+              }
+            }
+          } else if (node.narrative.isNotEmpty && !addedEntryIds.contains(node.id)) {
+            // Use node narrative directly if no entry ID found
+            buffer.writeln(node.narrative);
+            buffer.writeln('---');
+            addedEntryIds.add(node.id);
+            print('LUMARA: Added node ${node.id} narrative');
+          }
+        }
+      } catch (e) {
+        print('LUMARA: Error in semantic search: $e');
+        // Fall through to use recent entries
       }
     }
-    return buffer.toString().trim();
+    
+    // Also include recent entries from progressive loader for context continuity
+    final loadedEntries = _memoryLoader.getLoadedEntries();
+    print('LUMARA: Adding ${loadedEntries.length} recent entries from progressive loader');
+    
+    int recentCount = 0;
+    for (final entry in loadedEntries) {
+      if (!addedEntryIds.contains(entry.id) && recentCount < 10) {
+        if (entry.content.isNotEmpty) {
+          buffer.writeln(entry.content);
+          buffer.writeln('---');
+          addedEntryIds.add(entry.id);
+          recentCount++;
+        }
+      }
+    }
+    
+    final result = buffer.toString().trim();
+    print('LUMARA: Built context with ${addedEntryIds.length} unique entries');
+    return result;
   }
 
   /// Build phase hint for ArcLLM - uses actual current phase from context provider

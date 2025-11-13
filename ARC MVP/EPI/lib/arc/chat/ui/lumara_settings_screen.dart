@@ -11,6 +11,7 @@ import 'package:my_app/telemetry/analytics.dart';
 import '../llm/bridge.pigeon.dart';
 import '../bloc/lumara_assistant_cubit.dart';
 import '../data/context_scope.dart';
+import '../services/lumara_reflection_settings_service.dart';
 
 /// LUMARA settings screen for API key management and provider selection
 class LumaraSettingsScreen extends StatefulWidget {
@@ -243,6 +244,7 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
     super.initState();
     _initializeControllers();
     _loadCurrentSettings();
+    _loadReflectionSettings();
     _downloadStateService.addListener(_onDownloadStateChanged);
     // Refresh model states to handle model ID changes
     _downloadStateService.refreshAllStates();
@@ -396,6 +398,34 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
     setState(() {
       _selectedProvider = manualProvider;
     });
+  }
+
+  Future<void> _loadReflectionSettings() async {
+    final settingsService = LumaraReflectionSettingsService.instance;
+    final settings = await settingsService.loadAllSettings();
+    
+    if (mounted) {
+      setState(() {
+        _similarityThreshold = settings['similarityThreshold'] as double;
+        _lookbackYears = settings['lookbackYears'] as int;
+        _maxMatches = settings['maxMatches'] as int;
+        _crossModalEnabled = settings['crossModalEnabled'] as bool;
+        _therapeuticPresenceEnabled = settings['therapeuticPresenceEnabled'] as bool;
+        _therapeuticDepthLevel = settings['therapeuticDepthLevel'] as int;
+      });
+    }
+  }
+
+  Future<void> _saveReflectionSettings() async {
+    final settingsService = LumaraReflectionSettingsService.instance;
+    await settingsService.saveAllSettings(
+      similarityThreshold: _similarityThreshold,
+      lookbackYears: _lookbackYears,
+      maxMatches: _maxMatches,
+      crossModalEnabled: _crossModalEnabled,
+      therapeuticPresenceEnabled: _therapeuticPresenceEnabled,
+      therapeuticDepthLevel: _therapeuticDepthLevel,
+    );
   }
 
   @override
@@ -1749,6 +1779,7 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
                 setState(() {
                   _similarityThreshold = value;
                 });
+                _saveReflectionSettings();
               },
             ),
             _buildSliderTile(
@@ -1763,6 +1794,7 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
                 setState(() {
                   _lookbackYears = value.round();
                 });
+                _saveReflectionSettings();
               },
             ),
             _buildSliderTile(
@@ -1777,6 +1809,7 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
                 setState(() {
                   _maxMatches = value.round();
                 });
+                _saveReflectionSettings();
               },
             ),
             _buildSwitchTile(
@@ -1788,6 +1821,7 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
                 setState(() {
                   _crossModalEnabled = value;
                 });
+                _saveReflectionSettings();
               },
             ),
           ],
@@ -1836,6 +1870,7 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
                 setState(() {
                   _therapeuticPresenceEnabled = value;
                 });
+                _saveReflectionSettings();
               },
             ),
             if (_therapeuticPresenceEnabled) ...[
@@ -1909,6 +1944,7 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
                         setState(() {
                           _therapeuticDepthLevel = value.round();
                         });
+                        _saveReflectionSettings();
                       },
                     ),
                     const SizedBox(height: 8),
@@ -1923,6 +1959,7 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
                             setState(() {
                               _therapeuticDepthLevel = index + 1;
                             });
+                            _saveReflectionSettings();
                           },
                           child: Text(
                             label,

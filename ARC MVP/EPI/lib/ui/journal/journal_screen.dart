@@ -49,6 +49,10 @@ import 'package:my_app/arc/chat/chat/chat_repo_impl.dart';
 import 'package:my_app/arc/chat/chat/chat_models.dart';
 import 'package:my_app/aurora/services/circadian_profile_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:my_app/arc/chat/services/lumara_reflection_settings_service.dart';
+import 'package:my_app/polymeta/memory/enhanced_mira_memory_service.dart';
+import 'package:my_app/polymeta/memory/enhanced_memory_schema.dart';
+import 'package:my_app/polymeta/mira_service.dart';
 
 /// Main journal screen with integrated LUMARA companion and OCR scanning
 class JournalScreen extends StatefulWidget {
@@ -87,6 +91,7 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
   late final ProgressiveMemoryLoader _memoryLoader;
   final JournalRepository _journalRepository = JournalRepository();
   late final ArcLLM _arcLLM;
+  EnhancedMiraMemoryService? _memoryService;
   String? _currentDraftId;
   Timer? _autoSaveTimer;
   final ImagePicker _imagePicker = ImagePicker();
@@ -402,6 +407,22 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
     try {
       await _memoryLoader.initialize();
       print('LUMARA Journal: Initialized progressive memory loader');
+      
+      // Initialize memory service for semantic search
+      try {
+        _memoryService = EnhancedMiraMemoryService(
+          miraService: MiraService.instance,
+        );
+        await _memoryService!.initialize(
+          userId: 'user_${DateTime.now().millisecondsSinceEpoch}',
+          sessionId: null,
+          currentPhase: _entryState.phase ?? 'Discovery',
+        );
+        print('LUMARA Journal: Initialized memory service for semantic search');
+      } catch (e) {
+        print('LUMARA Journal: Memory service initialization error: $e');
+        // Continue without memory service - will fall back to recent entries
+      }
     } catch (e) {
       print('LUMARA Journal: Memory loader initialization error: $e');
     }
@@ -635,7 +656,7 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
       
       // The new block index will be the current length (0 for first activation)
       newBlockIndex = _entryState.blocks.length;
-      final blockIndex = newBlockIndex!; // Non-null after assignment - safe to assert
+      final blockIndex = newBlockIndex; // Non-null after assignment
       
       // Create placeholder block immediately so loading indicator shows
       final placeholderBlock = InlineBlock(
@@ -3142,20 +3163,107 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
   }
 
   /// Build journal context from loaded entries for reflection
-  String _buildJournalContext(List<JournalEntry> loadedEntries) {
+  Future<String> _buildJournalContext(List<JournalEntry> loadedEntries, {String? query}) async {
     final buffer = StringBuffer();
+    final Set<String> addedEntryIds = {}; // Track added entries to avoid duplicates
     
     // Add current entry text
     buffer.writeln('Current entry:');
     buffer.writeln(_entryState.text);
     buffer.writeln('---');
     
-    // Add loaded entries from memory
+    // If we have a query and memory service, use semantic search
+    final searchQuery = query ?? _entryState.text;
+    if (searchQuery.isNotEmpty && _memoryService != null) {
+      try {
+        final settingsService = LumaraReflectionSettingsService.instance;
+        final similarityThreshold = await settingsService.getSimilarityThreshold();
+        final lookbackYears = await settingsService.getEffectiveLookbackYears();
+        final maxMatches = await settingsService.getEffectiveMaxMatches();
+        final therapeuticEnabled = await settingsService.isTherapeuticPresenceEnabled();
+        final therapeuticDepthLevel = therapeuticEnabled 
+            ? await settingsService.getTherapeuticDepthLevel() 
+            : null;
+        final crossModalEnabled = await settingsService.isCrossModalEnabled();
+        
+        print('LUMARA Journal: Searching for relevant entries with query: "$searchQuery"');
+        print('LUMARA Journal: Settings - threshold: $similarityThreshold, lookback: $lookbackYears years, maxMatches: $maxMatches');
+        
+        final memoryResult = await _memoryService!.retrieveMemories(
+          query: searchQuery,
+          domains: [MemoryDomain.personal, MemoryDomain.creative, MemoryDomain.learning],
+          limit: maxMatches,
+          similarityThreshold: similarityThreshold,
+          lookbackYears: lookbackYears,
+          maxMatches: maxMatches,
+          therapeuticDepthLevel: therapeuticDepthLevel,
+          crossModalEnabled: crossModalEnabled,
+        );
+        
+        print('LUMARA Journal: Found ${memoryResult.nodes.length} semantically relevant nodes');
+        
+        // Extract entry IDs from memory nodes and fetch full content
+        if (memoryResult.nodes.isNotEmpty) {
+          buffer.writeln('Semantically similar journal history:');
+          for (final node in memoryResult.nodes) {
+            // Try to extract entry ID from node
+            String? entryId;
+            
+            if (node.data.containsKey('original_entry_id')) {
+              entryId = node.data['original_entry_id'] as String?;
+            } else if (node.id.startsWith('entry:')) {
+              entryId = node.id.replaceFirst('entry:', '');
+            }
+            
+            // If we found an entry ID, try to get the full entry
+            if (entryId != null && !addedEntryIds.contains(entryId)) {
+              try {
+                final allEntries = _journalRepository.getAllJournalEntries();
+                final entry = allEntries.firstWhere(
+                  (e) => e.id == entryId,
+                  orElse: () => allEntries.first,
+                );
+                
+                if (entry.content.isNotEmpty) {
+                  buffer.writeln(entry.content);
+                  buffer.writeln('---');
+                  addedEntryIds.add(entryId);
+                }
+              } catch (e) {
+                // If entry not found, use node narrative as fallback
+                if (node.narrative.isNotEmpty && !addedEntryIds.contains(node.id)) {
+                  buffer.writeln(node.narrative);
+                  buffer.writeln('---');
+                  addedEntryIds.add(node.id);
+                }
+              }
+            } else if (node.narrative.isNotEmpty && !addedEntryIds.contains(node.id)) {
+              // Use node narrative directly if no entry ID found
+              buffer.writeln(node.narrative);
+              buffer.writeln('---');
+              addedEntryIds.add(node.id);
+            }
+          }
+        }
+      } catch (e) {
+        print('LUMARA Journal: Error in semantic search: $e');
+        // Fall through to use recent entries
+      }
+    }
+    
+    // Also include recent entries from loaded entries for context continuity
     if (loadedEntries.isNotEmpty) {
       buffer.writeln('Recent journal history:');
-      for (final entry in loadedEntries.take(25)) {
-        buffer.writeln(entry.content);
-        buffer.writeln('---');
+      int recentCount = 0;
+      for (final entry in loadedEntries) {
+        if (!addedEntryIds.contains(entry.id) && recentCount < 10) {
+          if (entry.content.isNotEmpty) {
+            buffer.writeln(entry.content);
+            buffer.writeln('---');
+            addedEntryIds.add(entry.id);
+            recentCount++;
+          }
+        }
       }
     }
     
@@ -3170,7 +3278,8 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
     final context = <String, dynamic>{};
     
     // Build entry text from loaded journal entries
-    context['entryText'] = _buildJournalContext(loadedEntries);
+    // Use current entry text as query for semantic search
+    context['entryText'] = await _buildJournalContext(loadedEntries, query: _entryState.text);
     
     // Get mood/emotion from current entry or widget
     String? mood;

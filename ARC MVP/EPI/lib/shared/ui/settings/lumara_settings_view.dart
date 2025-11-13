@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:my_app/shared/app_colors.dart';
 import 'package:my_app/shared/text_style.dart';
 import 'package:my_app/telemetry/analytics.dart';
+import 'package:my_app/arc/chat/services/lumara_reflection_settings_service.dart';
 
 class LumaraSettingsView extends StatefulWidget {
   const LumaraSettingsView({super.key});
@@ -31,12 +32,32 @@ class _LumaraSettingsViewState extends State<LumaraSettingsView> {
   }
 
   Future<void> _loadSettings() async {
-    // TODO: Load from SharedPreferences or similar
-    // For now, use defaults
+    final settingsService = LumaraReflectionSettingsService.instance;
+    final settings = await settingsService.loadAllSettings();
+    
+    if (mounted) {
+      setState(() {
+        _similarityThreshold = settings['similarityThreshold'] as double;
+        _lookbackYears = settings['lookbackYears'] as int;
+        _maxMatches = settings['maxMatches'] as int;
+        _crossModalEnabled = settings['crossModalEnabled'] as bool;
+        _therapeuticPresenceEnabled = settings['therapeuticPresenceEnabled'] as bool;
+        _therapeuticDepthLevel = settings['therapeuticDepthLevel'] as int;
+      });
+    }
   }
 
   Future<void> _saveSettings() async {
-    // TODO: Save to SharedPreferences
+    final settingsService = LumaraReflectionSettingsService.instance;
+    await settingsService.saveAllSettings(
+      similarityThreshold: _similarityThreshold,
+      lookbackYears: _lookbackYears,
+      maxMatches: _maxMatches,
+      crossModalEnabled: _crossModalEnabled,
+      therapeuticPresenceEnabled: _therapeuticPresenceEnabled,
+      therapeuticDepthLevel: _therapeuticDepthLevel,
+    );
+    
     _analytics.logLumaraEvent('settings_updated', data: {
       'similarityThreshold': _similarityThreshold,
       'lookbackYears': _lookbackYears,

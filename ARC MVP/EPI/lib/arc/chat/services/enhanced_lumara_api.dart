@@ -17,6 +17,7 @@ import 'lumara_response_scoring.dart' as scoring;
 import '../prompts/lumara_prompts.dart';
 import '../prompts/lumara_unified_prompts.dart' show LumaraContext;
 import '../../../services/gemini_send.dart';
+import 'lumara_reflection_settings_service.dart';
 
 /// Enhanced LUMARA API with multimodal reflection
 class EnhancedLumaraApi {
@@ -145,25 +146,35 @@ class EnhancedLumaraApi {
       
       final currentPhase = _convertFromV23PhaseHint(request.phaseHint);
       
-      // 1. Retrieve all candidate nodes
+      // 1. Get settings from service
+      final settingsService = LumaraReflectionSettingsService.instance;
+      final similarityThreshold = await settingsService.getSimilarityThreshold();
+      final lookbackYears = await settingsService.getEffectiveLookbackYears();
+      final maxMatches = await settingsService.getEffectiveMaxMatches();
+      final therapeuticEnabled = await settingsService.isTherapeuticPresenceEnabled();
+      final therapeuticDepthLevel = therapeuticEnabled 
+          ? await settingsService.getTherapeuticDepthLevel() 
+          : null;
+      
+      // 2. Retrieve all candidate nodes
       onProgress?.call('Preparing context...');
       final allNodes = _storage.getAllNodes(
         userId: userId ?? 'default',
-        maxYears: 5,
+        maxYears: lookbackYears,
       );
       
-      // 2. Score and rank by similarity
+      // 3. Score and rank by similarity
       onProgress?.call('Analyzing your journal history...');
       final scored = <({double score, ReflectiveNode node})>[];
       for (final node in allNodes) {
         final score = _similarity.scoreNode(request.userText, node, currentPhase);
-        if (score > 0.55) {  // threshold
+        if (score >= similarityThreshold) {  // Use threshold from settings
           scored.add((score: score, node: node));
         }
       }
       
       scored.sort((a, b) => b.score.compareTo(a.score));
-      final topNodes = scored.take(5).toList();
+      final topNodes = scored.take(maxMatches).toList();
       
       // 3. Convert to MatchedNode
       final matches = topNodes.map((item) => MatchedNode(
