@@ -59,7 +59,11 @@ The system now gathers comprehensive context from multiple sources:
 #### Earlier Entries
 - Uses ProgressiveMemoryLoader to gather historical context
 - Up to 25 recent entries from current year
-- Semantic similarity matching via MIRA nodes
+- **Semantic Search Integration (v2.4)**: Now uses EnhancedMiraMemoryService for intelligent semantic search
+  - Finds relevant entries across configurable lookback period (default: 5 years)
+  - Respects similarity threshold, max matches, and therapeutic depth settings
+  - Searches keywords (automatic and manual), phase context, and media content
+  - Prioritizes semantically relevant entries over just recent ones
 - Pattern recognition across entries
 
 ### 2. First Activation vs. Subsequent Activations

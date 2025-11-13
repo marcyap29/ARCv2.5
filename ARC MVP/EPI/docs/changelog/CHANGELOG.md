@@ -1,7 +1,83 @@
 # EPI ARC MVP - Changelog
 
-**Version:** 2.1.8  
+**Version:** 2.1.9  
 **Last Updated:** February 2025
+
+## [2.1.9] - February 2025
+
+### **LUMARA Semantic Search with Reflection Settings** - Complete
+
+#### Semantic Memory Retrieval
+- **Intelligent Context Finding**: LUMARA now uses semantic search to find relevant entries by meaning, not just recency
+  - Searches across all entries within configurable lookback period (default: 5 years)
+  - Finds entries about specific topics even if they're not recent
+  - Solves issue where LUMARA couldn't find entries about "old company" or "feelings" despite clear labeling
+- **Enhanced Keyword Matching**: Sophisticated keyword matching with priority levels
+  - Exact case match (0.7 score boost) - finds "Shield AI" when query is "Shield AI"
+  - Case-insensitive exact match (0.5 score boost)
+  - Contains match (0.4 score boost)
+  - Word-by-word matching for multi-word keywords
+- **Cross-Modal Awareness**: Optional search through media content
+  - Photo captions and alt text
+  - OCR text from images
+  - Audio/video transcripts
+  - Configurable via settings (default: enabled)
+
+#### Reflection Settings Integration
+- **New Settings Service**: `LumaraReflectionSettingsService` for persisting user preferences
+  - Similarity Threshold (0.1-1.0, default: 0.55) - controls how closely entries must match
+  - Lookback Period (1-10 years, default: 5) - how far back to search
+  - Max Matches (1-20, default: 5) - maximum entries to include in context
+  - Cross-Modal Awareness toggle (default: enabled)
+  - Therapeutic Presence depth level integration
+- **Settings UI**: Integrated into LUMARA Settings → Reflection Settings
+  - Sliders for threshold, lookback, and max matches
+  - Toggle for cross-modal awareness
+  - Settings persist across app restarts
+- **Therapeutic Depth Adjustment**: Search depth adjusts based on Therapeutic Presence mode
+  - Light (Level 1): -40% search depth (fewer, more recent results)
+  - Standard (Level 2): Normal search depth (default)
+  - Deep (Level 3): +40-60% search depth (more comprehensive results)
+
+#### Integration Points
+- **In-Chat LUMARA**: `_buildEntryContext()` now accepts user query and uses semantic search
+  - Merges semantically relevant entries with recent entries
+  - Graceful fallback to recent entries if search fails
+- **In-Journal LUMARA**: `_buildJournalContext()` uses current entry text as query
+  - Works with existing rich context expansion system
+  - Finds related entries across time periods
+- **Enhanced Lumara API**: `generatePromptedReflectionV23()` respects reflection settings
+  - Uses similarity threshold for filtering
+  - Respects lookback years and max matches
+
+#### Technical Implementation
+- **Enhanced Memory Service**: Extended `retrieveMemories()` with new parameters
+  - Similarity threshold filtering
+  - Lookback period date filtering
+  - Cross-modal search logic
+  - Therapeutic depth adjustments
+- **Scoring Algorithm**: Multi-factor scoring system
+  - Content match (0.5 weight)
+  - Keyword match (0.3-0.7 weight based on match type)
+  - Phase match (0.2 weight)
+  - Media match (0.15 weight, if cross-modal enabled)
+- **Context Building**: Enhanced context building methods
+  - Extract entry IDs from memory nodes
+  - Fetch full entry content from repository
+  - Avoid duplicates when merging with recent entries
+
+#### Files Modified
+- `lib/arc/chat/services/lumara_reflection_settings_service.dart` - **NEW**: Settings service
+- `lib/polymeta/memory/enhanced_mira_memory_service.dart` - Enhanced with semantic search parameters
+- `lib/arc/chat/bloc/lumara_assistant_cubit.dart` - Updated `_buildEntryContext()` for semantic search
+- `lib/ui/journal/journal_screen.dart` - Updated `_buildJournalContext()` for semantic search
+- `lib/arc/chat/services/enhanced_lumara_api.dart` - Uses reflection settings
+- `lib/arc/chat/services/semantic_similarity_service.dart` - Updated recency boost
+- `lib/arc/chat/ui/lumara_settings_screen.dart` - Loads/saves reflection settings
+- `lib/shared/ui/settings/lumara_settings_view.dart` - Settings UI integration
+
+#### Files Added
+- `docs/features/LUMARA_SEMANTIC_SEARCH_FEB_2025.md` - Complete feature documentation
 
 ## [2.1.8] - February 2025
 
