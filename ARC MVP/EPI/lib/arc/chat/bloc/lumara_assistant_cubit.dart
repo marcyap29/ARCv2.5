@@ -855,8 +855,36 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
     } catch (e) {
       print('LUMARA Debug: Error during streaming: $e');
 
-      // Handle error by showing error message
+      // Handle error by preserving partial response if available
       if (state is LumaraAssistantLoaded) {
+        final currentMessages = (state as LumaraAssistantLoaded).messages;
+        
+        // Check if we have a partial response to preserve
+        if (currentMessages.isNotEmpty) {
+          final lastIndex = currentMessages.length - 1;
+          final lastMessage = currentMessages[lastIndex];
+          
+          // If we have meaningful partial content, preserve it with error note
+          if (lastMessage.content.isNotEmpty && lastMessage.content.length > 20) {
+            final partialContent = lastMessage.content;
+            final errorMessage = LumaraMessage.assistant(
+              content: '$partialContent\n\n[Note: Response was interrupted. You can ask me to continue if needed.]',
+            );
+            
+            final finalMessages = [
+              ...currentMessages.sublist(0, lastIndex),
+              errorMessage,
+            ];
+            
+            emit((state as LumaraAssistantLoaded).copyWith(
+              messages: finalMessages,
+              isProcessing: false,
+            ));
+            return; // Exit early, we've preserved the partial response
+          }
+        }
+        
+        // Only show full error message if we have no partial response
         final errorMessage = LumaraMessage.assistant(
           content: "I'm sorry, I encountered an error while streaming the response. Please try again.",
         );
