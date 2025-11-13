@@ -915,16 +915,31 @@ class EnhancedMiraMemoryService {
           }
           
           // Check if query matches keywords
-          // First, check if full query matches any keyword exactly (for multi-word keywords like "Shield AI")
-          bool exactKeywordMatch = node.keywords.any((keyword) => 
-            keyword.toLowerCase() == queryLower || 
+          // First, check exact case match (original case - highest priority)
+          bool exactCaseMatch = node.keywords.any((keyword) => 
+            keyword == query
+          );
+          
+          // Then check case-insensitive exact match
+          bool exactKeywordMatch = !exactCaseMatch && node.keywords.any((keyword) => 
+            keyword.toLowerCase() == queryLower
+          );
+          
+          // Then check contains matches (case-insensitive)
+          bool containsMatch = !exactCaseMatch && !exactKeywordMatch && node.keywords.any((keyword) => 
             queryLower.contains(keyword.toLowerCase()) ||
             keyword.toLowerCase().contains(queryLower)
           );
           
-          if (exactKeywordMatch) {
-            score += 0.5; // High boost for exact keyword match to ensure it passes threshold
+          if (exactCaseMatch) {
+            score += 0.7; // Highest boost for exact case match
+            print('LUMARA Memory: Exact case keyword match found for query "$query"');
+          } else if (exactKeywordMatch) {
+            score += 0.5; // High boost for exact keyword match (case-insensitive)
             print('LUMARA Memory: Exact keyword match found for query "$query"');
+          } else if (containsMatch) {
+            score += 0.4; // Good boost for contains match
+            print('LUMARA Memory: Contains keyword match found for query "$query"');
           } else {
             // Then check word-by-word matches for partial matches
             final keywordMatches = node.keywords.where((keyword) => 
