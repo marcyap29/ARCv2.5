@@ -915,14 +915,28 @@ class EnhancedMiraMemoryService {
           }
           
           // Check if query matches keywords
-          final keywordMatches = node.keywords.where((keyword) => 
-            queryWords.any((word) => 
-              keyword.toLowerCase().contains(word) || 
-              word.contains(keyword.toLowerCase())
-            )
-          ).length;
-          if (keywordMatches > 0) {
-            score += (keywordMatches / node.keywords.length.clamp(1, 10)) * 0.3; // Keyword match weight
+          // First, check if full query matches any keyword exactly (for multi-word keywords like "Shield AI")
+          bool exactKeywordMatch = node.keywords.any((keyword) => 
+            keyword.toLowerCase() == queryLower || 
+            queryLower.contains(keyword.toLowerCase()) ||
+            keyword.toLowerCase().contains(queryLower)
+          );
+          
+          if (exactKeywordMatch) {
+            score += 0.5; // High boost for exact keyword match to ensure it passes threshold
+            print('LUMARA Memory: Exact keyword match found for query "$query"');
+          } else {
+            // Then check word-by-word matches for partial matches
+            final keywordMatches = node.keywords.where((keyword) => 
+              queryWords.any((word) => 
+                keyword.toLowerCase().contains(word) || 
+                word.contains(keyword.toLowerCase())
+              )
+            ).length;
+            if (keywordMatches > 0) {
+              // Increased weight from 0.3 to 0.5 to ensure keyword matches pass threshold
+              score += (keywordMatches / node.keywords.length.clamp(1, 10)) * 0.5;
+            }
           }
           
           // Check if query matches phase context
