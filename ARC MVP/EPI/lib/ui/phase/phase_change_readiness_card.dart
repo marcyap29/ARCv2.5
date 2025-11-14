@@ -8,6 +8,9 @@ import 'package:my_app/prism/atlas/rivet/rivet_service.dart';
 import 'package:my_app/prism/atlas/phase/rivet_gate_details_modal.dart';
 import 'package:my_app/arc/core/journal_repository.dart';
 import 'package:my_app/services/user_phase_service.dart';
+import 'package:my_app/services/phase_regime_service.dart';
+import 'package:my_app/services/analytics_service.dart';
+import 'package:my_app/services/rivet_sweep_service.dart';
 import 'package:my_app/arc/ui/arcforms/phase_recommender.dart';
 import 'package:uuid/uuid.dart';
 
@@ -140,8 +143,40 @@ class _PhaseChangeReadinessCardState extends State<PhaseChangeReadinessCard> {
       final sortedEntries = allEntries.toList()
         ..sort((a, b) => a.createdAt.compareTo(b.createdAt));
 
-      // Get current phase once (assumes it doesn't change during processing)
-      final currentPhase = await UserPhaseService.getCurrentPhase();
+      // Get current phase from PhaseRegimeService (prioritizes imported phase regimes)
+      // Falls back to most recent regime if no current ongoing regime
+      String currentPhase = 'Discovery';
+      try {
+        final analyticsService = AnalyticsService();
+        final rivetSweepService = RivetSweepService(analyticsService);
+        final phaseRegimeService = PhaseRegimeService(analyticsService, rivetSweepService);
+        await phaseRegimeService.initialize();
+        
+        final currentRegime = phaseRegimeService.phaseIndex.currentRegime;
+        if (currentRegime != null) {
+          currentPhase = currentRegime.label.toString().split('.').last;
+          // Capitalize first letter
+          currentPhase = currentPhase[0].toUpperCase() + currentPhase.substring(1);
+          print('PhaseChangeReadinessCard: Using current phase from PhaseRegimeService: $currentPhase');
+        } else {
+          // Fallback to most recent regime if no current ongoing regime
+          final allRegimes = phaseRegimeService.phaseIndex.allRegimes;
+          if (allRegimes.isNotEmpty) {
+            final sortedRegimes = List.from(allRegimes)..sort((a, b) => b.start.compareTo(a.start));
+            final mostRecentRegime = sortedRegimes.first;
+            currentPhase = mostRecentRegime.label.toString().split('.').last;
+            currentPhase = currentPhase[0].toUpperCase() + currentPhase.substring(1);
+            print('PhaseChangeReadinessCard: No current ongoing regime, using most recent: $currentPhase');
+          } else {
+            // Final fallback to UserPhaseService
+            currentPhase = await UserPhaseService.getCurrentPhase();
+            print('PhaseChangeReadinessCard: No regimes found, using UserPhaseService: $currentPhase');
+          }
+        }
+      } catch (e) {
+        print('PhaseChangeReadinessCard: Error getting phase from PhaseRegimeService: $e, falling back to UserPhaseService');
+        currentPhase = await UserPhaseService.getCurrentPhase();
+      }
 
       for (final entry in sortedEntries) {
         final recommendedPhase = PhaseRecommender.recommend(
