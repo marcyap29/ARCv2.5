@@ -3,15 +3,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:gap/gap.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import '../bloc/lumara_assistant_cubit.dart';
 import '../data/models/lumara_message.dart';
 import '../chat/ui/enhanced_chats_screen.dart';
 import '../chat/enhanced_chat_repo_impl.dart';
 import '../chat/chat_repo_impl.dart';
 import 'lumara_quick_palette.dart';
-import 'lumara_onboarding_screen.dart';
-import 'lumara_settings_welcome_screen.dart';
 import 'lumara_settings_screen.dart';
 import '../widgets/attribution_display_widget.dart';
 import 'package:my_app/polymeta/memory/enhanced_memory_schema.dart';
@@ -23,10 +20,17 @@ import '../data/context_provider.dart';
 import '../data/context_scope.dart';
 import '../services/enhanced_lumara_api.dart';
 import '../../../telemetry/analytics.dart';
+import 'package:my_app/models/journal_entry_model.dart';
+import 'package:my_app/arc/core/journal_repository.dart';
 
 /// Main LUMARA Assistant screen
 class LumaraAssistantScreen extends StatefulWidget {
-  const LumaraAssistantScreen({super.key});
+  final JournalEntry? currentEntry; // Optional current journal entry for weighted context
+  
+  const LumaraAssistantScreen({
+    super.key,
+    this.currentEntry,
+  });
 
   @override
   State<LumaraAssistantScreen> createState() => _LumaraAssistantScreenState();
@@ -38,6 +42,7 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
   final FocusNode _inputFocusNode = FocusNode();
   String? _editingMessageId; // Track which message is being edited
   bool _isInputVisible = true; // Track input visibility
+  JournalEntry? _currentEntry; // Store current entry for context
   
   // Voice chat service
   VoiceChatService? _voiceChatService;
@@ -46,12 +51,26 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
   @override
   void initState() {
     super.initState();
+    // Store current entry from widget
+    _currentEntry = widget.currentEntry;
     _checkAIConfigurationAndInitialize();
     _inputFocusNode.addListener(_onInputFocusChange);
     _initializeVoiceChat();
   }
+  
+  @override
+  void didUpdateWidget(LumaraAssistantScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Update current entry if widget changed
+    if (widget.currentEntry != oldWidget.currentEntry) {
+      setState(() {
+        _currentEntry = widget.currentEntry;
+      });
+    }
+  }
 
   void _onInputFocusChange() {
+    // Show input when it gains focus or has text
     setState(() {
       _isInputVisible = _inputFocusNode.hasFocus || _messageController.text.isNotEmpty;
     });
@@ -62,45 +81,11 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
     final apiConfig = LumaraAPIConfig.instance;
     await apiConfig.initialize();
 
-    final bestProvider = apiConfig.getBestProvider();
-
-    // Check if welcome screen has been shown
-    final prefs = await SharedPreferences.getInstance();
-    final welcomeShown = prefs.getBool('lumara_welcome_shown') ?? false;
-
-    if (!welcomeShown) {
-      // First time user - show Welcome to LUMARA screen
-      if (mounted) {
-        debugPrint('LUMARA Assistant: First time user, navigating to welcome screen');
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          Navigator.of(context, rootNavigator: true).push(
-            MaterialPageRoute(
-              builder: (context) => const LumaraOnboardingScreen(),
-            ),
-          ).then((_) {
-            // Mark welcome as shown after user completes onboarding
-            prefs.setBool('lumara_welcome_shown', true);
-            // Initialize LUMARA after welcome screen
-            final cubit = context.read<LumaraAssistantCubit>();
-            if (cubit.state is! LumaraAssistantLoaded) {
-              cubit.initializeLumara();
-            }
-          });
-        });
-      }
-    } else {
-      // Welcome already shown - initialize LUMARA directly
-      debugPrint('LUMARA Assistant: Welcome already shown, initializing directly');
-      final cubit = context.read<LumaraAssistantCubit>();
-      if (cubit.state is! LumaraAssistantLoaded) {
-        cubit.initializeLumara();
-      }
-    }
-    
-    // If no providers available, show a message instead of auto-downloading
-    if (bestProvider == null) {
-      debugPrint('LUMARA Assistant: No providers available - showing fallback message');
-      // The UI will show a message about no providers being available
+    // Initialize LUMARA directly (no splash page)
+    debugPrint('LUMARA Assistant: Initializing directly');
+    final cubit = context.read<LumaraAssistantCubit>();
+    if (cubit.state is! LumaraAssistantLoaded) {
+      cubit.initializeLumara();
     }
   }
 
@@ -235,7 +220,7 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
     // Also try to remove focus from any text field
     FocusManager.instance.primaryFocus?.unfocus();
     
-    // Hide input area when dismissing keyboard
+    // Hide input area when dismissing keyboard (if text is empty)
     setState(() {
       if (_messageController.text.isEmpty) {
         _isInputVisible = false;
@@ -287,9 +272,6 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
                 behavior: HitTestBehavior.opaque,
                 child: Column(
                   children: [
-                    // Scope chips
-                    _buildScopeChips(),
-
                     // Messages list
                     Expanded(
             child: GestureDetector(
@@ -297,12 +279,21 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
                 // Hide input when tapping conversation area
                 _dismissKeyboard();
               },
+              onDoubleTap: () {
+                // Show input on double tap to make it easy to bring back
+                setState(() {
+                  _isInputVisible = true;
+                });
+                _inputFocusNode.requestFocus();
+              },
               child: BlocConsumer<LumaraAssistantCubit, LumaraAssistantState>(
               listener: (context, state) {
-                // Don't auto-scroll - keep user at top to see responses as they appear
-                // if (state is LumaraAssistantLoaded) {
-                //   _scrollToBottom();
-                // }
+                // Show input when LUMARA finishes responding
+                if (state is LumaraAssistantLoaded && !state.isProcessing) {
+                  setState(() {
+                    _isInputVisible = true;
+                  });
+                }
               },
               builder: (context, state) {
                 if (state is LumaraAssistantLoading) {
@@ -356,30 +347,16 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
                                 const Gap(12),
                               ],
                               ElevatedButton(
-                                onPressed: () async {
-                                  // Check if welcome screen should be shown
-                                  final prefs = await SharedPreferences.getInstance();
-                                  final welcomeShown = prefs.getBool('lumara_settings_welcome_shown') ?? false;
-                                  
-                                  if (!welcomeShown && !isConfigError) {
-                                    // First time - show welcome splash screen
-                                    Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (context) => const LumaraSettingsWelcomeScreen(),
-                                      ),
-                                    );
-                                  } else {
-                                    // Navigate to appropriate screen
+                                onPressed: () {
+                                  // Navigate to appropriate screen
                                   Navigator.push(
                                     context,
-                                  MaterialPageRoute(
-                                    builder: (context) => isConfigError
-                                        ? const LumaraOnboardingScreen()
-                                            : const LumaraSettingsScreen(),
-                                  ),
+                                    MaterialPageRoute(
+                                      builder: (context) => isConfigError
+                                          ? const SizedBox.shrink()
+                                              : const LumaraSettingsScreen(),
+                                    ),
                                   );
-                                  }
                                 },
                                 child: Text(isConfigError ? 'Set Up AI' : 'Settings'),
                               ),
@@ -460,61 +437,17 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
           ),
           
           // Message input - show/hide based on visibility state
+          // Also show a button to bring it back if hidden
           if (_isInputVisible)
-            _buildMessageInput(),
+            _buildMessageInput()
+          else
+            _buildShowInputButton(),
         ],
       ),
     ),
     );
   }
 
-  Widget _buildScopeChips() {
-    return BlocBuilder<LumaraAssistantCubit, LumaraAssistantState>(
-      builder: (context, state) {
-        if (state is! LumaraAssistantLoaded) return const SizedBox.shrink();
-        
-        return Container(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-          child: Wrap(
-            spacing: 8,
-            children: [
-              _buildScopeChip('Journal', state.scope.journal, () {
-                context.read<LumaraAssistantCubit>().toggleScope('journal');
-              }),
-              _buildScopeChip('Phase', state.scope.phase, () {
-                context.read<LumaraAssistantCubit>().toggleScope('phase');
-              }),
-              _buildScopeChip('ARCForms', state.scope.arcforms, () {
-                context.read<LumaraAssistantCubit>().toggleScope('arcforms');
-              }),
-              _buildScopeChip('Voice', state.scope.voice, () {
-                context.read<LumaraAssistantCubit>().toggleScope('voice');
-              }),
-              _buildScopeChip('Media', state.scope.media, () {
-                context.read<LumaraAssistantCubit>().toggleScope('media');
-              }),
-              _buildScopeChip('Drafts', state.scope.drafts, () {
-                context.read<LumaraAssistantCubit>().toggleScope('drafts');
-              }),
-              _buildScopeChip('Chats', state.scope.chats, () {
-                context.read<LumaraAssistantCubit>().toggleScope('chats');
-              }),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildScopeChip(String label, bool isActive, VoidCallback onTap) {
-    return FilterChip(
-      label: Text(label),
-      selected: isActive,
-      onSelected: (_) => onTap(),
-      selectedColor: Colors.blue.withOpacity(0.2),
-      checkmarkColor: Colors.blue,
-    );
-  }
 
   Widget _buildEmptyState() {
     return Center(
@@ -780,18 +713,6 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
           Row(
             children: [
               IconButton(
-                icon: const Icon(Icons.mic, size: 20),
-                padding: const EdgeInsets.all(8),
-                constraints: const BoxConstraints(),
-                onPressed: () {
-                  // Show input when mic is tapped
-                  setState(() => _isInputVisible = true);
-                  _inputFocusNode.requestFocus();
-                  // Show voice chat panel
-                  _showVoiceChatPanel();
-                },
-              ),
-              IconButton(
                 icon: const Icon(Icons.favorite, size: 20),
                 padding: const EdgeInsets.all(8),
                 constraints: const BoxConstraints(),
@@ -799,28 +720,32 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
                 onPressed: _showHealthPreview,
               ),
               Expanded(
-                child: TextField(
-                  controller: _messageController,
-                  focusNode: _inputFocusNode,
-                  decoration: InputDecoration(
-                    hintText: isEditing ? 'Edit your message...' : 'Ask LUMARA anything...',
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(20),
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.vertical,
+                  child: TextField(
+                    controller: _messageController,
+                    focusNode: _inputFocusNode,
+                    decoration: InputDecoration(
+                      hintText: isEditing ? 'Edit your message...' : 'Ask LUMARA anything...',
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 8,
+                      ),
+                      isDense: true,
                     ),
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 8,
-                    ),
-                    isDense: true,
+                    minLines: 1,
+                    maxLines: 5, // Limit to 5 lines, then scroll
+                    textCapitalization: TextCapitalization.sentences,
+                    textInputAction: TextInputAction.newline,
+                    onSubmitted: (_) => _sendCurrentMessage(),
+                    onTap: () {
+                      // Ensure input is visible when tapped
+                      setState(() => _isInputVisible = true);
+                    },
                   ),
-                  minLines: 1,
-                  maxLines: null, // Allow unlimited expansion based on text input
-                  textCapitalization: TextCapitalization.sentences,
-                  onSubmitted: (_) => _sendCurrentMessage(),
-                  onTap: () {
-                    // Ensure input is visible when tapped
-                    setState(() => _isInputVisible = true);
-                  },
                 ),
               ),
               IconButton(
@@ -842,6 +767,41 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
     );
   }
 
+  Widget _buildShowInputButton() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: GestureDetector(
+        onTap: () {
+          setState(() {
+            _isInputVisible = true;
+          });
+          _inputFocusNode.requestFocus();
+        },
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          decoration: BoxDecoration(
+            color: Colors.grey[800],
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: Colors.grey[600]!, width: 1),
+          ),
+          child: Row(
+            children: [
+              Icon(Icons.edit, size: 18, color: Colors.grey[400]),
+              const SizedBox(width: 8),
+              Text(
+                'Tap to ask LUMARA...',
+                style: TextStyle(
+                  color: Colors.grey[400],
+                  fontSize: 14,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   void _sendCurrentMessage() {
     final text = _messageController.text.trim();
     if (text.isNotEmpty) {
@@ -852,11 +812,11 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
       }
       _messageController.clear();
       _editingMessageId = null;
-      // Hide input after sending if empty
+      // Keep input visible after sending
       setState(() {
-        _isInputVisible = false;
+        _isInputVisible = true;
       });
-      _dismissKeyboard();
+      // Don't dismiss keyboard - keep it open for next message
     }
   }
 
@@ -918,7 +878,42 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
   }
 
   void _sendMessage(String message) {
-    context.read<LumaraAssistantCubit>().sendMessage(message);
+    // Get current entry - prioritize widget's currentEntry, then try to get most recent entry
+    JournalEntry? entryToUse = _currentEntry;
+    
+    // If no entry provided, try to get the most recent entry as fallback
+    // This ensures we always have context from the user's journal
+    if (entryToUse == null) {
+      entryToUse = _getMostRecentEntry();
+      if (entryToUse != null) {
+        print('LUMARA: Using most recent entry ${entryToUse.id} as context');
+      }
+    } else {
+      print('LUMARA: Using provided current entry ${entryToUse.id} as context');
+    }
+    
+    // Note: If entryToUse is still null, sendMessage will work without current entry
+    // The weighted context system will still use recent LUMARA responses and other entries
+    context.read<LumaraAssistantCubit>().sendMessage(message, currentEntry: entryToUse);
+  }
+  
+  /// Get the most recent journal entry as fallback for context
+  /// This ensures LUMARA always has access to the user's latest journal content
+  JournalEntry? _getMostRecentEntry() {
+    try {
+      final journalRepository = JournalRepository();
+      final allEntries = journalRepository.getAllJournalEntries();
+      if (allEntries.isNotEmpty) {
+        // Sort by creation date, most recent first
+        allEntries.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+        final mostRecent = allEntries.first;
+        print('LUMARA: Found most recent entry: ${mostRecent.id} (${mostRecent.createdAt})');
+        return mostRecent;
+      }
+    } catch (e) {
+      print('LUMARA: Error getting most recent entry: $e');
+    }
+    return null;
   }
 
   void _startNewChat() async {
@@ -994,29 +989,22 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
   }
 
 
-  void _showEnhancedSettings() async {
+  void _showEnhancedSettings() {
     // Dismiss keyboard first
     _dismissKeyboard();
     
-    // Check if welcome screen should be shown
-    final prefs = await SharedPreferences.getInstance();
-    final welcomeShown = prefs.getBool('lumara_settings_welcome_shown') ?? false;
+    // Get the cubit instance to pass to settings
+    final cubit = context.read<LumaraAssistantCubit>();
     
-    if (!welcomeShown) {
-      // First time - show welcome splash screen
-      Navigator.of(context).push(
-        MaterialPageRoute(
-          builder: (context) => const LumaraSettingsWelcomeScreen(),
-        ),
-      );
-    } else {
-      // Navigate directly to settings screen
+    // Navigate directly to settings screen with the same cubit instance
     Navigator.of(context).push(
       MaterialPageRoute(
-          builder: (context) => const LumaraSettingsScreen(),
+        builder: (context) => BlocProvider<LumaraAssistantCubit>.value(
+          value: cubit,
+          child: const LumaraSettingsScreen(),
+        ),
       ),
     );
-    }
   }
 
   /// Handle attribution weight changes

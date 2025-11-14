@@ -12,6 +12,9 @@ import 'package:my_app/data/models/media_item.dart';
 import '../../utils/file_utils.dart';
 import 'package:my_app/polymeta/store/arcx/services/arcx_export_service_v2.dart';
 import 'package:my_app/arc/chat/chat/chat_repo_impl.dart';
+import 'package:my_app/services/phase_regime_service.dart';
+import 'package:my_app/services/rivet_sweep_service.dart';
+import 'package:my_app/services/analytics_service.dart';
 import 'package:intl/intl.dart';
 
 /// MCP Export Screen - Create MCP Package (.mcpkg)
@@ -201,9 +204,23 @@ class _McpExportScreenState extends State<McpExportScreen> {
           print('Warning: Could not initialize ChatRepo: $e');
         }
         
+        // Initialize PhaseRegimeService for export
+        PhaseRegimeService? phaseRegimeService;
+        try {
+          final analyticsService = AnalyticsService();
+          final rivetSweepService = RivetSweepService(analyticsService);
+          phaseRegimeService = PhaseRegimeService(analyticsService, rivetSweepService);
+          await phaseRegimeService.initialize();
+          print('ARCX Export: PhaseRegimeService initialized');
+        } catch (e) {
+          print('Warning: Could not initialize PhaseRegimeService: $e');
+          // Continue export without phase regimes
+        }
+        
         final arcxExportV2 = ARCXExportServiceV2(
           journalRepo: journalRepo,
           chatRepo: chatRepo,
+          phaseRegimeService: phaseRegimeService,
         );
         
         // Build selection from filtered entries
@@ -325,10 +342,26 @@ class _McpExportScreenState extends State<McpExportScreen> {
       // Store messenger reference before async operation
       final messenger = mounted ? ScaffoldMessenger.of(context) : null;
       
+      // Get share position origin for iPad support
+      // On iPad, share sheet requires a non-zero position origin
+      Rect? sharePositionOrigin;
+      if (mounted) {
+        final mediaQuery = MediaQuery.of(context);
+        final screenSize = mediaQuery.size;
+        // Use center of screen as share position origin (required for iPad)
+        sharePositionOrigin = Rect.fromLTWH(
+          screenSize.width / 2,
+          screenSize.height / 2,
+          1,
+          1,
+        );
+      }
+      
       await Share.shareXFiles(
         [XFile(filePath)],
         text: 'MCP Package - $_entryCount entries, $_photoCount photos',
         subject: 'Journal Export - ${path.basename(filePath)}',
+        sharePositionOrigin: sharePositionOrigin,
       );
       
       // Show confirmation after successful share (only if still mounted)

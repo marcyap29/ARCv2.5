@@ -3,11 +3,15 @@
 
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import '../config/api_config.dart';
 import '../services/enhanced_lumara_api.dart';
 import '../services/download_state_service.dart';
 import 'package:my_app/telemetry/analytics.dart';
 import '../llm/bridge.pigeon.dart';
+import '../bloc/lumara_assistant_cubit.dart';
+import '../data/context_scope.dart';
+import '../services/lumara_reflection_settings_service.dart';
 
 /// LUMARA settings screen for API key management and provider selection
 class LumaraSettingsScreen extends StatefulWidget {
@@ -38,6 +42,16 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
   
   // Timestamp of last refresh to prevent rapid successive refreshes
   DateTime? _lastRefreshTime;
+  
+  // Reflection Settings state
+  double _similarityThreshold = 0.55;
+  int _lookbackYears = 5;
+  int _maxMatches = 5;
+  bool _crossModalEnabled = true;
+  
+  // Therapeutic Presence settings
+  bool _therapeuticPresenceEnabled = true;
+  int _therapeuticDepthLevel = 2; // 1=Light, 2=Moderate, 3=Deep
   
   /// Safe progress calculation to prevent NaN and infinite values
   double _safeProgress(double progress) {
@@ -230,6 +244,7 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
     super.initState();
     _initializeControllers();
     _loadCurrentSettings();
+    _loadReflectionSettings();
     _downloadStateService.addListener(_onDownloadStateChanged);
     // Refresh model states to handle model ID changes
     _downloadStateService.refreshAllStates();
@@ -385,6 +400,34 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
     });
   }
 
+  Future<void> _loadReflectionSettings() async {
+    final settingsService = LumaraReflectionSettingsService.instance;
+    final settings = await settingsService.loadAllSettings();
+    
+    if (mounted) {
+      setState(() {
+        _similarityThreshold = settings['similarityThreshold'] as double;
+        _lookbackYears = settings['lookbackYears'] as int;
+        _maxMatches = settings['maxMatches'] as int;
+        _crossModalEnabled = settings['crossModalEnabled'] as bool;
+        _therapeuticPresenceEnabled = settings['therapeuticPresenceEnabled'] as bool;
+        _therapeuticDepthLevel = settings['therapeuticDepthLevel'] as int;
+      });
+    }
+  }
+
+  Future<void> _saveReflectionSettings() async {
+    final settingsService = LumaraReflectionSettingsService.instance;
+    await settingsService.saveAllSettings(
+      similarityThreshold: _similarityThreshold,
+      lookbackYears: _lookbackYears,
+      maxMatches: _maxMatches,
+      crossModalEnabled: _crossModalEnabled,
+      therapeuticPresenceEnabled: _therapeuticPresenceEnabled,
+      therapeuticDepthLevel: _therapeuticDepthLevel,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -409,6 +452,18 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
             _buildStatusCard(theme),
             const SizedBox(height: 24),
 
+            // Context Scope Section
+            _buildContextScopeCard(theme),
+            const SizedBox(height: 24),
+
+            // Reflection Settings Section
+            _buildReflectionSettingsCard(theme),
+            const SizedBox(height: 24),
+
+            // Therapeutic Presence Section
+            _buildTherapeuticPresenceCard(theme),
+            const SizedBox(height: 24),
+
             // Provider Selection (includes download button)
             _buildProviderSelection(theme),
             const SizedBox(height: 24),
@@ -417,8 +472,191 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
             _buildApiKeysCard(theme),
             const SizedBox(height: 24),
 
-            // Actions
-            _buildActionButtons(theme),
+            // Clear All API Keys button
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: _clearAllApiKeys,
+                icon: const Icon(Icons.delete_outline, size: 18),
+                label: const Text('Clear All API Keys'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: theme.colorScheme.error,
+                  side: BorderSide(color: theme.colorScheme.error),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildContextScopeCard(ThemeData theme) {
+    return BlocBuilder<LumaraAssistantCubit, LumaraAssistantState>(
+      builder: (context, state) {
+        debugPrint('BlocBuilder rebuild - state: ${state.runtimeType}');
+        
+        // Get scope from state
+        LumaraScope scope;
+        if (state is LumaraAssistantLoaded) {
+          scope = state.scope;
+          debugPrint('Current scope: journal=${scope.journal}, phase=${scope.phase}, arcforms=${scope.arcforms}, voice=${scope.voice}, media=${scope.media}, drafts=${scope.drafts}, chats=${scope.chats}');
+        } else {
+          debugPrint('State is not LumaraAssistantLoaded, using default scope');
+          scope = LumaraScope.defaultScope;
+        }
+        
+        // Get cubit for toggle actions
+        final cubit = context.read<LumaraAssistantCubit>();
+        
+        return Card(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(
+                      Icons.search,
+                      color: theme.colorScheme.primary,
+                      size: 24,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Context Sources',
+                            style: theme.textTheme.titleLarge?.copyWith(
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Control what data LUMARA can access when answering your questions',
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: theme.colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    _buildScopeChip(theme, 'Journal', scope.journal, () {
+                      debugPrint('=== TOGGLE JOURNAL CALLED ===');
+                      debugPrint('Current scope.journal: ${scope.journal}');
+                      cubit.toggleScope('journal');
+                    }),
+                    _buildScopeChip(theme, 'Phase', scope.phase, () {
+                      cubit.toggleScope('phase');
+                    }),
+                    _buildScopeChip(theme, 'ARCForms', scope.arcforms, () {
+                      cubit.toggleScope('arcforms');
+                    }),
+                    _buildScopeChip(theme, 'Voice', scope.voice, () {
+                      cubit.toggleScope('voice');
+                    }),
+                    _buildScopeChip(theme, 'Media', scope.media, () {
+                      cubit.toggleScope('media');
+                    }),
+                    _buildScopeChip(theme, 'Drafts', scope.drafts, () {
+                      cubit.toggleScope('drafts');
+                    }),
+                    _buildScopeChip(theme, 'Chats', scope.chats, () {
+                      cubit.toggleScope('chats');
+                    }),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.primary.withOpacity(0.05),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.info_outline,
+                        color: theme.colorScheme.primary,
+                        size: 18,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Enable the data sources you want LUMARA to consider. More sources provide richer context but may take longer to process.',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildScopeChip(ThemeData theme, String label, bool isActive, VoidCallback onTap) {
+    return GestureDetector(
+      onTap: () {
+        debugPrint('Scope chip tapped: $label, current state: $isActive');
+        onTap();
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: isActive 
+              ? theme.colorScheme.primary.withOpacity(0.2)
+              : Colors.transparent,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: isActive 
+                ? theme.colorScheme.primary
+                : theme.colorScheme.outline.withOpacity(0.3),
+            width: isActive ? 1.5 : 1,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (isActive)
+              Icon(
+                Icons.check_circle,
+                size: 16,
+                color: theme.colorScheme.primary,
+              )
+            else
+              Icon(
+                Icons.circle_outlined,
+                size: 16,
+                color: theme.colorScheme.outline.withOpacity(0.5),
+              ),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
+                color: isActive 
+                    ? theme.colorScheme.primary
+                    : theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
           ],
         ),
       ),
@@ -534,8 +772,7 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
   Widget _buildProviderSelection(ThemeData theme) {
     final allProviders = _apiConfig.getAllProviders();
 
-    // Separate internal and external providers
-    final internalProviders = allProviders.where((p) => p.isInternal).toList();
+    // External providers only (internal models removed)
     final externalProviders = allProviders.where((p) => !p.isInternal).toList();
     
     return Card(
@@ -560,17 +797,6 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
             
             // Automatic Selection Toggle
             _buildAutomaticSelectionToggle(theme),
-            
-            const SizedBox(height: 24),
-            
-            // Internal Models Section
-            _buildProviderCategory(
-              theme: theme,
-              title: 'Internal Models',
-              subtitle: 'Privacy-first, on-device processing',
-              providers: internalProviders,
-              isInternal: true,
-            ),
             
             const SizedBox(height: 24),
             
@@ -1473,42 +1699,6 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
     );
   }
 
-  Widget _buildActionButtons(ThemeData theme) {
-    return Column(
-      children: [
-        Row(
-          children: [
-            Expanded(
-              child: OutlinedButton(
-                onPressed: _testConnection,
-                child: const Text('Test Connection'),
-              ),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: ElevatedButton(
-                onPressed: _saveSettings,
-                child: const Text('Save Settings'),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 16),
-        SizedBox(
-          width: double.infinity,
-          child: OutlinedButton.icon(
-            onPressed: _clearAllApiKeys,
-            icon: const Icon(Icons.delete_outline, size: 18),
-            label: const Text('Clear All API Keys'),
-            style: OutlinedButton.styleFrom(
-              foregroundColor: theme.colorScheme.error,
-              side: BorderSide(color: theme.colorScheme.error),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
 
   Future<void> _clearAllApiKeys() async {
     final confirmed = await showDialog<bool>(
@@ -1553,56 +1743,352 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
 
   // Removed auto-save on change - now using explicit Save button per field
 
-  Future<void> _testConnection() async {
-    final status = _lumaraApi.getStatus();
-    
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Current provider: ${status['currentProvider']}'),
-          backgroundColor: Colors.green,
+  Widget _buildReflectionSettingsCard(ThemeData theme) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  Icons.tune,
+                  color: theme.colorScheme.primary,
+                  size: 24,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  'Reflection Settings',
+                  style: theme.textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            _buildSliderTile(
+              theme,
+              title: 'Similarity Threshold',
+              subtitle: 'Minimum similarity score for matching entries (${_similarityThreshold.toStringAsFixed(2)})',
+              value: _similarityThreshold,
+              min: 0.1,
+              max: 1.0,
+              divisions: 18,
+              onChanged: (value) {
+                setState(() {
+                  _similarityThreshold = value;
+                });
+                _saveReflectionSettings();
+              },
+            ),
+            _buildSliderTile(
+              theme,
+              title: 'Lookback Period',
+              subtitle: 'Years of history to search ($_lookbackYears years)',
+              value: _lookbackYears.toDouble(),
+              min: 1,
+              max: 10,
+              divisions: 9,
+              onChanged: (value) {
+                setState(() {
+                  _lookbackYears = value.round();
+                });
+                _saveReflectionSettings();
+              },
+            ),
+            _buildSliderTile(
+              theme,
+              title: 'Max Matches',
+              subtitle: 'Maximum number of similar entries to find ($_maxMatches)',
+              value: _maxMatches.toDouble(),
+              min: 1,
+              max: 20,
+              divisions: 19,
+              onChanged: (value) {
+                setState(() {
+                  _maxMatches = value.round();
+                });
+                _saveReflectionSettings();
+              },
+            ),
+            _buildSwitchTile(
+              theme,
+              title: 'Cross-Modal Awareness',
+              subtitle: 'Include photos, audio, and video in reflection analysis',
+              value: _crossModalEnabled,
+              onChanged: (value) {
+                setState(() {
+                  _crossModalEnabled = value;
+                });
+                _saveReflectionSettings();
+              },
+            ),
+          ],
         ),
-      );
-    }
+      ),
+    );
   }
 
-  Future<void> _saveSettings() async {
-    // Save all API keys
-    for (final entry in _apiKeyControllers.entries) {
-      final provider = entry.key;
-      final controller = entry.value;
-      if (controller.text.isNotEmpty) {
-        await _apiConfig.updateApiKey(provider, controller.text);
-      }
-    }
+  Widget _buildTherapeuticPresenceCard(ThemeData theme) {
+    final depthLabels = ['Light', 'Moderate', 'Deep'];
+    final depthDescriptions = [
+      'Supportive and encouraging',
+      'Reflective and insight-oriented',
+      'Exploratory and emotionally resonant',
+    ];
 
-    // Force refresh provider availability after saving all keys
-    await _apiConfig.refreshProviderAvailability();
-
-    // Reinitialize to check if any provider is now available
-    await _apiConfig.initialize();
-    final bestProvider = _apiConfig.getBestProvider();
-    final isConfigured = bestProvider != null;
-
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(isConfigured
-              ? 'Settings saved! AI provider configured.'
-              : 'Settings saved successfully'),
-          backgroundColor: Colors.green,
-          duration: const Duration(seconds: 2),
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  Icons.psychology,
+                  color: theme.colorScheme.primary,
+                  size: 24,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  'Therapeutic Presence',
+                  style: theme.textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            _buildSwitchTile(
+              theme,
+              title: 'Enable Therapeutic Presence',
+              subtitle: 'Warm, reflective support for journaling and emotional processing',
+              value: _therapeuticPresenceEnabled,
+              onChanged: (value) {
+                setState(() {
+                  _therapeuticPresenceEnabled = value;
+                });
+                _saveReflectionSettings();
+              },
+            ),
+            if (_therapeuticPresenceEnabled) ...[
+              const SizedBox(height: 8),
+              Container(
+                margin: const EdgeInsets.only(top: 8),
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.surfaceVariant.withOpacity(0.3),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: theme.colorScheme.outline.withOpacity(0.2),
+                  ),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.psychology,
+                          color: theme.colorScheme.primary,
+                          size: 20,
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Depth Level',
+                                style: theme.textTheme.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              Text(
+                                depthDescriptions[_therapeuticDepthLevel - 1],
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  color: theme.colorScheme.onSurfaceVariant,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: theme.colorScheme.primary.withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            depthLabels[_therapeuticDepthLevel - 1],
+                            style: theme.textTheme.labelMedium?.copyWith(
+                              color: theme.colorScheme.primary,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    Slider(
+                      value: _therapeuticDepthLevel.toDouble(),
+                      min: 1,
+                      max: 3,
+                      divisions: 2,
+                      activeColor: theme.colorScheme.primary,
+                      inactiveColor: theme.colorScheme.outline.withOpacity(0.3),
+                      label: depthLabels[_therapeuticDepthLevel - 1],
+                      onChanged: (value) {
+                        setState(() {
+                          _therapeuticDepthLevel = value.round();
+                        });
+                        _saveReflectionSettings();
+                      },
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: depthLabels.asMap().entries.map((entry) {
+                        final index = entry.key;
+                        final label = entry.value;
+                        final isSelected = _therapeuticDepthLevel == index + 1;
+                        return GestureDetector(
+                          onTap: () {
+                            setState(() {
+                              _therapeuticDepthLevel = index + 1;
+                            });
+                            _saveReflectionSettings();
+                          },
+                          child: Text(
+                            label,
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: isSelected
+                                  ? theme.colorScheme.primary
+                                  : theme.colorScheme.onSurfaceVariant,
+                              fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                            ),
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ],
         ),
-      );
-
-      // If accessed from onboarding and now configured, offer to go back
-      if (isConfigured && ModalRoute.of(context)?.settings.arguments == 'fromOnboarding') {
-        await Future.delayed(const Duration(seconds: 1));
-        if (mounted) {
-          Navigator.pop(context, true);
-        }
-      }
-    }
+      ),
+    );
   }
+
+  Widget _buildSliderTile(
+    ThemeData theme, {
+    required String title,
+    required String subtitle,
+    required double value,
+    required double min,
+    required double max,
+    required int divisions,
+    required ValueChanged<double> onChanged,
+  }) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceVariant.withOpacity(0.3),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: theme.colorScheme.outline.withOpacity(0.2),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.tune,
+                color: theme.colorScheme.primary,
+                size: 20,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    Text(
+                      subtitle,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Slider(
+            value: value,
+            min: min,
+            max: max,
+            divisions: divisions,
+            activeColor: theme.colorScheme.primary,
+            inactiveColor: theme.colorScheme.outline.withOpacity(0.3),
+            onChanged: onChanged,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSwitchTile(
+    ThemeData theme, {
+    required String title,
+    required String subtitle,
+    required bool value,
+    required ValueChanged<bool> onChanged,
+  }) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceVariant.withOpacity(0.3),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: theme.colorScheme.outline.withOpacity(0.2),
+        ),
+      ),
+      child: SwitchListTile(
+        title: Text(
+          title,
+          style: theme.textTheme.titleMedium?.copyWith(
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        subtitle: Text(
+          subtitle,
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
+        ),
+        value: value,
+        onChanged: onChanged,
+        activeColor: theme.colorScheme.primary,
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 8,
+        ),
+      ),
+    );
+  }
+
 }
 

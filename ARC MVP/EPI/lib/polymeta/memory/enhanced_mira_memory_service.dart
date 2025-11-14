@@ -127,6 +127,12 @@ class EnhancedMiraMemoryService {
     bool enableCrossDomainSynthesis = false,
     String? responseId,
     MemoryMode? overrideMode,
+    // New parameters for reflection settings
+    double? similarityThreshold,
+    int? lookbackYears,
+    int? maxMatches,
+    int? therapeuticDepthLevel,
+    bool? crossModalEnabled,
   }) async {
     if (_currentUserId == null) {
       throw Exception('Service not initialized - no user context');
@@ -160,11 +166,36 @@ class EnhancedMiraMemoryService {
       hasExplicitConsent: true, // Allow access to domains requiring consent (personal, health, etc.)
     );
 
+    // Apply effective limits based on therapeutic depth level
+    int effectiveLimit = limit;
+    int effectiveLookbackYears = lookbackYears ?? 5;
+    
+    if (therapeuticDepthLevel != null) {
+      switch (therapeuticDepthLevel) {
+        case 1: // Light - reduce by 40%
+          effectiveLimit = (limit * 0.6).round().clamp(1, 100);
+          effectiveLookbackYears = (effectiveLookbackYears * 0.6).round().clamp(1, 10);
+          break;
+        case 3: // Deep - increase by 60% for matches, 40% for lookback
+          effectiveLimit = (limit * 1.6).round().clamp(1, 100);
+          effectiveLookbackYears = (effectiveLookbackYears * 1.4).round().clamp(1, 10);
+          break;
+        default: // Moderate (2) - use as-is
+          break;
+      }
+    }
+    
+    // Use maxMatches if provided, otherwise use effectiveLimit
+    final finalLimit = maxMatches ?? effectiveLimit;
+    
     // Apply domain scoping
     var relevantNodes = await _getRelevantNodes(
       domains: domains,
       query: query,
-      limit: limit * 2, // Get extra for filtering
+      limit: finalLimit * 2, // Get extra for filtering
+      similarityThreshold: similarityThreshold,
+      lookbackYears: effectiveLookbackYears,
+      crossModalEnabled: crossModalEnabled ?? true,
     );
     
     print('LUMARA Memory: After _getRelevantNodes: ${relevantNodes.length} nodes');
@@ -210,12 +241,78 @@ class EnhancedMiraMemoryService {
       final reasoning = _generateRetrievalReasoning(node, query);
       print('LUMARA Debug:   - Reasoning: $reasoning');
 
+      // Create excerpt from node narrative, but filter out LUMARA responses
+      // Check if narrative looks like a LUMARA response (contains common LUMARA greeting patterns)
+      String excerpt = node.narrative;
+      final narrativeLower = node.narrative.toLowerCase();
+      
+      // Check for LUMARA response patterns
+      final isLumaraResponse = narrativeLower.contains("hello! i'm lumara") ||
+          narrativeLower.contains("i'm lumara") ||
+          narrativeLower.contains("i'm your personal assistant") ||
+          (narrativeLower.startsWith("hello") && narrativeLower.contains("lumara"));
+      
+      if (isLumaraResponse) {
+        // Try to get actual journal entry content from node data
+        if (node is EnhancedMiraNode) {
+          final nodeData = node.data;
+          // Try to get content from data fields
+          final content = nodeData['content'] as String? ?? 
+                         nodeData['text'] as String? ?? 
+                         node.content;
+          
+          if (content.isNotEmpty && content != node.narrative) {
+            excerpt = content;
+            print('LUMARA Debug:   - Using node content instead of LUMARA response narrative');
+          } else {
+            // Try to extract entry ID and look it up
+            String? entryId;
+            if (nodeData.containsKey('original_entry_id')) {
+              entryId = nodeData['original_entry_id'] as String?;
+            } else if (node.id.startsWith('entry:')) {
+              entryId = node.id.replaceFirst('entry:', '');
+            } else if (node.id.contains('_')) {
+              final parts = node.id.split('_');
+              if (parts.length > 1) {
+                entryId = parts.last;
+              }
+            }
+            
+            if (entryId != null) {
+              // Note: We can't access JournalRepository here, but we can mark this
+              // for the journal screen to handle. For now, use a placeholder.
+              excerpt = '[Journal entry content - see entry $entryId]';
+              print('LUMARA Debug:   - Found entry ID $entryId but cannot access repository here');
+            } else {
+              // If we can't find the actual content, use a generic message
+              excerpt = '[Memory reference - content not available]';
+              print('LUMARA Debug:   - Could not extract journal entry content from LUMARA response node');
+            }
+          }
+        } else {
+          // For non-enhanced nodes, try node.content
+          if (node.content.isNotEmpty && node.content != node.narrative) {
+            excerpt = node.content;
+            print('LUMARA Debug:   - Using node.content instead of LUMARA response narrative');
+          } else {
+            excerpt = '[Memory reference - content not available]';
+            print('LUMARA Debug:   - Could not extract journal entry content from LUMARA response node');
+          }
+        }
+      }
+      
+      // Limit excerpt length to 200 chars
+      if (excerpt.length > 200) {
+        excerpt = '${excerpt.substring(0, 200)}...';
+      }
+
       final trace = _attributionService.createTrace(
         nodeRef: node.id,
         relation: relation,
         confidence: confidence,
         reasoning: reasoning,
         phaseContext: node.phaseContext, // Include phase context from node
+        excerpt: excerpt.isEmpty ? null : excerpt, // Include excerpt for direct attribution
       );
 
       print('LUMARA Debug:   - Created trace: ${trace.nodeRef}, ${trace.relation}, ${trace.confidence}, phase: ${trace.phaseContext ?? "none"}');
@@ -242,7 +339,7 @@ class EnhancedMiraMemoryService {
     if (_memoryModeService.needsUserPrompt(effectiveMode)) {
       // Return with prompt requirement
       return MemoryRetrievalResult(
-        nodes: relevantNodes.take(limit).toList(),
+        nodes: relevantNodes.take(finalLimit).toList(),
         attributions: attributionTraces,
         totalFound: relevantNodes.length,
         domainsAccessed: relevantNodes.map((n) => n.domain).toSet().toList(),
@@ -263,8 +360,8 @@ class EnhancedMiraMemoryService {
     }
 
     // Limit results
-    if (relevantNodes.length > limit) {
-      relevantNodes = relevantNodes.take(limit).toList();
+    if (relevantNodes.length > finalLimit) {
+      relevantNodes = relevantNodes.take(finalLimit).toList();
     }
 
     // Record memory usage if response ID provided
@@ -815,6 +912,9 @@ class EnhancedMiraMemoryService {
     List<MemoryDomain>? domains,
     String? query,
     int limit = 10,
+    double? similarityThreshold,
+    int? lookbackYears,
+    bool? crossModalEnabled,
   }) async {
     try {
       // Get all nodes from MIRA service by getting all node types
@@ -850,25 +950,127 @@ class EnhancedMiraMemoryService {
         print('LUMARA Memory: Filtered to ${filteredNodes.length} nodes for domains: ${domains.map((d) => d.name).join(', ')}');
       }
       
+      // Apply lookback period filter (date range)
+      if (lookbackYears != null) {
+        final cutoffDate = DateTime.now().subtract(Duration(days: lookbackYears * 365));
+        filteredNodes = filteredNodes.where((node) => 
+          node.createdAt.isAfter(cutoffDate)
+        ).toList();
+        print('LUMARA Memory: Filtered to ${filteredNodes.length} nodes within $lookbackYears years');
+      }
+      
       // Filter by query if specified
       if (query != null && query.isNotEmpty) {
         final queryLower = query.toLowerCase();
+        final queryWords = queryLower.split(RegExp(r'\s+')).where((w) => w.length > 2).toList();
+        
         filteredNodes = filteredNodes.where((node) {
+          // Calculate similarity score
+          double score = 0.0;
+          int matches = 0;
+          
           // Check if query matches content
-          if (node.narrative.toLowerCase().contains(queryLower)) return true;
+          final narrativeLower = node.narrative.toLowerCase();
+          for (final word in queryWords) {
+            if (narrativeLower.contains(word)) {
+              matches++;
+            }
+          }
+          if (matches > 0) {
+            score += (matches / queryWords.length) * 0.5; // Content match weight
+          }
           
           // Check if query matches keywords
-          if (node.keywords.any((keyword) => 
-            keyword.toLowerCase().contains(queryLower) || 
-            queryLower.contains(keyword.toLowerCase())
-          )) return true;
+          // First, check exact case match (original case - highest priority)
+          bool exactCaseMatch = node.keywords.any((keyword) => 
+            keyword == query
+          );
+          
+          // Then check case-insensitive exact match
+          bool exactKeywordMatch = !exactCaseMatch && node.keywords.any((keyword) => 
+            keyword.toLowerCase() == queryLower
+          );
+          
+          // Then check contains matches (case-insensitive)
+          bool containsMatch = !exactCaseMatch && !exactKeywordMatch && node.keywords.any((keyword) => 
+            queryLower.contains(keyword.toLowerCase()) ||
+            keyword.toLowerCase().contains(queryLower)
+          );
+          
+          if (exactCaseMatch) {
+            score += 0.7; // Highest boost for exact case match
+            print('LUMARA Memory: Exact case keyword match found for query "$query"');
+          } else if (exactKeywordMatch) {
+            score += 0.5; // High boost for exact keyword match (case-insensitive)
+            print('LUMARA Memory: Exact keyword match found for query "$query"');
+          } else if (containsMatch) {
+            score += 0.4; // Good boost for contains match
+            print('LUMARA Memory: Contains keyword match found for query "$query"');
+          } else {
+            // Then check word-by-word matches for partial matches
+            final keywordMatches = node.keywords.where((keyword) => 
+              queryWords.any((word) => 
+                keyword.toLowerCase().contains(word) || 
+                word.contains(keyword.toLowerCase())
+              )
+            ).length;
+            if (keywordMatches > 0) {
+              // Increased weight from 0.3 to 0.5 to ensure keyword matches pass threshold
+              score += (keywordMatches / node.keywords.length.clamp(1, 10)) * 0.5;
+            }
+          }
           
           // Check if query matches phase context
-          if (node.phaseContext?.toLowerCase().contains(queryLower) == true) return true;
+          if (node.phaseContext != null && 
+              queryWords.any((word) => node.phaseContext!.toLowerCase().contains(word))) {
+            score += 0.2; // Phase match weight
+          }
           
-          return false;
+          // Cross-modal search: check media captions, OCR, transcripts
+          if (crossModalEnabled == true) {
+            final metadata = node.data;
+            if (metadata.containsKey('media') && metadata['media'] is List) {
+              final mediaList = metadata['media'] as List;
+              for (final mediaItem in mediaList) {
+                if (mediaItem is Map) {
+                  // Check caption
+                  if (mediaItem['caption'] != null) {
+                    final caption = (mediaItem['caption'] as String).toLowerCase();
+                    if (queryWords.any((word) => caption.contains(word))) {
+                      score += 0.15;
+                      break;
+                    }
+                  }
+                  // Check OCR text
+                  if (mediaItem['ocr_text'] != null) {
+                    final ocrText = (mediaItem['ocr_text'] as String).toLowerCase();
+                    if (queryWords.any((word) => ocrText.contains(word))) {
+                      score += 0.15;
+                      break;
+                    }
+                  }
+                  // Check transcript
+                  if (mediaItem['transcript'] != null) {
+                    final transcript = (mediaItem['transcript'] as String).toLowerCase();
+                    if (queryWords.any((word) => transcript.contains(word))) {
+                      score += 0.15;
+                      break;
+                    }
+                  }
+                }
+              }
+            }
+          }
+          
+          // Apply similarity threshold if provided
+          if (similarityThreshold != null) {
+            return score >= similarityThreshold;
+          }
+          
+          // If no threshold, use basic matching (at least one match)
+          return score > 0.0;
         }).toList();
-        print('LUMARA Memory: Filtered to ${filteredNodes.length} nodes matching query: "$query"');
+        print('LUMARA Memory: Filtered to ${filteredNodes.length} nodes matching query: "$query" (threshold: ${similarityThreshold ?? "none"})');
       }
       
       // Sort by relevance (recent first, then by confidence)

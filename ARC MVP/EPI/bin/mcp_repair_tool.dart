@@ -4,7 +4,7 @@
 /// Usage: dart run bin/mcp_repair_tool.dart <command> <file_path>
 
 import 'dart:io';
-import 'package:my_app/core/mcp/utils/mcp_file_repair.dart';
+import 'package:my_app/polymeta/store/mcp/utils/mcp_file_repair.dart';
 
 void main(List<String> arguments) async {
   if (arguments.length < 2) {

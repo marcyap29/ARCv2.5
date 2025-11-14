@@ -12,6 +12,9 @@ import 'package:my_app/polymeta/store/mcp/import/mcp_pack_import_service.dart' s
 import 'package:my_app/polymeta/store/mcp/import/enhanced_mcp_import_service.dart';
 import 'package:my_app/polymeta/store/mcp/import/mcp_import_service.dart' show McpImportOptions;
 import 'package:my_app/arc/chat/chat/chat_repo_impl.dart';
+import 'package:my_app/services/phase_regime_service.dart';
+import 'package:my_app/services/rivet_sweep_service.dart';
+import 'package:my_app/services/analytics_service.dart';
 import '../../utils/file_utils.dart';
 import 'package:my_app/arc/ui/timeline/timeline_cubit.dart';
 import 'package:my_app/polymeta/store/arcx/ui/arcx_import_progress_screen.dart';
@@ -323,9 +326,23 @@ class _McpImportScreenState extends State<McpImportScreen> {
     final chatRepo = ChatRepoImpl.instance;
     await chatRepo.initialize();
     
+    // Initialize PhaseRegimeService for import
+    PhaseRegimeService? phaseRegimeService;
+    try {
+      final analyticsService = AnalyticsService();
+      final rivetSweepService = RivetSweepService(analyticsService);
+      phaseRegimeService = PhaseRegimeService(analyticsService, rivetSweepService);
+      await phaseRegimeService.initialize();
+      print('ARCX Import: PhaseRegimeService initialized');
+    } catch (e) {
+      print('Warning: Could not initialize PhaseRegimeService: $e');
+      // Continue import without phase regimes
+    }
+    
     final importService = ARCXImportServiceV2(
       journalRepo: journalRepo,
       chatRepo: chatRepo,
+      phaseRegimeService: phaseRegimeService,
     );
     
     // Import in order: Media → Entries → Chats (or Media → Entries+Chats for 2-archive format)
@@ -524,9 +541,23 @@ class _McpImportScreenState extends State<McpImportScreen> {
     final chatRepo = ChatRepoImpl.instance;
     await chatRepo.initialize();
     
+    // Initialize PhaseRegimeService for import
+    PhaseRegimeService? phaseRegimeService;
+    try {
+      final analyticsService = AnalyticsService();
+      final rivetSweepService = RivetSweepService(analyticsService);
+      phaseRegimeService = PhaseRegimeService(analyticsService, rivetSweepService);
+      await phaseRegimeService.initialize();
+      print('ARCX Import: PhaseRegimeService initialized');
+    } catch (e) {
+      print('Warning: Could not initialize PhaseRegimeService: $e');
+      // Continue import without phase regimes
+    }
+    
     final importService = ARCXImportServiceV2(
       journalRepo: journalRepo,
       chatRepo: chatRepo,
+      phaseRegimeService: phaseRegimeService,
     );
     
     int totalEntries = 0;

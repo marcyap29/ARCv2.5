@@ -350,9 +350,12 @@ class LLMAdapter implements ModelAdapter {
       final preset = LumaraModelPresets.getPreset(modelName);
       
       // Use optimized parameters for tiny models
+      // Increased limits to prevent response cutoff:
+      // - Minimal prompts: 128 tokens (allows 2-3 complete sentences)
+      // - Normal prompts: Use preset value or 256 default (allows meaningful paragraphs)
       final adaptiveMaxTokens = useMinimalPrompt
-          ? 32   // Ultra-terse for simple greetings
-          : (preset['max_new_tokens'] ?? 64);  // Conservative for tiny models
+          ? 128   // Increased from 32 to allow complete thoughts
+          : (preset['max_new_tokens'] ?? 256);  // Use preset value or reasonable default (increased from 64)
 
       final params = pigeon.GenParams(
         maxTokens: adaptiveMaxTokens,

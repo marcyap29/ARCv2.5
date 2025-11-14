@@ -320,13 +320,29 @@ class _McpSettingsViewContent extends StatelessWidget {
           zipFileName: '$bundleId.zip',
         );
         // Open iOS share sheet so user can save to Files
-        await Share.shareXFiles([
-          XFile(
-            zipFile.path,
-            mimeType: 'application/zip',
-            name: '$bundleId.zip',
-          ),
-        ]);
+        // Get share position origin for iPad support
+        Rect? sharePositionOrigin;
+        if (context.mounted) {
+          final mediaQuery = MediaQuery.of(context);
+          final screenSize = mediaQuery.size;
+          sharePositionOrigin = Rect.fromLTWH(
+            screenSize.width / 2,
+            screenSize.height / 2,
+            1,
+            1,
+          );
+        }
+        
+        await Share.shareXFiles(
+          [
+            XFile(
+              zipFile.path,
+              mimeType: 'application/zip',
+              name: '$bundleId.zip',
+            ),
+          ],
+          sharePositionOrigin: sharePositionOrigin,
+        );
 
         // After share sheet returns, show one concise success notice
         if (context.mounted) {

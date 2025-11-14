@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:my_app/shared/app_colors.dart';
 import 'package:my_app/shared/text_style.dart';
 import 'package:my_app/telemetry/analytics.dart';
+import 'package:my_app/arc/chat/services/lumara_reflection_settings_service.dart';
 
 class LumaraSettingsView extends StatefulWidget {
   const LumaraSettingsView({super.key});
@@ -19,8 +20,6 @@ class _LumaraSettingsViewState extends State<LumaraSettingsView> {
   int _lookbackYears = 5;
   int _maxMatches = 5;
   bool _crossModalEnabled = true;
-  bool _isInitialized = false;
-  int _nodeCount = 0;
   
   // Therapeutic Presence settings
   bool _therapeuticPresenceEnabled = true;
@@ -33,15 +32,32 @@ class _LumaraSettingsViewState extends State<LumaraSettingsView> {
   }
 
   Future<void> _loadSettings() async {
-    // TODO: Load from SharedPreferences or similar
-    // For now, use defaults
-    setState(() {
-      _isInitialized = true;
-    });
+    final settingsService = LumaraReflectionSettingsService.instance;
+    final settings = await settingsService.loadAllSettings();
+    
+    if (mounted) {
+      setState(() {
+        _similarityThreshold = settings['similarityThreshold'] as double;
+        _lookbackYears = settings['lookbackYears'] as int;
+        _maxMatches = settings['maxMatches'] as int;
+        _crossModalEnabled = settings['crossModalEnabled'] as bool;
+        _therapeuticPresenceEnabled = settings['therapeuticPresenceEnabled'] as bool;
+        _therapeuticDepthLevel = settings['therapeuticDepthLevel'] as int;
+      });
+    }
   }
 
   Future<void> _saveSettings() async {
-    // TODO: Save to SharedPreferences
+    final settingsService = LumaraReflectionSettingsService.instance;
+    await settingsService.saveAllSettings(
+      similarityThreshold: _similarityThreshold,
+      lookbackYears: _lookbackYears,
+      maxMatches: _maxMatches,
+      crossModalEnabled: _crossModalEnabled,
+      therapeuticPresenceEnabled: _therapeuticPresenceEnabled,
+      therapeuticDepthLevel: _therapeuticDepthLevel,
+    );
+    
     _analytics.logLumaraEvent('settings_updated', data: {
       'similarityThreshold': _similarityThreshold,
       'lookbackYears': _lookbackYears,
@@ -186,17 +202,6 @@ class _LumaraSettingsViewState extends State<LumaraSettingsView> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Status Section
-            _buildSection(
-              context,
-              title: 'Status',
-              children: [
-                _buildStatusCard(),
-              ],
-            ),
-
-            const SizedBox(height: 32),
-
             // Reflection Settings Section
             _buildSection(
               context,
@@ -299,52 +304,6 @@ class _LumaraSettingsViewState extends State<LumaraSettingsView> {
             ),
           ],
         ),
-      ),
-    );
-  }
-
-  Widget _buildStatusCard() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: _isInitialized ? Colors.green.withValues(alpha: 0.1) : Colors.orange.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: _isInitialized ? Colors.green.withValues(alpha: 0.3) : Colors.orange.withValues(alpha: 0.3),
-        ),
-      ),
-      child: Row(
-        children: [
-          Icon(
-            _isInitialized ? Icons.check_circle : Icons.warning,
-            color: _isInitialized ? Colors.green : Colors.orange,
-            size: 24,
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  _isInitialized ? 'LUMARA Active' : 'LUMARA Not Initialized',
-                  style: heading3Style(context).copyWith(
-                    color: kcPrimaryTextColor,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  _isInitialized 
-                    ? 'Indexed $_nodeCount reflective nodes'
-                    : 'No data indexed yet',
-                  style: bodyStyle(context).copyWith(
-                    color: kcSecondaryTextColor,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
       ),
     );
   }

@@ -8,6 +8,9 @@ import 'package:my_app/prism/atlas/rivet/rivet_service.dart';
 import 'package:my_app/prism/atlas/phase/rivet_gate_details_modal.dart';
 import 'package:my_app/arc/core/journal_repository.dart';
 import 'package:my_app/services/user_phase_service.dart';
+import 'package:my_app/services/phase_regime_service.dart';
+import 'package:my_app/services/analytics_service.dart';
+import 'package:my_app/services/rivet_sweep_service.dart';
 import 'package:my_app/arc/ui/arcforms/phase_recommender.dart';
 import 'package:uuid/uuid.dart';
 
@@ -31,6 +34,8 @@ class _PhaseChangeReadinessCardState extends State<PhaseChangeReadinessCard> {
   }
 
   Future<void> _loadAllData() async {
+    if (!mounted) return;
+    
     setState(() {
       _isLoading = true;
     });
@@ -40,6 +45,8 @@ class _PhaseChangeReadinessCardState extends State<PhaseChangeReadinessCard> {
 
       // Rebuild RIVET state from all journal entries to ensure entries loaded from documents are included
       final rebuilt = await _rebuildRivetStateFromAllEntries(userId);
+      
+      if (!mounted) return;
       
       if (rebuilt != null) {
         final rivetProvider = RivetProvider();
@@ -67,10 +74,12 @@ class _PhaseChangeReadinessCardState extends State<PhaseChangeReadinessCard> {
           );
         }
         
-        setState(() {
-          _rivetState = rebuilt.state;
-          _rivetInsights = insights;
-        });
+        if (mounted) {
+          setState(() {
+            _rivetState = rebuilt.state;
+            _rivetInsights = insights;
+          });
+        }
       } else {
         // Fallback: try to get state from storage
         final rivetProvider = RivetProvider();
@@ -81,33 +90,76 @@ class _PhaseChangeReadinessCardState extends State<PhaseChangeReadinessCard> {
 
         final state = await rivetProvider.safeGetState(userId);
         
+        if (mounted) {
+          setState(() {
+            _rivetState = state ?? const RivetState(
+              align: 0,
+              trace: 0,
+              sustainCount: 0,
+              sawIndependentInWindow: false,
+            );
+          });
+        }
+      }
+
+      // Get ATLAS insights (simplified - would need health data in real implementation)
+      final atlasInsights = _getAtlasInsights();
+      if (mounted) {
         setState(() {
-          _rivetState = state ?? const RivetState(
+          _atlasInsights = atlasInsights;
+          _isLoading = false;
+        });
+      }
+    } catch (e, stackTrace) {
+      print('ERROR: Failed to load readiness data: $e');
+      print('Stack trace: $stackTrace');
+      if (mounted) {
+        setState(() {
+          _rivetState = const RivetState(
             align: 0,
             trace: 0,
             sustainCount: 0,
             sawIndependentInWindow: false,
           );
+          _isLoading = false;
         });
       }
+    }
+  }
 
-      // Get ATLAS insights (simplified - would need health data in real implementation)
-      final atlasInsights = _getAtlasInsights();
-      setState(() {
-        _atlasInsights = atlasInsights;
-        _isLoading = false;
-      });
+  /// Get current phase from PhaseRegimeService (helper method)
+  Future<String> _getPhaseFromPhaseRegimeService() async {
+    try {
+      final analyticsService = AnalyticsService();
+      final rivetSweepService = RivetSweepService(analyticsService);
+      final phaseRegimeService = PhaseRegimeService(analyticsService, rivetSweepService);
+      await phaseRegimeService.initialize();
+      
+      final currentRegime = phaseRegimeService.phaseIndex.currentRegime;
+      if (currentRegime != null) {
+        String phase = currentRegime.label.toString().split('.').last;
+        // Capitalize first letter
+        phase = phase[0].toUpperCase() + phase.substring(1);
+        print('PhaseChangeReadinessCard: Using current phase from PhaseRegimeService: $phase');
+        return phase;
+      } else {
+        // Fallback to most recent regime if no current ongoing regime
+        final allRegimes = phaseRegimeService.phaseIndex.allRegimes;
+        if (allRegimes.isNotEmpty) {
+          final sortedRegimes = List.from(allRegimes)..sort((a, b) => b.start.compareTo(a.start));
+          final mostRecentRegime = sortedRegimes.first;
+          String phase = mostRecentRegime.label.toString().split('.').last;
+          phase = phase[0].toUpperCase() + phase.substring(1);
+          print('PhaseChangeReadinessCard: No current ongoing regime, using most recent: $phase');
+          return phase;
+        } else {
+          // No regimes found, throw to trigger fallback
+          throw Exception('No phase regimes found');
+        }
+      }
     } catch (e) {
-      print('ERROR: Failed to load readiness data: $e');
-      setState(() {
-        _rivetState = const RivetState(
-          align: 0,
-          trace: 0,
-          sustainCount: 0,
-          sawIndependentInWindow: false,
-        );
-        _isLoading = false;
-      });
+      print('PhaseChangeReadinessCard: Error in _getPhaseFromPhaseRegimeService: $e');
+      rethrow;
     }
   }
 
@@ -140,8 +192,35 @@ class _PhaseChangeReadinessCardState extends State<PhaseChangeReadinessCard> {
       final sortedEntries = allEntries.toList()
         ..sort((a, b) => a.createdAt.compareTo(b.createdAt));
 
-      // Get current phase once (assumes it doesn't change during processing)
-      final currentPhase = await UserPhaseService.getCurrentPhase();
+      // Get current phase - try PhaseRegimeService first, fallback to UserPhaseService
+      // Use a timeout to prevent hanging, and ensure we always get a phase
+      String currentPhase = 'Discovery';
+      try {
+        // Try to get phase with a timeout to prevent blocking
+        currentPhase = await _getPhaseFromPhaseRegimeService()
+            .timeout(
+              const Duration(seconds: 3),
+              onTimeout: () {
+                print('PhaseChangeReadinessCard: PhaseRegimeService timeout, using UserPhaseService');
+                return UserPhaseService.getCurrentPhase();
+              },
+            )
+            .catchError((e) {
+              print('PhaseChangeReadinessCard: Error in PhaseRegimeService: $e, using UserPhaseService');
+              return UserPhaseService.getCurrentPhase();
+            });
+        print('PhaseChangeReadinessCard: Successfully got phase: $currentPhase');
+      } catch (e, stackTrace) {
+        print('PhaseChangeReadinessCard: Error getting phase: $e');
+        print('Stack trace: $stackTrace');
+        try {
+          currentPhase = await UserPhaseService.getCurrentPhase();
+          print('PhaseChangeReadinessCard: Using phase from UserPhaseService: $currentPhase');
+        } catch (e2) {
+          print('PhaseChangeReadinessCard: Error with UserPhaseService: $e2, defaulting to Discovery');
+          currentPhase = 'Discovery';
+        }
+      }
 
       for (final entry in sortedEntries) {
         final recommendedPhase = PhaseRecommender.recommend(
@@ -284,24 +363,26 @@ class _PhaseChangeReadinessCardState extends State<PhaseChangeReadinessCard> {
 
   @override
   Widget build(BuildContext context) {
-    if (_isLoading) {
-      return Card(
-        elevation: 2,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        child: Container(
-          padding: const EdgeInsets.all(32.0),
-          child: const Center(
-            child: CircularProgressIndicator(),
+    // Always ensure widget renders, even if there's an error
+    try {
+      if (_isLoading) {
+        return Card(
+          elevation: 2,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          child: Container(
+            padding: const EdgeInsets.all(32.0),
+            child: const Center(
+              child: CircularProgressIndicator(),
+            ),
           ),
-        ),
-      );
-    }
+        );
+      }
 
-    final isReady = _isReadyForPhaseChange();
-    final qualifyingEntries = _rivetState?.sustainCount ?? 0;
-    final hasIndependent = _rivetState?.sawIndependentInWindow ?? false;
-    final alignPercent = ((_rivetState?.align ?? 0) * 100).toInt();
-    final tracePercent = ((_rivetState?.trace ?? 0) * 100).toInt();
+      final isReady = _isReadyForPhaseChange();
+      final qualifyingEntries = _rivetState?.sustainCount ?? 0;
+      final hasIndependent = _rivetState?.sawIndependentInWindow ?? false;
+      final alignPercent = ((_rivetState?.align ?? 0) * 100).toInt();
+      final tracePercent = ((_rivetState?.trace ?? 0) * 100).toInt();
 
     return Card(
       elevation: 4,
@@ -448,6 +529,38 @@ class _PhaseChangeReadinessCardState extends State<PhaseChangeReadinessCard> {
         ),
       ),
     );
+    } catch (e, stackTrace) {
+      print('ERROR: PhaseChangeReadinessCard build error: $e');
+      print('Stack trace: $stackTrace');
+      // Return a minimal card so widget is always visible
+      return Card(
+        elevation: 2,
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Phase Transition Detection',
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Error loading data. Please try refreshing.',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+              const SizedBox(height: 8),
+              ElevatedButton(
+                onPressed: _loadAllData,
+                child: const Text('Retry'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
   }
 
   Widget _buildMetricsRow(int align, int trace, int entries, bool hasIndependent) {

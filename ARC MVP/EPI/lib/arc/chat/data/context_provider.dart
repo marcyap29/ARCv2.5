@@ -2,6 +2,11 @@ import 'package:my_app/arc/chat/data/context_scope.dart';
 import 'package:my_app/models/journal_entry_model.dart';
 import 'package:my_app/services/user_phase_service.dart';
 import 'package:my_app/arc/core/journal_repository.dart';
+import 'package:my_app/services/phase_regime_service.dart';
+import 'package:my_app/services/analytics_service.dart';
+import 'package:my_app/services/rivet_sweep_service.dart';
+import '../chat/chat_repo.dart';
+import '../chat/chat_repo_impl.dart';
 
 /// Context window for LUMARA processing
 class ContextWindow {
@@ -51,14 +56,22 @@ class ContextWindow {
 class ContextProvider {
   final LumaraScope _scope;
   final JournalRepository _journalRepository;
+  final ChatRepo _chatRepo;
 
-  ContextProvider(this._scope) : _journalRepository = JournalRepository();
+  ContextProvider(this._scope) 
+      : _journalRepository = JournalRepository(),
+        _chatRepo = ChatRepoImpl.instance;
   
   /// Build context window for LUMARA processing
+  /// [scope] - Optional scope to use. If provided, uses this scope instead of the stored scope.
   Future<ContextWindow> buildContext({
     int daysBack = 14,
     int maxEntries = 200,
+    LumaraScope? scope,
   }) async {
+    // Use provided scope or fall back to stored scope
+    final effectiveScope = scope ?? _scope;
+    
     final now = DateTime.now();
     final startDate = now.subtract(Duration(days: daysBack));
 
@@ -66,31 +79,37 @@ class ContextProvider {
     final edges = <Map<String, dynamic>>[];
 
     // Get real journal entries if journal scope is enabled
-    if (_scope.hasScope('journal')) {
+    if (effectiveScope.hasScope('journal')) {
       final realEntries = await _getRealJournalEntries(daysBack, maxEntries);
       nodes.addAll(realEntries);
     }
     
     // Real phase data if phase scope is enabled
-    if (_scope.hasScope('phase')) {
+    if (effectiveScope.hasScope('phase')) {
       final phaseData = await _generatePhaseData();
       nodes.addAll(phaseData);
     }
     
     // Mock arcform data if arcforms scope is enabled
-    if (_scope.hasScope('arcforms')) {
+    if (effectiveScope.hasScope('arcforms')) {
       final arcformData = await _generateMockArcformData();
       nodes.addAll(arcformData);
     }
     
     // Mock voice transcripts if voice scope is enabled
-    if (_scope.hasScope('voice')) {
+    if (effectiveScope.hasScope('voice')) {
       nodes.addAll(_generateMockVoiceData());
     }
     
     // Mock media captions if media scope is enabled
-    if (_scope.hasScope('media')) {
+    if (effectiveScope.hasScope('media')) {
       nodes.addAll(_generateMockMediaData());
+    }
+    
+    // Add recent chat sessions for conversation continuity
+    if (effectiveScope.hasScope('chat') || effectiveScope.hasScope('journal')) {
+      final chatSessions = await _getRecentChatSessions(limit: 5);
+      nodes.addAll(chatSessions);
     }
     
     return ContextWindow(
@@ -101,6 +120,69 @@ class ContextProvider {
       startDate: startDate,
       endDate: now,
     );
+  }
+  
+  /// Get recent chat sessions for context
+  Future<List<Map<String, dynamic>>> _getRecentChatSessions({int limit = 25}) async {
+    final chatNodes = <Map<String, dynamic>>[];
+    
+    try {
+      final sessions = await _chatRepo.listActive();
+      // Sort by most recent (assuming sessions have updatedAt or similar)
+      sessions.sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
+      
+      // Get up to limit most recent sessions (max 25)
+      final sessionsToInclude = sessions.take(limit).toList();
+      
+      // Archive sessions after the 25th
+      if (sessions.length > 25) {
+        final sessionsToArchive = sessions.skip(25).toList();
+        for (final session in sessionsToArchive) {
+          try {
+            await _chatRepo.archiveSession(session.id, true);
+            print('ContextProvider: Archived session ${session.id} (${session.subject})');
+          } catch (e) {
+            print('ContextProvider: Error archiving session ${session.id}: $e');
+          }
+        }
+      }
+      
+      // Get up to limit most recent sessions
+      for (final session in sessionsToInclude) {
+        try {
+          // Get up to 25 messages from each session for context
+          final messages = await _chatRepo.getMessages(session.id, lazy: false);
+          final recentMessages = messages.take(25).toList();
+          
+          if (recentMessages.isNotEmpty) {
+            final messageText = recentMessages.map((m) {
+              final role = m.role == 'user' ? 'user' : 'assistant';
+              return '$role: ${m.content}';
+            }).join('\n');
+            
+            chatNodes.add({
+              'id': 'chat_${session.id}',
+              'type': 'chat',
+              'text': 'Session: "${session.subject}" (${session.updatedAt.toLocal().toString().split(' ')[0]}):\n$messageText',
+              'meta': {
+                'session_id': session.id,
+                'subject': session.subject,
+                'date': session.updatedAt.toIso8601String(),
+                'message_count': recentMessages.length,
+              },
+            });
+          }
+        } catch (e) {
+          print('ContextProvider: Error getting messages for session ${session.id}: $e');
+        }
+      }
+      
+      print('ContextProvider: Added ${chatNodes.length} recent chat sessions to context');
+    } catch (e) {
+      print('ContextProvider: Error getting recent chat sessions: $e');
+    }
+    
+    return chatNodes;
   }
   
   /// Get real journal entries from repository
@@ -153,8 +235,44 @@ class ContextProvider {
   
   /// Generate phase data using real journal entries
   Future<List<Map<String, dynamic>>> _generatePhaseData() async {
-    final currentPhase = await UserPhaseService.getCurrentPhase();
-    print('ContextProvider: Using actual current phase: $currentPhase');
+    // Try to get current phase from PhaseRegimeService first (most accurate)
+    String currentPhase = 'Discovery';
+    try {
+      final analyticsService = AnalyticsService();
+      final rivetSweepService = RivetSweepService(analyticsService);
+      final phaseRegimeService = PhaseRegimeService(analyticsService, rivetSweepService);
+      await phaseRegimeService.initialize();
+      
+      final currentRegime = phaseRegimeService.phaseIndex.currentRegime;
+      if (currentRegime != null) {
+        // Convert PhaseLabel enum to string (e.g., PhaseLabel.discovery -> "discovery")
+        currentPhase = currentRegime.label.toString().split('.').last;
+        // Capitalize first letter
+        currentPhase = currentPhase[0].toUpperCase() + currentPhase.substring(1);
+        print('ContextProvider: Using current phase from PhaseRegimeService: $currentPhase');
+      } else {
+        // Fallback: get most recent regime if no current ongoing regime
+        final allRegimes = phaseRegimeService.phaseIndex.allRegimes;
+        if (allRegimes.isNotEmpty) {
+          final sortedRegimes = List.from(allRegimes)..sort((a, b) => b.start.compareTo(a.start));
+          final mostRecentRegime = sortedRegimes.first;
+          currentPhase = mostRecentRegime.label.toString().split('.').last;
+          currentPhase = currentPhase[0].toUpperCase() + currentPhase.substring(1);
+          print('ContextProvider: No current regime, using most recent: $currentPhase');
+        } else {
+          // Final fallback to UserPhaseService
+          currentPhase = await UserPhaseService.getCurrentPhase();
+          print('ContextProvider: No regimes found, using UserPhaseService: $currentPhase');
+        }
+      }
+    } catch (e) {
+      print('ContextProvider: Error getting phase from PhaseRegimeService: $e');
+      // Fallback to UserPhaseService
+      currentPhase = await UserPhaseService.getCurrentPhase();
+      print('ContextProvider: Fallback to UserPhaseService: $currentPhase');
+    }
+    
+    print('ContextProvider: Final current phase: $currentPhase');
 
     final phaseNodes = <Map<String, dynamic>>[];
 

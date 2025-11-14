@@ -3,7 +3,6 @@
 // Provides transparent memory usage tracking and explainable AI responses
 
 import 'dart:collection';
-import '../core/schema.dart';
 import 'enhanced_memory_schema.dart';
 
 /// Service for tracking memory attribution and providing explainable responses
@@ -139,6 +138,7 @@ class AttributionService {
     double confidence = 1.0,
     String? reasoning,
     String? phaseContext,
+    String? excerpt,
   }) {
     return AttributionTrace(
       nodeRef: nodeRef,
@@ -147,6 +147,7 @@ class AttributionService {
       timestamp: DateTime.now().toUtc(),
       reasoning: reasoning,
       phaseContext: phaseContext,
+      excerpt: excerpt,
     );
   }
 

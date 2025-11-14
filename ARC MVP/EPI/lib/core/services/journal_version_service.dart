@@ -12,6 +12,7 @@ import 'package:path/path.dart' as path;
 import 'package:path_provider/path_provider.dart';
 import 'package:my_app/data/models/media_item.dart';
 import 'package:my_app/arc/chat/chat/ulid.dart' as ulid;
+import 'draft_media_store.dart';
 
 /// Represents an immutable version of a journal entry
 class JournalVersion {
@@ -405,11 +406,10 @@ class JournalVersionService {
     }
   }
 
-  /// Convert MediaItem to DraftMediaItem (with file copying)
+  /// Convert MediaItem to DraftMediaItem using content-addressed storage (no compression)
   Future<DraftMediaItem?> _convertMediaItem(
     MediaItem mediaItem,
     String entryId,
-    String draftMediaDir,
   ) async {
     try {
       final sourceFile = File(mediaItem.uri);
@@ -418,10 +418,6 @@ class JournalVersionService {
         return null;
       }
 
-      // Get file info
-      final bytes = await sourceFile.readAsBytes();
-      final fileHash = sha256.convert(bytes).toString();
-      
       // Determine media kind
       final kind = mediaItem.type == MediaType.video 
           ? 'video' 
@@ -429,34 +425,54 @@ class JournalVersionService {
               ? 'audio' 
               : 'image';
 
-      // Copy to draft_media/ with hash-based filename
-      final extension = mediaItem.uri.split('.').last;
-      final fileName = '$fileHash.$extension';
-      final targetPath = path.join(draftMediaDir, fileName);
-      
-      final targetFile = File(targetPath);
-      if (!await targetFile.exists()) {
-        await targetFile.writeAsBytes(bytes);
+      // Initialize media store if needed
+      final mediaStore = DraftMediaStore.instance;
+      await mediaStore.initialize();
+
+      // Check draft quota
+      final sizeBytes = await sourceFile.length();
+      final quotaCheck = await mediaStore.checkDraftQuota(entryId, sizeBytes);
+      if (!quotaCheck.isSuccess) {
+        if (quotaCheck.error == DraftError.tooLarge) {
+          debugPrint('JournalVersionService: Media file too large: $sizeBytes bytes');
+        } else if (quotaCheck.error == DraftError.quotaExceeded) {
+          debugPrint('JournalVersionService: Draft quota exceeded for entry $entryId');
+        }
+        return null;
       }
 
-      // Generate thumbnail for images/videos (async, don't block)
-      String? thumbPath;
-      if (kind == 'image' || kind == 'video') {
-        // TODO: Generate thumbnail - for now use same file
-        thumbPath = fileName; // Will be implemented with image processing
-      }
-
-      return DraftMediaItem(
-        id: mediaItem.id,
+      // Add original to content-addressed store (no compression)
+      final result = await mediaStore.addOriginal(
+        sourceFile,
+        mediaId: mediaItem.id,
         kind: kind,
+      );
+
+      if (!result.isSuccess) {
+        debugPrint('JournalVersionService: Failed to add original: ${result.error}');
+        return null;
+      }
+
+      final mediaRef = result.value!;
+
+      // Update draft size tracking
+      mediaStore.updateDraftSize(entryId, sizeBytes);
+
+      // Get extension for MIME type
+      final extension = path.extension(sourceFile.path).replaceAll('.', '');
+      
+      // Create DraftMediaItem with blob reference
+      return DraftMediaItem(
+        id: mediaRef.mediaId,
+        kind: mediaRef.kind,
         filename: sourceFile.path.split('/').last,
         mime: _getMimeType(extension),
-        width: null, // TODO: Extract from image/video if needed
-        height: null, // TODO: Extract from image/video if needed
+        width: null, // TODO: Extract from image/video metadata if needed
+        height: null, // TODO: Extract from image/video metadata if needed
         durationMs: mediaItem.duration?.inMilliseconds,
-        thumb: thumbPath,
-        path: 'draft_media/$fileName', // Relative path
-        sha256: fileHash,
+        thumb: mediaRef.thumbUri != null ? path.basename(mediaRef.thumbUri!) : null,
+        path: mediaRef.uri, // Absolute path to blob
+        sha256: mediaRef.hash,
         createdAt: mediaItem.createdAt,
       );
     } catch (e) {
@@ -484,6 +500,7 @@ class JournalVersionService {
   }
 
   /// Save draft with hash checking (includes media and AI)
+  /// Uses content-addressed storage with no compression
   Future<bool> saveDraft({
     required String entryId,
     required String content,
@@ -496,15 +513,19 @@ class JournalVersionService {
   }) async {
     try {
       final entryDir = await _getEntryDir(entryId);
-      final draftMediaDir = path.join(entryDir.path, 'draft_media');
-      await Directory(draftMediaDir).create(recursive: true);
 
-      // Convert MediaItems to DraftMediaItems (copy files)
+      // Initialize media store
+      final mediaStore = DraftMediaStore.instance;
+      await mediaStore.initialize();
+
+      // Convert MediaItems to DraftMediaItems using content-addressed storage
       final draftMedia = <DraftMediaItem>[];
       for (final mediaItem in media) {
-        final draftMediaItem = await _convertMediaItem(mediaItem, entryId, draftMediaDir);
+        final draftMediaItem = await _convertMediaItem(mediaItem, entryId);
         if (draftMediaItem != null) {
           draftMedia.add(draftMediaItem);
+          // Retain reference (increment refcount)
+          await mediaStore.retain(draftMediaItem.sha256);
         }
       }
 
@@ -618,31 +639,26 @@ class JournalVersionService {
     }
   }
 
-  /// Snapshot media files from draft_media/ to version_media/
+  /// Snapshot media references (content-addressed storage, no copying needed)
+  /// Versions reference the same blobs via hash; reference counting keeps them alive
   Future<void> _snapshotMedia(
     String entryId,
     int rev,
     List<DraftMediaItem> draftMedia,
   ) async {
     try {
-      final entryDir = await _getEntryDir(entryId);
-      final draftMediaDir = Directory(path.join(entryDir.path, 'draft_media'));
-      final versionMediaDir = Directory(path.join(entryDir.path, 'v', '${rev}_media'));
-      await versionMediaDir.create(recursive: true);
+      final mediaStore = DraftMediaStore.instance;
+      await mediaStore.initialize();
 
-      // Copy each media file from draft_media/ to version_media/
+      // Retain references for each media item in this version
+      // This ensures blobs aren't deleted while any version references them
       for (final mediaItem in draftMedia) {
-        final fileName = mediaItem.path.split('/').last;
-        final sourceFile = File(path.join(draftMediaDir.path, fileName));
-        if (await sourceFile.exists()) {
-          final targetFile = File(path.join(versionMediaDir.path, fileName));
-          await sourceFile.copy(targetFile.path);
-        }
+        await mediaStore.retain(mediaItem.sha256);
       }
 
-      debugPrint('JournalVersionService: Snapshot media for v$rev (${draftMedia.length} files)');
+      debugPrint('JournalVersionService: Retained ${draftMedia.length} media references for v$rev');
     } catch (e) {
-      debugPrint('JournalVersionService: Error snapshotting media: $e');
+      debugPrint('JournalVersionService: Error snapshotting media references: $e');
       // Don't fail the version save if media snapshot fails
     }
   }
@@ -761,11 +777,18 @@ class JournalVersionService {
       );
       await latestFile.writeAsString(jsonEncode(latest.toJson()));
 
-      // Clear draft and draft_media/
+      // Clear draft (discardDraft releases media references)
+      // Note: Media blobs are kept via reference counting as long as versions reference them
       await discardDraft(entryId);
+      
+      // Clean up legacy draft_media/ directory if it exists (backward compatibility)
       final draftMediaDir = Directory(path.join(entryDir.path, 'draft_media'));
       if (await draftMediaDir.exists()) {
-        await draftMediaDir.delete(recursive: true);
+        try {
+          await draftMediaDir.delete(recursive: true);
+        } catch (e) {
+          debugPrint('JournalVersionService: Error cleaning legacy draft_media/: $e');
+        }
       }
 
       debugPrint('JournalVersionService: Published version v${version.rev} for entry $entryId');
@@ -776,12 +799,35 @@ class JournalVersionService {
     }
   }
 
-  /// Discard draft (delete draft.json, keep versions)
+  /// Discard draft (delete draft.json, release media references, keep versions)
   Future<void> discardDraft(String entryId) async {
     try {
       final entryDir = await _getEntryDir(entryId);
       final draftFile = File(path.join(entryDir.path, 'draft.json'));
+      
+      // Release media references before deleting draft
       if (await draftFile.exists()) {
+        try {
+          final draft = await getDraft(entryId);
+          if (draft != null) {
+            final mediaStore = DraftMediaStore.instance;
+            await mediaStore.initialize();
+            
+            // Release each media item reference
+            for (final mediaItem in draft.media) {
+              await mediaStore.release(mediaItem.sha256);
+            }
+            
+            // Clear draft size tracking
+            mediaStore.updateDraftSize(entryId, 0);
+            
+            debugPrint('JournalVersionService: Released ${draft.media.length} media references');
+          }
+        } catch (e) {
+          debugPrint('JournalVersionService: Error releasing media references: $e');
+          // Continue with draft deletion even if media release fails
+        }
+        
         await draftFile.delete();
         debugPrint('JournalVersionService: Discarded draft for entry $entryId');
       }

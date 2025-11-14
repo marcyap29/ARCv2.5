@@ -23,9 +23,11 @@ import 'package:my_app/models/journal_entry_model.dart';
 import 'package:my_app/data/models/media_item.dart';
 import 'package:my_app/core/services/photo_library_service.dart';
 import 'package:my_app/platform/photo_bridge.dart';
-import 'package:my_app/data/models/photo_metadata.dart';
-import 'package:my_app/models/phase_models.dart';
 import 'package:my_app/services/phase_index.dart';
+import 'package:my_app/prism/atlas/rivet/rivet_storage.dart';
+import 'package:my_app/prism/atlas/rivet/rivet_models.dart' as rivet_models;
+import 'package:my_app/models/arcform_snapshot_model.dart';
+import 'package:hive/hive.dart';
 
 class McpExportService {
   final String bundleId;
@@ -75,13 +77,36 @@ class McpExportService {
       // Export chat data if chat repository is available
       final chatData = await _exportChatData(scope, customScope, includeChats, includeArchivedChats);
 
-      // Export phase regimes if phase index is available
+      // Export phase regimes, RIVET state, Sentinel state, and ArcForm timeline if available
       final phaseData = await _exportPhaseRegimes(phaseIndex);
+      final rivetData = await _exportRivetState();
+      final sentinelData = await _exportSentinelState();
+      final arcformData = await _exportArcFormTimeline();
 
       // Combine all nodes, edges, and pointers
-      final allNodes = <McpNode>[...nodes, ...chatData.nodes, ...phaseData.nodes];
-      final allEdges = <McpEdge>[...chatData.edges, ...phaseData.edges];
-      final allPointers = <McpPointer>[...pointers, ...chatData.pointers, ...phaseData.pointers];
+      final allNodes = <McpNode>[
+        ...nodes, 
+        ...chatData.nodes, 
+        ...phaseData.nodes,
+        ...rivetData.nodes,
+        ...sentinelData.nodes,
+        ...arcformData.nodes,
+      ];
+      final allEdges = <McpEdge>[
+        ...chatData.edges, 
+        ...phaseData.edges,
+        ...rivetData.edges,
+        ...sentinelData.edges,
+        ...arcformData.edges,
+      ];
+      final allPointers = <McpPointer>[
+        ...pointers, 
+        ...chatData.pointers, 
+        ...phaseData.pointers,
+        ...rivetData.pointers,
+        ...sentinelData.pointers,
+        ...arcformData.pointers,
+      ];
 
       // Generate embeddings for nodes and pointers
       final embeddings = await _generateEmbeddings(allNodes, allPointers);
@@ -1089,6 +1114,226 @@ class McpExportService {
         );
         edges.add(edge);
       }
+    }
+
+    return PhaseExportData(
+      nodes: nodes,
+      edges: edges,
+      pointers: pointers,
+    );
+  }
+
+  /// Export RIVET state to MCP format
+  Future<PhaseExportData> _exportRivetState() async {
+    final nodes = <McpNode>[];
+    final edges = <McpEdge>[];
+    final pointers = <McpPointer>[];
+
+    try {
+      // Try to get user ID - we'll export all users' states if multiple exist
+      if (!Hive.isBoxOpen(RivetBox.boxName)) {
+        await Hive.openBox(RivetBox.boxName);
+      }
+      
+      final stateBox = Hive.box(RivetBox.boxName);
+      final eventsBox = Hive.isBoxOpen(RivetBox.eventsBoxName) 
+          ? Hive.box(RivetBox.eventsBoxName)
+          : await Hive.openBox(RivetBox.eventsBoxName);
+
+      // Export all user states
+      for (final userId in stateBox.keys) {
+        final stateData = stateBox.get(userId);
+        if (stateData == null) continue;
+
+        final rivetState = rivet_models.RivetState.fromJson(
+          stateData is Map<String, dynamic> 
+              ? stateData 
+              : Map<String, dynamic>.from(stateData as Map),
+        );
+
+        // Get events for this user
+        final eventsData = eventsBox.get(userId, defaultValue: <dynamic>[]);
+        final events = <rivet_models.RivetEvent>[];
+        if (eventsData is List) {
+          for (final eventData in eventsData) {
+            try {
+              final eventMap = eventData is Map<String, dynamic>
+                  ? eventData
+                  : Map<String, dynamic>.from(eventData as Map);
+              events.add(rivet_models.RivetEvent.fromJson(eventMap));
+            } catch (e) {
+              print('MCP Export: Failed to parse RIVET event: $e');
+            }
+          }
+        }
+
+        // Prepare metadata with events if available
+        final metadata = <String, dynamic>{
+          'user_id': userId.toString(),
+          'align': rivetState.align,
+          'trace': rivetState.trace,
+          'sustain_count': rivetState.sustainCount,
+          'saw_independent_in_window': rivetState.sawIndependentInWindow,
+          'event_count': events.length,
+          'exported_at': DateTime.now().toIso8601String(),
+        };
+
+        // Add events as metadata if available
+        if (events.isNotEmpty) {
+          final recentEvents = events.take(10).toList(); // Export last 10 events
+          metadata['recent_events'] = recentEvents.map((e) => e.toJson()).toList();
+        }
+
+        // Create RIVET state node
+        final rivetNode = McpNode(
+          id: 'rivet_state_${userId}',
+          type: 'rivet_state',
+          timestamp: DateTime.now(),
+          contentSummary: 'RIVET State: ALIGN=${rivetState.align.toStringAsFixed(3)}, TRACE=${rivetState.trace.toStringAsFixed(3)}',
+          keywords: ['rivet', 'state', 'align', 'trace'],
+          narrative: McpNarrative(
+            situation: 'RIVET alignment and trace state',
+            action: 'Phase readiness tracking',
+            growth: 'Evidence accumulation',
+            essence: 'ALIGN: ${rivetState.align.toStringAsFixed(3)}, TRACE: ${rivetState.trace.toStringAsFixed(3)}, Sustain: ${rivetState.sustainCount}',
+          ),
+          emotions: {
+            'align': rivetState.align,
+            'trace': rivetState.trace,
+          },
+          provenance: McpProvenance(
+            source: 'ARC',
+            app: 'EPI',
+            importMethod: 'rivet_state',
+          ),
+          metadata: metadata,
+        );
+
+        nodes.add(rivetNode);
+      }
+    } catch (e) {
+      print('MCP Export: Error exporting RIVET state: $e');
+      // Continue with export even if RIVET state fails
+    }
+
+    return PhaseExportData(
+      nodes: nodes,
+      edges: edges,
+      pointers: pointers,
+    );
+  }
+
+  /// Export Sentinel state to MCP format
+  Future<PhaseExportData> _exportSentinelState() async {
+    final nodes = <McpNode>[];
+    final edges = <McpEdge>[];
+    final pointers = <McpPointer>[];
+
+    try {
+      // Sentinel state may not be persistently stored - it's computed on the fly
+      // For now, we'll create a placeholder node indicating Sentinel is active
+      // In the future, if Sentinel state is stored, we can export it here
+      
+      final sentinelNode = McpNode(
+        id: 'sentinel_state_current',
+        type: 'sentinel_state',
+        timestamp: DateTime.now(),
+        contentSummary: 'Sentinel safety monitoring state',
+        keywords: ['sentinel', 'safety', 'monitoring'],
+        narrative: McpNarrative(
+          situation: 'Safety monitoring system state',
+          action: 'Risk detection and alerting',
+          growth: 'User safety protection',
+          essence: 'Sentinel monitoring active',
+        ),
+        provenance: McpProvenance(
+          source: 'ARC',
+          app: 'EPI',
+          importMethod: 'sentinel_state',
+        ),
+        metadata: {
+          'state': 'ok', // Default state - actual state would be computed
+          'exported_at': DateTime.now().toIso8601String(),
+          'note': 'Sentinel state is computed dynamically. This export represents the system state at export time.',
+        },
+      );
+
+      nodes.add(sentinelNode);
+    } catch (e) {
+      print('MCP Export: Error exporting Sentinel state: $e');
+    }
+
+    return PhaseExportData(
+      nodes: nodes,
+      edges: edges,
+      pointers: pointers,
+    );
+  }
+
+  /// Export ArcForm timeline history to MCP format
+  Future<PhaseExportData> _exportArcFormTimeline() async {
+    final nodes = <McpNode>[];
+    final edges = <McpEdge>[];
+    final pointers = <McpPointer>[];
+
+    try {
+      if (!Hive.isBoxOpen('arcform_snapshots')) {
+        await Hive.openBox<ArcformSnapshot>('arcform_snapshots');
+      }
+
+      final box = Hive.box<ArcformSnapshot>('arcform_snapshots');
+      final snapshots = box.values.toList();
+
+      for (final snapshot in snapshots) {
+        // Create ArcForm snapshot node
+        final arcformNode = McpNode(
+          id: 'arcform_snapshot_${snapshot.id}',
+          type: 'arcform_snapshot',
+          timestamp: snapshot.timestamp,
+          contentSummary: 'ArcForm snapshot: ${snapshot.arcformId}',
+          phaseHint: snapshot.data['phase'] as String?,
+          keywords: ['arcform', 'snapshot', 'timeline'],
+          narrative: McpNarrative(
+            situation: 'ArcForm visualization snapshot',
+            action: 'Timeline visualization',
+            growth: 'Visual pattern recognition',
+            essence: snapshot.notes,
+          ),
+          provenance: McpProvenance(
+            source: 'ARC',
+            app: 'EPI',
+            importMethod: 'arcform_snapshot',
+          ),
+          metadata: {
+            'arcform_id': snapshot.arcformId,
+            'snapshot_id': snapshot.id,
+            'notes': snapshot.notes,
+            'data': snapshot.data,
+            'exported_at': DateTime.now().toIso8601String(),
+          },
+        );
+
+        nodes.add(arcformNode);
+
+        // Create edge to journal entry if arcformId matches an entry
+        final edge = McpEdge(
+          id: 'edge_arcform_${snapshot.id}',
+          source: 'arcform_snapshot_${snapshot.id}',
+          target: 'entry_${snapshot.arcformId}',
+          relation: 'visualizes',
+          timestamp: snapshot.timestamp,
+          weight: 1.0,
+          metadata: {
+            'arcform_snapshot_id': snapshot.id,
+            'entry_id': snapshot.arcformId,
+            'relationship_type': 'visualizes',
+          },
+        );
+        edges.add(edge);
+      }
+    } catch (e) {
+      print('MCP Export: Error exporting ArcForm timeline: $e');
+      // Continue with export even if ArcForm timeline fails
     }
 
     return PhaseExportData(

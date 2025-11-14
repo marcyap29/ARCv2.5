@@ -1,7 +1,263 @@
 # EPI ARC MVP - Changelog
 
-**Version:** 2.1.8  
-**Last Updated:** February 2025
+**Version:** 2.1.10  
+**Last Updated:** November 2025
+
+## [2.1.10] - November 2025
+
+### **In-Journal LUMARA Attribution & User Comment Support** - Complete
+
+#### Fixed Attribution Excerpts
+- **Actual Journal Content**: In-journal LUMARA attributions now show actual journal entry content instead of generic "Hello! I'm LUMARA..." messages
+- **Excerpt Extraction**: Enhanced excerpt extraction in `enhanced_mira_memory_service.dart` to detect and filter LUMARA response patterns
+- **Content Enrichment**: Added `_enrichAttributionTraces()` in `journal_screen.dart` to look up actual journal entry content from entry IDs
+- **Excerpt Display**: Attribution traces now show the actual 2-3 sentences from journal entries used in responses
+
+#### User Comment/Question Support
+- **Continuation Fields**: LUMARA now takes into account questions asked in text boxes underneath in-journal LUMARA comments
+- **Conversation Context**: Modified `_buildRichContext()` to include user comments from previous LUMARA blocks when generating responses
+- **Context Building**: All reflection generation methods now include user comments in context
+- **Status**: ✅ Complete - LUMARA maintains conversation context across in-journal interactions
+
+**Files Modified**:
+- `lib/polymeta/memory/enhanced_mira_memory_service.dart` - Enhanced excerpt extraction
+- `lib/ui/journal/journal_screen.dart` - Added enrichment and user comment support
+
+---
+
+### **System State Export to MCP/ARCX** - Complete
+
+#### RIVET State Export
+- **State Data**: Exports RIVET state including ALIGN, TRACE, sustainCount, sawIndependentInWindow
+- **Event History**: Includes recent RIVET events (last 10) in export
+- **MCP Format**: Converted to McpNode format with full metadata
+- **ARCX Format**: Exported to `PhaseRegimes/rivet_state.json`
+
+#### Sentinel State Export
+- **Monitoring State**: Exports current Sentinel monitoring state (ok, watch, alert)
+- **Dynamic State**: Note that Sentinel state is computed dynamically
+- **MCP Format**: Converted to McpNode format
+- **ARCX Format**: Exported to `PhaseRegimes/sentinel_state.json`
+
+#### ArcForm Timeline Export
+- **Snapshot History**: Exports all ArcForm snapshots with full metadata
+- **Entry Links**: Creates McpEdge links from snapshots to journal entries
+- **MCP Format**: Each snapshot converted to McpNode
+- **ARCX Format**: Exported to `PhaseRegimes/arcform_timeline.json`
+
+#### Grouped Export Structure
+- **PhaseRegimes Directory**: All phase-related data exported together
+  - `phase_regimes.json` (existing)
+  - `rivet_state.json` (new)
+  - `sentinel_state.json` (new)
+  - `arcform_timeline.json` (new)
+- **Import Support**: All new exports are properly imported and restored
+- **Status**: ✅ Complete - Complete system state backup and restore
+
+**Files Modified**:
+- `lib/polymeta/store/mcp/export/mcp_export_service.dart` - Added export methods
+- `lib/polymeta/store/arcx/services/arcx_export_service_v2.dart` - Added export methods
+- `lib/polymeta/store/arcx/services/arcx_import_service_v2.dart` - Added import methods
+- `lib/polymeta/store/arcx/ui/arcx_import_progress_screen.dart` - Updated UI to show import counts
+
+---
+
+### **Phase Detection Fix & Transition Detection Card** - Complete
+
+#### Phase Detection Fix
+- **Imported Phase Regimes**: Phase detection now uses imported phase regimes from PhaseRegimeService
+- **Fallback Logic**: Falls back to most recent regime if no current ongoing regime exists
+- **UserPhaseService Fallback**: Only uses UserPhaseService as final fallback if no regimes found
+- **Status**: ✅ Complete - Phase detection correctly uses imported data
+
+#### Phase Transition Detection Card
+- **New Card**: Added "Phase Transition Detection" card between Phase Statistics and Phase Transition Readiness
+- **Current Phase Display**: Shows current detected phase with color-coded display
+- **Start Date**: Shows when current phase started (if ongoing)
+- **Fallback Display**: Shows most recent phase if no current ongoing phase
+- **Always Visible**: Card always renders even if there are errors
+
+#### Robust Error Handling
+- **Timeout Protection**: Added 3-second timeout to prevent hanging
+- **Error Recovery**: Comprehensive error handling with multiple fallback layers
+- **Widget Protection**: Build method wrapped in try-catch to ensure widget always renders
+- **Status**: ✅ Complete - Widget always visible with proper error handling
+
+**Files Modified**:
+- `lib/ui/phase/phase_change_readiness_card.dart` - Fixed phase detection, added error handling
+- `lib/ui/phase/phase_analysis_view.dart` - Added Phase Transition Detection card
+
+---
+
+## [2.1.9] - February 2025
+
+### **LUMARA Memory Attribution & Weighted Context** - Complete
+
+#### Specific Attribution Excerpts
+- **Direct Source Text**: Attribution traces now include the exact 2-3 sentences from memory entries used in responses
+- **Context-Based Attribution**: Attribution traces are captured from memory nodes actually used during context building, ensuring accuracy
+- **Excerpt Display**: UI shows specific source text under "Source:" label in attribution widgets
+- **Journal Integration**: In-journal LUMARA reflections also show specific attribution excerpts
+
+#### Weighted Context Prioritization
+- **Three-Tier System**: Context is weighted to prioritize the most relevant sources
+  - **Tier 1 (Highest Weight)**: Current journal entry + media content
+    - Entry text content
+    - Photo OCR text
+    - Photo descriptions/alt text
+    - Audio/video transcripts
+  - **Tier 2 (Medium Weight)**: Recent LUMARA responses from same chat session
+    - Last 5 assistant messages from current conversation
+    - Provides conversation continuity
+  - **Tier 3 (Lowest Weight)**: Other earlier entries/chats
+    - Semantic search results
+    - Recent entries from progressive loader
+    - Chat sessions from other conversations
+
+#### Draft Entry Support
+- **Unsaved Draft Context**: LUMARA can use unsaved draft entries as context
+- **Draft Entry Creation**: `_getCurrentEntryForContext()` creates temporary JournalEntry from draft state
+- **Includes All Draft Data**: Text, media attachments, title, date, time, location, emotion, keywords
+- **Seamless Integration**: Works automatically when navigating from journal screen to LUMARA chat
+
+#### Implementation Details
+- **Enhanced AttributionTrace**: Added `excerpt` field to store specific source text (first 200 chars)
+- **Context Building**: `_buildEntryContext()` now returns both context string and attribution traces
+- **Weighted Sections**: Context built with clear section markers for each tier
+- **Draft Handling**: Journal screen creates temporary entries from draft state for LUMARA context
+
+**Files Modified**:
+- `lib/polymeta/memory/enhanced_memory_schema.dart` - Added excerpt field to AttributionTrace
+- `lib/polymeta/memory/attribution_service.dart` - Updated to accept excerpt parameter
+- `lib/polymeta/memory/enhanced_mira_memory_service.dart` - Extracts excerpts when creating traces
+- `lib/arc/chat/widgets/attribution_display_widget.dart` - Displays excerpt in UI
+- `lib/arc/chat/bloc/lumara_assistant_cubit.dart` - Weighted context building, attribution from context
+- `lib/arc/chat/ui/lumara_assistant_screen.dart` - Draft entry support, most recent entry fallback
+- `lib/ui/journal/journal_screen.dart` - Draft entry creation for context
+- `lib/ui/journal/widgets/inline_reflection_block.dart` - Journal attribution display
+- `lib/state/journal_entry_state.dart` - Attribution traces in InlineBlock
+
+**Documentation**:
+- `docs/implementation/LUMARA_ATTRIBUTION_WEIGHTED_CONTEXT_JAN_2025.md` - Complete implementation guide
+
+---
+
+### **PRISM Data Scrubbing & Restoration** - Complete
+
+#### Cloud API Privacy Protection
+- **Pre-Cloud Scrubbing**: All user input and system prompts are scrubbed before sending to cloud APIs (Gemini)
+  - PII types scrubbed: emails, phone numbers, addresses, names, SSNs, credit cards, API keys, GPS coordinates
+  - Uses deterministic placeholders: `[EMAIL]`, `[PHONE]`, `[ADDRESS]`, `[NAME]`, `[SSN]`, `[CARD]`
+- **Reversible Restoration**: PII is restored in API responses after receiving
+  - Reversible mapping system stores placeholder → original value mappings
+  - Restoration happens automatically for both sync and streaming responses
+- **Dart/Flutter Integration**: Full PRISM scrubbing in `geminiSend()` and `geminiSendStream()`
+  - `PiiScrubber.rivetScrubWithMapping()` scrubs data with reversible mapping
+  - `PiiScrubber.restore()` restores original PII from scrubbed text
+  - Combined mapping handles PII in both user input and system prompts
+- **iOS Parity**: Dart implementation matches iOS `PrismScrubber` functionality
+  - Consistent behavior across platforms
+  - Same scrubbing patterns and restoration logic
+
+#### Implementation Details
+- **Enhanced PiiScrubber Service**: Added `ScrubbingResult` class and `rivetScrubWithMapping()` method
+- **Updated Gemini API Functions**: Both `geminiSend()` and `geminiSendStream()` now scrub before and restore after
+- **Streaming Support**: Each chunk is restored as it arrives from the API
+- **Backward Compatible**: Existing `rivetScrub()` method still works for non-cloud use cases
+- **Logging**: Scrubbing and restoration activity logged for debugging (no PII in logs)
+
+#### Security Benefits
+- **No PII Leaves Device**: All PII is scrubbed before cloud API calls
+- **Transparent to User**: PII is restored automatically, user sees original values
+- **Feature Flag Control**: Respects `FeatureFlags.piiScrubbing` flag
+- **Memory Safety**: Reversible mappings only stored in memory during API call
+
+**Files Modified**:
+- `lib/services/lumara/pii_scrub.dart` - Enhanced scrubbing service
+- `lib/services/gemini_send.dart` - Added scrubbing and restoration
+
+**Documentation**:
+- `docs/implementation/PRISM_SCRUBBING_IMPLEMENTATION_JAN_2025.md` - Complete implementation guide
+- `docs/architecture/EPI_MVP_Architecture.md` - Updated Security & Privacy section
+- `docs/status/STATUS.md` - Added to Recent Achievements
+
+---
+
+## [2.1.9] - February 2025
+
+### **LUMARA Semantic Search with Reflection Settings** - Complete
+
+#### Semantic Memory Retrieval
+- **Intelligent Context Finding**: LUMARA now uses semantic search to find relevant entries by meaning, not just recency
+  - Searches across all entries within configurable lookback period (default: 5 years)
+  - Finds entries about specific topics even if they're not recent
+  - Solves issue where LUMARA couldn't find entries about "old company" or "feelings" despite clear labeling
+- **Enhanced Keyword Matching**: Sophisticated keyword matching with priority levels
+  - Exact case match (0.7 score boost) - finds "Shield AI" when query is "Shield AI"
+  - Case-insensitive exact match (0.5 score boost)
+  - Contains match (0.4 score boost)
+  - Word-by-word matching for multi-word keywords
+- **Cross-Modal Awareness**: Optional search through media content
+  - Photo captions and alt text
+  - OCR text from images
+  - Audio/video transcripts
+  - Configurable via settings (default: enabled)
+
+#### Reflection Settings Integration
+- **New Settings Service**: `LumaraReflectionSettingsService` for persisting user preferences
+  - Similarity Threshold (0.1-1.0, default: 0.55) - controls how closely entries must match
+  - Lookback Period (1-10 years, default: 5) - how far back to search
+  - Max Matches (1-20, default: 5) - maximum entries to include in context
+  - Cross-Modal Awareness toggle (default: enabled)
+  - Therapeutic Presence depth level integration
+- **Settings UI**: Integrated into LUMARA Settings → Reflection Settings
+  - Sliders for threshold, lookback, and max matches
+  - Toggle for cross-modal awareness
+  - Settings persist across app restarts
+- **Therapeutic Depth Adjustment**: Search depth adjusts based on Therapeutic Presence mode
+  - Light (Level 1): -40% search depth (fewer, more recent results)
+  - Standard (Level 2): Normal search depth (default)
+  - Deep (Level 3): +40-60% search depth (more comprehensive results)
+
+#### Integration Points
+- **In-Chat LUMARA**: `_buildEntryContext()` now accepts user query and uses semantic search
+  - Merges semantically relevant entries with recent entries
+  - Graceful fallback to recent entries if search fails
+- **In-Journal LUMARA**: `_buildJournalContext()` uses current entry text as query
+  - Works with existing rich context expansion system
+  - Finds related entries across time periods
+- **Enhanced Lumara API**: `generatePromptedReflectionV23()` respects reflection settings
+  - Uses similarity threshold for filtering
+  - Respects lookback years and max matches
+
+#### Technical Implementation
+- **Enhanced Memory Service**: Extended `retrieveMemories()` with new parameters
+  - Similarity threshold filtering
+  - Lookback period date filtering
+  - Cross-modal search logic
+  - Therapeutic depth adjustments
+- **Scoring Algorithm**: Multi-factor scoring system
+  - Content match (0.5 weight)
+  - Keyword match (0.3-0.7 weight based on match type)
+  - Phase match (0.2 weight)
+  - Media match (0.15 weight, if cross-modal enabled)
+- **Context Building**: Enhanced context building methods
+  - Extract entry IDs from memory nodes
+  - Fetch full entry content from repository
+  - Avoid duplicates when merging with recent entries
+
+#### Files Modified
+- `lib/arc/chat/services/lumara_reflection_settings_service.dart` - **NEW**: Settings service
+- `lib/polymeta/memory/enhanced_mira_memory_service.dart` - Enhanced with semantic search parameters
+- `lib/arc/chat/bloc/lumara_assistant_cubit.dart` - Updated `_buildEntryContext()` for semantic search
+- `lib/ui/journal/journal_screen.dart` - Updated `_buildJournalContext()` for semantic search
+- `lib/arc/chat/services/enhanced_lumara_api.dart` - Uses reflection settings
+- `lib/arc/chat/services/semantic_similarity_service.dart` - Updated recency boost
+- `lib/arc/chat/ui/lumara_settings_screen.dart` - Loads/saves reflection settings
+- `lib/shared/ui/settings/lumara_settings_view.dart` - Settings UI integration
+
+#### Files Added
+- `docs/features/LUMARA_SEMANTIC_SEARCH_FEB_2025.md` - Complete feature documentation
 
 ## [2.1.8] - February 2025
 

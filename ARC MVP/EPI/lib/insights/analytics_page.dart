@@ -96,7 +96,6 @@ class AnalyticsContent extends StatefulWidget {
 }
 
 class _AnalyticsContentState extends State<AnalyticsContent> {
-  int _selectedSection = 0;
   InsightCubit? _insightCubit;
   ScrollController? _scrollController;
 
@@ -146,68 +145,35 @@ class _AnalyticsContentState extends State<AnalyticsContent> {
     super.dispose();
   }
 
-  void _onSelectSection(int index) {
-    setState(() => _selectedSection = index);
-  }
-
   @override
   Widget build(BuildContext context) {
     return Container(
       color: kcBackgroundColor,
-      child: Column(
-        children: [
-          const SizedBox(height: 8),
-          // Phase-style subtabs
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12.0),
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                children: [
-                  _buildPhaseStyleTab('Patterns', Icons.auto_awesome, 0),
-                  const SizedBox(width: 8),
-                  _buildPhaseStyleTab('AURORA', Icons.brightness_auto, 1),
-                  const SizedBox(width: 8),
-                  _buildPhaseStyleTab('VEIL', Icons.visibility_off, 2),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 12),
-          Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(20.0, 4.0, 20.0, 0.0),
-              controller: _scrollController,
-              child: _buildSelectedSection(context),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildPhaseStyleTab(String label, IconData icon, int index) {
-    final bool isSelected = _selectedSection == index;
-    return GestureDetector(
-      onTap: () => _onSelectSection(index),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-        decoration: BoxDecoration(
-          color: isSelected ? kcSurfaceAltColor : kcSurfaceColor,
-          borderRadius: BorderRadius.circular(24),
-          border: Border.all(color: kcBorderColor.withOpacity(isSelected ? 0.8 : 0.4)),
-        ),
-        child: Row(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(20.0, 8.0, 20.0, 20.0),
+        controller: _scrollController,
+        child: Column(
           children: [
-            Icon(icon, size: 18, color: kcPrimaryTextColor.withOpacity(isSelected ? 0.95 : 0.8)),
-            const SizedBox(width: 8),
-            Text(
-              label,
-              style: bodyStyle(context).copyWith(
-                color: kcPrimaryTextColor,
-                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                fontSize: 12,
-              ),
+            // Expandable cards instead of tabs
+            _buildExpandableCard(
+              title: 'Patterns',
+              icon: Icons.auto_awesome,
+              subtitle: 'Keyword & emotion visualization',
+              content: _buildPatternsContent(context),
+            ),
+            const SizedBox(height: 12),
+            _buildExpandableCard(
+              title: 'AURORA',
+              icon: Icons.brightness_auto,
+              subtitle: 'Circadian Intelligence',
+              content: _buildAuroraContent(),
+            ),
+            const SizedBox(height: 12),
+            _buildExpandableCard(
+              title: 'VEIL',
+              icon: Icons.visibility_off,
+              subtitle: 'AI Prompt Intelligence',
+              content: _buildVeilContent(),
             ),
           ],
         ),
@@ -215,34 +181,72 @@ class _AnalyticsContentState extends State<AnalyticsContent> {
     );
   }
 
-  Widget _buildSelectedSection(BuildContext context) {
-    switch (_selectedSection) {
-      case 0:
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildMiraGraphCard(context),
-          ],
-        );
-      case 1:
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const AuroraCard(),
-          ],
-        );
-      case 2:
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const VeilCard(),
-            const SizedBox(height: 16),
-            VeilPolicyCard(),
-          ],
-        );
-      default:
-        return const SizedBox.shrink();
-    }
+  /// Build expandable card widget
+  Widget _buildExpandableCard({
+    required String title,
+    required IconData icon,
+    required String subtitle,
+    required Widget content,
+  }) {
+    return ExpansionTile(
+      leading: Icon(icon, color: kcPrimaryTextColor),
+      title: Text(
+        title,
+        style: bodyStyle(context).copyWith(
+          fontWeight: FontWeight.w700,
+          fontSize: 16,
+        ),
+      ),
+      subtitle: Text(
+        subtitle,
+        style: bodyStyle(context).copyWith(
+          fontSize: 12,
+          color: kcPrimaryTextColor.withOpacity(0.6),
+        ),
+      ),
+      backgroundColor: kcSurfaceAltColor,
+      collapsedBackgroundColor: kcSurfaceColor,
+      iconColor: kcPrimaryTextColor,
+      collapsedIconColor: kcPrimaryTextColor.withOpacity(0.6),
+      children: [
+        Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: content,
+        ),
+      ],
+    );
+  }
+
+  /// Build Patterns content
+  Widget _buildPatternsContent(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildMiraGraphCard(context),
+      ],
+    );
+  }
+
+  /// Build AURORA content
+  Widget _buildAuroraContent() {
+    return const Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        AuroraCard(),
+      ],
+    );
+  }
+
+  /// Build VEIL content
+  Widget _buildVeilContent() {
+    return const Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        VeilCard(),
+        SizedBox(height: 16),
+        VeilPolicyCard(),
+      ],
+    );
   }
 
   Widget _buildMiraGraphCard(BuildContext context) {

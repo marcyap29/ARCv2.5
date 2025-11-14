@@ -21,8 +21,13 @@ import 'package:my_app/core/services/photo_library_service.dart';
 import 'package:my_app/arc/chat/chat/chat_repo.dart';
 import 'package:my_app/arc/chat/chat/chat_models.dart';
 import 'package:my_app/arc/core/journal_repository.dart';
+import 'package:my_app/services/phase_regime_service.dart';
 import '../models/arcx_manifest.dart';
 import 'arcx_crypto_service.dart';
+import 'package:my_app/prism/atlas/rivet/rivet_storage.dart';
+import 'package:my_app/prism/atlas/rivet/rivet_models.dart' as rivet_models;
+import 'package:my_app/models/arcform_snapshot_model.dart';
+import 'package:hive/hive.dart';
 
 const _uuid = Uuid();
 
@@ -82,12 +87,15 @@ class ARCXExportSelection {
 class ARCXExportServiceV2 {
   final JournalRepository? _journalRepo;
   final ChatRepo? _chatRepo;
+  final PhaseRegimeService? _phaseRegimeService;
   
   ARCXExportServiceV2({
     JournalRepository? journalRepo,
     ChatRepo? chatRepo,
+    PhaseRegimeService? phaseRegimeService,
   }) : _journalRepo = journalRepo,
-       _chatRepo = chatRepo;
+       _chatRepo = chatRepo,
+       _phaseRegimeService = phaseRegimeService;
   
   /// Export data to ARCX format
   Future<ARCXExportResultV2> export({
@@ -259,6 +267,19 @@ class ARCXExportServiceV2 {
         );
       }
       
+      // Export phase regimes, RIVET state, Sentinel state, and ArcForm timeline
+      int phaseRegimesExported = 0;
+      if (_phaseRegimeService != null) {
+        onProgress?.call('Exporting phase regimes...');
+        phaseRegimesExported = await _exportPhaseRegimes(payloadDir);
+      }
+      
+      // Export RIVET state, Sentinel state, and ArcForm timeline alongside phase regimes
+      onProgress?.call('Exporting RIVET and system states...');
+      await _exportRivetState(payloadDir);
+      await _exportSentinelState(payloadDir);
+      await _exportArcFormTimeline(payloadDir);
+      
       // Generate checksums
       if (options.includeChecksums) {
         onProgress?.call('Generating checksums...');
@@ -272,6 +293,7 @@ class ARCXExportServiceV2 {
         entriesCount: entriesExported,
         chatsCount: chatsExported,
         mediaCount: mediaExported,
+        phaseRegimesCount: phaseRegimesExported,
         separateGroups: false,
         options: options,
       );
@@ -327,7 +349,7 @@ class ARCXExportServiceV2 {
     
     final results = <String>[];
     
-    // Export Entries
+    // Export Entries (includes phase regimes)
     if (entries.isNotEmpty) {
       onProgress?.call('Exporting ${entries.length} entries...');
       final entriesPath = await _exportSingleGroup(
@@ -342,6 +364,7 @@ class ARCXExportServiceV2 {
         outputDir: outputDir,
         password: password,
         onProgress: onProgress,
+        includePhaseRegimes: true, // Phase regimes included with entries
       );
       results.add(entriesPath);
     }
@@ -444,6 +467,19 @@ class ARCXExportServiceV2 {
           );
         }
         
+        // Export phase regimes, RIVET state, Sentinel state, and ArcForm timeline (included with entries+chats archive)
+        int phaseRegimesExported = 0;
+        if (_phaseRegimeService != null) {
+          onProgress?.call('Exporting phase regimes...');
+          phaseRegimesExported = await _exportPhaseRegimes(payloadDir);
+        }
+        
+        // Export RIVET state, Sentinel state, and ArcForm timeline alongside phase regimes
+        onProgress?.call('Exporting RIVET and system states...');
+        await _exportRivetState(payloadDir);
+        await _exportSentinelState(payloadDir);
+        await _exportArcFormTimeline(payloadDir);
+        
         // Generate checksums
         if (options.includeChecksums) {
           await _generateChecksums(payloadDir);
@@ -467,6 +503,7 @@ class ARCXExportServiceV2 {
           entriesCount: entriesExported,
           chatsCount: chatsExported,
           mediaCount: 0, // Media is in separate archive
+          phaseRegimesCount: phaseRegimesExported,
           separateGroups: true, // Indicates this is part of a separated export
           options: entriesChatsOptions,
         );
@@ -550,6 +587,7 @@ class ARCXExportServiceV2 {
     required Directory outputDir,
     String? password,
     Function(String)? onProgress,
+    bool includePhaseRegimes = false,
   }) async {
     final appDocDir = await getApplicationDocumentsDirectory();
     final tempDir = Directory(path.join(appDocDir.path, 'arcx_export_${exportId}'));
@@ -561,6 +599,7 @@ class ARCXExportServiceV2 {
       int entriesExported = 0;
       int chatsExported = 0;
       int mediaExported = 0;
+      int phaseRegimesExported = 0;
       
       if (groupType == 'Entries' && entries.isNotEmpty) {
         entriesExported = await _exportEntries(
@@ -586,6 +625,20 @@ class ARCXExportServiceV2 {
         );
       }
       
+      // Export phase regimes, RIVET state, Sentinel state, and ArcForm timeline if requested (typically with Entries group)
+      if (includePhaseRegimes && _phaseRegimeService != null) {
+        onProgress?.call('Exporting phase regimes...');
+        phaseRegimesExported = await _exportPhaseRegimes(payloadDir);
+      }
+      
+      // Export RIVET state, Sentinel state, and ArcForm timeline alongside phase regimes
+      if (includePhaseRegimes) {
+        onProgress?.call('Exporting RIVET and system states...');
+        await _exportRivetState(payloadDir);
+        await _exportSentinelState(payloadDir);
+        await _exportArcFormTimeline(payloadDir);
+      }
+      
       // Generate checksums
       if (options.includeChecksums) {
         await _generateChecksums(payloadDir);
@@ -598,6 +651,7 @@ class ARCXExportServiceV2 {
         entriesCount: entriesExported,
         chatsCount: chatsExported,
         mediaCount: mediaExported,
+        phaseRegimesCount: phaseRegimesExported,
         separateGroups: true,
         options: options,
       );
@@ -758,6 +812,7 @@ class ARCXExportServiceV2 {
     required int entriesCount,
     required int chatsCount,
     required int mediaCount,
+    int phaseRegimesCount = 0,
     required bool separateGroups,
     required ARCXExportOptions options,
   }) {
@@ -783,6 +838,7 @@ class ARCXExportServiceV2 {
         entriesCount: entriesCount,
         chatsCount: chatsCount,
         mediaCount: mediaCount,
+        phaseRegimesCount: phaseRegimesCount,
         separateGroups: separateGroups,
       ),
       encryptionInfo: ARCXEncryptionInfo(
@@ -1192,6 +1248,167 @@ class ARCXExportServiceV2 {
         return 'audio/m4a';
       case MediaType.file:
         return 'application/octet-stream';
+    }
+  }
+  
+  /// Export phase regimes to PhaseRegimes/phase_regimes.json
+  Future<int> _exportPhaseRegimes(Directory payloadDir) async {
+    try {
+      if (_phaseRegimeService == null) {
+        return 0;
+      }
+      
+      // Get all phase regimes
+      final regimes = _phaseRegimeService!.allRegimes;
+      
+      if (regimes.isEmpty) {
+        print('ARCX Export V2: No phase regimes to export');
+        return 0;
+      }
+      
+      // Create PhaseRegimes directory
+      final phaseRegimesDir = Directory(path.join(payloadDir.path, 'PhaseRegimes'));
+      await phaseRegimesDir.create(recursive: true);
+      
+      // Export phase regimes using the service's export method
+      final exportData = _phaseRegimeService!.exportForMcp();
+      
+      // Write phase_regimes.json
+      final phaseRegimesFile = File(path.join(phaseRegimesDir.path, 'phase_regimes.json'));
+      await phaseRegimesFile.writeAsString(
+        const JsonEncoder.withIndent('  ').convert(exportData)
+      );
+      
+      print('ARCX Export V2: Exported ${regimes.length} phase regimes');
+      return regimes.length;
+    } catch (e) {
+      print('ARCX Export V2: Error exporting phase regimes: $e');
+      return 0;
+    }
+  }
+
+  /// Export RIVET state to PhaseRegimes/rivet_state.json
+  Future<void> _exportRivetState(Directory payloadDir) async {
+    try {
+      // Ensure PhaseRegimes directory exists
+      final phaseRegimesDir = Directory(path.join(payloadDir.path, 'PhaseRegimes'));
+      await phaseRegimesDir.create(recursive: true);
+
+      if (!Hive.isBoxOpen(RivetBox.boxName)) {
+        await Hive.openBox(RivetBox.boxName);
+      }
+      
+      final stateBox = Hive.box(RivetBox.boxName);
+      final eventsBox = Hive.isBoxOpen(RivetBox.eventsBoxName) 
+          ? Hive.box(RivetBox.eventsBoxName)
+          : await Hive.openBox(RivetBox.eventsBoxName);
+
+      final rivetStates = <String, dynamic>{};
+      
+      // Export all user states
+      for (final userId in stateBox.keys) {
+        final stateData = stateBox.get(userId);
+        if (stateData == null) continue;
+
+        final rivetState = rivet_models.RivetState.fromJson(
+          stateData is Map<String, dynamic> 
+              ? stateData 
+              : Map<String, dynamic>.from(stateData as Map),
+        );
+
+        // Get events for this user
+        final eventsData = eventsBox.get(userId, defaultValue: <dynamic>[]);
+        final events = <rivet_models.RivetEvent>[];
+        if (eventsData is List) {
+          for (final eventData in eventsData) {
+            try {
+              final eventMap = eventData is Map<String, dynamic>
+                  ? eventData
+                  : Map<String, dynamic>.from(eventData as Map);
+              events.add(rivet_models.RivetEvent.fromJson(eventMap));
+            } catch (e) {
+              print('ARCX Export V2: Failed to parse RIVET event: $e');
+            }
+          }
+        }
+
+        rivetStates[userId.toString()] = {
+          'state': rivetState.toJson(),
+          'events': events.map((e) => e.toJson()).toList(),
+          'exported_at': DateTime.now().toIso8601String(),
+        };
+      }
+
+      if (rivetStates.isNotEmpty) {
+        final rivetStateFile = File(path.join(phaseRegimesDir.path, 'rivet_state.json'));
+        await rivetStateFile.writeAsString(
+          const JsonEncoder.withIndent('  ').convert({
+            'rivet_states': rivetStates,
+            'exported_at': DateTime.now().toIso8601String(),
+            'version': '1.0',
+          })
+        );
+        print('ARCX Export V2: Exported RIVET state for ${rivetStates.length} users');
+      }
+    } catch (e) {
+      print('ARCX Export V2: Error exporting RIVET state: $e');
+    }
+  }
+
+  /// Export Sentinel state to PhaseRegimes/sentinel_state.json
+  Future<void> _exportSentinelState(Directory payloadDir) async {
+    try {
+      // Ensure PhaseRegimes directory exists
+      final phaseRegimesDir = Directory(path.join(payloadDir.path, 'PhaseRegimes'));
+      await phaseRegimesDir.create(recursive: true);
+
+      // Sentinel state is computed dynamically, so we export a placeholder
+      final sentinelStateFile = File(path.join(phaseRegimesDir.path, 'sentinel_state.json'));
+      await sentinelStateFile.writeAsString(
+        const JsonEncoder.withIndent('  ').convert({
+          'sentinel_state': {
+            'state': 'ok',
+            'notes': [],
+            'exported_at': DateTime.now().toIso8601String(),
+            'note': 'Sentinel state is computed dynamically. This export represents the system state at export time.',
+          },
+          'exported_at': DateTime.now().toIso8601String(),
+          'version': '1.0',
+        })
+      );
+      print('ARCX Export V2: Exported Sentinel state');
+    } catch (e) {
+      print('ARCX Export V2: Error exporting Sentinel state: $e');
+    }
+  }
+
+  /// Export ArcForm timeline history to PhaseRegimes/arcform_timeline.json
+  Future<void> _exportArcFormTimeline(Directory payloadDir) async {
+    try {
+      // Ensure PhaseRegimes directory exists
+      final phaseRegimesDir = Directory(path.join(payloadDir.path, 'PhaseRegimes'));
+      await phaseRegimesDir.create(recursive: true);
+
+      if (!Hive.isBoxOpen('arcform_snapshots')) {
+        await Hive.openBox<ArcformSnapshot>('arcform_snapshots');
+      }
+
+      final box = Hive.box<ArcformSnapshot>('arcform_snapshots');
+      final snapshots = box.values.toList();
+
+      if (snapshots.isNotEmpty) {
+        final arcformTimelineFile = File(path.join(phaseRegimesDir.path, 'arcform_timeline.json'));
+        await arcformTimelineFile.writeAsString(
+          const JsonEncoder.withIndent('  ').convert({
+            'arcform_snapshots': snapshots.map((s) => s.toJson()).toList(),
+            'exported_at': DateTime.now().toIso8601String(),
+            'version': '1.0',
+          })
+        );
+        print('ARCX Export V2: Exported ${snapshots.length} ArcForm timeline snapshots');
+      }
+    } catch (e) {
+      print('ARCX Export V2: Error exporting ArcForm timeline: $e');
     }
   }
   

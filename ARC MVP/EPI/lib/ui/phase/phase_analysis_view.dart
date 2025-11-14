@@ -24,9 +24,8 @@ class PhaseAnalysisView extends StatefulWidget {
   State<PhaseAnalysisView> createState() => _PhaseAnalysisViewState();
 }
 
-class _PhaseAnalysisViewState extends State<PhaseAnalysisView>
-    with TickerProviderStateMixin {
-  late TabController _tabController;
+class _PhaseAnalysisViewState extends State<PhaseAnalysisView> {
+  String _selectedView = 'arcforms'; // 'arcforms', 'timeline', 'analysis', or 'sentinel' - flattened single-level navigation
   PhaseIndex? _phaseIndex;
   bool _isLoading = true;
   String? _error;
@@ -35,24 +34,7 @@ class _PhaseAnalysisViewState extends State<PhaseAnalysisView>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 4, vsync: this);
-    // Add listener to refresh ARCForms when switching to that tab
-    _tabController.addListener(() {
-      if (_tabController.index == 0 && mounted) {
-        // ARCForms tab is selected (index 0)
-        print('DEBUG: ARCForms tab selected, refreshing...');
-        setState(() {
-          // Force rebuild to ensure current phase is shown
-        });
-      }
-    });
     _loadPhaseData();
-  }
-
-  @override
-  void dispose() {
-    _tabController.dispose();
-    super.dispose();
   }
 
   @override
@@ -333,69 +315,130 @@ List<PhaseSegmentProposal> proposals,
             tooltip: 'Phase Help',
           ),
         ],
-        bottom: TabBar(
-          controller: _tabController,
-          isScrollable: true,
-          labelStyle: const TextStyle(fontSize: 12),
-          unselectedLabelStyle: const TextStyle(fontSize: 11),
-          tabs: const [
-            Tab(icon: Icon(Icons.auto_awesome, size: 20), text: 'ARCForms'),
-            Tab(icon: Icon(Icons.timeline, size: 20), text: 'Timeline'),
-            Tab(icon: Icon(Icons.analytics, size: 20), text: 'Analysis'),
-            Tab(icon: Icon(Icons.shield, size: 20), text: 'SENTINEL'),
-          ],
-        ),
       ),
-      body: TabBarView(
-        controller: _tabController,
+      body: Column(
         children: [
-          // ARCForms Tab (moved to first position)
-          _buildArcformsTab(),
-
-          // Timeline Tab
-          _phaseIndex != null
-              ? PhaseTimelineView(
-                  key: ValueKey('phase_timeline_${_phaseIndex!.allRegimes.length}_${_phaseIndex!.allRegimes.isNotEmpty ? _phaseIndex!.allRegimes.first.id : 'empty'}'),
-                  phaseIndex: _phaseIndex!,
-                  onRegimeTap: (regime) {
-                    _showRegimeDetails(regime);
-                  },
-                  onRegimeAction: (regime, action) {
-                    _handleRegimeAction(regime, action);
-                  },
-                )
-              : Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(32.0),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.info_outline, size: 64, color: Colors.grey),
-                        const SizedBox(height: 16),
-                        Text(
-                          'No phase data available',
-                          style: Theme.of(context).textTheme.titleLarge,
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          'Run Phase Analysis to detect phases',
-                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: Colors.grey,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
+          // Horizontally scrollable button bar - single row with all 4 options
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 4.0),
+            child: SizedBox(
+              height: 36, // Reduced height for compact bar
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: [
+                    _buildPhaseButton('arcforms', 'ARCForms', Icons.auto_awesome),
+                    const SizedBox(width: 8),
+                    _buildPhaseButton('timeline', 'Timeline', Icons.timeline),
+                    const SizedBox(width: 8),
+                    _buildPhaseButton('analysis', 'Analysis', Icons.analytics),
+                    const SizedBox(width: 8),
+                    _buildPhaseButton('sentinel', 'SENTINEL', Icons.shield),
+                  ],
                 ),
-
-          // Analysis Tab
-          _buildAnalysisTab(),
-
-          // SENTINEL Tab
-          SentinelAnalysisView(key: _sentinelKey),
+              ),
+            ),
+          ),
+          // Content based on selection
+          Expanded(
+            child: _buildContentForView(_selectedView),
+          ),
         ],
       ),
     );
+  }
+
+  /// Build phase navigation button
+  Widget _buildPhaseButton(String value, String label, IconData icon) {
+    final isSelected = _selectedView == value;
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          _selectedView = value;
+          // Refresh ARCForms when switching to ARCForms view
+          if (_selectedView == 'arcforms') {
+            print('DEBUG: ARCForms view selected, refreshing...');
+            _refreshArcforms();
+          }
+        });
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: isSelected ? Colors.purple.withOpacity(0.3) : Colors.grey.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: isSelected ? Colors.purple : Colors.grey.withOpacity(0.3),
+            width: isSelected ? 2 : 1,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 14, color: isSelected ? Colors.white : Colors.grey), // Reduced icon size
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 11, // Reduced font size
+                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+                color: isSelected ? Colors.white : Colors.grey,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Build content based on selected view (flattened navigation)
+  Widget _buildContentForView(String view) {
+    switch (view) {
+      case 'arcforms':
+        return _buildArcformsTab();
+      case 'timeline':
+        return _buildTimelineContent();
+      case 'analysis':
+        return _buildAnalysisTab();
+      case 'sentinel':
+        return SentinelAnalysisView(key: _sentinelKey);
+      default:
+        return _buildArcformsTab();
+    }
+  }
+
+  /// Build Timeline content
+  Widget _buildTimelineContent() {
+    return _phaseIndex != null
+        ? PhaseTimelineView(
+            key: ValueKey('phase_timeline_${_phaseIndex!.allRegimes.length}_${_phaseIndex!.allRegimes.isNotEmpty ? _phaseIndex!.allRegimes.first.id : 'empty'}'),
+            phaseIndex: _phaseIndex!,
+            onRegimeTap: _showRegimeDetails,
+            onRegimeAction: _handleRegimeAction,
+          )
+        : Center(
+            child: Padding(
+              padding: const EdgeInsets.all(32.0),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.info_outline, size: 64, color: Colors.grey),
+                  const SizedBox(height: 16),
+                  Text(
+                    'No phase data available',
+                    style: Theme.of(context).textTheme.titleLarge,
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Run Phase Analysis to detect phases',
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: Colors.grey,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
   }
 
   Widget _buildAnalysisTab() {
@@ -522,6 +565,9 @@ List<PhaseSegmentProposal> proposals,
             ),
           ),
           const SizedBox(height: 16),
+          // Current Phase Detection Card
+          _buildCurrentPhaseCard(),
+          const SizedBox(height: 16),
           const PhaseChangeReadinessCard(),
           const SizedBox(height: 16),
           Card(
@@ -561,6 +607,138 @@ List<PhaseSegmentProposal> proposals,
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  /// Build Current Phase Detection Card
+  Widget _buildCurrentPhaseCard() {
+    String? currentPhaseName;
+    if (_phaseIndex?.currentRegime != null) {
+      currentPhaseName = _getPhaseLabelName(_phaseIndex!.currentRegime!.label);
+    } else if (_phaseIndex?.allRegimes.isNotEmpty == true) {
+      // No current ongoing regime, use most recent one
+      final sortedRegimes = List.from(_phaseIndex!.allRegimes)..sort((a, b) => b.start.compareTo(a.start));
+      currentPhaseName = _getPhaseLabelName(sortedRegimes.first.label);
+    } else {
+      currentPhaseName = 'Discovery'; // Default
+    }
+
+    // Get phase color
+    Color phaseColor;
+    switch (currentPhaseName.toLowerCase()) {
+      case 'discovery':
+        phaseColor = Colors.blue;
+        break;
+      case 'expansion':
+        phaseColor = Colors.green;
+        break;
+      case 'transition':
+        phaseColor = Colors.orange;
+        break;
+      case 'consolidation':
+        phaseColor = Colors.purple;
+        break;
+      case 'recovery':
+        phaseColor = Colors.teal;
+        break;
+      case 'breakthrough':
+        phaseColor = Colors.pink;
+        break;
+      default:
+        phaseColor = Colors.blue;
+    }
+
+    return Card(
+      elevation: 2,
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.auto_awesome, color: phaseColor),
+                const SizedBox(width: 8),
+                const Text(
+                  'Phase Transition Detection',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(16.0),
+              decoration: BoxDecoration(
+                color: phaseColor.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: phaseColor.withOpacity(0.3)),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Current Phase:',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          currentPhaseName,
+                          style: TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                            color: phaseColor,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: phaseColor,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Icon(
+                      Icons.check_circle,
+                      color: Colors.white,
+                      size: 32,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            if (_phaseIndex?.currentRegime != null) ...[
+              const SizedBox(height: 8),
+              Text(
+                'Started: ${_formatDateTime(_phaseIndex!.currentRegime!.start)}',
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: Colors.grey,
+                ),
+              ),
+            ] else if (_phaseIndex?.allRegimes.isNotEmpty == true) ...[
+              const SizedBox(height: 8),
+              Text(
+                'Most recent phase (no current ongoing phase)',
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: Colors.grey,
+                  fontStyle: FontStyle.italic,
+                ),
+              ),
+            ],
+          ],
+        ),
       ),
     );
   }

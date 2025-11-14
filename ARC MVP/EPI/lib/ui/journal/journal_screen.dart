@@ -48,6 +48,11 @@ import 'package:my_app/models/journal_entry_model.dart';
 import 'package:my_app/arc/chat/chat/chat_repo_impl.dart';
 import 'package:my_app/arc/chat/chat/chat_models.dart';
 import 'package:my_app/aurora/services/circadian_profile_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:my_app/arc/chat/services/lumara_reflection_settings_service.dart';
+import 'package:my_app/polymeta/memory/enhanced_mira_memory_service.dart';
+import 'package:my_app/polymeta/memory/enhanced_memory_schema.dart';
+import 'package:my_app/polymeta/mira_service.dart';
 
 /// Main journal screen with integrated LUMARA companion and OCR scanning
 class JournalScreen extends StatefulWidget {
@@ -86,6 +91,7 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
   late final ProgressiveMemoryLoader _memoryLoader;
   final JournalRepository _journalRepository = JournalRepository();
   late final ArcLLM _arcLLM;
+  EnhancedMiraMemoryService? _memoryService;
   String? _currentDraftId;
   Timer? _autoSaveTimer;
   final ImagePicker _imagePicker = ImagePicker();
@@ -159,6 +165,9 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
     _initProgressiveMemory();
     
     _analytics.logJournalEvent('opened');
+    
+    // Track journal mode entry and show prompt notice every 3-5 times
+    _trackJournalModeEntry();
     
     // Add lifecycle observer for app state changes
     WidgetsBinding.instance.addObserver(this);
@@ -259,6 +268,86 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
     
     // Check for periodic discovery
     _checkForDiscovery();
+  }
+
+  /// Get the current entry for context (either existing entry or create from draft state)
+  /// This allows LUMARA to use unsaved draft content as context
+  JournalEntry? _getCurrentEntryForContext() {
+    // If we have an existing entry, use it (may have been modified)
+    if (widget.existingEntry != null) {
+      // Create entry from current draft state (includes unsaved changes)
+      final now = DateTime.now();
+      final entryDate = _editableDate ?? now;
+      final entryTime = _editableTime ?? TimeOfDay.fromDateTime(now);
+      final combinedDateTime = DateTime(
+        entryDate.year,
+        entryDate.month,
+        entryDate.day,
+        entryTime.hour,
+        entryTime.minute,
+      );
+      
+      // Convert attachments to media items
+      final mediaItems = _entryState.attachments.isNotEmpty
+          ? MediaConversionUtils.attachmentsToMediaItems(_entryState.attachments)
+          : <MediaItem>[];
+      
+      // Merge with existing entry media if any
+      final allMedia = [
+        ...widget.existingEntry!.media,
+        ...mediaItems,
+      ];
+      
+      return widget.existingEntry!.copyWith(
+        content: _entryState.text.isNotEmpty ? _entryState.text : widget.existingEntry!.content,
+        title: _titleController.text.trim().isNotEmpty 
+            ? _titleController.text.trim() 
+            : widget.existingEntry!.title,
+        createdAt: combinedDateTime,
+        updatedAt: DateTime.now(),
+        media: allMedia,
+        location: _editableLocation ?? widget.existingEntry!.location,
+      );
+    }
+    
+    // If no existing entry, create a temporary entry from draft state
+    if (_entryState.text.trim().isNotEmpty) {
+      final now = DateTime.now();
+      final entryDate = _editableDate ?? now;
+      final entryTime = _editableTime ?? TimeOfDay.fromDateTime(now);
+      final combinedDateTime = DateTime(
+        entryDate.year,
+        entryDate.month,
+        entryDate.day,
+        entryTime.hour,
+        entryTime.minute,
+      );
+      
+      // Convert attachments to media items
+      final mediaItems = _entryState.attachments.isNotEmpty
+          ? MediaConversionUtils.attachmentsToMediaItems(_entryState.attachments)
+          : <MediaItem>[];
+      
+      // Create temporary entry from draft state
+      return JournalEntry(
+        id: 'draft_${DateTime.now().millisecondsSinceEpoch}', // Temporary ID for draft
+        title: _titleController.text.trim().isNotEmpty 
+            ? _titleController.text.trim() 
+            : 'Draft Entry',
+        content: _entryState.text,
+        createdAt: combinedDateTime,
+        updatedAt: DateTime.now(),
+        tags: const [],
+        mood: widget.selectedEmotion ?? 'Other',
+        media: mediaItems,
+        emotion: widget.selectedEmotion,
+        emotionReason: widget.selectedReason,
+        location: _editableLocation,
+        keywords: _manualKeywords,
+      );
+    }
+    
+    return null;
   }
 
   @override
@@ -398,6 +487,22 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
     try {
       await _memoryLoader.initialize();
       print('LUMARA Journal: Initialized progressive memory loader');
+      
+      // Initialize memory service for semantic search
+      try {
+        _memoryService = EnhancedMiraMemoryService(
+          miraService: MiraService.instance,
+        );
+        await _memoryService!.initialize(
+          userId: 'user_${DateTime.now().millisecondsSinceEpoch}',
+          sessionId: null,
+          currentPhase: _entryState.phase ?? 'Discovery',
+        );
+        print('LUMARA Journal: Initialized memory service for semantic search');
+      } catch (e) {
+        print('LUMARA Journal: Memory service initialization error: $e');
+        // Continue without memory service - will fall back to recent entries
+      }
     } catch (e) {
       print('LUMARA Journal: Memory loader initialization error: $e');
     }
@@ -421,11 +526,107 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
     }
   }
 
-  void _onLumaraFabTapped() {
+  void _onLumaraFabTapped() async {
     _analytics.logLumaraEvent('fab_tapped');
     
-    // Directly generate a reflection using LUMARA
+    // Check if entry is empty - if so, show confirmation dialog for journaling prompt
+    if (_entryState.text.trim().isEmpty) {
+      final shouldGetPrompt = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Get a Journaling Prompt?'),
+          content: const Text(
+            'Would you like LUMARA to suggest a writing prompt based on your entries, chats, drafts, media, and current phase?',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('No, thanks'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('Yes, please'),
+            ),
+          ],
+        ),
+      );
+      
+      if (shouldGetPrompt == true) {
+        await _generateJournalingPrompt();
+        return;
+      } else {
+        return; // User declined
+      }
+    }
+    
+    // If entry has text, directly generate a reflection using LUMARA
     _generateLumaraReflection();
+  }
+  
+  Future<void> _generateJournalingPrompt() async {
+    // TODO: Implement journaling prompt generation based on entries, chats, drafts, media, phase
+    // For now, show a placeholder message
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Journaling prompt feature coming soon!'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+    }
+  }
+  
+  /// Track when user enters journaling mode
+  Future<void> _trackJournalModeEntry() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final entryCount = prefs.getInt('journal_mode_entry_count') ?? 0;
+      final newCount = entryCount + 1;
+      await prefs.setInt('journal_mode_entry_count', newCount);
+      
+      // Show prompt notice every 3-5 times (randomized between 3-5)
+      if (newCount % 4 == 0 || (newCount >= 3 && newCount <= 5 && newCount % 3 == 0)) {
+        if (mounted) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            _showPromptNotice();
+          });
+        }
+      }
+    } catch (e) {
+      print('Error tracking journal mode entry: $e');
+    }
+  }
+  
+  /// Increment journal entry count when entry is saved
+  Future<void> _incrementJournalEntryCount() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final entryCount = prefs.getInt('journal_entry_saved_count') ?? 0;
+      await prefs.setInt('journal_entry_saved_count', entryCount + 1);
+    } catch (e) {
+      print('Error incrementing journal entry count: $e');
+    }
+  }
+  
+  /// Show notice about writing prompts
+  void _showPromptNotice() {
+    if (!mounted) return;
+    
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Need a Writing Prompt?'),
+        content: const Text(
+          'Press the LUMARA icon (🧠) to get personalized journaling prompts based on your entries, chats, drafts, media, and current phase.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Got it'),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _generateLumaraReflection() async {
@@ -535,7 +736,7 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
       
       // The new block index will be the current length (0 for first activation)
       newBlockIndex = _entryState.blocks.length;
-      final blockIndex = newBlockIndex!; // Non-null after assignment - safe to assert
+      final blockIndex = newBlockIndex; // Non-null after assignment
       
       // Create placeholder block immediately so loading indicator shows
       final placeholderBlock = InlineBlock(
@@ -556,6 +757,8 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
       }
       
       String reflection;
+      List<AttributionTrace>? attributionTraces;
+      
       if (isFirstActivation) {
         // For first activation, use EnhancedLumaraApi to get full ECHO structure with expansion questions
         reflection = await _enhancedLumaraApi.generatePromptedReflection(
@@ -576,6 +779,31 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
             }
           },
         );
+        
+        // Retrieve attribution traces for the reflection
+        if (_memoryService != null) {
+          try {
+            final responseId = 'journal_resp_${DateTime.now().millisecondsSinceEpoch}';
+            final entryText = richContext['entryText'] ?? '';
+            
+            final memoryResult = await _memoryService!.retrieveMemories(
+              query: entryText,
+              domains: [MemoryDomain.personal, MemoryDomain.creative, MemoryDomain.learning],
+              responseId: responseId,
+            );
+            
+            attributionTraces = memoryResult.attributions;
+            print('Journal: Retrieved ${attributionTraces.length} attribution traces for reflection');
+            
+            // Enrich attribution traces with actual journal entry content
+            if (attributionTraces.isNotEmpty) {
+              attributionTraces = await _enrichAttributionTraces(attributionTraces);
+              print('Journal: Enriched ${attributionTraces.length} attribution traces with journal entry content');
+            }
+          } catch (e) {
+            print('Journal: Error retrieving attribution traces: $e');
+          }
+        }
       } else {
         // For subsequent activations, use the brief ArcLLM format
         reflection = await _arcLLM.chat(
@@ -586,11 +814,12 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
       );
       }
 
-      // Update the placeholder block with actual content and clear loading state
+      // Update the placeholder block with actual content, attributions, and clear loading state
       if (mounted) {
         setState(() {
           _entryState.blocks[blockIndex] = _entryState.blocks[blockIndex].copyWith(
             content: reflection,
+            attributionTraces: attributionTraces,
           );
           _lumaraLoadingStates.remove(blockIndex);
           _lumaraLoadingMessages.remove(blockIndex);
@@ -1090,6 +1319,9 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
       'reflection_count': _entryState.blocks.length,
     });
     
+    // Track journal entry completion
+    _incrementJournalEntryCount();
+    
     // Navigate to keyword analysis
     Navigator.of(context).push<Map<String, dynamic>>(
       MaterialPageRoute(
@@ -1114,9 +1346,7 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
             initialEmotion: widget.selectedEmotion,
             initialReason: widget.selectedReason,
             manualKeywords: _manualKeywords,
-            existingEntry: widget.existingEntry != null
-                ? widget.existingEntry!.copyWith(title: _titleController.text.trim())
-                : null,
+            existingEntry: _getCurrentEntryForContext(),
             selectedDate: _editableDate,
             selectedTime: _editableTime,
             selectedLocation: _editableLocation,
@@ -1852,6 +2082,7 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
         phase: block.phase,
         isLoading: _lumaraLoadingStates[index] ?? false,
         loadingMessage: _lumaraLoadingMessages[index],
+        attributionTraces: block.attributionTraces,
         onRegenerate: () => _onRegenerateReflection(index),
         onSoften: () => _onSoftenReflection(index),
         onMoreDepth: () => _onMoreDepthReflection(index),
@@ -3039,20 +3270,107 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
   }
 
   /// Build journal context from loaded entries for reflection
-  String _buildJournalContext(List<JournalEntry> loadedEntries) {
+  Future<String> _buildJournalContext(List<JournalEntry> loadedEntries, {String? query}) async {
     final buffer = StringBuffer();
+    final Set<String> addedEntryIds = {}; // Track added entries to avoid duplicates
     
     // Add current entry text
     buffer.writeln('Current entry:');
     buffer.writeln(_entryState.text);
     buffer.writeln('---');
     
-    // Add loaded entries from memory
+    // If we have a query and memory service, use semantic search
+    final searchQuery = query ?? _entryState.text;
+    if (searchQuery.isNotEmpty && _memoryService != null) {
+      try {
+        final settingsService = LumaraReflectionSettingsService.instance;
+        final similarityThreshold = await settingsService.getSimilarityThreshold();
+        final lookbackYears = await settingsService.getEffectiveLookbackYears();
+        final maxMatches = await settingsService.getEffectiveMaxMatches();
+        final therapeuticEnabled = await settingsService.isTherapeuticPresenceEnabled();
+        final therapeuticDepthLevel = therapeuticEnabled 
+            ? await settingsService.getTherapeuticDepthLevel() 
+            : null;
+        final crossModalEnabled = await settingsService.isCrossModalEnabled();
+        
+        print('LUMARA Journal: Searching for relevant entries with query: "$searchQuery"');
+        print('LUMARA Journal: Settings - threshold: $similarityThreshold, lookback: $lookbackYears years, maxMatches: $maxMatches');
+        
+        final memoryResult = await _memoryService!.retrieveMemories(
+          query: searchQuery,
+          domains: [MemoryDomain.personal, MemoryDomain.creative, MemoryDomain.learning],
+          limit: maxMatches,
+          similarityThreshold: similarityThreshold,
+          lookbackYears: lookbackYears,
+          maxMatches: maxMatches,
+          therapeuticDepthLevel: therapeuticDepthLevel,
+          crossModalEnabled: crossModalEnabled,
+        );
+        
+        print('LUMARA Journal: Found ${memoryResult.nodes.length} semantically relevant nodes');
+        
+        // Extract entry IDs from memory nodes and fetch full content
+        if (memoryResult.nodes.isNotEmpty) {
+          buffer.writeln('Semantically similar journal history:');
+          for (final node in memoryResult.nodes) {
+            // Try to extract entry ID from node
+            String? entryId;
+            
+            if (node.data.containsKey('original_entry_id')) {
+              entryId = node.data['original_entry_id'] as String?;
+            } else if (node.id.startsWith('entry:')) {
+              entryId = node.id.replaceFirst('entry:', '');
+            }
+            
+            // If we found an entry ID, try to get the full entry
+            if (entryId != null && !addedEntryIds.contains(entryId)) {
+              try {
+                final allEntries = _journalRepository.getAllJournalEntries();
+                final entry = allEntries.firstWhere(
+                  (e) => e.id == entryId,
+                  orElse: () => allEntries.first,
+                );
+                
+                if (entry.content.isNotEmpty) {
+                  buffer.writeln(entry.content);
+                  buffer.writeln('---');
+                  addedEntryIds.add(entryId);
+                }
+              } catch (e) {
+                // If entry not found, use node narrative as fallback
+                if (node.narrative.isNotEmpty && !addedEntryIds.contains(node.id)) {
+                  buffer.writeln(node.narrative);
+                  buffer.writeln('---');
+                  addedEntryIds.add(node.id);
+                }
+              }
+            } else if (node.narrative.isNotEmpty && !addedEntryIds.contains(node.id)) {
+              // Use node narrative directly if no entry ID found
+              buffer.writeln(node.narrative);
+              buffer.writeln('---');
+              addedEntryIds.add(node.id);
+            }
+          }
+        }
+      } catch (e) {
+        print('LUMARA Journal: Error in semantic search: $e');
+        // Fall through to use recent entries
+      }
+    }
+    
+    // Also include recent entries from loaded entries for context continuity
     if (loadedEntries.isNotEmpty) {
       buffer.writeln('Recent journal history:');
-      for (final entry in loadedEntries.take(25)) {
-        buffer.writeln(entry.content);
-        buffer.writeln('---');
+      int recentCount = 0;
+      for (final entry in loadedEntries) {
+        if (!addedEntryIds.contains(entry.id) && recentCount < 10) {
+          if (entry.content.isNotEmpty) {
+            buffer.writeln(entry.content);
+            buffer.writeln('---');
+            addedEntryIds.add(entry.id);
+            recentCount++;
+          }
+        }
       }
     }
     
@@ -3060,14 +3378,47 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
   }
 
   /// Build rich context including mood, phase, chrono profile, chats, and media
+  /// [currentBlockIndex] is optional - if provided, includes user comments from previous blocks
   Future<Map<String, dynamic>> _buildRichContext(
     List<JournalEntry> loadedEntries,
-    UserProfile? userProfile,
-  ) async {
+    UserProfile? userProfile, {
+    int? currentBlockIndex,
+  }) async {
     final context = <String, dynamic>{};
     
     // Build entry text from loaded journal entries
-    context['entryText'] = _buildJournalContext(loadedEntries);
+    // Use current entry text as query for semantic search
+    String baseEntryText = await _buildJournalContext(loadedEntries, query: _entryState.text);
+    
+    // Include user comments from previous LUMARA blocks if currentBlockIndex is provided
+    if (currentBlockIndex != null && currentBlockIndex > 0) {
+      final userCommentsBuffer = StringBuffer();
+      userCommentsBuffer.writeln('\n\n=== Previous LUMARA Conversation ===');
+      
+      for (int i = 0; i < currentBlockIndex && i < _entryState.blocks.length; i++) {
+        final block = _entryState.blocks[i];
+        if (block.userComment != null && block.userComment!.trim().isNotEmpty) {
+          userCommentsBuffer.writeln('\nUser question/comment:');
+          userCommentsBuffer.writeln(block.userComment);
+          userCommentsBuffer.writeln('\nLUMARA response:');
+          userCommentsBuffer.writeln(block.content);
+          userCommentsBuffer.writeln('---');
+        }
+      }
+      
+      // Also include the current block's user comment if it exists
+      if (currentBlockIndex < _entryState.blocks.length) {
+        final currentBlock = _entryState.blocks[currentBlockIndex];
+        if (currentBlock.userComment != null && currentBlock.userComment!.trim().isNotEmpty) {
+          userCommentsBuffer.writeln('\nCurrent user question/comment:');
+          userCommentsBuffer.writeln(currentBlock.userComment);
+        }
+      }
+      
+      baseEntryText = '$baseEntryText${userCommentsBuffer.toString()}';
+    }
+    
+    context['entryText'] = baseEntryText;
     
     // Get mood/emotion from current entry or widget
     String? mood;
@@ -3284,8 +3635,8 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
     try {
       // Build context from progressive memory loader
       final loadedEntries = _memoryLoader.getLoadedEntries();
-      final richContext = await _buildRichContext(loadedEntries, null);
-      final entryText = _entryState.text;
+      final richContext = await _buildRichContext(loadedEntries, null, currentBlockIndex: index);
+      final entryText = richContext['entryText'] ?? _entryState.text;
       final phaseHint = _entryState.phase;
       
       // Use EnhancedLumaraApi v2.3 with regenerate option
@@ -3365,8 +3716,8 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
     try {
       // Build context from progressive memory loader
       final loadedEntries = _memoryLoader.getLoadedEntries();
-      final richContext = await _buildRichContext(loadedEntries, null);
-      final entryText = _entryState.text;
+      final richContext = await _buildRichContext(loadedEntries, null, currentBlockIndex: index);
+      final entryText = richContext['entryText'] ?? _entryState.text;
       final phaseHint = _entryState.phase;
       
       // Use EnhancedLumaraApi v2.3 with soft tone option
@@ -3446,8 +3797,8 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
     try {
       // Build context from progressive memory loader
       final loadedEntries = _memoryLoader.getLoadedEntries();
-      final richContext = await _buildRichContext(loadedEntries, null);
-      final entryText = _entryState.text;
+      final richContext = await _buildRichContext(loadedEntries, null, currentBlockIndex: index);
+      final entryText = richContext['entryText'] ?? _entryState.text;
       final phaseHint = _entryState.phase;
       
       // Use EnhancedLumaraApi v2.3 with More Depth option
@@ -3625,8 +3976,13 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
       
       // Build context from progressive memory loader
       final loadedEntries = _memoryLoader.getLoadedEntries();
-      final richContext = await _buildRichContext(loadedEntries, null);
-      final entryText = _entryState.text;
+      // Include user comments from previous blocks (blockIndex is the previous block)
+      final richContext = await _buildRichContext(
+        loadedEntries, 
+        null, 
+        currentBlockIndex: blockIndex != null ? blockIndex + 1 : newBlockIndex,
+      );
+      final entryText = richContext['entryText'] ?? _entryState.text;
       final phaseHint = _entryState.phase;
       
       // Use EnhancedLumaraApi v2.3 with conversation mode
@@ -4251,5 +4607,101 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
         ),
       );
     }
+  }
+
+  /// Enrich attribution traces with actual journal entry content
+  /// Replaces LUMARA response excerpts and placeholders with actual journal entry content
+  Future<List<AttributionTrace>> _enrichAttributionTraces(List<AttributionTrace> traces) async {
+    final enrichedTraces = <AttributionTrace>[];
+    
+    for (final trace in traces) {
+      AttributionTrace enrichedTrace = trace;
+      
+      // Check if excerpt needs enrichment
+      final excerpt = trace.excerpt ?? '';
+      final excerptLower = excerpt.toLowerCase();
+      
+      // Check if excerpt is a LUMARA response or placeholder
+      final isLumaraResponse = excerptLower.contains("hello! i'm lumara") ||
+          excerptLower.contains("i'm lumara") ||
+          excerptLower.contains("i'm your personal assistant") ||
+          (excerptLower.startsWith("hello") && excerptLower.contains("lumara")) ||
+          excerptLower.contains("[journal entry content") ||
+          excerptLower.contains("[memory reference");
+      
+      if (isLumaraResponse || excerpt.isEmpty) {
+        // Try to extract entry ID from node reference
+        String? entryId;
+        
+        // Try different ID patterns
+        if (trace.nodeRef.startsWith('entry:')) {
+          entryId = trace.nodeRef.replaceFirst('entry:', '');
+        } else if (trace.nodeRef.contains('_')) {
+          final parts = trace.nodeRef.split('_');
+          if (parts.length > 1) {
+            entryId = parts.last;
+          }
+        } else {
+          // Try to extract from the excerpt placeholder
+          final entryIdMatch = RegExp(r'entry\s+([a-zA-Z0-9_-]+)').firstMatch(excerpt);
+          if (entryIdMatch != null) {
+            entryId = entryIdMatch.group(1);
+          }
+        }
+        
+        // If we found an entry ID, try to get the actual journal entry
+        if (entryId != null) {
+          try {
+            final allEntries = _journalRepository.getAllJournalEntries();
+            JournalEntry entry;
+            try {
+              entry = allEntries.firstWhere((e) => e.id == entryId);
+            } catch (e) {
+              // If exact match not found, try partial match
+              try {
+                final entryIdNonNull = entryId!; // We know it's not null here
+                entry = allEntries.firstWhere(
+                  (e) => e.id.contains(entryIdNonNull) || entryIdNonNull.contains(e.id),
+                );
+              } catch (e2) {
+                // Fallback to first entry if no match found
+                entry = allEntries.first;
+              }
+            }
+            
+            if (entry.content.isNotEmpty) {
+              // Use actual journal entry content as excerpt (first 200 chars)
+              final actualContent = entry.content.length > 200
+                  ? '${entry.content.substring(0, 200)}...'
+                  : entry.content;
+              
+              enrichedTrace = AttributionTrace(
+                nodeRef: trace.nodeRef,
+                relation: trace.relation,
+                confidence: trace.confidence,
+                timestamp: trace.timestamp,
+                reasoning: trace.reasoning,
+                phaseContext: trace.phaseContext,
+                excerpt: actualContent,
+              );
+              
+              print('Journal: Enriched trace ${trace.nodeRef} with actual entry content (${actualContent.length} chars)');
+            }
+          } catch (e) {
+            print('Journal: Could not find entry $entryId for trace ${trace.nodeRef}: $e');
+            // Keep original trace if entry not found
+          }
+        } else {
+          // Try to find entry by searching through all entries for matching content
+          // This is a fallback if we can't extract entry ID
+          // For now, skip this as it's expensive and not reliable
+          print('Journal: Could not extract entry ID from trace ${trace.nodeRef}, skipping enrichment');
+        }
+      }
+      
+      enrichedTraces.add(enrichedTrace);
+    }
+    
+    return enrichedTraces;
   }
 }

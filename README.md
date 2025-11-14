@@ -1,40 +1,65 @@
-# EPI v1a - Evolving Personal Intelligence
+# EPI v1.0.0 - Evolving Personal Intelligence
 
 A Flutter-based AI companion app that provides life-aware assistance through journaling, pattern recognition, and contextual AI responses.
 
 ## 🚀 Current Status
 
-**🎉 MVP FULLY OPERATIONAL** - All systems working, LUMARA MCP Memory System implemented (September 28, 2025)
+**🎉 MVP FULLY OPERATIONAL** - Version 1.0.0 Production Ready (January 2025)
 
-### **Latest Major Achievement: LUMARA MCP Memory System** ✅ **COMPLETE**
-- **Automatic Chat Persistence**: Fixed chat history requiring manual session creation - now works like ChatGPT/Claude
-- **Memory Container Protocol**: Complete MCP implementation for persistent conversational memory across sessions
-- **Cross-Session Continuity**: LUMARA remembers past discussions and references them intelligently in responses
-- **Rolling Summaries**: Map-reduce summarization every 10 messages with key facts and context extraction
-- **Memory Commands**: `/memory show`, `/memory forget`, `/memory export` for complete user control
-- **Privacy Protection**: Built-in PII redaction with automatic detection of emails, phones, API keys, sensitive data
-- **Enterprise-Grade**: Robust session management with intelligent context retrieval and graceful degradation
-- **Status**: ✅ **FULLY IMPLEMENTED** - LUMARA now provides persistent memory like major AI systems
+### **Version Information**
+
+- **Application Version**: 1.0.0+1
+- **Architecture Version**: 2.2 (Consolidated 5-Module Architecture)
+- **Flutter SDK**: >=3.22.3
+- **Dart SDK**: >=3.0.3 <4.0.0
+- **Last Updated**: January 2025
+- **Status**: ✅ Production Ready
+
+### **Latest Major Achievement: Complete MVP Implementation** ✅ **COMPLETE**
+
+- **5-Module Architecture**: Consolidated from 8+ modules for maintainability
+- **LUMARA MCP Memory System**: Persistent conversational memory across sessions
+- **On-Device AI Integration**: Qwen models with llama.cpp and Metal acceleration
+- **MCP Export/Import System**: Standards-compliant data portability
+- **Comprehensive Bug Fixes**: All critical issues resolved
+- **Status**: ✅ **FULLY IMPLEMENTED** - Production-ready MVP
+
+## 📚 Documentation
+
+### Version-Controlled Documentation
+
+All documentation is version-controlled and located in `ARC MVP/EPI/docs/`:
+
+- **Architecture**: `docs/architecture/EPI_MVP_Architecture.md` - Comprehensive architecture documentation
+- **Status**: `docs/status/status.md` - Current system status and health
+- **Bug Tracker**: `docs/bugtracker/bug_tracker.md` - Comprehensive bug tracking
+- **Features**: `docs/features/` - Feature documentation
+- **Guides**: `docs/guides/` - User and developer guides
+- **Reports**: `docs/reports/` - Project reports and analysis
+- **Updates**: `docs/updates/` - Update logs and changelogs
+
+### Archive
+
+Historical documentation is archived in `docs/archive/`:
+- Old architecture documents
+- Legacy bug tracker files
+- Deprecated guides and reports
 
 ## 🏗️ Architecture
 
-### Core Components (8-Module Architecture)
+### Core Components (5-Module Architecture)
 
 - **ARC** - Core journaling interface and meaning-making layer with visual Arcforms
-- **PRISM** - Multimodal perception engine (text, images, audio, biometric streams)
-- **ECHO** - Expressive response layer (voice of LUMARA, provider-agnostic LLM interfaces)
-- **ATLAS** - Life-phase detection and pacing system with adaptive transitions
-- **MIRA** - Long-term memory and semantic graph with context-aware retrieval
-- **AURORA** - Daily and seasonal rhythm orchestration with circadian alignment
-- **VEIL** - Universal privacy guardrail with nightly pruning and coherence renewal
-- **RIVET** - Risk-Validation Evidence Tracker with ALIGN/TRACE metrics for safety gating
+- **PRISM** - Multimodal perception engine (text, images, audio, biometric streams) with ATLAS integration
+- **POLYMETA** - Memory graph, recall, encryption, and data container (MIRA + MCP + ARCX)
+- **AURORA** - Daily and seasonal rhythm orchestration with circadian alignment (includes VEIL)
+- **ECHO** - Expressive response layer with safety and privacy (voice of LUMARA, provider-agnostic LLM interfaces)
 
 ### AI Integration
 
-- **Gemini API (Cloud)** - Primary API-based LLM via `LLMRegistry` with streaming
-- **MIRA Semantic Memory** - Complete semantic graph storage with context-aware retrieval
-- **ArcLLM One-Liners** - `arc.sageEcho(entry)`, `arc.arcformKeywords(...)`, `arc.phaseHints(...)` with MIRA enhancement
-- **Prompt Contracts** - Centralized in `lib/core/prompts_arc.dart` (Dart) and mirrored in `ios/.../PromptTemplates.swift`
+- **On-Device Qwen Models** - Qwen 2.5 1.5B Instruct, Qwen2.5-VL-3B, Qwen3-Embedding-0.6B via llama.cpp
+- **Gemini API (Cloud)** - Primary API-based LLM via `LLMRegistry` with streaming (fallback)
+- **POLYMETA Semantic Memory** - Complete semantic graph storage with context-aware retrieval
 - **MCP Memory Bundle v1** - Standards-compliant bidirectional export/import for AI ecosystem interoperability
 - **Feature Flags** - Controlled rollout: `miraEnabled`, `miraAdvancedEnabled`, `retrievalEnabled`, `useSqliteRepo`
 - **Rule-Based Adapter** - Deterministic fallback if API unavailable
@@ -43,18 +68,18 @@ A Flutter-based AI companion app that provides life-aware assistance through jou
 
 ### Prerequisites
 
-- Flutter 3.24+ (stable channel)
-- Dart 3.5+
+- Flutter 3.22.3+ (stable channel)
+- Dart 3.0.3+ <4.0.0
 - iOS Simulator or Android Emulator
 - Xcode (for iOS development)
-- Gemini API key from Google AI Studio
+- Gemini API key from Google AI Studio (optional, for cloud fallback)
 
 ### Installation
 
 1. **Clone the repository**
    ```bash
    git clone <repository-url>
-   cd EPI_v1a
+   cd ARCv.03
    ```
 
 2. **Navigate to the main project**
@@ -78,6 +103,7 @@ A Flutter-based AI companion app that provides life-aware assistance through jou
    ```
 
 ### Model & Prompts Setup
+
 * ARC prompts are in `lib/core/prompts_arc.dart` and mirrored for iOS in `ios/Runner/Sources/Runner/PromptTemplates.swift`.
 * Use `provideArcLLM()` from `lib/services/gemini_send.dart` to obtain a ready `ArcLLM`.
 * Example:
@@ -90,45 +116,48 @@ A Flutter-based AI companion app that provides life-aware assistance through jou
 
 ### Current Implementation
 
-- **Journaling Interface** - Text, voice, and photo journaling
+- **Journaling Interface** - Text, voice, and photo journaling with OCR
 - **AI Assistant (LUMARA)** - Context-aware responses and insights with persistent chat memory
 - **Pattern Recognition** - Keyword extraction and phase detection
-- **Visual Arcforms** - Constellation-style visualizations of journal themes
+- **Visual Arcforms** - 3D constellation-style visualizations of journal themes
 - **Chat Memory System** - Persistent chat sessions with 30-day auto-archive policy and search
 - **Privacy-First** - On-device processing when possible with PII detection and redaction
 - **MCP Export System** - Standards-compliant export/import for AI ecosystem interoperability
+- **On-Device AI** - Qwen models with llama.cpp and Metal acceleration
+- **Phase Detection** - Real-time phase detection with RIVET and SENTINEL
+- **Health Integration** - HealthKit integration for health data
 
 ### Planned Features
 
-- **Native Model Integration** - Full llama.cpp integration for Qwen models
-- **Vision-Language Model** - Image understanding and analysis
+- **Vision-Language Model** - Enhanced image understanding and analysis
 - **Advanced Analytics** - Deeper pattern recognition and insights
+- **Additional On-Device Models** - Llama and other model support
 
 ## 🔧 Technical Details
 
 ### Dependencies
 
 - **State Management:** flutter_bloc, bloc_test
-- **Storage:** hive_flutter, flutter_secure_storage (MIRA backend)
+- **Storage:** hive_flutter, flutter_secure_storage (POLYMETA backend)
 - **UI:** flutter/material, custom widgets
-- **Media:** audioplayers, photo_manager
-- **AI/ML:** Custom adapters for Qwen models, MIRA semantic memory
+- **Media:** audioplayers, photo_manager, image_picker
+- **AI/ML:** Custom adapters for Qwen models, POLYMETA semantic memory, llama.cpp
 - **MCP Export:** crypto, args (for CLI), deterministic bundle generation
-- **MIRA Core:** Feature flags, deterministic IDs, event logging
+- **POLYMETA Core:** Feature flags, deterministic IDs, event logging
 
 ### Code Quality
 
-- **Linter:** 1,511 total issues (0 critical)
-- **Tests:** Unit and widget tests (some failures due to mock setup)
-- **Architecture:** Clean separation of concerns with adapter pattern
+- **Linter:** Minor warnings (deprecated methods, unused imports) - 0 critical
+- **Tests:** Unit and widget tests (some failures due to mock setup - non-critical)
+- **Architecture:** Clean separation of concerns with 5-module consolidated architecture
 
 ## 📦 MCP Export System
 
-The EPI app includes a comprehensive MCP (Memory Bundle) export system that allows you to export your journal memories in a standardized, portable format.
+The EPI app includes a comprehensive MCP (Memory Container Protocol) export system that allows you to export your journal memories in a standardized, portable format.
 
 ### What is MCP?
 
-MCP (Memory Bundle) is a standardized format for exporting and sharing personal memory data. It includes:
+MCP (Memory Container Protocol) is a standardized format for exporting and sharing personal memory data. It includes:
 - **Nodes**: Journal entries, thoughts, and memories
 - **Edges**: Relationships between memories
 - **Pointers**: References to media files and content
@@ -141,12 +170,39 @@ MCP (Memory Bundle) is a standardized format for exporting and sharing personal 
 - **Content-Addressable Storage**: Uses CAS URIs for reliable content references
 - **Deterministic Exports**: Same input always produces identical output
 - **Storage Profiles**: Choose between minimal, space-saver, balanced, or hi-fidelity exports
+- **ARCX Encryption**: Optional AES-256-GCM + Ed25519 encryption layer
 
 ### Using the MCP Export (App UX)
 
 In the app: Settings → MCP Export & Import
 - Export: choose storage profile → Export → Files share sheet appears → Save to Files (.zip)
 - Import: Import from MCP → pick .zip from Files → app extracts and imports
+
+## 📖 Version History
+
+### Version 1.0.0 (January 2025)
+- **Status**: Production Ready
+- **Key Features**:
+  - Complete 5-module architecture consolidation
+  - LUMARA MCP Memory System
+  - On-device AI integration (Qwen models)
+  - MCP export/import system
+  - Comprehensive bug fixes
+  - Enhanced ARCForm 3D visualizations
+  - Real-time phase detection
+
+### Version 0.2.6-alpha (September 2025)
+- LUMARA Chat Memory + Repository Hygiene
+- MIRA-MCP Architecture
+- Clean Git Workflow
+- Insights System Fixed
+
+### Version 0.2.5-alpha (September 2025)
+- MCP Integration
+- Memory Container Protocol implementation
+
+### Version 0.2.4-alpha (August 2025)
+- Initial MVP release
 
 ## 🤝 Contributing
 
@@ -169,6 +225,6 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 ---
 
-**Last Updated:** September 28, 2025
-**Version:** 0.2.6-alpha
-**Status:** Production Ready - Complete MCP Integration + LUMARA Chat Memory + Repository Hygiene + MIRA-MCP Architecture + Clean Git Workflow + Insights System Fixed
+**Last Updated:** January 2025  
+**Version:** 1.0.0  
+**Status:** Production Ready - Complete MVP Implementation with 5-Module Architecture

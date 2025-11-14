@@ -205,6 +205,7 @@ class AttributionTrace {
   final DateTime timestamp;
   final String? reasoning;
   final String? phaseContext; // ATLAS phase when memory node was created
+  final String? excerpt; // Excerpt from the memory node for direct attribution
 
   const AttributionTrace({
     required this.nodeRef,
@@ -213,6 +214,7 @@ class AttributionTrace {
     required this.timestamp,
     this.reasoning,
     this.phaseContext,
+    this.excerpt,
   });
 
   Map<String, dynamic> toJson() => {
@@ -222,6 +224,7 @@ class AttributionTrace {
     'timestamp': timestamp.toIso8601String(),
     'reasoning': reasoning,
     'phase_context': phaseContext,
+    'excerpt': excerpt,
   };
 
   factory AttributionTrace.fromJson(Map<String, dynamic> json) {
@@ -232,6 +235,7 @@ class AttributionTrace {
       timestamp: DateTime.parse(json['timestamp']),
       reasoning: json['reasoning'],
       phaseContext: json['phase_context'],
+      excerpt: json['excerpt'],
     );
   }
 }

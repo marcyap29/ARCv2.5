@@ -1,0 +1,136 @@
+// lib/shared/ui/insights/unified_insights_view.dart
+// Unified Insights View - Combines Phase, Health, and Analytics into a single section
+
+import 'package:flutter/material.dart';
+import 'package:my_app/ui/phase/phase_analysis_view.dart';
+import 'package:my_app/arc/ui/health/health_view.dart';
+import 'package:my_app/insights/analytics_page.dart';
+import 'package:my_app/shared/app_colors.dart';
+import 'package:my_app/shared/ui/settings/settings_view.dart';
+
+class UnifiedInsightsView extends StatefulWidget {
+  const UnifiedInsightsView({super.key});
+
+  @override
+  State<UnifiedInsightsView> createState() => _UnifiedInsightsViewState();
+}
+
+class _UnifiedInsightsViewState extends State<UnifiedInsightsView>
+    with SingleTickerProviderStateMixin {
+  late TabController _tabController;
+  int _previousIndex = 0;
+  bool _isNavigatingToSettings = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: 4, vsync: this); // Phase + Health + Analytics + Settings
+    _tabController.addListener(_handleTabChange);
+  }
+
+  void _handleTabChange() {
+    if (!mounted) return;
+    
+    // Navigate to Settings when Settings tab is selected
+    if (_tabController.index == 3 && !_isNavigatingToSettings) {
+      _isNavigatingToSettings = true;
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => const SettingsView(),
+        ),
+      ).then((_) {
+        // Return to previous tab after Settings is closed
+        if (mounted) {
+          _isNavigatingToSettings = false;
+          // Temporarily remove listener to prevent triggering during animateTo
+          _tabController.removeListener(_handleTabChange);
+          _tabController.animateTo(_previousIndex);
+          // Re-add listener after animation
+          Future.delayed(const Duration(milliseconds: 300), () {
+            if (mounted) {
+              _tabController.addListener(_handleTabChange);
+            }
+          });
+        }
+      });
+    } else if (_tabController.index != 3) {
+      // Track previous index (excluding Settings tab)
+      _previousIndex = _tabController.index;
+    }
+  }
+
+  @override
+  void dispose() {
+    _tabController.removeListener(_handleTabChange);
+    _tabController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: SafeArea(
+        child: Column(
+          children: [
+            // Tab bar for Phase, Health, and Analytics
+            Container(
+              padding: const EdgeInsets.only(left: 6.0), // Add left padding to shift icons right
+              color: kcBackgroundColor,
+              child: SizedBox(
+                height: 36, // Reduced height for more compact bar
+                child: TabBar(
+                  controller: _tabController,
+                  isScrollable: true,
+                  labelColor: Colors.white,
+                  unselectedLabelColor: Colors.grey,
+                  indicatorColor: Colors.purple,
+                  indicatorWeight: 2, // Reduced from 3 to 2
+                  labelPadding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 0), // Removed vertical padding
+                  labelStyle: const TextStyle(fontSize: 13), // Increased from 11 to 13 for better readability
+                  unselectedLabelStyle: const TextStyle(fontSize: 13), // Increased from 11 to 13 for better readability
+                  tabs: const [
+                    Tab(
+                      icon: Icon(Icons.auto_awesome, size: 16), // Reduced from 18 to 16
+                      text: 'Phase',
+                    ),
+                    Tab(
+                      icon: Icon(Icons.favorite, size: 16), // Reduced from 18 to 16
+                      text: 'Health',
+                    ),
+                    Tab(
+                      icon: Icon(Icons.analytics, size: 16), // Reduced from 18 to 16
+                      text: 'Analytics',
+                    ),
+                    Tab(
+                      icon: Icon(Icons.settings, size: 16), // Reduced from 18 to 16
+                      text: 'Settings',
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            // Tab bar view content
+            Expanded(
+              child: TabBarView(
+                controller: _tabController,
+                physics: const NeverScrollableScrollPhysics(), // Disable swipe to prevent accessing Settings tab
+                children: const [
+                  // Phase Analysis tab
+                  PhaseAnalysisView(),
+                  // Health tab
+                  HealthView(),
+                  // Analytics tab
+                  AnalyticsPage(),
+                  // Settings placeholder (will navigate instead)
+                  SizedBox.shrink(),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
