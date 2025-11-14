@@ -24,6 +24,10 @@ import 'package:my_app/arc/core/journal_repository.dart';
 import 'package:my_app/services/phase_regime_service.dart';
 import '../models/arcx_manifest.dart';
 import 'arcx_crypto_service.dart';
+import 'package:my_app/prism/atlas/rivet/rivet_storage.dart';
+import 'package:my_app/prism/atlas/rivet/rivet_models.dart' as rivet_models;
+import 'package:my_app/models/arcform_snapshot_model.dart';
+import 'package:hive/hive.dart';
 
 const _uuid = Uuid();
 
@@ -263,12 +267,18 @@ class ARCXExportServiceV2 {
         );
       }
       
-      // Export phase regimes
+      // Export phase regimes, RIVET state, Sentinel state, and ArcForm timeline
       int phaseRegimesExported = 0;
       if (_phaseRegimeService != null) {
         onProgress?.call('Exporting phase regimes...');
         phaseRegimesExported = await _exportPhaseRegimes(payloadDir);
       }
+      
+      // Export RIVET state, Sentinel state, and ArcForm timeline alongside phase regimes
+      onProgress?.call('Exporting RIVET and system states...');
+      await _exportRivetState(payloadDir);
+      await _exportSentinelState(payloadDir);
+      await _exportArcFormTimeline(payloadDir);
       
       // Generate checksums
       if (options.includeChecksums) {
@@ -457,12 +467,18 @@ class ARCXExportServiceV2 {
           );
         }
         
-        // Export phase regimes (included with entries+chats archive)
+        // Export phase regimes, RIVET state, Sentinel state, and ArcForm timeline (included with entries+chats archive)
         int phaseRegimesExported = 0;
         if (_phaseRegimeService != null) {
           onProgress?.call('Exporting phase regimes...');
           phaseRegimesExported = await _exportPhaseRegimes(payloadDir);
         }
+        
+        // Export RIVET state, Sentinel state, and ArcForm timeline alongside phase regimes
+        onProgress?.call('Exporting RIVET and system states...');
+        await _exportRivetState(payloadDir);
+        await _exportSentinelState(payloadDir);
+        await _exportArcFormTimeline(payloadDir);
         
         // Generate checksums
         if (options.includeChecksums) {
@@ -609,10 +625,18 @@ class ARCXExportServiceV2 {
         );
       }
       
-      // Export phase regimes if requested (typically with Entries group)
+      // Export phase regimes, RIVET state, Sentinel state, and ArcForm timeline if requested (typically with Entries group)
       if (includePhaseRegimes && _phaseRegimeService != null) {
         onProgress?.call('Exporting phase regimes...');
         phaseRegimesExported = await _exportPhaseRegimes(payloadDir);
+      }
+      
+      // Export RIVET state, Sentinel state, and ArcForm timeline alongside phase regimes
+      if (includePhaseRegimes) {
+        onProgress?.call('Exporting RIVET and system states...');
+        await _exportRivetState(payloadDir);
+        await _exportSentinelState(payloadDir);
+        await _exportArcFormTimeline(payloadDir);
       }
       
       // Generate checksums
@@ -1260,6 +1284,131 @@ class ARCXExportServiceV2 {
     } catch (e) {
       print('ARCX Export V2: Error exporting phase regimes: $e');
       return 0;
+    }
+  }
+
+  /// Export RIVET state to PhaseRegimes/rivet_state.json
+  Future<void> _exportRivetState(Directory payloadDir) async {
+    try {
+      // Ensure PhaseRegimes directory exists
+      final phaseRegimesDir = Directory(path.join(payloadDir.path, 'PhaseRegimes'));
+      await phaseRegimesDir.create(recursive: true);
+
+      if (!Hive.isBoxOpen(RivetBox.boxName)) {
+        await Hive.openBox(RivetBox.boxName);
+      }
+      
+      final stateBox = Hive.box(RivetBox.boxName);
+      final eventsBox = Hive.isBoxOpen(RivetBox.eventsBoxName) 
+          ? Hive.box(RivetBox.eventsBoxName)
+          : await Hive.openBox(RivetBox.eventsBoxName);
+
+      final rivetStates = <String, dynamic>{};
+      
+      // Export all user states
+      for (final userId in stateBox.keys) {
+        final stateData = stateBox.get(userId);
+        if (stateData == null) continue;
+
+        final rivetState = rivet_models.RivetState.fromJson(
+          stateData is Map<String, dynamic> 
+              ? stateData 
+              : Map<String, dynamic>.from(stateData as Map),
+        );
+
+        // Get events for this user
+        final eventsData = eventsBox.get(userId, defaultValue: <dynamic>[]);
+        final events = <rivet_models.RivetEvent>[];
+        if (eventsData is List) {
+          for (final eventData in eventsData) {
+            try {
+              final eventMap = eventData is Map<String, dynamic>
+                  ? eventData
+                  : Map<String, dynamic>.from(eventData as Map);
+              events.add(rivet_models.RivetEvent.fromJson(eventMap));
+            } catch (e) {
+              print('ARCX Export V2: Failed to parse RIVET event: $e');
+            }
+          }
+        }
+
+        rivetStates[userId.toString()] = {
+          'state': rivetState.toJson(),
+          'events': events.map((e) => e.toJson()).toList(),
+          'exported_at': DateTime.now().toIso8601String(),
+        };
+      }
+
+      if (rivetStates.isNotEmpty) {
+        final rivetStateFile = File(path.join(phaseRegimesDir.path, 'rivet_state.json'));
+        await rivetStateFile.writeAsString(
+          const JsonEncoder.withIndent('  ').convert({
+            'rivet_states': rivetStates,
+            'exported_at': DateTime.now().toIso8601String(),
+            'version': '1.0',
+          })
+        );
+        print('ARCX Export V2: Exported RIVET state for ${rivetStates.length} users');
+      }
+    } catch (e) {
+      print('ARCX Export V2: Error exporting RIVET state: $e');
+    }
+  }
+
+  /// Export Sentinel state to PhaseRegimes/sentinel_state.json
+  Future<void> _exportSentinelState(Directory payloadDir) async {
+    try {
+      // Ensure PhaseRegimes directory exists
+      final phaseRegimesDir = Directory(path.join(payloadDir.path, 'PhaseRegimes'));
+      await phaseRegimesDir.create(recursive: true);
+
+      // Sentinel state is computed dynamically, so we export a placeholder
+      final sentinelStateFile = File(path.join(phaseRegimesDir.path, 'sentinel_state.json'));
+      await sentinelStateFile.writeAsString(
+        const JsonEncoder.withIndent('  ').convert({
+          'sentinel_state': {
+            'state': 'ok',
+            'notes': [],
+            'exported_at': DateTime.now().toIso8601String(),
+            'note': 'Sentinel state is computed dynamically. This export represents the system state at export time.',
+          },
+          'exported_at': DateTime.now().toIso8601String(),
+          'version': '1.0',
+        })
+      );
+      print('ARCX Export V2: Exported Sentinel state');
+    } catch (e) {
+      print('ARCX Export V2: Error exporting Sentinel state: $e');
+    }
+  }
+
+  /// Export ArcForm timeline history to PhaseRegimes/arcform_timeline.json
+  Future<void> _exportArcFormTimeline(Directory payloadDir) async {
+    try {
+      // Ensure PhaseRegimes directory exists
+      final phaseRegimesDir = Directory(path.join(payloadDir.path, 'PhaseRegimes'));
+      await phaseRegimesDir.create(recursive: true);
+
+      if (!Hive.isBoxOpen('arcform_snapshots')) {
+        await Hive.openBox<ArcformSnapshot>('arcform_snapshots');
+      }
+
+      final box = Hive.box<ArcformSnapshot>('arcform_snapshots');
+      final snapshots = box.values.toList();
+
+      if (snapshots.isNotEmpty) {
+        final arcformTimelineFile = File(path.join(phaseRegimesDir.path, 'arcform_timeline.json'));
+        await arcformTimelineFile.writeAsString(
+          const JsonEncoder.withIndent('  ').convert({
+            'arcform_snapshots': snapshots.map((s) => s.toJson()).toList(),
+            'exported_at': DateTime.now().toIso8601String(),
+            'version': '1.0',
+          })
+        );
+        print('ARCX Export V2: Exported ${snapshots.length} ArcForm timeline snapshots');
+      }
+    } catch (e) {
+      print('ARCX Export V2: Error exporting ArcForm timeline: $e');
     }
   }
   

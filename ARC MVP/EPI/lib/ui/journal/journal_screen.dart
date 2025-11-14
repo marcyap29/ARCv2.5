@@ -794,6 +794,12 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
             
             attributionTraces = memoryResult.attributions;
             print('Journal: Retrieved ${attributionTraces.length} attribution traces for reflection');
+            
+            // Enrich attribution traces with actual journal entry content
+            if (attributionTraces.isNotEmpty) {
+              attributionTraces = await _enrichAttributionTraces(attributionTraces);
+              print('Journal: Enriched ${attributionTraces.length} attribution traces with journal entry content');
+            }
           } catch (e) {
             print('Journal: Error retrieving attribution traces: $e');
           }
@@ -3372,15 +3378,47 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
   }
 
   /// Build rich context including mood, phase, chrono profile, chats, and media
+  /// [currentBlockIndex] is optional - if provided, includes user comments from previous blocks
   Future<Map<String, dynamic>> _buildRichContext(
     List<JournalEntry> loadedEntries,
-    UserProfile? userProfile,
-  ) async {
+    UserProfile? userProfile, {
+    int? currentBlockIndex,
+  }) async {
     final context = <String, dynamic>{};
     
     // Build entry text from loaded journal entries
     // Use current entry text as query for semantic search
-    context['entryText'] = await _buildJournalContext(loadedEntries, query: _entryState.text);
+    String baseEntryText = await _buildJournalContext(loadedEntries, query: _entryState.text);
+    
+    // Include user comments from previous LUMARA blocks if currentBlockIndex is provided
+    if (currentBlockIndex != null && currentBlockIndex > 0) {
+      final userCommentsBuffer = StringBuffer();
+      userCommentsBuffer.writeln('\n\n=== Previous LUMARA Conversation ===');
+      
+      for (int i = 0; i < currentBlockIndex && i < _entryState.blocks.length; i++) {
+        final block = _entryState.blocks[i];
+        if (block.userComment != null && block.userComment!.trim().isNotEmpty) {
+          userCommentsBuffer.writeln('\nUser question/comment:');
+          userCommentsBuffer.writeln(block.userComment);
+          userCommentsBuffer.writeln('\nLUMARA response:');
+          userCommentsBuffer.writeln(block.content);
+          userCommentsBuffer.writeln('---');
+        }
+      }
+      
+      // Also include the current block's user comment if it exists
+      if (currentBlockIndex < _entryState.blocks.length) {
+        final currentBlock = _entryState.blocks[currentBlockIndex];
+        if (currentBlock.userComment != null && currentBlock.userComment!.trim().isNotEmpty) {
+          userCommentsBuffer.writeln('\nCurrent user question/comment:');
+          userCommentsBuffer.writeln(currentBlock.userComment);
+        }
+      }
+      
+      baseEntryText = '$baseEntryText${userCommentsBuffer.toString()}';
+    }
+    
+    context['entryText'] = baseEntryText;
     
     // Get mood/emotion from current entry or widget
     String? mood;
@@ -3597,8 +3635,8 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
     try {
       // Build context from progressive memory loader
       final loadedEntries = _memoryLoader.getLoadedEntries();
-      final richContext = await _buildRichContext(loadedEntries, null);
-      final entryText = _entryState.text;
+      final richContext = await _buildRichContext(loadedEntries, null, currentBlockIndex: index);
+      final entryText = richContext['entryText'] ?? _entryState.text;
       final phaseHint = _entryState.phase;
       
       // Use EnhancedLumaraApi v2.3 with regenerate option
@@ -3678,8 +3716,8 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
     try {
       // Build context from progressive memory loader
       final loadedEntries = _memoryLoader.getLoadedEntries();
-      final richContext = await _buildRichContext(loadedEntries, null);
-      final entryText = _entryState.text;
+      final richContext = await _buildRichContext(loadedEntries, null, currentBlockIndex: index);
+      final entryText = richContext['entryText'] ?? _entryState.text;
       final phaseHint = _entryState.phase;
       
       // Use EnhancedLumaraApi v2.3 with soft tone option
@@ -3759,8 +3797,8 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
     try {
       // Build context from progressive memory loader
       final loadedEntries = _memoryLoader.getLoadedEntries();
-      final richContext = await _buildRichContext(loadedEntries, null);
-      final entryText = _entryState.text;
+      final richContext = await _buildRichContext(loadedEntries, null, currentBlockIndex: index);
+      final entryText = richContext['entryText'] ?? _entryState.text;
       final phaseHint = _entryState.phase;
       
       // Use EnhancedLumaraApi v2.3 with More Depth option
@@ -3938,8 +3976,13 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
       
       // Build context from progressive memory loader
       final loadedEntries = _memoryLoader.getLoadedEntries();
-      final richContext = await _buildRichContext(loadedEntries, null);
-      final entryText = _entryState.text;
+      // Include user comments from previous blocks (blockIndex is the previous block)
+      final richContext = await _buildRichContext(
+        loadedEntries, 
+        null, 
+        currentBlockIndex: blockIndex != null ? blockIndex + 1 : newBlockIndex,
+      );
+      final entryText = richContext['entryText'] ?? _entryState.text;
       final phaseHint = _entryState.phase;
       
       // Use EnhancedLumaraApi v2.3 with conversation mode
@@ -4564,5 +4607,101 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
         ),
       );
     }
+  }
+
+  /// Enrich attribution traces with actual journal entry content
+  /// Replaces LUMARA response excerpts and placeholders with actual journal entry content
+  Future<List<AttributionTrace>> _enrichAttributionTraces(List<AttributionTrace> traces) async {
+    final enrichedTraces = <AttributionTrace>[];
+    
+    for (final trace in traces) {
+      AttributionTrace enrichedTrace = trace;
+      
+      // Check if excerpt needs enrichment
+      final excerpt = trace.excerpt ?? '';
+      final excerptLower = excerpt.toLowerCase();
+      
+      // Check if excerpt is a LUMARA response or placeholder
+      final isLumaraResponse = excerptLower.contains("hello! i'm lumara") ||
+          excerptLower.contains("i'm lumara") ||
+          excerptLower.contains("i'm your personal assistant") ||
+          (excerptLower.startsWith("hello") && excerptLower.contains("lumara")) ||
+          excerptLower.contains("[journal entry content") ||
+          excerptLower.contains("[memory reference");
+      
+      if (isLumaraResponse || excerpt.isEmpty) {
+        // Try to extract entry ID from node reference
+        String? entryId;
+        
+        // Try different ID patterns
+        if (trace.nodeRef.startsWith('entry:')) {
+          entryId = trace.nodeRef.replaceFirst('entry:', '');
+        } else if (trace.nodeRef.contains('_')) {
+          final parts = trace.nodeRef.split('_');
+          if (parts.length > 1) {
+            entryId = parts.last;
+          }
+        } else {
+          // Try to extract from the excerpt placeholder
+          final entryIdMatch = RegExp(r'entry\s+([a-zA-Z0-9_-]+)').firstMatch(excerpt);
+          if (entryIdMatch != null) {
+            entryId = entryIdMatch.group(1);
+          }
+        }
+        
+        // If we found an entry ID, try to get the actual journal entry
+        if (entryId != null) {
+          try {
+            final allEntries = _journalRepository.getAllJournalEntries();
+            JournalEntry entry;
+            try {
+              entry = allEntries.firstWhere((e) => e.id == entryId);
+            } catch (e) {
+              // If exact match not found, try partial match
+              try {
+                final entryIdNonNull = entryId!; // We know it's not null here
+                entry = allEntries.firstWhere(
+                  (e) => e.id.contains(entryIdNonNull) || entryIdNonNull.contains(e.id),
+                );
+              } catch (e2) {
+                // Fallback to first entry if no match found
+                entry = allEntries.first;
+              }
+            }
+            
+            if (entry.content.isNotEmpty) {
+              // Use actual journal entry content as excerpt (first 200 chars)
+              final actualContent = entry.content.length > 200
+                  ? '${entry.content.substring(0, 200)}...'
+                  : entry.content;
+              
+              enrichedTrace = AttributionTrace(
+                nodeRef: trace.nodeRef,
+                relation: trace.relation,
+                confidence: trace.confidence,
+                timestamp: trace.timestamp,
+                reasoning: trace.reasoning,
+                phaseContext: trace.phaseContext,
+                excerpt: actualContent,
+              );
+              
+              print('Journal: Enriched trace ${trace.nodeRef} with actual entry content (${actualContent.length} chars)');
+            }
+          } catch (e) {
+            print('Journal: Could not find entry $entryId for trace ${trace.nodeRef}: $e');
+            // Keep original trace if entry not found
+          }
+        } else {
+          // Try to find entry by searching through all entries for matching content
+          // This is a fallback if we can't extract entry ID
+          // For now, skip this as it's expensive and not reliable
+          print('Journal: Could not extract entry ID from trace ${trace.nodeRef}, skipping enrichment');
+        }
+      }
+      
+      enrichedTraces.add(enrichedTrace);
+    }
+    
+    return enrichedTraces;
   }
 }

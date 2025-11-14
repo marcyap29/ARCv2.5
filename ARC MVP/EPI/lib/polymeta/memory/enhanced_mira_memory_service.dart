@@ -241,10 +241,70 @@ class EnhancedMiraMemoryService {
       final reasoning = _generateRetrievalReasoning(node, query);
       print('LUMARA Debug:   - Reasoning: $reasoning');
 
-      // Create excerpt from node narrative (first 200 chars)
-      final excerpt = node.narrative.length > 200
-          ? '${node.narrative.substring(0, 200)}...'
-          : node.narrative;
+      // Create excerpt from node narrative, but filter out LUMARA responses
+      // Check if narrative looks like a LUMARA response (contains common LUMARA greeting patterns)
+      String excerpt = node.narrative;
+      final narrativeLower = node.narrative.toLowerCase();
+      
+      // Check for LUMARA response patterns
+      final isLumaraResponse = narrativeLower.contains("hello! i'm lumara") ||
+          narrativeLower.contains("i'm lumara") ||
+          narrativeLower.contains("i'm your personal assistant") ||
+          (narrativeLower.startsWith("hello") && narrativeLower.contains("lumara"));
+      
+      if (isLumaraResponse) {
+        // Try to get actual journal entry content from node data
+        if (node is EnhancedMiraNode) {
+          final nodeData = node.data;
+          // Try to get content from data fields
+          final content = nodeData['content'] as String? ?? 
+                         nodeData['text'] as String? ?? 
+                         node.content;
+          
+          if (content.isNotEmpty && content != node.narrative) {
+            excerpt = content;
+            print('LUMARA Debug:   - Using node content instead of LUMARA response narrative');
+          } else {
+            // Try to extract entry ID and look it up
+            String? entryId;
+            if (nodeData.containsKey('original_entry_id')) {
+              entryId = nodeData['original_entry_id'] as String?;
+            } else if (node.id.startsWith('entry:')) {
+              entryId = node.id.replaceFirst('entry:', '');
+            } else if (node.id.contains('_')) {
+              final parts = node.id.split('_');
+              if (parts.length > 1) {
+                entryId = parts.last;
+              }
+            }
+            
+            if (entryId != null) {
+              // Note: We can't access JournalRepository here, but we can mark this
+              // for the journal screen to handle. For now, use a placeholder.
+              excerpt = '[Journal entry content - see entry $entryId]';
+              print('LUMARA Debug:   - Found entry ID $entryId but cannot access repository here');
+            } else {
+              // If we can't find the actual content, use a generic message
+              excerpt = '[Memory reference - content not available]';
+              print('LUMARA Debug:   - Could not extract journal entry content from LUMARA response node');
+            }
+          }
+        } else {
+          // For non-enhanced nodes, try node.content
+          if (node.content.isNotEmpty && node.content != node.narrative) {
+            excerpt = node.content;
+            print('LUMARA Debug:   - Using node.content instead of LUMARA response narrative');
+          } else {
+            excerpt = '[Memory reference - content not available]';
+            print('LUMARA Debug:   - Could not extract journal entry content from LUMARA response node');
+          }
+        }
+      }
+      
+      // Limit excerpt length to 200 chars
+      if (excerpt.length > 200) {
+        excerpt = '${excerpt.substring(0, 200)}...';
+      }
 
       final trace = _attributionService.createTrace(
         nodeRef: node.id,
@@ -252,7 +312,7 @@ class EnhancedMiraMemoryService {
         confidence: confidence,
         reasoning: reasoning,
         phaseContext: node.phaseContext, // Include phase context from node
-        excerpt: excerpt, // Include excerpt for direct attribution
+        excerpt: excerpt.isEmpty ? null : excerpt, // Include excerpt for direct attribution
       );
 
       print('LUMARA Debug:   - Created trace: ${trace.nodeRef}, ${trace.relation}, ${trace.confidence}, phase: ${trace.phaseContext ?? "none"}');

@@ -399,6 +399,12 @@ class _ARCXImportProgressScreenState extends State<ARCXImportProgressScreen> {
               _buildSummaryRow('Chat sessions:', '${result.chatsImported}'),
             if (result.phaseRegimesImported > 0)
               _buildSummaryRow('Phase regimes:', '${result.phaseRegimesImported}'),
+            if (result.rivetStatesImported > 0)
+              _buildSummaryRow('RIVET states:', '${result.rivetStatesImported}'),
+            if (result.sentinelStatesImported > 0)
+              _buildSummaryRow('Sentinel states:', '${result.sentinelStatesImported}'),
+            if (result.arcformSnapshotsImported > 0)
+              _buildSummaryRow('ArcForm snapshots:', '${result.arcformSnapshotsImported}'),
             if (result.warnings != null && result.warnings!.isNotEmpty) ...[
               const SizedBox(height: 8),
               Text(
