@@ -565,6 +565,9 @@ List<PhaseSegmentProposal> proposals,
             ),
           ),
           const SizedBox(height: 16),
+          // Current Phase Detection Card
+          _buildCurrentPhaseCard(),
+          const SizedBox(height: 16),
           const PhaseChangeReadinessCard(),
           const SizedBox(height: 16),
           Card(
@@ -604,6 +607,138 @@ List<PhaseSegmentProposal> proposals,
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  /// Build Current Phase Detection Card
+  Widget _buildCurrentPhaseCard() {
+    String? currentPhaseName;
+    if (_phaseIndex?.currentRegime != null) {
+      currentPhaseName = _getPhaseLabelName(_phaseIndex!.currentRegime!.label);
+    } else if (_phaseIndex?.allRegimes.isNotEmpty == true) {
+      // No current ongoing regime, use most recent one
+      final sortedRegimes = List.from(_phaseIndex!.allRegimes)..sort((a, b) => b.start.compareTo(a.start));
+      currentPhaseName = _getPhaseLabelName(sortedRegimes.first.label);
+    } else {
+      currentPhaseName = 'Discovery'; // Default
+    }
+
+    // Get phase color
+    Color phaseColor;
+    switch (currentPhaseName.toLowerCase()) {
+      case 'discovery':
+        phaseColor = Colors.blue;
+        break;
+      case 'expansion':
+        phaseColor = Colors.green;
+        break;
+      case 'transition':
+        phaseColor = Colors.orange;
+        break;
+      case 'consolidation':
+        phaseColor = Colors.purple;
+        break;
+      case 'recovery':
+        phaseColor = Colors.teal;
+        break;
+      case 'breakthrough':
+        phaseColor = Colors.pink;
+        break;
+      default:
+        phaseColor = Colors.blue;
+    }
+
+    return Card(
+      elevation: 2,
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.auto_awesome, color: phaseColor),
+                const SizedBox(width: 8),
+                const Text(
+                  'Phase Transition Detection',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(16.0),
+              decoration: BoxDecoration(
+                color: phaseColor.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: phaseColor.withOpacity(0.3)),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Current Phase:',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          currentPhaseName,
+                          style: TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                            color: phaseColor,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: phaseColor,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Icon(
+                      Icons.check_circle,
+                      color: Colors.white,
+                      size: 32,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            if (_phaseIndex?.currentRegime != null) ...[
+              const SizedBox(height: 8),
+              Text(
+                'Started: ${_formatDateTime(_phaseIndex!.currentRegime!.start)}',
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: Colors.grey,
+                ),
+              ),
+            ] else if (_phaseIndex?.allRegimes.isNotEmpty == true) ...[
+              const SizedBox(height: 8),
+              Text(
+                'Most recent phase (no current ongoing phase)',
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: Colors.grey,
+                  fontStyle: FontStyle.italic,
+                ),
+              ),
+            ],
+          ],
+        ),
       ),
     );
   }

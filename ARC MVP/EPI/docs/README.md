@@ -79,8 +79,8 @@ Policy specifications:
 
 ## Version Information
 
-**Current Version:** 2.1.9  
-**Last Major Update:** January 2025
+**Current Version:** 2.1.10  
+**Last Major Update:** November 2025
 
 See `changelog/CHANGELOG.md` for detailed version history.
 

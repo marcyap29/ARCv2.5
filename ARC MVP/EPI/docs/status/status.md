@@ -53,6 +53,28 @@ The EPI MVP is **fully operational** with all core systems working correctly. Th
 
 ## Recent Achievements
 
+### November 2025
+
+#### ✅ In-Journal LUMARA Attribution & User Comment Support (November 13, 2025)
+- **Fixed Attribution Excerpts**: In-journal LUMARA now shows actual journal entry content instead of generic "Hello! I'm LUMARA..." messages
+- **User Comment Support**: LUMARA now takes into account questions asked in text boxes underneath in-journal LUMARA comments
+- **Conversation Context**: LUMARA maintains conversation context across in-journal interactions
+- **Status**: ✅ Complete - Attribution shows specific source text, user comments are included in context
+
+#### ✅ System State Export to MCP/ARCX (November 13, 2025)
+- **RIVET State Export**: Added RIVET state (ALIGN, TRACE, sustainCount, events) to MCP/ARCX exports
+- **Sentinel State Export**: Added Sentinel monitoring state to exports
+- **ArcForm Timeline Export**: Added complete ArcForm snapshot history to exports
+- **Grouped with Phase Regimes**: All phase-related system states exported together in PhaseRegimes/ directory
+- **Import Support**: All new exports are properly imported and restored
+- **Status**: ✅ Complete - Complete system state backup and restore
+
+#### ✅ Phase Detection Fix & Transition Detection Card (November 13, 2025)
+- **Phase Detection Fix**: Fixed phase detection to use imported phase regimes instead of defaulting to Discovery
+- **Phase Transition Detection Card**: Added new card showing current detected phase between Phase Statistics and Phase Transition Readiness
+- **Robust Error Handling**: Added comprehensive error handling and timeout protection to prevent widget failures
+- **Status**: ✅ Complete - Phase detection now correctly uses imported data, Transition Detection card always visible
+
 ### January 2025
 
 #### ✅ LUMARA Memory Attribution & Weighted Context (January 2025)

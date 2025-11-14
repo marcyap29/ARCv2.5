@@ -159,6 +159,23 @@ EPI MVP provides a comprehensive set of features for intelligent journaling, AI 
 
 ## Analysis Features
 
+### Phase Detection & Transition
+
+**Phase Transition Detection**
+- **Current Phase Display**: Shows current detected phase with color-coded visualization
+- **Imported Phase Support**: Uses imported phase regimes from ARCX/MCP files
+- **Phase History**: Displays when current phase started (if ongoing)
+- **Fallback Logic**: Shows most recent phase if no current ongoing phase
+- **Always Visible**: Card always displays even if there are errors
+
+**Phase Analysis**
+- **RIVET Integration**: Uses RIVET state for phase transition readiness
+- **Phase Statistics**: Comprehensive phase timeline statistics
+- **Phase Regimes**: Timeline of life phases (Discovery, Expansion, Transition, Consolidation, Recovery, Breakthrough)
+- **System State Export**: Complete phase-related system state backup (RIVET, Sentinel, ArcForm)
+
+## Analysis Features
+
 ### Pattern Recognition
 
 **Keyword Extraction**
@@ -234,6 +251,29 @@ EPI MVP provides a comprehensive set of features for intelligent journaling, AI 
 - Location privacy
 
 ---
+
+## Data Management Features
+
+### Export/Import System
+
+**MCP Export**
+- **Memory Bundle**: Complete memory graph export in MCP format
+- **Phase Regimes**: Phase timeline export
+- **System States**: RIVET state, Sentinel state, ArcForm timeline export
+- **Chat History**: Complete chat session export
+- **Media References**: Media item references in export
+
+**ARCX Export**
+- **Encrypted Archive**: AES-256-GCM encryption with Ed25519 signatures
+- **Structured Payload**: Organized directory structure (Entries, Media, Chats, PhaseRegimes)
+- **System State Backup**: Complete system state backup in PhaseRegimes/ directory
+- **Import Tracking**: Detailed import completion with counts for all data types
+
+**Import Features**
+- **Phase Regime Import**: Restores phase timeline from exports
+- **System State Import**: Restores RIVET state, Sentinel state, ArcForm timeline
+- **Progress Tracking**: Real-time import progress with detailed counts
+- **Error Handling**: Graceful error handling with detailed warnings
 
 ## Data Management Features
 

@@ -1,7 +1,93 @@
 # EPI ARC MVP - Changelog
 
-**Version:** 2.1.9  
-**Last Updated:** February 2025
+**Version:** 2.1.10  
+**Last Updated:** November 2025
+
+## [2.1.10] - November 2025
+
+### **In-Journal LUMARA Attribution & User Comment Support** - Complete
+
+#### Fixed Attribution Excerpts
+- **Actual Journal Content**: In-journal LUMARA attributions now show actual journal entry content instead of generic "Hello! I'm LUMARA..." messages
+- **Excerpt Extraction**: Enhanced excerpt extraction in `enhanced_mira_memory_service.dart` to detect and filter LUMARA response patterns
+- **Content Enrichment**: Added `_enrichAttributionTraces()` in `journal_screen.dart` to look up actual journal entry content from entry IDs
+- **Excerpt Display**: Attribution traces now show the actual 2-3 sentences from journal entries used in responses
+
+#### User Comment/Question Support
+- **Continuation Fields**: LUMARA now takes into account questions asked in text boxes underneath in-journal LUMARA comments
+- **Conversation Context**: Modified `_buildRichContext()` to include user comments from previous LUMARA blocks when generating responses
+- **Context Building**: All reflection generation methods now include user comments in context
+- **Status**: ✅ Complete - LUMARA maintains conversation context across in-journal interactions
+
+**Files Modified**:
+- `lib/polymeta/memory/enhanced_mira_memory_service.dart` - Enhanced excerpt extraction
+- `lib/ui/journal/journal_screen.dart` - Added enrichment and user comment support
+
+---
+
+### **System State Export to MCP/ARCX** - Complete
+
+#### RIVET State Export
+- **State Data**: Exports RIVET state including ALIGN, TRACE, sustainCount, sawIndependentInWindow
+- **Event History**: Includes recent RIVET events (last 10) in export
+- **MCP Format**: Converted to McpNode format with full metadata
+- **ARCX Format**: Exported to `PhaseRegimes/rivet_state.json`
+
+#### Sentinel State Export
+- **Monitoring State**: Exports current Sentinel monitoring state (ok, watch, alert)
+- **Dynamic State**: Note that Sentinel state is computed dynamically
+- **MCP Format**: Converted to McpNode format
+- **ARCX Format**: Exported to `PhaseRegimes/sentinel_state.json`
+
+#### ArcForm Timeline Export
+- **Snapshot History**: Exports all ArcForm snapshots with full metadata
+- **Entry Links**: Creates McpEdge links from snapshots to journal entries
+- **MCP Format**: Each snapshot converted to McpNode
+- **ARCX Format**: Exported to `PhaseRegimes/arcform_timeline.json`
+
+#### Grouped Export Structure
+- **PhaseRegimes Directory**: All phase-related data exported together
+  - `phase_regimes.json` (existing)
+  - `rivet_state.json` (new)
+  - `sentinel_state.json` (new)
+  - `arcform_timeline.json` (new)
+- **Import Support**: All new exports are properly imported and restored
+- **Status**: ✅ Complete - Complete system state backup and restore
+
+**Files Modified**:
+- `lib/polymeta/store/mcp/export/mcp_export_service.dart` - Added export methods
+- `lib/polymeta/store/arcx/services/arcx_export_service_v2.dart` - Added export methods
+- `lib/polymeta/store/arcx/services/arcx_import_service_v2.dart` - Added import methods
+- `lib/polymeta/store/arcx/ui/arcx_import_progress_screen.dart` - Updated UI to show import counts
+
+---
+
+### **Phase Detection Fix & Transition Detection Card** - Complete
+
+#### Phase Detection Fix
+- **Imported Phase Regimes**: Phase detection now uses imported phase regimes from PhaseRegimeService
+- **Fallback Logic**: Falls back to most recent regime if no current ongoing regime exists
+- **UserPhaseService Fallback**: Only uses UserPhaseService as final fallback if no regimes found
+- **Status**: ✅ Complete - Phase detection correctly uses imported data
+
+#### Phase Transition Detection Card
+- **New Card**: Added "Phase Transition Detection" card between Phase Statistics and Phase Transition Readiness
+- **Current Phase Display**: Shows current detected phase with color-coded display
+- **Start Date**: Shows when current phase started (if ongoing)
+- **Fallback Display**: Shows most recent phase if no current ongoing phase
+- **Always Visible**: Card always renders even if there are errors
+
+#### Robust Error Handling
+- **Timeout Protection**: Added 3-second timeout to prevent hanging
+- **Error Recovery**: Comprehensive error handling with multiple fallback layers
+- **Widget Protection**: Build method wrapped in try-catch to ensure widget always renders
+- **Status**: ✅ Complete - Widget always visible with proper error handling
+
+**Files Modified**:
+- `lib/ui/phase/phase_change_readiness_card.dart` - Fixed phase detection, added error handling
+- `lib/ui/phase/phase_analysis_view.dart` - Added Phase Transition Detection card
+
+---
 
 ## [2.1.9] - February 2025
 
