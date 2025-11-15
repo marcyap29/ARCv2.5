@@ -3399,6 +3399,27 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
     return buffer.toString().trim();
   }
 
+  /// Format date for LUMARA context (human-readable format)
+  String _formatDateForContext(DateTime date) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final entryDate = DateTime(date.year, date.month, date.day);
+    final daysDiff = today.difference(entryDate).inDays;
+    
+    if (daysDiff == 0) {
+      return 'Today (${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')})';
+    } else if (daysDiff == 1) {
+      return 'Yesterday (${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')})';
+    } else if (daysDiff < 7) {
+      return '$daysDiff days ago (${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')})';
+    } else if (daysDiff < 30) {
+      final weeks = (daysDiff / 7).floor();
+      return '$weeks ${weeks == 1 ? 'week' : 'weeks'} ago (${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')})';
+    } else {
+      return '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+    }
+  }
+
   /// Build rich context including mood, phase, chrono profile, chats, and media
   /// [currentBlockIndex] is optional - if provided, includes user comments from previous blocks
   Future<Map<String, dynamic>> _buildRichContext(
