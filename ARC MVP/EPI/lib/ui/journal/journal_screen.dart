@@ -3277,31 +3277,33 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
   }
 
   /// Build journal context from loaded entries for reflection
-  /// [userQuestion] - If provided, this is a direct question that should be the PRIMARY focus
-  Future<String> _buildJournalContext(
-    List<JournalEntry> loadedEntries, {
-    String? query,
-    String? userQuestion,
-  }) async {
+  Future<String> _buildJournalContext(List<JournalEntry> loadedEntries, {String? query}) async {
     final buffer = StringBuffer();
     final Set<String> addedEntryIds = {}; // Track added entries to avoid duplicates
     
     // PRIORITY 1: Current entry text (most important - user is actively editing this)
     // Use query parameter which should be _textController.text (most current)
-    // BUT if there's a user question, that takes precedence
     final currentEntryText = query ?? _entryState.text;
     if (currentEntryText.trim().isNotEmpty) {
+      buffer.writeln('⚠️⚠️⚠️ PRIMARY FOCUS: CURRENT JOURNAL ENTRY ⚠️⚠️⚠️');
+      buffer.writeln('YOU MUST RESPOND TO THIS ENTRY. THIS IS WHAT THE USER IS ACTIVELY EDITING RIGHT NOW.');
+      buffer.writeln('DO NOT IGNORE THIS ENTRY. DO NOT FOCUS ON OLDER ENTRIES.');
+      buffer.writeln('');
       buffer.writeln('=== CURRENT JOURNAL ENTRY (YOU ARE EDITING THIS NOW) ===');
       buffer.writeln(currentEntryText);
       buffer.writeln('=== END CURRENT ENTRY ===');
       buffer.writeln('');
+      buffer.writeln('⚠️ REMINDER: RESPOND TO THE CURRENT ENTRY ABOVE. OLDER ENTRIES BELOW ARE ONLY FOR CONTEXT. ⚠️');
+      buffer.writeln('');
     }
     
-    // PRIORITY 2: Semantic search
-    // If there's a user question, use THAT as the search query (not the entire entry text)
-    // This ensures semantic search finds entries relevant to the question, not random content
-    final searchQuery = userQuestion ?? query ?? _entryState.text;
-    if (searchQuery.isNotEmpty && _memoryService != null) {
+    // PRIORITY 2: Semantic search (ONLY for context - current entry is PRIMARY)
+    // Skip semantic search if current entry is substantial (to avoid confusion)
+    // Only use semantic search if current entry is very short (< 50 chars) and might need context
+    final searchQuery = query ?? _entryState.text;
+    final shouldUseSemanticSearch = currentEntryText.trim().length < 50; // Only if entry is very short
+    
+    if (shouldUseSemanticSearch && searchQuery.isNotEmpty && _memoryService != null) {
       try {
         final settingsService = LumaraReflectionSettingsService.instance;
         final similarityThreshold = await settingsService.getSimilarityThreshold();
@@ -3331,7 +3333,10 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
         
         // Extract entry IDs from memory nodes and fetch full content
         if (memoryResult.nodes.isNotEmpty) {
-          buffer.writeln('Semantically similar journal history:');
+          buffer.writeln('=== OLDER ENTRIES (FOR CONTEXT ONLY - NOT THE PRIMARY FOCUS) ===');
+          buffer.writeln('These are older entries that are semantically similar.');
+          buffer.writeln('DO NOT focus on these. The CURRENT ENTRY above is what you must respond to.');
+          buffer.writeln('');
           for (final node in memoryResult.nodes) {
             // Try to extract entry ID from node
             String? entryId;
@@ -3406,49 +3411,16 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
   }) async {
     final context = <String, dynamic>{};
     
-    // Extract the current user question/comment if it exists (HIGHEST PRIORITY)
-    String? currentUserQuestion;
-    if (currentBlockIndex != null && currentBlockIndex < _entryState.blocks.length) {
-      final currentBlock = _entryState.blocks[currentBlockIndex];
-      if (currentBlock.userComment != null && currentBlock.userComment!.trim().isNotEmpty) {
-        currentUserQuestion = currentBlock.userComment!.trim();
-        print('Journal: Found current user question: "$currentUserQuestion"');
-      }
-    }
-    
-    // Also check continuation controller for the current block (user might have typed but not saved yet)
-    if (currentUserQuestion == null && currentBlockIndex != null) {
-      final controller = _continuationControllers[currentBlockIndex];
-      if (controller != null && controller.text.trim().isNotEmpty) {
-        currentUserQuestion = controller.text.trim();
-        print('Journal: Found current user question from controller: "$currentUserQuestion"');
-      }
-    }
-    
     // Build entry text from loaded journal entries
-    // If there's a user question, use THAT as the primary query for semantic search
-    // Otherwise use _textController.text for the most current entry text
-    final queryForSearch = currentUserQuestion ?? _textController.text;
-    String baseEntryText = await _buildJournalContext(
-      loadedEntries, 
-      query: queryForSearch,
-      userQuestion: currentUserQuestion, // Pass user question separately for prioritization
-    );
+    // Use _textController.text for the most current entry text (includes unsaved changes)
+    // This ensures LUMARA sees what the user is actively editing right now
+    String baseEntryText = await _buildJournalContext(loadedEntries, query: _textController.text);
     
     // Include user comments from previous LUMARA blocks if currentBlockIndex is provided
     // Also include ALL blocks (even without user comments) to show full conversation history
     if (currentBlockIndex != null && _entryState.blocks.isNotEmpty) {
       final userCommentsBuffer = StringBuffer();
-      
-      // If there's a current user question, make it THE TOP PRIORITY
-      if (currentUserQuestion != null) {
-        userCommentsBuffer.writeln('\n\n=== ⚠️ DIRECT USER QUESTION - ANSWER THIS FIRST ⚠️ ===');
-        userCommentsBuffer.writeln(currentUserQuestion);
-        userCommentsBuffer.writeln('=== END DIRECT QUESTION ===');
-        userCommentsBuffer.writeln('');
-      }
-      
-      userCommentsBuffer.writeln('=== Previous LUMARA Conversation in This Entry ===');
+      userCommentsBuffer.writeln('\n\n=== Previous LUMARA Conversation in This Entry ===');
       
       // Include all previous blocks to show full conversation context
       for (int i = 0; i < currentBlockIndex && i < _entryState.blocks.length; i++) {
@@ -3469,13 +3441,20 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
         userCommentsBuffer.writeln('---');
       }
       
+      // Also include the current block's user comment if it exists (user just typed it)
+      if (currentBlockIndex < _entryState.blocks.length) {
+        final currentBlock = _entryState.blocks[currentBlockIndex];
+        if (currentBlock.userComment != null && currentBlock.userComment!.trim().isNotEmpty) {
+          userCommentsBuffer.writeln('\nCurrent user question/comment (most recent):');
+          userCommentsBuffer.writeln(currentBlock.userComment);
+          userCommentsBuffer.writeln('---');
+        }
+      }
+      
       // Prepend conversation history to baseEntryText so it's prioritized
-      // This ensures LUMARA sees the most recent conversation first, especially the direct question
+      // This ensures LUMARA sees the most recent conversation first
       baseEntryText = '${userCommentsBuffer.toString()}\n\n=== Original Journal Entry ===\n$baseEntryText';
       print('Journal: Included ${currentBlockIndex} previous LUMARA blocks in context');
-      if (currentUserQuestion != null) {
-        print('Journal: User question prioritized at top of context');
-      }
     }
     
     context['entryText'] = baseEntryText;
