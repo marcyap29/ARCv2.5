@@ -2291,4 +2291,28 @@ Available: ${yearsAgo} more year${yearsAgo > 1 ? 's' : ''} of history''';
       return null;
     }
   }
+
+  /// Format entry date for LUMARA context
+  /// Returns a clear, readable date string that helps LUMARA understand chronology
+  String _formatEntryDate(DateTime date) {
+    final now = DateTime.now();
+    final difference = now.difference(date);
+    
+    // Format as: "YYYY-MM-DD (X days ago)" or "YYYY-MM-DD (today)" or "YYYY-MM-DD (yesterday)"
+    final year = date.year;
+    final month = date.month.toString().padLeft(2, '0');
+    final day = date.day.toString().padLeft(2, '0');
+    final dateStr = '$year-$month-$day';
+    
+    String relativeStr;
+    if (difference.inDays == 0) {
+      relativeStr = 'today';
+    } else if (difference.inDays == 1) {
+      relativeStr = 'yesterday';
+    } else {
+      relativeStr = '${difference.inDays} days ago';
+    }
+    
+    return '$dateStr ($relativeStr)';
+  }
 }
