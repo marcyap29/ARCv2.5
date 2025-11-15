@@ -1,7 +1,7 @@
 # EPI MVP - Comprehensive Architecture Document
 
-**Version:** 1.0.0  
-**Last Updated:** January 2025  
+**Version:** 1.0.1  
+**Last Updated:** November 2025  
 **Status:** ✅ Production Ready - MVP Fully Operational
 
 ---
@@ -505,6 +505,21 @@ lib/echo/
 - **PRISM Scrubbing**: PII scrubbing before all cloud API calls with reversible restoration
 - **Encrypted Storage**: AES-256-GCM encryption for sensitive data
 - **Data Integrity**: Ed25519 signing for data verification
+
+### LUMARA Memory Attribution & Context
+
+**Unified UI/UX (November 2025)**
+- **Consistent Design**: LUMARA header (icon + text) appears in both in-journal and in-chat bubbles
+- **Unified Button Placement**: Copy/delete buttons positioned at lower left in both interfaces
+- **Selectable Text**: In-journal LUMARA text is selectable and copyable
+- **Message Deletion**: Individual message deletion in-chat with confirmation dialog
+- **Loading Indicator**: Unified "LUMARA is thinking..." design across both interfaces
+
+**Context & Text State (November 2025)**
+- **Text State Syncing**: Automatically syncs text state before context retrieval to prevent stale text
+- **Date Information**: Journal entries include dates in context to help LUMARA identify latest entry
+- **Current Entry Marking**: Explicitly marks current entry as "LATEST - YOU ARE EDITING THIS NOW"
+- **Response Quality**: In-chat LUMARA provides 4-8 sentence thorough answers (removed 3-4 sentence max constraint)
 
 ### LUMARA Memory Attribution & Context
 

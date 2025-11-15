@@ -1,7 +1,7 @@
 # EPI MVP - Comprehensive Guide
 
-**Version:** 1.0.0  
-**Last Updated:** January 2025
+**Version:** 1.0.1  
+**Last Updated:** November 2025
 
 ---
 
@@ -33,7 +33,7 @@ EPI is an AI-powered journaling companion that:
 ### Key Features
 
 - **Multimodal Journaling**: Text, voice, photos, and video
-- **AI Assistant (LUMARA)**: Context-aware responses with persistent memory
+- **AI Assistant (LUMARA)**: Context-aware responses with persistent memory, unified UI/UX across in-journal and in-chat
 - **Pattern Recognition**: Keyword extraction and phase detection
 - **3D Visualizations**: ARCForm constellations showing journal themes
 - **Privacy-First**: On-device processing with encryption
