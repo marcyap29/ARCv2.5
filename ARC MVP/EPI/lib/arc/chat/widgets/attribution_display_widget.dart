@@ -58,6 +58,7 @@ class _AttributionDisplayWidgetState extends State<AttributionDisplayWidget> {
         elevation: 1,
         color: Theme.of(context).colorScheme.surfaceContainerHighest,
         child: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
             // Header with summary
             _buildHeader(),
@@ -117,6 +118,7 @@ class _AttributionDisplayWidgetState extends State<AttributionDisplayWidget> {
     return Padding(
       padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Divider(height: 1),
