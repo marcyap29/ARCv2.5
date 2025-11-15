@@ -709,6 +709,10 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
       // Build context from progressive memory loader (current year only)
       final loadedEntries = _memoryLoader.getLoadedEntries();
       
+      // Sync _entryState.text with _textController.text to ensure we have the latest entry text
+      // This ensures LUMARA sees the most current content the user is actively editing
+      _entryState.text = _textController.text;
+      
       // Check if this is the first LUMARA activation (no existing blocks)
       final isFirstActivation = _entryState.blocks.isEmpty;
       
@@ -3277,12 +3281,18 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
     final buffer = StringBuffer();
     final Set<String> addedEntryIds = {}; // Track added entries to avoid duplicates
     
-    // Add current entry text
-    buffer.writeln('Current entry:');
-    buffer.writeln(_entryState.text);
-    buffer.writeln('---');
+    // PRIORITY 1: Current entry text (most important - user is actively editing this)
+    // Use query parameter which should be _textController.text (most current)
+    final currentEntryText = query ?? _entryState.text;
+    if (currentEntryText.trim().isNotEmpty) {
+      buffer.writeln('=== CURRENT JOURNAL ENTRY (YOU ARE EDITING THIS NOW) ===');
+      buffer.writeln(currentEntryText);
+      buffer.writeln('=== END CURRENT ENTRY ===');
+      buffer.writeln('');
+    }
     
-    // If we have a query and memory service, use semantic search
+    // PRIORITY 2: Semantic search (only if current entry text is available)
+    // Use the query parameter (current entry text) for semantic search
     final searchQuery = query ?? _entryState.text;
     if (searchQuery.isNotEmpty && _memoryService != null) {
       try {
@@ -3390,8 +3400,9 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
     final context = <String, dynamic>{};
     
     // Build entry text from loaded journal entries
-    // Use current entry text as query for semantic search
-    String baseEntryText = await _buildJournalContext(loadedEntries, query: _entryState.text);
+    // Use _textController.text for the most current entry text (includes unsaved changes)
+    // This ensures LUMARA sees what the user is actively editing right now
+    String baseEntryText = await _buildJournalContext(loadedEntries, query: _textController.text);
     
     // Include user comments from previous LUMARA blocks if currentBlockIndex is provided
     // Also include ALL blocks (even without user comments) to show full conversation history
