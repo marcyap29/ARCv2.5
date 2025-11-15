@@ -798,13 +798,42 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
           print('Journal: Enriched ${attributionTraces.length} attribution traces with journal entry content');
         }
       } else {
-        // For subsequent activations, use the brief ArcLLM format
-        reflection = await _arcLLM.chat(
-        userIntent: 'reflect',
+        // For subsequent activations, also use EnhancedLumaraApi with More Depth
+        // to ensure thorough responses that answer questions properly
+        final result = await _enhancedLumaraApi.generatePromptedReflection(
           entryText: richContext['entryText'] ?? '',
-        phaseHintJson: phaseHint,
-        lastKeywordsJson: '',
-      );
+          intent: 'journal',
+          phase: phaseHint,
+          userId: userProfile?.id,
+          includeExpansionQuestions: true,
+          mood: richContext['mood'],
+          chronoContext: richContext['chronoContext'],
+          chatContext: richContext['chatContext'],
+          mediaContext: richContext['mediaContext'],
+          options: lumara_models.LumaraReflectionOptions(
+            preferQuestionExpansion: true, // Use More Depth for all activations
+            toneMode: lumara_models.ToneMode.normal,
+            regenerate: false,
+          ),
+          onProgress: (message) {
+            if (mounted) {
+              setState(() {
+                _lumaraLoadingMessages[blockIndex] = message;
+              });
+            }
+          },
+        );
+        
+        reflection = result.reflection;
+        attributionTraces = result.attributionTraces;
+        
+        print('Journal: Retrieved ${attributionTraces.length} attribution traces from EnhancedLumaraApi');
+        
+        // Enrich attribution traces with actual journal entry content
+        if (attributionTraces.isNotEmpty) {
+          attributionTraces = await _enrichAttributionTraces(attributionTraces);
+          print('Journal: Enriched ${attributionTraces.length} attribution traces with journal entry content');
+        }
       }
 
       // Update the placeholder block with actual content, attributions, and clear loading state

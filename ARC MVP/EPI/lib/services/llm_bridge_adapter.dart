@@ -45,11 +45,11 @@ class ArcLLM {
           .replaceAll('{{phase_hint?}}', phaseHintJson ?? 'null')
           .replaceAll('{{keywords?}}', lastKeywordsJson ?? 'null');
       
-      // Add extra brevity constraint for in-journal reflections
-      if (isInJournalReflection) {
-        userPrompt += '\n\nCRITICAL: This is an in-journal reflection. Respond with 1-2 sentences maximum (150 characters total). Be profound but brief.';
-        print('ArcLLM Bridge: Added in-journal brevity constraint');
-      }
+      // Removed brevity constraint - EnhancedLumaraApi handles response length appropriately
+      // if (isInJournalReflection) {
+      //   userPrompt += '\n\nCRITICAL: This is an in-journal reflection. Respond with 1-2 sentences maximum (150 characters total). Be profound but brief.';
+      //   print('ArcLLM Bridge: Added in-journal brevity constraint');
+      // }
       
       print('ArcLLM Bridge: Calling send() function...');
       final result = send(

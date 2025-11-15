@@ -411,11 +411,20 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
       if (useStreaming) {
         print('LUMARA Debug: [Cloud API] Using streaming (Gemini API available)');
 
-        // Create placeholder message for streaming with attribution traces
-        // Note: Attribution traces will be added after streaming completes
+        // Build context BEFORE creating placeholder so we can initialize it with attribution traces
+        final context = await _contextProvider.buildContext(scope: currentState.scope);
+        final contextResult = await _buildEntryContext(
+          context, 
+          userQuery: text,
+          currentEntry: currentEntry,
+        );
+        final initialAttributionTraces = contextResult['attributionTraces'] as List<AttributionTrace>;
+        print('LUMARA Debug: Built context with ${initialAttributionTraces.length} attribution traces for streaming placeholder');
+
+        // Create placeholder message for streaming with initial attribution traces
         final streamingMessage = LumaraMessage.assistant(
           content: '',
-          attributionTraces: [], // Will be populated after streaming
+          attributionTraces: initialAttributionTraces, // Initialize with traces from context building
         );
         final messagesWithPlaceholder = [...updatedMessages, streamingMessage];
 
@@ -424,8 +433,8 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
           isProcessing: true,
         ));
 
-        // Stream the response
-        await _processMessageWithStreaming(text, currentState.scope, updatedMessages);
+        // Stream the response (will enrich traces at the end)
+        await _processMessageWithStreaming(text, currentState.scope, updatedMessages, initialAttributionTraces);
       } else {
         print('LUMARA Debug: [Cloud API] No API key - using non-streaming approach');
 
@@ -711,8 +720,9 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
   Future<void> _processMessageWithStreaming(
     String text,
     LumaraScope scope,
-    List<LumaraMessage> baseMessages,
-  ) async {
+    List<LumaraMessage> baseMessages, [
+    List<AttributionTrace>? initialAttributionTraces,
+  ]) async {
     // Get context (using provided scope)
     final context = await _contextProvider.buildContext(scope: scope);
 
@@ -723,13 +733,34 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
       orElse: () => baseMessages.isNotEmpty ? baseMessages.last : LumaraMessage.user(content: ''),
     ).content;
     
-      final contextResult = await _buildEntryContext(
-        context, 
-        userQuery: userQuery,
-        currentEntry: null, // Streaming doesn't have current entry context
-      );
-      final entryText = contextResult['context'] as String;
-      final contextAttributionTraces = contextResult['attributionTraces'] as List<AttributionTrace>;
+      // Use initial attribution traces if provided (from placeholder initialization)
+      // Otherwise build context again (shouldn't happen, but fallback for safety)
+      List<AttributionTrace> contextAttributionTraces;
+      String entryText;
+      
+      if (initialAttributionTraces != null && initialAttributionTraces.isNotEmpty) {
+        // Use the traces we already built for the placeholder
+        contextAttributionTraces = initialAttributionTraces;
+        // Still need entryText, so build context but don't recreate traces
+        final contextResult = await _buildEntryContext(
+          context, 
+          userQuery: userQuery,
+          currentEntry: null, // Streaming doesn't have current entry context
+        );
+        entryText = contextResult['context'] as String;
+        // Use the initial traces we already have
+        print('LUMARA Debug: Using ${contextAttributionTraces.length} initial attribution traces for streaming');
+      } else {
+        // Fallback: build context if traces weren't provided
+        final contextResult = await _buildEntryContext(
+          context, 
+          userQuery: userQuery,
+          currentEntry: null, // Streaming doesn't have current entry context
+        );
+        entryText = contextResult['context'] as String;
+        contextAttributionTraces = contextResult['attributionTraces'] as List<AttributionTrace>;
+        print('LUMARA Debug: Built context with ${contextAttributionTraces.length} attribution traces (fallback)');
+      }
     final phaseHint = _buildPhaseHint(context);
     final keywords = _buildKeywordsContext(context);
 
