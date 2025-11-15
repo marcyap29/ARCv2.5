@@ -572,33 +572,62 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
                 children: [
-                  // Header row with copy/delete buttons for assistant messages (unified with in-journal UX)
-                  if (!isUser)
+                  // Header with LUMARA icon and text (unified with in-journal UX)
+                  if (!isUser) ...[
                     Row(
                       children: [
+                        Icon(
+                          Icons.auto_awesome,
+                          size: 16,
+                          color: Theme.of(context).colorScheme.primary,
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          'LUMARA',
+                          style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                            fontWeight: FontWeight.w600,
+                            color: Theme.of(context).colorScheme.primary,
+                          ),
+                        ),
+                        // Phase badge if available in metadata
+                        if (message.metadata.containsKey('phase') && message.metadata['phase'] != null) ...[
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              message.metadata['phase'] as String,
+                              style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                                color: Theme.of(context).colorScheme.primary,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                        ],
                         const Spacer(),
-                        // Copy button
+                        // Copy and delete buttons in header (unified with in-journal UX)
                         IconButton(
-                          icon: const Icon(Icons.copy, size: 18),
+                          icon: Icon(Icons.copy, size: 16, color: Colors.grey[600]),
                           padding: EdgeInsets.zero,
                           constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
                           onPressed: () => _copyMessage(message.content),
                           tooltip: 'Copy',
-                          color: Colors.grey[600],
                         ),
-                        // Delete button
                         IconButton(
-                          icon: const Icon(Icons.close, size: 18),
+                          icon: Icon(Icons.close, size: 16, color: Colors.grey[600]),
                           padding: EdgeInsets.zero,
                           constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
                           onPressed: () => _deleteMessage(message),
                           tooltip: 'Delete',
-                          color: Colors.grey[600],
                         ),
                       ],
                     ),
+                    const SizedBox(height: 8),
+                  ],
                   
                   // Format content into paragraphs for better readability (especially for assistant messages)
                   if (isUser)
@@ -619,7 +648,7 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
                       ),
                     ),
                   
-                  // Action buttons for user messages (edit/copy) - keep at bottom for user messages
+                  // Action buttons for user messages (edit/copy)
                   if (isUser) ...[
                     const Gap(8),
                     Row(
@@ -642,6 +671,7 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
                       ],
                     ),
                   ],
+                  
                   
                   // Attribution display for assistant messages
                   if (!isUser && message.attributionTraces != null && message.attributionTraces!.isNotEmpty) ...[
