@@ -1,7 +1,36 @@
 # EPI ARC MVP - Changelog
 
-**Version:** 2.1.11  
+**Version:** 2.1.12  
 **Last Updated:** November 2025
+
+## [2.1.12] - November 2025
+
+### **LUMARA Attribution Traces Fix** - Complete
+
+#### In-Journal LUMARA Attribution Fix
+- **Direct Attribution from Matched Nodes**: `EnhancedLumaraApi` now creates attribution traces directly from the `MatchedNode` objects it uses, ensuring traces match the nodes actually used in reflections
+- **ReflectionResult Return Type**: Created new `ReflectionResult` class that includes both reflection text and attribution traces together
+- **Removed Redundant Memory Service Call**: Eliminated separate call to `EnhancedMiraMemoryService` which was using a different memory system (`ReflectiveNodeStorage` vs `EnhancedMiraMemoryService`)
+- **Consistent Attribution**: All 5 places in `journal_screen.dart` that call `generatePromptedReflection` now use the returned attribution traces
+
+#### In-Chat LUMARA Attribution Fix
+- **Attribution Enrichment**: Added `_enrichAttributionTraces()` method to `lumara_assistant_cubit.dart` to replace LUMARA greetings and placeholders with actual journal entry content
+- **Applied to All Message Paths**: Enrichment applied to all 4 message creation paths (Priority 1 Gemini, on-device, non-streaming fallback, streaming)
+- **Actual Journal Content**: Attribution traces now show specific journal entry excerpts (first 200 chars) instead of generic placeholders like "[Journal entry content - see entry $entryId]"
+
+#### Technical Details
+- **In-Journal**: Attribution traces come from `ReflectiveNodeStorage` nodes used by `EnhancedLumaraApi`, then enriched with actual journal entry content
+- **In-Chat**: Attribution traces come from `EnhancedMiraMemoryService` via `_buildEntryContext()`, then enriched with actual journal entry content
+- **Excerpt Enrichment**: Both systems now look up actual journal entries from `JournalRepository` to replace placeholders with real content
+
+**Files Modified**:
+- `lib/arc/chat/services/enhanced_lumara_api.dart` - Added `ReflectionResult` class, modified `generatePromptedReflectionV23()` to create and return attribution traces
+- `lib/ui/journal/journal_screen.dart` - Updated all 5 call sites to use `ReflectionResult` and enrich attribution traces
+- `lib/arc/chat/bloc/lumara_assistant_cubit.dart` - Added `_enrichAttributionTraces()` method and applied enrichment to all message creation paths
+
+**Status**: ✅ Complete - Both in-journal and in-chat LUMARA now show proper attributions with specific journal entry excerpts
+
+---
 
 ## [2.1.11] - November 2025
 

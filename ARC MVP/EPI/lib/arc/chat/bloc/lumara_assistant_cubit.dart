@@ -277,8 +277,14 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
         print('LUMARA Debug: [Gemini] ✓ Response received, length: ${response.length}');
         
         // Use attribution traces from context building (the actual memory nodes used)
-        final attributionTraces = contextAttributionTraces;
+        var attributionTraces = contextAttributionTraces;
         print('LUMARA Debug: Using ${attributionTraces.length} attribution traces from context building');
+        
+        // Enrich attribution traces with actual journal entry content
+        if (attributionTraces.isNotEmpty) {
+          attributionTraces = await _enrichAttributionTraces(attributionTraces);
+          print('LUMARA Debug: Enriched ${attributionTraces.length} attribution traces with journal entry content');
+        }
         
         // Append phase information from attribution traces to response
         final enhancedResponse = _appendPhaseInfoFromAttributions(response, attributionTraces, context);
@@ -345,7 +351,14 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
 
           // Get context for phase info (using current scope from state)
           final context = await _contextProvider.buildContext(scope: currentState.scope);
-          final attributionTraces = responseData['attributionTraces'] as List<AttributionTrace>? ?? [];
+          var attributionTraces = responseData['attributionTraces'] as List<AttributionTrace>? ?? [];
+          
+          // Enrich attribution traces with actual journal entry content
+          if (attributionTraces.isNotEmpty) {
+            attributionTraces = await _enrichAttributionTraces(attributionTraces);
+            print('LUMARA Debug: [On-Device] Enriched ${attributionTraces.length} attribution traces with journal entry content');
+          }
+          
           final enhancedContent = _appendPhaseInfoFromAttributions(
             responseData['content'],
             attributionTraces,
@@ -413,7 +426,14 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
 
         // Get context for phase info (using current scope from state)
         final context = await _contextProvider.buildContext(scope: currentState.scope);
-        final attributionTraces = responseData['attributionTraces'] as List<AttributionTrace>? ?? [];
+        var attributionTraces = responseData['attributionTraces'] as List<AttributionTrace>? ?? [];
+        
+        // Enrich attribution traces with actual journal entry content
+        if (attributionTraces.isNotEmpty) {
+          attributionTraces = await _enrichAttributionTraces(attributionTraces);
+          print('LUMARA Debug: Enriched ${attributionTraces.length} attribution traces with journal entry content');
+        }
+        
         final enhancedContent = _appendPhaseInfoFromAttributions(
           responseData['content'],
           attributionTraces,
@@ -751,8 +771,14 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
       final finalContent = fullResponse.toString();
 
       // Use attribution traces from context building (the actual memory nodes used)
-      final attributionTraces = contextAttributionTraces;
+      var attributionTraces = contextAttributionTraces;
       print('LUMARA Debug: Using ${attributionTraces.length} attribution traces from context building');
+
+      // Enrich attribution traces with actual journal entry content
+      if (attributionTraces.isNotEmpty) {
+        attributionTraces = await _enrichAttributionTraces(attributionTraces);
+        print('LUMARA Debug: Enriched ${attributionTraces.length} attribution traces with journal entry content');
+      }
 
       // Get context for phase info (using provided scope)
       final contextForPhase = await _contextProvider.buildContext(scope: scope);
@@ -1361,6 +1387,98 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
     }
     
     return response;
+  }
+
+  /// Enrich attribution traces with actual journal entry content
+  /// Replaces LUMARA response excerpts and placeholders with actual journal entry content
+  Future<List<AttributionTrace>> _enrichAttributionTraces(List<AttributionTrace> traces) async {
+    final enrichedTraces = <AttributionTrace>[];
+    
+    for (final trace in traces) {
+      AttributionTrace enrichedTrace = trace;
+      
+      // Check if excerpt needs enrichment
+      final excerpt = trace.excerpt ?? '';
+      final excerptLower = excerpt.toLowerCase();
+      
+      // Check if excerpt is a LUMARA response or placeholder
+      final isLumaraResponse = excerptLower.contains("hello! i'm lumara") ||
+          excerptLower.contains("i'm lumara") ||
+          excerptLower.contains("i'm your personal assistant") ||
+          (excerptLower.startsWith("hello") && excerptLower.contains("lumara")) ||
+          excerptLower.contains("[journal entry content") ||
+          excerptLower.contains("[memory reference");
+      
+      if (isLumaraResponse || excerpt.isEmpty) {
+        // Try to extract entry ID from node reference
+        String? entryId;
+        
+        // Try different ID patterns
+        if (trace.nodeRef.startsWith('entry:')) {
+          entryId = trace.nodeRef.replaceFirst('entry:', '');
+        } else if (trace.nodeRef.contains('_')) {
+          final parts = trace.nodeRef.split('_');
+          if (parts.length > 1) {
+            entryId = parts.last;
+          }
+        } else {
+          // Try to extract from the excerpt placeholder
+          final entryIdMatch = RegExp(r'entry\s+([a-zA-Z0-9_-]+)').firstMatch(excerpt);
+          if (entryIdMatch != null) {
+            entryId = entryIdMatch.group(1);
+          }
+        }
+        
+        // If we found an entry ID, try to get the actual journal entry
+        if (entryId != null) {
+          try {
+            final allEntries = _journalRepository.getAllJournalEntries();
+            JournalEntry entry;
+            try {
+              entry = allEntries.firstWhere((e) => e.id == entryId);
+            } catch (e) {
+              // If exact match not found, try partial match
+              try {
+                final entryIdNonNull = entryId; // We know it's not null here
+                entry = allEntries.firstWhere(
+                  (e) => e.id.contains(entryIdNonNull) || entryIdNonNull.contains(e.id),
+                );
+              } catch (e2) {
+                // Fallback: skip this trace if entry not found
+                enrichedTraces.add(trace);
+                continue;
+              }
+            }
+            
+            if (entry.content.isNotEmpty) {
+              // Use actual journal entry content as excerpt (first 200 chars)
+              final actualContent = entry.content.length > 200
+                  ? '${entry.content.substring(0, 200)}...'
+                  : entry.content;
+              
+              enrichedTrace = AttributionTrace(
+                nodeRef: trace.nodeRef,
+                relation: trace.relation,
+                confidence: trace.confidence,
+                timestamp: trace.timestamp,
+                reasoning: trace.reasoning,
+                phaseContext: trace.phaseContext,
+                excerpt: actualContent,
+              );
+              
+              print('LUMARA Chat: Enriched trace ${trace.nodeRef} with actual entry content (${actualContent.length} chars)');
+            }
+          } catch (e) {
+            print('LUMARA Chat: Could not find entry $entryId for trace ${trace.nodeRef}: $e');
+            // Keep original trace if entry not found
+          }
+        }
+      }
+      
+      enrichedTraces.add(enrichedTrace);
+    }
+    
+    return enrichedTraces;
   }
 
   /// Build keywords context for ArcLLM

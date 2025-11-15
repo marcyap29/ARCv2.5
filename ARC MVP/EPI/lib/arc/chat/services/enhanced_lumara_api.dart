@@ -18,6 +18,19 @@ import '../prompts/lumara_prompts.dart';
 import '../prompts/lumara_unified_prompts.dart' show LumaraContext;
 import '../../../services/gemini_send.dart';
 import 'lumara_reflection_settings_service.dart';
+import '../../../polymeta/memory/attribution_service.dart';
+import '../../../polymeta/memory/enhanced_memory_schema.dart';
+
+/// Result of generating a reflection with attribution traces
+class ReflectionResult {
+  final String reflection;
+  final List<AttributionTrace> attributionTraces;
+
+  const ReflectionResult({
+    required this.reflection,
+    required this.attributionTraces,
+  });
+}
 
 /// Enhanced LUMARA API with multimodal reflection
 class EnhancedLumaraApi {
@@ -25,6 +38,7 @@ class EnhancedLumaraApi {
   final ReflectiveNodeStorage _storage = ReflectiveNodeStorage();
   final SemanticSimilarityService _similarity = SemanticSimilarityService();
   final ReflectivePromptGenerator _promptGen = ReflectivePromptGenerator();
+  final AttributionService _attributionService = AttributionService();
   
   // LLM Provider tracking (for logging only - we use geminiSend directly)
   LLMProviderBase? _llmProvider;
@@ -86,7 +100,8 @@ class EnhancedLumaraApi {
   /// Generate a prompted reflection with multimodal context
   /// Supports v2.3 options: toneMode, conversationMode, regenerate, preferQuestionExpansion
   /// [onProgress] callback is called with progress messages during API calls
-  Future<String> generatePromptedReflection({
+  /// Returns both the reflection text and attribution traces
+  Future<ReflectionResult> generatePromptedReflection({
     required String entryText,
     required String intent,
     String? phase,
@@ -108,7 +123,7 @@ class EnhancedLumaraApi {
       conversationMode: null,
     );
     
-    return generatePromptedReflectionV23(
+    final result = await generatePromptedReflectionV23(
       request: models.LumaraReflectionRequest(
         userText: entryText,
         phaseHint: _parsePhaseHintToV23(phase),
@@ -125,10 +140,13 @@ class EnhancedLumaraApi {
       mediaContext: mediaContext,
       onProgress: onProgress,
     );
+    
+    return result;
   }
 
   /// Generate a prompted reflection using v2.3 unified request model
-  Future<String> generatePromptedReflectionV23({
+  /// Returns both the reflection text and attribution traces from the nodes used
+  Future<ReflectionResult> generatePromptedReflectionV23({
     required models.LumaraReflectionRequest request,
     String? userId,
     String? mood,
@@ -384,6 +402,40 @@ class EnhancedLumaraApi {
           
           final formatted = '✨ Reflection\n\n$scoredResponse';
           
+          // Create attribution traces from the matched nodes that were actually used
+          final attributionTraces = <AttributionTrace>[];
+          for (final match in matches) {
+            // Determine relation type based on similarity score
+            String relation = 'related';
+            if (match.similarity >= 0.8) {
+              relation = 'highly_relevant';
+            } else if (match.similarity >= 0.6) {
+              relation = 'relevant';
+            } else {
+              relation = 'somewhat_relevant';
+            }
+            
+            // Get phase context from match
+            String? phaseContext;
+            if (match.phaseHint != null) {
+              phaseContext = match.phaseHint!.name;
+            }
+            
+            // Create attribution trace
+            final trace = _attributionService.createTrace(
+              nodeRef: match.id,
+              relation: relation,
+              confidence: match.similarity,
+              reasoning: 'Matched by semantic similarity (${(match.similarity * 100).toStringAsFixed(1)}%)',
+              phaseContext: phaseContext,
+              excerpt: match.excerpt,
+            );
+            
+            attributionTraces.add(trace);
+          }
+          
+          print('LUMARA Enhanced API v2.3: Created ${attributionTraces.length} attribution traces from matched nodes');
+          
           _analytics.logLumaraEvent('reflection_generated_v23', data: {
             'matches': matches.length,
             'top_similarity': matches.isNotEmpty ? matches.first.similarity : 0,
@@ -392,9 +444,13 @@ class EnhancedLumaraApi {
             'regenerate': request.options.regenerate,
             'preferQuestionExpansion': request.options.preferQuestionExpansion,
             'conversationMode': request.options.conversationMode?.name,
+            'attribution_traces': attributionTraces.length,
           });
           
-          return formatted;
+          return ReflectionResult(
+            reflection: formatted,
+            attributionTraces: attributionTraces,
+          );
       } catch (e) {
         print('LUMARA Enhanced API: ✗ Error calling Gemini API: $e');
         // No fallbacks - rethrow the error so user knows API call failed

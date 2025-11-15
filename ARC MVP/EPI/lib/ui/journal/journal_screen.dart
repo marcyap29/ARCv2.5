@@ -761,7 +761,7 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
       
       if (isFirstActivation) {
         // For first activation, use EnhancedLumaraApi to get full ECHO structure with expansion questions
-        reflection = await _enhancedLumaraApi.generatePromptedReflection(
+        final result = await _enhancedLumaraApi.generatePromptedReflection(
           entryText: richContext['entryText'] ?? '',
           intent: 'journal',
           phase: phaseHint,
@@ -780,29 +780,15 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
           },
         );
         
-        // Retrieve attribution traces for the reflection
-        if (_memoryService != null) {
-          try {
-            final responseId = 'journal_resp_${DateTime.now().millisecondsSinceEpoch}';
-            final entryText = richContext['entryText'] ?? '';
-            
-            final memoryResult = await _memoryService!.retrieveMemories(
-              query: entryText,
-              domains: [MemoryDomain.personal, MemoryDomain.creative, MemoryDomain.learning],
-              responseId: responseId,
-            );
-            
-            attributionTraces = memoryResult.attributions;
-            print('Journal: Retrieved ${attributionTraces.length} attribution traces for reflection');
-            
-            // Enrich attribution traces with actual journal entry content
-            if (attributionTraces.isNotEmpty) {
-              attributionTraces = await _enrichAttributionTraces(attributionTraces);
-              print('Journal: Enriched ${attributionTraces.length} attribution traces with journal entry content');
-            }
-          } catch (e) {
-            print('Journal: Error retrieving attribution traces: $e');
-          }
+        reflection = result.reflection;
+        attributionTraces = result.attributionTraces;
+        
+        print('Journal: Retrieved ${attributionTraces.length} attribution traces from EnhancedLumaraApi');
+        
+        // Enrich attribution traces with actual journal entry content
+        if (attributionTraces.isNotEmpty) {
+          attributionTraces = await _enrichAttributionTraces(attributionTraces);
+          print('Journal: Enriched ${attributionTraces.length} attribution traces with journal entry content');
         }
       } else {
         // For subsequent activations, use the brief ArcLLM format
@@ -3640,7 +3626,7 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
       final phaseHint = _entryState.phase;
       
       // Use EnhancedLumaraApi v2.3 with regenerate option
-      final newReflection = await _enhancedLumaraApi.generatePromptedReflection(
+      final result = await _enhancedLumaraApi.generatePromptedReflection(
         entryText: entryText,
         intent: 'journal',
         phase: phaseHint,
@@ -3664,9 +3650,15 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
       );
 
       // Extract just the reflection text (remove "✨ Reflection\n\n" prefix if present)
-      String reflectionText = newReflection;
+      String reflectionText = result.reflection;
       if (reflectionText.startsWith('✨ Reflection\n\n')) {
         reflectionText = reflectionText.substring('✨ Reflection\n\n'.length);
+      }
+
+      // Enrich attribution traces with actual journal entry content
+      List<AttributionTrace>? attributionTraces = result.attributionTraces;
+      if (attributionTraces.isNotEmpty) {
+        attributionTraces = await _enrichAttributionTraces(attributionTraces);
       }
 
       setState(() {
@@ -3676,6 +3668,7 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
           content: reflectionText,
           timestamp: DateTime.now().millisecondsSinceEpoch,
           phase: block.phase,
+          attributionTraces: attributionTraces,
           userComment: block.userComment, // Preserve user comment when regenerating
         );
         // Clear loading state
@@ -3721,7 +3714,7 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
       final phaseHint = _entryState.phase;
       
       // Use EnhancedLumaraApi v2.3 with soft tone option
-      final softerReflection = await _enhancedLumaraApi.generatePromptedReflection(
+      final result = await _enhancedLumaraApi.generatePromptedReflection(
         entryText: entryText,
         intent: 'journal',
         phase: phaseHint,
@@ -3745,9 +3738,15 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
       );
 
       // Extract just the reflection text (remove "✨ Reflection\n\n" prefix if present)
-      String reflectionText = softerReflection;
+      String reflectionText = result.reflection;
       if (reflectionText.startsWith('✨ Reflection\n\n')) {
         reflectionText = reflectionText.substring('✨ Reflection\n\n'.length);
+      }
+
+      // Enrich attribution traces with actual journal entry content
+      List<AttributionTrace>? attributionTraces = result.attributionTraces;
+      if (attributionTraces.isNotEmpty) {
+        attributionTraces = await _enrichAttributionTraces(attributionTraces);
       }
 
       setState(() {
@@ -3757,6 +3756,7 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
           content: reflectionText,
           timestamp: DateTime.now().millisecondsSinceEpoch,
           phase: block.phase,
+          attributionTraces: attributionTraces,
           userComment: block.userComment, // Preserve user comment when softening
         );
         // Clear loading state
@@ -3802,7 +3802,7 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
       final phaseHint = _entryState.phase;
       
       // Use EnhancedLumaraApi v2.3 with More Depth option
-      final deeperReflection = await _enhancedLumaraApi.generatePromptedReflection(
+      final result = await _enhancedLumaraApi.generatePromptedReflection(
         entryText: entryText,
         intent: 'journal',
         phase: phaseHint,
@@ -3826,9 +3826,15 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
       );
 
       // Extract just the reflection text (remove "✨ Reflection\n\n" prefix if present)
-      String reflectionText = deeperReflection;
+      String reflectionText = result.reflection;
       if (reflectionText.startsWith('✨ Reflection\n\n')) {
         reflectionText = reflectionText.substring('✨ Reflection\n\n'.length);
+      }
+
+      // Enrich attribution traces with actual journal entry content
+      List<AttributionTrace>? attributionTraces = result.attributionTraces;
+      if (attributionTraces.isNotEmpty) {
+        attributionTraces = await _enrichAttributionTraces(attributionTraces);
       }
 
       setState(() {
@@ -3838,6 +3844,7 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
           content: reflectionText,
           timestamp: DateTime.now().millisecondsSinceEpoch,
           phase: block.phase,
+          attributionTraces: attributionTraces,
           userComment: block.userComment, // Preserve user comment when adding depth
         );
         // Clear loading state
@@ -3986,7 +3993,7 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
       final phaseHint = _entryState.phase;
       
       // Use EnhancedLumaraApi v2.3 with conversation mode
-      final reflection = await _enhancedLumaraApi.generatePromptedReflection(
+      final result = await _enhancedLumaraApi.generatePromptedReflection(
         entryText: entryText,
         intent: 'journal',
         phase: phaseHint,
@@ -4011,9 +4018,15 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
       );
 
       // Extract just the reflection text (remove "✨ Reflection\n\n" prefix if present)
-      String reflectionText = reflection;
+      String reflectionText = result.reflection;
       if (reflectionText.startsWith('✨ Reflection\n\n')) {
         reflectionText = reflectionText.substring('✨ Reflection\n\n'.length);
+      }
+
+      // Enrich attribution traces with actual journal entry content
+      List<AttributionTrace>? attributionTraces = result.attributionTraces;
+      if (attributionTraces.isNotEmpty) {
+        attributionTraces = await _enrichAttributionTraces(attributionTraces);
       }
       
       // Update the placeholder block with actual content
@@ -4022,6 +4035,7 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
         intent: conversationMode?.name ?? 'reflect',
         content: reflectionText,
         timestamp: DateTime.now().millisecondsSinceEpoch,
+        attributionTraces: attributionTraces,
         phase: _entryState.phase,
       );
       
