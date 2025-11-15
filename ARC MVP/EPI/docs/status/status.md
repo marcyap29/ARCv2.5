@@ -1,6 +1,6 @@
 # EPI MVP - Current Status
 
-**Version:** 2.1.13  
+**Version:** 2.1.14  
 **Last Updated:** November 2025  
 **Branch:** attributions  
 **Status:** ✅ Production Ready - MVP Fully Operational
@@ -38,6 +38,8 @@ The EPI MVP is **fully operational** with all core systems working correctly. Th
 | **PRISM Scrubbing** | ✅ Operational | PII scrubbing before cloud APIs, restoration after receiving |
 | **LUMARA Attribution** | ✅ Operational | Specific excerpt attribution, weighted context prioritization |
 | **LUMARA Priority Rules** | ✅ Operational | Question-first detection, decisiveness rules, context hierarchy, method integration (ECHO, SAGE, Abstract Register) |
+| **LUMARA Unified UI/UX** | ✅ Operational | Consistent header, button placement, and loading indicators across in-journal and in-chat |
+| **LUMARA Context Sync** | ✅ Operational | Text state syncing prevents stale text, date information helps identify latest entry |
 
 ### Platform Support
 
@@ -55,6 +57,17 @@ The EPI MVP is **fully operational** with all core systems working correctly. Th
 ## Recent Achievements
 
 ### November 2025
+
+#### ✅ Unified LUMARA UI/UX & Context Improvements (November 14, 2025)
+- **Unified Design**: LUMARA header (icon + text) now appears in both in-journal and in-chat bubbles
+- **Consistent Button Placement**: Copy/delete buttons moved to lower left in both interfaces
+- **Selectable Text**: In-journal LUMARA text is now selectable and copyable
+- **Copy Functionality**: Quick copy button for entire LUMARA answer in in-journal
+- **Delete Messages**: Individual message deletion in-chat with confirmation dialog
+- **Text State Syncing**: Prevents stale text by syncing state before context retrieval
+- **Date Information**: Journal entries include dates in context to help LUMARA identify latest entry
+- **Longer Responses**: In-chat LUMARA now provides 4-8 sentence thorough answers
+- **Status**: ✅ Complete - Unified experience across all LUMARA interfaces
 
 #### ✅ In-Journal LUMARA Attribution & User Comment Support (November 13, 2025)
 - **Fixed Attribution Excerpts**: In-journal LUMARA now shows actual journal entry content instead of generic "Hello! I'm LUMARA..." messages

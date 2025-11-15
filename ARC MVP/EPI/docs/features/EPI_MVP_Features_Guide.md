@@ -1,6 +1,6 @@
 # EPI MVP - Comprehensive Features Guide
 
-**Version:** 1.0.0  
+**Version:** 1.0.1  
 **Last Updated:** November 2025
 
 ---
@@ -98,6 +98,20 @@ EPI MVP provides a comprehensive set of features for intelligent journaling, AI 
 - **Question-First Detection**: Detects questions first and prioritizes direct answers
 - **Answer First, Then Clarify**: Gives direct, decisive answers before asking clarifying questions
 - **Decisiveness Rules**: Uses confident, grounded statements without hedging, speculation, or vague language
+
+**Unified LUMARA UI/UX**
+- **Consistent Header**: LUMARA icon and text header in both in-journal and in-chat bubbles
+- **Unified Button Placement**: Copy/delete buttons positioned at lower left in both interfaces
+- **Selectable Text**: In-journal LUMARA text is selectable and copyable
+- **Quick Copy**: Copy icon button for entire LUMARA answer
+- **Message Deletion**: Delete individual messages in-chat with confirmation dialog
+- **Unified Loading Indicator**: Same "LUMARA is thinking..." design across both interfaces
+
+**LUMARA Context & Text State**
+- **Text State Syncing**: Automatically syncs text state before context retrieval to prevent stale text
+- **Date Information**: Journal entries include dates in context to help LUMARA identify latest entry
+- **Current Entry Marking**: Explicitly marks current entry as "LATEST - YOU ARE EDITING THIS NOW"
+- **Chronological Clarity**: Older entries marked with dates and "OLDER ENTRY" label
 - **Clarity Over Clinical Tone**: Steady, grounded, emotionally present responses (no cold summaries or canned therapeutic lines)
 - **Context Hierarchy**: Uses current entry → recent entries → older history based on slider setting (Tier 1/2/3 structure)
 - **ECHO Framework**: All responses use structured ECHO format (Empathize → Clarify → Highlight → Open)

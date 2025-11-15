@@ -1,7 +1,48 @@
 # EPI ARC MVP - Changelog
 
-**Version:** 2.1.13  
+**Version:** 2.1.14  
 **Last Updated:** November 2025
+
+## [2.1.14] - November 2025
+
+### **Unified LUMARA UI/UX & Context Improvements** - Complete
+
+#### Unified UI/UX Across In-Journal and In-Chat
+- **LUMARA Header in In-Chat**: Added LUMARA icon and text header to in-chat message bubbles, matching in-journal design
+- **Consistent Button Placement**: Moved copy/delete buttons to lower left in both in-journal and in-chat for unified experience
+- **Selectable Text**: Made in-journal LUMARA reflection text selectable and copyable
+- **Copy Icon Button**: Added copy icon button to quickly copy entire LUMARA answer in in-journal
+- **Delete Functionality**: Added delete button for individual LUMARA messages in-chat with confirmation dialog
+- **Loading Indicator Unification**: Unified "LUMARA is thinking..." loading indicator between in-journal and in-chat
+
+#### Context & Text State Improvements
+- **Text State Syncing**: Sync `_entryState.text` with `_textController.text` before LUMARA context retrieval to prevent stale text
+- **Date Information in Context**: Added date formatting to journal entries in LUMARA context to help identify latest entry
+- **Current Entry Marking**: Explicitly mark current entry as "LATEST - YOU ARE EDITING THIS NOW" with date information
+- **Older Entry Marking**: Mark older entries with dates and "OLDER ENTRY" label for chronological clarity
+
+#### Response Quality Improvements
+- **Longer In-Chat Responses**: Removed 3-4 sentence max constraint, allow 4-8 sentences for thorough answers
+- **Response Scoring Update**: Increased max sentences from 4 to 8, reduced penalty for longer responses
+- **Context Guidance**: Updated in-chat context guidance to explicitly encourage thorough, decisive answers
+
+#### Technical Details
+- **Text Controller as Source of Truth**: Use `_textController.text` throughout context building for most up-to-date text
+- **Date Formatting Utility**: Created `_formatDateForContext()` method for human-readable date formatting (Today, Yesterday, X days ago)
+- **Message Deletion**: Added `deleteMessage()` method to `LumaraAssistantCubit` to remove messages from state and chat repo
+
+**Files Modified**:
+- `lib/ui/journal/journal_screen.dart` - Text state syncing, date formatting, context building improvements
+- `lib/ui/journal/widgets/inline_reflection_block.dart` - Selectable text, copy button, button placement
+- `lib/arc/chat/ui/lumara_assistant_screen.dart` - LUMARA header, button placement, delete functionality
+- `lib/arc/chat/bloc/lumara_assistant_cubit.dart` - Delete message method, text state handling
+- `lib/arc/chat/prompts/lumara_unified_prompts.dart` - In-chat response length guidance
+- `lib/arc/chat/llm/prompt_templates.dart` - Removed 3-4 sentence max constraint
+- `lib/arc/chat/services/lumara_response_scoring.dart` - Increased max sentences to 8
+
+**Status**: ✅ Complete - Unified UI/UX across in-journal and in-chat, improved context handling, better response quality
+
+---
 
 ## [2.1.13] - November 2025
 
