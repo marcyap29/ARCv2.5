@@ -901,6 +901,39 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
     );
   }
 
+  void _deleteMessage(LumaraMessage message) {
+    // Show confirmation dialog
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete message?'),
+        content: const Text('This message will be permanently deleted. This action cannot be undone.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              context.read<LumaraAssistantCubit>().deleteMessage(message.id);
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Message deleted'),
+                  duration: Duration(seconds: 2),
+                ),
+              );
+            },
+            style: TextButton.styleFrom(
+              foregroundColor: Colors.red,
+            ),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _showHealthPreview() async {
     final result = await showModalBottomSheet(
       context: context,
