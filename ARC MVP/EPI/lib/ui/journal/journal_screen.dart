@@ -833,9 +833,6 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
           _lumaraLoadingStates.remove(blockIndex);
           _lumaraLoadingMessages.remove(blockIndex);
         });
-        
-        // Dismiss the snackbar now that response has arrived
-        ScaffoldMessenger.of(context).hideCurrentSnackBar();
       }
       
       // Create controller for the new block if it doesn't exist
@@ -873,10 +870,7 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
         });
       }
       
-      // Dismiss the snackbar on error
-      if (mounted) {
-        ScaffoldMessenger.of(context).hideCurrentSnackBar();
-      }
+      // Snackbar removed - loading indicator is now inline
       
       _analytics.log('lumara_error', {'error': e.toString()});
       
