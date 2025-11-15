@@ -216,8 +216,28 @@ class EnhancedLumaraApi {
           String userPrompt;
           
           // Build context based on options
+          // Note: request.userText may contain full journal context (current entry + recent entries + semantic matches)
+          // Check if it's just the current entry or full context by looking for separators
+          final hasFullContext = request.userText.contains('---') || 
+                                 request.userText.contains('Current entry:') ||
+                                 request.userText.contains('Recent journal history:') ||
+                                 request.userText.contains('Semantically similar journal history:');
+          
           final contextParts = <String>[];
-          contextParts.add('Current entry: "${request.userText}"');
+          
+          if (hasFullContext) {
+            // Full context already includes current entry + recent entries + semantic matches
+            contextParts.add(request.userText);
+            print('LUMARA Enhanced API v2.3: Using full journal context (includes recent entries and semantic matches)');
+          } else {
+            // Just current entry - build context
+            contextParts.add('Current entry: "${request.userText}"');
+            
+            // Add earlier entries context from semantic matches
+            if (matches.isNotEmpty) {
+              contextParts.add('Historical context from earlier entries: ${matches.map((m) => 'From ${m.approxDate?.year}: ${m.excerpt}').join('\n')}');
+            }
+          }
           
           // Add mood/emotion context
           if (mood != null && mood.isNotEmpty) {
@@ -236,11 +256,6 @@ class EnhancedLumaraApi {
             final rhythmScore = chronoContext['rhythmScore'] ?? 0.0;
             final isFragmented = chronoContext['isFragmented'] ?? false;
             contextParts.add('Circadian context: Time window: $window, Chronotype: $chronotype, Rhythm coherence: ${(rhythmScore * 100).toStringAsFixed(0)}%${isFragmented ? ' (fragmented)' : ''}');
-          }
-          
-          // Add earlier entries context
-          if (matches.isNotEmpty) {
-            contextParts.add('Historical context from earlier entries: ${matches.map((m) => 'From ${m.approxDate?.year}: ${m.excerpt}').join('\n')}');
           }
           
           // Add chat context
