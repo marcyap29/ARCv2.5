@@ -2242,8 +2242,8 @@ Available: ${yearsAgo} more year${yearsAgo > 1 ? 's' : ''} of history''';
         await _chatRepo.initialize();
         // Find the ChatMessage that corresponds to this LumaraMessage
         final chatMessages = await _chatRepo.getMessages(currentChatSessionId!, lazy: false);
-        final matchingMessage = chatMessages.where((m) => m.id == messageId).firstOrNull;
-        if (matchingMessage != null) {
+        final matchingMessages = chatMessages.where((m) => m.id == messageId).toList();
+        if (matchingMessages.isNotEmpty) {
           await _chatRepo.deleteMessage(messageId);
           print('LUMARA Chat: Deleted message $messageId from chat session');
         } else {
