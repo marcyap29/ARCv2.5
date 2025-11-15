@@ -2242,13 +2242,12 @@ Available: ${yearsAgo} more year${yearsAgo > 1 ? 's' : ''} of history''';
         await _chatRepo.initialize();
         // Find the ChatMessage that corresponds to this LumaraMessage
         final chatMessages = await _chatRepo.getMessages(currentChatSessionId!, lazy: false);
-        final chatMessage = chatMessages.firstWhere(
-          (m) => m.id == messageId,
-          orElse: () => chatMessages.first, // Fallback (shouldn't happen)
-        );
-        if (chatMessage.id == messageId) {
+        final matchingMessage = chatMessages.where((m) => m.id == messageId).firstOrNull;
+        if (matchingMessage != null) {
           await _chatRepo.deleteMessage(messageId);
           print('LUMARA Chat: Deleted message $messageId from chat session');
+        } else {
+          print('LUMARA Chat: Message $messageId not found in chat repo (may be in-memory only)');
         }
       } catch (e) {
         print('LUMARA Chat: Error deleting message from chat repo: $e');
