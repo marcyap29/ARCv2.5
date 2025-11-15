@@ -1,7 +1,7 @@
 # EPI MVP - Comprehensive Features Guide
 
 **Version:** 1.0.0  
-**Last Updated:** January 2025
+**Last Updated:** November 2025
 
 ---
 
@@ -93,6 +93,17 @@ EPI MVP provides a comprehensive set of features for intelligent journaling, AI 
 - **Phase-Aware**: Adapts to user's current phase
 - **Multimodal**: Understands text, images, audio, video
 - **Reflective**: Provides thoughtful reflections and insights
+
+**In-Journal LUMARA Priority & Context Rules**
+- **Question-First Detection**: Detects questions first and prioritizes direct answers
+- **Context Hierarchy**: Uses current entry → recent entries → older history based on slider setting
+- **ECHO Framework**: All responses use structured ECHO format (Empathize → Clarify → Highlight → Open)
+- **SAGE Echo**: Free-writing scenarios extract structured insights (Situation, Action, Growth, Essence)
+- **Abstract Register**: Detects conceptual language and adjusts question count accordingly
+- **Phase-Based Bias**: Adapts question style and count to ATLAS phase
+- **Interactive Modes**: Supports Regenerate, Soften, More Depth, ideas, think, perspective, nextSteps, reflectDeeply
+- **Light Presence**: Defaults to minimal presence when no question is asked
+- **Emotional Safety**: Conservative context usage to avoid overwhelming users
 
 ### On-Device AI
 
@@ -356,6 +367,6 @@ All core features are production-ready and fully operational:
 ---
 
 **Features Guide Status:** ✅ Complete  
-**Last Updated:** January 2025  
+**Last Updated:** November 2025  
 **Version:** 1.0.0
 

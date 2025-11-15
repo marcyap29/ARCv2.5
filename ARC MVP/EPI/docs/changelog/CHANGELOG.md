@@ -1,7 +1,39 @@
 # EPI ARC MVP - Changelog
 
-**Version:** 2.1.10  
+**Version:** 2.1.11  
 **Last Updated:** November 2025
+
+## [2.1.11] - November 2025
+
+### **In-Journal LUMARA Priority & Context Rules with Method Integration** - Complete
+
+#### Priority and Context Rules
+- **Question-First Detection**: LUMARA now detects questions first and prioritizes direct answers
+- **Context Hierarchy**: Clear hierarchy for context usage (current entry → recent entries → older history)
+- **Slider-Based Context**: Context window respects LUMARA context slider (Minimal/Medium/Deep)
+- **Light Presence Mode**: Default to light presence when no question is asked
+- **Emotional Safety**: Conservative context usage to avoid overwhelming users
+
+#### Method Integration
+- **ECHO Framework Integration**: All question responses use ECHO structure (Empathize → Clarify → Highlight → Open)
+- **SAGE Echo Integration**: Free-writing scenarios use SAGE Echo for structured extraction (Situation, Action, Growth, Essence)
+- **Abstract Register Detection**: Integrated to determine question count (1 vs 2 Clarify questions)
+- **Phase-Based Question Bias**: Integrated for all 6 ATLAS phases (Discovery, Expansion, Transition, Consolidation, Recovery, Breakthrough)
+- **Interactive Expansion Modes**: All 8 modes (Regenerate, Soften, More Depth, ideas, think, perspective, nextSteps, reflectDeeply) integrated
+- **Unified Method System**: All response methods work together within priority and context rules
+
+#### Implementation Details
+- **Priority Rules**: Determine when to respond (question detection, light presence, boundaries)
+- **ECHO Structure**: Determines how to respond (structured framework)
+- **Context Hierarchy**: Determines what context to use (current → recent → older)
+- **Method Integration Summary**: Added comprehensive summary explaining how all methods work together
+
+**Files Modified**:
+- `lib/arc/chat/prompts/lumara_unified_prompts.dart` - Updated arcJournal context guidance with integrated priority rules and methods
+
+**Status**: ✅ Complete - In-journal LUMARA now uses unified priority rules with full method integration
+
+---
 
 ## [2.1.10] - November 2025
 
