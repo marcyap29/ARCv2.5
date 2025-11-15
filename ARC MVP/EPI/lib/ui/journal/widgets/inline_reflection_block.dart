@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:my_app/polymeta/memory/enhanced_memory_schema.dart';
 import 'package:my_app/arc/chat/widgets/attribution_display_widget.dart';
 
@@ -93,6 +94,24 @@ class InlineReflectionBlock extends StatelessWidget {
                   ),
                 ],
                 const Spacer(),
+                // Copy button (only show when not loading and content exists)
+                if (!isLoading && content.isNotEmpty)
+                  IconButton(
+                    icon: const Icon(Icons.copy, size: 18),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                    onPressed: () {
+                      Clipboard.setData(ClipboardData(text: content));
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('LUMARA response copied to clipboard'),
+                          duration: Duration(seconds: 2),
+                        ),
+                      );
+                    },
+                    tooltip: 'Copy',
+                    color: theme.colorScheme.onSurfaceVariant.withOpacity(0.6),
+                  ),
                 // Delete button
                 IconButton(
                   icon: const Icon(Icons.close, size: 18),
