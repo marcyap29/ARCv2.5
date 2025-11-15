@@ -14,6 +14,7 @@ import '../config/api_config.dart';
 import 'package:my_app/polymeta/memory/enhanced_mira_memory_service.dart';
 import 'package:my_app/polymeta/memory/enhanced_memory_schema.dart';
 import 'package:my_app/polymeta/memory/sentence_extraction_util.dart';
+import 'package:my_app/polymeta/memory/attribution_service.dart';
 import 'package:my_app/polymeta/mira_service.dart';
 import 'package:my_app/telemetry/analytics.dart';
 import '../chat/chat_repo.dart';
@@ -89,6 +90,9 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
   // Progressive Memory Loader
   late final ProgressiveMemoryLoader _memoryLoader;
   final JournalRepository _journalRepository = JournalRepository();
+  
+  // Attribution Service for creating traces
+  final AttributionService _attributionService = AttributionService();
   
   // Auto-save and compaction - Updated for 25-message summarization
   static const int _maxMessagesBeforeCompaction = 25;
@@ -1152,6 +1156,27 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
       
       buffer.writeln('---');
       addedEntryIds.add(currentEntry.id);
+      
+      // Create attribution trace for current entry
+      if (currentEntry.content.isNotEmpty) {
+        final excerpt = extractRelevantSentences(
+          currentEntry.content,
+          query: userQuery,
+          keywords: currentEntry.keywords.map((k) => k.toString()).toList(),
+          maxSentences: 3,
+        );
+        final trace = _attributionService.createTrace(
+          nodeRef: 'entry:${currentEntry.id}',
+          relation: 'primary_source',
+          confidence: 1.0,
+          reasoning: 'Current journal entry - primary source for response',
+          phaseContext: currentEntry.emotionReason, // Use emotion reason as phase hint
+          excerpt: excerpt,
+        );
+        attributionTraces.add(trace);
+        print('LUMARA: [Tier 1] Created attribution trace for current entry ${currentEntry.id}');
+      }
+      
       print('LUMARA: [Tier 1] Added current entry ${currentEntry.id} with media content');
     }
     
@@ -1279,9 +1304,30 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
           buffer.writeln(entry.content);
           buffer.writeln('---');
           addedEntryIds.add(entry.id);
+          
+          // Create attribution trace for recent entry
+          final excerpt = extractRelevantSentences(
+            entry.content,
+            query: userQuery,
+            keywords: entry.keywords.map((k) => k.toString()).toList(),
+            maxSentences: 3,
+          );
+          final trace = _attributionService.createTrace(
+            nodeRef: 'entry:${entry.id}',
+            relation: 'recent_context',
+            confidence: 0.8 - (recentCount * 0.05), // Decreasing confidence for older entries
+            reasoning: 'Recent journal entry from progressive loader',
+            phaseContext: entry.emotionReason,
+            excerpt: excerpt,
+          );
+          attributionTraces.add(trace);
+          
           recentCount++;
         }
       }
+    }
+    if (recentCount > 0) {
+      print('LUMARA: Created ${recentCount} attribution traces for recent entries from progressive loader');
     }
     
     // TIER 3 (LOWEST WEIGHT): Other earlier entries/chats from other sessions
