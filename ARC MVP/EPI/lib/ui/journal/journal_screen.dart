@@ -3277,8 +3277,20 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
     final buffer = StringBuffer();
     final Set<String> addedEntryIds = {}; // Track added entries to avoid duplicates
     
-    // Add current entry text
-    buffer.writeln('Current entry:');
+    // Add current entry text with date
+    buffer.writeln('Current entry (LATEST/MOST RECENT ENTRY):');
+    // Get current entry date if available
+    if (loadedEntries.isNotEmpty) {
+      final currentEntry = loadedEntries.firstWhere(
+        (e) => e.content == _entryState.text || e.content.contains(_entryState.text.substring(0, _entryState.text.length > 50 ? 50 : _entryState.text.length)),
+        orElse: () => loadedEntries.first,
+      );
+      final entryDate = _formatEntryDate(currentEntry.createdAt);
+      buffer.writeln('Entry Date: $entryDate (THIS IS THE LATEST/MOST RECENT ENTRY)');
+    } else {
+      buffer.writeln('Entry Date: ${_formatEntryDate(DateTime.now())} (THIS IS THE LATEST/MOST RECENT ENTRY)');
+    }
+    buffer.writeln('');
     buffer.writeln(_entryState.text);
     buffer.writeln('---');
     
@@ -3335,6 +3347,9 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
                 );
                 
                 if (entry.content.isNotEmpty) {
+                  // Include date to help LUMARA understand entry chronology
+                  final entryDate = _formatEntryDate(entry.createdAt);
+                  buffer.writeln('Entry Date: $entryDate');
                   buffer.writeln(entry.content);
                   buffer.writeln('---');
                   addedEntryIds.add(entryId);
@@ -3368,6 +3383,9 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
       for (final entry in loadedEntries) {
         if (!addedEntryIds.contains(entry.id) && recentCount < 10) {
           if (entry.content.isNotEmpty) {
+            // Include date to help LUMARA understand entry chronology
+            final entryDate = _formatEntryDate(entry.createdAt);
+            buffer.writeln('Entry Date: $entryDate');
             buffer.writeln(entry.content);
             buffer.writeln('---');
             addedEntryIds.add(entry.id);
@@ -4751,5 +4769,29 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
     }
     
     return enrichedTraces;
+  }
+
+  /// Format entry date for LUMARA context
+  /// Returns a clear, readable date string that helps LUMARA understand chronology
+  String _formatEntryDate(DateTime date) {
+    final now = DateTime.now();
+    final difference = now.difference(date);
+    
+    // Format as: "YYYY-MM-DD (X days ago)" or "YYYY-MM-DD (today)" or "YYYY-MM-DD (yesterday)"
+    final year = date.year;
+    final month = date.month.toString().padLeft(2, '0');
+    final day = date.day.toString().padLeft(2, '0');
+    final dateStr = '$year-$month-$day';
+    
+    String relativeStr;
+    if (difference.inDays == 0) {
+      relativeStr = 'today';
+    } else if (difference.inDays == 1) {
+      relativeStr = 'yesterday';
+    } else {
+      relativeStr = '${difference.inDays} days ago';
+    }
+    
+    return '$dateStr ($relativeStr)';
   }
 }
