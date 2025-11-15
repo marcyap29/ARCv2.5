@@ -608,22 +608,6 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
                             ),
                           ),
                         ],
-                        const Spacer(),
-                        // Copy and delete buttons in header (unified with in-journal UX)
-                        IconButton(
-                          icon: Icon(Icons.copy, size: 16, color: Colors.grey[600]),
-                          padding: EdgeInsets.zero,
-                          constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-                          onPressed: () => _copyMessage(message.content),
-                          tooltip: 'Copy',
-                        ),
-                        IconButton(
-                          icon: Icon(Icons.close, size: 16, color: Colors.grey[600]),
-                          padding: EdgeInsets.zero,
-                          constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-                          onPressed: () => _deleteMessage(message),
-                          tooltip: 'Delete',
-                        ),
                       ],
                     ),
                     const SizedBox(height: 8),
@@ -667,6 +651,30 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
                           constraints: const BoxConstraints(),
                           onPressed: () => _copyMessage(message.content),
                           tooltip: 'Copy',
+                        ),
+                      ],
+                    ),
+                  ],
+                  
+                  // Copy and delete buttons for assistant messages (lower left)
+                  if (!isUser) ...[
+                    const Gap(8),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        IconButton(
+                          icon: Icon(Icons.copy, size: 16, color: Colors.grey[600]),
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(),
+                          onPressed: () => _copyMessage(message.content),
+                          tooltip: 'Copy',
+                        ),
+                        IconButton(
+                          icon: Icon(Icons.close, size: 16, color: Colors.grey[600]),
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(),
+                          onPressed: () => _deleteMessage(message),
+                          tooltip: 'Delete',
                         ),
                       ],
                     ),
