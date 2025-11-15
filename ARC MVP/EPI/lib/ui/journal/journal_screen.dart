@@ -677,27 +677,8 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
 
       _analytics.logLumaraEvent('reflection_generated');
       
-      // Show loading indicator - persist until response arrives
-      ScaffoldMessengerState? snackbarMessenger;
-      if (mounted) {
-        snackbarMessenger = ScaffoldMessenger.of(context);
-        snackbarMessenger.showSnackBar(
-          SnackBar(
-            content: Row(
-              children: [
-                SizedBox(
-                  width: 16,
-                  height: 16,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                ),
-                SizedBox(width: 12),
-                Text('LUMARA is thinking...'),
-              ],
-            ),
-            duration: Duration(days: 1), // Very long duration - will be dismissed manually
-          ),
-        );
-      }
+      // Loading indicator is now shown inline in the reflection block
+      // No need for snackbar popup anymore
       
       // Get user ID from user profile
       Box<UserProfile> userBox;
