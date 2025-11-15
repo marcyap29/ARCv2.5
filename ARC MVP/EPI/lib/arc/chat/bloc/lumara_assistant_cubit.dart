@@ -9,6 +9,7 @@ import 'package:my_app/arc/chat/llm/rule_based_adapter.dart'; // For InsightKind
 import 'package:my_app/services/gemini_send.dart';
 import 'package:my_app/services/llm_bridge_adapter.dart';
 import '../services/enhanced_lumara_api.dart';
+import '../models/lumara_reflection_options.dart' as models;
 import '../services/progressive_memory_loader.dart';
 import '../config/api_config.dart';
 import 'package:my_app/polymeta/memory/enhanced_mira_memory_service.dart';
@@ -256,11 +257,11 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
       print('LUMARA Debug: Best provider: ${bestProvider?.name ?? 'none'}');
       print('LUMARA Debug: Is manual selection: $isManualSelection');
 
-      // PRIORITY 1: Use Gemini with full journal context (ArcLLM chat)
+      // PRIORITY 1: Use EnhancedLumaraApi for unified, in-depth responses (same as in-journal)
       try {
-        print('LUMARA Debug: [Priority 1] Attempting Gemini with journal context...');
+        print('LUMARA Debug: [Priority 1] Attempting EnhancedLumaraApi with journal context...');
         
-        // Get context for Gemini (using current scope from state)
+        // Get context for EnhancedLumaraApi (using current scope from state)
         final context = await _contextProvider.buildContext(scope: currentState.scope);
         final contextResult = await _buildEntryContext(
           context, 
@@ -268,23 +269,43 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
           currentEntry: currentEntry,
         );
         final entryText = contextResult['context'] as String;
-        final contextAttributionTraces = contextResult['attributionTraces'] as List<AttributionTrace>;
-        final phaseHint = _buildPhaseHint(context);
-        final keywords = _buildKeywordsContext(context);
+        final phaseHintJson = _buildPhaseHint(context);
         
-        // Use ArcLLM to call Gemini directly with all journal context
-        final response = await _arcLLM.chat(
-          userIntent: text,
+        // Extract phase name from JSON phaseHint
+        String? phaseName;
+        if (phaseHintJson != null) {
+          try {
+            final phaseData = jsonDecode(phaseHintJson) as Map<String, dynamic>;
+            phaseName = phaseData['current_phase'] as String?;
+          } catch (e) {
+            print('LUMARA Debug: Could not parse phaseHint JSON: $e');
+          }
+        }
+        
+        // Use EnhancedLumaraApi for unified, in-depth responses (same as in-journal)
+        final result = await _enhancedApi.generatePromptedReflection(
           entryText: entryText,
-          phaseHintJson: phaseHint,
-          lastKeywordsJson: keywords,
+          intent: 'chat', // Use 'chat' intent for in-chat LUMARA
+          phase: phaseName,
+          userId: null, // Could extract from context if available
+          includeExpansionQuestions: false, // Don't add expansion questions in chat
+          mood: null, // Could extract from context if available
+          chronoContext: null, // Could extract from context if available
+          chatContext: null,
+          mediaContext: null,
+          options: models.LumaraReflectionOptions(
+            preferQuestionExpansion: true, // Use More Depth for thorough responses (4-8 sentences)
+            toneMode: models.ToneMode.normal,
+            regenerate: false,
+          ),
         );
         
-        print('LUMARA Debug: [Gemini] ✓ Response received, length: ${response.length}');
+        final response = result.reflection;
+        print('LUMARA Debug: [EnhancedLumaraApi] ✓ Response received, length: ${response.length}');
         
-        // Use attribution traces from context building (the actual memory nodes used)
-        var attributionTraces = contextAttributionTraces;
-        print('LUMARA Debug: Using ${attributionTraces.length} attribution traces from context building');
+        // Use attribution traces from EnhancedLumaraApi (already created from matched nodes)
+        var attributionTraces = result.attributionTraces;
+        print('LUMARA Debug: Using ${attributionTraces.length} attribution traces from EnhancedLumaraApi');
         
         // Enrich attribution traces with actual journal entry content
         if (attributionTraces.isNotEmpty) {
@@ -533,26 +554,52 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
       final entryText = contextResult['context'] as String;
       final contextAttributionTraces = contextResult['attributionTraces'] as List<AttributionTrace>;
       final phaseHint = _buildPhaseHint(context);
-      final keywords = _buildKeywordsContext(context);
       
       print('LUMARA Debug: [Gemini] Entry text length: ${entryText.length}');
       print('LUMARA Debug: [Gemini] Phase hint: $phaseHint');
-      print('LUMARA Debug: [Gemini] Keywords: $keywords');
       print('LUMARA Debug: [Gemini] Attribution traces from context: ${contextAttributionTraces.length}');
 
-      // Use ArcLLM to call Gemini directly with journal context
-      final response = await _arcLLM.chat(
-        userIntent: text,
+      // Extract phase name from JSON phaseHint
+      String? phaseName;
+      if (phaseHint != null) {
+        try {
+          final phaseData = jsonDecode(phaseHint) as Map<String, dynamic>;
+          phaseName = phaseData['current_phase'] as String?;
+        } catch (e) {
+          print('LUMARA Debug: Could not parse phaseHint JSON: $e');
+        }
+      }
+
+      // Use EnhancedLumaraApi for unified, in-depth responses (same as in-journal)
+      final result = await _enhancedApi.generatePromptedReflection(
         entryText: entryText,
-        phaseHintJson: phaseHint,
-        lastKeywordsJson: keywords,
+        intent: 'chat', // Use 'chat' intent for in-chat LUMARA
+        phase: phaseName,
+        userId: null,
+        includeExpansionQuestions: false, // Don't add expansion questions in chat
+        mood: null,
+        chronoContext: null,
+        chatContext: null,
+        mediaContext: null,
+        options: models.LumaraReflectionOptions(
+          preferQuestionExpansion: true, // Use More Depth for thorough responses (4-8 sentences)
+          toneMode: models.ToneMode.normal,
+          regenerate: false,
+        ),
       );
 
-      print('LUMARA Debug: [Gemini] ✓ Response received, length: ${response.length}');
+      final response = result.reflection;
+      print('LUMARA Debug: [EnhancedLumaraApi] ✓ Response received, length: ${response.length}');
 
-      // Use attribution traces from context building (the actual memory nodes used)
-      final traces = contextAttributionTraces;
-      print('LUMARA Debug: [Enhanced API] Using ${traces.length} attribution traces from context building');
+      // Use attribution traces from EnhancedLumaraApi (already created from matched nodes)
+      var traces = result.attributionTraces;
+      print('LUMARA Debug: [EnhancedLumaraApi] Using ${traces.length} attribution traces');
+      
+      // Enrich attribution traces with actual journal entry content
+      if (traces.isNotEmpty) {
+        traces = await _enrichAttributionTraces(traces);
+        print('LUMARA Debug: Enriched ${traces.length} attribution traces with journal entry content');
+      }
       
       // Append phase information from attribution traces
       final enhancedResponse = _appendPhaseInfoFromAttributions(response, traces, context);
@@ -592,8 +639,8 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
       }
       debugPrint('LUMARA Debug: [Gemini] Step 2: ✓ API key validated');
       
-      debugPrint('LUMARA Debug: [Gemini] Step 3: Building context for ArcLLM...');
-      // Build context for ArcLLM
+      debugPrint('LUMARA Debug: [Gemini] Step 3: Building context for EnhancedLumaraApi...');
+      // Build context for EnhancedLumaraApi
       final contextResult = await _buildEntryContext(
         context, 
         userQuery: text,
@@ -602,38 +649,65 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
       final entryText = contextResult['context'] as String;
       final contextAttributionTraces = contextResult['attributionTraces'] as List<AttributionTrace>;
       final phaseHint = _buildPhaseHint(context);
-      final keywords = _buildKeywordsContext(context);
       debugPrint('LUMARA Debug: [Gemini] Step 3: Context built');
       debugPrint('LUMARA Debug: [Gemini] Step 3: Entry text length: ${entryText.length}');
       debugPrint('LUMARA Debug: [Gemini] Step 3: Phase hint: $phaseHint');
-      debugPrint('LUMARA Debug: [Gemini] Step 3: Keywords: $keywords');
       debugPrint('LUMARA Debug: [Gemini] Step 3: Attribution traces from context: ${contextAttributionTraces.length}');
 
-      debugPrint('LUMARA Debug: [Gemini] Step 4: Calling _arcLLM.chat()...');
+      // Extract phase name from JSON phaseHint
+      String? phaseName;
+      if (phaseHint != null) {
+        try {
+          final phaseData = jsonDecode(phaseHint) as Map<String, dynamic>;
+          phaseName = phaseData['current_phase'] as String?;
+        } catch (e) {
+          print('LUMARA Debug: Could not parse phaseHint JSON: $e');
+        }
+      }
+
+      debugPrint('LUMARA Debug: [Gemini] Step 4: Calling EnhancedLumaraApi...');
       debugPrint('LUMARA Debug: [Gemini] Step 4: User intent: $text');
-      // Use ArcLLM chat function with context
-      final response = await _arcLLM.chat(
-        userIntent: text,
+      
+      // Use EnhancedLumaraApi for unified, in-depth responses (same as in-journal)
+      final result = await _enhancedApi.generatePromptedReflection(
         entryText: entryText,
-        phaseHintJson: phaseHint,
-        lastKeywordsJson: keywords,
+        intent: 'chat', // Use 'chat' intent for in-chat LUMARA
+        phase: phaseName,
+        userId: null,
+        includeExpansionQuestions: false, // Don't add expansion questions in chat
+        mood: null,
+        chronoContext: null,
+        chatContext: null,
+        mediaContext: null,
+        options: models.LumaraReflectionOptions(
+          preferQuestionExpansion: true, // Use More Depth for thorough responses (4-8 sentences)
+          toneMode: models.ToneMode.normal,
+          regenerate: false,
+        ),
       );
 
-      debugPrint('LUMARA Debug: [Gemini] Step 4: ✓ Response received');
-      debugPrint('LUMARA Debug: [Gemini] Step 4: Response length: ${response.length}');
-      debugPrint('LUMARA Debug: [Gemini] Step 4: Response preview: ${response.substring(0, response.length > 100 ? 100 : response.length)}...');
+      final response = result.reflection;
+      debugPrint('LUMARA Debug: [EnhancedLumaraApi] Step 4: ✓ Response received');
+      debugPrint('LUMARA Debug: [EnhancedLumaraApi] Step 4: Response length: ${response.length}');
+      debugPrint('LUMARA Debug: [EnhancedLumaraApi] Step 4: Response preview: ${response.substring(0, response.length > 100 ? 100 : response.length)}...');
 
       if (response.isNotEmpty) {
-        debugPrint('LUMARA Debug: [Gemini] SUCCESS - Using Gemini response');
+        debugPrint('LUMARA Debug: [EnhancedLumaraApi] SUCCESS - Using EnhancedLumaraApi response');
         
-        // Use attribution traces from context building (the actual memory nodes used)
-        final traces = contextAttributionTraces;
-        print('LUMARA Debug: Using ${traces.length} attribution traces from context building');
+        // Use attribution traces from EnhancedLumaraApi (already created from matched nodes)
+        var traces = result.attributionTraces;
+        print('LUMARA Debug: Using ${traces.length} attribution traces from EnhancedLumaraApi');
         for (final trace in traces) {
           print('LUMARA Debug: Trace - ${trace.nodeRef}: ${trace.relation} (${(trace.confidence * 100).toInt()}%)');
         }
 
-        debugPrint('LUMARA Debug: ========== GEMINI API PATH COMPLETED ==========');
+        // Enrich attribution traces with actual journal entry content
+        if (traces.isNotEmpty) {
+          traces = await _enrichAttributionTraces(traces);
+          print('LUMARA Debug: Enriched ${traces.length} attribution traces with journal entry content');
+        }
+
+        debugPrint('LUMARA Debug: ========== ENHANCED LUMARA API PATH COMPLETED ==========');
         // Append phase information from attribution traces
         final enhancedResponse = _appendPhaseInfoFromAttributions(response, traces, context);
         return {
