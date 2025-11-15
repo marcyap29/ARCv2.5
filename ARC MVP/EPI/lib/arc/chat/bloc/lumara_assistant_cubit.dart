@@ -13,6 +13,7 @@ import '../services/progressive_memory_loader.dart';
 import '../config/api_config.dart';
 import 'package:my_app/polymeta/memory/enhanced_mira_memory_service.dart';
 import 'package:my_app/polymeta/memory/enhanced_memory_schema.dart';
+import 'package:my_app/polymeta/memory/sentence_extraction_util.dart';
 import 'package:my_app/polymeta/mira_service.dart';
 import 'package:my_app/telemetry/analytics.dart';
 import '../chat/chat_repo.dart';
@@ -1451,10 +1452,14 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
             }
             
             if (entry.content.isNotEmpty) {
-              // Use actual journal entry content as excerpt (first 200 chars)
-              final actualContent = entry.content.length > 200
-                  ? '${entry.content.substring(0, 200)}...'
-                  : entry.content;
+              // Extract 2-3 most relevant sentences instead of just first 200 chars
+              // Use trace reasoning or relation as query context for relevance
+              final queryContext = trace.reasoning ?? trace.relation;
+              final actualContent = extractRelevantSentences(
+                entry.content,
+                query: queryContext,
+                maxSentences: 3,
+              );
               
               enrichedTrace = AttributionTrace(
                 nodeRef: trace.nodeRef,
@@ -1466,7 +1471,7 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
                 excerpt: actualContent,
               );
               
-              print('LUMARA Chat: Enriched trace ${trace.nodeRef} with actual entry content (${actualContent.length} chars)');
+              print('LUMARA Chat: Enriched trace ${trace.nodeRef} with ${actualContent.split(RegExp(r'[.!?]+')).where((s) => s.trim().isNotEmpty).length} relevant sentences (${actualContent.length} chars)');
             }
           } catch (e) {
             print('LUMARA Chat: Could not find entry $entryId for trace ${trace.nodeRef}: $e');

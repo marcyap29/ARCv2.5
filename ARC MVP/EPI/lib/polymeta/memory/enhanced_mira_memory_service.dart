@@ -13,6 +13,7 @@ import 'domain_scoping_service.dart';
 import 'lifecycle_management_service.dart';
 import 'conflict_resolution_service.dart';
 import 'memory_mode_service.dart';
+import 'sentence_extraction_util.dart';
 
 /// Enhanced MIRA memory service with full EPI narrative infrastructure
 class EnhancedMiraMemoryService {
@@ -301,8 +302,22 @@ class EnhancedMiraMemoryService {
         }
       }
       
-      // Limit excerpt length to 200 chars
-      if (excerpt.length > 200) {
+      // Extract 2-3 most relevant sentences instead of just first 200 chars
+      if (excerpt.isNotEmpty && excerpt != '[Journal entry content - see entry' && 
+          !excerpt.startsWith('[Memory reference')) {
+        // Extract relevant sentences based on query and node keywords
+        final keywords = node.keywords.isNotEmpty 
+            ? node.keywords.map((k) => k.toString()).toList()
+            : null;
+        excerpt = extractRelevantSentences(
+          excerpt,
+          query: query,
+          keywords: keywords,
+          maxSentences: 3,
+        );
+        print('LUMARA Debug:   - Extracted ${excerpt.split(RegExp(r'[.!?]+')).length} relevant sentences for excerpt');
+      } else if (excerpt.length > 200) {
+        // Fallback: limit length if we couldn't extract sentences
         excerpt = '${excerpt.substring(0, 200)}...';
       }
 

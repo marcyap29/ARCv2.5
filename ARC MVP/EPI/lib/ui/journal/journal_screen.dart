@@ -52,6 +52,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:my_app/arc/chat/services/lumara_reflection_settings_service.dart';
 import 'package:my_app/polymeta/memory/enhanced_mira_memory_service.dart';
 import 'package:my_app/polymeta/memory/enhanced_memory_schema.dart';
+import 'package:my_app/polymeta/memory/sentence_extraction_util.dart';
 import 'package:my_app/polymeta/mira_service.dart';
 
 /// Main journal screen with integrated LUMARA companion and OCR scanning
@@ -4673,7 +4674,7 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
             } catch (e) {
               // If exact match not found, try partial match
               try {
-                final entryIdNonNull = entryId!; // We know it's not null here
+                final entryIdNonNull = entryId; // We know it's not null here
                 entry = allEntries.firstWhere(
                   (e) => e.id.contains(entryIdNonNull) || entryIdNonNull.contains(e.id),
                 );
@@ -4684,10 +4685,14 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
             }
             
             if (entry.content.isNotEmpty) {
-              // Use actual journal entry content as excerpt (first 200 chars)
-              final actualContent = entry.content.length > 200
-                  ? '${entry.content.substring(0, 200)}...'
-                  : entry.content;
+              // Extract 2-3 most relevant sentences instead of just first 200 chars
+              // Use trace reasoning or relation as query context for relevance
+              final queryContext = trace.reasoning ?? trace.relation;
+              final actualContent = extractRelevantSentences(
+                entry.content,
+                query: queryContext,
+                maxSentences: 3,
+              );
               
               enrichedTrace = AttributionTrace(
                 nodeRef: trace.nodeRef,
@@ -4699,7 +4704,7 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
                 excerpt: actualContent,
               );
               
-              print('Journal: Enriched trace ${trace.nodeRef} with actual entry content (${actualContent.length} chars)');
+              print('Journal: Enriched trace ${trace.nodeRef} with ${actualContent.split(RegExp(r'[.!?]+')).where((s) => s.trim().isNotEmpty).length} relevant sentences (${actualContent.length} chars)');
             }
           } catch (e) {
             print('Journal: Could not find entry $entryId for trace ${trace.nodeRef}: $e');
