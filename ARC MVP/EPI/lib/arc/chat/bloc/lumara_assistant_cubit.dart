@@ -406,8 +406,12 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
       if (useStreaming) {
         print('LUMARA Debug: [Cloud API] Using streaming (Gemini API available)');
 
-        // Create placeholder message for streaming
-        final streamingMessage = LumaraMessage.assistant(content: '');
+        // Create placeholder message for streaming with attribution traces
+        // Note: Attribution traces will be added after streaming completes
+        final streamingMessage = LumaraMessage.assistant(
+          content: '',
+          attributionTraces: [], // Will be populated after streaming
+        );
         final messagesWithPlaceholder = [...updatedMessages, streamingMessage];
 
         emit(currentState.copyWith(
@@ -749,8 +753,11 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
 
         if (currentMessages.isNotEmpty) {
           final lastIndex = currentMessages.length - 1;
+          // Preserve attribution traces during streaming updates
+          final existingTraces = currentMessages[lastIndex].attributionTraces;
           final updatedMessage = currentMessages[lastIndex].copyWith(
             content: fullResponse.toString(),
+            attributionTraces: existingTraces, // Preserve existing traces
           );
 
           final updatedMessages = [
