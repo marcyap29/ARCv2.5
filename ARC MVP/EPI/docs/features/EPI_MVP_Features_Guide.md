@@ -96,7 +96,10 @@ EPI MVP provides a comprehensive set of features for intelligent journaling, AI 
 
 **In-Journal LUMARA Priority & Context Rules**
 - **Question-First Detection**: Detects questions first and prioritizes direct answers
-- **Context Hierarchy**: Uses current entry → recent entries → older history based on slider setting
+- **Answer First, Then Clarify**: Gives direct, decisive answers before asking clarifying questions
+- **Decisiveness Rules**: Uses confident, grounded statements without hedging, speculation, or vague language
+- **Clarity Over Clinical Tone**: Steady, grounded, emotionally present responses (no cold summaries or canned therapeutic lines)
+- **Context Hierarchy**: Uses current entry → recent entries → older history based on slider setting (Tier 1/2/3 structure)
 - **ECHO Framework**: All responses use structured ECHO format (Empathize → Clarify → Highlight → Open)
 - **SAGE Echo**: Free-writing scenarios extract structured insights (Situation, Action, Growth, Essence)
 - **Abstract Register**: Detects conceptual language and adjusts question count accordingly

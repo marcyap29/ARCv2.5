@@ -1,6 +1,6 @@
 # EPI MVP - Current Status
 
-**Version:** 2.1.12  
+**Version:** 2.1.13  
 **Last Updated:** November 2025  
 **Branch:** attributions  
 **Status:** ✅ Production Ready - MVP Fully Operational
@@ -37,7 +37,7 @@ The EPI MVP is **fully operational** with all core systems working correctly. Th
 | **ECHO (Safety)** | ✅ Operational | Guardrails, privacy masking working |
 | **PRISM Scrubbing** | ✅ Operational | PII scrubbing before cloud APIs, restoration after receiving |
 | **LUMARA Attribution** | ✅ Operational | Specific excerpt attribution, weighted context prioritization |
-| **LUMARA Priority Rules** | ✅ Operational | Question-first detection, context hierarchy, method integration (ECHO, SAGE, Abstract Register) |
+| **LUMARA Priority Rules** | ✅ Operational | Question-first detection, decisiveness rules, context hierarchy, method integration (ECHO, SAGE, Abstract Register) |
 
 ### Platform Support
 

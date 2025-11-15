@@ -1,7 +1,37 @@
 # EPI ARC MVP - Changelog
 
-**Version:** 2.1.12  
+**Version:** 2.1.13  
 **Last Updated:** November 2025
+
+## [2.1.13] - November 2025
+
+### **LUMARA In-Journal Prompt Merge with Decisiveness Rules** - Complete
+
+#### Merged Prompt Updates
+- **Decisiveness Rules**: Added explicit rules requiring confident, grounded statements without hedging, speculation, or vague language
+- **Clarity Over Clinical Tone**: Added requirement for steady, grounded, emotionally present responses (no cold summaries, no canned therapeutic lines)
+- **Restructured Context Hierarchy**: Reorganized into clear Tier 1/2/3 structure (Primary Source → Recent Context → Deep History)
+- **Enhanced Order of Operations**: Updated execution path to include decisiveness requirements and all method integrations
+
+#### Preserved Method Integrations
+- **ECHO Framework**: Full structure details maintained (Empathize → Clarify → Highlight → Open)
+- **Abstract Register Detection**: Question count determination based on conceptual language
+- **Phase-Based Question Bias**: All 6 ATLAS phases with specific question styles
+- **SAGE Echo**: Both variants (Situation/Action/Growth/Essence and Signal/Aims/Gaps/Experiments)
+- **Interactive Expansion Modes**: All 8 modes (Regenerate, Soften, More Depth, ideas, think, perspective, nextSteps, reflectDeeply)
+
+#### Key Improvements
+- **Answer First, Then Clarify**: Explicit requirement to give direct, decisive answers before asking clarifying questions
+- **Never Replace Answer with Question**: Clear rule that answers should never be replaced by questions
+- **Confident Pattern Recognition**: Instructions to use confident statements like "Your writing consistently shows..." instead of hedging
+- **Boundary Respect**: Enhanced section on respecting user boundaries ("just venting", "don't respond", etc.)
+
+**Files Modified**:
+- `lib/arc/chat/prompts/lumara_unified_prompts.dart` - Merged updated prompt structure with decisiveness rules while preserving all method integrations
+
+**Status**: ✅ Complete - In-journal LUMARA prompt now includes decisiveness requirements while maintaining all existing method integrations
+
+---
 
 ## [2.1.12] - November 2025
 
