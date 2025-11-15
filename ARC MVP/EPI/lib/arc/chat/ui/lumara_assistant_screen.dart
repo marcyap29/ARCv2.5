@@ -617,16 +617,29 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
                   // Attribution display for assistant messages
                   if (!isUser && message.attributionTraces != null && message.attributionTraces!.isNotEmpty) ...[
                     const Gap(8),
-                    AttributionDisplayWidget(
-                      traces: message.attributionTraces!,
-                      responseId: message.id,
-                      onWeightChanged: (trace, newWeight) {
-                        // Handle weight change
-                        _handleAttributionWeightChange(message.id, trace, newWeight);
+                    Builder(
+                      builder: (context) {
+                        print('LumaraAssistantScreen: Rendering AttributionDisplayWidget for message ${message.id} with ${message.attributionTraces!.length} traces');
+                        return AttributionDisplayWidget(
+                          traces: message.attributionTraces!,
+                          responseId: message.id,
+                          onWeightChanged: (trace, newWeight) {
+                            // Handle weight change
+                            _handleAttributionWeightChange(message.id, trace, newWeight);
+                          },
+                          onExcludeMemory: (trace) {
+                            // Handle memory exclusion
+                            _handleMemoryExclusion(message.id, trace);
+                          },
+                        );
                       },
-                      onExcludeMemory: (trace) {
-                        // Handle memory exclusion
-                        _handleMemoryExclusion(message.id, trace);
+                    ),
+                  ] else if (!isUser) ...[
+                    // Debug: Show why attributions aren't showing
+                    Builder(
+                      builder: (context) {
+                        print('LumaraAssistantScreen: Message ${message.id} - attributionTraces is null or empty (null: ${message.attributionTraces == null}, empty: ${message.attributionTraces?.isEmpty ?? true})');
+                        return const SizedBox.shrink();
                       },
                     ),
                   ],

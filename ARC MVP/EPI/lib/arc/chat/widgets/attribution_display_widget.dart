@@ -39,8 +39,17 @@ class _AttributionDisplayWidgetState extends State<AttributionDisplayWidget> {
 
   @override
   Widget build(BuildContext context) {
+    // Debug: Log trace count
+    print('AttributionDisplayWidget: Building with ${widget.traces.length} traces');
     if (widget.traces.isEmpty) {
+      print('AttributionDisplayWidget: No traces, returning empty widget');
       return const SizedBox.shrink();
+    }
+    
+    // Debug: Log first trace details
+    if (widget.traces.isNotEmpty) {
+      final firstTrace = widget.traces.first;
+      print('AttributionDisplayWidget: First trace - nodeRef: ${firstTrace.nodeRef}, excerpt: ${firstTrace.excerpt?.substring(0, firstTrace.excerpt!.length > 50 ? 50 : firstTrace.excerpt!.length)}...');
     }
 
     return Container(

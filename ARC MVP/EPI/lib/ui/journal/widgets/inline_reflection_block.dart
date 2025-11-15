@@ -156,9 +156,22 @@ class InlineReflectionBlock extends StatelessWidget {
               // Attribution display (if available)
               if (attributionTraces != null && attributionTraces!.isNotEmpty) ...[
                 const SizedBox(height: 12),
-                AttributionDisplayWidget(
-                  traces: attributionTraces!,
-                  responseId: 'journal_${DateTime.now().millisecondsSinceEpoch}',
+                Builder(
+                  builder: (context) {
+                    print('InlineReflectionBlock: Rendering AttributionDisplayWidget with ${attributionTraces!.length} traces');
+                    return AttributionDisplayWidget(
+                      traces: attributionTraces!,
+                      responseId: 'journal_${DateTime.now().millisecondsSinceEpoch}',
+                    );
+                  },
+                ),
+              ] else if (attributionTraces != null) ...[
+                // Debug: Show why attributions aren't showing
+                Builder(
+                  builder: (context) {
+                    print('InlineReflectionBlock: Attribution traces is null or empty (null: ${attributionTraces == null}, empty: ${attributionTraces?.isEmpty ?? true})');
+                    return const SizedBox.shrink();
+                  },
                 ),
               ],
               
