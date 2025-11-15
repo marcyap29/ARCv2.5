@@ -370,65 +370,37 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
                 
                 if (state is LumaraAssistantLoaded) {
                   if (state.messages.isEmpty) {
+                    // Show loading indicator even when messages are empty
+                    if (state.isProcessing) {
+                      return Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          _buildLoadingIndicator(context),
+                        ],
+                      );
+                    }
                     return _buildEmptyState();
                   }
                   
-                  return ListView.builder(
-                    controller: _scrollController,
-                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-                    itemCount: state.messages.length,
-                    itemBuilder: (context, index) {
-                      final message = state.messages[index];
-                    return _buildMessageBubble(message);
-                  },
-                );
-              }
-              
-              // Show progress indicator with meter when processing
-              if (state is LumaraAssistantLoaded && state.isProcessing) {
-                return Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                  // Show messages with loading indicator at the bottom when processing
+                  return Column(
                     children: [
-                      Row(
-                        children: [
-                          SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2.5,
-                              valueColor: AlwaysStoppedAnimation<Color>(
-                                Theme.of(context).colorScheme.primary,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Text(
-                              'LUMARA is thinking...',
-                              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                color: Theme.of(context).colorScheme.secondary,
-                                fontStyle: FontStyle.italic,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      // Progress meter
-                      LinearProgressIndicator(
-                        minHeight: 4,
-                        borderRadius: BorderRadius.circular(2),
-                        valueColor: AlwaysStoppedAnimation<Color>(
-                          Theme.of(context).colorScheme.primary,
+                      Expanded(
+                        child: ListView.builder(
+                          controller: _scrollController,
+                          padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+                          itemCount: state.messages.length,
+                          itemBuilder: (context, index) {
+                            final message = state.messages[index];
+                            return _buildMessageBubble(message);
+                          },
                         ),
-                        backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
                       ),
+                      // Show progress indicator at bottom when processing
+                      if (state.isProcessing) _buildLoadingIndicator(context),
                     ],
-                  ),
-                );
-              }
+                  );
+                }
                 
               return const SizedBox.shrink();
               },
@@ -522,6 +494,53 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
           ),
         );
       }).toList(),
+    );
+  }
+
+  /// Build loading indicator widget (reusable)
+  Widget _buildLoadingIndicator(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2.5,
+                  valueColor: AlwaysStoppedAnimation<Color>(
+                    Theme.of(context).colorScheme.primary,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  'LUMARA is thinking...',
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: Theme.of(context).colorScheme.secondary,
+                    fontStyle: FontStyle.italic,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          // Progress meter
+          LinearProgressIndicator(
+            minHeight: 4,
+            borderRadius: BorderRadius.circular(2),
+            valueColor: AlwaysStoppedAnimation<Color>(
+              Theme.of(context).colorScheme.primary,
+            ),
+            backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+          ),
+        ],
+      ),
     );
   }
 
