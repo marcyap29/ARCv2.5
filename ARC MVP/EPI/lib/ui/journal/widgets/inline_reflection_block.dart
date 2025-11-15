@@ -267,7 +267,7 @@ class InlineReflectionBlock extends StatelessWidget {
         widgets.add(
           Padding(
             padding: EdgeInsets.only(bottom: i < paragraphs.length - 1 ? 16 : 0),
-            child: Text(
+            child: SelectableText(
               paragraph,
               style: theme.textTheme.bodyMedium?.copyWith(
                 height: 1.6, // Increased line height for better mobile readability
@@ -282,7 +282,7 @@ class InlineReflectionBlock extends StatelessWidget {
     }
 
     return widgets.isEmpty ? [
-      Text(
+      SelectableText(
         content,
         style: theme.textTheme.bodyMedium?.copyWith(
           height: 1.6,
