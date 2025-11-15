@@ -201,6 +201,7 @@ class _AttributionDisplayWidgetState extends State<AttributionDisplayWidget> {
                 ),
               ),
               child: Column(
+                mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
@@ -265,6 +266,7 @@ class _AttributionDisplayWidgetState extends State<AttributionDisplayWidget> {
               // Weight adjustment slider
               Expanded(
                 child: Column(
+                  mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
@@ -321,6 +323,7 @@ class _AttributionDisplayWidgetState extends State<AttributionDisplayWidget> {
         borderRadius: BorderRadius.circular(6),
       ),
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
