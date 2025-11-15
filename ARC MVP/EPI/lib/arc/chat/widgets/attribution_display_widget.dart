@@ -17,7 +17,7 @@ class AttributionDisplayWidget extends StatefulWidget {
     super.key,
     required this.traces,
     required this.responseId,
-    this.showDetailedView = false,
+    this.showDetailedView = true, // Default to expanded to show all references
     this.onToggleDetailed,
     this.onWeightChanged,
     this.onExcludeMemory,
@@ -28,7 +28,14 @@ class AttributionDisplayWidget extends StatefulWidget {
 }
 
 class _AttributionDisplayWidgetState extends State<AttributionDisplayWidget> {
-  bool _isExpanded = false;
+  late bool _isExpanded;
+
+  @override
+  void initState() {
+    super.initState();
+    // Initialize expanded state from widget parameter, default to true to show all references
+    _isExpanded = widget.showDetailedView;
+  }
 
   @override
   Widget build(BuildContext context) {
