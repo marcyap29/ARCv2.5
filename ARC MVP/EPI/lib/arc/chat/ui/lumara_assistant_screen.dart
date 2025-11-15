@@ -616,7 +616,7 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
                     ),
                   ],
                   
-                  // Copy button for assistant messages
+                  // Copy and delete buttons for assistant messages
                   if (!isUser) ...[
                     const Gap(8),
                     Row(
@@ -628,6 +628,13 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
                           constraints: const BoxConstraints(),
                           onPressed: () => _copyMessage(message.content),
                           tooltip: 'Copy',
+                        ),
+                        IconButton(
+                          icon: Icon(Icons.close, size: 16, color: Colors.grey[600]),
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(),
+                          onPressed: () => _deleteMessage(message),
+                          tooltip: 'Delete',
                         ),
                       ],
                     ),

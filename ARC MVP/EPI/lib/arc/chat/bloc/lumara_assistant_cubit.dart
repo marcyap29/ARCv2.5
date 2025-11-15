@@ -2224,6 +2224,41 @@ Available: ${yearsAgo} more year${yearsAgo > 1 ? 's' : ''} of history''';
   }
 
   /// Delete a conversation session
+  /// Delete a specific message by ID
+  Future<void> deleteMessage(String messageId) async {
+    final currentState = state;
+    if (currentState is! LumaraAssistantLoaded) return;
+
+    // Remove message from state
+    final updatedMessages = currentState.messages.where((m) => m.id != messageId).toList();
+    
+    emit(currentState.copyWith(
+      messages: updatedMessages,
+    ));
+
+    // Try to delete from chat repo if it exists
+    if (currentChatSessionId != null) {
+      try {
+        await _chatRepo.initialize();
+        // Find the ChatMessage that corresponds to this LumaraMessage
+        final chatMessages = await _chatRepo.getMessages(currentChatSessionId!, lazy: false);
+        final chatMessage = chatMessages.firstWhere(
+          (m) => m.id == messageId,
+          orElse: () => chatMessages.first, // Fallback (shouldn't happen)
+        );
+        if (chatMessage.id == messageId) {
+          await _chatRepo.deleteMessage(messageId);
+          print('LUMARA Chat: Deleted message $messageId from chat session');
+        }
+      } catch (e) {
+        print('LUMARA Chat: Error deleting message from chat repo: $e');
+        // Continue anyway - message is already removed from UI
+      }
+    }
+
+    print('LUMARA Debug: Deleted message $messageId (${updatedMessages.length} messages remaining)');
+  }
+
   Future<void> deleteConversationSession(String sessionId) async {
     if (_memoryService == null) return;
 
