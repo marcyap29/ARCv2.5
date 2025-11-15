@@ -761,7 +761,8 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
       List<AttributionTrace>? attributionTraces;
       
       if (isFirstActivation) {
-        // For first activation, use EnhancedLumaraApi to get full ECHO structure with expansion questions
+        // For first activation, use EnhancedLumaraApi with More Depth option to ensure
+        // decisive, thorough responses that answer questions properly
         final result = await _enhancedLumaraApi.generatePromptedReflection(
           entryText: richContext['entryText'] ?? '',
           intent: 'journal',
@@ -772,6 +773,11 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
           chronoContext: richContext['chronoContext'],
           chatContext: richContext['chatContext'],
           mediaContext: richContext['mediaContext'],
+          options: lumara_models.LumaraReflectionOptions(
+            preferQuestionExpansion: true, // Use More Depth by default for first activation
+            toneMode: lumara_models.ToneMode.normal,
+            regenerate: false,
+          ),
           onProgress: (message) {
             if (mounted) {
               setState(() {
