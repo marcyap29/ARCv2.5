@@ -106,9 +106,10 @@ class InlineReflectionBlock extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             // Reflection content or loading indicator with progress meter
+            // Unified with in-chat LUMARA loading indicator UI/UX
             if (isLoading)
               Padding(
-                padding: const EdgeInsets.symmetric(vertical: 16),
+                padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -128,7 +129,7 @@ class InlineReflectionBlock extends StatelessWidget {
                         const SizedBox(width: 12),
                         Expanded(
                           child: Text(
-                            loadingMessage ?? 'LUMARA is thinking...',
+                            'LUMARA is thinking...',
                             style: theme.textTheme.bodyMedium?.copyWith(
                               color: theme.colorScheme.secondary,
                               fontStyle: FontStyle.italic,
