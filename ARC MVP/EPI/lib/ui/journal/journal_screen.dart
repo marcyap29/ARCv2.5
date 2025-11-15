@@ -3441,8 +3441,8 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
     final context = <String, dynamic>{};
     
     // Build entry text from loaded journal entries
-    // Use current entry text as query for semantic search
-    String baseEntryText = await _buildJournalContext(loadedEntries, query: _entryState.text);
+    // Use _textController.text as query for semantic search (most up-to-date text)
+    String baseEntryText = await _buildJournalContext(loadedEntries, query: _textController.text);
     
     // Include user comments from previous LUMARA blocks if currentBlockIndex is provided
     // Also include ALL blocks (even without user comments) to show full conversation history
