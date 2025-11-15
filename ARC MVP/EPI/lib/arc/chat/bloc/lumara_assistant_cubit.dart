@@ -1167,11 +1167,7 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
     // TIER 1 (HIGHEST WEIGHT): Current journal entry + media content
     if (currentEntry != null) {
       print('LUMARA: [Tier 1] Adding current journal entry with highest weight');
-      buffer.writeln('=== CURRENT ENTRY (PRIMARY SOURCE - LATEST ENTRY) ===');
-      // Include date to help LUMARA understand this is the most recent entry
-      final entryDate = _formatEntryDate(currentEntry.createdAt);
-      buffer.writeln('Entry Date: $entryDate (THIS IS THE LATEST/MOST RECENT ENTRY)');
-      buffer.writeln('');
+      buffer.writeln('=== CURRENT ENTRY (PRIMARY SOURCE) ===');
       buffer.writeln(currentEntry.content);
       
       // Include media content (OCR, captions, transcripts)
@@ -1301,13 +1297,10 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
               );
               
               if (entry.content.isNotEmpty) {
-                // Include date to help LUMARA understand entry chronology
-                final entryDate = _formatEntryDate(entry.createdAt);
-                buffer.writeln('Entry Date: $entryDate');
                 buffer.writeln(entry.content);
                 buffer.writeln('---');
                 addedEntryIds.add(entryId);
-                print('LUMARA: Added entry $entryId from semantic search (date: $entryDate)');
+                print('LUMARA: Added entry $entryId from semantic search');
               }
             } catch (e) {
               // If entry not found, use node narrative as fallback
@@ -1340,9 +1333,6 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
     for (final entry in loadedEntries) {
       if (!addedEntryIds.contains(entry.id) && recentCount < 10) {
         if (entry.content.isNotEmpty) {
-          // Include date to help LUMARA understand entry chronology
-          final entryDate = _formatEntryDate(entry.createdAt);
-          buffer.writeln('Entry Date: $entryDate');
           buffer.writeln(entry.content);
           buffer.writeln('---');
           addedEntryIds.add(entry.id);
@@ -2290,29 +2280,5 @@ Available: ${yearsAgo} more year${yearsAgo > 1 ? 's' : ''} of history''';
       print('LUMARA Debug: Error in quick answers: $e');
       return null;
     }
-  }
-
-  /// Format entry date for LUMARA context
-  /// Returns a clear, readable date string that helps LUMARA understand chronology
-  String _formatEntryDate(DateTime date) {
-    final now = DateTime.now();
-    final difference = now.difference(date);
-    
-    // Format as: "YYYY-MM-DD (X days ago)" or "YYYY-MM-DD (today)" or "YYYY-MM-DD (yesterday)"
-    final year = date.year;
-    final month = date.month.toString().padLeft(2, '0');
-    final day = date.day.toString().padLeft(2, '0');
-    final dateStr = '$year-$month-$day';
-    
-    String relativeStr;
-    if (difference.inDays == 0) {
-      relativeStr = 'today';
-    } else if (difference.inDays == 1) {
-      relativeStr = 'yesterday';
-    } else {
-      relativeStr = '${difference.inDays} days ago';
-    }
-    
-    return '$dateStr ($relativeStr)';
   }
 }

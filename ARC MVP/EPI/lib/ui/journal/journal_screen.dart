@@ -3277,22 +3277,23 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
     final buffer = StringBuffer();
     final Set<String> addedEntryIds = {}; // Track added entries to avoid duplicates
     
-    // Add current entry text with date
-    buffer.writeln('Current entry (LATEST/MOST RECENT ENTRY):');
-    // Get current entry date if available
-    if (loadedEntries.isNotEmpty) {
-      final currentEntry = loadedEntries.firstWhere(
-        (e) => e.content == _entryState.text || e.content.contains(_entryState.text.substring(0, _entryState.text.length > 50 ? 50 : _entryState.text.length)),
-        orElse: () => loadedEntries.first,
-      );
-      final entryDate = _formatEntryDate(currentEntry.createdAt);
-      buffer.writeln('Entry Date: $entryDate (THIS IS THE LATEST/MOST RECENT ENTRY)');
+    // Add current entry text with date information
+    // This is the LATEST/MOST RECENT entry - the user is actively editing this one
+    buffer.writeln('=== CURRENT ENTRY (LATEST - YOU ARE EDITING THIS NOW) ===');
+    // Include date if available (from existing entry or editable date)
+    if (widget.existingEntry != null) {
+      final dateStr = _formatDateForContext(widget.existingEntry!.createdAt);
+      buffer.writeln('Date: $dateStr (LATEST ENTRY)');
+    } else if (_editableDate != null) {
+      final dateStr = _formatDateForContext(_editableDate!);
+      buffer.writeln('Date: $dateStr (LATEST ENTRY)');
     } else {
-      buffer.writeln('Entry Date: ${_formatEntryDate(DateTime.now())} (THIS IS THE LATEST/MOST RECENT ENTRY)');
+      buffer.writeln('Date: ${_formatDateForContext(DateTime.now())} (LATEST ENTRY - BEING WRITTEN NOW)');
     }
     buffer.writeln('');
     buffer.writeln(_entryState.text);
-    buffer.writeln('---');
+    buffer.writeln('=== END CURRENT ENTRY ===');
+    buffer.writeln('');
     
     // If we have a query and memory service, use semantic search
     final searchQuery = query ?? _entryState.text;
@@ -3348,8 +3349,8 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
                 
                 if (entry.content.isNotEmpty) {
                   // Include date to help LUMARA understand entry chronology
-                  final entryDate = _formatEntryDate(entry.createdAt);
-                  buffer.writeln('Entry Date: $entryDate');
+                  final dateStr = _formatDateForContext(entry.createdAt);
+                  buffer.writeln('Date: $dateStr (OLDER ENTRY)');
                   buffer.writeln(entry.content);
                   buffer.writeln('---');
                   addedEntryIds.add(entryId);
@@ -3384,8 +3385,8 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
         if (!addedEntryIds.contains(entry.id) && recentCount < 10) {
           if (entry.content.isNotEmpty) {
             // Include date to help LUMARA understand entry chronology
-            final entryDate = _formatEntryDate(entry.createdAt);
-            buffer.writeln('Entry Date: $entryDate');
+            final dateStr = _formatDateForContext(entry.createdAt);
+            buffer.writeln('Date: $dateStr (OLDER ENTRY)');
             buffer.writeln(entry.content);
             buffer.writeln('---');
             addedEntryIds.add(entry.id);
@@ -4769,29 +4770,5 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
     }
     
     return enrichedTraces;
-  }
-
-  /// Format entry date for LUMARA context
-  /// Returns a clear, readable date string that helps LUMARA understand chronology
-  String _formatEntryDate(DateTime date) {
-    final now = DateTime.now();
-    final difference = now.difference(date);
-    
-    // Format as: "YYYY-MM-DD (X days ago)" or "YYYY-MM-DD (today)" or "YYYY-MM-DD (yesterday)"
-    final year = date.year;
-    final month = date.month.toString().padLeft(2, '0');
-    final day = date.day.toString().padLeft(2, '0');
-    final dateStr = '$year-$month-$day';
-    
-    String relativeStr;
-    if (difference.inDays == 0) {
-      relativeStr = 'today';
-    } else if (difference.inDays == 1) {
-      relativeStr = 'yesterday';
-    } else {
-      relativeStr = '${difference.inDays} days ago';
-    }
-    
-    return '$dateStr ($relativeStr)';
   }
 }
