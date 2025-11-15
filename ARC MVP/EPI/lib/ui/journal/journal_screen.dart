@@ -677,6 +677,14 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
 
       _analytics.logLumaraEvent('reflection_generated');
       
+      // CRITICAL: Sync _entryState.text with _textController.text to ensure we have the latest entry text
+      // This prevents stale text from being used when building context
+      // The text controller always has the most up-to-date text from the user's typing
+      setState(() {
+        _entryState.text = _textController.text;
+      });
+      print('LUMARA: Synced _entryState.text with _textController.text (length: ${_entryState.text.length})');
+      
       // Loading indicator is now shown inline in the reflection block
       // No need for snackbar popup anymore
       
@@ -3279,6 +3287,8 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
     
     // Add current entry text with date information
     // This is the LATEST/MOST RECENT entry - the user is actively editing this one
+    // Use _textController.text as the source of truth (most up-to-date text from user's typing)
+    final currentEntryText = _textController.text;
     buffer.writeln('=== CURRENT ENTRY (LATEST - YOU ARE EDITING THIS NOW) ===');
     // Include date if available (from existing entry or editable date)
     if (widget.existingEntry != null) {
@@ -3291,12 +3301,13 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
       buffer.writeln('Date: ${_formatDateForContext(DateTime.now())} (LATEST ENTRY - BEING WRITTEN NOW)');
     }
     buffer.writeln('');
-    buffer.writeln(_entryState.text);
+    buffer.writeln(currentEntryText);
     buffer.writeln('=== END CURRENT ENTRY ===');
     buffer.writeln('');
     
     // If we have a query and memory service, use semantic search
-    final searchQuery = query ?? _entryState.text;
+    // Use _textController.text as query source (most up-to-date text)
+    final searchQuery = query ?? _textController.text;
     if (searchQuery.isNotEmpty && _memoryService != null) {
       try {
         final settingsService = LumaraReflectionSettingsService.instance;
