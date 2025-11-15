@@ -212,6 +212,16 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
     // }
     print('LUMARA Debug: Skipping quick answers - using Enhanced API with semantic search for all questions');
 
+    // Add user message to UI immediately and set isProcessing to show loading indicator
+    final userMessage = LumaraMessage.user(content: text);
+    final updatedMessages = [...currentState.messages, userMessage];
+
+    // Emit state with isProcessing: true immediately to show loading indicator
+    emit(currentState.copyWith(
+      messages: updatedMessages,
+      isProcessing: true,
+    ));
+
     // Ensure we have an active chat session (auto-create if needed)
     await _ensureActiveChatSession(text);
 
@@ -221,16 +231,7 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
     // Add user message to chat session
     await _addToChatSession(text, 'user');
 
-    // Add user message to UI
-    final userMessage = LumaraMessage.user(content: text);
-    final updatedMessages = [...currentState.messages, userMessage];
-
     print('LUMARA Debug: Added user message, new count: ${updatedMessages.length}');
-
-    emit(currentState.copyWith(
-      messages: updatedMessages,
-      isProcessing: true,
-    ));
 
     try {
       // Get provider status from LumaraAPIConfig (the authoritative source)
