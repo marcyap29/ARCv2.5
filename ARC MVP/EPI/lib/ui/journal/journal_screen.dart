@@ -3419,31 +3419,44 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
     String baseEntryText = await _buildJournalContext(loadedEntries, query: _entryState.text);
     
     // Include user comments from previous LUMARA blocks if currentBlockIndex is provided
-    if (currentBlockIndex != null && currentBlockIndex > 0) {
+    // Also include ALL blocks (even without user comments) to show full conversation history
+    if (currentBlockIndex != null && _entryState.blocks.isNotEmpty) {
       final userCommentsBuffer = StringBuffer();
-      userCommentsBuffer.writeln('\n\n=== Previous LUMARA Conversation ===');
+      userCommentsBuffer.writeln('\n\n=== Previous LUMARA Conversation in This Entry ===');
       
+      // Include all previous blocks to show full conversation context
       for (int i = 0; i < currentBlockIndex && i < _entryState.blocks.length; i++) {
         final block = _entryState.blocks[i];
+        
+        // Always include LUMARA's response
+        if (block.content.isNotEmpty) {
+          userCommentsBuffer.writeln('\nLUMARA:');
+          userCommentsBuffer.writeln(block.content);
+        }
+        
+        // Include user comment/question if it exists
         if (block.userComment != null && block.userComment!.trim().isNotEmpty) {
           userCommentsBuffer.writeln('\nUser question/comment:');
           userCommentsBuffer.writeln(block.userComment);
-          userCommentsBuffer.writeln('\nLUMARA response:');
-          userCommentsBuffer.writeln(block.content);
+        }
+        
+        userCommentsBuffer.writeln('---');
+      }
+      
+      // Also include the current block's user comment if it exists (user just typed it)
+      if (currentBlockIndex < _entryState.blocks.length) {
+        final currentBlock = _entryState.blocks[currentBlockIndex];
+        if (currentBlock.userComment != null && currentBlock.userComment!.trim().isNotEmpty) {
+          userCommentsBuffer.writeln('\nCurrent user question/comment (most recent):');
+          userCommentsBuffer.writeln(currentBlock.userComment);
           userCommentsBuffer.writeln('---');
         }
       }
       
-      // Also include the current block's user comment if it exists
-      if (currentBlockIndex < _entryState.blocks.length) {
-        final currentBlock = _entryState.blocks[currentBlockIndex];
-        if (currentBlock.userComment != null && currentBlock.userComment!.trim().isNotEmpty) {
-          userCommentsBuffer.writeln('\nCurrent user question/comment:');
-          userCommentsBuffer.writeln(currentBlock.userComment);
-        }
-      }
-      
-      baseEntryText = '$baseEntryText${userCommentsBuffer.toString()}';
+      // Prepend conversation history to baseEntryText so it's prioritized
+      // This ensures LUMARA sees the most recent conversation first
+      baseEntryText = '${userCommentsBuffer.toString()}\n\n=== Original Journal Entry ===\n$baseEntryText';
+      print('Journal: Included ${currentBlockIndex} previous LUMARA blocks in context');
     }
     
     context['entryText'] = baseEntryText;
