@@ -148,6 +148,7 @@ class _AttributionDisplayWidgetState extends State<AttributionDisplayWidget> {
         ),
       ),
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Memory reference and relation
