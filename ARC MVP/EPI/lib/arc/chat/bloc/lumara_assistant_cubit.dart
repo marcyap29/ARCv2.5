@@ -1167,7 +1167,11 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
     // TIER 1 (HIGHEST WEIGHT): Current journal entry + media content
     if (currentEntry != null) {
       print('LUMARA: [Tier 1] Adding current journal entry with highest weight');
-      buffer.writeln('=== CURRENT ENTRY (PRIMARY SOURCE) ===');
+      buffer.writeln('=== CURRENT ENTRY (PRIMARY SOURCE - LATEST ENTRY) ===');
+      // Include date to help LUMARA understand this is the most recent entry
+      final entryDate = _formatEntryDate(currentEntry.createdAt);
+      buffer.writeln('Entry Date: $entryDate (THIS IS THE LATEST/MOST RECENT ENTRY)');
+      buffer.writeln('');
       buffer.writeln(currentEntry.content);
       
       // Include media content (OCR, captions, transcripts)
@@ -1297,10 +1301,13 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
               );
               
               if (entry.content.isNotEmpty) {
+                // Include date to help LUMARA understand entry chronology
+                final entryDate = _formatEntryDate(entry.createdAt);
+                buffer.writeln('Entry Date: $entryDate');
                 buffer.writeln(entry.content);
                 buffer.writeln('---');
                 addedEntryIds.add(entryId);
-                print('LUMARA: Added entry $entryId from semantic search');
+                print('LUMARA: Added entry $entryId from semantic search (date: $entryDate)');
               }
             } catch (e) {
               // If entry not found, use node narrative as fallback
@@ -1333,6 +1340,9 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
     for (final entry in loadedEntries) {
       if (!addedEntryIds.contains(entry.id) && recentCount < 10) {
         if (entry.content.isNotEmpty) {
+          // Include date to help LUMARA understand entry chronology
+          final entryDate = _formatEntryDate(entry.createdAt);
+          buffer.writeln('Entry Date: $entryDate');
           buffer.writeln(entry.content);
           buffer.writeln('---');
           addedEntryIds.add(entry.id);
