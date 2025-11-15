@@ -20,6 +20,7 @@ import '../../../services/gemini_send.dart';
 import 'lumara_reflection_settings_service.dart';
 import '../../../polymeta/memory/attribution_service.dart';
 import '../../../polymeta/memory/enhanced_memory_schema.dart';
+import '../../../polymeta/memory/sentence_extraction_util.dart';
 
 /// Result of generating a reflection with attribution traces
 class ReflectionResult {
@@ -421,6 +422,13 @@ class EnhancedLumaraApi {
               phaseContext = match.phaseHint!.name;
             }
             
+            // Extract 2-3 relevant sentences from excerpt
+            final excerpt = extractRelevantSentences(
+              match.excerpt,
+              query: request.userText.isNotEmpty ? request.userText : null,
+              maxSentences: 3,
+            );
+            
             // Create attribution trace
             final trace = _attributionService.createTrace(
               nodeRef: match.id,
@@ -428,13 +436,38 @@ class EnhancedLumaraApi {
               confidence: match.similarity,
               reasoning: 'Matched by semantic similarity (${(match.similarity * 100).toStringAsFixed(1)}%)',
               phaseContext: phaseContext,
-              excerpt: match.excerpt,
+              excerpt: excerpt,
             );
             
             attributionTraces.add(trace);
           }
           
-          print('LUMARA Enhanced API v2.3: Created ${attributionTraces.length} attribution traces from matched nodes');
+          // Always create an attribution trace for the current entry being reflected on
+          // Even if there are no matched nodes, the current entry is the primary source
+          if (request.userText.isNotEmpty) {
+            final currentEntryExcerpt = extractRelevantSentences(
+              request.userText,
+              query: request.userText, // Use entry text as query to get most relevant sentences
+              maxSentences: 3,
+            );
+            
+            // Try to extract entry ID from request if available, otherwise use a generated ID
+            String entryId = 'current_entry';
+            // Check if userText contains an entry ID pattern or if we can infer it
+            // For now, use a generic ID since we don't have direct access to entry ID
+            final currentEntryTrace = _attributionService.createTrace(
+              nodeRef: entryId,
+              relation: 'primary_source',
+              confidence: 1.0,
+              reasoning: 'Current journal entry - primary source for reflection',
+              phaseContext: request.phaseHint?.name,
+              excerpt: currentEntryExcerpt,
+            );
+            attributionTraces.add(currentEntryTrace);
+            print('LUMARA Enhanced API v2.3: Created attribution trace for current entry');
+          }
+          
+          print('LUMARA Enhanced API v2.3: Created ${attributionTraces.length} attribution traces (${matches.length} from matches + 1 for current entry)');
           
           _analytics.logLumaraEvent('reflection_generated_v23', data: {
             'matches': matches.length,
