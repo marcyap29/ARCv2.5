@@ -27,12 +27,13 @@ class LumaraInlineApi {
     });
 
     // Redirect to enhanced API for real reflection generation
-    return await _enhancedApi.generatePromptedReflection(
+    final result = await _enhancedApi.generatePromptedReflection(
       entryText: scrubbed,
       intent: intent,
       phase: phase,
       userId: userId ?? 'default',
     );
+    return result.reflection;
   }
 
   /// Generate a softer tone variant (for Recovery phase or on request)
@@ -51,12 +52,13 @@ class LumaraInlineApi {
     // For softer reflections, we could add a special intent or modify the phase
     // For now, use the standard reflection with a gentle phase hint
     final gentlePhase = phase == 'Recovery' ? phase : 'Recovery';
-    return await _enhancedApi.generatePromptedReflection(
+    final result = await _enhancedApi.generatePromptedReflection(
       entryText: entryText,
       intent: intent,
       phase: gentlePhase,
       userId: userId ?? 'default',
     );
+    return result.reflection;
   }
 
   /// Generate a more in-depth analysis
@@ -73,11 +75,12 @@ class LumaraInlineApi {
     });
 
     // For deeper analysis, use the 'analyze' intent which should generate more analytical prompts
-    return await _enhancedApi.generatePromptedReflection(
+    final result = await _enhancedApi.generatePromptedReflection(
       entryText: entryText,
       intent: 'analyze', // Force analytical intent
       phase: phase,
       userId: userId ?? 'default',
     );
+    return result.reflection;
   }
 }

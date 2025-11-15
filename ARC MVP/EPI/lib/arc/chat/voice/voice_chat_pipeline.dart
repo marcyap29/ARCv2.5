@@ -33,7 +33,7 @@ class ModeAPipeline implements VoiceChatPipeline {
   Future<String> callLLMText(String text, {Map<String, dynamic>? ctx}) async {
     try {
       // Use EnhancedLumaraApi for chat responses
-      final response = await _lumaraApi.generatePromptedReflection(
+      final result = await _lumaraApi.generatePromptedReflection(
         entryText: text,
         intent: 'chat',
         phase: ctx?['phase'] as String?,
@@ -41,7 +41,7 @@ class ModeAPipeline implements VoiceChatPipeline {
         chatContext: ctx?['chatContext'] as String?,
         onProgress: (msg) => print('LLM Progress: $msg'),
       );
-      return response;
+      return result.reflection;
     } catch (e) {
       print('LLM Error: $e');
       // Fallback to simple response

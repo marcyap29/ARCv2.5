@@ -50,11 +50,13 @@ class _EnhancedLumaraSuggestionSheetState extends State<EnhancedLumaraSuggestion
     try {
       // TODO: generateCloudAnalysis and generateAISuggestions not yet implemented
       // Using generatePromptedReflection as fallback
-      final analysis = await _lumaraApi.generatePromptedReflection(
+      final result = await _lumaraApi.generatePromptedReflection(
         entryText: widget.entryText!,
         intent: 'suggest',
         phase: widget.phase ?? 'Discovery',
       );
+      
+      final analysis = result.reflection;
       
       // Generate suggestions from the analysis
       final suggestions = _extractSuggestionsFromAnalysis(analysis);
