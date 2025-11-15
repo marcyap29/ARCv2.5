@@ -572,7 +572,34 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
                 children: [
+                  // Header row with copy/delete buttons for assistant messages (unified with in-journal UX)
+                  if (!isUser)
+                    Row(
+                      children: [
+                        const Spacer(),
+                        // Copy button
+                        IconButton(
+                          icon: const Icon(Icons.copy, size: 18),
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                          onPressed: () => _copyMessage(message.content),
+                          tooltip: 'Copy',
+                          color: Colors.grey[600],
+                        ),
+                        // Delete button
+                        IconButton(
+                          icon: const Icon(Icons.close, size: 18),
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                          onPressed: () => _deleteMessage(message),
+                          tooltip: 'Delete',
+                          color: Colors.grey[600],
+                        ),
+                      ],
+                    ),
+                  
                   // Format content into paragraphs for better readability (especially for assistant messages)
                   if (isUser)
                     Text(
@@ -592,7 +619,7 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
                       ),
                     ),
                   
-                  // Action buttons for user messages (edit/copy)
+                  // Action buttons for user messages (edit/copy) - keep at bottom for user messages
                   if (isUser) ...[
                     const Gap(8),
                     Row(
@@ -611,30 +638,6 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
                           constraints: const BoxConstraints(),
                           onPressed: () => _copyMessage(message.content),
                           tooltip: 'Copy',
-                        ),
-                      ],
-                    ),
-                  ],
-                  
-                  // Copy and delete buttons for assistant messages
-                  if (!isUser) ...[
-                    const Gap(8),
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        IconButton(
-                          icon: Icon(Icons.copy, size: 16, color: Colors.grey[600]),
-                          padding: EdgeInsets.zero,
-                          constraints: const BoxConstraints(),
-                          onPressed: () => _copyMessage(message.content),
-                          tooltip: 'Copy',
-                        ),
-                        IconButton(
-                          icon: Icon(Icons.close, size: 16, color: Colors.grey[600]),
-                          padding: EdgeInsets.zero,
-                          constraints: const BoxConstraints(),
-                          onPressed: () => _deleteMessage(message),
-                          tooltip: 'Delete',
                         ),
                       ],
                     ),
