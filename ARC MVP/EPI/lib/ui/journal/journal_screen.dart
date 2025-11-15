@@ -3277,12 +3277,18 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
   }
 
   /// Build journal context from loaded entries for reflection
-  Future<String> _buildJournalContext(List<JournalEntry> loadedEntries, {String? query}) async {
+  /// [userQuestion] - If provided, this is a direct question that should be the PRIMARY focus
+  Future<String> _buildJournalContext(
+    List<JournalEntry> loadedEntries, {
+    String? query,
+    String? userQuestion,
+  }) async {
     final buffer = StringBuffer();
     final Set<String> addedEntryIds = {}; // Track added entries to avoid duplicates
     
     // PRIORITY 1: Current entry text (most important - user is actively editing this)
     // Use query parameter which should be _textController.text (most current)
+    // BUT if there's a user question, that takes precedence
     final currentEntryText = query ?? _entryState.text;
     if (currentEntryText.trim().isNotEmpty) {
       buffer.writeln('=== CURRENT JOURNAL ENTRY (YOU ARE EDITING THIS NOW) ===');
@@ -3291,9 +3297,10 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
       buffer.writeln('');
     }
     
-    // PRIORITY 2: Semantic search (only if current entry text is available)
-    // Use the query parameter (current entry text) for semantic search
-    final searchQuery = query ?? _entryState.text;
+    // PRIORITY 2: Semantic search
+    // If there's a user question, use THAT as the search query (not the entire entry text)
+    // This ensures semantic search finds entries relevant to the question, not random content
+    final searchQuery = userQuestion ?? query ?? _entryState.text;
     if (searchQuery.isNotEmpty && _memoryService != null) {
       try {
         final settingsService = LumaraReflectionSettingsService.instance;
@@ -3399,16 +3406,49 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
   }) async {
     final context = <String, dynamic>{};
     
+    // Extract the current user question/comment if it exists (HIGHEST PRIORITY)
+    String? currentUserQuestion;
+    if (currentBlockIndex != null && currentBlockIndex < _entryState.blocks.length) {
+      final currentBlock = _entryState.blocks[currentBlockIndex];
+      if (currentBlock.userComment != null && currentBlock.userComment!.trim().isNotEmpty) {
+        currentUserQuestion = currentBlock.userComment!.trim();
+        print('Journal: Found current user question: "$currentUserQuestion"');
+      }
+    }
+    
+    // Also check continuation controller for the current block (user might have typed but not saved yet)
+    if (currentUserQuestion == null && currentBlockIndex != null) {
+      final controller = _continuationControllers[currentBlockIndex];
+      if (controller != null && controller.text.trim().isNotEmpty) {
+        currentUserQuestion = controller.text.trim();
+        print('Journal: Found current user question from controller: "$currentUserQuestion"');
+      }
+    }
+    
     // Build entry text from loaded journal entries
-    // Use _textController.text for the most current entry text (includes unsaved changes)
-    // This ensures LUMARA sees what the user is actively editing right now
-    String baseEntryText = await _buildJournalContext(loadedEntries, query: _textController.text);
+    // If there's a user question, use THAT as the primary query for semantic search
+    // Otherwise use _textController.text for the most current entry text
+    final queryForSearch = currentUserQuestion ?? _textController.text;
+    String baseEntryText = await _buildJournalContext(
+      loadedEntries, 
+      query: queryForSearch,
+      userQuestion: currentUserQuestion, // Pass user question separately for prioritization
+    );
     
     // Include user comments from previous LUMARA blocks if currentBlockIndex is provided
     // Also include ALL blocks (even without user comments) to show full conversation history
     if (currentBlockIndex != null && _entryState.blocks.isNotEmpty) {
       final userCommentsBuffer = StringBuffer();
-      userCommentsBuffer.writeln('\n\n=== Previous LUMARA Conversation in This Entry ===');
+      
+      // If there's a current user question, make it THE TOP PRIORITY
+      if (currentUserQuestion != null) {
+        userCommentsBuffer.writeln('\n\n=== ⚠️ DIRECT USER QUESTION - ANSWER THIS FIRST ⚠️ ===');
+        userCommentsBuffer.writeln(currentUserQuestion);
+        userCommentsBuffer.writeln('=== END DIRECT QUESTION ===');
+        userCommentsBuffer.writeln('');
+      }
+      
+      userCommentsBuffer.writeln('=== Previous LUMARA Conversation in This Entry ===');
       
       // Include all previous blocks to show full conversation context
       for (int i = 0; i < currentBlockIndex && i < _entryState.blocks.length; i++) {
@@ -3429,20 +3469,13 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
         userCommentsBuffer.writeln('---');
       }
       
-      // Also include the current block's user comment if it exists (user just typed it)
-      if (currentBlockIndex < _entryState.blocks.length) {
-        final currentBlock = _entryState.blocks[currentBlockIndex];
-        if (currentBlock.userComment != null && currentBlock.userComment!.trim().isNotEmpty) {
-          userCommentsBuffer.writeln('\nCurrent user question/comment (most recent):');
-          userCommentsBuffer.writeln(currentBlock.userComment);
-          userCommentsBuffer.writeln('---');
-        }
-      }
-      
       // Prepend conversation history to baseEntryText so it's prioritized
-      // This ensures LUMARA sees the most recent conversation first
+      // This ensures LUMARA sees the most recent conversation first, especially the direct question
       baseEntryText = '${userCommentsBuffer.toString()}\n\n=== Original Journal Entry ===\n$baseEntryText';
       print('Journal: Included ${currentBlockIndex} previous LUMARA blocks in context');
+      if (currentUserQuestion != null) {
+        print('Journal: User question prioritized at top of context');
+      }
     }
     
     context['entryText'] = baseEntryText;
