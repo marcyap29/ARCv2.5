@@ -672,7 +672,6 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
                     ),
                   ],
                   
-                  
                   // Attribution display for assistant messages
                   if (!isUser && message.attributionTraces != null && message.attributionTraces!.isNotEmpty) ...[
                     const Gap(8),
