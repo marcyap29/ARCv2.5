@@ -423,11 +423,16 @@ class EnhancedLumaraApi {
             }
             
             // Extract 2-3 relevant sentences from excerpt
-            final excerpt = extractRelevantSentences(
-              match.excerpt,
-              query: request.userText.isNotEmpty ? request.userText : null,
-              maxSentences: 3,
-            );
+            final excerpt = request.userText.isNotEmpty
+                ? extractRelevantSentences(
+                    match.excerpt,
+                    query: request.userText,
+                    maxSentences: 3,
+                  )
+                : extractRelevantSentences(
+                    match.excerpt,
+                    maxSentences: 3,
+                  );
             
             // Create attribution trace
             final trace = _attributionService.createTrace(
