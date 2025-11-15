@@ -93,34 +93,6 @@ class InlineReflectionBlock extends StatelessWidget {
                     ),
                   ),
                 ],
-                const Spacer(),
-                // Copy button (only show when not loading and content exists)
-                if (!isLoading && content.isNotEmpty)
-                  IconButton(
-                    icon: const Icon(Icons.copy, size: 18),
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-                    onPressed: () {
-                      Clipboard.setData(ClipboardData(text: content));
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('LUMARA response copied to clipboard'),
-                          duration: Duration(seconds: 2),
-                        ),
-                      );
-                    },
-                    tooltip: 'Copy',
-                    color: theme.colorScheme.onSurfaceVariant.withOpacity(0.6),
-                  ),
-                // Delete button
-                IconButton(
-                  icon: const Icon(Icons.close, size: 18),
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-                  onPressed: onDelete,
-                  tooltip: 'Delete',
-                  color: theme.colorScheme.onSurfaceVariant.withOpacity(0.6),
-                ),
               ],
             ),
             const SizedBox(height: 8),
@@ -194,6 +166,38 @@ class InlineReflectionBlock extends StatelessWidget {
                     print('InlineReflectionBlock: Attribution traces is null or empty (null: ${attributionTraces == null}, empty: ${attributionTraces?.isEmpty ?? true})');
                     return const SizedBox.shrink();
                   },
+                ),
+              ],
+              
+              // Copy and delete buttons (lower left - unified with in-chat UX)
+              if (!isLoading && content.isNotEmpty) ...[
+                const SizedBox(height: 8),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    IconButton(
+                      icon: Icon(Icons.copy, size: 16, color: theme.colorScheme.onSurfaceVariant.withOpacity(0.6)),
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
+                      onPressed: () {
+                        Clipboard.setData(ClipboardData(text: content));
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('LUMARA response copied to clipboard'),
+                            duration: Duration(seconds: 2),
+                          ),
+                        );
+                      },
+                      tooltip: 'Copy',
+                    ),
+                    IconButton(
+                      icon: Icon(Icons.close, size: 16, color: theme.colorScheme.onSurfaceVariant.withOpacity(0.6)),
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
+                      onPressed: onDelete,
+                      tooltip: 'Delete',
+                    ),
+                  ],
                 ),
               ],
               
