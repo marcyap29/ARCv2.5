@@ -709,10 +709,6 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
       // Build context from progressive memory loader (current year only)
       final loadedEntries = _memoryLoader.getLoadedEntries();
       
-      // Sync _entryState.text with _textController.text to ensure we have the latest entry text
-      // This ensures LUMARA sees the most current content the user is actively editing
-      _entryState.text = _textController.text;
-      
       // Check if this is the first LUMARA activation (no existing blocks)
       final isFirstActivation = _entryState.blocks.isEmpty;
       
@@ -3281,29 +3277,14 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
     final buffer = StringBuffer();
     final Set<String> addedEntryIds = {}; // Track added entries to avoid duplicates
     
-    // PRIORITY 1: Current entry text (most important - user is actively editing this)
-    // Use query parameter which should be _textController.text (most current)
-    final currentEntryText = query ?? _entryState.text;
-    if (currentEntryText.trim().isNotEmpty) {
-      buffer.writeln('⚠️⚠️⚠️ PRIMARY FOCUS: CURRENT JOURNAL ENTRY ⚠️⚠️⚠️');
-      buffer.writeln('YOU MUST RESPOND TO THIS ENTRY. THIS IS WHAT THE USER IS ACTIVELY EDITING RIGHT NOW.');
-      buffer.writeln('DO NOT IGNORE THIS ENTRY. DO NOT FOCUS ON OLDER ENTRIES.');
-      buffer.writeln('');
-      buffer.writeln('=== CURRENT JOURNAL ENTRY (YOU ARE EDITING THIS NOW) ===');
-      buffer.writeln(currentEntryText);
-      buffer.writeln('=== END CURRENT ENTRY ===');
-      buffer.writeln('');
-      buffer.writeln('⚠️ REMINDER: RESPOND TO THE CURRENT ENTRY ABOVE. OLDER ENTRIES BELOW ARE ONLY FOR CONTEXT. ⚠️');
-      buffer.writeln('');
-    }
+    // Add current entry text
+    buffer.writeln('Current entry:');
+    buffer.writeln(_entryState.text);
+    buffer.writeln('---');
     
-    // PRIORITY 2: Semantic search (ONLY for context - current entry is PRIMARY)
-    // Skip semantic search if current entry is substantial (to avoid confusion)
-    // Only use semantic search if current entry is very short (< 50 chars) and might need context
+    // If we have a query and memory service, use semantic search
     final searchQuery = query ?? _entryState.text;
-    final shouldUseSemanticSearch = currentEntryText.trim().length < 50; // Only if entry is very short
-    
-    if (shouldUseSemanticSearch && searchQuery.isNotEmpty && _memoryService != null) {
+    if (searchQuery.isNotEmpty && _memoryService != null) {
       try {
         final settingsService = LumaraReflectionSettingsService.instance;
         final similarityThreshold = await settingsService.getSimilarityThreshold();
@@ -3333,10 +3314,7 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
         
         // Extract entry IDs from memory nodes and fetch full content
         if (memoryResult.nodes.isNotEmpty) {
-          buffer.writeln('=== OLDER ENTRIES (FOR CONTEXT ONLY - NOT THE PRIMARY FOCUS) ===');
-          buffer.writeln('These are older entries that are semantically similar.');
-          buffer.writeln('DO NOT focus on these. The CURRENT ENTRY above is what you must respond to.');
-          buffer.writeln('');
+          buffer.writeln('Semantically similar journal history:');
           for (final node in memoryResult.nodes) {
             // Try to extract entry ID from node
             String? entryId;
@@ -3383,12 +3361,9 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
       }
     }
     
-    // PRIORITY 3: Recent entries (lower priority - for context continuity only)
+    // Also include recent entries from loaded entries for context continuity
     if (loadedEntries.isNotEmpty) {
-      buffer.writeln('=== RECENT JOURNAL HISTORY (FOR CONTEXT ONLY - NOT THE PRIMARY FOCUS) ===');
-      buffer.writeln('These are recent entries for context continuity.');
-      buffer.writeln('DO NOT focus on these. The CURRENT ENTRY above is what you must respond to.');
-      buffer.writeln('');
+      buffer.writeln('Recent journal history:');
       int recentCount = 0;
       for (final entry in loadedEntries) {
         if (!addedEntryIds.contains(entry.id) && recentCount < 10) {
@@ -3415,9 +3390,8 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
     final context = <String, dynamic>{};
     
     // Build entry text from loaded journal entries
-    // Use _textController.text for the most current entry text (includes unsaved changes)
-    // This ensures LUMARA sees what the user is actively editing right now
-    String baseEntryText = await _buildJournalContext(loadedEntries, query: _textController.text);
+    // Use current entry text as query for semantic search
+    String baseEntryText = await _buildJournalContext(loadedEntries, query: _entryState.text);
     
     // Include user comments from previous LUMARA blocks if currentBlockIndex is provided
     // Also include ALL blocks (even without user comments) to show full conversation history
@@ -3456,10 +3430,7 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
       
       // Prepend conversation history to baseEntryText so it's prioritized
       // This ensures LUMARA sees the most recent conversation first
-      // Add explicit instruction that current entry is PRIMARY
-      baseEntryText = '${userCommentsBuffer.toString()}\n\n⚠️⚠️⚠️ PRIMARY FOCUS: THE CURRENT JOURNAL ENTRY BELOW ⚠️⚠️⚠️\n'
-          'YOU MUST RESPOND TO THE CURRENT ENTRY. OLDER ENTRIES ARE ONLY FOR CONTEXT.\n\n'
-          '=== Original Journal Entry (PRIMARY FOCUS) ===\n$baseEntryText';
+      baseEntryText = '${userCommentsBuffer.toString()}\n\n=== Original Journal Entry ===\n$baseEntryText';
       print('Journal: Included ${currentBlockIndex} previous LUMARA blocks in context');
     }
     

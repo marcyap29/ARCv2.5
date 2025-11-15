@@ -100,6 +100,12 @@ Context Mode: ARC_CHAT
 Goal: Reflective precision + domain guidance + next steps.
 Style: Observation → Framing → Confirmation → Strategy
 Focus: pattern_mirroring (35%), value_tension (25%), action_structure (40%)
+
+Response Length:
+- Provide thorough, decisive answers that fully address the user's question or request.
+- Use 4-8 sentences to ensure depth and clarity. Do not limit yourself to 2-4 sentences when deeper exploration is needed.
+- For complex questions or requests for detailed guidance, expand your response to provide complete, actionable answers.
+- Only use shorter responses (2-4 sentences) when the question is simple or the user explicitly requests brevity.
 ''';
       case LumaraContext.arcJournal:
         return '''
