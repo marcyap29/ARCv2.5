@@ -728,16 +728,22 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
       // Build context from progressive memory loader (current year only)
       final loadedEntries = _memoryLoader.getLoadedEntries();
       
-      // Build comprehensive context with mood, phase, chrono profile, chats, and media
-      final richContext = await _buildRichContext(loadedEntries, userProfile);
-      final phaseHint = _entryState.phase ?? 'Discovery';
-      
       // Check if this is the first LUMARA activation (no existing blocks)
       final isFirstActivation = _entryState.blocks.isEmpty;
       
       // The new block index will be the current length (0 for first activation)
       newBlockIndex = _entryState.blocks.length;
       final blockIndex = newBlockIndex; // Non-null after assignment
+      
+      // Build comprehensive context with mood, phase, chrono profile, chats, and media
+      // Always pass currentBlockIndex to include conversation history from previous blocks
+      // This ensures LUMARA sees user questions/comments from continuation fields
+      final richContext = await _buildRichContext(
+        loadedEntries, 
+        userProfile,
+        currentBlockIndex: blockIndex,
+      );
+      final phaseHint = _entryState.phase ?? 'Discovery';
       
       // Create placeholder block immediately so loading indicator shows
       final placeholderBlock = InlineBlock(
