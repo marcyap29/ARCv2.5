@@ -3383,9 +3383,12 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
       }
     }
     
-    // Also include recent entries from loaded entries for context continuity
+    // PRIORITY 3: Recent entries (lower priority - for context continuity only)
     if (loadedEntries.isNotEmpty) {
-      buffer.writeln('Recent journal history:');
+      buffer.writeln('=== RECENT JOURNAL HISTORY (FOR CONTEXT ONLY - NOT THE PRIMARY FOCUS) ===');
+      buffer.writeln('These are recent entries for context continuity.');
+      buffer.writeln('DO NOT focus on these. The CURRENT ENTRY above is what you must respond to.');
+      buffer.writeln('');
       int recentCount = 0;
       for (final entry in loadedEntries) {
         if (!addedEntryIds.contains(entry.id) && recentCount < 10) {
@@ -3453,7 +3456,10 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
       
       // Prepend conversation history to baseEntryText so it's prioritized
       // This ensures LUMARA sees the most recent conversation first
-      baseEntryText = '${userCommentsBuffer.toString()}\n\n=== Original Journal Entry ===\n$baseEntryText';
+      // Add explicit instruction that current entry is PRIMARY
+      baseEntryText = '${userCommentsBuffer.toString()}\n\n⚠️⚠️⚠️ PRIMARY FOCUS: THE CURRENT JOURNAL ENTRY BELOW ⚠️⚠️⚠️\n'
+          'YOU MUST RESPOND TO THE CURRENT ENTRY. OLDER ENTRIES ARE ONLY FOR CONTEXT.\n\n'
+          '=== Original Journal Entry (PRIMARY FOCUS) ===\n$baseEntryText';
       print('Journal: Included ${currentBlockIndex} previous LUMARA blocks in context');
     }
     
