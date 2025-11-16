@@ -86,6 +86,7 @@ class LumaraPromptAssembler {
     List<String> recentKeywords = const [],
     List<String> memorySnippets = const [],
     List<String> journalExcerpts = const [],
+    List<String> favoriteExamples = const [],
   }) {
     return LumaraContextBuilder(
       userName: userName,
@@ -93,6 +94,7 @@ class LumaraPromptAssembler {
       recentKeywords: recentKeywords,
       memorySnippets: memorySnippets,
       journalExcerpts: journalExcerpts,
+      favoriteExamples: favoriteExamples,
     );
   }
 }

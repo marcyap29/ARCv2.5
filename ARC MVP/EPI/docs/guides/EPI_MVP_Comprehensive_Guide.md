@@ -1,7 +1,7 @@
 # EPI MVP - Comprehensive Guide
 
-**Version:** 1.0.2  
-**Last Updated:** November 2025
+**Version:** 1.0.3  
+**Last Updated:** January 2025
 
 ---
 
@@ -100,6 +100,13 @@ EPI is an AI-powered journaling companion that:
 - Search and filter capabilities
 
 ### LUMARA AI Assistant
+
+**Favorites System (New in v2.1.16)**
+- **Mark Favorite Replies**: Tap the star icon on any LUMARA answer to mark it as a favorite
+- **Style Adaptation**: LUMARA adapts its tone, structure, and depth based on your favorites
+- **Manage Favorites**: Go to Settings → LUMARA Favorites to view, expand, and delete favorites
+- **Capacity**: Up to 25 favorites (popup shown when limit reached)
+- **First-Time**: Enhanced snackbar explains the feature on first use
 
 **Chat Interface**
 - Persistent chat memory across sessions

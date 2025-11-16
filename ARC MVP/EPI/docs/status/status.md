@@ -1,8 +1,8 @@
 # EPI MVP - Current Status
 
-**Version:** 2.1.14  
-**Last Updated:** November 2025  
-**Branch:** attributions  
+**Version:** 2.1.16  
+**Last Updated:** January 2025  
+**Branch:** favorites  
 **Status:** ✅ Production Ready - MVP Fully Operational
 
 ---
@@ -40,6 +40,8 @@ The EPI MVP is **fully operational** with all core systems working correctly. Th
 | **LUMARA Priority Rules** | ✅ Operational | Question-first detection, decisiveness rules, context hierarchy, method integration (ECHO, SAGE, Abstract Register) |
 | **LUMARA Unified UI/UX** | ✅ Operational | Consistent header, button placement, and loading indicators across in-journal and in-chat |
 | **LUMARA Context Sync** | ✅ Operational | Text state syncing prevents stale text, date information helps identify latest entry |
+| **Advanced Analytics Toggle** | ✅ Operational | Settings toggle to show/hide Health and Analytics tabs, default OFF |
+| **Dynamic Tab Management** | ✅ Operational | Insights tabs dynamically adjust (2 tabs when Advanced Analytics OFF, 4 tabs when ON) |
 
 ### Platform Support
 
@@ -56,7 +58,27 @@ The EPI MVP is **fully operational** with all core systems working correctly. Th
 
 ## Recent Achievements
 
+### January 2025
+
+#### ✅ LUMARA Favorites Style System (January 2025)
+- **Favorites System**: Users can mark exemplary LUMARA replies as style exemplars (up to 25 favorites)
+- **Style Adaptation**: LUMARA adapts tone, structure, rhythm, and depth based on favorites while maintaining factual accuracy
+- **Dual Interface Support**: Favorites can be added from both chat messages and journal reflection blocks via star icon or long-press
+- **Settings Integration**: Dedicated "LUMARA Favorites" management screen in Settings
+- **Prompt Integration**: Favorites automatically included in LUMARA prompts (3-7 examples per turn)
+- **Capacity Management**: 25-item limit with popup and direct navigation to management screen
+- **User Feedback**: Standard snackbars plus enhanced first-time snackbar with explanation
+- **Status**: ✅ Complete - Favorites system fully implemented and integrated
+
 ### November 2025
+
+#### ✅ Advanced Analytics Toggle & UI/UX Improvements (November 15, 2025)
+- **Advanced Analytics Toggle**: Settings toggle to show/hide Health and Analytics tabs in Insights
+- **Default Hidden**: Advanced Analytics disabled by default for simplified interface
+- **Sentinel Relocation**: Moved Sentinel from Phase Analysis to Analytics page as expandable card
+- **Tab UI/UX**: Improved tab sizing and centering (larger icons/font when 2 tabs, smaller when 4 tabs)
+- **Technical Fixes**: Fixed infinite loop and blank screen issues with TabController lifecycle
+- **Status**: ✅ Complete - Advanced Analytics feature working, Sentinel relocated, improved UI/UX
 
 #### ✅ Unified LUMARA UI/UX & Context Improvements (November 14, 2025)
 - **Unified Design**: LUMARA header (icon + text) now appears in both in-journal and in-chat bubbles
@@ -196,5 +218,5 @@ The EPI MVP is **fully operational** with all core systems working correctly. Th
 
 **Overall Status**: 🟢 **PRODUCTION READY** - All critical MVP functionality working correctly
 
-**Last Updated**: November 2025  
-**Version**: 2.1.11
+**Last Updated**: January 2025  
+**Version**: 2.1.16

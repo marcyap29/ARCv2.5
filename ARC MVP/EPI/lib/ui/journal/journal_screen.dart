@@ -2087,6 +2087,8 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
       }
       
       // Add the reflection block
+      // Generate a unique ID for favorites tracking using timestamp
+      final blockId = 'journal_${block.timestamp}_${index}';
       widgets.add(InlineReflectionBlock(
         content: block.content,
         intent: block.intent,
@@ -2094,6 +2096,7 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
         isLoading: _lumaraLoadingStates[index] ?? false,
         loadingMessage: _lumaraLoadingMessages[index],
         attributionTraces: block.attributionTraces,
+        blockId: blockId,
         onRegenerate: () => _onRegenerateReflection(index),
         onSoften: () => _onSoftenReflection(index),
         onMoreDepth: () => _onMoreDepthReflection(index),

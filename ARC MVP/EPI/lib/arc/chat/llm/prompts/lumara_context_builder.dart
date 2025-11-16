@@ -8,6 +8,7 @@ class LumaraContextBuilder {
   final List<String> recentKeywords;
   final List<String> memorySnippets;
   final List<String> journalExcerpts;
+  final List<String> favoriteExamples; // Favorite LUMARA reply examples for style guidance
 
   LumaraContextBuilder({
     required this.userName,
@@ -15,6 +16,7 @@ class LumaraContextBuilder {
     this.recentKeywords = const [],
     this.memorySnippets = const [],
     this.journalExcerpts = const [],
+    this.favoriteExamples = const [],
   });
 
   /// Build the complete context block
@@ -58,6 +60,17 @@ class LumaraContextBuilder {
     
     buffer.writeln();
     
+    // Favorites Style Examples
+    if (favoriteExamples.isNotEmpty) {
+      buffer.writeln('[FAVORITE_STYLE_EXAMPLES_START]');
+      for (final example in favoriteExamples) {
+        buffer.writeln(example);
+        buffer.writeln('---');
+      }
+      buffer.writeln('[FAVORITE_STYLE_EXAMPLES_END]');
+      buffer.writeln();
+    }
+    
     // Constraints
     buffer.writeln('[CONSTRAINTS]');
     buffer.writeln('- On-device only. No internet. Keep answers compact.');
@@ -68,6 +81,10 @@ class LumaraContextBuilder {
 
   /// Build a minimal context block when no data is available
   String buildMinimalContextBlock() {
+    final favoritesSection = favoriteExamples.isNotEmpty
+        ? '\n[FAVORITE_STYLE_EXAMPLES_START]\n${favoriteExamples.join('\n---\n')}\n[FAVORITE_STYLE_EXAMPLES_END]\n'
+        : '';
+    
     return '''[USER_PROFILE]
 name: $userName
 phase_preference: steady, structured
@@ -77,8 +94,7 @@ recent_keywords: none
 memory_snippets: none
 
 [JOURNAL_CONTEXT]
-No recent journal entries
-
+No recent journal entries$favoritesSection
 [CONSTRAINTS]
 - On-device only. No internet. Keep answers compact.
 - If information is missing, state what's missing in one bullet.''';

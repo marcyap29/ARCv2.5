@@ -7,6 +7,21 @@
 
 ## Update History
 
+### Version 2.1.16 (January 2025)
+
+#### LUMARA Favorites Style System
+- ✅ Favorites system for style adaptation (up to 25 favorites)
+- ✅ Star icon on all LUMARA answers (chat and journal)
+- ✅ Long-press menu for quick access
+- ✅ Settings integration with management screen
+- ✅ Capacity management with popup and navigation
+- ✅ First-time snackbar with explanation
+- ✅ Prompt integration (3-7 examples per turn)
+- ✅ Style adaptation rules preserve SAGE/Echo structure
+
+#### Bug Fixes
+- ✅ Journal tab bar text cutoff fixed (added padding, increased height)
+
 ### Version 2.1.9 (January 2025)
 
 #### LUMARA Memory Attribution & Weighted Context

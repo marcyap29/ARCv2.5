@@ -9,6 +9,7 @@ import 'prompts/lumara_prompt_assembler.dart';
 import 'prompts/lumara_model_presets.dart';
 import 'prompts/llama_chat_template.dart';
 import 'prompts/chat_templates.dart';
+import '../services/favorites_service.dart';
 
 /// On-device LLM adapter using Pigeon native bridge
 /// Supports GGUF models via llama.cpp with Metal acceleration (iOS)
@@ -305,6 +306,13 @@ class LLMAdapter implements ModelAdapter {
       } else {
         // Full path: complete context for complex queries
         debugPrint('📚 Using FULL prompt with context');
+        
+        // Load favorites for style examples
+        final favoritesService = FavoritesService.instance;
+        await favoritesService.initialize();
+        final favorites = await favoritesService.getFavoritesForPrompt(count: 5);
+        final favoriteExamples = favorites.map((f) => f.content).toList();
+        
         final contextBuilder = LumaraPromptAssembler.createContextBuilder(
           userName: 'Marc Yap', // TODO: Get from user profile
           currentPhase: facts['current_phase'] ?? 'Discovery',
@@ -316,6 +324,7 @@ class LLMAdapter implements ModelAdapter {
               .where((content) => content.isNotEmpty)
               .take(3)
               .toList(),
+          favoriteExamples: favoriteExamples,
         );
 
         final promptAssembler = LumaraPromptAssembler(

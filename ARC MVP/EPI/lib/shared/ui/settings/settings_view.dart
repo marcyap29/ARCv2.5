@@ -12,9 +12,10 @@ import 'package:my_app/shared/ui/settings/memory_snapshot_management_view.dart';
 import 'package:my_app/shared/ui/settings/conflict_management_view.dart';
 import 'package:my_app/shared/ui/settings/lumara_settings_view.dart';
 import 'package:my_app/shared/ui/settings/arcx_settings_view.dart';
-import 'package:my_app/shared/ui/settings/advanced_analytics_preference_service.dart';
+import 'package:my_app/shared/ui/settings/favorites_management_view.dart';
 import 'package:my_app/ui/screens/mcp_management_screen.dart';
 import 'package:my_app/arc/core/journal_repository.dart';
+import 'package:my_app/arc/chat/services/favorites_service.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 class SettingsView extends StatefulWidget {
@@ -25,83 +26,32 @@ class SettingsView extends StatefulWidget {
 }
 
 class _SettingsViewState extends State<SettingsView> {
-  bool _advancedAnalyticsEnabled = false;
-  bool _isLoading = true;
+  int _favoritesCount = 0;
+  bool _favoritesCountLoaded = false;
 
   @override
   void initState() {
     super.initState();
-    _loadPreference();
+    _loadFavoritesCount();
   }
 
-  Future<void> _loadPreference() async {
-    final enabled = await AdvancedAnalyticsPreferenceService.instance.isAdvancedAnalyticsEnabled();
-    if (mounted) {
-      setState(() {
-        _advancedAnalyticsEnabled = enabled;
-        _isLoading = false;
-      });
-    }
-  }
-
-  Future<void> _toggleAdvancedAnalytics(bool value) async {
-    await AdvancedAnalyticsPreferenceService.instance.setAdvancedAnalyticsEnabled(value);
-    if (mounted) {
-      setState(() {
-        _advancedAnalyticsEnabled = value;
-      });
-      
-      // Show notification when enabled
-      if (value) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Row(
-              children: [
-                Icon(Icons.check_circle, color: Colors.green, size: 20),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    'Advanced Analytics enabled! Health and Analytics tabs are now visible.',
-                    style: TextStyle(fontSize: 14),
-                  ),
-                ),
-              ],
-            ),
-            backgroundColor: Colors.green.shade700,
-            duration: const Duration(seconds: 4),
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Row(
-              children: [
-                Icon(Icons.info_outline, color: Colors.blue, size: 20),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    'Advanced Analytics disabled. Health and Analytics tabs are now hidden.',
-                    style: TextStyle(fontSize: 14),
-                  ),
-                ),
-              ],
-            ),
-            backgroundColor: Colors.blue.shade700,
-            duration: const Duration(seconds: 3),
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
+  Future<void> _loadFavoritesCount() async {
+    try {
+      await FavoritesService.instance.initialize();
+      final count = await FavoritesService.instance.getCount();
+      if (mounted) {
+        setState(() {
+          _favoritesCount = count;
+          _favoritesCountLoaded = true;
+        });
       }
-      
-      // Trigger refresh of Insights view by popping and letting it rebuild
-      // The UnifiedInsightsView will reload preference when it becomes visible again
-      Future.delayed(const Duration(milliseconds: 500), () {
-        if (mounted) {
-          // Pop Settings to return to Insights, which will trigger a refresh
-          Navigator.pop(context, true); // Pass true to indicate preference changed
-        }
-      });
+    } catch (e) {
+      print('Error loading favorites count: $e');
+      if (mounted) {
+        setState(() {
+          _favoritesCountLoaded = true;
+        });
+      }
     }
   }
 
@@ -127,62 +77,6 @@ class _SettingsViewState extends State<SettingsView> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Advanced Analytics Section
-            _buildSection(
-              context,
-              title: 'Advanced Analytics',
-              children: [
-                if (_isLoading)
-                  const Center(
-                    child: Padding(
-                      padding: EdgeInsets.all(16.0),
-                      child: CircularProgressIndicator(),
-                    ),
-                  )
-                else
-                  Container(
-                    margin: const EdgeInsets.only(bottom: 8),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.05),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: Colors.white.withValues(alpha: 0.1),
-                      ),
-                    ),
-                    child: SwitchListTile(
-                      value: _advancedAnalyticsEnabled,
-                      onChanged: _toggleAdvancedAnalytics,
-                      title: Text(
-                        'Show Advanced Analytics',
-                        style: heading3Style(context).copyWith(
-                          color: kcPrimaryTextColor,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                      subtitle: Text(
-                        _advancedAnalyticsEnabled
-                            ? 'Health and Analytics tabs are visible'
-                            : 'Hide Health and Analytics tabs to simplify the interface',
-                        style: bodyStyle(context).copyWith(
-                          color: kcSecondaryTextColor,
-                        ),
-                      ),
-                      secondary: Icon(
-                        Icons.analytics,
-                        color: _advancedAnalyticsEnabled ? kcAccentColor : kcSecondaryTextColor,
-                        size: 24,
-                      ),
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 8,
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-
-            const SizedBox(height: 32),
-
             // Import & Export Section (Top Priority)
             _buildSection(
               context,
@@ -226,6 +120,36 @@ class _SettingsViewState extends State<SettingsView> {
                       context,
                       MaterialPageRoute(builder: (context) => const ARCXSettingsView()),
                     );
+                  },
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 32),
+
+            // LUMARA Favorites Section (between Import/Export and Privacy)
+            _buildSection(
+              context,
+              title: 'LUMARA',
+              children: [
+                _buildSettingsTile(
+                  context,
+                  title: 'LUMARA Favorites',
+                  subtitle: _favoritesCountLoaded
+                      ? 'Manage your favorite answer styles ($_favoritesCount/25)'
+                      : 'Manage your favorite answer styles',
+                  icon: Icons.star,
+                  onTap: () async {
+                    final result = await Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const FavoritesManagementView(),
+                      ),
+                    );
+                    // Reload count when returning from favorites screen
+                    if (result == true || mounted) {
+                      _loadFavoritesCount();
+                    }
                   },
                 ),
               ],

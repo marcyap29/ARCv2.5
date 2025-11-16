@@ -1,7 +1,51 @@
 # EPI ARC MVP - Changelog
 
-**Version:** 2.1.15  
-**Last Updated:** November 2025
+**Version:** 2.1.16  
+**Last Updated:** January 2025
+
+## [2.1.16] - January 2025
+
+### **LUMARA Favorites Style System** - Complete
+
+#### Core Functionality
+- **Favorites System**: Users can mark exemplary LUMARA replies as style exemplars (up to 25 favorites)
+- **Style Adaptation**: LUMARA adapts tone, structure, rhythm, and depth based on favorites while maintaining factual accuracy
+- **Dual Interface Support**: Favorites can be added from both chat messages and journal reflection blocks
+- **Prompt Integration**: Favorites automatically included in LUMARA prompts (3-7 examples per turn, randomized for variety)
+
+#### User Interface
+- **Star Icon**: Every LUMARA answer displays star icon (empty = not favorite, filled amber = favorite)
+- **Long-Press Menu**: Long-press any LUMARA answer to show context menu with "Add to Favorites" option
+- **Settings Integration**: Dedicated "LUMARA Favorites" card in Settings (between Import/Export and Privacy)
+- **Favorites Management Screen**: Full management interface with list view, expandable cards, delete functionality
+- **Capacity Management**: Popup when 25-item limit reached with direct link to management screen
+- **User Feedback**: Standard snackbars plus enhanced first-time snackbar with explanation
+
+#### Technical Implementation
+- **Data Layer**: `LumaraFavorite` model with Hive storage (typeId 80), `FavoritesService` singleton
+- **UI Components**: Star icons and long-press handlers in chat and journal, management screen, settings integration
+- **Prompt Integration**: Favorites included in `[FAVORITE_STYLE_EXAMPLES_START]` section of prompts
+- **Style Rules**: Favorites guide style (tone, structure, rhythm, depth) but not facts; SAGE/Echo structure preserved
+
+**Files Added**:
+- `lib/arc/chat/data/models/lumara_favorite.dart` - Favorite model with Hive adapter
+- `lib/arc/chat/services/favorites_service.dart` - Favorites management service
+- `lib/shared/ui/settings/favorites_management_view.dart` - Management screen
+
+**Files Modified**:
+- `lib/main/bootstrap.dart` - Registered LumaraFavoriteAdapter (typeId 80)
+- `lib/shared/ui/settings/settings_view.dart` - Added Favorites card
+- `lib/arc/chat/ui/lumara_assistant_screen.dart` - Star icon, long-press, capacity popup
+- `lib/ui/journal/widgets/inline_reflection_block.dart` - Star icon, long-press, favorites support
+- `lib/ui/journal/journal_screen.dart` - Added blockId for favorites tracking
+- `lib/arc/chat/llm/prompts/lumara_context_builder.dart` - Added favoriteExamples field
+- `lib/arc/chat/llm/prompts/lumara_prompt_assembler.dart` - Added favoriteExamples parameter
+- `lib/arc/chat/llm/llm_adapter.dart` - Loads favorites and passes to context builder
+- `lib/shared/ui/journal/unified_journal_view.dart` - Fixed tab bar text positioning
+
+**Status**: ✅ Complete - Favorites system fully implemented and integrated
+
+---
 
 ## [2.1.15] - November 2025
 

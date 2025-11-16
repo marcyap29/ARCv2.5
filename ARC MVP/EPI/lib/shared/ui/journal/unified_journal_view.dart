@@ -95,31 +95,31 @@ class _UnifiedJournalViewState extends State<UnifiedJournalView>
           children: [
             // Tab bar for Timeline and LUMARA
             Container(
-              padding: EdgeInsets.zero, // Removed all padding
+              padding: const EdgeInsets.only(bottom: 4), // Add bottom padding to raise text above bar
               color: kcBackgroundColor,
               child: SizedBox(
-                height: 36, // Reduced height for more compact bar
+                height: 40, // Increased height slightly to accommodate raised text
                 child: TabBar(
                   controller: _tabController,
                   labelColor: Colors.white,
                   unselectedLabelColor: Colors.grey,
                   indicatorColor: Colors.purple,
                   indicatorWeight: 2, // Reduced from 3 to 2
-                  labelPadding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 0), // Removed vertical padding
+                  labelPadding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 2), // Added vertical padding to raise text
                   labelStyle: const TextStyle(fontSize: 13), // Increased from 11 to 13 for better readability
                   unselectedLabelStyle: const TextStyle(fontSize: 13), // Increased from 11 to 13 for better readability
                   tabs: [
                     const Tab(
-                      icon: Icon(Icons.timeline, size: 20), // Increased icon size
+                      icon: Icon(Icons.timeline, size: 16), // Reduced from 18 to 16
                       text: 'Timeline',
                     ),
                     if (AppFlags.isLumaraEnabled)
                       const Tab(
-                        icon: Icon(Icons.psychology, size: 20), // Increased icon size
+                        icon: Icon(Icons.psychology, size: 16), // Reduced from 18 to 16
                         text: 'LUMARA',
                       ),
                     const Tab(
-                      icon: Icon(Icons.settings, size: 20), // Increased icon size
+                      icon: Icon(Icons.settings, size: 16), // Reduced from 18 to 16
                       text: 'Settings',
                     ),
                   ],

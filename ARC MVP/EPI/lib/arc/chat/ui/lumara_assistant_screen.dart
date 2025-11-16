@@ -22,6 +22,9 @@ import '../services/enhanced_lumara_api.dart';
 import '../../../telemetry/analytics.dart';
 import 'package:my_app/models/journal_entry_model.dart';
 import 'package:my_app/arc/core/journal_repository.dart';
+import '../services/favorites_service.dart';
+import '../data/models/lumara_favorite.dart';
+import 'package:my_app/shared/ui/settings/favorites_management_view.dart';
 
 /// Main LUMARA Assistant screen
 class LumaraAssistantScreen extends StatefulWidget {
@@ -561,7 +564,9 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
             const Gap(8),
           ],
           Flexible(
-            child: Container(
+            child: GestureDetector(
+              onLongPress: !isUser ? () => _showLongPressMenu(context, message) : null,
+              child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               decoration: BoxDecoration(
                 color: isUser ? Colors.blue[500] : Colors.grey[100],
@@ -656,7 +661,7 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
                     ),
                   ],
                   
-                  // Copy and delete buttons for assistant messages (lower left)
+                  // Copy, star, and delete buttons for assistant messages (lower left)
                   if (!isUser) ...[
                     const Gap(8),
                     Row(
@@ -668,6 +673,23 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
                           constraints: const BoxConstraints(),
                           onPressed: () => _copyMessage(message.content),
                           tooltip: 'Copy',
+                        ),
+                        FutureBuilder<bool>(
+                          future: FavoritesService.instance.isFavorite(message.id),
+                          builder: (context, snapshot) {
+                            final isFavorite = snapshot.data ?? false;
+                            return IconButton(
+                              icon: Icon(
+                                isFavorite ? Icons.star : Icons.star_border,
+                                size: 16,
+                                color: isFavorite ? Colors.amber : Colors.grey[600],
+                              ),
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints(),
+                              onPressed: () => _toggleFavorite(message),
+                              tooltip: isFavorite ? 'Remove from Favorites' : 'Add to Favorites',
+                            );
+                          },
                         ),
                         IconButton(
                           icon: Icon(Icons.close, size: 16, color: Colors.grey[600]),
@@ -730,6 +752,7 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
                   ],
                 ],
               ),
+            ),
             ),
           ),
           if (isUser) ...[
@@ -970,6 +993,174 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
             child: const Text('Delete'),
           ),
         ],
+      ),
+    );
+  }
+
+  Future<void> _toggleFavorite(LumaraMessage message) async {
+    if (message.role != LumaraMessageRole.assistant) return;
+
+    try {
+      await FavoritesService.instance.initialize();
+      final isFavorite = await FavoritesService.instance.isFavorite(message.id);
+
+      if (isFavorite) {
+        // Remove from favorites
+        await FavoritesService.instance.removeFavoriteBySourceId(message.id);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Removed from Favorites'),
+              duration: Duration(seconds: 2),
+            ),
+          );
+          setState(() {}); // Refresh UI
+        }
+      } else {
+        // Add to favorites
+        final atCapacity = await FavoritesService.instance.isAtCapacity();
+        if (atCapacity) {
+          _showCapacityPopup();
+          return;
+        }
+
+        final favorite = LumaraFavorite.fromMessage(
+          content: message.content,
+          sourceId: message.id,
+          sourceType: 'chat',
+          metadata: message.metadata,
+        );
+
+        final added = await FavoritesService.instance.addFavorite(favorite);
+        if (added && mounted) {
+          final isFirstTime = !await FavoritesService.instance.hasShownFirstTimeSnackbar();
+          if (isFirstTime) {
+            await FavoritesService.instance.markFirstTimeSnackbarShown();
+            _showFirstTimeSnackbar();
+          } else {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Added to Favorites'),
+                duration: Duration(seconds: 2),
+              ),
+            );
+          }
+          setState(() {}); // Refresh UI
+        }
+      }
+    } catch (e) {
+      print('Error toggling favorite: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: ${e.toString()}'),
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    }
+  }
+
+  void _showLongPressMenu(BuildContext context, LumaraMessage message) {
+    if (message.role != LumaraMessageRole.assistant) return;
+
+    showModalBottomSheet(
+      context: context,
+      builder: (context) => Container(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            FutureBuilder<bool>(
+              future: FavoritesService.instance.isFavorite(message.id),
+              builder: (context, snapshot) {
+                final isFavorite = snapshot.data ?? false;
+                return ListTile(
+                  leading: Icon(
+                    isFavorite ? Icons.star : Icons.star_border,
+                    color: isFavorite ? Colors.amber : null,
+                  ),
+                  title: Text(isFavorite ? 'Remove from Favorites' : 'Add to Favorites'),
+                  onTap: () {
+                    Navigator.of(context).pop();
+                    _toggleFavorite(message);
+                  },
+                );
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.copy),
+              title: const Text('Copy'),
+              onTap: () {
+                Navigator.of(context).pop();
+                _copyMessage(message.content);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showCapacityPopup() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Favorites Full'),
+        content: const Text(
+          'You have reached the maximum of 25 favorites. Please remove some favorites before adding new ones.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => FavoritesManagementView(),
+                ),
+              );
+            },
+            child: const Text('Manage Favorites'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showFirstTimeSnackbar() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Added to Favorites',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 4),
+            const Text(
+              'LUMARA will now adapt its style based on your favorites. Tap to manage them.',
+            ),
+          ],
+        ),
+        duration: const Duration(seconds: 5),
+        action: SnackBarAction(
+          label: 'Manage',
+          onPressed: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const FavoritesManagementView(),
+              ),
+            );
+          },
+        ),
       ),
     );
   }

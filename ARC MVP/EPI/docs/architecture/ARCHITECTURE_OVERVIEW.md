@@ -28,6 +28,8 @@ EPI (Evolving Personal Intelligence) is a 5-module intelligent journaling system
 **Key Features:**
 - Journal entry capture and editing
 - LUMARA chat interface (maintains LUMARA branding)
+  - Favorites system for style adaptation (up to 25 favorites)
+  - Style exemplars guide tone, structure, rhythm, and depth
 - ARCForm visualization with phase-aware layouts
 - Privacy-first data handling
 
