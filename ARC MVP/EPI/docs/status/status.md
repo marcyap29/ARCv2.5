@@ -1,8 +1,8 @@
 # EPI MVP - Current Status
 
-**Version:** 2.1.15  
+**Version:** 2.1.14  
 **Last Updated:** November 2025  
-**Branch:** phase-analysis  
+**Branch:** attributions  
 **Status:** ✅ Production Ready - MVP Fully Operational
 
 ---
@@ -40,8 +40,6 @@ The EPI MVP is **fully operational** with all core systems working correctly. Th
 | **LUMARA Priority Rules** | ✅ Operational | Question-first detection, decisiveness rules, context hierarchy, method integration (ECHO, SAGE, Abstract Register) |
 | **LUMARA Unified UI/UX** | ✅ Operational | Consistent header, button placement, and loading indicators across in-journal and in-chat |
 | **LUMARA Context Sync** | ✅ Operational | Text state syncing prevents stale text, date information helps identify latest entry |
-| **Advanced Analytics Toggle** | ✅ Operational | Settings toggle to show/hide Health and Analytics tabs, default OFF |
-| **Dynamic Tab Management** | ✅ Operational | Insights tabs dynamically adjust (2 tabs when Advanced Analytics OFF, 4 tabs when ON) |
 
 ### Platform Support
 
@@ -59,14 +57,6 @@ The EPI MVP is **fully operational** with all core systems working correctly. Th
 ## Recent Achievements
 
 ### November 2025
-
-#### ✅ Advanced Analytics Toggle & UI/UX Improvements (November 15, 2025)
-- **Advanced Analytics Toggle**: Settings toggle to show/hide Health and Analytics tabs in Insights
-- **Default Hidden**: Advanced Analytics disabled by default for simplified interface
-- **Sentinel Relocation**: Moved Sentinel from Phase Analysis to Analytics page as expandable card
-- **Tab UI/UX**: Improved tab sizing and centering (larger icons/font when 2 tabs, smaller when 4 tabs)
-- **Technical Fixes**: Fixed infinite loop and blank screen issues with TabController lifecycle
-- **Status**: ✅ Complete - Advanced Analytics feature working, Sentinel relocated, improved UI/UX
 
 #### ✅ Unified LUMARA UI/UX & Context Improvements (November 14, 2025)
 - **Unified Design**: LUMARA header (icon + text) now appears in both in-journal and in-chat bubbles
