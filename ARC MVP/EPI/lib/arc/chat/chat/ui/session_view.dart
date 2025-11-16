@@ -8,6 +8,7 @@ import '../../data/context_scope.dart';
 import '../../services/favorites_service.dart';
 import '../../data/models/lumara_favorite.dart';
 import 'package:my_app/shared/ui/settings/favorites_management_view.dart';
+import '../../voice/audio_io.dart';
 
 // Real context provider for SessionView that respects scope
 class SessionContextProvider extends ContextProvider {
@@ -67,6 +68,7 @@ class _SessionViewState extends State<SessionView> {
   
   LumaraAssistantCubit? _lumaraCubit;
   LumaraScope _scope = LumaraScope.defaultScope;
+  AudioIO? _audioIO;
 
   @override
   void initState() {
@@ -74,6 +76,43 @@ class _SessionViewState extends State<SessionView> {
     _initializeLumaraCubit();
     _loadSession();
     _setupAutoSave();
+    _initializeAudioIO();
+  }
+  
+  Future<void> _initializeAudioIO() async {
+    try {
+      _audioIO = AudioIO();
+      await _audioIO!.initializeTTS();
+    } catch (e) {
+      debugPrint('Error initializing AudioIO: $e');
+    }
+  }
+
+  Future<void> _speakMessage(String text) async {
+    try {
+      if (_audioIO != null && text.isNotEmpty) {
+        // Clean text for speech (remove markdown, etc.)
+        final cleanText = _cleanTextForSpeech(text);
+        if (cleanText.isNotEmpty) {
+          await _audioIO!.speak(cleanText);
+        }
+      }
+    } catch (e) {
+      debugPrint('Error speaking message: $e');
+    }
+  }
+
+  String _cleanTextForSpeech(String text) {
+    // Remove markdown formatting
+    String cleaned = text
+        .replaceAll(RegExp(r'\*\*([^*]+)\*\*'), r'$1') // Bold
+        .replaceAll(RegExp(r'\*([^*]+)\*'), r'$1') // Italic
+        .replaceAll(RegExp(r'`([^`]+)`'), r'$1') // Code
+        .replaceAll(RegExp(r'\[([^\]]+)\]\([^\)]+\)'), r'$1') // Links
+        .replaceAll(RegExp(r'#{1,6}\s+'), '') // Headers
+        .replaceAll(RegExp(r'\n{3,}'), '\n\n') // Multiple newlines
+        .trim();
+    return cleaned;
   }
 
   @override
@@ -596,6 +635,13 @@ class _SessionViewState extends State<SessionView> {
                           constraints: const BoxConstraints(),
                           onPressed: () => _copyMessage(message.textContent),
                           tooltip: 'Copy',
+                        ),
+                        IconButton(
+                          icon: Icon(Icons.volume_up, size: 16, color: Colors.grey[600]),
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(),
+                          onPressed: () => _speakMessage(message.textContent),
+                          tooltip: 'Speak',
                         ),
                         FutureBuilder<bool>(
                           future: FavoritesService.instance.isFavorite(message.id),

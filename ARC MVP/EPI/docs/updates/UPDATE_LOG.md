@@ -7,6 +7,19 @@
 
 ## Update History
 
+### Version 2.1.17 (January 2025)
+
+#### Voiceover Mode & Favorites UI Improvements
+- ✅ Voiceover mode toggle in Settings → LUMARA section
+- ✅ Automatic TTS for AI responses when voiceover enabled
+- ✅ Voiceover icon (volume_up) in chat and journal responses for manual playback
+- ✅ Text cleaning (markdown removal) before speech
+- ✅ Removed long-press menu for favorites (simplified to star icon only)
+- ✅ Reduced favorites title font to 24px
+- ✅ Added explainer text above favorites count
+- ✅ Added + button for manually adding favorites
+- ✅ Confirmed LUMARA Favorites export/import in MCP bundles
+
 ### Version 2.1.16 (January 2025)
 
 #### LUMARA Favorites Style System

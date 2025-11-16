@@ -11,6 +11,9 @@ import 'package:my_app/polymeta/store/mcp/adapters/cas_resolver.dart';
 import 'package:my_app/polymeta/store/mcp/models/mcp_schemas.dart';
 import 'package:my_app/arc/chat/chat/chat_repo.dart';
 import 'package:my_app/arc/chat/chat/chat_models.dart';
+import 'package:my_app/arc/chat/services/favorites_service.dart';
+import 'package:my_app/arc/chat/services/lumara_reflection_settings_service.dart';
+import 'package:my_app/arc/chat/data/models/lumara_favorite.dart';
 import 'package:my_app/models/journal_entry_model.dart';
 import 'package:my_app/data/models/media_item.dart';
 import 'package:my_app/arc/core/journal_repository.dart';
@@ -91,6 +94,9 @@ class McpImportService {
   
   // Media link resolver for thumbnails and SHA-256 linking
   MediaLinkResolver? _mediaLinkResolver;
+  
+  // Track LUMARA favorites imported during this import session
+  int _lumaraFavoritesImported = 0;
 
   McpImportService({
     ManifestReader? manifestReader,
@@ -111,6 +117,7 @@ class McpImportService {
   /// Clear the media cache (call before starting a new import)
   void clearMediaCache() {
     _mediaCache.clear();
+    _lumaraFavoritesImported = 0;
     print('🧹 Cleared media cache for new import');
   }
 
@@ -198,6 +205,7 @@ class McpImportService {
       // Import nodes (SAGE mapping)
       final nodeCount = await _importNodes(bundleDir, manifest, batchId, errors, warnings, options);
       counts['nodes'] = nodeCount;
+      counts['lumara_favorites'] = _lumaraFavoritesImported;
 
       // Import edges (relations)
       final edgeCount = await _importEdges(bundleDir, manifest, batchId, errors, warnings, options);
@@ -562,6 +570,35 @@ class McpImportService {
             print('❌ DEBUG: Failed to convert node ${node.id} to journal entry');
           }
         }
+        
+        // Check if this is a LUMARA favorite that needs special handling
+        if (node.type == 'lumara_favorite') {
+          print('⭐ DEBUG: Found lumara_favorite node: ${node.id}');
+          try {
+            final wasAdded = await _importLumaraFavorite(node);
+            if (wasAdded) {
+              _lumaraFavoritesImported++;
+              print('✅ DEBUG: Successfully imported LUMARA favorite: ${node.id}');
+            } else {
+              print('⚠️ DEBUG: LUMARA favorite ${node.id} not added (may be duplicate or at capacity)');
+            }
+          } catch (e) {
+            print('❌ DEBUG: Failed to import LUMARA favorite ${node.id}: $e');
+            errors.add('Failed to import LUMARA favorite ${node.id}: $e');
+          }
+        }
+        
+        // Check if this is LUMARA settings that needs special handling
+        if (node.type == 'lumara_settings') {
+          print('⚙️ DEBUG: Found lumara_settings node: ${node.id}');
+          try {
+            await _importLumaraSettings(node);
+            print('✅ DEBUG: Successfully imported LUMARA settings: ${node.id}');
+          } catch (e) {
+            print('❌ DEBUG: Failed to import LUMARA settings ${node.id}: $e');
+            errors.add('Failed to import LUMARA settings ${node.id}: $e');
+          }
+        }
 
         // Map SAGE fields to MIRA structure
         await _miraWriter.putNode(node, batchId);
@@ -579,7 +616,7 @@ class McpImportService {
     }
 
     print('✅ DEBUG: Total lines read from nodes.jsonl: $totalLines');
-    print('✅ Imported $count nodes ($journalEntriesImported journal entries)');
+    print('✅ Imported $count nodes ($journalEntriesImported journal entries, $_lumaraFavoritesImported LUMARA favorites)');
     return count;
   }
 
@@ -1064,6 +1101,105 @@ class McpImportService {
       
     } catch (e) {
       print('  Failed to import journal entry ${entry.id}: $e');
+    }
+  }
+
+  /// Import a LUMARA favorite from MCP node
+  /// Returns true if the favorite was successfully added, false otherwise
+  Future<bool> _importLumaraFavorite(McpNode node) async {
+    try {
+      final favoritesService = FavoritesService.instance;
+      await favoritesService.initialize();
+
+      // Extract favorite data from node metadata
+      final metadata = node.metadata ?? {};
+      final favoriteId = metadata['favorite_id'] as String? ?? 
+                        node.id.replaceFirst('lumara_favorite_', '');
+      final sourceId = metadata['source_id'] as String?;
+      final sourceType = metadata['source_type'] as String?;
+      final favoriteMetadata = metadata['metadata'] as Map<String, dynamic>? ?? {};
+      
+      // Get content from narrative essence or contentSummary
+      final content = node.narrative?.essence ?? 
+                     node.contentSummary ?? 
+                     '';
+
+      if (content.isEmpty) {
+        print('  Warning: LUMARA favorite ${node.id} has no content, skipping');
+        return false;
+      }
+
+      // Check if favorite already exists
+      if (sourceId != null) {
+        final existing = await favoritesService.findFavoriteBySourceId(sourceId);
+        if (existing != null) {
+          print('  LUMARA favorite already exists for sourceId: $sourceId, skipping');
+          return false;
+        }
+      }
+
+      // Check capacity
+      if (await favoritesService.isAtCapacity()) {
+        print('  Warning: LUMARA favorites at capacity, cannot import ${node.id}');
+        return false;
+      }
+
+      // Create favorite
+      final favorite = LumaraFavorite(
+        id: favoriteId,
+        content: content,
+        timestamp: node.timestamp.toLocal(),
+        sourceId: sourceId,
+        sourceType: sourceType,
+        metadata: favoriteMetadata,
+      );
+
+      // Add favorite
+      final added = await favoritesService.addFavorite(favorite);
+      if (added) {
+        print('  ✅ Imported LUMARA favorite: ${node.id}');
+        return true;
+      } else {
+        print('  ⚠️ Failed to add LUMARA favorite: ${node.id} (may be at capacity)');
+        return false;
+      }
+    } catch (e) {
+      print('  Failed to import LUMARA favorite ${node.id}: $e');
+      rethrow;
+    }
+  }
+
+  /// Import LUMARA settings from MCP node
+  Future<void> _importLumaraSettings(McpNode node) async {
+    try {
+      final settingsService = LumaraReflectionSettingsService.instance;
+      await settingsService.initialize();
+
+      // Extract settings from node metadata
+      final metadata = node.metadata ?? {};
+      
+      // Only import if we have actual settings values (not just defaults)
+      final similarityThreshold = metadata['similarity_threshold'] as double?;
+      final lookbackYears = metadata['lookback_years'] as int?;
+      final maxMatches = metadata['max_matches'] as int?;
+      final crossModalEnabled = metadata['cross_modal_enabled'] as bool?;
+      final therapeuticPresenceEnabled = metadata['therapeutic_presence_enabled'] as bool?;
+      final therapeuticDepthLevel = metadata['therapeutic_depth_level'] as int?;
+
+      // Import settings (only update if values are provided)
+      await settingsService.saveAllSettings(
+        similarityThreshold: similarityThreshold,
+        lookbackYears: lookbackYears,
+        maxMatches: maxMatches,
+        crossModalEnabled: crossModalEnabled,
+        therapeuticPresenceEnabled: therapeuticPresenceEnabled,
+        therapeuticDepthLevel: therapeuticDepthLevel,
+      );
+
+      print('  ✅ Imported LUMARA settings: ${node.id}');
+    } catch (e) {
+      print('  Failed to import LUMARA settings ${node.id}: $e');
+      rethrow;
     }
   }
   

@@ -5,6 +5,7 @@ import 'package:my_app/arc/chat/widgets/attribution_display_widget.dart';
 import 'package:my_app/arc/chat/services/favorites_service.dart';
 import 'package:my_app/arc/chat/data/models/lumara_favorite.dart';
 import 'package:my_app/shared/ui/settings/favorites_management_view.dart';
+import 'package:my_app/arc/chat/voice/audio_io.dart';
 
 /// Inline reflection block that appears within journal entries
 class InlineReflectionBlock extends StatefulWidget {
@@ -42,6 +43,50 @@ class InlineReflectionBlock extends StatefulWidget {
 }
 
 class _InlineReflectionBlockState extends State<InlineReflectionBlock> {
+  AudioIO? _audioIO;
+  
+  @override
+  void initState() {
+    super.initState();
+    _initializeAudioIO();
+  }
+  
+  Future<void> _initializeAudioIO() async {
+    try {
+      _audioIO = AudioIO();
+      await _audioIO!.initializeTTS();
+    } catch (e) {
+      debugPrint('Error initializing AudioIO: $e');
+    }
+  }
+
+  Future<void> _speakContent() async {
+    try {
+      if (_audioIO != null && widget.content.isNotEmpty) {
+        // Clean text for speech (remove markdown, etc.)
+        final cleanText = _cleanTextForSpeech(widget.content);
+        if (cleanText.isNotEmpty) {
+          await _audioIO!.speak(cleanText);
+        }
+      }
+    } catch (e) {
+      debugPrint('Error speaking content: $e');
+    }
+  }
+
+  String _cleanTextForSpeech(String text) {
+    // Remove markdown formatting
+    String cleaned = text
+        .replaceAll(RegExp(r'\*\*([^*]+)\*\*'), r'$1') // Bold
+        .replaceAll(RegExp(r'\*([^*]+)\*'), r'$1') // Italic
+        .replaceAll(RegExp(r'`([^`]+)`'), r'$1') // Code
+        .replaceAll(RegExp(r'\[([^\]]+)\]\([^\)]+\)'), r'$1') // Links
+        .replaceAll(RegExp(r'#{1,6}\s+'), '') // Headers
+        .replaceAll(RegExp(r'\n{3,}'), '\n\n') // Multiple newlines
+        .trim();
+    return cleaned;
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -64,9 +109,7 @@ class _InlineReflectionBlockState extends State<InlineReflectionBlock> {
           ),
         ],
       ),
-      child: GestureDetector(
-        onLongPress: widget.blockId != null ? () => _showLongPressMenu(context) : null,
-        child: Padding(
+      child: Padding(
           padding: const EdgeInsets.fromLTRB(12, 10, 12, 6),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -202,6 +245,13 @@ class _InlineReflectionBlockState extends State<InlineReflectionBlock> {
                         },
                         tooltip: 'Copy',
                       ),
+                      IconButton(
+                        icon: Icon(Icons.volume_up, size: 16, color: theme.colorScheme.onSurfaceVariant.withOpacity(0.6)),
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
+                        onPressed: () => _speakContent(),
+                        tooltip: 'Speak',
+                      ),
                       FutureBuilder<bool>(
                         future: widget.blockId != null
                             ? FavoritesService.instance.isFavorite(widget.blockId!)
@@ -269,7 +319,6 @@ class _InlineReflectionBlockState extends State<InlineReflectionBlock> {
             ],
           ),
         ),
-      ),
     );
   }
 
@@ -420,54 +469,6 @@ class _InlineReflectionBlockState extends State<InlineReflectionBlock> {
     }
   }
 
-  void _showLongPressMenu(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      builder: (context) => Container(
-        padding: const EdgeInsets.symmetric(vertical: 8),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            FutureBuilder<bool>(
-              future: widget.blockId != null
-                  ? FavoritesService.instance.isFavorite(widget.blockId!)
-                  : Future.value(false),
-              builder: (context, snapshot) {
-                final isFavorite = snapshot.data ?? false;
-                return ListTile(
-                  leading: Icon(
-                    isFavorite ? Icons.star : Icons.star_border,
-                    color: isFavorite ? Colors.amber : null,
-                  ),
-                  title: Text(isFavorite ? 'Remove from Favorites' : 'Add to Favorites'),
-                  onTap: () {
-                    Navigator.of(context).pop();
-                    if (widget.blockId != null) {
-                      _toggleFavorite(context);
-                    }
-                  },
-                );
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.copy),
-              title: const Text('Copy'),
-              onTap: () {
-                Navigator.of(context).pop();
-                Clipboard.setData(ClipboardData(text: widget.content));
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('LUMARA response copied to clipboard'),
-                    duration: Duration(seconds: 2),
-                  ),
-                );
-              },
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 
   void _showCapacityPopup(BuildContext context) {
     showDialog(

@@ -11,6 +11,9 @@ import 'package:my_app/arc/core/journal_repository.dart';
 import 'package:my_app/polymeta/store/mcp/import/mcp_pack_import_service.dart' show McpPackImportService, McpImportResult;
 import 'package:my_app/polymeta/store/mcp/import/enhanced_mcp_import_service.dart';
 import 'package:my_app/polymeta/store/mcp/import/mcp_import_service.dart' show McpImportOptions;
+import 'package:my_app/arc/chat/services/favorites_service.dart';
+import 'package:my_app/arc/chat/data/models/lumara_favorite.dart';
+import 'package:my_app/polymeta/store/mcp/models/mcp_schemas.dart';
 import 'package:my_app/arc/chat/chat/chat_repo_impl.dart';
 import 'package:my_app/services/phase_regime_service.dart';
 import 'package:my_app/services/rivet_sweep_service.dart';
@@ -261,9 +264,10 @@ class _McpImportScreenState extends State<McpImportScreen> {
         Navigator.of(context).pop();
 
         if (importResult.success) {
-          // Also import chats if nodes.jsonl exists (Enhanced MCP format)
+          // Also import chats and favorites if nodes.jsonl exists (Enhanced MCP format)
           int chatSessionsImported = 0;
           int chatMessagesImported = 0;
+          int lumaraFavoritesImported = 0;
           
           try {
             final tempDir = Directory.systemTemp;
@@ -278,7 +282,72 @@ class _McpImportScreenState extends State<McpImportScreen> {
               final nodesFile = File('${bundleDir.path}/nodes.jsonl');
               
               if (await nodesFile.exists()) {
-                // Get chat repo - use singleton base repo
+                // Import favorites from nodes.jsonl
+                // (McpPackImportService already imported journal entries)
+                int favoritesCount = 0;
+                try {
+                  final favoritesService = FavoritesService.instance;
+                  await favoritesService.initialize();
+                  
+                  await for (final line in nodesFile.openRead().transform(utf8.decoder).transform(const LineSplitter())) {
+                    if (line.trim().isEmpty) continue;
+                    final jsonData = jsonDecode(line);
+                    if (jsonData is Map<String, dynamic> && jsonData['type'] == 'lumara_favorite') {
+                      try {
+                        final node = McpNode.fromJson(jsonData);
+                        final metadata = node.metadata ?? {};
+                        final favoriteId = metadata['favorite_id'] as String? ?? 
+                                          node.id.replaceFirst('lumara_favorite_', '');
+                        final sourceId = metadata['source_id'] as String?;
+                        final sourceType = metadata['source_type'] as String?;
+                        final favoriteMetadata = metadata['metadata'] as Map<String, dynamic>? ?? {};
+                        
+                        final content = node.narrative?.essence ?? 
+                                       node.contentSummary ?? 
+                                       '';
+                        
+                        if (content.isNotEmpty) {
+                          // Check if favorite already exists
+                          bool shouldImport = true;
+                          if (sourceId != null) {
+                            final existing = await favoritesService.findFavoriteBySourceId(sourceId);
+                            if (existing != null) {
+                              shouldImport = false;
+                            }
+                          }
+                          
+                          // Check capacity
+                          if (shouldImport && await favoritesService.isAtCapacity()) {
+                            shouldImport = false;
+                          }
+                          
+                          if (shouldImport) {
+                            final favorite = LumaraFavorite(
+                              id: favoriteId,
+                              content: content,
+                              timestamp: node.timestamp.toLocal(),
+                              sourceId: sourceId,
+                              sourceType: sourceType,
+                              metadata: favoriteMetadata,
+                            );
+                            
+                            final added = await favoritesService.addFavorite(favorite);
+                            if (added) {
+                              favoritesCount++;
+                            }
+                          }
+                        }
+                      } catch (e) {
+                        print('⚠️ MCP Import: Failed to import favorite: $e');
+                      }
+                    }
+                  }
+                } catch (e) {
+                  print('⚠️ MCP Import: Failed to import favorites: $e');
+                }
+                lumaraFavoritesImported = favoritesCount;
+                
+                // Also import chats using enhanced service
                 final baseChatRepo = ChatRepoImpl.instance;
                 await baseChatRepo.initialize();
                 
@@ -296,13 +365,17 @@ class _McpImportScreenState extends State<McpImportScreen> {
               }
             }
           } catch (e) {
-            print('⚠️ MCP Import: Failed to import chats: $e');
-            // Don't fail the entire import if chat import fails
+            print('⚠️ MCP Import: Failed to import chats/favorites: $e');
+            // Don't fail the entire import if chat/favorites import fails
           }
           
           // Refresh timeline to show imported entries
           context.read<TimelineCubit>().reloadAllEntries();
-          _showSuccessDialog(importResult, chatSessionsImported: chatSessionsImported, chatMessagesImported: chatMessagesImported);
+          _showSuccessDialog(importResult, 
+            chatSessionsImported: chatSessionsImported, 
+            chatMessagesImported: chatMessagesImported,
+            lumaraFavoritesImported: lumaraFavoritesImported,
+          );
         } else {
           _showErrorDialog(importResult.error ?? 'Import failed');
         }
@@ -863,7 +936,7 @@ class _McpImportScreenState extends State<McpImportScreen> {
     );
   }
 
-  void _showSuccessDialog(McpImportResult result, {int chatSessionsImported = 0, int chatMessagesImported = 0}) {
+  void _showSuccessDialog(McpImportResult result, {int chatSessionsImported = 0, int chatMessagesImported = 0, int lumaraFavoritesImported = 0}) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -892,6 +965,8 @@ class _McpImportScreenState extends State<McpImportScreen> {
               const SizedBox(height: 8),
               _buildSummaryRow('Chats imported:', '0'),
             ],
+            if (lumaraFavoritesImported > 0)
+              _buildSummaryRow('LUMARA Favorites:', '$lumaraFavoritesImported'),
             _buildSummaryRow('Missing/corrupted:', '0'),
             if (result.manifest != null) ...[
               const SizedBox(height: 8),

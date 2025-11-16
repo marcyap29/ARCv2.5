@@ -1,7 +1,47 @@
 # EPI ARC MVP - Changelog
 
-**Version:** 2.1.16  
+**Version:** 2.1.17  
 **Last Updated:** January 2025
+
+## [2.1.17] - January 2025
+
+### **Voiceover Mode & Favorites UI Improvements** - Complete
+
+#### Voiceover Mode
+- **Settings Toggle**: Added "Voiceover Mode" toggle in Settings → LUMARA section
+- **TTS Integration**: AI responses are automatically spoken aloud when voiceover is enabled
+- **Text Cleaning**: Markdown formatting removed before speech for natural reading
+- **Per-Message Control**: Voiceover icon (volume_up) added between copy and star icons for manual playback
+- **Dual Interface Support**: Voiceover icons available in both in-chat and in-journal LUMARA responses
+
+#### Favorites UI Improvements
+- **Removed Long-Press Menu**: Simplified favorites interaction - only star icon needed (no long-press menu)
+- **Title Font Reduction**: Reduced "LUMARA Favorites" title font size to 24px for better visual balance
+- **Explainer Text**: Added explanatory text above favorites count: "With favorites, LUMARA can learn how to answer in a way that suits you."
+- **Manual Add Button**: Added + button next to favorites count to manually add favorites by pasting/typing text
+- **Export/Import Confirmed**: Verified LUMARA Favorites are fully exported and imported in MCP bundles
+
+#### Technical Implementation
+- **AudioIO Integration**: Voiceover uses `AudioIO` service with `flutter_tts` for text-to-speech
+- **VoiceoverPreferenceService**: New service to manage voiceover preference using SharedPreferences
+- **Text Cleaning**: Removes markdown (bold, italic, code, links, headers) before speaking
+- **Manual Favorites**: Added dialog with text field for manually adding favorites with `sourceType: 'manual'`
+
+**Files Added**:
+- `lib/shared/ui/settings/voiceover_preference_service.dart` - Voiceover preference management
+
+**Files Modified**:
+- `lib/shared/ui/settings/settings_view.dart` - Added Voiceover Mode toggle
+- `lib/arc/chat/bloc/lumara_assistant_cubit.dart` - Integrated TTS for voiceover mode
+- `lib/arc/chat/ui/lumara_assistant_screen.dart` - Added voiceover icon, removed long-press menu
+- `lib/ui/journal/widgets/inline_reflection_block.dart` - Added voiceover icon, removed long-press menu
+- `lib/arc/chat/chat/ui/session_view.dart` - Added voiceover icon
+- `lib/shared/ui/settings/favorites_management_view.dart` - Updated UI (title font, explainer, + button)
+- `lib/arc/chat/voice/audio_io.dart` - Added auto-capitalization for speech-to-text
+
+**Status**: ✅ Complete - Voiceover mode working, favorites UI improved, export/import confirmed
+
+---
 
 ## [2.1.16] - January 2025
 

@@ -132,6 +132,7 @@ class _FavoritesManagementViewState extends State<FavoritesManagementView> {
           style: heading1Style(context).copyWith(
             color: kcPrimaryTextColor,
             fontWeight: FontWeight.bold,
+            fontSize: 24,
           ),
         ),
         iconTheme: const IconThemeData(color: kcPrimaryTextColor),
@@ -150,9 +151,20 @@ class _FavoritesManagementViewState extends State<FavoritesManagementView> {
               ? _buildEmptyState(theme)
               : Column(
                   children: [
-                    // Header with count
+                    // Explainer text
                     Container(
-                      padding: const EdgeInsets.all(16),
+                      padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                      child: Text(
+                        'With favorites, LUMARA can learn how to answer in a way that suits you.',
+                        style: bodyStyle(context).copyWith(
+                          color: kcSecondaryTextColor,
+                          fontSize: 14,
+                        ),
+                      ),
+                    ),
+                    // Header with count and add button
+                    Container(
+                      padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
                       child: Row(
                         children: [
                           Icon(
@@ -191,6 +203,15 @@ class _FavoritesManagementViewState extends State<FavoritesManagementView> {
                                 ),
                               ),
                             ),
+                          if (count < maxCount) ...[
+                            const SizedBox(width: 8),
+                            IconButton(
+                              icon: const Icon(Icons.add_circle_outline),
+                              color: kcAccentColor,
+                              onPressed: () => _showAddFavoriteDialog(),
+                              tooltip: 'Add Favorite',
+                            ),
+                          ],
                         ],
                       ),
                     ),
@@ -251,8 +272,8 @@ class _FavoritesManagementViewState extends State<FavoritesManagementView> {
             ),
             const SizedBox(height: 8),
             _buildInstructionItem(
-              Icons.touch_app,
-              'Long-press any LUMARA answer and select "Add to Favorites"',
+              Icons.add_circle_outline,
+              'Use the + button to manually add a favorite',
             ),
           ],
         ),
@@ -360,6 +381,101 @@ class _FavoritesManagementViewState extends State<FavoritesManagementView> {
         ],
       ),
     );
+  }
+
+  Future<void> _showAddFavoriteDialog() async {
+    final textController = TextEditingController();
+    
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Add Favorite'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Paste or type an answer style you want LUMARA to learn from:',
+              style: bodyStyle(context).copyWith(
+                color: kcSecondaryTextColor,
+                fontSize: 14,
+              ),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: textController,
+              maxLines: 8,
+              decoration: InputDecoration(
+                hintText: 'Paste your answer here...',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () {
+              if (textController.text.trim().isNotEmpty) {
+                Navigator.pop(context, true);
+              }
+            },
+            child: const Text('Add'),
+          ),
+        ],
+      ),
+    );
+
+    if (result == true && textController.text.trim().isNotEmpty) {
+      try {
+        final favorite = LumaraFavorite(
+          id: DateTime.now().millisecondsSinceEpoch.toString(),
+          content: textController.text.trim(),
+          timestamp: DateTime.now(),
+          sourceId: null,
+          sourceType: 'manual',
+          metadata: {},
+        );
+        
+        final added = await _favoritesService.addFavorite(favorite);
+        if (added) {
+          await _loadFavorites();
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Favorite added'),
+                duration: Duration(seconds: 2),
+              ),
+            );
+          }
+        } else {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Cannot add favorite - at capacity (25/25)'),
+                duration: Duration(seconds: 2),
+                backgroundColor: Colors.orange,
+              ),
+            );
+          }
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Error adding favorite: $e'),
+              duration: const Duration(seconds: 2),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    }
   }
 
   String _formatTimestamp(DateTime timestamp) {

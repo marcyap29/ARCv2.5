@@ -12,6 +12,7 @@ import 'package:my_app/data/models/media_item.dart';
 import '../../utils/file_utils.dart';
 import 'package:my_app/polymeta/store/arcx/services/arcx_export_service_v2.dart';
 import 'package:my_app/arc/chat/chat/chat_repo_impl.dart';
+import 'package:my_app/arc/chat/services/favorites_service.dart';
 import 'package:my_app/services/phase_regime_service.dart';
 import 'package:my_app/services/rivet_sweep_service.dart';
 import 'package:my_app/services/analytics_service.dart';
@@ -29,22 +30,19 @@ class _McpExportScreenState extends State<McpExportScreen> {
   bool _isExporting = false;
   int _entryCount = 0;
   int _photoCount = 0;
-  String _estimatedSize = 'Calculating...';
+  int _chatCount = 0;
+  int _favoritesCount = 0;
+  String _archiveSize = 'Calculating...';
   
   // Always using ARCX secure format (per spec - .zip option removed)
   
-  // Chat export settings
-  bool _includeArchivedChats = false;
+  // Chat export settings - always include archived chats
+  bool _includeArchivedChats = true;
   
   // Multi-select for entries
   bool _useMultiSelect = false;
   Set<String> _selectedEntryIds = {};
   List<JournalEntry> _allEntries = [];
-  
-  // ARCX redaction settings (only visible when secure format is selected)
-  bool _includePhotoLabels = false;
-  bool _dateOnlyTimestamps = false;
-  bool _removePii = false; // New: user-controlled PII removal (default Off)
   
   // Password-based encryption (only for .arcx format)
   bool _usePasswordEncryption = false;
@@ -76,10 +74,33 @@ class _McpExportScreenState extends State<McpExportScreen> {
         photoCount += entry.media.where((m) => m.type == MediaType.image).length;
       }
 
+      // Load chat count
+      int chatCount = 0;
+      try {
+        final chatRepo = ChatRepoImpl.instance;
+        await chatRepo.initialize();
+        final allChats = await chatRepo.listAll(includeArchived: true);
+        chatCount = allChats.length;
+      } catch (e) {
+        print('Error loading chat count: $e');
+      }
+
+      // Load favorites count
+      int favoritesCount = 0;
+      try {
+        final favoritesService = FavoritesService.instance;
+        await favoritesService.initialize();
+        favoritesCount = await favoritesService.getCount();
+      } catch (e) {
+        print('Error loading favorites count: $e');
+      }
+
       setState(() {
         _entryCount = entries.length;
         _photoCount = photoCount;
-        _estimatedSize = _calculateEstimatedSize(entries);
+        _chatCount = chatCount;
+        _favoritesCount = favoritesCount;
+        _archiveSize = _calculateEstimatedSize(entries);
       });
     } catch (e) {
       print('Error loading journal stats: $e');
@@ -279,6 +300,20 @@ class _McpExportScreenState extends State<McpExportScreen> {
         }
 
         if (result.success) {
+          // Update archive size with actual file size
+          if (result.arcxPath != null) {
+            try {
+              final file = File(result.arcxPath!);
+              if (await file.exists()) {
+                final fileSize = await file.length();
+                setState(() {
+                  _archiveSize = FileUtils.formatFileSize(fileSize);
+                });
+              }
+            } catch (e) {
+              print('Error getting archive file size: $e');
+            }
+          }
           _showArcSuccessDialogV2(result);
         } else {
           _showErrorDialog(result.error ?? 'ARCX export failed');
@@ -705,39 +740,6 @@ class _McpExportScreenState extends State<McpExportScreen> {
                         ),
                       ],
                     ),
-                    const SizedBox(height: 12),
-                    _buildOptionTile(
-                      title: 'Remove PII',
-                      subtitle: 'Strip names, emails, device IDs, IPs, locations from JSON',
-                      value: _removePii,
-                      onChanged: (value) {
-                        setState(() {
-                          _removePii = value;
-                        });
-                      },
-                    ),
-                    const SizedBox(height: 8),
-                    _buildOptionTile(
-                      title: 'Include photo labels',
-                      subtitle: 'Include AI-generated photo descriptions (may contain sensitive info)',
-                      value: _includePhotoLabels,
-                      onChanged: (value) {
-                        setState(() {
-                          _includePhotoLabels = value;
-                        });
-                      },
-                    ),
-                    const SizedBox(height: 8),
-                    _buildOptionTile(
-                      title: 'Date-only timestamps',
-                      subtitle: 'Reduce timestamp precision to date only (e.g., 2024-01-15 instead of full datetime)',
-                      value: _dateOnlyTimestamps,
-                      onChanged: (value) {
-                        setState(() {
-                          _dateOnlyTimestamps = value;
-                        });
-                      },
-                    ),
                     const SizedBox(height: 8),
                   // Password encryption temporarily disabled - causes hangs with large files
                   // _buildOptionTile(
@@ -858,20 +860,7 @@ class _McpExportScreenState extends State<McpExportScreen> {
             ),
             const SizedBox(height: 12),
 
-            // Include archived chats option
-            _buildOptionTile(
-              title: 'Include archived chats',
-              subtitle: 'Export archived chat sessions as well',
-              value: _includeArchivedChats,
-              onChanged: (value) {
-                setState(() {
-                  _includeArchivedChats = value;
-                });
-              },
-            ),
-
             // Multi-select option
-            const SizedBox(height: 8),
             _buildOptionTile(
               title: 'Select specific entries',
               subtitle: 'Choose which entries to export (default: all entries)',
@@ -989,8 +978,9 @@ class _McpExportScreenState extends State<McpExportScreen> {
                         : '$_entryCount (all)',
                   ),
                   _buildSummaryRow('Photos:', '$_photoCount'),
-                  _buildSummaryRow('Chats:', 'Will be included'),
-                  _buildSummaryRow('Estimated size:', _estimatedSize),
+                  _buildSummaryRow('Chats:', '$_chatCount'),
+                  _buildSummaryRow('LUMARA Favorites:', '$_favoritesCount'),
+                  _buildSummaryRow('Size:', _archiveSize),
                 ],
               ),
             ),

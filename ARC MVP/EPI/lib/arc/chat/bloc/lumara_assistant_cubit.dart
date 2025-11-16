@@ -25,6 +25,8 @@ import 'package:my_app/polymeta/adapters/mira_basics_adapters.dart';
 import 'package:my_app/arc/core/journal_repository.dart';
 import '../services/lumara_reflection_settings_service.dart';
 import 'package:my_app/models/journal_entry_model.dart';
+import 'package:my_app/shared/ui/settings/voiceover_preference_service.dart';
+import '../voice/audio_io.dart';
 
 /// LUMARA Assistant Cubit State
 abstract class LumaraAssistantState {}
@@ -98,6 +100,9 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
   static const int _maxMessagesBeforeCompaction = 25;
   static const int _compactionThreshold = 25; // Summarize after 25 messages
   bool _isCompacting = false;
+  
+  // Voiceover/TTS for AI responses
+  AudioIO? _audioIO;
 
   LumaraAssistantCubit({
     required ContextProvider contextProvider,
@@ -118,6 +123,10 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
     try {
       emit(LumaraAssistantLoading());
 
+      // Initialize AudioIO for voiceover
+      _audioIO = AudioIO();
+      await _audioIO!.initializeTTS();
+      
       // Parallelize independent service initializations
       final initializationResults = await Future.wait([
         _memoryLoader.initialize().then((_) => true).catchError((_) => false),
@@ -318,6 +327,9 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
           }
         }
         
+        // Speak response if voiceover is enabled
+        _speakResponseIfEnabled(enhancedResponse);
+        
         emit(currentState.copyWith(
           messages: finalMessages,
           isProcessing: false,
@@ -388,6 +400,9 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
             messages: finalMessages,
             isProcessing: false,
           ));
+          
+          // Speak response if voiceover is enabled
+          _speakResponseIfEnabled(enhancedContent);
 
             print('LUMARA Debug: [On-Device] On-device processing complete - skipping cloud API');
             return; // Exit early - on-device succeeded
@@ -479,6 +494,9 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
           messages: finalMessages,
           isProcessing: false,
         ));
+        
+        // Speak response if voiceover is enabled
+        _speakResponseIfEnabled(enhancedContent);
       }
     } catch (e) {
       print('LUMARA Debug: Error processing message: $e');
@@ -858,6 +876,9 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
             messages: finalMessages,
             isProcessing: false,
           ));
+          
+          // Speak response if voiceover is enabled
+          _speakResponseIfEnabled(enhancedContent);
         }
       }
     } catch (e) {
@@ -1196,16 +1217,20 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
           keywords: currentEntry.keywords.map((k) => k.toString()).toList(),
           maxSentences: 3,
         );
+        
+        // Calculate dynamic confidence (0.75-0.85) based on relevance
+        final confidence = _calculateCurrentEntryConfidence(currentEntry, userQuery);
+        
         final trace = _attributionService.createTrace(
           nodeRef: 'entry:${currentEntry.id}',
           relation: 'primary_source',
-          confidence: 1.0,
+          confidence: confidence,
           reasoning: 'Current journal entry - primary source for response',
           phaseContext: currentEntry.emotionReason, // Use emotion reason as phase hint
           excerpt: excerpt,
         );
         attributionTraces.add(trace);
-        print('LUMARA: [Tier 1] Created attribution trace for current entry ${currentEntry.id}');
+        print('LUMARA: [Tier 1] Created attribution trace for current entry ${currentEntry.id} with confidence $confidence');
       }
       
       print('LUMARA: [Tier 1] Added current entry ${currentEntry.id} with media content');
@@ -1385,6 +1410,55 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
       'context': result,
       'attributionTraces': attributionTraces,
     };
+  }
+
+  /// Calculate dynamic confidence (0.75-0.85) for current entry based on relevance
+  /// Factors considered:
+  /// - Query match in entry content
+  /// - Keyword overlap
+  /// - Entry recency (very recent entries get slight boost)
+  /// - Media content presence (indicates richer context)
+  double _calculateCurrentEntryConfidence(JournalEntry entry, String? userQuery) {
+    // Base confidence: 0.75 (minimum)
+    double confidence = 0.75;
+    
+    // If no query, return base confidence
+    if (userQuery == null || userQuery.trim().isEmpty) {
+      return confidence;
+    }
+    
+    final entryContentLower = entry.content.toLowerCase();
+    final queryLower = userQuery.toLowerCase();
+    final queryWords = queryLower.split(RegExp(r'\s+')).where((w) => w.length > 2).toList();
+    
+    // Query match boost: +0.05 if query appears in entry
+    if (entryContentLower.contains(queryLower)) {
+      confidence += 0.05;
+    }
+    
+    // Keyword match boost: +0.02 per matching keyword (max +0.04)
+    int keywordMatches = 0;
+    for (final keyword in entry.keywords) {
+      final keywordLower = keyword.toString().toLowerCase();
+      if (queryWords.any((word) => keywordLower.contains(word) || word.contains(keywordLower))) {
+        keywordMatches++;
+      }
+    }
+    confidence += (keywordMatches * 0.02).clamp(0.0, 0.04);
+    
+    // Recency boost: +0.01 if entry is very recent (< 1 hour old)
+    final age = DateTime.now().difference(entry.createdAt);
+    if (age.inHours < 1) {
+      confidence += 0.01;
+    }
+    
+    // Media content boost: +0.01 if entry has media (richer context)
+    if (entry.media.isNotEmpty) {
+      confidence += 0.01;
+    }
+    
+    // Clamp to 0.75-0.85 range
+    return confidence.clamp(0.75, 0.85);
   }
 
   /// Build phase hint for ArcLLM - uses actual current phase from context provider
@@ -2316,5 +2390,37 @@ Available: ${yearsAgo} more year${yearsAgo > 1 ? 's' : ''} of history''';
       print('LUMARA Debug: Error in quick answers: $e');
       return null;
     }
+  }
+
+  /// Speak AI response if voiceover mode is enabled
+  Future<void> _speakResponseIfEnabled(String response) async {
+    try {
+      final voiceoverEnabled = await VoiceoverPreferenceService.instance.isVoiceoverEnabled();
+      if (voiceoverEnabled && _audioIO != null && response.isNotEmpty) {
+        // Clean up the response text (remove markdown, extra whitespace, etc.)
+        final cleanText = _cleanTextForSpeech(response);
+        if (cleanText.isNotEmpty) {
+          await _audioIO!.speak(cleanText);
+        }
+      }
+    } catch (e) {
+      print('LUMARA Debug: Error speaking response: $e');
+      // Don't throw - voiceover is optional
+    }
+  }
+
+  /// Clean text for speech (remove markdown, normalize whitespace)
+  String _cleanTextForSpeech(String text) {
+    // Remove markdown formatting
+    String cleaned = text
+        .replaceAll(RegExp(r'\*\*([^*]+)\*\*'), r'$1') // Bold
+        .replaceAll(RegExp(r'\*([^*]+)\*'), r'$1') // Italic
+        .replaceAll(RegExp(r'`([^`]+)`'), r'$1') // Code
+        .replaceAll(RegExp(r'\[([^\]]+)\]\([^\)]+\)'), r'$1') // Links
+        .replaceAll(RegExp(r'#{1,6}\s+'), '') // Headers
+        .replaceAll(RegExp(r'\n{3,}'), '\n\n') // Multiple newlines
+        .trim();
+    
+    return cleaned;
   }
 }

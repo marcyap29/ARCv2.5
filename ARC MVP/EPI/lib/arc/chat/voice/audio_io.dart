@@ -47,10 +47,12 @@ class AudioIO {
 
     await _stt.listen(
       onResult: (result) {
+        // Auto-capitalize speech-to-text results
+        final capitalizedText = _capitalizeText(result.recognizedWords);
         if (result.finalResult) {
-          onFinalResult(result.recognizedWords);
+          onFinalResult(capitalizedText);
         } else {
-          onPartialResult(result.recognizedWords);
+          onPartialResult(capitalizedText);
         }
       },
       listenFor: const Duration(seconds: 30),
@@ -138,5 +140,12 @@ class AudioIO {
 
   /// Check if currently speaking
   bool get isSpeaking => _isSpeaking;
+
+  /// Capitalize the first letter of text (for speech-to-text auto-capitalization)
+  String _capitalizeText(String text) {
+    if (text.isEmpty) return text;
+    // Capitalize first letter and keep the rest as-is
+    return text[0].toUpperCase() + (text.length > 1 ? text.substring(1) : '');
+  }
 }
 

@@ -405,6 +405,8 @@ class _ARCXImportProgressScreenState extends State<ARCXImportProgressScreen> {
               _buildSummaryRow('Sentinel states:', '${result.sentinelStatesImported}'),
             if (result.arcformSnapshotsImported > 0)
               _buildSummaryRow('ArcForm snapshots:', '${result.arcformSnapshotsImported}'),
+            if (result.lumaraFavoritesImported > 0)
+              _buildSummaryRow('LUMARA Favorites:', '${result.lumaraFavoritesImported}'),
             if (result.warnings != null && result.warnings!.isNotEmpty) ...[
               const SizedBox(height: 8),
               Text(

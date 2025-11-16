@@ -1,7 +1,7 @@
 # EPI Documentation
 
 **Last Updated:** January 2025  
-**Version:** 2.1.16
+**Version:** 2.1.17
 
 ## Documentation Structure
 

@@ -22,14 +22,15 @@ The LUMARA Favorites system allows users to mark exemplary LUMARA replies as sty
 
 #### Adding Favorites
 
-1. **Star Icon**: Every LUMARA answer displays a star icon next to copy/delete buttons
+1. **Star Icon**: Every LUMARA answer displays a star icon next to copy/voiceover buttons
    - Empty star outline = not a favorite
    - Filled star (amber) = currently a favorite
    - Tap to toggle favorite status
 
-2. **Long-Press Menu**: Long-press any LUMARA answer to show context menu
-   - "Add to Favorites" / "Remove from Favorites" option
-   - Copy option
+2. **Manual Addition**: Use the + button in Favorites Management screen
+   - Opens dialog with text field
+   - Paste or type answer style you want LUMARA to learn from
+   - Saves as manual favorite with `sourceType: 'manual'`
 
 #### Managing Favorites
 
@@ -39,10 +40,12 @@ The LUMARA Favorites system allows users to mark exemplary LUMARA replies as sty
   - Opens Favorites Management screen
 
 - **Favorites Management Screen**:
+  - Explainer text: "With favorites, LUMARA can learn how to answer in a way that suits you."
   - View all favorites with timestamps
   - Expandable cards to view full text
   - Delete individual favorites
   - Clear all favorites option
+  - + button to manually add favorites (when under 25 limit)
   - Empty state with instructions
 
 #### Capacity Management
@@ -77,16 +80,17 @@ The LUMARA Favorites system allows users to mark exemplary LUMARA replies as sty
 ### UI Components
 
 **Chat Integration**: `lumara_assistant_screen.dart`
-- Star icon in message action buttons
-- Long-press gesture handler
+- Star icon in message action buttons (copy, voiceover, star, delete)
 - Capacity popup and snackbar notifications
 
 **Journal Integration**: `inline_reflection_block.dart`
-- Star icon in reflection block actions
-- Long-press gesture handler
+- Star icon in reflection block actions (copy, voiceover, star, delete)
 - Unique block IDs for tracking
 
 **Management Screen**: `favorites_management_view.dart`
+- Title font size: 24px
+- Explainer text above favorites count
+- + button for manual addition (when under 25 limit)
 - Full list view with expandable cards
 - Delete and clear all functionality
 - Empty state with instructions
@@ -143,11 +147,12 @@ The LUMARA Favorites system allows users to mark exemplary LUMARA replies as sty
 ## User Experience Flow
 
 1. User reads LUMARA answer
-2. User taps star icon or long-presses answer
+2. User taps star icon to add/remove favorite
 3. If not at capacity: Favorite added, snackbar shown
 4. If at capacity: Popup shown with link to management
 5. First-time users: Enhanced snackbar with explanation
 6. LUMARA adapts style in future responses based on favorites
+7. Users can also manually add favorites via + button in management screen
 
 ## Settings Integration
 
@@ -167,6 +172,13 @@ Potential improvements:
 - Favorite groups/themes
 - Style preview before applying
 
+## Export/Import Support
+
+- **MCP Export**: LUMARA Favorites are fully exported in MCP bundles
+- **MCP Import**: Favorites are imported and restored with duplicate checking
+- **Capacity Limits**: Import respects 25-item limit and shows count in import summary
+- **Metadata Preservation**: Source IDs, timestamps, and metadata are preserved
+
 ## Related Documentation
 
 - [LUMARA System Architecture](../architecture/ARCHITECTURE_OVERVIEW.md#lumara)
@@ -177,5 +189,5 @@ Potential improvements:
 
 **Status**: ✅ Complete  
 **Last Updated**: January 2025  
-**Version**: 1.0
+**Version**: 1.1
 

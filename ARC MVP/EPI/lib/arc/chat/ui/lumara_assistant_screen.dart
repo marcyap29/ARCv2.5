@@ -25,6 +25,7 @@ import 'package:my_app/arc/core/journal_repository.dart';
 import '../services/favorites_service.dart';
 import '../data/models/lumara_favorite.dart';
 import 'package:my_app/shared/ui/settings/favorites_management_view.dart';
+import '../voice/audio_io.dart';
 
 /// Main LUMARA Assistant screen
 class LumaraAssistantScreen extends StatefulWidget {
@@ -50,6 +51,9 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
   // Voice chat service
   VoiceChatService? _voiceChatService;
   String? _partialTranscript;
+  
+  // AudioIO for voiceover
+  AudioIO? _audioIO;
 
   @override
   void initState() {
@@ -58,6 +62,7 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
     _currentEntry = widget.currentEntry;
     _checkAIConfigurationAndInitialize();
     _inputFocusNode.addListener(_onInputFocusChange);
+    _initializeAudioIO();
     _initializeVoiceChat();
   }
   
@@ -564,9 +569,7 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
             const Gap(8),
           ],
           Flexible(
-            child: GestureDetector(
-              onLongPress: !isUser ? () => _showLongPressMenu(context, message) : null,
-              child: Container(
+            child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               decoration: BoxDecoration(
                 color: isUser ? Colors.blue[500] : Colors.grey[100],
@@ -674,6 +677,13 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
                           onPressed: () => _copyMessage(message.content),
                           tooltip: 'Copy',
                         ),
+                        IconButton(
+                          icon: Icon(Icons.volume_up, size: 16, color: Colors.grey[600]),
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(),
+                          onPressed: () => _speakMessage(message.content),
+                          tooltip: 'Speak',
+                        ),
                         FutureBuilder<bool>(
                           future: FavoritesService.instance.isFavorite(message.id),
                           builder: (context, snapshot) {
@@ -752,7 +762,6 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
                   ],
                 ],
               ),
-            ),
             ),
           ),
           if (isUser) ...[
@@ -954,6 +963,42 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
     _sendMessage(newText);
   }
 
+  Future<void> _initializeAudioIO() async {
+    try {
+      _audioIO = AudioIO();
+      await _audioIO!.initializeTTS();
+    } catch (e) {
+      debugPrint('Error initializing AudioIO: $e');
+    }
+  }
+
+  Future<void> _speakMessage(String text) async {
+    try {
+      if (_audioIO != null && text.isNotEmpty) {
+        // Clean text for speech (remove markdown, etc.)
+        final cleanText = _cleanTextForSpeech(text);
+        if (cleanText.isNotEmpty) {
+          await _audioIO!.speak(cleanText);
+        }
+      }
+    } catch (e) {
+      debugPrint('Error speaking message: $e');
+    }
+  }
+
+  String _cleanTextForSpeech(String text) {
+    // Remove markdown formatting
+    String cleaned = text
+        .replaceAll(RegExp(r'\*\*([^*]+)\*\*'), r'$1') // Bold
+        .replaceAll(RegExp(r'\*([^*]+)\*'), r'$1') // Italic
+        .replaceAll(RegExp(r'`([^`]+)`'), r'$1') // Code
+        .replaceAll(RegExp(r'\[([^\]]+)\]\([^\)]+\)'), r'$1') // Links
+        .replaceAll(RegExp(r'#{1,6}\s+'), '') // Headers
+        .replaceAll(RegExp(r'\n{3,}'), '\n\n') // Multiple newlines
+        .trim();
+    return cleaned;
+  }
+
   void _copyMessage(String text) {
     Clipboard.setData(ClipboardData(text: text));
     ScaffoldMessenger.of(context).showSnackBar(
@@ -1061,46 +1106,6 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
     }
   }
 
-  void _showLongPressMenu(BuildContext context, LumaraMessage message) {
-    if (message.role != LumaraMessageRole.assistant) return;
-
-    showModalBottomSheet(
-      context: context,
-      builder: (context) => Container(
-        padding: const EdgeInsets.symmetric(vertical: 8),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            FutureBuilder<bool>(
-              future: FavoritesService.instance.isFavorite(message.id),
-              builder: (context, snapshot) {
-                final isFavorite = snapshot.data ?? false;
-                return ListTile(
-                  leading: Icon(
-                    isFavorite ? Icons.star : Icons.star_border,
-                    color: isFavorite ? Colors.amber : null,
-                  ),
-                  title: Text(isFavorite ? 'Remove from Favorites' : 'Add to Favorites'),
-                  onTap: () {
-                    Navigator.of(context).pop();
-                    _toggleFavorite(message);
-                  },
-                );
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.copy),
-              title: const Text('Copy'),
-              onTap: () {
-                Navigator.of(context).pop();
-                _copyMessage(message.content);
-              },
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 
   void _showCapacityPopup() {
     showDialog(

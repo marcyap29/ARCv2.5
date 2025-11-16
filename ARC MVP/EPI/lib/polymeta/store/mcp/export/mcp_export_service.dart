@@ -27,6 +27,8 @@ import 'package:my_app/services/phase_index.dart';
 import 'package:my_app/prism/atlas/rivet/rivet_storage.dart';
 import 'package:my_app/prism/atlas/rivet/rivet_models.dart' as rivet_models;
 import 'package:my_app/models/arcform_snapshot_model.dart';
+import 'package:my_app/arc/chat/services/favorites_service.dart';
+import 'package:my_app/arc/chat/services/lumara_reflection_settings_service.dart';
 import 'package:hive/hive.dart';
 
 class McpExportService {
@@ -82,6 +84,10 @@ class McpExportService {
       final rivetData = await _exportRivetState();
       final sentinelData = await _exportSentinelState();
       final arcformData = await _exportArcFormTimeline();
+      
+      // Export LUMARA favorites and settings
+      final lumaraFavoritesData = await _exportLumaraFavorites();
+      final lumaraSettingsData = await _exportLumaraSettings();
 
       // Combine all nodes, edges, and pointers
       final allNodes = <McpNode>[
@@ -91,6 +97,8 @@ class McpExportService {
         ...rivetData.nodes,
         ...sentinelData.nodes,
         ...arcformData.nodes,
+        ...lumaraFavoritesData.nodes,
+        ...lumaraSettingsData.nodes,
       ];
       final allEdges = <McpEdge>[
         ...chatData.edges, 
@@ -98,6 +106,8 @@ class McpExportService {
         ...rivetData.edges,
         ...sentinelData.edges,
         ...arcformData.edges,
+        ...lumaraFavoritesData.edges,
+        ...lumaraSettingsData.edges,
       ];
       final allPointers = <McpPointer>[
         ...pointers, 
@@ -106,6 +116,8 @@ class McpExportService {
         ...rivetData.pointers,
         ...sentinelData.pointers,
         ...arcformData.pointers,
+        ...lumaraFavoritesData.pointers,
+        ...lumaraSettingsData.pointers,
       ];
 
       // Generate embeddings for nodes and pointers
@@ -1334,6 +1346,135 @@ class McpExportService {
     } catch (e) {
       print('MCP Export: Error exporting ArcForm timeline: $e');
       // Continue with export even if ArcForm timeline fails
+    }
+
+    return PhaseExportData(
+      nodes: nodes,
+      edges: edges,
+      pointers: pointers,
+    );
+  }
+
+  /// Export LUMARA favorites to MCP format
+  Future<PhaseExportData> _exportLumaraFavorites() async {
+    final nodes = <McpNode>[];
+    final edges = <McpEdge>[];
+    final pointers = <McpPointer>[];
+
+    try {
+      final favoritesService = FavoritesService.instance;
+      await favoritesService.initialize();
+      final favorites = await favoritesService.getAllFavorites();
+
+      for (final favorite in favorites) {
+        // Create favorite node
+        final favoriteNode = McpNode(
+          id: 'lumara_favorite_${favorite.id}',
+          type: 'lumara_favorite',
+          timestamp: favorite.timestamp.toUtc(),
+          contentSummary: favorite.content.length > 100
+              ? '${favorite.content.substring(0, 100)}...'
+              : favorite.content,
+          keywords: ['lumara', 'favorite', 'answer_style'],
+          narrative: McpNarrative(
+            situation: 'LUMARA favorite answer style',
+            action: 'User-preferred response style',
+            growth: 'Personalized AI interaction',
+            essence: favorite.content,
+          ),
+          provenance: McpProvenance(
+            source: 'LUMARA',
+            app: 'EPI',
+            importMethod: 'lumara_favorite',
+          ),
+          metadata: {
+            'favorite_id': favorite.id,
+            'source_id': favorite.sourceId,
+            'source_type': favorite.sourceType,
+            'metadata': favorite.metadata,
+            'exported_at': DateTime.now().toIso8601String(),
+          },
+        );
+
+        nodes.add(favoriteNode);
+
+        // Create edge to source if available
+        if (favorite.sourceId != null) {
+          final sourceNodeId = favorite.sourceType == 'chat'
+              ? 'msg:${favorite.sourceId}'
+              : 'entry:${favorite.sourceId}';
+          
+          final edge = McpEdge(
+            source: 'lumara_favorite_${favorite.id}',
+            target: sourceNodeId,
+            relation: 'references',
+            timestamp: favorite.timestamp.toUtc(),
+            weight: 1.0,
+            metadata: {
+              'favorite_id': favorite.id,
+              'source_id': favorite.sourceId,
+              'source_type': favorite.sourceType,
+            },
+          );
+          edges.add(edge);
+        }
+      }
+    } catch (e) {
+      print('MCP Export: Error exporting LUMARA favorites: $e');
+      // Continue with export even if favorites fail
+    }
+
+    return PhaseExportData(
+      nodes: nodes,
+      edges: edges,
+      pointers: pointers,
+    );
+  }
+
+  /// Export LUMARA settings/preferences to MCP format
+  Future<PhaseExportData> _exportLumaraSettings() async {
+    final nodes = <McpNode>[];
+    final edges = <McpEdge>[];
+    final pointers = <McpPointer>[];
+
+    try {
+      final settingsService = LumaraReflectionSettingsService.instance;
+      await settingsService.initialize();
+      final settings = await settingsService.loadAllSettings();
+
+      // Create settings node
+      final settingsNode = McpNode(
+        id: 'lumara_settings_current',
+        type: 'lumara_settings',
+        timestamp: DateTime.now().toUtc(),
+        contentSummary: 'LUMARA reflection and interaction settings',
+        keywords: ['lumara', 'settings', 'preferences', 'reflection'],
+        narrative: McpNarrative(
+          situation: 'LUMARA configuration and preferences',
+          action: 'AI interaction customization',
+          growth: 'Personalized reflection experience',
+          essence: 'User preferences for LUMARA behavior',
+        ),
+        provenance: McpProvenance(
+          source: 'LUMARA',
+          app: 'EPI',
+          importMethod: 'lumara_settings',
+        ),
+        metadata: {
+          'similarity_threshold': settings['similarityThreshold'],
+          'lookback_years': settings['lookbackYears'],
+          'max_matches': settings['maxMatches'],
+          'cross_modal_enabled': settings['crossModalEnabled'],
+          'therapeutic_presence_enabled': settings['therapeuticPresenceEnabled'],
+          'therapeutic_depth_level': settings['therapeuticDepthLevel'],
+          'exported_at': DateTime.now().toIso8601String(),
+        },
+      );
+
+      nodes.add(settingsNode);
+    } catch (e) {
+      print('MCP Export: Error exporting LUMARA settings: $e');
+      // Continue with export even if settings fail
     }
 
     return PhaseExportData(

@@ -1216,6 +1216,7 @@ class ARCXImportResultV2 {
   final int rivetStatesImported;
   final int sentinelStatesImported;
   final int arcformSnapshotsImported;
+  final int lumaraFavoritesImported;
   final List<String>? warnings;
   final String? error;
   
@@ -1228,6 +1229,7 @@ class ARCXImportResultV2 {
     this.rivetStatesImported = 0,
     this.sentinelStatesImported = 0,
     this.arcformSnapshotsImported = 0,
+    this.lumaraFavoritesImported = 0,
     this.warnings,
     this.error,
   });
@@ -1240,6 +1242,7 @@ class ARCXImportResultV2 {
     int rivetStatesImported = 0,
     int sentinelStatesImported = 0,
     int arcformSnapshotsImported = 0,
+    int lumaraFavoritesImported = 0,
     List<String>? warnings,
   }) {
     return ARCXImportResultV2(
@@ -1251,6 +1254,7 @@ class ARCXImportResultV2 {
       rivetStatesImported: rivetStatesImported,
       sentinelStatesImported: sentinelStatesImported,
       arcformSnapshotsImported: arcformSnapshotsImported,
+      lumaraFavoritesImported: lumaraFavoritesImported,
       warnings: warnings,
     );
   }

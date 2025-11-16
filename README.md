@@ -180,6 +180,11 @@ In the app: Settings → MCP Export & Import
 
 ## 📖 Version History
 
+### Version 2.1.17 (January 2025)
+- **Voiceover Mode**: AI responses can be spoken aloud with TTS integration
+- **Favorites UI Improvements**: Simplified interaction, manual addition, and better UX
+- **Export/Import**: Confirmed LUMARA Favorites are fully supported in MCP bundles
+
 ### Version 1.0.0 (January 2025)
 - **Status**: Production Ready
 - **Key Features**:
