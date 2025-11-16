@@ -9,6 +9,7 @@ import 'package:my_app/insights/widgets/veil_card.dart';
 import 'package:my_app/shared/text_style.dart';
 import 'package:my_app/shared/ui/qa/qa_screen.dart';
 import 'package:my_app/shared/app_colors.dart';
+import 'package:my_app/ui/phase/sentinel_analysis_view.dart';
 import 'dart:math' as math;
 
 class AnalyticsPage extends StatefulWidget {
@@ -175,6 +176,13 @@ class _AnalyticsContentState extends State<AnalyticsContent> {
               subtitle: 'AI Prompt Intelligence',
               content: _buildVeilContent(),
             ),
+            const SizedBox(height: 12),
+            _buildExpandableCard(
+              title: 'SENTINEL',
+              icon: Icons.shield,
+              subtitle: 'Emotional risk detection & pattern analysis',
+              content: _buildSentinelContent(),
+            ),
           ],
         ),
       ),
@@ -245,6 +253,16 @@ class _AnalyticsContentState extends State<AnalyticsContent> {
         VeilCard(),
         SizedBox(height: 16),
         VeilPolicyCard(),
+      ],
+    );
+  }
+
+  /// Build SENTINEL content
+  Widget _buildSentinelContent() {
+    return const Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SentinelAnalysisView(),
       ],
     );
   }

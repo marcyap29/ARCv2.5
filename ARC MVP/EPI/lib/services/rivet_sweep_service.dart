@@ -15,10 +15,11 @@ class RivetSweepService {
   // final AnalyticsService _analytics; // TODO: Use analytics
   
   // Configuration
-  static const Duration _minWindowDays = Duration(days: 10);
+  static const Duration _minWindowDays = Duration(days: 5); // Reduced from 10 to 5 for better detection with sparse entries
   static const double _minConfidence = 0.70;
   static const double _reviewConfidence = 0.50;
   static const double _hysteresisThreshold = 0.15;
+  static const double _changePointThreshold = 0.15; // Lowered from 0.3 to 0.15 for better sensitivity
   // static const int _maxSegmentsPerYear = 15; // TODO: Use in future
   // static const int _minSegmentsPerYear = 6; // TODO: Use in future
 
@@ -52,18 +53,35 @@ class RivetSweepService {
 
       // 1. Aggregate daily signals
       final dailySignals = await _aggregateDailySignals(entries);
+      print('DEBUG: RIVET Sweep - Aggregated ${dailySignals.length} daily signals from ${entries.length} entries');
       
-      // 2. Detect change points
-      final changePoints = _detectChangePoints(dailySignals);
+      // 2. Detect change points (both signal-based and phase-based)
+      final signalChangePoints = _detectChangePoints(dailySignals);
+      final phaseChangePoints = _detectPhaseBasedChangePoints(entries);
+      
+      // Combine and deduplicate change points
+      final allChangePoints = _mergeChangePoints(signalChangePoints, phaseChangePoints);
+      print('DEBUG: RIVET Sweep - Detected ${signalChangePoints.length} signal-based change points, ${phaseChangePoints.length} phase-based change points, ${allChangePoints.length} total');
       
       // 3. Create segments from change points
-      final segments = _createSegments(entries, changePoints);
+      final segments = _createSegments(entries, allChangePoints);
+      print('DEBUG: RIVET Sweep - Created ${segments.length} segments from change points');
       
       // 4. Infer phases for each segment
       final proposals = await _inferSegmentPhases(segments);
+      print('DEBUG: RIVET Sweep - Generated ${proposals.length} phase proposals');
+      for (int i = 0; i < proposals.length; i++) {
+        final p = proposals[i];
+        print('DEBUG: RIVET Sweep - Proposal $i: ${p.proposedLabel} from ${p.start} to ${p.end} (${p.end.difference(p.start).inDays} days, ${p.entryIds.length} entries, confidence: ${p.confidence.toStringAsFixed(2)})');
+      }
       
       // 5. Apply hysteresis and minimum dwell
       final finalProposals = _applyHysteresisAndMinDwell(proposals);
+      print('DEBUG: RIVET Sweep - After filtering: ${finalProposals.length} proposals remain');
+      for (int i = 0; i < finalProposals.length; i++) {
+        final p = finalProposals[i];
+        print('DEBUG: RIVET Sweep - Final Proposal $i: ${p.proposedLabel} from ${p.start} to ${p.end} (${p.end.difference(p.start).inDays} days, ${p.entryIds.length} entries, confidence: ${p.confidence.toStringAsFixed(2)})');
+      }
       
       // 6. Categorize by confidence
       final autoAssign = finalProposals.where((p) => p.confidence >= _minConfidence).toList();
@@ -82,7 +100,7 @@ class RivetSweepService {
         autoAssign: autoAssign,
         review: review,
         lowConfidence: lowConfidence,
-        changePoints: changePoints,
+        changePoints: allChangePoints,
         dailySignals: dailySignals,
       );
     } catch (e) {
@@ -316,7 +334,7 @@ class RivetSweepService {
       
       final change = (beforeMean - afterMean).abs();
       
-      if (change > 0.3) { // Threshold for significant change
+      if (change > _changePointThreshold) { // Use configurable threshold
         changePoints.add(PhaseChangePoint(
           timestamp: signals[i].date,
           score: change,
@@ -326,8 +344,11 @@ class RivetSweepService {
             'tempo': signals[i].tempo,
           },
         ));
+        print('DEBUG: RIVET Sweep - Change point detected at ${signals[i].date}: change=${change.toStringAsFixed(3)}, before=${beforeMean.toStringAsFixed(3)}, after=${afterMean.toStringAsFixed(3)}');
       }
     }
+    
+    print('DEBUG: RIVET Sweep - Change point detection: ${signals.length} signals, composite range: ${compositeScores.reduce((a, b) => a < b ? a : b).toStringAsFixed(3)} to ${compositeScores.reduce((a, b) => a > b ? a : b).toStringAsFixed(3)}');
     
     return changePoints;
   }
@@ -625,12 +646,13 @@ class RivetSweepService {
     
     for (int i = 0; i < proposals.length; i++) {
       final proposal = proposals[i];
+      final duration = proposal.end.difference(proposal.start);
       
       // Check minimum dwell
-      final duration = proposal.end.difference(proposal.start);
       if (duration.inDays < _minWindowDays.inDays) {
-        // Merge with previous if same label, otherwise skip
+        // CRITICAL FIX: Only merge if same label - preserve different phases even if short
         if (lastLabel == proposal.proposedLabel && result.isNotEmpty) {
+          // Same phase, merge with previous
           final lastProposal = result.last;
           result[result.length - 1] = PhaseSegmentProposal(
             start: lastProposal.start,
@@ -642,15 +664,42 @@ class RivetSweepService {
             summary: lastProposal.summary,
             topKeywords: lastProposal.topKeywords,
           );
+          print('DEBUG: RIVET Sweep - Merged short segment (${duration.inDays} days) with previous ${proposal.proposedLabel} segment');
+        } else if (lastLabel != proposal.proposedLabel) {
+          // Different phase - keep it even if short (don't merge different phases)
+          result.add(proposal);
+          lastLabel = proposal.proposedLabel;
+          lastConfidence = proposal.confidence;
+          print('DEBUG: RIVET Sweep - Kept short segment (${duration.inDays} days) with different phase ${proposal.proposedLabel} (previous was ${lastLabel})');
+        } else {
+          // First segment and too short - keep it anyway
+          result.add(proposal);
+          lastLabel = proposal.proposedLabel;
+          lastConfidence = proposal.confidence;
+          print('DEBUG: RIVET Sweep - Kept short first segment (${duration.inDays} days) with phase ${proposal.proposedLabel}');
         }
         continue;
       }
       
-      // Apply hysteresis
+      // Apply hysteresis (only for same-label segments)
       if (lastLabel != null && lastLabel == proposal.proposedLabel) {
         // Same label as previous - check if confidence improved enough
         if (proposal.confidence - lastConfidence < _hysteresisThreshold) {
-          // Not enough improvement, keep previous label
+          // Not enough improvement, merge with previous
+          if (result.isNotEmpty) {
+            final lastProposal = result.last;
+            result[result.length - 1] = PhaseSegmentProposal(
+              start: lastProposal.start,
+              end: proposal.end,
+              proposedLabel: proposal.proposedLabel,
+              confidence: (lastProposal.confidence + proposal.confidence) / 2,
+              signals: {...lastProposal.signals, ...proposal.signals},
+              entryIds: [...lastProposal.entryIds, ...proposal.entryIds],
+              summary: lastProposal.summary,
+              topKeywords: lastProposal.topKeywords,
+            );
+            print('DEBUG: RIVET Sweep - Merged ${proposal.proposedLabel} segment due to hysteresis (confidence change: ${(proposal.confidence - lastConfidence).toStringAsFixed(3)})');
+          }
           continue;
         }
       }
@@ -661,6 +710,111 @@ class RivetSweepService {
     }
     
     return result;
+  }
+  
+  /// Detect change points based on phase shifts in entries
+  /// This complements signal-based detection by looking for actual phase label changes
+  List<PhaseChangePoint> _detectPhaseBasedChangePoints(List<JournalEntry> entries) {
+    if (entries.length < 10) return []; // Need at least 10 entries
+    
+    final sortedEntries = List<JournalEntry>.from(entries)
+      ..sort((a, b) => a.createdAt.compareTo(b.createdAt));
+    
+    final changePoints = <PhaseChangePoint>[];
+    PhaseLabel? lastPhase;
+    int consecutiveSamePhase = 0;
+    const minConsecutiveForChange = 3; // Need at least 3 entries of same phase before considering a change
+    
+    for (int i = 0; i < sortedEntries.length; i++) {
+      final entry = sortedEntries[i];
+      
+      // Get phase for this entry
+      String? phaseStr;
+      final phaseHashtag = _extractPhaseHashtag(entry.content);
+      if (phaseHashtag != null) {
+        phaseStr = phaseHashtag;
+      } else {
+        phaseStr = PhaseRecommender.recommend(
+          emotion: entry.emotion ?? '',
+          reason: entry.emotionReason ?? '',
+          text: entry.content,
+          selectedKeywords: entry.keywords,
+        );
+      }
+      
+      final currentPhase = _stringToPhaseLabel(phaseStr);
+      
+      if (lastPhase == null) {
+        // First entry
+        lastPhase = currentPhase;
+        consecutiveSamePhase = 1;
+      } else if (currentPhase == lastPhase) {
+        // Same phase, continue counting
+        consecutiveSamePhase++;
+      } else {
+        // Phase changed
+        if (consecutiveSamePhase >= minConsecutiveForChange) {
+          // We had enough consecutive entries of the previous phase, this is a valid change point
+          changePoints.add(PhaseChangePoint(
+            timestamp: entry.createdAt,
+            score: 0.5, // Medium score for phase-based changes
+            signals: {
+              'phase_based': 1.0, // Use 1.0 for true
+              'consecutive_count': consecutiveSamePhase.toDouble(),
+              // Store phase indices as doubles (discovery=0, expansion=1, etc.)
+              'from_phase_index': lastPhase.index.toDouble(),
+              'to_phase_index': currentPhase.index.toDouble(),
+            },
+          ));
+          print('DEBUG: RIVET Sweep - Phase-based change point: ${_getPhaseLabelName(lastPhase)} -> ${_getPhaseLabelName(currentPhase)} at ${entry.createdAt} (${consecutiveSamePhase} consecutive entries of ${_getPhaseLabelName(lastPhase)})');
+        }
+        
+        lastPhase = currentPhase;
+        consecutiveSamePhase = 1;
+      }
+    }
+    
+    return changePoints;
+  }
+  
+  /// Merge and deduplicate change points from different sources
+  List<PhaseChangePoint> _mergeChangePoints(
+    List<PhaseChangePoint> signalPoints,
+    List<PhaseChangePoint> phasePoints,
+  ) {
+    final allPoints = <PhaseChangePoint>[];
+    final seenTimestamps = <DateTime>{};
+    const mergeWindow = Duration(days: 2); // Merge points within 2 days of each other
+    
+    // Add signal-based points first
+    for (final point in signalPoints) {
+      allPoints.add(point);
+      seenTimestamps.add(point.timestamp);
+    }
+    
+    // Add phase-based points, avoiding duplicates
+    for (final point in phasePoints) {
+      // Check if there's already a point within the merge window
+      bool isDuplicate = false;
+      for (final existing in seenTimestamps) {
+        if ((point.timestamp.difference(existing).abs() < mergeWindow)) {
+          isDuplicate = true;
+          break;
+        }
+      }
+      
+      if (!isDuplicate) {
+        allPoints.add(point);
+        seenTimestamps.add(point.timestamp);
+      } else {
+        print('DEBUG: RIVET Sweep - Skipped phase-based change point at ${point.timestamp} (too close to existing point)');
+      }
+    }
+    
+    // Sort by timestamp
+    allPoints.sort((a, b) => a.timestamp.compareTo(b.timestamp));
+    
+    return allPoints;
   }
 
   // Helper methods

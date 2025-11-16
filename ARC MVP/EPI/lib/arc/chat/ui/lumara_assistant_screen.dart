@@ -387,20 +387,20 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
                     children: [
                       Expanded(
                         child: ListView.builder(
-                          controller: _scrollController,
-                          padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-                          itemCount: state.messages.length,
-                          itemBuilder: (context, index) {
-                            final message = state.messages[index];
-                            return _buildMessageBubble(message);
-                          },
+                    controller: _scrollController,
+                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+                    itemCount: state.messages.length,
+                    itemBuilder: (context, index) {
+                      final message = state.messages[index];
+                    return _buildMessageBubble(message);
+                  },
                         ),
                       ),
                       // Show progress indicator at bottom when processing
                       if (state.isProcessing) _buildLoadingIndicator(context),
                     ],
-                  );
-                }
+                );
+              }
                 
               return const SizedBox.shrink();
               },
@@ -687,15 +687,15 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
                       builder: (context) {
                         print('LumaraAssistantScreen: Rendering AttributionDisplayWidget for message ${message.id} with ${message.attributionTraces!.length} traces');
                         return AttributionDisplayWidget(
-                          traces: message.attributionTraces!,
-                          responseId: message.id,
-                          onWeightChanged: (trace, newWeight) {
-                            // Handle weight change
-                            _handleAttributionWeightChange(message.id, trace, newWeight);
-                          },
-                          onExcludeMemory: (trace) {
-                            // Handle memory exclusion
-                            _handleMemoryExclusion(message.id, trace);
+                      traces: message.attributionTraces!,
+                      responseId: message.id,
+                      onWeightChanged: (trace, newWeight) {
+                        // Handle weight change
+                        _handleAttributionWeightChange(message.id, trace, newWeight);
+                      },
+                      onExcludeMemory: (trace) {
+                        // Handle memory exclusion
+                        _handleMemoryExclusion(message.id, trace);
                           },
                         );
                       },

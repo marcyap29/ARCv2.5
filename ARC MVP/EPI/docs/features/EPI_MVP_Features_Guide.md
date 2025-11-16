@@ -1,6 +1,6 @@
 # EPI MVP - Comprehensive Features Guide
 
-**Version:** 1.0.1  
+**Version:** 1.0.2  
 **Last Updated:** November 2025
 
 ---
@@ -201,8 +201,8 @@ EPI MVP provides a comprehensive set of features for intelligent journaling, AI 
 - **Phase Statistics**: Comprehensive phase timeline statistics
 - **Phase Regimes**: Timeline of life phases (Discovery, Expansion, Transition, Consolidation, Recovery, Breakthrough)
 - **System State Export**: Complete phase-related system state backup (RIVET, Sentinel, ArcForm)
-
-## Analysis Features
+- **Advanced Analytics Toggle**: Settings toggle to show/hide Health and Analytics tabs (default OFF)
+- **Dynamic Tab Management**: Insights tabs dynamically adjust based on Advanced Analytics preference
 
 ### Pattern Recognition
 
@@ -234,6 +234,13 @@ EPI MVP provides a comprehensive set of features for intelligent journaling, AI 
 
 ### Insights
 
+**Unified Insights View**
+- **Dynamic Tab Layout**: 2 tabs (Phase, Settings) when Advanced Analytics OFF, 4 tabs (Phase, Health, Analytics, Settings) when ON
+- **Adaptive Sizing**: Larger icons (24px) and font (17px) when 2 tabs, smaller (16px icons, 13px font) when 4 tabs
+- **Automatic Centering**: TabBar automatically centers 2-tab layout
+- **Advanced Analytics Toggle**: Settings control to show/hide Health and Analytics tabs
+- **Sentinel Integration**: Sentinel moved to Analytics page as expandable card
+
 **Pattern Analysis**
 - Keyword patterns over time
 - Emotion trends
@@ -245,6 +252,12 @@ EPI MVP provides a comprehensive set of features for intelligent journaling, AI 
 - Reflection prompts
 - Pattern insights
 - Health recommendations
+
+**Analytics Tools**
+- **Patterns**: Keyword and emotion pattern analysis
+- **AURORA**: Circadian rhythm and orchestration insights
+- **VEIL**: Edge detection and relationship mapping
+- **Sentinel**: Emotional risk detection and pattern analysis
 
 ---
 

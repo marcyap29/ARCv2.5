@@ -1,6 +1,6 @@
 # EPI MVP - Comprehensive Guide
 
-**Version:** 1.0.1  
+**Version:** 1.0.2  
 **Last Updated:** November 2025
 
 ---
@@ -118,6 +118,7 @@ EPI is an AI-powered journaling companion that:
 - Cloud API fallback configuration
 - Similarity thresholds
 - Lookback periods
+- **Advanced Analytics Toggle**: Show/hide Health and Analytics tabs in Insights (default OFF)
 
 ### ARCForm Visualization
 
@@ -135,6 +136,12 @@ EPI is an AI-powered journaling companion that:
 
 ### Insights & Analysis
 
+**Unified Insights View**
+- **Dynamic Tab Layout**: 2 tabs (Phase, Settings) when Advanced Analytics OFF, 4 tabs (Phase, Health, Analytics, Settings) when ON
+- **Advanced Analytics Toggle**: Settings control to show/hide Health and Analytics tabs (default OFF)
+- **Adaptive Sizing**: Larger icons and font when 2 tabs, smaller when 4 tabs
+- **Automatic Centering**: 2-tab layout automatically centered
+
 **Pattern Recognition**
 - Keyword extraction and categorization
 - Emotion detection
@@ -144,10 +151,16 @@ EPI is an AI-powered journaling companion that:
 **Phase Analysis**
 - Real-time phase detection
 - RIVET Sweep integration
-- SENTINEL risk monitoring
 - Phase timeline visualization
+- Current phase display with imported phase regime support
 
-**Health Integration**
+**Analytics Tools** (Available when Advanced Analytics enabled)
+- **Patterns**: Keyword and emotion pattern analysis
+- **AURORA**: Circadian rhythm and orchestration insights
+- **VEIL**: Edge detection and relationship mapping
+- **Sentinel**: Emotional risk detection and pattern analysis (moved from Phase Analysis)
+
+**Health Integration** (Available when Advanced Analytics enabled)
 - HealthKit integration (iOS)
 - Health data visualization
 - Circadian rhythm awareness

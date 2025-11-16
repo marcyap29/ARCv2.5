@@ -12,7 +12,6 @@ import 'phase_timeline_view.dart';
 import 'rivet_sweep_wizard.dart';
 import 'phase_help_screen.dart';
 import 'phase_change_readiness_card.dart';
-import 'sentinel_analysis_view.dart';
 import 'simplified_arcform_view_3d.dart';
 import 'phase_arcform_3d_screen.dart';
 import '../../shared/app_colors.dart';
@@ -25,11 +24,10 @@ class PhaseAnalysisView extends StatefulWidget {
 }
 
 class _PhaseAnalysisViewState extends State<PhaseAnalysisView> {
-  String _selectedView = 'arcforms'; // 'arcforms', 'timeline', 'analysis', or 'sentinel' - flattened single-level navigation
+  String _selectedView = 'arcforms'; // 'arcforms', 'timeline', or 'analysis' - flattened single-level navigation
   PhaseIndex? _phaseIndex;
   bool _isLoading = true;
   String? _error;
-  final GlobalKey<State<SentinelAnalysisView>> _sentinelKey = GlobalKey<State<SentinelAnalysisView>>();
 
   @override
   void initState() {
@@ -332,8 +330,6 @@ List<PhaseSegmentProposal> proposals,
                     _buildPhaseButton('timeline', 'Timeline', Icons.timeline),
                     const SizedBox(width: 8),
                     _buildPhaseButton('analysis', 'Analysis', Icons.analytics),
-                    const SizedBox(width: 8),
-                    _buildPhaseButton('sentinel', 'SENTINEL', Icons.shield),
                   ],
                 ),
               ),
@@ -400,8 +396,6 @@ List<PhaseSegmentProposal> proposals,
         return _buildTimelineContent();
       case 'analysis':
         return _buildAnalysisTab();
-      case 'sentinel':
-        return SentinelAnalysisView(key: _sentinelKey);
       default:
         return _buildArcformsTab();
     }
@@ -1269,10 +1263,7 @@ List<PhaseSegmentProposal> proposals,
       // 2. Refresh ARCForms
       _refreshArcforms();
       
-      // 3. Refresh Sentinel Analysis
-      _refreshSentinelAnalysis();
-      
-      // 4. Trigger comprehensive rebuild of all analysis components
+      // 3. Trigger comprehensive rebuild of all analysis components
       setState(() {
         // This will trigger rebuild of:
         // - Phase Statistics card (_buildPhaseStats)
@@ -1305,17 +1296,6 @@ List<PhaseSegmentProposal> proposals,
       }
     }
   }
-
-  /// Refresh Sentinel Analysis component
-  void _refreshSentinelAnalysis() {
-    // Call refresh method on the Sentinel view
-    final state = _sentinelKey.currentState;
-    if (state != null && state.mounted) {
-      // Call the _runAnalysis method on SentinelAnalysisView
-      (state as dynamic)._runAnalysis();
-    }
-  }
-
 
   void _startPhaseQuiz() {
     // For now, show a simple dialog with phase options

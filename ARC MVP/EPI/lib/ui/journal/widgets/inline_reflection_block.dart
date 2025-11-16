@@ -154,8 +154,8 @@ class InlineReflectionBlock extends StatelessWidget {
                   builder: (context) {
                     print('InlineReflectionBlock: Rendering AttributionDisplayWidget with ${attributionTraces!.length} traces');
                     return AttributionDisplayWidget(
-                      traces: attributionTraces!,
-                      responseId: 'journal_${DateTime.now().millisecondsSinceEpoch}',
+                  traces: attributionTraces!,
+                  responseId: 'journal_${DateTime.now().millisecondsSinceEpoch}',
                     );
                   },
                 ),

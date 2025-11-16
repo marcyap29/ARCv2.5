@@ -742,11 +742,11 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
         // Use the traces we already built for the placeholder
         contextAttributionTraces = initialAttributionTraces;
         // Still need entryText, so build context but don't recreate traces
-        final contextResult = await _buildEntryContext(
-          context, 
-          userQuery: userQuery,
-          currentEntry: null, // Streaming doesn't have current entry context
-        );
+      final contextResult = await _buildEntryContext(
+        context, 
+        userQuery: userQuery,
+        currentEntry: null, // Streaming doesn't have current entry context
+      );
         entryText = contextResult['context'] as String;
         // Use the initial traces we already have
         print('LUMARA Debug: Using ${contextAttributionTraces.length} initial attribution traces for streaming');

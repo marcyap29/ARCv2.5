@@ -75,10 +75,10 @@ class _PhaseChangeReadinessCardState extends State<PhaseChangeReadinessCard> {
         }
         
         if (mounted) {
-          setState(() {
-            _rivetState = rebuilt.state;
-            _rivetInsights = insights;
-          });
+        setState(() {
+          _rivetState = rebuilt.state;
+          _rivetInsights = insights;
+        });
         }
       } else {
         // Fallback: try to get state from storage
@@ -91,38 +91,38 @@ class _PhaseChangeReadinessCardState extends State<PhaseChangeReadinessCard> {
         final state = await rivetProvider.safeGetState(userId);
         
         if (mounted) {
-          setState(() {
-            _rivetState = state ?? const RivetState(
-              align: 0,
-              trace: 0,
-              sustainCount: 0,
-              sawIndependentInWindow: false,
-            );
-          });
+        setState(() {
+          _rivetState = state ?? const RivetState(
+            align: 0,
+            trace: 0,
+            sustainCount: 0,
+            sawIndependentInWindow: false,
+          );
+        });
         }
       }
 
       // Get ATLAS insights (simplified - would need health data in real implementation)
       final atlasInsights = _getAtlasInsights();
       if (mounted) {
-        setState(() {
-          _atlasInsights = atlasInsights;
-          _isLoading = false;
-        });
+      setState(() {
+        _atlasInsights = atlasInsights;
+        _isLoading = false;
+      });
       }
     } catch (e, stackTrace) {
       print('ERROR: Failed to load readiness data: $e');
       print('Stack trace: $stackTrace');
       if (mounted) {
-        setState(() {
-          _rivetState = const RivetState(
-            align: 0,
-            trace: 0,
-            sustainCount: 0,
-            sawIndependentInWindow: false,
-          );
-          _isLoading = false;
-        });
+      setState(() {
+        _rivetState = const RivetState(
+          align: 0,
+          trace: 0,
+          sustainCount: 0,
+          sawIndependentInWindow: false,
+        );
+        _isLoading = false;
+      });
       }
     }
   }
@@ -307,7 +307,14 @@ class _PhaseChangeReadinessCardState extends State<PhaseChangeReadinessCard> {
 
     final measurableSigns = <String>[];
     if (shiftPercentage > 5.0) {
+      // Use direction-aware message to match getPrimaryInsight()
+      if (direction == TransitionDirection.toward) {
       measurableSigns.add('Your reflection patterns have shifted ${shiftPercentage.toStringAsFixed(0)}% toward $approachingPhase.');
+      } else if (direction == TransitionDirection.away) {
+        measurableSigns.add('Your reflection patterns have shifted ${shiftPercentage.toStringAsFixed(0)}% away from $approachingPhase.');
+      } else {
+        measurableSigns.add('Your reflection patterns are stable in $currentPhase.');
+      }
     }
     if (updatedState.align > 0.7) {
       measurableSigns.add('Phase predictions align ${(updatedState.align * 100).toStringAsFixed(0)}% with your confirmed experiences.');
@@ -365,24 +372,24 @@ class _PhaseChangeReadinessCardState extends State<PhaseChangeReadinessCard> {
   Widget build(BuildContext context) {
     // Always ensure widget renders, even if there's an error
     try {
-      if (_isLoading) {
-        return Card(
-          elevation: 2,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          child: Container(
-            padding: const EdgeInsets.all(32.0),
-            child: const Center(
-              child: CircularProgressIndicator(),
-            ),
+    if (_isLoading) {
+      return Card(
+        elevation: 2,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        child: Container(
+          padding: const EdgeInsets.all(32.0),
+          child: const Center(
+            child: CircularProgressIndicator(),
           ),
-        );
-      }
+        ),
+      );
+    }
 
-      final isReady = _isReadyForPhaseChange();
-      final qualifyingEntries = _rivetState?.sustainCount ?? 0;
-      final hasIndependent = _rivetState?.sawIndependentInWindow ?? false;
-      final alignPercent = ((_rivetState?.align ?? 0) * 100).toInt();
-      final tracePercent = ((_rivetState?.trace ?? 0) * 100).toInt();
+    final isReady = _isReadyForPhaseChange();
+    final qualifyingEntries = _rivetState?.sustainCount ?? 0;
+    final hasIndependent = _rivetState?.sawIndependentInWindow ?? false;
+    final alignPercent = ((_rivetState?.align ?? 0) * 100).toInt();
+    final tracePercent = ((_rivetState?.trace ?? 0) * 100).toInt();
 
     return Card(
       elevation: 4,
@@ -518,7 +525,7 @@ class _PhaseChangeReadinessCardState extends State<PhaseChangeReadinessCard> {
               const SizedBox(height: 24),
 
               // Progress Indicator
-              _buildEnhancedProgressDisplay(isReady, qualifyingEntries),
+              _buildEnhancedProgressDisplay(isReady, qualifyingEntries, hasIndependent),
 
               const SizedBox(height: 24),
 
@@ -557,9 +564,9 @@ class _PhaseChangeReadinessCardState extends State<PhaseChangeReadinessCard> {
                 child: const Text('Retry'),
               ),
             ],
-          ),
         ),
-      );
+      ),
+    );
     }
   }
 
@@ -853,7 +860,7 @@ class _PhaseChangeReadinessCardState extends State<PhaseChangeReadinessCard> {
     );
   }
 
-  Widget _buildEnhancedProgressDisplay(bool isReady, int qualifyingEntries) {
+  Widget _buildEnhancedProgressDisplay(bool isReady, int qualifyingEntries, bool hasIndependent) {
     // Calculate progress based on multiple factors, not just consecutive qualifying entries
     double progress = 0.0;
     if (isReady) {
@@ -884,6 +891,56 @@ class _PhaseChangeReadinessCardState extends State<PhaseChangeReadinessCard> {
         : (progress >= 0.5 
             ? Colors.orange 
             : (progress >= 0.25 ? Colors.blue : Colors.grey));
+
+    // Determine what phase they're ready to transition to (if ready)
+    String? targetPhase;
+    String readinessMessage;
+    List<String> nextSteps = [];
+    
+    if (isReady) {
+      // If ready, check if we have transition insights to show target phase
+      if (_rivetInsights != null && 
+          _rivetInsights!.approachingPhase != null && 
+          _rivetInsights!.direction == TransitionDirection.toward) {
+        targetPhase = _rivetInsights!.approachingPhase;
+        readinessMessage = '✨ Ready to transition to $targetPhase phase!';
+        nextSteps.add('Continue journaling to confirm the transition to $targetPhase.');
+        nextSteps.add('Look for patterns that align with $targetPhase characteristics.');
+      } else {
+        readinessMessage = '✨ Ready to explore a new phase!';
+        nextSteps.add('Continue journaling to identify which phase you\'re moving toward.');
+        nextSteps.add('Review your recent entries for emerging patterns.');
+      }
+    } else {
+      // Not ready - show what's needed
+      if (qualifyingEntries >= 1) {
+        readinessMessage = '📈 Almost there - keep journaling to validate phase transition!';
+      } else {
+        readinessMessage = '📝 Building your phase profile...';
+      }
+      
+      // Build list of what's still needed
+      if (_rivetState != null) {
+        if (qualifyingEntries < 2) {
+          final needed = 2 - qualifyingEntries;
+          nextSteps.add('Write $needed more journal ${needed == 1 ? 'entry' : 'entries'} that reflect phase transition patterns.');
+        }
+        if (!hasIndependent) {
+          nextSteps.add('Create entries on different days to show independent validation.');
+        }
+        if (_rivetState!.align < 0.6) {
+          final gap = ((0.6 - _rivetState!.align) * 100).toInt();
+          nextSteps.add('Increase alignment by $gap% - ensure your entries match predicted phase patterns.');
+        }
+        if (_rivetState!.trace < 0.6) {
+          final gap = ((0.6 - _rivetState!.trace) * 100).toInt();
+          nextSteps.add('Build evidence trace by $gap% - continue journaling to accumulate validation data.');
+        }
+      } else {
+        nextSteps.add('Keep journaling regularly to build your phase profile.');
+        nextSteps.add('Reflect on patterns and themes in your entries.');
+      }
+    }
 
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -924,17 +981,183 @@ class _PhaseChangeReadinessCardState extends State<PhaseChangeReadinessCard> {
         ),
         const SizedBox(height: 8),
           Text(
-            isReady
-                ? '✨ Ready to explore a new phase!'
-                : qualifyingEntries >= 1
-                    ? '📈 Almost there - keep journaling!'
-                    : '📝 Building your phase profile...',
+          readinessMessage,
             style: TextStyle(
               fontSize: 13,
               color: Colors.grey[300],
               fontStyle: FontStyle.italic,
             ),
           ),
+        // Add clarification for 100% ready state
+        if (isReady && targetPhase != null) ...[
+          const SizedBox(height: 8),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.green.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Colors.green.withOpacity(0.3)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(Icons.check_circle, size: 16, color: Colors.green.shade400),
+                    const SizedBox(width: 6),
+                    Text(
+                      'All validation requirements met',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.green.shade300,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  'Your patterns suggest entering $targetPhase phase.',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey[300],
+                  ),
+                ),
+                if (nextSteps.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  ...nextSteps.map((step) => Padding(
+                    padding: const EdgeInsets.only(bottom: 4),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('• ', style: TextStyle(color: Colors.grey[400], fontSize: 12)),
+                        Expanded(
+                          child: Text(
+                            step,
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: Colors.grey[400],
+                              height: 1.4,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  )),
+                ],
+              ],
+            ),
+          ),
+        ] else if (isReady) ...[
+          const SizedBox(height: 8),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.green.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Colors.green.withOpacity(0.3)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(Icons.check_circle, size: 16, color: Colors.green.shade400),
+                    const SizedBox(width: 6),
+                    Text(
+                      'All validation requirements met',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.green.shade300,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  'Continue journaling to confirm phase transition.',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey[300],
+                  ),
+                ),
+                if (nextSteps.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  ...nextSteps.map((step) => Padding(
+                    padding: const EdgeInsets.only(bottom: 4),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('• ', style: TextStyle(color: Colors.grey[400], fontSize: 12)),
+                        Expanded(
+                          child: Text(
+                            step,
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: Colors.grey[400],
+                              height: 1.4,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  )),
+                ],
+              ],
+            ),
+          ),
+        ] else if (nextSteps.isNotEmpty) ...[
+          // Show what's needed if not ready
+          const SizedBox(height: 8),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.orange.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Colors.orange.withOpacity(0.3)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(Icons.info_outline, size: 16, color: Colors.orange.shade400),
+                    const SizedBox(width: 6),
+                    Text(
+                      'To move to a new phase:',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.orange.shade300,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                ...nextSteps.take(3).map((step) => Padding(
+                  padding: const EdgeInsets.only(bottom: 4),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('• ', style: TextStyle(color: Colors.grey[400], fontSize: 12)),
+                      Expanded(
+                        child: Text(
+                          step,
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: Colors.grey[300],
+                            height: 1.4,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                )),
+              ],
+            ),
+          ),
+        ],
       ],
     );
   }

@@ -1,7 +1,49 @@
 # EPI ARC MVP - Changelog
 
-**Version:** 2.1.14  
+**Version:** 2.1.15  
 **Last Updated:** November 2025
+
+## [2.1.15] - November 2025
+
+### **Advanced Analytics Toggle & UI/UX Improvements** - Complete
+
+#### Advanced Analytics Feature
+- **Settings Toggle**: Added "Advanced Analytics" section in Settings with toggle to show/hide Health and Analytics tabs
+- **Default State**: Advanced Analytics disabled by default (tabs hidden)
+- **Visual Feedback**: Snackbar notifications when toggling to show/hide tabs
+- **Preference Service**: Created `AdvancedAnalyticsPreferenceService` to manage visibility state using SharedPreferences
+- **Dynamic Tab Management**: `UnifiedInsightsView` dynamically builds tabs based on preference (2 tabs when OFF, 4 tabs when ON)
+
+#### Sentinel Relocation
+- **Moved to Analytics**: Sentinel moved from "Insights->Phase->Phase Analysis->Sentinel" to "Insights->Analytics" as its own expandable card
+- **Removed Redundant Routes**: Removed "Phase->Analysis->Phase Analysis->Timeline" route (redundant with "Phase->Timeline")
+- **Better Organization**: Sentinel now grouped with other analytics tools (Patterns, AURORA, VEIL)
+
+#### Tab UI/UX Improvements
+- **Journal Tabs**: Increased icon size from 16 to 20 for Timeline, LUMARA, and Settings tabs
+- **Insights Tab Sizing**: 
+  - When Advanced Analytics OFF: 2 tabs (Phase, Settings) with larger icons (24px), larger font (17px), bolder weight (w600), and taller bar (48px)
+  - When Advanced Analytics ON: 4 tabs (Phase, Health, Analytics, Settings) with smaller icons (16px), smaller font (13px), normal weight, and shorter bar (36px)
+- **Centering**: TabBar automatically centers 2-tab layout when not scrollable
+- **Padding**: Balanced padding for optimal visual balance
+
+#### Technical Fixes
+- **Infinite Loop Fix**: Removed `didChangeDependencies()` and `didUpdateWidget()` methods that were causing infinite rebuild loops
+- **Blank Screen Fix**: Changed from `SingleTickerProviderStateMixin` to `TickerProviderStateMixin` to allow TabController recreation
+- **Controller Lifecycle**: Improved TabController disposal and recreation flow with post-frame callbacks
+- **Preference Refresh**: Preference reloads automatically when returning from Settings
+
+**Files Modified**:
+- `lib/shared/ui/settings/advanced_analytics_preference_service.dart` - New service for managing preference
+- `lib/shared/ui/settings/settings_view.dart` - Added Advanced Analytics toggle section
+- `lib/shared/ui/insights/unified_insights_view.dart` - Dynamic tab building, TickerProviderStateMixin, improved lifecycle
+- `lib/shared/ui/journal/unified_journal_view.dart` - Increased icon sizes
+- `lib/ui/phase/phase_analysis_view.dart` - Removed Timeline and Sentinel routes
+- `lib/insights/analytics_page.dart` - Added Sentinel as expandable card
+
+**Status**: ✅ Complete - Advanced Analytics toggle working, Sentinel relocated, improved tab UI/UX, all technical issues resolved
+
+---
 
 ## [2.1.14] - November 2025
 
