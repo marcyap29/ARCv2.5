@@ -228,8 +228,8 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
     // Record user message in MCP memory first
     await _recordUserMessage(text);
     
-    // Add user message to chat session
-    await _addToChatSession(text, 'user');
+    // Add user message to chat session (preserve ID for favorites)
+    await _addToChatSession(text, 'user', messageId: userMessage.id, timestamp: userMessage.timestamp);
 
     print('LUMARA Debug: Added user message, new count: ${updatedMessages.length}');
 
@@ -298,14 +298,14 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
         // Record assistant response in MCP memory
         await _recordAssistantMessage(enhancedResponse);
         
-        // Add assistant response to chat session
-        await _addToChatSession(enhancedResponse, 'assistant');
-        
-        // Add assistant response to UI with attribution traces
+        // Create assistant message first to get ID
         final assistantMessage = LumaraMessage.assistant(
           content: enhancedResponse,
           attributionTraces: attributionTraces,
         );
+        
+        // Add assistant response to chat session (preserve ID for favorites)
+        await _addToChatSession(enhancedResponse, 'assistant', messageId: assistantMessage.id, timestamp: assistantMessage.timestamp);
         
         // Check if we should suggest loading more history
         var finalMessages = [...updatedMessages, assistantMessage];
@@ -374,14 +374,14 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
           // Record assistant response in MCP memory
           await _recordAssistantMessage(enhancedContent);
 
-          // Add assistant response to chat session
-          await _addToChatSession(enhancedContent, 'assistant');
-
-          // Add assistant response to UI with attribution traces
+          // Create assistant message first to get ID
           final assistantMessage = LumaraMessage.assistant(
             content: enhancedContent,
             attributionTraces: attributionTraces,
           );
+
+          // Add assistant response to chat session (preserve ID for favorites)
+          await _addToChatSession(enhancedContent, 'assistant', messageId: assistantMessage.id, timestamp: assistantMessage.timestamp);
           final finalMessages = [...updatedMessages, assistantMessage];
 
           emit(currentState.copyWith(
@@ -462,16 +462,15 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
         // Record assistant response in MCP memory
         await _recordAssistantMessage(enhancedContent);
 
-        // Add assistant response to chat session
-        await _addToChatSession(enhancedContent, 'assistant');
-
-        // Add assistant response to UI with attribution traces
+        // Create assistant message first to get ID
         print('LUMARA Debug: Creating assistant message with ${attributionTraces.length} attribution traces');
-
         final assistantMessage = LumaraMessage.assistant(
           content: enhancedContent,
           attributionTraces: attributionTraces,
         );
+
+        // Add assistant response to chat session (preserve ID for favorites)
+        await _addToChatSession(enhancedContent, 'assistant', messageId: assistantMessage.id, timestamp: assistantMessage.timestamp);
         final finalMessages = [...updatedMessages, assistantMessage];
 
         print('LUMARA Debug: Added assistant message, final count: ${finalMessages.length}');
@@ -835,9 +834,6 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
       // Record assistant response in MCP memory
       await _recordAssistantMessage(enhancedContent);
 
-      // Add assistant response to chat session
-      await _addToChatSession(enhancedContent, 'assistant');
-
       // Update final message with attribution traces
       if (state is LumaraAssistantLoaded) {
         final currentMessages = (state as LumaraAssistantLoaded).messages;
@@ -847,6 +843,9 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
             content: enhancedContent,
             attributionTraces: attributionTraces,
           );
+
+          // Add assistant response to chat session (preserve ID for favorites)
+          await _addToChatSession(enhancedContent, 'assistant', messageId: finalMessage.id, timestamp: finalMessage.timestamp);
 
           final finalMessages = [
             ...currentMessages.sublist(0, lastIndex),
@@ -1921,7 +1920,8 @@ Your exported MCP bundle can be imported into any MCP-compatible system, ensurin
   }
 
   /// Add message to current chat session
-  Future<void> _addToChatSession(String content, String role) async {
+  /// Optionally accepts messageId and timestamp to preserve IDs for favorites
+  Future<void> _addToChatSession(String content, String role, {String? messageId, DateTime? timestamp}) async {
     if (currentChatSessionId == null) return;
     
     try {
@@ -1932,8 +1932,10 @@ Your exported MCP bundle can be imported into any MCP-compatible system, ensurin
         sessionId: currentChatSessionId!,
         role: role,
         content: content,
+        messageId: messageId, // Preserve LumaraMessage ID for favorites
+        timestamp: timestamp, // Preserve timestamp
       );
-      print('LUMARA Chat: Added $role message to session $currentChatSessionId');
+      print('LUMARA Chat: Added $role message to session $currentChatSessionId${messageId != null ? ' (preserved ID: $messageId)' : ''}');
       
       // Check if compaction is needed
       await _checkAndCompactIfNeeded();

@@ -14,6 +14,8 @@ import '../../services/phase_regime_service.dart';
 import '../../services/analytics_service.dart';
 import '../../services/rivet_sweep_service.dart';
 import 'package:my_app/arc/core/journal_repository.dart';
+import 'package:my_app/arc/arcform/share/arcform_share_models.dart';
+import 'package:my_app/arc/arcform/share/arcform_share_sheet.dart';
 
 /// Simplified ARCForms view with 3D constellation renderer
 class SimplifiedArcformView3D extends StatefulWidget {
@@ -376,6 +378,16 @@ class _SimplifiedArcformView3DState extends State<SimplifiedArcformView3D> {
                         fontWeight: FontWeight.bold,
                       ),
                     ),
+                  ),
+                  const SizedBox(width: 8),
+                  // Share button
+                  IconButton(
+                    icon: const Icon(Icons.share_outlined, size: 18),
+                    color: kcSecondaryTextColor,
+                    onPressed: () => _showShareSheetForSnapshot(context, snapshot, phaseHint, keywords, arcformData),
+                    tooltip: 'Share this Arcform',
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
                   ),
                 ],
               ),
@@ -1161,6 +1173,45 @@ class _SimplifiedArcformView3DState extends State<SimplifiedArcformView3D> {
       ),
     );
   }
+
+  void _showShareSheetForSnapshot(
+    BuildContext context,
+    Map<String, dynamic> snapshot,
+    String phase,
+    List<String> keywords,
+    Arcform3DData? arcformData,
+  ) {
+    // Get arcform ID from snapshot
+    final arcformId = snapshot['id'] as String? ?? snapshot['arcformId'] as String? ?? 'current';
+    
+    // Create initial payload
+    final payload = ArcformSharePayload(
+      shareMode: ArcShareMode.social, // Default to social
+      arcformId: arcformId,
+      phase: phase,
+      keywords: keywords,
+    );
+
+    // Create preview widget if arcform data is available
+    Widget? preview;
+    if (arcformData != null) {
+      preview = Arcform3D(
+        nodes: arcformData.nodes,
+        edges: arcformData.edges,
+        phase: arcformData.phase,
+        skin: arcformData.skin,
+        showNebula: true,
+        enableLabels: true,
+      );
+    }
+
+    showArcformShareSheet(
+      context: context,
+      payload: payload,
+      fromView: 'timeline_card',
+      arcformPreview: preview,
+    );
+  }
 }
 
 /// Full-screen ARCForm viewer
@@ -1177,6 +1228,11 @@ class _FullScreenArcformViewer extends StatelessWidget {
         backgroundColor: kcBackgroundColor,
         title: Text(arcform.title, style: heading1Style(context)),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.share_outlined),
+            onPressed: () => _showShareSheet(context, arcform),
+            tooltip: 'Share Arcform',
+          ),
           IconButton(
             icon: const Icon(Icons.info_outline),
             onPressed: () => _showInfo(context),
@@ -1217,6 +1273,33 @@ class _FullScreenArcformViewer extends StatelessWidget {
             child: const Text('Close'),
           ),
         ],
+      ),
+    );
+  }
+
+  void _showShareSheet(BuildContext context, Arcform3DData arcform) {
+    // Extract keywords from nodes
+    final keywords = arcform.nodes.map((node) => node.label).toList();
+    
+    // Create initial payload
+    final payload = ArcformSharePayload(
+      shareMode: ArcShareMode.social, // Default to social
+      arcformId: arcform.id,
+      phase: arcform.phase,
+      keywords: keywords,
+    );
+
+    showArcformShareSheet(
+      context: context,
+      payload: payload,
+      fromView: 'arcform_view',
+      arcformPreview: Arcform3D(
+        nodes: arcform.nodes,
+        edges: arcform.edges,
+        phase: arcform.phase,
+        skin: arcform.skin,
+        showNebula: true,
+        enableLabels: true,
       ),
     );
   }

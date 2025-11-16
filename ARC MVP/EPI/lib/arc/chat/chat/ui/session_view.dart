@@ -5,6 +5,9 @@ import 'package:my_app/arc/chat/chat/chat_repo.dart';
 import '../../bloc/lumara_assistant_cubit.dart';
 import '../../data/context_provider.dart';
 import '../../data/context_scope.dart';
+import '../../services/favorites_service.dart';
+import '../../data/models/lumara_favorite.dart';
+import 'package:my_app/shared/ui/settings/favorites_management_view.dart';
 
 // Real context provider for SessionView that respects scope
 class SessionContextProvider extends ContextProvider {
@@ -232,6 +235,133 @@ class _SessionViewState extends State<SessionView> {
     );
   }
 
+  Future<void> _toggleFavorite(ChatMessage message) async {
+    if (message.role != MessageRole.assistant) return;
+
+    try {
+      await FavoritesService.instance.initialize();
+      final isFavorite = await FavoritesService.instance.isFavorite(message.id);
+
+      if (isFavorite) {
+        // Remove from favorites
+        await FavoritesService.instance.removeFavoriteBySourceId(message.id);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Removed from Favorites'),
+              duration: Duration(seconds: 2),
+            ),
+          );
+          setState(() {}); // Refresh UI
+        }
+      } else {
+        // Add to favorites
+        final atCapacity = await FavoritesService.instance.isAtCapacity();
+        if (atCapacity) {
+          _showCapacityPopup();
+          return;
+        }
+
+        final favorite = LumaraFavorite.fromMessage(
+          content: message.textContent,
+          sourceId: message.id,
+          sourceType: 'chat',
+          metadata: message.metadata ?? {},
+        );
+
+        final added = await FavoritesService.instance.addFavorite(favorite);
+        if (added && mounted) {
+          final isFirstTime = !await FavoritesService.instance.hasShownFirstTimeSnackbar();
+          if (isFirstTime) {
+            await FavoritesService.instance.markFirstTimeSnackbarShown();
+            _showFirstTimeSnackbar();
+          } else {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Added to Favorites'),
+                duration: Duration(seconds: 2),
+              ),
+            );
+          }
+          setState(() {}); // Refresh UI
+        }
+      }
+    } catch (e) {
+      print('Error toggling favorite: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: ${e.toString()}'),
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    }
+  }
+
+  void _showCapacityPopup() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Favorites Full'),
+        content: const Text(
+          'You have reached the maximum of 25 favorites. Please remove some favorites before adding new ones.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const FavoritesManagementView(),
+                ),
+              );
+            },
+            child: const Text('Manage Favorites'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showFirstTimeSnackbar() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Added to Favorites',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 4),
+            const Text(
+              'LUMARA will now adapt its style based on your favorites. Tap to manage them.',
+            ),
+          ],
+        ),
+        duration: const Duration(seconds: 5),
+        action: SnackBarAction(
+          label: 'Manage',
+          onPressed: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const FavoritesManagementView(),
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+
   void _scrollToBottom() {
     if (_scrollController.hasClients) {
       _scrollController.animateTo(
@@ -312,9 +442,6 @@ class _SessionViewState extends State<SessionView> {
         behavior: HitTestBehavior.opaque,
         child: Column(
           children: [
-            // Scope chips
-            _buildScopeChips(),
-
             // Messages list
             Expanded(
               child: _buildMessagesList(),
@@ -457,7 +584,7 @@ class _SessionViewState extends State<SessionView> {
                     ),
                   ],
                   
-                  // Copy button for assistant messages
+                  // Copy, star, and delete buttons for assistant messages
                   if (!isUser && !isSystem) ...[
                     const SizedBox(height: 8),
                     Row(
@@ -469,6 +596,23 @@ class _SessionViewState extends State<SessionView> {
                           constraints: const BoxConstraints(),
                           onPressed: () => _copyMessage(message.textContent),
                           tooltip: 'Copy',
+                        ),
+                        FutureBuilder<bool>(
+                          future: FavoritesService.instance.isFavorite(message.id),
+                          builder: (context, snapshot) {
+                            final isFavorite = snapshot.data ?? false;
+                            return IconButton(
+                              icon: Icon(
+                                isFavorite ? Icons.star : Icons.star_border,
+                                size: 16,
+                                color: isFavorite ? Colors.amber : Colors.grey[600],
+                              ),
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints(),
+                              onPressed: () => _toggleFavorite(message),
+                              tooltip: isFavorite ? 'Remove from Favorites' : 'Add to Favorites',
+                            );
+                          },
                         ),
                       ],
                     ),
@@ -607,66 +751,6 @@ class _SessionViewState extends State<SessionView> {
           ),
         ],
       ),
-    );
-  }
-
-  void _toggleScope(String scopeType) {
-    setState(() {
-      switch (scopeType) {
-        case 'journal':
-          _scope = _scope.copyWith(journal: !_scope.journal);
-          break;
-        case 'phase':
-          _scope = _scope.copyWith(phase: !_scope.phase);
-          break;
-        case 'arcforms':
-          _scope = _scope.copyWith(arcforms: !_scope.arcforms);
-          break;
-        case 'voice':
-          _scope = _scope.copyWith(voice: !_scope.voice);
-          break;
-        case 'media':
-          _scope = _scope.copyWith(media: !_scope.media);
-          break;
-        case 'drafts':
-          _scope = _scope.copyWith(drafts: !_scope.drafts);
-          break;
-        case 'chats':
-          _scope = _scope.copyWith(chats: !_scope.chats);
-          break;
-      }
-    });
-    
-    // Recreate the LumaraAssistantCubit with the new scope
-    _lumaraCubit?.close();
-    _initializeLumaraCubit();
-  }
-
-  Widget _buildScopeChips() {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-      child: Wrap(
-        spacing: 8,
-        children: [
-          _buildScopeChip('Journal', _scope.journal, () => _toggleScope('journal')),
-          _buildScopeChip('Phase', _scope.phase, () => _toggleScope('phase')),
-          _buildScopeChip('Arcforms', _scope.arcforms, () => _toggleScope('arcforms')),
-          _buildScopeChip('Voice', _scope.voice, () => _toggleScope('voice')),
-          _buildScopeChip('Media', _scope.media, () => _toggleScope('media')),
-          _buildScopeChip('Drafts', _scope.drafts, () => _toggleScope('drafts')),
-          _buildScopeChip('Chats', _scope.chats, () => _toggleScope('chats')),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildScopeChip(String label, bool isActive, VoidCallback onTap) {
-    return FilterChip(
-      label: Text(label),
-      selected: isActive,
-      onSelected: (_) => onTap(),
-      selectedColor: Colors.blue.withOpacity(0.2),
-      checkmarkColor: Colors.blue[700],
     );
   }
 

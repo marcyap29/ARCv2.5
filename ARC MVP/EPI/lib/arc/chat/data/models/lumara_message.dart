@@ -1,5 +1,6 @@
 import 'package:equatable/equatable.dart';
 import 'package:my_app/polymeta/memory/enhanced_memory_schema.dart';
+import '../../chat/chat_models.dart';
 
 /// Role of a LUMARA message
 enum LumaraMessageRole {
@@ -33,12 +34,15 @@ class LumaraMessage extends Equatable {
     List<String> sources = const [],
     Map<String, dynamic> metadata = const {},
     List<AttributionTrace>? attributionTraces,
+    String? id,
+    DateTime? timestamp,
   }) {
+    final now = DateTime.now();
     return LumaraMessage(
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      id: id ?? now.millisecondsSinceEpoch.toString(),
       role: LumaraMessageRole.user,
       content: content,
-      timestamp: DateTime.now(),
+      timestamp: timestamp ?? now,
       sources: sources,
       metadata: metadata,
       attributionTraces: attributionTraces,
@@ -50,12 +54,15 @@ class LumaraMessage extends Equatable {
     List<String> sources = const [],
     Map<String, dynamic> metadata = const {},
     List<AttributionTrace>? attributionTraces,
+    String? id,
+    DateTime? timestamp,
   }) {
+    final now = DateTime.now();
     return LumaraMessage(
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      id: id ?? now.millisecondsSinceEpoch.toString(),
       role: LumaraMessageRole.assistant,
       content: content,
-      timestamp: DateTime.now(),
+      timestamp: timestamp ?? now,
       sources: sources,
       metadata: metadata,
       attributionTraces: attributionTraces,
@@ -66,14 +73,34 @@ class LumaraMessage extends Equatable {
     required String content,
     Map<String, dynamic> metadata = const {},
     List<AttributionTrace>? attributionTraces,
+    String? id,
+    DateTime? timestamp,
   }) {
+    final now = DateTime.now();
     return LumaraMessage(
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      id: id ?? now.millisecondsSinceEpoch.toString(),
       role: LumaraMessageRole.system,
       content: content,
-      timestamp: DateTime.now(),
+      timestamp: timestamp ?? now,
       metadata: metadata,
       attributionTraces: attributionTraces,
+    );
+  }
+
+  /// Create LumaraMessage from ChatMessage (preserves ID for favorites)
+  factory LumaraMessage.fromChatMessage(ChatMessage chatMessage) {
+    return LumaraMessage(
+      id: chatMessage.id, // Preserve original ID for favorites
+      role: chatMessage.role == MessageRole.user
+          ? LumaraMessageRole.user
+          : chatMessage.role == MessageRole.assistant
+              ? LumaraMessageRole.assistant
+              : LumaraMessageRole.system,
+      content: chatMessage.textContent,
+      timestamp: chatMessage.createdAt,
+      sources: const [],
+      metadata: chatMessage.metadata ?? {},
+      attributionTraces: null, // Can be loaded separately if needed
     );
   }
 

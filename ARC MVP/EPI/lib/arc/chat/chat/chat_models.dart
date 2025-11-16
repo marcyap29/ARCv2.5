@@ -90,13 +90,15 @@ class ChatMessage extends HiveObject {
     required String content,
     String? provenance,
     Map<String, dynamic>? metadata,
+    String? id, // Optional ID to preserve from LumaraMessage for favorites
+    DateTime? createdAt, // Optional timestamp to preserve from LumaraMessage
   }) {
     return ChatMessage(
-      id: _uuid.v4(),
+      id: id ?? _uuid.v4(),
       sessionId: sessionId,
       role: role,
       textContent: content,
-      createdAt: DateTime.now(),
+      createdAt: createdAt ?? DateTime.now(),
       provenance: provenance,
       metadata: metadata,
     );

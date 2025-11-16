@@ -77,6 +77,8 @@ class ChatRepoImpl implements ChatRepo {
     required String sessionId,
     required String role,
     required String content,
+    String? messageId,
+    DateTime? timestamp,
   }) async {
     _ensureInitialized();
 
@@ -91,11 +93,13 @@ class ChatRepoImpl implements ChatRepo {
       throw ArgumentError('Session not found: $sessionId');
     }
 
-    // Create and store message
+    // Create and store message (preserve ID if provided for favorites)
     final message = ChatMessage.createText(
       sessionId: sessionId,
       role: role,
       content: content,
+      id: messageId, // Preserve LumaraMessage ID for favorites
+      createdAt: timestamp, // Preserve timestamp
     );
 
     await _messagesBox!.put(message.id, message);

@@ -9,10 +9,13 @@ abstract class ChatRepo {
   });
 
   /// Add a message to an existing session
+  /// Optionally accepts messageId and timestamp to preserve IDs for favorites
   Future<void> addMessage({
     required String sessionId,
     required String role,
     required String content,
+    String? messageId,
+    DateTime? timestamp,
   });
 
   /// List active (non-archived) sessions

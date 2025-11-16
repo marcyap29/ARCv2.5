@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:my_app/shared/ui/home/home_view.dart';
 import 'package:my_app/shared/app_colors.dart';
 import 'package:my_app/shared/text_style.dart';
+import 'package:my_app/arc/arcform/share/arcform_share_models.dart';
+import 'package:my_app/arc/arcform/share/arcform_share_sheet.dart';
 
 class PhaseCelebrationView extends StatefulWidget {
   final String discoveredPhase;
@@ -93,6 +95,23 @@ class _PhaseCelebrationViewState extends State<PhaseCelebrationView>
         builder: (context) => const HomeView(initialTab: 0), // Phase tab (index 0)
       ),
       (route) => false,
+    );
+  }
+
+  void _showShareSheet() {
+    // Create initial payload for reveal screen
+    // Use empty keywords initially - LUMARA can generate based on phase
+    final payload = ArcformSharePayload(
+      shareMode: ArcShareMode.social, // Default to social for reveal
+      arcformId: 'current',
+      phase: widget.discoveredPhase,
+      keywords: [], // Will be populated by LUMARA or from context
+    );
+
+    showArcformShareSheet(
+      context: context,
+      payload: payload,
+      fromView: 'reveal_screen',
     );
   }
 
@@ -241,6 +260,43 @@ class _PhaseCelebrationViewState extends State<PhaseCelebrationView>
                     ),
                     
                     const SizedBox(height: 24),
+                    
+                    // Share this moment button
+                    SlideTransition(
+                      position: _slideAnimation,
+                      child: Container(
+                        width: double.infinity,
+                        margin: const EdgeInsets.symmetric(horizontal: 32),
+                        child: OutlinedButton(
+                          onPressed: _showShareSheet,
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: Colors.white,
+                            side: BorderSide(color: kcPrimaryColor.withOpacity(0.5)),
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const Icon(Icons.share_outlined, size: 20),
+                              const SizedBox(width: 8),
+                              Text(
+                                'Share this moment',
+                                style: heading3Style(context).copyWith(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 16,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                    
+                    const SizedBox(height: 16),
                     
                     // Continue to App text link
                     SlideTransition(
