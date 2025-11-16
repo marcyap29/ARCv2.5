@@ -1,7 +1,7 @@
 # Unified LUMARA UI/UX & Context Improvements
 
 **Date:** November 14, 2025  
-**Version:** 2.1.14  
+**Version:** 2.1.15  
 **Branch:** attributions  
 **Status:** ✅ Complete
 
