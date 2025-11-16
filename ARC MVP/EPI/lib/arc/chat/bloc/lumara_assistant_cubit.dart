@@ -15,6 +15,9 @@ import 'package:my_app/polymeta/memory/enhanced_mira_memory_service.dart';
 import 'package:my_app/polymeta/memory/enhanced_memory_schema.dart';
 import 'package:my_app/polymeta/memory/sentence_extraction_util.dart';
 import 'package:my_app/polymeta/memory/attribution_service.dart';
+import 'package:my_app/polymeta/reasoning/lumara_recommendation_integration.dart';
+import 'package:my_app/polymeta/reasoning/lumara_decisive_recommendations.dart';
+import 'package:my_app/polymeta/memory/enhanced_attribution_service.dart';
 import 'package:my_app/polymeta/mira_service.dart';
 import 'package:my_app/telemetry/analytics.dart';
 import '../chat/chat_repo.dart';
@@ -27,6 +30,7 @@ import '../services/lumara_reflection_settings_service.dart';
 import 'package:my_app/models/journal_entry_model.dart';
 import 'package:my_app/shared/ui/settings/voiceover_preference_service.dart';
 import '../voice/audio_io.dart';
+import '../prompts/lumara_therapeutic_presence_data.dart';
 
 /// LUMARA Assistant Cubit State
 abstract class LumaraAssistantState {}
@@ -148,7 +152,7 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
       // Start or resume a conversation session
       final sessionId = await _getOrCreateSession();
 
-      // Add welcome message and record it in memory
+      // Add welcome message (only automated message allowed)
       final welcomeContent = "Hello! I'm LUMARA, your personal assistant. I can help you understand your patterns, explain your current phase, and provide insights about your journey. What would you like to know?";
 
       final List<LumaraMessage> messages = [
@@ -265,6 +269,63 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
       print('LUMARA Debug: Best provider: ${bestProvider?.name ?? 'none'}');
       print('LUMARA Debug: Is manual selection: $isManualSelection');
 
+      // PRIORITY 0: Check for decisive recommendation requests
+      final recommendationType = LumaraDecisiveRecommendations.detectRecommendationRequest(text);
+      if (recommendationType != null) {
+        print('LUMARA Debug: [Decisive Recommendation] Detected recommendation request: ${recommendationType.name}');
+        try {
+          // Use enhanced attribution service for recommendation context
+          final enhancedAttributionService = EnhancedAttributionService();
+
+          // Process the user message through the recommendation integration
+          final recommendationResponse = await LumaraRecommendationIntegration.processUserMessage(
+            userMessage: text,
+            conversationHistory: currentState.messages,
+            attributionService: enhancedAttributionService,
+            messageId: userMessage.id,
+            additionalContext: {
+              'currentEntry': currentEntry?.toJson(),
+              'scope': currentState.scope.enabledScopes.join(','),
+            },
+          );
+
+          if (recommendationResponse.isNotEmpty) {
+            print('LUMARA Debug: [Decisive Recommendation] SUCCESS - Generated recommendation response');
+
+            // Create assistant message with the recommendation
+            final assistantMessage = LumaraMessage.assistant(
+              content: recommendationResponse,
+              attributionTraces: [], // Attribution traces are handled within the recommendation response
+            );
+
+            // Add assistant response to chat session
+            await _addToChatSession(recommendationResponse, 'assistant',
+              messageId: assistantMessage.id, timestamp: assistantMessage.timestamp);
+
+            // Record assistant message in MCP memory
+            await _recordAssistantMessage(recommendationResponse);
+
+            // Update UI with recommendation
+            final finalMessages = [...updatedMessages, assistantMessage];
+
+            // Speak response if voiceover is enabled
+            _speakResponseIfEnabled(recommendationResponse);
+
+            emit(currentState.copyWith(
+              messages: finalMessages,
+              isProcessing: false,
+            ));
+
+            print('LUMARA Debug: [Decisive Recommendation] Complete - recommendation delivered');
+            return; // Exit early - recommendation processed
+          }
+        } catch (e) {
+          print('LUMARA Debug: [Decisive Recommendation] Failed: $e');
+          print('LUMARA Debug: Falling back to regular processing...');
+          // Fall through to regular processing if recommendation fails
+        }
+      }
+
       // PRIORITY 1: Use Gemini with full journal context (ArcLLM chat)
       try {
         print('LUMARA Debug: [Priority 1] Attempting Gemini with journal context...');
@@ -339,11 +400,17 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
         return; // Exit early - Gemini succeeded
       } catch (e) {
         print('LUMARA Debug: [Gemini] Failed: $e');
-        print('LUMARA Debug: Falling back to on-device or Gemini streaming...');
+        print('LUMARA Debug: Cloud API only mode - no automated responses');
+
+        // Emit error state - NO automated response messages
+        emit(currentState.copyWith(
+          isProcessing: false,
+        ));
+        return;
       }
-      
-      // PRIORITY 2: Try On-Device fallback (security-first, unless manually overridden)
-      if (!isManualSelection) {
+
+      // DISABLED: All fallback systems removed - Cloud API only mode
+      if (false) {
         try {
           print('LUMARA Debug: [Priority 2] Attempting on-device LLMAdapter...');
 
@@ -415,104 +482,19 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
           print('LUMARA Debug: [Priority 2] Falling back to Cloud API...');
         }
       } else {
-            print('LUMARA Debug: [Manual Selection] Using manually selected provider: ${currentProvider}');
-        print('LUMARA Debug: [Priority 2] Falling back to Cloud API...');
+        print('LUMARA Debug: [Manual Selection] Cloud API only mode - no manual provider fallback');
       }
 
-      // PRIORITY 2: Fall back to Cloud API (streaming if available)
-      final geminiAvailable = availableProviders.any((p) => p.name == 'Google Gemini');
-      final useStreaming = geminiAvailable;
+      // ALL AUTOMATED FALLBACK SYSTEMS REMOVED - CLOUD API ONLY
 
-      if (useStreaming) {
-        print('LUMARA Debug: [Cloud API] Using streaming (Gemini API available)');
-
-        // Build context BEFORE creating placeholder so we can initialize it with attribution traces
-        final context = await _contextProvider.buildContext(scope: currentState.scope);
-        final contextResult = await _buildEntryContext(
-          context, 
-          userQuery: text,
-          currentEntry: currentEntry,
-        );
-        final initialAttributionTraces = contextResult['attributionTraces'] as List<AttributionTrace>;
-        print('LUMARA Debug: Built context with ${initialAttributionTraces.length} attribution traces for streaming placeholder');
-
-        // Create placeholder message for streaming with initial attribution traces
-        final streamingMessage = LumaraMessage.assistant(
-          content: '',
-          attributionTraces: initialAttributionTraces, // Initialize with traces from context building
-        );
-        final messagesWithPlaceholder = [...updatedMessages, streamingMessage];
-
-        emit(currentState.copyWith(
-          messages: messagesWithPlaceholder,
-          isProcessing: true,
-        ));
-
-        // Stream the response (will enrich traces at the end)
-        await _processMessageWithStreaming(text, currentState.scope, updatedMessages, initialAttributionTraces);
-      } else {
-        print('LUMARA Debug: [Cloud API] No API key - using non-streaming approach');
-
-        // Fall back to non-streaming approach (will use rule-based if no API)
-        final responseData = await _processMessageWithAttribution(text, currentState.scope);
-        print('LUMARA Debug: Generated response length: ${responseData['content'].length}');
-        print('LUMARA Debug: Attribution traces in response: ${responseData['attributionTraces']?.length ?? 0}');
-
-        // Get context for phase info (using current scope from state)
-        final context = await _contextProvider.buildContext(scope: currentState.scope);
-        var attributionTraces = responseData['attributionTraces'] as List<AttributionTrace>? ?? [];
-        
-        // Enrich attribution traces with actual journal entry content
-        if (attributionTraces.isNotEmpty) {
-          attributionTraces = await _enrichAttributionTraces(attributionTraces);
-          print('LUMARA Debug: Enriched ${attributionTraces.length} attribution traces with journal entry content');
-        }
-        
-        final enhancedContent = _appendPhaseInfoFromAttributions(
-          responseData['content'],
-          attributionTraces,
-          context,
-        );
-
-        // Record assistant response in MCP memory
-        await _recordAssistantMessage(enhancedContent);
-
-        // Create assistant message first to get ID
-        print('LUMARA Debug: Creating assistant message with ${attributionTraces.length} attribution traces');
-        final assistantMessage = LumaraMessage.assistant(
-          content: enhancedContent,
-          attributionTraces: attributionTraces,
-        );
-
-        // Add assistant response to chat session (preserve ID for favorites)
-        await _addToChatSession(enhancedContent, 'assistant', messageId: assistantMessage.id, timestamp: assistantMessage.timestamp);
-        final finalMessages = [...updatedMessages, assistantMessage];
-
-        print('LUMARA Debug: Added assistant message, final count: ${finalMessages.length}');
-
-        emit(currentState.copyWith(
-          messages: finalMessages,
-          isProcessing: false,
-        ));
-        
-        // Speak response if voiceover is enabled
-        _speakResponseIfEnabled(enhancedContent);
-      }
+      print('LUMARA Debug: Cloud API only mode - no fallbacks available');
     } catch (e) {
-      print('LUMARA Debug: Error processing message: $e');
+      print('LUMARA Debug: Cloud API failed: $e');
+      print('LUMARA Debug: Cloud API only mode - NO automated responses');
 
-      // Add error message to UI
-      final errorMessage = LumaraMessage.assistant(
-        content: "I'm sorry, I encountered an error processing your request. Please try again.",
-      );
-
-      // Record error in memory too
-      await _recordAssistantMessage(errorMessage.content);
-
-      final finalMessages = [...updatedMessages, errorMessage];
-
+      // Emit error state - NO automated response messages
       emit(currentState.copyWith(
-        messages: finalMessages,
+        messages: updatedMessages,
         isProcessing: false,
       ));
     }
@@ -668,12 +650,9 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
     }
 
 
-    // No providers available - return clear guidance
-    print('LUMARA Debug: All providers failed. No inference available.');
-    return {
-      'content': 'LUMARA needs an AI provider to respond. Please either download an on-device model or configure a cloud API key in Settings. Once configured, LUMARA will be able to provide intelligent reflections.',
-      'attributionTraces': <AttributionTrace>[],
-    };
+    // Cloud API only mode - NO automated fallback messages
+    print('LUMARA Debug: Cloud API failed. No automated responses.');
+    throw Exception('Cloud API unavailable - no automated responses');
   }
 
   /// Map InsightKind to string for on-device model
@@ -782,7 +761,7 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
     final keywords = _buildKeywordsContext(context);
 
     // Build system prompt
-    final systemPrompt = _buildSystemPrompt(entryText, phaseHint, keywords);
+    final systemPrompt = await _buildSystemPrompt(entryText, phaseHint, keywords);
 
     print('LUMARA Debug: Starting streaming response...');
     print('LUMARA Debug: Using direct Gemini streaming with journal context');
@@ -913,9 +892,9 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
           }
         }
         
-        // Only show full error message if we have no partial response
+        // Graceful fallback for streaming failures
         final errorMessage = LumaraMessage.assistant(
-          content: "I'm sorry, I encountered an error while streaming the response. Please try again.",
+          content: "I'm sorry, the connection was lost while I was responding. Please try again in a moment.",
         );
 
         final finalMessages = [...baseMessages, errorMessage];
@@ -928,12 +907,58 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
     }
   }
 
-  /// Build system prompt for streaming
-  String _buildSystemPrompt(String? entryText, String? phaseHint, String? keywords) {
+  /// Build system prompt for streaming with therapeutic presence integration
+  Future<String> _buildSystemPrompt(String? entryText, String? phaseHint, String? keywords) async {
     final buffer = StringBuffer();
 
-    buffer.writeln('You are LUMARA, a compassionate personal assistant for the EPI journaling app.');
-    buffer.writeln('Provide thoughtful, dignified responses that honor the user\'s experiences.');
+    // Load therapeutic presence settings
+    final settingsService = LumaraReflectionSettingsService.instance;
+    final settings = await settingsService.loadAllSettings();
+    final therapeuticPresenceEnabled = settings['therapeuticPresenceEnabled'] as bool? ?? true;
+    final therapeuticAutomaticMode = settings['therapeuticAutomaticMode'] as bool? ?? false;
+    
+    // Determine depth level: use automatic mode logic or manual setting
+    int therapeuticDepthLevel;
+    if (therapeuticAutomaticMode) {
+      // Automatic mode: system decides (default to moderate/level 2 for balanced approach)
+      therapeuticDepthLevel = 2;
+    } else {
+      // Manual mode: use user's selected depth level
+      therapeuticDepthLevel = settings['therapeuticDepthLevel'] as int? ?? 2;
+    }
+
+    if (therapeuticPresenceEnabled) {
+      // Use therapeutic presence system prompt
+      buffer.writeln(LumaraTherapeuticPresenceData.systemPrompt);
+
+      // Add depth level specific guidance
+      switch (therapeuticDepthLevel) {
+        case 1: // Light
+          buffer.writeln('\n--- DEPTH GUIDANCE ---');
+          buffer.writeln('Maintain a supportive and encouraging tone. Focus on validation and gentle insights.');
+          buffer.writeln('Keep responses accessible and not too emotionally intensive.');
+          break;
+        case 2: // Moderate
+          buffer.writeln('\n--- DEPTH GUIDANCE ---');
+          buffer.writeln('Use reflective and insight-oriented approach. Explore emotions and patterns thoughtfully.');
+          buffer.writeln('Balance emotional depth with practical clarity.');
+          break;
+        case 3: // Deep
+          buffer.writeln('\n--- DEPTH GUIDANCE ---');
+          buffer.writeln('Engage in exploratory and emotionally resonant dialogue. Use the full therapeutic presence framework.');
+          buffer.writeln('Draw deep connections, explore underlying themes, and provide transformative insights.');
+          buffer.writeln('Apply tone modes from the response matrix based on emotional context and intensity.');
+          break;
+      }
+
+      buffer.writeln('\n--- CHAT CONTEXT ---');
+      buffer.writeln('You are responding in a real-time chat conversation. Use the therapeutic presence framework');
+      buffer.writeln('to provide immediate, emotionally attuned support while maintaining professional boundaries.');
+    } else {
+      // Fallback to basic prompt when therapeutic presence is disabled
+      buffer.writeln('You are LUMARA, a compassionate personal assistant for the EPI journaling app.');
+      buffer.writeln('Provide thoughtful, dignified responses that honor the user\'s experiences.');
+    }
 
     if (phaseHint != null) {
       buffer.writeln('\nUser\'s current phase context: $phaseHint');
@@ -1144,7 +1169,7 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
     // Reset session ID to force new session on next message
     currentChatSessionId = null;
     
-    // Create welcome message for new chat (clears the old chat in the UI)
+    // Add welcome message (only automated message allowed)
     const welcomeContent = "Hello! I'm LUMARA, your personal assistant. I can help you understand your patterns, explain your current phase, and provide insights about your journey. What would you like to know?";
     
     final List<LumaraMessage> messages = [

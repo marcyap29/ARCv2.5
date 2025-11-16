@@ -22,6 +22,7 @@ class LumaraReflectionSettingsService {
   static const bool _defaultCrossModalEnabled = true;
   static const bool _defaultTherapeuticPresenceEnabled = true;
   static const int _defaultTherapeuticDepthLevel = 2;
+  static const bool _defaultTherapeuticAutomaticMode = false;
 
   // Keys for SharedPreferences
   static const String _keySimilarityThreshold = 'lumara_similarity_threshold';
@@ -30,6 +31,7 @@ class LumaraReflectionSettingsService {
   static const String _keyCrossModalEnabled = 'lumara_cross_modal_enabled';
   static const String _keyTherapeuticPresenceEnabled = 'lumara_therapeutic_presence_enabled';
   static const String _keyTherapeuticDepthLevel = 'lumara_therapeutic_depth_level';
+  static const String _keyTherapeuticAutomaticMode = 'lumara_therapeutic_automatic_mode';
 
   /// Initialize the service
   Future<void> initialize() async {
@@ -110,6 +112,18 @@ class LumaraReflectionSettingsService {
     await _prefs!.setInt(_keyTherapeuticDepthLevel, clampedValue);
   }
 
+  /// Check if therapeutic automatic mode is enabled (default: false)
+  Future<bool> isTherapeuticAutomaticMode() async {
+    await initialize();
+    return _prefs!.getBool(_keyTherapeuticAutomaticMode) ?? _defaultTherapeuticAutomaticMode;
+  }
+
+  /// Set therapeutic automatic mode
+  Future<void> setTherapeuticAutomaticMode(bool value) async {
+    await initialize();
+    await _prefs!.setBool(_keyTherapeuticAutomaticMode, value);
+  }
+
   /// Get effective lookback years adjusted for therapeutic depth level
   /// Depth 1 (Light): Reduce by 40%
   /// Depth 2 (Moderate): Standard
@@ -166,6 +180,7 @@ class LumaraReflectionSettingsService {
       'crossModalEnabled': await isCrossModalEnabled(),
       'therapeuticPresenceEnabled': await isTherapeuticPresenceEnabled(),
       'therapeuticDepthLevel': await getTherapeuticDepthLevel(),
+      'therapeuticAutomaticMode': await isTherapeuticAutomaticMode(),
     };
   }
 
@@ -177,6 +192,7 @@ class LumaraReflectionSettingsService {
     bool? crossModalEnabled,
     bool? therapeuticPresenceEnabled,
     int? therapeuticDepthLevel,
+    bool? therapeuticAutomaticMode,
   }) async {
     await initialize();
     
@@ -197,6 +213,9 @@ class LumaraReflectionSettingsService {
     }
     if (therapeuticDepthLevel != null) {
       await setTherapeuticDepthLevel(therapeuticDepthLevel);
+    }
+    if (therapeuticAutomaticMode != null) {
+      await setTherapeuticAutomaticMode(therapeuticAutomaticMode);
     }
   }
 }

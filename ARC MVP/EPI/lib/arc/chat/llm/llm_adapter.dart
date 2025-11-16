@@ -4,38 +4,16 @@ import 'package:flutter/foundation.dart';
 import 'package:crypto/crypto.dart' as crypto;
 import 'package:my_app/core/llm/model_adapter.dart';
 import 'bridge.pigeon.dart' as pigeon;
-import 'model_progress_service.dart';
 import 'prompts/lumara_prompt_assembler.dart';
 import 'prompts/lumara_model_presets.dart';
-import 'prompts/llama_chat_template.dart';
 import 'prompts/chat_templates.dart';
 import '../services/favorites_service.dart';
 
 /// On-device LLM adapter using Pigeon native bridge
-/// Supports GGUF models via llama.cpp with Metal acceleration (iOS)
+/// GGUF models (Llama/Qwen3) are no longer supported - models not installed
 class LLMAdapter implements ModelAdapter {
   /// Compute SHA-256 hash of a string for prompt verification
   static String sha256Of(String s) => crypto.sha256.convert(utf8.encode(s)).toString();
-  
-  /// Format assembled prompt for Llama-3.2-Instruct using proper chat template
-  static String _formatForLlama(String assembledPrompt, String userMessage) {
-    // Extract system message from assembled prompt
-    final systemStart = assembledPrompt.indexOf('<<SYSTEM>>');
-    final contextStart = assembledPrompt.indexOf('<<CONTEXT>>');
-    
-    String systemMessage = "You are LUMARA, a personal AI assistant.";
-    
-    if (systemStart != -1 && contextStart != -1) {
-      final systemEnd = contextStart;
-      systemMessage = assembledPrompt.substring(systemStart + 10, systemEnd).trim();
-    }
-    
-    // Use Llama chat template
-    return LlamaChatTemplate.formatSimple(
-      systemMessage: systemMessage,
-      userMessage: userMessage,
-    );
-  }
   
   /// Canary test to verify no test stubs are present
   static Future<String> runCanaryTest(String testType) async {
@@ -115,82 +93,12 @@ class LLMAdapter implements ModelAdapter {
         return false;
       }
 
-      // Check for GGUF model availability (llama.cpp + Metal)
-      try {
-        // Check for Llama-3.2-3B model first (priority)
-        final llamaDownloaded = await _nativeApi.isModelDownloaded('Llama-3.2-3b-Instruct-Q4_K_M.gguf');
-        debugPrint('[LLMAdapter] Llama-3.2-3B model downloaded: $llamaDownloaded');
-        
-        if (llamaDownloaded) {
-          _activeModelId = 'Llama-3.2-3b-Instruct-Q4_K_M.gguf';
-          _available = true;
-          _isInitialized = true;
-          debugPrint('[LLMAdapter] Using Llama-3.2-3B model: $_activeModelId');
-        } else {
-          // Check for Qwen3-4B model as second priority
-          final qwenDownloaded = await _nativeApi.isModelDownloaded('Qwen3-4B-Instruct-2507-Q4_K_S.gguf');
-          debugPrint('[LLMAdapter] Qwen3-4B model downloaded: $qwenDownloaded');
-          
-          if (qwenDownloaded) {
-            _activeModelId = 'Qwen3-4B-Instruct-2507-Q4_K_S.gguf';
-            _available = true;
-            _isInitialized = true;
-            debugPrint('[LLMAdapter] Using Qwen3-4B model: $_activeModelId');
-          } else {
-            _reason = 'no_gguf_models_downloaded';
-            _available = false;
-            _isInitialized = false;
-            debugPrint('[LLMAdapter] No GGUF models downloaded');
-            return false;
-          }
-        }
-      } catch (e) {
-        debugPrint('[LLMAdapter] Failed to check model availability: $e');
-        _reason = 'model_check_error: $e';
-        _available = false;
-        _isInitialized = false;
-        return false;
-      }
-
-      // Initialize the selected model
-      try {
-        debugPrint('[LLMAdapter] Starting async model initialization...');
-        final success = await _nativeApi.initModel(_activeModelId!);
-
-        if (success) {
-          // Wait for model to finish loading (progress will reach 100%)
-          debugPrint('[LLMAdapter] Waiting for model to load...');
-          try {
-            await ModelProgressService().waitForCompletion(
-              _activeModelId!,
-              timeout: const Duration(minutes: 2),
-            );
-
-            _isInitialized = true;
-            _available = true;
-            _reason = 'ok';
-            debugPrint('[LLMAdapter] Successfully initialized model: $_activeModelId');
-            return true;
-          } on TimeoutException {
-            debugPrint('[LLMAdapter] Model loading timeout');
-            _reason = 'model_loading_timeout';
-            _available = false;
-            _isInitialized = false;
-            return false;
-          }
-        } else {
-          _reason = 'model_init_failed';
-          _available = false;
-          _isInitialized = false;
-          return false;
-        }
-      } catch (e) {
-        debugPrint('[LLMAdapter] Model initialization failed: $e');
-        _reason = 'init_error: $e';
-        _available = false;
-        _isInitialized = false;
-        return false;
-      }
+      // GGUF models (Llama/Qwen3) are no longer supported - models not installed
+      _reason = 'no_gguf_models_available';
+      _available = false;
+      _isInitialized = false;
+      debugPrint('[LLMAdapter] GGUF models not available (models not installed)');
+      return false;
     } catch (e) {
       debugPrint('[LLMAdapter] Unexpected initialization error: $e');
       _reason = 'unexpected_error: $e';
@@ -339,9 +247,9 @@ class LLMAdapter implements ModelAdapter {
           useFewShot: false, // Disable few-shot examples
         );
 
-        // Use model-specific chat template
+        // Use model-specific chat template (fallback to generic if no model)
           optimizedPrompt = ChatTemplates.getTemplate(
-            _activeModelId ?? 'Llama-3.2-3b-Instruct-Q4_K_M.gguf',
+            _activeModelId ?? 'generic',
             systemMessage: ChatTemplates.toAscii(_extractSystemMessage(assembledPrompt)),
             userMessage: ChatTemplates.toAscii(userMessage),
           );
@@ -354,8 +262,8 @@ class LLMAdapter implements ModelAdapter {
       final promptHash = sha256Of(optimizedPrompt);
       debugPrint('🔐 PROMPT HASH: $promptHash');
 
-      // Get model-specific parameters
-      final modelName = _activeModelId ?? 'Llama-3.2-3b-Instruct-Q4_K_M.gguf';
+      // Get model-specific parameters (fallback to generic if no model)
+      final modelName = _activeModelId ?? 'generic';
       final preset = LumaraModelPresets.getPreset(modelName);
       
       // Use optimized parameters for tiny models

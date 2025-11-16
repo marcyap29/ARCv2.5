@@ -123,12 +123,22 @@ class _AttributionDisplayWidgetState extends State<AttributionDisplayWidget> {
         children: [
           const Divider(height: 1),
           const SizedBox(height: 12),
-          
-          // Memory traces list
-          ...widget.traces.map((trace) => _buildTraceItem(trace)),
-          
+
+          // Memory traces list with height constraint to prevent overflow
+          ConstrainedBox(
+            constraints: const BoxConstraints(
+              maxHeight: 300, // Limit height to prevent RenderFlex overflow
+            ),
+            child: ListView.builder(
+              shrinkWrap: true,
+              physics: const ClampingScrollPhysics(),
+              itemCount: widget.traces.length,
+              itemBuilder: (context, index) => _buildTraceItem(widget.traces[index]),
+            ),
+          ),
+
           const SizedBox(height: 8),
-          
+
           // Summary statistics
           _buildSummaryStats(),
         ],

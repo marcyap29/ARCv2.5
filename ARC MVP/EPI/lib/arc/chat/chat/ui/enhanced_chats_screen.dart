@@ -408,9 +408,22 @@ class _EnhancedChatsScreenState extends State<EnhancedChatsScreen>
             ],
         bottom: TabBar(
           controller: _tabController,
+          labelPadding: const EdgeInsets.symmetric(vertical: 8),
           tabs: const [
-            Tab(text: 'All Chats'),
-            Tab(text: 'Categories'),
+            Tab(
+              child: Text(
+                'All Chats',
+                style: TextStyle(fontSize: 13),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            Tab(
+              child: Text(
+                'Categories',
+                style: TextStyle(fontSize: 13),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
           ],
         ),
       ),

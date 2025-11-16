@@ -268,6 +268,7 @@ class _McpImportScreenState extends State<McpImportScreen> {
           int chatSessionsImported = 0;
           int chatMessagesImported = 0;
           int lumaraFavoritesImported = 0;
+          int lumaraFavoritesTotal = 0;
           
           try {
             final tempDir = Directory.systemTemp;
@@ -284,7 +285,9 @@ class _McpImportScreenState extends State<McpImportScreen> {
               if (await nodesFile.exists()) {
                 // Import favorites from nodes.jsonl
                 // (McpPackImportService already imported journal entries)
+                // Track count of successfully imported LUMARA favorites vs total found
                 int favoritesCount = 0;
+                int favoritesTotal = 0;
                 try {
                   final favoritesService = FavoritesService.instance;
                   await favoritesService.initialize();
@@ -293,6 +296,7 @@ class _McpImportScreenState extends State<McpImportScreen> {
                     if (line.trim().isEmpty) continue;
                     final jsonData = jsonDecode(line);
                     if (jsonData is Map<String, dynamic> && jsonData['type'] == 'lumara_favorite') {
+                      favoritesTotal++; // Count all favorites found
                       try {
                         final node = McpNode.fromJson(jsonData);
                         final metadata = node.metadata ?? {};
@@ -331,6 +335,7 @@ class _McpImportScreenState extends State<McpImportScreen> {
                               metadata: favoriteMetadata,
                             );
                             
+                            // Only count favorites that are successfully added
                             final added = await favoritesService.addFavorite(favorite);
                             if (added) {
                               favoritesCount++;
@@ -339,13 +344,17 @@ class _McpImportScreenState extends State<McpImportScreen> {
                         }
                       } catch (e) {
                         print('⚠️ MCP Import: Failed to import favorite: $e');
+                        // Continue processing other favorites even if this one fails
                       }
                     }
                   }
                 } catch (e) {
                   print('⚠️ MCP Import: Failed to import favorites: $e');
+                  // Continue with other imports even if favorites import fails
                 }
+                // Set the count of successfully imported LUMARA favorites and total found
                 lumaraFavoritesImported = favoritesCount;
+                lumaraFavoritesTotal = favoritesTotal;
                 
                 // Also import chats using enhanced service
                 final baseChatRepo = ChatRepoImpl.instance;
@@ -375,6 +384,7 @@ class _McpImportScreenState extends State<McpImportScreen> {
             chatSessionsImported: chatSessionsImported, 
             chatMessagesImported: chatMessagesImported,
             lumaraFavoritesImported: lumaraFavoritesImported,
+            lumaraFavoritesTotal: lumaraFavoritesTotal,
           );
         } else {
           _showErrorDialog(importResult.error ?? 'Import failed');
@@ -440,6 +450,7 @@ class _McpImportScreenState extends State<McpImportScreen> {
     int totalEntries = 0;
     int totalChats = 0;
     int totalMedia = 0;
+    int totalFavorites = 0;
     final warnings = <String>[];
     
     // Show progress dialog
@@ -504,6 +515,10 @@ class _McpImportScreenState extends State<McpImportScreen> {
             totalEntries += result.entriesImported;
             totalChats += result.chatsImported;
             totalMedia += result.mediaImported;
+            // Favorites are only in entries+chats archive, not in media-only archives
+            if (groupType != 'Media') {
+              totalFavorites += result.lumaraFavoritesImported;
+            }
             if (result.warnings != null && result.warnings!.isNotEmpty) {
               warnings.addAll(result.warnings!);
             }
@@ -598,6 +613,7 @@ class _McpImportScreenState extends State<McpImportScreen> {
         entriesImported: totalEntries,
         chatsImported: totalChats,
         mediaImported: totalMedia,
+        lumaraFavoritesImported: totalFavorites,
         warnings: warnings,
       );
     } catch (e) {
@@ -636,6 +652,7 @@ class _McpImportScreenState extends State<McpImportScreen> {
     int totalEntries = 0;
     int totalChats = 0;
     int totalMedia = 0;
+    int totalFavorites = 0;
     final warnings = <String>[];
     
     // Show progress dialog
@@ -692,6 +709,8 @@ class _McpImportScreenState extends State<McpImportScreen> {
             totalEntries += result.entriesImported;
             totalChats += result.chatsImported;
             totalMedia += result.mediaImported;
+            // Accumulate favorites from all archives (they're typically in entries+chats archives)
+            totalFavorites += result.lumaraFavoritesImported;
             if (result.warnings != null && result.warnings!.isNotEmpty) {
               warnings.addAll(result.warnings!);
             }
@@ -785,6 +804,7 @@ class _McpImportScreenState extends State<McpImportScreen> {
         entriesImported: totalEntries,
         chatsImported: totalChats,
         mediaImported: totalMedia,
+        lumaraFavoritesImported: totalFavorites,
         warnings: warnings,
       );
     } catch (e) {
@@ -839,73 +859,116 @@ class _McpImportScreenState extends State<McpImportScreen> {
     required int entriesImported,
     required int chatsImported,
     required int mediaImported,
+    int lumaraFavoritesImported = 0,
     required List<String> warnings,
+    int entriesTotal = 0,
+    int chatsTotal = 0,
+    int mediaTotal = 0,
   }) {
+    // Format counts as "x/x" (successful/total), or just "x" if total is unknown or same as successful
+    String formatCount(int successful, int total) {
+      if (total > 0 && total != successful) {
+        return '$successful/$total';
+      }
+      return '$successful';
+    }
+    
+    // Ensure any existing dialog is dismissed first
+    Navigator.of(context, rootNavigator: true).popUntil((route) => !route.navigator!.canPop() || route.isFirst);
+    
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Row(
-          children: [
-            const Icon(Icons.check_circle, color: Colors.green),
-            const SizedBox(width: 8),
-            Text('Import Complete', style: heading2Style(context)),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Successfully imported separated packages!',
-              style: bodyStyle(context),
-            ),
-            const SizedBox(height: 16),
-            _buildSummaryRow('Entries imported:', '$entriesImported'),
-            _buildSummaryRow('Chats imported:', '$chatsImported'),
-            _buildSummaryRow('Media imported:', '$mediaImported'),
-            if (warnings.isNotEmpty) ...[
-              const SizedBox(height: 16),
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.orange.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+      barrierDismissible: true,
+      builder: (context) => Dialog(
+        child: SizedBox(
+          width: 400,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Row(
                   children: [
-                    Text(
-                      'Warnings:',
-                      style: bodyStyle(context).copyWith(fontWeight: FontWeight.bold),
+                    const Icon(Icons.check_circle, color: Colors.green),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text('Import Complete', style: heading2Style(context)),
                     ),
-                    const SizedBox(height: 4),
-                    ...warnings.take(5).map((w) => Padding(
-                      padding: const EdgeInsets.only(bottom: 4),
-                      child: Text(
-                        '• $w',
-                        style: bodyStyle(context).copyWith(fontSize: 12),
-                      ),
-                    )),
-                    if (warnings.length > 5)
+                  ],
+                ),
+              ),
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxHeight: 400),
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
                       Text(
-                        '... and ${warnings.length - 5} more',
-                        style: bodyStyle(context).copyWith(fontSize: 12),
+                        'Successfully imported separated packages!',
+                        style: bodyStyle(context),
                       ),
+                      const SizedBox(height: 16),
+                      _buildSummaryRow('Entries imported:', formatCount(entriesImported, entriesTotal)),
+                      _buildSummaryRow('Chats imported:', formatCount(chatsImported, chatsTotal)),
+                      _buildSummaryRow('Media imported:', formatCount(mediaImported, mediaTotal)),
+                      if (lumaraFavoritesImported > 0)
+                        _buildSummaryRow('LUMARA Favorites imported:', '$lumaraFavoritesImported'),
+                      if (warnings.isNotEmpty) ...[
+                        const SizedBox(height: 16),
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.orange.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Warnings:',
+                                style: bodyStyle(context).copyWith(fontWeight: FontWeight.bold),
+                              ),
+                              const SizedBox(height: 4),
+                              ...warnings.take(5).map((w) => Padding(
+                                padding: const EdgeInsets.only(bottom: 4),
+                                child: Text(
+                                  '• $w',
+                                  style: bodyStyle(context).copyWith(fontSize: 12),
+                                ),
+                              )),
+                              if (warnings.length > 5)
+                                Text(
+                                  '... and ${warnings.length - 5} more',
+                                  style: bodyStyle(context).copyWith(fontSize: 12),
+                                ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    TextButton(
+                      onPressed: () {
+                        Navigator.of(context).pop();
+                        Navigator.of(context).pop(); // Go back to previous screen
+                      },
+                      child: const Text('Done'),
+                    ),
                   ],
                 ),
               ),
             ],
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.of(context).pop();
-              Navigator.of(context).pop(); // Go back to previous screen
-            },
-            child: const Text('Done'),
           ),
-        ],
+        ),
       ),
     );
   }
@@ -936,59 +999,99 @@ class _McpImportScreenState extends State<McpImportScreen> {
     );
   }
 
-  void _showSuccessDialog(McpImportResult result, {int chatSessionsImported = 0, int chatMessagesImported = 0, int lumaraFavoritesImported = 0}) {
+  void _showSuccessDialog(McpImportResult result, {
+    int chatSessionsImported = 0, 
+    int chatMessagesImported = 0, 
+    int lumaraFavoritesImported = 0,
+    int lumaraFavoritesTotal = 0,
+  }) {
+    // Format counts as "x/x" (successful/total), or just "x" if total is unknown or same as successful
+    String formatCount(int successful, int total) {
+      if (total > 0 && total != successful) {
+        return '$successful/$total';
+      }
+      return '$successful';
+    }
+    
+    // Ensure any existing dialog is dismissed first
+    Navigator.of(context, rootNavigator: true).popUntil((route) => !route.navigator!.canPop() || route.isFirst);
+    
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Row(
-          children: [
-            const Icon(Icons.check_circle, color: Colors.green),
-            const SizedBox(width: 8),
-            Text('Import Complete', style: heading2Style(context)),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Your data has been successfully restored!',
-              style: bodyStyle(context),
-            ),
-            const SizedBox(height: 16),
-            _buildSummaryRow('Entries restored:', '${result.totalEntries}'),
-            _buildSummaryRow('Photos restored:', '${result.totalPhotos}'),
-            if (chatSessionsImported > 0 || chatMessagesImported > 0) ...[
-              const SizedBox(height: 8),
-              _buildSummaryRow('Chats imported:', '$chatSessionsImported sessions, $chatMessagesImported messages'),
-            ] else ...[
-              const SizedBox(height: 8),
-              _buildSummaryRow('Chats imported:', '0'),
-            ],
-            if (lumaraFavoritesImported > 0)
-              _buildSummaryRow('LUMARA Favorites:', '$lumaraFavoritesImported'),
-            _buildSummaryRow('Missing/corrupted:', '0'),
-            if (result.manifest != null) ...[
-              const SizedBox(height: 8),
-              Text(
-                'Package info:',
-                style: bodyStyle(context).copyWith(fontWeight: FontWeight.bold),
+      barrierDismissible: true,
+      builder: (context) => Dialog(
+        child: SizedBox(
+          width: 400,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Row(
+                  children: [
+                    const Icon(Icons.check_circle, color: Colors.green),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text('Import Complete', style: heading2Style(context)),
+                    ),
+                  ],
+                ),
               ),
-              _buildSummaryRow('Format:', result.manifest!.format),
-              _buildSummaryRow('Version:', '${result.manifest!.version}'),
-              _buildSummaryRow('Type:', result.manifest!.subtype),
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxHeight: 400),
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Your data has been successfully restored!',
+                        style: bodyStyle(context),
+                      ),
+                      const SizedBox(height: 16),
+                      _buildSummaryRow('Entries restored:', formatCount(result.totalEntries, result.totalEntriesFound > 0 ? result.totalEntriesFound : result.totalEntries)),
+                      _buildSummaryRow('Favorites imported:', formatCount(lumaraFavoritesImported, lumaraFavoritesTotal)),
+                      if (chatSessionsImported > 0 || chatMessagesImported > 0) ...[
+                        const SizedBox(height: 8),
+                        _buildSummaryRow('Chats imported:', '$chatSessionsImported sessions, $chatMessagesImported messages'),
+                      ] else ...[
+                        const SizedBox(height: 8),
+                        _buildSummaryRow('Chats imported:', '0'),
+                      ],
+                      _buildSummaryRow('Photos restored:', formatCount(result.totalPhotos, result.totalPhotosFound > 0 ? result.totalPhotosFound : result.totalPhotos)),
+                      if (result.manifest != null) ...[
+                        const SizedBox(height: 8),
+                        Text(
+                          'Package info:',
+                          style: bodyStyle(context).copyWith(fontWeight: FontWeight.bold),
+                        ),
+                        _buildSummaryRow('Format:', result.manifest!.format),
+                        _buildSummaryRow('Version:', '${result.manifest!.version}'),
+                        _buildSummaryRow('Type:', result.manifest!.subtype),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    TextButton(
+                      onPressed: () {
+                        Navigator.of(context).pop();
+                        Navigator.of(context).pop(); // Go back to previous screen
+                      },
+                      child: const Text('Done'),
+                    ),
+                  ],
+                ),
+              ),
             ],
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.of(context).pop();
-              Navigator.of(context).pop(); // Go back to previous screen
-            },
-            child: const Text('Done'),
           ),
-        ],
+        ),
       ),
     );
   }

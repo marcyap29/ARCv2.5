@@ -4,8 +4,6 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../llm/bridge.pigeon.dart';
-import '../services/download_state_service.dart';
 
 /// Supported LLM providers
 enum LLMProvider {
@@ -57,10 +55,7 @@ class LumaraAPIConfig {
   LumaraAPIConfig._();
 
   // Model registry for valid model IDs
-  static const Map<String, String> _modelRegistry = {
-    'Llama-3.2-3b-Instruct-Q4_K_M.gguf': 'llama3b',
-    'Qwen3-4B-Instruct-2507-Q4_K_S.gguf': 'qwen4b',
-  };
+  static const Map<String, String> _modelRegistry = {};
 
   static bool isValidModelId(String modelId) => _modelRegistry.containsKey(modelId);
   
@@ -141,32 +136,9 @@ class LumaraAPIConfig {
   
   /// Quick lightweight check - just verifies files exist without loading model
   Future<bool> _quickCheckModelAvailability(LLMProviderConfig config) async {
-    try {
-      final bridge = LumaraNative();
-      
-      // Get the model ID for this provider
-      String modelId;
-      switch (config.provider) {
-        case LLMProvider.qwen4b:
-          modelId = 'Qwen3-4B-Instruct-2507-Q4_K_S.gguf';
-          break;
-        case LLMProvider.llama3b:
-          modelId = 'Llama-3.2-3b-Instruct-Q4_K_M.gguf';
-          break;
-        default:
-          debugPrint('LUMARA API: Unknown provider type: ${config.provider}');
-          return false;
-      }
-      
-      debugPrint('LUMARA API: Checking model availability for: $modelId');
-      // Quick file existence check only - don't load or validate the model
-      final isDownloaded = await bridge.isModelDownloaded(modelId);
-      debugPrint('LUMARA API: Model $modelId availability: $isDownloaded');
-      return isDownloaded;
-    } catch (e) {
-      debugPrint('LUMARA API: Quick check error for ${config.name}: $e');
-      return false;
-    }
+    // Internal models (Llama/Qwen3) are no longer supported
+    debugPrint('LUMARA API: Internal model checks disabled (models not installed)');
+    return false;
   }
 
   /// Load configurations from environment and storage
@@ -199,34 +171,7 @@ class LumaraAPIConfig {
       isInternal: false,
     );
 
-    // Internal LLM providers
-        _configs[LLMProvider.qwen4b] = LLMProviderConfig(
-          provider: LLMProvider.qwen4b,
-          name: 'Qwen3 4B Q4_K_S (Internal)',
-          baseUrl: 'http://localhost:8082', // Local inference server
-          additionalConfig: {
-            'modelPath': 'assets/models/gguf/Qwen3-4B-Instruct-2507-Q4_K_S.gguf',
-            'contextLength': 4096,
-            'temperature': 0.7,
-            'backend': 'llama.cpp',
-            'metal': true,
-          },
-          isInternal: true,
-        );
-
-        _configs[LLMProvider.llama3b] = LLMProviderConfig(
-          provider: LLMProvider.llama3b,
-          name: 'Llama 3.2 3B (Internal)',
-          baseUrl: 'http://localhost:8083', // Local inference server
-          additionalConfig: {
-            'modelPath': 'assets/models/gguf/Llama-3.2-3b-Instruct-Q4_K_M.gguf',
-            'contextLength': 4096,
-            'temperature': 0.7,
-            'backend': 'llama.cpp',
-            'metal': true,
-          },
-          isInternal: true,
-        );
+    // Internal LLM providers - removed (models not installed)
 
 
     // Load saved API keys from SharedPreferences (overrides environment)
@@ -304,63 +249,16 @@ class LumaraAPIConfig {
 
   /// Update download state service for a model
   void _updateDownloadStateForModel(LLMProviderConfig config, bool isAvailable) {
-    try {
-      // Get the model ID for this provider
-      String modelId;
-      switch (config.provider) {
-        case LLMProvider.qwen4b:
-          modelId = 'Qwen3-4B-Instruct-2507-Q4_K_S.gguf';
-          break;
-        case LLMProvider.llama3b:
-          modelId = 'Llama-3.2-3b-Instruct-Q4_K_M.gguf';
-          break;
-        default:
-          return;
-      }
-      
-      // Update the download state service to reflect the model status
-      DownloadStateService.instance.updateAvailability(modelId, isAvailable);
-      debugPrint('LUMARA API: Updated download state for $modelId: ${isAvailable ? 'Available' : 'Not available'}');
-    } catch (e) {
-      debugPrint('LUMARA API: Error updating download state for ${config.name}: $e');
-    }
+    // Internal models (Llama/Qwen3) are no longer supported
+    // No-op: models not installed
   }
 
 
   /// Check if internal model is available
   Future<bool> _checkInternalModelAvailability(LLMProviderConfig config) async {
-    try {
-      if (config.provider == LLMProvider.qwen4b) {
-        try {
-          final bridge = LumaraNative();
-          final isDownloaded = await bridge.isModelDownloaded('Qwen3-4B-Instruct-2507-Q4_K_S.gguf');
-          debugPrint('LUMARA API: Qwen3 4B model ${isDownloaded ? 'is' : 'is NOT'} downloaded');
-          return isDownloaded;
-        } catch (e) {
-          debugPrint('LUMARA API: Error checking Qwen3 4B availability: $e');
-          return false;
-        }
-      }
-
-      if (config.provider == LLMProvider.llama3b) {
-        try {
-          final bridge = LumaraNative();
-          final isDownloaded = await bridge.isModelDownloaded('Llama-3.2-3b-Instruct-Q4_K_M.gguf');
-          debugPrint('LUMARA API: Llama 3B model ${isDownloaded ? 'is' : 'is NOT'} downloaded');
-          return isDownloaded;
-        } catch (e) {
-          debugPrint('LUMARA API: Error checking Llama 3B availability: $e');
-          return false;
-        }
-      }
-
-
-      debugPrint('LUMARA API: ${config.name} disabled (use LLMAdapter for native inference)');
-      return false; // FIXED: Added missing return statement
-    } catch (e) {
-      debugPrint('LUMARA API: Health check failed for ${config.name}: $e');
-      return false;
-    }
+    // Internal models (Llama/Qwen3) are no longer supported
+    debugPrint('LUMARA API: Internal model checks disabled (models not installed)');
+    return false;
   }
 
   /// Get configuration for a specific provider
@@ -420,14 +318,8 @@ class LumaraAPIConfig {
 
   /// Get model ID for a provider
   String _getModelIdForProvider(LLMProvider provider) {
-    switch (provider) {
-      case LLMProvider.qwen4b:
-        return 'Qwen3-4B-Instruct-2507-Q4_K_S.gguf';
-      case LLMProvider.llama3b:
-        return 'Llama-3.2-3b-Instruct-Q4_K_M.gguf';
-      default:
-        return '';
-    }
+    // Internal models (Llama/Qwen3) are no longer supported
+    return '';
   }
 
   /// Save configurations to persistent storage

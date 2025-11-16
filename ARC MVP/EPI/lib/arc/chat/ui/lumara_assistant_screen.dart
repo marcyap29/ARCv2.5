@@ -11,7 +11,11 @@ import '../chat/chat_repo_impl.dart';
 import 'lumara_quick_palette.dart';
 import 'lumara_settings_screen.dart';
 import '../widgets/attribution_display_widget.dart';
+import '../widgets/enhanced_attribution_display_widget.dart';
 import 'package:my_app/polymeta/memory/enhanced_memory_schema.dart';
+import 'package:my_app/polymeta/memory/enhanced_attribution_schema.dart';
+import 'package:my_app/polymeta/memory/enhanced_attribution_service.dart';
+import 'package:my_app/polymeta/memory/lumara_attribution_explainer.dart';
 import '../config/api_config.dart';
 import '../voice/voice_chat_service.dart';
 import 'voice_chat_panel.dart';
@@ -51,9 +55,12 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
   // Voice chat service
   VoiceChatService? _voiceChatService;
   String? _partialTranscript;
-  
+
   // AudioIO for voiceover
   AudioIO? _audioIO;
+
+  // Enhanced attribution service
+  final EnhancedAttributionService _enhancedAttributionService = EnhancedAttributionService();
 
   @override
   void initState() {
@@ -400,8 +407,8 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
                     itemCount: state.messages.length,
                     itemBuilder: (context, index) {
                       final message = state.messages[index];
-                    return _buildMessageBubble(message);
-                  },
+                      return _buildMessageBubble(message);
+                    },
                         ),
                       ),
                       // Show progress indicator at bottom when processing
@@ -554,8 +561,9 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
 
   Widget _buildMessageBubble(LumaraMessage message) {
     final isUser = message.role == LumaraMessageRole.user;
-    
+
     return Padding(
+      key: Key('message_bubble_${message.id}'), // Unique key prevents GlobalKey conflicts
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
         mainAxisAlignment: isUser ? MainAxisAlignment.end : MainAxisAlignment.start,
@@ -712,22 +720,37 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
                     ),
                   ],
                   
-                  // Attribution display for assistant messages
+                  // Enhanced Attribution display for assistant messages
                   if (!isUser && message.attributionTraces != null && message.attributionTraces!.isNotEmpty) ...[
                     const Gap(8),
                     Builder(
                       builder: (context) {
-                        print('LumaraAssistantScreen: Rendering AttributionDisplayWidget for message ${message.id} with ${message.attributionTraces!.length} traces');
-                        return AttributionDisplayWidget(
-                      traces: message.attributionTraces!,
-                      responseId: message.id,
-                      onWeightChanged: (trace, newWeight) {
-                        // Handle weight change
-                        _handleAttributionWeightChange(message.id, trace, newWeight);
-                      },
-                      onExcludeMemory: (trace) {
-                        // Handle memory exclusion
-                        _handleMemoryExclusion(message.id, trace);
+                        print('LumaraAssistantScreen: Rendering attribution display for message ${message.id} with ${message.attributionTraces!.length} traces');
+
+                        // Try to get enhanced attribution data
+                        return FutureBuilder(
+                          future: _getEnhancedAttributionTrace(message.id),
+                          builder: (context, snapshot) {
+                            if (snapshot.hasData && snapshot.data != null) {
+                              // Use enhanced attribution widget
+                              return _buildEnhancedAttributionDisplay(
+                                snapshot.data!,
+                                message.id,
+                                message.attributionTraces!,
+                              );
+                            } else {
+                              // Fall back to legacy attribution widget
+                              return AttributionDisplayWidget(
+                                traces: message.attributionTraces!,
+                                responseId: message.id,
+                                onWeightChanged: (trace, newWeight) {
+                                  _handleAttributionWeightChange(message.id, trace, newWeight);
+                                },
+                                onExcludeMemory: (trace) {
+                                  _handleMemoryExclusion(message.id, trace);
+                                },
+                              );
+                            }
                           },
                         );
                       },
@@ -1397,6 +1420,135 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
     // TODO: Implement memory exclusion logic
     // This would exclude the memory from future responses
     print('Memory excluded: ${trace.nodeRef}');
+  }
+
+  /// Get enhanced attribution trace for a response
+  Future<EnhancedResponseTrace?> _getEnhancedAttributionTrace(String messageId) async {
+    try {
+      return _enhancedAttributionService.getEnhancedResponseTrace(messageId);
+    } catch (e) {
+      print('Error getting enhanced attribution trace: $e');
+      return null;
+    }
+  }
+
+  /// Build enhanced attribution display widget
+  Widget _buildEnhancedAttributionDisplay(
+    EnhancedResponseTrace enhancedTrace,
+    String messageId,
+    List<AttributionTrace> legacyTraces,
+  ) {
+    return EnhancedAttributionDisplayWidget(
+      responseTrace: enhancedTrace,
+      responseId: messageId,
+      onWeightChanged: (trace, newWeight) {
+        _handleEnhancedAttributionWeightChange(messageId, trace, newWeight);
+      },
+      onExcludeMemory: (trace) {
+        _handleEnhancedMemoryExclusion(messageId, trace);
+      },
+      onRequestExplanation: () {
+        _showAttributionExplanationDialog(enhancedTrace);
+      },
+    );
+  }
+
+  /// Handle enhanced attribution weight change
+  void _handleEnhancedAttributionWeightChange(
+    String messageId,
+    EnhancedAttributionTrace trace,
+    double newWeight,
+  ) {
+    // TODO: Implement enhanced weight change logic
+    print('Enhanced attribution weight changed for ${trace.nodeRef}: $newWeight');
+  }
+
+  /// Handle enhanced memory exclusion
+  void _handleEnhancedMemoryExclusion(String messageId, EnhancedAttributionTrace trace) {
+    // TODO: Implement enhanced memory exclusion logic
+    print('Enhanced memory excluded: ${trace.nodeRef} (${trace.sourceType.name})');
+  }
+
+  /// Show attribution explanation dialog
+  void _showAttributionExplanationDialog(EnhancedResponseTrace trace) {
+    final explanation = LumaraAttributionExplainer.generateAttributionExplanation(
+      responseTrace: trace,
+      includeDetailedBreakdown: true,
+      includeConfidenceScores: true,
+      includeCrossReferences: true,
+    );
+
+    showDialog(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          title: const Row(
+            children: [
+              Icon(Icons.auto_awesome, size: 20),
+              SizedBox(width: 8),
+              Text('Attribution Explanation'),
+            ],
+          ),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: SingleChildScrollView(
+              child: Text(
+                explanation,
+                style: Theme.of(context).textTheme.bodyMedium,
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text('Close'),
+            ),
+            FilledButton(
+              onPressed: () {
+                Navigator.of(dialogContext).pop();
+                _showAttributionSystemInfo();
+              },
+              child: const Text('Learn More'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  /// Show attribution system information
+  void _showAttributionSystemInfo() {
+    final systemInfo = LumaraAttributionExplainer.generateAttributionSystemPrompt();
+
+    showDialog(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          title: const Row(
+            children: [
+              Icon(Icons.info_outline, size: 20),
+              SizedBox(width: 8),
+              Text('About Attribution System'),
+            ],
+          ),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: SingleChildScrollView(
+              child: Text(
+                systemInfo,
+                style: Theme.of(context).textTheme.bodyMedium,
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text('Close'),
+            ),
+          ],
+        );
+      },
+    );
   }
 
 }

@@ -23,6 +23,8 @@ import 'arcx_crypto_service.dart';
 import 'package:my_app/prism/atlas/rivet/rivet_storage.dart';
 import 'package:my_app/prism/atlas/rivet/rivet_models.dart' as rivet_models;
 import 'package:my_app/models/arcform_snapshot_model.dart';
+import 'package:my_app/arc/chat/services/favorites_service.dart';
+import 'package:my_app/arc/chat/data/models/lumara_favorite.dart';
 import 'package:hive/hive.dart';
 
 const _uuid = Uuid();
@@ -268,10 +270,11 @@ class ARCXImportServiceV2 {
           );
         }
         
-        // Import Phase Regimes, RIVET state, Sentinel state, and ArcForm timeline
+        // Import Phase Regimes, RIVET state, Sentinel state, ArcForm timeline, and LUMARA favorites
         int rivetStatesImported = 0;
         int sentinelStatesImported = 0;
         int arcformSnapshotsImported = 0;
+        int lumaraFavoritesImported = 0;
         
         if (_phaseRegimeService != null) {
           phaseRegimesImported = await _importPhaseRegimes(
@@ -279,11 +282,14 @@ class ARCXImportServiceV2 {
             onProgress: onProgress,
           );
           
-          // Import RIVET state, Sentinel state, and ArcForm timeline alongside phase regimes
+          // Import RIVET state, Sentinel state, ArcForm timeline, and LUMARA favorites alongside phase regimes
           rivetStatesImported = await _importRivetState(payloadDir, onProgress: onProgress);
           sentinelStatesImported = await _importSentinelState(payloadDir, onProgress: onProgress);
           arcformSnapshotsImported = await _importArcFormTimeline(payloadDir, onProgress: onProgress);
         }
+        
+        // Import LUMARA favorites (doesn't require phaseRegimeService)
+        lumaraFavoritesImported = await _importLumaraFavorites(payloadDir, onProgress: onProgress);
         
         // Step 9: Resolve links
         if (options.resolveLinks) {
@@ -308,6 +314,7 @@ class ARCXImportServiceV2 {
           rivetStatesImported: rivetStatesImported,
           sentinelStatesImported: sentinelStatesImported,
           arcformSnapshotsImported: arcformSnapshotsImported,
+          lumaraFavoritesImported: lumaraFavoritesImported,
           warnings: warnings.isEmpty ? null : warnings,
         );
         
@@ -750,6 +757,86 @@ class ARCXImportServiceV2 {
       return importedCount;
     } catch (e) {
       print('ARCX Import V2: ⚠️ Error importing ArcForm timeline: $e');
+      return 0;
+    }
+  }
+
+  /// Import LUMARA favorites from PhaseRegimes/lumara_favorites.json
+  /// Returns the number of favorites imported
+  Future<int> _importLumaraFavorites(
+    Directory payloadDir, {
+    Function(String)? onProgress,
+  }) async {
+    try {
+      final phaseRegimesDir = Directory(path.join(payloadDir.path, 'PhaseRegimes'));
+      if (!await phaseRegimesDir.exists()) {
+        print('ARCX Import V2: ⚠️ PhaseRegimes directory not found, skipping LUMARA favorites');
+        return 0;
+      }
+
+      final favoritesFile = File(path.join(phaseRegimesDir.path, 'lumara_favorites.json'));
+      if (!await favoritesFile.exists()) {
+        print('ARCX Import V2: ⚠️ lumara_favorites.json not found, skipping LUMARA favorites');
+        return 0;
+      }
+
+      onProgress?.call('Importing LUMARA favorites...');
+      final content = await favoritesFile.readAsString();
+      final data = jsonDecode(content) as Map<String, dynamic>;
+      
+      final favoritesJson = data['lumara_favorites'] as List<dynamic>? ?? [];
+      
+      final favoritesService = FavoritesService.instance;
+      await favoritesService.initialize();
+      
+      int importedCount = 0;
+      int skippedCount = 0;
+      
+      for (final favoriteJson in favoritesJson) {
+        try {
+          final favoriteMap = favoriteJson as Map<String, dynamic>;
+          
+          final favorite = LumaraFavorite(
+            id: favoriteMap['id'] as String,
+            content: favoriteMap['content'] as String,
+            timestamp: DateTime.parse(favoriteMap['timestamp'] as String),
+            sourceId: favoriteMap['source_id'] as String?,
+            sourceType: favoriteMap['source_type'] as String?,
+            metadata: favoriteMap['metadata'] as Map<String, dynamic>? ?? {},
+          );
+          
+          // Check if favorite already exists (by sourceId if available)
+          if (favorite.sourceId != null) {
+            final existing = await favoritesService.findFavoriteBySourceId(favorite.sourceId!);
+            if (existing != null) {
+              skippedCount++;
+              continue;
+            }
+          }
+          
+          // Check capacity
+          if (await favoritesService.isAtCapacity()) {
+            print('ARCX Import V2: ⚠️ LUMARA favorites at capacity, cannot import more');
+            skippedCount++;
+            continue;
+          }
+          
+          final added = await favoritesService.addFavorite(favorite);
+          if (added) {
+            importedCount++;
+          } else {
+            skippedCount++;
+          }
+        } catch (e) {
+          print('ARCX Import V2: ⚠️ Failed to import LUMARA favorite: $e');
+          skippedCount++;
+        }
+      }
+      
+      print('ARCX Import V2: ✓ Imported $importedCount LUMARA favorites ($skippedCount skipped)');
+      return importedCount;
+    } catch (e) {
+      print('ARCX Import V2: ⚠️ Error importing LUMARA favorites: $e');
       return 0;
     }
   }

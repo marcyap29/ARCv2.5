@@ -374,119 +374,177 @@ class _ARCXImportProgressScreenState extends State<ARCXImportProgressScreen> {
   }
 
   void _showImportCompleteDialogV2(ARCXImportResultV2 result) {
+    // Ensure any existing dialog is dismissed first
+    Navigator.of(context, rootNavigator: true).popUntil((route) => !route.navigator!.canPop() || route.isFirst);
+    
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Row(
-          children: [
-            const Icon(Icons.check_circle, color: Colors.green),
-            const SizedBox(width: 8),
-            Text('Import Complete', style: heading2Style(context)),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Your data has been successfully restored!',
-              style: bodyStyle(context),
-            ),
-            const SizedBox(height: 16),
-            _buildSummaryRow('Entries restored:', '${result.entriesImported}'),
-            _buildSummaryRow('Media restored:', '${result.mediaImported}'),
-            if (result.chatsImported > 0)
-              _buildSummaryRow('Chat sessions:', '${result.chatsImported}'),
-            if (result.phaseRegimesImported > 0)
-              _buildSummaryRow('Phase regimes:', '${result.phaseRegimesImported}'),
-            if (result.rivetStatesImported > 0)
-              _buildSummaryRow('RIVET states:', '${result.rivetStatesImported}'),
-            if (result.sentinelStatesImported > 0)
-              _buildSummaryRow('Sentinel states:', '${result.sentinelStatesImported}'),
-            if (result.arcformSnapshotsImported > 0)
-              _buildSummaryRow('ArcForm snapshots:', '${result.arcformSnapshotsImported}'),
-            if (result.lumaraFavoritesImported > 0)
-              _buildSummaryRow('LUMARA Favorites:', '${result.lumaraFavoritesImported}'),
-            if (result.warnings != null && result.warnings!.isNotEmpty) ...[
-              const SizedBox(height: 8),
-              Text(
-                'Warnings:',
-                style: bodyStyle(context).copyWith(fontWeight: FontWeight.bold, color: Colors.orange),
+      barrierDismissible: true,
+      builder: (context) => Dialog(
+        child: SizedBox(
+          width: 400,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Row(
+                  children: [
+                    const Icon(Icons.check_circle, color: Colors.green),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text('Import Complete', style: heading2Style(context)),
+                    ),
+                  ],
+                ),
               ),
-              ...result.warnings!.map((w) => Padding(
-                padding: const EdgeInsets.only(left: 8, top: 4),
-                child: Text('• $w', style: bodyStyle(context).copyWith(fontSize: 12, color: Colors.orange)),
-              )),
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxHeight: 400),
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                Text(
+                  'Your data has been successfully restored!',
+                  style: bodyStyle(context),
+                ),
+                const SizedBox(height: 16),
+                _buildSummaryRow('Entries restored:', '${result.entriesImported}'),
+                _buildSummaryRow('Media restored:', '${result.mediaImported}'),
+                if (result.chatsImported > 0)
+                  _buildSummaryRow('Chat sessions:', '${result.chatsImported}'),
+                if (result.phaseRegimesImported > 0)
+                  _buildSummaryRow('Phase regimes:', '${result.phaseRegimesImported}'),
+                if (result.rivetStatesImported > 0)
+                  _buildSummaryRow('RIVET states:', '${result.rivetStatesImported}'),
+                if (result.sentinelStatesImported > 0)
+                  _buildSummaryRow('Sentinel states:', '${result.sentinelStatesImported}'),
+                if (result.arcformSnapshotsImported > 0)
+                  _buildSummaryRow('ArcForm snapshots:', '${result.arcformSnapshotsImported}'),
+                if (result.lumaraFavoritesImported > 0)
+                  _buildSummaryRow('LUMARA Favorites:', '${result.lumaraFavoritesImported}'),
+                if (result.warnings != null && result.warnings!.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    'Warnings:',
+                    style: bodyStyle(context).copyWith(fontWeight: FontWeight.bold, color: Colors.orange),
+                  ),
+                  ...result.warnings!.map((w) => Padding(
+                    padding: const EdgeInsets.only(left: 8, top: 4),
+                    child: Text('• $w', style: bodyStyle(context).copyWith(fontSize: 12, color: Colors.orange)),
+                  )),
+                ],
+                const SizedBox(height: 8),
+                Text(
+                  'Package info:',
+                  style: bodyStyle(context).copyWith(fontWeight: FontWeight.bold),
+                ),
+                _buildSummaryRow('Format:', 'arcx'),
+                _buildSummaryRow('Version:', '1.2'),
+                _buildSummaryRow('Type:', 'secure'),
+                    ],
+                  ),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    TextButton(
+                      onPressed: () {
+                        Navigator.of(context).pop(); // Close dialog
+                        Navigator.of(context).pop(); // Go back to previous screen
+                      },
+                      child: const Text('Done'),
+                    ),
+                  ],
+                ),
+              ),
             ],
-            const SizedBox(height: 8),
-            Text(
-              'Package info:',
-              style: bodyStyle(context).copyWith(fontWeight: FontWeight.bold),
-            ),
-            _buildSummaryRow('Format:', 'arcx'),
-            _buildSummaryRow('Version:', '1.2'),
-            _buildSummaryRow('Type:', 'secure'),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.of(context).pop(); // Close dialog
-              Navigator.of(context).pop(); // Go back to previous screen
-            },
-            child: const Text('Done'),
           ),
-        ],
+        ),
       ),
     );
   }
 
   void _showImportCompleteDialog(ARCXImportResult result) {
+    // Ensure any existing dialog is dismissed first
+    Navigator.of(context, rootNavigator: true).popUntil((route) => !route.navigator!.canPop() || route.isFirst);
+    
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Row(
-          children: [
-            const Icon(Icons.check_circle, color: Colors.green),
-            const SizedBox(width: 8),
-            Text('Import Complete', style: heading2Style(context)),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Your data has been successfully restored!',
-              style: bodyStyle(context),
-            ),
-            const SizedBox(height: 16),
-            _buildSummaryRow('Entries restored:', '${result.entriesImported ?? 0}'),
-            _buildSummaryRow('Photos restored:', '${result.photosImported ?? 0}'),
-            if ((result.chatSessionsImported ?? 0) > 0 || (result.chatMessagesImported ?? 0) > 0) ...[
-              _buildSummaryRow('Chat sessions:', '${result.chatSessionsImported ?? 0}'),
-              _buildSummaryRow('Chat messages:', '${result.chatMessagesImported ?? 0}'),
+      barrierDismissible: true,
+      builder: (context) => Dialog(
+        child: SizedBox(
+          width: 400,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Row(
+                  children: [
+                    const Icon(Icons.check_circle, color: Colors.green),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text('Import Complete', style: heading2Style(context)),
+                    ),
+                  ],
+                ),
+              ),
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxHeight: 400),
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                Text(
+                  'Your data has been successfully restored!',
+                  style: bodyStyle(context),
+                ),
+                const SizedBox(height: 16),
+                _buildSummaryRow('Entries restored:', '${result.entriesImported ?? 0}'),
+                _buildSummaryRow('Photos restored:', '${result.photosImported ?? 0}'),
+                if ((result.chatSessionsImported ?? 0) > 0 || (result.chatMessagesImported ?? 0) > 0) ...[
+                  _buildSummaryRow('Chat sessions:', '${result.chatSessionsImported ?? 0}'),
+                  _buildSummaryRow('Chat messages:', '${result.chatMessagesImported ?? 0}'),
+                ],
+                _buildSummaryRow('Missing/corrupted:', '0'),
+                const SizedBox(height: 8),
+                Text(
+                  'Package info:',
+                  style: bodyStyle(context).copyWith(fontWeight: FontWeight.bold),
+                ),
+                _buildSummaryRow('Format:', 'arcx'),
+                _buildSummaryRow('Version:', '1.1'),
+                _buildSummaryRow('Type:', 'secure'),
+                    ],
+                  ),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    TextButton(
+                      onPressed: () {
+                        Navigator.of(context).pop(); // Close dialog
+                        Navigator.of(context).pop(); // Go back to previous screen
+                      },
+                      child: const Text('Done'),
+                    ),
+                  ],
+                ),
+              ),
             ],
-            _buildSummaryRow('Missing/corrupted:', '0'),
-            const SizedBox(height: 8),
-            Text(
-              'Package info:',
-              style: bodyStyle(context).copyWith(fontWeight: FontWeight.bold),
-            ),
-            _buildSummaryRow('Format:', 'arcx'),
-            _buildSummaryRow('Version:', '1.1'),
-            _buildSummaryRow('Type:', 'secure'),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.of(context).pop(); // Close dialog
-              Navigator.of(context).pop(); // Go back to previous screen
-            },
-            child: const Text('Done'),
           ),
-        ],
+        ),
       ),
     );
   }

@@ -76,8 +76,10 @@ class McpPackImportService {
       print('📋 Loaded ${photoMetadataMap.length} photo metadata files');
 
       // Import journal entries
-      final entriesImported = await _importJournalEntries(mcpDir, mediaMapping, photoMetadataMap);
-      print('📝 Imported $entriesImported journal entries');
+      final entryImportResult = await _importJournalEntries(mcpDir, mediaMapping, photoMetadataMap);
+      final entriesImported = entryImportResult['imported'] as int;
+      final entriesTotal = entryImportResult['total'] as int;
+      print('📝 Imported $entriesImported/$entriesTotal journal entries');
       
       // Log media cache statistics
       print('📊 Media Cache Statistics:');
@@ -96,7 +98,9 @@ class McpPackImportService {
       return McpImportResult(
         success: true,
         totalEntries: entriesImported,
+        totalEntriesFound: entriesTotal,
         totalPhotos: mediaMapping.length, // Includes photos, videos, audio, files
+        totalPhotosFound: mediaMapping.length, // All media items were found and mapped
         manifest: manifest,
       );
 
@@ -106,7 +110,9 @@ class McpPackImportService {
         success: false,
         error: e.toString(),
         totalEntries: 0,
+        totalEntriesFound: 0,
         totalPhotos: 0,
+        totalPhotosFound: 0,
       );
     }
   }
@@ -199,7 +205,8 @@ class McpPackImportService {
   }
 
   /// Import journal entries from MCP package
-  Future<int> _importJournalEntries(
+  /// Returns a map with 'imported' (successful) and 'total' (found) counts
+  Future<Map<String, int>> _importJournalEntries(
     Directory mcpDir,
     Map<String, String> photoMapping,
     Map<String, Map<String, dynamic>> photoMetadataMap,
@@ -209,7 +216,7 @@ class McpPackImportService {
     final journalDir = Directory(path.join(mcpDir.path, 'nodes', 'journal'));
     if (!await journalDir.exists()) {
       print('⚠️ No journal directory found');
-      return entriesImported;
+      return {'imported': entriesImported, 'total': 0};
     }
 
     int totalEntriesFound = 0;
@@ -454,7 +461,7 @@ class McpPackImportService {
       print('⚠️ WARNING: ${totalEntriesFound - entriesImported} entries were NOT imported!');
     }
 
-    return entriesImported;
+    return {'imported': entriesImported, 'total': totalEntriesFound};
   }
 
   /// Create MediaItem from JSON with photo mapping (robust version with multiple fallbacks)
@@ -661,15 +668,19 @@ class McpPackImportService {
 /// Result of an MCP import operation
 class McpImportResult {
   final bool success;
-  final int totalEntries;
-  final int totalPhotos;
+  final int totalEntries; // Successfully imported
+  final int totalEntriesFound; // Total found in package
+  final int totalPhotos; // Successfully imported
+  final int totalPhotosFound; // Total found in package
   final McpManifest? manifest;
   final String? error;
 
   McpImportResult({
     required this.success,
     required this.totalEntries,
+    this.totalEntriesFound = 0,
     required this.totalPhotos,
+    this.totalPhotosFound = 0,
     this.manifest,
     this.error,
   });

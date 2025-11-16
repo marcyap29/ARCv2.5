@@ -1,7 +1,7 @@
 # EPI Documentation
 
 **Last Updated:** January 2025  
-**Version:** 2.1.17
+**Version:** 2.1.18
 
 ## Documentation Structure
 
@@ -80,7 +80,7 @@ Policy specifications:
 
 ## Version Information
 
-**Current Version:** 2.1.16  
+**Current Version:** 2.1.18  
 **Last Major Update:** January 2025
 
 See `changelog/CHANGELOG.md` for detailed version history.

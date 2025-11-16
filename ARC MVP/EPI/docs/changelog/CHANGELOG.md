@@ -1,7 +1,40 @@
 # EPI ARC MVP - Changelog
 
-**Version:** 2.1.17  
+**Version:** 2.1.18  
 **Last Updated:** January 2025
+
+## [2.1.18] - January 2025
+
+### **LUMARA Favorites ARCX Export/Import** - Complete
+
+#### ARCX Export Support
+- **Favorites Export**: LUMARA favorites are now exported to ARCX archives in `PhaseRegimes/lumara_favorites.json`
+- **Manifest Tracking**: Favorites count included in ARCX manifest `scope.lumara_favorites_count`
+- **Archive Integration**: Favorites exported alongside phase regimes, RIVET state, and ArcForm timeline
+- **Separated Archives**: Favorites included in entries+chats archives (not in media-only archives)
+
+#### ARCX Import Support
+- **Automatic Import**: Favorites automatically imported from ARCX archives during import process
+- **Import Dialog**: Import completion dialog now displays "LUMARA Favorites imported: X" when favorites are imported
+- **Duplicate Prevention**: Import checks for existing favorites by `sourceId` to prevent duplicates
+- **Capacity Enforcement**: Import respects 25-item limit and skips favorites when at capacity
+- **Error Handling**: Graceful handling of missing favorites files (archives without favorites)
+
+#### Technical Implementation
+- **Export Service**: Added `_exportLumaraFavorites()` method to `ARCXExportServiceV2`
+- **Import Service**: Added `_importLumaraFavorites()` method to `ARCXImportServiceV2`
+- **Manifest Model**: Added `lumaraFavoritesCount` field to `ARCXScope` class
+- **UI Updates**: Updated `_showSeparatedImportSuccessDialog()` to display favorites count
+
+**Files Modified**:
+- `lib/polymeta/store/arcx/services/arcx_export_service_v2.dart` - Added favorites export
+- `lib/polymeta/store/arcx/services/arcx_import_service_v2.dart` - Added favorites import
+- `lib/polymeta/store/arcx/models/arcx_manifest.dart` - Added favorites count to manifest
+- `lib/ui/export_import/mcp_import_screen.dart` - Updated import dialog to show favorites count
+
+**Status**: ✅ Complete - ARCX favorites export/import fully implemented and tested
+
+---
 
 ## [2.1.17] - January 2025
 

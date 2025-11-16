@@ -233,16 +233,35 @@ class _ArcformTimelineViewState extends State<ArcformTimelineView> {
         final arcform = snapshot.data;
         
         return InkWell(
-          onTap: () {
-            // Navigate to 3D ARCForm view using the same architecture as the ARCForms tab
-            Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (context) => PhaseArcform3DScreen(
-                  phase: phaseName,
-                  title: '$phaseName Phase - 3D Constellation View',
+          onTap: () async {
+            // Wait for ARCForm to load if still loading
+            Arcform3DData? finalArcform = arcform;
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              finalArcform = await _getArcformForRegime(regime);
+            }
+            
+            // Navigate to 3D ARCForm view with user's actual ARCForm data
+            if (finalArcform != null) {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (context) => PhaseArcform3DScreen(
+                    phase: phaseName,
+                    title: '$phaseName Phase - 3D Constellation View',
+                    arcformData: finalArcform, // Pass user's actual ARCForm data
+                  ),
                 ),
-              ),
-            );
+              );
+            } else {
+              // Fallback: if ARCForm not available, navigate with phase name only (will use demo)
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (context) => PhaseArcform3DScreen(
+                    phase: phaseName,
+                    title: '$phaseName Phase - 3D Constellation View',
+                  ),
+                ),
+              );
+            }
           },
           borderRadius: const BorderRadius.only(
             topRight: Radius.circular(8),

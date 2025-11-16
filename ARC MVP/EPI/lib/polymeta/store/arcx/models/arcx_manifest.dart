@@ -198,6 +198,7 @@ class ARCXScope {
   final int chatsCount;
   final int mediaCount;
   final int phaseRegimesCount;
+  final int lumaraFavoritesCount;
   final bool separateGroups;
   
   ARCXScope({
@@ -205,6 +206,7 @@ class ARCXScope {
     required this.chatsCount,
     required this.mediaCount,
     this.phaseRegimesCount = 0,
+    this.lumaraFavoritesCount = 0,
     required this.separateGroups,
   });
   
@@ -214,6 +216,7 @@ class ARCXScope {
       chatsCount: json['chats_count'] as int? ?? 0,
       mediaCount: json['media_count'] as int? ?? 0,
       phaseRegimesCount: json['phase_regimes_count'] as int? ?? 0,
+      lumaraFavoritesCount: json['lumara_favorites_count'] as int? ?? 0,
       separateGroups: json['separate_groups'] as bool? ?? false,
     );
   }
@@ -224,6 +227,7 @@ class ARCXScope {
       'chats_count': chatsCount,
       'media_count': mediaCount,
       'phase_regimes_count': phaseRegimesCount,
+      'lumara_favorites_count': lumaraFavoritesCount,
       'separate_groups': separateGroups,
     };
   }

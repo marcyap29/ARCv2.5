@@ -27,6 +27,7 @@ import 'arcx_crypto_service.dart';
 import 'package:my_app/prism/atlas/rivet/rivet_storage.dart';
 import 'package:my_app/prism/atlas/rivet/rivet_models.dart' as rivet_models;
 import 'package:my_app/models/arcform_snapshot_model.dart';
+import 'package:my_app/arc/chat/services/favorites_service.dart';
 import 'package:hive/hive.dart';
 
 const _uuid = Uuid();
@@ -267,18 +268,20 @@ class ARCXExportServiceV2 {
         );
       }
       
-      // Export phase regimes, RIVET state, Sentinel state, and ArcForm timeline
+      // Export phase regimes, RIVET state, Sentinel state, ArcForm timeline, and LUMARA favorites
       int phaseRegimesExported = 0;
+      int lumaraFavoritesExported = 0;
       if (_phaseRegimeService != null) {
         onProgress?.call('Exporting phase regimes...');
         phaseRegimesExported = await _exportPhaseRegimes(payloadDir);
       }
       
-      // Export RIVET state, Sentinel state, and ArcForm timeline alongside phase regimes
+      // Export RIVET state, Sentinel state, ArcForm timeline, and LUMARA favorites alongside phase regimes
       onProgress?.call('Exporting RIVET and system states...');
       await _exportRivetState(payloadDir);
       await _exportSentinelState(payloadDir);
       await _exportArcFormTimeline(payloadDir);
+      lumaraFavoritesExported = await _exportLumaraFavorites(payloadDir);
       
       // Generate checksums
       if (options.includeChecksums) {
@@ -294,6 +297,7 @@ class ARCXExportServiceV2 {
         chatsCount: chatsExported,
         mediaCount: mediaExported,
         phaseRegimesCount: phaseRegimesExported,
+        lumaraFavoritesCount: lumaraFavoritesExported,
         separateGroups: false,
         options: options,
       );
@@ -467,18 +471,20 @@ class ARCXExportServiceV2 {
           );
         }
         
-        // Export phase regimes, RIVET state, Sentinel state, and ArcForm timeline (included with entries+chats archive)
+        // Export phase regimes, RIVET state, Sentinel state, ArcForm timeline, and LUMARA favorites (included with entries+chats archive)
         int phaseRegimesExported = 0;
+        int lumaraFavoritesExported = 0;
         if (_phaseRegimeService != null) {
           onProgress?.call('Exporting phase regimes...');
           phaseRegimesExported = await _exportPhaseRegimes(payloadDir);
         }
         
-        // Export RIVET state, Sentinel state, and ArcForm timeline alongside phase regimes
+        // Export RIVET state, Sentinel state, ArcForm timeline, and LUMARA favorites alongside phase regimes
         onProgress?.call('Exporting RIVET and system states...');
         await _exportRivetState(payloadDir);
         await _exportSentinelState(payloadDir);
         await _exportArcFormTimeline(payloadDir);
+        lumaraFavoritesExported = await _exportLumaraFavorites(payloadDir);
         
         // Generate checksums
         if (options.includeChecksums) {
@@ -504,6 +510,7 @@ class ARCXExportServiceV2 {
           chatsCount: chatsExported,
           mediaCount: 0, // Media is in separate archive
           phaseRegimesCount: phaseRegimesExported,
+          lumaraFavoritesCount: lumaraFavoritesExported,
           separateGroups: true, // Indicates this is part of a separated export
           options: entriesChatsOptions,
         );
@@ -631,12 +638,14 @@ class ARCXExportServiceV2 {
         phaseRegimesExported = await _exportPhaseRegimes(payloadDir);
       }
       
-      // Export RIVET state, Sentinel state, and ArcForm timeline alongside phase regimes
+      // Export RIVET state, Sentinel state, ArcForm timeline, and LUMARA favorites alongside phase regimes
+      int lumaraFavoritesExported = 0;
       if (includePhaseRegimes) {
         onProgress?.call('Exporting RIVET and system states...');
         await _exportRivetState(payloadDir);
         await _exportSentinelState(payloadDir);
         await _exportArcFormTimeline(payloadDir);
+        lumaraFavoritesExported = await _exportLumaraFavorites(payloadDir);
       }
       
       // Generate checksums
@@ -652,6 +661,7 @@ class ARCXExportServiceV2 {
         chatsCount: chatsExported,
         mediaCount: mediaExported,
         phaseRegimesCount: phaseRegimesExported,
+        lumaraFavoritesCount: lumaraFavoritesExported,
         separateGroups: true,
         options: options,
       );
@@ -813,6 +823,7 @@ class ARCXExportServiceV2 {
     required int chatsCount,
     required int mediaCount,
     int phaseRegimesCount = 0,
+    int lumaraFavoritesCount = 0,
     required bool separateGroups,
     required ARCXExportOptions options,
   }) {
@@ -839,6 +850,7 @@ class ARCXExportServiceV2 {
         chatsCount: chatsCount,
         mediaCount: mediaCount,
         phaseRegimesCount: phaseRegimesCount,
+        lumaraFavoritesCount: lumaraFavoritesCount,
         separateGroups: separateGroups,
       ),
       encryptionInfo: ARCXEncryptionInfo(
@@ -1409,6 +1421,46 @@ class ARCXExportServiceV2 {
       }
     } catch (e) {
       print('ARCX Export V2: Error exporting ArcForm timeline: $e');
+    }
+  }
+
+  /// Export LUMARA favorites to PhaseRegimes/lumara_favorites.json
+  Future<int> _exportLumaraFavorites(Directory payloadDir) async {
+    try {
+      // Ensure PhaseRegimes directory exists
+      final phaseRegimesDir = Directory(path.join(payloadDir.path, 'PhaseRegimes'));
+      await phaseRegimesDir.create(recursive: true);
+
+      final favoritesService = FavoritesService.instance;
+      await favoritesService.initialize();
+      final favorites = await favoritesService.getAllFavorites();
+
+      if (favorites.isEmpty) {
+        print('ARCX Export V2: No LUMARA favorites to export');
+        return 0;
+      }
+
+      final favoritesFile = File(path.join(phaseRegimesDir.path, 'lumara_favorites.json'));
+      await favoritesFile.writeAsString(
+        const JsonEncoder.withIndent('  ').convert({
+          'lumara_favorites': favorites.map((f) => {
+            'id': f.id,
+            'content': f.content,
+            'timestamp': f.timestamp.toIso8601String(),
+            'source_id': f.sourceId,
+            'source_type': f.sourceType,
+            'metadata': f.metadata,
+          }).toList(),
+          'exported_at': DateTime.now().toIso8601String(),
+          'version': '1.0',
+        })
+      );
+
+      print('ARCX Export V2: Exported ${favorites.length} LUMARA favorites');
+      return favorites.length;
+    } catch (e) {
+      print('ARCX Export V2: Error exporting LUMARA favorites: $e');
+      return 0;
     }
   }
   

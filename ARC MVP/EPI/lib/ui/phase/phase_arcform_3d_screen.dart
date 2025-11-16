@@ -8,18 +8,18 @@ import 'package:my_app/arc/arcform/models/arcform_models.dart';
 import 'package:my_app/arc/arcform/layouts/layouts_3d.dart';
 import 'package:my_app/arc/arcform/render/arcform_renderer_3d.dart';
 import 'package:my_app/arc/arcform/util/seeded.dart';
-import 'package:my_app/arc/core/journal_repository.dart';
-import 'package:my_app/models/journal_entry_model.dart';
 
 /// Full-screen 3D Constellation ARCForm viewer
 class PhaseArcform3DScreen extends StatefulWidget {
   final String? phase;
   final String? title;
+  final Arcform3DData? arcformData; // User's actual ARCForm data
 
   const PhaseArcform3DScreen({
     super.key,
     this.phase,
     this.title,
+    this.arcformData, // If provided, use this instead of generating demo ARCForm
   });
 
   @override
@@ -44,10 +44,17 @@ class _PhaseArcform3DScreenState extends State<PhaseArcform3DScreen> {
     });
 
     try {
-      // Get the current phase from the most recent phase regime
+      // If user's ARCForm data is provided, use it directly
+      if (widget.arcformData != null) {
+        setState(() {
+          _arcforms = [widget.arcformData!];
+          _isLoading = false;
+        });
+        return;
+      }
+
+      // Otherwise, generate constellation for the phase (fallback/demo mode)
       final currentPhase = widget.phase ?? 'Discovery';
-      
-      // Generate ONE constellation for the current phase
       final arcform = _generatePhaseConstellation(currentPhase);
 
       setState(() {

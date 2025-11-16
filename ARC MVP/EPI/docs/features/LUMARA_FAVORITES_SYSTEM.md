@@ -174,10 +174,20 @@ Potential improvements:
 
 ## Export/Import Support
 
-- **MCP Export**: LUMARA Favorites are fully exported in MCP bundles
+### MCP Format
+- **MCP Export**: LUMARA Favorites are fully exported in MCP bundles as nodes with type `lumara_favorite`
 - **MCP Import**: Favorites are imported and restored with duplicate checking
 - **Capacity Limits**: Import respects 25-item limit and shows count in import summary
 - **Metadata Preservation**: Source IDs, timestamps, and metadata are preserved
+
+### ARCX Format (ARCX 1.2)
+- **ARCX Export**: LUMARA Favorites are exported to `PhaseRegimes/lumara_favorites.json` in ARCX archives
+- **ARCX Import**: Favorites are automatically imported from ARCX archives during import process
+- **Manifest Tracking**: Favorites count is tracked in ARCX manifest `scope.lumara_favorites_count`
+- **Import Dialog**: Import completion dialog displays favorites count when favorites are imported
+- **Duplicate Handling**: Import checks for existing favorites by `sourceId` to prevent duplicates
+- **Capacity Enforcement**: Import respects 25-item limit and skips favorites when at capacity
+- **Separated Archives**: Favorites are included in entries+chats archives (not in media-only archives)
 
 ## Related Documentation
 
@@ -189,5 +199,5 @@ Potential improvements:
 
 **Status**: ✅ Complete  
 **Last Updated**: January 2025  
-**Version**: 1.1
+**Version**: 1.2
 
