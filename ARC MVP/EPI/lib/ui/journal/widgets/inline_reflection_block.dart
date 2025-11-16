@@ -2,9 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:my_app/polymeta/memory/enhanced_memory_schema.dart';
 import 'package:my_app/arc/chat/widgets/attribution_display_widget.dart';
+import 'package:my_app/arc/chat/services/favorites_service.dart';
+import 'package:my_app/arc/chat/data/models/lumara_favorite.dart';
+import 'package:my_app/shared/ui/settings/favorites_management_view.dart';
 
 /// Inline reflection block that appears within journal entries
-class InlineReflectionBlock extends StatelessWidget {
+class InlineReflectionBlock extends StatefulWidget {
   final String content;
   final String intent; // ideas | think | perspective | next | analyze
   final String? phase; // e.g., "Recovery"
@@ -16,6 +19,7 @@ class InlineReflectionBlock extends StatelessWidget {
   final VoidCallback onContinueWithLumara;
   final VoidCallback onDelete;
   final List<AttributionTrace>? attributionTraces; // Memory attribution traces
+  final String? blockId; // Unique ID for favorites tracking
 
   const InlineReflectionBlock({
     super.key,
@@ -30,8 +34,14 @@ class InlineReflectionBlock extends StatelessWidget {
     required this.onContinueWithLumara,
     required this.onDelete,
     this.attributionTraces,
+    this.blockId,
   });
 
+  @override
+  State<InlineReflectionBlock> createState() => _InlineReflectionBlockState();
+}
+
+class _InlineReflectionBlockState extends State<InlineReflectionBlock> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -54,184 +64,210 @@ class InlineReflectionBlock extends StatelessWidget {
           ),
         ],
       ),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(12, 10, 12, 6),
+      child: GestureDetector(
+        onLongPress: widget.blockId != null ? () => _showLongPressMenu(context) : null,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(12, 10, 12, 6),
           child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Header with LUMARA icon and phase
-            Row(
-              children: [
-                Icon(
-                  Icons.auto_awesome,
-                  size: 16,
-                  color: theme.colorScheme.primary,
-                ),
-                const SizedBox(width: 6),
-                Text(
-                  'LUMARA',
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    fontWeight: FontWeight.w600,
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Header with LUMARA icon and phase
+              Row(
+                children: [
+                  Icon(
+                    Icons.auto_awesome,
+                    size: 16,
                     color: theme.colorScheme.primary,
                   ),
-                ),
-                if (phase != null) ...[
-                  const SizedBox(width: 8),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: theme.colorScheme.primary.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(8),
+                  const SizedBox(width: 6),
+                  Text(
+                    'LUMARA',
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      fontWeight: FontWeight.w600,
+                      color: theme.colorScheme.primary,
                     ),
-                    child: Text(
-                      phase!,
-                      style: theme.textTheme.labelSmall?.copyWith(
-                        color: theme.colorScheme.primary,
-                        fontWeight: FontWeight.w500,
+                  ),
+                  if (widget.phase != null) ...[
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.primary.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        widget.phase!,
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          color: theme.colorScheme.primary,
+                          fontWeight: FontWeight.w500,
+                        ),
                       ),
                     ),
-                  ),
-                ],
-              ],
-            ),
-            const SizedBox(height: 8),
-            // Reflection content or loading indicator with progress meter
-            // Unified with in-chat LUMARA loading indicator UI/UX
-            if (isLoading)
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2.5,
-                            valueColor: AlwaysStoppedAnimation<Color>(
-                              theme.colorScheme.primary,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Text(
-                            'LUMARA is thinking...',
-                            style: theme.textTheme.bodyMedium?.copyWith(
-                              color: theme.colorScheme.secondary,
-                              fontStyle: FontStyle.italic,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    // Progress meter
-                    LinearProgressIndicator(
-                      minHeight: 4,
-                      borderRadius: BorderRadius.circular(2),
-                      valueColor: AlwaysStoppedAnimation<Color>(
-                        theme.colorScheme.primary,
-                      ),
-                      backgroundColor: theme.colorScheme.surfaceContainerHighest,
-                    ),
                   ],
-                ),
-              )
-            else ...[
-              // Reflection content (different color to distinguish from user text)
-              // Split content into paragraphs for better readability
-              ..._buildParagraphs(content, theme),
-              
-              // Attribution display (if available)
-              if (attributionTraces != null && attributionTraces!.isNotEmpty) ...[
-                const SizedBox(height: 12),
-                Builder(
-                  builder: (context) {
-                    print('InlineReflectionBlock: Rendering AttributionDisplayWidget with ${attributionTraces!.length} traces');
-                    return AttributionDisplayWidget(
-                  traces: attributionTraces!,
-                  responseId: 'journal_${DateTime.now().millisecondsSinceEpoch}',
-                    );
-                  },
-                ),
-              ] else if (attributionTraces != null) ...[
-                // Debug: Show why attributions aren't showing
-                Builder(
-                  builder: (context) {
-                    print('InlineReflectionBlock: Attribution traces is null or empty (null: ${attributionTraces == null}, empty: ${attributionTraces?.isEmpty ?? true})');
-                    return const SizedBox.shrink();
-                  },
-                ),
-              ],
-              
-              // Copy and delete buttons (lower left - unified with in-chat UX)
-              if (!isLoading && content.isNotEmpty) ...[
-                const SizedBox(height: 8),
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    IconButton(
-                      icon: Icon(Icons.copy, size: 16, color: theme.colorScheme.onSurfaceVariant.withOpacity(0.6)),
-                      padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(),
-                      onPressed: () {
-                        Clipboard.setData(ClipboardData(text: content));
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('LUMARA response copied to clipboard'),
-                            duration: Duration(seconds: 2),
-                          ),
-                        );
-                      },
-                      tooltip: 'Copy',
-                    ),
-                    IconButton(
-                      icon: Icon(Icons.close, size: 16, color: theme.colorScheme.onSurfaceVariant.withOpacity(0.6)),
-                      padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(),
-                      onPressed: onDelete,
-                      tooltip: 'Delete',
-                    ),
-                  ],
-                ),
-              ],
-              
-              const SizedBox(height: 12),
-              // Action buttons
-              Wrap(
-                spacing: 8,
-                runSpacing: 4,
-                children: [
-                  _ActionButton(
-                    label: 'Regenerate',
-                    icon: Icons.refresh,
-                    onPressed: isLoading ? () {} : onRegenerate,
-                  ),
-                  _ActionButton(
-                    label: 'Soften tone',
-                    icon: Icons.favorite_outline,
-                    onPressed: isLoading ? () {} : onSoften,
-                  ),
-                  _ActionButton(
-                    label: 'More depth',
-                    icon: Icons.insights,
-                    onPressed: isLoading ? () {} : onMoreDepth,
-                  ),
-                  _ActionButton(
-                    label: 'Continue with LUMARA',
-                    icon: Icons.chat,
-                    onPressed: isLoading ? () {} : onContinueWithLumara,
-                    isPrimary: true,
-                  ),
                 ],
               ),
+              const SizedBox(height: 8),
+              // Reflection content or loading indicator with progress meter
+              // Unified with in-chat LUMARA loading indicator UI/UX
+              if (widget.isLoading)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2.5,
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                theme.colorScheme.primary,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              'LUMARA is thinking...',
+                              style: theme.textTheme.bodyMedium?.copyWith(
+                                color: theme.colorScheme.secondary,
+                                fontStyle: FontStyle.italic,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      // Progress meter
+                      LinearProgressIndicator(
+                        minHeight: 4,
+                        borderRadius: BorderRadius.circular(2),
+                        valueColor: AlwaysStoppedAnimation<Color>(
+                          theme.colorScheme.primary,
+                        ),
+                        backgroundColor: theme.colorScheme.surfaceContainerHighest,
+                      ),
+                    ],
+                  ),
+                )
+              else ...[
+                // Reflection content (different color to distinguish from user text)
+                // Split content into paragraphs for better readability
+                ..._buildParagraphs(widget.content, theme),
+                
+                // Attribution display (if available)
+                if (widget.attributionTraces != null && widget.attributionTraces!.isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  Builder(
+                    builder: (context) {
+                      print('InlineReflectionBlock: Rendering AttributionDisplayWidget with ${widget.attributionTraces!.length} traces');
+                      return AttributionDisplayWidget(
+                        traces: widget.attributionTraces!,
+                        responseId: widget.blockId ?? 'journal_${DateTime.now().millisecondsSinceEpoch}',
+                      );
+                    },
+                  ),
+                ] else if (widget.attributionTraces != null) ...[
+                  // Debug: Show why attributions aren't showing
+                  Builder(
+                    builder: (context) {
+                      print('InlineReflectionBlock: Attribution traces is null or empty (null: ${widget.attributionTraces == null}, empty: ${widget.attributionTraces?.isEmpty ?? true})');
+                      return const SizedBox.shrink();
+                    },
+                  ),
+                ],
+                
+                // Copy, star, and delete buttons (lower left - unified with in-chat UX)
+                if (!widget.isLoading && widget.content.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      IconButton(
+                        icon: Icon(Icons.copy, size: 16, color: theme.colorScheme.onSurfaceVariant.withOpacity(0.6)),
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
+                        onPressed: () {
+                          Clipboard.setData(ClipboardData(text: widget.content));
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('LUMARA response copied to clipboard'),
+                              duration: Duration(seconds: 2),
+                            ),
+                          );
+                        },
+                        tooltip: 'Copy',
+                      ),
+                      FutureBuilder<bool>(
+                        future: widget.blockId != null
+                            ? FavoritesService.instance.isFavorite(widget.blockId!)
+                            : Future.value(false),
+                        builder: (context, snapshot) {
+                          final isFavorite = snapshot.data ?? false;
+                          return IconButton(
+                            icon: Icon(
+                              isFavorite ? Icons.star : Icons.star_border,
+                              size: 16,
+                              color: isFavorite
+                                  ? Colors.amber
+                                  : theme.colorScheme.onSurfaceVariant.withOpacity(0.6),
+                            ),
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(),
+                            onPressed: widget.blockId != null
+                                ? () => _toggleFavorite(context)
+                                : null,
+                            tooltip: isFavorite ? 'Remove from Favorites' : 'Add to Favorites',
+                          );
+                        },
+                      ),
+                      IconButton(
+                        icon: Icon(Icons.close, size: 16, color: theme.colorScheme.onSurfaceVariant.withOpacity(0.6)),
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
+                        onPressed: widget.onDelete,
+                        tooltip: 'Delete',
+                      ),
+                    ],
+                  ),
+                ],
+                
+                const SizedBox(height: 12),
+                // Action buttons
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 4,
+                  children: [
+                    _ActionButton(
+                      label: 'Regenerate',
+                      icon: Icons.refresh,
+                      onPressed: widget.isLoading ? () {} : widget.onRegenerate,
+                    ),
+                    _ActionButton(
+                      label: 'Soften tone',
+                      icon: Icons.favorite_outline,
+                      onPressed: widget.isLoading ? () {} : widget.onSoften,
+                    ),
+                    _ActionButton(
+                      label: 'More depth',
+                      icon: Icons.insights,
+                      onPressed: widget.isLoading ? () {} : widget.onMoreDepth,
+                    ),
+                    _ActionButton(
+                      label: 'Continue with LUMARA',
+                      icon: Icons.chat,
+                      onPressed: widget.isLoading ? () {} : widget.onContinueWithLumara,
+                      isPrimary: true,
+                    ),
+                  ],
+                ),
+              ],
             ],
-          ],
+          ),
         ),
       ),
     );
@@ -315,6 +351,185 @@ class InlineReflectionBlock extends StatelessWidget {
         ),
       )
     ] : widgets;
+  }
+
+  Future<void> _toggleFavorite(BuildContext context) async {
+    if (widget.blockId == null) return;
+
+    try {
+      await FavoritesService.instance.initialize();
+      final isFavorite = await FavoritesService.instance.isFavorite(widget.blockId!);
+
+      if (isFavorite) {
+        // Remove from favorites
+        await FavoritesService.instance.removeFavoriteBySourceId(widget.blockId!);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Removed from Favorites'),
+              duration: Duration(seconds: 2),
+            ),
+          );
+          setState(() {}); // Refresh UI
+        }
+      } else {
+        // Add to favorites
+        final atCapacity = await FavoritesService.instance.isAtCapacity();
+        if (atCapacity) {
+          _showCapacityPopup(context);
+          return;
+        }
+
+        final favorite = LumaraFavorite.fromMessage(
+          content: widget.content,
+          sourceId: widget.blockId!,
+          sourceType: 'journal',
+          metadata: {
+            'phase': widget.phase,
+            'intent': widget.intent,
+          },
+        );
+
+        final added = await FavoritesService.instance.addFavorite(favorite);
+        if (added && mounted) {
+          final isFirstTime = !await FavoritesService.instance.hasShownFirstTimeSnackbar();
+          if (isFirstTime) {
+            await FavoritesService.instance.markFirstTimeSnackbarShown();
+            _showFirstTimeSnackbar(context);
+          } else {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Added to Favorites'),
+                duration: Duration(seconds: 2),
+              ),
+            );
+          }
+          setState(() {}); // Refresh UI
+        }
+      }
+    } catch (e) {
+      print('Error toggling favorite: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: ${e.toString()}'),
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    }
+  }
+
+  void _showLongPressMenu(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      builder: (context) => Container(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            FutureBuilder<bool>(
+              future: widget.blockId != null
+                  ? FavoritesService.instance.isFavorite(widget.blockId!)
+                  : Future.value(false),
+              builder: (context, snapshot) {
+                final isFavorite = snapshot.data ?? false;
+                return ListTile(
+                  leading: Icon(
+                    isFavorite ? Icons.star : Icons.star_border,
+                    color: isFavorite ? Colors.amber : null,
+                  ),
+                  title: Text(isFavorite ? 'Remove from Favorites' : 'Add to Favorites'),
+                  onTap: () {
+                    Navigator.of(context).pop();
+                    if (widget.blockId != null) {
+                      _toggleFavorite(context);
+                    }
+                  },
+                );
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.copy),
+              title: const Text('Copy'),
+              onTap: () {
+                Navigator.of(context).pop();
+                Clipboard.setData(ClipboardData(text: widget.content));
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('LUMARA response copied to clipboard'),
+                    duration: Duration(seconds: 2),
+                  ),
+                );
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showCapacityPopup(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Favorites Full'),
+        content: const Text(
+          'You have reached the maximum of 25 favorites. Please remove some favorites before adding new ones.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const FavoritesManagementView(),
+                ),
+              );
+            },
+            child: const Text('Manage Favorites'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showFirstTimeSnackbar(BuildContext context) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Added to Favorites',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 4),
+            const Text(
+              'LUMARA will now adapt its style based on your favorites. Tap to manage them.',
+            ),
+          ],
+        ),
+        duration: const Duration(seconds: 5),
+        action: SnackBarAction(
+          label: 'Manage',
+          onPressed: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const FavoritesManagementView(),
+              ),
+            );
+          },
+        ),
+      ),
+    );
   }
 }
 

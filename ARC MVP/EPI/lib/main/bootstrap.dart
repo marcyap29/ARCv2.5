@@ -25,6 +25,7 @@ import 'package:my_app/arc/chat/llm/model_progress_service.dart';
 import 'package:my_app/arc/chat/llm/bridge.pigeon.dart' as pigeon;
 import 'package:my_app/arc/chat/chat/chat_models.dart';
 import 'package:my_app/arc/chat/chat/chat_category_models.dart';
+import 'package:my_app/arc/chat/data/models/lumara_favorite.dart';
 
 import 'package:my_app/shared/app_colors.dart';
 import 'package:my_app/shared/text_style.dart';
@@ -238,6 +239,11 @@ void _registerHiveAdapters() {
     if (!Hive.isAdapterRegistered(74)) {
       Hive.registerAdapter(ChatExportDataAdapter());
       logger.d('✅ Registered ChatExportDataAdapter (ID: 74)');
+    }
+    // Favorites adapter
+    if (!Hive.isAdapterRegistered(80)) {
+      Hive.registerAdapter(LumaraFavoriteAdapter());
+      logger.d('✅ Registered LumaraFavoriteAdapter (ID: 80)');
     }
     
     // Verify MediaItemAdapter is registered

@@ -1,7 +1,7 @@
 # EPI Documentation
 
-**Last Updated:** November 2025  
-**Version:** 2.1.15
+**Last Updated:** January 2025  
+**Version:** 2.1.16
 
 ## Documentation Structure
 
@@ -18,6 +18,7 @@ Version history and release notes:
 
 ### 📁 `/features/`
 Feature documentation and specifications:
+- `LUMARA_FAVORITES_SYSTEM.md` - LUMARA Favorites Style System (January 2025)
 - Feature implementation guides
 - Feature progress tracking
 - Feature specifications
@@ -79,8 +80,8 @@ Policy specifications:
 
 ## Version Information
 
-**Current Version:** 2.1.15  
-**Last Major Update:** November 2025
+**Current Version:** 2.1.16  
+**Last Major Update:** January 2025
 
 See `changelog/CHANGELOG.md` for detailed version history.
 
