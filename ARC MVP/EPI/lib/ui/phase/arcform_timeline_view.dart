@@ -30,6 +30,7 @@ class _ArcformTimelineViewState extends State<ArcformTimelineView> {
   final ScrollController _scrollController = ScrollController();
   bool _canScrollDown = false;
   bool _canScrollUp = false;
+  double _zoomLevel = 1.5; // Default zoom for ARCForm previews
 
   @override
   void initState() {
@@ -111,6 +112,42 @@ class _ArcformTimelineViewState extends State<ArcformTimelineView> {
                     ),
                   ),
               ],
+            ),
+            // Zoom controls for ARCForm previews
+            Padding(
+              padding: const EdgeInsets.only(top: 12.0),
+              child: Row(
+                children: [
+                  IconButton(
+                    onPressed: _zoomOut,
+                    icon: const Icon(Icons.zoom_out, size: 18),
+                    tooltip: 'Zoom Out',
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                    iconSize: 18,
+                  ),
+                  Expanded(
+                    child: Slider(
+                      value: _zoomLevel,
+                      min: 0.5,
+                      max: 3.0,
+                      onChanged: (value) {
+                        setState(() {
+                          _zoomLevel = value;
+                        });
+                      },
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: _zoomIn,
+                    icon: const Icon(Icons.zoom_in, size: 18),
+                    tooltip: 'Zoom In',
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                    iconSize: 18,
+                  ),
+                ],
+              ),
             ),
             if (sortedRegimes.isNotEmpty && sortedRegimes.length > 1)
               Padding(
@@ -240,27 +277,25 @@ class _ArcformTimelineViewState extends State<ArcformTimelineView> {
               finalArcform = await _getArcformForRegime(regime);
             }
             
-            // Navigate to 3D ARCForm view with user's actual ARCForm data
+            // Navigate directly to full-screen ARCForm viewer (skip preview screen)
             if (finalArcform != null) {
               Navigator.of(context).push(
                 MaterialPageRoute(
-                  builder: (context) => PhaseArcform3DScreen(
-                    phase: phaseName,
-                    title: '$phaseName Phase - 3D Constellation View',
-                    arcformData: finalArcform, // Pass user's actual ARCForm data
+                  builder: (context) => ArcformViewerScreen(
+                    arcform: finalArcform!, // Pass user's actual ARCForm data directly
                   ),
                 ),
               );
             } else {
-              // Fallback: if ARCForm not available, navigate with phase name only (will use demo)
-            Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (context) => PhaseArcform3DScreen(
-                  phase: phaseName,
-                  title: '$phaseName Phase - 3D Constellation View',
-                ),
-              ),
-            );
+              // Fallback: if ARCForm not available, show error message
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('ARCForm data not available for $phaseName phase'),
+                    duration: const Duration(seconds: 2),
+                  ),
+                );
+              }
             }
           },
           borderRadius: const BorderRadius.only(
@@ -359,13 +394,14 @@ class _ArcformTimelineViewState extends State<ArcformTimelineView> {
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(8),
                       child: Arcform3D(
+                        key: ValueKey('arcform_${regime.id}_zoom_$_zoomLevel'), // Force rebuild on zoom change
                         nodes: arcform.nodes,
                         edges: arcform.edges,
                         phase: arcform.phase,
                         skin: arcform.skin,
                         showNebula: true,
                         enableLabels: false,
-                        initialZoom: 1.5,
+                        initialZoom: _zoomLevel, // Use dynamic zoom level
                       ),
                     ),
                   )
@@ -612,6 +648,18 @@ class _ArcformTimelineViewState extends State<ArcformTimelineView> {
 
   String _formatDate(DateTime date) {
     return '${date.month}/${date.day}/${date.year}';
+  }
+
+  void _zoomIn() {
+    setState(() {
+      _zoomLevel = (_zoomLevel + 0.1).clamp(0.5, 3.0);
+    });
+  }
+
+  void _zoomOut() {
+    setState(() {
+      _zoomLevel = (_zoomLevel - 0.1).clamp(0.5, 3.0);
+    });
   }
 }
 

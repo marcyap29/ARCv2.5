@@ -125,8 +125,6 @@ class _PhaseTimelineViewState extends State<PhaseTimelineView> {
                 phaseIndex: widget.phaseIndex,
               ),
             ),
-            const SizedBox(height: 12),
-            _buildTimelineControls(theme),
           ],
         ),
       );
@@ -271,6 +269,25 @@ class _PhaseTimelineViewState extends State<PhaseTimelineView> {
                   ),
                 ),
               ],
+            ),
+            const SizedBox(height: 12),
+            // Change Phase and Add New Regime buttons
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: _showPhaseChangeDialog,
+                icon: const Icon(Icons.add, size: 18),
+                label: const Text('Change Phase'),
+              ),
+            ),
+            const SizedBox(height: 8),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: _showAddRegimeDialog,
+                icon: const Icon(Icons.add_circle_outline, size: 18),
+                label: const Text('Add New Regime'),
+              ),
             ),
             const SizedBox(height: 12),
             // Regime list
@@ -628,66 +645,6 @@ class _PhaseTimelineViewState extends State<PhaseTimelineView> {
     return '${date.month}/${date.day}/${date.year}';
   }
 
-  Widget _buildTimelineControls(ThemeData theme) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 12.0),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Row(
-              children: [
-                IconButton(
-                  onPressed: _zoomOut,
-                  icon: const Icon(Icons.zoom_out),
-                  tooltip: 'Zoom Out',
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(),
-                ),
-                Expanded(
-                  child: Slider(
-                    value: _zoomLevel,
-                    min: 0.1,
-                    max: 3.0,
-                    onChanged: (value) {
-                      setState(() {
-                        _zoomLevel = value;
-                      });
-                    },
-                  ),
-                ),
-                IconButton(
-                  onPressed: _zoomIn,
-                  icon: const Icon(Icons.zoom_in),
-                  tooltip: 'Zoom In',
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: _showPhaseChangeDialog,
-                icon: const Icon(Icons.add, size: 18),
-                label: const Text('Change Phase'),
-              ),
-            ),
-            const SizedBox(height: 8),
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton.icon(
-                onPressed: _showAddRegimeDialog,
-                icon: const Icon(Icons.add_circle_outline, size: 18),
-                label: const Text('Add New Regime'),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 
   void _handleTimelineTap(TapDownDetails details, List<PhaseRegime> regimes) {
     final RenderBox box = context.findRenderObject() as RenderBox;
@@ -1822,17 +1779,6 @@ class _PhaseTimelineViewState extends State<PhaseTimelineView> {
     }
   }
 
-  void _zoomIn() {
-    setState(() {
-      _zoomLevel = (_zoomLevel * 1.2).clamp(0.1, 3.0);
-    });
-  }
-
-  void _zoomOut() {
-    setState(() {
-      _zoomLevel = (_zoomLevel / 1.2).clamp(0.1, 3.0);
-    });
-  }
 
   Color _getPhaseColor(PhaseLabel label) {
     const colors = {

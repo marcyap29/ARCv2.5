@@ -8,10 +8,10 @@ import '../../services/phase_regime_service.dart';
 import '../../services/rivet_sweep_service.dart';
 import '../../services/analytics_service.dart';
 import 'package:my_app/arc/core/journal_repository.dart';
-import 'phase_timeline_view.dart';
 import 'rivet_sweep_wizard.dart';
 import 'phase_help_screen.dart';
 import 'phase_change_readiness_card.dart';
+import 'sentinel_analysis_view.dart';
 import 'simplified_arcform_view_3d.dart';
 import 'phase_arcform_3d_screen.dart';
 import '../../shared/app_colors.dart';
@@ -24,10 +24,11 @@ class PhaseAnalysisView extends StatefulWidget {
 }
 
 class _PhaseAnalysisViewState extends State<PhaseAnalysisView> {
-  String _selectedView = 'arcforms'; // 'arcforms', 'timeline', or 'analysis' - flattened single-level navigation
+  String _selectedView = 'arcforms'; // 'arcforms', 'analysis', or 'sentinel' - flattened single-level navigation
   PhaseIndex? _phaseIndex;
   bool _isLoading = true;
   String? _error;
+  final GlobalKey<State<SentinelAnalysisView>> _sentinelKey = GlobalKey<State<SentinelAnalysisView>>();
 
   @override
   void initState() {
@@ -327,9 +328,9 @@ List<PhaseSegmentProposal> proposals,
                   children: [
                     _buildPhaseButton('arcforms', 'ARCForms', Icons.auto_awesome),
                     const SizedBox(width: 8),
-                    _buildPhaseButton('timeline', 'Timeline', Icons.timeline),
-                    const SizedBox(width: 8),
                     _buildPhaseButton('analysis', 'Analysis', Icons.analytics),
+                    const SizedBox(width: 8),
+                    _buildPhaseButton('sentinel', 'SENTINEL', Icons.shield),
                   ],
                 ),
               ),
@@ -392,47 +393,13 @@ List<PhaseSegmentProposal> proposals,
     switch (view) {
       case 'arcforms':
         return _buildArcformsTab();
-      case 'timeline':
-        return _buildTimelineContent();
       case 'analysis':
         return _buildAnalysisTab();
+      case 'sentinel':
+        return SentinelAnalysisView(key: _sentinelKey);
       default:
         return _buildArcformsTab();
     }
-  }
-
-  /// Build Timeline content
-  Widget _buildTimelineContent() {
-    return _phaseIndex != null
-        ? PhaseTimelineView(
-            key: ValueKey('phase_timeline_${_phaseIndex!.allRegimes.length}_${_phaseIndex!.allRegimes.isNotEmpty ? _phaseIndex!.allRegimes.first.id : 'empty'}'),
-            phaseIndex: _phaseIndex!,
-            onRegimeTap: _showRegimeDetails,
-            onRegimeAction: _handleRegimeAction,
-          )
-        : Center(
-            child: Padding(
-              padding: const EdgeInsets.all(32.0),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.info_outline, size: 64, color: Colors.grey),
-                  const SizedBox(height: 16),
-                  Text(
-                    'No phase data available',
-                    style: Theme.of(context).textTheme.titleLarge,
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Run Phase Analysis to detect phases',
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: Colors.grey,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          );
   }
 
   Widget _buildAnalysisTab() {
@@ -781,79 +748,6 @@ List<PhaseSegmentProposal> proposals,
     );
   }
 
-  void _showRegimeDetails(PhaseRegime regime) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Phase: ${regime.label.name.toUpperCase()}'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Start: ${regime.start.toLocal().toString()}'),
-            if (regime.end != null)
-              Text('End: ${regime.end!.toLocal().toString()}')
-            else
-              const Text('Status: Ongoing'),
-            Text('Source: ${regime.source.name}'),
-            if (regime.confidence != null)
-              Text('Confidence: ${(regime.confidence! * 100).toStringAsFixed(1)}%'),
-            Text('Anchored Entries: ${regime.anchors.length}'),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Close'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _handleRegimeAction(PhaseRegime regime, String action) {
-    switch (action) {
-      case 'edit':
-        // TODO: Implement regime editing
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Edit functionality coming soon')),
-        );
-        break;
-      case 'delete':
-        _confirmDeleteRegime(regime);
-        break;
-      default:
-        break;
-    }
-  }
-
-  void _confirmDeleteRegime(PhaseRegime regime) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Delete Phase Regime'),
-        content: Text(
-          'Are you sure you want to delete this ${regime.label.name} phase regime?',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () async {
-              Navigator.of(context).pop();
-              // TODO: Implement regime deletion
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Delete functionality coming soon')),
-              );
-            },
-            child: const Text('Delete'),
-          ),
-        ],
-      ),
-    );
-  }
 
 
   /// Get last analysis date from phase regime service
@@ -1263,7 +1157,10 @@ List<PhaseSegmentProposal> proposals,
       // 2. Refresh ARCForms
       _refreshArcforms();
       
-      // 3. Trigger comprehensive rebuild of all analysis components
+      // 3. Refresh Sentinel Analysis
+      _refreshSentinelAnalysis();
+      
+      // 4. Trigger comprehensive rebuild of all analysis components
       setState(() {
         // This will trigger rebuild of:
         // - Phase Statistics card (_buildPhaseStats)
@@ -1296,6 +1193,17 @@ List<PhaseSegmentProposal> proposals,
       }
     }
   }
+
+  /// Refresh Sentinel Analysis component
+  void _refreshSentinelAnalysis() {
+    // Call refresh method on the Sentinel view
+    final state = _sentinelKey.currentState;
+    if (state != null && state.mounted) {
+      // Call the _runAnalysis method on SentinelAnalysisView
+      (state as dynamic)._runAnalysis();
+    }
+  }
+
 
   void _startPhaseQuiz() {
     // For now, show a simple dialog with phase options

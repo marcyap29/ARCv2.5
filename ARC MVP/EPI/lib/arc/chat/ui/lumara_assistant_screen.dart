@@ -308,6 +308,17 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
                   setState(() {
                     _isInputVisible = true;
                   });
+                  
+                  // Show snackbar if there's an API error message
+                  if (state.apiErrorMessage != null && state.apiErrorMessage!.isNotEmpty) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(state.apiErrorMessage!),
+                        duration: const Duration(seconds: 4),
+                        behavior: SnackBarBehavior.floating,
+                      ),
+                    );
+                  }
                 }
               },
               builder: (context, state) {

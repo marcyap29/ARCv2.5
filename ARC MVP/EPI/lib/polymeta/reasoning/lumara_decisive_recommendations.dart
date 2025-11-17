@@ -2,7 +2,6 @@
 // LUMARA decisive recommendation system for personal growth and development
 
 import '../memory/enhanced_attribution_schema.dart';
-import '../memory/enhanced_memory_schema.dart';
 import '../../arc/chat/data/models/lumara_message.dart';
 
 /// Types of recommendation requests
@@ -159,6 +158,7 @@ class LumaraDecisiveRecommendations {
 
     // Decisive recommendation patterns
     final decisivePatterns = [
+      'what should i do',
       'what do you think i should do',
       'what do you recommend',
       'what do you think',

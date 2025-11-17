@@ -31,6 +31,11 @@ class _RivetSweepWizardState extends State<RivetSweepWizard>
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
+    
+    // Debug: Log segment counts
+    print('DEBUG: RIVET Sweep Wizard - Auto-assign: ${widget.sweepResult.autoAssign.length}');
+    print('DEBUG: RIVET Sweep Wizard - Review: ${widget.sweepResult.review.length}');
+    print('DEBUG: RIVET Sweep Wizard - Low confidence: ${widget.sweepResult.lowConfidence.length}');
   }
 
   @override
@@ -283,18 +288,84 @@ class _RivetSweepWizardState extends State<RivetSweepWizard>
   }
 
   Widget _buildReviewTab(ThemeData theme) {
+    // Include all segments that need review OR all segments if review is empty (for manual review)
     final reviewSegments = [
       ...widget.sweepResult.review,
       ...widget.sweepResult.lowConfidence,
     ];
     
-    return ListView.builder(
-      padding: const EdgeInsets.all(16.0),
-      itemCount: reviewSegments.length,
-      itemBuilder: (context, index) {
-        final segment = reviewSegments[index];
-        return _buildDetailedSegmentCard(segment, theme);
-      },
+    // If no segments need review, show all segments for manual review
+    final allSegments = reviewSegments.isEmpty
+        ? [
+            ...widget.sweepResult.autoAssign,
+            ...widget.sweepResult.review,
+            ...widget.sweepResult.lowConfidence,
+          ]
+        : reviewSegments;
+    
+    if (allSegments.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.info_outline, size: 64, color: Colors.grey[400]),
+              const SizedBox(height: 16),
+              Text(
+                'No Segments Found',
+                style: theme.textTheme.titleLarge,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'No phase segments were detected in your journal entries.\n\n'
+                'Make sure you have enough entries (minimum 5) and run Phase Analysis again.',
+                textAlign: TextAlign.center,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: Colors.grey[600],
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+    
+    // Show header if we're showing all segments (because review was empty)
+    final showAllSegmentsHeader = reviewSegments.isEmpty && widget.sweepResult.autoAssign.isNotEmpty;
+    
+    return Column(
+      children: [
+        if (showAllSegmentsHeader)
+          Container(
+            padding: const EdgeInsets.all(16.0),
+            color: Colors.blue[50],
+            child: Row(
+              children: [
+                Icon(Icons.info_outline, color: Colors.blue[700], size: 20),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'All segments have high confidence (≥70%). Review them here before approving.',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: Colors.blue[900],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        Expanded(
+          child: ListView.builder(
+            padding: const EdgeInsets.all(16.0),
+            itemCount: allSegments.length,
+            itemBuilder: (context, index) {
+              final segment = allSegments[index];
+              return _buildDetailedSegmentCard(segment, theme);
+            },
+          ),
+        ),
+      ],
     );
   }
 

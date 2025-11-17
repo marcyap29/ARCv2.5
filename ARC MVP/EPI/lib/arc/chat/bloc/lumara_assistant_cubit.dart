@@ -15,16 +15,11 @@ import 'package:my_app/polymeta/memory/enhanced_mira_memory_service.dart';
 import 'package:my_app/polymeta/memory/enhanced_memory_schema.dart';
 import 'package:my_app/polymeta/memory/sentence_extraction_util.dart';
 import 'package:my_app/polymeta/memory/attribution_service.dart';
-import 'package:my_app/polymeta/reasoning/lumara_recommendation_integration.dart';
-import 'package:my_app/polymeta/reasoning/lumara_decisive_recommendations.dart';
-import 'package:my_app/polymeta/memory/enhanced_attribution_service.dart';
 import 'package:my_app/polymeta/mira_service.dart';
 import 'package:my_app/telemetry/analytics.dart';
 import '../chat/chat_repo.dart';
 import '../chat/chat_repo_impl.dart';
 import '../chat/chat_models.dart';
-import '../chat/quickanswers_router.dart';
-import 'package:my_app/polymeta/adapters/mira_basics_adapters.dart';
 import 'package:my_app/arc/core/journal_repository.dart';
 import '../services/lumara_reflection_settings_service.dart';
 import 'package:my_app/models/journal_entry_model.dart';
@@ -45,12 +40,14 @@ class LumaraAssistantLoaded extends LumaraAssistantState {
   final LumaraScope scope;
   final bool isProcessing;
   final String? currentSessionId;
+  final String? apiErrorMessage; // Message to show in snackbar after retries fail
 
   LumaraAssistantLoaded({
     required this.messages,
     required this.scope,
     this.isProcessing = false,
     this.currentSessionId,
+    this.apiErrorMessage,
   });
 
   LumaraAssistantLoaded copyWith({
@@ -58,12 +55,14 @@ class LumaraAssistantLoaded extends LumaraAssistantState {
     LumaraScope? scope,
     bool? isProcessing,
     String? currentSessionId,
+    String? apiErrorMessage,
   }) {
     return LumaraAssistantLoaded(
       messages: messages ?? this.messages,
       scope: scope ?? this.scope,
       isProcessing: isProcessing ?? this.isProcessing,
       currentSessionId: currentSessionId ?? this.currentSessionId,
+      apiErrorMessage: apiErrorMessage,
     );
   }
 }
@@ -91,8 +90,6 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
   late final ChatRepo _chatRepo;
   String? currentChatSessionId;
   
-  // Quick Answers System
-  QuickAnswersRouter? _quickAnswersRouter;
   
   // Progressive Memory Loader
   late final ProgressiveMemoryLoader _memoryLoader;
@@ -142,8 +139,6 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
 
       print('LUMARA: Parallel initialization completed: ${initializationResults.where((r) => r).length}/4 services successful');
 
-      // Lazy-load quick answers (only when user types a question)
-      // Quick answers are now loaded on-demand instead of during initialization
       
       // Start with default scope
       const scope = LumaraScope.defaultScope;
@@ -206,25 +201,6 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
       return;
     }
 
-    // Check for quick answers (phase, themes, streak, etc.) - INSTANT response
-    // SKIPPED - Use Enhanced API with semantic search for all questions instead
-    // final quickAnswer = await _tryQuickAnswer(text);
-    // if (quickAnswer != null) {
-    //   // Add user message to UI
-    //   final userMessage = LumaraMessage.user(content: text);
-    //   final updatedMessages = [...currentState.messages, userMessage];
-    //   
-    //   // Add quick answer
-    //   final assistantMessage = LumaraMessage.assistant(content: quickAnswer);
-    //   final finalMessages = [...updatedMessages, assistantMessage];
-    //   
-    //   emit(currentState.copyWith(
-    //     messages: finalMessages,
-    //     isProcessing: false,
-    //   ));
-    //   return;
-    // }
-    print('LUMARA Debug: Skipping quick answers - using Enhanced API with semantic search for all questions');
 
     // Add user message to UI immediately and set isProcessing to show loading indicator
     final userMessage = LumaraMessage.user(content: text);
@@ -234,6 +210,7 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
     emit(currentState.copyWith(
       messages: updatedMessages,
       isProcessing: true,
+      apiErrorMessage: null, // Clear any previous error message when starting new message
     ));
 
     // Ensure we have an active chat session (auto-create if needed)
@@ -270,233 +247,117 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
       print('LUMARA Debug: Best provider: ${bestProvider?.name ?? 'none'}');
       print('LUMARA Debug: Is manual selection: $isManualSelection');
 
-      // PRIORITY 0: Check for decisive recommendation requests
-      final recommendationType = LumaraDecisiveRecommendations.detectRecommendationRequest(text);
-      if (recommendationType != null) {
-        print('LUMARA Debug: [Decisive Recommendation] Detected recommendation request: ${recommendationType.name}');
+      // Use Gemini with full journal context (ArcLLM chat) - Cloud API only
+      // Retry logic: 3 attempts total (initial + 2 retries)
+      const maxAttempts = 3;
+      Exception? lastError;
+      
+      for (int attempt = 1; attempt <= maxAttempts; attempt++) {
         try {
-          // Use enhanced attribution service for recommendation context
-          final enhancedAttributionService = EnhancedAttributionService();
-
-          // Process the user message through the recommendation integration
-          final recommendationResponse = await LumaraRecommendationIntegration.processUserMessage(
-            userMessage: text,
-            conversationHistory: currentState.messages,
-            attributionService: enhancedAttributionService,
-            messageId: userMessage.id,
-            additionalContext: {
-              'currentEntry': currentEntry?.toJson(),
-              'scope': currentState.scope.enabledScopes.join(','),
-            },
-          );
-
-          if (recommendationResponse.isNotEmpty) {
-            print('LUMARA Debug: [Decisive Recommendation] SUCCESS - Generated recommendation response');
-
-            // Create assistant message with the recommendation
-            final assistantMessage = LumaraMessage.assistant(
-              content: recommendationResponse,
-              attributionTraces: [], // Attribution traces are handled within the recommendation response
-            );
-
-            // Add assistant response to chat session
-            await _addToChatSession(recommendationResponse, 'assistant',
-              messageId: assistantMessage.id, timestamp: assistantMessage.timestamp);
-
-            // Record assistant message in MCP memory
-            await _recordAssistantMessage(recommendationResponse);
-
-            // Update UI with recommendation
-            final finalMessages = [...updatedMessages, assistantMessage];
-
-            // Speak response if voiceover is enabled
-            _speakResponseIfEnabled(recommendationResponse);
-
-            emit(currentState.copyWith(
-              messages: finalMessages,
-              isProcessing: false,
-            ));
-
-            print('LUMARA Debug: [Decisive Recommendation] Complete - recommendation delivered');
-            return; // Exit early - recommendation processed
-          }
-        } catch (e) {
-          print('LUMARA Debug: [Decisive Recommendation] Failed: $e');
-          print('LUMARA Debug: Falling back to regular processing...');
-          // Fall through to regular processing if recommendation fails
-        }
-      }
-
-      // PRIORITY 1: Use Gemini with full journal context (ArcLLM chat)
-      try {
-        print('LUMARA Debug: [Priority 1] Attempting Gemini with journal context...');
-        
-        // Get context for Gemini (using current scope from state)
-        final context = await _contextProvider.buildContext(scope: currentState.scope);
-        final contextResult = await _buildEntryContext(
-          context, 
-          userQuery: text,
-          currentEntry: currentEntry,
-        );
-        final entryText = contextResult['context'] as String;
-        final contextAttributionTraces = contextResult['attributionTraces'] as List<AttributionTrace>;
-        final phaseHint = _buildPhaseHint(context);
-        final keywords = _buildKeywordsContext(context);
-        
-        // Use ArcLLM to call Gemini directly with all journal context
-        final response = await _arcLLM.chat(
-          userIntent: text,
-          entryText: entryText,
-          phaseHintJson: phaseHint,
-          lastKeywordsJson: keywords,
-        );
-        
-        print('LUMARA Debug: [Gemini] ✓ Response received, length: ${response.length}');
-        
-        // Use attribution traces from context building (the actual memory nodes used)
-        var attributionTraces = contextAttributionTraces;
-        print('LUMARA Debug: Using ${attributionTraces.length} attribution traces from context building');
-        
-        // Enrich attribution traces with actual journal entry content
-        if (attributionTraces.isNotEmpty) {
-          attributionTraces = await _enrichAttributionTraces(attributionTraces);
-          print('LUMARA Debug: Enriched ${attributionTraces.length} attribution traces with journal entry content');
-        }
-        
-        // Append phase information from attribution traces to response
-        final enhancedResponse = _appendPhaseInfoFromAttributions(response, attributionTraces, context);
-        
-        // Record assistant response in MCP memory
-        await _recordAssistantMessage(enhancedResponse);
-        
-        // Create assistant message first to get ID
-        final assistantMessage = LumaraMessage.assistant(
-          content: enhancedResponse,
-          attributionTraces: attributionTraces,
-        );
-        
-        // Add assistant response to chat session (preserve ID for favorites)
-        await _addToChatSession(enhancedResponse, 'assistant', messageId: assistantMessage.id, timestamp: assistantMessage.timestamp);
-        
-        // Check if we should suggest loading more history
-        var finalMessages = [...updatedMessages, assistantMessage];
-        
-        if (hasMoreHistory() && _queryNeedsMoreHistory(text)) {
-          final suggestionMsg = _generateLoadMoreSuggestionMessage();
-          if (suggestionMsg.isNotEmpty) {
-            final suggestionMessage = LumaraMessage.system(content: suggestionMsg);
-            finalMessages = [...finalMessages, suggestionMessage];
-          }
-        }
-        
-        // Speak response if voiceover is enabled
-        _speakResponseIfEnabled(enhancedResponse);
-        
-        emit(currentState.copyWith(
-          messages: finalMessages,
-          isProcessing: false,
-        ));
-        
-        print('LUMARA Debug: [Gemini] Complete - personalized response generated');
-        return; // Exit early - Gemini succeeded
-      } catch (e) {
-        print('LUMARA Debug: [Gemini] Failed: $e');
-        print('LUMARA Debug: Cloud API only mode - no automated responses');
-
-        // Emit error state - NO automated response messages
-        emit(currentState.copyWith(
-          isProcessing: false,
-        ));
-        return;
-      }
-
-      // DISABLED: All fallback systems removed - Cloud API only mode
-      if (false) {
-        try {
-          print('LUMARA Debug: [Priority 2] Attempting on-device LLMAdapter...');
-
-          // Initialize LLMAdapter if not already done
-          if (!LLMAdapter.isReady) {
-            debugPrint('[LumaraAssistantCubit] invoking LLMAdapter.initialize(...)');
-            await LLMAdapter.initialize();
-            debugPrint('[LumaraAssistantCubit] LLMAdapter.initialize completed (isAvailable=${LLMAdapter.isAvailable}, reason=${LLMAdapter.reason})');
-          }
-
-          // Check if on-device is available
-          if (LLMAdapter.isAvailable) {
-            print('LUMARA Debug: [On-Device] LLMAdapter available! Using on-device processing.');
-
-          // Use non-streaming on-device processing
-          final responseData = await _processMessageWithAttribution(
-            text, 
-            currentState.scope,
+          print('LUMARA Debug: [Gemini] Attempt $attempt/$maxAttempts - Attempting Gemini with journal context...');
+          
+          // Get context for Gemini (using current scope from state)
+          final context = await _contextProvider.buildContext(scope: currentState.scope);
+          final contextResult = await _buildEntryContext(
+            context, 
+            userQuery: text,
             currentEntry: currentEntry,
           );
-          print('LUMARA Debug: [On-Device] SUCCESS - Response length: ${responseData['content'].length}');
-          print('LUMARA Debug: [On-Device] Attribution traces: ${responseData['attributionTraces']?.length ?? 0}');
-
-          // Get context for phase info (using current scope from state)
-          final context = await _contextProvider.buildContext(scope: currentState.scope);
-          var attributionTraces = responseData['attributionTraces'] as List<AttributionTrace>? ?? [];
+          final entryText = contextResult['context'] as String;
+          final contextAttributionTraces = contextResult['attributionTraces'] as List<AttributionTrace>;
+          final phaseHint = _buildPhaseHint(context);
+          final keywords = _buildKeywordsContext(context);
+          
+          // Use ArcLLM to call Gemini directly with all journal context
+          final response = await _arcLLM.chat(
+            userIntent: text,
+            entryText: entryText,
+            phaseHintJson: phaseHint,
+            lastKeywordsJson: keywords,
+          );
+          
+          print('LUMARA Debug: [Gemini] ✓ Response received on attempt $attempt, length: ${response.length}');
+          
+          // Use attribution traces from context building (the actual memory nodes used)
+          var attributionTraces = contextAttributionTraces;
+          print('LUMARA Debug: Using ${attributionTraces.length} attribution traces from context building');
           
           // Enrich attribution traces with actual journal entry content
           if (attributionTraces.isNotEmpty) {
             attributionTraces = await _enrichAttributionTraces(attributionTraces);
-            print('LUMARA Debug: [On-Device] Enriched ${attributionTraces.length} attribution traces with journal entry content');
+            print('LUMARA Debug: Enriched ${attributionTraces.length} attribution traces with journal entry content');
           }
           
-          final enhancedContent = _appendPhaseInfoFromAttributions(
-            responseData['content'],
-            attributionTraces,
-            context,
-          );
-
+          // Append phase information from attribution traces to response
+          final enhancedResponse = _appendPhaseInfoFromAttributions(response, attributionTraces, context);
+          
           // Record assistant response in MCP memory
-          await _recordAssistantMessage(enhancedContent);
-
+          await _recordAssistantMessage(enhancedResponse);
+          
           // Create assistant message first to get ID
           final assistantMessage = LumaraMessage.assistant(
-            content: enhancedContent,
+            content: enhancedResponse,
             attributionTraces: attributionTraces,
           );
-
+          
           // Add assistant response to chat session (preserve ID for favorites)
-          await _addToChatSession(enhancedContent, 'assistant', messageId: assistantMessage.id, timestamp: assistantMessage.timestamp);
-          final finalMessages = [...updatedMessages, assistantMessage];
-
+          await _addToChatSession(enhancedResponse, 'assistant', messageId: assistantMessage.id, timestamp: assistantMessage.timestamp);
+          
+          // Check if we should suggest loading more history
+          var finalMessages = [...updatedMessages, assistantMessage];
+          
+          if (hasMoreHistory() && _queryNeedsMoreHistory(text)) {
+            final suggestionMsg = _generateLoadMoreSuggestionMessage();
+            if (suggestionMsg.isNotEmpty) {
+              final suggestionMessage = LumaraMessage.system(content: suggestionMsg);
+              finalMessages = [...finalMessages, suggestionMessage];
+            }
+          }
+          
+          // Speak response if voiceover is enabled
+          _speakResponseIfEnabled(enhancedResponse);
+          
           emit(currentState.copyWith(
             messages: finalMessages,
             isProcessing: false,
+            apiErrorMessage: null, // Clear any previous error message
           ));
           
-          // Speak response if voiceover is enabled
-          _speakResponseIfEnabled(enhancedContent);
-
-            print('LUMARA Debug: [On-Device] On-device processing complete - skipping cloud API');
-            return; // Exit early - on-device succeeded
-          } else {
-            print('LUMARA Debug: [On-Device] LLMAdapter not available, reason: ${LLMAdapter.reason}');
-            print('LUMARA Debug: [Priority 2] Falling back to Cloud API...');
-          }
+          print('LUMARA Debug: [Gemini] Complete - personalized response generated');
+          return; // Exit early - Gemini succeeded
         } catch (e) {
-          print('LUMARA Debug: [On-Device] Error: $e');
-          print('LUMARA Debug: [Priority 2] Falling back to Cloud API...');
+          lastError = e is Exception ? e : Exception(e.toString());
+          print('LUMARA Debug: [Gemini] Attempt $attempt/$maxAttempts failed: $e');
+          
+          // If this is not the last attempt, wait before retrying
+          if (attempt < maxAttempts) {
+            // Exponential backoff: 1s, 2s
+            final delaySeconds = attempt;
+            print('LUMARA Debug: [Gemini] Waiting ${delaySeconds}s before retry...');
+            await Future.delayed(Duration(seconds: delaySeconds));
+          }
         }
-      } else {
-        print('LUMARA Debug: [Manual Selection] Cloud API only mode - no manual provider fallback');
       }
+      
+      // All retries failed - show graceful error message
+      print('LUMARA Debug: [Gemini] All $maxAttempts attempts failed. Last error: $lastError');
+      print('LUMARA Debug: Cloud API only mode - no automated responses');
 
-      // ALL AUTOMATED FALLBACK SYSTEMS REMOVED - CLOUD API ONLY
-
-      print('LUMARA Debug: Cloud API only mode - no fallbacks available');
+      // Emit error state with message for snackbar
+      emit(currentState.copyWith(
+        isProcessing: false,
+        apiErrorMessage: 'LUMARA cannot answer at the moment. Please try again later.',
+      ));
+      return;
     } catch (e) {
       print('LUMARA Debug: Cloud API failed: $e');
       print('LUMARA Debug: Cloud API only mode - NO automated responses');
 
-      // Emit error state - NO automated response messages
+      // Emit error state with message for snackbar
       emit(currentState.copyWith(
         messages: updatedMessages,
         isProcessing: false,
+        apiErrorMessage: 'LUMARA cannot answer at the moment. Please try again later.',
       ));
     }
   }
@@ -2372,38 +2233,6 @@ Available: ${yearsAgo} more year${yearsAgo > 1 ? 's' : ''} of history''';
       'recent_activity': 0,
       'health_score': 0.0,
     };
-  }
-
-  /// Initialize Quick Answers System
-  Future<void> _initializeQuickAnswers() async {
-    try {
-      final basicsProvider = await MiraBasicsFactory.createProvider();
-      _quickAnswersRouter = QuickAnswersRouter(
-        basicsProvider: basicsProvider,
-        llm: _llmAdapter,
-      );
-      print('LUMARA Debug: Quick Answers System initialized');
-    } catch (e) {
-      print('LUMARA Debug: Error initializing Quick Answers: $e');
-      // Continue without quick answers - not critical
-    }
-  }
-
-  /// Try to get a quick answer for basic questions (lazy-loads quick answers on first use)
-  Future<String?> _tryQuickAnswer(String text) async {
-    // Lazy-load quick answers on first use
-    if (_quickAnswersRouter == null) {
-      await _initializeQuickAnswers();
-    }
-    
-    if (_quickAnswersRouter == null) return null;
-    
-    try {
-      return await _quickAnswersRouter!.handleUserMessage(text);
-    } catch (e) {
-      print('LUMARA Debug: Error in quick answers: $e');
-      return null;
-    }
   }
 
   /// Speak AI response if voiceover mode is enabled

@@ -8,8 +8,8 @@ import 'package:my_app/arc/arcform/models/arcform_models.dart';
 import 'package:my_app/arc/arcform/layouts/layouts_3d.dart';
 import 'package:my_app/arc/arcform/render/arcform_renderer_3d.dart';
 import 'package:my_app/arc/arcform/util/seeded.dart';
-import '../../services/patterns_data_service.dart';
 import '../../services/keyword_aggregator.dart';
+import 'package:my_app/models/journal_entry_model.dart';
 import '../../services/phase_regime_service.dart';
 import '../../services/analytics_service.dart';
 import '../../services/rivet_sweep_service.dart';
@@ -744,63 +744,42 @@ class _SimplifiedArcformView3DState extends State<SimplifiedArcformView3D> {
   }
 
     /// Get actual keywords from user's journal entries for their current phase
+    /// Uses the same method as ARCForm Timeline for consistency
     Future<List<String>> _getActualPhaseKeywords(String phase) async {
         try {
-          // Get actual keywords from user's journal entries
           final journalRepo = JournalRepository();
-          final patternsService = PatternsDataService(journalRepository: journalRepo);
-
-          // Get patterns data (emotion keywords from user's actual journal)
-          final (nodes, _) = await patternsService.getPatternsData(
-            maxNodes: 50, // Get more than we need to have options
-            minCoOccurrenceWeight: 0.3,
-          );
-
-          // Get emotion keywords that match this phase (or any phase if no match)
-          final phaseMatchedKeywords = nodes
-              .where((node) => node.phase.toLowerCase() == phase.toLowerCase())
-              .map((node) => node.label)
-              .toList();
-
-          // If no phase-matched keywords, use all available keywords
-          final emotionKeywords = phaseMatchedKeywords.isNotEmpty
-              ? phaseMatchedKeywords
-              : nodes.map((node) => node.label).take(10).toList();
-
-          // Get aggregated concept keywords from journal entries
-          // Use phase regime date ranges instead of relying on phase field in entries
           final allEntries = journalRepo.getAllJournalEntriesSync();
-          List<String> journalTexts = [];
           
-          // Try to get phase regime data to find entries by date range
+          // Try to get phase regime data to find entries by date range (same as Timeline)
           try {
-            // Import PhaseRegimeService to get current phase regime
             final analyticsService = AnalyticsService();
             final rivetSweepService = RivetSweepService(analyticsService);
             final phaseRegimeService = PhaseRegimeService(analyticsService, rivetSweepService);
             await phaseRegimeService.initialize();
             
-            // Find regime(s) for the requested phase (not just current)
+            // Find regime(s) for the requested phase (same as Timeline)
             final phaseRegimes = phaseRegimeService.phaseIndex.allRegimes
                 .where((r) => r.label.toString().split('.').last.toLowerCase() == phase.toLowerCase())
                 .toList();
             
+            List<JournalEntry> regimeEntries = [];
+            
             if (phaseRegimes.isNotEmpty) {
-              // Use entries from all regimes of this phase
+              // Use entries from all regimes of this phase (same as Timeline)
               for (final regime in phaseRegimes) {
                 final regimeStart = regime.start;
                 final regimeEnd = regime.end ?? DateTime.now();
                 
                 final entriesInRegime = allEntries
-                    .where((entry) => entry.createdAt.isAfter(regimeStart.subtract(const Duration(days: 1))) && 
-                                      entry.createdAt.isBefore(regimeEnd.add(const Duration(days: 1))))
-                    .map((entry) => entry.content)
+                    .where((entry) => 
+                        entry.createdAt.isAfter(regimeStart.subtract(const Duration(days: 1))) && 
+                        entry.createdAt.isBefore(regimeEnd.add(const Duration(days: 1))))
                     .toList();
                 
-                journalTexts.addAll(entriesInRegime);
+                regimeEntries.addAll(entriesInRegime);
               }
                   
-              print('DEBUG: Found ${journalTexts.length} entries in $phase phase regime(s)');
+              print('DEBUG: Found ${regimeEntries.length} entries in $phase phase regime(s)');
             } else if (phase.toLowerCase() == 'discovery') {
               // Special case for Discovery: get entries before first regime
               final allRegimes = phaseRegimeService.phaseIndex.allRegimes;
@@ -808,68 +787,121 @@ class _SimplifiedArcformView3DState extends State<SimplifiedArcformView3D> {
                 final sortedRegimes = List.from(allRegimes)..sort((a, b) => a.start.compareTo(b.start));
                 final firstRegime = sortedRegimes.first;
                 
-                final entriesBeforeFirstRegime = allEntries
+                regimeEntries = allEntries
                     .where((entry) => entry.createdAt.isBefore(firstRegime.start))
-                    .map((entry) => entry.content)
                     .toList();
                 
-                journalTexts.addAll(entriesBeforeFirstRegime);
-                print('DEBUG: Found ${journalTexts.length} entries before first regime for Discovery phase');
+                print('DEBUG: Found ${regimeEntries.length} entries before first regime for Discovery phase');
               } else {
                 // No regimes at all - use all entries
-                journalTexts = allEntries.map((entry) => entry.content).toList();
-                print('DEBUG: No regimes found - using all ${journalTexts.length} entries for Discovery');
+                regimeEntries = allEntries;
+                print('DEBUG: No regimes found - using all ${regimeEntries.length} entries for Discovery');
               }
             } else {
               // Fallback: get recent entries (last 30 days)
               final recentCutoff = DateTime.now().subtract(const Duration(days: 30));
-              journalTexts = allEntries
+              regimeEntries = allEntries
                   .where((entry) => entry.createdAt.isAfter(recentCutoff))
-                  .map((entry) => entry.content)
                   .toList();
                   
-              print('DEBUG: Using fallback - found ${journalTexts.length} recent entries');
+              print('DEBUG: Using fallback - found ${regimeEntries.length} recent entries');
             }
+            
+            if (regimeEntries.isEmpty) {
+              print('DEBUG: No entries found for $phase phase, using hardcoded keywords');
+              return _getHardcodedPhaseKeywords(phase);
+            }
+
+            // Use the same method as Timeline: get keywords from entry.keywords
+            final allKeywords = <String>[];
+            for (final entry in regimeEntries) {
+              allKeywords.addAll(entry.keywords);
+            }
+
+            // Count keyword frequency (same as Timeline)
+            final keywordCounts = <String, int>{};
+            for (final keyword in allKeywords) {
+              keywordCounts[keyword] = (keywordCounts[keyword] ?? 0) + 1;
+            }
+
+            // Sort by frequency and get top keywords (same as Timeline)
+            final sortedKeywords = keywordCounts.entries.toList()
+              ..sort((a, b) => b.value.compareTo(a.value));
+
+            // Get top 15-20 keywords (most popular from this phase) - same as Timeline
+            final topKeywords = sortedKeywords
+                .take(20)
+                .map((e) => e.key)
+                .where((kw) => kw.isNotEmpty)
+                .toList();
+
+            print('DEBUG: Found ${topKeywords.length} top keywords for $phase phase');
+            
+            // Also get aggregated keywords from entry content (same as Timeline)
+            final journalTexts = regimeEntries.map((e) => e.content).toList();
+            final aggregatedKeywords = KeywordAggregator.getTopAggregatedKeywords(
+              journalTexts,
+              topN: 10,
+            );
+
+            // Combine and deduplicate (same as Timeline)
+            final combinedKeywords = <String>[];
+            combinedKeywords.addAll(topKeywords);
+            combinedKeywords.addAll(aggregatedKeywords);
+            
+            final uniqueKeywords = combinedKeywords.toSet().toList();
+            
+            print('DEBUG: Combined ${topKeywords.length} entry keywords with ${aggregatedKeywords.length} aggregated keywords');
+            print('DEBUG: Total unique keywords: ${uniqueKeywords.length}');
+
+            return uniqueKeywords.take(20).toList();
           } catch (e) {
             print('DEBUG: Error accessing phase regime data: $e');
             // Fallback: get recent entries (last 30 days)
             final recentCutoff = DateTime.now().subtract(const Duration(days: 30));
-            journalTexts = allEntries
+            final recentEntries = allEntries
                 .where((entry) => entry.createdAt.isAfter(recentCutoff))
-                .map((entry) => entry.content)
                 .toList();
+            
+            if (recentEntries.isEmpty) {
+              return _getHardcodedPhaseKeywords(phase);
+            }
+            
+            // Use same method: entry.keywords + aggregated
+            final allKeywords = <String>[];
+            for (final entry in recentEntries) {
+              allKeywords.addAll(entry.keywords);
+            }
+            
+            final keywordCounts = <String, int>{};
+            for (final keyword in allKeywords) {
+              keywordCounts[keyword] = (keywordCounts[keyword] ?? 0) + 1;
+            }
+            
+            final sortedKeywords = keywordCounts.entries.toList()
+              ..sort((a, b) => b.value.compareTo(a.value));
+            
+            final topKeywords = sortedKeywords
+                .take(20)
+                .map((e) => e.key)
+                .where((kw) => kw.isNotEmpty)
+                .toList();
+            
+            final journalTexts = recentEntries.map((e) => e.content).toList();
+            final aggregatedKeywords = KeywordAggregator.getTopAggregatedKeywords(
+              journalTexts,
+              topN: 10,
+            );
+            
+            final combinedKeywords = <String>[];
+            combinedKeywords.addAll(topKeywords);
+            combinedKeywords.addAll(aggregatedKeywords);
+            
+            return combinedKeywords.toSet().toList().take(20).toList();
           }
-
-          final aggregatedKeywords = KeywordAggregator.getTopAggregatedKeywords(
-            journalTexts,
-            topN: 10, // Get top 10 concept keywords
-          );
-
-          // Combine emotion keywords and aggregated concept keywords
-          final allKeywords = <String>[];
-          allKeywords.addAll(emotionKeywords);
-          allKeywords.addAll(aggregatedKeywords);
-
-          // Remove duplicates - layout3D will select optimal count per phase
-          final uniqueKeywords = allKeywords.toSet().toList();
-
-          print('DEBUG: Found ${emotionKeywords.length} emotion keywords and ${aggregatedKeywords.length} concept keywords for user\'s $phase phase');
-          print('DEBUG: Total unique keywords: ${uniqueKeywords.length}');
-
-          // Return all unique keywords - layout3D will optimize per phase
-          // Discovery: 10 nodes, Expansion: 12 nodes, Consolidation: 20 nodes, etc.
-          if (uniqueKeywords.isNotEmpty) {
-            print('DEBUG: Returning ${uniqueKeywords.length} actual keywords (layout3D will optimize)');
-            return uniqueKeywords;
-          }
-
-          // If no actual keywords found, return empty list - will use hardcoded keywords
-          print('DEBUG: No actual keywords found for $phase phase');
-          return [];
-
         } catch (e) {
           print('ERROR: Failed to load actual keywords for $phase: $e');
-          return [];
+          return _getHardcodedPhaseKeywords(phase);
         }
       }
 

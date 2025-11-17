@@ -416,17 +416,18 @@ class _PhaseArcform3DScreenState extends State<PhaseArcform3DScreen> {
   void _showArcformViewer(Arcform3DData arcform) {
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (context) => _ArcformViewerScreen(arcform: arcform),
+        builder: (context) => ArcformViewerScreen(arcform: arcform),
       ),
     );
   }
 }
 
 /// Full-screen ARCForm viewer
-class _ArcformViewerScreen extends StatelessWidget {
+/// Made public so it can be accessed directly from ARCForm Timeline
+class ArcformViewerScreen extends StatelessWidget {
   final Arcform3DData arcform;
 
-  const _ArcformViewerScreen({required this.arcform});
+  const ArcformViewerScreen({super.key, required this.arcform});
 
   @override
   Widget build(BuildContext context) {
