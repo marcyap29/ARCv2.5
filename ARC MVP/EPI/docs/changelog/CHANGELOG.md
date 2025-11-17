@@ -7,6 +7,12 @@
 
 ### **ARCX Import Improvements & Bug Fixes** - Complete
 
+### **Journal Timeline & ARCForm Timeline UX** - Complete
+
+- **Phase Legend on Demand**: The Phase Legend dropdown now appears only when the ARCForm Timeline is expanded, keeping the Journal timeline uncluttered during normal browsing.
+- **Full-Screen ARCForm Review**: When a user taps the phase color rail, the app bar, search/filter chrome, and other controls collapse so the ARCForm Timeline card can use the majority of the viewport. Closing the ARCForm timeline restores the chrome automatically.
+- **Clickable Phase Rail**: The left-side phase strip is wider, shows an “ARC ✨” hint, and supports tap + swipe gestures (right to open, left to close) so it’s clear that it opens the ARCForm timeline.
+
 #### Import Navigation & UX Improvements
 - **Auto-Navigation to Main Screen**: After successful import, clicking "Done" now automatically navigates to the main screen (HomeView) instead of leaving users on the import screen
 - **Navigation Stack Clearing**: Import success dialogs now clear the navigation stack to prevent accidental back navigation to import screens

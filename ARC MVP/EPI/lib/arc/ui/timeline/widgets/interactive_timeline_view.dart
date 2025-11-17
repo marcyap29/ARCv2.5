@@ -31,7 +31,6 @@ import 'package:my_app/services/analytics_service.dart';
 import 'package:my_app/services/rivet_sweep_service.dart';
 import 'package:my_app/services/phase_index.dart';
 import '../../../../ui/phase/arcform_timeline_view.dart';
-import 'package:my_app/models/phase_models.dart';
 
 class InteractiveTimelineView extends StatefulWidget {
   final VoidCallback? onJumpToDate;
@@ -68,7 +67,6 @@ class InteractiveTimelineViewState extends State<InteractiveTimelineView>
   bool _showArcformTimeline = false;
   PhaseIndex? _phaseIndex;
   bool _isArcformTimelineLoading = false;
-  bool _isLegendExpanded = false;
 
   @override
   void initState() {
@@ -280,98 +278,7 @@ class InteractiveTimelineViewState extends State<InteractiveTimelineView>
       );
     }
 
-    final theme = Theme.of(context);
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-      child: Card(
-        elevation: 3,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            InkWell(
-              borderRadius: BorderRadius.circular(16),
-              onTap: () => setState(() {
-                _isLegendExpanded = !_isLegendExpanded;
-              }),
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Row(
-                  children: [
-                    Icon(Icons.palette,
-                        color: theme.colorScheme.primary, size: 20),
-                    const SizedBox(width: 8),
-                    Text(
-                      'Phase Legend',
-                      style: theme.textTheme.titleMedium
-                          ?.copyWith(fontWeight: FontWeight.bold),
-                    ),
-                    const Spacer(),
-                    Icon(
-                      _isLegendExpanded ? Icons.expand_less : Icons.expand_more,
-                      color: theme.colorScheme.primary,
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            if (_isLegendExpanded)
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Wrap(
-                      spacing: 12,
-                      runSpacing: 8,
-                      children: PhaseLabel.values.map((label) {
-                        final color = _getPhaseColorForLegend(label);
-                        return Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Container(
-                              width: 16,
-                              height: 16,
-                              decoration: BoxDecoration(
-                                color: color.withOpacity(0.7),
-                                border: Border.all(color: color, width: 2),
-                                borderRadius: BorderRadius.circular(4),
-                              ),
-                            ),
-                            const SizedBox(width: 6),
-                            Text(
-                              label.name.toUpperCase(),
-                              style: theme.textTheme.bodySmall,
-                            ),
-                          ],
-                        );
-                      }).toList(),
-                    ),
-                    const SizedBox(height: 12),
-                    const Divider(),
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        _buildLegendSourceIndicator(
-                          theme,
-                          label: 'User Set',
-                          filled: true,
-                        ),
-                        const SizedBox(width: 16),
-                        _buildLegendSourceIndicator(
-                          theme,
-                          label: 'RIVET Detected',
-                          filled: false,
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-          ],
-        ),
-      ),
-    );
+    return const SizedBox(height: 0);
   }
 
   void _handlePhaseBarDrag(DragEndDetails details, TimelineEntry entry) {
@@ -384,48 +291,6 @@ class InteractiveTimelineViewState extends State<InteractiveTimelineView>
     }
   }
 
-  Color _getPhaseColorForLegend(PhaseLabel label) {
-    switch (label) {
-      case PhaseLabel.discovery:
-        return Colors.blue;
-      case PhaseLabel.expansion:
-        return Colors.green;
-      case PhaseLabel.transition:
-        return Colors.orange;
-      case PhaseLabel.consolidation:
-        return Colors.purple;
-      case PhaseLabel.recovery:
-        return Colors.red;
-      case PhaseLabel.breakthrough:
-        return Colors.amber;
-    }
-  }
-
-  Widget _buildLegendSourceIndicator(ThemeData theme,
-      {required String label, required bool filled}) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Container(
-          width: 12,
-          height: 12,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: filled ? Colors.white : Colors.transparent,
-            border: Border.all(
-              color: filled ? theme.colorScheme.primary : Colors.grey,
-              width: 2,
-            ),
-          ),
-        ),
-        const SizedBox(width: 6),
-        Text(
-          label,
-          style: theme.textTheme.bodySmall,
-        ),
-      ],
-    );
-  }
 
   Widget _buildInteractiveTimeline() {
     return _build2DGridTimeline();

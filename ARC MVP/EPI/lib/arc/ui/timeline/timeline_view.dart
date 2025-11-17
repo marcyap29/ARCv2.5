@@ -7,6 +7,7 @@ import 'package:my_app/shared/app_colors.dart';
 import 'package:my_app/services/journal_session_cache.dart';
 import 'package:my_app/ui/journal/journal_screen.dart';
 import 'package:my_app/arc/ui/timeline/timeline_entry_model.dart';
+import 'package:my_app/models/phase_models.dart';
 
 class TimelineView extends StatelessWidget {
   const TimelineView({super.key});
@@ -193,6 +194,16 @@ class _TimelineViewContentState extends State<TimelineViewContent> {
                               )
                             : const SizedBox.shrink(),
                       ),
+              ),
+              AnimatedSwitcher(
+                duration: const Duration(milliseconds: 250),
+                child: _isArcformTimelineVisible
+                    ? Padding(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 8),
+                        child: _buildPhaseLegendDropdown(context),
+                      )
+                    : const SizedBox.shrink(),
               ),
               Expanded(
                 child: InteractiveTimelineView(
@@ -442,6 +453,119 @@ class _TimelineViewContentState extends State<TimelineViewContent> {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildPhaseLegendDropdown(BuildContext context) {
+    final theme = Theme.of(context);
+    return Card(
+      elevation: 3,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: ExpansionTile(
+        title: Row(
+          children: [
+            Icon(Icons.palette, color: theme.colorScheme.primary, size: 20),
+            const SizedBox(width: 8),
+            Text(
+              'Phase Legend',
+              style: theme.textTheme.titleMedium
+                  ?.copyWith(fontWeight: FontWeight.bold),
+            ),
+          ],
+        ),
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Wrap(
+                  spacing: 12,
+                  runSpacing: 8,
+                  children: PhaseLabel.values.map((label) {
+                    final color = _phaseColor(label);
+                    return Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          width: 16,
+                          height: 16,
+                          decoration: BoxDecoration(
+                            color: color.withOpacity(0.7),
+                            border: Border.all(color: color, width: 2),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          label.name.toUpperCase(),
+                          style: theme.textTheme.bodySmall,
+                        ),
+                      ],
+                    );
+                  }).toList(),
+                ),
+                const SizedBox(height: 12),
+                const Divider(),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    _buildLegendSource(theme,
+                        label: 'User Set',
+                        color: theme.colorScheme.primary,
+                        filled: true),
+                    const SizedBox(width: 16),
+                    _buildLegendSource(theme,
+                        label: 'RIVET Detected',
+                        color: Colors.grey,
+                        filled: false),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Color _phaseColor(PhaseLabel label) {
+    switch (label) {
+      case PhaseLabel.discovery:
+        return Colors.blue;
+      case PhaseLabel.expansion:
+        return Colors.green;
+      case PhaseLabel.transition:
+        return Colors.orange;
+      case PhaseLabel.consolidation:
+        return Colors.purple;
+      case PhaseLabel.recovery:
+        return Colors.red;
+      case PhaseLabel.breakthrough:
+        return Colors.amber;
+    }
+  }
+
+  Widget _buildLegendSource(ThemeData theme,
+      {required String label, required Color color, required bool filled}) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 12,
+          height: 12,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: filled ? Colors.white : Colors.transparent,
+            border: Border.all(color: color, width: 2),
+          ),
+        ),
+        const SizedBox(width: 6),
+        Text(
+          label,
+          style: theme.textTheme.bodySmall,
+        ),
+      ],
     );
   }
 }
