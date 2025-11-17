@@ -1,16 +1,17 @@
 // lib/arc/chat/prompts/lumara_system_prompt.dart
 // Universal LUMARA System Prompt - Integrated Super Prompt
 // Life-aware Unified Memory & Reflection Assistant
-// Updated to use unified prompt system (EPI v2.1)
-
-import 'lumara_unified_prompts.dart';
+// 
+// DEPRECATED: This file is kept for backward compatibility with on-device LLMs only.
+// Cloud API uses the master prompt system (lumara_master_prompt.dart).
+// See README_MASTER_PROMPT.md for the new unified system.
 
 /// LUMARA (Life-aware Unified Memory & Reflection Assistant) System Prompt
 /// The conversational layer of the Evolving Personal Intelligence (EPI) system
-/// @deprecated Use LumaraUnifiedPrompts.instance.getSystemPrompt() instead
+/// 
+/// @deprecated This is for on-device LLMs only. Cloud API uses LumaraMasterPrompt.
+/// See README_MASTER_PROMPT.md for the new unified master prompt system.
 class LumaraSystemPrompt {
-  /// Unified prompt manager
-  static final LumaraUnifiedPrompts _unified = LumaraUnifiedPrompts.instance;
 
   /// Core universal system prompt for LUMARA (legacy - for backward compatibility)
   /// @deprecated Use LumaraUnifiedPrompts.instance.getSystemPrompt() instead
@@ -171,19 +172,16 @@ $contextString
 ''';
   }
 
-  /// Get system prompt for a specific context using unified prompt system
-  /// [context] - arcChat, arcJournal, or recovery
-  /// [phaseData] - optional phase/readiness data from PRISM.ATLAS
-  /// [energyData] - optional energy/time data from AURORA
+  /// Get system prompt for a specific context
+  /// 
+  /// @deprecated This method is deprecated. Cloud API uses LumaraMasterPrompt.
+  /// This is kept for on-device LLM compatibility only.
   static Future<String> getSystemPromptForContext({
-    LumaraContext context = LumaraContext.arcChat,
+    String context = 'arcChat',
     Map<String, dynamic>? phaseData,
     Map<String, dynamic>? energyData,
   }) async {
-    return await _unified.getSystemPrompt(
-      context: context,
-      phaseData: phaseData,
-      energyData: energyData,
-    );
+    // Return legacy universal prompt for on-device compatibility
+    return universal;
   }
 }

@@ -11,7 +11,8 @@ import '../../chat/chat_repo.dart';
 import '../models/veil_edge_models.dart';
 import '../services/veil_edge_service.dart';
 import '../../../../aurora/models/circadian_context.dart';
-import '../../prompts/lumara_unified_prompts.dart' show LumaraUnifiedPrompts, LumaraContext;
+import '../../llm/prompts/lumara_master_prompt.dart';
+import '../../services/lumara_control_state_builder.dart';
 import '../../../../services/gemini_send.dart';
 
 /// Integration service for LUMARA and VEIL-EDGE
@@ -173,22 +174,37 @@ class LumaraVeilEdgeIntegration {
     AtlasState? atlas,
   }) async {
     try {
-      // Get unified system prompt with recovery context
-      // Extract phase data from AtlasState or routeResult
-      final phaseName = _extractPhaseFromRouteResult(routeResult, atlas);
-      final readiness = atlas?.confidence ?? 0.5;
+      // Build control state for master prompt
+      // Phase and readiness are now handled by control state builder from ATLAS
       
-      final systemPrompt = await LumaraUnifiedPrompts.instance.getSystemPrompt(
-        context: LumaraContext.recovery,
-        phaseData: {
-          'phase': phaseName,
-          'readiness': readiness,
-        },
-        energyData: {
-          'level': _extractEnergyLevel(circadianContext),
-          'timeOfDay': circadianContext.window,
-        },
+      // Build PRISM activity from signals
+      final prismActivity = <String, dynamic>{
+        'journal_entries': [],
+        'drafts': [],
+        'chats': [userMessage],
+        'media': [],
+        'patterns': signals.words.take(10).toList(),
+        'emotional_tone': signals.feelings.isNotEmpty ? signals.feelings.first : 'neutral',
+        'cognitive_load': 'moderate',
+      };
+      
+      // Build chrono context from circadian context
+      final chronoContext = <String, dynamic>{
+        'window': circadianContext.window,
+        'chronotype': circadianContext.chronotype,
+        'rhythmScore': circadianContext.rhythmScore,
+        'isFragmented': circadianContext.rhythmScore < 0.45,
+      };
+      
+      // Build unified control state JSON
+      final controlStateJson = await LumaraControlStateBuilder.buildControlState(
+        userId: null, // VEIL-EDGE doesn't track userId
+        prismActivity: prismActivity,
+        chronoContext: chronoContext,
       );
+      
+      // Get master prompt with control state
+      final systemPrompt = LumaraMasterPrompt.getMasterPrompt(controlStateJson);
       
       // Build user prompt incorporating VEIL-EDGE routing context
       final userPrompt = _buildUserPromptWithVeilContext(

@@ -14,11 +14,10 @@ import '../llm/llm_provider_factory.dart';
 import '../llm/llm_provider.dart';
 import '../config/api_config.dart';
 import 'lumara_response_scoring.dart' as scoring;
-import '../prompts/lumara_prompts.dart';
-import '../prompts/lumara_unified_prompts.dart' show LumaraContext;
-import 'package:my_app/arc/chat/prompts/lumara_therapeutic_presence_data.dart';
 import '../../../services/gemini_send.dart';
 import 'lumara_reflection_settings_service.dart';
+import '../llm/prompts/lumara_master_prompt.dart';
+import 'lumara_control_state_builder.dart';
 import '../../../polymeta/memory/attribution_service.dart';
 import '../../../polymeta/memory/enhanced_memory_schema.dart';
 import '../../../polymeta/memory/sentence_extraction_util.dart';
@@ -171,20 +170,9 @@ class EnhancedLumaraApi {
       final similarityThreshold = await settingsService.getSimilarityThreshold();
       final lookbackYears = await settingsService.getEffectiveLookbackYears();
       final maxMatches = await settingsService.getEffectiveMaxMatches();
-      final therapeuticEnabled = await settingsService.isTherapeuticPresenceEnabled();
-      final therapeuticAutomaticMode = await settingsService.isTherapeuticAutomaticMode();
       
-      // Determine depth level: use automatic mode logic or manual setting
-      int? therapeuticDepthLevel;
-      if (therapeuticEnabled) {
-        if (therapeuticAutomaticMode) {
-          // Automatic mode: system decides (default to moderate/level 2 for balanced approach)
-          therapeuticDepthLevel = 2;
-        } else {
-          // Manual mode: use user's selected depth level
-          therapeuticDepthLevel = await settingsService.getTherapeuticDepthLevel();
-        }
-      }
+      // Therapeutic mode is now handled by control state builder
+      // No need to determine depth level here - it's in the control state JSON
       
       // 2. Retrieve all candidate nodes
       onProgress?.call('Preparing context...');
@@ -306,64 +294,28 @@ class EnhancedLumaraApi {
           // Use Gemini API directly via geminiSend() - same as main LUMARA chat
           print('LUMARA Enhanced API v2.3: Calling Gemini API directly (same as main chat)');
           
-          // Use therapeutic presence prompt if enabled, otherwise use unified prompt system
-          String systemPrompt;
-          if (therapeuticEnabled && therapeuticDepthLevel != null) {
-            // Use therapeutic presence system prompt
-            systemPrompt = '${LumaraTherapeuticPresenceData.systemPrompt}\n\n';
-
-            // Add depth level specific guidance for journal reflections
-            switch (therapeuticDepthLevel) {
-              case 1: // Light
-                systemPrompt += '''
---- JOURNAL DEPTH GUIDANCE ---
-Maintain a supportive and encouraging tone for journal reflection. Focus on validation and gentle insights.
-Keep responses accessible and not too emotionally intensive. Use softer tone modes when appropriate.
-''';
-                break;
-              case 2: // Moderate
-                systemPrompt += '''
---- JOURNAL DEPTH GUIDANCE ---
-Use reflective and insight-oriented approach for journal reflection. Explore emotions and patterns thoughtfully.
-Balance emotional depth with practical clarity. Draw connections to past experiences when relevant.
-''';
-                break;
-              case 3: // Deep
-                systemPrompt += '''
---- JOURNAL DEPTH GUIDANCE ---
-Engage in exploratory and emotionally resonant journal reflection. Use the full therapeutic presence framework.
-Draw deep connections, explore underlying themes, and provide transformative insights for journal context.
-Apply tone modes from the response matrix based on emotional context and intensity.
-''';
-                break;
-            }
-
-            systemPrompt += '''
-
---- JOURNAL CONTEXT ---
-You are providing therapeutic reflection for a journal entry. Use the ECHO structure (Empathize → Clarify → Highlight → Open)
-while maintaining the therapeutic presence framework. Honor the user's emotional state and provide gentle, professional insight.
-''';
-
-            print('LUMARA Enhanced API v2.3: Using therapeutic presence prompt (depth level $therapeuticDepthLevel)');
-          } else {
-            // Use unified prompt system with context tag (arc_journal)
-            // Falls back to legacy prompt if unified system fails
-            try {
-              // Extract phase from request.phaseHint or currentPhase
-              final phaseName = request.phaseHint?.name ?? currentPhase;
-              systemPrompt = await LumaraPrompts.getSystemPromptForContext(
-                context: LumaraContext.arcJournal,
-                phaseData: phaseName != null ? {'phase': phaseName} : null,
-                energyData: chronoContext,
-              );
-              print('LUMARA Enhanced API v2.3: Using unified prompt system (arc_journal context)');
-            } catch (e) {
-              // Fallback to legacy prompt for backward compatibility
-              systemPrompt = LumaraPrompts.inJournalPrompt;
-              print('LUMARA Enhanced API v2.3: Using legacy prompt (unified system unavailable)');
-            }
-          }
+          // Build PRISM activity context from request and matches
+          final prismActivity = <String, dynamic>{
+            'journal_entries': [request.userText],
+            'drafts': [],
+            'chats': chatContext != null && chatContext.isNotEmpty ? [chatContext] : [],
+            'media': mediaContext != null && mediaContext.isNotEmpty ? [mediaContext] : [],
+            'patterns': matches.map((m) => m.excerpt ?? '').where((e) => e.isNotEmpty).toList(),
+            'emotional_tone': mood ?? 'neutral',
+            'cognitive_load': 'moderate', // Could be enhanced with analysis
+          };
+          
+          // Build unified control state JSON
+          final controlStateJson = await LumaraControlStateBuilder.buildControlState(
+            userId: userId,
+            prismActivity: prismActivity,
+            chronoContext: chronoContext,
+          );
+          
+          // Get master prompt with control state
+          final systemPrompt = LumaraMasterPrompt.getMasterPrompt(controlStateJson);
+          
+          print('LUMARA Enhanced API v2.3: Using unified master prompt with control state');
           
           print('LUMARA Enhanced API v2.3: System prompt length: ${systemPrompt.length}');
           print('LUMARA Enhanced API v2.3: User prompt length: ${userPrompt.length}');

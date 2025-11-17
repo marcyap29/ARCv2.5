@@ -30,7 +30,8 @@ import '../services/lumara_reflection_settings_service.dart';
 import 'package:my_app/models/journal_entry_model.dart';
 import 'package:my_app/shared/ui/settings/voiceover_preference_service.dart';
 import '../voice/audio_io.dart';
-import '../prompts/lumara_therapeutic_presence_data.dart';
+import '../llm/prompts/lumara_master_prompt.dart';
+import '../services/lumara_control_state_builder.dart';
 
 /// LUMARA Assistant Cubit State
 abstract class LumaraAssistantState {}
@@ -907,72 +908,60 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
     }
   }
 
-  /// Build system prompt for streaming with therapeutic presence integration
+  /// Build system prompt using unified master prompt with control state
   Future<String> _buildSystemPrompt(String? entryText, String? phaseHint, String? keywords) async {
-    final buffer = StringBuffer();
-
-    // Load therapeutic presence settings
-    final settingsService = LumaraReflectionSettingsService.instance;
-    final settings = await settingsService.loadAllSettings();
-    final therapeuticPresenceEnabled = settings['therapeuticPresenceEnabled'] as bool? ?? true;
-    final therapeuticAutomaticMode = settings['therapeuticAutomaticMode'] as bool? ?? false;
+    // Build PRISM activity context from entry text and keywords
+    final prismActivity = <String, dynamic>{
+      'journal_entries': entryText != null && entryText.isNotEmpty ? [entryText] : [],
+      'drafts': [],
+      'chats': [],
+      'media': [],
+      'patterns': keywords != null && keywords.isNotEmpty ? keywords.split(',').map((e) => e.trim()).toList() : [],
+      'emotional_tone': 'neutral', // Could be enhanced with sentiment analysis
+      'cognitive_load': 'moderate', // Could be enhanced with analysis
+    };
     
-    // Determine depth level: use automatic mode logic or manual setting
-    int therapeuticDepthLevel;
-    if (therapeuticAutomaticMode) {
-      // Automatic mode: system decides (default to moderate/level 2 for balanced approach)
-      therapeuticDepthLevel = 2;
+    // Build chrono context (time of day inferred from current time)
+    final now = DateTime.now();
+    final hour = now.hour;
+    String timeWindow = 'afternoon';
+    if (hour >= 5 && hour < 12) {
+      timeWindow = 'morning';
+    } else if (hour >= 12 && hour < 17) {
+      timeWindow = 'afternoon';
+    } else if (hour >= 17 && hour < 22) {
+      timeWindow = 'evening';
     } else {
-      // Manual mode: use user's selected depth level
-      therapeuticDepthLevel = settings['therapeuticDepthLevel'] as int? ?? 2;
+      timeWindow = 'night';
     }
-
-    if (therapeuticPresenceEnabled) {
-      // Use therapeutic presence system prompt
-      buffer.writeln(LumaraTherapeuticPresenceData.systemPrompt);
-
-      // Add depth level specific guidance
-      switch (therapeuticDepthLevel) {
-        case 1: // Light
-          buffer.writeln('\n--- DEPTH GUIDANCE ---');
-          buffer.writeln('Maintain a supportive and encouraging tone. Focus on validation and gentle insights.');
-          buffer.writeln('Keep responses accessible and not too emotionally intensive.');
-          break;
-        case 2: // Moderate
-          buffer.writeln('\n--- DEPTH GUIDANCE ---');
-          buffer.writeln('Use reflective and insight-oriented approach. Explore emotions and patterns thoughtfully.');
-          buffer.writeln('Balance emotional depth with practical clarity.');
-          break;
-        case 3: // Deep
-          buffer.writeln('\n--- DEPTH GUIDANCE ---');
-          buffer.writeln('Engage in exploratory and emotionally resonant dialogue. Use the full therapeutic presence framework.');
-          buffer.writeln('Draw deep connections, explore underlying themes, and provide transformative insights.');
-          buffer.writeln('Apply tone modes from the response matrix based on emotional context and intensity.');
-          break;
-      }
-
-      buffer.writeln('\n--- CHAT CONTEXT ---');
-      buffer.writeln('You are responding in a real-time chat conversation. Use the therapeutic presence framework');
-      buffer.writeln('to provide immediate, emotionally attuned support while maintaining professional boundaries.');
-    } else {
-      // Fallback to basic prompt when therapeutic presence is disabled
-      buffer.writeln('You are LUMARA, a compassionate personal assistant for the EPI journaling app.');
-      buffer.writeln('Provide thoughtful, dignified responses that honor the user\'s experiences.');
-    }
-
-    if (phaseHint != null) {
-      buffer.writeln('\nUser\'s current phase context: $phaseHint');
-    }
-
+    
+    final chronoContext = <String, dynamic>{
+      'window': timeWindow,
+      'chronotype': 'sporadic', // Default, could be enhanced with user settings
+      'rhythmScore': 0.7, // Default moderate
+      'isFragmented': false,
+    };
+    
+    // Build unified control state JSON
+    final controlStateJson = await LumaraControlStateBuilder.buildControlState(
+      userId: _userId,
+      prismActivity: prismActivity,
+      chronoContext: chronoContext,
+    );
+    
+    // Get master prompt with control state
+    final masterPrompt = LumaraMasterPrompt.getMasterPrompt(controlStateJson);
+    
+    // Add context about current entry/keywords if provided (for user message context, not control state)
     if (entryText != null && entryText.isNotEmpty) {
-      buffer.writeln('\nRecent journal entries:\n$entryText');
+      return '$masterPrompt\n\n--- CURRENT CONTEXT ---\nRecent journal entry context:\n$entryText';
     }
-
-    if (keywords != null) {
-      buffer.writeln('\nRecent keywords: $keywords');
+    
+    if (keywords != null && keywords.isNotEmpty) {
+      return '$masterPrompt\n\n--- CURRENT CONTEXT ---\nRecent keywords: $keywords';
     }
-
-    return buffer.toString();
+    
+    return masterPrompt;
   }
 
   /// Map task type to LUMARA intent

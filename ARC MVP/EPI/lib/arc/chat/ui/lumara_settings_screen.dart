@@ -1908,108 +1908,108 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
                     // Default Therapeutic Mode Slider (grayed out when automatic mode is on)
                     Opacity(
                       opacity: _therapeuticAutomaticMode ? 0.5 : 1.0,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Icon(
-                                Icons.psychology,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.psychology,
                                 color: _therapeuticAutomaticMode 
                                     ? theme.colorScheme.onSurfaceVariant.withOpacity(0.5)
                                     : theme.colorScheme.primary,
-                                size: 20,
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
+                          size: 20,
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
                                       'Default Therapeutic Mode',
-                                      style: theme.textTheme.titleMedium?.copyWith(
-                                        fontWeight: FontWeight.w600,
+                                style: theme.textTheme.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.w600,
                                         color: _therapeuticAutomaticMode
                                             ? theme.colorScheme.onSurfaceVariant.withOpacity(0.5)
                                             : null,
-                                      ),
-                                    ),
-                                    Text(
-                                      depthDescriptions[_therapeuticDepthLevel - 1],
-                                      style: theme.textTheme.bodySmall?.copyWith(
+                                ),
+                              ),
+                              Text(
+                                depthDescriptions[_therapeuticDepthLevel - 1],
+                                style: theme.textTheme.bodySmall?.copyWith(
                                         color: _therapeuticAutomaticMode
                                             ? theme.colorScheme.onSurfaceVariant.withOpacity(0.5)
                                             : theme.colorScheme.onSurfaceVariant,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                                decoration: BoxDecoration(
-                                  color: (_therapeuticAutomaticMode
-                                          ? theme.colorScheme.onSurfaceVariant.withOpacity(0.3)
-                                          : theme.colorScheme.primary.withOpacity(0.2)),
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: Text(
-                                  depthLabels[_therapeuticDepthLevel - 1],
-                                  style: theme.textTheme.labelMedium?.copyWith(
-                                    color: _therapeuticAutomaticMode
-                                        ? theme.colorScheme.onSurfaceVariant.withOpacity(0.5)
-                                        : theme.colorScheme.primary,
-                                    fontWeight: FontWeight.w600,
-                                  ),
                                 ),
                               ),
                             ],
                           ),
-                          const SizedBox(height: 12),
-                          Slider(
-                            value: _therapeuticDepthLevel.toDouble(),
-                            min: 1,
-                            max: 3,
-                            divisions: 2,
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          decoration: BoxDecoration(
+                                  color: (_therapeuticAutomaticMode
+                                          ? theme.colorScheme.onSurfaceVariant.withOpacity(0.3)
+                                          : theme.colorScheme.primary.withOpacity(0.2)),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            depthLabels[_therapeuticDepthLevel - 1],
+                            style: theme.textTheme.labelMedium?.copyWith(
+                                    color: _therapeuticAutomaticMode
+                                        ? theme.colorScheme.onSurfaceVariant.withOpacity(0.5)
+                                        : theme.colorScheme.primary,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    Slider(
+                      value: _therapeuticDepthLevel.toDouble(),
+                      min: 1,
+                      max: 3,
+                      divisions: 2,
                             activeColor: _therapeuticAutomaticMode
                                 ? theme.colorScheme.onSurfaceVariant.withOpacity(0.5)
                                 : theme.colorScheme.primary,
-                            inactiveColor: theme.colorScheme.outline.withOpacity(0.3),
-                            label: depthLabels[_therapeuticDepthLevel - 1],
+                      inactiveColor: theme.colorScheme.outline.withOpacity(0.3),
+                      label: depthLabels[_therapeuticDepthLevel - 1],
                             onChanged: _therapeuticAutomaticMode ? null : (value) {
-                              setState(() {
-                                _therapeuticDepthLevel = value.round();
-                              });
-                              _saveReflectionSettings();
-                            },
-                          ),
-                          const SizedBox(height: 8),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: depthLabels.asMap().entries.map((entry) {
-                              final index = entry.key;
-                              final label = entry.value;
-                              final isSelected = _therapeuticDepthLevel == index + 1;
-                              return GestureDetector(
+                        setState(() {
+                          _therapeuticDepthLevel = value.round();
+                        });
+                        _saveReflectionSettings();
+                      },
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: depthLabels.asMap().entries.map((entry) {
+                        final index = entry.key;
+                        final label = entry.value;
+                        final isSelected = _therapeuticDepthLevel == index + 1;
+                        return GestureDetector(
                                 onTap: _therapeuticAutomaticMode ? null : () {
-                                  setState(() {
-                                    _therapeuticDepthLevel = index + 1;
-                                  });
-                                  _saveReflectionSettings();
-                                },
-                                child: Text(
-                                  label,
-                                  style: theme.textTheme.bodySmall?.copyWith(
+                            setState(() {
+                              _therapeuticDepthLevel = index + 1;
+                            });
+                            _saveReflectionSettings();
+                          },
+                          child: Text(
+                            label,
+                            style: theme.textTheme.bodySmall?.copyWith(
                                     color: _therapeuticAutomaticMode
                                         ? theme.colorScheme.onSurfaceVariant.withOpacity(0.5)
                                         : (isSelected
-                                            ? theme.colorScheme.primary
+                                  ? theme.colorScheme.primary
                                             : theme.colorScheme.onSurfaceVariant),
-                                    fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-                                  ),
-                                ),
-                              );
-                            }).toList(),
+                              fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                            ),
+                          ),
+                        );
+                      }).toList(),
                           ),
                         ],
                       ),

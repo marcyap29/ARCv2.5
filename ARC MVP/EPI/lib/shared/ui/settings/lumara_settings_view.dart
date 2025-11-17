@@ -111,95 +111,95 @@ class _LumaraSettingsViewState extends State<LumaraSettingsView> {
           // Default Therapeutic Mode Slider (grayed out when automatic mode is on)
           Opacity(
             opacity: isDisabled ? 0.5 : 1.0,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Icon(
-                      Icons.psychology,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.psychology,
                       color: isDisabled ? Colors.grey : kcAccentColor,
-                      size: 24,
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
+                size: 24,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
                             'Default Therapeutic Mode',
-                            style: heading3Style(context).copyWith(
+                      style: heading3Style(context).copyWith(
                               color: isDisabled ? Colors.grey : kcPrimaryTextColor,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                          Text(
-                            depthDescriptions[_therapeuticDepthLevel - 1],
-                            style: bodyStyle(context).copyWith(
-                              color: isDisabled ? Colors.grey : kcSecondaryTextColor,
-                            ),
-                          ),
-                        ],
+                        fontWeight: FontWeight.w500,
                       ),
                     ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: (isDisabled ? Colors.grey : kcAccentColor).withValues(alpha: 0.2),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Text(
-                        depthLabels[_therapeuticDepthLevel - 1],
-                        style: bodyStyle(context).copyWith(
-                          color: isDisabled ? Colors.grey : kcAccentColor,
-                          fontWeight: FontWeight.w600,
-                        ),
+                    Text(
+                      depthDescriptions[_therapeuticDepthLevel - 1],
+                      style: bodyStyle(context).copyWith(
+                              color: isDisabled ? Colors.grey : kcSecondaryTextColor,
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 12),
-                Slider(
-                  value: _therapeuticDepthLevel.toDouble(),
-                  min: 1,
-                  max: 3,
-                  divisions: 2,
-                  activeColor: isDisabled ? Colors.grey : kcAccentColor,
-                  inactiveColor: Colors.grey.withValues(alpha: 0.3),
-                  label: depthLabels[_therapeuticDepthLevel - 1],
-                  onChanged: isDisabled ? null : (value) {
-                    setState(() {
-                      _therapeuticDepthLevel = value.round();
-                    });
-                    _saveSettings();
-                  },
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                        color: (isDisabled ? Colors.grey : kcAccentColor).withValues(alpha: 0.2),
+                  borderRadius: BorderRadius.circular(12),
                 ),
-                const SizedBox(height: 8),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: depthLabels.asMap().entries.map((entry) {
-                    final index = entry.key;
-                    final label = entry.value;
-                    final isSelected = _therapeuticDepthLevel == index + 1;
-                    return GestureDetector(
+                child: Text(
+                  depthLabels[_therapeuticDepthLevel - 1],
+                  style: bodyStyle(context).copyWith(
+                          color: isDisabled ? Colors.grey : kcAccentColor,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Slider(
+            value: _therapeuticDepthLevel.toDouble(),
+            min: 1,
+            max: 3,
+            divisions: 2,
+                  activeColor: isDisabled ? Colors.grey : kcAccentColor,
+            inactiveColor: Colors.grey.withValues(alpha: 0.3),
+            label: depthLabels[_therapeuticDepthLevel - 1],
+                  onChanged: isDisabled ? null : (value) {
+              setState(() {
+                _therapeuticDepthLevel = value.round();
+              });
+              _saveSettings();
+            },
+          ),
+          const SizedBox(height: 8),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: depthLabels.asMap().entries.map((entry) {
+              final index = entry.key;
+              final label = entry.value;
+              final isSelected = _therapeuticDepthLevel == index + 1;
+              return GestureDetector(
                       onTap: isDisabled ? null : () {
-                        setState(() {
-                          _therapeuticDepthLevel = index + 1;
-                        });
-                        _saveSettings();
-                      },
-                      child: Text(
-                        label,
-                        style: bodyStyle(context).copyWith(
+                  setState(() {
+                    _therapeuticDepthLevel = index + 1;
+                  });
+                  _saveSettings();
+                },
+                child: Text(
+                  label,
+                  style: bodyStyle(context).copyWith(
                           color: isDisabled 
                               ? Colors.grey 
                               : (isSelected ? kcAccentColor : kcSecondaryTextColor),
-                          fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-                          fontSize: 12,
-                        ),
-                      ),
-                    );
-                  }).toList(),
+                    fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                    fontSize: 12,
+                  ),
+                ),
+              );
+            }).toList(),
                 ),
               ],
             ),

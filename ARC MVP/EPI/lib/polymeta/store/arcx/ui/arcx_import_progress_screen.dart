@@ -22,11 +22,13 @@ import '../models/arcx_result.dart';
 class ARCXImportProgressScreen extends StatefulWidget {
   final String arcxPath;
   final String? manifestPath;
+  final BuildContext? parentContext; // Context from calling screen for showing dialog
   
   const ARCXImportProgressScreen({
     super.key,
     required this.arcxPath,
     this.manifestPath,
+    this.parentContext,
   });
 
   @override
@@ -222,6 +224,11 @@ class _ARCXImportProgressScreenState extends State<ARCXImportProgressScreen> {
         
         // Convert V2 result to display format
         if (v2Result.success) {
+          print('🎉 ARCX DEBUG: V2 Import succeeded');
+          print('🎉 ARCX DEBUG: Entries: ${v2Result.entriesImported}');
+          print('🎉 ARCX DEBUG: Media: ${v2Result.mediaImported}');
+          print('🎉 ARCX DEBUG: Chats: ${v2Result.chatsImported}');
+
           setState(() {
             _isLoading = false;
             _status = 'Done';
@@ -230,12 +237,17 @@ class _ARCXImportProgressScreenState extends State<ARCXImportProgressScreen> {
             _chatSessionsImported = v2Result.chatsImported;
             _chatMessagesImported = 0; // V2 doesn't track message count separately
           });
-          
+
+          print('🎉 ARCX DEBUG: State updated - _entriesImported: $_entriesImported, _photosImported: $_photosImported');
+          print('🎉 ARCX DEBUG: UI condition check: ${_entriesImported != null || _photosImported != null}');
+
           // Show success dialog for V2
           await Future.delayed(const Duration(seconds: 1));
           if (mounted) {
-            Navigator.of(context).pop();
-            _showImportCompleteDialogV2(v2Result);
+            print('🎉 ARCX DEBUG: About to pop with result');
+            // Pop the progress screen and return the result
+            Navigator.of(context).pop(v2Result);
+            print('🎉 ARCX DEBUG: Popped with result');
           }
           return;
         } else {
@@ -275,8 +287,8 @@ class _ARCXImportProgressScreenState extends State<ARCXImportProgressScreen> {
         await Future.delayed(const Duration(seconds: 1));
         
         if (mounted) {
-          Navigator.of(context).pop();
-          _showImportCompleteDialog(result);
+          // Pop the progress screen and return the result
+          Navigator.of(context).pop(result);
         }
       } else {
         throw Exception(result.error ?? 'Import failed');
@@ -288,20 +300,30 @@ class _ARCXImportProgressScreenState extends State<ARCXImportProgressScreen> {
         _status = 'Failed';
       });
       
+      // Pop the progress screen on error
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Import failed: $e'),
-            backgroundColor: Colors.red,
-            duration: const Duration(seconds: 5),
-          ),
-        );
+        Navigator.of(context).pop();
+        // Show error after navigation completes
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          final navigator = Navigator.of(context, rootNavigator: true);
+          if (navigator.canPop()) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Import failed: $e'),
+                backgroundColor: Colors.red,
+                duration: const Duration(seconds: 5),
+              ),
+            );
+          }
+        });
       }
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    print('🔧 ARCX DEBUG: Building UI - _isLoading: $_isLoading, _error: $_error, _entriesImported: $_entriesImported, _photosImported: $_photosImported');
+
     return Scaffold(
       backgroundColor: kcBackgroundColor,
       appBar: AppBar(
@@ -363,8 +385,37 @@ class _ARCXImportProgressScreenState extends State<ARCXImportProgressScreen> {
                   child: const Text('Close'),
                 ),
               ] else if (_entriesImported != null || _photosImported != null) ...[
-                // Import complete - dialog will be shown
-                const SizedBox(),
+                // Import complete - show success content
+                // DEBUG: This block should show success UI
+                ...[
+                  () {
+                    print('🎉 ARCX DEBUG: Showing success UI block');
+                    print('🎉 ARCX DEBUG: _entriesImported: $_entriesImported');
+                    print('🎉 ARCX DEBUG: _photosImported: $_photosImported');
+                    print('🎉 ARCX DEBUG: _isLoading: $_isLoading');
+                    return Container(); // Empty container just for the debug print
+                  }(),
+                ],
+                const Icon(
+                  Icons.check_circle,
+                  size: 64,
+                  color: Colors.green,
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'Import Complete',
+                  style: heading2Style(context).copyWith(
+                    color: kcPrimaryTextColor,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  '${_entriesImported ?? 0} entries imported\n${_photosImported ?? 0} photos imported${_chatSessionsImported != null && _chatSessionsImported! > 0 ? '\n${_chatSessionsImported} chat sessions imported' : ''}',
+                  style: bodyStyle(context).copyWith(
+                    color: kcSecondaryTextColor,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
               ],
             ],
           ),
@@ -374,11 +425,15 @@ class _ARCXImportProgressScreenState extends State<ARCXImportProgressScreen> {
   }
 
   void _showImportCompleteDialogV2(ARCXImportResultV2 result) {
+    _showImportCompleteDialogV2WithContext(result, context);
+  }
+
+  void _showImportCompleteDialogV2WithContext(ARCXImportResultV2 result, BuildContext dialogContext) {
     // Ensure any existing dialog is dismissed first
-    Navigator.of(context, rootNavigator: true).popUntil((route) => !route.navigator!.canPop() || route.isFirst);
+    Navigator.of(dialogContext, rootNavigator: true).popUntil((route) => !route.navigator!.canPop() || route.isFirst);
     
     showDialog(
-      context: context,
+      context: dialogContext,
       barrierDismissible: true,
       builder: (context) => Dialog(
         child: SizedBox(
@@ -471,11 +526,15 @@ class _ARCXImportProgressScreenState extends State<ARCXImportProgressScreen> {
   }
 
   void _showImportCompleteDialog(ARCXImportResult result) {
+    _showImportCompleteDialogWithContext(result, context);
+  }
+
+  void _showImportCompleteDialogWithContext(ARCXImportResult result, BuildContext dialogContext) {
     // Ensure any existing dialog is dismissed first
-    Navigator.of(context, rootNavigator: true).popUntil((route) => !route.navigator!.canPop() || route.isFirst);
+    Navigator.of(dialogContext, rootNavigator: true).popUntil((route) => !route.navigator!.canPop() || route.isFirst);
     
     showDialog(
-      context: context,
+      context: dialogContext,
       barrierDismissible: true,
       builder: (context) => Dialog(
         child: SizedBox(

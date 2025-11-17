@@ -1,6 +1,9 @@
 /// LUMARA Prompt Assembler for On-Device LLMs
 /// 
 /// Assembles complete prompts using the optimized system, context, and task templates
+/// 
+/// NOTE: This is for on-device LLMs only. Cloud API uses the master prompt system.
+/// This assembler is kept for backward compatibility with on-device models.
 
 import 'lumara_system_prompt.dart';
 import 'lumara_task_templates.dart';

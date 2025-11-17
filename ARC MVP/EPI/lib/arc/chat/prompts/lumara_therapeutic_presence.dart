@@ -3,8 +3,8 @@
 // Emotionally intelligent journaling support for complex experiences
 
 import 'dart:math';
-import 'lumara_therapeutic_presence_data.dart';
-import 'lumara_prompt_encouragement.dart';
+import 'archive/lumara_therapeutic_presence_data.dart';
+import 'lumara_prompt_encouragement.dart'; // Provides AtlasPhase enum
 
 /// Emotion categories for therapeutic presence mode
 enum TherapeuticEmotionCategory {

@@ -23,6 +23,7 @@ import 'package:my_app/arc/ui/timeline/timeline_cubit.dart';
 import 'package:my_app/polymeta/store/arcx/ui/arcx_import_progress_screen.dart';
 import 'package:my_app/polymeta/store/arcx/services/arcx_import_service_v2.dart';
 import 'package:my_app/polymeta/store/arcx/services/arcx_import_service.dart';
+import 'package:my_app/polymeta/store/arcx/models/arcx_result.dart';
 
 /// MCP Import Screen - Restore from MCP Package (.zip) or Secure Archive (.arcx)
 class McpImportScreen extends StatefulWidget {
@@ -242,12 +243,45 @@ class _McpImportScreenState extends State<McpImportScreen> {
             builder: (context) => ARCXImportProgressScreen(
               arcxPath: _selectedPath!,
               manifestPath: actualManifestPath,
+              parentContext: context, // Pass context for showing dialog after pop
             ),
+            fullscreenDialog: false, // Ensure it's not a fullscreen dialog
           ),
-        ).then((_) {
+        ).then((result) {
+          print('🔍 MCP DEBUG: Import result received: ${result != null}');
+          print('🔍 MCP DEBUG: Result type: ${result.runtimeType}');
+          if (result != null) {
+            print('🔍 MCP DEBUG: Result is not null');
+            if (result is ARCXImportResultV2) {
+              print('🔍 MCP DEBUG: Result is V2 type');
+              print('🔍 MCP DEBUG: V2 entries: ${result.entriesImported}');
+              print('🔍 MCP DEBUG: V2 success: ${result.success}');
+            }
+          }
+
           // Refresh timeline after import completes
-          context.read<TimelineCubit>().reloadAllEntries();
-          setState(() => _isImporting = false);
+          if (mounted) {
+            print('🔍 MCP DEBUG: Component is mounted, processing result');
+            context.read<TimelineCubit>().reloadAllEntries();
+            setState(() => _isImporting = false);
+
+            // Show success dialog if import was successful
+            // Use post-frame callback to ensure navigation completes before showing dialog
+            if (result != null) {
+              print('🔍 MCP DEBUG: About to show success dialog');
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (mounted) {
+                  if (result is ARCXImportResultV2) {
+                    print('🔍 MCP DEBUG: Calling V2 success dialog');
+                    _showARCXImportSuccessDialogV2(result);
+                  } else if (result is ARCXImportResult) {
+                    print('🔍 MCP DEBUG: Calling legacy success dialog');
+                    _showARCXImportSuccessDialog(result);
+                  }
+                }
+              });
+            }
+          }
         });
       } else {
         // Legacy MCP (.zip) import
@@ -405,6 +439,7 @@ class _McpImportScreenState extends State<McpImportScreen> {
 
   /// Import separated packages in order: Media → Entries → Chats
   Future<void> _importSeparatedPackages() async {
+    print('🚀 DEBUG: Starting _importSeparatedPackages method');
     final journalRepo = context.read<JournalRepository>();
     final chatRepo = ChatRepoImpl.instance;
     await chatRepo.initialize();
@@ -603,12 +638,15 @@ class _McpImportScreenState extends State<McpImportScreen> {
       // Hide progress dialog
       if (mounted) {
         Navigator.of(context).pop();
+        print('🔧 DEBUG: Dismissed progress dialog');
       }
-      
+
       // Refresh timeline
       context.read<TimelineCubit>().reloadAllEntries();
-      
+      print('🔄 DEBUG: Timeline refreshed');
+
       // Show success dialog
+      print('🎯 DEBUG: Calling success dialog with entries:$totalEntries, chats:$totalChats, media:$totalMedia');
       _showSeparatedImportSuccessDialog(
         entriesImported: totalEntries,
         chatsImported: totalChats,
@@ -794,12 +832,15 @@ class _McpImportScreenState extends State<McpImportScreen> {
       // Hide progress dialog
       if (mounted) {
         Navigator.of(context).pop();
+        print('🔧 DEBUG: Dismissed progress dialog');
       }
-      
+
       // Refresh timeline
       context.read<TimelineCubit>().reloadAllEntries();
-      
+      print('🔄 DEBUG: Timeline refreshed');
+
       // Show success dialog
+      print('🎯 DEBUG: Calling success dialog with entries:$totalEntries, chats:$totalChats, media:$totalMedia');
       _showSeparatedImportSuccessDialog(
         entriesImported: totalEntries,
         chatsImported: totalChats,
@@ -872,19 +913,22 @@ class _McpImportScreenState extends State<McpImportScreen> {
       }
       return '$successful';
     }
-    
+
     // Ensure any existing dialog is dismissed first
-    Navigator.of(context, rootNavigator: true).popUntil((route) => !route.navigator!.canPop() || route.isFirst);
+    print('🎉 DEBUG: About to show separated import success dialog');
+    Navigator.of(context).popUntil((route) => route.isFirst);
+    print('🔧 DEBUG: Dismissed existing dialogs, showing success dialog');
     
     showDialog(
       context: context,
       barrierDismissible: true,
       builder: (context) => Dialog(
-        child: SizedBox(
-          width: 400,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
+        child: SafeArea(
+          child: SizedBox(
+            width: 400,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
               Padding(
                 padding: const EdgeInsets.all(16.0),
                 child: Row(
@@ -898,7 +942,7 @@ class _McpImportScreenState extends State<McpImportScreen> {
                 ),
               ),
               ConstrainedBox(
-                constraints: const BoxConstraints(maxHeight: 400),
+                constraints: const BoxConstraints(maxHeight: 380),
                 child: SingleChildScrollView(
                   padding: const EdgeInsets.symmetric(horizontal: 16.0),
                   child: Column(
@@ -967,6 +1011,7 @@ class _McpImportScreenState extends State<McpImportScreen> {
                 ),
               ),
             ],
+            ),
           ),
         ),
       ),
@@ -1020,11 +1065,12 @@ class _McpImportScreenState extends State<McpImportScreen> {
       context: context,
       barrierDismissible: true,
       builder: (context) => Dialog(
-        child: SizedBox(
-          width: 400,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
+        child: SafeArea(
+          child: SizedBox(
+            width: 400,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
               Padding(
                 padding: const EdgeInsets.all(16.0),
                 child: Row(
@@ -1038,7 +1084,7 @@ class _McpImportScreenState extends State<McpImportScreen> {
                 ),
               ),
               ConstrainedBox(
-                constraints: const BoxConstraints(maxHeight: 400),
+                constraints: const BoxConstraints(maxHeight: 380),
                 child: SingleChildScrollView(
                   padding: const EdgeInsets.symmetric(horizontal: 16.0),
                   child: Column(
@@ -1090,6 +1136,7 @@ class _McpImportScreenState extends State<McpImportScreen> {
                 ),
               ),
             ],
+            ),
           ),
         ),
       ),
@@ -1107,6 +1154,186 @@ class _McpImportScreenState extends State<McpImportScreen> {
         ],
       ),
     );
+  }
+
+  void _showARCXImportSuccessDialogV2(ARCXImportResultV2 result) {
+    // Small delay to ensure navigation completes after progress screen pops
+    Future.delayed(const Duration(milliseconds: 300), () {
+      if (!mounted) return;
+      
+      // Show dialog directly - the import screen should be visible now
+      showDialog(
+        context: context,
+      barrierDismissible: true,
+      builder: (context) => Dialog(
+        child: SafeArea(
+          child: SizedBox(
+            width: 400,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+              Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Row(
+                  children: [
+                    const Icon(Icons.check_circle, color: Colors.green),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text('Import Complete', style: heading2Style(context)),
+                    ),
+                  ],
+                ),
+              ),
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxHeight: 380),
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Your data has been successfully restored!',
+                        style: bodyStyle(context),
+                      ),
+                      const SizedBox(height: 16),
+                      _buildSummaryRow('Entries restored:', '${result.entriesImported}'),
+                      _buildSummaryRow('Media restored:', '${result.mediaImported}'),
+                      if (result.chatsImported > 0)
+                        _buildSummaryRow('Chat sessions:', '${result.chatsImported}'),
+                      if (result.phaseRegimesImported > 0)
+                        _buildSummaryRow('Phase regimes:', '${result.phaseRegimesImported}'),
+                      if (result.rivetStatesImported > 0)
+                        _buildSummaryRow('RIVET states:', '${result.rivetStatesImported}'),
+                      if (result.sentinelStatesImported > 0)
+                        _buildSummaryRow('Sentinel states:', '${result.sentinelStatesImported}'),
+                      if (result.arcformSnapshotsImported > 0)
+                        _buildSummaryRow('ArcForm snapshots:', '${result.arcformSnapshotsImported}'),
+                      if (result.lumaraFavoritesImported > 0)
+                        _buildSummaryRow('LUMARA Favorites:', '${result.lumaraFavoritesImported}'),
+                      if (result.warnings != null && result.warnings!.isNotEmpty) ...[
+                        const SizedBox(height: 8),
+                        Text(
+                          'Warnings:',
+                          style: bodyStyle(context).copyWith(fontWeight: FontWeight.bold, color: Colors.orange),
+                        ),
+                        ...result.warnings!.map((w) => Padding(
+                          padding: const EdgeInsets.only(left: 8, top: 4),
+                          child: Text('• $w', style: bodyStyle(context).copyWith(fontSize: 12, color: Colors.orange)),
+                        )),
+                      ],
+                      const SizedBox(height: 8),
+                      Text(
+                        'Package info:',
+                        style: bodyStyle(context).copyWith(fontWeight: FontWeight.bold),
+                      ),
+                      _buildSummaryRow('Format:', 'arcx'),
+                      _buildSummaryRow('Version:', '1.2'),
+                      _buildSummaryRow('Type:', 'secure'),
+                    ],
+                  ),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    TextButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      child: const Text('Done'),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+            ),
+          ),
+        ),
+      ),
+      );
+    });
+  }
+
+  void _showARCXImportSuccessDialog(ARCXImportResult result) {
+    // Small delay to ensure navigation completes after progress screen pops
+    Future.delayed(const Duration(milliseconds: 300), () {
+      if (!mounted) return;
+      
+      // Show dialog directly - the import screen should be visible now
+      showDialog(
+        context: context,
+      barrierDismissible: true,
+      builder: (context) => Dialog(
+        child: SafeArea(
+          child: SizedBox(
+            width: 400,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+              Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Row(
+                  children: [
+                    const Icon(Icons.check_circle, color: Colors.green),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text('Import Complete', style: heading2Style(context)),
+                    ),
+                  ],
+                ),
+              ),
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxHeight: 380),
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Your data has been successfully restored!',
+                        style: bodyStyle(context),
+                      ),
+                      const SizedBox(height: 16),
+                      _buildSummaryRow('Entries restored:', '${result.entriesImported ?? 0}'),
+                      _buildSummaryRow('Photos restored:', '${result.photosImported ?? 0}'),
+                      if ((result.chatSessionsImported ?? 0) > 0 || (result.chatMessagesImported ?? 0) > 0) ...[
+                        _buildSummaryRow('Chat sessions:', '${result.chatSessionsImported ?? 0}'),
+                        _buildSummaryRow('Chat messages:', '${result.chatMessagesImported ?? 0}'),
+                      ],
+                      _buildSummaryRow('Missing/corrupted:', '0'),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Package info:',
+                        style: bodyStyle(context).copyWith(fontWeight: FontWeight.bold),
+                      ),
+                      _buildSummaryRow('Format:', 'arcx'),
+                      _buildSummaryRow('Version:', '1.1'),
+                      _buildSummaryRow('Type:', 'secure'),
+                    ],
+                  ),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    TextButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      child: const Text('Done'),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+            ),
+          ),
+        ),
+      ),
+      );
+    });
   }
 
   void _showErrorDialog(String message) {

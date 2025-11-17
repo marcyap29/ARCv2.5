@@ -253,14 +253,14 @@ class _ArcformTimelineViewState extends State<ArcformTimelineView> {
               );
             } else {
               // Fallback: if ARCForm not available, navigate with phase name only (will use demo)
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (context) => PhaseArcform3DScreen(
-                    phase: phaseName,
-                    title: '$phaseName Phase - 3D Constellation View',
-                  ),
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (context) => PhaseArcform3DScreen(
+                  phase: phaseName,
+                  title: '$phaseName Phase - 3D Constellation View',
                 ),
-              );
+              ),
+            );
             }
           },
           borderRadius: const BorderRadius.only(
