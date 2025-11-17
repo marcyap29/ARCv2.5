@@ -15,6 +15,7 @@ import 'phase_timeline_view.dart';
 import 'simplified_arcform_view_3d.dart';
 import 'phase_arcform_3d_screen.dart';
 import '../../shared/app_colors.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class PhaseAnalysisView extends StatefulWidget {
   const PhaseAnalysisView({super.key});
@@ -76,6 +77,9 @@ class _PhaseAnalysisViewState extends State<PhaseAnalysisView> {
       final currentPhaseName = currentRegime != null ? _getPhaseLabelName(currentRegime.label) : 'none';
       print('DEBUG: _loadPhaseData - Current phase determined: $currentPhaseName (ID: ${currentRegime?.id})');
 
+      // Check if there's a pending analysis result from ARCX import
+      await _checkPendingAnalysis();
+
       setState(() {
         _isLoading = false;
       });
@@ -89,6 +93,34 @@ class _PhaseAnalysisViewState extends State<PhaseAnalysisView> {
         _isLoading = false;
         _error = e.toString();
       });
+    }
+  }
+
+  /// Check if there's a pending analysis result from ARCX import
+  Future<void> _checkPendingAnalysis() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final hasPendingAnalysis = prefs.getBool('phase_analysis_pending') ?? false;
+      
+      if (hasPendingAnalysis) {
+        // Set flag to show placard and gray out button
+        // The actual analysis will be re-run when Review is clicked
+        setState(() {
+          _hasUnapprovedAnalysis = true;
+        });
+      }
+    } catch (e) {
+      print('Error checking pending analysis: $e');
+    }
+  }
+
+  /// Get segment count from preferences (for display in placard)
+  Future<int> _getSegmentCountFromPrefs() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      return prefs.getInt('phase_analysis_segments') ?? 0;
+    } catch (e) {
+      return 0;
     }
   }
 
@@ -919,11 +951,14 @@ List<PhaseSegmentProposal> proposals,
           if (entryCount < 5) {
             return _buildInsufficientEntriesCard(entryCount);
           } else {
+            // Gray out button if analysis is already pending/complete
+            final isDisabled = _hasUnapprovedAnalysis;
+            
             return Container(
               width: double.infinity,
               margin: const EdgeInsets.symmetric(vertical: 8.0),
               child: ElevatedButton.icon(
-                onPressed: _runRivetSweep,
+                onPressed: isDisabled ? null : _runRivetSweep,
                 icon: const Icon(Icons.play_arrow, size: 24),
                 label: const Text(
                   'Run Phase Analysis',
@@ -933,10 +968,10 @@ List<PhaseSegmentProposal> proposals,
                   ),
                 ),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.blue,
+                  backgroundColor: isDisabled ? Colors.grey : Colors.blue,
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
-                  elevation: 4,
+                  elevation: isDisabled ? 2 : 4,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
@@ -976,51 +1011,154 @@ List<PhaseSegmentProposal> proposals,
 
   /// Build Phase Analysis Complete placard
   Widget _buildAnalysisCompletePlacard() {
-    if (_lastSweepResult == null) return const SizedBox.shrink();
+    if (!_hasUnapprovedAnalysis) return const SizedBox.shrink();
     
-    final totalSegments = _lastSweepResult!.autoAssign.length + 
-                         _lastSweepResult!.review.length + 
-                         _lastSweepResult!.lowConfidence.length;
+    // Get segment count from stored result or preferences
+    int totalSegments = 0;
+    if (_lastSweepResult != null) {
+      totalSegments = _lastSweepResult!.autoAssign.length + 
+                     _lastSweepResult!.review.length + 
+                     _lastSweepResult!.lowConfidence.length;
+    }
     
-    return Container(
-      margin: const EdgeInsets.only(top: 12.0),
-      padding: const EdgeInsets.all(16.0),
-      decoration: BoxDecoration(
-        color: Colors.blue[50],
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.blue[200]!),
-      ),
-      child: Row(
-        children: [
-          Icon(Icons.auto_awesome, color: Colors.blue[700], size: 24),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Phase Analysis Complete',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.blue[900],
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'Rivet found $totalSegments segments in your journal timeline. '
-                  'Review and approve them in the wizard.',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Colors.blue[800],
-                  ),
-                ),
-              ],
-            ),
+    return FutureBuilder<int>(
+      future: totalSegments > 0 ? Future.value(totalSegments) : _getSegmentCountFromPrefs(),
+      builder: (context, snapshot) {
+        final segmentCount = snapshot.data ?? totalSegments;
+        
+        return Container(
+          margin: const EdgeInsets.only(top: 12.0),
+          padding: const EdgeInsets.all(16.0),
+          decoration: BoxDecoration(
+            color: Colors.blue[50],
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.blue[200]!),
           ),
-        ],
-      ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(Icons.auto_awesome, color: Colors.blue[700], size: 24),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Phase Analysis Complete',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.blue[900],
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          segmentCount > 0
+                              ? 'Rivet found $segmentCount segments in your journal timeline. '
+                                'Review and approve them below.'
+                              : 'Phase analysis has been completed. Review the results below.',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Colors.blue[800],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              // Review button
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: _openReviewWizard,
+                  icon: const Icon(Icons.reviews, size: 20),
+                  label: const Text(
+                    'Review',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.blue[700],
+                    side: BorderSide(color: Colors.blue[300]!),
+                    padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
     );
+  }
+
+  /// Open review wizard (re-run analysis and show wizard)
+  Future<void> _openReviewWizard() async {
+    try {
+      setState(() {
+        _isLoading = true;
+      });
+
+      // Get journal entries for analysis
+      final journalRepo = JournalRepository();
+      final journalEntries = journalRepo.getAllJournalEntriesSync();
+
+      // Check if there are enough entries for analysis
+      if (journalEntries.length < 5) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Need at least 5 journal entries to run phase analysis'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
+        setState(() {
+          _isLoading = false;
+        });
+        return;
+      }
+
+      final analyticsService = AnalyticsService();
+      final rivetSweepService = RivetSweepService(analyticsService);
+      final result = await rivetSweepService.analyzeEntries(journalEntries);
+
+      if (mounted) {
+        // Store result and show unapproved analysis state
+        setState(() {
+          _lastSweepResult = result;
+          _hasUnapprovedAnalysis = true;
+        });
+        
+        // Show RIVET Sweep wizard
+        await _showRivetSweepWizard(result);
+        
+        // After wizard completion, refresh all phase components
+        await _refreshAllPhaseComponents();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Phase Analysis failed: $e'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      }
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
+    }
   }
 
   /// Backfill Discovery regime for entries before the first detected regime

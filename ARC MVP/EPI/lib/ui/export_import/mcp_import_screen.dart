@@ -248,7 +248,7 @@ class _McpImportScreenState extends State<McpImportScreen> {
             ),
             fullscreenDialog: false, // Ensure it's not a fullscreen dialog
           ),
-        ).then((result) {
+        ).then((result) async {
           print('🔍 MCP DEBUG: Import result received: ${result != null}');
           print('🔍 MCP DEBUG: Result type: ${result.runtimeType}');
           if (result != null) {

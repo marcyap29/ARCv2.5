@@ -392,6 +392,21 @@ class PhaseRegimeService {
       // Store sweep result for review
       await _storeSweepResult(result);
       
+      // Set pending analysis flag for UI (so user can review results)
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setBool('phase_analysis_pending', true);
+        
+        final totalSegments = result.autoAssign.length + 
+                             result.review.length + 
+                             result.lowConfidence.length;
+        await prefs.setInt('phase_analysis_segments', totalSegments);
+        
+        print('ARCX Import: Phase analysis completed - $totalSegments segments found');
+      } catch (e) {
+        print('ARCX Import: Error setting pending analysis flag: $e');
+      }
+      
       return result.review.isNotEmpty || result.lowConfidence.isNotEmpty;
     } catch (e) {
           AnalyticsService.trackEvent('rivet_sweep.failed', properties: {
