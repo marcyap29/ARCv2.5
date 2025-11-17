@@ -30,7 +30,7 @@ class _RivetSweepWizardState extends State<RivetSweepWizard>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(length: 2, vsync: this);
     
     // Debug: Log segment counts
     print('DEBUG: RIVET Sweep Wizard - Auto-assign: ${widget.sweepResult.autoAssign.length}');
@@ -56,7 +56,6 @@ class _RivetSweepWizardState extends State<RivetSweepWizard>
           tabs: const [
             Tab(text: 'Overview', icon: Icon(Icons.dashboard)),
             Tab(text: 'Review', icon: Icon(Icons.edit)),
-            Tab(text: 'Timeline', icon: Icon(Icons.timeline)),
           ],
         ),
         actions: [
@@ -71,7 +70,6 @@ class _RivetSweepWizardState extends State<RivetSweepWizard>
         children: [
           _buildOverviewTab(theme),
           _buildReviewTab(theme),
-          _buildTimelineTab(theme),
         ],
       ),
       bottomNavigationBar: _buildBottomBar(theme),
@@ -474,12 +472,6 @@ class _RivetSweepWizardState extends State<RivetSweepWizard>
     );
   }
 
-  Widget _buildTimelineTab(ThemeData theme) {
-    // This would show a visual timeline with phase bands
-    return const Center(
-      child: Text('Timeline visualization coming soon'),
-    );
-  }
 
   Widget _buildBottomBar(ThemeData theme) {
     final totalApproved = _approvedSegments.length;

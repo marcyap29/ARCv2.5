@@ -115,8 +115,6 @@ class _PhaseTimelineViewState extends State<PhaseTimelineView> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           mainAxisSize: MainAxisSize.min,
           children: [
-            _buildCombinedTimelineCard(theme, regimes),
-            const SizedBox(height: 12),
             _buildPhaseLegend(theme),
             const SizedBox(height: 12),
             ConstrainedBox(
@@ -125,6 +123,8 @@ class _PhaseTimelineViewState extends State<PhaseTimelineView> {
                 phaseIndex: widget.phaseIndex,
               ),
             ),
+            const SizedBox(height: 12),
+            _buildCombinedTimelineCard(theme, regimes),
           ],
         ),
       );
