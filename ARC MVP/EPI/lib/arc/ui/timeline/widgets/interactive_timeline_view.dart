@@ -36,11 +36,13 @@ import 'package:my_app/models/phase_models.dart';
 class InteractiveTimelineView extends StatefulWidget {
   final VoidCallback? onJumpToDate;
   final Function(bool isSelectionMode, int selectedCount, int totalEntries)? onSelectionChanged;
+  final ValueChanged<bool>? onArcformTimelineVisibilityChanged;
   
   const InteractiveTimelineView({
     super.key,
     this.onJumpToDate,
     this.onSelectionChanged,
+    this.onArcformTimelineVisibilityChanged,
   });
 
   @override
@@ -641,24 +643,52 @@ class InteractiveTimelineViewState extends State<InteractiveTimelineView>
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               // Phase-colored bar on the left (clickable)
-            GestureDetector(
-              behavior: HitTestBehavior.translucent,
-              onTap: () => _toggleArcformTimeline(entry),
-              onHorizontalDragEnd: (details) =>
-                  _handlePhaseBarDrag(details, entry),
-              child: SizedBox(
-                width: 24,
-                child: Align(
-                  alignment: Alignment.centerLeft,
-                  child: Container(
-                    width: 8, // visual width
-                    decoration: BoxDecoration(
-                      color: phaseColor,
-                      borderRadius: const BorderRadius.only(
-                        topLeft: Radius.circular(12),
-                        bottomLeft: Radius.circular(12),
+            Tooltip(
+              message: 'Open ARCForm timeline',
+              child: GestureDetector(
+                behavior: HitTestBehavior.translucent,
+                onTap: () => _toggleArcformTimeline(entry),
+                onHorizontalDragEnd: (details) =>
+                    _handlePhaseBarDrag(details, entry),
+                child: SizedBox(
+                  width: 34,
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: Container(
+                          width: 10,
+                          decoration: BoxDecoration(
+                            color: phaseColor,
+                            borderRadius: const BorderRadius.only(
+                              topLeft: Radius.circular(12),
+                              bottomLeft: Radius.circular(12),
+                            ),
+                          ),
+                        ),
                       ),
-                    ),
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: RotatedBox(
+                          quarterTurns: 3,
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.auto_awesome, size: 12, color: Colors.white),
+                              const SizedBox(width: 2),
+                              Text(
+                                'ARC',
+                                style: captionStyle(context).copyWith(
+                                  fontSize: 10,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ),
@@ -872,6 +902,7 @@ class InteractiveTimelineViewState extends State<InteractiveTimelineView>
         _phaseIndex = null;
         _isArcformTimelineLoading = false;
       });
+      widget.onArcformTimelineVisibilityChanged?.call(false);
       return;
     }
 
@@ -884,6 +915,7 @@ class InteractiveTimelineViewState extends State<InteractiveTimelineView>
       _showArcformTimeline = true;
       _isArcformTimelineLoading = true;
     });
+    widget.onArcformTimelineVisibilityChanged?.call(true);
 
     try {
       final analyticsService = AnalyticsService();
@@ -905,6 +937,7 @@ class InteractiveTimelineViewState extends State<InteractiveTimelineView>
         _isArcformTimelineLoading = false;
         _showArcformTimeline = false;
       });
+      widget.onArcformTimelineVisibilityChanged?.call(false);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Unable to load phase timeline: $e'),

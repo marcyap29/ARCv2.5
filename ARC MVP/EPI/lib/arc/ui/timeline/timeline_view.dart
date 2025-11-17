@@ -37,6 +37,7 @@ class _TimelineViewContentState extends State<TimelineViewContent> {
   
   // Search expansion state
   bool _isSearchExpanded = false;
+  bool _isArcformTimelineVisible = false;
 
   @override
   void initState() {
@@ -167,104 +168,31 @@ class _TimelineViewContentState extends State<TimelineViewContent> {
   Widget build(BuildContext context) {
     return BlocBuilder<TimelineCubit, TimelineState>(
       builder: (context, state) {
+        final double topPadding =
+            _isArcformTimelineVisible ? MediaQuery.of(context).padding.top : 0.0;
+
         return Scaffold(
-          appBar: AppBar(
-            title: Text(_isSelectionMode ? 'Select Entries' : 'Timeline'),
-            leading: _isSelectionMode
-                ? IconButton(
-                    icon: const Icon(Icons.close),
-                    onPressed: () {
-                      _timelineViewKey.currentState?.exitSelectionMode();
-                      setState(() {
-                        _isSelectionMode = false;
-                        _selectedCount = 0;
-                      });
-                    },
-                  )
-                : null,
-            actions: [
-              if (_isSelectionMode) ...[
-                IconButton(
-                  icon: const Icon(Icons.select_all),
-                  onPressed: () {
-                    if (_selectedCount == _totalEntries) {
-                      _timelineViewKey.currentState?.deselectAll();
-                    } else {
-                      _timelineViewKey.currentState?.selectAll();
-                    }
-                  },
-                  tooltip: _selectedCount == _totalEntries
-                      ? 'Deselect All'
-                      : 'Select All',
-                ),
-                IconButton(
-                  icon: const Icon(Icons.clear),
-                  onPressed: () {
-                    _timelineViewKey.currentState?.clearSelection();
-                  },
-                  tooltip: 'Clear Selection',
-                ),
-                if (_selectedCount > 0)
-                  IconButton(
-                    icon: const Icon(Icons.delete),
-                    onPressed: () {
-                      _timelineViewKey.currentState?.deleteSelectedEntries();
-                    },
-                    tooltip: 'Delete Selected',
-                  ),
-              ] else ...[
-              IconButton(
-                icon: const Icon(Icons.calendar_today),
-                onPressed: _showJumpToDateDialog,
-                tooltip: 'Jump to Date',
-              ),
-              IconButton(
-                icon: Icon(_isSearchExpanded ? Icons.search_off : Icons.search),
-                onPressed: () {
-                  final wasExpanded = _isSearchExpanded;
-                  setState(() {
-                    _isSearchExpanded = !_isSearchExpanded;
-                  });
-                  // Clear search when collapsing
-                  if (wasExpanded) {
-                    _searchController.clear();
-                    _timelineCubit.setSearchQuery('');
-                  }
-                },
-                tooltip: _isSearchExpanded ? 'Hide Search' : 'Search Entries',
-              ),
-                IconButton(
-                  icon: const Icon(Icons.checklist),
-                  onPressed: () {
-                    _timelineViewKey.currentState?.enterSelectionMode();
-                    setState(() {
-                      _isSelectionMode = true;
-                    });
-                  },
-                  tooltip: 'Select Mode',
-                ),
-              IconButton(
-                icon: const Icon(Icons.add),
-                onPressed: _onWritePressed,
-                tooltip: 'New Entry',
-              ),
-              ],
-            ],
-          ),
-          body: Column(
-            children: [
-              // Animated search bar and filter chips - only show when expanded
-              AnimatedSize(
-                duration: const Duration(milliseconds: 300),
-                curve: Curves.easeInOut,
-                child: _isSearchExpanded
-                    ? Column(
-                        children: [
-                          _buildSearchBar(state),
-                          _buildFilterButtons(state),
-                        ],
-                      )
-                    : const SizedBox.shrink(),
+          appBar: _buildAppBar(),
+          body: Padding(
+            padding: EdgeInsets.only(top: topPadding),
+            child: Column(
+              children: [
+              AnimatedSwitcher(
+                duration: const Duration(milliseconds: 250),
+                child: _isArcformTimelineVisible
+                    ? const SizedBox.shrink()
+                    : AnimatedSize(
+                        duration: const Duration(milliseconds: 300),
+                        curve: Curves.easeInOut,
+                        child: _isSearchExpanded
+                            ? Column(
+                                children: [
+                                  _buildSearchBar(state),
+                                  _buildFilterButtons(state),
+                                ],
+                              )
+                            : const SizedBox.shrink(),
+                      ),
               ),
               Expanded(
                 child: InteractiveTimelineView(
@@ -282,12 +210,114 @@ class _TimelineViewContentState extends State<TimelineViewContent> {
                       });
                     }
                   },
+                  onArcformTimelineVisibilityChanged: (visible) {
+                    setState(() {
+                      _isArcformTimelineVisible = visible;
+                      if (visible && _isSearchExpanded) {
+                        _isSearchExpanded = false;
+                        _searchController.clear();
+                        _timelineCubit.setSearchQuery('');
+                      }
+                    });
+                  },
                 ),
               ),
             ],
           ),
+        ),
         );
       },
+    );
+  }
+
+  PreferredSizeWidget? _buildAppBar() {
+    if (_isArcformTimelineVisible) {
+      return const PreferredSize(
+        preferredSize: Size.fromHeight(0),
+        child: SizedBox.shrink(),
+      );
+    }
+
+    return AppBar(
+      title: Text(_isSelectionMode ? 'Select Entries' : 'Timeline'),
+      leading: _isSelectionMode
+          ? IconButton(
+              icon: const Icon(Icons.close),
+              onPressed: () {
+                _timelineViewKey.currentState?.exitSelectionMode();
+                setState(() {
+                  _isSelectionMode = false;
+                  _selectedCount = 0;
+                });
+              },
+            )
+          : null,
+      actions: [
+        if (_isSelectionMode) ...[
+          IconButton(
+            icon: const Icon(Icons.select_all),
+            onPressed: () {
+              if (_selectedCount == _totalEntries) {
+                _timelineViewKey.currentState?.deselectAll();
+              } else {
+                _timelineViewKey.currentState?.selectAll();
+              }
+            },
+            tooltip:
+                _selectedCount == _totalEntries ? 'Deselect All' : 'Select All',
+          ),
+          IconButton(
+            icon: const Icon(Icons.clear),
+            onPressed: () {
+              _timelineViewKey.currentState?.clearSelection();
+            },
+            tooltip: 'Clear Selection',
+          ),
+          if (_selectedCount > 0)
+            IconButton(
+              icon: const Icon(Icons.delete),
+              onPressed: () {
+                _timelineViewKey.currentState?.deleteSelectedEntries();
+              },
+              tooltip: 'Delete Selected',
+            ),
+        ] else ...[
+          IconButton(
+            icon: const Icon(Icons.calendar_today),
+            onPressed: _showJumpToDateDialog,
+            tooltip: 'Jump to Date',
+          ),
+          IconButton(
+            icon: Icon(_isSearchExpanded ? Icons.search_off : Icons.search),
+            onPressed: () {
+              final wasExpanded = _isSearchExpanded;
+              setState(() {
+                _isSearchExpanded = !_isSearchExpanded;
+              });
+              if (wasExpanded) {
+                _searchController.clear();
+                _timelineCubit.setSearchQuery('');
+              }
+            },
+            tooltip: _isSearchExpanded ? 'Hide Search' : 'Search Entries',
+          ),
+          IconButton(
+            icon: const Icon(Icons.checklist),
+            onPressed: () {
+              _timelineViewKey.currentState?.enterSelectionMode();
+              setState(() {
+                _isSelectionMode = true;
+              });
+            },
+            tooltip: 'Select Mode',
+          ),
+          IconButton(
+            icon: const Icon(Icons.add),
+            onPressed: _onWritePressed,
+            tooltip: 'New Entry',
+          ),
+        ],
+      ],
     );
   }
 
