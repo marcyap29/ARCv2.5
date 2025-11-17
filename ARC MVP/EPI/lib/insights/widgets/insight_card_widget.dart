@@ -40,20 +40,22 @@ class InsightCardWidget extends StatelessWidget {
                   ),
                   if (card.badges.isNotEmpty) ...[
                     const SizedBox(width: 8),
-                    Wrap(
-                      spacing: 4,
-                      children: card.badges.map((badge) => Chip(
-                        label: Text(
-                          badge,
-                          style: captionStyle(context).copyWith(
-                            color: kcSecondaryTextColor,
-                            fontSize: 10,
+                    Flexible(
+                      child: Wrap(
+                        spacing: 4,
+                        children: card.badges.map((badge) => Chip(
+                          label: Text(
+                            badge,
+                            style: captionStyle(context).copyWith(
+                              color: kcSecondaryTextColor,
+                              fontSize: 10,
+                            ),
                           ),
-                        ),
-                        backgroundColor: kcSurfaceAltColor,
-                        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                        visualDensity: VisualDensity.compact,
-                      )).toList(),
+                          backgroundColor: kcSurfaceAltColor,
+                          materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          visualDensity: VisualDensity.compact,
+                        )).toList(),
+                      ),
                     ),
                   ],
                 ],

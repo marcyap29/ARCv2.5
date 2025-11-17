@@ -5,6 +5,7 @@
 library arcx_import_service_v2;
 
 import 'dart:io';
+import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 import 'package:crypto/crypto.dart';
@@ -786,8 +787,22 @@ class ARCXImportServiceV2 {
       
       final favoritesJson = data['lumara_favorites'] as List<dynamic>? ?? [];
       
-      final favoritesService = FavoritesService.instance;
-      await favoritesService.initialize();
+      // Initialize FavoritesService with timeout to prevent hanging
+      FavoritesService favoritesService;
+      try {
+        favoritesService = FavoritesService.instance;
+        await favoritesService.initialize().timeout(
+          const Duration(seconds: 10),
+          onTimeout: () {
+            print('ARCX Import V2: ⚠️ FavoritesService.initialize() timed out after 10 seconds');
+            throw TimeoutException('FavoritesService initialization timed out', const Duration(seconds: 10));
+          },
+        );
+      } catch (e) {
+        print('ARCX Import V2: ⚠️ Failed to initialize FavoritesService: $e');
+        print('ARCX Import V2: ⚠️ Skipping LUMARA favorites import due to initialization failure');
+        return 0; // Don't fail the entire import if favorites service fails
+      }
       
       int importedCount = 0;
       int skippedCount = 0;
@@ -807,24 +822,59 @@ class ARCXImportServiceV2 {
           
           // Check if favorite already exists (by sourceId if available)
           if (favorite.sourceId != null) {
-            final existing = await favoritesService.findFavoriteBySourceId(favorite.sourceId!);
-            if (existing != null) {
-              skippedCount++;
-              continue;
+            try {
+              final existing = await favoritesService.findFavoriteBySourceId(favorite.sourceId!).timeout(
+                const Duration(seconds: 2),
+                onTimeout: () {
+                  print('ARCX Import V2: ⚠️ findFavoriteBySourceId timed out for ${favorite.sourceId}');
+                  return null;
+                },
+              );
+              if (existing != null) {
+                skippedCount++;
+                continue;
+              }
+            } catch (e) {
+              print('ARCX Import V2: ⚠️ Error checking existing favorite: $e');
+              // Continue to try adding it anyway
             }
           }
           
-          // Check capacity
-          if (await favoritesService.isAtCapacity()) {
-            print('ARCX Import V2: ⚠️ LUMARA favorites at capacity, cannot import more');
-            skippedCount++;
-            continue;
+          // Check capacity with timeout
+          try {
+            final atCapacity = await favoritesService.isAtCapacity().timeout(
+              const Duration(seconds: 2),
+              onTimeout: () {
+                print('ARCX Import V2: ⚠️ isAtCapacity timed out, assuming not at capacity');
+                return false;
+              },
+            );
+            if (atCapacity) {
+              print('ARCX Import V2: ⚠️ LUMARA favorites at capacity, cannot import more');
+              skippedCount++;
+              continue;
+            }
+          } catch (e) {
+            print('ARCX Import V2: ⚠️ Error checking capacity: $e');
+            // Continue to try adding it anyway
           }
           
-          final added = await favoritesService.addFavorite(favorite);
-          if (added) {
-            importedCount++;
-          } else {
+          // Add favorite with timeout
+          try {
+            final added = await favoritesService.addFavorite(favorite).timeout(
+              const Duration(seconds: 5),
+              onTimeout: () {
+                print('ARCX Import V2: ⚠️ addFavorite timed out for ${favorite.id}');
+                return false;
+              },
+            );
+            if (added) {
+              importedCount++;
+            } else {
+              skippedCount++;
+            }
+          } catch (e) {
+            print('ARCX Import V2: ⚠️ Error adding favorite ${favorite.id}: $e');
             skippedCount++;
           }
         } catch (e) {
@@ -835,8 +885,10 @@ class ARCXImportServiceV2 {
       
       print('ARCX Import V2: ✓ Imported $importedCount LUMARA favorites ($skippedCount skipped)');
       return importedCount;
-    } catch (e) {
+    } catch (e, stackTrace) {
       print('ARCX Import V2: ⚠️ Error importing LUMARA favorites: $e');
+      print('ARCX Import V2: Stack trace: $stackTrace');
+      // Don't fail the entire import if favorites fail - just return 0
       return 0;
     }
   }

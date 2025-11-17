@@ -24,6 +24,7 @@ import 'package:my_app/polymeta/store/arcx/ui/arcx_import_progress_screen.dart';
 import 'package:my_app/polymeta/store/arcx/services/arcx_import_service_v2.dart';
 import 'package:my_app/polymeta/store/arcx/services/arcx_import_service.dart';
 import 'package:my_app/polymeta/store/arcx/models/arcx_result.dart';
+import 'package:my_app/shared/ui/home/home_view.dart';
 
 /// MCP Import Screen - Restore from MCP Package (.zip) or Secure Archive (.arcx)
 class McpImportScreen extends StatefulWidget {
@@ -259,27 +260,77 @@ class _McpImportScreenState extends State<McpImportScreen> {
             }
           }
 
-          // Refresh timeline after import completes
-          if (mounted) {
-            print('🔍 MCP DEBUG: Component is mounted, processing result');
-            context.read<TimelineCubit>().reloadAllEntries();
-            setState(() => _isImporting = false);
+          // Ensure we're still mounted and have a valid context
+          if (!mounted) {
+            print('⚠️ Component not mounted after import, skipping result handling');
+            return;
+          }
 
-            // Show success dialog if import was successful
-            // Use post-frame callback to ensure navigation completes before showing dialog
-            if (result != null) {
-              print('🔍 MCP DEBUG: About to show success dialog');
+          // Refresh timeline after import completes
+          print('🔍 MCP DEBUG: Component is mounted, processing result');
+          try {
+            context.read<TimelineCubit>().reloadAllEntries();
+          } catch (e) {
+            print('⚠️ Could not reload timeline: $e');
+          }
+          
+          setState(() => _isImporting = false);
+
+          // Show success dialog if import was successful
+          // Use post-frame callback to ensure navigation completes before showing dialog
+          if (result != null) {
+            print('🔍 MCP DEBUG: About to show success dialog');
+            // Add a small delay to ensure navigation stack is stable
+            Future.delayed(const Duration(milliseconds: 100), () {
               WidgetsBinding.instance.addPostFrameCallback((_) {
                 if (mounted) {
-                  if (result is ARCXImportResultV2) {
-                    print('🔍 MCP DEBUG: Calling V2 success dialog');
-                    _showARCXImportSuccessDialogV2(result);
-                  } else if (result is ARCXImportResult) {
-                    print('🔍 MCP DEBUG: Calling legacy success dialog');
-                    _showARCXImportSuccessDialog(result);
+                  try {
+                    // Verify we have a valid navigator
+                    final navigator = Navigator.of(context, rootNavigator: false);
+                    if (!navigator.mounted) {
+                      print('⚠️ Navigator not mounted, using root navigator');
+                      // Try root navigator as fallback
+                      if (result is ARCXImportResultV2) {
+                        _showARCXImportSuccessDialogV2(result);
+                      } else if (result is ARCXImportResult) {
+                        _showARCXImportSuccessDialog(result);
+                      }
+                    } else {
+                      if (result is ARCXImportResultV2) {
+                        print('🔍 MCP DEBUG: Calling V2 success dialog');
+                        _showARCXImportSuccessDialogV2(result);
+                      } else if (result is ARCXImportResult) {
+                        print('🔍 MCP DEBUG: Calling legacy success dialog');
+                        _showARCXImportSuccessDialog(result);
+                      }
+                    }
+                  } catch (e) {
+                    print('⚠️ Error showing success dialog: $e');
+                    // Fallback: show a simple snackbar
+                    try {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('Import completed successfully'),
+                          backgroundColor: Colors.green,
+                          duration: const Duration(seconds: 3),
+                        ),
+                      );
+                    } catch (snackbarError) {
+                      print('⚠️ Could not show snackbar either: $snackbarError');
+                    }
                   }
                 }
               });
+            });
+          }
+        }).catchError((error) {
+          print('⚠️ Error in import callback: $error');
+          if (mounted) {
+            setState(() => _isImporting = false);
+            try {
+              _showErrorDialog('Import failed: $error');
+            } catch (e) {
+              print('⚠️ Could not show error dialog: $e');
             }
           }
         });
@@ -957,8 +1008,7 @@ class _McpImportScreenState extends State<McpImportScreen> {
                       _buildSummaryRow('Entries imported:', formatCount(entriesImported, entriesTotal)),
                       _buildSummaryRow('Chats imported:', formatCount(chatsImported, chatsTotal)),
                       _buildSummaryRow('Media imported:', formatCount(mediaImported, mediaTotal)),
-                      if (lumaraFavoritesImported > 0)
-                        _buildSummaryRow('LUMARA Favorites imported:', '$lumaraFavoritesImported'),
+                      _buildSummaryRow('LUMARA Favorites imported:', '$lumaraFavoritesImported'),
                       if (warnings.isNotEmpty) ...[
                         const SizedBox(height: 16),
                         Container(
@@ -1002,8 +1052,12 @@ class _McpImportScreenState extends State<McpImportScreen> {
                   children: [
                     TextButton(
                       onPressed: () {
-                        Navigator.of(context).pop();
-                        Navigator.of(context).pop(); // Go back to previous screen
+                        Navigator.of(context).pop(); // Close dialog
+                        // Navigate to main screen (HomeView)
+                        Navigator.of(context).pushAndRemoveUntil(
+                          MaterialPageRoute(builder: (context) => const HomeView()),
+                          (route) => false, // Remove all previous routes
+                        );
                       },
                       child: const Text('Done'),
                     ),
@@ -1148,9 +1202,20 @@ class _McpImportScreenState extends State<McpImportScreen> {
       padding: const EdgeInsets.symmetric(vertical: 2),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label, style: bodyStyle(context)),
-          Text(value, style: bodyStyle(context).copyWith(fontWeight: FontWeight.bold)),
+          Expanded(
+            child: Text(
+              label,
+              style: bodyStyle(context),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Text(
+            value,
+            style: bodyStyle(context).copyWith(fontWeight: FontWeight.bold),
+          ),
         ],
       ),
     );
@@ -1209,8 +1274,7 @@ class _McpImportScreenState extends State<McpImportScreen> {
                         _buildSummaryRow('Sentinel states:', '${result.sentinelStatesImported}'),
                       if (result.arcformSnapshotsImported > 0)
                         _buildSummaryRow('ArcForm snapshots:', '${result.arcformSnapshotsImported}'),
-                      if (result.lumaraFavoritesImported > 0)
-                        _buildSummaryRow('LUMARA Favorites:', '${result.lumaraFavoritesImported}'),
+                      _buildSummaryRow('LUMARA Favorites:', '${result.lumaraFavoritesImported}'),
                       if (result.warnings != null && result.warnings!.isNotEmpty) ...[
                         const SizedBox(height: 8),
                         Text(
@@ -1240,7 +1304,14 @@ class _McpImportScreenState extends State<McpImportScreen> {
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
                     TextButton(
-                      onPressed: () => Navigator.of(context).pop(),
+                      onPressed: () {
+                        Navigator.of(context).pop(); // Close dialog
+                        // Navigate to main screen (HomeView)
+                        Navigator.of(context).pushAndRemoveUntil(
+                          MaterialPageRoute(builder: (context) => const HomeView()),
+                          (route) => false, // Remove all previous routes
+                        );
+                      },
                       child: const Text('Done'),
                     ),
                   ],
@@ -1321,7 +1392,14 @@ class _McpImportScreenState extends State<McpImportScreen> {
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
                     TextButton(
-                      onPressed: () => Navigator.of(context).pop(),
+                      onPressed: () {
+                        Navigator.of(context).pop(); // Close dialog
+                        // Navigate to main screen (HomeView)
+                        Navigator.of(context).pushAndRemoveUntil(
+                          MaterialPageRoute(builder: (context) => const HomeView()),
+                          (route) => false, // Remove all previous routes
+                        );
+                      },
                       child: const Text('Done'),
                     ),
                   ],

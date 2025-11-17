@@ -283,16 +283,46 @@ class InteractiveTimelineViewState extends State<InteractiveTimelineView>
   }
 
   Widget _build2DGridTimeline() {
+    print('DEBUG: _build2DGridTimeline - _entries has ${_entries?.length ?? 0} entries');
+
+    // Safety check for null or empty entries
+    if (_entries == null || _entries.isEmpty) {
+      print('DEBUG: _entries is null or empty, returning empty state');
+      return Center(
+        child: Text(
+          'No timeline entries available',
+          style: bodyStyle(context),
+        ),
+      );
+    }
+
     // Get all entries and sort them properly by actual date (newest first)
     final sortedEntries = List<TimelineEntry>.from(_entries);
-    
+
     // Sort by the original createdAt DateTime (newest first)
-    sortedEntries.sort((a, b) => b.createdAt.compareTo(a.createdAt));
-    
+    try {
+      sortedEntries.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    } catch (e) {
+      print('DEBUG: Error sorting entries: $e');
+    }
+
+    print('DEBUG: _build2DGridTimeline - Building ListView with ${sortedEntries.length} entries');
+
+    if (sortedEntries.isEmpty) {
+      print('DEBUG: sortedEntries is empty after sorting');
+      return Center(
+        child: Text(
+          'No sorted timeline entries',
+          style: bodyStyle(context),
+        ),
+      );
+    }
+
     return ListView.builder(
       controller: _scrollController,
       itemCount: sortedEntries.length,
       itemBuilder: (context, index) {
+        print('DEBUG: Building timeline card for entry $index');
         final entry = sortedEntries[index];
         return Container(
           margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -422,17 +452,17 @@ class InteractiveTimelineViewState extends State<InteractiveTimelineView>
 
   Widget _buildTimelineEntryCard(TimelineEntry entry, int periodIndex, int entryIndex) {
     final isSelected = _selectedEntryIds.contains(entry.id);
-    
+
     return GestureDetector(
       onTap: () => _onEntryTap(entry),
       onLongPress: () => _onEntryLongPress(entry),
-                      child: Container(
+      child: Container(
         constraints: const BoxConstraints(
           minHeight: 100,
           maxHeight: double.infinity,
         ),
-                        decoration: BoxDecoration(
-                            color: isSelected
+        decoration: BoxDecoration(
+          color: isSelected
               ? kcPrimaryColor.withOpacity(0.1)
               : kcSurfaceColor,
           borderRadius: BorderRadius.circular(12),
@@ -447,8 +477,8 @@ class InteractiveTimelineViewState extends State<InteractiveTimelineView>
               offset: const Offset(0, 2),
             ),
           ],
-                        ),
-                        child: Padding(
+        ),
+        child: Padding(
           padding: const EdgeInsets.all(12.0),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -464,104 +494,106 @@ class InteractiveTimelineViewState extends State<InteractiveTimelineView>
                 ),
               // Entry content
               Expanded(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisAlignment: MainAxisAlignment.start,
-            children: [
-              // Entry header with date and time
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Expanded(
-                    child: Text(
-                      entry.date,
-                      style: captionStyle(context).copyWith(
-                        color: kcSecondaryTextColor,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ),
-                  if (entry.hasArcform)
-                    Icon(
-                      Icons.auto_awesome,
+                  children: [
+                    // Entry header with date and time
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Expanded(
+                          child: Text(
+                            entry.date,
+                            style: captionStyle(context).copyWith(
+                              color: kcSecondaryTextColor,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                        if (entry.hasArcform)
+                          Icon(
+                            Icons.auto_awesome,
                             size: 16,
-                      color: kcPrimaryColor,
+                            color: kcPrimaryColor,
+                          ),
+                      ],
                     ),
-                ],
-              ),
 
-              // Entry title (if present)
-              if (entry.title != null && entry.title!.isNotEmpty) ...[
-                const SizedBox(height: 8),
-                Text(
-                  entry.title!,
-                  style: bodyStyle(context).copyWith(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: kcPrimaryTextColor,
-                  ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
-
-              const SizedBox(height: 8),
-
-              // Entry content preview
-              Text(
-                entry.preview.isNotEmpty
-                    ? entry.preview.length > 100
-                        ? '${entry.preview.substring(0, 100)}...'
-                        : entry.preview
-                    : 'No content',
-                style: bodyStyle(context).copyWith(
-                  fontSize: 14,
-                  color: kcPrimaryTextColor,
-                ),
-                maxLines: 4,
-                overflow: TextOverflow.ellipsis,
-              ),
-              
-              const SizedBox(height: 8),
-              
-              // Entry metadata
-              Row(
-                children: [
-                  if (entry.media.isNotEmpty)
-                    Icon(
-                      Icons.photo,
-                      size: 14,
-                      color: kcSecondaryTextColor,
-                    ),
-                  if (entry.media.isNotEmpty) const SizedBox(width: 4),
-                  if (entry.keywords.isNotEmpty)
-                    Icon(
-                      Icons.tag,
-                      size: 14,
-                      color: kcSecondaryTextColor,
-                    ),
-                  if (entry.keywords.isNotEmpty) const SizedBox(width: 4),
-                  Expanded(
-                    child: Text(
-                      entry.phase ?? 'Discovery',
-                      style: captionStyle(context).copyWith(
-                        color: kcSecondaryTextColor,
-                        fontSize: 12,
+                    // Entry title (if present)
+                    if (entry.title != null && entry.title!.isNotEmpty) ...[
+                      const SizedBox(height: 8),
+                      Text(
+                        entry.title!,
+                        style: bodyStyle(context).copyWith(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: kcPrimaryTextColor,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
                       ),
-                      maxLines: 1,
+                    ],
+
+                    const SizedBox(height: 8),
+
+                    // Entry content preview
+                    Text(
+                      entry.preview.isNotEmpty
+                          ? entry.preview.length > 100
+                              ? '${entry.preview.substring(0, 100)}...'
+                              : entry.preview
+                          : 'No content',
+                      style: bodyStyle(context).copyWith(
+                        fontSize: 14,
+                        color: kcPrimaryTextColor,
+                      ),
+                      maxLines: 4,
                       overflow: TextOverflow.ellipsis,
                     ),
-                  ),
-                ],
+
+                    const SizedBox(height: 8),
+
+                    // Entry metadata
+                    Row(
+                      children: [
+                        if (entry.media.isNotEmpty) ...[
+                          Icon(
+                            Icons.photo,
+                            size: 14,
+                            color: kcSecondaryTextColor,
+                          ),
+                          const SizedBox(width: 4),
+                        ],
+                        if (entry.keywords.isNotEmpty) ...[
+                          Icon(
+                            Icons.tag,
+                            size: 14,
+                            color: kcSecondaryTextColor,
+                          ),
+                          const SizedBox(width: 4),
+                        ],
+                        Expanded(
+                          child: Text(
+                            entry.phase ?? 'Discovery',
+                            style: captionStyle(context).copyWith(
+                              color: kcSecondaryTextColor,
+                              fontSize: 12,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
-                    ),
-                ],
               ),
-            ),
+            ],
           ),
+        ),
+      ),
     );
   }
 
@@ -901,10 +933,13 @@ class InteractiveTimelineViewState extends State<InteractiveTimelineView>
           const SizedBox(width: 8),
 
           // Entry counter
-          Text(
-            '${_entries.length} entries',
-            style: captionStyle(context).copyWith(
-              color: kcSecondaryTextColor.withOpacity(0.6),
+          Flexible(
+            child: Text(
+              '${_entries.length} entries',
+              style: captionStyle(context).copyWith(
+                color: kcSecondaryTextColor.withOpacity(0.6),
+              ),
+              overflow: TextOverflow.ellipsis,
             ),
           ),
         ],
@@ -1193,19 +1228,51 @@ class InteractiveTimelineViewState extends State<InteractiveTimelineView>
   List<TimelineEntry> _getFilteredEntries(TimelineLoaded state) {
     // Flatten all entries from grouped data
     List<TimelineEntry> allEntries = [];
+    print('DEBUG: _getFilteredEntries - Processing ${state.groupedEntries.length} groups');
+
     for (final group in state.groupedEntries) {
-      allEntries.addAll(group.entries);
+      print('DEBUG: Group has ${group.entries?.length ?? 0} entries');
+      if (group.entries != null) {
+        allEntries.addAll(group.entries!);
+      }
     }
 
-    // Apply filter
-    switch (state.filter) {
-      case TimelineFilter.all:
-        return allEntries;
-      case TimelineFilter.textOnly:
-        return allEntries.where((entry) => !entry.hasArcform).toList();
-      case TimelineFilter.withArcform:
-        return allEntries.where((entry) => entry.hasArcform).toList();
+    print('DEBUG: Total flattened entries: ${allEntries.length}');
+    print('DEBUG: Current filter: ${state.filter}');
+
+    // Apply filter with null safety
+    List<TimelineEntry> filteredEntries;
+    try {
+      switch (state.filter) {
+        case TimelineFilter.all:
+          filteredEntries = allEntries;
+          break;
+        case TimelineFilter.textOnly:
+          filteredEntries = allEntries.where((entry) => entry != null && !entry.hasArcform).toList();
+          break;
+        case TimelineFilter.withArcform:
+          filteredEntries = allEntries.where((entry) => entry != null && entry.hasArcform).toList();
+          break;
+        default:
+          print('DEBUG: Unknown filter type: ${state.filter}, defaulting to all entries');
+          filteredEntries = allEntries;
+          break;
+      }
+    } catch (e) {
+      print('DEBUG: Error during filtering: $e, returning all entries');
+      filteredEntries = allEntries;
     }
+
+    print('DEBUG: After filtering: ${filteredEntries.length} entries');
+
+    // Additional debugging for specific cases
+    if (allEntries.isNotEmpty && filteredEntries.isEmpty) {
+      print('DEBUG: WARNING - All entries filtered out!');
+      print('DEBUG: First entry hasArcform: ${allEntries.first.hasArcform}');
+      print('DEBUG: Filter applied: ${state.filter}');
+    }
+
+    return filteredEntries;
   }
 
   /// Recalculate RIVET state after entry deletion

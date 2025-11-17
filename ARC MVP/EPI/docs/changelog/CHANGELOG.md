@@ -1,7 +1,43 @@
 # EPI ARC MVP - Changelog
 
-**Version:** 2.1.18  
+**Version:** 2.1.19  
 **Last Updated:** January 2025
+
+## [2.1.19] - January 2025
+
+### **ARCX Import Improvements & Bug Fixes** - Complete
+
+#### Import Navigation & UX Improvements
+- **Auto-Navigation to Main Screen**: After successful import, clicking "Done" now automatically navigates to the main screen (HomeView) instead of leaving users on the import screen
+- **Navigation Stack Clearing**: Import success dialogs now clear the navigation stack to prevent accidental back navigation to import screens
+- **Improved User Experience**: Users can immediately see their imported entries in the timeline/journal after import completion
+
+#### LUMARA Favorites Import Display
+- **Always Show Favorites Count**: Import success dialogs now always display LUMARA Favorites count, even when 0 favorites were imported
+- **Consistent Display**: All import success dialogs (ARCX V2, legacy ARCX, separated packages) now consistently show favorites count
+- **Better Visibility**: Users can now see that favorites were checked during import, regardless of count
+
+#### Import Stability & Error Handling
+- **Timeout Protection**: Added timeouts to LUMARA Favorites import operations to prevent hanging
+  - FavoritesService initialization: 10-second timeout
+  - Individual favorite operations: 2-5 second timeouts
+- **Graceful Degradation**: Import continues successfully even if favorites import fails
+- **Better Error Recovery**: Improved error handling prevents blank screens after import failures
+
+#### UI Fixes
+- **Pixel Overflow Fix**: Fixed 6.4 pixel overflow error in import success dialogs
+  - Wrapped summary row labels in Expanded widgets
+  - Added text overflow handling with ellipsis
+  - Improved layout for long labels like "LUMARA Favorites imported:"
+
+**Files Modified**:
+- `lib/polymeta/store/arcx/services/arcx_import_service_v2.dart` - Added timeouts and improved error handling
+- `lib/polymeta/store/arcx/ui/arcx_import_progress_screen.dart` - Navigation improvements, UI fixes
+- `lib/ui/export_import/mcp_import_screen.dart` - Navigation improvements, UI fixes, favorites display
+
+**Status**: ✅ Complete - All import issues resolved, improved UX and stability
+
+---
 
 ## [2.1.18] - January 2025
 

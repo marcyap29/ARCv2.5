@@ -18,6 +18,7 @@ import 'package:my_app/services/analytics_service.dart';
 import '../services/arcx_import_service.dart';
 import '../services/arcx_import_service_v2.dart';
 import '../models/arcx_result.dart';
+import 'package:my_app/shared/ui/home/home_view.dart';
 
 class ARCXImportProgressScreen extends StatefulWidget {
   final String arcxPath;
@@ -241,13 +242,17 @@ class _ARCXImportProgressScreenState extends State<ARCXImportProgressScreen> {
           print('🎉 ARCX DEBUG: State updated - _entriesImported: $_entriesImported, _photosImported: $_photosImported');
           print('🎉 ARCX DEBUG: UI condition check: ${_entriesImported != null || _photosImported != null}');
 
-          // Show success dialog for V2
-          await Future.delayed(const Duration(seconds: 1));
-          if (mounted) {
+          // Show success state briefly, then pop with result
+          await Future.delayed(const Duration(milliseconds: 500));
+          if (mounted && Navigator.of(context).canPop()) {
             print('🎉 ARCX DEBUG: About to pop with result');
             // Pop the progress screen and return the result
             Navigator.of(context).pop(v2Result);
             print('🎉 ARCX DEBUG: Popped with result');
+          } else if (mounted) {
+            // If we can't pop, try using root navigator
+            print('🎉 ARCX DEBUG: Cannot pop normally, trying root navigator');
+            Navigator.of(context, rootNavigator: true).pop(v2Result);
           }
           return;
         } else {
@@ -283,12 +288,17 @@ class _ARCXImportProgressScreenState extends State<ARCXImportProgressScreen> {
           _chatMessagesImported = result.chatMessagesImported;
         });
         
-        // Show success dialog
-        await Future.delayed(const Duration(seconds: 1));
+        // Show success state briefly, then pop with result
+        await Future.delayed(const Duration(milliseconds: 500));
         
         if (mounted) {
           // Pop the progress screen and return the result
-          Navigator.of(context).pop(result);
+          if (Navigator.of(context).canPop()) {
+            Navigator.of(context).pop(result);
+          } else {
+            // Fallback to root navigator
+            Navigator.of(context, rootNavigator: true).pop(result);
+          }
         }
       } else {
         throw Exception(result.error ?? 'Import failed');
@@ -302,18 +312,37 @@ class _ARCXImportProgressScreenState extends State<ARCXImportProgressScreen> {
       
       // Pop the progress screen on error
       if (mounted) {
-        Navigator.of(context).pop();
+        // Store error message before popping
+        final errorMessage = e.toString();
+        
+        // Try to pop normally first
+        if (Navigator.of(context).canPop()) {
+          Navigator.of(context).pop();
+        } else {
+          // Fallback to root navigator
+          Navigator.of(context, rootNavigator: true).pop();
+        }
+        
         // Show error after navigation completes
         WidgetsBinding.instance.addPostFrameCallback((_) {
-          final navigator = Navigator.of(context, rootNavigator: true);
-          if (navigator.canPop()) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('Import failed: $e'),
-                backgroundColor: Colors.red,
-                duration: const Duration(seconds: 5),
-              ),
-            );
+          if (mounted) {
+            try {
+              // Try to get a valid context for showing the error
+              final navigator = Navigator.of(context, rootNavigator: true);
+              if (navigator.canPop() || navigator.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Import failed: $errorMessage'),
+                    backgroundColor: Colors.red,
+                    duration: const Duration(seconds: 5),
+                  ),
+                );
+              }
+            } catch (contextError) {
+              // Context is invalid, log the error instead
+              print('⚠️ Could not show error snackbar: $contextError');
+              print('⚠️ Import error: $errorMessage');
+            }
           }
         });
       }
@@ -478,8 +507,7 @@ class _ARCXImportProgressScreenState extends State<ARCXImportProgressScreen> {
                   _buildSummaryRow('Sentinel states:', '${result.sentinelStatesImported}'),
                 if (result.arcformSnapshotsImported > 0)
                   _buildSummaryRow('ArcForm snapshots:', '${result.arcformSnapshotsImported}'),
-                if (result.lumaraFavoritesImported > 0)
-                  _buildSummaryRow('LUMARA Favorites:', '${result.lumaraFavoritesImported}'),
+                _buildSummaryRow('LUMARA Favorites:', '${result.lumaraFavoritesImported}'),
                 if (result.warnings != null && result.warnings!.isNotEmpty) ...[
                   const SizedBox(height: 8),
                   Text(
@@ -511,7 +539,11 @@ class _ARCXImportProgressScreenState extends State<ARCXImportProgressScreen> {
                     TextButton(
                       onPressed: () {
                         Navigator.of(context).pop(); // Close dialog
-                        Navigator.of(context).pop(); // Go back to previous screen
+                        // Navigate to main screen (HomeView)
+                        Navigator.of(context).pushAndRemoveUntil(
+                          MaterialPageRoute(builder: (context) => const HomeView()),
+                          (route) => false, // Remove all previous routes
+                        );
                       },
                       child: const Text('Done'),
                     ),
@@ -594,7 +626,11 @@ class _ARCXImportProgressScreenState extends State<ARCXImportProgressScreen> {
                     TextButton(
                       onPressed: () {
                         Navigator.of(context).pop(); // Close dialog
-                        Navigator.of(context).pop(); // Go back to previous screen
+                        // Navigate to main screen (HomeView)
+                        Navigator.of(context).pushAndRemoveUntil(
+                          MaterialPageRoute(builder: (context) => const HomeView()),
+                          (route) => false, // Remove all previous routes
+                        );
                       },
                       child: const Text('Done'),
                     ),
@@ -613,8 +649,16 @@ class _ARCXImportProgressScreenState extends State<ARCXImportProgressScreen> {
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label, style: bodyStyle(context)),
+          Expanded(
+            child: Text(
+              label,
+              style: bodyStyle(context),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          const SizedBox(width: 8),
           Text(
             value,
             style: bodyStyle(context).copyWith(fontWeight: FontWeight.bold),
