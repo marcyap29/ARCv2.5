@@ -789,6 +789,11 @@ class InteractiveTimelineViewState extends State<InteractiveTimelineView>
       return const SizedBox.shrink();
     }
 
+    final screenHeight = MediaQuery.of(context).size.height;
+    final double cardHeight =
+        (screenHeight * 0.65).clamp(360.0, 640.0); // ensure roomy view
+    final double listHeight = (cardHeight - 140).clamp(260.0, cardHeight - 60);
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Card(
@@ -797,7 +802,7 @@ class InteractiveTimelineViewState extends State<InteractiveTimelineView>
         child: ClipRRect(
           borderRadius: BorderRadius.circular(16),
           child: SizedBox(
-            height: 420,
+            height: cardHeight,
             child: _isArcformTimelineLoading
                 ? const Center(child: CircularProgressIndicator())
                 : Stack(
@@ -806,6 +811,7 @@ class InteractiveTimelineViewState extends State<InteractiveTimelineView>
                         ArcformTimelineView(
                           phaseIndex: _phaseIndex!,
                           showPhaseCountBadge: false,
+                          maxListHeight: listHeight,
                         )
                       else
                         const Center(

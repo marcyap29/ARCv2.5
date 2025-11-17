@@ -16,11 +16,13 @@ import 'phase_arcform_3d_screen.dart';
 class ArcformTimelineView extends StatefulWidget {
   final PhaseIndex phaseIndex;
   final bool showPhaseCountBadge;
+  final double? maxListHeight;
   
   const ArcformTimelineView({
     super.key,
     required this.phaseIndex,
     this.showPhaseCountBadge = true,
+    this.maxListHeight,
   });
 
   @override
@@ -184,7 +186,9 @@ class _ArcformTimelineViewState extends State<ArcformTimelineView> {
               Stack(
                 children: [
                   ConstrainedBox(
-                    constraints: const BoxConstraints(maxHeight: 360),
+                    constraints: BoxConstraints(
+                      maxHeight: widget.maxListHeight ?? 360,
+                    ),
                     child: ListView.builder(
                       controller: _scrollController,
                       shrinkWrap: true,
