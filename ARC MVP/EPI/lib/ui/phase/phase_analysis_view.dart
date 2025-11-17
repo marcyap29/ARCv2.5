@@ -28,6 +28,8 @@ class _PhaseAnalysisViewState extends State<PhaseAnalysisView> {
   PhaseIndex? _phaseIndex;
   bool _isLoading = true;
   String? _error;
+  RivetSweepResult? _lastSweepResult;
+  bool _hasUnapprovedAnalysis = false;
 
   @override
   void initState() {
@@ -111,6 +113,12 @@ class _PhaseAnalysisViewState extends State<PhaseAnalysisView> {
       final result = await rivetSweepService.analyzeEntries(journalEntries);
 
       if (mounted) {
+        // Store result and show unapproved analysis state
+        setState(() {
+          _lastSweepResult = result;
+          _hasUnapprovedAnalysis = true;
+        });
+        
         // Show RIVET Sweep wizard
         await _showRivetSweepWizard(result);
         
@@ -142,6 +150,13 @@ class _PhaseAnalysisViewState extends State<PhaseAnalysisView> {
         onApprove: (approvedProposals, overrides) async {
           Navigator.of(context).pop();
           await _createPhaseRegimes(approvedProposals, overrides);
+          // Clear unapproved analysis state
+          if (mounted) {
+            setState(() {
+              _hasUnapprovedAnalysis = false;
+              _lastSweepResult = null;
+            });
+          }
           // ARCForms will be refreshed by the calling function
         },
         onSkip: () {
@@ -492,6 +507,9 @@ List<PhaseSegmentProposal> proposals,
                     },
                   ),
                   _buildRivetActionSection(),
+                  // Show Phase Analysis Complete placard if analysis is pending approval
+                  if (_hasUnapprovedAnalysis && _lastSweepResult != null)
+                    _buildAnalysisCompletePlacard(),
                 ],
               ),
             ),
@@ -901,26 +919,107 @@ List<PhaseSegmentProposal> proposals,
           if (entryCount < 5) {
             return _buildInsufficientEntriesCard(entryCount);
           } else {
-            return SizedBox(
+            return Container(
               width: double.infinity,
+              margin: const EdgeInsets.symmetric(vertical: 8.0),
               child: ElevatedButton.icon(
                 onPressed: _runRivetSweep,
-                icon: const Icon(Icons.play_arrow),
-                label: const Text('Run Phase Analysis'),
+                icon: const Icon(Icons.play_arrow, size: 24),
+                label: const Text(
+                  'Run Phase Analysis',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.blue,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
+                  elevation: 4,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
               ),
             );
           }
         }
         
-        return SizedBox(
+        return Container(
           width: double.infinity,
+          margin: const EdgeInsets.symmetric(vertical: 8.0),
           child: ElevatedButton.icon(
             onPressed: null,
-            icon: const Icon(Icons.play_arrow),
-            label: const Text('Run Phase Analysis'),
+            icon: const Icon(Icons.play_arrow, size: 24),
+            label: const Text(
+              'Run Phase Analysis',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.grey,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
+              elevation: 2,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
           ),
         );
       },
+    );
+  }
+
+  /// Build Phase Analysis Complete placard
+  Widget _buildAnalysisCompletePlacard() {
+    if (_lastSweepResult == null) return const SizedBox.shrink();
+    
+    final totalSegments = _lastSweepResult!.autoAssign.length + 
+                         _lastSweepResult!.review.length + 
+                         _lastSweepResult!.lowConfidence.length;
+    
+    return Container(
+      margin: const EdgeInsets.only(top: 12.0),
+      padding: const EdgeInsets.all(16.0),
+      decoration: BoxDecoration(
+        color: Colors.blue[50],
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.blue[200]!),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.auto_awesome, color: Colors.blue[700], size: 24),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Phase Analysis Complete',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.blue[900],
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Rivet found $totalSegments segments in your journal timeline. '
+                  'Review and approve them in the wizard.',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.blue[800],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 
