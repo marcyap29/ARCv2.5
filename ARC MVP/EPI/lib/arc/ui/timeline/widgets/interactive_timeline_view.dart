@@ -26,6 +26,12 @@ import 'package:my_app/arc/ui/arcforms/phase_recommender.dart';
 import 'package:my_app/polymeta/mira_service.dart';
 import 'package:uuid/uuid.dart';
 import 'dart:math' as math;
+import 'package:my_app/services/phase_regime_service.dart';
+import 'package:my_app/services/analytics_service.dart';
+import 'package:my_app/services/rivet_sweep_service.dart';
+import 'package:my_app/services/phase_index.dart';
+import '../../../../ui/phase/arcform_timeline_view.dart';
+import 'package:my_app/models/phase_models.dart';
 
 class InteractiveTimelineView extends StatefulWidget {
   final VoidCallback? onJumpToDate;
@@ -55,6 +61,12 @@ class InteractiveTimelineViewState extends State<InteractiveTimelineView>
   bool _previousSelectionMode = false;
   int _previousSelectedCount = 0;
   int _previousTotalEntries = 0;
+  
+  // ARCForm Timeline collapsible section
+  bool _showArcformTimeline = false;
+  PhaseIndex? _phaseIndex;
+  bool _isArcformTimelineLoading = false;
+  bool _isLegendExpanded = false;
 
   @override
   void initState() {
@@ -167,6 +179,11 @@ class InteractiveTimelineViewState extends State<InteractiveTimelineView>
               child: Column(
                 children: [
                   _buildTimelineHeader(),
+                  AnimatedSize(
+                    duration: const Duration(milliseconds: 250),
+                    curve: Curves.easeInOut,
+                    child: _buildArcformTimelineSection(),
+                  ),
                   Expanded(
                     child: _buildInteractiveTimeline(),
                   ),
@@ -261,25 +278,155 @@ class InteractiveTimelineViewState extends State<InteractiveTimelineView>
       );
     }
 
-    // Simplified header - just the title
-    return Container(
+    final theme = Theme.of(context);
+    return Padding(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-            child: Text(
-              'Your Sacred Journey',
-              style: heading1Style(context).copyWith(
-          fontSize: 20,
-          fontWeight: FontWeight.w400,
+      child: Card(
+        elevation: 3,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            InkWell(
+              borderRadius: BorderRadius.circular(16),
+              onTap: () => setState(() {
+                _isLegendExpanded = !_isLegendExpanded;
+              }),
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Row(
+                  children: [
+                    Icon(Icons.palette,
+                        color: theme.colorScheme.primary, size: 20),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Phase Legend',
+                      style: theme.textTheme.titleMedium
+                          ?.copyWith(fontWeight: FontWeight.bold),
+                    ),
+                    const Spacer(),
+                    Icon(
+                      _isLegendExpanded ? Icons.expand_less : Icons.expand_more,
+                      color: theme.colorScheme.primary,
+                    ),
+                  ],
+                ),
               ),
-              textAlign: TextAlign.center,
             ),
+            if (_isLegendExpanded)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Wrap(
+                      spacing: 12,
+                      runSpacing: 8,
+                      children: PhaseLabel.values.map((label) {
+                        final color = _getPhaseColorForLegend(label);
+                        return Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Container(
+                              width: 16,
+                              height: 16,
+                              decoration: BoxDecoration(
+                                color: color.withOpacity(0.7),
+                                border: Border.all(color: color, width: 2),
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              label.name.toUpperCase(),
+                              style: theme.textTheme.bodySmall,
+                            ),
+                          ],
+                        );
+                      }).toList(),
+                    ),
+                    const SizedBox(height: 12),
+                    const Divider(),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        _buildLegendSourceIndicator(
+                          theme,
+                          label: 'User Set',
+                          filled: true,
+                        ),
+                        const SizedBox(width: 16),
+                        _buildLegendSourceIndicator(
+                          theme,
+                          label: 'RIVET Detected',
+                          filled: false,
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _handlePhaseBarDrag(DragEndDetails details, TimelineEntry entry) {
+    final velocity = details.primaryVelocity ?? 0;
+    const threshold = 150;
+    if (velocity > threshold) {
+      _toggleArcformTimeline(entry);
+    } else if (velocity < -threshold && _showArcformTimeline) {
+      _toggleArcformTimeline();
+    }
+  }
+
+  Color _getPhaseColorForLegend(PhaseLabel label) {
+    switch (label) {
+      case PhaseLabel.discovery:
+        return Colors.blue;
+      case PhaseLabel.expansion:
+        return Colors.green;
+      case PhaseLabel.transition:
+        return Colors.orange;
+      case PhaseLabel.consolidation:
+        return Colors.purple;
+      case PhaseLabel.recovery:
+        return Colors.red;
+      case PhaseLabel.breakthrough:
+        return Colors.amber;
+    }
+  }
+
+  Widget _buildLegendSourceIndicator(ThemeData theme,
+      {required String label, required bool filled}) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 12,
+          height: 12,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: filled ? Colors.white : Colors.transparent,
+            border: Border.all(
+              color: filled ? theme.colorScheme.primary : Colors.grey,
+              width: 2,
+            ),
+          ),
+        ),
+        const SizedBox(width: 6),
+        Text(
+          label,
+          style: theme.textTheme.bodySmall,
+        ),
+      ],
     );
   }
 
   Widget _buildInteractiveTimeline() {
-    return RefreshIndicator(
-      onRefresh: _refreshTimeline,
-      child: _build2DGridTimeline(),
-    );
+    return _build2DGridTimeline();
   }
 
   Widget _build2DGridTimeline() {
@@ -289,9 +436,15 @@ class InteractiveTimelineViewState extends State<InteractiveTimelineView>
     if (_entries == null || _entries.isEmpty) {
       print('DEBUG: _entries is null or empty, returning empty state');
       return Center(
-        child: Text(
-          'No timeline entries available',
-          style: bodyStyle(context),
+        child: Padding(
+          padding: const EdgeInsets.all(32.0),
+          child: Text(
+            'Your journal timeline is empty for now.\nAdd your first entry to see it appear here.',
+            style: bodyStyle(context).copyWith(
+              color: kcSecondaryTextColor,
+            ),
+            textAlign: TextAlign.center,
+          ),
         ),
       );
     }
@@ -318,17 +471,21 @@ class InteractiveTimelineViewState extends State<InteractiveTimelineView>
       );
     }
 
-    return ListView.builder(
-      controller: _scrollController,
-      itemCount: sortedEntries.length,
-      itemBuilder: (context, index) {
-        print('DEBUG: Building timeline card for entry $index');
-        final entry = sortedEntries[index];
-        return Container(
-          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          child: _buildTimelineEntryCard(entry, 0, index),
-        );
-      },
+    return RefreshIndicator(
+      onRefresh: _refreshTimeline,
+      child: ListView.builder(
+        controller: _scrollController,
+        physics: const AlwaysScrollableScrollPhysics(),
+        itemCount: sortedEntries.length,
+        itemBuilder: (context, index) {
+          print('DEBUG: Building timeline card for entry $index');
+          final entry = sortedEntries[index];
+          return Container(
+            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: _buildTimelineEntryCard(entry, 0, index),
+          );
+        },
+      ),
     );
   }
 
@@ -452,6 +609,7 @@ class InteractiveTimelineViewState extends State<InteractiveTimelineView>
 
   Widget _buildTimelineEntryCard(TimelineEntry entry, int periodIndex, int entryIndex) {
     final isSelected = _selectedEntryIds.contains(entry.id);
+    final phaseColor = _getPhaseColor(entry.phase);
 
     return GestureDetector(
       onTap: () => _onEntryTap(entry),
@@ -478,116 +636,145 @@ class InteractiveTimelineViewState extends State<InteractiveTimelineView>
             ),
           ],
         ),
-        child: Padding(
-          padding: const EdgeInsets.all(12.0),
+        child: IntrinsicHeight(
           child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // Checkbox or leading icon
-              if (_isSelectionMode)
-                Padding(
-                  padding: const EdgeInsets.only(right: 12.0),
-                  child: Checkbox(
-                    value: isSelected,
-                    onChanged: (_) => _onEntryTap(entry),
+              // Phase-colored bar on the left (clickable)
+            GestureDetector(
+              behavior: HitTestBehavior.translucent,
+              onTap: () => _toggleArcformTimeline(entry),
+              onHorizontalDragEnd: (details) =>
+                  _handlePhaseBarDrag(details, entry),
+              child: SizedBox(
+                width: 24,
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Container(
+                    width: 8, // visual width
+                    decoration: BoxDecoration(
+                      color: phaseColor,
+                      borderRadius: const BorderRadius.only(
+                        topLeft: Radius.circular(12),
+                        bottomLeft: Radius.circular(12),
+                      ),
+                    ),
                   ),
                 ),
+              ),
+            ),
               // Entry content
               Expanded(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.start,
-                  children: [
-                    // Entry header with date and time
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Expanded(
-                          child: Text(
-                            entry.date,
-                            style: captionStyle(context).copyWith(
-                              color: kcSecondaryTextColor,
-                              fontWeight: FontWeight.w500,
+                child: Padding(
+                  padding: const EdgeInsets.all(12.0),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Checkbox or leading icon
+                      if (_isSelectionMode)
+                        Padding(
+                          padding: const EdgeInsets.only(right: 12.0),
+                          child: Checkbox(
+                            value: isSelected,
+                            onChanged: (_) => _onEntryTap(entry),
+                          ),
+                        ),
+                      // Entry content
+                      Expanded(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisAlignment: MainAxisAlignment.start,
+                          children: [
+                            // Entry header with date and time
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    entry.date,
+                                    style: captionStyle(context).copyWith(
+                                      color: kcSecondaryTextColor,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ),
+                                if (entry.hasArcform)
+                                  Icon(
+                                    Icons.auto_awesome,
+                                    size: 16,
+                                    color: kcPrimaryColor,
+                                  ),
+                              ],
                             ),
-                          ),
+                            // Entry title (if present)
+                            if (entry.title != null && entry.title!.isNotEmpty)
+                              ...[
+                                const SizedBox(height: 8),
+                                Text(
+                                  entry.title!,
+                                  style: bodyStyle(context).copyWith(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w600,
+                                    color: kcPrimaryTextColor,
+                                  ),
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ],
+                            const SizedBox(height: 8),
+                            // Entry content preview
+                            Text(
+                              entry.preview.isNotEmpty
+                                  ? entry.preview.length > 100
+                                      ? '${entry.preview.substring(0, 100)}...'
+                                      : entry.preview
+                                  : 'No content',
+                              style: bodyStyle(context).copyWith(
+                                fontSize: 14,
+                                color: kcPrimaryTextColor,
+                              ),
+                              maxLines: 4,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            const SizedBox(height: 8),
+                            // Entry metadata
+                            Row(
+                              children: [
+                                if (entry.media.isNotEmpty) ...[
+                                  Icon(
+                                    Icons.photo,
+                                    size: 14,
+                                    color: kcSecondaryTextColor,
+                                  ),
+                                  const SizedBox(width: 4),
+                                ],
+                                if (entry.keywords.isNotEmpty) ...[
+                                  Icon(
+                                    Icons.tag,
+                                    size: 14,
+                                    color: kcSecondaryTextColor,
+                                  ),
+                                  const SizedBox(width: 4),
+                                ],
+                                Expanded(
+                                  child: Text(
+                                    entry.phase ?? 'Discovery',
+                                    style: captionStyle(context).copyWith(
+                                      color: kcSecondaryTextColor,
+                                      fontSize: 12,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
                         ),
-                        if (entry.hasArcform)
-                          Icon(
-                            Icons.auto_awesome,
-                            size: 16,
-                            color: kcPrimaryColor,
-                          ),
-                      ],
-                    ),
-
-                    // Entry title (if present)
-                    if (entry.title != null && entry.title!.isNotEmpty) ...[
-                      const SizedBox(height: 8),
-                      Text(
-                        entry.title!,
-                        style: bodyStyle(context).copyWith(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                          color: kcPrimaryTextColor,
-                        ),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
                       ),
                     ],
-
-                    const SizedBox(height: 8),
-
-                    // Entry content preview
-                    Text(
-                      entry.preview.isNotEmpty
-                          ? entry.preview.length > 100
-                              ? '${entry.preview.substring(0, 100)}...'
-                              : entry.preview
-                          : 'No content',
-                      style: bodyStyle(context).copyWith(
-                        fontSize: 14,
-                        color: kcPrimaryTextColor,
-                      ),
-                      maxLines: 4,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-
-                    const SizedBox(height: 8),
-
-                    // Entry metadata
-                    Row(
-                      children: [
-                        if (entry.media.isNotEmpty) ...[
-                          Icon(
-                            Icons.photo,
-                            size: 14,
-                            color: kcSecondaryTextColor,
-                          ),
-                          const SizedBox(width: 4),
-                        ],
-                        if (entry.keywords.isNotEmpty) ...[
-                          Icon(
-                            Icons.tag,
-                            size: 14,
-                            color: kcSecondaryTextColor,
-                          ),
-                          const SizedBox(width: 4),
-                        ],
-                        Expanded(
-                          child: Text(
-                            entry.phase ?? 'Discovery',
-                            style: captionStyle(context).copyWith(
-                              color: kcSecondaryTextColor,
-                              fontSize: 12,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
+                  ),
                 ),
               ),
             ],
@@ -595,6 +782,130 @@ class InteractiveTimelineViewState extends State<InteractiveTimelineView>
         ),
       ),
     );
+  }
+
+  Widget _buildArcformTimelineSection() {
+    if (!_showArcformTimeline) {
+      return const SizedBox.shrink();
+    }
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Card(
+        elevation: 4,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(16),
+          child: SizedBox(
+            height: 420,
+            child: _isArcformTimelineLoading
+                ? const Center(child: CircularProgressIndicator())
+                : Stack(
+                    children: [
+                      if (_phaseIndex != null)
+                        ArcformTimelineView(
+                          phaseIndex: _phaseIndex!,
+                          showPhaseCountBadge: false,
+                        )
+                      else
+                        const Center(
+                          child: Text('Timeline unavailable'),
+                        ),
+                      Positioned(
+                        top: 8,
+                        right: 8,
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            if ((_phaseIndex?.allRegimes.length ?? 0) > 0)
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 10,
+                                  vertical: 6,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Colors.black.withOpacity(0.45),
+                                  borderRadius: BorderRadius.circular(16),
+                                ),
+                                child: Text(
+                                  '${_phaseIndex!.allRegimes.length} ${_phaseIndex!.allRegimes.length == 1 ? 'phase' : 'phases'}',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                            const SizedBox(width: 8),
+                            Material(
+                              color: Colors.black.withOpacity(0.4),
+                              shape: const CircleBorder(),
+                              child: IconButton(
+                                icon: const Icon(Icons.close, color: Colors.white),
+                                tooltip: 'Hide ARCForm timeline',
+                                onPressed: () => _toggleArcformTimeline(),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+          ),
+        ),
+      ),
+    );
+  }
+
+
+  /// Toggle ARCForm Timeline visibility and load phase index if needed
+  Future<void> _toggleArcformTimeline([TimelineEntry? entry]) async {
+    if (_showArcformTimeline) {
+      setState(() {
+        _showArcformTimeline = false;
+        _phaseIndex = null;
+        _isArcformTimelineLoading = false;
+      });
+      return;
+    }
+
+    if (entry == null) {
+      // No entry context provided to open timeline.
+      return;
+    }
+
+    setState(() {
+      _showArcformTimeline = true;
+      _isArcformTimelineLoading = true;
+    });
+
+    try {
+      final analyticsService = AnalyticsService();
+      final rivetSweepService = RivetSweepService(analyticsService);
+      final phaseRegimeService =
+          PhaseRegimeService(analyticsService, rivetSweepService);
+      await phaseRegimeService.initialize();
+      final phaseIndex = phaseRegimeService.phaseIndex;
+
+      if (!mounted) return;
+      setState(() {
+        _phaseIndex = phaseIndex;
+        _isArcformTimelineLoading = false;
+      });
+    } catch (e) {
+      print('Error loading phase index: $e');
+      if (!mounted) return;
+      setState(() {
+        _isArcformTimelineLoading = false;
+        _showArcformTimeline = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Unable to load phase timeline: $e'),
+          duration: const Duration(seconds: 3),
+        ),
+      );
+    }
   }
 
   String _formatEntryDate(DateTime date) {
@@ -751,15 +1062,21 @@ class InteractiveTimelineViewState extends State<InteractiveTimelineView>
   Color _getPhaseColor(String? phase) {
     if (phase == null) return kcSecondaryTextColor;
 
-    switch (phase.toLowerCase()) {
+    final normalized = phase
+        .replaceAll('#', '')
+        .replaceAll('_', ' ')
+        .trim()
+        .toLowerCase();
+
+    switch (normalized) {
       case 'discovery':
         return const Color(0xFF4F46E5); // Blue
       case 'expansion':
-        return const Color(0xFF7C3AED); // Purple
-      case 'transition':
         return const Color(0xFF059669); // Green
-      case 'consolidation':
+      case 'transition':
         return const Color(0xFFD97706); // Orange
+      case 'consolidation':
+        return const Color(0xFF7C3AED); // Purple
       case 'recovery':
         return const Color(0xFFDC2626); // Red
       case 'breakthrough':

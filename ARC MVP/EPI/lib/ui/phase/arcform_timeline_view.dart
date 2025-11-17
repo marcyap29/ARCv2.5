@@ -15,10 +15,12 @@ import 'phase_arcform_3d_screen.dart';
 /// ARCForm Timeline View - Shows historical ARCForms for each phase regime
 class ArcformTimelineView extends StatefulWidget {
   final PhaseIndex phaseIndex;
+  final bool showPhaseCountBadge;
   
   const ArcformTimelineView({
     super.key,
     required this.phaseIndex,
+    this.showPhaseCountBadge = true,
   });
 
   @override
@@ -95,7 +97,7 @@ class _ArcformTimelineViewState extends State<ArcformTimelineView> {
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
-                if (sortedRegimes.isNotEmpty)
+                if (sortedRegimes.isNotEmpty && widget.showPhaseCountBadge)
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
@@ -182,7 +184,7 @@ class _ArcformTimelineViewState extends State<ArcformTimelineView> {
               Stack(
                 children: [
                   ConstrainedBox(
-                    constraints: const BoxConstraints(maxHeight: 280),
+                    constraints: const BoxConstraints(maxHeight: 360),
                     child: ListView.builder(
                       controller: _scrollController,
                       shrinkWrap: true,

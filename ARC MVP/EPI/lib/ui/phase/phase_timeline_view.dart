@@ -115,8 +115,6 @@ class _PhaseTimelineViewState extends State<PhaseTimelineView> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           mainAxisSize: MainAxisSize.min,
           children: [
-            _buildPhaseLegend(theme),
-            const SizedBox(height: 12),
             ConstrainedBox(
               constraints: const BoxConstraints(maxHeight: 400),
               child: ArcformTimelineView(
@@ -380,97 +378,6 @@ class _PhaseTimelineViewState extends State<PhaseTimelineView> {
         ),
         Text(
           label,
-          style: theme.textTheme.bodySmall,
-        ),
-      ],
-    );
-  }
-
-  Widget _buildPhaseLegend(ThemeData theme) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(Icons.palette, color: theme.colorScheme.primary, size: 20),
-                const SizedBox(width: 8),
-                Text(
-                  'Phase Legend',
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Wrap(
-              spacing: 12,
-              runSpacing: 8,
-              children: PhaseLabel.values.map((label) {
-                return _buildLegendItem(label, theme);
-              }).toList(),
-            ),
-            const SizedBox(height: 12),
-            const Divider(),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                _buildSourceIndicator(PhaseSource.user, theme),
-                const SizedBox(width: 16),
-                _buildSourceIndicator(PhaseSource.rivet, theme),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildLegendItem(PhaseLabel label, ThemeData theme) {
-    final color = _getPhaseColor(label);
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Container(
-          width: 16,
-          height: 16,
-          decoration: BoxDecoration(
-            color: color.withOpacity(0.7),
-            border: Border.all(color: color, width: 2),
-            borderRadius: BorderRadius.circular(4),
-          ),
-        ),
-        const SizedBox(width: 6),
-        Text(
-          label.name.toUpperCase(),
-          style: theme.textTheme.bodySmall,
-        ),
-      ],
-    );
-  }
-
-  Widget _buildSourceIndicator(PhaseSource source, ThemeData theme) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Container(
-          width: 12,
-          height: 12,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: source == PhaseSource.user ? Colors.white : Colors.transparent,
-            border: Border.all(
-              color: source == PhaseSource.user ? theme.colorScheme.primary : Colors.grey,
-              width: 2,
-            ),
-          ),
-        ),
-        const SizedBox(width: 6),
-        Text(
-          source == PhaseSource.user ? 'User Set' : 'RIVET Detected',
           style: theme.textTheme.bodySmall,
         ),
       ],
