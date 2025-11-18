@@ -1119,18 +1119,12 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
 
         final added = await FavoritesService.instance.addFavorite(favorite);
         if (added && mounted) {
+          // Always show snackbar with Manage link
           final isFirstTime = !await FavoritesService.instance.hasShownFirstTimeSnackbar();
           if (isFirstTime) {
             await FavoritesService.instance.markFirstTimeSnackbarShown();
-            _showFirstTimeSnackbar();
-          } else {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Added to Favorites'),
-                duration: Duration(seconds: 2),
-              ),
-            );
           }
+          _showFavoriteAddedSnackbar();
           setState(() {}); // Refresh UI
         }
       }
@@ -1178,7 +1172,7 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
     );
   }
 
-  void _showFirstTimeSnackbar() {
+  void _showFavoriteAddedSnackbar() {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Column(

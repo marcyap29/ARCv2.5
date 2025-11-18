@@ -448,18 +448,12 @@ class _InlineReflectionBlockState extends State<InlineReflectionBlock> {
 
         final added = await FavoritesService.instance.addFavorite(favorite);
         if (added && mounted) {
+          // Always show snackbar with Manage link
           final isFirstTime = !await FavoritesService.instance.hasShownFirstTimeSnackbar();
           if (isFirstTime) {
             await FavoritesService.instance.markFirstTimeSnackbarShown();
-            _showFirstTimeSnackbar(context);
-          } else {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Added to Favorites'),
-                duration: Duration(seconds: 2),
-              ),
-            );
           }
+          _showFavoriteAddedSnackbar(context);
           setState(() {}); // Refresh UI
         }
       }
@@ -507,7 +501,7 @@ class _InlineReflectionBlockState extends State<InlineReflectionBlock> {
     );
   }
 
-  void _showFirstTimeSnackbar(BuildContext context) {
+  void _showFavoriteAddedSnackbar(BuildContext context) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Column(
