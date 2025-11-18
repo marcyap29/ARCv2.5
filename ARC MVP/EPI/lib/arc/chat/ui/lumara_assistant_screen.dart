@@ -703,6 +703,13 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
                           onPressed: () => _speakMessage(message.content),
                           tooltip: 'Speak',
                         ),
+                        IconButton(
+                          icon: Icon(Icons.play_arrow, size: 16, color: Colors.grey[600]),
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(),
+                          onPressed: () => _continueAssistantThought(message),
+                          tooltip: 'Continue this thought',
+                        ),
                         FutureBuilder<bool>(
                           future: FavoritesService.instance.isFavorite(message.id),
                           builder: (context, snapshot) {
@@ -1237,6 +1244,13 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
     // Note: If entryToUse is still null, sendMessage will work without current entry
     // The weighted context system will still use recent LUMARA responses and other entries
     context.read<LumaraAssistantCubit>().sendMessage(message, currentEntry: entryToUse);
+  }
+
+  void _continueAssistantThought(LumaraMessage message) {
+    context.read<LumaraAssistantCubit>().continueAssistantMessage(
+          message.id,
+          currentEntry: _currentEntry,
+        );
   }
   
   /// Get the most recent journal entry as fallback for context

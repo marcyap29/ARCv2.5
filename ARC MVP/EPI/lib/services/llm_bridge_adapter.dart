@@ -26,6 +26,8 @@ class ArcLLM {
     String entryText = '',
     String? phaseHintJson,
     String? lastKeywordsJson,
+    bool isContinuation = false,
+    String? previousAssistantReply,
   }) {
     print('ArcLLM Bridge: ===== CHAT REQUEST =====');
     print('ArcLLM Bridge: User intent: $userIntent');
@@ -44,6 +46,21 @@ class ArcLLM {
           .replaceAll('{{entry_text}}', entryText)
           .replaceAll('{{phase_hint?}}', phaseHintJson ?? 'null')
           .replaceAll('{{keywords?}}', lastKeywordsJson ?? 'null');
+      if (isContinuation && previousAssistantReply != null && previousAssistantReply.trim().isNotEmpty) {
+        userPrompt += '''
+
+Continuation request:
+The previous assistant reply ended mid-thought. Resume exactly where it stopped without restating earlier paragraphs.
+
+Previous assistant text:
+"""
+$previousAssistantReply
+"""
+
+Only write the missing continuation (2–3 sentences). No recap, no new bullet list.
+''';
+      }
+
       
       // Removed brevity constraint - EnhancedLumaraApi handles response length appropriately
       // if (isInJournalReflection) {

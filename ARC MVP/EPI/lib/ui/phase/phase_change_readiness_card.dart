@@ -451,6 +451,15 @@ class _PhaseChangeReadinessCardState extends State<PhaseChangeReadinessCard> {
                             fontSize: 13,
                           ),
                         ),
+                        const SizedBox(height: 8),
+                        _AlignedPhaseBadge(
+                          phaseName: _rivetInsights?.currentPhase ??
+                              (_atlasInsights?['current_phase'] as String? ?? 'Discovery'),
+                          alignmentPercent: alignPercent.clamp(0, 100).toInt(),
+                          tracePercent: tracePercent.clamp(0, 100).toInt(),
+                          approachingPhase: _rivetInsights?.approachingPhase,
+                          shiftPercent: _rivetInsights?.shiftPercentage,
+                        ),
                       ],
                     ),
                   ),
@@ -1272,6 +1281,178 @@ class _PhaseChangeReadinessCardState extends State<PhaseChangeReadinessCard> {
           ),
         ),
       ],
+    );
+  }
+}
+
+class _AlignedPhaseBadge extends StatelessWidget {
+  final String phaseName;
+  final int alignmentPercent;
+  final int? tracePercent;
+  final String? approachingPhase;
+  final double? shiftPercent;
+
+  const _AlignedPhaseBadge({
+    required this.phaseName,
+    required this.alignmentPercent,
+    this.tracePercent,
+    this.approachingPhase,
+    this.shiftPercent,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            Colors.white.withOpacity(0.08),
+            Colors.white.withOpacity(0.02),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.white.withOpacity(0.08)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: Colors.blueAccent.withOpacity(0.2),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              Icons.auto_fix_high,
+              color: Colors.blueAccent.shade100,
+              size: 20,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Most aligned phase',
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                        color: Colors.grey[400],
+                        letterSpacing: 0.4,
+                      ),
+                ),
+                Text(
+                  phaseName,
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w600,
+                      ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                if (approachingPhase != null && approachingPhase!.isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    shiftPercent != null
+                        ? 'Trending toward $approachingPhase (+${shiftPercent!.toStringAsFixed(0)}%)'
+                        : 'Trending toward $approachingPhase',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: Colors.grey[400],
+                        ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ],
+            ),
+          ),
+          const SizedBox(width: 12),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                '$alignmentPercent%',
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
+              ),
+              Text(
+                'alignment',
+                style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                      color: Colors.grey[400],
+                    ),
+              ),
+            ],
+          ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 6,
+            children: [
+              if (tracePercent != null)
+                _MetricChip(
+                  label: 'Evidence confidence',
+                  value: '${tracePercent!.clamp(0, 100)}%',
+                ),
+              _MetricChip(
+                label: 'Readiness signals',
+                value: alignmentPercent >= 60 ? 'Strong' : (alignmentPercent >= 40 ? 'Emerging' : 'Forming'),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MetricChip extends StatelessWidget {
+  final String label;
+  final String value;
+
+  const _MetricChip({
+    required this.label,
+    required this.value,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.06),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: Colors.white.withOpacity(0.08)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            label,
+            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                  color: Colors.grey[400],
+                  letterSpacing: 0.3,
+                ),
+          ),
+          Text(
+            value,
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w600,
+                ),
+          ),
+        ],
+      ),
     );
   }
 }

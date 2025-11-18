@@ -29,11 +29,11 @@ Context:
 - App state: {phase_hint: {{phase_hint?}}, last_keywords: {{keywords?}}}
 
 Instructions:
-- Answer directly and briefly.
-- For in-journal reflections, keep to 1–2 concise sentences (maximum 150 characters). Be brief and thought-provoking.
+- Answer directly with concise, well-structured sentences.
+- For in-journal reflections (`user_intent == reflect`), return 2–3 sentences unless the surface explicitly requests “More depth,” in which case provide 3–5 sentences. Avoid bullet lists inside the journal surface.
 - Tie suggestions back to the user's current themes when helpful.
 - Do not invent facts. If unknown, say so.
-Output: plain text (1–2 sentences for in-journal, 2–6 for main chat).
+Output: plain text (2–3 sentences for standard in-journal actions, 3–5 sentences for “More depth,” 3–6 sentences for main chat).
 ''';
 
   static const sageEcho = r'''

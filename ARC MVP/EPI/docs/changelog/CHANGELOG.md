@@ -1,7 +1,57 @@
 # EPI ARC MVP - Changelog
 
-**Version:** 2.1.19  
+**Version:** 2.1.20  
 **Last Updated:** January 2025
+
+## [2.1.20] - January 2025
+
+### **LUMARA Continuation & Reflection Improvements** - Complete
+
+#### Continuation Support
+- **Cross-Surface Continuation**: Added "Continue thought" functionality for both in-chat and in-journal LUMARA responses
+- **In-Chat Continuation**: Assistant messages now include a play-arrow button to continue interrupted responses
+- **In-Journal Continuation**: Inline reflection blocks include a "Continue thought" action button
+- **Smart Context Preservation**: Continuation requests reuse existing context and attribution traces
+- **Seamless Completion**: LUMARA can now finish incomplete thoughts without regenerating entire responses
+
+#### Reflection Length Updates
+- **Expanded Standard Reflections**: In-journal reflections now use 2-3 sentences (up from 1-2 sentences, 150 characters)
+- **Enhanced Depth Option**: "More depth" reflections now use 3-5 sentences for richer exploration
+- **Consistent Limits**: All reflection actions (initial, regenerate, soften tone) follow the same 2-3 sentence guideline
+- **Better Mobile UX**: Longer reflections provide more meaningful insights while remaining concise
+
+#### UI/UX Improvements
+- **Button Renaming**: "Continue with LUMARA" renamed to "Explore LUMARA conversation options" for clarity
+- **Continuation Mode**: New `ConversationMode.continueThought` added to reflection options
+- **Prompt Engineering**: Continuation prompts instruct LUMARA to resume exactly where previous response stopped
+
+**Files Modified**:
+- `lib/arc/chat/models/lumara_reflection_options.dart` - Added `continueThought` conversation mode
+- `lib/arc/chat/services/enhanced_lumara_api.dart` - Added continuation prompt handling
+- `lib/services/llm_bridge_adapter.dart` - Added continuation support to ArcLLM
+- `lib/arc/chat/bloc/lumara_assistant_cubit.dart` - Added `continueAssistantMessage()` method
+- `lib/arc/chat/ui/lumara_assistant_screen.dart` - Added continuation button to assistant messages
+- `lib/ui/journal/widgets/inline_reflection_block.dart` - Added "Continue thought" button
+- `lib/ui/journal/journal_screen.dart` - Updated continuation handler for new mode
+- `lib/core/prompts_arc.dart` - Updated sentence limits for in-journal reflections
+
+**Status**: ✅ Complete - Continuation support fully implemented across all LUMARA interfaces
+
+### **Phase Transition Readiness Card Enhancement** - Complete
+
+#### Phase Alignment Mini-Card
+- **Most Aligned Phase Display**: Added mini-card showing current phase and alignment percentage
+- **Trend Indicators**: Displays trending phase direction with shift percentage when available
+- **Additional Metrics**: Shows evidence confidence and readiness signal strength
+- **Horizontal Layout**: Optimized card layout for better mobile UX with multi-line support
+- **Visual Polish**: Enhanced styling with gradient backgrounds and metric chips
+
+**Files Modified**:
+- `lib/ui/phase/phase_change_readiness_card.dart` - Added `_AlignedPhaseBadge` widget with enhanced metrics
+
+**Status**: ✅ Complete - Phase alignment card provides richer insights with improved visual design
+
+---
 
 ## [2.1.19] - January 2025
 
@@ -12,6 +62,11 @@
 - **Phase Legend on Demand**: The Phase Legend dropdown now appears only when the ARCForm Timeline is expanded, keeping the Journal timeline uncluttered during normal browsing.
 - **Full-Screen ARCForm Review**: When a user taps the phase color rail, the app bar, search/filter chrome, and other controls collapse so the ARCForm Timeline card can use the majority of the viewport. Closing the ARCForm timeline restores the chrome automatically.
 - **Clickable Phase Rail**: The left-side phase strip is wider, shows an “ARC ✨” hint, and supports tap + swipe gestures (right to open, left to close) so it’s clear that it opens the ARCForm timeline.
+
+### **Documentation Refresh** - Complete
+
+- Updated **Architecture Overview**, **Bug Tracker**, **Features Guide**, **Comprehensive Guide**, **Status**, **Reports**, **Updates**, and **Docs README** to describe the new timeline chrome behavior, note version bumps, and capture the resolved phase legend issue.
+- Archived a snapshot of these updates under `docs/archive/updates_jan_2025`.
 
 #### Import Navigation & UX Improvements
 - **Auto-Navigation to Main Screen**: After successful import, clicking "Done" now automatically navigates to the main screen (HomeView) instead of leaving users on the import screen

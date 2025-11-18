@@ -2100,6 +2100,7 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
         onRegenerate: () => _onRegenerateReflection(index),
         onSoften: () => _onSoftenReflection(index),
         onMoreDepth: () => _onMoreDepthReflection(index),
+        onContinueThought: () => _onContinueThought(index),
         onContinueWithLumara: () => _onContinueWithLumara(index),
         onDelete: () => _onDeleteReflection(index),
       ));
@@ -4015,6 +4016,10 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
         },
       ),
     );
+  }
+
+  Future<void> _onContinueThought(int index) async {
+    await _handleLumaraContinuation(lumara_models.ConversationMode.continueThought, index);
   }
 
   /// Handle LUMARA continuation with conversation mode (v2.3)

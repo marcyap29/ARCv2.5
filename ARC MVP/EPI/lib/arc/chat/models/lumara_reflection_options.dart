@@ -47,6 +47,9 @@ enum ConversationMode {
   
   /// Reflect more deeply (invoke More Depth pipeline)
   reflectDeeply,
+
+  /// Finish the previous reply without restarting context
+  continueThought,
 }
 
 /// Media candidate for multimodal context

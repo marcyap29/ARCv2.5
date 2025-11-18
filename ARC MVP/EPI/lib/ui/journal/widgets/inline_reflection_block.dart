@@ -18,6 +18,7 @@ class InlineReflectionBlock extends StatefulWidget {
   final VoidCallback onSoften;
   final VoidCallback onMoreDepth;
   final VoidCallback onContinueWithLumara;
+  final VoidCallback onContinueThought;
   final VoidCallback onDelete;
   final List<AttributionTrace>? attributionTraces; // Memory attribution traces
   final String? blockId; // Unique ID for favorites tracking
@@ -33,6 +34,7 @@ class InlineReflectionBlock extends StatefulWidget {
     required this.onSoften,
     required this.onMoreDepth,
     required this.onContinueWithLumara,
+    required this.onContinueThought,
     required this.onDelete,
     this.attributionTraces,
     this.blockId,
@@ -308,7 +310,12 @@ class _InlineReflectionBlockState extends State<InlineReflectionBlock> {
                       onPressed: widget.isLoading ? () {} : widget.onMoreDepth,
                     ),
                     _ActionButton(
-                      label: 'Continue with LUMARA',
+                      label: 'Continue thought',
+                      icon: Icons.play_arrow,
+                      onPressed: widget.isLoading ? () {} : widget.onContinueThought,
+                    ),
+                    _ActionButton(
+                      label: 'Explore LUMARA conversation options',
                       icon: Icons.chat,
                       onPressed: widget.isLoading ? () {} : widget.onContinueWithLumara,
                       isPrimary: true,

@@ -40,6 +40,11 @@ class EnhancedLumaraApi {
   final SemanticSimilarityService _similarity = SemanticSimilarityService();
   final ReflectivePromptGenerator _promptGen = ReflectivePromptGenerator();
   final AttributionService _attributionService = AttributionService();
+
+  static const String _standardReflectionLengthRule =
+      'Return the full reflection as 2–3 complete sentences so it stays concise inside the journal entry. Avoid bullet points.';
+  static const String _deepReflectionLengthRule =
+      'Return the full reflection as 3–5 complete sentences to provide noticeably more depth while still avoiding bullet points.';
   
   // LLM Provider tracking (for logging only - we use geminiSend directly)
   LLMProviderBase? _llmProvider;
@@ -259,6 +264,7 @@ class EnhancedLumaraApi {
             // Continuation dialogue mode
             final mode = request.options.conversationMode!;
             String modeInstruction = '';
+            var lengthInstruction = _standardReflectionLengthRule;
             switch (mode) {
               case models.ConversationMode.ideas:
                 modeInstruction = 'Expand Open step into 2–3 practical but gentle suggestions drawn from user\'s past successful patterns. Tone: Warm, creative.';
@@ -274,21 +280,25 @@ class EnhancedLumaraApi {
                 break;
               case models.ConversationMode.reflectDeeply:
                 modeInstruction = 'Invoke More Depth pipeline, reusing current reflection and adding a new Clarify + Open pair. Tone: Introspective.';
+                lengthInstruction = _deepReflectionLengthRule;
+                break;
+              case models.ConversationMode.continueThought:
+                modeInstruction = 'Resume the exact reflection that was interrupted. Continue the final idea without restarting context or repeating earlier lines. Pick up mid-sentence if needed.';
                 break;
             }
-            userPrompt = '$baseContext\n\n$modeInstruction Follow the ECHO structure (Empathize → Clarify → Highlight → Open).';
+            userPrompt = '$baseContext\n\n$modeInstruction Follow the ECHO structure (Empathize → Clarify → Highlight → Open). $lengthInstruction';
           } else if (request.options.regenerate) {
             // Regenerate: different rhetorical focus
-            userPrompt = '$baseContext\n\nRebuild reflection from same input with different rhetorical focus. Randomly vary Highlight and Open. Keep empathy level constant. Follow ECHO structure.';
+            userPrompt = '$baseContext\n\nRebuild reflection from same input with different rhetorical focus. Randomly vary Highlight and Open. Keep empathy level constant. Follow ECHO structure. $_standardReflectionLengthRule';
           } else if (request.options.toneMode == models.ToneMode.soft) {
             // Soften tone
-            userPrompt = '$baseContext\n\nRewrite in gentler, slower rhythm. Reduce question count to 1. Add permission language ("It\'s okay if this takes time."). Apply tone-softening rule for Recovery/Consolidation even if phase is unknown. Follow ECHO structure.';
+            userPrompt = '$baseContext\n\nRewrite in gentler, slower rhythm. Reduce question count to 1. Add permission language ("It\'s okay if this takes time."). Apply tone-softening rule for Recovery/Consolidation even if phase is unknown. Follow ECHO structure. $_standardReflectionLengthRule';
           } else if (request.options.preferQuestionExpansion) {
             // More depth
-            userPrompt = '$baseContext\n\nExpand Clarify and Highlight steps for richer introspection. Add 1 additional reflective link. Follow ECHO structure with deeper exploration.';
+            userPrompt = '$baseContext\n\nExpand Clarify and Highlight steps for richer introspection. Add 1 additional reflective link. Follow ECHO structure with deeper exploration. $_deepReflectionLengthRule';
           } else {
             // Default: first activation with rich context
-            userPrompt = '$baseContext\n\nFollow the ECHO structure (Empathize → Clarify → Highlight → Open) and include 1-2 clarifying expansion questions that help deepen the reflection. Consider the mood, phase, circadian context, recent chats, and any media when crafting questions that feel personally relevant and timely. Be thoughtful and allow for meaningful engagement.';
+            userPrompt = '$baseContext\n\nFollow the ECHO structure (Empathize → Clarify → Highlight → Open) and include 1-2 clarifying expansion questions that help deepen the reflection. Consider the mood, phase, circadian context, recent chats, and any media when crafting questions that feel personally relevant and timely. Be thoughtful and allow for meaningful engagement. $_standardReflectionLengthRule';
           }
           
           // Use Gemini API directly via geminiSend() - same as main LUMARA chat

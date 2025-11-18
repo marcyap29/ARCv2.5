@@ -361,6 +361,81 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
       ));
     }
   }
+
+  Future<void> continueAssistantMessage(
+    String messageId, {
+    JournalEntry? currentEntry,
+  }) async {
+    final currentState = state;
+    if (currentState is! LumaraAssistantLoaded) return;
+
+    final targetIndex = currentState.messages.lastIndexWhere(
+      (m) => m.id == messageId && m.role == LumaraMessageRole.assistant,
+    );
+    if (targetIndex == -1) {
+      print('LUMARA Debug: continueAssistantMessage called with unknown messageId $messageId');
+      return;
+    }
+
+    final targetMessage = currentState.messages[targetIndex];
+    final previousUserMessage = _findPreviousUserMessage(currentState.messages, startIndex: targetIndex);
+    final fallbackIntent = 'Please continue the previous reflection exactly where it stopped.';
+    final userIntent = previousUserMessage?.content ?? fallbackIntent;
+
+    emit(currentState.copyWith(isProcessing: true, apiErrorMessage: null));
+
+    try {
+      final context = await _contextProvider.buildContext(scope: currentState.scope);
+      final contextResult = await _buildEntryContext(
+        context,
+        userQuery: userIntent,
+        currentEntry: currentEntry,
+      );
+      final entryText = contextResult['context'] as String;
+      var attributionTraces = contextResult['attributionTraces'] as List<AttributionTrace>;
+      final phaseHint = _buildPhaseHint(context);
+      final keywords = _buildKeywordsContext(context);
+
+      final response = await _arcLLM.chat(
+        userIntent: userIntent,
+        entryText: entryText,
+        phaseHintJson: phaseHint,
+        lastKeywordsJson: keywords,
+        isContinuation: true,
+        previousAssistantReply: targetMessage.content,
+      );
+
+      if (attributionTraces.isNotEmpty) {
+        attributionTraces = await _enrichAttributionTraces(attributionTraces);
+      }
+
+      await _recordAssistantMessage(response);
+      final assistantMessage = LumaraMessage.assistant(
+        content: response,
+        attributionTraces: attributionTraces,
+      );
+      await _addToChatSession(response, 'assistant', messageId: assistantMessage.id, timestamp: assistantMessage.timestamp);
+
+      final updatedMessages = [
+        ...currentState.messages,
+        assistantMessage,
+      ];
+
+      _speakResponseIfEnabled(response);
+      emit(currentState.copyWith(
+        messages: updatedMessages,
+        isProcessing: false,
+        apiErrorMessage: null,
+      ));
+      print('LUMARA Debug: Continuation response completed for message $messageId');
+    } catch (e) {
+      print('LUMARA Debug: Continuation failed: $e');
+      emit(currentState.copyWith(
+        isProcessing: false,
+        apiErrorMessage: 'Unable to continue that response right now. Please try again.',
+      ));
+    }
+  }
   
   /// Process a message and generate response with attribution
   /// Priority: On-Device → Cloud API → Rule-Based (security-first)
@@ -1285,6 +1360,19 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
       'context': result,
       'attributionTraces': attributionTraces,
     };
+  }
+
+  LumaraMessage? _findPreviousUserMessage(
+    List<LumaraMessage> messages, {
+    required int startIndex,
+  }) {
+    for (int i = startIndex; i >= 0; i--) {
+      final message = messages[i];
+      if (message.role == LumaraMessageRole.user) {
+        return message;
+      }
+    }
+    return null;
   }
 
   /// Calculate dynamic confidence (0.75-0.85) for current entry based on relevance
