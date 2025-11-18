@@ -1,7 +1,7 @@
 # EPI Documentation
 
 **Last Updated:** January 2025  
-**Version:** 2.1.21
+**Version:** 2.1.22
 
 ## Documentation Structure
 
@@ -80,8 +80,8 @@ Policy specifications:
 
 ## Version Information
 
-**Current Version:** 2.1.21  
-**Last Major Update:** January 2025 (Phase Regime Import Fix - Correct entry tagging from ARCX imports)
+**Current Version:** 2.1.22  
+**Last Major Update:** January 2025 (Enhanced Phase Transition Guidance - Clear, specific explanations for near-ready states)
 
 See `changelog/CHANGELOG.md` for detailed version history.
 

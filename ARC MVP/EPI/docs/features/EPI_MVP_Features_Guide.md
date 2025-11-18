@@ -200,6 +200,10 @@ EPI MVP provides a comprehensive set of features for intelligent journaling, AI 
 
 **Phase Analysis**
 - **RIVET Integration**: Uses RIVET state for phase transition readiness
+- **Enhanced Transition Guidance**: Clear, specific explanations when close to phase transition (e.g., "You're at 99%! Just need 1% more alignment")
+- **Context-Aware Messaging**: Different guidance based on which requirement is close (alignment, evidence quality, entries, etc.)
+- **Current State Visibility**: Shows exact percentages and gaps so users know exactly what's missing
+- **Actionable Tips**: Provides specific suggestions for what to write about to complete phase transition
 - **Phase Statistics**: Comprehensive phase timeline statistics
 - **Phase Regimes**: Timeline of life phases (Discovery, Expansion, Transition, Consolidation, Recovery, Breakthrough)
 - **System State Export**: Complete phase-related system state backup (RIVET, Sentinel, ArcForm)

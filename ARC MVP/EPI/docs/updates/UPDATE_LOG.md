@@ -1,11 +1,21 @@
 # EPI MVP - Update Log
 
-**Version:** 1.0.3  
+**Version:** 1.0.4  
 **Last Updated:** January 2025
 
 ---
 
 ## Update History
+
+### Version 2.1.22 (January 2025)
+
+#### Enhanced Phase Transition Guidance
+- ✅ Added specific 99% messaging - users now see exactly what's missing when very close
+- ✅ Improved plain language explanations - replaced technical terms with clear, actionable guidance
+- ✅ Context-aware messages - different guidance based on which requirement is close
+- ✅ Visual enhancements - amber theme and celebration icons when 95%+ ready
+- ✅ Current state visibility - shows exact percentages and gaps
+- ✅ Actionable tips - specific suggestions for what to write about
 
 ### Version 2.1.21 (January 2025)
 

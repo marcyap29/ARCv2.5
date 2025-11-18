@@ -1,7 +1,36 @@
 # EPI ARC MVP - Changelog
 
-**Version:** 2.1.21  
+**Version:** 2.1.22  
 **Last Updated:** January 2025
+
+## [2.1.22] - January 2025
+
+### **Enhanced Phase Transition Guidance** - Complete
+
+#### Improved User Communication
+- **Specific 99% Messaging**: When users are at 99% readiness, the system now provides specific, actionable guidance about what's missing
+- **Plain Language Explanations**: Replaced technical jargon with clear, user-friendly language explaining why a phase transition hasn't occurred yet
+- **Context-Aware Messages**: Different messages based on which specific requirement is close (alignment, evidence quality, entries, etc.)
+- **Visual Feedback**: Enhanced UI with amber color scheme and celebration icons when users are very close (95%+)
+
+#### Key Improvements
+- **Current State Visibility**: Shows current percentages (e.g., "Your entries are 59% aligned") so users know exactly where they stand
+- **Gap Identification**: Clearly states what's missing (e.g., "just need 1% more alignment")
+- **Actionable Tips**: Provides specific suggestions (e.g., "Try writing about themes that match the new phase more closely")
+- **Encouraging Messages**: Adds motivational notes when very close ("You're so close! Just a bit more journaling and you'll be ready.")
+
+#### Technical Changes
+- Added `_getGuidanceBannerMessage()` method for context-aware messaging
+- Enhanced `_buildEnhancedProgressDisplay()` with specific guidance for 95%+ progress
+- Improved requirement explanations with current state and gap analysis
+- Added visual distinction (amber theme) for near-ready states
+
+**Files Modified**:
+- `lib/ui/phase/phase_change_readiness_card.dart` - Enhanced messaging and guidance system
+
+**Status**: ✅ Complete - Users now receive clear, specific guidance about phase transition readiness
+
+---
 
 ## [2.1.21] - January 2025
 

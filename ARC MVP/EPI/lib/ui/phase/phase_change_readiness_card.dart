@@ -851,6 +851,30 @@ class _PhaseChangeReadinessCardState extends State<PhaseChangeReadinessCard> {
     );
   }
 
+  String _getGuidanceBannerMessage(int align, int trace, int entries, bool hasIndependent, String? targetPhase) {
+    // Calculate how close they are
+    final alignClose = align >= 59 && align < 60;
+    final traceClose = trace >= 59 && trace < 60;
+    final veryClose = (alignClose || traceClose) && entries >= 1 && hasIndependent;
+    
+    if (veryClose) {
+      // When very close (99% range), be specific
+      if (alignClose && traceClose) {
+        return 'You\'re at 99%! Just need a tiny bit more alignment and evidence quality.';
+      } else if (alignClose) {
+        return 'You\'re at 99%! Just need ${60 - align}% more alignment in your entries.';
+      } else if (traceClose) {
+        return 'You\'re at 99%! Just need ${60 - trace}% more evidence quality.';
+      }
+    }
+    
+    // Default message
+    final phaseName = targetPhase != null && targetPhase.isNotEmpty
+        ? targetPhase[0].toUpperCase() + targetPhase.substring(1)
+        : 'next phase';
+    return 'You\'re close to $phaseName. Remaining checklist:';
+  }
+
   Widget _buildPhaseGuidanceBanner(
     int align,
     int trace,
@@ -904,7 +928,7 @@ class _PhaseChangeReadinessCardState extends State<PhaseChangeReadinessCard> {
                 child: Text(
                   isReady
                       ? 'All requirements met. Keep journaling to confirm $targetPhase.'
-                      : 'You\'re close to $targetPhase. Remaining checklist:',
+                      : _getGuidanceBannerMessage(align, trace, entries, hasIndependent, targetPhase),
                   style: TextStyle(
                     fontWeight: FontWeight.w600,
                     color: Colors.white,
@@ -1079,29 +1103,73 @@ class _PhaseChangeReadinessCardState extends State<PhaseChangeReadinessCard> {
         nextSteps.add('Review your recent entries for emerging patterns.');
       }
     } else {
-      // Not ready - show what's needed
-      if (qualifyingEntries >= 1) {
+      // Not ready - show what's needed with specific, user-friendly explanations
+      final isVeryClose = progress >= 0.95; // 95% or higher
+      
+      if (isVeryClose) {
+        // When very close (95%+), be more specific about what's missing
+        readinessMessage = '🎯 You\'re almost there! Just one more thing needed:';
+      } else if (qualifyingEntries >= 1) {
         readinessMessage = '📈 Almost there - keep journaling to validate phase transition!';
       } else {
         readinessMessage = '📝 Building your phase profile...';
       }
       
-      // Build list of what's still needed
+      // Build list of what's still needed with more specific, user-friendly language
       if (_rivetState != null) {
+        // Check each requirement and explain what's missing in plain language
+        final allRequirements = <String>[];
+        
         if (qualifyingEntries < 2) {
           final needed = 2 - qualifyingEntries;
-          nextSteps.add('Write $needed more journal ${needed == 1 ? 'entry' : 'entries'} that reflect phase transition patterns.');
+          if (isVeryClose) {
+            allRequirements.add('Write $needed more journal ${needed == 1 ? 'entry' : 'entries'} that clearly shows you\'re moving toward a new phase.');
+          } else {
+            allRequirements.add('Write $needed more journal ${needed == 1 ? 'entry' : 'entries'} that reflect phase transition patterns.');
+          }
         }
+        
         if (!hasIndependent) {
-          nextSteps.add('Create entries on different days to show independent validation.');
+          if (isVeryClose) {
+            allRequirements.add('Create at least one entry on a different day - this shows the pattern is consistent, not just a one-time thing.');
+          } else {
+            allRequirements.add('Create entries on different days to show independent validation.');
+          }
         }
+        
         if (_rivetState!.align < 0.6) {
           final gap = ((0.6 - _rivetState!.align) * 100).toInt();
-          nextSteps.add('Increase alignment by $gap% - ensure your entries match predicted phase patterns.');
+          final currentAlign = (_rivetState!.align * 100).toInt();
+          if (isVeryClose && gap <= 1) {
+            allRequirements.add('Your entries are ${currentAlign}% aligned with the new phase - just need ${gap}% more alignment. Try writing about themes that match the new phase more closely.');
+          } else if (isVeryClose) {
+            allRequirements.add('Your entries are ${currentAlign}% aligned - need ${gap}% more. Focus on writing about experiences that match the new phase\'s characteristics.');
+          } else {
+            allRequirements.add('Increase alignment by $gap% - ensure your entries match predicted phase patterns.');
+          }
         }
+        
         if (_rivetState!.trace < 0.6) {
           final gap = ((0.6 - _rivetState!.trace) * 100).toInt();
-          nextSteps.add('Build evidence trace by $gap% - continue journaling to accumulate validation data.');
+          final currentTrace = (_rivetState!.trace * 100).toInt();
+          if (isVeryClose && gap <= 1) {
+            allRequirements.add('Evidence quality is at ${currentTrace}% - just ${gap}% more needed. Keep journaling to build a stronger pattern.');
+          } else if (isVeryClose) {
+            allRequirements.add('Evidence quality is at ${currentTrace}% - need ${gap}% more. Continue journaling regularly to strengthen the pattern.');
+          } else {
+            allRequirements.add('Build evidence trace by $gap% - continue journaling to accumulate validation data.');
+          }
+        }
+        
+        // If very close and all requirements are met except one, be extra specific
+        if (isVeryClose && allRequirements.length == 1) {
+          nextSteps.add(allRequirements[0]);
+          // Add a helpful tip
+          if (qualifyingEntries >= 2 && hasIndependent && _rivetState!.align >= 0.59 && _rivetState!.trace >= 0.59) {
+            nextSteps.add('You\'re literally one entry away! Write about how you\'re feeling or what\'s changing in your life right now.');
+          }
+        } else {
+          nextSteps.addAll(allRequirements);
         }
       } else {
         nextSteps.add('Keep journaling regularly to build your phase profile.');
@@ -1275,28 +1343,44 @@ class _PhaseChangeReadinessCardState extends State<PhaseChangeReadinessCard> {
             ),
           ),
         ] else if (nextSteps.isNotEmpty) ...[
-          // Show what's needed if not ready
+          // Show what's needed if not ready - with more specific guidance when close
           const SizedBox(height: 8),
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: Colors.orange.withOpacity(0.1),
+              color: progress >= 0.95 
+                  ? Colors.amber.withOpacity(0.15) 
+                  : Colors.orange.withOpacity(0.1),
               borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: Colors.orange.withOpacity(0.3)),
+              border: Border.all(
+                color: progress >= 0.95 
+                    ? Colors.amber.withOpacity(0.4) 
+                    : Colors.orange.withOpacity(0.3),
+              ),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
                   children: [
-                    Icon(Icons.info_outline, size: 16, color: Colors.orange.shade400),
+                    Icon(
+                      progress >= 0.95 ? Icons.near_me : Icons.info_outline, 
+                      size: 16, 
+                      color: progress >= 0.95 ? Colors.amber.shade400 : Colors.orange.shade400,
+                    ),
                     const SizedBox(width: 6),
-                    Text(
-                      'To move to a new phase:',
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.orange.shade300,
+                    Expanded(
+                      child: Text(
+                        progress >= 0.95 
+                            ? 'Almost there! Here\'s what\'s left:'
+                            : 'To move to a new phase:',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: progress >= 0.95 
+                              ? Colors.amber.shade300 
+                              : Colors.orange.shade300,
+                        ),
                       ),
                     ),
                   ],
@@ -1307,20 +1391,59 @@ class _PhaseChangeReadinessCardState extends State<PhaseChangeReadinessCard> {
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('• ', style: TextStyle(color: Colors.grey[400], fontSize: 12)),
+                      Text(
+                        progress >= 0.95 ? '→ ' : '• ', 
+                        style: TextStyle(
+                          color: progress >= 0.95 
+                              ? Colors.amber.shade300 
+                              : Colors.grey[400], 
+                          fontSize: 12,
+                          fontWeight: progress >= 0.95 ? FontWeight.bold : FontWeight.normal,
+                        ),
+                      ),
                       Expanded(
                         child: Text(
                           step,
                           style: TextStyle(
-                            fontSize: 11,
-                            color: Colors.grey[300],
+                            fontSize: progress >= 0.95 ? 12 : 11,
+                            color: progress >= 0.95 
+                                ? Colors.grey[200] 
+                                : Colors.grey[300],
                             height: 1.4,
+                            fontWeight: progress >= 0.95 ? FontWeight.w500 : FontWeight.normal,
                           ),
                         ),
                       ),
                     ],
                   ),
                 )),
+                // Add encouraging note when very close
+                if (progress >= 0.95) ...[
+                  const SizedBox(height: 8),
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.amber.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.celebration, size: 14, color: Colors.amber.shade300),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            'You\'re so close! Just a bit more journaling and you\'ll be ready.',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: Colors.amber.shade200,
+                              fontStyle: FontStyle.italic,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
