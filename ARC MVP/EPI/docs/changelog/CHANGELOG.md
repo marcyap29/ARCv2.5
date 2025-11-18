@@ -1,7 +1,28 @@
 # EPI ARC MVP - Changelog
 
-**Version:** 2.1.20  
+**Version:** 2.1.21  
 **Last Updated:** January 2025
+
+## [2.1.21] - January 2025
+
+### **Phase Regime Import Fix** - Complete
+
+#### Import Order Fix
+- **Fixed Import Sequence**: Phase regimes are now imported BEFORE entries, ensuring regimes are available when entries are converted
+- **Service Re-initialization**: After importing phase regimes, the service is re-initialized to refresh the PhaseIndex with newly imported regimes
+- **Correct Entry Tagging**: Entries imported from ARCX files now correctly receive phase hashtags based on imported phase regimes, not defaulting to "Discovery"
+
+#### Technical Changes
+- **Import Order**: Changed from "Media → Entries → Chats → Phase Regimes" to "Media → Phase Regimes → Entries → Chats"
+- **Service Instance**: Fixed `_convertEntryJsonToJournalEntry()` to use existing `_phaseRegimeService` instance instead of creating a new one
+- **Index Refresh**: Added explicit re-initialization of PhaseRegimeService after importing regimes to ensure PhaseIndex is updated
+
+**Files Modified**:
+- `lib/polymeta/store/arcx/services/arcx_import_service_v2.dart` - Fixed import order and service usage
+
+**Status**: ✅ Complete - Phase regime import and entry tagging now works correctly
+
+---
 
 ## [2.1.20] - January 2025
 

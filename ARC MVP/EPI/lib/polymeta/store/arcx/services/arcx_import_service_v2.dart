@@ -18,8 +18,6 @@ import 'package:my_app/arc/core/journal_repository.dart';
 import 'package:my_app/arc/chat/chat/chat_repo.dart';
 import 'package:my_app/arc/chat/chat/chat_models.dart';
 import 'package:my_app/services/phase_regime_service.dart';
-import 'package:my_app/services/analytics_service.dart';
-import 'package:my_app/services/rivet_sweep_service.dart';
 import 'package:my_app/models/phase_models.dart';
 import 'package:uuid/uuid.dart';
 import '../models/arcx_manifest.dart';
@@ -234,7 +232,7 @@ class ARCXImportServiceV2 {
           await _validateChecksums(payloadDir, manifest.checksumsInfo!.file);
         }
         
-        // Step 8: Import in order: Media first, then Entries, then Chats, then Phase Regimes
+        // Step 8: Import in order: Media first, then Phase Regimes (for entry tagging), then Entries, then Chats
         int mediaImported = 0;
         int entriesImported = 0;
         int chatsImported = 0;
@@ -252,7 +250,34 @@ class ARCXImportServiceV2 {
           );
         }
         
-        // Import Entries
+        // Import Phase Regimes FIRST (before entries) so entries can be tagged correctly
+        int rivetStatesImported = 0;
+        int sentinelStatesImported = 0;
+        int arcformSnapshotsImported = 0;
+        int lumaraFavoritesImported = 0;
+        
+        if (_phaseRegimeService != null) {
+          phaseRegimesImported = await _importPhaseRegimes(
+            payloadDir: payloadDir,
+            onProgress: onProgress,
+          );
+          
+          // Re-initialize service after importing regimes to refresh PhaseIndex
+          if (phaseRegimesImported > 0) {
+            await _phaseRegimeService!.initialize();
+            print('ARCX Import V2: ✓ Re-initialized PhaseRegimeService after importing $phaseRegimesImported regimes');
+          }
+          
+          // Import RIVET state, Sentinel state, ArcForm timeline, and LUMARA favorites alongside phase regimes
+          rivetStatesImported = await _importRivetState(payloadDir, onProgress: onProgress);
+          sentinelStatesImported = await _importSentinelState(payloadDir, onProgress: onProgress);
+          arcformSnapshotsImported = await _importArcFormTimeline(payloadDir, onProgress: onProgress);
+        }
+        
+        // Import LUMARA favorites (doesn't require phaseRegimeService)
+        lumaraFavoritesImported = await _importLumaraFavorites(payloadDir, onProgress: onProgress);
+        
+        // Import Entries AFTER phase regimes so they can be tagged correctly
         final entriesDir = Directory(path.join(payloadDir.path, 'Entries'));
         if (await entriesDir.exists()) {
           onProgress?.call('Importing entries...');
@@ -273,27 +298,6 @@ class ARCXImportServiceV2 {
             onProgress: onProgress,
           );
         }
-        
-        // Import Phase Regimes, RIVET state, Sentinel state, ArcForm timeline, and LUMARA favorites
-        int rivetStatesImported = 0;
-        int sentinelStatesImported = 0;
-        int arcformSnapshotsImported = 0;
-        int lumaraFavoritesImported = 0;
-        
-        if (_phaseRegimeService != null) {
-          phaseRegimesImported = await _importPhaseRegimes(
-            payloadDir: payloadDir,
-            onProgress: onProgress,
-          );
-          
-          // Import RIVET state, Sentinel state, ArcForm timeline, and LUMARA favorites alongside phase regimes
-          rivetStatesImported = await _importRivetState(payloadDir, onProgress: onProgress);
-          sentinelStatesImported = await _importSentinelState(payloadDir, onProgress: onProgress);
-          arcformSnapshotsImported = await _importArcFormTimeline(payloadDir, onProgress: onProgress);
-        }
-        
-        // Import LUMARA favorites (doesn't require phaseRegimeService)
-        lumaraFavoritesImported = await _importLumaraFavorites(payloadDir, onProgress: onProgress);
         
         // Step 9: Resolve links
         if (options.resolveLinks) {
@@ -1150,29 +1154,32 @@ class ARCXImportServiceV2 {
       String contentWithPhase = content;
       if (!phaseHashtagPattern.hasMatch(content)) {
         // No phase hashtag found - use Phase Regime system to determine phase based on entry date
-        try {
-          final analyticsService = AnalyticsService();
-          final rivetSweepService = RivetSweepService(analyticsService);
-          final phaseRegimeService = PhaseRegimeService(analyticsService, rivetSweepService);
-          await phaseRegimeService.initialize();
-          
-          // Find the regime that contains the entry's date
-          final regime = phaseRegimeService.phaseIndex.regimeFor(createdAt);
-          
-          if (regime != null) {
-            // Entry date falls within a phase regime - use that phase
-            final phaseName = _getPhaseLabelNameFromEnum(regime.label).toLowerCase();
-            final phaseHashtag = '#$phaseName';
-            contentWithPhase = '$content $phaseHashtag'.trim();
+        // Use the existing _phaseRegimeService instance (which should have imported regimes)
+        if (_phaseRegimeService != null) {
+          try {
+            // Service should already be initialized with imported regimes
+            // No need to call initialize() again - it's already done after import
             
-            print('ARCX Import V2: Auto-added phase hashtag $phaseHashtag to imported entry $entryId (from regime: ${regime.label}, date: $createdAt)');
-          } else {
-            // Entry date doesn't fall within any regime - no hashtag added
-            print('ARCX Import V2: Entry $entryId date $createdAt does not fall within any phase regime, skipping hashtag');
+            // Find the regime that contains the entry's date
+            final regime = _phaseRegimeService!.phaseIndex.regimeFor(createdAt);
+            
+            if (regime != null) {
+              // Entry date falls within a phase regime - use that phase
+              final phaseName = _getPhaseLabelNameFromEnum(regime.label).toLowerCase();
+              final phaseHashtag = '#$phaseName';
+              contentWithPhase = '$content $phaseHashtag'.trim();
+              
+              print('ARCX Import V2: Auto-added phase hashtag $phaseHashtag to imported entry $entryId (from regime: ${regime.label}, date: $createdAt)');
+            } else {
+              // Entry date doesn't fall within any regime - no hashtag added
+              print('ARCX Import V2: Entry $entryId date $createdAt does not fall within any phase regime, skipping hashtag');
+            }
+          } catch (e) {
+            print('ARCX Import V2: ERROR: Failed to determine phase from regime for entry $entryId: $e');
+            // Fallback: return content as-is if regime lookup fails
           }
-        } catch (e) {
-          print('ARCX Import V2: ERROR: Failed to determine phase from regime for entry $entryId: $e');
-          // Fallback: return content as-is if regime lookup fails
+        } else {
+          print('ARCX Import V2: WARNING: No PhaseRegimeService available, cannot auto-tag entry $entryId');
         }
       } else {
         print('ARCX Import V2: Entry $entryId already has phase hashtag, preserving existing');

@@ -1,11 +1,20 @@
 # EPI MVP - Update Log
 
-**Version:** 1.0.2  
+**Version:** 1.0.3  
 **Last Updated:** January 2025
 
 ---
 
 ## Update History
+
+### Version 2.1.21 (January 2025)
+
+#### Phase Regime Import Fix
+- ✅ Fixed import order - Phase regimes now imported BEFORE entries
+- ✅ Fixed service instance usage - Entry conversion uses existing service with imported regimes
+- ✅ Added service re-initialization after importing regimes to refresh PhaseIndex
+- ✅ Entries from ARCX files now correctly tagged based on imported phase regimes
+- ✅ Resolved issue where entries defaulted to "Discovery" instead of correct phase
 
 ### Version 2.1.20 (January 2025)
 

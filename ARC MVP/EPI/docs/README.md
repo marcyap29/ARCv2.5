@@ -1,7 +1,7 @@
 # EPI Documentation
 
 **Last Updated:** January 2025  
-**Version:** 2.1.20
+**Version:** 2.1.21
 
 ## Documentation Structure
 
@@ -80,8 +80,8 @@ Policy specifications:
 
 ## Version Information
 
-**Current Version:** 2.1.20  
-**Last Major Update:** January 2025 (Automatic Phase Hashtag System - Phase Regime-based assignment)
+**Current Version:** 2.1.21  
+**Last Major Update:** January 2025 (Phase Regime Import Fix - Correct entry tagging from ARCX imports)
 
 See `changelog/CHANGELOG.md` for detailed version history.
 
