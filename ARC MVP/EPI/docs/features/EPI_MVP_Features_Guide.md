@@ -1,7 +1,7 @@
 # EPI MVP - Comprehensive Features Guide
 
-**Version:** 1.0.2  
-**Last Updated:** November 2025
+**Version:** 1.0.4  
+**Last Updated:** January 2025
 
 ---
 
@@ -39,6 +39,7 @@ EPI MVP provides a comprehensive set of features for intelligent journaling, AI 
 **Text Journaling**
 - Rich text entry with auto-capitalization
 - Real-time keyword analysis
+- **Automatic Phase Hashtag Assignment**: Phase hashtags (e.g., `#discovery`, `#transition`) are automatically added based on Phase Regimes - no manual tagging required
 - Phase detection and suggestions
 - Draft management with auto-save
 
@@ -69,6 +70,7 @@ EPI MVP provides a comprehensive set of features for intelligent journaling, AI 
 - **Entry Selection**: Multi-select for batch operations
 - **Entry Viewing**: Full entry view with media
 - **Entry Editing**: Inline editing capabilities
+- **Adaptive ARCForm Preview**: Timeline chrome collapses and the phase legend appears only when the ARCForm timeline rail is expanded, giving users a full-height preview when they need it and a clean journal canvas otherwise.
 
 ---
 
@@ -231,6 +233,14 @@ EPI MVP provides a comprehensive set of features for intelligent journaling, AI 
 - **SENTINEL Monitoring**: Risk assessment
 - **Phase Transitions**: Change point detection
 - **Phase Regimes**: Timeline-based phase segments
+
+**Automatic Phase Hashtag System**
+- **Phase Regime-Based Assignment**: Phase hashtags automatically assigned based on which Phase Regime the entry's date falls into
+- **No Manual Input Required**: Users no longer need to manually type `#phase` hashtags - system handles it automatically
+- **Consistent Tagging**: All entries within the same time period (same regime) receive the same phase hashtag
+- **Automatic Updates**: When phase changes occur at regime level, all affected entries' hashtags are updated automatically
+- **Import Support**: ARCX imported entries automatically receive phase hashtags based on their import date's regime
+- **Color Integration**: Entry colors automatically update when phase hashtags change, as colors are derived from hashtags
 
 ### Insights
 
@@ -397,6 +407,6 @@ All core features are production-ready and fully operational:
 ---
 
 **Features Guide Status:** ✅ Complete  
-**Last Updated:** November 2025  
-**Version:** 1.0.0
+**Last Updated:** November 17, 2025  
+**Version:** 1.0.3
 

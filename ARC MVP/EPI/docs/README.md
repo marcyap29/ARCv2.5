@@ -1,13 +1,13 @@
 # EPI Documentation
 
 **Last Updated:** January 2025  
-**Version:** 2.1.18
+**Version:** 2.1.20
 
 ## Documentation Structure
 
 ### 📁 `/architecture/`
 Core architecture documentation and system design:
-- `ARCHITECTURE_OVERVIEW.md` - Current system architecture (v2.1)
+- `ARCHITECTURE_OVERVIEW.md` - Current system architecture (v2.1.1) including dynamic journal chrome notes
 - `EPI_Consolidated_Architecture.md` - Detailed architecture consolidation
 - `Migration_Status.md` - Migration progress and status
 
@@ -80,8 +80,8 @@ Policy specifications:
 
 ## Version Information
 
-**Current Version:** 2.1.18  
-**Last Major Update:** January 2025
+**Current Version:** 2.1.20  
+**Last Major Update:** January 2025 (Automatic Phase Hashtag System - Phase Regime-based assignment)
 
 See `changelog/CHANGELOG.md` for detailed version history.
 

@@ -1,7 +1,7 @@
 # EPI Architecture Overview
 
-**Version:** 2.1  
-**Last Updated:** November 4, 2025  
+**Version:** 2.1.2  
+**Last Updated:** January 2025  
 **Status:** ✅ Production Ready
 
 ---
@@ -27,11 +27,13 @@ EPI (Evolving Personal Intelligence) is a 5-module intelligent journaling system
 
 **Key Features:**
 - Journal entry capture and editing
+- **Automatic Phase Hashtag System**: Entries automatically receive phase hashtags based on Phase Regimes (date-based), eliminating need for manual tagging
 - LUMARA chat interface (maintains LUMARA branding)
   - Favorites system for style adaptation (up to 25 favorites)
   - Style exemplars guide tone, structure, rhythm, and depth
 - ARCForm visualization with phase-aware layouts
 - Privacy-first data handling
+- Dynamic timeline chrome that collapses navigation and resurfaced phase legend only when ARCForm Timeline is expanded, keeping the journal canvas distraction-free while still surfacing phase context on demand.
 
 ---
 
@@ -51,9 +53,11 @@ EPI (Evolving Personal Intelligence) is a 5-module intelligent journaling system
 
 **Key Features:**
 - Multi-modal content analysis (OCR, object detection, transcription)
+- **Phase Regime System**: Time-bounded phase periods with start/end dates that determine phase hashtags for entries
 - Phase detection with cooldown and hysteresis to prevent oscillation
 - RIVET gating for phase transitions (evidence validation)
 - SENTINEL risk monitoring (escalating pattern detection)
+- **Phase Hashtag Management**: Automatic hashtag assignment based on entry dates falling within phase regimes
 
 ---
 

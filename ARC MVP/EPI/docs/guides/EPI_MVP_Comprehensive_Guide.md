@@ -1,6 +1,6 @@
 # EPI MVP - Comprehensive Guide
 
-**Version:** 1.0.3  
+**Version:** 1.0.5  
 **Last Updated:** January 2025
 
 ---
@@ -85,6 +85,7 @@ EPI is an AI-powered journaling companion that:
 - Create text entries with rich formatting
 - Auto-capitalization enabled
 - Real-time keyword analysis
+- **Automatic Phase Hashtags**: Phase hashtags (e.g., `#discovery`, `#transition`) are automatically added based on Phase Regimes - no need to manually type them
 - Phase detection and suggestions
 
 **Multimodal Journaling**
@@ -98,6 +99,7 @@ EPI is an AI-powered journaling companion that:
 - Edit existing entries (text, date, time, location, phase)
 - Delete entries with confirmation
 - Search and filter capabilities
+- ARCForm timeline rail expands with a tap on the colored strip; when expanded the header/search chrome hides automatically and the phase legend dropdown appears directly above the preview for extra context.
 
 ### LUMARA AI Assistant
 
@@ -385,6 +387,6 @@ flutter test --coverage
 ---
 
 **Guide Status:** ✅ Complete  
-**Last Updated:** January 2025  
-**Version:** 1.0.0
+**Last Updated:** November 17, 2025  
+**Version:** 1.0.4
 

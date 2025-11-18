@@ -1,43 +1,956 @@
-# EPI ARC MVP - Changelog
 
-**Version:** 2.1.20  
-**Last Updated:** January 2025
-
-## [2.1.20] - January 2025
-
-### **Automatic Phase Hashtag System** - Complete
-
-#### Phase Regime-Based Hashtag Assignment
-- **Automatic Phase Detection**: Journal entries now automatically receive phase hashtags based on Phase Regimes (date-based system) rather than requiring manual input
-- **No Manual Tagging Required**: Users no longer need to manually type `#phase` hashtags - the system automatically adds them
-- **Phase Regime Integration**: Hashtags are determined by which Phase Regime the entry's date falls into, ensuring consistency across all entries in the same time period
-- **Smart Defaults**: If an entry date doesn't fall within any regime, no hashtag is added (preserving data integrity)
-
-#### Implementation Details
-- **Entry Creation**: All entry save methods (`saveEntry`, `saveEntryWithKeywords`, `saveEntryWithPhase`, etc.) now automatically check for missing phase hashtags and add them based on the entry's date
-- **Entry Updates**: When editing entries, the system re-evaluates the phase hashtag based on the entry's date (which may have changed)
-- **ARCX Import**: Imported entries from ARCX files automatically receive phase hashtags based on their import date's regime
-- **Old System Compatibility**: Entries from the old system (where no hashtag = discovery) are now properly tagged based on their date's regime
-
-#### Phase Change Integration
-- **Regime-Based Updates**: When phase changes occur (via RIVET, PhaseTracker, or manual changes), the system updates the Phase Regime and automatically updates hashtags for all affected entries
-- **Color Updates**: Entry colors automatically update when phase hashtags change, as colors are derived from the hashtag in content
-- **No Per-Entry Phase Changes**: Phase changes happen at the regime level, not triggered by individual entries, preventing oscillation
-
-#### Phase Legend Enhancement
-- **No Phase Indicator**: Added "NO PHASE" entry to Phase Legend dropdown with default color (`kcSecondaryTextColor`) for entries without phase hashtags
-- **Complete Legend**: Phase Legend now shows all 6 phases plus "NO PHASE" for comprehensive reference
-
-**Files Modified**:
-- `lib/arc/core/journal_capture_cubit.dart` - Added `_ensurePhaseHashtagInContent()` method using Phase Regimes, updated all save methods
-- `lib/polymeta/store/arcx/services/arcx_import_service_v2.dart` - Updated to use Phase Regimes for imported entries
-- `lib/polymeta/store/arcx/services/arcx_import_service.dart` - Updated to use Phase Regimes for imported entries
-- `lib/arc/ui/timeline/timeline_view.dart` - Added "NO PHASE" to Phase Legend
-- `lib/services/phase_regime_service.dart` - Enhanced phase change handling to update hashtags
-
-**Status**: ✅ Complete - Automatic phase hashtag system fully implemented and tested
 
 ---
+
+## bugtracker/records/journal-editor-issues.md
+
+# Journal Editor Issues Resolved
+
+Date: 2025-01-17
+Status: Resolved ✅
+Area: Journal editor UX
+
+Summary
+- Fixed unnecessary save prompts, missing metadata editing, poor change detection, auto-save/auto-restore nuisances, and draft visibility.
+
+Fix
+- Added explicit viewing vs editing modes; smart change tracking.
+- Metadata editing: date, time, location, phase.
+- Removed auto-save on lifecycle; removed auto-restore for new entries.
+- Draft count badge; clean initialization for new entries.
+
+Verification
+- Seamless viewing/edit flow, accurate prompts, metadata editable, fewer surprises.
+
+References
+- `docs/bugtracker/Bug_Tracker.md` (Journal Editor Issues Resolved)
+
+
+---
+
+## bugtracker/records/lumara-integration-formatting.md
+
+# LUMARA Integration Formatting Fix
+
+Date: 2025-01-12
+Status: Resolved ✅
+Area: LUMARA, Gemini provider, text insertion
+
+Summary
+- Gemini API JSON structure invalid (missing role) and text insertion complexity caused reflection insertion failures.
+
+Fix
+- Restored correct systemInstruction JSON with `'role': 'system'`.
+- Simplified insertion logic; ensured safe cursor positioning and bounds checks.
+
+Files
+- `lib/lumara/llm/providers/gemini_provider.dart`
+- `lib/ui/journal/journal_screen.dart`
+
+Verification
+- Reflections insert cleanly; no JSON format errors.
+
+References
+- `docs/bugtracker/Bug_Tracker.md` (LUMARA Integration Formatting Fix)
+
+
+---
+
+## bugtracker/records/lumara-response-cutoff.md
+
+# LUMARA In-Chat Response Cutoff Issue
+
+**Date:** January 2025  
+**Status:** 🔍 Investigating  
+**Severity:** High  
+**Priority:** High
+
+---
+
+## Problem Description
+
+LUMARA in-chat replies sometimes get cut off mid-response. Users report that responses appear incomplete or truncated.
+
+---
+
+## Root Causes Identified
+
+### 1. On-Device Model Token Limits (Primary Issue)
+
+**Location:** `lib/arc/chat/llm/llm_adapter.dart:353-355`
+
+**Issue:** On-device models have very restrictive token limits:
+```dart
+final adaptiveMaxTokens = useMinimalPrompt
+    ? 32   // Ultra-terse for simple greetings
+    : (preset['max_new_tokens'] ?? 64);  // Conservative for tiny models
+```
+
+**Impact:** 
+- Responses are limited to 32-64 tokens
+- This is approximately 25-50 words
+- Longer responses get cut off mid-sentence
+
+**Evidence:**
+- Model presets show `max_new_tokens: 80-256` but adapter defaults to 64
+- This is too conservative for meaningful responses
+
+### 2. Streaming Error Handling (Secondary Issue)
+
+**Location:** `lib/arc/chat/bloc/lumara_assistant_cubit.dart:855-870`
+
+**Issue:** If streaming encounters an error, the entire response is replaced with an error message:
+```dart
+catch (e) {
+  print('LUMARA Debug: Error during streaming: $e');
+  // Handle error by showing error message
+  final errorMessage = LumaraMessage.assistant(
+    content: "I'm sorry, I encountered an error while streaming the response. Please try again.",
+  );
+  // This replaces the partial response that was already streaming
+}
+```
+
+**Impact:**
+- If streaming fails partway through, user sees error message instead of partial response
+- Makes it appear like response was cut off
+
+### 3. Network/Streaming Interruption
+
+**Location:** `lib/arc/chat/bloc/lumara_assistant_cubit.dart:763-792`
+
+**Issue:** If the Gemini stream is interrupted (network issue, timeout), the response will be incomplete but may not show an error.
+
+**Impact:**
+- Incomplete responses without clear indication
+- User sees partial response that appears cut off
+
+---
+
+## Proposed Solutions
+
+### Solution 1: Increase On-Device Token Limits
+
+**File:** `lib/arc/chat/llm/llm_adapter.dart`
+
+**Change:**
+```dart
+// Current (too restrictive):
+final adaptiveMaxTokens = useMinimalPrompt
+    ? 32
+    : (preset['max_new_tokens'] ?? 64);
+
+// Proposed (more reasonable):
+final adaptiveMaxTokens = useMinimalPrompt
+    ? 128   // Still concise but allows complete thoughts
+    : (preset['max_new_tokens'] ?? 256);  // Use preset value or reasonable default
+```
+
+**Rationale:**
+- 128 tokens allows for 2-3 complete sentences
+- 256 tokens allows for meaningful paragraphs
+- Still conservative for mobile but not overly restrictive
+
+### Solution 2: Preserve Partial Responses on Error
+
+**File:** `lib/arc/chat/bloc/lumara_assistant_cubit.dart`
+
+**Change:**
+```dart
+catch (e) {
+  print('LUMARA Debug: Error during streaming: $e');
+  
+  // Preserve partial response if we have one
+  if (state is LumaraAssistantLoaded) {
+    final currentMessages = (state as LumaraAssistantLoaded).messages;
+    if (currentMessages.isNotEmpty) {
+      final lastIndex = currentMessages.length - 1;
+      final lastMessage = currentMessages[lastIndex];
+      
+      // If we have partial content, keep it and append error note
+      if (lastMessage.content.isNotEmpty && lastMessage.content.length > 10) {
+        final partialContent = lastMessage.content;
+        final errorMessage = LumaraMessage.assistant(
+          content: '$partialContent\n\n[Response was interrupted. Please try again if you need more.]',
+        );
+        
+        final finalMessages = [
+          ...currentMessages.sublist(0, lastIndex),
+          errorMessage,
+        ];
+        
+        emit((state as LumaraAssistantLoaded).copyWith(
+          messages: finalMessages,
+          isProcessing: false,
+        ));
+        return; // Exit early, we've preserved the partial response
+      }
+    }
+  }
+  
+  // Only show full error message if we have no partial response
+  final errorMessage = LumaraMessage.assistant(
+    content: "I'm sorry, I encountered an error while streaming the response. Please try again.",
+  );
+  // ... rest of error handling
+}
+```
+
+**Rationale:**
+- Preserves partial responses so users can see what was generated
+- Adds clear indication if response was interrupted
+- Better user experience than losing all progress
+
+### Solution 3: Add Streaming Timeout and Retry Logic
+
+**File:** `lib/arc/chat/bloc/lumara_assistant_cubit.dart`
+
+**Change:**
+- Add timeout detection for streaming
+- Implement retry logic for network interruptions
+- Add progress indicators for long responses
+
+---
+
+## Testing Plan
+
+1. **Test On-Device Models:**
+   - Verify responses complete with increased token limits
+   - Test with various response lengths
+   - Monitor performance impact
+
+2. **Test Error Handling:**
+   - Simulate network interruptions
+   - Verify partial responses are preserved
+   - Test error message display
+
+3. **Test Streaming:**
+   - Test with long responses (>500 tokens)
+   - Verify complete streaming
+   - Test timeout scenarios
+
+---
+
+## Related Files
+
+- `lib/arc/chat/llm/llm_adapter.dart` - Token limit configuration
+- `lib/arc/chat/bloc/lumara_assistant_cubit.dart` - Streaming and error handling
+- `lib/arc/chat/llm/prompts/lumara_model_presets.dart` - Model preset definitions
+- `lib/arc/chat/ui/lumara_assistant_screen.dart` - UI rendering (no truncation found)
+
+---
+
+## Status
+
+- [x] Issue identified
+- [x] Root causes documented
+- [ ] Solutions implemented
+- [ ] Testing completed
+- [ ] Fix verified
+
+---
+
+**Last Updated:** January 2025
+
+
+---
+
+## bugtracker/records/lumara-settings-refresh-loop.md
+
+# LUMARA Settings Refresh Loop During Model Downloads
+
+Date: 2025-01-12
+Status: Resolved ✅
+Area: Settings UI, Model downloads
+
+Summary
+- Excessive API refreshes and terminal spam during model download progress updates.
+
+Impact
+- UI jank/blocking, noisy logs, degraded UX.
+
+Root Cause
+- Progress updates triggered frequent refreshes without debouncing or completion tracking.
+
+Fix
+- Add completion tracking set to avoid duplicate processing.
+- Add 5s cooldown between refreshes; reduce timeouts; increase UI debounce to 500ms.
+- Throttle logging.
+
+Files
+- `lib/lumara/ui/lumara_settings_screen.dart`
+
+Verification
+- Smooth downloads; clean logs; no refresh loops.
+
+References
+- `docs/bugtracker/Bug_Tracker.md` (LUMARA Settings Refresh Loop Fix)
+
+
+---
+
+## bugtracker/records/mcp-repair-system-fixes.md
+
+# MCP Repair System Issues Resolved
+
+Date: 2025-01-17
+Status: Resolved ✅
+Area: MCP export/repair
+
+Summary
+- Multiple MCP repair defects: chat/journal separation, over-aggressive duplicate removal, schema/manifest errors, checksum mismatches.
+
+Impact
+- Corrupted/merged data, lost legitimate entries, failing validations, unreliable share artifacts.
+
+Fix
+- Proper chat vs journal separation.
+- Duplicate detection logic corrected (aggressiveness reduced from 84% → 0.6%).
+- Schema and manifest validations corrected; checksums repaired.
+- Unified repair UI with detailed share sheet summary.
+- iOS file saving fixed to accessible Documents directory.
+
+Verification
+- Repaired packages validate; entries restored correctly; share sheet shows accurate repair summary.
+
+References
+- `docs/bugtracker/Bug_Tracker.md` (MCP Repair System Issues Resolved)
+
+
+---
+
+## bugtracker/records/mediaitem-adapter-registration-conflict.md
+
+# MediaItem Adapter Registration Conflict
+
+Date: 2025-10-29
+Status: Resolved ✅
+Area: Hive adapters, Import
+
+Summary
+- Import failed to save entries with media due to adapter ID conflicts and registration timing.
+
+Impact
+- Entries with photos failed to persist; import reported not imported entries.
+
+Root Cause
+- Rivet adapters used IDs 10/11 conflicting with MediaType/MediaItem 10/11.
+- Parallel init led to inconsistent registration checks and missing MediaItem adapter at save time.
+
+Fix
+- Change Rivet adapter IDs to 20/21/22.
+- Regenerate adapters; fix keywords Set conversion.
+- Add `_ensureMediaItemAdapter()` safety check before saving entries with media.
+- Add logging to verify registration.
+
+Files
+- `lib/atlas/rivet/rivet_models.dart`
+- `lib/atlas/rivet/rivet_storage.dart`
+- `lib/atlas/rivet/rivet_models.g.dart`
+- `lib/main/bootstrap.dart`
+- `lib/arc/core/journal_repository.dart`
+
+Verification
+- All entries with photos import and save; no adapter ID conflicts.
+
+References
+- `docs/status/MEDIAITEM_ADAPTER_FIX_OCT_29_2025.md`
+
+
+---
+
+## bugtracker/records/phase-analysis-integration-bugs.md
+
+# Phase Analysis Integration Bugs
+
+Date: 2025-01-22
+Status: Resolved ✅
+Area: Phase analysis, Rivet sweep, UI
+
+Summary
+- RIVET Sweep failure on empty entries list; missing creation of PhaseRegime objects after approval.
+
+Fix
+- Integrated `JournalRepository` for real entries; min count validation (≥5).
+- Changed wizard callback to `onApprove(proposals, overrides)`; created `_createPhaseRegimes()` to persist regimes and refresh.
+
+Verification
+- Sweep no longer fails; regimes appear in timeline and stats post-approval.
+
+References
+- `docs/bugtracker/Bug_Tracker.md` (Phase Analysis Integration Complete)
+
+
+---
+
+## bugtracker/records/photo-duplication-view-entry.md
+
+# Photo Duplication in View Entry
+
+Date: 2025-10-29
+Status: Resolved ✅
+Area: Journal UI
+
+Summary
+- Photos appeared twice in view-only mode: once inline in content and again in the Photos section.
+
+Impact
+- Visual duplication, confusing UX in entry view.
+
+Root Cause
+- `_buildContentView()` rendered photos when `isViewOnly`.
+- `_buildInterleavedContent()` also rendered photos via `_buildPhotoThumbnailGrid()`.
+
+Fix
+- Remove photo rendering from `_buildContentView()`; only render text.
+- Keep single source of truth via `_buildInterleavedContent()` → `_buildPhotoThumbnailGrid()`.
+
+Files
+- `lib/ui/journal/journal_screen.dart`
+
+Verification
+- Photos render only once in Photos section; layout clean.
+
+References
+- `docs/status/PHOTO_DUPLICATION_FIX_OCT_29_2025.md`
+
+
+---
+
+## bugtracker/records/rivet-deterministic-recompute.md
+
+# RIVET Deterministic Recompute System
+
+Date: 2025-01-12
+Status: Resolved ✅
+Area: RIVET state engine
+
+Summary
+- Lack of true undo-on-delete and fragile in-place EMA/TRACE updates resulted in inconsistent state.
+
+Fix
+- Deterministic recompute pipeline using pure reducer pattern.
+- Enhanced models (eventId/version), service rewrite with apply/delete/edit.
+- Event log storage with checkpoints; comprehensive telemetry.
+- 12 unit tests covering scenarios.
+
+Verification
+- Correct, repeatable state; O(n) recompute with checkpoints; reliable undo.
+
+References
+- `docs/bugtracker/Bug_Tracker.md` (RIVET Deterministic Recompute System)
+
+
+---
+
+## bugtracker/records/timeline-infinite-rebuild-loop.md
+
+# Timeline Infinite Rebuild Loop
+
+Date: 2025-10-29
+Status: Resolved ✅
+Area: Timeline UI (Flutter)
+
+Summary
+- Timeline was stuck in an infinite rebuild loop due to a post-frame callback triggering parent setState repeatedly.
+- Introduced previous state tracking and conditional notifications to break the loop; guarded parent setState.
+
+Impact
+- High CPU usage, potential UI freeze, noisy logs, degraded UX.
+
+Root Cause
+1) `BlocBuilder` in `InteractiveTimelineView` scheduled `_notifySelectionChanged()` via `addPostFrameCallback` on every rebuild.
+2) Callback triggered `setState()` in parent `TimelineView`, causing child rebuild and re-triggering again (feedback loop).
+
+Fix
+- Add `_previousSelectionMode`, `_previousSelectedCount`, `_previousTotalEntries` to track last notification state.
+- Only notify when selection state changes; update previous values immediately.
+- Guard parent to only call `setState()` when values actually change.
+
+Files
+- `lib/arc/ui/timeline/widgets/interactive_timeline_view.dart`
+- `lib/arc/ui/timeline/timeline_view.dart`
+
+Verification
+- Timeline rebuilds only on actual state change or interaction. No loops observed.
+
+References
+- `docs/status/TIMELINE_REBUILD_LOOP_FIX_OCT_29_2025.md`
+
+
+
+---
+
+## bugtracker/records/timeline-ordering-timestamps.md
+
+# Timeline Ordering & Timestamp Inconsistencies
+
+Date: 2025-01-21
+Status: Resolved ✅
+Area: Import/Export, Timeline sorting
+
+Summary
+- Inconsistent timestamp formats led to incorrect ordering on timeline and import/export issues.
+
+Impact
+- Entries out of order; parsing failures for malformed timestamps.
+
+Root Cause
+- Mixed timestamp formats; missing 'Z' UTC suffix in some exports.
+
+Fix
+- Standardize to ISO 8601 UTC with 'Z' in export (`_formatTimestamp`).
+- Robust import parser with fallbacks (`_parseTimestamp`).
+
+Files
+- `lib/arcx/services/arcx_export_service.dart`
+- `lib/arcx/services/arcx_import_service.dart`
+
+Verification
+- Timeline orders correctly; exports valid; imports handle legacy data.
+
+References
+- `docs/bugtracker/Bug_Tracker.md` (Timeline Ordering & Timestamp Fixes)
+
+
+---
+
+## bugtracker/records/timeline-overflow-empty-state.md
+
+# Timeline RenderFlex Overflow on Empty State
+
+Date: 2025-10-26
+Status: Resolved ✅
+Area: Timeline UI
+
+Summary
+- RenderFlex overflow occurred when all entries were deleted.
+
+Impact
+- Visual overflow (~5.7 px), poor empty-state UX.
+
+Root Cause
+- Button label not constrained within row/flex.
+
+Fix
+- Wrap text in `Flexible` with `softWrap` and overflow handling.
+
+Files
+- `lib/features/timeline/widgets/interactive_timeline_view.dart`
+
+Verification
+- No overflow on empty timeline; layout stable.
+
+References
+- Mentioned in `docs/bugtracker/Bug_Tracker.md` (Timeline Overflow Fix)
+
+
+---
+
+## bugtracker/records/ui-ux-critical-fixes-jan-08-2025.md
+
+# UI/UX Critical Fixes
+
+Date: 2025-01-08
+Status: Resolved ✅
+Area: Journal UI, Settings, LUMARA
+
+Summary
+- Multiple critical UI issues: cursor alignment, Gemini JSON formatting, missing delete button for models, LUMARA insertion, keyword widgets.
+
+Fix
+- Text cursor alignment restored; Gemini JSON fixed; delete buttons reinstated; LUMARA insertion stabilized; keyword features verified.
+
+References
+- `docs/bugtracker/Bug_Tracker.md` (UI/UX Critical Fixes)
+- See also `docs/bugtracker/UI_UX_FIXES_JAN_2025.md`
+
+
+---
+
+## bugtracker/records/ui-ux-fixes-jan-2025.md
+
+# UI/UX Critical Fixes - January 2025
+
+**Date:** January 12, 2025  
+**Status:** ✅ **RESOLVED**  
+**Impact:** Critical UI/UX issues affecting core journal functionality
+
+## 🎯 Overview
+
+Multiple critical UI/UX issues were identified and resolved that were affecting the core journal functionality. These issues were caused by recent changes that broke several working features. All fixes were implemented based on analysis of git history to restore previously working functionality.
+
+## 🐛 Issues Resolved
+
+### 1. Text Cursor Alignment Issue ✅ **RESOLVED**
+
+**Problem:**
+- Text cursor was not properly aligned with text in the journal input field
+- Cursor appeared misaligned or invisible, making it difficult to see typing position
+
+**Root Cause:**
+- Using `AIStyledTextField` instead of proper `TextField` with cursor styling
+- Missing cursor-specific styling properties
+
+**Solution:**
+- Replaced `AIStyledTextField` with proper `TextField` implementation
+- Added comprehensive cursor styling based on working version from commit `d3dec3e`
+
+**Technical Implementation:**
+```dart
+TextField(
+  controller: _textController,
+  style: theme.textTheme.bodyLarge?.copyWith(
+    color: Colors.white,
+    fontSize: 16,
+    height: 1.5, // Consistent line height
+  ),
+  cursorColor: Colors.white,
+  cursorWidth: 2.0,
+  cursorHeight: 20.0,
+  decoration: InputDecoration(
+    hintText: 'What\'s on your mind right now?',
+    hintStyle: theme.textTheme.bodyLarge?.copyWith(
+      color: Colors.white.withOpacity(0.5),
+      fontSize: 16,
+      height: 1.5, // Match text style height
+    ),
+    border: InputBorder.none,
+    contentPadding: EdgeInsets.zero,
+    focusedBorder: InputBorder.none,
+    enabledBorder: InputBorder.none,
+  ),
+  textInputAction: TextInputAction.newline,
+)
+```
+
+**Result:** Text cursor now properly aligned and visible with white color and appropriate sizing.
+
+### 2. Gemini API JSON Formatting Error ✅ **RESOLVED**
+
+**Problem:**
+- `Invalid argument (string): Contains invalid characters` error when using Gemini API
+- LUMARA unable to generate responses using cloud API
+
+**Root Cause:**
+- Missing `'role': 'system'` in the systemInstruction JSON structure
+- Incorrect JSON format for Gemini API compatibility
+
+**Solution:**
+- Restored correct JSON structure from commit `09a4070`
+- Fixed systemInstruction format to match Gemini API requirements
+
+**Technical Implementation:**
+```dart
+// Before (broken):
+'systemInstruction': {
+  'parts': [
+    {'text': systemPrompt}
+  ]
+},
+
+// After (fixed):
+'systemInstruction': {
+  'role': 'system',  // ← This was missing!
+  'parts': [
+    {'text': systemPrompt}
+  ]
+},
+```
+
+**Result:** Gemini API now works correctly without JSON formatting errors.
+
+### 3. Delete Buttons Missing for Downloaded Models ✅ **RESOLVED**
+
+**Problem:**
+- Delete buttons were missing from downloaded models in LUMARA settings
+- Users couldn't delete downloaded models to free up space
+
+**Root Cause:**
+- Delete functionality was removed in recent changes
+- Missing UI elements for model management
+
+**Solution:**
+- Restored delete functionality based on commit `9976797`
+- Implemented proper delete button with confirmation dialog
+
+**Technical Implementation:**
+```dart
+// Delete button appears when model is downloaded and available
+else if (isInternal && isDownloaded && isAvailable)
+  Row(
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      if (isSelected)
+        Icon(Icons.check_circle, color: theme.colorScheme.primary, size: 20),
+      if (isSelected) const SizedBox(width: 8),
+      IconButton(
+        onPressed: () => _deleteModel(config),
+        icon: const Icon(Icons.delete_outline, size: 18),
+        tooltip: 'Delete Model',
+        style: IconButton.styleFrom(
+          foregroundColor: theme.colorScheme.error,
+          padding: const EdgeInsets.all(4),
+          minimumSize: const Size(32, 32),
+          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        ),
+      ),
+    ],
+  ),
+```
+
+**Result:** Delete buttons now appear next to downloaded models with proper confirmation dialogs.
+
+### 4. LUMARA Insight Integration Issues ✅ **RESOLVED**
+
+**Problem:**
+- LUMARA insights not properly inserting into journal entries
+- Cursor position not maintained after text insertion
+- Potential RangeError when inserting text
+
+**Root Cause:**
+- Missing proper cursor position validation
+- Unsafe text insertion without bounds checking
+
+**Solution:**
+- Added proper cursor position validation
+- Implemented safe text insertion with bounds checking
+
+**Technical Implementation:**
+```dart
+void _insertAISuggestion(String suggestion) {
+  final currentText = _textController.text;
+  final cursorPosition = _textController.selection.baseOffset;
+
+  // Validate cursor position to prevent RangeError
+  final safeCursorPosition = (cursorPosition >= 0 && cursorPosition <= currentText.length) 
+      ? cursorPosition 
+      : currentText.length;
+
+  // Create formatted suggestion text
+  final formattedSuggestion = '\n\n[AI_SUGGESTION_START]$suggestion[AI_SUGGESTION_END]\n';
+
+  // Insert at safe cursor position
+  final newText = currentText.substring(0, safeCursorPosition) +
+                 formattedSuggestion +
+                 currentText.substring(safeCursorPosition);
+
+  _textController.text = newText;
+  _textController.selection = TextSelection.collapsed(
+    offset: safeCursorPosition + formattedSuggestion.length,
+  );
+
+  _onTextChanged(newText);
+}
+```
+
+**Result:** LUMARA insights now insert properly at cursor position without errors.
+
+### 5. Keywords Discovered Functionality ✅ **VERIFIED**
+
+**Problem:**
+- Keywords Discovered section not working properly
+- Missing keyword analysis and management features
+
+**Root Cause:**
+- Widget was implemented but may have had visibility or integration issues
+
+**Solution:**
+- Verified `KeywordsDiscoveredWidget` is properly integrated
+- Confirmed real-time keyword analysis functionality
+
+**Technical Implementation:**
+```dart
+// Keywords Discovered section (conditional visibility)
+if (_showKeywordsDiscovered)
+  KeywordsDiscoveredWidget(
+    text: _entryState.text,
+    manualKeywords: _manualKeywords,
+    onKeywordsChanged: (keywords) {
+      setState(() {
+        _manualKeywords = keywords;
+      });
+    },
+    onAddKeywords: _showKeywordDialog,
+  ),
+```
+
+**Result:** Keywords Discovered functionality working correctly with real-time analysis.
+
+### 6. LUMARA Integration Formatting Fix ✅ **RESOLVED**
+
+**Problem:**
+- LUMARA reflections not inserting properly into journal entries
+- Gemini API throwing "Invalid argument (string): Contains invalid characters" error
+- Complex text insertion method causing formatting issues
+
+**Root Cause:**
+- Missing `'role': 'system'` field in systemInstruction JSON structure causing JSON parsing errors
+- Complex text insertion with special markers causing formatting issues
+- Current implementation was more complex than the working version
+
+**Solution:**
+- Restored working Gemini API implementation from commit `09a4070`
+- Reverted to simple text insertion method from working commit `0f7a87a`
+
+**Technical Implementation:**
+```dart
+// Gemini Provider Fix - Restored from commit 09a4070
+final body = {
+  if (systemPrompt.trim().isNotEmpty)
+    'systemInstruction': {
+      'role': 'system',  // This was the missing field!
+      'parts': [
+        {'text': systemPrompt}
+      ]
+    },
+  'contents': [
+    {
+      'role': 'user',
+      'parts': [
+        {'text': userPrompt}
+      ]
+    }
+  ],
+  'generationConfig': {
+    'temperature': 0.7,
+    'maxOutputTokens': 500,
+    'topP': 0.8,
+    'topK': 40,
+  },
+};
+
+// LUMARA Text Insertion Fix - From commit 0f7a87a
+void _insertAISuggestion(String suggestion) {
+  final currentText = _textController.text;
+  final cursorPosition = _textController.selection.baseOffset;
+  
+  final insertPosition = cursorPosition >= 0 ? cursorPosition : currentText.length;
+  final newText = '${currentText.substring(0, insertPosition)}\n\n$suggestion\n\n${currentText.substring(insertPosition)}';
+  
+  _textController.text = newText;
+  _textController.selection = TextSelection.collapsed(
+    offset: insertPosition + suggestion.length + 4,
+  );
+  
+  setState(() {
+    _entryState.text = newText;
+  });
+  _updateDraftContent(newText);
+}
+```
+
+**Result:** LUMARA reflections now insert cleanly into journal entries without formatting errors.
+
+## 🔧 Technical Details
+
+### Files Modified:
+- `lib/ui/journal/journal_screen.dart` - Fixed text field implementation and LUMARA text insertion
+- `lib/lumara/llm/providers/gemini_provider.dart` - Fixed JSON formatting for Gemini API
+- `lib/lumara/ui/lumara_settings_screen.dart` - Restored delete functionality for models
+
+### Git History Analysis:
+- Used commit `d3dec3e` for cursor alignment fixes
+- Used commit `09a4070` for Gemini API JSON structure (restored working implementation)
+- Used commit `9976797` for delete functionality implementation
+- Used commit `0f7a87a` for LUMARA integration patterns and text insertion
+
+### Testing Approach:
+- Verified fixes against working versions from git history
+- Tested cursor alignment with different text lengths
+- Confirmed Gemini API calls work without errors
+- Verified delete buttons appear for downloaded models
+- Tested LUMARA text insertion at various cursor positions
+
+## 📊 Impact Assessment
+
+### Before Fixes:
+- ❌ Text cursor misaligned and hard to see
+- ❌ Gemini API completely non-functional
+- ❌ No way to delete downloaded models
+- ❌ LUMARA insights causing crashes
+- ❌ Keywords system potentially broken
+- ❌ LUMARA reflections not inserting properly due to JSON formatting errors
+
+### After Fixes:
+- ✅ Text cursor properly aligned and visible
+- ✅ Gemini API fully functional
+- ✅ Model management with delete capability
+- ✅ LUMARA insights working smoothly
+- ✅ Keywords system verified working
+- ✅ LUMARA reflections insert cleanly into journal entries
+
+## 🎯 Quality Assurance
+
+### Validation Steps:
+1. **Cursor Alignment**: Tested with various text lengths and font sizes
+2. **Gemini API**: Verified API calls work without JSON errors
+3. **Delete Functionality**: Tested delete confirmation and state updates
+4. **LUMARA Integration**: Tested text insertion at different cursor positions
+5. **Keywords System**: Verified real-time analysis and manual addition
+6. **LUMARA Reflections**: Tested reflection generation and text insertion without formatting errors
+
+### Performance Impact:
+- No performance degradation
+- Improved user experience
+- Reduced error rates
+- Better visual feedback
+
+## 📝 Lessons Learned
+
+1. **Git History is Valuable**: Previous working implementations provide excellent reference
+2. **UI Consistency Matters**: Cursor styling must match text styling for proper alignment
+3. **API Compatibility**: JSON structure must exactly match API requirements
+4. **User Control**: Users need ability to manage their downloaded content
+5. **Error Prevention**: Bounds checking prevents crashes and improves reliability
+
+## 🚀 Future Considerations
+
+1. **Automated Testing**: Add UI tests for cursor alignment and text insertion
+2. **API Monitoring**: Monitor Gemini API usage and error rates
+3. **User Feedback**: Collect feedback on model management experience
+4. **Performance Optimization**: Consider caching for frequently used operations
+5. **Accessibility**: Ensure cursor visibility for users with visual impairments
+
+---
+
+**Resolution Status:** ✅ **COMPLETE**  
+**Next Review:** February 2025  
+**Maintainer:** Development Team
+
+---
+
+## bugtracker/records/vision-api-integration-ios.md
+
+# Vision API Integration (iOS) Fixes
+
+Date: 2025-01-12
+Status: Resolved ✅
+Area: iOS Vision, Pigeon, build system
+
+Summary
+- Properly regenerated and integrated Vision API via Pigeon; fixed XCFramework linking and symbol issues.
+
+Fix
+- Regenerated APIs (`tool/bridge.dart` → Pigeon outputs).
+- Implemented `VisionApiImpl.swift`; registered APIs in AppDelegate.
+- Linked GGML libraries correctly in XCFramework; build scripts updated.
+
+Verification
+- iOS build succeeds; Vision features (OCR, detection, classification) working.
+
+References
+- `docs/bugtracker/Bug_Tracker.md` (Vision API Integration, XCFramework Linking)
+
+
+---
+
+## changelog/CHANGELOG.md
+
+# EPI ARC MVP - Changelog
+
+**Version:** 2.1.19  
+**Last Updated:** January 2025
 
 ## [2.1.19] - January 2025
 
@@ -4188,3 +5101,1450 @@ Unified all LUMARA assistant prompts under a single, architecture-aligned system
 **The EPI ARC MVP is now fully functional and ready for production use!** 🎉
 
 *Last Updated: September 27, 2025 by Claude Sonnet 4*
+
+---
+
+## changelog/Changelogs/CHANGELOG1.md
+
+# EPI ARC MVP - Changelog
+
+All notable changes to the EPI (Emotional Processing Interface) ARC MVP project are documented in this file. This changelog serves as a backup to git history and provides quick access to development progress.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+---
+
+## [Unreleased]
+
+### In Development
+- Advanced animation sequences for sacred journaling
+- Native llama.cpp integration for Qwen models
+- Vision-language model integration
+- Settings UI for MIRA feature flag configuration
+
+### Latest Update - 2025-01-14
+
+### Added
+- **📸 iOS Photo Library Integration with Perceptual Hashing** (2025-01-14) ✅ COMPLETE
+  - **iOS 14+ Permission API Migration**: Updated from deprecated API to `PHPhotoLibrary.requestAuthorization(for: .readWrite)`
+  - **Settings App Integration**: App now properly appears in iOS Settings → Photos for manual permission grants
+  - **Limited Access Support**: Full support for iOS 14+ `.limited` permission status
+  - **CocoaPods Configuration**: Added `PERMISSION_PHOTOS=1` preprocessor macro for permission_handler plugin
+  - **Thumbnail Permission Checks**: Added authorization checks to `getPhotoThumbnail()` and `loadPhotoFromLibrary()` methods
+  - **Perceptual Hash Duplicate Detection**: Sophisticated 8x8 grayscale average hash algorithm for duplicate prevention
+  - **Smart Library Search**: Checks recent 100 photos for matching hashes before saving
+  - **Automatic Photo Reuse**: Returns existing photo ID if duplicate detected, preventing storage waste
+  - **300x Performance Improvement**: Duplicate detection ~105ms vs 35 seconds for full comparison
+  - **Configurable Checking**: Optional `checkDuplicates` parameter to disable detection when needed
+  - **Persistent Photo References**: Uses `ph://` URIs for reliable cross-session photo access
+  - **Graceful Fallback**: Handles missing permissions by treating as no duplicate found
+  - **Files Modified**:
+    - `ios/Podfile` - Added PERMISSION_PHOTOS=1 macro
+    - `ios/Runner/PhotoLibraryService.swift` - iOS 14+ API, perceptual hashing (+160 lines)
+    - `ios/Runner/AppDelegate.swift` - Updated permission API (3 locations)
+    - `lib/core/services/photo_library_service.dart` - Simplified permissions, duplicate detection (+47 lines)
+    - `lib/ui/journal/journal_screen.dart` - Temp file detection
+  - **Commits**:
+    - `fix: Fix iOS photo library permissions and prevent duplicates`
+    - `feat: Add perceptual hashing for robust photo duplicate detection`
+
+### Previous Update - 2025-09-27
+
+### Added
+- **🌟 Phase Readiness UX Enhancement with Blended Approach** (2025-09-27) ✅ COMPLETE
+  - **Problem Solved**: Eliminated confusing "9% ready" math that didn't match "need 2 more entries" logic
+  - **Blended Entry + Encouragement**: Combined concrete numbers ("2 More Entries") with qualitative motivation ("Building evidence")
+  - **Clear Progress Ring**: Visual progress based on entry count (0%, 50%, 90%, 100%) instead of complex RIVET math
+  - **User-Friendly Display**: "1 More Entry - Great momentum!" replaces misleading percentage calculations
+  - **Smart Guidance System**: Entry-specific guidance with emojis and encouraging tone ("✨ Write 2 thoughtful entries")
+  - **Actionable Interface**: Replaced grayed-out "Keep journaling" button with contextual next steps
+  - **Logic Consistency**: Progress indicators now match actual requirements for phase change readiness
+  - **Encouraging Messaging**: Celebrates each step while providing specific, actionable guidance
+  - **Files Updated**: `lib/features/home/home_view.dart` (+300 insertions, -99 deletions total)
+  - **Branch**: `phase-readiness-updates` (2 commits)
+
+- **UI/UX Improvement - Journaling Flow** (2025-09-27) ✅ COMPLETE
+  - **Removed Unnecessary Back Arrow**: Eliminated back button from "How are you feeling today?" emotion selection screen
+  - **Simplified Navigation**: Main menu at bottom provides sufficient navigation options
+  - **Cleaner Interface**: Streamlined emotion picker UI for better focus on feeling selection
+  - **File Updated**: `lib/arc/core/widgets/emotion_picker.dart`
+
+- **Modular Architecture Implementation** (2025-09-27) ✅ COMPLETE
+  - **RIVET Module Migration**: Moved Risk-Validation Evidence Tracker to lib/rivet/ with proper structure
+  - **ECHO Module Migration**: Migrated LUMARA response layer to lib/echo/ with provider-agnostic interfaces
+  - **Module Export Files**: Created rivet_module.dart and echo_module.dart for clean interfaces
+  - **Import Path Fixes**: Updated internal imports to use relative paths for module isolation
+  - **App Integration**: Updated lib/app/app.dart to use new modular imports
+  - **ARC Module Fix**: Corrected journal_entry_model.dart export path in arc_module.dart
+  - **8-Module Foundation**: Established modular structure: ARC→PRISM→ECHO→ATLAS→MIRA→AURORA→VEIL→RIVET
+  - **Minimal Disturbance**: Only migrated RIVET and ECHO modules, keeping others intact for incremental migration
+  - **Architecture Documentation**: Updated EPI_Architecture.md with completed Phase 1 migration status
+
+### Previous Update - 2025-09-26
+
+### Fixed
+- **Gemini 2.5 Flash Model Migration** (2025-09-26) ✅ CRITICAL FIX
+  - **Model Retirement Issue**: Fixed critical API failures due to Gemini 1.5 model retirement (Sept 24, 2025)
+  - **API Integration Restored**: Updated from deprecated `gemini-1.5-pro` to current `gemini-2.5-flash`
+  - **LUMARA Functionality**: Eliminated 404 errors, restored AI-powered assistant responses
+  - **Production Stability**: Using stable production model for reliable long-term operation
+  - **Future-Proofed**: Migrated to current generation models to prevent future deprecation issues
+  - **Debug Verification**: Confirmed 200 status responses and successful content generation (500-800 chars)
+  - **Hot Reload Fix**: Required full app restart to properly load updated model endpoint
+  - **Files Updated**: `lib/services/gemini_send.dart`, `lib/mcp/bundle/manifest.dart`
+
+### Added
+- **RIVET Phase Change Interface Simplification** (2025-09-25) ✅ COMPLETE
+  - **UI/UX Simplification**: Redesigned Phase Change Safety Check with intuitive single progress ring
+  - **Simplified Language**: Replaced technical jargon with user-friendly "Phase Change Readiness" terminology
+  - **Single Progress Ring**: Combined 4 complex metrics into one clear readiness percentage (0-100%)
+  - **Clear Status Messages**: "Ready to explore a new phase", "Almost ready", "Keep journaling"
+  - **Color-Coded Feedback**: Green (80%+), Orange (60-79%), Red (<60%) for instant understanding
+  - **Real-time Refresh**: Multi-trigger refresh system for live RIVET state updates
+  - **MCP Import Integration**: RIVET event creation for imported journal entries
+  - **Enhanced Debugging**: Comprehensive logging system for troubleshooting
+  - **1-3 Second Understanding**: Users immediately grasp their phase change readiness
+  - **Reduced Cognitive Load**: Single metric instead of 4 complex technical indicators
+
+- **UI/UX Update with Roman Numeral 1 Tab Bar** (2025-09-25) ✅ COMPLETE
+  - **Starting Screen**: Changed from Journal tab to Phase tab for immediate access to core functionality
+  - **Journal Tab Redesign**: Replaced with "+" icon for intuitive "add new entry" action
+  - **Roman Numeral 1 Shape**: Created elevated "+" button above tab bar for prominent primary action
+  - **Tab Reordering**: Phase, Timeline, Insights, Settings, LUMARA with elevated "+" button
+  - **Your Patterns Priority**: Moved Your Patterns card to top of Insights tab for better visibility
+  - **Mini Radial Icon**: Added custom mini radial visualization icon to Your Patterns card
+  - **Phase-Based Flow Logic**: No phase → phase quiz, has phase → main menu (Phase tab)
+  - **Optimized Sizing**: Reduced bottom bar height and padding to prevent button cropping
+  - **Perfect Positioning**: Elevated button with optimal spacing and no screen edge interference
+  - **Enhanced Usability**: Larger tap targets, better visual hierarchy, cleaner interface
+  - **Files Modified**: lib/features/home/home_view.dart, lib/shared/tab_bar.dart, lib/features/startup/startup_view.dart
+  - **Production Ready**: All functionality tested, no breaking changes, seamless integration
+- **Your Patterns Visualization System** (2025-09-25) ✅ COMPLETE
+  - Comprehensive visualization system with 4 distinct views: Word Cloud, Network Graph, Timeline, and Radial
+  - Force-directed network graph using graphview with FruchtermanReingoldAlgorithm for physics-based layout
+  - Curved edges overlay with custom Bezier curve rendering, arrowheads, and weight indicators
+  - Phase icons and selection highlighting with neighbor opacity filtering and animated containers
+  - MIRA co-occurrence matrix adapter for semantic memory integration with real-time data processing
+  - Interactive filtering system by emotion, phase, and time range with dynamic data updates
+  - Detailed keyword analysis with sparkline trends, frequency scoring, and related excerpts
+  - ATLAS phase system integration with semantic zoom and neighborhood depth exploration
+  - Emotion-based color coding (positive, reflective, neutral) with dynamic node sizing
+  - MockData generator for testing with comprehensive keyword relationships and time series
+  - InteractiveViewer support for zoom/pan navigation with boundary constraints
+  - **Integration Complete**: "Your Patterns" card in Insights tab now navigates to new visualization system
+  - **Legacy Code Removed**: Deprecated MiraGraphView and InsightsScreen cleaned up (965+ lines removed)
+  - Files Created: lib/features/insights/your_patterns_view.dart (1200+ lines)
+  - Files Removed: lib/features/insights/mira_graph_view.dart, lib/features/insights/insights_screen.dart
+  - Dependencies Added: graphview ^1.2.0 for force-directed graph layouts
+  - **Production Ready**: Full integration with existing UI, no breaking changes
+
+- **Phase Selector Redesign with 3D Geometry Preview** (2025-09-25) ✅ COMPLETE
+  - Interactive 3D Arcform Geometry selector that appears only when "Change" button is clicked
+  - Live phase preview functionality - click phase names to see geometry previews instantly
+  - "Save this phase?" confirmation button that appears when phase is selected for preview
+  - Improved UI/UX with better visual feedback and streamlined phase selection flow
+  - Proper success messages showing actual phase name instead of "null"
+
+### Fixed
+- **Phase Geometry Display Issues** (2025-09-25) ✅ COMPLETE
+  - Fixed nodes not recreating with correct geometry when changing phases
+  - Resolved geometry pattern conflicts between different phase layouts
+  - Corrected edge generation to match specific geometry patterns (spiral, flower, branch, weave, glowCore, fractal)
+  - Fixed phase cache refresh to maintain synchronization between displayed phase and geometry
+
+- **LUMARA Context Provider Phase Detection** (2025-09-25) ✅ COMPLETE
+  - **Critical Bug Fix**: Resolved issue where LUMARA reported "Based on 1 entries" instead of showing all 3 journal entries with correct phases
+  - **Root Cause Analysis**: Journal entries had phases detected by Timeline content analysis but NOT stored in entry.metadata['phase']
+  - **Content Analysis Integration**: Added same phase analysis logic used by Timeline to LUMARA context provider
+  - **Fallback Strategy**: Updated context provider to check entry.metadata['phase'] first, then analyze from content using _determinePhaseFromContent()
+  - **Phase History Fix**: Updated phase history extraction to process ALL entries using content analysis instead of filtering for metadata-only
+  - **Enhanced Debug Logging**: Added logging to show whether phases come from metadata vs content analysis
+  - **Timeline Integration**: Confirmed Timeline already correctly persists user manual phase updates to entry.metadata['phase'] when users edit entries
+  - **Result**: LUMARA now correctly reports "Based on 3 entries" with accurate phase history (Transition, Discovery, Breakthrough)
+  - **Technical Details**: Added _determinePhaseFromContent(entry) and _determinePhaseFromText(content) methods with same logic as Timeline
+  - **Files Modified**: lib/lumara/data/context_provider.dart, lib/features/home/home_view.dart, lib/app/app.dart
+
+### Latest Update - 2025-09-24
+
+### Added
+- **MIRA Insights Mixed-Version Analytics Complete** (2025-09-24) ✅ COMPLETE
+  - **ChatMetricsService**: Analytics engine for chat session insights with engagement scoring
+  - **EnhancedInsightService**: Combined journal+chat insights with 60/40 weighting
+  - **Mixed Schema Support**: node.v1 (legacy journals) + node.v2 (chat sessions/messages) in same exports
+  - **Golden Bundle**: Real-world mixed-version export with 3 v1 + 3 v2 records
+  - **Comprehensive Testing**: 6/6 tests passing with AJV-ready JSON validation
+  - **Node Compatibility**: Fixed ChatSessionNode, ChatMessageNode, ContainsEdge to properly extend MIRA base classes
+  - **MCP Adapter Routing**: Smart routing between schema versions based on node type
+  - **Export Integration**: ChatExporter updated to use new MiraToMcpAdapter
+
+### Fixed
+- **MCP Import Journal Entry Restoration** (2025-09-24) ✅ COMPLETE
+  - **Critical Bug Fix**: Resolved issue where imported MCP bundles didn't show journal entries in UI
+  - **Root Cause Analysis**: Import process was storing MCP nodes as MIRA data instead of converting back to journal entries
+  - **Solution Implementation**: Enhanced MCP import service with journal_entry node detection and conversion
+  - **Journal Repository Integration**: Added proper JournalEntry object creation and storage
+  - **Field Mapping**: Implemented comprehensive mapping from MCP node fields to JournalEntry properties
+  - **Test Fixes**: Resolved test compilation issues by using real JournalEntry model instead of mock
+  - **File Format Confirmation**: Verified .jsonl (NDJSON) format is correct per MCP v1 specification
+  - **Impact**: Complete bidirectional MCP workflow now functional - export and re-import preserves all journal data
+  - **Technical Details**: Added _convertMcpNodeToJournalEntry() and _importJournalEntry() methods to McpImportService
+
+### Latest Update - 2025-09-23
+
+### Added
+- **LUMARA Chat Memory System** (2025-09-23) ✅ COMPLETE
+  - Persistent Chat Sessions: Implemented local Hive storage with ChatSession and ChatMessage models using ULID IDs for stability
+  - 30-Day Auto-Archive: Non-destructive archive policy automatically archives unpinned sessions older than 30 days with lazy loading
+  - Complete UI System: ChatsScreen, ArchiveScreen, and SessionView with search, filter, swipe actions, and real-time updates
+  - MIRA Graph Integration: ChatSession and ChatMessage nodes with contains edges for semantic memory integration
+  - MCP Export System: Full MCP node.v2 schema compliance with chat_session.v1 and chat_message.v1 JSON schemas
+  - Privacy & Provenance: PII detection/redaction system with device info and export metadata tracking
+  - Comprehensive Testing: Unit tests for ChatRepo, Privacy Redactor, Provenance Tracker, and MCP Exporter
+  - Fixed "History Disappears": Chat history now persists when switching tabs, solving critical UX issue
+  - Repository Pattern: Clean abstraction with ChatRepo interface and Hive-backed ChatRepoImpl implementation
+  - Archive Policy: ChatArchivePolicy with configurable age and activity thresholds for automatic session management
+  - 26 Files Added: Complete chat memory system with models, UI, MIRA integration, MCP export, and tests
+  - Files Created: lib/lumara/chat/, lib/mira/{nodes,edges,adapters}/, lib/mcp/{export,bundle/schemas}/, test/{lumara/chat,mcp/export}/
+
+### Fixed
+- **MVP Finalization Critical Issues** (2025-09-23) ✅ COMPLETE
+  - LUMARA Phase Detection: Fixed hardcoded "Discovery" phase by integrating with UserPhaseService.getCurrentPhase()
+  - Timeline Phase Persistence: Fixed phase changes not persisting when users click "Save" in Timeline
+  - Journal Entry Modifications: Implemented missing save functionality for journal entry text updates
+  - Error Handling: Added comprehensive error handling and user feedback via SnackBars
+  - Database Persistence: Ensured all changes properly persist through repository pattern
+  - Code Quality: Fixed compilation errors and removed merge conflicts
+  - BuildContext Safety: Added proper mounted checks for async operations
+  - Files Modified: journal_edit_view.dart, timeline_cubit.dart, context_provider.dart, mcp_settings_cubit.dart
+
+- **Phase Persistence Issues** (2025-09-23) ✅ COMPLETE
+  - Phase Reversion: Fixed phase changes reverting back to previous values after saving
+  - Timeline Phase Detection: Updated priority to use user-updated metadata over arcform snapshots
+  - Journal Edit View: Fixed initialization to read from journal entry metadata instead of TimelineEntry
+  - MCP Import/Export: Fixed schema_version compatibility for successful MCP bundle import/export
+  - Async Refresh: Made timeline refresh methods properly async to ensure UI updates
+  - Debug Logging: Added comprehensive logging to track phase detection priority
+  - Files Modified: timeline_cubit.dart, journal_edit_view.dart, journal_bundle_writer.dart, mcp_schemas.dart
+
+### Added
+- **Date/Time Editing for Past Entries** (2025-09-23) ✅ COMPLETE
+  - Interactive Date/Time Picker: Added clickable date/time section in journal edit view
+  - Native Pickers: Implemented Flutter's native date and time pickers with dark theme
+  - Smart Formatting: Added intelligent date display (Today, Yesterday, full date)
+  - Time Formatting: 12-hour format with AM/PM display
+  - Visual Feedback: Edit icon and clickable container for intuitive UX
+  - Data Persistence: Updates journal entry's createdAt timestamp when saved
+  - Timeline Integration: Changes reflect immediately in timeline view
+  - File Modified: journal_edit_view.dart (161 insertions, 37 deletions)
+
+### Fixed
+- **Repository Push Failures** (2025-09-23) ✅ COMPLETE
+  - CRITICAL FIX: Resolved GitHub push failures due to 9.63 GiB repository pack size
+  - ROOT CAUSE: Large AI model files (*.gguf) tracked in Git history causing HTTP 500 errors and timeouts
+  - BFG CLEANUP: Removed 3.2 GB of large files from Git history (Qwen models, tinyllama)
+  - SOLUTION APPLIED: Used BFG Repo-Cleaner + clean branch strategy from Bug_Tracker.md documentation
+  - REPOSITORY HYGIENE: Enhanced .gitignore rules to prevent future large file tracking
+  - PUSH SUCCESS: Created main-clean branch that pushes without timeouts
+  - DEVELOPMENT WORKFLOW: Normal Git operations fully restored
+
+### Added
+- **MIRA Branch Integration** (2025-09-23) ✅ COMPLETE
+  - BRANCH MERGE: Successfully merged mira-mcp-upgrade-and-integration branch
+  - CHERRY-PICK: Applied repository hygiene improvements from mira-mcp-pr branch
+  - NEW FEATURES: Enhanced MCP bundle system with journal entry projector
+  - DOCUMENTATION: Added Physical Device Deployment guide (PHYSICAL_DEVICE_DEPLOYMENT.md)
+  - CODE QUALITY: Applied const declarations, import optimizations, and code style improvements
+  - BACKUP PRESERVATION: Archived important repository state in backup files
+  - BRANCH CLEANUP: Removed processed feature branches after successful integration
+
+### Fixed
+- **MCP Export Embeddings Generation** (2025-01-22)
+  - Fixed empty `embeddings.jsonl` files in MCP exports (was 0 bytes)
+  - Enabled `includeEmbeddingPlaceholders: true` in export settings
+  - Implemented content-based embedding generation with 384-dimensional vectors
+  - Added proper embedding metadata (doc_scope, model_id, dimensions)
+  - Embeddings now based on actual journal entry content for AI ecosystem integration
+
+### Added
+- **FFmpeg iOS Simulator Compatibility Fix** (2025-09-21) ✅ COMPLETE
+  - CRITICAL FIX: Resolved FFmpeg framework iOS simulator architecture incompatibility
+  - ROOT CAUSE: ffmpeg_kit_flutter_new_min_gpl built for iOS device but not simulator compatible
+  - PRAGMATIC SOLUTION: Temporarily removed unused FFmpeg dependency (was placeholder code)
+  - IMPACT: Restored complete iOS simulator development workflow
+  - VERIFICATION: App builds and runs successfully on iOS simulator without functionality loss
+  - DOCUMENTATION: Created Bug_Tracker-3.md with comprehensive fix documentation
+  - FUTURE READY: Clear path for proper FFmpeg integration when video features needed
+  - DEPENDENCIES: Cleaned pubspec.yaml, iOS Pods, and build artifacts
+
+- **MCP Export System Resolution** (2025-09-21) ✅ COMPLETE
+  - CRITICAL FIX: Resolved persistent issue where MCP export generated empty .jsonl files despite correct manifest counts
+  - ROOT CAUSE FIXED: JournalRepository.getAllJournalEntries() Hive box initialization race condition resolved
+  - Hive adapter null safety: Fixed type casting errors in generated adapters for older journal entries
+  - Complete data pipeline restoration: Journal entries now successfully retrieved and exported
+  - Unified export architecture: Merged standalone McpExportService with MIRA-based semantic export system
+  - Complete journal entry export as MCP Pointer + Node + Edge records with actual journal content
+  - Full text preservation in pointer records with SHA-256 content integrity
+  - SAGE narrative structure (Situation, Action, Growth, Essence) extraction and preservation
+  - Automatic relationship edge generation for entry→phase and entry→keyword connections
+  - Deterministic ID generation ensuring stable exports across multiple runs
+  - McpEntryProjector adapter with proper 'kind' field mapping for record routing
+  - Architecture integration: McpSettingsCubit uses MiraService.exportToMcp() with functioning data pipeline
+  - End-to-end verification: Complete MCP export flow now working from journal retrieval to file generation
+- **Arcform Widget Enhancements** (2025-09-21)
+  - Enhanced phase recommendation modal with improved animations and visual feedback
+  - Refined simple 3D arcform widget with better 3D transformations and interaction controls
+  - Updated Flutter plugins dependencies for improved cross-platform compatibility
+- iOS export/import UX improvements (2025-09-20)
+  - Export: ZIP and present Files share sheet to choose destination
+  - Import: Files picker for `.zip`, robust unzip, bundle-root auto-detection
+  - Manifest `schema_version` standardized to `1.0.0` for validator compatibility
+- **MIRA-MCP Semantic Memory System Complete** (2025-09-20)
+  - Complete MIRA core: semantic graph storage with Hive backend, feature flags, deterministic IDs
+  - MCP bundle system: bidirectional export/import with NDJSON streaming, SHA-256 integrity, JSON validation
+  - Bidirectional adapters: full MIRA ↔ MCP conversion with semantic fidelity preservation
+  - Semantic integration: ArcLLM enhanced with context-aware responses from MIRA memory graph
+  - Event logging: append-only event system with integrity verification for audit trails
+  - Feature flags: controlled rollout (miraEnabled, miraAdvancedEnabled, retrievalEnabled, useSqliteRepo)
+  - High-level integration: MiraIntegration service with simplified API for existing components
+- **Gemini API Integration Complete** (2025-09-19)
+  - Complete ArcLLM system with `provideArcLLM()` factory for easy access
+  - MIRA enhancement: ArcLLM now includes semantic context from MIRA memory for intelligent responses
+  - Enhanced LLM architecture with new `lib/llm/` directory and client abstractions
+  - Centralized prompt contracts in `lib/core/prompts_arc.dart` with Swift mirror templates
+  - Rule-based fallback system for graceful degradation when API unavailable
+  - Integration with existing SAGE, Arcform, and Phase detection workflows
+
+### Fixed
+- **UI Overflow in Keyword Analysis View** (2025-09-21)
+  - Fixed RenderFlex overflow error (77 pixels) in keyword analysis progress view
+  - Wrapped Column widget in SingleChildScrollView for proper content scrolling
+  - Improved user experience on smaller screens during journal analysis
+- **MCP Import iOS Sandbox Path Resolution** (2025-09-20)
+  - Fixed critical PathNotFoundException during MCP import on iOS devices
+  - MiraWriter now uses getApplicationDocumentsDirectory() instead of hardcoded development paths
+  - All 20+ storage operations updated for proper iOS app sandbox compatibility
+  - MCP import/export now fully functional on iOS devices enabling AI ecosystem interoperability
+  - Path resolution: `/Users/mymac/.../mira_storage` → `/var/mobile/Containers/Data/Application/.../Documents/mira_storage/`
+- **iOS Build Compilation Errors** (2025-09-19)
+  - Fixed prompts_arc.dart syntax errors by changing raw string delimiters from `"""` to `'''`
+  - Resolved type mismatches in lumara_assistant_cubit.dart by updating method signatures to accept ContextWindow
+  - Added proper ArcLLM/Gemini integration with rule-based fallback
+  - iOS builds now complete successfully (24.1s build time, 43.0MB app size)
+  - All compilation errors eliminated, deployment to physical devices restored
+
+### Enhanced
+- **MCP Export/Import Integration** - Complete MCP Memory Bundle v1 format support for AI ecosystem interoperability
+  - MCP Export Service with four storage profiles (minimal, space_saver, balanced, hi_fidelity)
+  - MCP Import Service with validation and error handling
+  - Settings integration with dedicated MCP Export/Import buttons
+  - Automatic data conversion between app's JournalEntry model and MCP format
+  - Progress tracking and real-time status updates during export/import operations
+  - Export to Documents/mcp_exports directory for easy access
+  - User-friendly import dialog with directory path input
+  - Comprehensive error handling with recovery options
+- **Qwen 2.5 1.5B Instruct Integration** - Primary on-device language model
+- **Enhanced Fallback Mode** - Context-aware AI responses when native bridge unavailable
+- **Comprehensive Debug Logging** - Detailed logging for AI model operations
+- **Model Configuration Management** - Centralized model settings and capabilities
+- **Device Capability Detection** - Automatic model selection based on device specs
+- **Media Handling System (P27)** - Complete media processing infrastructure
+  - Audio transcription service with MLKit integration
+  - Video keyframe extraction and analysis
+  - Vision analysis service for image processing
+  - Enhanced encryption system with at-rest encryption
+  - Content-Addressable Storage (CAS) with hash-based deduplication
+  - Media import service with multi-format support
+  - Background processing for media operations
+  - Privacy controls and data protection
+  - Storage profiles for different media types
+  - Pointer resolver system for media references
+  - Cross-platform media handling (iOS, Android, macOS, Linux, Windows)
+  - Comprehensive test coverage for media functionality
+
+### Fixed
+- **202 Critical Linter Errors** - Reduced from 1,713 to 1,511 total issues (0 critical)
+- **GemmaAdapter References** - Removed all missing references and stubbed functionality
+- **Math Import Issues** - Added missing dart:math imports for sqrt() functions
+- **Type Conversion Errors** - Fixed all num to double type conversion issues
+- **ML Kit Integration** - Stubbed classes for compilation without native dependencies
+- **Test File Issues** - Fixed mockito imports and parameter mismatches
+- **Build System** - Resolved all critical compilation errors
+- Fixed 3.5px right overflow in timeline filter buttons
+- Fixed AnimationController dispose error in welcome view
+- Fixed app restart issues after force-quit
+- Fixed zone mismatch errors in bootstrap initialization
+- Fixed onboarding screen button cropping issue
+- Fixed missing metadata field in JournalEntry model
+- Fixed Uint8List import in import_bottom_sheet.dart
+- Fixed bloc_test dependency version conflicts
+- Fixed rivet_models.g.dart keywords type mismatch (List<String> → Set<String>)
+- Improved error handling and recovery mechanisms
+
+### Changed
+- **AI Model Migration** - Switched from Gemma to Qwen 2.5 1.5B Instruct as primary model
+- **Enhanced Error Handling** - Improved error handling and logging throughout application
+- **Test Coverage** - Enhanced test coverage and reliability
+- **Documentation** - Updated comprehensive project documentation
+- Updated onboarding purpose options: removed "Coaching", kept "Coach"
+- Made onboarding page 1 scrollable to prevent button cropping
+
+### mvp_api_inference (Main MVP API-based LLM)
+- Integrated Gemini API streaming via `LLMRegistry` with rule-based fallback.
+- Runtime key entry in Lumara → AI Models → Gemini API → Configure → Activate.
+- Startup selection via `--dart-define=GEMINI_API_KEY`.
+- Model path aligned to `gemini-1.5-flash` (v1beta).
+- Streaming parser updated to buffer and decode full JSON arrays.
+- Removed temporary "Test Gemini LLM Demo" UI button and route exposure.
+
+### Ops
+- `.gitignore` now excludes SwiftPM `.build`, Llama.xcframeworks, `ios-llm/`, and `third_party/` to silence embedded repo warnings.
+
+---
+
+## [1.0.17] - 2025-01-09 - Coach Mode MVP Complete Implementation (P27, P27.1, P27.2, P27.3) 🏋️
+
+### 🏋️ Major Feature - Coach Mode MVP Complete Implementation
+- **Complete Coach Mode System**: 57 files created/modified with 15,502+ lines of code
+- **P27: Core Coach Mode**: Coaching tools drawer, guided droplets, and Coach Share Bundle (CSB) export
+- **P27.1: Coach → Client Sharing (CRB v0)**: Import coach recommendations as insight cards
+- **P27.2: Trackers & Checklists**: Diet, Habits, Checklist, Sleep, and Exercise tracking
+- **P27.3: Fitness & Weight Training**: Strength, cardio, mobility, metrics, hydration, and nutrition timing
+
+### 🎯 Coach Mode Features
+- **13+ Droplet Templates**: Pre-defined templates for various coaching scenarios
+- **Keyword Detection**: Smart suggestions when coach-related keywords are detected
+- **Share Bundle Export**: JSON and PDF export for coach communication
+- **Fitness Tracking**: Comprehensive workout and nutrition logging
+- **Progress Photos**: Image support for visual progress tracking
+- **Coach Status Indicator**: Visual indicator when Coach Mode is active
+
+### 🔧 First Responder Mode Improvements
+- **Immediate Toggle Activation**: FR Mode now activates instantly without sub-menu
+- **Inline Feature Toggles**: Individual settings displayed directly in main settings
+- **Fixed Toggle Logic**: Resolved FRSettings.defaults() activation issues
+- **Consistent UX**: Matches Coach Mode behavior and styling
+
+### 📱 UI/UX Enhancements
+- **Settings Integration**: Both modes integrated into main settings screen
+- **Status Indicators**: Top-screen indicators for active modes
+- **Box Outline Styling**: Consistent visual styling across mode sections
+- **Scrollable Sub-menus**: Fixed overflow issues in mode explanation sheets
+
+### 🗄️ Data & Storage
+- **Hive Integration**: Persistent storage for Coach Mode data
+- **Coach Share Bundles**: Structured data export/import system
+- **Droplet Responses**: Complete response tracking and management
+- **Template System**: Flexible droplet template configuration
+
+### 🛠️ Technical Implementation
+- **CoachModeCubit**: Comprehensive state management
+- **CoachDropletService**: Droplet creation and management
+- **CoachShareService**: Export/import functionality
+- **CoachKeywordListener**: Smart suggestion system
+- **PDF Generation**: Coach communication documents
+
+---
+
+## [1.0.16] - 2025-01-21 - First Responder Mode Complete Implementation (P27-P34) 🚨
+
+### 🚨 Major Feature - First Responder Mode Complete Implementation
+- **Complete First Responder Module**: 51 files created/modified with 13,081+ lines of code
+- **P27: First Responder Mode**: Feature flag with profile fields and privacy defaults
+- **P28: One-tap Voice Debrief**: 60-second and 5-minute guided debrief sessions
+- **P29: AAR-SAGE Incident Template**: Structured incident reporting with AAR-SAGE methodology
+- **P30: RedactionService + Clean Share Export**: Privacy protection with redacted PDF/JSON exports
+- **P31: Quick Check-in + Patterns**: Rapid check-in system with pattern recognition
+- **P32: Grounding Pack**: 30-90 second grounding exercises for stress management
+- **P33: AURORA-Lite Shift Rhythm**: Shift-aware prompts and recovery recommendations
+- **P34: Help Now Button**: User-configured emergency resources and support
+
+### 🔒 Privacy Protection & Security
+- **Advanced Redaction Service**: Comprehensive PHI removal with regex patterns
+- **Clean Share Export**: Therapist/peer presets with different privacy levels
+- **Data Encryption**: Local encryption for sensitive First Responder data
+- **Privacy Controls**: Granular control over what data is shared and with whom
+
+### 🧠 Mental Health & Recovery Tools
+- **Debrief Coaching**: Structured SAGE-IR methodology for incident processing
+- **Grounding Exercises**: 30-90 second exercises for stress management
+- **Recovery Planning**: Personalized recovery plans with sleep, hydration, and peer check-ins
+- **Shift Rhythm Management**: AURORA-Lite for shift-aware prompts and recommendations
+
+### 📊 Data Management & Analytics
+- **Incident Tracking**: Comprehensive incident capture and reporting system
+- **Pattern Recognition**: AI-driven pattern detection for check-ins and debriefs
+- **Export Capabilities**: PDF and JSON export with redaction options
+- **Statistics Dashboard**: Comprehensive analytics for First Responder activities
+
+### 🎯 User Experience
+- **FR Status Indicator**: Visual indicator when First Responder mode is active
+- **Settings Integration**: Seamless integration with existing app settings
+- **Dashboard Interface**: Dedicated First Responder dashboard with quick access
+- **Emergency Resources**: Help Now button with user-configured emergency contacts
+
+### 🔧 Technical Implementation
+- **51 Files Created/Modified**: Complete First Responder module implementation
+- **Models & Services**: Comprehensive data models for incidents, debriefs, check-ins, grounding
+- **State Management**: Bloc/Cubit architecture for all FR features
+- **Testing**: 5 comprehensive test suites with 1,500+ lines of test code
+- **Zero Linting Errors**: Complete code cleanup and production-ready implementation
+
+### 📱 Files Created
+- `lib/mode/first_responder/` - Complete FR module (35 files)
+- `lib/features/settings/first_responder_settings_section.dart` - Settings integration
+- `lib/services/enhanced_export_service.dart` - Enhanced export capabilities
+- `test/mode/first_responder/` - Comprehensive test suite (5 files)
+
+### 🧪 Testing Results
+- ✅ All 51 files compile without errors
+- ✅ Zero linting warnings or errors
+- ✅ Complete test coverage for core functionality
+- ✅ Privacy protection working correctly
+- ✅ Export functionality tested and working
+- ✅ UI integration seamless with existing app
+
+### 📊 Impact
+- **First Responder Support**: Specialized tools for emergency responders
+- **Privacy Protection**: Advanced redaction for sensitive information
+- **Mental Health**: Grounding exercises and debrief coaching
+- **Data Management**: Clean export for therapist/peer sharing
+- **Shift Management**: AURORA-Lite for shift rhythm and recovery
+- **Emergency Resources**: Help Now button for crisis situations
+
+---
+
+## [1.0.15] - 2025-01-09 - Legacy 2D Arcform Removal 🔄
+
+### 🔄 Arcform System Modernization
+- **Legacy 2D Removal** - Removed outdated 2D arcform layout (arcform_layout.dart) 
+- **3D Standardization** - Standardized on Simple3DArcform for all arcform visualizations
+- **UI Simplification** - Removed 2D/3D toggle functionality and related UI elements
+- **Code Cleanup** - Eliminated unused variables (_rotationZ, _getGeometryColor)
+
+### 🎯 Technical Improvements  
+- **Molecular Focus** - All arcforms now use 3D molecular style visualization exclusively
+- **Backward Compatibility** - Maintained GeometryPattern conversion functions for existing data
+- **Performance** - Reduced code complexity by removing dual rendering paths
+- **Maintainability** - Single arcform implementation path simplifies future development
+
+---
+
+## [1.0.14] - 2025-09-06 - Journal Keyboard Visibility Fixes 📱
+
+### 🔧 Journal Text Input UX Improvements
+- **Keyboard Visibility Issue Resolved** - Fixed keyboard blocking journal text input area on iOS
+- **Enhanced Text Input Management** - Added TextEditingController and FocusNode for better text control
+- **Auto-Scroll Functionality** - Automatic scrolling when keyboard appears to keep text input visible
+- **Cursor Visibility** - White cursor with proper sizing clearly visible against purple gradient background
+
+### 📱 Technical Implementation
+- **Keyboard Avoidance** - Added `resizeToAvoidBottomInset: true` to Scaffold for proper keyboard handling
+- **ScrollController Integration** - SingleChildScrollView with controller for automatic scroll management
+- **Focus Management** - Auto-scroll to text field when focused with 300ms smooth animation
+- **Layout Responsiveness** - Content properly adjusts when keyboard appears/disappears
+
+### 🎨 User Experience Enhancements
+- **Improved Text Readability** - White text clearly visible against dark gradient background
+- **Smooth Interactions** - Animated scrolling ensures text input always visible during typing
+- **Clean Input Design** - Removed borders for cleaner appearance while maintaining functionality
+- **Accessible Save Button** - Continue button remains accessible after keyboard interactions
+
+### 🛠️ iOS Project Updates
+- **Debug/Release Compatibility** - Updated Runner.xcodeproj for proper debug and release mode builds
+- **Plugin Dependencies** - Updated Flutter plugins dependencies for iOS stability
+- **Xcode Configuration** - Updated schemes for reliable device deployment
+
+### 📊 Impact
+- **User Experience**: Eliminates frustration of hidden text while typing journal entries
+- **iOS Compatibility**: Ensures consistent behavior across debug and release builds
+- **Development Workflow**: Proper project configuration for continued iOS development
+- **Text Input Quality**: Enhanced typing experience with visible cursor and auto-scroll
+
+### 🔧 Files Modified
+- `lib/features/journal/start_entry_flow.dart` - Enhanced keyboard handling (+47 lines)
+- `.flutter-plugins-dependencies` - Updated plugin registrations
+- `ios/Runner.xcodeproj/project.pbxproj` - iOS build configuration updates
+- `ios/Runner.xcodeproj/xcshareddata/xcschemes/Runner.xcscheme` - Scheme updates
+
+---
+
+## [1.0.13] - 2025-09-06 - iOS Build Dependency Fixes 🔧
+
+### 🔧 iOS Build Issues Resolution
+- **audio_session Plugin Fix** - Resolved 'Flutter/Flutter.h' file not found errors
+- **permission_handler Update** - Fixed deprecation warnings and module build failures
+- **Dependency Updates** - Updated to latest compatible versions for iOS stability
+- **Build Error Elimination** - All Xcode build errors resolved for successful device deployment
+
+### 📦 Dependency Updates
+- **permission_handler**: Updated from ^11.3.1 to ^12.0.1
+- **audioplayers**: Updated from ^6.1.0 to ^6.5.1  
+- **just_audio**: Updated from ^0.9.36 to ^0.10.5
+
+### 🛠️ Technical Fixes
+- **Audio Session Compatibility** - Fixed 'Flutter/Flutter.h' file not found in audio_session plugin
+- **Module Build Failures** - Resolved AudioSessionPlugin and audio_session module build issues
+- **Framework Header Issues** - Fixed double-quoted include framework header problems
+- **iOS Deprecation Warnings** - Resolved 'subscriberCellularProvider' deprecation warnings (iOS 12.0+)
+- **Build Cache Cleanup** - Complete clean and rebuild of iOS dependencies
+
+### 📱 Build Results
+- **Build Success**: Clean builds completing in 56.9s (no codesign) and 20.0s (with codesign)
+- **App Size**: 24.4MB optimized for device installation
+- **iOS Compatibility**: All iOS versions supported with latest dependency versions
+- **Xcode Errors**: All build panel errors eliminated
+
+### 🧪 Testing & Validation
+- **Xcode Build**: Successfully builds without errors in Xcode IDE
+- **Device Installation**: App installs correctly on physical iOS devices
+- **Plugin Functionality**: All audio and permission plugins working correctly
+- **Dependency Stability**: Updated dependencies resolve all compatibility issues
+
+### 📊 Impact
+- **Development**: iOS development workflow fully restored with no build errors
+- **Deployment**: Reliable app installation on physical iOS devices
+- **User Experience**: All app functionality available without iOS-specific issues
+- **Maintenance**: Updated dependencies provide long-term iOS compatibility
+
+### 🔧 Files Modified
+- `pubspec.yaml` - Updated dependency versions
+- `pubspec.lock` - Updated dependency resolution
+- `.flutter-plugins-dependencies` - Plugin registration updates
+
+---
+
+## [1.0.12] - 2025-09-06 - Comprehensive Force-Quit Recovery System 🛡️
+
+### 🛡️ Major Enhancement - Force-Quit Recovery
+- **Global Error Handling** - Comprehensive error capture and recovery system
+- **App Lifecycle Management** - Smart detection and recovery from force-quit scenarios
+- **Emergency Recovery** - Automatic recovery for common startup failures
+- **User Recovery Options** - Clear data recovery when auto-recovery fails
+
+### 🔧 Technical Implementation
+
+#### Global Error Handling (main.dart)
+- **FlutterError.onError** - Captures and logs Flutter framework errors with stack traces
+- **ErrorWidget.builder** - User-friendly error widgets with retry functionality
+- **PlatformDispatcher.onError** - Handles platform-specific errors gracefully
+- **Production Error UI** - Styled error screens with recovery actions
+
+#### Enhanced Bootstrap Recovery (bootstrap.dart)
+- **Startup Health Checks** - Detects cold starts and force-quit recovery scenarios
+- **Emergency Recovery System** - Automatic handling of common error types:
+  - Hive database errors: Auto-clear corrupted data and reinitialize
+  - Widget lifecycle errors: Automatic app restart with progress feedback
+  - Service initialization failures: Graceful fallback and reinitialization
+- **Recovery Progress UI** - Visual feedback during recovery operations
+- **Enhanced Error Widget** - "Clear Data" option for persistent issues
+
+#### App-Level Lifecycle Management (app_lifecycle_manager.dart)
+- **Singleton Lifecycle Service** - Monitors app state changes across entire application
+- **Force-Quit Detection** - Identifies potential force-quit scenarios (pauses >30 seconds)
+- **Service Health Checks** - Validates critical services (Hive, RIVET, Analytics, Audio) on app resume
+- **Automatic Service Recovery** - Reinitializes failed services automatically
+- **Comprehensive Logging** - Detailed logging for debugging lifecycle issues
+
+#### App Integration (app.dart)
+- **StatefulWidget Conversion** - App converted to StatefulWidget for lifecycle management
+- **Lifecycle Integration** - AppLifecycleManager properly initialized and disposed
+- **Global Observation** - App-level lifecycle observation for all state changes
+
+### 🚀 Features Added
+- **740+ Lines of Code** - Comprehensive implementation across 7 files
+- **193 Lines** - New AppLifecycleManager service
+- **Automatic Error Recovery** - Handles Hive conflicts, widget lifecycle errors, service failures
+- **Enhanced Debugging** - Comprehensive error logging and stack trace capture
+- **User-Controlled Recovery** - Clear recovery options when automatic recovery fails
+- **Production-Ready UI** - Styled error screens with proper theming
+
+### 📱 User Experience Improvements
+- **Reliable App Startup** - App now consistently restarts after force-quit
+- **Transparent Recovery** - Users see recovery progress with clear messaging
+- **Recovery Options** - Multiple recovery paths: automatic, retry, clear data
+- **Error Visibility** - Clear error messages instead of silent failures
+- **Graceful Degradation** - App continues with reduced functionality when needed
+
+### 🧪 Testing & Validation
+- **Force-Quit Recovery** - App reliably restarts after force-quit scenarios
+- **Error Handling** - All error types handled gracefully with recovery options
+- **Service Recovery** - Critical services reinitialize properly on app resume
+- **UI Recovery** - Error widgets display correctly with proper styling
+- **Build Validation** - All compilation errors resolved, clean builds achieved
+
+### 📊 Impact
+- **Reliability**: Fixes critical force-quit recovery issues preventing app restart
+- **User Experience**: Eliminates app restart failures and provides clear recovery paths
+- **Development**: Enhanced debugging capabilities with comprehensive error logging
+- **Production**: Robust error handling suitable for production deployment
+- **Maintenance**: Better visibility into app lifecycle and service health
+
+### 🔧 Files Modified
+- `lib/main.dart` - Global error handling setup and error widget implementation
+- `lib/main/bootstrap.dart` - Enhanced startup recovery and emergency recovery system
+- `lib/core/services/app_lifecycle_manager.dart` - **NEW** - App lifecycle monitoring service
+- `lib/app/app.dart` - Lifecycle integration and StatefulWidget conversion
+- `ios/Podfile.lock` - iOS dependency updates
+
+---
+
+## [1.0.11] - 2025-01-31 - iOS Build Fixes & Device Deployment 🍎
+
+### 🔧 Critical Fixes - iOS Build Issues
+- **share_plus Plugin** - Updated from v7.2.1 to v11.1.0 to resolve iOS build failures
+- **Flutter/Flutter.h Errors** - Fixed missing header file errors in iOS build
+- **Module Build Failures** - Resolved share_plus framework build issues
+- **iOS 14+ Debug Restrictions** - Implemented release mode deployment workaround
+
+### 🛠️ Technical Improvements
+- **Dependency Updates** - Updated share_plus to latest stable version
+- **Build Cache Cleanup** - Cleaned iOS Pods and build cache for fresh builds
+- **Release Mode Deployment** - Configured for physical device installation
+- **iOS Compatibility** - Ensured compatibility with latest iOS versions
+
+### 📱 User Experience
+- **Physical Device Access** - App now installs and runs on physical iOS devices
+- **Deployment Reliability** - Consistent build and installation process
+- **Development Workflow** - Restored iOS development capabilities
+
+### 🔧 Files Modified
+- `pubspec.yaml` - Updated share_plus dependency to v11.1.0
+- `ios/Pods/` - Cleaned and regenerated iOS dependencies
+- `ios/Podfile.lock` - Fresh dependency lock file
+
+### 🧪 Testing Results
+- ✅ iOS build completes successfully without errors
+- ✅ App installs on physical iPhone device
+- ✅ Release mode deployment works reliably
+- ✅ No more 'Flutter/Flutter.h' file not found errors
+- ✅ share_plus module builds correctly
+
+### 📊 Impact
+- **Deployment**: Physical device testing now possible
+- **Development**: iOS development workflow fully restored
+- **User Experience**: App accessible on real devices for testing and validation
+
+---
+
+## [1.0.10] - 2025-01-31 - Complete Hive Database Conflict Resolution 🔧
+
+### 🔧 Critical Fixes - Hive Database Conflicts
+- **OnboardingCubit Hive Conflicts** - Fixed Hive box conflicts during onboarding completion
+- **WelcomeView Hive Conflicts** - Fixed Hive box conflicts during welcome screen initialization
+- **Bootstrap Migration Conflicts** - Fixed Hive box conflicts in user profile data migration
+- **Dependency Resolution** - Updated sentry_dart_plugin to resolve version conflicts
+
+### 🛠️ Technical Improvements
+- **Safe Box Access Pattern** - Implemented consistent `Hive.isBoxOpen()` checks across all components
+- **Error Prevention** - Prevents "box already open" conflicts during app lifecycle
+- **Code Consistency** - Aligned all Hive box access with established patterns
+
+### 📱 User Experience
+- **Reliable Onboarding** - Onboarding completion now works without crashes
+- **Stable Welcome Screen** - Welcome screen initializes without Hive errors
+- **Consistent App Behavior** - App handles restart/force-quit scenarios reliably
+
+### 🧪 Testing & Validation
+- **Comprehensive Testing** - Tested all Hive box access scenarios
+- **Force-Quit Recovery** - Validated app recovery after force-quit
+- **Phone Restart Recovery** - Confirmed app startup after phone restart
+
+### 📋 Files Modified
+- `lib/features/onboarding/onboarding_cubit.dart` - Fixed `_completeOnboarding()` method
+- `lib/features/startup/welcome_view.dart` - Fixed `_checkOnboardingStatus()` method
+- `lib/main/bootstrap.dart` - Fixed `_migrateUserProfileData()` function
+- `pubspec.yaml` - Updated sentry_dart_plugin dependency
+
+### 🐛 Bug Fixes
+- **BUG-2025-01-31-002** - OnboardingCubit Hive Box Conflict During Completion
+- **BUG-2025-01-31-003** - WelcomeView Hive Box Conflict During Status Check
+- **Dependency Conflicts** - Resolved sentry_dart_plugin version conflicts
+
+---
+
+## [1.0.9] - 2025-01-31 - Critical Startup Resilience & Error Recovery 🛡️
+
+### 🛡️ Critical Fixes - App Startup Reliability
+- **Startup Failure Resolution** - Fixed app startup failures after phone restart
+- **Hive Database Conflicts** - Resolved "box already open" errors during initialization
+- **Widget Lifecycle Safety** - Fixed deactivated widget context access issues
+- **Database Corruption Recovery** - Added automatic detection and clearing of corrupted data
+
+### 🔧 Enhanced Error Handling
+- **Bootstrap Resilience** - Comprehensive error handling in app initialization process
+- **Safe Box Access** - Updated all services to check Hive box status before opening
+- **Production Error Widgets** - User-friendly error screens with recovery options
+- **Emergency Recovery Script** - Created recovery tool for persistent startup issues
+
+### 📱 User Experience Improvements
+- **Reliable App Launch** - App now starts successfully after device restart
+- **Force-Quit Recovery** - App handles force-quit (swipe up) scenarios gracefully
+- **Graceful Error Recovery** - Automatic recovery from database conflicts
+- **Clear Error Messages** - Helpful error information for users and developers
+- **Recovery Options** - Multiple fallback mechanisms for startup issues
+
+### 🔍 Technical Enhancements
+- **Comprehensive Logging** - Enhanced debugging information throughout startup
+- **Database Management** - Improved Hive box opening and error handling patterns
+- **Service Integration** - Fixed conflicts in JournalRepository and ArcformService
+- **Error Recovery** - Multiple layers of fallback for different failure scenarios
+
+### 📁 Files Modified
+- `lib/main/bootstrap.dart` - Enhanced error handling and recovery mechanisms
+- `lib/features/startup/startup_view.dart` - Safe box access patterns
+- `lib/services/user_phase_service.dart` - Fixed box opening conflicts
+- `recovery_script.dart` - Emergency recovery tool (new file)
+- `test_force_quit_recovery.dart` - Force-quit scenario testing (new file)
+
+### 🎯 Impact
+- **Reliability**: App now consistently starts after device restart
+- **User Experience**: Seamless app launch without startup failures
+- **Maintainability**: Better error logging and recovery mechanisms
+- **Support**: Users have recovery options if issues persist
+
+---
+
+## [1.0.8] - 2025-01-20 - Fixed Welcome Screen Logic for User Journey Flow 🔧
+
+### 🔧 Fixed - Critical Logic Correction
+- **User Journey Flow** - Corrected welcome screen logic for different user states
+- **Entry Accessibility** - Users with entries now see "Continue Your Journey" → Home view
+- **New User Experience** - New users see "Begin Your Journey" → Phase quiz
+- **Post-Onboarding Flow** - Users with no entries go directly to Phase quiz
+
+### 🎯 Navigation Improvements
+- **StartupView Logic** - Fixed inverted logic that was sending users with entries to home instead of welcome screen
+- **WelcomeView Navigation** - Updated button navigation based on user state
+- **Button Text Logic** - Dynamic button text based on onboarding completion status
+- **State-Based UI** - Proper navigation paths for each user journey stage
+
+### 🔍 Debug & Monitoring
+- **Comprehensive Logging** - Added debug logging for user state tracking
+- **Navigation Flow Mapping** - Clear visibility into user journey decisions
+- **State Detection** - Proper identification of user onboarding and entry status
+
+### 📱 User Experience
+- **Correct Flow** - Users now see appropriate welcome screen based on their state
+- **Clear Navigation** - Button text and navigation match user expectations
+- **Entry Access** - Users with entries can easily access them through home view
+- **Logical Progression** - Smooth flow that guides users to the right place
+
+### 📁 Files Modified
+- `lib/features/startup/startup_view.dart` - Fixed startup logic for different user states
+- `lib/features/startup/welcome_view.dart` - Updated navigation and button text logic
+
+---
+
+## [1.0.7] - 2025-01-20 - Enhanced Post-Onboarding Welcome Experience ✨
+
+### ✨ Added - Immersive Welcome Screen (Post-Onboarding)
+- **ARC Title with Pulsing Glow** - Dramatic 3-layer pulsing effect with 1.8s animation cycle
+- **Ethereal Music Integration** - Gentle 3-second fade-in of atmospheric background music
+- **Enhanced Button Text** - "Continue Your Journey" for post-onboarding users
+- **Smooth Transitions** - 1-second delay before transition with elegant fade effects
+
+### 🎨 Visual Enhancements
+- **Multi-Layer Glow Effect** - Outer, inner, and core glow layers with varying opacity
+- **Typography Refinement** - "ARC" title with enhanced letter spacing and weight
+- **Atmospheric Design** - Dark gradient background with ethereal visual effects
+- **Responsive Animation** - Smooth pulsing that draws attention without being distracting
+
+### 🔧 Technical Improvements
+- **Smart Navigation Flow** - Welcome screen only appears for post-onboarding users
+- **Audio Service Integration** - Seamless ethereal music fade-in during screen display
+- **Animation Controller** - Optimized 1.8-second pulse rate for balanced visual rhythm
+- **State Management** - Proper handling of audio and visual state transitions
+
+### 📱 User Experience
+- **Immersive Onboarding** - Enhanced experience for users transitioning to journaling
+- **Brand Identity** - Strong "ARC" branding with memorable visual effects
+- **Audio Atmosphere** - Ethereal music creates sacred, contemplative environment
+- **Smooth Progression** - Clear path from onboarding completion to journaling phase
+
+### 🐛 Fixed
+- **Navigation Flow** - Corrected startup logic to show welcome screen for appropriate users
+- **Audio Integration** - Fixed ethereal music initialization and fade-in timing
+- **Visual Consistency** - Aligned button text and transitions with user journey
+
+### 📁 Files Modified
+- `lib/features/startup/welcome_view.dart` - Enhanced welcome screen with ARC title and pulsing glow
+- `lib/features/startup/startup_view.dart` - Updated navigation flow for post-onboarding users
+- `lib/core/services/audio_service.dart` - Enhanced ethereal music integration
+- `Bug_Tracker.md` - Added ENH-2025-01-20-005 for enhanced welcome experience
+- `ARC_MVP_IMPLEMENTATION_Progress.md` - Updated progress tracking
+
+---
+
+## [1.0.6] - 2025-01-20 - P14 Cloud Sync Stubs Implementation Complete ☁️
+
+### ✨ Added - Offline-First Sync Infrastructure (P14)
+- **Cloud Sync Toggle** - Settings page with sync on/off switch and status indicator
+- **Sync Queue System** - Hive-based local queue for offline sync items
+- **Status Indicators** - Real-time status showing "Sync off", "Queued N", "Idle", or "Syncing..."
+- **Capture Points** - Automatic enqueueing of journal entries and arcform snapshots
+- **Queue Management** - Clear completed items and clear all queue functionality
+
+### 🔧 Technical Implementation
+- **SyncService** - Core sync queue management with persistent storage
+- **SyncToggleCubit** - State management for sync settings and status
+- **SyncItem Model** - Structured sync items with metadata and retry logic
+- **Hive Integration** - Persistent sync queue with proper adapter registration
+- **Error Handling** - Graceful fallback when sync service fails to initialize
+
+### 🐛 Fixed
+- **Build Issues** - Resolved missing audio asset causing build failures
+- **Hive Conflicts** - Fixed duplicate box opening for sync_queue
+- **Error Handling** - Added comprehensive error handling for sync initialization
+
+### 📁 Files Added
+- `lib/core/sync/sync_service.dart` - Core sync queue management
+- `lib/core/sync/sync_toggle_cubit.dart` - Sync settings state management
+- `lib/core/sync/sync_models.dart` - Sync data models and enums
+- `lib/core/sync/sync_item_adapter.dart` - Hive adapter for sync items
+- `lib/features/settings/sync_settings_section.dart` - Settings UI component
+
+### 📁 Files Modified
+- `lib/features/settings/settings_view.dart` - Added sync settings section
+- `lib/features/journal/journal_capture_cubit.dart` - Added sync enqueue calls
+- `lib/main/bootstrap.dart` - Registered sync adapters and boxes
+- `pubspec.yaml` - Removed missing audio asset reference
+
+### 🎯 Acceptance Criteria Met
+- ✅ Toggle on/off functionality with immediate state change
+- ✅ Status indicator showing current sync state
+- ✅ App remains fully functional offline
+- ✅ Queue persists across app launches
+- ✅ Items automatically enqueue on journal/arcform saves
+- ✅ Erase-all clears sync queue
+- ✅ Accessibility compliant with proper semantics
+
+---
+
+## [1.0.5] - 2025-01-20 - P10C Insight Cards Implementation Complete 🧠
+
+### ✨ Added - Deterministic Insight Generation System (P10C)
+- **Insight Cards** - Personalized insight cards generated from journal data using rule-based templates
+- **Rule Engine** - Deterministic system with 12 insight templates covering patterns, emotions, SAGE coverage, and phase history
+- **Data Integration** - Insights generated from existing journal entries, emotions, and phase data
+- **Visual Design** - Beautiful gradient cards with blur effects and proper accessibility compliance
+
+### 🎯 Technical Achievements
+- **InsightService** - Created deterministic rule engine for generating personalized insights
+- **InsightCard Model** - Implemented data model with Hive adapter for persistence
+- **InsightCubit** - Built state management with proper widget rebuild using setState()
+- **InsightCardShell** - Designed proper constraint handling with clipping and semantics isolation
+- **Constraint Fixes** - Resolved infinite size constraints by replacing SizedBox.expand() with Container()
+- **Accessibility** - Full compliance with ExcludeSemantics for decorative layers
+
+### 🐛 Fixed - Layout and Semantics Issues
+- **Infinite Size Constraints** - Fixed layout errors caused by unbounded height in ListView
+- **Semantics Assertion Errors** - Resolved '!semantics.parentDataDirty' errors with proper semantics isolation
+- **Layout Overflow** - Fixed "Your Patterns" card text overflow with Flexible widget
+- **Cubit Initialization** - Fixed widget rebuild issues with proper setState() implementation
+
+### 📁 Files Added
+- `lib/insights/insight_service.dart` - Deterministic rule engine
+- `lib/insights/templates.dart` - 12 insight template strings  
+- `lib/insights/rules_loader.dart` - JSON rule loading system
+- `lib/insights/models/insight_card.dart` - Data model with Hive adapter
+- `lib/insights/insight_cubit.dart` - State management
+- `lib/insights/widgets/insight_card_widget.dart` - Card display widget
+- `lib/ui/insights/widgets/insight_card_shell.dart` - Proper constraint handling
+
+### 📁 Files Modified
+- `lib/features/home/home_view.dart` - Integration and cubit initialization
+- `lib/main/bootstrap.dart` - Hive adapter registration
+
+---
+
+## [1.0.4] - 2025-01-20 - Multimodal Journaling Integration Complete 🎉
+
+### ✨ Fixed - Multimodal Media Capture Access (P5-MM)
+- **Integration Resolution** - Fixed issue where multimodal features were implemented in JournalCaptureView but app uses StartEntryFlow
+- **Media Capture Toolbar** - Added camera, gallery, and microphone buttons to the text editor step
+- **Media Management** - Full media strip with preview, delete, and organization functionality
+- **User Experience** - Multimodal features now accessible in the actual journal entry flow users see
+- **Voice Recording** - Added placeholder with "coming soon" message for future implementation
+
+### 🎯 Technical Achievements
+- **StartEntryFlow Enhancement** - Integrated MediaStore, MediaCaptureSheet, and MediaStrip components
+- **State Management** - Added media item tracking and persistence in journal entry flow
+- **Accessibility** - Maintained 44x44dp tap targets and proper semantic labels
+- **Error Handling** - Graceful media deletion and preview functionality
+
+### 📱 User Impact
+- **Camera Integration** - Users can now take photos directly in the journal entry flow
+- **Gallery Selection** - Access to existing photos from device gallery
+- **Media Preview** - Full-screen media viewing with metadata and delete options
+- **Seamless Workflow** - Multimodal features integrated into existing emotion → reason → text flow
+
+---
+
+## [1.0.3] - 2025-01-20 - RIVET Simple Copy UI Enhancement 🎯
+
+### ✨ Enhanced - RIVET User Interface (P27)
+- **User-Friendly Labels** - Replaced ALIGN/TRACE jargon with Match/Confidence for better understanding
+- **Clear Status Communication** - Added contextual banners (Holding steady, Ready to switch, Almost there)
+- **Details Modal** - "Why held?" explanation with live values and actionable user guidance
+- **Simple Checklist** - Visual checklist with pass/warn icons for all four RIVET checks
+- **Debug Support** - Added kShowRivetDebugLabels flag for engineering labels during development
+- **Complete Localization** - All RIVET strings centralized in Copy class for consistency
+
+### 🎨 UI/UX Improvements
+- **Status Banners** - Color-coded messages with interactive "Why held?" button when gate is closed
+- **Match/Confidence Dials** - Clear percentage display with Good/Low status indicators
+- **Accessibility** - Proper semantic labels, 44x44dp tap targets, high-contrast support
+- **Tooltips** - Info tooltip explaining RIVET safety system purpose
+
+### 🔧 Technical Implementation
+- **RivetGateDetailsModal** - New modal component with comprehensive RIVET explanation
+- **Copy Class Enhancement** - Added complete RIVET string localization
+- **Debug Flag** - kShowRivetDebugLabels for optional engineering label display
+- **Maintained Logic** - All existing RIVET gate mathematics preserved unchanged
+
+### 📊 User Experience Impact
+- **Reduced Cognitive Load** - Plain language replaces technical jargon
+- **Better Understanding** - Clear explanation of why phase changes are held
+- **Actionable Guidance** - Specific recommendations for unlocking phase changes
+- **Transparent Process** - Users understand the safety system protecting their journey
+
+---
+
+## [1.0.2] - 2025-01-20 - RIVET Deletion Fix & Data Accuracy Enhancement 🎯
+
+### 🐛 Fixed - RIVET TRACE Calculation After Entry Deletion
+- **Critical Data Accuracy Fix** - RIVET TRACE metric now properly decreases when journal entries are deleted
+- **Root Cause Resolution** - Fixed RIVET system's cumulative accumulator design that wasn't recalculating from remaining entries
+- **Proper Recalculation** - Implemented `_recalculateRivetState()` method that processes remaining entries chronologically
+- **Hive Database Fix** - Resolved Hive box clearing issues by using direct database manipulation
+- **Accurate Metrics** - ALIGN and TRACE percentages now accurately reflect actual number of remaining entries
+
+### 🔧 Technical Implementation
+- **Enhanced Timeline Deletion** - Added comprehensive RIVET recalculation after entry deletion
+- **Direct Hive Manipulation** - Fixed box clearing conflicts by using direct database access
+- **Chronological Processing** - Rebuilds RIVET state from remaining entries in correct order
+- **Debug Logging** - Added comprehensive logging for troubleshooting RIVET calculations
+- **State Management** - Proper RIVET state reset and recalculation workflow
+
+### 📊 User Experience Impact
+- **Data Integrity** - RIVET metrics now accurately reflect actual journal entry state
+- **User Trust** - Users can rely on RIVET percentages to reflect their actual progress
+- **System Accuracy** - RIVET phase-stability gating now works correctly with entry deletion
+- **Debug Capability** - Enhanced logging helps troubleshoot future RIVET issues
+
+### 🎯 Files Modified
+- `lib/features/timeline/widgets/interactive_timeline_view.dart` - Added RIVET recalculation method
+- `lib/core/rivet/rivet_service.dart` - Enhanced state management and recalculation logic
+
+### ✅ Testing Results
+- ✅ RIVET TRACE now decreases appropriately when entries are deleted
+- ✅ ALIGN and TRACE percentages accurately reflect remaining entry count
+- ✅ No more inflated metrics after deletion
+- ✅ Comprehensive debug logging for troubleshooting
+- ✅ App builds successfully with no compilation errors
+
+---
+
+## [1.0.1] - 2025-01-20 - P5-MM Multi-Modal Journaling Complete 🎉
+
+### 🎯 P5-MM Multi-Modal Journaling Implementation
+- **Complete Multi-Modal Support**: Audio recording, camera photos, gallery selection
+- **Media Management**: Preview, delete, and organize attached media items
+- **OCR Integration**: Automatic text extraction from images with user confirmation
+- **State Management**: Complete media item tracking and persistence
+- **UI Integration**: Seamless integration with existing journal capture workflow
+- **Accessibility Compliance**: All components include proper semantic labels and 44x44dp tap targets
+
+### 🚀 New Features
+- **Media Capture Toolbar**: Mic, camera, and gallery buttons with proper accessibility
+- **Media Strip**: Horizontal display of attached media items with preview and delete functionality
+- **OCR Text Extraction**: Automatic text extraction from images with user approval workflow
+- **Media Preview Dialog**: Full-screen media preview with metadata and delete options
+- **OCR Text Insert Dialog**: User confirmation for inserting extracted text into journal
+- **Media Store Service**: Complete file management for media items in app sandbox
+- **OCR Service**: Text extraction service with fallback handling
+
+### 🏆 Technical Achievements
+- **Data Models**: MediaItem with comprehensive metadata and Hive persistence
+- **Services**: MediaStore for file management, OCRService for text extraction
+- **UI Components**: MediaCaptureSheet, MediaStrip, MediaPreviewDialog, OCRTextInsertDialog
+- **State Management**: Integrated media items into journal capture state
+- **Error Handling**: Comprehensive error handling for media operations
+- **Accessibility**: All components meet WCAG accessibility standards
+
+### 📱 User Experience
+- **Rich Journaling**: Multi-modal journaling with text, audio, and images
+- **Seamless Integration**: Media capture integrated into existing journal workflow
+- **Intuitive Controls**: Easy-to-use media capture and management interface
+- **Accessibility**: Full accessibility support for all media components
+- **Error Recovery**: Graceful handling of media capture and processing errors
+
+---
+
+## [1.0.0] - 2025-01-20 - EPI ARC MVP v1.0.0 - Production Ready Stable Release 🎉
+
+### 🎯 Complete MVP Implementation
+- **All Core Features**: Journal capture, arcforms, timeline, insights, onboarding, export functionality
+- **P19 Complete**: Full Accessibility & Performance implementation with screen reader support
+- **P13 Complete**: Complete Settings & Privacy system with data management and personalization
+- **P15 Complete**: Analytics & QA system with consent-gated events and comprehensive debug screen
+- **P17 Complete**: Arcform export functionality with retina PNG and share integration
+- **Production Quality**: Clean codebase, comprehensive error handling, full accessibility compliance
+
+### 🚀 Production Ready Features
+- **Journal Capture**: Text and voice journaling with SAGE analysis and keyword extraction
+- **Arcforms**: 2D and 3D visualization with phase detection and emotional mapping
+- **Timeline**: Chronological entry management with editing and phase tracking
+- **Insights**: Pattern analysis, phase recommendations, and emotional insights
+- **Settings**: Complete privacy controls, data management, and personalization options
+- **Accessibility**: Full WCAG compliance with screen reader support and performance monitoring
+- **Export**: PNG and JSON data export with share functionality
+- **Onboarding**: Complete user setup flow with preferences and phase detection
+
+### 🏆 Technical Achievements
+- **Clean Architecture**: Well-structured codebase with proper separation of concerns
+- **Error Handling**: Comprehensive error handling and graceful degradation
+- **Performance**: Real-time performance monitoring and optimization
+- **Accessibility**: Full accessibility compliance with 44x44dp tap targets and semantic labels
+- **Data Management**: Complete privacy controls and data export functionality
+- **User Experience**: Intuitive navigation, customizable interface, and professional polish
+
+### 📋 Remaining Planned Features (3 prompts)
+- **P10 - MIRA v1 Graph**: Backend models and service complete, needs graph visualization UI  
+- **P14 - Cloud Sync Stubs**: Offline-first sync framework with toggle and status indicator
+- **P22 - Ethereal Music**: Audio player setup complete, needs actual audio file and playback
+
+### 📱 User Experience
+- **Intuitive Design**: Clean, accessible interface with smooth navigation
+- **Customizable**: Personalization options for tone, rhythm, and accessibility preferences
+- **Privacy-First**: Complete control over data with local-only mode and export options
+- **Accessible**: Full support for users with disabilities including screen readers
+- **Professional**: Production-ready quality with comprehensive error handling
+
+### 🔧 Technical Infrastructure
+- **State Management**: BlocProvider/Cubit architecture for reactive state management
+- **Data Storage**: Hive database with encrypted local storage
+- **Services**: Comprehensive service layer for analytics, export, and app information
+- **UI Components**: Reusable components with consistent design patterns
+- **Testing**: Comprehensive testing framework with accessibility and performance validation
+
+---
+
+## [2025-01-20] - P13 Settings & Privacy - Complete Implementation ⭐
+
+### 🎯 P13 Complete: Full Settings & Privacy Implementation
+- **Complete P13 Implementation**: All 5 phases of Settings & Privacy features
+- **Phase 1: Core Structure**: Settings UI with navigation to 4 sub-screens
+- **Phase 2: Privacy Controls**: Local Only Mode, Biometric Lock, Export Data, Delete All Data
+- **Phase 3: Data Management**: JSON export functionality with share integration
+- **Phase 4: Personalization**: Tone, Rhythm, Text Scale, Color Accessibility, High Contrast
+- **Phase 5: About & Polish**: App information, device info, statistics, feature highlights
+
+### Technical Achievements
+- ✅ **SettingsCubit**: Comprehensive state management for all settings and privacy toggles
+- ✅ **DataExportService**: JSON serialization and file sharing for journal entries and arcform snapshots
+- ✅ **AppInfoService**: Device and app information retrieval with statistics
+- ✅ **Reusable Components**: SettingsTile, ConfirmationDialog, personalization widgets
+- ✅ **Live Preview**: Real-time preview of personalization settings
+- ✅ **Two-Step Confirmation**: Secure delete all data with confirmation dialog
+
+### Features Implemented
+- **Settings Navigation**: 4 sub-screens (Privacy, Data, Personalization, About)
+- **Privacy Toggles**: Local only mode, biometric lock, export data, delete all data
+- **Data Export**: JSON export with share functionality and storage information
+- **Personalization**: Tone selection, rhythm picker, text scale slider, accessibility options
+- **About Screen**: App version, device info, statistics, feature highlights, credits
+- **Storage Management**: Display storage usage and data statistics
+
+### P13 Progress Summary
+- **Core Features**: 5/5 phases completed (100% complete!)
+- **Phase 1**: Core Structure ✅
+- **Phase 2**: Privacy Controls ✅
+- **Phase 3**: Data Management ✅
+- **Phase 4**: Personalization ✅
+- **Phase 5**: About & Polish ✅
+- **Documentation**: Complete ✅
+
+### Impact
+- **User Control**: Complete privacy and data management controls
+- **Personalization**: Customizable experience with live preview
+- **Data Portability**: JSON export for data backup and migration
+- **Transparency**: Clear app information and statistics
+- **Security**: Two-step confirmation for destructive operations
+- **Production Ready**: All P13 features ready for deployment
+
+---
+
+## [2025-01-20] - P19 Accessibility & Performance Pass - Complete & Merged to Main ⭐
+
+### 🎯 P19 Complete: Full Accessibility & Performance Implementation
+- **Screen Reader Testing**: Comprehensive testing framework with accessibility report generation
+- **Performance Profiling**: Advanced performance monitoring with real-time metrics and recommendations
+- **Enhanced Debug Panels**: Integrated accessibility and performance testing panels in Journal Capture View
+- **Complete Documentation**: All P19 features documented and tested
+- **Branch Merge**: P19 successfully merged into main branch for production deployment
+
+### Technical Achievements
+- ✅ **Screen Reader Testing Service**: `ScreenReaderTestingService` with semantic label testing, navigation order validation, color contrast analysis, and touch target compliance
+- ✅ **Performance Profiler**: `PerformanceProfiler` with frame timing monitoring, custom metrics, execution time measurement, and automated recommendations
+- ✅ **Enhanced UI Integration**: Both testing panels integrated into Journal Capture View with real-time updates
+- ✅ **Comprehensive Testing**: All accessibility features tested and validated
+- ✅ **Repository Management**: Clean merge and branch cleanup for production readiness
+
+### P19 Progress Summary
+- **Core Features**: 10/10 completed (100% complete!)
+- **Phase 1 & 2**: Larger Text, High-Contrast, Reduced Motion ✅
+- **Phase 3**: Screen Reader Testing, Performance Profiling ✅
+- **Documentation**: Complete ✅
+- **Merge Status**: Successfully merged to main branch ✅
+
+### Impact
+- **Production Ready**: All P19 features now available in main branch for deployment
+- **Accessibility**: Full WCAG compliance foundation with comprehensive testing
+- **Performance**: Real-time monitoring and optimization recommendations
+- **User Experience**: Enhanced accessibility for all users
+- **Development**: Advanced debugging and testing tools
+
+## [2025-01-20] - P19 Accessibility & Performance Pass - Phase 1 & 2 Complete ⭐
+
+### ✅ COMPLETED - P19 Phase 1 & 2: 80/20 Accessibility Features
+- **Phase 1: Quick Wins** - Maximum accessibility value with minimal effort
+  - **Larger Text Mode** - Dynamic text scaling (1.2x) with `withTextScale` helper
+  - **High-Contrast Mode** - High-contrast color palette with `highContrastTheme`
+  - **A11yCubit Integration** - Added to app providers for global accessibility state
+- **Phase 2: Polish** - Motion sensitivity and advanced accessibility support
+  - **Reduced Motion Support** - Motion sensitivity support with debug display
+  - **Real-time Testing** - Debug display shows all accessibility states
+  - **App Builds** - Everything compiles and builds successfully
+- **Accessibility Infrastructure** - Comprehensive accessibility services
+  - `A11yCubit` for accessibility state management (larger text, high contrast, reduced motion)
+  - `a11y_flags.dart` with reusable accessibility helpers and semantic button wrappers
+  - `accessibility_debug_panel.dart` for development-time accessibility testing
+- **Performance Monitoring** - Real-time performance tracking and optimization
+  - `FrameBudgetOverlay` for live FPS monitoring in debug mode
+  - `frame_budget.dart` with frame timing analysis and performance alerts
+  - Target FPS monitoring with visual feedback (45 FPS target)
+- **Accessibility Features Applied** - Journal Composer screen fully accessible
+  - **Accessibility Labels** - All voice recording buttons have proper semantic labels
+  - **44x44dp Tap Targets** - All interactive elements meet minimum touch accessibility requirements
+  - **Semantic Button Wrappers** - Consistent accessibility labeling across all controls
+
+### 🔧 Technical Achievements
+- Successfully applied "Comment Out and Work Backwards" debugging strategy
+- A11yCubit integrated into app providers for global state management
+- BlocBuilder pattern for reactive accessibility state updates
+- Theme and text scaling applied conditionally based on accessibility flags
+- Debug display for testing all accessibility features in real-time
+- App builds successfully for iOS with no compilation errors
+- Performance monitoring active in debug mode with real-time feedback
+
+### 📊 P19 Progress Summary
+- **Core Features**: 7/7 completed (100% of 80/20 features!)
+- **Infrastructure**: 100% complete
+- **Applied Features**: 100% complete on Journal Composer
+- **Testing**: App builds successfully, all features functional
+- **Next Phase**: Screen Reader Testing or apply to other screens
+
+### 🔧 Technical Details
+- **Files Created**: `lib/core/a11y/a11y_flags.dart`, `lib/core/perf/frame_budget.dart`, `lib/core/a11y/accessibility_debug_panel.dart`
+- **Files Modified**: `lib/app/app.dart` (A11yCubit integration), `lib/features/journal/journal_capture_view.dart` (applied accessibility features)
+- **Testing Results**: App builds successfully, all accessibility features functional
+- **Next Steps**: Phase 3 (Screen Reader Testing) or apply to other screens
+
+---
+
+## [Latest Update - 2025-01-20] - Final UI Positioning & Hive Error Resolution
+
+### 🔧 COMPLETED - UI/UX Final Optimization
+- **Final 3D Arcform Positioning** - Moved "3D Arcform Geometry" box to `top: 5px` for optimal positioning
+- **Perfect Visual Hierarchy** - Box now sits very close to the "Current Phase" box creating maximum space for arcform visualization
+- **Compact High-Positioned Layout** - Achieved desired compact, high-positioned layout with all four control buttons in centered horizontal row
+- **Maximum Arcform Space** - Creates maximum space for arcform visualization below the control interface
+
+### 🐛 COMPLETED - Critical Hive Database Error Resolution
+- **Hive Box Already Open Error** - Fixed critical `HiveError: The box "journal_entries" is already open and of type Box<JournalEntry>`
+- **Root Cause Analysis** - Multiple parts of codebase were trying to open same Hive boxes already opened during bootstrap
+- **Smart Box Management** - Updated `JournalRepository._ensureBox()` to handle already open boxes gracefully with proper error handling
+- **ArcformService Enhancement** - Updated all ArcformService methods to check if boxes are open before attempting to open them
+- **Graceful Error Handling** - Added proper error handling for 'already open' Hive errors with fallback mechanisms
+
+### 📱 COMPLETED - User Experience Impact
+- **Eliminated Startup Errors** - App now completes onboarding successfully without Hive database conflicts
+- **Improved Visual Layout** - 3D Arcform Geometry box positioned optimally for maximum arcform space
+- **Enhanced Control Accessibility** - All four control buttons (3D toggle, export, auto-rotate, reset view) in centered horizontal row
+- **Seamless Onboarding Flow** - Onboarding completion now works without database errors
+
+### 🔄 COMPLETED - Code Quality & Stability
+- **Resolved All Critical Database Errors** - Hive box management now handles multiple access attempts gracefully
+- **Maintained Functionality** - All existing features continue to work as expected with improved error handling
+- **Enhanced Error Recovery** - Proper fallback mechanisms prevent app crashes during database operations
+- **Production-Ready Stability** - App now handles edge cases and concurrent access patterns correctly
+
+---
+
+## [Previous Update - 2025-01-20] - 3D Arcform Positioning Fix & Critical Error Resolution
+
+### 🔧 COMPLETED - UI/UX Improvements
+- **Fixed 3D Arcform Positioning** - Moved arcform from 35% to 25% of screen height to prevent cropping by bottom navigation bar
+- **Improved 3D Controls Layout** - Positioned controls at `bottom: 10` for better accessibility and user experience
+- **Enhanced Arcform Rendering** - Updated screen center positioning for both nodes and edges in 3D mode
+
+### 🐛 COMPLETED - Critical Bug Fixes
+- **Resolved AppTextStyle Compilation Errors** - Fixed undefined `AppTextStyle` references in insight cards by using proper function calls
+- **Fixed Arcform 3D Layout Issues** - Resolved compilation errors in `arcform_3d_layout.dart` by commenting out problematic mesh parameters
+- **Corrected Text Style Usage** - Replaced incorrect method calls (`.heading4`, `.body`, `.caption`) with proper function calls (`heading3Style(context)`, `bodyStyle(context)`, `captionStyle(context)`)
+
+### 📱 COMPLETED - User Experience
+- **Eliminated UI Cropping** - 3D arcform now displays completely above the bottom navigation bar
+- **Improved Visual Clarity** - Better positioning ensures all arcform elements are visible and accessible
+- **Enhanced 3D Interaction** - Controls are now positioned optimally for user interaction
+
+### 🔄 COMPLETED - Code Quality
+- **Resolved All Critical Compilation Errors** - App now compiles and runs without blocking issues
+- **Maintained Functionality** - All existing features continue to work as expected
+- **Preserved Performance** - No impact on app performance or responsiveness
+
+---
+
+## [Latest Update - 2025-01-20] - Phase Recommendation Dialog Removal & Flow Restoration
+
+### 🔄 COMPLETED - Journal Entry Flow Restoration
+- **Removed Phase Recommendation Dialog** - Eliminated popup that was interrupting journal save flow
+- **Restored Original Save Behavior** - Journal entries now save directly without phase confirmation popup
+- **Cleaned Up Unused Code** - Removed unused methods and imports related to phase dialog
+- **Re-enabled RIVET Analysis** - Background RIVET analysis restored after entry save
+- **Maintained User Experience** - Preserved original journal entry flow as intended
+
+### 🐛 FIXED - User Experience Issues
+- **No More Interrupting Popups** - Users can now save journal entries without being prompted for phase confirmation
+- **Streamlined Workflow** - Journal entry → Keyword Analysis → Save Entry → RIVET Analysis (background)
+- **Consistent Behavior** - Restored to previous working state before phase dialog was added
+
+### 📁 FILES CHANGED
+- `lib/features/journal/widgets/keyword_analysis_view.dart` - Removed phase dialog, restored original save flow
+- `lib/features/journal/journal_capture_cubit.dart` - Re-enabled RIVET analysis, cleaned up unused methods
+- `lib/features/journal/widgets/phase_recommendation_dialog.dart` - **DELETED** (no longer needed)
+
+---
+
+## [Latest Update - 2025-01-20] - Branch Merge Completion & Repository Cleanup ⭐
+
+### 🔄 COMPLETED - Branch Integration & Cleanup
+- **All Feature Branches Merged** - Successfully consolidated all development branches into main
+  - Merged `mira-lite-implementation` branch containing phase quiz synchronization fixes and keyword selection enhancements  
+  - Deleted obsolete branches: `Arcform-synchronization` and `phase-editing-from-timeline` (no commits ahead of main)
+  - Completed existing merge conflicts and committed all pending changes to main branch
+  - Clean repository structure with only main branch remaining for production deployment
+- **Documentation Synchronization** - All documentation files updated to reflect merge completion
+  - CHANGELOG.md updated with complete merge timeline and feature integration
+  - Bug_Tracker.md enhanced with all resolved issues and implementation achievements
+  - ARC_MVP_IMPLEMENTATION_Progress.md updated with current production-ready status
+  - Total documentation coverage: 23 tracked items (20 bugs + 3 enhancements) all resolved
+
+### 🔄 FIXED - Phase Quiz Synchronization Issue
+- **Phase Display Consistency** - Fixed mismatch between phase quiz selection and 3D geometry buttons
+  - **Root Cause** - Old arcform snapshots were overriding current phase from quiz selection
+  - **Solution** - Prioritize current phase from quiz over old snapshots in storage
+  - **Result** - "CURRENT PHASE" display now perfectly matches 3D geometry button selection
+  - **Debug Logging** - Added comprehensive logging for geometry selection tracking
+
+### 🎯 ENHANCED - Phase Selection Logic
+- **Smart Geometry Validation** - Only use snapshot geometry if it matches current phase
+- **Quiz Priority System** - User's quiz selection always takes precedence over historical data
+- **Synchronized UI** - All phase displays (top indicator, geometry buttons, arcform rendering) stay in sync
+- **Improved User Experience** - No more confusion between selected phase and displayed geometry
+
+### 🔧 TECHNICAL IMPROVEMENTS
+- **ArcformRendererCubit** - Enhanced `_loadArcformData()` method with phase prioritization logic
+- **Geometry Mapping** - Improved validation between phase selection and geometry patterns
+- **State Management** - Better handling of phase vs snapshot geometry conflicts
+- **Debug Output** - Added detailed logging for troubleshooting phase synchronization issues
+
+---
+
+## [Latest Update - 2025-01-20] - Journal Entry Deletion & RIVET Integration Complete ⭐
+
+### 🗑️ FIXED - Journal Entry Deletion System
+- **Complete Deletion Functionality** - Users can now successfully delete journal entries from timeline
+  - **Selection Mode** - Long-press entries to enter multi-select mode with visual feedback
+  - **Bulk Deletion** - Select multiple entries and delete them all at once with confirmation dialog
+  - **Accurate Success Messages** - Fixed success message to show correct count of deleted entries
+  - **Timeline Refresh** - UI properly updates after deletion to show remaining entries
+  - **Debug Logging** - Comprehensive logging for troubleshooting deletion issues
+
+### 🔧 ENHANCED - Timeline State Management
+- **Real-time UI Updates** - Timeline immediately reflects changes after entry deletion
+- **Proper State Synchronization** - BlocBuilder correctly receives and processes state changes
+- **Selection Mode Management** - Clean exit from selection mode after operations complete
+- **Error Handling** - Graceful handling of deletion failures with user feedback
+
+### 🧪 ADDED - Comprehensive Debug Infrastructure
+- **Deletion Process Logging** - Step-by-step logging of entry deletion process
+- **State Change Tracking** - Debug output for TimelineCubit state emissions
+- **BlocBuilder Monitoring** - Logging of UI state updates and rebuilds
+- **Performance Metrics** - Entry count tracking before and after operations
+
+### 🔄 COMPLETED - Branch Integration & Cleanup
+- **Feature Branch Merge** - Successfully merged `deleted-entry-restart-phase-questionnaire` into main
+- **Fast-Forward Merge** - Clean merge with 16 files changed (2,117 insertions, 62 deletions)
+- **Branch Cleanup** - Removed completed feature branch to maintain clean repository
+- **Documentation Updates** - All changelog, bug tracker, and progress files updated
+
+---
+
+## [Previous Update - 2025-09-03] - RIVET Phase-Stability Gating System Implementation ⭐
+
+### 🚀 NEW - RIVET Phase-Stability Gating System
+- **Dual-Dial "Two Green" Gate System** - Mathematical phase-stability monitoring with transparent user feedback
+  - **ALIGN Metric**: Exponential smoothing (β = 2/(N+1)) measuring phase prediction fidelity
+  - **TRACE Metric**: Saturating accumulator (1 - exp(-Σe_i/K)) measuring evidence sufficiency
+  - **Gate Logic**: Both dials must be ≥60% sustained for 2+ events with ≥1 independent source
+  - **Mathematical Precision**: A*=0.6, T*=0.6, W=2, K=20, N=10 proven defaults
+
+### 🧠 ADDED - Intelligent Evidence Weighting System  
+- **Independence Multiplier** - 1.2x boost for different sources/days to prevent gaming
+- **Novelty Multiplier** - 1.0-1.5x boost via Jaccard distance on keywords for evidence variety
+- **Sustainment Window** - Requires W=2 consistent threshold meetings with independence requirement
+- **Transparent Gating** - Clear explanations when gate closed ("Needs sustainment 1/2", "Need independent event")
+
+### 💎 ENHANCED - Insights Tab with Real-Time RIVET Visualization
+- **Dual-Dial Display** - Live ALIGN/TRACE percentages with color-coded status (green/orange)
+- **Gate Status** - Lock/unlock icons showing current gating state with detailed status messages  
+- **Loading States** - Proper initialization feedback and error handling for RIVET unavailability
+- **Telemetry Integration** - Debug logging with processing times and decision reasoning
+
+### 🔧 ADDED - Production-Ready Infrastructure
+- **Core RIVET Module** - `lib/core/rivet/` with models, service, storage, provider, telemetry
+- **Provider Pattern** - Singleton `RivetProvider` with comprehensive error handling and safe initialization
+- **Hive Persistence** - User-specific RIVET state and event history storage with 100-event limit
+- **Integration Points** - Post-confirmation save flow with dual paths (confirmed vs proposed phases)
+- **Unit Testing** - Complete test coverage for mathematical properties and edge cases (9 tests passing)
+
+### 🛡️ ENHANCED - Graceful Fallback & Error Handling  
+- **RIVET Unavailable** - Seamless fallback to direct phase saving when RIVET fails to initialize
+- **Safe Initialization** - Non-blocking bootstrap integration that doesn't crash app on RIVET failure
+- **User Experience Preservation** - All existing flows work identically when RIVET is disabled
+- **Metadata Tracking** - Proposed phases marked with RIVET metadata for future transparency
+
+### 📊 ADDED - RIVET Telemetry & Analytics System
+- **Decision Logging** - Every gate decision tracked with timing, reasoning, and state transitions
+- **Performance Metrics** - Processing times, success rates, and phase distribution analytics  
+- **Debug Output** - Detailed console logging for development and troubleshooting
+- **Bounded Memory** - Telemetry limited to 100 recent events to prevent memory leaks
+
+---
+
+## [2025-01-02] - Phase Confirmation Dialog Restoration & Complete Navigation Flow Fixes
+
+### 🎯 RESTORED - Phase Confirmation Dialog for New Journal Entries
+- **Missing Phase Recommendation Dialog** - Fully restored the phase confirmation step that was missing from journal entry creation flow
+  - Users now see AI-generated phase recommendations before saving new entries
+  - Added transparent rationale display explaining why a phase was recommended
+  - Implemented user choice to accept recommendation or select different phase
+  - Integrated with existing `PhaseRecommendationDialog` and geometry selection
+  - Connected to `PhaseRecommender.recommend()` for keyword-driven phase analysis
+
+### ✅ FIXED - Complete Navigation Flow from Journal Creation to Home
+- **Navigation Loop Issue** - Resolved getting stuck in journal editing flow after saving entries
+  - Fixed result passing chain: KeywordAnalysisView → EmotionSelectionView → JournalCaptureView → Home
+  - Added proper dialog closure and result handling throughout navigation stack

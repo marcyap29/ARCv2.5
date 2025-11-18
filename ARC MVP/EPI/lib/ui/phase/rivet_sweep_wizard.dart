@@ -157,12 +157,12 @@ class _RivetSweepWizardState extends State<RivetSweepWizard> {
               if (widget.sweepResult.autoAssign.isNotEmpty)
                 Container(
                   width: double.infinity,
-                  margin: const EdgeInsets.only(bottom: 8.0),
+                  margin: const EdgeInsets.only(bottom: 12.0),
                   child: ElevatedButton.icon(
-                    onPressed: () => _approveAllSegments(widget.sweepResult.autoAssign),
-                    icon: const Icon(Icons.check_circle, size: 24),
+                    onPressed: () => _autoFinalize(widget.sweepResult.autoAssign),
+                    icon: const Icon(Icons.flash_on, size: 24),
                     label: Text(
-                      'Auto-Assign (${widget.sweepResult.autoAssign.length})',
+                      'Auto-Assign & Apply (${widget.sweepResult.autoAssign.length})',
                       style: const TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
@@ -179,14 +179,14 @@ class _RivetSweepWizardState extends State<RivetSweepWizard> {
                     ),
                   ),
                 ),
-              // Approve All button
               Container(
                 width: double.infinity,
+                margin: const EdgeInsets.only(bottom: 4.0),
                 child: ElevatedButton.icon(
-                  onPressed: () => _approveAllSegments(allSegments),
+                  onPressed: () => _autoFinalize(allSegments),
                   icon: const Icon(Icons.approval, size: 24),
                   label: const Text(
-                    'Approve All',
+                    'Approve All & Apply',
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
@@ -202,6 +202,11 @@ class _RivetSweepWizardState extends State<RivetSweepWizard> {
                     ),
                   ),
                 ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Prefer to inspect each phase segment? Scroll down and review them manually before tapping Apply Changes.',
+                style: theme.textTheme.bodySmall?.copyWith(color: Colors.blueGrey),
               ),
             ],
           ),
@@ -362,14 +367,6 @@ class _RivetSweepWizardState extends State<RivetSweepWizard> {
     return '${date.month}/${date.day}/${date.year}';
   }
 
-  void _approveAllSegments(List<PhaseSegmentProposal> segments) {
-    setState(() {
-      for (final segment in segments) {
-        _approvedSegments.add(_getSegmentId(segment));
-      }
-    });
-  }
-
   void _toggleSegmentApproval(PhaseSegmentProposal segment) {
     setState(() {
       final segmentId = _getSegmentId(segment);
@@ -396,5 +393,13 @@ class _RivetSweepWizardState extends State<RivetSweepWizard> {
 
     // Call the onApprove callback with approved segments and manual overrides
     widget.onApprove?.call(approvedProposals, _manualOverrides);
+  }
+  void _autoFinalize(List<PhaseSegmentProposal> segments) {
+    setState(() {
+      for (final segment in segments) {
+        _approvedSegments.add(_getSegmentId(segment));
+      }
+    });
+    _applyApprovals();
   }
 }

@@ -1,6 +1,6 @@
 # EPI MVP - Comprehensive Overview Report
 
-**Version:** 1.0.0  
+**Version:** 1.0.2  
 **Date:** January 2025  
 **Status:** Production Ready ✅
 
@@ -27,6 +27,7 @@ The EPI (Evolving Personal Intelligence) MVP is a fully operational Flutter-base
 
 EPI provides users with an intelligent journaling companion that:
 - Captures multimodal journal entries (text, photos, audio, video)
+- **Automatically assigns phase hashtags** based on Phase Regimes (date-based) - no manual tagging required
 - Provides contextual AI assistance through LUMARA
 - Visualizes life patterns through ARCForm 3D constellations
 - Detects life phases and provides insights
@@ -36,12 +37,13 @@ EPI provides users with an intelligent journaling companion that:
 ### Core Capabilities
 
 1. **Journaling**: Text, voice, photo, and video journaling with OCR and analysis
-2. **AI Assistant (LUMARA)**: Context-aware responses with persistent chat memory
-3. **Pattern Recognition**: Keyword extraction, phase detection, and emotional mapping
-4. **Visualization**: 3D ARCForm constellations showing journal themes
-5. **Memory System**: Semantic memory graph with MCP-compliant storage
-6. **Privacy Protection**: On-device processing, PII detection, and encryption
-7. **Data Portability**: MCP export/import for AI ecosystem interoperability
+2. **Automatic Phase Hashtag System**: Phase hashtags automatically assigned based on Phase Regimes (date-based), eliminating manual tagging
+3. **AI Assistant (LUMARA)**: Context-aware responses with persistent chat memory
+4. **Pattern Recognition**: Keyword extraction, phase detection, and emotional mapping
+5. **Visualization**: 3D ARCForm constellations showing journal themes
+6. **Memory System**: Semantic memory graph with MCP-compliant storage
+7. **Privacy Protection**: On-device processing, PII detection, and encryption
+8. **Data Portability**: MCP export/import for AI ecosystem interoperability
 
 ---
 
@@ -136,6 +138,10 @@ The system was successfully consolidated from 8+ separate modules into 5 clean m
 - **Privacy Protection**: PII detection, masking, and encryption
 - **Phase Detection**: Real-time phase detection with RIVET and SENTINEL
 - **Health Integration**: HealthKit integration for health data
+
+### Journal Timeline UX Update (Nov 2025)
+
+- The journal’s phase-colored rail now exposes a collapsible ARCForm timeline. When expanded, the top chrome (Timeline | LUMARA | Settings and the search/filter row) hides automatically and the phase legend dropdown renders inline with the preview. Closing ARCForm restores the chrome instantly, giving readers full vertical space only when needed.
 
 ---
 
@@ -248,6 +254,6 @@ The EPI MVP is production-ready with a solid foundation. The consolidated 5-modu
 ---
 
 **Report Status:** ✅ Complete  
-**Last Updated:** January 2025  
-**Version:** 1.0.0
+**Last Updated:** November 17, 2025  
+**Version:** 1.0.1
 

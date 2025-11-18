@@ -34,6 +34,9 @@ import 'package:my_app/core/services/draft_cache_service.dart';
 import 'package:my_app/core/services/journal_version_service.dart';
 import 'package:my_app/core/services/photo_library_service.dart';
 import 'package:my_app/platform/photo_bridge.dart';
+import 'package:my_app/services/phase_regime_service.dart';
+import 'package:my_app/services/rivet_sweep_service.dart';
+import 'package:my_app/models/phase_models.dart';
 
 class JournalCaptureCubit extends Cubit<JournalCaptureState> {
   final JournalRepository _journalRepository;
@@ -238,11 +241,20 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
           ? selectedKeywords! 
           : SimpleKeywordExtractor.extractKeywords(content);
       
+      // Automatically add phase hashtag to content if missing
+      // Uses Phase Regime system (date-based) to determine phase
       final now = DateTime.now();
+      final contentWithPhase = await _ensurePhaseHashtagInContent(
+        content: content,
+        entryDate: now,
+        emotion: null,
+        emotionReason: null,
+        selectedKeywords: keywords,
+      );
       final entry = JournalEntry(
         id: const Uuid().v4(),
-        title: _generateTitle(content),
-        content: content,
+        title: _generateTitle(contentWithPhase),
+        content: contentWithPhase, // Use content with auto-added phase hashtag
         createdAt: now,
         updatedAt: now,
         tags: const [], // Tags could be extracted from content in a more advanced implementation
@@ -304,11 +316,27 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
           ? selectedKeywords! 
           : SimpleKeywordExtractor.extractKeywords(content);
       
+      // Ensure phase hashtag is in content (use provided phase)
+      final phaseHashtag = '#${phase.toLowerCase()}';
+      final phaseHashtagPattern = RegExp(
+        r'#(discovery|expansion|transition|consolidation|recovery|breakthrough)',
+        caseSensitive: false,
+      );
+      
+      String contentWithPhase = content;
+      if (!phaseHashtagPattern.hasMatch(content)) {
+        // No phase hashtag found - add the provided one
+        contentWithPhase = '$content $phaseHashtag'.trim();
+        print('DEBUG: Auto-added phase hashtag $phaseHashtag to entry (provided phase: $phase)');
+      } else {
+        print('DEBUG: Content already contains phase hashtag, keeping existing');
+      }
+      
       final now = entryDate;
       final entry = JournalEntry(
         id: const Uuid().v4(),
-        title: _generateTitle(content),
-        content: content,
+        title: _generateTitle(contentWithPhase),
+        content: contentWithPhase, // Use content with phase hashtag
         createdAt: now,
         updatedAt: now,
         tags: const [],
@@ -545,6 +573,16 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
         print('DEBUG: Adjusted entry date to match latest photo: $entryDate (offset: ${dateOffset.inHours} hours ${dateOffset.inMinutes.remainder(60)} minutes)');
       }
       
+      // Automatically add phase hashtag to content if missing
+      // Uses Phase Regime system (date-based) to determine phase
+      final contentWithPhase = await _ensurePhaseHashtagInContent(
+        content: content,
+        entryDate: entryDate, // Use the entry date (may be adjusted from photos)
+        emotion: emotion,
+        emotionReason: emotionReason,
+        selectedKeywords: selectedKeywords,
+      );
+      
       // Save LUMARA blocks to metadata
       final metadata = blocks != null && blocks.isNotEmpty
           ? {'inlineBlocks': blocks}
@@ -552,8 +590,8 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
       
       final entry = JournalEntry(
         id: const Uuid().v4(),
-        title: title?.trim().isNotEmpty == true ? title!.trim() : _generateTitle(content),
-        content: content,
+        title: title?.trim().isNotEmpty == true ? title!.trim() : _generateTitle(contentWithPhase),
+        content: contentWithPhase, // Use content with auto-added phase hashtag
         createdAt: entryDate,
         updatedAt: entryDate,
         tags: const [],
@@ -636,11 +674,26 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
   }) async {
     try {
       final entryDate = DateTime.now();
+      
+      // Ensure phase hashtag is in content (use provided phase)
+      final phaseHashtag = '#${phase.toLowerCase()}';
+      final phaseHashtagPattern = RegExp(
+        r'#(discovery|expansion|transition|consolidation|recovery|breakthrough)',
+        caseSensitive: false,
+      );
+      
+      String contentWithPhase = content;
+      if (!phaseHashtagPattern.hasMatch(content)) {
+        // No phase hashtag found - add the provided one
+        contentWithPhase = '$content $phaseHashtag'.trim();
+        print('DEBUG: Auto-added phase hashtag $phaseHashtag to entry (provided phase: $phase)');
+      }
+      
       final now = entryDate;
       final entry = JournalEntry(
         id: const Uuid().v4(),
-        title: _generateTitle(content),
-        content: content,
+        title: _generateTitle(contentWithPhase),
+        content: contentWithPhase, // Use content with phase hashtag
         createdAt: now,
         updatedAt: now,
         tags: const [],
@@ -682,11 +735,26 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
   }) async {
     try {
       final entryDate = DateTime.now();
+      
+      // Ensure phase hashtag is in content (use proposed phase)
+      final phaseHashtag = '#${proposedPhase.toLowerCase()}';
+      final phaseHashtagPattern = RegExp(
+        r'#(discovery|expansion|transition|consolidation|recovery|breakthrough)',
+        caseSensitive: false,
+      );
+      
+      String contentWithPhase = content;
+      if (!phaseHashtagPattern.hasMatch(content)) {
+        // No phase hashtag found - add the proposed one
+        contentWithPhase = '$content $phaseHashtag'.trim();
+        print('DEBUG: Auto-added phase hashtag $phaseHashtag to entry (proposed phase: $proposedPhase)');
+      }
+      
       final now = entryDate;
       final entry = JournalEntry(
         id: const Uuid().v4(),
-        title: _generateTitle(content),
-        content: content,
+        title: _generateTitle(contentWithPhase),
+        content: contentWithPhase, // Use content with phase hashtag
         createdAt: now,
         updatedAt: now,
         tags: const [],
@@ -769,6 +837,16 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
         print('DEBUG: No date change, keeping original: $newCreatedAt');
       }
 
+      // Automatically add phase hashtag to content if missing
+      // Uses Phase Regime system (date-based) to determine phase
+      final contentWithPhase = await _ensurePhaseHashtagInContent(
+        content: content,
+        entryDate: newCreatedAt, // Use the entry's date (may have been changed)
+        emotion: emotion,
+        emotionReason: emotionReason,
+        selectedKeywords: selectedKeywords,
+      );
+      
       // Save LUMARA blocks to metadata
       final metadata = blocks != null && blocks.isNotEmpty
           ? {'inlineBlocks': blocks}
@@ -809,7 +887,7 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
       // Create updated entry
       final updatedEntry = existingEntry.copyWith(
         title: title?.trim().isNotEmpty == true ? title!.trim() : existingEntry.title,
-        content: content,
+        content: contentWithPhase, // Use content with auto-added phase hashtag
         mood: mood,
         keywords: finalKeywords, // Use deduplicated keywords
         emotion: emotion,
@@ -1176,12 +1254,17 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
   }
 
   /// Update user phase with phase stability tracking
+  /// Also creates/updates phase regime and updates hashtags in entries
   Future<void> _updateUserPhaseWithStability(String newPhase, String reason) async {
     try {
       final userBox = await Hive.openBox<UserProfile>('user_profile');
       final userProfile = userBox.get('profile');
       
       if (userProfile != null) {
+        final oldPhase = (userProfile.onboardingCurrentSeason?.isNotEmpty == true)
+            ? userProfile.onboardingCurrentSeason!
+            : (userProfile.currentPhase.isNotEmpty ? userProfile.currentPhase : 'Discovery');
+        
         final updatedProfile = userProfile.copyWith(
           onboardingCurrentSeason: newPhase,
           currentPhase: newPhase,
@@ -1189,6 +1272,9 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
         );
         await userBox.put('profile', updatedProfile);
         print('DEBUG: Updated user profile phase to: $newPhase (reason: $reason)');
+        
+        // Also update phase regime and hashtags
+        await _updatePhaseRegimeAndHashtags(oldPhase, newPhase, reason);
       }
     } catch (e) {
       print('ERROR: Failed to update user phase: $e');
@@ -1201,14 +1287,82 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
       final userProfile = userBox.get('profile');
       
       if (userProfile != null) {
+        final oldPhase = (userProfile.onboardingCurrentSeason?.isNotEmpty == true)
+            ? userProfile.onboardingCurrentSeason!
+            : (userProfile.currentPhase.isNotEmpty ? userProfile.currentPhase : 'Discovery');
+        
         final updatedProfile = userProfile.copyWith(
           onboardingCurrentSeason: newPhase,
+          currentPhase: newPhase,
+          lastPhaseChangeAt: DateTime.now(),
         );
         await userBox.put('profile', updatedProfile);
         print('DEBUG: Updated user profile phase to: $newPhase (reason: $reason)');
+        
+        // Also update phase regime and hashtags
+        await _updatePhaseRegimeAndHashtags(oldPhase, newPhase, reason);
       }
     } catch (e) {
       print('ERROR: Failed to update user phase: $e');
+    }
+  }
+  
+  /// Helper method to update phase regime and hashtags when phase changes
+  Future<void> _updatePhaseRegimeAndHashtags(String oldPhase, String newPhase, String reason) async {
+    try {
+      // Convert string phase names to PhaseLabel enum
+      PhaseLabel? newPhaseLabel = _stringToPhaseLabel(newPhase);
+      PhaseLabel? oldPhaseLabel = _stringToPhaseLabel(oldPhase);
+      
+      if (newPhaseLabel == null) {
+        print('WARNING: Could not convert phase string "$newPhase" to PhaseLabel, skipping regime update');
+        return;
+      }
+      
+      // Initialize phase regime service
+      final analyticsService = AnalyticsService();
+      final rivetSweepService = RivetSweepService(analyticsService);
+      final phaseRegimeService = PhaseRegimeService(analyticsService, rivetSweepService);
+      await phaseRegimeService.initialize();
+      
+      // Check if phase actually changed
+      if (oldPhaseLabel == newPhaseLabel) {
+        print('DEBUG: Phase unchanged ($newPhase), skipping regime update');
+        return;
+      }
+      
+      // Change current phase and update hashtags
+      print('DEBUG: Changing phase regime from $oldPhase to $newPhase (reason: $reason)');
+      await phaseRegimeService.changeCurrentPhase(
+        newPhaseLabel,
+        updateHashtags: true, // This will update hashtags in all affected entries
+      );
+      
+      print('DEBUG: Successfully updated phase regime and hashtags for phase change: $oldPhase → $newPhase');
+    } catch (e) {
+      print('ERROR: Failed to update phase regime and hashtags: $e');
+      // Don't throw - phase profile update already succeeded
+    }
+  }
+  
+  /// Convert string phase name to PhaseLabel enum
+  PhaseLabel? _stringToPhaseLabel(String phase) {
+    final normalized = phase.toLowerCase().trim();
+    switch (normalized) {
+      case 'discovery':
+        return PhaseLabel.discovery;
+      case 'expansion':
+        return PhaseLabel.expansion;
+      case 'transition':
+        return PhaseLabel.transition;
+      case 'consolidation':
+        return PhaseLabel.consolidation;
+      case 'recovery':
+        return PhaseLabel.recovery;
+      case 'breakthrough':
+        return PhaseLabel.breakthrough;
+      default:
+        return null;
     }
   }
 
@@ -1421,6 +1575,77 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
     }
   }
 
+
+  /// Automatically add phase hashtag to content if missing
+  /// Uses Phase Regimes (date-based) to determine the appropriate phase for the entry date
+  /// This ensures consistency - entries get hashtags based on the phase regime they fall into,
+  /// not individual entry analysis (which would cause phase changes on every entry)
+  Future<String> _ensurePhaseHashtagInContent({
+    required String content,
+    required DateTime entryDate,
+    String? emotion,
+    String? emotionReason,
+    List<String>? selectedKeywords,
+  }) async {
+    // Check if content already has a phase hashtag
+    final phaseHashtagPattern = RegExp(
+      r'#(discovery|expansion|transition|consolidation|recovery|breakthrough)',
+      caseSensitive: false,
+    );
+    
+    if (phaseHashtagPattern.hasMatch(content)) {
+      // Phase hashtag already exists, return content as-is
+      print('DEBUG: Content already contains phase hashtag, skipping auto-addition');
+      return content;
+    }
+    
+    // No phase hashtag found - use Phase Regime system to determine phase based on entry date
+    try {
+      final analyticsService = AnalyticsService();
+      final rivetSweepService = RivetSweepService(analyticsService);
+      final phaseRegimeService = PhaseRegimeService(analyticsService, rivetSweepService);
+      await phaseRegimeService.initialize();
+      
+      // Find the regime that contains the entry's date
+      final regime = phaseRegimeService.phaseIndex.regimeFor(entryDate);
+      
+      if (regime != null) {
+        // Entry date falls within a phase regime - use that phase
+        final phaseName = _getPhaseLabelName(regime.label).toLowerCase();
+        final phaseHashtag = '#$phaseName';
+        final updatedContent = '$content $phaseHashtag'.trim();
+        
+        print('DEBUG: Auto-added phase hashtag $phaseHashtag to entry (from regime: ${regime.label}, date: $entryDate)');
+        return updatedContent;
+      } else {
+        // Entry date doesn't fall within any regime - no hashtag added
+        print('DEBUG: Entry date $entryDate does not fall within any phase regime, skipping hashtag');
+        return content;
+      }
+    } catch (e) {
+      print('ERROR: Failed to determine phase from regime for entry date $entryDate: $e');
+      // Fallback: return content as-is if regime lookup fails
+      return content;
+    }
+  }
+  
+  /// Helper to convert PhaseLabel enum to string name
+  String _getPhaseLabelName(PhaseLabel label) {
+    switch (label) {
+      case PhaseLabel.discovery:
+        return 'discovery';
+      case PhaseLabel.expansion:
+        return 'expansion';
+      case PhaseLabel.transition:
+        return 'transition';
+      case PhaseLabel.consolidation:
+        return 'consolidation';
+      case PhaseLabel.recovery:
+        return 'recovery';
+      case PhaseLabel.breakthrough:
+        return 'breakthrough';
+    }
+  }
 
   String _generateTitle(String content) {
     // Simple title generation from first few words

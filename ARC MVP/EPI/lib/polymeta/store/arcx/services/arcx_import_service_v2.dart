@@ -18,6 +18,9 @@ import 'package:my_app/arc/core/journal_repository.dart';
 import 'package:my_app/arc/chat/chat/chat_repo.dart';
 import 'package:my_app/arc/chat/chat/chat_models.dart';
 import 'package:my_app/services/phase_regime_service.dart';
+import 'package:my_app/services/analytics_service.dart';
+import 'package:my_app/services/rivet_sweep_service.dart';
+import 'package:my_app/models/phase_models.dart';
 import 'package:uuid/uuid.dart';
 import '../models/arcx_manifest.dart';
 import 'arcx_crypto_service.dart';
@@ -1137,10 +1140,48 @@ class ARCXImportServiceV2 {
         }
       }
       
+      // Apply auto-hashtag logic for imported entries using Phase Regimes
+      // Check if content already has a phase hashtag
+      final phaseHashtagPattern = RegExp(
+        r'#(discovery|expansion|transition|consolidation|recovery|breakthrough)',
+        caseSensitive: false,
+      );
+      
+      String contentWithPhase = content;
+      if (!phaseHashtagPattern.hasMatch(content)) {
+        // No phase hashtag found - use Phase Regime system to determine phase based on entry date
+        try {
+          final analyticsService = AnalyticsService();
+          final rivetSweepService = RivetSweepService(analyticsService);
+          final phaseRegimeService = PhaseRegimeService(analyticsService, rivetSweepService);
+          await phaseRegimeService.initialize();
+          
+          // Find the regime that contains the entry's date
+          final regime = phaseRegimeService.phaseIndex.regimeFor(createdAt);
+          
+          if (regime != null) {
+            // Entry date falls within a phase regime - use that phase
+            final phaseName = _getPhaseLabelNameFromEnum(regime.label).toLowerCase();
+            final phaseHashtag = '#$phaseName';
+            contentWithPhase = '$content $phaseHashtag'.trim();
+            
+            print('ARCX Import V2: Auto-added phase hashtag $phaseHashtag to imported entry $entryId (from regime: ${regime.label}, date: $createdAt)');
+          } else {
+            // Entry date doesn't fall within any regime - no hashtag added
+            print('ARCX Import V2: Entry $entryId date $createdAt does not fall within any phase regime, skipping hashtag');
+          }
+        } catch (e) {
+          print('ARCX Import V2: ERROR: Failed to determine phase from regime for entry $entryId: $e');
+          // Fallback: return content as-is if regime lookup fails
+        }
+      } else {
+        print('ARCX Import V2: Entry $entryId already has phase hashtag, preserving existing');
+      }
+      
       return JournalEntry(
         id: entryId,
         title: title,
-        content: content,
+        content: contentWithPhase, // Use content with auto-added phase hashtag
         createdAt: createdAt,
         updatedAt: createdAt,
         media: mediaItems,
@@ -1341,6 +1382,24 @@ class ARCXImportServiceV2 {
     } catch (e) {
       print('ARCX Import V2: ✗ Error creating MediaItem: $e');
       return null;
+    }
+  }
+  
+  /// Helper to convert PhaseLabel enum to string name
+  String _getPhaseLabelNameFromEnum(PhaseLabel label) {
+    switch (label) {
+      case PhaseLabel.discovery:
+        return 'discovery';
+      case PhaseLabel.expansion:
+        return 'expansion';
+      case PhaseLabel.transition:
+        return 'transition';
+      case PhaseLabel.consolidation:
+        return 'consolidation';
+      case PhaseLabel.recovery:
+        return 'recovery';
+      case PhaseLabel.breakthrough:
+        return 'breakthrough';
     }
   }
 }

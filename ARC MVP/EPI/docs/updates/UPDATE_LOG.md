@@ -1,11 +1,30 @@
 # EPI MVP - Update Log
 
-**Version:** 1.0.0  
+**Version:** 1.0.2  
 **Last Updated:** January 2025
 
 ---
 
 ## Update History
+
+### Version 2.1.20 (January 2025)
+
+#### Automatic Phase Hashtag System
+- ✅ Phase hashtags now automatically added based on Phase Regimes (date-based system)
+- ✅ No manual tagging required - users no longer need to type `#phase` hashtags
+- ✅ Phase changes happen at regime level, not per-entry, preventing oscillation
+- ✅ Imported entries from ARCX files automatically receive phase hashtags
+- ✅ Entry colors automatically update when phase hashtags change
+- ✅ Phase Legend enhanced with "NO PHASE" indicator for entries without hashtags
+- ✅ Phase change integration - when regimes change, all affected entries' hashtags update automatically
+
+### Version 2.1.19 (November 2025)
+
+#### Journal Timeline & ARCForm UX Refresh
+- ✅ Phase-colored rail now opens a full-height ARCForm preview by collapsing the top chrome (Timeline | LUMARA | Settings + search/filter row).
+- ✅ Phase legend dropdown mounts only when the ARCForm preview is visible, bringing context on demand instead of clutter.
+- ✅ Added swipe and tap affordances plus “ARC ✨” hint on the rail to signal interactivity.
+- ✅ Docs updated across architecture, status, bug tracker, guides, and reports to describe the new flow.
 
 ### Version 2.1.17 (January 2025)
 
@@ -170,6 +189,6 @@
 
 ---
 
-**Last Updated:** January 2025  
-**Version:** 1.0.0
+**Last Updated:** November 17, 2025  
+**Version:** 1.0.1
 

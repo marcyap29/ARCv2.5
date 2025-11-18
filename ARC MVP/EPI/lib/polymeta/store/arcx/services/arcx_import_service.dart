@@ -18,6 +18,10 @@ import 'package:my_app/polymeta/store/mcp/import/enhanced_mcp_import_service.dar
 import 'package:my_app/polymeta/store/mcp/import/mcp_import_service.dart';
 import 'package:my_app/core/utils/timestamp_parser.dart';
 import 'package:my_app/core/utils/title_generator.dart';
+import 'package:my_app/services/analytics_service.dart';
+import 'package:my_app/services/rivet_sweep_service.dart';
+import 'package:my_app/services/phase_regime_service.dart';
+import 'package:my_app/models/phase_models.dart';
 import 'arcx_crypto_service.dart';
 import '../models/arcx_manifest.dart';
 import '../models/arcx_result.dart';
@@ -652,13 +656,51 @@ class ARCXImportService {
         print('   First media item filename: ${mediaData[0] is Map ? (mediaData[0] as Map<String, dynamic>)['filename'] : 'N/A'}');
       }
       
+      // Apply auto-hashtag logic for imported entries using Phase Regimes
+      // Check if content already has a phase hashtag
+      final phaseHashtagPattern = RegExp(
+        r'#(discovery|expansion|transition|consolidation|recovery|breakthrough)',
+        caseSensitive: false,
+      );
+      
+      String contentWithPhase = content;
+      if (!phaseHashtagPattern.hasMatch(content)) {
+        // No phase hashtag found - use Phase Regime system to determine phase based on entry date
+        try {
+          final analyticsService = AnalyticsService();
+          final rivetSweepService = RivetSweepService(analyticsService);
+          final phaseRegimeService = PhaseRegimeService(analyticsService, rivetSweepService);
+          await phaseRegimeService.initialize();
+          
+          // Find the regime that contains the entry's date
+          final regime = phaseRegimeService.phaseIndex.regimeFor(createdAt);
+          
+          if (regime != null) {
+            // Entry date falls within a phase regime - use that phase
+            final phaseName = _getPhaseLabelNameFromEnum(regime.label).toLowerCase();
+            final phaseHashtag = '#$phaseName';
+            contentWithPhase = '$content $phaseHashtag'.trim();
+            
+            print('ARCX Import: Auto-added phase hashtag $phaseHashtag to imported entry $originalId (from regime: ${regime.label}, date: $createdAt)');
+          } else {
+            // Entry date doesn't fall within any regime - no hashtag added
+            print('ARCX Import: Entry $originalId date $createdAt does not fall within any phase regime, skipping hashtag');
+          }
+        } catch (e) {
+          print('ARCX Import: ERROR: Failed to determine phase from regime for entry $originalId: $e');
+          // Fallback: return content as-is if regime lookup fails
+        }
+      } else {
+        print('ARCX Import: Entry $originalId already has phase hashtag, preserving existing');
+      }
+      
       // Create journal entry
       JournalEntry journalEntry;
       try {
         journalEntry = JournalEntry(
         id: originalId,
         title: title,
-        content: content,
+        content: contentWithPhase, // Use content with auto-added phase hashtag
         createdAt: createdAt,
         updatedAt: updatedAt,
           media: mediaItems,
@@ -684,6 +726,24 @@ class ARCXImportService {
     } catch (e) {
       print('ARCX Import: ERROR: Failed to convert MCP node to journal entry: $e');
       return null;
+    }
+  }
+  
+  /// Helper to convert PhaseLabel enum to string name
+  String _getPhaseLabelNameFromEnum(PhaseLabel label) {
+    switch (label) {
+      case PhaseLabel.discovery:
+        return 'discovery';
+      case PhaseLabel.expansion:
+        return 'expansion';
+      case PhaseLabel.transition:
+        return 'transition';
+      case PhaseLabel.consolidation:
+        return 'consolidation';
+      case PhaseLabel.recovery:
+        return 'recovery';
+      case PhaseLabel.breakthrough:
+        return 'breakthrough';
     }
   }
   

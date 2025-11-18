@@ -391,7 +391,7 @@ class _PhaseChangeReadinessCardState extends State<PhaseChangeReadinessCard> {
     final alignPercent = ((_rivetState?.align ?? 0) * 100).toInt();
     final tracePercent = ((_rivetState?.trace ?? 0) * 100).toInt();
 
-    return Card(
+    final readinessCard = Card(
       elevation: 4,
       color: Colors.black87,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
@@ -452,14 +452,6 @@ class _PhaseChangeReadinessCardState extends State<PhaseChangeReadinessCard> {
                           ),
                         ),
                         const SizedBox(height: 8),
-                        _AlignedPhaseBadge(
-                          phaseName: _rivetInsights?.currentPhase ??
-                              (_atlasInsights?['current_phase'] as String? ?? 'Discovery'),
-                          alignmentPercent: alignPercent.clamp(0, 100).toInt(),
-                          tracePercent: tracePercent.clamp(0, 100).toInt(),
-                          approachingPhase: _rivetInsights?.approachingPhase,
-                          shiftPercent: _rivetInsights?.shiftPercentage,
-                        ),
                       ],
                     ),
                   ),
@@ -512,14 +504,22 @@ class _PhaseChangeReadinessCardState extends State<PhaseChangeReadinessCard> {
               ),
               const SizedBox(height: 28),
 
-              // Key Metrics Row
-              _buildMetricsRow(alignPercent, tracePercent, qualifyingEntries, hasIndependent),
+              // Key Metrics Row (with explicit guidance on phase change distance)
+              _buildMetricsRow(
+                alignPercent,
+                tracePercent,
+                qualifyingEntries,
+                hasIndependent,
+                approachingPhase: _rivetInsights?.approachingPhase,
+              ),
               
-              const SizedBox(height: 28),
+              const SizedBox(height: 20),
 
-              // RIVET Phase Transition Insights
+              // RIVET Phase Transition Insights or gap guidance
               if (_rivetInsights != null && _rivetInsights!.approachingPhase != null)
-                _buildRivetInsightsSection(_rivetInsights!),
+                _buildRivetInsightsSection(_rivetInsights!)
+              else
+                _buildPhaseGuidanceBanner(alignPercent, tracePercent, qualifyingEntries, hasIndependent),
 
               // ATLAS Phase Insights (if available)
               if (_atlasInsights != null && 
@@ -544,6 +544,26 @@ class _PhaseChangeReadinessCardState extends State<PhaseChangeReadinessCard> {
           ),
         ),
       ),
+    );
+
+    final alignmentPhaseName = _rivetInsights?.currentPhase ??
+        (_atlasInsights?['current_phase'] as String? ?? 'Discovery');
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _PhaseAlignmentCard(
+          phaseName: alignmentPhaseName,
+          alignmentPercent: alignPercent.clamp(0, 100),
+          tracePercent: tracePercent.clamp(0, 100),
+          approachingPhase: _rivetInsights?.approachingPhase,
+          shiftPercent: _rivetInsights?.shiftPercentage,
+          independentEvidence: hasIndependent,
+          sustainCount: qualifyingEntries,
+        ),
+        const SizedBox(height: 16),
+        readinessCard,
+      ],
     );
     } catch (e, stackTrace) {
       print('ERROR: PhaseChangeReadinessCard build error: $e');
@@ -579,85 +599,134 @@ class _PhaseChangeReadinessCardState extends State<PhaseChangeReadinessCard> {
     }
   }
 
-  Widget _buildMetricsRow(int align, int trace, int entries, bool hasIndependent) {
-    return Row(
+  Widget _buildMetricsRow(
+    int align,
+    int trace,
+    int entries,
+    bool hasIndependent, {
+    String? approachingPhase,
+  }) {
+    return GridView(
+      padding: EdgeInsets.zero,
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2,
+        crossAxisSpacing: 12,
+        mainAxisSpacing: 12,
+        childAspectRatio: 1.8,
+      ),
       children: [
-        Expanded(
-          child: _buildMetricCard(
-            'Alignment',
-            '$align%',
-            align,
-            Icons.verified,
-            Colors.purple,
-          ),
+        _buildMetricCard(
+          title: 'Alignment strength',
+          subtitle: approachingPhase != null
+              ? 'Trending toward ${approachingPhase[0].toUpperCase()}${approachingPhase.substring(1)}'
+              : 'Stability vs current phase',
+          value: '$align%',
+          percent: align,
+          icon: Icons.verified,
+          color: Colors.deepPurple,
         ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: _buildMetricCard(
-            'Evidence',
-            '$trace%',
-            trace,
-            Icons.assessment,
-            Colors.orange,
-          ),
+        _buildMetricCard(
+          title: 'Evidence quality',
+          subtitle: 'Confidence from recent entries',
+          value: '$trace%',
+          percent: trace,
+          icon: Icons.assessment,
+          color: Colors.orange,
         ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: _buildMetricCard(
-            'Entries',
-            '$entries/2',
-            (entries / 2 * 100).toInt(),
-            Icons.book,
-            Colors.teal,
-          ),
+        _buildMetricCard(
+          title: 'Qualifying entries',
+          subtitle: entries >= 2 ? 'Requirement met' : '${(2 - entries).clamp(0, 2)} more needed',
+          value: '$entries / 2',
+          percent: (entries / 2 * 100).clamp(0, 100).toInt(),
+          icon: Icons.menu_book,
+          color: Colors.teal,
+        ),
+        _buildMetricCard(
+          title: 'Independent signals',
+          subtitle: hasIndependent ? 'Multiple days confirmed' : 'Log another session',
+          value: hasIndependent ? 'Verified' : 'Pending',
+          percent: hasIndependent ? 100 : 50,
+          icon: Icons.timeline,
+          color: hasIndependent ? Colors.green : Colors.blueGrey,
         ),
       ],
     );
   }
 
-  Widget _buildMetricCard(String label, String value, int percent, IconData icon, Color color) {
+  Widget _buildMetricCard({
+    required String title,
+    required String subtitle,
+    required String value,
+    required int percent,
+    required IconData icon,
+    required Color color,
+  }) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: color.withOpacity(0.2)),
+        border: Border.all(color: color.withOpacity(0.15)),
         boxShadow: [
           BoxShadow(
-            color: color.withOpacity(0.1),
-            blurRadius: 4,
-            offset: const Offset(0, 2),
+            color: color.withOpacity(0.08),
+            blurRadius: 6,
+            offset: const Offset(0, 3),
           ),
         ],
       ),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, color: color, size: 24),
-          const SizedBox(height: 8),
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(icon, color: color, size: 18),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  title,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 13,
+                    color: Colors.black87,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            subtitle,
+            style: const TextStyle(fontSize: 11, color: Colors.black54),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+          ),
+          const Spacer(),
           Text(
             value,
             style: TextStyle(
-              fontSize: 18,
+              fontSize: 20,
               fontWeight: FontWeight.bold,
               color: color,
             ),
           ),
-          const SizedBox(height: 4),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 11,
-              color: Colors.grey[300],
-            ),
-          ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 6),
           ClipRRect(
-            borderRadius: BorderRadius.circular(4),
+            borderRadius: BorderRadius.circular(6),
             child: LinearProgressIndicator(
-              value: percent / 100.0,
-              backgroundColor: Colors.grey[200],
+              value: percent.clamp(0, 100) / 100.0,
+              minHeight: 6,
+              backgroundColor: color.withOpacity(0.15),
               valueColor: AlwaysStoppedAnimation<Color>(color),
-              minHeight: 4,
             ),
           ),
         ],
@@ -776,6 +845,95 @@ class _PhaseChangeReadinessCardState extends State<PhaseChangeReadinessCard> {
                 ],
               ),
             )),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPhaseGuidanceBanner(
+    int align,
+    int trace,
+    int entries,
+    bool hasIndependent, {
+    String? approachingPhase,
+  }) {
+    final entriesNeeded = (2 - entries).clamp(0, 2);
+    final alignmentNeeded = (60 - align).clamp(0, 60);
+    final traceNeeded = (60 - trace).clamp(0, 60);
+    final needsIndependent = !hasIndependent;
+
+    final remaining = <String>[];
+    if (entriesNeeded > 0) {
+      remaining.add('${entriesNeeded} more qualifying ${entriesNeeded == 1 ? 'entry' : 'entries'}');
+    }
+    if (needsIndependent) {
+      remaining.add('Evidence from a different day');
+    }
+    if (alignmentNeeded > 0) {
+      remaining.add('${alignmentNeeded}% alignment evidence');
+    }
+    if (traceNeeded > 0) {
+      remaining.add('${traceNeeded}% supporting data');
+    }
+
+    final isReady = remaining.isEmpty;
+    final targetPhase = approachingPhase != null && approachingPhase.isNotEmpty
+        ? approachingPhase[0].toUpperCase() + approachingPhase.substring(1)
+        : 'next phase';
+
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: Colors.blueGrey.shade900,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.blueGrey.shade700),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                isReady ? Icons.check_circle : Icons.hourglass_top,
+                color: isReady ? Colors.greenAccent : Colors.orangeAccent,
+                size: 22,
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  isReady
+                      ? 'All requirements met. Keep journaling to confirm $targetPhase.'
+                      : 'You\'re close to $targetPhase. Remaining checklist:',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          if (!isReady) ...[
+            const SizedBox(height: 12),
+            ...remaining.map(
+              (item) => Padding(
+                padding: const EdgeInsets.only(bottom: 6, left: 4),
+                child: Row(
+                  children: [
+                    const Text(
+                      '• ',
+                      style: TextStyle(color: Colors.white70),
+                    ),
+                    Expanded(
+                      child: Text(
+                        item,
+                        style: const TextStyle(color: Colors.white70),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
           ],
         ],
       ),
@@ -1172,6 +1330,7 @@ class _PhaseChangeReadinessCardState extends State<PhaseChangeReadinessCard> {
   }
 
   Widget _buildEnhancedRequirementsSection(int qualifyingEntries, bool hasIndependent, bool isReady) {
+    final int remainingEntries = (2 - qualifyingEntries).clamp(0, 2);
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -1208,10 +1367,48 @@ class _PhaseChangeReadinessCardState extends State<PhaseChangeReadinessCard> {
           ),
           const SizedBox(height: 16),
           _buildRequirementRow(
-            '2 qualifying journal entries',
+            qualifyingEntries >= 2
+                ? 'Qualifying journal entries complete'
+                : 'Write ${2 - qualifyingEntries} more qualifying journal ${2 - qualifyingEntries == 1 ? 'entry' : 'entries'}',
             qualifyingEntries >= 2,
             '$qualifyingEntries/2',
             Icons.description,
+            customStatus: RichText(
+              text: TextSpan(
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.white,
+                ),
+                children: [
+                  TextSpan(
+                    text: '$qualifyingEntries ',
+                    style: TextStyle(
+                      color: qualifyingEntries >= 2 ? Colors.green.shade300 : Colors.white,
+                    ),
+                  ),
+                  const TextSpan(text: 'of '),
+                  TextSpan(
+                    text: '2',
+                    style: TextStyle(
+                      color: Colors.blue.shade300,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  if (remainingEntries > 0) ...[
+                    const TextSpan(text: '  ('),
+                    TextSpan(
+                      text: '$remainingEntries remaining',
+                      style: TextStyle(
+                        color: Colors.orange.shade300,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const TextSpan(text: ')'),
+                  ],
+                ],
+              ),
+            ),
           ),
           const SizedBox(height: 12),
           _buildRequirementRow(
@@ -1239,7 +1436,13 @@ class _PhaseChangeReadinessCardState extends State<PhaseChangeReadinessCard> {
     );
   }
 
-  Widget _buildRequirementRow(String title, bool isComplete, String status, IconData icon) {
+  Widget _buildRequirementRow(
+    String title,
+    bool isComplete,
+    String status,
+    IconData icon, {
+    Widget? customStatus,
+  }) {
     return Row(
       children: [
         Container(
@@ -1271,14 +1474,15 @@ class _PhaseChangeReadinessCardState extends State<PhaseChangeReadinessCard> {
             color: isComplete ? Colors.green.withOpacity(0.2) : Colors.grey[800],
             borderRadius: BorderRadius.circular(12),
           ),
-          child: Text(
-            status,
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: isComplete ? Colors.green.shade400 : Colors.grey[300],
-            ),
-          ),
+          child: customStatus ??
+              Text(
+                status,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: isComplete ? Colors.green.shade400 : Colors.grey[300],
+                ),
+              ),
         ),
       ],
     );
@@ -1288,16 +1492,10 @@ class _PhaseChangeReadinessCardState extends State<PhaseChangeReadinessCard> {
 class _AlignedPhaseBadge extends StatelessWidget {
   final String phaseName;
   final int alignmentPercent;
-  final int? tracePercent;
-  final String? approachingPhase;
-  final double? shiftPercent;
 
   const _AlignedPhaseBadge({
     required this.phaseName,
     required this.alignmentPercent,
-    this.tracePercent,
-    this.approachingPhase,
-    this.shiftPercent,
   });
 
   @override
@@ -1317,11 +1515,8 @@ class _AlignedPhaseBadge extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: Colors.white.withOpacity(0.08)),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Row(
         children: [
-          Row(
-            children: [
           Container(
             width: 40,
             height: 40,
@@ -1356,19 +1551,6 @@ class _AlignedPhaseBadge extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
-                if (approachingPhase != null && approachingPhase!.isNotEmpty) ...[
-                  const SizedBox(height: 4),
-                  Text(
-                    shiftPercent != null
-                        ? 'Trending toward $approachingPhase (+${shiftPercent!.toStringAsFixed(0)}%)'
-                        : 'Trending toward $approachingPhase',
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: Colors.grey[400],
-                        ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
               ],
             ),
           ),
@@ -1391,65 +1573,179 @@ class _AlignedPhaseBadge extends StatelessWidget {
               ),
             ],
           ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Wrap(
-            spacing: 8,
-            runSpacing: 6,
-            children: [
-              if (tracePercent != null)
-                _MetricChip(
-                  label: 'Evidence confidence',
-                  value: '${tracePercent!.clamp(0, 100)}%',
-                ),
-              _MetricChip(
-                label: 'Readiness signals',
-                value: alignmentPercent >= 60 ? 'Strong' : (alignmentPercent >= 40 ? 'Emerging' : 'Forming'),
-              ),
-            ],
-          ),
         ],
       ),
     );
   }
 }
 
-class _MetricChip extends StatelessWidget {
+class _PhaseAlignmentCard extends StatelessWidget {
+  final String phaseName;
+  final int alignmentPercent;
+  final int tracePercent;
+  final String? approachingPhase;
+  final double? shiftPercent;
+  final bool independentEvidence;
+  final int sustainCount;
+
+  const _PhaseAlignmentCard({
+    required this.phaseName,
+    required this.alignmentPercent,
+    required this.tracePercent,
+    required this.approachingPhase,
+    required this.shiftPercent,
+    required this.independentEvidence,
+    required this.sustainCount,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      elevation: 3,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+      child: Padding(
+        padding: const EdgeInsets.all(18.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.bubble_chart, color: Colors.blueAccent.shade200),
+                const SizedBox(width: 8),
+                Text(
+                  'Phase Alignment Snapshot',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            _AlignedPhaseBadge(
+              phaseName: phaseName,
+              alignmentPercent: alignmentPercent,
+            ),
+            const SizedBox(height: 16),
+            Column(
+              children: [
+                _AlignmentMetric(
+                  icon: Icons.timeline,
+                  color: independentEvidence ? Colors.teal : Colors.blueGrey,
+                  label: 'Independent signals',
+                  value: independentEvidence ? 'Verified' : 'Pending',
+                  description: independentEvidence
+                      ? 'Entries span multiple days'
+                      : 'Log a reflection on a different day to confirm.',
+                ),
+                const SizedBox(height: 10),
+                _AlignmentMetric(
+                  icon: Icons.trending_up,
+                  color: Colors.deepPurple,
+                  label: 'Transition trend',
+                  value: approachingPhase == null
+                      ? 'Stable in $phaseName'
+                      : (shiftPercent != null
+                          ? 'Toward ${_titleCase(approachingPhase!)} (+${shiftPercent!.toStringAsFixed(0)}%)'
+                          : 'Toward ${_titleCase(approachingPhase!)}'),
+                  description: approachingPhase == null
+                      ? 'Building consistency before recommending a move.'
+                      : 'Signals increasingly resemble ${_titleCase(approachingPhase!)}.',
+                ),
+                const SizedBox(height: 10),
+                _AlignmentMetric(
+                  icon: Icons.assessment,
+                  color: Colors.orange,
+                  label: 'Evidence confidence',
+                  value: '$tracePercent%',
+                  description: 'Quality of supporting entries powering this call.',
+                ),
+                const SizedBox(height: 10),
+                _AlignmentMetric(
+                  icon: Icons.menu_book,
+                  color: Colors.indigo,
+                  label: 'Sustained entries',
+                  value: '$sustainCount',
+                  description: 'Distinct reflections bolstering this phase.',
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _titleCase(String text) {
+    if (text.isEmpty) return text;
+    return text[0].toUpperCase() + text.substring(1).toLowerCase();
+  }
+}
+
+class _AlignmentMetric extends StatelessWidget {
+  final IconData icon;
+  final Color color;
   final String label;
   final String value;
+  final String description;
 
-  const _MetricChip({
+  const _AlignmentMetric({
+    required this.icon,
+    required this.color,
     required this.label,
     required this.value,
+    required this.description,
   });
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.06),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: Colors.white.withOpacity(0.08)),
+        color: color.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: color.withOpacity(0.2)),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
+      child: Row(
         children: [
-          Text(
-            label,
-            style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  color: Colors.grey[400],
-                  letterSpacing: 0.3,
-                ),
+          Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.25),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(icon, color: color, size: 20),
           ),
-          Text(
-            value,
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w600,
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label.toUpperCase(),
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                        fontWeight: FontWeight.w600,
+                        color: Colors.black.withOpacity(0.7),
+                        letterSpacing: 0.4,
+                      ),
                 ),
+                const SizedBox(height: 4),
+                Text(
+                  value,
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: color,
+                      ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  description,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: Colors.black54,
+                      ),
+                ),
+              ],
+            ),
           ),
         ],
       ),

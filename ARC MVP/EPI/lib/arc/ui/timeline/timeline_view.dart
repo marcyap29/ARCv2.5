@@ -482,28 +482,51 @@ class _TimelineViewContentState extends State<TimelineViewContent> {
                 Wrap(
                   spacing: 12,
                   runSpacing: 8,
-                  children: PhaseLabel.values.map((label) {
-                    final color = _phaseColor(label);
-                    return Row(
+                  children: [
+                    // All phase labels
+                    ...PhaseLabel.values.map((label) {
+                      final color = _phaseColor(label);
+                      return Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Container(
+                            width: 16,
+                            height: 16,
+                            decoration: BoxDecoration(
+                              color: color.withOpacity(0.7),
+                              border: Border.all(color: color, width: 2),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            label.name.toUpperCase(),
+                            style: theme.textTheme.bodySmall,
+                          ),
+                        ],
+                      );
+                    }).toList(),
+                    // No Phase / Unknown Phase entry
+                    Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Container(
                           width: 16,
                           height: 16,
                           decoration: BoxDecoration(
-                            color: color.withOpacity(0.7),
-                            border: Border.all(color: color, width: 2),
+                            color: kcSecondaryTextColor.withOpacity(0.7),
+                            border: Border.all(color: kcSecondaryTextColor, width: 2),
                             borderRadius: BorderRadius.circular(4),
                           ),
                         ),
                         const SizedBox(width: 6),
                         Text(
-                          label.name.toUpperCase(),
+                          'NO PHASE',
                           style: theme.textTheme.bodySmall,
                         ),
                       ],
-                    );
-                  }).toList(),
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 12),
                 const Divider(),
