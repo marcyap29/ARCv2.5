@@ -1,11 +1,19 @@
 # EPI MVP - Update Log
 
-**Version:** 1.0.4  
+**Version:** 1.0.5  
 **Last Updated:** January 2025
 
 ---
 
 ## Update History
+
+### Version 2.1.23 (January 2025)
+
+#### Always Show Favorites Link in Snackbar
+- ✅ Favorites "Manage" link now always appears in snackbar when adding favorites
+- ✅ Consistent behavior across all favorite addition locations (chat, journal, assistant)
+- ✅ Improved accessibility - users can always quickly access Favorites list
+- ✅ Removed first-time-only conditional logic
 
 ### Version 2.1.22 (January 2025)
 

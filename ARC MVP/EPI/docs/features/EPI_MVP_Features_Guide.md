@@ -124,6 +124,11 @@ EPI MVP provides a comprehensive set of features for intelligent journaling, AI 
 - **Light Presence**: Defaults to minimal presence when no question is asked
 - **Emotional Safety**: Conservative context usage to avoid overwhelming users
 
+**LUMARA Favorites Management**
+- **Always-Accessible Link**: When adding a favorite, the snackbar always includes a "Manage" link to the Favorites list
+- **Quick Access**: Users can immediately navigate to Favorites management from any favorite addition confirmation
+- **Consistent Experience**: Same behavior across all favorite addition locations (chat, journal, assistant)
+
 ### On-Device AI
 
 **Qwen Models**

@@ -1,7 +1,30 @@
 # EPI ARC MVP - Changelog
 
-**Version:** 2.1.22  
+**Version:** 2.1.23  
 **Last Updated:** January 2025
+
+## [2.1.23] - January 2025
+
+### **Always Show Favorites Link in Snackbar** - Complete
+
+#### Improved User Experience
+- **Persistent Favorites Link**: The "Manage" link to the Favorites list now always appears in the snackbar when adding a LUMARA favorite, not just the first time
+- **Consistent Behavior**: All three favorite addition locations (chat messages, journal reflections, LUMARA assistant) now consistently show the full snackbar with management link
+- **Better Accessibility**: Users can always quickly access their Favorites list directly from the confirmation snackbar
+
+#### Technical Changes
+- Removed conditional logic that only showed full snackbar on first use
+- Renamed `_showFirstTimeSnackbar()` to `_showFavoriteAddedSnackbar()` for clarity
+- All favorite addition flows now consistently show snackbar with "Manage" action button
+
+**Files Modified**:
+- `lib/arc/chat/chat/ui/session_view.dart` - Always show favorites link
+- `lib/ui/journal/widgets/inline_reflection_block.dart` - Always show favorites link
+- `lib/arc/chat/ui/lumara_assistant_screen.dart` - Always show favorites link
+
+**Status**: ✅ Complete - Users can now always access Favorites management from snackbar
+
+---
 
 ## [2.1.22] - January 2025
 

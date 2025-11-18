@@ -1,7 +1,7 @@
 # EPI Documentation
 
 **Last Updated:** January 2025  
-**Version:** 2.1.22
+**Version:** 2.1.23
 
 ## Documentation Structure
 
@@ -80,8 +80,8 @@ Policy specifications:
 
 ## Version Information
 
-**Current Version:** 2.1.22  
-**Last Major Update:** January 2025 (Enhanced Phase Transition Guidance - Clear, specific explanations for near-ready states)
+**Current Version:** 2.1.23  
+**Last Major Update:** January 2025 (Always Show Favorites Link - Persistent access to Favorites management from snackbar)
 
 See `changelog/CHANGELOG.md` for detailed version history.
 
