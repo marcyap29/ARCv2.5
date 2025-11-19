@@ -246,6 +246,7 @@ The following modules have been consolidated and are deprecated:
 - **Architecture Files:**
   - `EPI_Consolidated_Architecture.md` - Complete architecture specification
   - `ARCHITECTURE_OVERVIEW.md` - This file (high-level overview)
+  - `MODULE_REFERENCE.md` - Detailed module and component reference guide
   - `Migration_Status.md` - Migration completion status
 
 - **Module Documentation:**
@@ -265,5 +266,7 @@ The following modules have been consolidated and are deprecated:
 
 ---
 
-**For detailed module specifications, see [EPI_Consolidated_Architecture.md](./EPI_Consolidated_Architecture.md)**
+**For detailed module specifications, see:**
+- [EPI_Consolidated_Architecture.md](./EPI_Consolidated_Architecture.md) - Complete architecture specification
+- [MODULE_REFERENCE.md](./MODULE_REFERENCE.md) - Detailed module and component reference guide
 
