@@ -105,22 +105,33 @@ class _UnifiedJournalViewState extends State<UnifiedJournalView>
                   unselectedLabelColor: Colors.grey,
                   indicatorColor: Colors.purple,
                   indicatorWeight: 2,
-                  labelPadding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4), // Vertical padding
-                  labelStyle: const TextStyle(fontSize: 13), // Font size
-                  unselectedLabelStyle: const TextStyle(fontSize: 13), // Font size
+                  labelPadding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 2), // Reduced vertical padding to prevent overflow
+                  labelStyle: const TextStyle(
+                    fontSize: 13, // Font size
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  unselectedLabelStyle: const TextStyle(
+                    fontSize: 13, // Font size
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  isScrollable: false,
+                  tabAlignment: TabAlignment.fill,
                   tabs: [
                     const Tab(
-                      icon: Icon(Icons.timeline, size: 16), // Reduced from 18 to 16
+                      icon: Icon(Icons.timeline, size: 16), // Icon size
                       text: 'Timeline',
+                      iconMargin: EdgeInsets.only(bottom: 2), // Reduced spacing between icon and text
                     ),
                     if (AppFlags.isLumaraEnabled)
                       const Tab(
-                        icon: Icon(Icons.psychology, size: 16), // Reduced from 18 to 16
+                        icon: Icon(Icons.psychology, size: 16), // Icon size
                         text: 'LUMARA',
+                        iconMargin: EdgeInsets.only(bottom: 2), // Reduced spacing between icon and text
                       ),
                     const Tab(
-                      icon: Icon(Icons.settings, size: 16), // Reduced from 18 to 16
+                      icon: Icon(Icons.settings, size: 16), // Icon size
                       text: 'Settings',
+                      iconMargin: EdgeInsets.only(bottom: 2), // Reduced spacing between icon and text
                     ),
                   ],
                 ),
