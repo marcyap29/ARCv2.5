@@ -8,6 +8,7 @@ import 'package:my_app/arc/ui/arcforms/arcform_renderer_cubit.dart';
 import 'package:my_app/arc/ui/arcforms/arcform_renderer_state.dart';
 import 'package:my_app/services/user_phase_service.dart';
 import 'package:my_app/shared/app_colors.dart';
+import 'package:my_app/shared/text_style.dart';
 import 'package:my_app/services/journal_session_cache.dart';
 import 'package:my_app/ui/journal/journal_screen.dart';
 import 'package:my_app/arc/ui/timeline/timeline_entry_model.dart';
@@ -213,73 +214,47 @@ class _TimelineViewContentState extends State<TimelineViewContent> {
       create: (context) => ArcformRendererCubit()..initialize(),
       child: BlocBuilder<TimelineCubit, TimelineState>(
         builder: (context, state) {
-          final double topPadding =
-              _isArcformTimelineVisible ? MediaQuery.of(context).padding.top : 0.0;
-
           return Scaffold(
-            appBar: _buildAppBar(),
-            body: Padding(
-              padding: EdgeInsets.only(top: topPadding),
-              child: Column(
-                children: [
-                  // Scrollable top section with Arcform preview and search
-                  if (!_isArcformTimelineVisible && !_isSelectionMode)
-                    Flexible(
-                      child: SingleChildScrollView(
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            // Current Phase Arcform Preview - above timeline icons
-                            const CurrentPhaseArcformPreview(),
-                            AnimatedSwitcher(
-                              duration: const Duration(milliseconds: 250),
-                              child: AnimatedSize(
-                                duration: const Duration(milliseconds: 300),
-                                curve: Curves.easeInOut,
-                                child: _isSearchExpanded
-                                    ? Column(
-                                        children: [
-                                          _buildSearchBar(state),
-                                          _buildFilterButtons(state),
-                                        ],
-                                      )
-                                    : const SizedBox.shrink(),
-                              ),
-                            ),
-                          ],
+            body: SafeArea(
+              child: NestedScrollView(
+                headerSliverBuilder: (BuildContext context, bool innerBoxIsScrolled) {
+                  return <Widget>[
+                    // Custom header (replaces AppBar) - scrolls with content
+                    if (!_isArcformTimelineVisible)
+                      SliverToBoxAdapter(
+                        child: _buildScrollableHeader(),
+                      ),
+                    // Phase preview - scrolls with content
+                    if (!_isArcformTimelineVisible && !_isSelectionMode)
+                      SliverToBoxAdapter(
+                        child: const CurrentPhaseArcformPreview(),
+                      ),
+                    // Search bar - scrolls with content
+                    if (!_isArcformTimelineVisible && _isSearchExpanded)
+                      SliverToBoxAdapter(
+                        child: AnimatedSize(
+                          duration: const Duration(milliseconds: 300),
+                          curve: Curves.easeInOut,
+                          child: Column(
+                            children: [
+                              _buildSearchBar(state),
+                              _buildFilterButtons(state),
+                            ],
+                          ),
                         ),
                       ),
-                    )
-                  else
-                    AnimatedSwitcher(
-                      duration: const Duration(milliseconds: 250),
-                      child: _isArcformTimelineVisible
-                          ? const SizedBox.shrink()
-                          : AnimatedSize(
-                              duration: const Duration(milliseconds: 300),
-                              curve: Curves.easeInOut,
-                              child: _isSearchExpanded
-                                  ? Column(
-                                      children: [
-                                        _buildSearchBar(state),
-                                        _buildFilterButtons(state),
-                                      ],
-                                    )
-                                  : const SizedBox.shrink(),
-                            ),
-                    ),
-              AnimatedSwitcher(
-                duration: const Duration(milliseconds: 250),
-                child: _isArcformTimelineVisible
-                    ? Padding(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 16, vertical: 8),
-                        child: _buildPhaseLegendDropdown(context),
-                      )
-                    : const SizedBox.shrink(),
-              ),
-              Expanded(
-                child: InteractiveTimelineView(
+                    // Phase legend dropdown for arcform timeline
+                    if (_isArcformTimelineVisible)
+                      SliverToBoxAdapter(
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 16, vertical: 8),
+                          child: _buildPhaseLegendDropdown(context),
+                        ),
+                      ),
+                  ];
+                },
+                body: InteractiveTimelineView(
                   key: _timelineViewKey,
                   onJumpToDate: _showJumpToDateDialog,
                   onSelectionChanged: (isSelectionMode, selectedCount, totalEntries) {
@@ -306,115 +281,134 @@ class _TimelineViewContentState extends State<TimelineViewContent> {
                   },
                 ),
               ),
-            ],
-          ),
-        ),
+            ),
           );
         },
       ),
     );
   }
 
-  PreferredSizeWidget? _buildAppBar() {
+  /// Build scrollable header that replaces AppBar
+  Widget _buildScrollableHeader() {
     if (_isArcformTimelineVisible) {
-      return const PreferredSize(
-        preferredSize: Size.fromHeight(0),
-        child: SizedBox.shrink(),
-      );
+      return const SizedBox.shrink();
     }
 
-    return AppBar(
-      title: Text(_isSelectionMode ? 'Select Entries' : 'Timeline'),
-      leading: _isSelectionMode
-          ? IconButton(
-              icon: const Icon(Icons.close),
-              onPressed: () {
-                _timelineViewKey.currentState?.exitSelectionMode();
-                setState(() {
-                  _isSelectionMode = false;
-                  _selectedCount = 0;
-                });
-              },
-            )
-          : null,
-      actions: [
-        if (_isSelectionMode) ...[
-          IconButton(
-            icon: const Icon(Icons.select_all),
-            onPressed: () {
-              if (_selectedCount == _totalEntries) {
-                _timelineViewKey.currentState?.deselectAll();
-              } else {
-                _timelineViewKey.currentState?.selectAll();
-              }
-            },
-            tooltip:
-                _selectedCount == _totalEntries ? 'Deselect All' : 'Select All',
-          ),
-          IconButton(
-            icon: const Icon(Icons.clear),
-            onPressed: () {
-              _timelineViewKey.currentState?.clearSelection();
-            },
-            tooltip: 'Clear Selection',
-          ),
-          if (_selectedCount > 0)
-            IconButton(
-              icon: const Icon(Icons.delete),
-              onPressed: () {
-                _timelineViewKey.currentState?.deleteSelectedEntries();
-              },
-              tooltip: 'Delete Selected',
-            ),
-        ] else ...[
-          IconButton(
-            icon: const Icon(Icons.calendar_today),
-            onPressed: _showJumpToDateDialog,
-            tooltip: 'Jump to Date',
-          ),
-          IconButton(
-            icon: Icon(_isSearchExpanded ? Icons.search_off : Icons.search),
-            onPressed: () {
-              final wasExpanded = _isSearchExpanded;
-              setState(() {
-                _isSearchExpanded = !_isSearchExpanded;
-              });
-              if (wasExpanded) {
-                _searchController.clear();
-                _timelineCubit.setSearchQuery('');
-              }
-            },
-            tooltip: _isSearchExpanded ? 'Hide Search' : 'Search Entries',
-          ),
-          IconButton(
-            icon: const Icon(Icons.bookmark, color: Color(0xFF2196F3)),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const FavoriteJournalEntriesView(),
+    return Container(
+      color: kcBackgroundColor,
+      child: Column(
+        children: [
+          // Header bar with title and actions
+          Container(
+            height: kToolbarHeight,
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            child: Row(
+              children: [
+                if (_isSelectionMode)
+                  IconButton(
+                    icon: const Icon(Icons.close),
+                    onPressed: () {
+                      _timelineViewKey.currentState?.exitSelectionMode();
+                      setState(() {
+                        _isSelectionMode = false;
+                        _selectedCount = 0;
+                      });
+                    },
+                  )
+                else
+                  const SizedBox(width: 48), // Spacer for alignment
+                Expanded(
+                  child: Text(
+                    _isSelectionMode ? 'Select Entries' : 'Timeline',
+                    style: heading1Style(context).copyWith(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w600,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
                 ),
-              );
-            },
-            tooltip: 'Favorite Journal Entries',
-          ),
-          IconButton(
-            icon: const Icon(Icons.checklist),
-            onPressed: () {
-              _timelineViewKey.currentState?.enterSelectionMode();
-              setState(() {
-                _isSelectionMode = true;
-              });
-            },
-            tooltip: 'Select Mode',
-          ),
-          IconButton(
-            icon: const Icon(Icons.add),
-            onPressed: _onWritePressed,
-            tooltip: 'New Entry',
+                // Actions
+                if (_isSelectionMode) ...[
+                  IconButton(
+                    icon: const Icon(Icons.select_all),
+                    onPressed: () {
+                      if (_selectedCount == _totalEntries) {
+                        _timelineViewKey.currentState?.deselectAll();
+                      } else {
+                        _timelineViewKey.currentState?.selectAll();
+                      }
+                    },
+                    tooltip:
+                        _selectedCount == _totalEntries ? 'Deselect All' : 'Select All',
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.clear),
+                    onPressed: () {
+                      _timelineViewKey.currentState?.clearSelection();
+                    },
+                    tooltip: 'Clear Selection',
+                  ),
+                  if (_selectedCount > 0)
+                    IconButton(
+                      icon: const Icon(Icons.delete),
+                      onPressed: () {
+                        _timelineViewKey.currentState?.deleteSelectedEntries();
+                      },
+                      tooltip: 'Delete Selected',
+                    ),
+                ] else ...[
+                  IconButton(
+                    icon: const Icon(Icons.calendar_today),
+                    onPressed: _showJumpToDateDialog,
+                    tooltip: 'Jump to Date',
+                  ),
+                  IconButton(
+                    icon: Icon(_isSearchExpanded ? Icons.search_off : Icons.search),
+                    onPressed: () {
+                      final wasExpanded = _isSearchExpanded;
+                      setState(() {
+                        _isSearchExpanded = !_isSearchExpanded;
+                      });
+                      if (wasExpanded) {
+                        _searchController.clear();
+                        _timelineCubit.setSearchQuery('');
+                      }
+                    },
+                    tooltip: _isSearchExpanded ? 'Hide Search' : 'Search Entries',
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.bookmark, color: Color(0xFF2196F3)),
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const FavoriteJournalEntriesView(),
+                        ),
+                      );
+                    },
+                    tooltip: 'Favorite Journal Entries',
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.checklist),
+                    onPressed: () {
+                      _timelineViewKey.currentState?.enterSelectionMode();
+                      setState(() {
+                        _isSelectionMode = true;
+                      });
+                    },
+                    tooltip: 'Select Mode',
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.add),
+                    onPressed: _onWritePressed,
+                    tooltip: 'New Entry',
+                  ),
+                ],
+              ],
+            ),
           ),
         ],
-      ],
+      ),
     );
   }
 
