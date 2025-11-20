@@ -90,15 +90,15 @@ class _UnifiedJournalViewState extends State<UnifiedJournalView>
                   indicatorColor: Colors.purple,
                   indicatorWeight: 2, // Reduced from 3 to 2
                   labelPadding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 2), // Added vertical padding to raise text
-                  labelStyle: const TextStyle(fontSize: 13), // Increased from 11 to 13 for better readability
-                  unselectedLabelStyle: const TextStyle(fontSize: 13), // Increased from 11 to 13 for better readability
+                  labelStyle: const TextStyle(fontSize: 11.375), // Reduced by 1/8 from 13 to 11.375
+                  unselectedLabelStyle: const TextStyle(fontSize: 11.375), // Reduced by 1/8 from 13 to 11.375
                   tabs: [
                     const Tab(
-                      icon: Icon(Icons.timeline, size: 16), // Reduced from 18 to 16
+                      icon: Icon(Icons.timeline, size: 14), // Reduced by 1/8 from 16 to 14
                       text: 'Timeline',
-                      ),
+                    ),
                     const Tab(
-                      icon: Icon(Icons.settings, size: 16), // Reduced from 18 to 16
+                      icon: Icon(Icons.settings, size: 14), // Reduced by 1/8 from 16 to 14
                       text: 'Settings',
                     ),
                   ],
