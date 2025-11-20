@@ -95,31 +95,31 @@ class _UnifiedJournalViewState extends State<UnifiedJournalView>
           children: [
             // Tab bar for Timeline and LUMARA
             Container(
-              padding: const EdgeInsets.only(bottom: 4), // Add bottom padding to raise text above bar
+              padding: const EdgeInsets.only(bottom: 2), // Reduced bottom padding
               color: kcBackgroundColor,
               child: SizedBox(
-                height: 42, // Increased height to accommodate icon+text+padding without overflow
+                height: 32, // Reduced height to save vertical space
                 child: TabBar(
                   controller: _tabController,
                   labelColor: Colors.white,
                   unselectedLabelColor: Colors.grey,
                   indicatorColor: Colors.purple,
-                  indicatorWeight: 2, // Reduced from 3 to 2
-                  labelPadding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 2), // Added vertical padding to raise text
-                  labelStyle: const TextStyle(fontSize: 13), // Increased from 11 to 13 for better readability
-                  unselectedLabelStyle: const TextStyle(fontSize: 13), // Increased from 11 to 13 for better readability
+                  indicatorWeight: 2,
+                  labelPadding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 0), // Reduced vertical padding
+                  labelStyle: const TextStyle(fontSize: 12), // Reduced font size
+                  unselectedLabelStyle: const TextStyle(fontSize: 12), // Reduced font size
                   tabs: [
                     const Tab(
-                      icon: Icon(Icons.timeline, size: 16), // Reduced from 18 to 16
+                      icon: Icon(Icons.timeline, size: 14), // Reduced icon size
                       text: 'Timeline',
                     ),
                     if (AppFlags.isLumaraEnabled)
                       const Tab(
-                        icon: Icon(Icons.psychology, size: 16), // Reduced from 18 to 16
+                        icon: Icon(Icons.psychology, size: 14), // Reduced icon size
                         text: 'LUMARA',
                       ),
                     const Tab(
-                      icon: Icon(Icons.settings, size: 16), // Reduced from 18 to 16
+                      icon: Icon(Icons.settings, size: 14), // Reduced icon size
                       text: 'Settings',
                     ),
                   ],
