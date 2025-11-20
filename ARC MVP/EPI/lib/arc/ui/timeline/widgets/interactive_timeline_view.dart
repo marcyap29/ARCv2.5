@@ -601,18 +601,18 @@ class InteractiveTimelineViewState extends State<InteractiveTimelineView>
                                 Row(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
-                                    if (entry.hasArcform)
-                                      Icon(
-                                        Icons.auto_awesome,
-                                        size: 16,
-                                        color: kcPrimaryColor,
+                                if (entry.hasArcform)
+                                  Icon(
+                                    Icons.auto_awesome,
+                                    size: 16,
+                                    color: kcPrimaryColor,
                                       ),
                                     const SizedBox(width: 8),
                                     _FavoriteBookmarkButton(
                                       entryId: entry.id,
                                     ),
                                   ],
-                                ),
+                                  ),
                               ],
                             ),
                             // Entry title (if present)

@@ -575,6 +575,113 @@ class _SessionViewState extends State<SessionView> {
     );
   }
 
+  /// Show LUMARA menu options (long-press on send button)
+  void _showLumaraMenuOptions() {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => Container(
+        padding: const EdgeInsets.symmetric(vertical: 20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _buildMenuOption(
+              context,
+              Icons.insights,
+              'More depth',
+              () {
+                Navigator.pop(context);
+                _sendMessageWithIntent('more_depth');
+              },
+            ),
+            _buildMenuOption(
+              context,
+              Icons.lightbulb,
+              'Suggest some ideas',
+              () {
+                Navigator.pop(context);
+                _sendMessageWithIntent('suggest_ideas');
+              },
+            ),
+            _buildMenuOption(
+              context,
+              Icons.psychology,
+              'Help me think things through',
+              () {
+                Navigator.pop(context);
+                _sendMessageWithIntent('think_through');
+              },
+            ),
+            _buildMenuOption(
+              context,
+              Icons.flip,
+              'Offer a different perspective',
+              () {
+                Navigator.pop(context);
+                _sendMessageWithIntent('different_perspective');
+              },
+            ),
+            _buildMenuOption(
+              context,
+              Icons.navigation,
+              'Suggest next steps',
+              () {
+                Navigator.pop(context);
+                _sendMessageWithIntent('next_steps');
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMenuOption(BuildContext context, IconData icon, String title, VoidCallback onTap) {
+    return ListTile(
+      leading: Icon(icon, color: Theme.of(context).colorScheme.primary),
+      title: Text(title),
+      onTap: onTap,
+    );
+  }
+
+  void _sendMessageWithIntent(String intent) {
+    final message = _messageController.text.trim();
+    String intentMessage = message;
+    
+    switch (intent) {
+      case 'more_depth':
+        intentMessage = message.isEmpty 
+          ? 'Can you provide more depth on this topic?' 
+          : '$message\n\nCan you provide more depth on this?';
+        break;
+      case 'suggest_ideas':
+        intentMessage = message.isEmpty 
+          ? 'Can you suggest some ideas?' 
+          : '$message\n\nCan you suggest some ideas related to this?';
+        break;
+      case 'think_through':
+        intentMessage = message.isEmpty 
+          ? 'Help me think things through' 
+          : '$message\n\nHelp me think things through this.';
+        break;
+      case 'different_perspective':
+        intentMessage = message.isEmpty 
+          ? 'Can you offer a different perspective?' 
+          : '$message\n\nCan you offer a different perspective on this?';
+        break;
+      case 'next_steps':
+        intentMessage = message.isEmpty 
+          ? 'What are the next steps?' 
+          : '$message\n\nWhat are the next steps?';
+        break;
+    }
+    
+    _messageController.text = intentMessage;
+    _sendMessage();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -794,6 +901,18 @@ class _SessionViewState extends State<SessionView> {
                             );
                           },
                         ),
+                        // Bookmark icon to save entire chat
+                        IconButton(
+                          icon: Icon(
+                            _isChatSaved ? Icons.bookmark : Icons.bookmark_border,
+                            size: 16,
+                            color: _isChatSaved ? const Color(0xFF2196F3) : Colors.grey[600],
+                          ),
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(),
+                          onPressed: _toggleSaveChat,
+                          tooltip: _isChatSaved ? 'Unsave Chat' : 'Save Chat',
+                        ),
                       ],
                     ),
                   ],
@@ -885,15 +1004,19 @@ class _SessionViewState extends State<SessionView> {
                   onSubmitted: (_) => _sendMessage(),
                 ),
               ),
-              IconButton(
-                icon: _isSending
-                    ? const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.send),
-                onPressed: _isSending ? null : _sendMessage,
+              GestureDetector(
+                onLongPress: _isSending ? null : () => _showLumaraMenuOptions(),
+                child: IconButton(
+                  icon: _isSending
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.psychology),
+                  onPressed: _isSending ? null : _sendMessage,
+                  tooltip: 'Send (long-press for options)',
+                ),
               ),
               IconButton(
                 icon: const Icon(Icons.palette),

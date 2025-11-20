@@ -563,6 +563,137 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
     // If entry has text, directly generate a reflection using LUMARA
     _generateLumaraReflection();
   }
+
+  /// Show LUMARA menu options (long-press on LUMARA button)
+  void _showLumaraMenuOptions() {
+    if (!_isLumaraConfigured) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('LUMARA needs API key configuration'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+      return;
+    }
+
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => Container(
+        padding: const EdgeInsets.symmetric(vertical: 20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _buildMenuOption(
+              context,
+              Icons.insights,
+              'More depth',
+              () {
+                Navigator.pop(context);
+                _generateLumaraReflectionWithIntent('more_depth');
+              },
+            ),
+            _buildMenuOption(
+              context,
+              Icons.lightbulb,
+              'Suggest some ideas',
+              () {
+                Navigator.pop(context);
+                _generateLumaraReflectionWithIntent('suggest_ideas');
+              },
+            ),
+            _buildMenuOption(
+              context,
+              Icons.psychology,
+              'Help me think things through',
+              () {
+                Navigator.pop(context);
+                _generateLumaraReflectionWithIntent('think_through');
+              },
+            ),
+            _buildMenuOption(
+              context,
+              Icons.flip,
+              'Offer a different perspective',
+              () {
+                Navigator.pop(context);
+                _generateLumaraReflectionWithIntent('different_perspective');
+              },
+            ),
+            _buildMenuOption(
+              context,
+              Icons.navigation,
+              'Suggest next steps',
+              () {
+                Navigator.pop(context);
+                _generateLumaraReflectionWithIntent('next_steps');
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMenuOption(BuildContext context, IconData icon, String title, VoidCallback onTap) {
+    return ListTile(
+      leading: Icon(icon, color: Theme.of(context).colorScheme.primary),
+      title: Text(title),
+      onTap: onTap,
+    );
+  }
+
+  Future<void> _generateLumaraReflectionWithIntent(String intent) async {
+    // Store original text
+    final originalText = _entryState.text.trim();
+    
+    // Modify entry text temporarily to include intent
+    String intentPrompt = '';
+    switch (intent) {
+      case 'more_depth':
+        intentPrompt = originalText.isEmpty 
+          ? 'Can you provide more depth on this topic?' 
+          : '$originalText\n\nCan you provide more depth on this?';
+        break;
+      case 'suggest_ideas':
+        intentPrompt = originalText.isEmpty 
+          ? 'Can you suggest some ideas?' 
+          : '$originalText\n\nCan you suggest some ideas related to this?';
+        break;
+      case 'think_through':
+        intentPrompt = originalText.isEmpty 
+          ? 'Help me think things through' 
+          : '$originalText\n\nHelp me think things through this.';
+        break;
+      case 'different_perspective':
+        intentPrompt = originalText.isEmpty 
+          ? 'Can you offer a different perspective?' 
+          : '$originalText\n\nCan you offer a different perspective on this?';
+        break;
+      case 'next_steps':
+        intentPrompt = originalText.isEmpty 
+          ? 'What are the next steps?' 
+          : '$originalText\n\nWhat are the next steps?';
+        break;
+    }
+    
+    // Temporarily update entry state with intent prompt
+    setState(() {
+      _entryState.text = intentPrompt;
+      _textController.text = intentPrompt;
+    });
+    
+    // Generate reflection with intent
+    await _generateLumaraReflection();
+    
+    // Restore original text (the reflection will be added as a block, so we restore the entry text)
+    setState(() {
+      _entryState.text = originalText;
+      _textController.text = originalText;
+    });
+  }
   
   Future<void> _generateJournalingPrompt() async {
     // TODO: Implement journaling prompt generation based on entries, chats, drafts, media, phase
@@ -1621,27 +1752,30 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
                           ),
                         ),
                         
-                        // LUMARA button
-                        IconButton(
-                          onPressed: _onLumaraFabTapped,
-                          icon: Icon(
-                            Icons.psychology, 
-                            size: 18,
-                            color: _isLumaraConfigured 
-                              ? null 
-                              : theme.colorScheme.onSurface.withOpacity(0.5),
-                          ),
-                          tooltip: _isLumaraConfigured 
-                            ? 'Reflect with LUMARA' 
-                            : 'LUMARA needs API key configuration',
-                          padding: const EdgeInsets.all(4),
-                          constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
-                          style: IconButton.styleFrom(
-                            backgroundColor: _showLumaraBox 
-                              ? theme.colorScheme.primary.withOpacity(0.2)
-                              : _isLumaraConfigured 
+                        // LUMARA button with long-press menu
+                        GestureDetector(
+                          onLongPress: _isLumaraConfigured ? () => _showLumaraMenuOptions() : null,
+                          child: IconButton(
+                            onPressed: _onLumaraFabTapped,
+                            icon: Icon(
+                              Icons.psychology, 
+                              size: 18,
+                              color: _isLumaraConfigured 
                                 ? null 
-                                : theme.colorScheme.surface.withOpacity(0.5),
+                                : theme.colorScheme.onSurface.withOpacity(0.5),
+                            ),
+                            tooltip: _isLumaraConfigured 
+                              ? 'Reflect with LUMARA (long-press for options)' 
+                              : 'LUMARA needs API key configuration',
+                            padding: const EdgeInsets.all(4),
+                            constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
+                            style: IconButton.styleFrom(
+                              backgroundColor: _showLumaraBox 
+                                ? theme.colorScheme.primary.withOpacity(0.2)
+                                : _isLumaraConfigured 
+                                  ? null 
+                                  : theme.colorScheme.surface.withOpacity(0.5),
+                            ),
                           ),
                         ),
                         

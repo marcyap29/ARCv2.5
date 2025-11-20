@@ -1,7 +1,32 @@
 # EPI ARC MVP - Changelog
 
-**Version:** 2.1.24  
+**Version:** 2.1.25  
 **Last Updated:** January 2025
+
+## [2.1.25] - January 2025
+
+### **Chat UX Improvements - Delete and Edit Functionality**
+
+#### Fixed Delete Functionality
+- **LUMARA Message Deletion**: Fixed the delete button (X icon) on LUMARA message bubbles that was not working properly
+- **Error Handling**: Added comprehensive error handling with user feedback if deletion fails
+- **UI Updates**: Ensured proper state updates after message deletion to refresh the UI immediately
+- **Async Implementation**: Converted delete method to async for proper error handling and state management
+
+#### Improved Edit UX
+- **Visual Feedback**: Added clear visual indicators when editing messages:
+  - Highlighted border (2px primary color) around the message bubble being edited
+  - Background color change (lighter shade) to distinguish editing state
+  - "Editing..." label with edit icon for user messages
+- **Message Visibility**: Original message remains visible with clear visual feedback instead of appearing to disappear
+- **Better UX**: Users can now clearly see which message is being edited, eliminating confusion
+
+**Files Modified**:
+- `lib/arc/chat/ui/lumara_assistant_screen.dart` - Fixed delete functionality and improved edit UX
+
+**Status**: ✅ Complete - Delete button now works properly and edit UX is much clearer
+
+---
 
 ## [2.1.24] - January 2025
 

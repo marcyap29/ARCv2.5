@@ -649,24 +649,24 @@ class _EnhancedChatsScreenState extends State<EnhancedChatsScreen>
           ],
           // Regular Chat Sessions
           ..._filteredSessions.map((session) {
-            return _ChatSessionCard(
-              session: session,
-              isSelectionMode: _isSelectionMode,
-              isSelected: _selectedSessionIds.contains(session.id),
-              onTap: _isSelectionMode
-                ? () => _toggleSessionSelection(session.id)
-                : () => Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => SessionView(
-                        sessionId: session.id,
-                        chatRepo: ChatRepoImpl.instance,
-                      ),
+          return _ChatSessionCard(
+            session: session,
+            isSelectionMode: _isSelectionMode,
+            isSelected: _selectedSessionIds.contains(session.id),
+            onTap: _isSelectionMode
+              ? () => _toggleSessionSelection(session.id)
+              : () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => SessionView(
+                      sessionId: session.id,
+                      chatRepo: ChatRepoImpl.instance,
                     ),
                   ),
-              onPin: () => _pinSession(session),
-              onArchive: () => _archiveSession(session),
-            );
+                ),
+            onPin: () => _pinSession(session),
+            onArchive: () => _archiveSession(session),
+          );
           }),
         ],
       ),
@@ -925,14 +925,14 @@ class _SavedChatCard extends StatelessWidget {
           tooltip: 'Unsave chat',
         ),
         onTap: onTap,
-      ),
+          ),
     );
   }
 
   String _formatDate(DateTime date) {
     final now = DateTime.now();
     final difference = now.difference(date);
-    
+
     if (difference.inDays == 0) {
       return 'Today';
     } else if (difference.inDays == 1) {

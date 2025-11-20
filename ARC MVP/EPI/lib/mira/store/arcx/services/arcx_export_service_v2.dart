@@ -1471,12 +1471,12 @@ class ARCXExportServiceV2 {
         JsonEncoder.withIndent('  ').convert({
           'lumara_favorites': allFavorites.map((f) {
             final map = <String, dynamic>{
-              'id': f.id,
-              'content': f.content,
-              'timestamp': f.timestamp.toIso8601String(),
-              'source_id': f.sourceId,
-              'source_type': f.sourceType,
-              'metadata': f.metadata,
+            'id': f.id,
+            'content': f.content,
+            'timestamp': f.timestamp.toIso8601String(),
+            'source_id': f.sourceId,
+            'source_type': f.sourceType,
+            'metadata': f.metadata,
               'category': f.category, // New field
             };
             // Add category-specific fields

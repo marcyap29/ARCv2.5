@@ -572,6 +572,7 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
 
   Widget _buildMessageBubble(LumaraMessage message) {
     final isUser = message.role == LumaraMessageRole.user;
+    final isEditing = _editingMessageId == message.id;
 
     return Padding(
       key: Key('message_bubble_${message.id}'), // Unique key prevents GlobalKey conflicts
@@ -591,15 +592,47 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               decoration: BoxDecoration(
-                color: isUser ? Colors.blue[500] : Colors.grey[100],
+                color: isEditing 
+                  ? (isUser ? Colors.blue[400] : Colors.grey[200])
+                  : (isUser ? Colors.blue[500] : Colors.grey[100]),
                 borderRadius: BorderRadius.circular(18).copyWith(
                   bottomLeft: isUser ? const Radius.circular(18) : const Radius.circular(4),
                   bottomRight: isUser ? const Radius.circular(4) : const Radius.circular(18),
                 ),
+                border: isEditing 
+                  ? Border.all(
+                      color: Theme.of(context).colorScheme.primary,
+                      width: 2,
+                    )
+                  : null,
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // Editing indicator for user messages
+                  if (isEditing && isUser) ...[
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.edit,
+                          size: 14,
+                          color: Colors.white.withOpacity(0.9),
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          'Editing...',
+                          style: TextStyle(
+                            color: Colors.white.withOpacity(0.9),
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            fontStyle: FontStyle.italic,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                  ],
+                  
                   // Header with LUMARA icon and text (unified with in-journal UX)
                   if (!isUser) ...[
                     Row(
@@ -647,6 +680,7 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
                       style: TextStyle(
                         color: Colors.white,
                         fontSize: 16,
+                        decoration: isEditing ? TextDecoration.none : null,
                       ),
                     )
                   else
@@ -733,6 +767,32 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
                           constraints: const BoxConstraints(),
                           onPressed: () => _deleteMessage(message),
                           tooltip: 'Delete',
+                        ),
+                        // Bookmark icon to save entire chat
+                        FutureBuilder<String?>(
+                          future: _getCurrentSessionId(),
+                          builder: (context, snapshot) {
+                            final sessionId = snapshot.data;
+                            if (sessionId == null) return const SizedBox.shrink();
+                            
+                            return FutureBuilder<bool>(
+                              future: _isChatSaved(sessionId),
+                              builder: (context, savedSnapshot) {
+                                final isSaved = savedSnapshot.data ?? false;
+                                return IconButton(
+                                  icon: Icon(
+                                    isSaved ? Icons.bookmark : Icons.bookmark_border,
+                                    size: 16,
+                                    color: isSaved ? const Color(0xFF2196F3) : Colors.grey[600],
+                                  ),
+                                  padding: EdgeInsets.zero,
+                                  constraints: const BoxConstraints(),
+                                  onPressed: () => _toggleSaveChat(sessionId),
+                                  tooltip: isSaved ? 'Unsave Chat' : 'Save Chat',
+                                );
+                              },
+                            );
+                          },
                         ),
                       ],
                     ),
@@ -900,11 +960,15 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
                   ),
                 ),
               ),
-              IconButton(
-                icon: const Icon(Icons.send, size: 20),
-                padding: const EdgeInsets.all(8),
-                constraints: const BoxConstraints(),
-                onPressed: _sendCurrentMessage,
+              GestureDetector(
+                onLongPress: () => _showLumaraMenuOptions(),
+                child: IconButton(
+                  icon: const Icon(Icons.psychology, size: 20),
+                  padding: const EdgeInsets.all(8),
+                  constraints: const BoxConstraints(),
+                  onPressed: _sendCurrentMessage,
+                  tooltip: 'Send (long-press for options)',
+                ),
               ),
               IconButton(
                 icon: const Icon(Icons.palette, size: 20),
@@ -1050,29 +1114,20 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
     );
   }
 
-  void _deleteMessage(LumaraMessage message) {
+  Future<void> _deleteMessage(LumaraMessage message) async {
     // Show confirmation dialog
-    showDialog(
+    final shouldDelete = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Delete message?'),
         content: const Text('This message will be permanently deleted. This action cannot be undone.'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.of(context).pop(),
+            onPressed: () => Navigator.of(context).pop(false),
             child: const Text('Cancel'),
           ),
           TextButton(
-            onPressed: () {
-              Navigator.of(context).pop();
-              context.read<LumaraAssistantCubit>().deleteMessage(message.id);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Message deleted'),
-                  duration: Duration(seconds: 2),
-                ),
-              );
-            },
+            onPressed: () => Navigator.of(context).pop(true),
             style: TextButton.styleFrom(
               foregroundColor: Colors.red,
             ),
@@ -1081,6 +1136,37 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
         ],
       ),
     );
+
+    if (shouldDelete != true) return;
+
+    try {
+      // Delete the message through the cubit
+      await context.read<LumaraAssistantCubit>().deleteMessage(message.id);
+      
+      // Force UI update
+      if (mounted) {
+        setState(() {});
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Message deleted'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+    } catch (e) {
+      // Show error if deletion fails
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to delete message: ${e.toString()}'),
+            duration: const Duration(seconds: 3),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+      debugPrint('Error deleting message: $e');
+    }
   }
 
   Future<void> _toggleFavorite(LumaraMessage message) async {
@@ -1355,6 +1441,244 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
         ),
       ),
     );
+  }
+
+  /// Get current session ID from cubit
+  Future<String?> _getCurrentSessionId() async {
+    try {
+      final cubit = context.read<LumaraAssistantCubit>();
+      return cubit.currentChatSessionId;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  /// Check if chat is saved
+  Future<bool> _isChatSaved(String sessionId) async {
+    try {
+      await FavoritesService.instance.initialize();
+      final favorite = await FavoritesService.instance.findFavoriteChatBySessionId(sessionId);
+      return favorite != null;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  /// Toggle save chat
+  Future<void> _toggleSaveChat(String sessionId) async {
+    try {
+      await FavoritesService.instance.initialize();
+      final isSaved = await _isChatSaved(sessionId);
+      
+      if (isSaved) {
+        // Unsave chat
+        final favorite = await FavoritesService.instance.findFavoriteChatBySessionId(sessionId);
+        if (favorite != null) {
+          await FavoritesService.instance.removeFavorite(favorite.id);
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Chat unsaved'),
+                duration: Duration(seconds: 2),
+              ),
+            );
+            setState(() {}); // Refresh UI
+          }
+        }
+      } else {
+        // Save chat
+        final isAtCapacity = await FavoritesService.instance.isCategoryAtCapacity('chat');
+        if (isAtCapacity) {
+          _showChatCapacityPopup();
+          return;
+        }
+
+        // Get all messages from cubit state
+        final cubit = context.read<LumaraAssistantCubit>();
+        final state = cubit.state;
+        if (state is LumaraAssistantLoaded) {
+          final conversationText = state.messages.map((msg) {
+            final role = msg.role == LumaraMessageRole.user ? 'User' : 'LUMARA';
+            return '$role: ${msg.content}';
+          }).join('\n\n');
+
+          final favorite = LumaraFavorite.fromChatSession(
+            sessionId: sessionId,
+            content: 'Chat Session\n\n$conversationText',
+            sourceId: sessionId,
+            metadata: {
+              'messageCount': state.messages.length,
+            },
+          );
+
+          final added = await FavoritesService.instance.addSavedChat(favorite);
+          if (added && mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Chat saved'),
+                duration: Duration(seconds: 2),
+              ),
+            );
+            setState(() {}); // Refresh UI
+          } else if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Cannot save chat - at capacity (20/20)'),
+                duration: Duration(seconds: 2),
+                backgroundColor: Colors.orange,
+              ),
+            );
+          }
+        }
+      }
+    } catch (e) {
+      print('Error toggling save chat: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: ${e.toString()}'),
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    }
+  }
+
+  void _showChatCapacityPopup() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Saved Chats Full'),
+        content: const Text(
+          'You have reached the maximum of 20 saved chats. Please remove some saved chats before adding new ones.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const FavoritesManagementView(),
+                ),
+              );
+            },
+            child: const Text('Manage Favorites'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Show LUMARA menu options (long-press on send button)
+  void _showLumaraMenuOptions() {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => Container(
+        padding: const EdgeInsets.symmetric(vertical: 20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _buildMenuOption(
+              context,
+              Icons.insights,
+              'More depth',
+              () {
+                Navigator.pop(context);
+                _sendMessageWithIntent('more_depth');
+              },
+            ),
+            _buildMenuOption(
+              context,
+              Icons.lightbulb,
+              'Suggest some ideas',
+              () {
+                Navigator.pop(context);
+                _sendMessageWithIntent('suggest_ideas');
+              },
+            ),
+            _buildMenuOption(
+              context,
+              Icons.psychology,
+              'Help me think things through',
+              () {
+                Navigator.pop(context);
+                _sendMessageWithIntent('think_through');
+              },
+            ),
+            _buildMenuOption(
+              context,
+              Icons.flip,
+              'Offer a different perspective',
+              () {
+                Navigator.pop(context);
+                _sendMessageWithIntent('different_perspective');
+              },
+            ),
+            _buildMenuOption(
+              context,
+              Icons.navigation,
+              'Suggest next steps',
+              () {
+                Navigator.pop(context);
+                _sendMessageWithIntent('next_steps');
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMenuOption(BuildContext context, IconData icon, String title, VoidCallback onTap) {
+    return ListTile(
+      leading: Icon(icon, color: Theme.of(context).colorScheme.primary),
+      title: Text(title),
+      onTap: onTap,
+    );
+  }
+
+  void _sendMessageWithIntent(String intent) {
+    final message = _messageController.text.trim();
+    String intentMessage = message;
+    
+    switch (intent) {
+      case 'more_depth':
+        intentMessage = message.isEmpty 
+          ? 'Can you provide more depth on this topic?' 
+          : '$message\n\nCan you provide more depth on this?';
+        break;
+      case 'suggest_ideas':
+        intentMessage = message.isEmpty 
+          ? 'Can you suggest some ideas?' 
+          : '$message\n\nCan you suggest some ideas related to this?';
+        break;
+      case 'think_through':
+        intentMessage = message.isEmpty 
+          ? 'Help me think things through' 
+          : '$message\n\nHelp me think things through this.';
+        break;
+      case 'different_perspective':
+        intentMessage = message.isEmpty 
+          ? 'Can you offer a different perspective?' 
+          : '$message\n\nCan you offer a different perspective on this?';
+        break;
+      case 'next_steps':
+        intentMessage = message.isEmpty 
+          ? 'What are the next steps?' 
+          : '$message\n\nWhat are the next steps?';
+        break;
+    }
+    
+    _messageController.text = intentMessage;
+    _sendCurrentMessage();
   }
 
   /// Handle attribution weight changes

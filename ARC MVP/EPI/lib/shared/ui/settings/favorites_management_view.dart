@@ -172,7 +172,7 @@ class _FavoritesManagementViewState extends State<FavoritesManagementView> with 
               icon: const Icon(Icons.bookmark, color: Color(0xFF2196F3)),
               text: 'Entries ($entriesCount/20)',
             ),
-          ],
+        ],
         ),
       ),
       body: _isLoading
@@ -193,72 +193,72 @@ class _FavoritesManagementViewState extends State<FavoritesManagementView> with 
       return _buildEmptyState(theme, 'answer');
     }
     return Column(
-      children: [
-        // Explainer text
-        Container(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-          child: Text(
-            'With favorites, LUMARA can learn how to answer in a way that suits you.',
-            style: bodyStyle(context).copyWith(
-              color: kcSecondaryTextColor,
-              fontSize: 14,
-            ),
-          ),
-        ),
-        // Header with count and add button
-        Container(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-          child: Row(
-            children: [
-              const Icon(Icons.star, color: Color(0xFFFFB300), size: 24),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  '$count of 25 favorites',
-                  style: heading3Style(context).copyWith(
-                    color: kcPrimaryTextColor,
-                  ),
-                ),
-              ),
-              if (count >= 25)
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: Colors.orange.withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.orange, width: 1),
-                  ),
-                  child: Text(
-                    'Full',
-                    style: bodyStyle(context).copyWith(
-                      color: Colors.orange,
-                      fontWeight: FontWeight.w600,
+                  children: [
+                    // Explainer text
+                    Container(
+                      padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                      child: Text(
+                        'With favorites, LUMARA can learn how to answer in a way that suits you.',
+                        style: bodyStyle(context).copyWith(
+                          color: kcSecondaryTextColor,
+                          fontSize: 14,
+                        ),
+                      ),
                     ),
-                  ),
-                ),
+                    // Header with count and add button
+                    Container(
+                      padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                      child: Row(
+                        children: [
+              const Icon(Icons.star, color: Color(0xFFFFB300), size: 24),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                  '$count of 25 favorites',
+                              style: heading3Style(context).copyWith(
+                                color: kcPrimaryTextColor,
+                              ),
+                            ),
+                          ),
+              if (count >= 25)
+                            Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: Colors.orange.withOpacity(0.2),
+                                borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.orange, width: 1),
+                              ),
+                              child: Text(
+                                'Full',
+                                style: bodyStyle(context).copyWith(
+                                  color: Colors.orange,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
               if (count < 25) ...[
-                const SizedBox(width: 8),
-                IconButton(
-                  icon: const Icon(Icons.add_circle_outline),
+                            const SizedBox(width: 8),
+                            IconButton(
+                              icon: const Icon(Icons.add_circle_outline),
                   color: const Color(0xFFFFB300),
-                  onPressed: () => _showAddFavoriteDialog(),
-                  tooltip: 'Add Favorite',
-                ),
-              ],
-            ],
-          ),
-        ),
-        // Favorites list
-        Expanded(
-          child: ListView.builder(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
+                              onPressed: () => _showAddFavoriteDialog(),
+                              tooltip: 'Add Favorite',
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                    // Favorites list
+                    Expanded(
+                      child: ListView.builder(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
             itemCount: _answers.length,
-            itemBuilder: (context, index) {
+                        itemBuilder: (context, index) {
               return _buildFavoriteCard(theme, _answers[index]);
-            },
-          ),
-        ),
-      ],
+                        },
+                      ),
+                    ),
+                  ],
     );
   }
 
@@ -403,23 +403,23 @@ class _FavoritesManagementViewState extends State<FavoritesManagementView> with 
               textAlign: TextAlign.center,
             ),
             if (category == 'answer') ...[
-              const SizedBox(height: 24),
-              Text(
-                'How to add favorites:',
-                style: heading3Style(context).copyWith(
-                  color: kcPrimaryTextColor,
-                ),
+            const SizedBox(height: 24),
+            Text(
+              'How to add favorites:',
+              style: heading3Style(context).copyWith(
+                color: kcPrimaryTextColor,
               ),
-              const SizedBox(height: 12),
-              _buildInstructionItem(
-                Icons.star_border,
-                'Tap the star icon on any LUMARA answer',
-              ),
-              const SizedBox(height: 8),
-              _buildInstructionItem(
-                Icons.add_circle_outline,
-                'Use the + button to manually add a favorite',
-              ),
+            ),
+            const SizedBox(height: 12),
+            _buildInstructionItem(
+              Icons.star_border,
+              'Tap the star icon on any LUMARA answer',
+            ),
+            const SizedBox(height: 8),
+            _buildInstructionItem(
+              Icons.add_circle_outline,
+              'Use the + button to manually add a favorite',
+            ),
             ],
           ],
         ),
