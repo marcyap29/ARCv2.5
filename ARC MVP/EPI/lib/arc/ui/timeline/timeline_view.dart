@@ -94,17 +94,6 @@ class _TimelineViewContentState extends State<TimelineViewContent> {
     }
   }
 
-  void _onWritePressed() async {
-    // Clear any existing session cache to ensure fresh start
-    await JournalSessionCache.clearSession();
-
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => const JournalScreen(),
-      ),
-    );
-  }
 
   void _showJumpToDateDialog() {
     showDatePicker(
