@@ -405,12 +405,12 @@ class _TimelineViewContentState extends State<TimelineViewContent> {
             ),
         ] else ...[
           IconButton(
-            icon: const Icon(Icons.calendar_today),
+            icon: const Icon(Icons.calendar_today, size: 24), // Standardized to 24
             onPressed: _showJumpToDateDialog,
             tooltip: 'Jump to Date',
           ),
           IconButton(
-            icon: Icon(_isSearchExpanded ? Icons.search_off : Icons.search),
+            icon: Icon(_isSearchExpanded ? Icons.search_off : Icons.search, size: 24), // Standardized to 24
             onPressed: () {
               final wasExpanded = _isSearchExpanded;
               setState(() {
@@ -424,7 +424,7 @@ class _TimelineViewContentState extends State<TimelineViewContent> {
             tooltip: _isSearchExpanded ? 'Hide Search' : 'Search Entries',
           ),
                   IconButton(
-                    icon: const Icon(Icons.bookmark, color: Color(0xFF2196F3)),
+                    icon: const Icon(Icons.bookmark, color: Color(0xFF2196F3), size: 24), // Standardized to 24
                     onPressed: () {
                       Navigator.push(
                         context,
@@ -436,7 +436,7 @@ class _TimelineViewContentState extends State<TimelineViewContent> {
                     tooltip: 'Favorite Journal Entries',
           ),
           IconButton(
-            icon: const Icon(Icons.checklist),
+            icon: const Icon(Icons.checklist, size: 24), // Standardized to 24
             onPressed: () {
               _timelineViewKey.currentState?.enterSelectionMode();
               setState(() {
@@ -446,7 +446,7 @@ class _TimelineViewContentState extends State<TimelineViewContent> {
             tooltip: 'Select Mode',
           ),
           IconButton(
-            icon: const Icon(Icons.settings, size: 14),
+            icon: const Icon(Icons.settings, size: 24), // Standardized to 24 (was 14)
             onPressed: () {
               Navigator.push(
                 context,
