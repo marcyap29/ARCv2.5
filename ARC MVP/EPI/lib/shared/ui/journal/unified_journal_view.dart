@@ -82,21 +82,21 @@ class _UnifiedJournalViewState extends State<UnifiedJournalView>
               padding: const EdgeInsets.only(bottom: 4), // Add bottom padding to raise text above bar
               color: kcBackgroundColor,
               child: SizedBox(
-                height: 42, // Increased to 42 to accommodate increased bottom padding (icon 16 + spacing 1 + text 13 + top 2 + bottom 8 = 40, plus margin)
+                height: 42, // Increased height to accommodate icon+text+padding without overflow
                 child: TabBar(
                   controller: _tabController,
                   labelColor: Colors.white,
                   unselectedLabelColor: Colors.grey,
                   indicatorColor: Colors.purple,
                   indicatorWeight: 2, // Reduced from 3 to 2
-                  labelPadding: const EdgeInsets.only(left: 8.0, right: 8.0, top: 2, bottom: 10), // Bottom padding set to 10px
+                  labelPadding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 2), // Added vertical padding to raise text
                   labelStyle: const TextStyle(fontSize: 13), // Increased from 11 to 13 for better readability
                   unselectedLabelStyle: const TextStyle(fontSize: 13), // Increased from 11 to 13 for better readability
                   tabs: [
                     const Tab(
                       icon: Icon(Icons.timeline, size: 16), // Reduced from 18 to 16
                       text: 'Timeline',
-                    ),
+                      ),
                     const Tab(
                       icon: Icon(Icons.settings, size: 16), // Reduced from 18 to 16
                       text: 'Settings',
@@ -111,11 +111,11 @@ class _UnifiedJournalViewState extends State<UnifiedJournalView>
                 controller: _tabController,
                 physics: const NeverScrollableScrollPhysics(), // Disable swipe to prevent accessing Settings tab
                 children: [
-                  // Timeline tab
-                  const TimelineView(),
-                  // Settings placeholder (will navigate instead)
-                  const SizedBox.shrink(),
-                ],
+                        // Timeline tab
+                        const TimelineView(),
+                        // Settings placeholder (will navigate instead)
+                        const SizedBox.shrink(),
+                      ],
               ),
             ),
           ],
