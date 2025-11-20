@@ -70,12 +70,18 @@ class _CompactArcformPreviewState extends State<_CompactArcformPreview> {
       String currentPhase;
       
       if (currentRegime != null) {
-        currentPhase = currentRegime.label.toString().split('.').last;
+        final phaseName = currentRegime.label.toString().split('.').last;
+        currentPhase = phaseName.isEmpty 
+            ? 'Discovery' 
+            : phaseName[0].toUpperCase() + phaseName.substring(1).toLowerCase();
       } else {
         final allRegimes = phaseRegimeService.phaseIndex.allRegimes;
         if (allRegimes.isNotEmpty) {
           final sortedRegimes = List.from(allRegimes)..sort((a, b) => b.start.compareTo(a.start));
-          currentPhase = sortedRegimes.first.label.toString().split('.').last;
+          final phaseName = sortedRegimes.first.label.toString().split('.').last;
+          currentPhase = phaseName.isEmpty 
+              ? 'Discovery' 
+              : phaseName[0].toUpperCase() + phaseName.substring(1).toLowerCase();
         } else {
           currentPhase = 'Discovery';
         }
@@ -460,7 +466,11 @@ class _CompactArcformPreviewState extends State<_CompactArcformPreview> {
 
     // Use the exact same card building logic from SimplifiedArcformView3D
     final snapshot = _snapshots.first;
-    final phaseHint = snapshot['phaseHint'] ?? 'Discovery';
+    final phaseHintRaw = snapshot['phaseHint'] ?? 'Discovery';
+    // Capitalize the phase name (e.g., "transition" -> "Transition")
+    final phaseHint = phaseHintRaw.isEmpty 
+        ? 'Discovery' 
+        : phaseHintRaw[0].toUpperCase() + phaseHintRaw.substring(1).toLowerCase();
     final arcformData = _generateArcformData(snapshot, phaseHint);
 
     return GestureDetector(
@@ -540,7 +550,7 @@ class _CompactArcformPreviewState extends State<_CompactArcformPreview> {
                             skin: arcformData.skin,
                             showNebula: true,
                             enableLabels: false, // Disable labels for compact preview
-                            initialZoom: 2.0, // Compact zoom level
+                            initialZoom: 1.0, // Compact zoom level (zoomed out by 1/2)
                           ),
                         )
                       : Center(
