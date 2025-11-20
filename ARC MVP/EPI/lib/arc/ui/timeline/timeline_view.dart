@@ -4,7 +4,6 @@ import 'package:my_app/arc/ui/timeline/timeline_cubit.dart';
 import 'package:my_app/arc/ui/timeline/timeline_state.dart';
 import 'package:my_app/arc/ui/timeline/widgets/interactive_timeline_view.dart';
 import 'package:my_app/arc/ui/timeline/widgets/current_phase_arcform_preview.dart';
-import 'package:my_app/services/user_phase_service.dart';
 import 'package:my_app/shared/app_colors.dart';
 import 'package:my_app/shared/text_style.dart';
 import 'package:my_app/services/journal_session_cache.dart';
@@ -70,30 +69,10 @@ class _TimelineViewContentState extends State<TimelineViewContent> {
     });
   }
 
-  /// Check if phase has changed and refresh ArcformRendererCubit if needed
+  /// Check if phase has changed and refresh Arcform preview if needed
   Future<void> _checkAndRefreshPhase() async {
-    try {
-      // Get current phase from UserPhaseService
-      final currentPhase = await UserPhaseService.getCurrentPhase();
-      
-      // Get ArcformRendererCubit from context
-      final arcformCubit = context.read<ArcformRendererCubit>();
-      
-      // Check if cubit state has a different phase
-      if (arcformCubit.state is ArcformRendererLoaded) {
-        final state = arcformCubit.state as ArcformRendererLoaded;
-        if (state.currentPhase != currentPhase) {
-          print('Timeline: Phase changed from ${state.currentPhase} to $currentPhase, refreshing Arcform...');
-          await arcformCubit.refreshPhase();
-        }
-      } else {
-        // Not loaded yet, just refresh to load with current phase
-        await arcformCubit.refreshPhase();
-      }
-    } catch (e) {
-      print('Timeline: Error checking phase change: $e');
-      // Don't throw - phase check failure shouldn't break timeline
-    }
+    // Phase refresh is now handled by CurrentPhaseArcformPreview itself
+    // This method is kept for potential future use but does nothing
   }
 
   @override
@@ -209,79 +188,78 @@ class _TimelineViewContentState extends State<TimelineViewContent> {
   @override
   Widget build(BuildContext context) {
     return BlocBuilder<TimelineCubit, TimelineState>(
-        builder: (context, state) {
-          return Scaffold(
-            body: SafeArea(
-              child: NestedScrollView(
-                headerSliverBuilder: (BuildContext context, bool innerBoxIsScrolled) {
-                  return <Widget>[
-                    // Custom header (replaces AppBar) - scrolls with content
-                    if (!_isArcformTimelineVisible)
-                      SliverToBoxAdapter(
-                        child: _buildScrollableHeader(),
-                      ),
-                    // Phase preview - scrolls with content
-                    if (!_isArcformTimelineVisible && !_isSelectionMode)
-                      SliverToBoxAdapter(
-                        child: const CurrentPhaseArcformPreview(),
-                      ),
-                    // Search bar - scrolls with content
-                    if (!_isArcformTimelineVisible && _isSearchExpanded)
-                      SliverToBoxAdapter(
-                        child: AnimatedSize(
-                          duration: const Duration(milliseconds: 300),
-                          curve: Curves.easeInOut,
-                          child: Column(
-                            children: [
-                              _buildSearchBar(state),
-                              _buildFilterButtons(state),
-                            ],
-                          ),
+      builder: (context, state) {
+        return Scaffold(
+          body: SafeArea(
+            child: NestedScrollView(
+              headerSliverBuilder: (BuildContext context, bool innerBoxIsScrolled) {
+                return <Widget>[
+                  // Custom header (replaces AppBar) - scrolls with content
+                  if (!_isArcformTimelineVisible)
+                    SliverToBoxAdapter(
+                      child: _buildScrollableHeader(),
+                    ),
+                  // Phase preview - scrolls with content
+                  if (!_isArcformTimelineVisible && !_isSelectionMode)
+                    SliverToBoxAdapter(
+                      child: const CurrentPhaseArcformPreview(),
+                    ),
+                  // Search bar - scrolls with content
+                  if (!_isArcformTimelineVisible && _isSearchExpanded)
+                    SliverToBoxAdapter(
+                      child: AnimatedSize(
+                        duration: const Duration(milliseconds: 300),
+                        curve: Curves.easeInOut,
+                        child: Column(
+                          children: [
+                            _buildSearchBar(state),
+                            _buildFilterButtons(state),
+                          ],
                         ),
                       ),
-                    // Phase legend dropdown for arcform timeline
-                    if (_isArcformTimelineVisible)
-                      SliverToBoxAdapter(
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 16, vertical: 8),
-                          child: _buildPhaseLegendDropdown(context),
-                        ),
+                    ),
+                  // Phase legend dropdown for arcform timeline
+                  if (_isArcformTimelineVisible)
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 8),
+                        child: _buildPhaseLegendDropdown(context),
                       ),
-                  ];
-                },
-                body: InteractiveTimelineView(
-                  key: _timelineViewKey,
-                  scrollController: null, // Let NestedScrollView handle scrolling coordination
-                  onJumpToDate: _showJumpToDateDialog,
-                  onSelectionChanged: (isSelectionMode, selectedCount, totalEntries) {
-                    // Only update state if values actually changed to prevent rebuild loops
-                    if (_isSelectionMode != isSelectionMode || 
-                        _selectedCount != selectedCount || 
-                        _totalEntries != totalEntries) {
-                      setState(() {
-                        _isSelectionMode = isSelectionMode;
-                        _selectedCount = selectedCount;
-                        _totalEntries = totalEntries;
-                      });
-                    }
-                  },
-                  onArcformTimelineVisibilityChanged: (visible) {
+                    ),
+                ];
+              },
+              body: InteractiveTimelineView(
+                key: _timelineViewKey,
+                scrollController: null, // Let NestedScrollView handle scrolling coordination
+                onJumpToDate: _showJumpToDateDialog,
+                onSelectionChanged: (isSelectionMode, selectedCount, totalEntries) {
+                  // Only update state if values actually changed to prevent rebuild loops
+                  if (_isSelectionMode != isSelectionMode || 
+                      _selectedCount != selectedCount || 
+                      _totalEntries != totalEntries) {
                     setState(() {
-                      _isArcformTimelineVisible = visible;
-                      if (visible && _isSearchExpanded) {
-                        _isSearchExpanded = false;
-                        _searchController.clear();
-                        _timelineCubit.setSearchQuery('');
-                      }
+                      _isSelectionMode = isSelectionMode;
+                      _selectedCount = selectedCount;
+                      _totalEntries = totalEntries;
                     });
-                  },
-                ),
+                  }
+                },
+                onArcformTimelineVisibilityChanged: (visible) {
+                  setState(() {
+                    _isArcformTimelineVisible = visible;
+                    if (visible && _isSearchExpanded) {
+                      _isSearchExpanded = false;
+                      _searchController.clear();
+                      _timelineCubit.setSearchQuery('');
+                    }
+                  });
+                },
               ),
             ),
-          );
-        },
-      ),
+          ),
+        );
+      },
     );
   }
 
