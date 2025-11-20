@@ -18,10 +18,6 @@ import 'package:my_app/shared/ui/insights/unified_insights_view.dart';
 import 'package:my_app/ui/journal/journal_screen.dart';
 import 'package:my_app/services/journal_session_cache.dart';
 import 'package:my_app/arc/chat/ui/lumara_assistant_screen.dart';
-import 'package:my_app/arc/chat/bloc/lumara_assistant_cubit.dart';
-import 'package:my_app/arc/chat/data/context_provider.dart';
-import 'package:my_app/arc/chat/data/context_scope.dart';
-import 'package:my_app/core/app_flags.dart';
 
 // Debug flag for showing RIVET engineering labels
 const bool kShowRivetDebugLabels = false;
@@ -39,7 +35,7 @@ class _HomeViewState extends State<HomeView> {
   late HomeCubit _homeCubit;
   // Insights moved under Health as Analytics
   
-  // Navigation: Journal + LUMARA + Insights
+  // Navigation: 3 main tabs (Journal + LUMARA + Insights)
   List<TabItem> get _tabs {
     return const [
       TabItem(icon: Icons.book, text: 'Journal'),
@@ -51,10 +47,8 @@ class _HomeViewState extends State<HomeView> {
   List<String> get _tabNames {
     return const ['Journal', 'LUMARA', 'Insights'];
   }
-  
-  LumaraAssistantCubit? _lumaraCubit;
 
-  List<Widget> _pages = [];
+  late final List<Widget> _pages;
 
   @override
   void initState() {
@@ -72,28 +66,10 @@ class _HomeViewState extends State<HomeView> {
       _checkPhotoPermissionsAndRefresh();
     });
 
-    // Initialize LUMARA cubit if enabled
-    if (AppFlags.isLumaraEnabled) {
-      _lumaraCubit = LumaraAssistantCubit(
-        contextProvider: ContextProvider(LumaraScope.defaultScope),
-      );
-      _lumaraCubit!.initializeLumara();
-    }
-    
-    // Initialize pages after LUMARA cubit is created
-    _initializePages();
-  }
-  
-  void _initializePages() {
-    // Pages: Journal + LUMARA + Insights
+    // Pages: 3 main views
     _pages = [
-      const UnifiedJournalView(),  // index 0 - Journal (Timeline only)
-      AppFlags.isLumaraEnabled && _lumaraCubit != null
-          ? BlocProvider<LumaraAssistantCubit>.value(
-              value: _lumaraCubit!,
-              child: const LumaraAssistantScreen(),
-            )
-          : const SizedBox.shrink(), // index 1 - LUMARA
+      const UnifiedJournalView(),  // index 0 - Journal (Timeline)
+      const LumaraAssistantScreen(), // index 1 - LUMARA
       const UnifiedInsightsView(), // index 2 - Insights (Phase + Health + Analytics)
     ];
     
@@ -209,17 +185,8 @@ class _HomeViewState extends State<HomeView> {
                   ],
                 ),
               ),
-              bottomNavigationBar: CustomTabBar(
-                tabs: _tabs,
-                selectedIndex: selectedIndex,
-                onTabSelected: (index) {
-                  print('DEBUG: Tab selected: $index');
-                  print('DEBUG: Current selected index was: $selectedIndex');
-
-                  _homeCubit.changeTab(index);
-                },
-                showCenterButton: true,
-                onNewJournalPressed: () async {
+              floatingActionButton: FloatingActionButton(
+                onPressed: () async {
                   // Clear any existing session cache to ensure fresh start
                   await JournalSessionCache.clearSession();
                   
@@ -230,6 +197,24 @@ class _HomeViewState extends State<HomeView> {
                     ),
                   );
                 },
+                backgroundColor: kcPrimaryColor,
+                child: const Icon(
+                  Icons.add,
+                  color: Colors.white,
+                  size: 20, // Reduced by 1/3 from 30 to 20
+                ),
+              ),
+              floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
+              bottomNavigationBar: CustomTabBar(
+                tabs: _tabs,
+                selectedIndex: selectedIndex,
+                onTabSelected: (index) {
+                  print('DEBUG: Tab selected: $index');
+                  print('DEBUG: Current selected index was: $selectedIndex');
+
+                  _homeCubit.changeTab(index);
+                },
+                showCenterButton: false, // Moved to floating action button above
               ),
             );
           },
@@ -255,7 +240,6 @@ class _HomeViewState extends State<HomeView> {
   @override
   void dispose() {
     _homeCubit.close();
-    _lumaraCubit?.close();
     super.dispose();
   }
 }
