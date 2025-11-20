@@ -220,8 +220,8 @@ class _TimelineViewContentState extends State<TimelineViewContent> {
                   // Custom header (replaces AppBar) - scrolls with content, collapsible
                   if (!_isArcformTimelineVisible && _isTopBarVisible)
                     SliverToBoxAdapter(
-                      child: Column(
-                        children: [
+            child: Column(
+              children: [
                           _buildScrollableHeader(),
                           // Close button to hide the bar
                           GestureDetector(
@@ -250,6 +250,27 @@ class _TimelineViewContentState extends State<TimelineViewContent> {
                             ),
                           ),
                         ],
+                      ),
+                    ),
+                  // Timeline label - above Phase Preview, below dropdown
+                  if (!_isArcformTimelineVisible && !_isSelectionMode)
+                    SliverToBoxAdapter(
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 6), // Reduced by 1/2 from 12 to 6
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(Icons.timeline, size: 21), // Increased by 1/2 from 14 to 21
+                            const SizedBox(width: 4),
+                            Text(
+                              'Timeline',
+                              style: heading3Style(context).copyWith(
+                                fontSize: 17.0625, // Increased by 1/2 from 11.375 to 17.0625
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   // Phase preview - scrolls with content, below Timeline label
@@ -343,33 +364,16 @@ class _TimelineViewContentState extends State<TimelineViewContent> {
                       });
                     },
                   ),
-                if (_isSelectionMode)
-                  Expanded(
-                    child: Text(
-                      'Select Entries',
-                      style: heading1Style(context).copyWith(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w600,
-                      ),
-                      textAlign: TextAlign.center,
+                Expanded(
+                  child: Text(
+                    _isSelectionMode ? 'Select Entries' : 'Timeline',
+                    style: heading1Style(context).copyWith(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w600,
                     ),
-                  )
-                else
-                  Expanded(
-                    child: Row(
-                      children: [
-                        const Icon(Icons.timeline, size: 21),
-                        const SizedBox(width: 4),
-                        Text(
-                          'Timeline',
-                          style: heading3Style(context).copyWith(
-                            fontSize: 17.0625,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ],
-                    ),
+                    textAlign: TextAlign.center,
                   ),
+                ),
                 // Actions
                 if (_isSelectionMode) ...[
                   IconButton(
