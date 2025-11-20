@@ -117,14 +117,14 @@ class _CustomTabBarState extends State<CustomTabBar> {
         children: [
           Icon(
             tab.icon,
-            size: 20,
+            size: 25, // Increased by 1/4 from 20 to 25
             color: textColor,
           ),
           const SizedBox(height: 1),
           Text(
             tab.text!,
             style: TextStyle(
-              fontSize: 9,
+              fontSize: 11.25, // Increased by 1/4 from 9 to 11.25
               fontWeight: FontWeight.w500,
               color: textColor,
             ),
@@ -136,14 +136,14 @@ class _CustomTabBarState extends State<CustomTabBar> {
     } else if (tab.icon != null) {
       return Icon(
         tab.icon,
-        size: 20,
+        size: 25, // Increased by 1/4 from 20 to 25
         color: textColor,
       );
     } else {
       return Text(
         tab.text!,
         style: TextStyle(
-          fontSize: 12,
+          fontSize: 15, // Increased by 1/4 from 12 to 15
           fontWeight: FontWeight.w500,
           color: textColor,
         ),

@@ -185,43 +185,46 @@ class _HomeViewState extends State<HomeView> {
                   ],
                 ),
               ),
-              floatingActionButton: Container(
-                width: 40, // Reduced by 1/3 from 56 (default) to ~40
-                height: 40, // Reduced by 1/3 from 56 (default) to ~40
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: kcPrimaryColor,
-                  border: Border.all(
-                    color: kcPrimaryColor.withOpacity(0.3), // Reduced border opacity
-                    width: 1, // Reduced border width by 1/3 (from ~1.5 to 1)
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.15), // Reduced shadow opacity
-                      blurRadius: 4, // Reduced shadow blur by 1/3
-                      offset: const Offset(0, 2), // Reduced shadow offset
+              floatingActionButton: Transform.translate(
+                offset: const Offset(0, -20), // Raise by 1/2 diameter (40/2 = 20)
+                child: Container(
+                  width: 40, // Reduced by 1/3 from 56 (default) to ~40
+                  height: 40, // Reduced by 1/3 from 56 (default) to ~40
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: kcPrimaryColor,
+                    border: Border.all(
+                      color: kcPrimaryColor.withOpacity(0.3), // Reduced border opacity
+                      width: 1, // Reduced border width by 1/3 (from ~1.5 to 1)
                     ),
-                  ],
-                ),
-                child: Material(
-                  color: Colors.transparent,
-                  child: InkWell(
-                    onTap: () async {
-                      // Clear any existing session cache to ensure fresh start
-                      await JournalSessionCache.clearSession();
-                      
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const JournalScreen(),
-                        ),
-                      );
-                    },
-                    borderRadius: BorderRadius.circular(20),
-                    child: const Icon(
-                      Icons.add,
-                      color: Colors.white,
-                      size: 20, // Reduced by 1/3 from 30 to 20
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.15), // Reduced shadow opacity
+                        blurRadius: 4, // Reduced shadow blur by 1/3
+                        offset: const Offset(0, 2), // Reduced shadow offset
+                      ),
+                    ],
+                  ),
+                  child: Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      onTap: () async {
+                        // Clear any existing session cache to ensure fresh start
+                        await JournalSessionCache.clearSession();
+                        
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const JournalScreen(),
+                          ),
+                        );
+                      },
+                      borderRadius: BorderRadius.circular(20),
+                      child: const Icon(
+                        Icons.add,
+                        color: Colors.white,
+                        size: 20, // Reduced by 1/3 from 30 to 20
+                      ),
                     ),
                   ),
                 ),
