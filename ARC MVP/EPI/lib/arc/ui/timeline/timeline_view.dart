@@ -41,9 +41,6 @@ class _TimelineViewContentState extends State<TimelineViewContent> {
   // Search expansion state
   bool _isSearchExpanded = false;
   bool _isArcformTimelineVisible = false;
-  
-  // Top bar visibility state
-  bool _isTopBarVisible = false;
 
   @override
   void initState() {
