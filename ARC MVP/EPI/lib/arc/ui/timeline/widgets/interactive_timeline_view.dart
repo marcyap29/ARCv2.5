@@ -186,22 +186,10 @@ class InteractiveTimelineViewState extends State<InteractiveTimelineView>
               );
             }
 
-            return SafeArea(
-              child: Column(
-                children: [
-                  _buildTimelineHeader(),
-                  AnimatedSize(
-                    duration: const Duration(milliseconds: 250),
-                    curve: Curves.easeInOut,
-                    child: _buildArcformTimelineSection(),
-                  ),
-                  Expanded(
-                    child: _buildInteractiveTimeline(),
-                  ),
-                  _buildTimelineFooter(),
-                ],
-              ),
-            );
+            // When inside NestedScrollView, we need to return a scrollable widget
+            // The header, arcform section, and footer are handled by NestedScrollView's headerSliverBuilder
+            // So we just return the timeline list
+            return _buildInteractiveTimeline();
           }
 
           if (state is TimelineLoading) {

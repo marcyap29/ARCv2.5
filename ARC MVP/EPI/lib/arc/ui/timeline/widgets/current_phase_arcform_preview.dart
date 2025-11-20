@@ -136,13 +136,11 @@ class _CurrentPhaseArcformPreviewState extends State<CurrentPhaseArcformPreview>
           return GestureDetector(
             onTap: () {
               // Navigate to full Arcform view
+              // ArcformRendererView creates its own BlocProvider, so we don't need to pass the cubit
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => BlocProvider<ArcformRendererCubit>.value(
-                    value: context.read<ArcformRendererCubit>(),
-                    child: const ArcformRendererView(),
-                  ),
+                  builder: (context) => const ArcformRendererView(),
                 ),
               );
             },
