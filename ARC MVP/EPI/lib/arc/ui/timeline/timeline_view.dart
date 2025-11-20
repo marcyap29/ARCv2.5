@@ -350,7 +350,7 @@ class _TimelineViewContentState extends State<TimelineViewContent> {
           // Header bar with Timeline label, title and actions
           Container(
             height: kToolbarHeight,
-            padding: const EdgeInsets.only(left: 2, right: 16), // Left reduced by 1/2 (4 to 2), right increased by 2x (8 to 16)
+            padding: const EdgeInsets.only(left: 4, right: 64), // Left reverted to 4, right increased by 4x (16 to 64)
             child: Row(
               children: [
                 if (_isSelectionMode)
