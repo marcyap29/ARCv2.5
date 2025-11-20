@@ -209,16 +209,16 @@ class _TimelineViewContentState extends State<TimelineViewContent> {
                   if (!_isArcformTimelineVisible && !_isSelectionMode)
                     SliverToBoxAdapter(
                       child: Container(
-                        padding: const EdgeInsets.symmetric(vertical: 4), // Reduced from 12 to 4
+                        padding: const EdgeInsets.symmetric(vertical: 6), // Reduced by 1/2 from 12 to 6
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            const Icon(Icons.timeline, size: 14),
+                            const Icon(Icons.timeline, size: 21), // Increased by 1/2 from 14 to 21
                             const SizedBox(width: 4),
                             Text(
                               'Timeline',
                               style: heading3Style(context).copyWith(
-                                fontSize: 11.375,
+                                fontSize: 17.0625, // Increased by 1/2 from 11.375 to 17.0625
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
@@ -303,14 +303,14 @@ class _TimelineViewContentState extends State<TimelineViewContent> {
               children: [
                 if (_isSelectionMode)
                   IconButton(
-                    icon: const Icon(Icons.close),
-                    onPressed: () {
-                      _timelineViewKey.currentState?.exitSelectionMode();
-                      setState(() {
-                        _isSelectionMode = false;
-                        _selectedCount = 0;
-                      });
-                    },
+              icon: const Icon(Icons.close),
+              onPressed: () {
+                _timelineViewKey.currentState?.exitSelectionMode();
+                setState(() {
+                  _isSelectionMode = false;
+                  _selectedCount = 0;
+                });
+              },
                   ),
                 Expanded(
                   child: Text(
@@ -382,7 +382,7 @@ class _TimelineViewContentState extends State<TimelineViewContent> {
                       );
                     },
                     tooltip: 'Favorite Journal Entries',
-                  ),
+          ),
           IconButton(
             icon: const Icon(Icons.checklist),
             onPressed: () {
