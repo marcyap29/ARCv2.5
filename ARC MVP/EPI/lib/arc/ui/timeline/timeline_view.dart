@@ -182,38 +182,6 @@ class _TimelineViewContentState extends State<TimelineViewContent> {
             child: NestedScrollView(
               headerSliverBuilder: (BuildContext context, bool innerBoxIsScrolled) {
                 return <Widget>[
-                  // Subtle tab hint for top bar
-                  if (!_isArcformTimelineVisible && !_isTopBarVisible)
-                    SliverToBoxAdapter(
-                      child: GestureDetector(
-                        onTap: () {
-                          setState(() {
-                            _isTopBarVisible = true;
-                          });
-                        },
-                        child: Container(
-                          height: 24, // Increased from 8 to 24 for easier clicking
-                          margin: const EdgeInsets.symmetric(horizontal: 16),
-                          decoration: BoxDecoration(
-                            color: kcSurfaceAltColor.withOpacity(0.4), // Slightly more visible
-                            borderRadius: const BorderRadius.only(
-                              bottomLeft: Radius.circular(12),
-                              bottomRight: Radius.circular(12),
-                            ),
-                          ),
-                          child: Center(
-                            child: Container(
-                              width: 60, // Increased from 40 to 60
-                              height: 4, // Increased from 3 to 4
-                              decoration: BoxDecoration(
-                                color: kcPrimaryTextColor.withOpacity(0.5), // More visible
-                                borderRadius: BorderRadius.circular(2),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
                   // Custom header (replaces AppBar) - always visible, scrolls with content
                   if (!_isArcformTimelineVisible)
                     SliverToBoxAdapter(
