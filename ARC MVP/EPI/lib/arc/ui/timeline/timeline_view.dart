@@ -6,8 +6,6 @@ import 'package:my_app/arc/ui/timeline/widgets/interactive_timeline_view.dart';
 import 'package:my_app/arc/ui/timeline/widgets/current_phase_arcform_preview.dart';
 import 'package:my_app/shared/app_colors.dart';
 import 'package:my_app/shared/text_style.dart';
-import 'package:my_app/services/journal_session_cache.dart';
-import 'package:my_app/ui/journal/journal_screen.dart';
 import 'package:my_app/arc/ui/timeline/timeline_entry_model.dart';
 import 'package:my_app/models/phase_models.dart';
 import 'package:my_app/arc/ui/timeline/favorite_journal_entries_view.dart';
