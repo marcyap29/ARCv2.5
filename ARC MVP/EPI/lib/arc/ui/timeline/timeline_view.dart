@@ -459,11 +459,6 @@ class _TimelineViewContentState extends State<TimelineViewContent> {
             tooltip: 'Select Mode',
           ),
           IconButton(
-            icon: const Icon(Icons.add),
-            onPressed: _onWritePressed,
-            tooltip: 'New Entry',
-          ),
-          IconButton(
             icon: const Icon(Icons.settings, size: 14),
             onPressed: () {
               Navigator.push(
