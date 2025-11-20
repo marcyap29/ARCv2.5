@@ -195,21 +195,21 @@ class _TimelineViewContentState extends State<TimelineViewContent> {
                           });
                         },
                         child: Container(
-                          height: 8,
+                          height: 24, // Increased from 8 to 24 for easier clicking
                           margin: const EdgeInsets.symmetric(horizontal: 16),
                           decoration: BoxDecoration(
-                            color: kcSurfaceAltColor.withOpacity(0.3),
+                            color: kcSurfaceAltColor.withOpacity(0.4), // Slightly more visible
                             borderRadius: const BorderRadius.only(
-                              bottomLeft: Radius.circular(8),
-                              bottomRight: Radius.circular(8),
+                              bottomLeft: Radius.circular(12),
+                              bottomRight: Radius.circular(12),
                             ),
                           ),
                           child: Center(
                             child: Container(
-                              width: 40,
-                              height: 3,
+                              width: 60, // Increased from 40 to 60
+                              height: 4, // Increased from 3 to 4
                               decoration: BoxDecoration(
-                                color: kcPrimaryTextColor.withOpacity(0.3),
+                                color: kcPrimaryTextColor.withOpacity(0.5), // More visible
                                 borderRadius: BorderRadius.circular(2),
                               ),
                             ),
