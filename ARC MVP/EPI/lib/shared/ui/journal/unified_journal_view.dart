@@ -82,7 +82,7 @@ class _UnifiedJournalViewState extends State<UnifiedJournalView>
               padding: const EdgeInsets.only(bottom: 4), // Add bottom padding to raise text above bar
               color: kcBackgroundColor,
               child: SizedBox(
-                height: 38, // Reduced from 40 to 38
+                height: 42, // Increased to 42 to accommodate increased bottom padding (icon 16 + spacing 1 + text 13 + top 2 + bottom 8 = 40, plus margin)
                 child: TabBar(
                   controller: _tabController,
                   labelColor: Colors.white,
