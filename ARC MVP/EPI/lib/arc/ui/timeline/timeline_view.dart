@@ -4,8 +4,6 @@ import 'package:my_app/arc/ui/timeline/timeline_cubit.dart';
 import 'package:my_app/arc/ui/timeline/timeline_state.dart';
 import 'package:my_app/arc/ui/timeline/widgets/interactive_timeline_view.dart';
 import 'package:my_app/arc/ui/timeline/widgets/current_phase_arcform_preview.dart';
-import 'package:my_app/arc/ui/arcforms/arcform_renderer_cubit.dart';
-import 'package:my_app/arc/ui/arcforms/arcform_renderer_state.dart';
 import 'package:my_app/services/user_phase_service.dart';
 import 'package:my_app/shared/app_colors.dart';
 import 'package:my_app/shared/text_style.dart';
@@ -210,9 +208,7 @@ class _TimelineViewContentState extends State<TimelineViewContent> {
 
   @override
   Widget build(BuildContext context) {
-    return BlocProvider(
-      create: (context) => ArcformRendererCubit()..initialize(),
-      child: BlocBuilder<TimelineCubit, TimelineState>(
+    return BlocBuilder<TimelineCubit, TimelineState>(
         builder: (context, state) {
           return Scaffold(
             body: SafeArea(
