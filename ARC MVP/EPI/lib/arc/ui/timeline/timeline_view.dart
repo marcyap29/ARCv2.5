@@ -205,6 +205,27 @@ class _TimelineViewContentState extends State<TimelineViewContent> {
                     SliverToBoxAdapter(
                       child: const CurrentPhaseArcformPreview(),
                     ),
+                  // Timeline label - below Phase Preview, above journal entries
+                  if (!_isArcformTimelineVisible && !_isSelectionMode)
+                    SliverToBoxAdapter(
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(Icons.timeline, size: 14),
+                            const SizedBox(width: 4),
+                            Text(
+                              'Timeline',
+                              style: heading3Style(context).copyWith(
+                                fontSize: 11.375,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
                   // Search bar - scrolls with content
                   if (!_isArcformTimelineVisible && _isSearchExpanded)
                     SliverToBoxAdapter(
@@ -280,22 +301,6 @@ class _TimelineViewContentState extends State<TimelineViewContent> {
             padding: const EdgeInsets.symmetric(horizontal: 8),
             child: Row(
               children: [
-                // Timeline icon + text on the left
-                if (!_isSelectionMode)
-                  Row(
-                    children: [
-                      const Icon(Icons.timeline, size: 14),
-                      const SizedBox(width: 4),
-                      Text(
-                        'Timeline',
-                        style: heading3Style(context).copyWith(
-                          fontSize: 11.375,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                    ],
-                  ),
                 if (_isSelectionMode)
                   IconButton(
                     icon: const Icon(Icons.close),
