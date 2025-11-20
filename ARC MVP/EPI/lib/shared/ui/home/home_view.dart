@@ -17,6 +17,11 @@ import 'package:my_app/shared/ui/journal/unified_journal_view.dart';
 import 'package:my_app/shared/ui/insights/unified_insights_view.dart';
 import 'package:my_app/ui/journal/journal_screen.dart';
 import 'package:my_app/services/journal_session_cache.dart';
+import 'package:my_app/arc/chat/ui/lumara_assistant_screen.dart';
+import 'package:my_app/arc/chat/bloc/lumara_assistant_cubit.dart';
+import 'package:my_app/arc/chat/data/context_provider.dart';
+import 'package:my_app/arc/chat/data/context_scope.dart';
+import 'package:my_app/core/app_flags.dart';
 
 // Debug flag for showing RIVET engineering labels
 const bool kShowRivetDebugLabels = false;
@@ -34,19 +39,22 @@ class _HomeViewState extends State<HomeView> {
   late HomeCubit _homeCubit;
   // Insights moved under Health as Analytics
   
-  // Simplified navigation: Only 2 main tabs (Journal + Insights)
+  // Navigation: Journal + LUMARA + Insights
   List<TabItem> get _tabs {
     return const [
       TabItem(icon: Icons.book, text: 'Journal'),
+      TabItem(icon: Icons.psychology, text: 'LUMARA'),
       TabItem(icon: Icons.insights, text: 'Insights'),
     ];
   }
 
   List<String> get _tabNames {
-    return const ['Journal', 'Insights'];
+    return const ['Journal', 'LUMARA', 'Insights'];
   }
+  
+  LumaraAssistantCubit? _lumaraCubit;
 
-  late final List<Widget> _pages;
+  List<Widget> _pages = [];
 
   @override
   void initState() {
@@ -64,10 +72,29 @@ class _HomeViewState extends State<HomeView> {
       _checkPhotoPermissionsAndRefresh();
     });
 
-    // Simplified pages: Only 2 main views
+    // Initialize LUMARA cubit if enabled
+    if (AppFlags.isLumaraEnabled) {
+      _lumaraCubit = LumaraAssistantCubit(
+        contextProvider: ContextProvider(LumaraScope.defaultScope),
+      );
+      _lumaraCubit!.initializeLumara();
+    }
+    
+    // Initialize pages after LUMARA cubit is created
+    _initializePages();
+  }
+  
+  void _initializePages() {
+    // Pages: Journal + LUMARA + Insights
     _pages = [
-      const UnifiedJournalView(),  // index 0 - Journal (Timeline + LUMARA)
-      const UnifiedInsightsView(), // index 1 - Insights (Phase + Health + Analytics)
+      const UnifiedJournalView(),  // index 0 - Journal (Timeline only)
+      AppFlags.isLumaraEnabled && _lumaraCubit != null
+          ? BlocProvider<LumaraAssistantCubit>.value(
+              value: _lumaraCubit!,
+              child: const LumaraAssistantScreen(),
+            )
+          : const SizedBox.shrink(), // index 1 - LUMARA
+      const UnifiedInsightsView(), // index 2 - Insights (Phase + Health + Analytics)
     ];
     
     // Initialize ethereal music (P22)
@@ -142,8 +169,8 @@ class _HomeViewState extends State<HomeView> {
               context.read<TimelineCubit>().refreshEntries();
             }
             
-            // Refresh phase cache when switching to Insights tab (index 1)
-            if (state.selectedIndex == 1) {
+            // Refresh phase cache when switching to Insights tab (index 2)
+            if (state.selectedIndex == 2) {
               _refreshPhaseCache();
             }
           }
@@ -228,6 +255,7 @@ class _HomeViewState extends State<HomeView> {
   @override
   void dispose() {
     _homeCubit.close();
+    _lumaraCubit?.close();
     super.dispose();
   }
 }

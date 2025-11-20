@@ -26,92 +26,124 @@ class CustomTabBar extends StatefulWidget {
 class _CustomTabBarState extends State<CustomTabBar> {
   @override
   Widget build(BuildContext context) {
-    return Container(
-      height: widget.height ?? 65,
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
-      padding: const EdgeInsets.only(
-        left: 8,
-        right: 8,
-        top: 2,
-        bottom: 12, // Increased bottom padding for better spacing
-      ),
-      decoration: BoxDecoration(
-        color: kcSurfaceAltColor,
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.2),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        Container(
+          height: widget.height ?? 65,
+          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
+          padding: const EdgeInsets.only(
+            left: 8,
+            right: 8,
+            top: 2,
+            bottom: 12, // Increased bottom padding for better spacing
           ),
-        ],
-      ),
-      child: Row(
-        children: [
-          // First tab
-          Expanded(
-            child: GestureDetector(
-              onTap: () => widget.onTabSelected(0),
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 250),
-                margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-                decoration: BoxDecoration(
-                  gradient: widget.selectedIndex == 0 ? kcPrimaryGradient : null,
-                  color: widget.selectedIndex == 0 ? null : kcSurfaceAltColor,
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Center(
-                  child: _buildTabContent(widget.tabs[0], widget.selectedIndex == 0),
-                ),
+          decoration: BoxDecoration(
+            color: kcSurfaceAltColor,
+            borderRadius: BorderRadius.circular(24),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.2),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
               ),
-            ),
+            ],
           ),
-          // Center button (if enabled)
-          if (widget.showCenterButton && widget.onNewJournalPressed != null)
-            GestureDetector(
-              onTap: widget.onNewJournalPressed,
-              child: Container(
-                width: 40,
-                height: 40,
-                margin: const EdgeInsets.symmetric(horizontal: 4),
-                decoration: BoxDecoration(
-                  gradient: kcPrimaryGradient,
-                  shape: BoxShape.circle,
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.2),
-                      blurRadius: 6,
-                      offset: const Offset(0, 2),
+          child: Row(
+            children: [
+              // First tab (Journal)
+              Expanded(
+                child: GestureDetector(
+                  onTap: () => widget.onTabSelected(0),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 250),
+                    margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                    decoration: BoxDecoration(
+                      gradient: widget.selectedIndex == 0 ? kcPrimaryGradient : null,
+                      color: widget.selectedIndex == 0 ? null : kcSurfaceAltColor,
+                      borderRadius: BorderRadius.circular(16),
                     ),
-                  ],
-                ),
-                child: const Icon(
-                  Icons.add,
-                  color: Colors.white,
-                  size: 20,
+                    child: Center(
+                      child: _buildTabContent(widget.tabs[0], widget.selectedIndex == 0),
+                    ),
+                  ),
                 ),
               ),
-            ),
-          // Second tab
-          Expanded(
-            child: GestureDetector(
-              onTap: () => widget.onTabSelected(1),
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 250),
-                margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-                decoration: BoxDecoration(
-                  gradient: widget.selectedIndex == 1 ? kcPrimaryGradient : null,
-                  color: widget.selectedIndex == 1 ? null : kcSurfaceAltColor,
-                  borderRadius: BorderRadius.circular(16),
+              // Spacer for center button (if enabled)
+              if (widget.showCenterButton && widget.onNewJournalPressed != null)
+                const SizedBox(width: 40),
+              // Second tab (LUMARA)
+              Expanded(
+                child: GestureDetector(
+                  onTap: () => widget.onTabSelected(1),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 250),
+                    margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                    decoration: BoxDecoration(
+                      gradient: widget.selectedIndex == 1 ? kcPrimaryGradient : null,
+                      color: widget.selectedIndex == 1 ? null : kcSurfaceAltColor,
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Center(
+                      child: _buildTabContent(widget.tabs[1], widget.selectedIndex == 1),
+                    ),
+                  ),
                 ),
-                child: Center(
-                  child: _buildTabContent(widget.tabs[1], widget.selectedIndex == 1),
+              ),
+              // Third tab (Insights)
+              Expanded(
+                child: GestureDetector(
+                  onTap: () => widget.onTabSelected(2),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 250),
+                    margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                    decoration: BoxDecoration(
+                      gradient: widget.selectedIndex == 2 ? kcPrimaryGradient : null,
+                      color: widget.selectedIndex == 2 ? null : kcSurfaceAltColor,
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Center(
+                      child: _buildTabContent(widget.tabs[2], widget.selectedIndex == 2),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        // Center button positioned above the bar
+        if (widget.showCenterButton && widget.onNewJournalPressed != null)
+          Positioned(
+            top: -20, // Position above the bar
+            left: 0,
+            right: 0,
+            child: Center(
+              child: GestureDetector(
+                onTap: widget.onNewJournalPressed,
+                child: Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    gradient: kcPrimaryGradient,
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.2),
+                        blurRadius: 6,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: const Icon(
+                    Icons.add,
+                    color: Colors.white,
+                    size: 13, // Reduced by 1/3 (from 20 to ~13)
+                  ),
                 ),
               ),
             ),
           ),
-        ],
-      ),
+      ],
     );
   }
 
