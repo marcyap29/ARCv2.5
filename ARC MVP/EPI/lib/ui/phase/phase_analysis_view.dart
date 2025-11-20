@@ -18,6 +18,7 @@ import '../../shared/app_colors.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:hive/hive.dart';
 import 'package:my_app/models/user_profile_model.dart';
+import 'package:my_app/shared/ui/settings/settings_view.dart';
 
 class PhaseAnalysisView extends StatefulWidget {
   const PhaseAnalysisView({super.key});
