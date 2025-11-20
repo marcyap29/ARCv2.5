@@ -252,12 +252,7 @@ class _TimelineViewContentState extends State<TimelineViewContent> {
                         ],
                       ),
                     ),
-                  // Phase preview - scrolls with content
-                  if (!_isArcformTimelineVisible && !_isSelectionMode)
-                    SliverToBoxAdapter(
-                      child: const CurrentPhaseArcformPreview(),
-                    ),
-                  // Timeline label - below Phase Preview, above journal entries
+                  // Timeline label - above Phase Preview, below dropdown
                   if (!_isArcformTimelineVisible && !_isSelectionMode)
                     SliverToBoxAdapter(
                       child: Container(
@@ -277,6 +272,11 @@ class _TimelineViewContentState extends State<TimelineViewContent> {
                           ],
                         ),
                       ),
+                    ),
+                  // Phase preview - scrolls with content, below Timeline label
+                  if (!_isArcformTimelineVisible && !_isSelectionMode)
+                    SliverToBoxAdapter(
+                      child: const CurrentPhaseArcformPreview(),
                     ),
                   // Search bar - scrolls with content
                   if (!_isArcformTimelineVisible && _isSearchExpanded)

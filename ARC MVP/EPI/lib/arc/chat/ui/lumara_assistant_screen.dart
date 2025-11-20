@@ -247,35 +247,76 @@ class _LumaraAssistantScreenState extends State<LumaraAssistantScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('LUMARA Assistant'),
+        title: const Text('LUMARA'),
         automaticallyImplyLeading: false, // Remove back button since this is a tab
         actions: [
-          IconButton(
-            icon: const Icon(Icons.edit),
-            onPressed: () => _startNewChat(),
-            tooltip: 'New Chat',
-          ),
-          IconButton(
-            icon: const Icon(Icons.settings),
-            onPressed: () => _showEnhancedSettings(),
-            tooltip: 'API Settings',
-          ),
-          IconButton(
-            icon: const Icon(Icons.history),
-            onPressed: () => Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => EnhancedChatsScreen(
-                  chatRepo: EnhancedChatRepoImpl(ChatRepoImpl.instance),
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.more_vert),
+            onSelected: (value) {
+              switch (value) {
+                case 'new_chat':
+                  _startNewChat();
+                  break;
+                case 'settings':
+                  _showEnhancedSettings();
+                  break;
+                case 'history':
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => EnhancedChatsScreen(
+                        chatRepo: EnhancedChatRepoImpl(ChatRepoImpl.instance),
+                      ),
+                    ),
+                  );
+                  break;
+                case 'clear':
+                  _clearChat();
+                  break;
+              }
+            },
+            itemBuilder: (BuildContext context) => [
+              const PopupMenuItem<String>(
+                value: 'new_chat',
+                child: Row(
+                  children: [
+                    Icon(Icons.edit, size: 20),
+                    SizedBox(width: 12),
+                    Text('New Chat'),
+                  ],
                 ),
               ),
-            ),
-            tooltip: 'Chat History',
-          ),
-          IconButton(
-            icon: const Icon(Icons.clear_all),
-            onPressed: () => _clearChat(),
-            tooltip: 'Clear Chat',
+              const PopupMenuItem<String>(
+                value: 'settings',
+                child: Row(
+                  children: [
+                    Icon(Icons.settings, size: 20),
+                    SizedBox(width: 12),
+                    Text('LUMARA Settings'),
+                  ],
+                ),
+              ),
+              const PopupMenuItem<String>(
+                value: 'history',
+                child: Row(
+                  children: [
+                    Icon(Icons.history, size: 20),
+                    SizedBox(width: 12),
+                    Text('History'),
+                  ],
+                ),
+              ),
+              const PopupMenuItem<String>(
+                value: 'clear',
+                child: Row(
+                  children: [
+                    Icon(Icons.clear_all, size: 20),
+                    SizedBox(width: 12),
+                    Text('Clear History'),
+                  ],
+                ),
+              ),
+            ],
           ),
         ],
       ),
