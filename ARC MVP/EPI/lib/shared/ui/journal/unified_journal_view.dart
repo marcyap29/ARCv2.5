@@ -106,20 +106,20 @@ class _UnifiedJournalViewState extends State<UnifiedJournalView>
                   indicatorColor: Colors.purple,
                   indicatorWeight: 2,
                   labelPadding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 0), // Reduced vertical padding
-                  labelStyle: const TextStyle(fontSize: 12), // Reduced font size
-                  unselectedLabelStyle: const TextStyle(fontSize: 12), // Reduced font size
+                  labelStyle: const TextStyle(fontSize: 13), // Increased from 11 to 13 for better readability
+                  unselectedLabelStyle: const TextStyle(fontSize: 13), // Increased from 11 to 13 for better readability
                   tabs: [
                     const Tab(
-                      icon: Icon(Icons.timeline, size: 14), // Reduced icon size
+                      icon: Icon(Icons.timeline, size: 16), // Reduced from 18 to 16
                       text: 'Timeline',
                     ),
                     if (AppFlags.isLumaraEnabled)
                       const Tab(
-                        icon: Icon(Icons.psychology, size: 14), // Reduced icon size
+                        icon: Icon(Icons.psychology, size: 16), // Reduced from 18 to 16
                         text: 'LUMARA',
                       ),
                     const Tab(
-                      icon: Icon(Icons.settings, size: 14), // Reduced icon size
+                      icon: Icon(Icons.settings, size: 16), // Reduced from 18 to 16
                       text: 'Settings',
                     ),
                   ],
