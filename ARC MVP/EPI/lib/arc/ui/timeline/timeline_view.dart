@@ -209,7 +209,7 @@ class _TimelineViewContentState extends State<TimelineViewContent> {
                   if (!_isArcformTimelineVisible && !_isSelectionMode)
                     SliverToBoxAdapter(
                       child: Container(
-                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        padding: const EdgeInsets.symmetric(vertical: 4), // Reduced from 12 to 4
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
