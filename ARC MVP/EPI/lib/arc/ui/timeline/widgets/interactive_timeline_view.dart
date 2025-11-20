@@ -40,12 +40,14 @@ class InteractiveTimelineView extends StatefulWidget {
   final VoidCallback? onJumpToDate;
   final Function(bool isSelectionMode, int selectedCount, int totalEntries)? onSelectionChanged;
   final ValueChanged<bool>? onArcformTimelineVisibilityChanged;
+  final ScrollController? scrollController; // Optional - if null, NestedScrollView will handle scrolling
   
   const InteractiveTimelineView({
     super.key,
     this.onJumpToDate,
     this.onSelectionChanged,
     this.onArcformTimelineVisibilityChanged,
+    this.scrollController,
   });
 
   @override
@@ -60,7 +62,7 @@ class InteractiveTimelineViewState extends State<InteractiveTimelineView>
   List<TimelineEntry> _entries = [];
   bool _isSelectionMode = false;
   final Set<String> _selectedEntryIds = {};
-  late ScrollController _scrollController;
+  ScrollController? _scrollController;
   
   // Track previous notification state to prevent unnecessary callbacks
   bool _previousSelectionMode = false;
@@ -75,7 +77,9 @@ class InteractiveTimelineViewState extends State<InteractiveTimelineView>
   @override
   void initState() {
     super.initState();
-    _scrollController = ScrollController();
+    // Use provided scroll controller
+    // When null is provided (inside NestedScrollView), we'll use PrimaryScrollController in build()
+    _scrollController = widget.scrollController;
     _fadeController = AnimationController(
       duration: const Duration(milliseconds: 300),
       vsync: this,
@@ -86,7 +90,10 @@ class InteractiveTimelineViewState extends State<InteractiveTimelineView>
 
   @override
   void dispose() {
-    _scrollController.dispose();
+    // Only dispose if we created the controller ourselves
+    if (widget.scrollController == null) {
+      _scrollController?.dispose();
+    }
     _fadeController.dispose();
     super.dispose();
   }
@@ -342,10 +349,14 @@ class InteractiveTimelineViewState extends State<InteractiveTimelineView>
       );
     }
 
+    // Get scroll controller: use provided one, or PrimaryScrollController from NestedScrollView
+    // If neither is available, ListView will create its own internal controller
+    final scrollController = _scrollController ?? PrimaryScrollController.maybeOf(context);
+    
     return RefreshIndicator(
       onRefresh: _refreshTimeline,
       child: ListView.builder(
-        controller: _scrollController,
+        controller: scrollController,
         physics: const AlwaysScrollableScrollPhysics(),
         itemCount: sortedEntries.length,
         itemBuilder: (context, index) {

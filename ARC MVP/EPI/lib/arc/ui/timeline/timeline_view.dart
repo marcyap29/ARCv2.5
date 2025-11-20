@@ -256,6 +256,7 @@ class _TimelineViewContentState extends State<TimelineViewContent> {
                 },
                 body: InteractiveTimelineView(
                   key: _timelineViewKey,
+                  scrollController: null, // Let NestedScrollView handle scrolling coordination
                   onJumpToDate: _showJumpToDateDialog,
                   onSelectionChanged: (isSelectionMode, selectedCount, totalEntries) {
                     // Only update state if values actually changed to prevent rebuild loops
