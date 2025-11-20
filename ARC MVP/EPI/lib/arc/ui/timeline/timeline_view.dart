@@ -266,14 +266,14 @@ class _TimelineViewContentState extends State<TimelineViewContent> {
           children: [
             if (_isSelectionMode)
               IconButton(
-                icon: const Icon(Icons.close),
-                onPressed: () {
-                  _timelineViewKey.currentState?.exitSelectionMode();
-                  setState(() {
-                    _isSelectionMode = false;
-                    _selectedCount = 0;
-                  });
-                },
+              icon: const Icon(Icons.close),
+              onPressed: () {
+                _timelineViewKey.currentState?.exitSelectionMode();
+                setState(() {
+                  _isSelectionMode = false;
+                  _selectedCount = 0;
+                });
+              },
               ),
             // Timeline label with icon - centered
             Expanded(
@@ -293,35 +293,35 @@ class _TimelineViewContentState extends State<TimelineViewContent> {
               ),
             ),
             // Actions
-            if (_isSelectionMode) ...[
-              IconButton(
-                icon: const Icon(Icons.select_all),
-                onPressed: () {
-                  if (_selectedCount == _totalEntries) {
-                    _timelineViewKey.currentState?.deselectAll();
-                  } else {
-                    _timelineViewKey.currentState?.selectAll();
-                  }
-                },
-                tooltip:
-                    _selectedCount == _totalEntries ? 'Deselect All' : 'Select All',
-              ),
-              IconButton(
-                icon: const Icon(Icons.clear),
-                onPressed: () {
-                  _timelineViewKey.currentState?.clearSelection();
-                },
-                tooltip: 'Clear Selection',
-              ),
-              if (_selectedCount > 0)
-                IconButton(
-                  icon: const Icon(Icons.delete),
-                  onPressed: () {
-                    _timelineViewKey.currentState?.deleteSelectedEntries();
-                  },
-                  tooltip: 'Delete Selected',
-                ),
-            ] else ...[
+        if (_isSelectionMode) ...[
+          IconButton(
+            icon: const Icon(Icons.select_all),
+            onPressed: () {
+              if (_selectedCount == _totalEntries) {
+                _timelineViewKey.currentState?.deselectAll();
+              } else {
+                _timelineViewKey.currentState?.selectAll();
+              }
+            },
+            tooltip:
+                _selectedCount == _totalEntries ? 'Deselect All' : 'Select All',
+          ),
+          IconButton(
+            icon: const Icon(Icons.clear),
+            onPressed: () {
+              _timelineViewKey.currentState?.clearSelection();
+            },
+            tooltip: 'Clear Selection',
+          ),
+          if (_selectedCount > 0)
+            IconButton(
+              icon: const Icon(Icons.delete),
+              onPressed: () {
+                _timelineViewKey.currentState?.deleteSelectedEntries();
+              },
+              tooltip: 'Delete Selected',
+            ),
+        ] else ...[
               PopupMenuButton<String>(
                 icon: const Icon(Icons.more_vert),
                 onSelected: (value) {
@@ -330,12 +330,12 @@ class _TimelineViewContentState extends State<TimelineViewContent> {
                       _showJumpToDateDialog();
                       break;
                     case 'search':
-                      setState(() {
-                        _isSearchExpanded = !_isSearchExpanded;
+              setState(() {
+                _isSearchExpanded = !_isSearchExpanded;
                         if (!_isSearchExpanded) {
-                          _searchController.clear();
-                          _timelineCubit.setSearchQuery('');
-                        }
+                _searchController.clear();
+                _timelineCubit.setSearchQuery('');
+              }
                       });
                       break;
                     case 'favorites':
@@ -347,10 +347,10 @@ class _TimelineViewContentState extends State<TimelineViewContent> {
                       );
                       break;
                     case 'select_mode':
-                      _timelineViewKey.currentState?.enterSelectionMode();
-                      setState(() {
-                        _isSelectionMode = true;
-                      });
+              _timelineViewKey.currentState?.enterSelectionMode();
+              setState(() {
+                _isSelectionMode = true;
+              });
                       break;
                     case 'settings':
                       Navigator.push(
@@ -417,9 +417,9 @@ class _TimelineViewContentState extends State<TimelineViewContent> {
                     ),
                   ),
                 ],
-              ),
-            ],
-          ],
+          ),
+        ],
+      ],
         ),
       ),
     );
